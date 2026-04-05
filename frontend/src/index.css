@@ -43,7 +43,7 @@ h1, h2, h3, h4, h5, h6 {
     --card-foreground: 0 0% 4%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 4%;
-    --primary: 145 100% 39%;
+    --primary: 152 100% 39%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -55,7 +55,7 @@ h1, h2, h3, h4, h5, h6 {
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 145 100% 39%;
+    --ring: 152 100% 39%;
     --radius: 0.75rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;

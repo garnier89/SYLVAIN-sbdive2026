@@ -35,7 +35,7 @@ const UserHome = () => {
   ];
 
   return (
-    <div className="mobile-container bg-background min-h-screen pb-20">
+    <div className="mobile-container min-h-screen pb-20 bg-white text-gray-900">
       {/* Header */}
       <div className="p-4 pt-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -159,8 +159,8 @@ const UserHome = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t">
-        <div className="mobile-container flex items-center justify-around py-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-50">
+        <div className="max-w-[430px] mx-auto flex items-center justify-around py-3">
           <button className="flex flex-col items-center gap-1 text-primary" data-testid="nav-home">
             <House size={24} weight="duotone" />
             <span className="text-xs font-medium">Home</span>

@@ -166,7 +166,8 @@ const RegisterPage = () => {
 
             <Button
               type="submit"
-              className="w-full bg-primary hover:bg-primary/90 text-white rounded-full h-12"
+              className="w-full rounded-full h-12"
+              style={{ backgroundColor: '#00C853', color: 'white' }}
               disabled={loading}
               data-testid="register-submit-btn"
             >

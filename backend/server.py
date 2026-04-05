@@ -461,8 +461,8 @@ async def register(data: UserRegister, response: Response):
     access_token = create_access_token(user_id, email, user_doc["role"])
     refresh_token = create_refresh_token(user_id)
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=900, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     user_doc.pop("password_hash", None)
     user_doc.pop("_id", None)
@@ -506,8 +506,8 @@ async def login(data: UserLogin, request: Request, response: Response):
     access_token = create_access_token(user["id"], email, user["role"])
     refresh_token = create_refresh_token(user["id"])
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=900, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     user.pop("password_hash", None)
     if isinstance(user.get("created_at"), str):
@@ -604,8 +604,8 @@ async def google_session(request: Request, response: Response):
     access_token = create_access_token(user["id"], email, user["role"])
     refresh_token = create_refresh_token(user["id"])
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=900, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     user.pop("password_hash", None)
     if isinstance(user.get("created_at"), str):
@@ -1696,11 +1696,12 @@ async def health():
 # Include router
 app.include_router(api_router)
 
-# CORS
+# CORS - Must specify exact origin when allow_credentials=True
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://gojek-mvp-1.preview.emergentagent.com")
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=[FRONTEND_URL, "http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
