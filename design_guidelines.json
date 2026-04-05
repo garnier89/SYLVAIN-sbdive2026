@@ -1,0 +1,88 @@
+{
+  "theme": "hybrid",
+  "archetypes": {
+    "mobile_apps": "Archetype 1: Organic & Earthy (Light) - adapted for Super App (High Contrast)",
+    "dashboards": "Archetype 4: Swiss & High-Contrast (Dark mode for Dispatcher, Light mode for Admin)"
+  },
+  "colors": {
+    "primary": "#00C853",
+    "primary_hover": "#009624",
+    "secondary": "#FF4500",
+    "background_light": "#FFFFFF",
+    "background_light_alt": "#F4F4F5",
+    "background_dark": "#09090B",
+    "background_dark_alt": "#18181B",
+    "text_primary_light": "#0A0A0A",
+    "text_secondary_light": "#71717A",
+    "text_primary_dark": "#FAFAFA",
+    "text_secondary_dark": "#A1A1AA",
+    "border_light": "#E4E4E7",
+    "border_dark": "#27272A",
+    "status": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    }
+  },
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "Satoshi",
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-muted-foreground uppercase tracking-[0.1em]"
+    }
+  },
+  "spacing_and_layout": {
+    "mobile_bento_grid": "grid-cols-2 gap-4 p-4",
+    "dashboard_grid": "grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-6 p-6",
+    "container_padding": "p-4 sm:p-6 lg:p-8"
+  },
+  "surfaces": {
+    "glass_light": "backdrop-blur-xl bg-white/70 border border-white/20 shadow-sm",
+    "glass_dark": "backdrop-blur-xl bg-black/60 border border-white/10 shadow-sm",
+    "card_mobile": "bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-border/50",
+    "card_dashboard": "bg-card rounded-xl border border-border shadow-sm",
+    "bottom_sheet": "bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)]"
+  },
+  "components": {
+    "button": "rounded-full font-medium transition-transform active:scale-95",
+    "input": "rounded-xl border-border bg-background px-4 py-3 text-base focus:ring-2 focus:ring-primary/20",
+    "map_container": "w-full h-full min-h-[400px] bg-muted/30 rounded-2xl overflow-hidden"
+  },
+  "icons": {
+    "library": "@phosphor-icons/react",
+    "install_command": "yarn add @phosphor-icons/react"
+  },
+  "images": {
+    "food_delivery": [
+      "https://images.unsplash.com/photo-1632898657999-ae6920976661?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwyfHxkZWxpY2lvdXMlMjBidXJnZXIlMjBmb29kJTIwcmVzdGF1cmFudHxlbnwwfHx8fDE3NzU0MjE1Mzl8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1632898658030-ead731d252d4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwzfHxkZWxpY2lvdXMlMjBidXJnZXIlMjBmb29kJTIwcmVzdGF1cmFudHxlbnwwfHx8fDE3NzU0MjE1Mzl8MA&ixlib=rb-4.1.0&q=85"
+    ],
+    "parcel_logistics": [
+      "https://images.unsplash.com/photo-1774977866843-eef12e4b6e59?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHw0fHxkZWxpdmVyeSUyMGNvdXJpZXIlMjBib3glMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzc1NDIxNTM5fDA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1758523670564-d1d6a734dc0b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwzfHxkZWxpdmVyeSUyMGNvdXJpZXIlMjBib3glMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzc1NDIxNTM5fDA&ixlib=rb-4.1.0&q=85"
+    ],
+    "avatars": [
+      "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdCUyMHByb2Zlc3Npb25hbCUyMHNtaWxpbmd8ZW58MHx8fHwxNzc1NDIxNTQzfDA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1623594675959-02360202d4d6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwyfHxwb3J0cmFpdCUyMHByb2Zlc3Npb25hbCUyMHNtaWxpbmd8ZW58MHx8fHwxNzc1NDIxNTQzfDA&ixlib=rb-4.1.0&q=85"
+    ]
+  },
+  "animations": {
+    "interactions": "Use framer-motion. Floating bottom sheets should use spring physics (stiffness 300, damping 30). Hover states on bento grid cards should lift slightly (-translate-y-1) and increase shadow.",
+    "page_transitions": "Fade in with a slight vertical slide (y: 10 to 0) over 0.3s."
+  },
+  "instructions_to_main_agent": [
+    "Build the User App using a mobile-first paradigm: max-w-md mx-auto on desktop, floating bottom sheets, and edge-to-edge maps.",
+    "Use @phosphor-icons/react (Duotone style for active, Regular for inactive) for the bottom navigation and bento grid icons.",
+    "For the Dispatcher Panel, enforce a strict Dark Mode. Use a 'Control Room' grid layout: the map takes up 70% of the screen (col-span-8 or 9), and active metrics/drivers take the sidebar (col-span-3 or 4).",
+    "For the Admin Panel, enforce a strict Light Mode Swiss Brutalist layout. Heavy use of 1px borders, white space, and dense data tables.",
+    "Add 'data-testid' to ALL interactive elements (buttons, inputs, map markers, service cards).",
+    "Use framer-motion for micro-interactions, especially the ride-booking flow transitions (sliding panels).",
+    "DO NOT use generic Inter for headings. Use Outfit for headings and Satoshi for body.",
+    "Make sure Map components (if mocked) have a fallback UI with a subtle pattern or use React Map GL."
+  ]
+}
