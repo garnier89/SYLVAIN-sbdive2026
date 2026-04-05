@@ -230,8 +230,8 @@ const RestaurantDetail = () => {
 
       {/* Cart Button */}
       {cartCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
-          <div className="mobile-container">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t z-50">
+          <div className="max-w-[430px] mx-auto">
             <Button
               className="w-full h-14 rounded-full text-white"
               style={{ backgroundColor: '#00C853' }}
