@@ -1,33 +1,43 @@
 import requests
 import sys
+import json
 from datetime import datetime
 
 class SuperAppAPITester:
     def __init__(self, base_url="https://gojek-mvp-1.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
+        self.admin_token = None
+        self.merchant_token = None
         self.cookies = {}
         self.tests_run = 0
         self.tests_passed = 0
+        self.failed_tests = []
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None, use_admin=False, use_merchant=False):
         """Run a single API test"""
         url = f"{self.base_url}/{endpoint}"
         test_headers = {'Content-Type': 'application/json'}
         if headers:
             test_headers.update(headers)
-        if self.token:
+            
+        if use_admin and self.admin_token:
+            test_headers['Authorization'] = f'Bearer {self.admin_token}'
+        elif use_merchant and self.merchant_token:
+            test_headers['Authorization'] = f'Bearer {self.merchant_token}'
+        elif self.token:
             test_headers['Authorization'] = f'Bearer {self.token}'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
-        print(f"   URL: {url}")
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=test_headers, cookies=self.cookies)
+                response = requests.get(url, headers=test_headers, cookies=self.cookies, timeout=30)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=test_headers, cookies=self.cookies)
+                response = requests.post(url, json=data, headers=test_headers, cookies=self.cookies, timeout=30)
+            elif method == 'PUT':
+                response = requests.put(url, json=data, headers=test_headers, cookies=self.cookies, timeout=30)
 
             success = response.status_code == expected_status
             if success:
@@ -35,15 +45,20 @@ class SuperAppAPITester:
                 print(f"✅ Passed - Status: {response.status_code}")
                 if response.cookies:
                     self.cookies.update(response.cookies)
-                return True, response.json() if response.content else {}
+                try:
+                    return True, response.json() if response.content else {}
+                except:
+                    return True, {}
             else:
                 print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
                 if response.content:
                     print(f"   Response: {response.text[:200]}")
+                self.failed_tests.append(f"{name}: Expected {expected_status}, got {response.status_code}")
                 return False, {}
 
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append(f"{name}: {str(e)}")
             return False, {}
 
     def test_health_check(self):

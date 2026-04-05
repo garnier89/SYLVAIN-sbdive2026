@@ -13,12 +13,23 @@ import RegisterPage from './pages/auth/RegisterPage';
 import UserHome from './pages/user/UserHome';
 import RideBookingPage from './pages/user/RideBookingPage';
 import FoodPage from './pages/user/FoodPage';
+import RestaurantDetail from './pages/user/RestaurantDetail';
+import CheckoutPage from './pages/user/CheckoutPage';
+import OrderTracking from './pages/user/OrderTracking';
 import WalletPage from './pages/user/WalletPage';
 import ProfilePage from './pages/user/ProfilePage';
+import HistoryPage from './pages/user/HistoryPage';
+import SupportPage from './pages/user/SupportPage';
 
 // Driver Pages
 import DriverHome from './pages/driver/DriverHome';
 import DriverRegisterPage from './pages/driver/DriverRegisterPage';
+
+// Merchant Pages
+import MerchantLayout from './pages/merchant/MerchantLayout';
+import MerchantDashboard from './pages/merchant/MerchantDashboard';
+import MerchantProducts from './pages/merchant/MerchantProducts';
+import MerchantOrders from './pages/merchant/MerchantOrders';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -65,7 +76,17 @@ const AppRouter = () => {
       } />
       <Route path="/food/:merchantId" element={
         <ProtectedRoute allowedRoles={['user']}>
-          <FoodPage />
+          <RestaurantDetail />
+        </ProtectedRoute>
+      } />
+      <Route path="/checkout/:merchantId" element={
+        <ProtectedRoute allowedRoles={['user']}>
+          <CheckoutPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/order/:orderId" element={
+        <ProtectedRoute allowedRoles={['user']}>
+          <OrderTracking />
         </ProtectedRoute>
       } />
       <Route path="/parcel" element={
@@ -85,7 +106,12 @@ const AppRouter = () => {
       } />
       <Route path="/history" element={
         <ProtectedRoute allowedRoles={['user']}>
-          <UserHome />
+          <HistoryPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/support" element={
+        <ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}>
+          <SupportPage />
         </ProtectedRoute>
       } />
 
@@ -105,6 +131,20 @@ const AppRouter = () => {
           <DriverHome />
         </ProtectedRoute>
       } />
+
+      {/* Merchant Routes */}
+      <Route path="/merchant" element={
+        <ProtectedRoute allowedRoles={['merchant']}>
+          <MerchantLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<MerchantDashboard />} />
+        <Route path="orders" element={<MerchantOrders />} />
+        <Route path="products" element={<MerchantProducts />} />
+        <Route path="promotions" element={<MerchantDashboard />} />
+        <Route path="analytics" element={<MerchantDashboard />} />
+        <Route path="settings" element={<MerchantDashboard />} />
+      </Route>
 
       {/* Admin Routes */}
       <Route path="/admin" element={
