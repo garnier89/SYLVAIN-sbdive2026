@@ -1,0 +1,110 @@
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const api = axios.create({
+  baseURL: `${API_URL}/api`,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Auth APIs
+export const authAPI = {
+  login: (data) => api.post('/auth/login', data),
+  register: (data) => api.post('/auth/register', data),
+  logout: () => api.post('/auth/logout'),
+  me: () => api.get('/auth/me'),
+  refresh: () => api.post('/auth/refresh'),
+  googleSession: (sessionId) => api.post('/auth/google/session', { session_id: sessionId }),
+};
+
+// User APIs
+export const userAPI = {
+  getAddresses: () => api.get('/users/addresses'),
+  addAddress: (data) => api.post('/users/addresses', data),
+  deleteAddress: (id) => api.delete(`/users/addresses/${id}`),
+};
+
+// Driver APIs
+export const driverAPI = {
+  register: (data) => api.post('/drivers/register', data),
+  getProfile: () => api.get('/drivers/profile'),
+  toggleOnline: () => api.post('/drivers/toggle-online'),
+  updateLocation: (lat, lng) => api.post('/drivers/location', { lat, lng }),
+  uploadDocument: (file, docType) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/drivers/documents?doc_type=${docType}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
+
+// Merchant APIs
+export const merchantAPI = {
+  register: (data) => api.post('/merchants/register', data),
+  list: (params) => api.get('/merchants', { params }),
+  get: (id) => api.get(`/merchants/${id}`),
+  getProducts: (id) => api.get(`/merchants/${id}/products`),
+  addProduct: (data) => api.post('/merchants/products', data),
+  updateProduct: (id, data) => api.put(`/merchants/products/${id}`, data),
+  deleteProduct: (id) => api.delete(`/merchants/products/${id}`),
+};
+
+// Ride APIs
+export const rideAPI = {
+  estimate: (data) => api.post('/rides/estimate', data),
+  create: (data) => api.post('/rides', data),
+  get: (id) => api.get(`/rides/${id}`),
+  accept: (id) => api.post(`/rides/${id}/accept`),
+  updateStatus: (id, status) => api.post(`/rides/${id}/status`, { status }),
+  list: (params) => api.get('/rides', { params }),
+  rate: (id, data) => api.post(`/rides/${id}/rate`, data),
+};
+
+// Order APIs
+export const orderAPI = {
+  create: (data) => api.post('/orders', data),
+  get: (id) => api.get(`/orders/${id}`),
+  updateStatus: (id, status) => api.post(`/orders/${id}/status`, { status }),
+  assignDriver: (id, driverId) => api.post(`/orders/${id}/assign-driver`, { driver_id: driverId }),
+  list: (params) => api.get('/orders', { params }),
+  rate: (id, data) => api.post(`/orders/${id}/rate`, data),
+};
+
+// Wallet APIs
+export const walletAPI = {
+  get: () => api.get('/wallet'),
+  topup: (amount, originUrl) => api.post('/wallet/topup', { amount, origin_url: originUrl }),
+  checkStatus: (sessionId) => api.get(`/wallet/checkout-status/${sessionId}`),
+};
+
+// Support APIs
+export const supportAPI = {
+  createTicket: (data) => api.post('/support/tickets', data),
+  listTickets: () => api.get('/support/tickets'),
+  replyToTicket: (id, message) => api.post(`/support/tickets/${id}/reply`, { message }),
+};
+
+// Admin APIs
+export const adminAPI = {
+  dashboard: () => api.get('/admin/dashboard'),
+  listUsers: (params) => api.get('/admin/users', { params }),
+  listDrivers: (params) => api.get('/admin/drivers', { params }),
+  approveDriver: (id) => api.post(`/admin/drivers/${id}/approve`),
+  rejectDriver: (id, reason) => api.post(`/admin/drivers/${id}/reject`, { reason }),
+  listRides: (params) => api.get('/admin/rides', { params }),
+  listOrders: (params) => api.get('/admin/orders', { params }),
+  suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),
+  unsuspendUser: (id) => api.post(`/admin/users/${id}/unsuspend`),
+};
+
+// Dispatcher APIs
+export const dispatcherAPI = {
+  getLiveData: () => api.get('/dispatcher/live'),
+  assignRide: (rideId, driverId) => api.post('/dispatcher/assign-ride', { ride_id: rideId, driver_id: driverId }),
+};
+
+export default api;
