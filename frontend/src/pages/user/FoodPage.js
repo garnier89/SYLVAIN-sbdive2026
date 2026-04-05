@@ -44,12 +44,7 @@ const FoodPage = () => {
     m.store_name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Demo merchants if none exist
-  const displayMerchants = filteredMerchants.length > 0 ? filteredMerchants : [
-    { id: 'demo1', store_name: 'Burger Palace', store_type: 'restaurant', rating: 4.8, address: '123 Main St', image_url: 'https://images.unsplash.com/photo-1632898657999-ae6920976661?w=400' },
-    { id: 'demo2', store_name: 'Pizza Heaven', store_type: 'restaurant', rating: 4.5, address: '456 Oak Ave', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400' },
-    { id: 'demo3', store_name: 'Sushi Master', store_type: 'restaurant', rating: 4.9, address: '789 Elm Rd', image_url: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400' },
-  ];
+  const displayMerchants = filteredMerchants;
 
   return (
     <div className="mobile-container bg-background min-h-screen pb-20">
@@ -120,6 +115,12 @@ const FoodPage = () => {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        ) : displayMerchants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Funnel size={48} className="text-muted-foreground/50 mb-3" />
+            <p className="text-muted-foreground">No restaurants found</p>
+            <p className="text-sm text-muted-foreground/70">Try a different search or category</p>
           </div>
         ) : (
           <div className="space-y-4">

@@ -34,7 +34,7 @@ db = client[DB_NAME]
 # JWT Configuration
 JWT_SECRET = os.environ.get("JWT_SECRET", secrets.token_hex(32))
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 # Storage Configuration
@@ -417,6 +417,136 @@ async def lifespan(app: FastAPI):
 - POST /api/auth/refresh
 """)
     
+    # Seed demo merchants and products
+    demo_merchants = [
+        {
+            "id": "merchant_burger_palace",
+            "user_id": "system_burger",
+            "store_name": "Burger Palace",
+            "store_type": "restaurant",
+            "address": "123 Main Street, Paris",
+            "lat": 48.8566,
+            "lng": 2.3522,
+            "description": "Premium gourmet burgers and sides",
+            "rating": 4.8,
+            "total_orders": 1250,
+            "is_active": True,
+            "opening_hours": "09:00-22:00",
+            "image_url": "https://images.unsplash.com/photo-1632898657999-ae6920976661?w=400",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": "merchant_pizza_heaven",
+            "user_id": "system_pizza",
+            "store_name": "Pizza Heaven",
+            "store_type": "restaurant",
+            "address": "456 Oak Avenue, Paris",
+            "lat": 48.8606,
+            "lng": 2.3376,
+            "description": "Authentic Italian pizza baked in wood-fired oven",
+            "rating": 4.5,
+            "total_orders": 890,
+            "is_active": True,
+            "opening_hours": "10:00-23:00",
+            "image_url": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": "merchant_sushi_master",
+            "user_id": "system_sushi",
+            "store_name": "Sushi Master",
+            "store_type": "restaurant",
+            "address": "789 Elm Road, Paris",
+            "lat": 48.8530,
+            "lng": 2.3499,
+            "description": "Fresh Japanese sushi and sashimi",
+            "rating": 4.9,
+            "total_orders": 2100,
+            "is_active": True,
+            "opening_hours": "11:00-22:00",
+            "image_url": "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+    ]
+
+    demo_products = [
+        # Burger Palace
+        {"id": "prod_bp_classic", "merchant_id": "merchant_burger_palace", "name": "Classic Burger", "description": "Juicy beef patty with fresh lettuce, tomato, and special sauce", "price": 12.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_cheese", "merchant_id": "merchant_burger_palace", "name": "Cheese Burger", "description": "Classic burger topped with melted cheddar cheese", "price": 14.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_bacon", "merchant_id": "merchant_burger_palace", "name": "Bacon Burger", "description": "Loaded with crispy bacon strips and BBQ sauce", "price": 16.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_veggie", "merchant_id": "merchant_burger_palace", "name": "Veggie Burger", "description": "Plant-based patty with avocado and sprouts", "price": 13.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_fries", "merchant_id": "merchant_burger_palace", "name": "French Fries", "description": "Crispy golden fries with sea salt", "price": 4.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_rings", "merchant_id": "merchant_burger_palace", "name": "Onion Rings", "description": "Beer-battered onion rings", "price": 5.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_cola", "merchant_id": "merchant_burger_palace", "name": "Coca Cola", "description": "Ice cold refreshment", "price": 2.99, "category": "Drinks", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_shake", "merchant_id": "merchant_burger_palace", "name": "Milkshake", "description": "Creamy vanilla milkshake", "price": 5.99, "category": "Drinks", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        # Pizza Heaven
+        {"id": "prod_ph_margherita", "merchant_id": "merchant_pizza_heaven", "name": "Margherita Pizza", "description": "Classic tomato sauce with mozzarella and fresh basil", "price": 14.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_pepperoni", "merchant_id": "merchant_pizza_heaven", "name": "Pepperoni Pizza", "description": "Loaded with pepperoni slices and melted cheese", "price": 16.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_four_cheese", "merchant_id": "merchant_pizza_heaven", "name": "Four Cheese Pizza", "description": "Mozzarella, gorgonzola, parmesan, and fontina", "price": 18.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_garlic_bread", "merchant_id": "merchant_pizza_heaven", "name": "Garlic Bread", "description": "Crispy bread with garlic butter and herbs", "price": 5.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_tiramisu", "merchant_id": "merchant_pizza_heaven", "name": "Tiramisu", "description": "Classic Italian coffee-flavored dessert", "price": 7.99, "category": "Desserts", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        # Sushi Master
+        {"id": "prod_sm_salmon", "merchant_id": "merchant_sushi_master", "name": "Salmon Nigiri (6pc)", "description": "Fresh salmon on seasoned rice", "price": 12.99, "category": "Nigiri", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_tuna", "merchant_id": "merchant_sushi_master", "name": "Tuna Sashimi (8pc)", "description": "Premium bluefin tuna slices", "price": 16.99, "category": "Sashimi", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_california", "merchant_id": "merchant_sushi_master", "name": "California Roll (8pc)", "description": "Crab, avocado, and cucumber roll", "price": 10.99, "category": "Rolls", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_dragon", "merchant_id": "merchant_sushi_master", "name": "Dragon Roll (8pc)", "description": "Shrimp tempura, avocado, eel sauce", "price": 14.99, "category": "Rolls", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_miso", "merchant_id": "merchant_sushi_master", "name": "Miso Soup", "description": "Traditional Japanese miso with tofu and seaweed", "price": 3.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_edamame", "merchant_id": "merchant_sushi_master", "name": "Edamame", "description": "Steamed soybeans with sea salt", "price": 4.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+    ]
+
+    for merchant in demo_merchants:
+        existing = await db.merchants.find_one({"id": merchant["id"]})
+        if not existing:
+            await db.merchants.insert_one(merchant)
+            logger.info(f"Seeded merchant: {merchant['store_name']}")
+
+    for product in demo_products:
+        existing = await db.products.find_one({"id": product["id"]})
+        if not existing:
+            await db.products.insert_one(product)
+
+    # Seed test user if not exists
+    test_email = "test2@example.com"
+    test_password = "TestPass123!"
+    existing_test = await db.users.find_one({"email": test_email})
+    if not existing_test:
+        test_user_id = f"user_{uuid.uuid4().hex[:12]}"
+        test_user = {
+            "id": test_user_id,
+            "email": test_email,
+            "password_hash": hash_password(test_password),
+            "name": "Test User",
+            "phone": "+33123456789",
+            "role": "user",
+            "is_verified": True,
+            "avatar_url": None,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(test_user)
+        await db.wallets.insert_one({"user_id": test_user_id, "balance": 50.0, "created_at": datetime.now(timezone.utc).isoformat()})
+        logger.info(f"Test user created: {test_email}")
+
+    # Seed merchant user if not exists
+    merchant_email = "merchant@example.com"
+    merchant_password = "Merchant123!"
+    existing_merchant_user = await db.users.find_one({"email": merchant_email})
+    if not existing_merchant_user:
+        merchant_user_id = f"user_{uuid.uuid4().hex[:12]}"
+        merchant_user = {
+            "id": merchant_user_id,
+            "email": merchant_email,
+            "password_hash": hash_password(merchant_password),
+            "name": "Demo Merchant",
+            "phone": "+33987654321",
+            "role": "merchant",
+            "is_verified": True,
+            "avatar_url": None,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(merchant_user)
+        await db.wallets.insert_one({"user_id": merchant_user_id, "balance": 0.0, "created_at": datetime.now(timezone.utc).isoformat()})
+        logger.info(f"Merchant user created: {merchant_email}")
+
     init_storage()
     logger.info("SuperApp Backend Started")
     yield
@@ -544,7 +674,7 @@ async def refresh_token(request: Request, response: Response):
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         access_token = create_access_token(user["id"], user["email"], user["role"])
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=900, path="/")
+        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
         return {"access_token": access_token}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")

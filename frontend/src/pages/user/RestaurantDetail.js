@@ -42,27 +42,8 @@ const RestaurantDetail = () => {
       const productsRes = await merchantAPI.getProducts(merchantId);
       setProducts(productsRes.data);
     } catch (error) {
-      // Demo data
-      setMerchant({
-        id: merchantId,
-        store_name: 'Burger Palace',
-        store_type: 'restaurant',
-        address: '123 Main Street, NYC',
-        rating: 4.8,
-        total_orders: 1250,
-        opening_hours: '09:00 - 22:00',
-        image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800'
-      });
-      setProducts([
-        { id: 'p1', name: 'Classic Burger', description: 'Juicy beef patty with fresh lettuce, tomato, and special sauce', price: 12.99, category: 'Burgers', is_available: true },
-        { id: 'p2', name: 'Cheese Burger', description: 'Classic burger topped with melted cheddar cheese', price: 14.99, category: 'Burgers', is_available: true },
-        { id: 'p3', name: 'Bacon Burger', description: 'Loaded with crispy bacon strips and BBQ sauce', price: 16.99, category: 'Burgers', is_available: true },
-        { id: 'p4', name: 'Veggie Burger', description: 'Plant-based patty with avocado and sprouts', price: 13.99, category: 'Burgers', is_available: true },
-        { id: 'p5', name: 'French Fries', description: 'Crispy golden fries with sea salt', price: 4.99, category: 'Sides', is_available: true },
-        { id: 'p6', name: 'Onion Rings', description: 'Beer-battered onion rings', price: 5.99, category: 'Sides', is_available: true },
-        { id: 'p7', name: 'Coca Cola', description: 'Ice cold refreshment', price: 2.99, category: 'Drinks', is_available: true },
-        { id: 'p8', name: 'Milkshake', description: 'Creamy vanilla milkshake', price: 5.99, category: 'Drinks', is_available: true },
-      ]);
+      console.error('Load merchant error:', error);
+      navigate('/food');
     } finally {
       setLoading(false);
     }
