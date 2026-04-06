@@ -1,94 +1,74 @@
-# SuperApp MVP - Product Requirements Document
+# SB Drive VTC - Product Requirements Document
 
-## Original Problem Statement
-Build a multi-service super app like Gojek/V3Cube with:
-- User Mobile App (Ride, Food, Parcel)
-- Driver Mobile App
-- Merchant Web Panel
-- Admin Web Panel
-- Dispatcher Web Panel
+## Application Overview
+**SB Drive VTC** est une super-app multi-services de type Gojek/V3Cube, avec deux applications distinctes :
+- **SB Drive Client** : Application passager (VTC, commandes, colis, services)
+- **SB Drive Chauffeur** : Application chauffeur (courses, livraisons, gains)
 
 ## Architecture
-
-### Tech Stack
 - **Frontend**: React 18 + Tailwind CSS + Shadcn/UI
-- **Backend**: FastAPI + Python
-- **Database**: MongoDB
-- **Auth**: JWT + Google OAuth (Emergent-managed)
-- **Payments**: Stripe (wallet top-up)
-- **Maps**: Leaflet/OpenStreetMap
-- **Real-time**: WebSocket
+- **Backend**: FastAPI (Python) + MongoDB
+- **Auth**: JWT httponly cookies (secure, samesite=none)
+- **Maps**: Leaflet / OpenStreetMap
+- **Payments**: Stripe
+- **Language**: Interface 100% en français
 
-### Backend Modules
-- Auth (JWT + Google OAuth + role-based)
-- Users, Drivers, Merchants management
-- Rides & Orders services
-- Wallet & Payments (Stripe)
-- Ratings, Support, Notifications
-- Admin dashboard & Dispatcher live data
+## Core Features Implemented
 
-## What's Been Implemented - April 5, 2026
+### Phase 1 - Base (DONE)
+1. **App Selector** (/welcome) - Choix Client / Chauffeur / Marchand / Admin
+2. **Auth** - Login, Register, JWT cookies, refresh token, Google OAuth
+3. **User Home** - 6 services: VTC, Moto, Repas, Colis, Services, Courses
+4. **Ride Booking** - Map Leaflet, estimation tarif, types de véhicules
+5. **Food Delivery** - 3 restaurants (DB), produits, panier, checkout
+6. **Parcel Delivery** - 3 types de colis, carte, estimation, envoi
+7. **On-Demand Services** - 8 catégories (plomberie, électricité, ménage, etc.)
+8. **Wallet** - Solde, recharge Stripe, historique
+9. **Driver App** - Online/offline, accept/reject courses, statuts
+10. **Admin Panel** - Dashboard stats, gestion users/drivers
+11. **Merchant Panel** - Dashboard, produits, commandes
+12. **Dispatcher** - Carte en temps réel
 
-### User App ✅
-- [x] JWT + Google OAuth authentication
-- [x] Home dashboard with services grid (Ride, Moto, Food, Parcel)
-- [x] Ride booking with interactive Leaflet map
-- [x] Food ordering: Restaurant list → Menu → Cart → Checkout
-- [x] Order tracking with status timeline
-- [x] Wallet with Stripe payment integration
-- [x] Activity history (Rides + Orders tabs)
-- [x] Support page with FAQs and ticket form
-- [x] Profile management
+### Seeded Data (MongoDB)
+- 3 marchands: Burger Palace, Pizza Heaven, Sushi Master
+- 20+ produits par marchand
+- Utilisateurs: admin, test user, merchant user
 
-### Driver App ✅
-- [x] Driver registration with vehicle/document upload
-- [x] Online/offline toggle
-- [x] Incoming ride request popup
-- [x] Ride acceptance & status flow
-- [x] Earnings dashboard
+## Tech Stack
+- React 18, Tailwind CSS, Shadcn/UI, Phosphor Icons
+- FastAPI, Motor (async MongoDB), JWT, bcrypt
+- Stripe (payments), Leaflet (maps)
+- French language UI throughout
 
-### Merchant Panel ✅
-- [x] Dashboard with KPI stats (orders, revenue, rating)
-- [x] Orders management with tabs (Pending, Active, Completed)
-- [x] Products catalog with CRUD operations
-- [x] Order status updates (Accept, Prepare, Ready)
+## API Endpoints
+- POST /api/auth/login, /register, /refresh, /logout
+- GET /api/auth/me
+- GET /api/merchants, /api/merchants/{id}/products
+- POST /api/orders
+- GET/POST /api/wallet, /api/wallet/topup
+- POST /api/rides/estimate, /api/rides
+- GET /api/admin/dashboard, /api/admin/users, /api/admin/drivers
+- POST /api/support/tickets
 
-### Admin Panel ✅
-- [x] Dashboard with platform-wide KPIs
-- [x] User/Driver/Merchant management
-- [x] Driver approval workflow
-- [x] Rides & Orders overview
+## What's Next (Backlog)
 
-### Dispatcher Panel ✅
-- [x] Dark theme control room UI
-- [x] Live map (CartoDB dark tiles)
-- [x] Online drivers list
-- [x] Pending rides/orders
-- [x] Manual ride assignment
+### P0 - Upcoming
+- Backend refactoring (server.py monolith → modules)
+- Vehicle types multiples (Berline, Eco, SUV, Moto)
+- Driver flow complet (OTP, navigation)
+- WebSocket real-time tracking
 
-## Test Credentials
-- **Admin**: admin@superapp.com / SuperAdmin123!
-- **User**: test2@example.com / TestPass123!
-- **Merchant**: merchant@example.com / Merchant123!
+### P1 - Enhancement
+- Grocery/Pharmacy delivery
+- Covoiturage / Car Pool
+- Commerces à proximité
+- Consultation vidéo
+- Beauty / Pet care services
 
-## Remaining Backlog
-
-### P0 - Critical
-- [ ] WebSocket real-time driver location updates
-- [ ] Push notifications
-- [ ] Complete payment processing
-
-### P1 - High Priority
-- [ ] Driver navigation
-- [ ] In-app chat
-- [ ] Surge pricing engine
-
-### P2 - Medium Priority
-- [ ] Scheduled bookings
-- [ ] Coupon/referral system
-- [ ] Multi-language support
-
-### P3 - Future Phases
-- [ ] Grocery/Pharmacy delivery
-- [ ] Home services
-- [ ] Premium subscriptions
+### P2 - Future
+- Achat/Vente/Location immobilier & véhicules
+- Assistance routière & remorquage
+- Suivi famille & employés
+- Enchères services en temps réel
+- Push notifications
+- Chat/Call driver
