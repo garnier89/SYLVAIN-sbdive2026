@@ -8,6 +8,7 @@ Super-app MVP multi-services (clone Gojek/V3Cube) "SB Drive VTC" : App Client + 
 - **Backend**: FastAPI modulaire + MongoDB
 - **Temps réel**: WebSocket natif
 - **Paiements**: Wallet interne (Stripe prévu)
+- **Couleur principale**: Orange #FF4500
 
 ## Structure Backend
 ```
@@ -37,25 +38,21 @@ WS rooms par course, suivi chauffeur live, flow pending→accepted→arriving→
 - **90+ configs production** : Company, social links, payment modes, ride settings, wallet, tips, intercity, carpool
 - **10 raisons d'annulation** FR enrichies de la DB production
 - **10 catégories véhicules** dont Livraison
-- **Page Historique** : Courses/Commandes tabs avec filtres (tous, terminées, annulées, en attente)
+- **Page Historique** : Courses/Commandes tabs avec filtres
 
 ### Phase 6 - Profile Menu V3Cube Clone (DONE - Avril 2026)
-- **Réplication exacte** du menu Profil V3Cube basée sur 4 captures d'écran utilisateur
-- **Header** : Fond bleu foncé (#3F51B5) avec avatar, nom utilisateur, icône paramètres
-- **Carte portefeuille** : Carte blanche flottante avec solde + 4 boutons rapides (Réservations, Portefeuille, Recharger, Inviter)
-- **10 sections de menu** :
-  - réglages généraux (8 éléments)
-  - Acheter, vendre et louer (3 éléments)
-  - Paramètre du compte (6 éléments avec toggle Face ID)
-  - Paiement (4 éléments)
-  - Carte cadeau (2 éléments)
-  - Lieux favoris (2 éléments)
-  - Soutien (5 éléments)
-  - Autre (Déconnexion)
-- **Navigation** : Barre de navigation fixe avec 4 onglets
-- **Test Iteration 15** : 30/30 tests PASS (100%)
+- Réplication exacte du menu Profil V3Cube (10 sections, 35+ éléments de menu)
+- Test Iteration 15 : 30/30 tests PASS (100%)
+
+### Phase 7 - Branding & Thème Orange (DONE - Avril 2026)
+- **Couleur principale** : Changement bleu/vert → orange #FF4500 sur toute l'app
+- **Logo SB Drive** : Logo personnalisé sur l'écran de démarrage (splash screen)
+- **Badge Emergent** : Masqué via CSS + HTML
+- **Fichiers modifiés** : ClientWelcome.js, LoginPage.js, RegisterPage.js, ProfilePage.js, UserHome.js, HistoryPage.js, index.css, index.html + toutes les pages utilisateur
+- Test Iteration 16 : 31/31 tests PASS (100%)
 
 ## Tests
+- Iteration 16: Frontend 31/31 PASS (Branding orange)
 - Iteration 15: Frontend 30/30 PASS (Profile V3Cube UI)
 - Iteration 14: Backend 19/19 + Frontend 100% PASS
 - Iterations 12-13: 100% PASS
