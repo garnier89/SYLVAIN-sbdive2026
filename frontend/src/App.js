@@ -23,6 +23,11 @@ import HistoryPage from './pages/user/HistoryPage';
 import SupportPage from './pages/user/SupportPage';
 import ParcelPage from './pages/user/ParcelPage';
 import ServicesPage from './pages/user/ServicesPage';
+import AllDeliveryPage from './pages/user/AllDeliveryPage';
+import AllServicesPage from './pages/user/AllServicesPage';
+import CarPoolPage from './pages/user/CarPoolPage';
+import MarketplacePage from './pages/user/MarketplacePage';
+import NearbyBusinessPage from './pages/user/NearbyBusinessPage';
 
 // SB Drive Chauffeur Pages
 import ChauffeurWelcome from './pages/chauffeur/ChauffeurWelcome';
@@ -72,6 +77,11 @@ const AppRouter = () => {
       <Route path="/order/:orderId" element={<ProtectedRoute allowedRoles={['user']}><OrderTracking /></ProtectedRoute>} />
       <Route path="/parcel" element={<ProtectedRoute allowedRoles={['user']}><ParcelPage /></ProtectedRoute>} />
       <Route path="/services" element={<ProtectedRoute allowedRoles={['user']}><ServicesPage /></ProtectedRoute>} />
+      <Route path="/all-delivery" element={<ProtectedRoute allowedRoles={['user']}><AllDeliveryPage /></ProtectedRoute>} />
+      <Route path="/all-services" element={<ProtectedRoute allowedRoles={['user']}><AllServicesPage /></ProtectedRoute>} />
+      <Route path="/carpool" element={<ProtectedRoute allowedRoles={['user']}><CarPoolPage /></ProtectedRoute>} />
+      <Route path="/marketplace/:type" element={<ProtectedRoute allowedRoles={['user']}><MarketplacePage /></ProtectedRoute>} />
+      <Route path="/nearby" element={<ProtectedRoute allowedRoles={['user']}><NearbyBusinessPage /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><WalletPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
