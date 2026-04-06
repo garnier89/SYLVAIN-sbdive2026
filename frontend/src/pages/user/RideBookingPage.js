@@ -5,11 +5,13 @@ import { rideAPI } from '../../services/api';
 import {
   MapPin, CaretDown, X, Plus, House, Briefcase,
   NavigationArrow, MapTrifold, Clock, User,
-  PencilSimple, Car, CreditCard, CaretRight
+  PencilSimple, Car, CreditCard, CaretRight, Motorcycle
 } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -34,11 +36,11 @@ const LocationSelector = ({ onSelect }) => {
   return null;
 };
 
-const vehicleTypes = [
-  { type: 'basic', name: 'Basic', seats: '4 places', multiplier: 1, color: 'bg-gray-100' },
-  { type: 'suv', name: 'SUV', seats: '6 places', multiplier: 2.3, color: 'bg-gray-100' },
-  { type: 'luxury', name: 'Luxe', seats: '4 places', multiplier: 4.8, color: 'bg-gray-100' },
-];
+const VehicleIcon = ({ iconType, selected }) => {
+  const cls = selected ? 'text-blue-600' : 'text-gray-600';
+  if (iconType === 'Bike') return <Motorcycle size={32} weight="duotone" className={cls} />;
+  return <Car size={32} weight="duotone" className={cls} />;
+};
 
 const RideBookingPage = () => {
   const navigate = useNavigate();
@@ -48,16 +50,34 @@ const RideBookingPage = () => {
   const [pickup, setPickup] = useState({ lat: null, lng: null, address: '' });
   const [dropoff, setDropoff] = useState({ lat: null, lng: null, address: '' });
   const [selectingLocation, setSelectingLocation] = useState(null);
-  const [selectedVehicle, setSelectedVehicle] = useState('basic');
+  const [selectedVehicle, setSelectedVehicle] = useState('sb');
   const [paymentMethod] = useState('Visa •••• 1111');
   const [estimate, setEstimate] = useState(null);
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [mapCenter, setMapCenter] = useState([48.8566, 2.3522]); // Paris default
+  const [mapCenter, setMapCenter] = useState([48.8566, 2.3522]);
+  const [vehicleTypes, setVehicleTypes] = useState([]);
   const [recentLocations] = useState([
     { address: 'Gare du Nord, 18 Rue de Dunkerque, 75010 Paris' },
     { address: 'Tour Eiffel, Champ de Mars, 75007 Paris' },
   ]);
+
+  // Load V3Cube vehicle types from backend
+  useEffect(() => {
+    fetch(`${API}/api/config/vehicle-types`)
+      .then(r => r.json())
+      .then(data => {
+        setVehicleTypes(data);
+        if (data.length > 0) setSelectedVehicle(data[0].slug);
+      })
+      .catch(() => {
+        setVehicleTypes([
+          { slug: 'sb', name_fr: 'SB', person_capacity: 4, icon_type: 'Car', min_fare: 10 },
+          { slug: 'confort', name_fr: 'Confort', person_capacity: 4, icon_type: 'Car', min_fare: 15 },
+          { slug: 'luxe', name_fr: 'Luxe', person_capacity: 4, icon_type: 'Car', min_fare: 25 },
+        ]);
+      });
+  }, []);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -98,15 +118,17 @@ const RideBookingPage = () => {
       const response = await rideAPI.estimate({
         pickup_lat: pickup.lat || 48.8566,
         pickup_lng: pickup.lng || 2.3522,
+        pickup_address: pickup.address || 'Paris',
         dropoff_lat: 48.88 + Math.random() * 0.02,
         dropoff_lng: 2.33 + Math.random() * 0.02,
+        dropoff_address: addr,
         vehicle_type: selectedVehicle,
         payment_method: 'card',
       });
       setEstimate(response.data);
       setStep('map');
     } catch {
-      setEstimate({ distance_km: 5.2, duration_mins: 18, estimated_fare: 23.81 });
+      setEstimate({ distance_km: 5.2, duration_mins: 18, estimated_fare: 23.81, currency: 'EUR' });
       setStep('map');
     } finally {
       setLoading(false);
@@ -119,12 +141,14 @@ const RideBookingPage = () => {
     try {
       const response = await rideAPI.estimate({
         pickup_lat: pickup.lat, pickup_lng: pickup.lng,
+        pickup_address: pickup.address || 'Départ',
         dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng,
+        dropoff_address: dropoff.address || 'Destination',
         vehicle_type: selectedVehicle, payment_method: 'card',
       });
       setEstimate(response.data);
     } catch {
-      setEstimate({ distance_km: 5.2, duration_mins: 18, estimated_fare: 23.81 });
+      setEstimate({ distance_km: 5.2, duration_mins: 18, estimated_fare: 23.81, currency: 'EUR' });
     } finally {
       setLoading(false);
     }
@@ -296,7 +320,6 @@ const RideBookingPage = () => {
 
   // ===== STEP 2: MAP VIEW + VEHICLE SELECTION =====
   if (step === 'map') {
-    const basePrice = estimate?.estimated_fare || 23.81;
     return (
       <div className="mobile-container min-h-screen bg-white relative">
         {/* Map */}
@@ -341,39 +364,45 @@ const RideBookingPage = () => {
 
           {estimate && (
             <div className="p-4 space-y-3">
-              {/* Distance/Duration */}
+              {/* Distance/Duration + Currency */}
               <div className="text-center pb-2">
                 <p className="text-xs text-gray-500">
                   {estimate.distance_km?.toFixed(1) || '5.2'} km &middot; {estimate.duration_mins || 18} min
+                  {estimate.fare_type && <span className="ml-2 text-blue-600">({estimate.fare_type})</span>}
                 </p>
               </div>
 
-              {/* Vehicle Selection */}
+              {/* Vehicle Selection from V3Cube API */}
               <div className="space-y-2">
-                {vehicleTypes.map((v) => {
-                  const price = (basePrice * v.multiplier).toFixed(2);
-                  return (
-                    <button
-                      key={v.type}
-                      onClick={() => setSelectedVehicle(v.type)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                        selectedVehicle === v.type
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-100 hover:border-gray-200'
-                      }`}
-                      data-testid={`vehicle-${v.type}`}
-                    >
-                      <div className={`w-14 h-14 rounded-xl ${v.color} flex items-center justify-center`}>
-                        <Car size={32} weight="duotone" className={selectedVehicle === v.type ? 'text-blue-600' : 'text-gray-600'} />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-semibold text-gray-900">{v.name}</p>
-                        <p className="text-xs text-gray-500">{v.seats}</p>
-                      </div>
-                      <p className="font-bold text-lg text-gray-900">{price} &euro;</p>
-                    </button>
-                  );
-                })}
+                {vehicleTypes.map((v) => (
+                  <button
+                    key={v.slug}
+                    onClick={() => { setSelectedVehicle(v.slug); }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
+                      selectedVehicle === v.slug
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-100 hover:border-gray-200'
+                    }`}
+                    data-testid={`vehicle-${v.slug}`}
+                  >
+                    <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
+                      <VehicleIcon iconType={v.icon_type} selected={selectedVehicle === v.slug} />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="font-semibold text-gray-900">{v.name_fr}</p>
+                      <p className="text-xs text-gray-500">{v.person_capacity} places</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-gray-900">
+                        {selectedVehicle === v.slug && estimate
+                          ? `${estimate.estimated_fare?.toFixed(2) || v.min_fare}`
+                          : `${v.min_fare?.toFixed(2) || '—'}`
+                        } &euro;
+                      </p>
+                      <p className="text-[10px] text-gray-400">min. {v.min_fare?.toFixed(0) || '—'}&euro;</p>
+                    </div>
+                  </button>
+                ))}
               </div>
 
               {/* Payment Method */}

@@ -5,22 +5,15 @@ from typing import Optional
 
 from core.config import db
 from core.deps import get_current_user
+from core.seed_data import SERVICE_CATEGORIES
+
 
 router = APIRouter(prefix="/services", tags=["services"])
 
 
-SERVICE_CATEGORIES = {
-    "beauty": {"name": "Beauté", "services": ["Soins Capillaires", "Soins Visage", "Ongles & Manucure", "Épilation", "Maquillage & Coiffure", "Massage & Spa", "Soins Hommes", "Mains & Pieds", "Sourcils & Cils", "Exfoliation", "Bronzage", "Mariage & Pré-Mariage"]},
-    "pet": {"name": "Animaux", "services": ["Toilettage", "Promenade", "Dressage", "Pension", "Garde", "Soins Vétérinaires", "Spa & Bien-être", "Alimentation & Nutrition", "Accessoires & Fournitures", "Transport", "Adoption & Élevage", "Photos & Événements"]},
-    "car-care": {"name": "Entretien Auto", "services": ["Lavage Auto & Spa", "Service Batterie", "Boutique", "Livraison Carburant", "Lavage Moto & Spa", "Recharge EV", "Clés Auto", "Vidange"]},
-    "towing": {"name": "Dépannage", "services": ["Remorquage Urgence", "Remorquage Plateau", "Récupération Véhicule", "Pneu Crevé", "Ouverture Porte", "Démarrage", "Panne Sèche", "Changement Batterie", "Recharge EV"]},
-    "medical": {"name": "Médical", "services": ["Prendre Rendez-vous", "Vidéo Consultation", "Pharmacie", "Ambulance"]},
-    "handyman": {"name": "Services à la demande", "services": ["Bricolage", "Électricien", "Plombier", "Menuisier", "Peintres", "Ménage Maison"]},
-}
-
-
 @router.get("/categories")
 async def list_service_categories():
+    """Return service categories with full V3Cube structure."""
     return SERVICE_CATEGORIES
 
 

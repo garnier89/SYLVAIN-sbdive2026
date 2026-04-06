@@ -173,4 +173,17 @@ export const servicesAPI = {
   getNearby: (params) => api.get('/services/nearby', { params }),
 };
 
+// V3Cube Config APIs
+export const configAPI = {
+  getAppConfig: () => api.get('/config/app'),
+  getVehicleCategories: () => api.get('/config/vehicle-categories'),
+  getVehicleTypes: (categorySlug) => api.get('/config/vehicle-types', { params: categorySlug ? { category_slug: categorySlug } : {} }),
+  getVehicleType: (slug) => api.get(`/config/vehicle-types/${slug}`),
+  getNearbyCategories: () => api.get('/config/nearby-categories'),
+  getParcelTypes: () => api.get('/config/parcel-types'),
+  getCancelReasons: (userType) => api.get('/config/cancel-reasons', { params: userType ? { user_type: userType } : {} }),
+  getMasterCategories: () => api.get('/config/master-categories'),
+  getTrackCategories: () => api.get('/config/track-categories'),
+};
+
 export default api;

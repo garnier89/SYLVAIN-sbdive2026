@@ -84,9 +84,35 @@ def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
     return R * c
 
 
-def calculate_fare(distance_km: float, vehicle_type: str) -> float:
-    base_fares = {"car": 3.0, "motorcycle": 2.0, "bicycle": 1.5}
-    per_km_rates = {"car": 1.5, "motorcycle": 1.0, "bicycle": 0.8}
+def calculate_fare(distance_km: float, vehicle_type: str, duration_mins: int = 0, vtype_doc: dict = None) -> float:
+    """
+    V3Cube fare calculation logic supporting Regular/Fixed/Hourly fare types.
+    If vtype_doc is provided (from DB), use its pricing. Otherwise fallback.
+    """
+    if vtype_doc:
+        fare_type = vtype_doc.get("fare_type", "Regular")
+        base = vtype_doc.get("base_fare", 1.0)
+        per_km = vtype_doc.get("price_per_km", 1.0)
+        per_min = vtype_doc.get("price_per_min", 0.1)
+        per_hour = vtype_doc.get("price_per_hour", 0.0)
+        min_fare = vtype_doc.get("min_fare", 5.0)
+        pickup = vtype_doc.get("pickup_price", 0.0)
+
+        if fare_type == "Fixed":
+            total = vtype_doc.get("fixed_fare", 10.0)
+        elif fare_type == "Hourly":
+            hours = max(duration_mins / 60, vtype_doc.get("min_hour", 1))
+            total = base + (hours * per_hour)
+        else:
+            total = base + pickup + (distance_km * per_km) + (duration_mins * per_min)
+
+        return round(max(total, min_fare), 2)
+
+    # Fallback pricing if no DB document
+    base_fares = {"sb": 1.0, "confort": 2.0, "luxe": 5.0, "moto": 1.0, "pool": 0.5,
+                  "car": 3.0, "motorcycle": 2.0, "bicycle": 1.5}
+    per_km_rates = {"sb": 1.0, "confort": 1.5, "luxe": 2.5, "moto": 0.8, "pool": 0.7,
+                    "car": 1.5, "motorcycle": 1.0, "bicycle": 0.8}
     base = base_fares.get(vehicle_type, 3.0)
     rate = per_km_rates.get(vehicle_type, 1.5)
     return round(base + (distance_km * rate), 2)

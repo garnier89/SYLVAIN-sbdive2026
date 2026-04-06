@@ -15,17 +15,33 @@ router = APIRouter(prefix="/rides", tags=["rides"])
 @router.post("/estimate")
 async def estimate_ride(data: RideRequest):
     distance = calculate_distance(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng)
-    fare = calculate_fare(distance, data.vehicle_type)
     duration = int(distance * 3)
-    return {"distance_km": round(distance, 2), "duration_mins": duration, "estimated_fare": fare, "vehicle_type": data.vehicle_type}
+    # Look up vehicle type from DB for V3Cube pricing
+    vtype_doc = await db.vehicle_types.find_one({"slug": data.vehicle_type, "status": "active"}, {"_id": 0})
+    fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
+    result = {
+        "distance_km": round(distance, 2),
+        "duration_mins": duration,
+        "estimated_fare": fare,
+        "vehicle_type": data.vehicle_type,
+        "currency": "EUR",
+    }
+    if vtype_doc:
+        result["fare_type"] = vtype_doc.get("fare_type", "Regular")
+        result["base_fare"] = vtype_doc.get("base_fare", 0)
+        result["price_per_km"] = vtype_doc.get("price_per_km", 0)
+        result["commission_percent"] = vtype_doc.get("commission_percent", 0)
+        result["cancellation_fare"] = vtype_doc.get("cancellation_fare", 0)
+    return result
 
 
 @router.post("", response_model=RideResponse)
 async def create_ride(data: RideRequest, request: Request):
     user = await get_current_user(request)
     distance = calculate_distance(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng)
-    fare = calculate_fare(distance, data.vehicle_type)
     duration = int(distance * 3)
+    vtype_doc = await db.vehicle_types.find_one({"slug": data.vehicle_type, "status": "active"}, {"_id": 0})
+    fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
     otp = str(secrets.randbelow(10000)).zfill(4)
 
     ride = {
@@ -35,6 +51,16 @@ async def create_ride(data: RideRequest, request: Request):
         "vehicle_type": data.vehicle_type, "status": "pending", "estimated_fare": fare,
         "final_fare": None, "distance_km": round(distance, 2), "duration_mins": duration,
         "payment_method": data.payment_method, "payment_status": "pending", "otp": otp,
+        "fare_type": vtype_doc.get("fare_type", "Regular") if vtype_doc else "Regular",
+        "base_fare": vtype_doc.get("base_fare", 0) if vtype_doc else 0,
+        "price_per_km": vtype_doc.get("price_per_km", 0) if vtype_doc else 0,
+        "commission_percent": vtype_doc.get("commission_percent", 0) if vtype_doc else 0,
+        "currency": "EUR",
+        "scheduled_at": data.scheduled_at,
+        "coupon_code": data.coupon_code,
+        "discount": 0.0,
+        "book_for_name": data.book_for_name,
+        "book_for_phone": data.book_for_phone,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.rides.insert_one(ride)

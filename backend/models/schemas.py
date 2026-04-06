@@ -83,7 +83,7 @@ class ProductCreate(BaseModel):
     image_url: Optional[str] = None
     is_available: bool = True
 
-# Ride Models
+# Ride Models — enriched with V3Cube fare logic
 class RideRequest(BaseModel):
     pickup_lat: float
     pickup_lng: float
@@ -93,8 +93,13 @@ class RideRequest(BaseModel):
     dropoff_address: str
     vehicle_type: str
     payment_method: str
+    scheduled_at: Optional[str] = None
+    coupon_code: Optional[str] = None
+    book_for_name: Optional[str] = None
+    book_for_phone: Optional[str] = None
 
 class RideResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str
     user_id: str
     driver_id: Optional[str] = None
@@ -114,6 +119,14 @@ class RideResponse(BaseModel):
     payment_status: str
     created_at: datetime
     otp: Optional[str] = None
+    fare_type: str = "Regular"
+    base_fare: float = 0.0
+    price_per_km: float = 0.0
+    commission_percent: float = 0.0
+    currency: str = "EUR"
+    scheduled_at: Optional[str] = None
+    coupon_code: Optional[str] = None
+    discount: float = 0.0
 
 # Order Models
 class OrderItemCreate(BaseModel):
@@ -165,3 +178,40 @@ class TicketCreate(BaseModel):
     message: str
     related_id: Optional[str] = None
     related_type: Optional[str] = None
+
+# V3Cube-derived models
+
+class VehicleTypeResponse(BaseModel):
+    id: str
+    slug: str
+    name_fr: str
+    name_en: str
+    category_slug: str
+    fare_type: str
+    base_fare: float
+    price_per_km: float
+    price_per_min: float
+    min_fare: float
+    commission_percent: float
+    pickup_price: float
+    person_capacity: int
+    icon_type: str
+    cancellation_fare: float
+    waiting_fees: float
+    status: str
+
+class VehicleCategoryResponse(BaseModel):
+    id: str
+    slug: str
+    name_fr: str
+    name_en: str
+    type: str
+    icon: str
+    description_fr: str
+    display_order: int
+    status: str
+
+class ConfigurationResponse(BaseModel):
+    key: str
+    value: str
+    category: str

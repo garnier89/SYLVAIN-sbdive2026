@@ -21,6 +21,13 @@ from routes.misc import router as misc_router
 from routes.marketplace import router as marketplace_router
 from routes.carpool import router as carpool_router
 from routes.services import router as services_router
+from routes.config import router as config_router
+
+from core.seed_data import (
+    VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
+    NEARBY_CATEGORIES, PARCEL_PACKAGE_TYPES, CANCEL_REASONS,
+    TRACK_CATEGORIES, APP_CONFIGURATIONS,
+)
 
 
 @asynccontextmanager
@@ -120,6 +127,44 @@ async def lifespan(app: FastAPI):
 
     init_storage()
     logger.info("SuperApp Backend Started (Modular)")
+
+    # Seed V3Cube reference data
+    for cat in VEHICLE_CATEGORIES:
+        if not await db.vehicle_categories.find_one({"id": cat["id"]}):
+            await db.vehicle_categories.insert_one(cat)
+    await db.vehicle_categories.create_index("slug", unique=True)
+
+    for vt in VEHICLE_TYPES:
+        if not await db.vehicle_types.find_one({"id": vt["id"]}):
+            await db.vehicle_types.insert_one(vt)
+    await db.vehicle_types.create_index("slug")
+
+    for mc in MASTER_SERVICE_CATEGORIES:
+        if not await db.master_service_categories.find_one({"id": mc["id"]}):
+            await db.master_service_categories.insert_one(mc)
+
+    for nc in NEARBY_CATEGORIES:
+        if not await db.nearby_categories.find_one({"id": nc["id"]}):
+            await db.nearby_categories.insert_one(nc)
+
+    for pt in PARCEL_PACKAGE_TYPES:
+        if not await db.parcel_package_types.find_one({"id": pt["id"]}):
+            await db.parcel_package_types.insert_one(pt)
+
+    for cr in CANCEL_REASONS:
+        if not await db.cancel_reasons.find_one({"id": cr["id"]}):
+            await db.cancel_reasons.insert_one(cr)
+
+    for tc in TRACK_CATEGORIES:
+        if not await db.track_categories.find_one({"id": tc["id"]}):
+            await db.track_categories.insert_one(tc)
+
+    for cfg in APP_CONFIGURATIONS:
+        if not await db.app_configurations.find_one({"key": cfg["key"]}):
+            await db.app_configurations.insert_one(cfg)
+
+    logger.info("V3Cube seed data loaded")
+
     yield
     client.close()
 
@@ -138,6 +183,7 @@ api_router.include_router(misc_router)
 api_router.include_router(marketplace_router)
 api_router.include_router(carpool_router)
 api_router.include_router(services_router)
+api_router.include_router(config_router)
 
 app.include_router(api_router)
 
