@@ -164,9 +164,9 @@ const ProfilePage = () => {
           testId="settings-faceid-btn"
           trailing={
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
                 <Info size={14} weight="fill" className="text-blue-600" />
-              </button>
+              </div>
               <Switch
                 checked={faceIdEnabled}
                 onCheckedChange={setFaceIdEnabled}
