@@ -8,11 +8,12 @@ Construire une super-app MVP multi-services (clone Gojek/V3Cube) nommée "SB Dri
 - **Backend**: FastAPI (modulaire) + MongoDB
 - **Maps**: OpenStreetMap / Leaflet
 - **Paiements**: Stripe (en attente de clé)
+- **Temps réel**: WebSocket natif (FastAPI WebSocket)
 
 ## Structure Backend Modulaire
 ```
 /app/backend/
-  server.py (entry point + seed V3Cube data)
+  server.py (entry point + seed V3Cube + WS handler)
   core/config.py, deps.py, websocket.py, seed_data.py
   models/schemas.py
   routes/auth.py, rides.py, orders.py, services.py, config.py, marketplace.py, carpool.py, misc.py, drivers.py, merchants.py
@@ -27,7 +28,7 @@ Construire une super-app MVP multi-services (clone Gojek/V3Cube) nommée "SB Dri
 - Flow Chauffeur (/chauffeur) avec OTP en français
 - Page de réservation de course avec carte Leaflet
 
-### Phase 2 - Backend Modulaire (DONE)  
+### Phase 2 - Backend Modulaire (DONE)
 - Refactoring du monolith server.py en routes/ et models/
 - Auth JWT (login, register, logout, refresh)
 - APIs CRUD pour rides, orders, services, marketplace, carpool
@@ -35,58 +36,61 @@ Construire une super-app MVP multi-services (clone Gojek/V3Cube) nommée "SB Dri
 - Dispatcher live panel
 
 ### Phase 3 - Intégration V3Cube (DONE - Avril 2026)
-- Extraction et analyse des dumps SQL V3Cube (sbdriv5_db2024.sql + beta)
-- Mapping du schéma legacy MySQL -> MongoDB
-- Seed data V3Cube avec 224 tables analysées:
-  - 9 catégories de véhicules (VTC-Taxi, Moto, Location, Pool, Planifier, Corporate, Réserver pour autre, Enchères, Inter-villes)
-  - 5 types de véhicules avec tarification (SB, Confort, Luxe, Moto, Pool)
-  - 6 catégories maîtres de services (Taxi, Livraison, Services à la demande, Vidéo Consultation, Enchères, Médical)
-  - 21 catégories de commerces proches
-  - 5 types de colis livraison
-  - 8 raisons d'annulation (User/Driver/Both)
-  - 2 catégories de suivi (Famille, Employés)
-  - 35+ configurations applicatives
+- Extraction et analyse des dumps SQL V3Cube (224 tables)
+- 9 catégories de véhicules, 5 types avec tarification
+- 6 catégories maîtres, 21 catégories commerces, 5 types colis
+- 8 raisons d'annulation, 35+ configurations applicatives
 - Logique de tarification V3Cube (Regular/Fixed/Hourly)
-- 10 nouveaux endpoints API /api/config/*
-- Frontend dynamique: types de véhicules chargés depuis l'API
+- 10 endpoints /api/config/*
 
-## Endpoints API
+### Phase 4 - WebSocket & Flow Course Complet (DONE - Avril 2026)
+- WebSocket temps réel avec rooms par course
+- Suivi position chauffeur en direct sur la carte
+- Flow de course complet: pending → accepted → arriving → in_progress → completed/cancelled
+- Validation des transitions d'état (impossible de sauter une étape)
+- Page de suivi de course temps réel (/ride/{rideId}) avec:
+  - Carte avec position chauffeur live, marqueurs pickup/dropoff
+  - Barre de progression d'état
+  - Infos chauffeur (nom, note, véhicule)
+  - Code OTP (quand le chauffeur arrive)
+  - Détails du tarif
+  - Annulation avec raisons V3Cube + frais d'annulation
+  - Modal d'évaluation après course
+- Hook useWebSocket avec reconnexion auto et keep-alive
+- Intégration WebSocket côté chauffeur (DriverHome)
+- Endpoints: /rides/active/current, /rides/pending/available, /rides/{id}/cancel
+
+## Endpoints API Complets
 
 ### Auth
 - POST /api/auth/register, /login, /logout, /refresh, /me
 
 ### Config (V3Cube)
-- GET /api/config/vehicle-categories (9 catégories)
-- GET /api/config/vehicle-types (5 types avec pricing)
-- GET /api/config/vehicle-types/{slug}
-- GET /api/config/app (configurations clé-valeur)
-- GET /api/config/nearby-categories (21 catégories)
-- GET /api/config/parcel-types (5 types)
-- GET /api/config/cancel-reasons (8 raisons, filtrable par user_type)
-- GET /api/config/master-categories (6 catégories)
-- GET /api/config/track-categories (2 catégories)
-- GET /api/config/admin/all (admin only)
-- PUT /api/config/admin/{key} (admin only)
+- GET /api/config/vehicle-categories, /vehicle-types, /vehicle-types/{slug}
+- GET /api/config/app, /nearby-categories, /parcel-types
+- GET /api/config/cancel-reasons, /master-categories, /track-categories
+- GET /api/config/admin/all, PUT /api/config/admin/{key}
 
-### Rides
-- POST /api/rides/estimate (enrichi avec pricing V3Cube)
-- POST /api/rides (créer course)
+### Rides (enrichi)
+- POST /api/rides/estimate (pricing V3Cube)
+- POST /api/rides (créer avec OTP + champs V3Cube)
 - GET /api/rides/{id}, GET /api/rides
-- POST /api/rides/{id}/accept, /status, /rate
+- GET /api/rides/active/current
+- GET /api/rides/pending/available
+- POST /api/rides/{id}/accept, /status, /cancel, /rate
+
+### WebSocket
+- ws://host/ws/{client_id} — Messages: ping, join_ride, leave_ride, location_update
 
 ### Services, Orders, Marketplace, Carpool
-- Voir routes/ pour détails complets
+- Voir routes/ pour détails
 
 ## Tests
-- Iteration 12: 29/29 tests PASS (100%)
-- Backend: Tous endpoints config, auth, rides fonctionnels
-- Frontend: Login flow, Home, Ride booking avec types dynamiques
+- Iteration 13: Backend 19/19 PASS (100%), Frontend OK
+- WebSocket interne OK, externe peut timeout (ingress)
+- Iteration 12: 29/29 PASS (100%)
 
-## P0 - À faire maintenant
-- WebSocket temps réel pour suivi chauffeur
-- Enrichir la logique de course (accepting/arriving/in_progress)
-
-## P1 - À venir
+## P1 - À faire maintenant
 - Stripe webhook pour wallet et checkout
 - Persistance du panier entre sessions
 - Historique complet des réservations
