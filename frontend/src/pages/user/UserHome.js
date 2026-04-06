@@ -171,14 +171,14 @@ const UserHome = () => {
               </button>
             </div>
           </div>
-          <div className="min-w-[92%] snap-start rounded-2xl overflow-hidden bg-gradient-to-r from-[#00C853]/10 to-emerald-50 border border-emerald-200 flex items-stretch h-[140px]" data-testid="promo-banner-2">
+          <div className="min-w-[92%] snap-start rounded-2xl overflow-hidden bg-gradient-to-r from-[#FF4500]/10 to-orange-50 border border-orange-200 flex items-stretch h-[140px]" data-testid="promo-banner-2">
             <div className="flex-1 p-4 flex flex-col justify-center">
               <p className="font-bold text-gray-900 text-base leading-tight">Première course VTC</p>
-              <p className="text-2xl font-bold text-[#00C853] mt-1">-50%</p>
+              <p className="text-2xl font-bold text-[#FF4500] mt-1">-50%</p>
               <p className="text-xs text-gray-500 mt-1">Code : BIENVENUE</p>
             </div>
-            <div className="w-2/5 flex items-center justify-center bg-[#00C853]/5">
-              <Car size={64} weight="duotone" className="text-[#00C853]" />
+            <div className="w-2/5 flex items-center justify-center bg-[#FF4500]/5">
+              <Car size={64} weight="duotone" className="text-[#FF4500]" />
             </div>
           </div>
         </div>
@@ -269,14 +269,14 @@ const UserHome = () => {
           {/* Book Appointment - Large Card */}
           <button
             onClick={() => navigate('/services')}
-            className="row-span-2 rounded-2xl bg-blue-50 border border-blue-100 p-4 flex flex-col text-left group"
+            className="row-span-2 rounded-2xl bg-orange-50 border border-orange-100 p-4 flex flex-col text-left group"
             data-testid="medical-appointment-btn"
           >
             <h4 className="text-sm font-bold text-gray-900">Prendre Rendez-vous</h4>
             <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">Prenez RDV avec un médecin ou un expert médical à leur cabinet ou à domicile.</p>
             <div className="flex-1 flex items-end justify-center mt-3">
-              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center">
-                <Stethoscope size={40} weight="duotone" className="text-blue-600" />
+              <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center">
+                <Stethoscope size={40} weight="duotone" className="text-[#FF4500]" />
               </div>
             </div>
           </button>
@@ -325,7 +325,7 @@ const UserHome = () => {
           <div className="flex gap-3">
             {/* Illustration */}
             <div className="hidden sm:flex w-24 flex-shrink-0 items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-[#FF4500] flex items-center justify-center">
                 <Wrench size={36} className="text-white" />
               </div>
             </div>
@@ -361,7 +361,7 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <button
           onClick={() => navigate('/towing')}
-          className="w-full rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-5 flex items-center gap-4 text-left"
+          className="w-full rounded-2xl bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 p-5 flex items-center gap-4 text-left"
           data-testid="towing-section-btn"
         >
           <div className="flex-1">
@@ -383,7 +383,7 @@ const UserHome = () => {
           {/* Real Estate */}
           <button
             onClick={() => navigate('/marketplace/real-estate')}
-            className="w-full rounded-2xl overflow-hidden bg-gradient-to-r from-blue-600 to-blue-700 flex items-stretch h-[90px] text-left"
+            className="w-full rounded-2xl overflow-hidden bg-gradient-to-r from-[#FF4500] to-[#E03D00] flex items-stretch h-[90px] text-left"
             data-testid="marketplace-realestate-btn"
           >
             <div className="flex-1 p-4 flex flex-col justify-center">
@@ -476,7 +476,7 @@ const UserHome = () => {
       {/* ===== BOTTOM NAVIGATION ===== */}
       <div className="fixed bottom-0 left-0 right-0 z-50">
         <div className="max-w-[430px] mx-auto bg-gray-900 rounded-t-3xl px-4 py-2.5 flex items-center justify-around">
-          <button className="flex items-center gap-2 bg-[#00C853] text-white px-4 py-2 rounded-full" data-testid="nav-home">
+          <button className="flex items-center gap-2 bg-[#FF4500] text-white px-4 py-2 rounded-full" data-testid="nav-home">
             <House size={20} weight="fill" />
             <span className="text-xs font-semibold">Accueil</span>
           </button>
@@ -499,3 +499,4 @@ const UserHome = () => {
 };
 
 export default UserHome;
+;

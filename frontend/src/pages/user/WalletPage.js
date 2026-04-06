@@ -155,7 +155,7 @@ const WalletPage = () => {
         {showCoupons && (
           <div className="bg-white rounded-2xl p-4 border border-gray-200" data-testid="coupons-section">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Gift size={18} className="text-blue-600" /> Codes promo disponibles
+              <Gift size={18} className="text-[#FF4500]" /> Codes promo disponibles
             </h3>
             {coupons.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-4">Aucun coupon disponible</p>
@@ -163,13 +163,13 @@ const WalletPage = () => {
               <div className="space-y-2">
                 {coupons.map((c, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-100" data-testid={`coupon-${i}`}>
-                    <Tag size={20} className="text-blue-600" />
+                    <Tag size={20} className="text-[#FF4500]" />
                     <div className="flex-1">
                       <p className="font-bold text-blue-800">{c.code}</p>
-                      <p className="text-xs text-blue-600">{c.description}</p>
+                      <p className="text-xs text-[#FF4500]">{c.description}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-blue-700">
+                      <p className="font-bold text-[#E03D00]">
                         {c.discount_type === 'Percentage' ? `${c.discount_value}%` : `${c.discount_value} EUR`}
                       </p>
                     </div>

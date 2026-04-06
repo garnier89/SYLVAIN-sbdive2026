@@ -71,7 +71,7 @@ const ProfilePage = () => {
 
   /* ── quick‑action buttons under wallet card ── */
   const quickActions = [
-    { id: 'bookings', icon: ClipboardText, label: 'Les réservations', color: '#3F51B5', bg: 'bg-indigo-50', path: '/history' },
+    { id: 'bookings', icon: ClipboardText, label: 'Les réservations', color: '#FF4500', bg: 'bg-indigo-50', path: '/history' },
     { id: 'wallet', icon: Wallet, label: 'Portefeuille', color: '#E91E63', bg: 'bg-pink-50', path: '/wallet' },
     { id: 'topup', icon: CreditCard, label: 'Recharger', color: '#7C4DFF', bg: 'bg-purple-50', path: '/wallet' },
     { id: 'invite', icon: EnvelopeSimple, label: 'Inviter', color: '#FF9800', bg: 'bg-orange-50', path: '#' },
@@ -81,7 +81,7 @@ const ProfilePage = () => {
     <div className="mobile-container min-h-screen pb-24 bg-[#F2F2F7]">
 
       {/* ═══════════ HEADER — dark indigo blue ═══════════ */}
-      <div className="bg-[#3F51B5] px-5 pt-8 pb-20 relative">
+      <div className="bg-[#FF4500] px-5 pt-8 pb-20 relative">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3.5">
             <Avatar className="h-14 w-14 border-2 border-white/30 shadow-md">
@@ -108,7 +108,7 @@ const ProfilePage = () => {
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <div className="flex items-center justify-between mb-4">
             <p className="text-[14px] font-bold text-gray-900">Balance de portefeuille</p>
-            <p className="text-lg font-bold text-[#3F51B5]" data-testid="wallet-balance-display">
+            <p className="text-lg font-bold text-[#FF4500]" data-testid="wallet-balance-display">
               {walletBalance.toFixed(2)} &euro;
             </p>
           </div>
@@ -136,7 +136,7 @@ const ProfilePage = () => {
       <SectionHeader title="réglages généraux" />
       <MenuCard>
         <MenuItem icon={User} label="Au propos de vous" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-red-800" iconColor="text-white" testId="settings-about-btn" />
-        <MenuItem icon={ClipboardText} label="Mes réservations" iconBg="bg-blue-600" iconColor="text-white" onClick={() => navigate('/history')} testId="settings-bookings-btn" />
+        <MenuItem icon={ClipboardText} label="Mes réservations" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/history')} testId="settings-bookings-btn" />
         <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-sky-500" iconColor="text-white" testId="settings-business-btn" />
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" testId="settings-notifications-btn" />
@@ -159,19 +159,19 @@ const ProfilePage = () => {
         <MenuItem
           icon={Fingerprint}
           label="Activer Face ID/Touch ID"
-          iconBg="bg-blue-600"
+          iconBg="bg-[#FF4500]"
           iconColor="text-white"
           testId="settings-faceid-btn"
           trailing={
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                <Info size={14} weight="fill" className="text-blue-600" />
+                <Info size={14} weight="fill" className="text-[#FF4500]" />
               </div>
               <Switch
                 checked={faceIdEnabled}
                 onCheckedChange={setFaceIdEnabled}
                 data-testid="faceid-toggle"
-                className="data-[state=checked]:bg-[#3F51B5]"
+                className="data-[state=checked]:bg-[#FF4500]"
               />
             </div>
           }
@@ -188,7 +188,7 @@ const ProfilePage = () => {
       <MenuCard>
         <MenuItem icon={CreditCard} label="Mode de paiement" iconBg="bg-purple-700" iconColor="text-white" testId="settings-payment-method-btn" />
         <MenuItem icon={Wallet} label="Mon portefeuille" iconBg="bg-pink-600" iconColor="text-white" onClick={() => navigate('/wallet')} testId="settings-wallet-btn" />
-        <MenuItem icon={CreditCard} label="Ajouter de l'argent" iconBg="bg-[#3F51B5]" iconColor="text-white" onClick={() => navigate('/wallet')} testId="settings-add-money-btn" />
+        <MenuItem icon={CreditCard} label="Ajouter de l'argent" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/wallet')} testId="settings-add-money-btn" />
         <MenuItem icon={PaperPlaneTilt} label="Envoyer de l'argent" iconBg="bg-red-900" iconColor="text-white" testId="settings-send-money-btn" />
       </MenuCard>
 
@@ -222,7 +222,7 @@ const ProfilePage = () => {
         <MenuItem
           icon={Power}
           label="Connectez - Out"
-          iconBg="bg-[#3F51B5]"
+          iconBg="bg-[#FF4500]"
           iconColor="text-white"
           onClick={handleLogout}
           testId="logout-btn"
@@ -247,8 +247,8 @@ const ProfilePage = () => {
             <span className="text-[10px] text-gray-400">Portefeuille</span>
           </button>
           <button className="flex flex-col items-center gap-0.5 py-2 min-w-[60px]" data-testid="nav-profile">
-            <User size={22} weight="fill" className="text-[#3F51B5]" />
-            <span className="text-[10px] text-[#3F51B5] font-semibold">Profil</span>
+            <User size={22} weight="fill" className="text-[#FF4500]" />
+            <span className="text-[10px] text-[#FF4500] font-semibold">Profil</span>
           </button>
         </div>
       </div>

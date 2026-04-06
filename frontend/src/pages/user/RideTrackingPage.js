@@ -209,13 +209,13 @@ const RideTrackingPage = () => {
               return (
                 <React.Fragment key={step.key}>
                   <div className="flex flex-col items-center gap-1">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? 'bg-[#FF4500] text-white' : 'bg-gray-100 text-gray-400'}`}>
                       <Icon size={16} weight={isActive ? 'fill' : 'regular'} />
                     </div>
-                    <span className={`text-[9px] font-medium ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>{step.label}</span>
+                    <span className={`text-[9px] font-medium ${isActive ? 'text-[#FF4500]' : 'text-gray-400'}`}>{step.label}</span>
                   </div>
                   {i < (isCompleted ? STATUS_STEPS.length - 1 : STATUS_STEPS.length - 2) && (
-                    <div className={`flex-1 h-0.5 mx-1 ${i < currentStepIdx ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                    <div className={`flex-1 h-0.5 mx-1 ${i < currentStepIdx ? 'bg-[#FF4500]' : 'bg-gray-200'}`} />
                   )}
                 </React.Fragment>
               );
@@ -237,14 +237,14 @@ const RideTrackingPage = () => {
 
         {/* Searching animation */}
         {ride.status === 'pending' && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-4 text-center" data-testid="ride-searching">
+          <div className="bg-blue-50 border border-orange-200 rounded-2xl p-5 mb-4 text-center" data-testid="ride-searching">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" />
               <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
               <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
             </div>
             <p className="font-semibold text-blue-800">Recherche d'un chauffeur...</p>
-            <p className="text-xs text-blue-600 mt-1">Veuillez patienter</p>
+            <p className="text-xs text-[#FF4500] mt-1">Veuillez patienter</p>
           </div>
         )}
 
@@ -269,10 +269,10 @@ const RideTrackingPage = () => {
               </div>
               <div className="flex gap-2">
                 <button className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center" data-testid="call-driver-btn">
-                  <Phone size={18} className="text-blue-600" />
+                  <Phone size={18} className="text-[#FF4500]" />
                 </button>
                 <button className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center" data-testid="chat-driver-btn">
-                  <ChatCircle size={18} className="text-blue-600" />
+                  <ChatCircle size={18} className="text-[#FF4500]" />
                 </button>
               </div>
             </div>

@@ -133,7 +133,7 @@ const ServicesPage = () => {
                   <Clock size={18} />
                   <span className="text-sm">{selectedService.duration}</span>
                 </div>
-                <p className="text-2xl font-bold text-[#00C853]">{selectedService.price} &euro;</p>
+                <p className="text-2xl font-bold text-[#FF4500]">{selectedService.price} &euro;</p>
               </div>
 
               <div className="space-y-3">
@@ -149,7 +149,7 @@ const ServicesPage = () => {
             </CardContent>
           </Card>
           <Button
-            className="w-full rounded-2xl h-14 bg-[#00C853] hover:bg-[#009624] text-white text-lg font-semibold"
+            className="w-full rounded-2xl h-14 bg-[#FF4500] hover:bg-[#E03D00] text-white text-lg font-semibold"
             onClick={handleConfirmBooking}
             data-testid="confirm-service-btn"
           >
@@ -161,8 +161,8 @@ const ServicesPage = () => {
       {/* Booking Success */}
       {bookingStep === 'booked' && (
         <div className="flex flex-col items-center justify-center h-[60vh] p-8 text-center">
-          <div className="w-20 h-20 rounded-full bg-[#00C853]/10 flex items-center justify-center mb-6">
-            <Star size={40} className="text-[#00C853]" />
+          <div className="w-20 h-20 rounded-full bg-[#FF4500]/10 flex items-center justify-center mb-6">
+            <Star size={40} className="text-[#FF4500]" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Service réservé !</h2>
           <p className="text-gray-500">Un prestataire vous sera assigné sous peu. Vous recevrez une notification de confirmation.</p>
@@ -228,7 +228,7 @@ const ServicesPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-[#00C853]">{service.price} &euro;</p>
+                      <p className="font-bold text-[#FF4500]">{service.price} &euro;</p>
                       <CaretRight size={16} className="text-gray-400" />
                     </div>
                   </CardContent>

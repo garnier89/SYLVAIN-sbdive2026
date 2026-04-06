@@ -8,29 +8,29 @@ const slides = [
     title: 'Connexion rapide & sécurisée',
     desc: 'Connectez-vous facilement avec votre email ou votre compte Google.',
     icon: ShieldCheck,
-    bg: 'bg-blue-50',
-    iconBg: 'bg-blue-500',
+    bg: 'bg-orange-50',
+    iconBg: 'bg-[#FF4500]',
   },
   {
     title: 'Réservez en un clic',
     desc: 'VTC, moto, livraison de colis et repas — tous vos services en un seul endroit.',
     icon: Car,
-    iconBg: 'bg-[#00C853]',
-    bg: 'bg-emerald-50',
+    iconBg: 'bg-[#FF4500]',
+    bg: 'bg-orange-50',
   },
   {
     title: 'Suivi en temps réel',
     desc: 'Suivez votre chauffeur ou votre livraison en direct sur la carte.',
     icon: MapPin,
-    iconBg: 'bg-orange-500',
+    iconBg: 'bg-[#FF4500]',
     bg: 'bg-orange-50',
   },
   {
     title: 'Notifications instantanées',
     desc: 'Restez informé à chaque étape de votre course ou commande.',
     icon: Bell,
-    iconBg: 'bg-purple-500',
-    bg: 'bg-purple-50',
+    iconBg: 'bg-[#FF4500]',
+    bg: 'bg-orange-50',
   },
 ];
 
@@ -61,19 +61,25 @@ const ClientWelcome = () => {
   if (phase === 'splash') {
     return (
       <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center relative" data-testid="splash-screen">
-        <div className="flex flex-col items-center gap-2 animate-fade-in">
-          <h1 className="text-5xl font-bold text-blue-600 italic tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        <div className="flex flex-col items-center gap-4 animate-fade-in">
+          <img
+            src="/sb-logo.jpg"
+            alt="SB Drive"
+            className="w-40 h-40 object-contain"
+            data-testid="splash-logo"
+          />
+          <h1 className="text-3xl font-bold text-[#FF4500] tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
             SB Drive
           </h1>
         </div>
         <div className="absolute bottom-16 flex flex-col items-center gap-2">
           <p className="text-base font-bold tracking-widest text-gray-800">
-            CLIENT <span className="text-blue-600">APP</span>
+            CLIENT <span className="text-[#FF4500]">APP</span>
           </p>
           <div className="flex gap-1.5 mt-1">
             <div className="w-2 h-2 rounded-full bg-gray-300" />
             <div className="w-2 h-2 rounded-full bg-gray-300" />
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#FF4500]" />
           </div>
         </div>
       </div>
@@ -89,11 +95,11 @@ const ClientWelcome = () => {
         <div className="flex items-center justify-between px-5 pt-5">
           <p className="text-sm font-bold">
             <span className="text-gray-900">CLIENT</span>{' '}
-            <span className="text-blue-600">APP</span>
+            <span className="text-[#FF4500]">APP</span>
           </p>
           <button
             onClick={() => setPhase('login')}
-            className="text-sm text-blue-600 font-medium"
+            className="text-sm text-[#FF4500] font-medium"
             data-testid="skip-onboarding-btn"
           >
             Passer
@@ -117,13 +123,13 @@ const ClientWelcome = () => {
             {slides.map((_, i) => (
               <div
                 key={i}
-                className={`h-1 rounded-full transition-all ${i === currentSlide ? 'w-6 bg-blue-600' : 'w-4 bg-gray-300'}`}
+                className={`h-1 rounded-full transition-all ${i === currentSlide ? 'w-6 bg-[#FF4500]' : 'w-4 bg-gray-300'}`}
               />
             ))}
           </div>
           <button
             onClick={nextSlide}
-            className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors"
+            className="w-14 h-14 rounded-full bg-[#FF4500] flex items-center justify-center shadow-lg hover:bg-[#E03D00] transition-colors"
             data-testid="onboarding-next-btn"
           >
             <ArrowRight size={24} className="text-white" />
@@ -137,25 +143,27 @@ const ClientWelcome = () => {
   return (
     <div className="mobile-container min-h-screen bg-white flex flex-col">
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="w-20 h-20 rounded-3xl bg-[#00C853] flex items-center justify-center shadow-xl shadow-[#00C853]/25 mb-4">
-          <Car size={44} weight="duotone" className="text-white" />
-        </div>
+        <img
+          src="/sb-logo.jpg"
+          alt="SB Drive"
+          className="w-28 h-28 object-contain mb-4"
+        />
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">SB Drive</h1>
-        <p className="text-lg text-[#00C853] font-medium mt-1">Client</p>
+        <p className="text-lg text-[#FF4500] font-medium mt-1">Client</p>
         <p className="text-gray-500 text-center mt-4 max-w-xs leading-relaxed">
           Réservez un VTC, commandez des repas, envoyez des colis et accédez à tous les services.
         </p>
       </div>
       <div className="px-6 pb-8 space-y-3">
-        <button onClick={() => navigate('/login')} className="w-full h-14 rounded-2xl bg-[#00C853] hover:bg-[#009624] text-white text-lg font-semibold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-[#00C853]/25" data-testid="client-login-btn">
+        <button onClick={() => navigate('/login')} className="w-full h-14 rounded-2xl bg-[#FF4500] hover:bg-[#E03D00] text-white text-lg font-semibold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-[#FF4500]/25" data-testid="client-login-btn">
           Se connecter
         </button>
-        <button onClick={() => navigate('/register')} className="w-full h-14 rounded-2xl border-2 border-gray-200 text-gray-700 text-lg font-semibold flex items-center justify-center gap-2 hover:border-[#00C853] hover:text-[#00C853] transition-colors" data-testid="client-register-btn">
+        <button onClick={() => navigate('/register')} className="w-full h-14 rounded-2xl border-2 border-gray-200 text-gray-700 text-lg font-semibold flex items-center justify-center gap-2 hover:border-[#FF4500] hover:text-[#FF4500] transition-colors" data-testid="client-register-btn">
           Créer un compte
         </button>
         <p className="text-center text-xs text-gray-400 pt-2">
           Vous êtes chauffeur ?{' '}
-          <button onClick={() => navigate('/chauffeur')} className="text-[#00C853] font-medium" data-testid="switch-to-chauffeur-link">SB Drive Chauffeur</button>
+          <button onClick={() => navigate('/chauffeur')} className="text-[#FF4500] font-medium" data-testid="switch-to-chauffeur-link">SB Drive Chauffeur</button>
         </p>
       </div>
     </div>

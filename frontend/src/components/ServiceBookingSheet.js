@@ -42,7 +42,7 @@ const ServiceBookingSheet = ({ service, category, onClose }) => {
           </div>
           <h3 className="text-lg font-bold text-gray-900">Réservation Confirmée !</h3>
           <p className="text-sm text-gray-500 mt-2">{service.name} le {date} à {time}</p>
-          <Button className="w-full mt-4 h-12 rounded-xl bg-blue-600 text-white font-semibold" onClick={onClose} data-testid="booking-done-btn">
+          <Button className="w-full mt-4 h-12 rounded-xl bg-[#FF4500] text-white font-semibold" onClick={onClose} data-testid="booking-done-btn">
             Parfait
           </Button>
         </div>
@@ -93,7 +93,7 @@ const ServiceBookingSheet = ({ service, category, onClose }) => {
           <textarea placeholder="Précisions supplémentaires..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none resize-none focus:border-blue-400" data-testid="booking-notes" />
         </div>
 
-        <Button className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold" onClick={handleBook} disabled={loading || !date || !time} data-testid="booking-confirm-btn">
+        <Button className="w-full h-12 rounded-xl bg-[#FF4500] hover:bg-[#E03D00] text-white font-semibold" onClick={handleBook} disabled={loading || !date || !time} data-testid="booking-confirm-btn">
           {loading ? 'Réservation en cours...' : 'Confirmer la Réservation'}
         </Button>
       </div>

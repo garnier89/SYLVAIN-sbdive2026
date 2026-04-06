@@ -167,7 +167,7 @@ const RegisterPage = () => {
             <Button
               type="submit"
               className="w-full rounded-full h-12"
-              style={{ backgroundColor: '#00C853', color: 'white' }}
+              style={{ backgroundColor: '#FF4500', color: 'white' }}
               disabled={loading}
               data-testid="register-submit-btn"
             >

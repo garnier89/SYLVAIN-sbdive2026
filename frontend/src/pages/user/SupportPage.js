@@ -79,7 +79,7 @@ const SupportPage = () => {
           </p>
           <Button
             className="w-full rounded-full h-12"
-            style={{ backgroundColor: '#00C853' }}
+            style={{ backgroundColor: '#FF4500' }}
             onClick={() => navigate('/')}
             data-testid="back-home-btn"
           >
@@ -113,7 +113,7 @@ const SupportPage = () => {
         {!showForm && (
           <Button
             className="w-full rounded-full h-12"
-            style={{ backgroundColor: '#00C853' }}
+            style={{ backgroundColor: '#FF4500' }}
             onClick={() => setShowForm(true)}
             data-testid="new-ticket-btn"
           >
@@ -182,7 +182,7 @@ const SupportPage = () => {
                   <Button
                     type="submit"
                     className="flex-1 rounded-full text-white"
-                    style={{ backgroundColor: '#00C853' }}
+                    style={{ backgroundColor: '#FF4500' }}
                     disabled={loading}
                     data-testid="submit-ticket-btn"
                   >

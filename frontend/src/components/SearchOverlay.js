@@ -87,7 +87,7 @@ const CATEGORY_COLORS = {
   'Taxi': 'bg-amber-100 text-amber-700',
   'Livraison': 'bg-rose-100 text-rose-700',
   'Beauté': 'bg-pink-100 text-pink-700',
-  'Animaux': 'bg-blue-100 text-blue-700',
+  'Animaux': 'bg-blue-100 text-[#E03D00]',
   'Entretien Auto': 'bg-cyan-100 text-cyan-700',
   'Dépannage': 'bg-red-100 text-red-700',
   'Médical': 'bg-green-100 text-green-700',

@@ -90,7 +90,7 @@ const CarPoolPage = () => {
               <div className="w-7 h-28 bg-gray-300 rounded-t-sm" />
               <div className="w-9 h-18 bg-gray-300 rounded-t-sm" />
             </div>
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-20 bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-20 bg-gradient-to-r from-blue-400 to-[#FF4500] rounded-xl flex items-center justify-center shadow-lg">
               <UsersThree size={36} className="text-white" />
             </div>
           </div>
@@ -132,10 +132,10 @@ const CarPoolPage = () => {
           </div>
 
           <div className="flex gap-2">
-            <Button className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm" onClick={handleSearch} disabled={loading} data-testid="carpool-search-btn">
+            <Button className="flex-1 h-12 rounded-xl bg-[#FF4500] hover:bg-[#E03D00] text-white font-semibold text-sm" onClick={handleSearch} disabled={loading} data-testid="carpool-search-btn">
               {loading ? 'Recherche...' : 'Rechercher'}
             </Button>
-            <Button variant="outline" className="h-12 rounded-xl border-blue-600 text-blue-600 font-semibold text-sm px-4" onClick={() => setShowPublish(!showPublish)} data-testid="carpool-publish-btn">
+            <Button variant="outline" className="h-12 rounded-xl border-blue-600 text-[#FF4500] font-semibold text-sm px-4" onClick={() => setShowPublish(!showPublish)} data-testid="carpool-publish-btn">
               <Plus size={18} className="mr-1" />
               Publier
             </Button>
@@ -198,10 +198,10 @@ const CarPoolPage = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 text-xs text-gray-500">
                     <span className="flex items-center gap-1"><UsersThree size={14} /> {ride.passengers?.length || 0}/{ride.available_seats} places</span>
-                    <span className="font-bold text-blue-600">{ride.price_per_seat} &euro;/place</span>
+                    <span className="font-bold text-[#FF4500]">{ride.price_per_seat} &euro;/place</span>
                   </div>
                   {ride.status === 'open' && (
-                    <Button size="sm" className="h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs px-4" onClick={() => handleBook(ride.id)} data-testid={`book-${ride.id}`}>
+                    <Button size="sm" className="h-8 rounded-lg bg-[#FF4500] hover:bg-[#E03D00] text-white text-xs px-4" onClick={() => handleBook(ride.id)} data-testid={`book-${ride.id}`}>
                       Réserver
                     </Button>
                   )}

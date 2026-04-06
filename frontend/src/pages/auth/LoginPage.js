@@ -93,7 +93,7 @@ const LoginPage = () => {
 
             <button
               onClick={() => setShowOptions(true)}
-              className="mt-5 text-blue-600 font-medium text-base flex items-center gap-2"
+              className="mt-5 text-[#FF4500] font-medium text-base flex items-center gap-2"
               data-testid="other-login-options-btn"
             >
               Ou choisir d'autres options <ArrowRight size={18} />
@@ -101,7 +101,7 @@ const LoginPage = () => {
 
             <p className="mt-4 text-sm text-gray-400 leading-relaxed">
               En continuant, j'accepte les{' '}
-              <span className="text-blue-600">Conditions d'utilisation & Politique de confidentialité</span>
+              <span className="text-[#FF4500]">Conditions d'utilisation & Politique de confidentialité</span>
             </p>
           </>
         ) : (
@@ -147,7 +147,7 @@ const LoginPage = () => {
 
             <button
               onClick={() => { setMode('phone'); setError(''); }}
-              className="mt-4 text-blue-600 font-medium text-sm"
+              className="mt-4 text-[#FF4500] font-medium text-sm"
               data-testid="switch-to-phone-btn"
             >
               Se connecter par téléphone
@@ -155,7 +155,7 @@ const LoginPage = () => {
 
             <p className="mt-3 text-sm text-gray-400">
               Pas encore de compte ?{' '}
-              <Link to="/register" className="text-blue-600 font-medium" data-testid="register-link">S'inscrire</Link>
+              <Link to="/register" className="text-[#FF4500] font-medium" data-testid="register-link">S'inscrire</Link>
             </p>
           </>
         )}
@@ -165,7 +165,7 @@ const LoginPage = () => {
       <div className="px-6 pb-8 flex justify-end">
         <button
           onClick={mode === 'email' ? handleEmailSubmit : () => { if (phone.length >= 6) setMode('email'); else toast.error('Entrez un numéro valide'); }}
-          className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors"
+          className="w-14 h-14 rounded-full bg-[#FF4500] flex items-center justify-center shadow-lg hover:bg-[#E03D00] transition-colors"
           disabled={loading}
           data-testid="login-submit-btn"
         >
@@ -199,10 +199,10 @@ const LoginPage = () => {
                 data-testid="google-login-btn"
               >
                 <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center">
-                  <GoogleLogo size={22} weight="bold" className="text-blue-500" />
+                  <GoogleLogo size={22} weight="bold" className="text-[#FF4500]" />
                 </div>
                 <span className="font-semibold text-gray-900 flex-1 text-left">Google</span>
-                <ArrowRight size={18} className="text-blue-500" />
+                <ArrowRight size={18} className="text-[#FF4500]" />
               </button>
 
               <button
@@ -214,7 +214,7 @@ const LoginPage = () => {
                   <Envelope size={22} className="text-gray-600" />
                 </div>
                 <span className="font-semibold text-gray-900 flex-1 text-left">Email</span>
-                <ArrowRight size={18} className="text-blue-500" />
+                <ArrowRight size={18} className="text-[#FF4500]" />
               </button>
 
               <button
@@ -225,7 +225,7 @@ const LoginPage = () => {
                   <Fingerprint size={22} className="text-teal-500" />
                 </div>
                 <span className="font-semibold text-gray-900 flex-1 text-left">Face ID / Touch ID</span>
-                <ArrowRight size={18} className="text-blue-500" />
+                <ArrowRight size={18} className="text-[#FF4500]" />
               </button>
             </div>
           </div>

@@ -37,7 +37,7 @@ const LocationSelector = ({ onSelect }) => {
 };
 
 const VehicleIcon = ({ iconType, selected }) => {
-  const cls = selected ? 'text-blue-600' : 'text-gray-600';
+  const cls = selected ? 'text-[#FF4500]' : 'text-gray-600';
   if (iconType === 'Bike') return <Motorcycle size={32} weight="duotone" className={cls} />;
   return <Car size={32} weight="duotone" className={cls} />;
 };
@@ -205,7 +205,7 @@ const RideBookingPage = () => {
           <div className="flex gap-3">
             {/* Route line */}
             <div className="flex flex-col items-center pt-3 gap-1">
-              <div className="w-3 h-3 rounded-full bg-blue-600" />
+              <div className="w-3 h-3 rounded-full bg-[#FF4500]" />
               <div className="w-0.5 flex-1 bg-gray-300" />
               <div className="w-3 h-3 bg-gray-800" />
             </div>
@@ -230,7 +230,7 @@ const RideBookingPage = () => {
             </div>
             {/* + Button */}
             <div className="flex items-center pt-3">
-              <button className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center" data-testid="ride-add-stop-btn">
+              <button className="w-9 h-9 rounded-full bg-[#FF4500] flex items-center justify-center" data-testid="ride-add-stop-btn">
                 <Plus size={18} className="text-white" weight="bold" />
               </button>
             </div>
@@ -370,7 +370,7 @@ const RideBookingPage = () => {
               <div className="text-center pb-2">
                 <p className="text-xs text-gray-500">
                   {estimate.distance_km?.toFixed(1) || '5.2'} km &middot; {estimate.duration_mins || 18} min
-                  {estimate.fare_type && <span className="ml-2 text-blue-600">({estimate.fare_type})</span>}
+                  {estimate.fare_type && <span className="ml-2 text-[#FF4500]">({estimate.fare_type})</span>}
                 </p>
               </div>
 
@@ -409,7 +409,7 @@ const RideBookingPage = () => {
 
               {/* Payment Method */}
               <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100" data-testid="payment-method-btn">
-                <CreditCard size={22} className="text-blue-600" />
+                <CreditCard size={22} className="text-[#FF4500]" />
                 <span className="flex-1 text-sm font-medium text-gray-700 text-left">{paymentMethod}</span>
                 <CaretRight size={16} className="text-gray-400" />
               </button>
@@ -441,7 +441,7 @@ const RideBookingPage = () => {
 
       <div className="w-full bg-gray-50 rounded-2xl p-4 space-y-3 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-blue-600" />
+          <div className="w-3 h-3 rounded-full bg-[#FF4500]" />
           <span className="text-sm text-gray-700 truncate">{pickup.address}</span>
         </div>
         <div className="flex items-center gap-3">

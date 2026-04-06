@@ -67,13 +67,13 @@ const ParcelPage = () => {
     return (
       <div className="mobile-container min-h-screen bg-white">
         {/* Header */}
-        <div className="bg-blue-600 px-4 py-3 flex items-center gap-3">
+        <div className="bg-[#FF4500] px-4 py-3 flex items-center gap-3">
           <button onClick={() => navigate('/home')} data-testid="parcel-back-btn"><ArrowLeft size={24} className="text-white" /></button>
           <h1 className="text-white font-bold text-lg">Livraison de Colis</h1>
         </div>
 
         {/* Hero Banner */}
-        <div className="bg-gradient-to-r from-blue-700 to-blue-500 p-6 flex items-center">
+        <div className="bg-gradient-to-r from-[#E03D00] to-[#FF4500] p-6 flex items-center">
           <div className="flex-1">
             <h2 className="text-3xl font-extrabold text-yellow-400 leading-tight">Livraison<br/>de Colis</h2>
             <p className="text-white/80 text-sm mt-2">Envoyez vos colis instantanément ou programmez pour plus tard.</p>
@@ -148,7 +148,7 @@ const ParcelPage = () => {
   if (step === 'map') {
     return (
       <div className="mobile-container min-h-screen bg-white flex flex-col">
-        <div className="bg-blue-600 px-4 py-3 flex items-center gap-3">
+        <div className="bg-[#FF4500] px-4 py-3 flex items-center gap-3">
           <button onClick={() => setStep('choose')}><ArrowLeft size={24} className="text-white" /></button>
           <h1 className="text-white font-bold text-lg">{deliveryMode === 'single' ? 'Livraison Simple' : 'Livraison Multiple'} — {vehicleType === 'box' ? 'Box' : 'Moto'}</h1>
         </div>
@@ -169,7 +169,7 @@ const ParcelPage = () => {
             <div className="w-3 h-3 rounded-full bg-red-500" />
             <span className={dropoff.lat ? 'text-gray-900 text-sm' : 'text-gray-400 text-sm'}>{dropoff.lat ? `${dropoff.lat.toFixed(4)}, ${dropoff.lng.toFixed(4)}` : 'Adresse de livraison'}</span>
           </button>
-          <Button className="w-full rounded-2xl h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold" disabled={!pickup.lat || !dropoff.lat || loading} onClick={getEstimate} data-testid="parcel-estimate-btn">
+          <Button className="w-full rounded-2xl h-12 bg-[#FF4500] hover:bg-[#E03D00] text-white font-semibold" disabled={!pickup.lat || !dropoff.lat || loading} onClick={getEstimate} data-testid="parcel-estimate-btn">
             {loading ? 'Calcul...' : 'Estimer le prix'}
           </Button>
         </div>
@@ -181,7 +181,7 @@ const ParcelPage = () => {
   if (step === 'confirm') {
     return (
       <div className="mobile-container min-h-screen bg-white">
-        <div className="bg-blue-600 px-4 py-3 flex items-center gap-3">
+        <div className="bg-[#FF4500] px-4 py-3 flex items-center gap-3">
           <button onClick={() => setStep('map')}><ArrowLeft size={24} className="text-white" /></button>
           <h1 className="text-white font-bold text-lg">Confirmer l'envoi</h1>
         </div>
@@ -190,9 +190,9 @@ const ParcelPage = () => {
             <div className="flex justify-between"><span className="text-gray-600">Distance</span><span className="font-bold">{estimation?.distance_km?.toFixed(1)} km</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Durée</span><span className="font-bold">~{Math.round(estimation?.duration_mins || 0)} min</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Type</span><span className="font-bold">{vehicleType === 'box' ? 'Box' : 'Moto Send'}</span></div>
-            <div className="flex justify-between text-lg"><span className="text-gray-600">Prix total</span><span className="font-bold text-blue-600">{estimation?.estimated_fare?.toFixed(2)} &euro;</span></div>
+            <div className="flex justify-between text-lg"><span className="text-gray-600">Prix total</span><span className="font-bold text-[#FF4500]">{estimation?.estimated_fare?.toFixed(2)} &euro;</span></div>
           </div>
-          <Button className="w-full rounded-2xl h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold" onClick={confirm} data-testid="parcel-confirm-btn">
+          <Button className="w-full rounded-2xl h-14 bg-[#FF4500] hover:bg-[#E03D00] text-white text-lg font-semibold" onClick={confirm} data-testid="parcel-confirm-btn">
             Confirmer &middot; {estimation?.estimated_fare?.toFixed(2)} &euro;
           </Button>
         </div>

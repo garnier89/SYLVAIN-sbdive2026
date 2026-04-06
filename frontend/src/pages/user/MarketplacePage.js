@@ -10,7 +10,7 @@ const MARKETPLACE_CONFIG = {
   'real-estate': {
     title: 'Immobilier', apiType: 'real-estate',
     banner: 'ACHETER, VENDRE\n& LOUER', bannerSub: 'IMMOBILIER',
-    bannerColor: 'from-blue-600 to-blue-700',
+    bannerColor: 'from-[#FF4500] to-[#E03D00]',
     bannerImage: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=300&h=200&fit=crop',
     categories: [
       { id: 'apartment', name: 'Appartement', icon: '🏢' },
@@ -98,7 +98,7 @@ const MarketplacePage = () => {
   return (
     <div className="mobile-container min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-blue-600 px-4 pt-3 pb-4">
+      <div className="bg-[#FF4500] px-4 pt-3 pb-4">
         <div className="flex items-center gap-3 mb-3">
           <button onClick={() => navigate(-1)} data-testid="marketplace-back-btn">
             <ArrowLeft size={22} className="text-white" />
@@ -142,7 +142,7 @@ const MarketplacePage = () => {
       {/* New Listing Form */}
       {showNewListing && (
         <div className="px-4 mt-3">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2 relative">
+          <div className="bg-blue-50 border border-orange-200 rounded-xl p-4 space-y-2 relative">
             <button onClick={() => setShowNewListing(false)} className="absolute top-2 right-2"><X size={18} className="text-gray-400" /></button>
             <h4 className="text-sm font-bold text-gray-900">Nouvelle annonce</h4>
             <input type="text" placeholder="Titre" value={newListing.title} onChange={(e) => setNewListing({...newListing, title: e.target.value})} className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm outline-none" data-testid="new-listing-title" />
@@ -151,7 +151,7 @@ const MarketplacePage = () => {
               <input type="number" placeholder="Prix (EUR)" value={newListing.price} onChange={(e) => setNewListing({...newListing, price: e.target.value})} className="h-9 rounded-lg border border-gray-200 px-3 text-sm outline-none" data-testid="new-listing-price" />
               <input type="text" placeholder="Localisation" value={newListing.location} onChange={(e) => setNewListing({...newListing, location: e.target.value})} className="h-9 rounded-lg border border-gray-200 px-3 text-sm outline-none" data-testid="new-listing-location" />
             </div>
-            <Button className="w-full h-9 rounded-lg bg-blue-600 text-white text-sm font-semibold" onClick={handleCreateListing} data-testid="new-listing-submit">Publier</Button>
+            <Button className="w-full h-9 rounded-lg bg-[#FF4500] text-white text-sm font-semibold" onClick={handleCreateListing} data-testid="new-listing-submit">Publier</Button>
           </div>
         </div>
       )}
@@ -162,7 +162,7 @@ const MarketplacePage = () => {
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {config.categories.map((cat) => (
             <button key={cat.id} onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-              className={`flex-shrink-0 w-[100px] h-[90px] rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${activeCategory === cat.id ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300'}`}
+              className={`flex-shrink-0 w-[100px] h-[90px] rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${activeCategory === cat.id ? 'bg-[#FF4500] border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300'}`}
               data-testid={`marketplace-cat-${cat.id}`}>
               <span className="text-2xl">{cat.icon}</span>
               <span className="text-[11px] font-medium text-center leading-tight">{cat.name}</span>
@@ -201,7 +201,7 @@ const MarketplacePage = () => {
                 </div>
                 <div className="p-2.5">
                   <p className="text-sm font-bold text-gray-900">{listing.price?.toLocaleString()} &euro;</p>
-                  <p className="text-xs font-medium text-blue-600 mt-0.5 truncate">{listing.title}</p>
+                  <p className="text-xs font-medium text-[#FF4500] mt-0.5 truncate">{listing.title}</p>
                   {listing.location && (
                     <div className="flex items-center gap-1 mt-1">
                       <MapPin size={11} className="text-gray-400" />

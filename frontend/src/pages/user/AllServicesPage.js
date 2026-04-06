@@ -12,7 +12,7 @@ import {
 
 const allServices = [
   { id: 'helpers', name: 'Aide ménagère', icon: Wrench, bg: 'bg-amber-50', iconColor: 'text-amber-700' },
-  { id: 'fitness', name: 'Coach sportif', icon: Barbell, bg: 'bg-blue-50', iconColor: 'text-blue-600' },
+  { id: 'fitness', name: 'Coach sportif', icon: Barbell, bg: 'bg-blue-50', iconColor: 'text-[#FF4500]' },
   { id: 'babysitting', name: 'Baby-sitting', icon: Baby, bg: 'bg-green-50', iconColor: 'text-green-600' },
   { id: 'mechanic', name: 'Mécanique', icon: GearSix, bg: 'bg-teal-50', iconColor: 'text-teal-600' },
   { id: 'security', name: 'Agent de\nsécurité', icon: ShieldCheck, bg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
@@ -43,7 +43,7 @@ const AllServicesPage = ({ type = 'services' }) => {
   return (
     <div className="mobile-container min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-blue-600 px-4 py-3 flex items-center justify-between">
+      <div className="bg-[#FF4500] px-4 py-3 flex items-center justify-between">
         <h1 className="text-white font-bold text-lg">Tous les Services</h1>
         <button onClick={() => navigate(-1)} data-testid="all-services-close-btn">
           <X size={24} className="text-white" />

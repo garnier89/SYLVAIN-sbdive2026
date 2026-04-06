@@ -215,7 +215,7 @@ const RestaurantDetail = () => {
           <div className="max-w-[430px] mx-auto">
             <Button
               className="w-full h-14 rounded-full text-white"
-              style={{ backgroundColor: '#00C853' }}
+              style={{ backgroundColor: '#FF4500' }}
               onClick={() => navigate(`/checkout/${merchantId}`)}
               data-testid="view-cart-btn"
             >

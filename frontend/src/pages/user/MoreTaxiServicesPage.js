@@ -21,7 +21,7 @@ const MoreTaxiServicesPage = () => {
   return (
     <div className="mobile-container min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-blue-600 px-4 py-3 flex items-center justify-between">
+      <div className="bg-[#FF4500] px-4 py-3 flex items-center justify-between">
         <h1 className="text-white font-bold text-lg italic">Plus de Services</h1>
         <button onClick={() => navigate(-1)} data-testid="moretaxi-close-btn">
           <X size={24} className="text-white" />

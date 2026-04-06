@@ -141,7 +141,7 @@ const CheckoutPage = () => {
           <div className="space-y-3">
             <Button
               className="w-full rounded-full h-12"
-              style={{ backgroundColor: '#00C853' }}
+              style={{ backgroundColor: '#FF4500' }}
               onClick={() => navigate(`/order/${orderId}`)}
               data-testid="track-order-btn"
             >
@@ -341,7 +341,7 @@ const CheckoutPage = () => {
         <div className="mobile-container">
           <Button
             className="w-full h-14 rounded-full text-white text-lg"
-            style={{ backgroundColor: '#00C853' }}
+            style={{ backgroundColor: '#FF4500' }}
             onClick={placeOrder}
             disabled={loading}
             data-testid="place-order-btn"
