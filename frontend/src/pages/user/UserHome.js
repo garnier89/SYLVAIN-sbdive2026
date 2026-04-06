@@ -37,7 +37,7 @@ const UserHome = () => {
     { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/ride?type=bid' },
     { id: 'taxi-intercity', name: 'VTC\nIntercity', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/ride?type=intercity' },
     { id: 'schedule-ride', name: 'Programmer\nCourse', icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/ride?type=schedule' },
-    { id: 'more-taxi', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/all-services' },
+    { id: 'more-taxi', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/more-taxi' },
   ];
 
   // ===== Delivery Services (4 items) =====
@@ -65,17 +65,17 @@ const UserHome = () => {
 
   // ===== Beauty Services (4 items) =====
   const beautyServices = [
-    { id: 'makeup', name: 'Maquillage\n& Coiffure', icon: Sparkle, bg: 'bg-purple-50', iconColor: 'text-purple-500', path: '/services' },
-    { id: 'massage-spa', name: 'Massage\n& Spa', icon: HandSoap, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/services' },
-    { id: 'mens-grooming', name: 'Soins\nHommes', icon: Scissors, bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/services' },
-    { id: 'more-beauty', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-500', path: '/all-services' },
+    { id: 'makeup', name: 'Maquillage\n& Coiffure', icon: Sparkle, bg: 'bg-purple-50', iconColor: 'text-purple-500', path: '/beauty' },
+    { id: 'massage-spa', name: 'Massage\n& Spa', icon: HandSoap, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/beauty' },
+    { id: 'mens-grooming', name: 'Soins\nHommes', icon: Scissors, bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/beauty' },
+    { id: 'more-beauty', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-500', path: '/beauty' },
   ];
 
   // ===== Pet Services (3 items) =====
   const petServices = [
-    { id: 'grooming', name: 'Toilettage', icon: PawPrint, bg: 'bg-amber-50', iconColor: 'text-amber-600', path: '/services' },
-    { id: 'walking', name: 'Promenade', icon: Dog, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/services' },
-    { id: 'more-pet', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/all-services' },
+    { id: 'grooming', name: 'Toilettage', icon: PawPrint, bg: 'bg-amber-50', iconColor: 'text-amber-600', path: '/pet-care' },
+    { id: 'walking', name: 'Promenade', icon: Dog, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/pet-care' },
+    { id: 'more-pet', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/pet-care' },
   ];
 
   // ===== Bid for Services (6 items - 2x3 grid) =====
@@ -90,10 +90,10 @@ const UserHome = () => {
 
   // ===== Car Care Services (4 items) =====
   const carCareServices = [
-    { id: 'car-wash', name: 'Lavage\nAuto & Spa', icon: CarSimple, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/services' },
-    { id: 'battery', name: 'Service\nBatterie', icon: BatteryFull, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/services' },
-    { id: 'shop', name: 'Boutique', icon: ShoppingBag, bg: 'bg-amber-50', iconColor: 'text-amber-600', path: '/services' },
-    { id: 'fuel', name: 'Livraison\nCarburant', icon: GasPump, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/services' },
+    { id: 'car-wash', name: 'Lavage\nAuto & Spa', icon: CarSimple, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/car-care' },
+    { id: 'battery', name: 'Service\nBatterie', icon: BatteryFull, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/car-care' },
+    { id: 'shop', name: 'Boutique', icon: ShoppingBag, bg: 'bg-amber-50', iconColor: 'text-amber-600', path: '/car-care' },
+    { id: 'fuel', name: 'Livraison\nCarburant', icon: GasPump, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/car-care' },
   ];
 
   // ===== Nearby Businesses (4 items) =====
@@ -350,6 +350,25 @@ const UserHome = () => {
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
           {carCareServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
+      </div>
+
+      {/* ===== TOWING / ROADSIDE ASSISTANCE ===== */}
+      <div className="px-4 mt-5">
+        <button
+          onClick={() => navigate('/towing')}
+          className="w-full rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-5 flex items-center gap-4 text-left"
+          data-testid="towing-section-btn"
+        >
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-900">Dépannage & Remorquage</h3>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Remorquage d'urgence, pneu crevé, démarrage, panne sèche et plus. Assistance routière 24/7.
+            </p>
+          </div>
+          <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
+            <span className="text-4xl">🚛</span>
+          </div>
+        </button>
       </div>
 
       {/* ===== BUY, SELL & RENT ===== */}
