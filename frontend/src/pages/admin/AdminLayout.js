@@ -45,7 +45,7 @@ const AdminLayout = () => {
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} data-testid="mobile-menu-btn">
           <List size={24} />
         </Button>
-        <h1 className="font-bold text-lg">Admin Panel</h1>
+        <h1 className="font-bold text-lg">SB Drive Admin</h1>
         <Avatar className="h-8 w-8">
           <AvatarImage src={user?.avatar_url} />
           <AvatarFallback className="bg-primary/10 text-primary text-sm">{user?.name?.charAt(0)}</AvatarFallback>
@@ -110,7 +110,7 @@ const AdminLayout = () => {
               data-testid="logout-btn"
             >
               <SignOut size={20} className="mr-2" />
-              Sign Out
+              Déconnexion
             </Button>
           </div>
         </div>

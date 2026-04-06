@@ -54,8 +54,8 @@ const LoginPage = () => {
             <Car size={36} weight="duotone" className="text-white" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-            <CardDescription>Sign in to your SuperApp account</CardDescription>
+            <CardTitle className="text-2xl font-bold">Bienvenue</CardTitle>
+            <CardDescription>Connectez-vous à SB Drive VTC</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -107,7 +107,7 @@ const LoginPage = () => {
               disabled={loading}
               data-testid="login-submit-btn"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Connexion...' : 'Se connecter'}
               <ArrowRight size={20} className="ml-2" />
             </Button>
           </form>
@@ -117,7 +117,7 @@ const LoginPage = () => {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+              <span className="bg-card px-2 text-muted-foreground">Ou continuer avec</span>
             </div>
           </div>
 
@@ -133,9 +133,9 @@ const LoginPage = () => {
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
+            Pas encore de compte ?{' '}
             <Link to="/register" className="text-primary hover:underline font-medium" data-testid="register-link">
-              Sign up
+              S'inscrire
             </Link>
           </p>
         </CardContent>

@@ -40,7 +40,7 @@ const MerchantLayout = () => {
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} data-testid="mobile-menu-btn">
           <List size={24} />
         </Button>
-        <h1 className="font-bold text-lg">Merchant Portal</h1>
+        <h1 className="font-bold text-lg">SB Drive Marchand</h1>
         <Avatar className="h-8 w-8">
           <AvatarImage src={user?.avatar_url} />
           <AvatarFallback className="bg-orange-100 text-orange-600 text-sm">{user?.name?.charAt(0)}</AvatarFallback>
@@ -105,7 +105,7 @@ const MerchantLayout = () => {
               data-testid="logout-btn"
             >
               <SignOut size={20} className="mr-2" />
-              Sign Out
+              Déconnexion
             </Button>
           </div>
         </div>

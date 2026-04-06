@@ -379,7 +379,7 @@ async def lifespan(app: FastAPI):
     
     # Seed admin user
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@superapp.com")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "SuperAdmin123!")
     existing_admin = await db.users.find_one({"email": admin_email})
     if not existing_admin:
         admin_user = {
@@ -591,7 +591,7 @@ async def register(data: UserRegister, response: Response):
     access_token = create_access_token(user_id, email, user_doc["role"])
     refresh_token = create_refresh_token(user_id)
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     user_doc.pop("password_hash", None)
@@ -636,7 +636,7 @@ async def login(data: UserLogin, request: Request, response: Response):
     access_token = create_access_token(user["id"], email, user["role"])
     refresh_token = create_refresh_token(user["id"])
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     user.pop("password_hash", None)
@@ -674,7 +674,7 @@ async def refresh_token(request: Request, response: Response):
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         access_token = create_access_token(user["id"], user["email"], user["role"])
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
         return {"access_token": access_token}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
@@ -734,7 +734,7 @@ async def google_session(request: Request, response: Response):
     access_token = create_access_token(user["id"], email, user["role"])
     refresh_token = create_refresh_token(user["id"])
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     user.pop("password_hash", None)

@@ -5,6 +5,9 @@ import { Toaster } from './components/ui/sonner';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthCallback from './components/AuthCallback';
 
+// App Selector
+import AppSelector from './pages/AppSelector';
+
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
@@ -20,6 +23,8 @@ import WalletPage from './pages/user/WalletPage';
 import ProfilePage from './pages/user/ProfilePage';
 import HistoryPage from './pages/user/HistoryPage';
 import SupportPage from './pages/user/SupportPage';
+import ParcelPage from './pages/user/ParcelPage';
+import ServicesPage from './pages/user/ServicesPage';
 
 // Driver Pages
 import DriverHome from './pages/driver/DriverHome';
@@ -41,10 +46,9 @@ import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
 
 import './index.css';
 
-// AppRouter component that checks for session_id in hash
 const AppRouter = () => {
   const location = useLocation();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
   // Check URL fragment for session_id (OAuth callback)
   if (location.hash?.includes('session_id=')) {
@@ -53,12 +57,15 @@ const AppRouter = () => {
 
   return (
     <Routes>
+      {/* App Selector — Landing */}
+      <Route path="/welcome" element={user ? <Navigate to="/" replace /> : <AppSelector />} />
+
       {/* Auth Routes */}
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/" replace /> : <RegisterPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
 
-      {/* User Routes */}
+      {/* User / Client Routes */}
       <Route path="/" element={
         <ProtectedRoute allowedRoles={['user']}>
           <UserHome />
@@ -91,7 +98,12 @@ const AppRouter = () => {
       } />
       <Route path="/parcel" element={
         <ProtectedRoute allowedRoles={['user']}>
-          <RideBookingPage />
+          <ParcelPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/services" element={
+        <ProtectedRoute allowedRoles={['user']}>
+          <ServicesPage />
         </ProtectedRoute>
       } />
       <Route path="/wallet" element={
@@ -115,7 +127,7 @@ const AppRouter = () => {
         </ProtectedRoute>
       } />
 
-      {/* Driver Routes */}
+      {/* Driver / Chauffeur Routes */}
       <Route path="/driver" element={
         <ProtectedRoute allowedRoles={['driver']}>
           <DriverHome />
@@ -169,8 +181,8 @@ const AppRouter = () => {
         </ProtectedRoute>
       } />
 
-      {/* Catch all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Catch all — go to welcome if not logged in, home if logged in */}
+      <Route path="*" element={user ? <Navigate to="/" replace /> : <Navigate to="/welcome" replace />} />
     </Routes>
   );
 };

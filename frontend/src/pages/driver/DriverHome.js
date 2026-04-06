@@ -226,8 +226,8 @@ const DriverHome = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <Clock size={24} className="text-amber-600" />
               <div>
-                <p className="font-semibold text-amber-800">Account Under Review</p>
-                <p className="text-sm text-amber-700">Your documents are being verified</p>
+                <p className="font-semibold text-amber-800">Compte en cours de vérification</p>
+                <p className="text-sm text-amber-700">Vos documents sont en cours de vérification</p>
               </div>
             </CardContent>
           </Card>
@@ -236,8 +236,8 @@ const DriverHome = () => {
         {driver.status === 'rejected' && (
           <Card className="bg-red-50 border-red-200">
             <CardContent className="p-4">
-              <p className="font-semibold text-red-800">Application Rejected</p>
-              <p className="text-sm text-red-700">{driver.rejection_reason || 'Please contact support'}</p>
+              <p className="font-semibold text-red-800">Demande rejetée</p>
+              <p className="text-sm text-red-700">{driver.rejection_reason || 'Veuillez contacter le support'}</p>
             </CardContent>
           </Card>
         )}
@@ -251,9 +251,9 @@ const DriverHome = () => {
                   <Power size={24} className={isOnline ? 'text-white' : 'text-muted-foreground'} />
                 </div>
                 <div>
-                  <p className="font-semibold">{isOnline ? 'You\'re Online' : 'You\'re Offline'}</p>
+                  <p className="font-semibold">{isOnline ? 'Vous êtes en ligne' : 'Vous êtes hors ligne'}</p>
                   <p className="text-sm text-muted-foreground">
-                    {isOnline ? 'Ready to receive requests' : 'Go online to start earning'}
+                    {isOnline ? 'Prêt à recevoir des courses' : 'Passez en ligne pour gagner'}
                   </p>
                 </div>
               </div>
@@ -272,13 +272,13 @@ const DriverHome = () => {
             <Card>
               <CardContent className="p-3 text-center">
                 <p className="text-xl font-bold text-primary">{driver.total_trips}</p>
-                <p className="text-xs text-muted-foreground">Trips</p>
+                <p className="text-xs text-muted-foreground">Courses</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3 text-center">
                 <p className="text-xl font-bold text-primary">${driver.earnings.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">Earnings</p>
+                <p className="text-xs text-muted-foreground">Gains</p>
               </CardContent>
             </Card>
             <Card>
@@ -320,7 +320,7 @@ const DriverHome = () => {
                     <MapPin size={12} className="text-destructive" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Dropoff</p>
+                    <p className="text-sm text-muted-foreground">Arrivée</p>
                     <p className="font-medium">{currentRide.dropoff_address}</p>
                   </div>
                 </div>
@@ -380,7 +380,7 @@ const DriverHome = () => {
         <div className="absolute inset-0 z-[2000] bg-black/50 flex items-end">
           <div className="w-full bg-white rounded-t-3xl p-6 space-y-4 animate-slide-up">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold">New Ride Request</h3>
+              <h3 className="text-xl font-bold">Nouvelle course</h3>
               <span className="text-2xl font-bold text-primary">${incomingRequest.estimated_fare.toFixed(2)}</span>
             </div>
             
@@ -399,7 +399,7 @@ const DriverHome = () => {
                   <MapPin size={12} className="text-destructive" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Dropoff</p>
+                  <p className="text-sm text-muted-foreground">Arrivée</p>
                   <p className="font-medium">{incomingRequest.dropoff_address}</p>
                 </div>
               </div>
@@ -419,7 +419,7 @@ const DriverHome = () => {
                 data-testid="reject-ride-btn"
               >
                 <X size={24} className="mr-2" />
-                Decline
+                Refuser
               </Button>
               <Button
                 className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14"
@@ -427,7 +427,7 @@ const DriverHome = () => {
                 data-testid="accept-ride-btn"
               >
                 <Check size={24} className="mr-2" />
-                Accept
+                Accepter
               </Button>
             </div>
           </div>
@@ -438,3 +438,4 @@ const DriverHome = () => {
 };
 
 export default DriverHome;
+DriverHome;

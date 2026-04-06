@@ -64,8 +64,8 @@ const RegisterPage = () => {
             <Car size={36} weight="duotone" className="text-white" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">Create account</CardTitle>
-            <CardDescription>Join SuperApp today</CardDescription>
+            <CardTitle className="text-2xl font-bold">Créer un compte</CardTitle>
+            <CardDescription>Rejoignez SB Drive VTC</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -77,7 +77,7 @@ const RegisterPage = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name">Nom complet</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                 <Input
@@ -112,7 +112,7 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone (optional)</Label>
+              <Label htmlFor="phone">Téléphone (optionnel)</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                 <Input
@@ -148,18 +148,18 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">I want to</Label>
+              <Label htmlFor="role">Je souhaite</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value) => setFormData({ ...formData, role: value })}
               >
                 <SelectTrigger data-testid="register-role-select">
-                  <SelectValue placeholder="Select your role" />
+                  <SelectValue placeholder="Choisir votre rôle" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Book rides & order food</SelectItem>
-                  <SelectItem value="driver">Drive & deliver</SelectItem>
-                  <SelectItem value="merchant">Sell products</SelectItem>
+                  <SelectItem value="user">Réserver des courses & commander</SelectItem>
+                  <SelectItem value="driver">Conduire & livrer</SelectItem>
+                  <SelectItem value="merchant">Vendre des produits</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -171,7 +171,7 @@ const RegisterPage = () => {
               disabled={loading}
               data-testid="register-submit-btn"
             >
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? 'Création...' : 'Créer un compte'}
               <ArrowRight size={20} className="ml-2" />
             </Button>
           </form>
@@ -197,9 +197,9 @@ const RegisterPage = () => {
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
+            Déjà un compte ?{' '}
             <Link to="/login" className="text-primary hover:underline font-medium" data-testid="login-link">
-              Sign in
+              Se connecter
             </Link>
           </p>
         </CardContent>
@@ -209,3 +209,4 @@ const RegisterPage = () => {
 };
 
 export default RegisterPage;
+;
