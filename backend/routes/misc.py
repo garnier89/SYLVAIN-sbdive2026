@@ -5,69 +5,12 @@ from typing import Optional
 
 from core.config import db, STRIPE_API_KEY, logger
 from core.deps import get_current_user, require_role, get_object
-from models.schemas import WalletTopUp, WalletResponse, TicketCreate
+from models.schemas import TicketCreate
 
-router = APIRouter(tags=["wallet_support_admin"])
-
-
-# ===== WALLET =====
-@router.get("/wallet", response_model=WalletResponse)
-async def get_wallet(request: Request):
-    user = await get_current_user(request)
-    wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-    if not wallet:
-        wallet = {"user_id": user["id"], "balance": 0.0}
-        await db.wallets.insert_one(wallet)
-    transactions = await db.wallet_transactions.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
-    return WalletResponse(balance=wallet["balance"], transactions=transactions)
+router = APIRouter(tags=["support_admin"])
 
 
-@router.post("/wallet/topup")
-async def topup_wallet(data: WalletTopUp, request: Request):
-    user = await get_current_user(request)
-    body = await request.json()
-    origin_url = body.get("origin_url", "")
-    if data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
-
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
-    host_url = str(request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-    success_url = f"{origin_url}/wallet?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{origin_url}/wallet"
-    checkout_request = CheckoutSessionRequest(amount=float(data.amount), currency="usd", success_url=success_url, cancel_url=cancel_url, metadata={"user_id": user["id"], "type": "wallet_topup"})
-    session = await stripe_checkout.create_checkout_session(checkout_request)
-    await db.payment_transactions.insert_one({
-        "id": f"txn_{uuid.uuid4().hex[:12]}", "session_id": session.session_id,
-        "user_id": user["id"], "amount": data.amount, "currency": "usd",
-        "type": "wallet_topup", "status": "pending", "created_at": datetime.now(timezone.utc).isoformat()
-    })
-    return {"checkout_url": session.url, "session_id": session.session_id}
-
-
-@router.get("/wallet/checkout-status/{session_id}")
-async def check_wallet_topup_status(session_id: str, request: Request):
-    user = await get_current_user(request)
-    txn = await db.payment_transactions.find_one({"session_id": session_id, "user_id": user["id"]}, {"_id": 0})
-    if not txn:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    if txn["status"] == "completed":
-        return {"status": "completed", "amount": txn["amount"]}
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
-    status = await stripe_checkout.get_checkout_status(session_id)
-    if status.payment_status == "paid" and txn["status"] != "completed":
-        await db.wallets.update_one({"user_id": user["id"]}, {"$inc": {"balance": txn["amount"]}})
-        await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"status": "completed"}})
-        await db.wallet_transactions.insert_one({
-            "id": f"wtxn_{uuid.uuid4().hex[:12]}", "user_id": user["id"],
-            "amount": txn["amount"], "type": "credit", "description": "Wallet top-up",
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
-        return {"status": "completed", "amount": txn["amount"]}
-    return {"status": status.payment_status, "amount": txn["amount"]}
-
+# Wallet routes moved to routes/wallet.py
 
 # ===== STRIPE WEBHOOK =====
 @router.post("/webhook/stripe")

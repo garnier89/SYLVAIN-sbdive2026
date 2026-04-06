@@ -22,6 +22,8 @@ from routes.marketplace import router as marketplace_router
 from routes.carpool import router as carpool_router
 from routes.services import router as services_router
 from routes.config import router as config_router
+from routes.wallet import router as wallet_router
+from routes.coupons import router as coupons_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -165,6 +167,19 @@ async def lifespan(app: FastAPI):
 
     logger.info("V3Cube seed data loaded")
 
+    # Seed demo coupons from production DB
+    demo_coupons = [
+        {"id": "coupon_bienvenue", "code": "BIENVENUE", "description": "Code de bienvenue -20%", "discount_type": "Percentage", "discount_value": 20, "max_discount": 10, "usage_limit": 0, "per_user_limit": 1, "used": 0, "service_type": "All", "status": "active", "expiry_date": "2027-12-31T23:59:59", "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "coupon_sbdrive10", "code": "SBDRIVE10", "description": "Reduction 10 EUR sur votre course", "discount_type": "Flat", "discount_value": 10, "max_discount": 10, "usage_limit": 100, "per_user_limit": 1, "used": 0, "service_type": "Ride", "status": "active", "expiry_date": "2027-12-31T23:59:59", "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "coupon_novembre", "code": "NOVEMBRE", "description": "Promo Novembre -15%", "discount_type": "Percentage", "discount_value": 15, "max_discount": 15, "usage_limit": 200, "per_user_limit": 2, "used": 0, "service_type": "All", "status": "active", "expiry_date": "2027-11-30T23:59:59", "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "coupon_1010", "code": "1010", "description": "Code promo 10 EUR", "discount_type": "Flat", "discount_value": 10, "max_discount": 10, "usage_limit": 50, "per_user_limit": 1, "used": 0, "service_type": "Ride", "status": "active", "expiry_date": "2027-12-31T23:59:59", "created_at": datetime.now(timezone.utc).isoformat()},
+    ]
+    for coupon in demo_coupons:
+        if not await db.coupons.find_one({"code": coupon["code"]}):
+            await db.coupons.insert_one(coupon)
+    await db.coupons.create_index("code", unique=True)
+    logger.info("Demo coupons seeded")
+
     yield
     client.close()
 
@@ -184,6 +199,8 @@ api_router.include_router(marketplace_router)
 api_router.include_router(carpool_router)
 api_router.include_router(services_router)
 api_router.include_router(config_router)
+api_router.include_router(wallet_router)
+api_router.include_router(coupons_router)
 
 app.include_router(api_router)
 

@@ -120,8 +120,10 @@ export const orderAPI = {
 // Wallet APIs
 export const walletAPI = {
   get: () => api.get('/wallet'),
-  topup: (amount, originUrl) => api.post('/wallet/topup', { amount, origin_url: originUrl }),
-  checkStatus: (sessionId) => api.get(`/wallet/checkout-status/${sessionId}`),
+  topup: (amount, paymentMethod) => api.post('/wallet/topup', { amount, payment_method: paymentMethod }),
+  pay: (data) => api.post('/wallet/pay', data),
+  transfer: (toUserId, amount) => api.post('/wallet/transfer', { to_user_id: toUserId, amount }),
+  refund: (amount, reason) => api.post('/wallet/refund', { amount, reason }),
 };
 
 // Support APIs
@@ -187,6 +189,15 @@ export const configAPI = {
   getCancelReasons: (userType) => api.get('/config/cancel-reasons', { params: userType ? { user_type: userType } : {} }),
   getMasterCategories: () => api.get('/config/master-categories'),
   getTrackCategories: () => api.get('/config/track-categories'),
+};
+
+// Coupon APIs
+export const couponAPI = {
+  validate: (code, amount, serviceType) => api.post('/coupons/validate', { code, amount, service_type: serviceType }),
+  apply: (code, amount, rideId, orderId) => api.post('/coupons/apply', { code, amount, ride_id: rideId, order_id: orderId }),
+  list: () => api.get('/coupons'),
+  adminCreate: (data) => api.post('/coupons/admin/create', data),
+  adminList: () => api.get('/coupons/admin/all'),
 };
 
 export default api;
