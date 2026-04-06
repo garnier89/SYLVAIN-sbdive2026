@@ -42,8 +42,8 @@ const RegisterPage = () => {
     try {
       const result = await register(formData);
       const roleRedirects = {
-        user: '/',
-        driver: '/driver',
+        user: '/home',
+        driver: '/chauffeur/home',
         merchant: '/merchant',
         admin: '/admin',
         dispatcher: '/dispatcher',

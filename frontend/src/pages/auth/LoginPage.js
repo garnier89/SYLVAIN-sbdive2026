@@ -32,8 +32,8 @@ const LoginPage = () => {
     try {
       const result = await login(email, password);
       const roleRedirects = {
-        user: '/',
-        driver: '/driver',
+        user: '/home',
+        driver: '/chauffeur/home',
         merchant: '/merchant',
         admin: '/admin',
         dispatcher: '/dispatcher',

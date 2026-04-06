@@ -26,8 +26,8 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     // Redirect to appropriate dashboard based on role
     const roleRedirects = {
-      user: '/',
-      driver: '/driver',
+      user: '/home',
+      driver: '/chauffeur/home',
       merchant: '/merchant',
       admin: '/admin',
       dispatcher: '/dispatcher',
