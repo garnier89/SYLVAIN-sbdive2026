@@ -1,96 +1,100 @@
-# SB Drive VTC - Product Requirements Document
+# SB Drive VTC - PRD (Product Requirements Document)
 
-## Présentation
-**SB Drive VTC** — Super app multi-services (clone Gojek/V3Cube)
-- **SB Drive Client** = App passager (/) — thème vert/bleu
-- **SB Drive Chauffeur** = App chauffeur (/chauffeur) — thème amber/dark
+## Problème Original
+Construire une super-app MVP multi-services (clone Gojek/V3Cube) nommée "SB Drive VTC" avec une App Client et une App Chauffeur distinctes. Services: VTC, livraison de colis, livraison de repas, et services à la demande (18+ services).
 
-## Architecture
-- Frontend: React 18 + Tailwind CSS + Shadcn/UI + Phosphor Icons
-- Backend: FastAPI **modulaire** (6 route files + core config/deps)
-- Database: MongoDB (Motor async)
-- Auth: JWT httponly cookies (secure, samesite=none)
-- Maps: Leaflet / OpenStreetMap
-- Payments: Stripe
-- Language: 100% Français
+## Architecture Technique
+- **Frontend**: React + Tailwind CSS + Shadcn UI + Phosphor Icons
+- **Backend**: FastAPI (modulaire) + MongoDB
+- **Maps**: OpenStreetMap / Leaflet
+- **Paiements**: Stripe (en attente de clé)
 
-## Structure Backend (refactorisé)
+## Structure Backend Modulaire
 ```
 /app/backend/
-├── server.py (~140 lignes, imports + lifespan + seed + CORS)
-├── core/config.py (DB, JWT, Stripe config)
-├── core/deps.py (Auth helpers, password, storage)
-├── core/websocket.py (ConnectionManager)
-├── models/schemas.py (Pydantic models)
-├── routes/auth.py (Register, Login, Logout, Refresh, Google, Addresses)
-├── routes/drivers.py (Register, Profile, Toggle, Location, Documents)
-├── routes/merchants.py (Register, CRUD products, List merchants)
-├── routes/rides.py (Estimate, Create, Accept, Status, List, Rate)
-├── routes/orders.py (Create, Status, List, Assign, Rate)
-├── routes/marketplace.py (CRUD listings: immobilier, véhicules, articles)
-├── routes/carpool.py (Create, Search, Book, My Rides)
-├── routes/services.py (Categories, Bookings CRUD, Nearby)
-└── routes/misc.py (Wallet, Stripe, Support, Admin, Dispatcher, Health)
+  server.py (entry point + seed V3Cube data)
+  core/config.py, deps.py, websocket.py, seed_data.py
+  models/schemas.py
+  routes/auth.py, rides.py, orders.py, services.py, config.py, marketplace.py, carpool.py, misc.py, drivers.py, merchants.py
 ```
 
-## Fonctionnalités implémentées
+## Ce qui est implémenté
 
-### Recherche intelligente
-- Overlay plein écran avec 60+ services indexés
-- Recherche accent-insensitive en temps réel
-- Résultats groupés par catégorie (Taxi, Livraison, Beauté, Animaux, etc.)
-- Suggestions populaires (VTC, Repas, Colis, Massage, Plombier, etc.)
+### Phase 1 - UI Complète (DONE)
+- 18+ pages de services (Beauty, Pet, CarPool, Marketplace, NearbyBusiness, etc.)
+- Page d'accueil avec toutes les catégories V3Cube
+- Recherche globale (SearchOverlay)
+- Flow Chauffeur (/chauffeur) avec OTP en français
+- Page de réservation de course avec carte Leaflet
 
-### Réservation de services (connecté au backend)
-- **Beauté** (/beauty) — 12 services avec booking → POST /api/services/bookings
-- **Animaux** (/pet-care) — 12 services avec booking
-- **Entretien Auto** (/car-care) — 8 services avec booking
-- **Dépannage** (/towing) — 9 services avec booking
-- Composant ServiceBookingSheet réutilisable (adresse, date, heure, notes)
+### Phase 2 - Backend Modulaire (DONE)  
+- Refactoring du monolith server.py en routes/ et models/
+- Auth JWT (login, register, logout, refresh)
+- APIs CRUD pour rides, orders, services, marketplace, carpool
+- Admin panel (dashboard, users, drivers)
+- Dispatcher live panel
 
-### Covoiturage (connecté au backend)
-- Rechercher des trajets (GET /api/carpool/rides)
-- Publier un trajet (POST /api/carpool/rides)
-- Réserver une place (POST /api/carpool/rides/{id}/book)
-- Mes trajets (GET /api/carpool/my-rides)
+### Phase 3 - Intégration V3Cube (DONE - Avril 2026)
+- Extraction et analyse des dumps SQL V3Cube (sbdriv5_db2024.sql + beta)
+- Mapping du schéma legacy MySQL -> MongoDB
+- Seed data V3Cube avec 224 tables analysées:
+  - 9 catégories de véhicules (VTC-Taxi, Moto, Location, Pool, Planifier, Corporate, Réserver pour autre, Enchères, Inter-villes)
+  - 5 types de véhicules avec tarification (SB, Confort, Luxe, Moto, Pool)
+  - 6 catégories maîtres de services (Taxi, Livraison, Services à la demande, Vidéo Consultation, Enchères, Médical)
+  - 21 catégories de commerces proches
+  - 5 types de colis livraison
+  - 8 raisons d'annulation (User/Driver/Both)
+  - 2 catégories de suivi (Famille, Employés)
+  - 35+ configurations applicatives
+- Logique de tarification V3Cube (Regular/Fixed/Hourly)
+- 10 nouveaux endpoints API /api/config/*
+- Frontend dynamique: types de véhicules chargés depuis l'API
 
-### Marketplace (connecté au backend)
-- 3 types : Immobilier, Véhicules, Articles Divers
-- Créer une annonce (POST /api/marketplace/listings)
-- Rechercher/Filtrer par type, catégorie, listing_type
-- Onglets Acheter/Louer
+## Endpoints API
 
-### Réservation VTC (3 étapes V3Cube)
-1. Planifier — Lieux Favoris, Récents, Carte
-2. Carte + Véhicule (Basic/SUV/Luxe) — Leaflet map
-3. Recherche chauffeur + OTP
+### Auth
+- POST /api/auth/register, /login, /logout, /refresh, /me
 
-### Home Client (18+ sections)
-Services Taxi (8), Colis, Livraison (4), Vidéo Consultation, Services à la demande (4), Beauté (4), Médical (3 cards), Animaux (3), Enchères (6 items 2x3), Entretien Auto (4), Dépannage, Marketplace (3 banners), Covoiturage, Suivi Famille (2 cards), Commerces Proches (4), Bottom nav
+### Config (V3Cube)
+- GET /api/config/vehicle-categories (9 catégories)
+- GET /api/config/vehicle-types (5 types avec pricing)
+- GET /api/config/vehicle-types/{slug}
+- GET /api/config/app (configurations clé-valeur)
+- GET /api/config/nearby-categories (21 catégories)
+- GET /api/config/parcel-types (5 types)
+- GET /api/config/cancel-reasons (8 raisons, filtrable par user_type)
+- GET /api/config/master-categories (6 catégories)
+- GET /api/config/track-categories (2 catégories)
+- GET /api/config/admin/all (admin only)
+- PUT /api/config/admin/{key} (admin only)
 
-### Chauffeur
-- Dashboard online/offline, Accept/Reject, OTP, Navigation, Labels français, EUR
+### Rides
+- POST /api/rides/estimate (enrichi avec pricing V3Cube)
+- POST /api/rides (créer course)
+- GET /api/rides/{id}, GET /api/rides
+- POST /api/rides/{id}/accept, /status, /rate
 
-## Routes
-/ = Welcome, /home, /login, /register, /ride, /food, /parcel, /services
-/wallet, /profile, /history, /support, /all-services, /all-delivery
-/carpool, /nearby, /beauty, /pet-care, /car-care, /towing, /more-taxi
-/marketplace/real-estate, /marketplace/cars, /marketplace/items
-/chauffeur, /chauffeur/login, /chauffeur/register, /chauffeur/home
-/merchant, /admin, /dispatcher
+### Services, Orders, Marketplace, Carpool
+- Voir routes/ pour détails complets
 
-## Backlog
-### P0
-- WebSocket real-time tracking (driver location updates)
-- Historique des réservations (rides + services + orders)
-### P1
-- Vidéo Consultation fonctionnelle
-- Grocery/Pharmacy delivery distinct flows
-- Stripe webhooks production
-- Cart persistence across sessions
-### P2
-- Push notifications
+## Tests
+- Iteration 12: 29/29 tests PASS (100%)
+- Backend: Tous endpoints config, auth, rides fonctionnels
+- Frontend: Login flow, Home, Ride booking avec types dynamiques
+
+## P0 - À faire maintenant
+- WebSocket temps réel pour suivi chauffeur
+- Enrichir la logique de course (accepting/arriving/in_progress)
+
+## P1 - À venir
+- Stripe webhook pour wallet et checkout
+- Persistance du panier entre sessions
+- Historique complet des réservations
+
+## P2 - Futur/Backlog
+- Notifications push
 - Chat/Appel chauffeur
-- Coupons/Parrainage
-- Suivi Famille GPS temps réel
+- Système de coupons et parrainage
+- Suivi famille GPS temps réel
 - Enchères services temps réel
+- Vidéo consultation fonctionnelle
