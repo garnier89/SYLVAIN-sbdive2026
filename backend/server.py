@@ -194,14 +194,47 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     try:
         while True:
             data = await websocket.receive_json()
-            if data.get("type") == "location_update":
+            msg_type = data.get("type")
+
+            if msg_type == "location_update":
                 manager.update_driver_location(client_id, data["lat"], data["lng"])
-                await db.drivers.update_one({"user_id": client_id}, {"$set": {"current_lat": data["lat"], "current_lng": data["lng"]}})
-                ride = await db.rides.find_one({"driver_id": client_id, "status": {"$in": ["accepted", "arriving", "in_progress"]}})
+                await db.drivers.update_one(
+                    {"user_id": client_id},
+                    {"$set": {"current_lat": data["lat"], "current_lng": data["lng"]}}
+                )
+                # Forward location to passenger if driver has active ride
+                ride = await db.rides.find_one(
+                    {"driver_id": client_id, "status": {"$in": ["accepted", "arriving", "in_progress"]}},
+                    {"_id": 0, "id": 1, "user_id": 1}
+                )
                 if ride:
-                    await manager.send_personal_message({"type": "driver_location", "lat": data["lat"], "lng": data["lng"]}, ride["user_id"])
-            elif data.get("type") == "ping":
+                    await manager.send_to_ride_room(ride["id"], {
+                        "type": "driver_location",
+                        "lat": data["lat"],
+                        "lng": data["lng"],
+                        "ride_id": ride["id"],
+                    }, exclude=client_id)
+                    await manager.send_personal_message({
+                        "type": "driver_location",
+                        "lat": data["lat"],
+                        "lng": data["lng"],
+                        "ride_id": ride["id"],
+                    }, ride["user_id"])
+
+            elif msg_type == "join_ride":
+                ride_id = data.get("ride_id")
+                if ride_id:
+                    manager.join_ride_room(ride_id, client_id)
+                    await websocket.send_json({"type": "joined_ride", "ride_id": ride_id})
+
+            elif msg_type == "leave_ride":
+                ride_id = data.get("ride_id")
+                if ride_id:
+                    manager.leave_ride_room(ride_id, client_id)
+
+            elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
+
     except WebSocketDisconnect:
         manager.disconnect(client_id)
 

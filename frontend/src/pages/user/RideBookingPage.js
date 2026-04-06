@@ -162,8 +162,10 @@ const RideBookingPage = () => {
         dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
         vehicle_type: selectedVehicle, payment_method: 'card',
       });
-      setRide(response.data);
-      setStep('searching');
+      const createdRide = response.data;
+      setRide(createdRide);
+      // Navigate to tracking page
+      navigate(`/ride/${createdRide.id}`);
     } catch {
       setRide({ otp: '4521' });
       setStep('searching');

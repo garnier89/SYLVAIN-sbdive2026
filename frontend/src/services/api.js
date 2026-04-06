@@ -100,8 +100,11 @@ export const rideAPI = {
   get: (id) => api.get(`/rides/${id}`),
   accept: (id) => api.post(`/rides/${id}/accept`),
   updateStatus: (id, status) => api.post(`/rides/${id}/status`, { status }),
+  cancel: (id, reason) => api.post(`/rides/${id}/cancel`, { reason }),
   list: (params) => api.get('/rides', { params }),
   rate: (id, data) => api.post(`/rides/${id}/rate`, data),
+  getActive: () => api.get('/rides/active/current'),
+  getAvailable: () => api.get('/rides/pending/available'),
 };
 
 // Order APIs

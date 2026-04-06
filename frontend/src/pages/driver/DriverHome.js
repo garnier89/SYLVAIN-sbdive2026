@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Switch } from '../../components/ui/switch';
@@ -15,7 +16,6 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default marker icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -31,19 +31,46 @@ const DriverHome = () => {
   const [currentRide, setCurrentRide] = useState(null);
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [mapCenter, setMapCenter] = useState([40.7128, -74.0060]);
+  const [mapCenter, setMapCenter] = useState([48.8566, 2.3522]);
+  const locationWatchId = useRef(null);
+
+  // WebSocket for real-time ride requests & location sending
+  const { connected, on, sendLocation, joinRide } = useWebSocket(user?.id);
 
   useEffect(() => {
     loadDriverProfile();
     setupLocation();
+    return () => {
+      if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current);
+    };
   }, []);
 
+  // Listen for incoming ride requests via WebSocket
   useEffect(() => {
-    if (isOnline) {
-      const interval = setInterval(loadPendingRides, 5000);
+    const unsub1 = on('new_ride_request', (msg) => {
+      if (!currentRide && isOnline) {
+        setIncomingRequest(msg);
+      }
+    });
+    const unsub2 = on('ride_status_update', (msg) => {
+      if (currentRide && msg.ride_id === currentRide.id) {
+        if (msg.status === 'cancelled') {
+          setCurrentRide(null);
+        } else {
+          setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
+        }
+      }
+    });
+    return () => { unsub1(); unsub2(); };
+  }, [on, currentRide, isOnline]);
+
+  // Fallback: poll pending rides every 8s when online and no WS ride received
+  useEffect(() => {
+    if (isOnline && !currentRide) {
+      const interval = setInterval(loadPendingRides, 8000);
       return () => clearInterval(interval);
     }
-  }, [isOnline, driver]);
+  }, [isOnline, currentRide, driver]);
 
   const loadDriverProfile = async () => {
     try {
@@ -66,22 +93,21 @@ const DriverHome = () => {
         (position) => {
           const { latitude, longitude } = position.coords;
           setMapCenter([latitude, longitude]);
-          // Update driver location
-          driverAPI.updateLocation(latitude, longitude).catch(console.error);
+          driverAPI.updateLocation(latitude, longitude).catch(() => {});
+          sendLocation(latitude, longitude);
         },
-        (error) => console.log('Location error:', error)
+        () => {}
       );
 
-      // Watch position for continuous updates
-      navigator.geolocation.watchPosition(
+      locationWatchId.current = navigator.geolocation.watchPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           setMapCenter([latitude, longitude]);
           if (isOnline) {
-            driverAPI.updateLocation(latitude, longitude).catch(console.error);
+            sendLocation(latitude, longitude);
           }
         },
-        (error) => console.log('Watch error:', error),
+        () => {},
         { enableHighAccuracy: true }
       );
     }
@@ -120,8 +146,8 @@ const DriverHome = () => {
       const response = await rideAPI.get(rideId);
       setCurrentRide(response.data);
       setIncomingRequest(null);
+      joinRide(rideId);
     } catch (error) {
-      console.error('Accept ride error:', error);
       setIncomingRequest(null);
     }
   };
@@ -439,4 +465,3 @@ const DriverHome = () => {
 };
 
 export default DriverHome;
-DriverHome;

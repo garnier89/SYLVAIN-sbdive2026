@@ -13,6 +13,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import ClientWelcome from './pages/client/ClientWelcome';
 import UserHome from './pages/user/UserHome';
 import RideBookingPage from './pages/user/RideBookingPage';
+import RideTrackingPage from './pages/user/RideTrackingPage';
 import FoodPage from './pages/user/FoodPage';
 import RestaurantDetail from './pages/user/RestaurantDetail';
 import CheckoutPage from './pages/user/CheckoutPage';
@@ -76,6 +77,7 @@ const AppRouter = () => {
 
       {/* Client Protected Routes */}
       <Route path="/ride" element={<ProtectedRoute allowedRoles={['user']}><RideBookingPage /></ProtectedRoute>} />
+      <Route path="/ride/:rideId" element={<ProtectedRoute allowedRoles={['user']}><RideTrackingPage /></ProtectedRoute>} />
       <Route path="/food" element={<ProtectedRoute allowedRoles={['user']}><FoodPage /></ProtectedRoute>} />
       <Route path="/food/:merchantId" element={<ProtectedRoute allowedRoles={['user']}><RestaurantDetail /></ProtectedRoute>} />
       <Route path="/checkout/:merchantId" element={<ProtectedRoute allowedRoles={['user']}><CheckoutPage /></ProtectedRoute>} />
