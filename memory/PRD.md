@@ -1,86 +1,55 @@
 # SB Drive VTC - Product Requirements Document
 
 ## Présentation
-**SB Drive VTC** est le nom de la société. Elle opère 2 applications distinctes :
-- **SB Drive Client** — App passager (réservation VTC, commandes, services)
-- **SB Drive Chauffeur** — App chauffeur (courses, livraisons, gains)
-
-Ce sont 2 applications séparées avec leur propre login, design et navigation.
+**SB Drive VTC** = nom de la société (pas une app)
+- **SB Drive Client** = App passager séparée (/)
+- **SB Drive Chauffeur** = App chauffeur séparée (/chauffeur)
 
 ## Architecture
-- **Frontend**: React 18 + Tailwind CSS + Shadcn/UI + Phosphor Icons
-- **Backend**: FastAPI (Python) + MongoDB (Motor async)
-- **Auth**: JWT httponly cookies (secure, samesite=none)
-- **Maps**: Leaflet / OpenStreetMap
-- **Payments**: Stripe
-- **Language**: Interface 100% en français
+- Frontend: React 18 + Tailwind CSS + Shadcn/UI + Phosphor Icons
+- Backend: FastAPI (Python) + MongoDB (Motor async)
+- Auth: JWT httponly cookies (secure, samesite=none)
+- Maps: Leaflet / OpenStreetMap
+- Payments: Stripe
+- Language: 100% Français
 
-## URL Structure
-- `/` — SB Drive Client (welcome ou home si connecté)
-- `/login`, `/register` — Auth Client
-- `/ride`, `/food`, `/parcel`, `/services` — Services Client
-- `/chauffeur` — SB Drive Chauffeur (welcome)
-- `/chauffeur/login`, `/chauffeur/register` — Auth Chauffeur
-- `/chauffeur/home` — Dashboard Chauffeur
-- `/merchant` — Panel Marchand
-- `/admin` — Panel Admin
+## Features Implémentées
 
-## Features Implementées
+### SB Drive Client — 3 écrans XJekPlus (DONE)
+1. **Splash Screen** — Logo SB Drive + "CLIENT APP", animation fade-in, auto-transition 2.2s
+2. **Home XJekPlus** — Header avec avatar/localisation, barre recherche, carousel promo (2 banners), Services Taxi (8 icônes en grille 4x2), sections Livraison Colis/Repas/Services, dark bottom nav avec pill active verte
+3. **Profil XJekPlus** — Header vert (#00C853) avec avatar/nom/email/phone, carte wallet avec 4 actions rapides, 8 paramètres, bouton déconnexion, dark bottom nav
 
-### SB Drive Client
-1. **Welcome Page** — Branding vert, boutons Se connecter / Créer un compte
-2. **Auth** — Login, Register, Google OAuth, JWT refresh token
-3. **Home** — 18 services V3Cube en 3 catégories :
-   - Base (4) : VTC, Moto, Repas, Colis
-   - À la demande (4) : Services, Courses, Beauté, Coursier
-   - Additionnels (10) : Médical, Animaux, Vidéo Consult, Covoiturage, Auto Soins, Remorquage, Enchères, Immobilier, À proximité, Achat/Vente
-4. **Ride Booking** — Map Leaflet, estimation tarif, types véhicules
-5. **Food Delivery** — 3 restaurants DB, produits, panier, checkout
-6. **Parcel Delivery** — 3 types colis, carte, estimation, envoi
-7. **On-Demand Services** — 8 catégories (plomberie, électricité, ménage...)
-8. **Wallet** — Solde, recharge Stripe
-9. **Profile, History, Support**
+### Pages fonctionnelles (DONE)
+- Auth (Login/Register), Food Delivery (3 restaurants DB), Parcel (3 types), Services à la demande (8 catégories), Wallet (Stripe), History, Support
+- Admin Panel, Merchant Panel, Dispatcher Panel
 
-### SB Drive Chauffeur
-1. **Welcome Page** — Branding amber/dark, "Devenir chauffeur"
-2. **Auth** — Login/Register séparés du client
-3. **Dashboard** — Online/offline, accept/reject courses
-4. **Navigation** — Statuts de course en temps réel
-
-### Admin & Merchant
-1. **Admin Panel** — Dashboard stats, gestion users/drivers
-2. **Merchant Panel** — Dashboard, produits, commandes
+### SB Drive Chauffeur (DONE)
+- Welcome page dark/amber, Login/Register séparés, Dashboard online/offline
 
 ### Seeded Data (MongoDB)
-- 3 marchands : Burger Palace, Pizza Heaven, Sushi Master
-- 20+ produits
-- Users : admin, test user, merchant user
+- 3 marchands, 20+ produits, users (admin, test, merchant)
 
-## API Endpoints
-- POST /api/auth/login, /register, /refresh, /logout
-- GET /api/auth/me
-- GET /api/merchants, /api/merchants/{id}/products
-- POST /api/orders, /api/rides/estimate, /api/rides
-- GET/POST /api/wallet, /api/wallet/topup
-- GET /api/admin/dashboard, /api/admin/users, /api/admin/drivers
-- POST /api/support/tickets
+## Routes
+- / = Client Welcome (splash → login)
+- /home = Home Client (protégé)
+- /ride, /food, /parcel, /services, /wallet, /profile, /history
+- /chauffeur = Chauffeur Welcome
+- /chauffeur/login, /chauffeur/register, /chauffeur/home
+- /merchant, /admin, /dispatcher
 
 ## Backlog
 
-### P0 — Prochain
-- Refactoring backend (server.py 1838 lignes → modules)
-- Types de véhicules multiples (Berline, Eco, SUV)
+### P0
+- Refactoring backend (1838 lignes → modules)
+- Types véhicules multiples (Berline, Eco, SUV)
 - Flow chauffeur complet (OTP, navigation)
 - WebSocket real-time tracking
 
-### P1 — Enhancement
+### P1
+- Rendre fonctionnels : Covoiturage, Vidéo Consult, Beauty/Pet
 - Grocery/Pharmacy delivery
-- Covoiturage fonctionnel
-- Vidéo consultation fonctionnelle
-- Beauty/Pet care booking
 
-### P2 — Futur
-- Achat/Vente/Location immobilier & véhicules
-- Assistance routière & remorquage
-- Système de coupons/parrainage
-- Push notifications, Chat/Call driver
+### P2
+- Achat/Vente immobilier & véhicules
+- Coupons/Parrainage, Push notifs, Chat driver
