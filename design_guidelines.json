@@ -1,88 +1,93 @@
 {
-  "theme": "hybrid",
-  "archetypes": {
-    "mobile_apps": "Archetype 1: Organic & Earthy (Light) - adapted for Super App (High Contrast)",
-    "dashboards": "Archetype 4: Swiss & High-Contrast (Dark mode for Dispatcher, Light mode for Admin)"
+  "theme_and_archetype": {
+    "domain": "VTC, Ride-Hailing, Multi-service Delivery",
+    "theme": "Light",
+    "archetype": "Archetype 4 (Swiss & High-Contrast) adapted for Mobile Web",
+    "vibe": "Professional, Premium, Clear, Trustworthy (French VTC identity)",
+    "primary_color_intent": "Brand Green (#00C853) used for main CTAs, active states, and highlights. Neutrals are crisp whites and deep blacks to create a high-contrast, premium French VTC aesthetic."
   },
   "colors": {
     "primary": "#00C853",
     "primary_hover": "#009624",
-    "secondary": "#FF4500",
-    "background_light": "#FFFFFF",
-    "background_light_alt": "#F4F4F5",
-    "background_dark": "#09090B",
-    "background_dark_alt": "#18181B",
-    "text_primary_light": "#0A0A0A",
-    "text_secondary_light": "#71717A",
-    "text_primary_dark": "#FAFAFA",
-    "text_secondary_dark": "#A1A1AA",
-    "border_light": "#E4E4E7",
-    "border_dark": "#27272A",
-    "status": {
-      "success": "#10B981",
-      "warning": "#F59E0B",
-      "error": "#EF4444",
-      "info": "#3B82F6"
-    }
+    "primary_light": "#E8F5E9",
+    "background_app": "#F9FAFB",
+    "surface": "#FFFFFF",
+    "surface_secondary": "#F3F4F6",
+    "text_primary": "#111827",
+    "text_secondary": "#4B5563",
+    "text_tertiary": "#9CA3AF",
+    "border": "#E5E7EB",
+    "border_light": "#F3F4F6",
+    "error": "#EF4444",
+    "warning": "#F59E0B",
+    "success": "#10B981"
   },
   "typography": {
-    "heading_font": "Outfit",
-    "body_font": "Satoshi",
+    "fonts": {
+      "headings": "Outfit, sans-serif",
+      "body": "Satoshi, sans-serif"
+    },
     "hierarchy": {
-      "h1": "text-4xl sm:text-5xl font-bold tracking-tight",
-      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight",
-      "h3": "text-xl sm:text-2xl font-medium",
-      "body": "text-base leading-relaxed",
-      "small": "text-sm text-muted-foreground uppercase tracking-[0.1em]"
+      "h1": "font-outfit text-3xl font-bold tracking-tight text-gray-900",
+      "h2": "font-outfit text-2xl font-bold tracking-tight text-gray-900",
+      "h3": "font-outfit text-xl font-semibold text-gray-900",
+      "body_base": "font-satoshi text-base font-medium text-gray-700 leading-relaxed",
+      "body_small": "font-satoshi text-sm text-gray-500",
+      "label": "font-satoshi text-xs font-bold text-gray-500 uppercase tracking-[0.1em]"
     }
   },
   "spacing_and_layout": {
-    "mobile_bento_grid": "grid-cols-2 gap-4 p-4",
-    "dashboard_grid": "grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-6 p-6",
-    "container_padding": "p-4 sm:p-6 lg:p-8"
-  },
-  "surfaces": {
-    "glass_light": "backdrop-blur-xl bg-white/70 border border-white/20 shadow-sm",
-    "glass_dark": "backdrop-blur-xl bg-black/60 border border-white/10 shadow-sm",
-    "card_mobile": "bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-border/50",
-    "card_dashboard": "bg-card rounded-xl border border-border shadow-sm",
-    "bottom_sheet": "bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)]"
+    "mobile_container": "max-w-[430px] w-full mx-auto h-[100dvh] overflow-hidden bg-background_app relative shadow-2xl flex flex-col",
+    "padding_standard": "p-5",
+    "bento_grid": "grid grid-cols-4 gap-3",
+    "bento_item": "flex flex-col items-center justify-center p-3 bg-white rounded-2xl shadow-sm border border-gray-100 gap-2 hover:bg-gray-50 transition-colors cursor-pointer",
+    "bottom_nav": "absolute bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-gray-200 pb-safe-area pt-3 px-6 flex justify-between items-center z-50 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]",
+    "bottom_sheet": "absolute bottom-0 w-full bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] p-6 z-40 transition-transform duration-300"
   },
   "components": {
-    "button": "rounded-full font-medium transition-transform active:scale-95",
-    "input": "rounded-xl border-border bg-background px-4 py-3 text-base focus:ring-2 focus:ring-primary/20",
-    "map_container": "w-full h-full min-h-[400px] bg-muted/30 rounded-2xl overflow-hidden"
+    "button_primary": "w-full bg-[#00C853] text-white font-semibold py-4 rounded-2xl hover:bg-[#009624] transition-colors shadow-lg shadow-[#00C853]/25 flex items-center justify-center gap-2 text-lg",
+    "button_secondary": "w-full bg-white text-gray-900 border border-gray-200 font-semibold py-4 rounded-2xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2",
+    "input_wrapper": "space-y-1.5",
+    "input_field": "w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 focus:ring-2 focus:ring-[#00C853]/20 focus:border-[#00C853] transition-all placeholder:text-gray-400 font-satoshi text-base",
+    "card_ride": "bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between",
+    "badge_status": "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
   },
   "icons": {
-    "library": "@phosphor-icons/react",
-    "install_command": "yarn add @phosphor-icons/react"
+    "library": "lucide-react",
+    "usage": "Use stroke-width 2 or 2.5 for clarity. Icons should be 24px (w-6 h-6) for standard nav, 32px (w-8 h-8) for service grid."
   },
-  "images": {
-    "food_delivery": [
-      "https://images.unsplash.com/photo-1632898657999-ae6920976661?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwyfHxkZWxpY2lvdXMlMjBidXJnZXIlMjBmb29kJTIwcmVzdGF1cmFudHxlbnwwfHx8fDE3NzU0MjE1Mzl8MA&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1632898658030-ead731d252d4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwzfHxkZWxpY2lvdXMlMjBidXJnZXIlMjBmb29kJTIwcmVzdGF1cmFudHxlbnwwfHx8fDE3NzU0MjE1Mzl8MA&ixlib=rb-4.1.0&q=85"
-    ],
-    "parcel_logistics": [
-      "https://images.unsplash.com/photo-1774977866843-eef12e4b6e59?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHw0fHxkZWxpdmVyeSUyMGNvdXJpZXIlMjBib3glMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzc1NDIxNTM5fDA&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1758523670564-d1d6a734dc0b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwzfHxkZWxpdmVyeSUyMGNvdXJpZXIlMjBib3glMjBsb2dpc3RpY3N8ZW58MHx8fHwxNzc1NDIxNTM5fDA&ixlib=rb-4.1.0&q=85"
-    ],
-    "avatars": [
-      "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdCUyMHByb2Zlc3Npb25hbCUyMHNtaWxpbmd8ZW58MHx8fHwxNzc1NDIxNTQzfDA&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1623594675959-02360202d4d6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwyfHxwb3J0cmFpdCUyMHByb2Zlc3Npb25hbCUyMHNtaWxpbmd8ZW58MHx8fHwxNzc1NDIxNTQzfDA&ixlib=rb-4.1.0&q=85"
-    ]
-  },
-  "animations": {
-    "interactions": "Use framer-motion. Floating bottom sheets should use spring physics (stiffness 300, damping 30). Hover states on bento grid cards should lift slightly (-translate-y-1) and increase shadow.",
-    "page_transitions": "Fade in with a slight vertical slide (y: 10 to 0) over 0.3s."
+  "image_urls": {
+    "chauffeur_vehicle": {
+      "url": "https://images.unsplash.com/photo-1565461526658-b7bd67af12fe?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBkcml2ZXIlMjBjYXJ8ZW58MHx8fHwxNzc1NDM0NzYwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "White coupe for premium ride selection thumbnail"
+    },
+    "food_delivery_service": {
+      "url": "https://images.pexels.com/photos/4393245/pexels-photo-4393245.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Scooter delivery for food service banner"
+    },
+    "parcel_delivery_service": {
+      "url": "https://images.unsplash.com/photo-1620455800201-7f00aeef12ed?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHxwYXJjZWwlMjBkZWxpdmVyeSUyMGNvdXJpZXJ8ZW58MHx8fHwxNzc1NDM0NzYwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Cardboard boxes for parcel delivery banner"
+    },
+    "map_placeholder": {
+      "url": "https://images.unsplash.com/photo-1758872014553-f0deb7b12d58?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxjaXR5JTIwbWFwJTIwZ3BzJTIwbmF2aWdhdGlvbnxlbnwwfHx8fDE3NzU0MzQ3NzR8MA&ixlib=rb-4.1.0&q=85",
+      "description": "City map GPS navigation placeholder for map background"
+    },
+    "scooter_2": {
+      "url": "https://images.unsplash.com/photo-1762851452423-34e7cf452780?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwyfHxmb29kJTIwZGVsaXZlcnklMjBzY29vdGVyfGVufDB8fHx8MTc3NTQzNDc2MHww&ixlib=rb-4.1.0&q=85",
+      "description": "Two people riding electric scooters"
+    }
   },
   "instructions_to_main_agent": [
-    "Build the User App using a mobile-first paradigm: max-w-md mx-auto on desktop, floating bottom sheets, and edge-to-edge maps.",
-    "Use @phosphor-icons/react (Duotone style for active, Regular for inactive) for the bottom navigation and bento grid icons.",
-    "For the Dispatcher Panel, enforce a strict Dark Mode. Use a 'Control Room' grid layout: the map takes up 70% of the screen (col-span-8 or 9), and active metrics/drivers take the sidebar (col-span-3 or 4).",
-    "For the Admin Panel, enforce a strict Light Mode Swiss Brutalist layout. Heavy use of 1px borders, white space, and dense data tables.",
-    "Add 'data-testid' to ALL interactive elements (buttons, inputs, map markers, service cards).",
-    "Use framer-motion for micro-interactions, especially the ride-booking flow transitions (sliding panels).",
-    "DO NOT use generic Inter for headings. Use Outfit for headings and Satoshi for body.",
-    "Make sure Map components (if mocked) have a fallback UI with a subtle pattern or use React Map GL."
-  ]
+    "Core Layout: The entire app MUST be contained within a max-w-[430px] wrapper to simulate a mobile app experience on web. Center it on the screen with a neutral gray backdrop (bg-gray-100) outside the wrapper.",
+    "Brand Structure: Build 'SB Drive Client' for passengers and 'SB Drive Chauffeur' for drivers. You can toggle or route between them.",
+    "UI Vibe: Use pure white cards with very subtle borders (border-gray-100) and soft shadows. Apply rounded-2xl to cards and inputs. This contrasts sharply with the vibrant #00C853 green to create a high-end French VTC look.",
+    "Home Screen (Client): Use a 4-column Bento grid for services (Ride, Moto, Food, Parcel). Each item should have a light gray background icon wrapper and dark text.",
+    "Chauffeur App: Needs a massive 'Go Online' / 'Go Offline' toggle button at the top, a live map view (Leaflet), and a sleek bottom sheet for incoming ride requests.",
+    "Map Integration: Use React Leaflet. Make sure the map sits behind the UI elements (bottom sheets, top search bars) with proper z-index management.",
+    "Forms & Inputs: Do not use default HTML inputs. Create Shadcn-like customized inputs with padding, rounded-2xl, and the brand focus ring.",
+    "Bottom Navigation: Floating/Fixed at the bottom of the mobile wrapper. Must have glassmorphism (backdrop-blur-xl bg-white/90) and clearly indicate the active tab with the primary green color.",
+    "Fonts: Ensure 'Outfit' is used for Headings/brand names, and 'Satoshi' for body text. Add them to standard Tailwind sans stack."
+  ],
+  "data_testid_rules": "You MUST add descriptive kebab-case 'data-testid' attributes to all interactive elements. E.g., data-testid='service-ride-btn', data-testid='go-online-toggle'."
 }

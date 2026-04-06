@@ -15,7 +15,16 @@ import {
 const CheckoutPage = () => {
   const { merchantId } = useParams();
   const navigate = useNavigate();
-  const [cart, setCart] = useState([]);
+  
+  // Read cart immediately from localStorage to avoid flash of empty state
+  const getInitialCart = () => {
+    try {
+      const saved = localStorage.getItem(`cart_${merchantId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  };
+
+  const [cart, setCart] = useState(getInitialCart);
   const [merchant, setMerchant] = useState(null);
   const [wallet, setWallet] = useState({ balance: 0 });
   const [loading, setLoading] = useState(false);
@@ -24,8 +33,8 @@ const CheckoutPage = () => {
   
   const [formData, setFormData] = useState({
     delivery_address: '',
-    delivery_lat: 40.7128,
-    delivery_lng: -74.0060,
+    delivery_lat: 48.8566,
+    delivery_lng: 2.3522,
     payment_method: 'card',
     special_instructions: ''
   });
@@ -35,12 +44,6 @@ const CheckoutPage = () => {
   }, [merchantId]);
 
   const loadData = async () => {
-    // Load cart from localStorage
-    const savedCart = localStorage.getItem(`cart_${merchantId}`);
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
-
     try {
       const merchantRes = await merchantAPI.get(merchantId);
       setMerchant(merchantRes.data);
