@@ -147,4 +147,30 @@ export const dispatcherAPI = {
   assignRide: (rideId, driverId) => api.post('/dispatcher/assign-ride', { ride_id: rideId, driver_id: driverId }),
 };
 
+// Marketplace APIs
+export const marketplaceAPI = {
+  createListing: (data) => api.post('/marketplace/listings', data),
+  getListings: (params) => api.get('/marketplace/listings', { params }),
+  getListing: (id) => api.get(`/marketplace/listings/${id}`),
+  deleteListing: (id) => api.delete(`/marketplace/listings/${id}`),
+};
+
+// Carpool APIs
+export const carpoolAPI = {
+  createRide: (data) => api.post('/carpool/rides', data),
+  searchRides: (params) => api.get('/carpool/rides', { params }),
+  bookSeat: (rideId) => api.post(`/carpool/rides/${rideId}/book`),
+  myRides: () => api.get('/carpool/my-rides'),
+};
+
+// Services APIs
+export const servicesAPI = {
+  getCategories: () => api.get('/services/categories'),
+  createBooking: (data) => api.post('/services/bookings', data),
+  getBookings: (params) => api.get('/services/bookings', { params }),
+  getBooking: (id) => api.get(`/services/bookings/${id}`),
+  cancelBooking: (id) => api.post(`/services/bookings/${id}/cancel`),
+  getNearby: (params) => api.get('/services/nearby', { params }),
+};
+
 export default api;

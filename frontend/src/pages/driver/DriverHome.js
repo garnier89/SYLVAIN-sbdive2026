@@ -277,7 +277,7 @@ const DriverHome = () => {
             </Card>
             <Card>
               <CardContent className="p-3 text-center">
-                <p className="text-xl font-bold text-primary">${driver.earnings.toFixed(0)}</p>
+                <p className="text-xl font-bold text-primary">{driver.earnings.toFixed(0)} &euro;</p>
                 <p className="text-xs text-muted-foreground">Gains</p>
               </CardContent>
             </Card>
@@ -302,7 +302,7 @@ const DriverHome = () => {
                 }>
                   {currentRide.status.replace('_', ' ').toUpperCase()}
                 </Badge>
-                <span className="font-bold text-lg">${currentRide.estimated_fare.toFixed(2)}</span>
+                <span className="font-bold text-lg">{currentRide.estimated_fare.toFixed(2)} &euro;</span>
               </div>
               
               <div className="space-y-2">
@@ -327,9 +327,10 @@ const DriverHome = () => {
               </div>
 
               {currentRide.status === 'in_progress' && currentRide.otp && (
-                <p className="text-center text-sm">
-                  OTP: <span className="font-bold text-lg">{currentRide.otp}</span>
-                </p>
+                <div className="bg-blue-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-500">Code OTP du passager</p>
+                  <p className="font-bold text-2xl tracking-widest text-blue-700">{currentRide.otp}</p>
+                </div>
               )}
 
               <div className="flex gap-2">
@@ -340,7 +341,7 @@ const DriverHome = () => {
                     data-testid="arriving-btn"
                   >
                     <NavigationArrow size={20} className="mr-2" />
-                    Arriving
+                    En route
                   </Button>
                 )}
                 {currentRide.status === 'arriving' && (
@@ -349,7 +350,7 @@ const DriverHome = () => {
                     onClick={() => updateRideStatus('in_progress')}
                     data-testid="start-trip-btn"
                   >
-                    Start Trip
+                    Démarrer la course
                   </Button>
                 )}
                 {currentRide.status === 'in_progress' && (
@@ -358,7 +359,7 @@ const DriverHome = () => {
                     onClick={() => updateRideStatus('completed')}
                     data-testid="complete-trip-btn"
                   >
-                    Complete Trip
+                    Terminer la course
                   </Button>
                 )}
                 <Button 
@@ -367,7 +368,7 @@ const DriverHome = () => {
                   onClick={() => updateRideStatus('cancelled')}
                   data-testid="cancel-btn"
                 >
-                  Cancel
+                  Annuler
                 </Button>
               </div>
             </CardContent>
@@ -381,7 +382,7 @@ const DriverHome = () => {
           <div className="w-full bg-white rounded-t-3xl p-6 space-y-4 animate-slide-up">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold">Nouvelle course</h3>
-              <span className="text-2xl font-bold text-primary">${incomingRequest.estimated_fare.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-primary">{incomingRequest.estimated_fare.toFixed(2)} &euro;</span>
             </div>
             
             <div className="space-y-3">

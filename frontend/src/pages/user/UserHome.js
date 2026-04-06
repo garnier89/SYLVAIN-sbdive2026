@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
+import SearchOverlay from '../../components/SearchOverlay';
 import {
   Car, Motorcycle, Package, ForkKnife,
   House, MapPin, Wallet, User,
@@ -20,6 +21,7 @@ const UserHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -145,13 +147,16 @@ const UserHome = () => {
         </div>
 
         {/* Search */}
-        <div className="mt-3" onClick={() => navigate('/services')} data-testid="search-services-bar">
+        <div className="mt-3" onClick={() => setShowSearch(true)} data-testid="search-services-bar">
           <div className="w-full h-11 rounded-xl bg-gray-100 border border-gray-200 flex items-center px-3.5 gap-2.5 cursor-pointer">
             <MagnifyingGlass size={18} className="text-gray-400" />
-            <span className="text-sm text-gray-400">Rechercher</span>
+            <span className="text-sm text-gray-400">Rechercher un service...</span>
           </div>
         </div>
       </div>
+
+      {/* Search Overlay */}
+      {showSearch && <SearchOverlay onClose={() => setShowSearch(false)} />}
 
       {/* ===== PROMO BANNER ===== */}
       <div className="px-4 mt-3">
