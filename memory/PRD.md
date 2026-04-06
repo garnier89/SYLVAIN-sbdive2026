@@ -12,77 +12,78 @@
 - Maps: Leaflet / OpenStreetMap, Payments: Stripe
 - Language: 100% Français
 
-## Écrans implémentés (alignés XJekPlus)
+## Écrans implémentés (alignés XJekPlus/V3Cube)
 
 ### Flow d'entrée Client
 1. **Splash** — "SB Drive" bleu italic + "CLIENT APP", auto-transition 2.2s
-2. **Onboarding** — 4 slides (Connexion sécurisée, Réservez en 1 clic, Suivi temps réel, Notifications), bouton "Passer"
-3. **Login** — Mode téléphone (+33) → "Ou choisir d'autres options" → Modal (Google, Email, Face ID/Touch ID) → Mode email (email + mot de passe)
+2. **Onboarding** — 4 slides
+3. **Login** — Mode téléphone (+33) → "Ou choisir d'autres options" → Modal (Google, Email, Face ID/Touch ID)
 
-### Home Client (15+ sections)
-- Header (Bienvenue, nom, avatar, localisation GPS)
-- Barre recherche
-- Carousel promo (2 banners défilants)
-- **Services Taxi** (8) : VTC Réservation, Pooling, Location, Chauffeur Privé, Enchères, Intercity, Programmer, Plus
-- **Livraison de Colis** (bannière violet)
-- **Services de Livraison** (4) : Repas, Courses, Médicaments, Plus
-- **Consultation Vidéo** (section teal) : Tuteur, Avocat, Astrologue
-- **Services à la demande** (4) : Bricolage, Massage, Mécanique, Plus
-- **Services Beauté** (4) : Maquillage & Coiffure, Massage & Spa, Soins Hommes, Plus
-- **Services Médicaux** (3 cards) : Prendre Rendez-vous (large), Vidéo Consultation, Autres Services
-- **Services Animaux** (3) : Toilettage, Promenade, Plus
-- **Enchères Services** (6 items 2x3) : Électricien, Plombier, Menuisier, Peintres, Bricoleur, Ménage Maison
-- **Entretien Auto** (4) : Lavage Auto & Spa, Service Batterie, Boutique, Livraison Carburant
-- **Acheter, Vendre & Louer** (3 banners) : Immobilier, Véhicules, Articles Divers
-- **Covoiturage** (banner vert)
-- **Suivi Famille & Employés** (2 cards) : Famille, Employés
-- **Commerces Proches** (4) : Cafés, Salons, Bars, Plus
-- Bottom nav dark : Accueil (pill verte), Réservations, Portefeuille, Profil
+### Home Client (18+ sections)
+- Header, Recherche, Carousel promo
+- **Services Taxi** (8) : VTC Réservation, Pooling, Location, Chauffeur Privé, Enchères, Intercity, Programmer, Plus → /more-taxi
+- **Livraison de Colis** (bannière violet) → /parcel
+- **Services de Livraison** (4) : Repas, Courses, Médicaments, Plus → /all-delivery
+- **Consultation Vidéo** : Tuteur, Avocat, Astrologue
+- **Services à la demande** (4) : Bricolage, Massage, Mécanique, Plus → /all-services
+- **Services Beauté** (4) → /beauty
+- **Services Médicaux** (3 cards layout)
+- **Services Animaux** (3) → /pet-care
+- **Enchères Services** (6 items 2x3)
+- **Entretien Auto** (4) → /car-care
+- **Dépannage & Remorquage** (bannière) → /towing
+- **Acheter, Vendre & Louer** (3 banners) → /marketplace/:type
+- **Covoiturage** → /carpool
+- **Suivi Famille & Employés** (2 cards)
+- **Commerces Proches** (4) → /nearby
+- Bottom nav : Accueil, Réservations, Portefeuille, Profil
 
-### Pages Marketplace
+### Pages de sous-services dédiées (V3Cube style)
+- `/beauty` — 12 services beauté (3x4 grid + bannière rose)
+- `/pet-care` — 12 services animaux (3x4 grid + bannière bleue)
+- `/car-care` — 8 services auto (3x3 grid + bannière cyan)
+- `/towing` — 9 services dépannage (3x3 grid + bannière bleue)
+- `/more-taxi` — 10 services taxi (3x4 grid)
+
+### Réservation VTC (3 étapes - design V3Cube)
+1. **Planifier** — Header bleu, Maintenant/Pour moi, départ/destination, Lieux Favoris (Domicile/Travail), Localisation actuelle, Carte, Destination plus tard, Lieux Récents
+2. **Carte + Véhicule** — Leaflet map, sélection véhicule (Basic/SUV/Luxe avec prix), paiement Visa, Réserver Maintenant
+3. **Recherche** — Animation recherche chauffeur, code OTP, Annuler
+
+### Marketplace
 - `/marketplace/real-estate` — Immobilier (Appartement, Maison/Villa, Studio, Terrain) + listings Acheter/Louer
-- `/marketplace/cars` — Véhicules (Citadine, Berline, SUV, Luxe) + listings Acheter/Louer
-- `/marketplace/items` — Articles Divers (Mobilier, Électronique, Mode, Loisirs) + listings Acheter/Louer
+- `/marketplace/cars` — Véhicules (Citadine, Berline, SUV, Luxe) + listings
+- `/marketplace/items` — Articles Divers (Mobilier, Électronique, Mode, Loisirs)
 
-### Page Covoiturage
-- `/carpool` — Header illustration, formulaire (départ, destination, date, passagers), bouton Rechercher, Trajets Récents
-
-### Page Commerces Proches
-- `/nearby` — Grille 3x3+1 : Cafés, Salons, Bars, Spa, Shopping, Hôpitaux, Salles de Sport, Centres Commerciaux, Bibliothèques, Vie Nocturne
-
-### Profil Client
-- Header vert (#00C853) avec avatar, nom, email, téléphone
-- Carte Solde Portefeuille + 4 actions rapides
-- 8 paramètres : À propos, Réservations, Business, Panier, Notifs, Favoris, Inviter, Urgence
-- Bouton Se déconnecter
-
-### Pages fonctionnelles existantes
-- Food Delivery (3 restaurants DB), Parcel (Single/Multi), Services (8 catégories)
-- All Services (21 services 7x3), All Delivery (9 services 3x3)
-- Wallet (Stripe), History, Support, Ride Booking (Leaflet map)
-- Admin Panel, Merchant Panel, Dispatcher Panel
+### Autres Pages
+- `/carpool` — Covoiturage avec formulaire recherche
+- `/nearby` — 10 services proches (3x3+1 grid)
+- `/all-services` — 21 services (7x3 grid)
+- `/all-delivery` — 9 livraisons (3x3 grid)
+- `/parcel` — Livraison colis (Single/Multi)
+- `/food` — Livraison repas (3 restaurants DB)
+- `/wallet`, `/profile`, `/history`, `/support`
 
 ### SB Drive Chauffeur
-- Welcome dark/amber, Login/Register séparés, Dashboard online/offline
+- Welcome dark/amber, Login/Register, Dashboard online/offline
 
-## Routes
-/ = Client Welcome, /home = Home, /login = Login, /register = Register
-/ride, /food, /parcel, /services, /wallet, /profile, /history, /support
+## Routes complètes
+/ = Client Welcome, /home, /login, /register
+/ride (3 étapes), /food, /parcel, /services, /wallet, /profile, /history, /support
 /all-services, /all-delivery, /carpool, /nearby
+/beauty, /pet-care, /car-care, /towing, /more-taxi
 /marketplace/real-estate, /marketplace/cars, /marketplace/items
-/chauffeur = Chauffeur Welcome, /chauffeur/login, /chauffeur/register, /chauffeur/home
+/chauffeur, /chauffeur/login, /chauffeur/register, /chauffeur/home
 /merchant, /admin, /dispatcher
 
 ## Backlog
 ### P0
-- Refactoring backend (1838 lignes → modules)
-- Types véhicules (Berline, Eco, SUV) + estimation avancée
+- Refactoring backend (1838 lignes → modules routes/models)
+- Backend endpoints pour marketplace, carpool, nearby, services
 - Flow chauffeur complet (OTP, navigation, WebSocket)
-- Backend endpoints pour marketplace, carpool, nearby
 ### P1
 - Covoiturage fonctionnel, Vidéo Consult, Beauty/Pet fonctionnels
-- Grocery/Pharmacy delivery
-- Stripe webhooks, Cart persistence
+- Grocery/Pharmacy delivery, Stripe webhooks, Cart persistence
 ### P2
-- Achat/Vente immobilier, Coupons/Parrainage, Push notifs, Chat driver
-- Suivi Famille GPS, Nearby businesses réel
+- Push notifications, Chat/Appel chauffeur, Coupons/Parrainage
+- Suivi Famille GPS, Enchères services temps réel
