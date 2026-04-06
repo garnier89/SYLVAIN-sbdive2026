@@ -1,104 +1,53 @@
-# SB Drive VTC - PRD (Product Requirements Document)
+# SB Drive VTC - PRD
 
 ## Problème Original
-Construire une super-app MVP multi-services (clone Gojek/V3Cube) nommée "SB Drive VTC" avec une App Client et une App Chauffeur distinctes. Services: VTC, livraison de colis, livraison de repas, et services à la demande (18+ services).
+Super-app MVP multi-services (clone Gojek/V3Cube) "SB Drive VTC" : App Client + App Chauffeur. Services: VTC, livraison, services à la demande (18+).
 
-## Architecture Technique
-- **Frontend**: React + Tailwind CSS + Shadcn UI + Phosphor Icons
-- **Backend**: FastAPI (modulaire) + MongoDB
-- **Maps**: OpenStreetMap / Leaflet
-- **Paiements**: Stripe (en attente de clé)
-- **Temps réel**: WebSocket natif (FastAPI WebSocket)
+## Architecture
+- **Frontend**: React + Tailwind + Shadcn UI + Phosphor Icons + Leaflet
+- **Backend**: FastAPI modulaire + MongoDB
+- **Temps réel**: WebSocket natif
+- **Paiements**: Wallet interne (Stripe prévu)
 
-## Structure Backend Modulaire
+## Structure Backend
 ```
 /app/backend/
-  server.py (entry point + seed V3Cube + WS handler)
-  core/config.py, deps.py, websocket.py, seed_data.py
-  models/schemas.py
-  routes/auth.py, rides.py, orders.py, services.py, config.py, marketplace.py, carpool.py, misc.py, drivers.py, merchants.py
+  server.py, core/{config,deps,websocket,seed_data}.py, models/schemas.py
+  routes/{auth,rides,orders,services,config,wallet,coupons,marketplace,carpool,misc,drivers,merchants}.py
 ```
 
-## Ce qui est implémenté
+## Implémenté
 
-### Phase 1 - UI Complète (DONE)
-- 18+ pages de services (Beauty, Pet, CarPool, Marketplace, NearbyBusiness, etc.)
-- Page d'accueil avec toutes les catégories V3Cube
-- Recherche globale (SearchOverlay)
-- Flow Chauffeur (/chauffeur) avec OTP en français
-- Page de réservation de course avec carte Leaflet
+### Phase 1 - UI (DONE)
+18+ pages services, SearchOverlay, Chauffeur flow, RideBooking avec carte
 
 ### Phase 2 - Backend Modulaire (DONE)
-- Refactoring du monolith server.py en routes/ et models/
-- Auth JWT (login, register, logout, refresh)
-- APIs CRUD pour rides, orders, services, marketplace, carpool
-- Admin panel (dashboard, users, drivers)
-- Dispatcher live panel
+Auth JWT, CRUD rides/orders/services/marketplace/carpool, Admin panel, Dispatcher
 
-### Phase 3 - Intégration V3Cube (DONE - Avril 2026)
-- Extraction et analyse des dumps SQL V3Cube (224 tables)
-- 9 catégories de véhicules, 5 types avec tarification
-- 6 catégories maîtres, 21 catégories commerces, 5 types colis
-- 8 raisons d'annulation, 35+ configurations applicatives
-- Logique de tarification V3Cube (Regular/Fixed/Hourly)
-- 10 endpoints /api/config/*
+### Phase 3 - V3Cube DB (DONE)
+224+ tables analysées, seed data, 10 endpoints /api/config/*, tarification V3Cube
 
-### Phase 4 - WebSocket & Flow Course Complet (DONE - Avril 2026)
-- WebSocket temps réel avec rooms par course
-- Suivi position chauffeur en direct sur la carte
-- Flow de course complet: pending → accepted → arriving → in_progress → completed/cancelled
-- Validation des transitions d'état (impossible de sauter une étape)
-- Page de suivi de course temps réel (/ride/{rideId}) avec:
-  - Carte avec position chauffeur live, marqueurs pickup/dropoff
-  - Barre de progression d'état
-  - Infos chauffeur (nom, note, véhicule)
-  - Code OTP (quand le chauffeur arrive)
-  - Détails du tarif
-  - Annulation avec raisons V3Cube + frais d'annulation
-  - Modal d'évaluation après course
-- Hook useWebSocket avec reconnexion auto et keep-alive
-- Intégration WebSocket côté chauffeur (DriverHome)
-- Endpoints: /rides/active/current, /rides/pending/available, /rides/{id}/cancel
+### Phase 4 - WebSocket & Ride Flow (DONE)
+WS rooms par course, suivi chauffeur live, flow pending→accepted→arriving→in_progress→completed/cancelled, page tracking temps réel, OTP, évaluation
 
-## Endpoints API Complets
-
-### Auth
-- POST /api/auth/register, /login, /logout, /refresh, /me
-
-### Config (V3Cube)
-- GET /api/config/vehicle-categories, /vehicle-types, /vehicle-types/{slug}
-- GET /api/config/app, /nearby-categories, /parcel-types
-- GET /api/config/cancel-reasons, /master-categories, /track-categories
-- GET /api/config/admin/all, PUT /api/config/admin/{key}
-
-### Rides (enrichi)
-- POST /api/rides/estimate (pricing V3Cube)
-- POST /api/rides (créer avec OTP + champs V3Cube)
-- GET /api/rides/{id}, GET /api/rides
-- GET /api/rides/active/current
-- GET /api/rides/pending/available
-- POST /api/rides/{id}/accept, /status, /cancel, /rate
-
-### WebSocket
-- ws://host/ws/{client_id} — Messages: ping, join_ride, leave_ride, location_update
-
-### Services, Orders, Marketplace, Carpool
-- Voir routes/ pour détails
+### Phase 5 - Wallet, Coupons, Production DB (DONE - Avril 2026)
+- **Base de données production** : 1.2GB SQL extrait (463 users, 171 drivers, 930 trips, 45 coupons)
+- **Wallet complet** : Topup (max 200EUR/tx), Pay, Transfer, Refund, Historique transactions
+- **Système de coupons** : Validate (% et flat), Apply (limite par user), 4 coupons de prod
+- **90+ configs production** : Company, social links, payment modes, ride settings, wallet, tips, intercity, carpool
+- **10 raisons d'annulation** FR enrichies de la DB production
+- **10 catégories véhicules** dont Livraison
+- **Page Historique** : Courses/Commandes tabs avec filtres (tous, terminées, annulées, en attente)
 
 ## Tests
-- Iteration 13: Backend 19/19 PASS (100%), Frontend OK
-- WebSocket interne OK, externe peut timeout (ingress)
-- Iteration 12: 29/29 PASS (100%)
+- Iteration 14: Backend 19/19 + Frontend 100% PASS
+- Iterations 12-13: 100% PASS
 
-## P1 - À faire maintenant
-- Stripe webhook pour wallet et checkout
+## P1 - Prochaines tâches
+- Stripe integration pour paiement réel (wallet topup + course)
 - Persistance du panier entre sessions
-- Historique complet des réservations
 
-## P2 - Futur/Backlog
-- Notifications push
-- Chat/Appel chauffeur
-- Système de coupons et parrainage
-- Suivi famille GPS temps réel
-- Enchères services temps réel
-- Vidéo consultation fonctionnelle
+## P2 - Futur
+- Notifications push, Chat/Appel chauffeur
+- Suivi famille GPS, Enchères temps réel, Vidéo consultation
+- Mode simulation chauffeur (démo)
