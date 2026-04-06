@@ -84,7 +84,7 @@ const LoginPage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mot de passe</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                 <Input
@@ -129,7 +129,7 @@ const LoginPage = () => {
             data-testid="google-login-btn"
           >
             <GoogleLogo size={20} weight="bold" className="mr-2" />
-            Sign in with Google
+            Se connecter avec Google
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">

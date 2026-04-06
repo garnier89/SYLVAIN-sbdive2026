@@ -53,7 +53,7 @@ const DriverHome = () => {
     } catch (error) {
       // Not registered as driver, redirect to registration
       if (error.response?.status === 404) {
-        navigate('/driver/register');
+        navigate('/chauffeur/register');
       }
     } finally {
       setLoading(false);
@@ -201,7 +201,7 @@ const DriverHome = () => {
               variant="secondary" 
               size="icon" 
               className="rounded-full bg-white shadow-lg"
-              onClick={() => navigate('/driver/earnings')}
+              onClick={() => navigate('/chauffeur/earnings')}
               data-testid="earnings-btn"
             >
               <Wallet size={20} />
