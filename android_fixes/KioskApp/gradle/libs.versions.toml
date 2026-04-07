@@ -1,0 +1,70 @@
+[versions]
+agp = "8.7.3"
+androidMapsUtils = "3.4.0"
+audienceNetworkSdk = "6.14.0"
+glide = "4.15.1"
+kotlin = "2.0.21"
+google-services = "4.4.2"
+
+firebaseMessaging = "24.0.2"
+firebase-crashlytics = "3.0.2"
+firebaseCrashlyticsVersion = "19.2.0"
+firebaseAnalyticsVersion = "22.1.2"
+
+appcompat = "1.7.0"
+coreSplashscreen = "1.0.1"
+coreKtx = "1.13.1"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+kotlinReflect = "1.9.23"
+libraryVersion = "2.4.0"
+material = "1.12.0"
+multidex = "2.0.1"
+nvWebsocketClient = "2.14"
+okhttp = "4.12.0"
+okio = "3.9.0"
+picasso = "2.71828"
+playServicesAds = "23.4.0"
+playServicesGcm = "17.0.0"
+playServicesMaps = "19.0.0"
+retrofit = "2.11.0"
+romainpielLibrary = "1.4.0"
+sdpAndroid = "1.1.0"
+skyfishjyLibrary = "1.0.1"
+sspAndroid = "1.1.0"
+
+[libraries]
+android-maps-utils = { module = "com.google.maps.android:android-maps-utils", version.ref = "androidMapsUtils" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
+androidx-multidex = { module = "androidx.multidex:multidex", version.ref = "multidex" }
+audience-network-sdk = { module = "com.facebook.android:audience-network-sdk", version.ref = "audienceNetworkSdk" }
+converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics", version.ref = "firebaseAnalyticsVersion" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics", version.ref = "firebaseCrashlyticsVersion" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
+glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlinReflect" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+nineoldandroids-library = { module = "com.nineoldandroids:library", version.ref = "libraryVersion" }
+nv-websocket-client = { module = "com.neovisionaries:nv-websocket-client", version.ref = "nvWebsocketClient" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+picasso = { module = "com.squareup.picasso:picasso", version.ref = "picasso" }
+play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }
+play-services-gcm = { module = "com.google.android.gms:play-services-gcm", version.ref = "playServicesGcm" }
+play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
+retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+ripplebackground-library = { module = "com.skyfishjy.ripplebackground:library", version.ref = "skyfishjyLibrary" }
+sdp-android = { module = "com.intuit.sdp:sdp-android", version.ref = "sdpAndroid" }
+shimmer-library = { module = "com.romainpiel.shimmer:library", version.ref = "romainpielLibrary" }
+ssp-android = { module = "com.intuit.ssp:ssp-android", version.ref = "sspAndroid" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
+firebase-firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase-crashlytics" }
