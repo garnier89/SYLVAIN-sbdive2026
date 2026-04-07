@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import { walletAPI, couponAPI } from '../../services/api';
@@ -8,20 +8,71 @@ import {
   ArrowUp, ArrowDown, Clock, CheckCircle,
   Gift, Tag, CreditCard, Coins
 } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const WalletPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const [wallet, setWallet] = useState({ balance: 0, currency: 'EUR', transactions: [] });
   const [loading, setLoading] = useState(true);
   const [topupLoading, setTopupLoading] = useState(false);
   const [showTopup, setShowTopup] = useState(false);
-  const [customAmount, setCustomAmount] = useState('');
   const [message, setMessage] = useState('');
   const [coupons, setCoupons] = useState([]);
   const [showCoupons, setShowCoupons] = useState(false);
+  const [paymentPolling, setPaymentPolling] = useState(false);
 
   useEffect(() => { loadWallet(); loadCoupons(); }, []);
+
+  // Poll Stripe payment status when returning from checkout
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    if (sessionId) {
+      setPaymentPolling(true);
+      pollPaymentStatus(sessionId, 0);
+    }
+  }, [searchParams]);
+
+  const pollPaymentStatus = async (sessionId, attempts) => {
+    if (attempts >= 8) {
+      setPaymentPolling(false);
+      setMessage('Vérification du paiement expirée. Vérifiez votre email.');
+      setSearchParams({});
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/payments/status/${sessionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await res.json();
+
+      if (data.payment_status === 'paid') {
+        setPaymentPolling(false);
+        setMessage(`+${data.amount} EUR ajouté au portefeuille !`);
+        toast.success(`Paiement réussi ! +${data.amount} EUR`);
+        setSearchParams({});
+        loadWallet();
+        return;
+      } else if (data.status === 'expired') {
+        setPaymentPolling(false);
+        setMessage('Session de paiement expirée.');
+        setSearchParams({});
+        return;
+      }
+      // Still pending, poll again
+      setTimeout(() => pollPaymentStatus(sessionId, attempts + 1), 2000);
+    } catch {
+      setPaymentPolling(false);
+      setMessage('Erreur lors de la vérification du paiement.');
+      setSearchParams({});
+    }
+  };
 
   const loadWallet = async () => {
     try {
@@ -37,21 +88,42 @@ const WalletPage = () => {
     } catch { /* empty */ }
   };
 
-  const handleTopup = async (amount) => {
+  const handleStripeTopup = async (packageId) => {
     setTopupLoading(true);
     setMessage('');
     try {
-      const res = await walletAPI.topup(amount, 'card');
-      setWallet(prev => ({ ...prev, balance: res.data.balance, transactions: [res.data.transaction, ...prev.transactions] }));
-      setMessage(`+${amount} EUR ajouté au wallet`);
-      setShowTopup(false);
-      setCustomAmount('');
-    } catch (err) {
-      setMessage(err.response?.data?.detail || 'Erreur lors du rechargement');
-    } finally { setTopupLoading(false); }
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/payments/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          package_id: packageId,
+          origin_url: window.location.origin,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setMessage(data.detail || 'Erreur de paiement');
+      }
+    } catch {
+      setMessage('Erreur de connexion au service de paiement');
+    } finally {
+      setTopupLoading(false);
+    }
   };
 
-  const topupAmounts = [10, 50, 100];
+  const topupPackages = [
+    { id: '10', amount: 10 },
+    { id: '20', amount: 20 },
+    { id: '50', amount: 50 },
+    { id: '100', amount: 100 },
+  ];
 
   const getTxIcon = (type) => {
     if (['Deposit', 'Refund', 'Transfer'].includes(type) ) return ArrowDown;
@@ -115,38 +187,38 @@ const WalletPage = () => {
         {/* Topup Sheet */}
         {showTopup && (
           <div className="bg-white rounded-2xl p-4 border border-gray-200" data-testid="topup-sheet">
-            <h3 className="font-semibold text-gray-900 mb-3">Recharger le portefeuille</h3>
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {topupAmounts.map(amount => (
+            <h3 className="font-semibold text-gray-900 mb-1">Recharger le portefeuille</h3>
+            <p className="text-xs text-gray-400 mb-3">Paiement sécurisé par Stripe</p>
+            <div className="grid grid-cols-2 gap-2">
+              {topupPackages.map(pkg => (
                 <button
-                  key={amount}
-                  onClick={() => handleTopup(amount)}
+                  key={pkg.id}
+                  onClick={() => handleStripeTopup(pkg.id)}
                   disabled={topupLoading}
-                  className="h-14 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center justify-center"
-                  data-testid={`topup-${amount}`}
+                  className="h-16 rounded-xl border-2 border-gray-200 hover:border-[#FF4500] hover:bg-orange-50 transition-all flex flex-col items-center justify-center disabled:opacity-50"
+                  data-testid={`topup-${pkg.amount}`}
                 >
-                  <span className="text-lg font-bold">{amount}</span>
+                  <span className="text-xl font-bold">{pkg.amount}</span>
                   <span className="text-[10px] text-gray-400">EUR</span>
                 </button>
               ))}
             </div>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                placeholder="Montant personnalise"
-                value={customAmount}
-                onChange={e => setCustomAmount(e.target.value)}
-                className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-                data-testid="custom-amount-input"
-              />
-              <Button
-                onClick={() => { if (customAmount > 0) handleTopup(parseFloat(customAmount)); }}
-                disabled={topupLoading || !customAmount}
-                className="rounded-xl"
-                data-testid="custom-topup-btn"
-              >
-                OK
-              </Button>
+            {topupLoading && (
+              <div className="flex items-center justify-center gap-2 mt-3 text-sm text-gray-500">
+                <div className="w-4 h-4 border-2 border-[#FF4500]/30 border-t-[#FF4500] rounded-full animate-spin" />
+                Redirection vers Stripe...
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Payment Processing Banner */}
+        {paymentPolling && (
+          <div className="bg-orange-50 border border-[#FF4500]/30 rounded-2xl p-4 flex items-center gap-3" data-testid="payment-polling">
+            <div className="w-8 h-8 border-3 border-[#FF4500]/30 border-t-[#FF4500] rounded-full animate-spin flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-gray-900">Vérification du paiement...</p>
+              <p className="text-xs text-gray-500">Veuillez patienter</p>
             </div>
           </div>
         )}

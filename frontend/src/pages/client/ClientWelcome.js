@@ -81,11 +81,11 @@ const ClientWelcome = () => {
           <span className="text-[#FF4500]">CLIENT</span>
         </p>
         <div className="flex gap-2">
-          <div className="flex items-center gap-1 bg-[#FF4500] text-white px-3 py-1.5 rounded-md text-xs font-bold">
+          <div className="flex items-center gap-1 bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 shadow-sm">
             FR
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
           </div>
-          <div className="flex items-center gap-1 bg-[#FF4500] text-white px-3 py-1.5 rounded-md text-xs font-bold">
+          <div className="flex items-center gap-1 bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 shadow-sm">
             EUR
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
           </div>
