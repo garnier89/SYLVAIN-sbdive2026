@@ -1,62 +1,77 @@
-# SB Drive VTC - PRD
+# SB Drive VTC - PRD (Product Requirements Document)
 
-## Probleme Original
-Super-app MVP multi-services (clone Gojek/V3Cube) "SB Drive VTC" : App Client + App Chauffeur + Admin Panel.
+## Vision
+Application super-app multi-services type Gojek/V3Cube pour le marche VTC francophone.
 
 ## Architecture
-- **Frontend**: React + Tailwind + Shadcn UI + Phosphor Icons + Leaflet
-- **Backend**: FastAPI modulaire + MongoDB
-- **Temps reel**: WebSocket natif
-- **Paiements**: Stripe (emergentintegrations) + Wallet interne
-- **Couleur Client**: Orange #FF4500, Accents bleus #4a9eff
-- **Couleur Chauffeur**: Amber-500, fond gray-950
-- **Couleur Admin**: #FF4500 sur fond #0f1117/#161923
+- **Frontend**: React + Tailwind CSS + Leaflet Maps
+- **Backend**: FastAPI + MongoDB  
+- **Auth**: JWT (cookie-based) + Google OAuth via Emergent
+- **Payments**: Stripe Checkout
+- **Real-time**: WebSockets (ride tracking, simulation)
 
-## Implemente
+## Modules implementes
 
-### Phase 1-11 (DONE)
-UI 18+, Backend, V3Cube DB, WebSocket, Wallet/Coupons, Profile, Branding, Phone login, Parrainage, Stripe, Donation, LiveChat
+### 1. Authentification & Onboarding (DONE)
+- Login par telephone (style V3Cube dark theme)
+- Login email/password
+- Google OAuth via Emergent
+- Inscription avec verification OTP
+- Roles: user, driver, admin, merchant
 
-### Phase 12 - Realignement Auth V3Cube (DONE)
-LoginPage dark theme, modal social login, ClientWelcome onboarding
+### 2. Application Utilisateur (DONE)
+- Home screen avec services (Taxi, Livraison, Covoiturage, etc.)
+- Reservation de course (pickup/dropoff, types vehicules)
+- Suivi en temps reel sur carte
+- Historique des courses
+- Portefeuille (wallet) avec recharge Stripe
 
-### Phase 13 - Application Chauffeur (DONE)
-ChauffeurWelcome, ChauffeurLogin, DriverRegisterPage, DriverHome, DriverEarningsPage, DriverHistoryPage, DriverProfilePage
+### 3. Application Chauffeur (DONE)
+- Login chauffeur
+- Ecran d'accueil avec courses en attente
+- Acceptation/refus de course
+- Navigation vers pickup/dropoff
+- Historique et gains
+- Inscription avec upload documents
 
-### Phase 14 - Mode Simulation (DONE)
-Chauffeur virtuel auto-accepte, mouvement GPS simule, cycle complet ~40s
+### 4. Mode Simulation (DONE)
+- Chauffeur virtuel auto-accepte les courses
+- Deplacement simule sur carte via WebSocket
+- Start/Stop depuis l'admin
 
-### Phase 15 - Dashboard Admin Gojek (DONE - Avril 2026)
-7 pages admin completes :
-1. **Dashboard** : 6 KPIs (utilisateurs, chauffeurs, courses/jour, revenus/jour, chauffeurs en attente, tickets), actions rapides, stats
-2. **Utilisateurs** : Liste 53+ users, recherche, filtres role (Tous/Clients/Chauffeurs/Admins), Suspendre/Reactiver
-3. **Chauffeurs** : Liste avec statuts (approuve/en attente/rejete), boutons Approuver/Rejeter
-4. **Courses** : 38+ courses, badges statut colores, filtres (Toutes/En attente/En cours/Terminees/Annulees), details depart/arrivee
-5. **Revenus & Commissions** : Card total orange gradient, tabs periode (Aujourd'hui/Semaine/Mois/Total), commission 10%, transactions recentes
-6. **Support** : Liste tickets, vue detail avec reponses, systeme de reply
-7. **Configuration** : Nom plateforme, devise (EUR/USD/XAF), langue (FR/EN), commission %, tarif min, toggles auto-assignation/notifications
-- Backend : `/api/admin/revenue` endpoint ajoute
-- AdminLayout : Sidebar sombre avec navigation nested (React Router Outlet)
-- Test Iteration 24 : Backend 17/17 + Frontend 12/12 = 100% PASS
+### 5. Panel Admin XJekPlus (DONE - Apr 7, 2026)
+- **Layout**: Theme clair avec sidebar complete (HOME, MEMBERS, SERVICES, BOOKINGS & REPORTS, LOCATION, PROMOTIONS, CMS, SYSTEM)
+- **Dashboard**: God's View avec carte, KPI cards (Users, Service Providers, Stores), On Demand Services, Revenue Today
+- **Users**: Table avec filtres Search/Status, tri colonnes, actions Suspend/Unsuspend
+- **Drivers**: Table avec Approve/Reject, filtres Status
+- **Trips/Jobs**: Date presets (Today/Yesterday/Week...), filtres multiples, table avec View Details
+- **Revenue/Reports**: Rapport financier avec periodes, cards recapitulatives
+- **Reviews**: Tabs Service Providers/Users, table avec actions
+- **God's View (standalone)**: Carte avec chauffeurs en temps reel, status cards, recherche
+- **Heat View**: Carte heatmap avec controles
+- **Promocodes**: Table avec gestion codes promo
+- **General Settings**: Interface a onglets (General, Email, Appearance, SMS, etc.) - PERSISTANT via API
+- **Placeholder pages**: Pour modules en developpement
+
+### 6. Backend APIs
+- Auth: /api/auth/login, /api/auth/register, /api/auth/me
+- Rides: /api/rides/request, /api/rides/history
+- Admin: /api/admin/dashboard, /api/admin/users, /api/admin/drivers, /api/admin/rides, /api/admin/revenue
+- Admin Settings: GET/PUT /api/admin/settings (persistant MongoDB)
+- Dispatcher: /api/dispatcher/live, /api/dispatcher/assign-ride
+- Simulation: /api/simulation/start, /api/simulation/stop
+- Support: /api/support/tickets
+- Coupons: /api/coupons/admin/all
 
 ## Tests
-- Iteration 24: Backend 17/17 + Frontend 12/12 PASS (Admin Dashboard)
-- Iteration 23: Backend 15/15 + Frontend 8/8 PASS (Simulation)
-- Iteration 22: Backend 15/15 + Frontend 18/18 PASS (App Chauffeur)
-- Iteration 21: Backend 12/12 + Frontend 36/36 PASS (V3Cube Auth)
-- Iterations 14-20: 100% PASS
+- Iteration 25: 100% pass (17 backend + 20 frontend)
+- Iterations 21-24: 100% pass (auth, rides, driver, simulation)
 
-## P1 - Prochaines taches
-- Persistance du panier entre sessions
+## Backlog (P1)
 - Ajouter services Gojek manquants sur Home
+- Persistance panier/commandes entre sessions
 
-## P2 - Futur
+## Backlog (P2)
 - Notifications push
 - Chat/Appel chauffeur
-- Persistance settings admin (backend)
-
-## Note
-- LiveChat : reponses MOCKEES
-- Settings admin : sauvegarde frontend uniquement (pas de persistance backend)
-- Apple/Facebook/Face ID login : visuels uniquement
-- Google login : fonctionnel via Emergent Auth
+- Integration Stripe complete (cle utilisateur)
