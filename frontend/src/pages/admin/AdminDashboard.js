@@ -2,160 +2,165 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
 import {
-  Users, Car, CurrencyEur, MapPin, Clock, Headset,
-  TrendUp, ArrowRight, CaretUp, Lightning
+  Users, Car, Storefront, MapPin, TrendUp, ArrowRight,
+  Taxi, Package, Wrench, Eye
 } from '@phosphor-icons/react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [godsViewTab, setGodsViewTab] = useState('rides');
+  const [servicesTab, setServicesTab] = useState('total');
 
   useEffect(() => { loadDashboard(); }, []);
-
   const loadDashboard = async () => {
     try { const r = await adminAPI.dashboard(); setStats(r.data); }
     catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="bg-[#161923] border border-gray-800 rounded-xl p-5 animate-pulse">
-              <div className="h-4 bg-gray-800 rounded w-1/2 mb-4" />
-              <div className="h-8 bg-gray-800 rounded w-1/3" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const cards = stats ? [
-    { icon: Users, label: 'Utilisateurs', value: stats.total_users, color: 'from-blue-500 to-blue-600', change: '+12%' },
-    { icon: Car, label: 'Chauffeurs', value: stats.total_drivers, sub: `${stats.active_drivers} en ligne`, color: 'from-emerald-500 to-emerald-600' },
-    { icon: MapPin, label: "Courses aujourd'hui", value: stats.today_rides, color: 'from-amber-500 to-amber-600' },
-    { icon: CurrencyEur, label: "Revenus du jour", value: `${stats.today_revenue.toFixed(2)} \u20ac`, color: 'from-[#FF4500] to-[#FF6B35]' },
-    { icon: Clock, label: 'Chauffeurs en attente', value: stats.pending_drivers, color: 'from-yellow-500 to-yellow-600', alert: stats.pending_drivers > 0 },
-    { icon: Headset, label: 'Tickets ouverts', value: stats.open_tickets, color: 'from-red-500 to-red-600', alert: stats.open_tickets > 0 },
-  ] : [];
-
-  return (
-    <div className="p-5 lg:p-6 space-y-6" data-testid="admin-dashboard">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white" data-testid="dashboard-title">Dashboard</h1>
-          <p className="text-gray-500 text-sm">Vue d'ensemble de la plateforme SB Drive</p>
-        </div>
-        <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium">
-          <Lightning size={14} weight="fill" /> En ligne
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {cards.map((card, i) => (
-          <div key={i} className={`relative bg-[#161923] border rounded-xl p-5 overflow-hidden transition-all hover:border-gray-700 ${
-            card.alert ? 'border-amber-500/30' : 'border-gray-800'}`}
-            data-testid={`kpi-${i}`}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">{card.label}</p>
-                <p className="text-3xl font-bold text-white mt-2">{card.value}</p>
-                {card.sub && <p className="text-emerald-400 text-xs mt-1 font-medium">{card.sub}</p>}
-                {card.change && (
-                  <div className="flex items-center gap-1 mt-1 text-emerald-400 text-xs">
-                    <CaretUp size={10} weight="bold" /> {card.change}
-                  </div>
-                )}
-              </div>
-              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center flex-shrink-0`}>
-                <card.icon size={22} className="text-white" weight="duotone" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Pending Drivers */}
-        <div className="bg-[#161923] border border-gray-800 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold text-sm">Approbations en attente</h3>
-            <button onClick={() => navigate('/admin/drivers')}
-              className="text-[#FF4500] text-xs font-medium flex items-center gap-1 hover:underline" data-testid="go-drivers-btn">
-              Voir tout <ArrowRight size={12} />
-            </button>
-          </div>
-          {stats?.pending_drivers > 0 ? (
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Clock size={20} className="text-amber-500" />
-              </div>
-              <div>
-                <p className="text-white font-medium text-sm">{stats.pending_drivers} chauffeur(s) en attente</p>
-                <p className="text-gray-500 text-xs">Demandes a examiner et approuver</p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-600 text-sm text-center py-4">Aucune approbation en attente</p>
-          )}
-        </div>
-
-        {/* Support Tickets */}
-        <div className="bg-[#161923] border border-gray-800 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold text-sm">Support</h3>
-            <button onClick={() => navigate('/admin/support')}
-              className="text-[#FF4500] text-xs font-medium flex items-center gap-1 hover:underline" data-testid="go-support-btn">
-              Voir tout <ArrowRight size={12} />
-            </button>
-          </div>
-          {stats?.open_tickets > 0 ? (
-            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                <Headset size={20} className="text-red-400" />
-              </div>
-              <div>
-                <p className="text-white font-medium text-sm">{stats.open_tickets} ticket(s) ouverts</p>
-                <p className="text-gray-500 text-xs">Necessitent une reponse</p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-600 text-sm text-center py-4">Aucun ticket ouvert</p>
-          )}
-        </div>
-      </div>
-
-      {/* Platform Stats */}
-      <div className="bg-[#161923] border border-gray-800 rounded-xl p-5">
-        <h3 className="text-white font-semibold text-sm mb-4">Statistiques rapides</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#0f1117] rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-white">{stats?.total_users || 0}</p>
-            <p className="text-gray-500 text-xs mt-1">Clients</p>
-          </div>
-          <div className="bg-[#0f1117] rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-white">{stats?.total_drivers || 0}</p>
-            <p className="text-gray-500 text-xs mt-1">Chauffeurs</p>
-          </div>
-          <div className="bg-[#0f1117] rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-white">{stats?.today_rides || 0}</p>
-            <p className="text-gray-500 text-xs mt-1">Courses / jour</p>
-          </div>
-          <div className="bg-[#0f1117] rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-emerald-400">{stats?.today_revenue?.toFixed(2) || '0.00'} &euro;</p>
-            <p className="text-gray-500 text-xs mt-1">Revenu / jour</p>
-          </div>
-        </div>
+  if (loading) return (
+    <div className="p-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1,2,3,4].map(i => <div key={i} className="bg-white rounded-lg p-6 animate-pulse"><div className="h-4 bg-gray-200 rounded w-1/2 mb-3"/><div className="h-8 bg-gray-200 rounded w-1/3"/></div>)}
       </div>
     </div>
   );
+
+  const driverStatuses = [
+    { label: 'Available', count: stats?.active_drivers || 0, color: 'bg-green-100', icon: '🟢' },
+    { label: 'Not Available', count: (stats?.total_drivers || 0) - (stats?.active_drivers || 0), color: 'bg-red-100', icon: '🔴' },
+    { label: 'Way to Pickup', count: 0, color: 'bg-blue-100', icon: '🔵' },
+    { label: 'Arrived / Reached Pickup', count: 0, color: 'bg-orange-100', icon: '🟠' },
+    { label: 'Way to Dropoff', count: 0, color: 'bg-purple-100', icon: '🟣' },
+  ];
+
+  return (
+    <div className="p-5 space-y-5" data-testid="admin-dashboard">
+      {/* God's View + KPI Row */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        {/* God's View */}
+        <div className="xl:col-span-2 bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-gray-800 text-base">God's View</h2>
+              <div className="flex gap-1 ml-4">
+                {['rides', 'deliveries', 'jobs'].map(t => (
+                  <button key={t} onClick={() => setGodsViewTab(t)}
+                    className={`px-4 py-1.5 rounded text-xs font-semibold transition-all ${
+                      godsViewTab === t ? 'bg-[#3b82f6] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                    data-testid={`gods-view-${t}`}>
+                    {t === 'rides' ? 'Rides' : t === 'deliveries' ? 'Deliveries' : 'Jobs'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Driver Status Cards */}
+            <div className="flex gap-3 mt-3 overflow-x-auto pb-1">
+              {driverStatuses.map((s, i) => (
+                <div key={i} className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-lg ${s.color} min-w-[80px]`}>
+                  <span className="text-lg">{s.icon}</span>
+                  <span className="text-[10px] text-gray-600 text-center leading-tight">{s.label}</span>
+                  <span className="text-xs font-bold text-gray-800">({s.count})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Map */}
+          <div className="h-[300px]">
+            <MapContainer center={[48.8566, 2.3522]} zoom={12} className="w-full h-full" zoomControl={false}>
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OSM' />
+            </MapContainer>
+          </div>
+        </div>
+
+        {/* KPI Cards (Right Side) */}
+        <div className="space-y-4">
+          {/* Users / Providers / Stores */}
+          <div className="grid grid-cols-3 gap-3">
+            <KPICard icon={Users} label="Users" value={stats?.total_users || 0} color="text-blue-600" onClick={() => navigate('/admin/users')} />
+            <KPICard icon={Car} label="Service Providers" value={stats?.total_drivers || 0} color="text-orange-500" onClick={() => navigate('/admin/drivers')} />
+            <KPICard icon={Storefront} label="Stores" value="155" color="text-red-500" onClick={() => navigate('/admin/stores')} />
+          </div>
+
+          {/* On Demand Services */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-gray-800 text-sm">On Demand Services</h3>
+              <div className="flex gap-1">
+                {['today', 'total'].map(t => (
+                  <button key={t} onClick={() => setServicesTab(t)}
+                    className={`px-3 py-1 rounded text-[11px] font-semibold transition-all ${
+                      servicesTab === t ? 'bg-[#3b82f6] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                    {t === 'today' ? 'Today' : 'Total'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <ServiceRow icon={Taxi} label="Total Trips" value={stats?.today_rides || 0} color="bg-blue-50" onClick={() => navigate('/admin/rides')} />
+              <ServiceRow icon={Package} label="Total Parcel Deliveries" value={0} color="bg-orange-50" />
+              <ServiceRow icon={Wrench} label="Total On Demand Jobs" value={0} color="bg-yellow-50" />
+            </div>
+          </div>
+
+          {/* Revenue Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Revenue Today</p>
+            <p className="text-2xl font-bold text-gray-800 mt-1">{(stats?.today_revenue || 0).toFixed(2)} &euro;</p>
+            <div className="flex items-center gap-1 mt-1">
+              <TrendUp size={14} className="text-green-500" />
+              <span className="text-green-500 text-xs font-medium">+12%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pending Approvals */}
+      {stats?.pending_drivers > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+              <Car size={20} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-amber-800 text-sm">{stats.pending_drivers} chauffeur(s) en attente d'approbation</p>
+              <p className="text-amber-600 text-xs">Cliquez pour examiner et approuver</p>
+            </div>
+          </div>
+          <button onClick={() => navigate('/admin/drivers')}
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-colors flex items-center gap-1"
+            data-testid="go-drivers-btn">
+            View All <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 };
+
+const KPICard = ({ icon: Icon, label, value, color, onClick }) => (
+  <button onClick={onClick} className="bg-white rounded-lg border border-gray-200 p-4 text-center hover:shadow-md transition-all group" data-testid={`kpi-${label.toLowerCase()}`}>
+    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">
+      <Icon size={24} className={color} weight="duotone" />
+    </div>
+    <p className={`font-bold text-sm ${color}`}>{label}</p>
+    <p className="text-2xl font-bold text-gray-800 mt-1">{value}</p>
+  </button>
+);
+
+const ServiceRow = ({ icon: Icon, label, value, color, onClick }) => (
+  <div className={`flex items-center gap-3 p-3 rounded-lg ${color} cursor-pointer hover:opacity-80 transition-opacity`} onClick={onClick}>
+    <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-sm">
+      <Icon size={18} className="text-gray-600" />
+    </div>
+    <span className="flex-1 text-sm font-medium text-gray-700">{label}</span>
+    <span className="text-lg font-bold text-[#3b82f6]">{value}</span>
+    <button className="px-2.5 py-1 bg-green-500 text-white text-[10px] font-bold rounded hover:bg-green-600 transition-colors">View All</button>
+  </div>
+);
 
 export default AdminDashboard;
