@@ -7,38 +7,42 @@ Super-app MVP multi-services (clone Gojek/V3Cube) "SB Drive VTC" : App Client + 
 - **Frontend**: React + Tailwind + Shadcn UI + Phosphor Icons + Leaflet
 - **Backend**: FastAPI modulaire + MongoDB
 - **Temps réel**: WebSocket natif
-- **Paiements**: Stripe (via emergentintegrations) + Wallet interne
-- **Couleur principale**: Orange #FF4500
+- **Paiements**: Stripe (emergentintegrations) + Wallet interne
+- **Couleur**: Orange #FF4500
 
 ## Implémenté
 
-### Phase 1-7 (DONE)
-UI 18+ services, Backend modulaire, V3Cube DB, WebSocket, Wallet/Coupons, Profile V3Cube, Branding orange
-
-### Phase 8 - Welcome Screen & Phone-First Login (DONE)
-Splash SB logo, Welcome V3Cube, Login unifié téléphone (3 étapes)
+### Phase 1-8 (DONE)
+UI 18+, Backend modulaire, V3Cube DB, WebSocket, Wallet/Coupons, Profile V3Cube, Branding, Phone login
 
 ### Phase 9 - Parrainage & Réservation V3Cube (DONE)
-Code SB-XXXXXX, 5EUR bonus bidirectionnel, booking_no, female_driver_request, handicap_accessibility
+Code SB-XXXXXX, 5EUR bonus, booking_no, female_driver, handicap
 
-### Phase 10 - Stripe Payment Integration (DONE - Avril 2026)
-- **Checkout Stripe** : 4 packages fixes (10, 20, 50, 100 EUR) - montants côté serveur uniquement
-- **payment_transactions** : Collection MongoDB pour suivi des paiements
-- **Flow sécurisé** : Checkout → Stripe redirect → Polling status → Crédit wallet
-- **Webhook** : POST /api/webhook/stripe pour confirmation paiement
-- **Protection anti-double crédit** : Mise à jour atomique MongoDB
-- **Frontend** : Boutons topup dans wallet + polling automatique au retour de Stripe
-- Test Iteration 19 : Backend 12/12 + Frontend 8/8 = 100% PASS
+### Phase 10 - Stripe Payment (DONE)
+4 packages (10/20/50/100 EUR), checkout redirect, polling, webhook, anti-double crédit
+
+### Phase 11 - Donation & Live Chat V3Cube (DONE - Avril 2026)
+- **Faire un don** : Page /donation avec campagnes de dons (titre, description, lien externe)
+  - Endpoint admin POST /api/donations pour créer des campagnes
+  - Endpoint GET /api/donations pour lister les campagnes actives
+  - Bouton "Faire un don" avec lien externe (target=_blank) comme V3Cube `donation_redirect.php`
+- **Parler en direct** : Page /livechat avec chat en direct
+  - POST /api/livechat/send avec réponses automatiques intelligentes (bonjour, aide, course, paiement, annulation)
+  - GET /api/livechat/messages pour historique des messages
+  - Polling auto toutes les 5 secondes
+  - Basé sur V3Cube `livechat.php` (LiveChat Inc)
+- Liens ajoutés dans Profile Menu (réglages généraux + soutien)
+- Test Iteration 20 : Backend 13/13 + Frontend 8/8 = 100% PASS
 
 ## Tests
+- Iteration 20: Backend 13/13 + Frontend 8/8 PASS (Donation + LiveChat)
 - Iteration 19: Backend 12/12 + Frontend 8/8 PASS (Stripe)
 - Iteration 18: Backend 14/14 + Frontend 7/7 PASS (Referral + Booking)
-- Iteration 17: Backend 12/12 + Frontend 22/23 PASS (Phone login)
-- Iterations 14-16: 100% PASS
+- Iterations 14-17: 100% PASS
 
 ## P1 - Prochaines tâches
 - Persistance du panier entre sessions
 
 ## P2 - Futur
 - Notifications push, Chat/Appel chauffeur
-- Suivi famille GPS, Mode simulation chauffeur
+- Mode simulation chauffeur
