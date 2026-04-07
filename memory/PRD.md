@@ -25,14 +25,16 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - Suivi en temps reel sur carte
 - Historique des courses
 - Portefeuille (wallet) avec recharge Stripe
+- Bouton "Parler en direct" (Live Chat)
 
-### 3. Application Chauffeur (DONE)
+### 3. Application Chauffeur (DONE - Apr 7, 2026)
 - Login chauffeur
 - Ecran d'accueil avec courses en attente
 - Acceptation/refus de course
 - Navigation vers pickup/dropoff
 - Historique et gains
 - Inscription avec upload documents
+- **Bouton "Parler en direct"** : Bouton flottant vert sur Home + entree dans Profil/Actions
 
 ### 4. Mode Simulation (DONE)
 - Chauffeur virtuel auto-accepte les courses
@@ -41,27 +43,16 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 
 ### 5. Page de Connexion Admin (DONE - Apr 7, 2026)
 - Page dediee /admin-login avec logo SB
-- Titre "Welcome to Admin Panel" style serif bold
 - Onglets: All Admin, Dispatcher Admin, Billing Admin, Server Admin
-- Formulaire: Admin E-mail, Password
-- Lien "mot de passe oublie?"
-- Bouton SIGN IN bleu pill-shaped
-- Navigation en bas: Main website, Client Login, Chauffeur Login, Flotte - Entreprise Login
-- Redirection vers /admin apres connexion reussie
+- Formulaire email/password + bouton SIGN IN
+- Navigation: Main website, Client Login, Chauffeur Login, Flotte - Entreprise Login
 
 ### 6. Panel Admin XJekPlus (DONE - Apr 7, 2026)
-- **Layout**: Theme clair avec sidebar complete (HOME, MEMBERS, SERVICES, BOOKINGS & REPORTS, LOCATION, PROMOTIONS, CMS, SYSTEM)
-- **Dashboard**: God's View avec carte, KPI cards (Users, Service Providers, Stores), On Demand Services, Revenue Today
-- **Users**: Table avec filtres Search/Status, tri colonnes, actions Suspend/Unsuspend
-- **Drivers**: Table avec Approve/Reject, filtres Status
-- **Trips/Jobs**: Date presets (Today/Yesterday/Week...), filtres multiples, table avec View Details
-- **Revenue/Reports**: Rapport financier avec periodes, cards recapitulatives
-- **Reviews**: Tabs Service Providers/Users, table avec actions
-- **God's View (standalone)**: Carte avec chauffeurs en temps reel, status cards, recherche
-- **Heat View**: Carte heatmap avec controles
-- **Promocodes**: Table avec gestion codes promo
-- **General Settings**: Interface a onglets (General, Email, Appearance, SMS, etc.) - PERSISTANT via API
-- **Placeholder pages**: Pour modules en developpement
+- Layout: Theme clair avec sidebar complete
+- Dashboard, Users, Drivers, Trips/Jobs, Revenue, Reviews
+- God's View, Heat View, Promocodes
+- General Settings avec onglets - persistant via API
+- Placeholder pages pour modules en developpement
 
 ### 7. Backend APIs
 - Auth: /api/auth/login, /api/auth/register, /api/auth/me
@@ -70,12 +61,9 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - Admin Settings: GET/PUT /api/admin/settings (persistant MongoDB)
 - Dispatcher: /api/dispatcher/live, /api/dispatcher/assign-ride
 - Simulation: /api/simulation/start, /api/simulation/stop
-- Support: /api/support/tickets
-- Coupons: /api/coupons/admin/all
 
 ## Tests
 - Iteration 25: 100% pass (17 backend + 20 frontend)
-- Iterations 21-24: 100% pass (auth, rides, driver, simulation)
 
 ## Backlog (P1)
 - Ajouter services Gojek manquants sur Home
@@ -83,5 +71,5 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 
 ## Backlog (P2)
 - Notifications push
-- Chat/Appel chauffeur
+- Chat/Appel chauffeur (backend temps reel)
 - Integration Stripe complete (cle utilisateur)

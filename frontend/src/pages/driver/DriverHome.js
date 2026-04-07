@@ -5,7 +5,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverEarningsPage';
 import {
-  Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User
+  Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots
 } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -334,6 +334,13 @@ const DriverHome = () => {
           </div>
         </div>
       )}
+
+      {/* Floating Live Chat Button */}
+      <button onClick={() => navigate('/chauffeur/livechat')}
+        className="fixed z-[1001] bottom-20 right-4 w-14 h-14 rounded-full bg-[#10b981] shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 transition-all active:scale-95"
+        data-testid="livechat-btn">
+        <ChatCircleDots size={26} weight="fill" className="text-white" />
+      </button>
 
       {/* Bottom Nav */}
       <DriverBottomNav active="home" navigate={navigate} />

@@ -5,7 +5,7 @@ import { driverAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverEarningsPage';
 import {
   User, Car, Star, SignOut, Phone, Envelope, FileText, ShieldCheck,
-  Wallet, CaretRight, Gear, CheckCircle, Clock, XCircle
+  Wallet, CaretRight, Gear, CheckCircle, Clock, XCircle, ChatCircleDots
 } from '@phosphor-icons/react';
 
 const DriverProfilePage = () => {
@@ -102,6 +102,7 @@ const DriverProfilePage = () => {
           badge={driver?.documents?.length ? `${driver.documents.length} fichier(s)` : null}
           onClick={() => navigate('/driver/register')} />
         <MenuButton icon={ShieldCheck} label="Aide & Support" onClick={() => navigate('/support')} />
+        <MenuButton icon={ChatCircleDots} label="Parler en direct" onClick={() => navigate('/chauffeur/livechat')} highlight />
         <MenuButton icon={Gear} label="Param&egrave;tres" onClick={() => {}} />
 
         {/* Logout */}
@@ -126,11 +127,12 @@ const MenuItem = ({ icon: Icon, label, value }) => (
   </div>
 );
 
-const MenuButton = ({ icon: Icon, label, badge, onClick }) => (
+const MenuButton = ({ icon: Icon, label, badge, onClick, highlight }) => (
   <button onClick={onClick}
-    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-gray-900 border border-gray-800 hover:bg-gray-800 transition-colors">
-    <Icon size={18} className="text-amber-500 flex-shrink-0" />
-    <span className="text-white text-sm font-medium">{label}</span>
+    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-colors ${
+      highlight ? 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' : 'bg-gray-900 border-gray-800 hover:bg-gray-800'}`}>
+    <Icon size={18} className={highlight ? 'text-emerald-400 flex-shrink-0' : 'text-amber-500 flex-shrink-0'} />
+    <span className={`text-sm font-medium ${highlight ? 'text-emerald-400' : 'text-white'}`}>{label}</span>
     {badge && <span className="text-xs text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full ml-auto">{badge}</span>}
     <CaretRight size={16} className="text-gray-500 ml-auto flex-shrink-0" />
   </button>
