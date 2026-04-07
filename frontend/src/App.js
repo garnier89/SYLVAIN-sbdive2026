@@ -24,6 +24,8 @@ import HistoryPage from './pages/user/HistoryPage';
 import SupportPage from './pages/user/SupportPage';
 import ParcelPage from './pages/user/ParcelPage';
 import ReferralPage from './pages/user/ReferralPage';
+import DonationPage from './pages/user/DonationPage';
+import LiveChatPage from './pages/user/LiveChatPage';
 import ServicesPage from './pages/user/ServicesPage';
 import AllDeliveryPage from './pages/user/AllDeliveryPage';
 import AllServicesPage from './pages/user/AllServicesPage';
@@ -99,6 +101,8 @@ const AppRouter = () => {
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
       <Route path="/referral" element={<ProtectedRoute allowedRoles={['user']}><ReferralPage /></ProtectedRoute>} />
+      <Route path="/donation" element={<ProtectedRoute allowedRoles={['user']}><DonationPage /></ProtectedRoute>} />
+      <Route path="/livechat" element={<ProtectedRoute allowedRoles={['user']}><LiveChatPage /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><SupportPage /></ProtectedRoute>} />
 
       {/* ======= SB DRIVE CHAUFFEUR (App Chauffeur) ======= */}

@@ -27,6 +27,7 @@ from routes.coupons import router as coupons_router
 from routes.referral import router as referral_router
 from routes.payments import router as payments_router
 from routes.webhooks import router as webhooks_router
+from routes.features import router as features_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -210,6 +211,7 @@ api_router.include_router(coupons_router)
 api_router.include_router(referral_router)
 api_router.include_router(payments_router)
 api_router.include_router(webhooks_router)
+api_router.include_router(features_router)
 
 app.include_router(api_router)
 

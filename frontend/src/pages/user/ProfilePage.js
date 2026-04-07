@@ -143,7 +143,7 @@ const ProfilePage = () => {
         <MenuItem icon={Heart} label="Fournisseurs de services préférés" iconBg="bg-yellow-500" iconColor="text-white" testId="settings-favourites-btn" />
         <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
         <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-green-500" iconColor="text-white" testId="settings-emergency-btn" />
-        <MenuItem icon={HandHeart} label="Faire un don" iconBg="bg-lime-600" iconColor="text-white" testId="settings-donate-btn" />
+        <MenuItem icon={HandHeart} label="Faire un don" iconBg="bg-lime-600" iconColor="text-white" onClick={() => navigate('/donation')} testId="settings-donate-btn" />
       </MenuCard>
 
       {/* ═══════════ ACHETER, VENDRE ET LOUER ═══════════ */}
@@ -214,7 +214,7 @@ const ProfilePage = () => {
         <MenuItem icon={ShieldCheck} label="Politique de confidentialité" iconBg="bg-gray-800" iconColor="text-white" testId="settings-privacy-btn" />
         <MenuItem icon={Lock} label="Termes et conditions" iconBg="bg-orange-400" iconColor="text-white" testId="settings-terms-btn" />
         <MenuItem icon={Question} label="FAQ" iconBg="bg-pink-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-faq-btn" />
-        <MenuItem icon={ChatCircleDots} label="Parler en direct" iconBg="bg-teal-500" iconColor="text-white" testId="settings-live-chat-btn" />
+        <MenuItem icon={ChatCircleDots} label="Parler en direct" iconBg="bg-teal-500" iconColor="text-white" onClick={() => navigate('/livechat')} testId="settings-live-chat-btn" />
         <MenuItem icon={Envelope} label="Contactez nous" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-contact-btn" />
       </MenuCard>
 
