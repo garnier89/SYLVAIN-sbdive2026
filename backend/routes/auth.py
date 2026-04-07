@@ -104,6 +104,9 @@ async def phone_register(data: dict, response: Response):
             break
 
     full_name = f"{first_name} {name}".strip() if first_name or name else phone
+    requested_role = data.get("role", "user")
+    if requested_role not in ("user", "driver"):
+        requested_role = "user"
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     user_doc = {
         "id": user_id,
@@ -111,7 +114,7 @@ async def phone_register(data: dict, response: Response):
         "password_hash": hash_password(password),
         "name": full_name,
         "phone": phone,
-        "role": "user",
+        "role": requested_role,
         "is_verified": False,
         "avatar_url": None,
         "referral_code_own": own_code,

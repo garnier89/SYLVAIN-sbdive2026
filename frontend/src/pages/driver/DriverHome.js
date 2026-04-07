@@ -2,15 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { Card, CardContent } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Switch } from '../../components/ui/switch';
-import { Badge } from '../../components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { driverAPI, rideAPI } from '../../services/api';
-import { 
-  Car, MapPin, Star, Wallet, Clock,
-  NavigationArrow, User, Bell, Power, X, Check
+import { DriverBottomNav } from './DriverEarningsPage';
+import {
+  Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User
 } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -24,7 +19,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const DriverHome = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [driver, setDriver] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
@@ -34,37 +29,27 @@ const DriverHome = () => {
   const [mapCenter, setMapCenter] = useState([48.8566, 2.3522]);
   const locationWatchId = useRef(null);
 
-  // WebSocket for real-time ride requests & location sending
-  const { connected, on, sendLocation, joinRide } = useWebSocket(user?.id);
+  const { on, sendLocation, joinRide } = useWebSocket(user?.id);
 
   useEffect(() => {
     loadDriverProfile();
     setupLocation();
-    return () => {
-      if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current);
-    };
+    return () => { if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current); };
   }, []);
 
-  // Listen for incoming ride requests via WebSocket
   useEffect(() => {
     const unsub1 = on('new_ride_request', (msg) => {
-      if (!currentRide && isOnline) {
-        setIncomingRequest(msg);
-      }
+      if (!currentRide && isOnline) setIncomingRequest(msg);
     });
     const unsub2 = on('ride_status_update', (msg) => {
       if (currentRide && msg.ride_id === currentRide.id) {
-        if (msg.status === 'cancelled') {
-          setCurrentRide(null);
-        } else {
-          setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
-        }
+        if (msg.status === 'cancelled') setCurrentRide(null);
+        else setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
       }
     });
     return () => { unsub1(); unsub2(); };
   }, [on, currentRide, isOnline]);
 
-  // Fallback: poll pending rides every 8s when online and no WS ride received
   useEffect(() => {
     if (isOnline && !currentRide) {
       const interval = setInterval(loadPendingRides, 8000);
@@ -74,130 +59,85 @@ const DriverHome = () => {
 
   const loadDriverProfile = async () => {
     try {
-      const response = await driverAPI.getProfile();
-      setDriver(response.data);
-      setIsOnline(response.data.is_online);
-    } catch (error) {
-      // Not registered as driver, redirect to registration
-      if (error.response?.status === 404) {
-        navigate('/chauffeur/register');
-      }
-    } finally {
-      setLoading(false);
-    }
+      const res = await driverAPI.getProfile();
+      setDriver(res.data);
+      setIsOnline(res.data.is_online);
+    } catch (err) {
+      if (err.response?.status === 404) navigate('/driver/register');
+    } finally { setLoading(false); }
   };
 
   const setupLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setMapCenter([latitude, longitude]);
-          driverAPI.updateLocation(latitude, longitude).catch(() => {});
-          sendLocation(latitude, longitude);
-        },
-        () => {}
-      );
-
-      locationWatchId.current = navigator.geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setMapCenter([latitude, longitude]);
-          if (isOnline) {
-            sendLocation(latitude, longitude);
-          }
-        },
-        () => {},
-        { enableHighAccuracy: true }
-      );
-    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: { latitude, longitude } }) => {
+        setMapCenter([latitude, longitude]);
+        driverAPI.updateLocation(latitude, longitude).catch(() => {});
+        sendLocation(latitude, longitude);
+      }, () => {}
+    );
+    locationWatchId.current = navigator.geolocation.watchPosition(
+      ({ coords: { latitude, longitude } }) => {
+        setMapCenter([latitude, longitude]);
+        if (isOnline) sendLocation(latitude, longitude);
+      }, () => {}, { enableHighAccuracy: true }
+    );
   };
 
   const loadPendingRides = async () => {
     if (!driver || driver.status !== 'approved') return;
-    
     try {
-      const response = await rideAPI.list({ status: 'pending' });
-      const rides = response.data;
-      if (rides.length > 0 && !currentRide && !incomingRequest) {
-        setIncomingRequest(rides[0]);
-      }
-    } catch (error) {
-      console.error('Load rides error:', error);
-    }
+      const res = await rideAPI.list({ status: 'pending' });
+      if (res.data.length > 0 && !currentRide && !incomingRequest) setIncomingRequest(res.data[0]);
+    } catch {}
   };
 
   const toggleOnline = async () => {
-    if (driver?.status !== 'approved') {
-      return;
-    }
-    
+    if (driver?.status !== 'approved') return;
     try {
-      const response = await driverAPI.toggleOnline();
-      setIsOnline(response.data.is_online);
-    } catch (error) {
-      console.error('Toggle online error:', error);
-    }
+      const res = await driverAPI.toggleOnline();
+      setIsOnline(res.data.is_online);
+    } catch {}
   };
 
   const acceptRide = async (rideId) => {
     try {
       await rideAPI.accept(rideId);
-      const response = await rideAPI.get(rideId);
-      setCurrentRide(response.data);
+      const res = await rideAPI.get(rideId);
+      setCurrentRide(res.data);
       setIncomingRequest(null);
       joinRide(rideId);
-    } catch (error) {
-      setIncomingRequest(null);
-    }
-  };
-
-  const rejectRide = () => {
-    setIncomingRequest(null);
+    } catch { setIncomingRequest(null); }
   };
 
   const updateRideStatus = async (status) => {
     if (!currentRide) return;
-    
     try {
       await rideAPI.updateStatus(currentRide.id, status);
-      if (status === 'completed' || status === 'cancelled') {
-        setCurrentRide(null);
-      } else {
-        const response = await rideAPI.get(currentRide.id);
-        setCurrentRide(response.data);
-      }
-    } catch (error) {
-      console.error('Update status error:', error);
-    }
+      if (status === 'completed' || status === 'cancelled') setCurrentRide(null);
+      else { const res = await rideAPI.get(currentRide.id); setCurrentRide(res.data); }
+    } catch {}
   };
 
   if (loading) {
     return (
-      <div className="mobile-container min-h-screen flex items-center justify-center">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-          <Car size={32} weight="duotone" className="text-primary" />
+      <div className="mobile-container min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center animate-pulse">
+          <Car size={32} weight="duotone" className="text-amber-500" />
         </div>
       </div>
     );
   }
 
-  if (!driver) {
-    return null;
-  }
+  if (!driver) return null;
 
   return (
-    <div className="mobile-container bg-background min-h-screen relative">
-      {/* Map Background */}
-      <div className="h-[60vh]">
-        <MapContainer
-          center={mapCenter}
-          zoom={15}
-          className="w-full h-full"
-          zoomControl={false}
-        >
+    <div className="mobile-container bg-gray-950 min-h-screen relative" data-testid="driver-home-page">
+      {/* Map */}
+      <div className="h-[55vh]">
+        <MapContainer center={mapCenter} zoom={15} className="w-full h-full" zoomControl={false}>
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <Marker position={mapCenter} />
@@ -207,259 +147,196 @@ const DriverHome = () => {
       {/* Header Overlay */}
       <div className="absolute top-0 left-0 right-0 z-[1000] p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 bg-white rounded-full px-4 py-2 shadow-lg">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={user?.avatar_url} />
-              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                {user?.name?.charAt(0) || 'D'}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex items-center gap-3 bg-gray-900/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg border border-gray-800">
+            <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center">
+              <User size={18} className="text-amber-500" />
+            </div>
             <div>
-              <p className="font-semibold text-sm">{user?.name}</p>
+              <p className="font-semibold text-sm text-white">{user?.name}</p>
               <div className="flex items-center gap-1">
-                <Star size={12} weight="fill" className="text-amber-500" />
-                <span className="text-xs">{driver.rating.toFixed(1)}</span>
+                <Star size={10} weight="fill" className="text-amber-500" />
+                <span className="text-xs text-gray-400">{driver.rating.toFixed(1)}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="secondary" 
-              size="icon" 
-              className="rounded-full bg-white shadow-lg"
-              onClick={() => navigate('/chauffeur/earnings')}
-              data-testid="earnings-btn"
-            >
-              <Wallet size={20} />
-            </Button>
-            <Button 
-              variant="secondary" 
-              size="icon" 
-              className="rounded-full bg-white shadow-lg"
-              data-testid="notifications-btn"
-            >
-              <Bell size={20} />
-            </Button>
-          </div>
+          <button className="w-10 h-10 rounded-full bg-gray-900/90 backdrop-blur-sm shadow-lg border border-gray-800 flex items-center justify-center" data-testid="notifications-btn">
+            <Bell size={18} className="text-white" />
+          </button>
         </div>
       </div>
 
       {/* Bottom Sheet */}
-      <div className="absolute bottom-0 left-0 right-0 bottom-sheet p-4 space-y-4">
-        {/* Status Banner */}
+      <div className="absolute bottom-16 left-0 right-0 z-[1000] px-4 space-y-3">
+        {/* Pending Approval */}
         {driver.status === 'pending' && (
-          <Card className="bg-amber-50 border-amber-200">
-            <CardContent className="p-4 flex items-center gap-3">
-              <Clock size={24} className="text-amber-600" />
-              <div>
-                <p className="font-semibold text-amber-800">Compte en cours de vérification</p>
-                <p className="text-sm text-amber-700">Vos documents sont en cours de vérification</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-3 backdrop-blur-sm">
+            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <Car size={20} className="text-amber-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-amber-400 text-sm">Compte en cours de v&eacute;rification</p>
+              <p className="text-amber-500/60 text-xs">Vos documents sont en cours d'examen</p>
+            </div>
+          </div>
         )}
 
         {driver.status === 'rejected' && (
-          <Card className="bg-red-50 border-red-200">
-            <CardContent className="p-4">
-              <p className="font-semibold text-red-800">Demande rejetée</p>
-              <p className="text-sm text-red-700">{driver.rejection_reason || 'Veuillez contacter le support'}</p>
-            </CardContent>
-          </Card>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+            <p className="font-semibold text-red-400 text-sm">Demande rejet&eacute;e</p>
+            <p className="text-red-500/60 text-xs">{driver.rejection_reason || 'Contactez le support'}</p>
+          </div>
         )}
 
-        {/* Online Toggle */}
+        {/* Online/Offline Toggle */}
         {driver.status === 'approved' && !currentRide && (
-          <Card className={isOnline ? 'bg-primary/5 border-primary' : ''}>
-            <CardContent className="p-4 flex items-center justify-between">
+          <div className="bg-gray-900/95 backdrop-blur-sm border border-gray-800 rounded-2xl p-4 shadow-xl">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isOnline ? 'bg-primary' : 'bg-muted'}`}>
-                  <Power size={24} className={isOnline ? 'text-white' : 'text-muted-foreground'} />
-                </div>
+                <button onClick={toggleOnline}
+                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg ${
+                    isOnline ? 'bg-amber-500 shadow-amber-500/30' : 'bg-gray-700'}`}
+                  data-testid="online-toggle">
+                  <Power size={26} className="text-white" weight="bold" />
+                </button>
                 <div>
-                  <p className="font-semibold">{isOnline ? 'Vous êtes en ligne' : 'Vous êtes hors ligne'}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {isOnline ? 'Prêt à recevoir des courses' : 'Passez en ligne pour gagner'}
-                  </p>
+                  <p className="font-bold text-white text-sm">{isOnline ? 'Vous \u00eates en ligne' : 'Vous \u00eates hors ligne'}</p>
+                  <p className="text-gray-500 text-xs">{isOnline ? 'Pr\u00eat \u00e0 recevoir des courses' : 'Appuyez pour passer en ligne'}</p>
                 </div>
               </div>
-              <Switch
-                checked={isOnline}
-                onCheckedChange={toggleOnline}
-                data-testid="online-toggle"
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Stats */}
-        {driver.status === 'approved' && !currentRide && (
-          <div className="grid grid-cols-3 gap-3">
-            <Card>
-              <CardContent className="p-3 text-center">
-                <p className="text-xl font-bold text-primary">{driver.total_trips}</p>
-                <p className="text-xs text-muted-foreground">Courses</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3 text-center">
-                <p className="text-xl font-bold text-primary">{driver.earnings.toFixed(0)} &euro;</p>
-                <p className="text-xs text-muted-foreground">Gains</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3 text-center">
-                <p className="text-xl font-bold text-primary">{driver.rating.toFixed(1)}</p>
-                <p className="text-xs text-muted-foreground">Rating</p>
-              </CardContent>
-            </Card>
+            </div>
+            {/* Mini Stats */}
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="bg-gray-800 rounded-xl p-2.5 text-center">
+                <p className="text-white font-bold text-base">{driver.total_trips}</p>
+                <p className="text-gray-500 text-[10px]">Courses</p>
+              </div>
+              <div className="bg-gray-800 rounded-xl p-2.5 text-center">
+                <p className="text-white font-bold text-base">{driver.earnings.toFixed(0)}&euro;</p>
+                <p className="text-gray-500 text-[10px]">Gains</p>
+              </div>
+              <div className="bg-gray-800 rounded-xl p-2.5 text-center">
+                <p className="text-white font-bold text-base">{driver.rating.toFixed(1)}</p>
+                <p className="text-gray-500 text-[10px]">Note</p>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Current Ride */}
         {currentRide && (
-          <Card className="border-primary">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <Badge className={
-                  currentRide.status === 'accepted' ? 'bg-blue-500' :
-                  currentRide.status === 'arriving' ? 'bg-amber-500' :
-                  currentRide.status === 'in_progress' ? 'bg-primary' : ''
-                }>
-                  {currentRide.status.replace('_', ' ').toUpperCase()}
-                </Badge>
-                <span className="font-bold text-lg">{currentRide.estimated_fare.toFixed(2)} &euro;</span>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Pickup</p>
-                    <p className="font-medium">{currentRide.pickup_address}</p>
-                  </div>
+          <div className="bg-gray-900/95 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-4 shadow-xl" data-testid="current-ride">
+            <div className="flex items-center justify-between mb-3">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                currentRide.status === 'accepted' ? 'bg-blue-500/10 text-blue-400' :
+                currentRide.status === 'arriving' ? 'bg-amber-500/10 text-amber-400' :
+                'bg-emerald-500/10 text-emerald-400'}`}>
+                {currentRide.status === 'accepted' ? 'Accept\u00e9e' : currentRide.status === 'arriving' ? 'En route' : 'En cours'}
+              </span>
+              <span className="font-bold text-amber-500 text-lg">{currentRide.estimated_fare?.toFixed(2)} &euro;</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center mt-0.5 flex-shrink-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center mt-0.5">
-                    <MapPin size={12} className="text-destructive" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Arrivée</p>
-                    <p className="font-medium">{currentRide.dropoff_address}</p>
-                  </div>
+                <div>
+                  <p className="text-gray-500 text-[10px] uppercase tracking-wider">D\u00e9part</p>
+                  <p className="text-white text-sm font-medium">{currentRide.pickup_address}</p>
                 </div>
               </div>
-
-              {currentRide.status === 'in_progress' && currentRide.otp && (
-                <div className="bg-blue-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500">Code OTP du passager</p>
-                  <p className="font-bold text-2xl tracking-widest text-blue-700">{currentRide.otp}</p>
+              <div className="flex items-start gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-red-500/10 flex items-center justify-center mt-0.5 flex-shrink-0">
+                  <MapPin size={10} className="text-red-400" />
                 </div>
+                <div>
+                  <p className="text-gray-500 text-[10px] uppercase tracking-wider">Arriv\u00e9e</p>
+                  <p className="text-white text-sm font-medium">{currentRide.dropoff_address}</p>
+                </div>
+              </div>
+            </div>
+            {currentRide.status === 'in_progress' && currentRide.otp && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 text-center mt-3">
+                <p className="text-gray-400 text-[10px] uppercase">Code OTP</p>
+                <p className="font-bold text-2xl tracking-widest text-blue-400">{currentRide.otp}</p>
+              </div>
+            )}
+            <div className="flex gap-2 mt-3">
+              {currentRide.status === 'accepted' && (
+                <button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-full py-3 text-sm font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  onClick={() => updateRideStatus('arriving')} data-testid="arriving-btn">
+                  <NavigationArrow size={16} /> En route
+                </button>
               )}
-
-              <div className="flex gap-2">
-                {currentRide.status === 'accepted' && (
-                  <Button 
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-full"
-                    onClick={() => updateRideStatus('arriving')}
-                    data-testid="arriving-btn"
-                  >
-                    <NavigationArrow size={20} className="mr-2" />
-                    En route
-                  </Button>
-                )}
-                {currentRide.status === 'arriving' && (
-                  <Button 
-                    className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full"
-                    onClick={() => updateRideStatus('in_progress')}
-                    data-testid="start-trip-btn"
-                  >
-                    Démarrer la course
-                  </Button>
-                )}
-                {currentRide.status === 'in_progress' && (
-                  <Button 
-                    className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full"
-                    onClick={() => updateRideStatus('completed')}
-                    data-testid="complete-trip-btn"
-                  >
-                    Terminer la course
-                  </Button>
-                )}
-                <Button 
-                  variant="outline" 
-                  className="rounded-full"
-                  onClick={() => updateRideStatus('cancelled')}
-                  data-testid="cancel-btn"
-                >
-                  Annuler
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              {currentRide.status === 'arriving' && (
+                <button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-full py-3 text-sm font-bold transition-colors"
+                  onClick={() => updateRideStatus('in_progress')} data-testid="start-trip-btn">
+                  D\u00e9marrer la course
+                </button>
+              )}
+              {currentRide.status === 'in_progress' && (
+                <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full py-3 text-sm font-bold transition-colors"
+                  onClick={() => updateRideStatus('completed')} data-testid="complete-trip-btn">
+                  Terminer la course
+                </button>
+              )}
+              <button className="px-4 border border-gray-700 text-gray-400 rounded-full py-3 text-sm font-medium hover:bg-gray-800 transition-colors"
+                onClick={() => updateRideStatus('cancelled')} data-testid="cancel-btn">
+                Annuler
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Incoming Request Modal */}
       {incomingRequest && !currentRide && (
-        <div className="absolute inset-0 z-[2000] bg-black/50 flex items-end">
-          <div className="w-full bg-white rounded-t-3xl p-6 space-y-4 animate-slide-up">
+        <div className="absolute inset-0 z-[2000] bg-black/60 flex items-end" data-testid="incoming-request-modal">
+          <div className="w-full bg-gray-900 border-t border-amber-500/30 rounded-t-3xl p-6 space-y-4 animate-slide-up">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold">Nouvelle course</h3>
-              <span className="text-2xl font-bold text-primary">{incomingRequest.estimated_fare.toFixed(2)} &euro;</span>
+              <h3 className="text-xl font-bold text-white">Nouvelle course</h3>
+              <span className="text-2xl font-bold text-amber-500">{incomingRequest.estimated_fare?.toFixed(2)} &euro;</span>
             </div>
-            
             <div className="space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
+                <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Pickup</p>
-                  <p className="font-medium">{incomingRequest.pickup_address}</p>
+                  <p className="text-gray-500 text-xs">D\u00e9part</p>
+                  <p className="font-medium text-white">{incomingRequest.pickup_address}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center mt-0.5">
-                  <MapPin size={12} className="text-destructive" />
+                <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center mt-0.5">
+                  <MapPin size={12} className="text-red-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Arrivée</p>
-                  <p className="font-medium">{incomingRequest.dropoff_address}</p>
+                  <p className="text-gray-500 text-xs">Arriv\u00e9e</p>
+                  <p className="font-medium text-white">{incomingRequest.dropoff_address}</p>
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>{incomingRequest.distance_km.toFixed(1)} km</span>
-              <span>{incomingRequest.duration_mins} mins</span>
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span>{incomingRequest.distance_km?.toFixed(1)} km</span>
+              <span>{incomingRequest.duration_mins} min</span>
               <span className="capitalize">{incomingRequest.vehicle_type}</span>
             </div>
-
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1 rounded-full h-14"
-                onClick={rejectRide}
-                data-testid="reject-ride-btn"
-              >
-                <X size={24} className="mr-2" />
-                Refuser
-              </Button>
-              <Button
-                className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14"
-                onClick={() => acceptRide(incomingRequest.id)}
-                data-testid="accept-ride-btn"
-              >
-                <Check size={24} className="mr-2" />
-                Accepter
-              </Button>
+              <button className="flex-1 border border-gray-700 text-gray-300 rounded-full h-14 font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
+                onClick={() => setIncomingRequest(null)} data-testid="reject-ride-btn">
+                <X size={20} /> Refuser
+              </button>
+              <button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-full h-14 font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-amber-500/20"
+                onClick={() => acceptRide(incomingRequest.id)} data-testid="accept-ride-btn">
+                <Check size={20} /> Accepter
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Bottom Nav */}
+      <DriverBottomNav active="home" navigate={navigate} />
     </div>
   );
 };

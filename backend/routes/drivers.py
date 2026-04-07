@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, File, UploadFile, Query
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from core.config import db, APP_NAME
 from core.deps import get_current_user, put_object
@@ -90,3 +90,60 @@ async def upload_driver_document(request: Request, file: UploadFile = File(...),
     }
     await db.drivers.update_one({"user_id": user["id"]}, {"$push": {"documents": doc_record}})
     return {"message": "Document uploaded", "path": result["path"]}
+
+
+
+@router.get("/earnings")
+async def get_driver_earnings(request: Request):
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    # Fetch completed rides for this driver
+    all_rides = await db.rides.find(
+        {"driver_id": user["id"], "status": "completed"},
+        {"_id": 0, "estimated_fare": 1, "created_at": 1, "pickup_address": 1, "dropoff_address": 1, "distance_km": 1}
+    ).sort("created_at", -1).to_list(500)
+
+    today_earnings = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= today_start)
+    week_earnings = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= week_start)
+    month_earnings = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= month_start)
+    total_earnings = sum(r.get("estimated_fare", 0) for r in all_rides)
+
+    today_trips = len([r for r in all_rides if r.get("created_at", "") >= today_start])
+    week_trips = len([r for r in all_rides if r.get("created_at", "") >= week_start])
+
+    recent_rides = all_rides[:20]
+
+    return {
+        "today": round(today_earnings, 2),
+        "week": round(week_earnings, 2),
+        "month": round(month_earnings, 2),
+        "total": round(total_earnings, 2),
+        "today_trips": today_trips,
+        "week_trips": week_trips,
+        "total_trips": driver.get("total_trips", 0),
+        "rating": driver.get("rating", 5.0),
+        "recent_rides": recent_rides,
+    }
+
+
+@router.get("/ride-history")
+async def get_driver_ride_history(request: Request):
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    rides = await db.rides.find(
+        {"driver_id": user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+
+    return {"rides": rides}

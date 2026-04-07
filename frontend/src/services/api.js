@@ -73,6 +73,8 @@ export const driverAPI = {
   getProfile: () => api.get('/drivers/profile'),
   toggleOnline: () => api.post('/drivers/toggle-online'),
   updateLocation: (lat, lng) => api.post('/drivers/location', { lat, lng }),
+  getEarnings: () => api.get('/drivers/earnings'),
+  getRideHistory: () => api.get('/drivers/ride-history'),
   uploadDocument: (file, docType) => {
     const formData = new FormData();
     formData.append('file', file);

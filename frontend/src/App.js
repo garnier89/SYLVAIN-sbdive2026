@@ -44,6 +44,9 @@ import ChauffeurLogin from './pages/chauffeur/ChauffeurLogin';
 import ChauffeurRegister from './pages/chauffeur/ChauffeurRegister';
 import DriverHome from './pages/driver/DriverHome';
 import DriverRegisterPage from './pages/driver/DriverRegisterPage';
+import DriverEarningsPage from './pages/driver/DriverEarningsPage';
+import DriverHistoryPage from './pages/driver/DriverHistoryPage';
+import DriverProfilePage from './pages/driver/DriverProfilePage';
 
 // Merchant Pages
 import MerchantLayout from './pages/merchant/MerchantLayout';
@@ -110,7 +113,9 @@ const AppRouter = () => {
       <Route path="/chauffeur/login" element={user ? <Navigate to="/chauffeur/home" replace /> : <ChauffeurLogin />} />
       <Route path="/chauffeur/register" element={user ? <Navigate to="/chauffeur/home" replace /> : <ChauffeurRegister />} />
       <Route path="/chauffeur/home" element={<ProtectedRoute allowedRoles={['driver']}><DriverHome /></ProtectedRoute>} />
-      <Route path="/chauffeur/earnings" element={<ProtectedRoute allowedRoles={['driver']}><DriverHome /></ProtectedRoute>} />
+      <Route path="/chauffeur/earnings" element={<ProtectedRoute allowedRoles={['driver']}><DriverEarningsPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/history" element={<ProtectedRoute allowedRoles={['driver']}><DriverHistoryPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/profile" element={<ProtectedRoute allowedRoles={['driver']}><DriverProfilePage /></ProtectedRoute>} />
       <Route path="/driver/register" element={<ProtectedRoute allowedRoles={['user', 'driver']}><DriverRegisterPage /></ProtectedRoute>} />
 
       {/* ======= MERCHANT ======= */}

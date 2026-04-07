@@ -1,71 +1,89 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SteeringWheel, ArrowRight, CurrencyEur, Clock, Star } from '@phosphor-icons/react';
+import { useAuth } from '../../contexts/AuthContext';
+import { ArrowRight, SteeringWheel, CurrencyEur, Clock, MapPin, Star } from '@phosphor-icons/react';
+
+const slides = [
+  { icon: SteeringWheel, iconColor: 'text-amber-500', iconBg: 'bg-amber-100',
+    title: 'Conduisez et gagnez', desc: 'Acceptez des courses VTC, livraisons et services. Gagnez selon vos disponibilit\u00e9s.' },
+  { icon: CurrencyEur, iconColor: 'text-emerald-500', iconBg: 'bg-emerald-100',
+    title: 'Gains flexibles', desc: 'Pas de contraintes horaires. Vous d\u00e9cidez quand travailler et combien gagner.' },
+  { icon: MapPin, iconColor: 'text-blue-500', iconBg: 'bg-blue-100',
+    title: 'Navigation int\u00e9gr\u00e9e', desc: 'Suivi GPS en temps r\u00e9el, itin\u00e9raire optimis\u00e9 et assignation automatique des courses.' },
+  { icon: Star, iconColor: 'text-purple-500', iconBg: 'bg-purple-100',
+    title: 'Communaut\u00e9 de confiance', desc: 'Recevez des \u00e9valuations, b\u00e2tissez votre r\u00e9putation et augmentez vos revenus.' },
+];
 
 const ChauffeurWelcome = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [phase, setPhase] = useState('splash');
+  const [currentSlide, setCurrentSlide] = useState(0);
 
-  return (
-    <div className="mobile-container min-h-screen bg-gray-950 flex flex-col">
-      {/* Hero Section */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        {/* Logo */}
-        <div className="w-24 h-24 rounded-3xl bg-amber-500 flex items-center justify-center shadow-xl shadow-amber-500/25 mb-6">
-          <SteeringWheel size={52} weight="duotone" className="text-white" />
+  useEffect(() => {
+    if (user && user.role === 'driver') { navigate('/chauffeur/home'); return; }
+    const timer = setTimeout(() => setPhase('welcome'), 2200);
+    return () => clearTimeout(timer);
+  }, [user, navigate]);
+
+  const nextSlide = () => {
+    if (currentSlide < slides.length - 1) setCurrentSlide(currentSlide + 1);
+    else navigate('/chauffeur/login');
+  };
+
+  if (phase === 'splash') {
+    return (
+      <div className="mobile-container min-h-screen bg-gray-950 flex flex-col items-center justify-center relative" data-testid="chauffeur-splash">
+        <div className="flex flex-col items-center gap-4 animate-fade-in">
+          <div className="w-28 h-28 rounded-3xl bg-amber-500 flex items-center justify-center shadow-xl shadow-amber-500/25">
+            <SteeringWheel size={64} weight="duotone" className="text-white" />
+          </div>
         </div>
-        
-        <h1 className="text-3xl font-bold text-white tracking-tight">SB Drive</h1>
-        <p className="text-lg text-amber-500 font-medium mt-1">Chauffeur</p>
-        
-        <p className="text-gray-400 text-center mt-4 max-w-xs leading-relaxed">
-          Conduisez, livrez et gagnez de l'argent. Rejoignez la communauté des chauffeurs SB Drive.
-        </p>
-
-        {/* Features */}
-        <div className="mt-8 space-y-3 w-full max-w-xs">
-          <div className="flex items-center gap-3 text-gray-300">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <CurrencyEur size={20} className="text-amber-500" />
-            </div>
-            <span className="text-sm">Gagnez selon vos disponibilités</span>
-          </div>
-          <div className="flex items-center gap-3 text-gray-300">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <Clock size={20} className="text-amber-500" />
-            </div>
-            <span className="text-sm">Horaires flexibles, pas de contraintes</span>
-          </div>
-          <div className="flex items-center gap-3 text-gray-300">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <Star size={20} className="text-amber-500" />
-            </div>
-            <span className="text-sm">Courses VTC, livraisons, services</span>
-          </div>
+        <div className="absolute bottom-24 flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-gray-600" />
+          <div className="w-2 h-2 rounded-full bg-gray-600" />
+        </div>
+        <div className="absolute bottom-14 flex flex-col items-center gap-1">
+          <p className="text-base font-bold tracking-[0.25em] text-gray-300">
+            SB DRIVE <span className="text-amber-500">CHAUFFEUR</span>
+          </p>
         </div>
       </div>
+    );
+  }
 
-      {/* Buttons */}
-      <div className="px-6 pb-8 space-y-3">
-        <button
-          onClick={() => navigate('/chauffeur/login')}
-          className="w-full h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-lg font-semibold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-amber-500/25"
-          data-testid="chauffeur-login-btn"
-        >
-          Se connecter <ArrowRight size={20} />
-        </button>
-        <button
-          onClick={() => navigate('/chauffeur/register')}
-          className="w-full h-14 rounded-2xl border-2 border-gray-700 text-gray-300 text-lg font-semibold flex items-center justify-center gap-2 hover:border-amber-500 hover:text-amber-500 transition-colors"
-          data-testid="chauffeur-register-btn"
-        >
-          Devenir chauffeur
-        </button>
-        <p className="text-center text-xs text-gray-500 pt-2">
-          Vous êtes passager ?{' '}
-          <button onClick={() => navigate('/')} className="text-amber-500 font-medium" data-testid="switch-to-client-link">
-            SB Drive Client
-          </button>
+  const slide = slides[currentSlide];
+  const SlideIcon = slide.icon;
+  return (
+    <div className="mobile-container min-h-screen bg-gray-950 flex flex-col" data-testid="chauffeur-welcome">
+      <div className="flex items-center justify-between px-5 pt-5">
+        <p className="text-sm font-extrabold tracking-wide">
+          <span className="text-gray-100">SB DRIVE</span>{' '}
+          <span className="text-amber-500">CHAUFFEUR</span>
         </p>
+        <button onClick={() => navigate('/chauffeur/login')} className="text-amber-500 text-xs font-bold" data-testid="skip-btn">
+          Passer
+        </button>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center px-8">
+        <div className={`w-40 h-40 rounded-full ${slide.iconBg} flex items-center justify-center mb-8 shadow-lg`}>
+          <SlideIcon size={72} weight="duotone" className={slide.iconColor} />
+        </div>
+        <h2 className="text-xl font-bold text-white text-center leading-snug" data-testid="welcome-title">{slide.title}</h2>
+        <p className="text-gray-400 text-sm text-center mt-3 max-w-xs leading-relaxed">{slide.desc}</p>
+      </div>
+      <div className="flex items-center justify-between px-6 pb-8">
+        <div className="flex gap-2">
+          {slides.map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-amber-500' : 'w-4 bg-gray-700'}`} />
+          ))}
+        </div>
+        <button onClick={nextSlide}
+          className="w-14 h-14 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-400/30 hover:bg-amber-600 transition-colors"
+          data-testid="welcome-next-btn">
+          <ArrowRight size={24} className="text-white" weight="bold" />
+        </button>
       </div>
     </div>
   );
