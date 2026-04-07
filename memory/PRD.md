@@ -39,7 +39,17 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - Deplacement simule sur carte via WebSocket
 - Start/Stop depuis l'admin
 
-### 5. Panel Admin XJekPlus (DONE - Apr 7, 2026)
+### 5. Page de Connexion Admin (DONE - Apr 7, 2026)
+- Page dediee /admin-login avec logo SB
+- Titre "Welcome to Admin Panel" style serif bold
+- Onglets: All Admin, Dispatcher Admin, Billing Admin, Server Admin
+- Formulaire: Admin E-mail, Password
+- Lien "mot de passe oublie?"
+- Bouton SIGN IN bleu pill-shaped
+- Navigation en bas: Main website, Client Login, Chauffeur Login, Flotte - Entreprise Login
+- Redirection vers /admin apres connexion reussie
+
+### 6. Panel Admin XJekPlus (DONE - Apr 7, 2026)
 - **Layout**: Theme clair avec sidebar complete (HOME, MEMBERS, SERVICES, BOOKINGS & REPORTS, LOCATION, PROMOTIONS, CMS, SYSTEM)
 - **Dashboard**: God's View avec carte, KPI cards (Users, Service Providers, Stores), On Demand Services, Revenue Today
 - **Users**: Table avec filtres Search/Status, tri colonnes, actions Suspend/Unsuspend
@@ -53,7 +63,7 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **General Settings**: Interface a onglets (General, Email, Appearance, SMS, etc.) - PERSISTANT via API
 - **Placeholder pages**: Pour modules en developpement
 
-### 6. Backend APIs
+### 7. Backend APIs
 - Auth: /api/auth/login, /api/auth/register, /api/auth/me
 - Rides: /api/rides/request, /api/rides/history
 - Admin: /api/admin/dashboard, /api/admin/users, /api/admin/drivers, /api/admin/rides, /api/admin/revenue

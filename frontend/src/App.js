@@ -56,6 +56,7 @@ import MerchantOrders from './pages/merchant/MerchantOrders';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminDrivers from './pages/admin/AdminDrivers';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -87,6 +88,7 @@ const AppRouter = () => {
       <Route path="/" element={user && user.role === 'user' ? <Navigate to="/home" replace /> : !user ? <ClientWelcome /> : <Navigate to={user.role === 'driver' ? '/chauffeur/home' : user.role === 'merchant' ? '/merchant' : user.role === 'admin' ? '/admin' : '/home'} replace />} />
       <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
       <Route path="/login" element={user ? <Navigate to="/home" replace /> : <LoginPage />} />
+      <Route path="/admin-login" element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <AdminLoginPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
 
