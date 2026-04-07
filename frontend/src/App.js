@@ -23,6 +23,7 @@ import ProfilePage from './pages/user/ProfilePage';
 import HistoryPage from './pages/user/HistoryPage';
 import SupportPage from './pages/user/SupportPage';
 import ParcelPage from './pages/user/ParcelPage';
+import ReferralPage from './pages/user/ReferralPage';
 import ServicesPage from './pages/user/ServicesPage';
 import AllDeliveryPage from './pages/user/AllDeliveryPage';
 import AllServicesPage from './pages/user/AllServicesPage';
@@ -97,6 +98,7 @@ const AppRouter = () => {
       <Route path="/wallet" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><WalletPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
+      <Route path="/referral" element={<ProtectedRoute allowedRoles={['user']}><ReferralPage /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><SupportPage /></ProtectedRoute>} />
 
       {/* ======= SB DRIVE CHAUFFEUR (App Chauffeur) ======= */}

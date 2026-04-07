@@ -53,6 +53,7 @@ async def create_ride(data: RideRequest, request: Request):
 
     ride = {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
+        "booking_no": str(secrets.randbelow(90000000) + 10000000),
         "user_id": user["id"],
         "driver_id": None,
         "pickup_lat": data.pickup_lat, "pickup_lng": data.pickup_lng, "pickup_address": data.pickup_address,
@@ -76,6 +77,10 @@ async def create_ride(data: RideRequest, request: Request):
         "discount": 0.0,
         "book_for_name": data.book_for_name,
         "book_for_phone": data.book_for_phone,
+        "auto_assign": getattr(data, 'auto_assign', True),
+        "female_driver_request": getattr(data, 'female_driver_request', False),
+        "handicap_accessibility": getattr(data, 'handicap_accessibility', False),
+        "notes": getattr(data, 'notes', None),
         "cancel_reason": None,
         "cancelled_by": None,
         "driver_name": None,

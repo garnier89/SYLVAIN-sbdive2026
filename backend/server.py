@@ -24,6 +24,7 @@ from routes.services import router as services_router
 from routes.config import router as config_router
 from routes.wallet import router as wallet_router
 from routes.coupons import router as coupons_router
+from routes.referral import router as referral_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -42,6 +43,9 @@ async def lifespan(app: FastAPI):
     await db.rides.create_index([("status", 1), ("created_at", -1)])
     await db.orders.create_index([("status", 1), ("created_at", -1)])
     await db.login_attempts.create_index("identifier")
+    await db.referrals.create_index("referrer_id")
+    await db.referrals.create_index("referred_id", unique=True, sparse=True)
+    await db.users.create_index("referral_code_own", unique=True, sparse=True)
 
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@superapp.com")
@@ -201,6 +205,7 @@ api_router.include_router(services_router)
 api_router.include_router(config_router)
 api_router.include_router(wallet_router)
 api_router.include_router(coupons_router)
+api_router.include_router(referral_router)
 
 app.include_router(api_router)
 

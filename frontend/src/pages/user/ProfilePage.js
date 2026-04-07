@@ -74,7 +74,7 @@ const ProfilePage = () => {
     { id: 'bookings', icon: ClipboardText, label: 'Les réservations', color: '#FF4500', bg: 'bg-indigo-50', path: '/history' },
     { id: 'wallet', icon: Wallet, label: 'Portefeuille', color: '#E91E63', bg: 'bg-pink-50', path: '/wallet' },
     { id: 'topup', icon: CreditCard, label: 'Recharger', color: '#7C4DFF', bg: 'bg-purple-50', path: '/wallet' },
-    { id: 'invite', icon: EnvelopeSimple, label: 'Inviter', color: '#FF9800', bg: 'bg-orange-50', path: '#' },
+    { id: 'invite', icon: EnvelopeSimple, label: 'Inviter', color: '#FF9800', bg: 'bg-orange-50', path: '/referral' },
   ];
 
   return (
@@ -141,7 +141,7 @@ const ProfilePage = () => {
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" testId="settings-notifications-btn" />
         <MenuItem icon={Heart} label="Fournisseurs de services préférés" iconBg="bg-yellow-500" iconColor="text-white" testId="settings-favourites-btn" />
-        <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" testId="settings-invite-btn" />
+        <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
         <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-green-500" iconColor="text-white" testId="settings-emergency-btn" />
       </MenuCard>
 

@@ -97,6 +97,10 @@ class RideRequest(BaseModel):
     coupon_code: Optional[str] = None
     book_for_name: Optional[str] = None
     book_for_phone: Optional[str] = None
+    auto_assign: bool = True
+    female_driver_request: bool = False
+    handicap_accessibility: bool = False
+    notes: Optional[str] = None
 
 class RideResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -127,6 +131,11 @@ class RideResponse(BaseModel):
     scheduled_at: Optional[str] = None
     coupon_code: Optional[str] = None
     discount: float = 0.0
+    booking_no: Optional[str] = None
+    auto_assign: bool = True
+    female_driver_request: bool = False
+    handicap_accessibility: bool = False
+    notes: Optional[str] = None
 
 # Order Models
 class OrderItemCreate(BaseModel):
