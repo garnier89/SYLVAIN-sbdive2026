@@ -58,6 +58,11 @@ import MerchantOrders from './pages/merchant/MerchantOrders';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminDrivers from './pages/admin/AdminDrivers';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminRides from './pages/admin/AdminRides';
+import AdminRevenue from './pages/admin/AdminRevenue';
+import AdminSupport from './pages/admin/AdminSupport';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // Dispatcher Pages
 import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
@@ -131,13 +136,12 @@ const AppRouter = () => {
       {/* ======= ADMIN ======= */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
-        <Route path="users" element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
         <Route path="drivers" element={<AdminDrivers />} />
-        <Route path="merchants" element={<AdminDashboard />} />
-        <Route path="orders" element={<AdminDashboard />} />
-        <Route path="rides" element={<AdminDashboard />} />
-        <Route path="support" element={<AdminDashboard />} />
-        <Route path="settings" element={<AdminDashboard />} />
+        <Route path="rides" element={<AdminRides />} />
+        <Route path="revenue" element={<AdminRevenue />} />
+        <Route path="support" element={<AdminSupport />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
 
       {/* ======= DISPATCHER ======= */}

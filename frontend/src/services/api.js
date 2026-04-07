@@ -146,6 +146,9 @@ export const adminAPI = {
   listOrders: (params) => api.get('/admin/orders', { params }),
   suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),
   unsuspendUser: (id) => api.post(`/admin/users/${id}/unsuspend`),
+  revenue: () => api.get('/admin/revenue'),
+  listTickets: () => api.get('/support/tickets'),
+  replyTicket: (id, message) => api.post(`/support/tickets/${id}/reply`, { message }),
 };
 
 // Dispatcher APIs

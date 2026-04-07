@@ -178,6 +178,43 @@ async def unsuspend_user(user_id: str, request: Request):
     return {"message": "User unsuspended"}
 
 
+@router.get("/admin/revenue")
+async def admin_revenue(request: Request):
+    await require_role(request, ["admin"])
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_start = (now - __import__('datetime').timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    all_completed = await db.rides.find({"status": "completed"}, {"_id": 0, "estimated_fare": 1, "final_fare": 1, "created_at": 1, "commission_percent": 1}).to_list(5000)
+
+    today_rides = [r for r in all_completed if r.get("created_at", "") >= today_start]
+    week_rides = [r for r in all_completed if r.get("created_at", "") >= week_start]
+    month_rides = [r for r in all_completed if r.get("created_at", "") >= month_start]
+
+    def calc(rides_list):
+        total = sum(r.get("final_fare", r.get("estimated_fare", 0)) or 0 for r in rides_list)
+        commission = sum((r.get("final_fare", r.get("estimated_fare", 0)) or 0) * ((r.get("commission_percent") or 10) / 100) for r in rides_list)
+        return round(total, 2), round(commission, 2)
+
+    today_total, today_comm = calc(today_rides)
+    week_total, week_comm = calc(week_rides)
+    month_total, month_comm = calc(month_rides)
+    all_total, all_comm = calc(all_completed)
+
+    # Recent transactions
+    recent = await db.rides.find({"status": "completed"}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
+
+    return {
+        "today": {"total": today_total, "commission": today_comm, "rides": len(today_rides)},
+        "week": {"total": week_total, "commission": week_comm, "rides": len(week_rides)},
+        "month": {"total": month_total, "commission": month_comm, "rides": len(month_rides)},
+        "all_time": {"total": all_total, "commission": all_comm, "rides": len(all_completed)},
+        "recent_transactions": recent,
+    }
+
+
+
 # ===== DISPATCHER =====
 @router.get("/dispatcher/live")
 async def dispatcher_live_data(request: Request):
