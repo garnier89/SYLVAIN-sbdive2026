@@ -19,7 +19,7 @@ import websocket
 import threading
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://gojek-mvp-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://superapp-integration.preview.emergentagent.com').rstrip('/')
 # WebSocket uses internal URL since external ingress may not support WS
 WS_INTERNAL_URL = "ws://localhost:8001"
 

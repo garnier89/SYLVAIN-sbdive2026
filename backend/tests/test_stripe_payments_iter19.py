@@ -55,7 +55,7 @@ class TestStripePaymentEndpoints:
         
         res = self.session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "10",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         
         assert res.status_code == 200, f"Checkout failed: {res.text}"
@@ -80,7 +80,7 @@ class TestStripePaymentEndpoints:
         
         res = self.session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "20",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         
         assert res.status_code == 200, f"Checkout failed: {res.text}"
@@ -95,7 +95,7 @@ class TestStripePaymentEndpoints:
         
         res = self.session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "50",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         
         assert res.status_code == 200, f"Checkout failed: {res.text}"
@@ -110,7 +110,7 @@ class TestStripePaymentEndpoints:
         
         res = self.session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "100",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         
         assert res.status_code == 200, f"Checkout failed: {res.text}"
@@ -125,7 +125,7 @@ class TestStripePaymentEndpoints:
         
         res = self.session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "999",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         
         assert res.status_code == 400, f"Expected 400, got {res.status_code}: {res.text}"
@@ -152,7 +152,7 @@ class TestStripePaymentEndpoints:
         
         res = session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "10",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         
         assert res.status_code == 401, f"Expected 401, got {res.status_code}: {res.text}"
@@ -167,7 +167,7 @@ class TestStripePaymentEndpoints:
         # First create a checkout session
         checkout_res = self.session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "10",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         assert checkout_res.status_code == 200
         session_id = checkout_res.json()["session_id"]
@@ -264,7 +264,7 @@ class TestPaymentTransactionCreation:
         # Create checkout
         checkout_res = self.session.post(f"{BASE_URL}/api/payments/checkout", json={
             "package_id": "50",
-            "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"
+            "origin_url": "https://superapp-integration.preview.emergentagent.com"
         })
         assert checkout_res.status_code == 200
         session_id = checkout_res.json()["session_id"]

@@ -248,7 +248,7 @@ class TestWallet:
         response = requests.post(
             f"{BASE_URL}/api/wallet/topup",
             headers={"Authorization": f"Bearer {user_token}"},
-            json={"amount": 10.0, "origin_url": "https://gojek-mvp-1.preview.emergentagent.com"},
+            json={"amount": 10.0, "origin_url": "https://superapp-integration.preview.emergentagent.com"},
             timeout=15
         )
         # Accept 200 (success) or 500 (Stripe config issue in test env)

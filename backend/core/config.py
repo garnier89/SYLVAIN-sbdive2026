@@ -25,4 +25,4 @@ APP_NAME = "superapp"
 storage_key = None
 
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://gojek-mvp-1.preview.emergentagent.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://superapp-integration.preview.emergentagent.com")
