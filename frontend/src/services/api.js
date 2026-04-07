@@ -202,4 +202,11 @@ export const couponAPI = {
   adminList: () => api.get('/coupons/admin/all'),
 };
 
+// Simulation APIs
+export const simulationAPI = {
+  start: () => api.post('/simulation/start'),
+  stop: () => api.post('/simulation/stop'),
+  status: () => api.get('/simulation/status'),
+};
+
 export default api;
