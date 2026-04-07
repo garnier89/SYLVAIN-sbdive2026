@@ -29,34 +29,27 @@ Faire un don + Parler en direct (reponses MOCKEES)
 LoginPage dark theme, modal Apple/Google/Facebook/Face ID, ClientWelcome onboarding
 
 ### Phase 13 - Application Chauffeur (DONE - Avril 2026)
-- **ChauffeurWelcome** : Splash screen + 4 slides onboarding (dark theme, amber accents)
-- **ChauffeurLogin** : Connexion par telephone (dark theme, V3Cube style)
-  - 3 etapes : Telephone → Mot de passe → Profil
-  - Enregistrement avec role=driver
-  - Lien "SB Drive Client" pour basculer
-- **DriverRegisterPage** : Formulaire 2 etapes (dark theme)
-  - Etape 1 : Type vehicule (Voiture/Moto/Velo), immatriculation, modele, permis
-  - Etape 2 : Upload documents (permis, carte grise, assurance)
-  - Ecran de succes
-- **DriverHome** : Carte plein ecran (Leaflet) + toggle En ligne/Hors ligne
-  - Statut chauffeur (approuve/en attente/rejete)
-  - Mini-stats (courses, gains, note)
-  - Modal course entrante (accepter/refuser)
-  - Gestion course active (en route/demarrer/terminer/annuler)
-- **DriverEarningsPage** : Gains totaux + tabs (Aujourd'hui/Semaine/Mois)
-  - Courses recentes avec montants
-- **DriverHistoryPage** : Liste courses + filtres (Toutes/Terminees/Annulees/En cours)
-- **DriverProfilePage** : Infos chauffeur, vehicule, stats, actions, deconnexion
-- **DriverBottomNav** : Navigation partagee (Accueil/Courses/Gains/Profil)
-- **Backend** : /api/drivers/earnings, /api/drivers/ride-history, role=driver dans phone-register
-- Test Iteration 22 : Backend 15/15 + Frontend 18/18 = 100% PASS
+ChauffeurWelcome, ChauffeurLogin, DriverRegisterPage, DriverHome, DriverEarningsPage, DriverHistoryPage, DriverProfilePage, DriverBottomNav
+
+### Phase 14 - Mode Simulation (DONE - Avril 2026)
+- **Backend** `/api/simulation/start|stop|status` :
+  - Cree un chauffeur virtuel approuve (nom francais aleatoire + vehicule)
+  - Background task asyncio qui poll les courses pending du client
+  - Auto-acceptation apres ~3s
+  - Mouvement simule: point aleatoire → pickup → dropoff (coords GPS interpolees)
+  - Envoie WebSocket: `driver_location`, `ride_status_update`
+  - Cycle complet: pending → accepted → arriving → in_progress → completed (~40s)
+  - Nettoyage du chauffeur virtuel a l'arret
+- **Frontend** Toggle sur UserHome :
+  - Panneau vert "Simulation active" avec nom du chauffeur et vehicule
+  - Indicateur pulsant
+  - Test Iteration 23 : Backend 15/15 + Frontend 8/8 = 100% PASS
 
 ## Tests
+- Iteration 23: Backend 15/15 + Frontend 8/8 PASS (Simulation Mode)
 - Iteration 22: Backend 15/15 + Frontend 18/18 PASS (App Chauffeur)
 - Iteration 21: Backend 12/12 + Frontend 36/36 PASS (V3Cube Auth)
-- Iteration 20: 100% PASS (Donation + LiveChat)
-- Iteration 19: 100% PASS (Stripe)
-- Iteration 18: 100% PASS (Referral + Booking)
+- Iterations 14-20: 100% PASS
 
 ## P1 - Prochaines taches
 - Persistance du panier entre sessions
@@ -65,9 +58,10 @@ LoginPage dark theme, modal Apple/Google/Facebook/Face ID, ClientWelcome onboard
 ## P2 - Futur
 - Notifications push
 - Chat/Appel chauffeur
-- Mode simulation chauffeur
+- Dashboard admin
 
 ## Note
-- LiveChat : reponses automatiques MOCKEES
-- Apple/Facebook/Face ID login : visuels uniquement (non fonctionnels)
+- LiveChat : reponses MOCKEES
+- Apple/Facebook/Face ID login : visuels uniquement
 - Google login : fonctionnel via Emergent Auth
+- Simulation : chauffeur virtuel temporaire
