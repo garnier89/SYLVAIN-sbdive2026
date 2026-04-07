@@ -72,7 +72,7 @@ const AppRouter = () => {
       <Route path="/" element={user && user.role === 'user' ? <Navigate to="/home" replace /> : !user ? <ClientWelcome /> : <Navigate to={user.role === 'driver' ? '/chauffeur/home' : user.role === 'merchant' ? '/merchant' : user.role === 'admin' ? '/admin' : '/home'} replace />} />
       <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
       <Route path="/login" element={user ? <Navigate to="/home" replace /> : <LoginPage />} />
-      <Route path="/register" element={user ? <Navigate to="/home" replace /> : <RegisterPage />} />
+      <Route path="/register" element={<Navigate to="/login" replace />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Client Protected Routes */}

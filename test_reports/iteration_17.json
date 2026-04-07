@@ -1,0 +1,97 @@
+{
+  "summary": "Iteration 17 - Phone-First Login Flow Testing. Tested new unified phone-based authentication flow with 3 steps: phone entry, password (login/create), and profile (new users only). Fixed critical bug where phone number was sent without +33 prefix. Fixed fetchUser reference error in LoginPage.js. All backend APIs working correctly. Frontend flow working for both existing and new users.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Wrong password error handling",
+        "issue": "Shows generic 'Erreur de connexion' instead of API error 'Mot de passe incorrect'. The catch block is triggered instead of handling the 401 response properly.",
+        "affected_selectors": ["[data-testid='error-message']"],
+        "priority": "LOW"
+      }
+    ],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "Splash screen shows SB logo + 'SB DRIVE CLIENT' text - PASS",
+    "Welcome screen shows car image, 'Bienvenue dans l'application client', FR/EUR buttons - PASS",
+    "Welcome screen shows 4 carousel dots and orange arrow button - PASS",
+    "Clicking arrow 4 times navigates to /login - PASS",
+    "Phone input page shows 'Entrez votre mobile' title with +33 prefix - PASS",
+    "Phone input page shows 'Suivant' button - PASS",
+    "POST /api/auth/check-phone with existing phone returns {exists: true} - PASS",
+    "POST /api/auth/check-phone with new phone returns {exists: false} - PASS",
+    "POST /api/auth/check-phone with empty phone returns 400 - PASS",
+    "Entering existing phone and clicking Suivant shows 'Entrez votre mot de passe' - PASS",
+    "Entering new phone and clicking Suivant shows 'Créer un mot de passe' with confirm field - PASS",
+    "POST /api/auth/phone-login with correct credentials returns token and user - PASS",
+    "POST /api/auth/phone-login with wrong password returns 401 - PASS",
+    "POST /api/auth/phone-login with non-existent phone returns 401 - PASS",
+    "POST /api/auth/phone-register creates user and returns token - PASS",
+    "POST /api/auth/phone-register with duplicate phone returns 400 - PASS",
+    "New user: after password step, clicking Suivant goes to profile step - PASS",
+    "Profile step shows Nom*, Prénom, Email (facultatif), Code de parrainage (facultatif) - PASS",
+    "New user: filling profile and clicking 'Créer mon compte' creates account - PASS",
+    "New user: after registration navigates to /home - PASS",
+    "Existing user: entering correct password and clicking 'Se connecter' navigates to /home - PASS",
+    "/register route redirects to /login - PASS",
+    "Back button on password step returns to phone step - PASS"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_phone_auth.py",
+    "/app/test_reports/pytest/pytest_results_iter17.xml"
+  ],
+
+  "action_items": [
+    "MINOR: Improve error handling in LoginPage.js to show API error messages instead of generic 'Erreur de connexion' for 401 responses"
+  ],
+
+  "critical_code_review_comments": [
+    "FIXED: Phone number was being sent without +33 prefix - added getFullPhone() helper function",
+    "FIXED: LoginPage.js was using undefined 'fetchUser' - changed to use 'setUser' from AuthContext",
+    "All French text correctly implemented",
+    "All data-testid attributes properly maintained for testing"
+  ],
+
+  "updated_files": [
+    "/app/frontend/src/pages/auth/LoginPage.js"
+  ],
+
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "95% (22/23 tests passed - 1 minor error handling issue)"
+  },
+
+  "test_credentials": {
+    "existing_user": "phone: +33 6 12 34 56 78, password: TestUser123!",
+    "new_user_test": "phone: +33 6 99 XX XX XX (random), password: NewUser123!"
+  },
+
+  "seed_data_creation": "Test user with phone +33 6 12 34 56 78 was already seeded",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Phone-first login flow fully implemented and tested. Three backend endpoints working: POST /api/auth/check-phone, POST /api/auth/phone-login, POST /api/auth/phone-register. Frontend LoginPage.js has 3 steps: phone → password → profile (new users only). Fixed phone prefix bug and fetchUser reference error. Minor issue: wrong password shows generic error instead of API message.",
+
+  "fixes_applied": {
+    "phone_prefix_bug": {
+      "file": "/app/frontend/src/pages/auth/LoginPage.js",
+      "issue": "Phone number sent without +33 prefix causing check-phone to return exists=false for existing users",
+      "fix": "Added getFullPhone() helper that prepends '+33 ' to phone number before API calls"
+    },
+    "fetchUser_reference_error": {
+      "file": "/app/frontend/src/pages/auth/LoginPage.js",
+      "issue": "fetchUser was not exported from AuthContext, causing login to fail",
+      "fix": "Changed to use setUser(data.user) directly from the API response"
+    }
+  }
+}

@@ -17,6 +17,104 @@ from typing import List
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@router.post("/check-phone")
+async def check_phone(data: dict):
+    """Check if a phone number is already registered."""
+    phone = data.get("phone", "").strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number required")
+    user = await db.users.find_one({"phone": phone}, {"_id": 0, "id": 1, "name": 1, "phone": 1})
+    return {"exists": user is not None}
+
+
+@router.post("/phone-login", response_model=TokenResponse)
+async def phone_login(data: dict, request: Request, response: Response):
+    """Login with phone + password."""
+    phone = data.get("phone", "").strip()
+    password = data.get("password", "")
+    if not phone or not password:
+        raise HTTPException(status_code=400, detail="Phone and password required")
+
+    identifier = f"{request.client.host}:{phone}"
+    attempts = await db.login_attempts.find_one({"identifier": identifier})
+    if attempts and attempts.get("count", 0) >= 5:
+        lockout_until = datetime.fromisoformat(attempts["lockout_until"]) if attempts.get("lockout_until") else None
+        if lockout_until and datetime.now(timezone.utc) < lockout_until:
+            raise HTTPException(status_code=429, detail="Trop de tentatives. Réessayez plus tard.")
+        else:
+            await db.login_attempts.delete_one({"identifier": identifier})
+
+    user = await db.users.find_one({"phone": phone}, {"_id": 0})
+    if not user or not verify_password(password, user["password_hash"]):
+        await db.login_attempts.update_one(
+            {"identifier": identifier},
+            {"$inc": {"count": 1}, "$set": {"lockout_until": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()}},
+            upsert=True
+        )
+        raise HTTPException(status_code=401, detail="Mot de passe incorrect")
+
+    await db.login_attempts.delete_one({"identifier": identifier})
+    access_token = create_access_token(user["id"], user.get("email", ""), user["role"])
+    refresh_token = create_refresh_token(user["id"])
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+
+    user.pop("password_hash", None)
+    if isinstance(user.get("created_at"), str):
+        user["created_at"] = datetime.fromisoformat(user["created_at"])
+    return TokenResponse(access_token=access_token, user=UserResponse(**user))
+
+
+@router.post("/phone-register", response_model=TokenResponse)
+async def phone_register(data: dict, response: Response):
+    """Register with phone + password + optional profile info."""
+    phone = data.get("phone", "").strip()
+    password = data.get("password", "")
+    name = data.get("name", "").strip()
+    first_name = data.get("first_name", "").strip()
+    email = data.get("email", "").strip().lower() if data.get("email") else None
+    referral_code = data.get("referral_code", "").strip() if data.get("referral_code") else None
+
+    if not phone or not password:
+        raise HTTPException(status_code=400, detail="Phone and password required")
+
+    existing = await db.users.find_one({"phone": phone})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ce numéro est déjà inscrit")
+
+    if email:
+        email_exists = await db.users.find_one({"email": email})
+        if email_exists:
+            raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+
+    full_name = f"{first_name} {name}".strip() if first_name or name else phone
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    user_doc = {
+        "id": user_id,
+        "email": email or f"{phone.replace('+', '')}@sbdrive.local",
+        "password_hash": hash_password(password),
+        "name": full_name,
+        "phone": phone,
+        "role": "user",
+        "is_verified": False,
+        "avatar_url": None,
+        "referral_code": referral_code,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "created_at": datetime.now(timezone.utc).isoformat()})
+
+    access_token = create_access_token(user_id, user_doc["email"], "user")
+    refresh_token = create_refresh_token(user_id)
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+
+    user_doc.pop("password_hash", None)
+    user_doc.pop("_id", None)
+    user_doc["created_at"] = datetime.fromisoformat(user_doc["created_at"])
+    return TokenResponse(access_token=access_token, user=UserResponse(**user_doc))
+
+
 @router.post("/register", response_model=TokenResponse)
 async def register(data: UserRegister, response: Response):
     email = data.email.lower()

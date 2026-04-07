@@ -1,36 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Car, ShieldCheck, MapPin, Bell, ArrowRight } from '@phosphor-icons/react';
+import { ArrowRight } from '@phosphor-icons/react';
 
 const slides = [
   {
-    title: 'Connexion rapide & sécurisée',
-    desc: 'Connectez-vous facilement avec votre email ou votre compte Google.',
-    icon: ShieldCheck,
-    bg: 'bg-orange-50',
-    iconBg: 'bg-[#FF4500]',
+    image: '/vtc-car.jpg',
+    title: 'Bienvenue dans l\'application client',
+    desc: 'Réservez votre chauffeur en un clic !',
   },
   {
-    title: 'Réservez en un clic',
-    desc: 'VTC, moto, livraison de colis et repas — tous vos services en un seul endroit.',
-    icon: Car,
-    iconBg: 'bg-[#FF4500]',
-    bg: 'bg-orange-50',
+    image: '/vtc-car.jpg',
+    title: 'Livraison rapide',
+    desc: 'Colis, repas, courses — livrés à votre porte.',
   },
   {
-    title: 'Suivi en temps réel',
-    desc: 'Suivez votre chauffeur ou votre livraison en direct sur la carte.',
-    icon: MapPin,
-    iconBg: 'bg-[#FF4500]',
-    bg: 'bg-orange-50',
+    image: '/vtc-car.jpg',
+    title: 'Services à la demande',
+    desc: 'Beauté, ménage, plomberie et plus encore.',
   },
   {
-    title: 'Notifications instantanées',
-    desc: 'Restez informé à chaque étape de votre course ou commande.',
-    icon: Bell,
-    iconBg: 'bg-[#FF4500]',
-    bg: 'bg-orange-50',
+    image: '/vtc-car.jpg',
+    title: 'Paiement sécurisé',
+    desc: 'Portefeuille intégré et suivi en temps réel.',
   },
 ];
 
@@ -45,7 +37,7 @@ const ClientWelcome = () => {
       navigate('/home');
       return;
     }
-    const timer = setTimeout(() => setPhase('onboarding'), 2200);
+    const timer = setTimeout(() => setPhase('welcome'), 2200);
     return () => clearTimeout(timer);
   }, [user, navigate]);
 
@@ -53,7 +45,7 @@ const ClientWelcome = () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      setPhase('login');
+      navigate('/login');
     }
   };
 
@@ -65,106 +57,76 @@ const ClientWelcome = () => {
           <img
             src="/sb-logo.jpg"
             alt="SB Drive"
-            className="w-40 h-40 object-contain"
+            className="w-44 h-44 object-contain"
             data-testid="splash-logo"
           />
-          <h1 className="text-3xl font-bold text-[#FF4500] tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            SB Drive
-          </h1>
         </div>
-        <div className="absolute bottom-16 flex flex-col items-center gap-2">
-          <p className="text-base font-bold tracking-widest text-gray-800">
-            CLIENT <span className="text-[#FF4500]">APP</span>
+        <div className="absolute bottom-16 flex flex-col items-center gap-1">
+          <p className="text-base font-bold tracking-[0.25em] text-gray-700">
+            SB DRIVE <span className="text-[#FF4500]">CLIENT</span>
           </p>
-          <div className="flex gap-1.5 mt-1">
-            <div className="w-2 h-2 rounded-full bg-gray-300" />
-            <div className="w-2 h-2 rounded-full bg-gray-300" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#FF4500]" />
-          </div>
         </div>
       </div>
     );
   }
 
-  // ===== ONBOARDING CAROUSEL =====
-  if (phase === 'onboarding') {
-    const slide = slides[currentSlide];
-    return (
-      <div className="mobile-container min-h-screen bg-white flex flex-col" data-testid="onboarding-screen">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5">
-          <p className="text-sm font-bold">
-            <span className="text-gray-900">CLIENT</span>{' '}
-            <span className="text-[#FF4500]">APP</span>
-          </p>
-          <button
-            onClick={() => setPhase('login')}
-            className="text-sm text-[#FF4500] font-medium"
-            data-testid="skip-onboarding-btn"
-          >
-            Passer
-          </button>
-        </div>
-
-        {/* Slide Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <div className={`w-48 h-48 rounded-full ${slide.bg} flex items-center justify-center mb-8`}>
-            <div className={`w-24 h-24 rounded-3xl ${slide.iconBg} flex items-center justify-center shadow-lg`}>
-              <slide.icon size={48} weight="duotone" className="text-white" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 text-center">{slide.title}</h2>
-          <p className="text-gray-500 text-center mt-3 max-w-xs leading-relaxed">{slide.desc}</p>
-        </div>
-
-        {/* Bottom: Dots + Arrow */}
-        <div className="flex items-center justify-between px-6 pb-8">
-          <div className="flex gap-2">
-            {slides.map((_, i) => (
-              <div
-                key={i}
-                className={`h-1 rounded-full transition-all ${i === currentSlide ? 'w-6 bg-[#FF4500]' : 'w-4 bg-gray-300'}`}
-              />
-            ))}
-          </div>
-          <button
-            onClick={nextSlide}
-            className="w-14 h-14 rounded-full bg-[#FF4500] flex items-center justify-center shadow-lg hover:bg-[#E03D00] transition-colors"
-            data-testid="onboarding-next-btn"
-          >
-            <ArrowRight size={24} className="text-white" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ===== LOGIN CHOICE =====
+  // ===== WELCOME CAROUSEL (V3Cube style) =====
+  const slide = slides[currentSlide];
   return (
-    <div className="mobile-container min-h-screen bg-white flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <img
-          src="/sb-logo.jpg"
-          alt="SB Drive"
-          className="w-28 h-28 object-contain mb-4"
-        />
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">SB Drive</h1>
-        <p className="text-lg text-[#FF4500] font-medium mt-1">Client</p>
-        <p className="text-gray-500 text-center mt-4 max-w-xs leading-relaxed">
-          Réservez un VTC, commandez des repas, envoyez des colis et accédez à tous les services.
+    <div className="mobile-container min-h-screen bg-white flex flex-col" data-testid="welcome-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-5">
+        <p className="text-sm font-extrabold tracking-wide">
+          <span className="text-gray-900">SB DRIVE</span>{' '}
+          <span className="text-[#FF4500]">CLIENT</span>
+        </p>
+        <div className="flex gap-2">
+          <div className="flex items-center gap-1 bg-[#FF4500] text-white px-3 py-1.5 rounded-md text-xs font-bold">
+            FR
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+          </div>
+          <div className="flex items-center gap-1 bg-[#FF4500] text-white px-3 py-1.5 rounded-md text-xs font-bold">
+            EUR
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Car Image */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-sm mb-6">
+          <img
+            src={slide.image}
+            alt="SB Drive VTC"
+            className="w-full h-48 object-cover rounded-2xl"
+            data-testid="welcome-car-image"
+          />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 text-center" data-testid="welcome-title">
+          {slide.title}
+        </h2>
+        <p className="text-gray-500 text-center mt-2 max-w-xs leading-relaxed">
+          {slide.desc}
         </p>
       </div>
-      <div className="px-6 pb-8 space-y-3">
-        <button onClick={() => navigate('/login')} className="w-full h-14 rounded-2xl bg-[#FF4500] hover:bg-[#E03D00] text-white text-lg font-semibold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-[#FF4500]/25" data-testid="client-login-btn">
-          Se connecter
+
+      {/* Bottom: Dots + Arrow */}
+      <div className="flex items-center justify-between px-6 pb-8">
+        <div className="flex gap-2">
+          {slides.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1 rounded-full transition-all ${i === currentSlide ? 'w-7 bg-[#FF4500]' : 'w-5 bg-gray-300'}`}
+            />
+          ))}
+        </div>
+        <button
+          onClick={nextSlide}
+          className="w-14 h-14 rounded-xl bg-[#FF4500] flex items-center justify-center shadow-lg hover:bg-[#E03D00] transition-colors border-2 border-[#FF4500]"
+          data-testid="welcome-next-btn"
+        >
+          <ArrowRight size={24} className="text-white" />
         </button>
-        <button onClick={() => navigate('/register')} className="w-full h-14 rounded-2xl border-2 border-gray-200 text-gray-700 text-lg font-semibold flex items-center justify-center gap-2 hover:border-[#FF4500] hover:text-[#FF4500] transition-colors" data-testid="client-register-btn">
-          Créer un compte
-        </button>
-        <p className="text-center text-xs text-gray-400 pt-2">
-          Vous êtes chauffeur ?{' '}
-          <button onClick={() => navigate('/chauffeur')} className="text-[#FF4500] font-medium" data-testid="switch-to-chauffeur-link">SB Drive Chauffeur</button>
-        </p>
       </div>
     </div>
   );

@@ -1,236 +1,358 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import {
-  ArrowLeft, ArrowRight, Envelope, Lock, X,
-  GoogleLogo, Fingerprint
-} from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { ArrowLeft, ArrowRight, Eye, EyeSlash } from '@phosphor-icons/react';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const LoginPage = () => {
-  const [mode, setMode] = useState('phone'); // 'phone' | 'email'
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const { checkAuth, setUser } = useAuth();
 
-  const handleSubmit = async () => {
-    setError('');
+  // Steps: 'phone' → 'password' → 'profile' (profile only for new users)
+  const [step, setStep] = useState('phone');
+  const [phone, setPhone] = useState('');
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  /* ── Step 1: Check phone ── */
+  const getFullPhone = () => `+33 ${phone.trim()}`;
+  
+  const handleCheckPhone = async () => {
+    if (!phone.trim()) {
+      setError('Veuillez entrer votre numéro de mobile');
+      return;
+    }
     setLoading(true);
+    setError('');
     try {
-      // For phone mode, use phone as email (MVP)
-      const loginEmail = mode === 'phone' ? phone + '@sbdrive.local' : email;
-      const result = await login(loginEmail, password);
-      const roleRedirects = {
-        user: '/home',
-        driver: '/chauffeur/home',
-        merchant: '/merchant',
-        admin: '/admin',
-        dispatcher: '/dispatcher',
-      };
-      navigate(roleRedirects[result.user.role] || '/home');
-    } catch (err) {
-      const detail = err.response?.data?.detail;
-      if (mode === 'phone') {
-        setError('Numéro non reconnu. Essayez avec votre email.');
-        setMode('email');
-      } else {
-        setError(typeof detail === 'string' ? detail : 'Identifiants incorrects');
-      }
+      const res = await fetch(`${API_URL}/api/auth/check-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: getFullPhone() }),
+      });
+      const data = await res.json();
+      setIsNewUser(!data.exists);
+      setStep('password');
+    } catch {
+      setError('Erreur de connexion. Réessayez.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    await handleSubmit();
+  /* ── Step 2: Login or create password ── */
+  const handlePassword = async () => {
+    if (!password) {
+      setError('Veuillez entrer un mot de passe');
+      return;
+    }
+    if (isNewUser) {
+      if (password.length < 6) {
+        setError('Le mot de passe doit contenir au moins 6 caractères');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Les mots de passe ne correspondent pas');
+        return;
+      }
+      // Go to profile step
+      setError('');
+      setStep('profile');
+      return;
+    }
+
+    // Existing user → login
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/phone-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ phone: getFullPhone(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || 'Mot de passe incorrect');
+        return;
+      }
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+      }
+      setUser(data.user);
+      navigate('/home');
+    } catch {
+      setError('Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ── Step 3: Complete profile (new users only) ── */
+  const handleRegister = async () => {
+    if (!lastName.trim()) {
+      setError('Veuillez entrer votre nom');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/phone-register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          phone: getFullPhone(),
+          password,
+          name: lastName.trim(),
+          first_name: firstName.trim(),
+          email: email.trim() || undefined,
+          referral_code: referralCode.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || 'Erreur lors de l\'inscription');
+        return;
+      }
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+      }
+      setUser(data.user);
+      navigate('/home');
+    } catch {
+      setError('Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const goBack = () => {
+    setError('');
+    if (step === 'profile') setStep('password');
+    else if (step === 'password') { setStep('phone'); setPassword(''); setConfirmPassword(''); }
+    else navigate(-1);
   };
 
   return (
-    <div className="mobile-container min-h-screen bg-white flex flex-col relative">
-      {/* Back button */}
-      <div className="px-4 pt-5">
+    <div className="mobile-container min-h-screen bg-white flex flex-col" data-testid="login-page">
+      {/* Header */}
+      <div className="flex items-center px-4 pt-5 pb-2">
         <button
-          onClick={() => navigate('/')}
-          className="w-11 h-11 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50"
-          data-testid="login-back-btn"
+          onClick={goBack}
+          className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"
+          data-testid="back-btn"
         >
-          <ArrowLeft size={22} className="text-gray-700" />
+          <ArrowLeft size={20} className="text-gray-700" />
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 px-6 pt-6">
-        {mode === 'phone' ? (
-          <>
-            <h1 className="text-2xl font-bold text-gray-900">Entrez votre numéro de téléphone</h1>
-            <div className="mt-6">
-              <p className="text-sm text-gray-400 mb-1">Mobile</p>
-              <div className="flex items-center gap-3 border-b-2 border-gray-200 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-lg">🇫🇷</span>
-                  <span className="text-gray-600 text-sm">+33</span>
-                  <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      <div className="flex-1 px-6 pt-4">
+        {/* ═══ STEP 1: PHONE ═══ */}
+        {step === 'phone' && (
+          <div data-testid="step-phone">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Entrez votre mobile</h1>
+            <p className="text-gray-500 text-sm mb-8">
+              Nous vérifierons si vous avez déjà un compte
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                  Numéro de mobile
+                </label>
+                <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#FF4500] transition-colors">
+                  <span className="px-3 py-3.5 bg-gray-50 text-sm font-semibold text-gray-600 border-r border-gray-200">
+                    +33
+                  </span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="6 12 34 56 78"
+                    className="flex-1 px-3 py-3.5 text-base outline-none"
+                    data-testid="phone-input"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleCheckPhone()}
+                  />
                 </div>
+              </div>
+
+              {error && (
+                <p className="text-red-500 text-sm" data-testid="error-message">{error}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 2: PASSWORD ═══ */}
+        {step === 'password' && (
+          <div data-testid="step-password">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {isNewUser ? 'Créer un mot de passe' : 'Entrez votre mot de passe'}
+            </h1>
+            <p className="text-gray-500 text-sm mb-8">
+              {isNewUser
+                ? 'Choisissez un mot de passe sécurisé pour votre compte'
+                : `Connectez-vous avec le numéro ${phone}`}
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                  Mot de passe
+                </label>
+                <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#FF4500] transition-colors">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="flex-1 px-4 py-3.5 text-base outline-none"
+                    data-testid="password-input"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && !isNewUser && handlePassword()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="px-3 text-gray-400"
+                    data-testid="toggle-password-btn"
+                  >
+                    {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              {isNewUser && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                    Confirmer le mot de passe
+                  </label>
+                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#FF4500] transition-colors">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="flex-1 px-4 py-3.5 text-base outline-none"
+                      data-testid="confirm-password-input"
+                      onKeyDown={(e) => e.key === 'Enter' && handlePassword()}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <p className="text-red-500 text-sm" data-testid="error-message">{error}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 3: PROFILE (New users only) ═══ */}
+        {step === 'profile' && (
+          <div data-testid="step-profile">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Complétez votre profil</h1>
+            <p className="text-gray-500 text-sm mb-8">
+              Quelques informations pour personnaliser votre expérience
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                  Nom *
+                </label>
                 <input
-                  type="tel"
-                  placeholder="6 12 34 56 78"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="flex-1 text-lg outline-none text-gray-900 placeholder:text-gray-300"
-                  data-testid="login-phone-input"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Dupont"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3.5 text-base outline-none focus:border-[#FF4500] transition-colors"
+                  data-testid="lastname-input"
                   autoFocus
                 />
               </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                  Prénom
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Jean"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3.5 text-base outline-none focus:border-[#FF4500] transition-colors"
+                  data-testid="firstname-input"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                  Email <span className="text-gray-400 font-normal lowercase">(facultatif)</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="jean@exemple.fr"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3.5 text-base outline-none focus:border-[#FF4500] transition-colors"
+                  data-testid="email-input"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                  Code de parrainage <span className="text-gray-400 font-normal lowercase">(facultatif)</span>
+                </label>
+                <input
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  placeholder="ABC123"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3.5 text-base outline-none focus:border-[#FF4500] transition-colors"
+                  data-testid="referral-input"
+                />
+              </div>
+
+              {error && (
+                <p className="text-red-500 text-sm" data-testid="error-message">{error}</p>
+              )}
             </div>
-
-            <button
-              onClick={() => setShowOptions(true)}
-              className="mt-5 text-[#FF4500] font-medium text-base flex items-center gap-2"
-              data-testid="other-login-options-btn"
-            >
-              Ou choisir d'autres options <ArrowRight size={18} />
-            </button>
-
-            <p className="mt-4 text-sm text-gray-400 leading-relaxed">
-              En continuant, j'accepte les{' '}
-              <span className="text-[#FF4500]">Conditions d'utilisation & Politique de confidentialité</span>
-            </p>
-          </>
-        ) : (
-          <>
-            <h1 className="text-2xl font-bold text-gray-900">Connectez-vous avec votre email</h1>
-            {error && (
-              <div className="mt-3 p-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
-            )}
-            <form onSubmit={handleEmailSubmit} className="mt-6 space-y-4">
-              <div>
-                <p className="text-sm text-gray-400 mb-1">Email</p>
-                <div className="flex items-center gap-3 border-b-2 border-gray-200 pb-2">
-                  <Envelope size={20} className="text-gray-400" />
-                  <input
-                    type="email"
-                    placeholder="votre@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="flex-1 text-lg outline-none text-gray-900 placeholder:text-gray-300"
-                    data-testid="login-email-input"
-                    autoFocus
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-400 mb-1">Mot de passe</p>
-                <div className="flex items-center gap-3 border-b-2 border-gray-200 pb-2">
-                  <Lock size={20} className="text-gray-400" />
-                  <input
-                    type="password"
-                    placeholder="Mot de passe"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="flex-1 text-lg outline-none text-gray-900 placeholder:text-gray-300"
-                    data-testid="login-password-input"
-                    required
-                  />
-                </div>
-              </div>
-              <button type="submit" className="hidden" />
-            </form>
-
-            <button
-              onClick={() => { setMode('phone'); setError(''); }}
-              className="mt-4 text-[#FF4500] font-medium text-sm"
-              data-testid="switch-to-phone-btn"
-            >
-              Se connecter par téléphone
-            </button>
-
-            <p className="mt-3 text-sm text-gray-400">
-              Pas encore de compte ?{' '}
-              <Link to="/register" className="text-[#FF4500] font-medium" data-testid="register-link">S'inscrire</Link>
-            </p>
-          </>
+          </div>
         )}
       </div>
 
-      {/* FAB Button */}
-      <div className="px-6 pb-8 flex justify-end">
+      {/* Bottom FAB */}
+      <div className="px-6 pb-8 pt-4">
         <button
-          onClick={mode === 'email' ? handleEmailSubmit : () => { if (phone.length >= 6) setMode('email'); else toast.error('Entrez un numéro valide'); }}
-          className="w-14 h-14 rounded-full bg-[#FF4500] flex items-center justify-center shadow-lg hover:bg-[#E03D00] transition-colors"
+          onClick={step === 'phone' ? handleCheckPhone : step === 'password' ? handlePassword : handleRegister}
           disabled={loading}
-          data-testid="login-submit-btn"
+          className="w-full h-14 rounded-xl bg-[#FF4500] hover:bg-[#E03D00] text-white text-base font-bold flex items-center justify-center gap-2 transition-colors shadow-lg disabled:opacity-60"
+          data-testid="submit-btn"
         >
           {loading ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
-            <ArrowRight size={24} className="text-white" />
+            <>
+              {step === 'phone' && 'Suivant'}
+              {step === 'password' && (isNewUser ? 'Suivant' : 'Se connecter')}
+              {step === 'profile' && 'Créer mon compte'}
+              <ArrowRight size={20} className="ml-1" />
+            </>
           )}
         </button>
       </div>
-
-      {/* Social Login Modal */}
-      {showOptions && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setShowOptions(false)}>
-          <div
-            className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-            data-testid="social-login-modal"
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xl font-bold text-gray-900">Choisir un compte</h3>
-              <button onClick={() => setShowOptions(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                <X size={18} className="text-gray-600" />
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              <button
-                onClick={() => { setShowOptions(false); loginWithGoogle(); }}
-                className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors"
-                data-testid="google-login-btn"
-              >
-                <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center">
-                  <GoogleLogo size={22} weight="bold" className="text-[#FF4500]" />
-                </div>
-                <span className="font-semibold text-gray-900 flex-1 text-left">Google</span>
-                <ArrowRight size={18} className="text-[#FF4500]" />
-              </button>
-
-              <button
-                onClick={() => { setShowOptions(false); setMode('email'); }}
-                className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors"
-                data-testid="email-login-btn"
-              >
-                <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center">
-                  <Envelope size={22} className="text-gray-600" />
-                </div>
-                <span className="font-semibold text-gray-900 flex-1 text-left">Email</span>
-                <ArrowRight size={18} className="text-[#FF4500]" />
-              </button>
-
-              <button
-                className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors"
-                data-testid="biometric-login-btn"
-              >
-                <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center">
-                  <Fingerprint size={22} className="text-teal-500" />
-                </div>
-                <span className="font-semibold text-gray-900 flex-1 text-left">Face ID / Touch ID</span>
-                <ArrowRight size={18} className="text-[#FF4500]" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
