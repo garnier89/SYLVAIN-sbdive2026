@@ -251,6 +251,40 @@ async def download_file(path: str, request: Request, auth: Optional[str] = Query
         raise HTTPException(status_code=404, detail="File not found")
 
 
+# ===== ADMIN SETTINGS =====
+@router.get("/admin/settings")
+async def get_admin_settings(request: Request):
+    await require_role(request, ["admin"])
+    doc = await db.admin_settings.find_one({"key": "global"}, {"_id": 0})
+    if not doc:
+        return {"settings": {
+            "platform_name": "SB Drive VTC", "admin_country_code": "1", "country_code": "FR",
+            "default_distance_unit": "KMs", "wallet_amount_1": "699", "wallet_amount_2": "799",
+            "wallet_amount_3": "899", "google_analytics_id": "", "records_per_page": "50",
+            "maintenance_mode": "No", "default_currency": "EUR", "default_language": "fr",
+            "commission_rate": "10", "min_fare": "5.0", "surge_multiplier": "1.0",
+            "auto_assign_rides": True, "notifications_enabled": True,
+            "smtp_host": "", "smtp_port": "587", "smtp_user": "", "smtp_password": "",
+            "sender_email": "", "sms_provider": "twilio", "sms_api_key": "",
+            "primary_color": "#3b82f6", "secondary_color": "#FF4500",
+            "maps_api_key": "", "stripe_key": "", "stripe_secret": "",
+        }}
+    return {"settings": doc.get("settings", {})}
+
+
+@router.put("/admin/settings")
+async def update_admin_settings(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    settings = body.get("settings", {})
+    await db.admin_settings.update_one(
+        {"key": "global"},
+        {"$set": {"key": "global", "settings": settings, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"message": "Settings saved", "settings": settings}
+
+
 # ===== HEALTH =====
 @router.get("/")
 async def root():

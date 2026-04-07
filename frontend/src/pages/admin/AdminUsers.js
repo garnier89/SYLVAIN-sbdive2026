@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
-import { Users, MagnifyingGlass, ShieldCheck, Prohibit, User, Phone, Envelope } from '@phosphor-icons/react';
+import { MagnifyingGlass, CaretUp, CaretDown, Prohibit, ShieldCheck } from '@phosphor-icons/react';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sortField, setSortField] = useState('name');
+  const [sortDir, setSortDir] = useState('asc');
 
-  useEffect(() => { loadUsers(); }, [filter]);
+  useEffect(() => { loadUsers(); }, []);
 
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const params = { limit: 100 };
-      if (filter) params.role = filter;
-      const r = await adminAPI.listUsers(params);
+      const r = await adminAPI.listUsers({ limit: 200 });
       setUsers(r.data.users); setTotal(r.data.total);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -30,81 +31,138 @@ const AdminUsers = () => {
     } catch (e) { console.error(e); }
   };
 
-  const filtered = search
-    ? users.filter(u => (u.name || '').toLowerCase().includes(search.toLowerCase()) || (u.email || '').toLowerCase().includes(search.toLowerCase()) || (u.phone || '').includes(search))
-    : users;
+  const handleSearch = () => { /* filtering is done client-side below */ };
+  const handleReset = () => { setSearch(''); setSearchField('all'); setStatusFilter(''); };
+
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const SortIcon = ({ field }) => (
+    <span className="inline-flex flex-col ml-1 cursor-pointer" onClick={() => toggleSort(field)}>
+      <CaretUp size={8} className={sortField === field && sortDir === 'asc' ? 'text-gray-800' : 'text-gray-300'} />
+      <CaretDown size={8} className={sortField === field && sortDir === 'desc' ? 'text-gray-800' : 'text-gray-300'} />
+    </span>
+  );
+
+  let filtered = users;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(u => {
+      if (searchField === 'name') return (u.name || '').toLowerCase().includes(q);
+      if (searchField === 'email') return (u.email || '').toLowerCase().includes(q);
+      if (searchField === 'phone') return (u.phone || '').includes(q);
+      return (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.phone || '').includes(q);
+    });
+  }
+  if (statusFilter === 'active') filtered = filtered.filter(u => !u.is_suspended);
+  if (statusFilter === 'suspended') filtered = filtered.filter(u => u.is_suspended);
+
+  filtered.sort((a, b) => {
+    const va = (a[sortField] || '').toString().toLowerCase();
+    const vb = (b[sortField] || '').toString().toLowerCase();
+    return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
 
   return (
-    <div className="p-5 lg:p-6 space-y-5" data-testid="admin-users-page">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Utilisateurs</h1>
-        <p className="text-gray-500 text-sm">{total} utilisateurs enregistres</p>
+    <div className="p-6" data-testid="admin-users-page">
+      <h1 className="text-3xl font-light text-gray-800 mb-1" style={{ fontFamily: 'Georgia, Times, serif' }}>Users</h1>
+      <hr className="border-gray-200 mb-5" />
+
+      {/* Search & Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <span className="font-bold text-gray-700 text-sm">Search:</span>
+        <select value={searchField} onChange={e => setSearchField(e.target.value)}
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none" data-testid="search-field-select">
+          <option value="all">All</option>
+          <option value="name">Name</option>
+          <option value="email">Email</option>
+          <option value="phone">Phone</option>
+        </select>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder=""
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm w-48 outline-none focus:border-blue-400" data-testid="search-input" />
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none" data-testid="status-filter">
+          <option value="">Select Status</option>
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+        </select>
+        <button onClick={handleSearch} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
+        <button onClick={handleReset} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
+        <button className="ml-auto border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="export-btn">EXPORT</button>
       </div>
 
-      {/* Filters & Search */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher par nom, email, telephone..."
-            className="w-full pl-9 pr-4 py-2.5 bg-[#161923] border border-gray-800 rounded-lg text-white text-sm outline-none focus:border-[#FF4500] transition-colors placeholder:text-gray-600"
-            data-testid="search-input" />
-        </div>
-        <div className="flex gap-2">
-          {[{ key: '', label: 'Tous' }, { key: 'user', label: 'Clients' }, { key: 'driver', label: 'Chauffeurs' }, { key: 'admin', label: 'Admins' }].map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                filter === f.key ? 'bg-[#FF4500] text-white' : 'bg-[#161923] text-gray-400 border border-gray-800'}`}
-              data-testid={`filter-${f.key || 'all'}`}>
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Users List */}
-      <div className="space-y-2">
-        {loading ? (
-          <div className="text-center py-12"><div className="w-8 h-8 border-2 border-[#FF4500]/30 border-t-[#FF4500] rounded-full animate-spin mx-auto" /></div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-[#161923] border border-gray-800 rounded-xl p-12 text-center">
-            <Users size={40} className="text-gray-700 mx-auto mb-2" />
-            <p className="text-gray-500">Aucun utilisateur trouve</p>
+      {/* Table */}
+      {loading ? (
+        <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" /></div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse" data-testid="users-table">
+              <thead>
+                <tr className="border-t border-b border-gray-200 bg-white">
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">
+                    <input type="checkbox" className="rounded border-gray-300" />
+                  </th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('name')}>
+                    Name <SortIcon field="name" />
+                  </th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('email')}>
+                    Email <SortIcon field="email" />
+                  </th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Phone</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('role')}>
+                    Role <SortIcon field="role" />
+                  </th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Status</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-12 text-gray-400">No users found</td></tr>
+                ) : filtered.map((u, i) => (
+                  <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" data-testid={`user-row-${i}`}>
+                    <td className="py-3 px-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                    <td className="py-3 px-3">
+                      <span className="text-sm text-blue-600 hover:underline cursor-pointer font-medium">{u.name || 'N/A'}</span>
+                    </td>
+                    <td className="py-3 px-3 text-sm text-gray-600">{u.email || '-'}</td>
+                    <td className="py-3 px-3 text-sm text-gray-600">{u.phone || '-'}</td>
+                    <td className="py-3 px-3">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                        u.role === 'driver' ? 'bg-orange-100 text-orange-700' :
+                        u.role === 'merchant' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                      }`}>{u.role}</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      {u.is_suspended ? (
+                        <span className="inline-flex items-center gap-1 text-red-500 text-xs font-semibold">
+                          <Prohibit size={14} /> Suspended
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center justify-center w-6 h-6">
+                          <svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10" fill="#d4edda" stroke="#28a745" strokeWidth="1.5"/><path d="M6 11l3 3 6-6" stroke="#28a745" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">
+                      {u.role !== 'admin' && (
+                        <button onClick={() => toggleSuspend(u)} className="text-gray-400 hover:text-gray-600 transition-colors" data-testid={`action-btn-${i}`} title={u.is_suspended ? 'Unsuspend' : 'Suspend'}>
+                          {u.is_suspended ? <ShieldCheck size={20} className="text-green-500" /> : <Prohibit size={20} />}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : filtered.map((u, i) => (
-          <div key={u.id} className="bg-[#161923] border border-gray-800 rounded-xl p-4 flex items-center gap-4 hover:border-gray-700 transition-colors"
-            data-testid={`user-row-${i}`}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-              u.role === 'admin' ? 'bg-[#FF4500]/20 text-[#FF4500]' : u.role === 'driver' ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
-              <User size={18} weight="bold" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-white font-medium text-sm truncate">{u.name || 'Sans nom'}</p>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  u.role === 'admin' ? 'bg-[#FF4500]/10 text-[#FF4500]' : u.role === 'driver' ? 'bg-amber-500/10 text-amber-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                  {u.role === 'admin' ? 'Admin' : u.role === 'driver' ? 'Chauffeur' : 'Client'}
-                </span>
-                {u.is_suspended && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400">Suspendu</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 mt-1">
-                {u.email && <span className="text-gray-500 text-xs flex items-center gap-1"><Envelope size={10} /> {u.email}</span>}
-                {u.phone && <span className="text-gray-500 text-xs flex items-center gap-1"><Phone size={10} /> {u.phone}</span>}
-              </div>
-            </div>
-            {u.role !== 'admin' && (
-              <button onClick={() => toggleSuspend(u)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  u.is_suspended ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'}`}
-                data-testid={`suspend-btn-${i}`}>
-                {u.is_suspended ? <><ShieldCheck size={12} className="inline mr-1" />Reactiver</> : <><Prohibit size={12} className="inline mr-1" />Suspendre</>}
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+          <p className="text-sm text-gray-500 mt-4" data-testid="pagination-info">Showing 1 to {filtered.length} of {total} entries</p>
+        </>
+      )}
     </div>
   );
 };

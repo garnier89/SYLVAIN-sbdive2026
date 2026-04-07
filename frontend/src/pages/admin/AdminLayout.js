@@ -2,106 +2,227 @@ import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  House, ChartLine, Users, Car, Buildings, Storefront,
-  Taxi, Package, Truck, Wrench, MagnifyingGlass,
-  CaretDown, CaretUp, SignOut, Gear, Bell, List, X,
-  UserCircle, Warning, FileText, Power
+  SquaresFour, ChartLine, UserCircle, UsersThree, Car, Buildings, Storefront,
+  BuildingOffice, TreeStructure, Taxi, Package, ShoppingCart, Lightning,
+  PersonSimpleRun, Wrench, VideoCamera, Gavel, Tag, FirstAid,
+  MapPinArea, Path, CalendarCheck, Star, ChartBar, MapPin, Eye, Fire,
+  Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
+  DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
+  Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power,
+  Bed, CircleWavyCheck, Binoculars
 } from '@phosphor-icons/react';
+
+const sidebarConfig = [
+  {
+    title: 'HOME',
+    items: [
+      { icon: SquaresFour, label: 'Dashboard', path: '/admin' },
+      { icon: ChartLine, label: 'Server Monitoring', path: '/admin/monitoring' },
+    ]
+  },
+  {
+    title: 'MEMBERS',
+    items: [
+      { icon: UserCircle, label: 'Admin', key: 'admin', children: [
+        { label: 'Administrator', path: '/admin/admins' },
+        { label: 'Admin Groups', path: '/admin/groups' },
+      ]},
+      { icon: UsersThree, label: 'User', path: '/admin/users' },
+      { icon: Car, label: 'Drivers / Service Providers', key: 'drivers', children: [
+        { label: 'Manage Drivers', path: '/admin/drivers' },
+        { label: 'Manage Vehicles', path: '/admin/vehicles' },
+        { label: 'Service Requests', path: '/admin/requests' },
+      ]},
+      { icon: Buildings, label: 'Company', path: '/admin/company' },
+      { icon: Storefront, label: 'Store', path: '/admin/stores' },
+      { icon: Bed, label: 'Hotels', key: 'hotels', children: [
+        { label: 'All Hotels', path: '/admin/hotels' },
+      ]},
+      { icon: TreeStructure, label: 'Organization', path: '/admin/organization' },
+    ]
+  },
+  {
+    title: 'SERVICES',
+    items: [
+      { icon: Taxi, label: 'Taxi Service', key: 'taxi', children: [
+        { label: 'All Rides', path: '/admin/rides' },
+        { label: 'Vehicle Types', path: '/admin/vehicle-types' },
+      ]},
+      { icon: Package, label: 'Parcel Delivery', key: 'parcel', children: [
+        { label: 'All Parcels', path: '/admin/parcels' },
+      ]},
+      { icon: ShoppingCart, label: 'Store Delivery Services', key: 'store-delivery', children: [
+        { label: 'All Deliveries', path: '/admin/store-delivery' },
+      ]},
+      { icon: Lightning, label: 'Delivery Genie', key: 'genie', children: [
+        { label: 'All Requests', path: '/admin/genie' },
+      ]},
+      { icon: PersonSimpleRun, label: 'Delivery Runner', key: 'runner', children: [
+        { label: 'All Runs', path: '/admin/runner' },
+      ]},
+      { icon: Wrench, label: 'On-Demand Services', key: 'ondemand', children: [
+        { label: 'All Services', path: '/admin/ondemand' },
+      ]},
+      { icon: VideoCamera, label: 'Video Consultation', key: 'video', children: [
+        { label: 'All Sessions', path: '/admin/video' },
+      ]},
+      { icon: Gavel, label: 'Manage Bid Services', key: 'bid', children: [
+        { label: 'All Bids', path: '/admin/bids' },
+      ]},
+      { icon: Tag, label: 'Buy, Sell & Rent', key: 'marketplace', children: [
+        { label: 'All Listings', path: '/admin/marketplace' },
+      ]},
+      { icon: FirstAid, label: 'Medical Services', key: 'medical', children: [
+        { label: 'All Services', path: '/admin/medical' },
+      ]},
+      { icon: UsersThree, label: 'Ride Share', key: 'rideshare', children: [
+        { label: 'All Shared Rides', path: '/admin/rideshare' },
+      ]},
+      { icon: MapPinArea, label: 'Nearby Management', key: 'nearby', children: [
+        { label: 'NearBy Category', path: '/admin/nearby' },
+      ]},
+      { icon: Path, label: 'FET Tracking Service', key: 'tracking', children: [
+        { label: 'All Tracking', path: '/admin/tracking' },
+      ]},
+    ]
+  },
+  {
+    title: 'BOOKINGS & REPORTS',
+    items: [
+      { icon: CalendarCheck, label: 'Bookings / Orders', key: 'bookings', children: [
+        { label: 'Manual Booking', path: '/admin/manual-booking' },
+        { label: 'Ride/Job Later Bookings', path: '/admin/later-bookings' },
+        { label: 'Trips/Jobs', path: '/admin/trips' },
+        { label: 'Create order', path: '/admin/create-order' },
+      ]},
+      { icon: Star, label: 'Reviews', key: 'reviews', children: [
+        { label: 'Trips/Jobs Reviews', path: '/admin/reviews' },
+      ]},
+      { icon: ChartBar, label: 'Reports', key: 'reports', children: [
+        { label: 'Earning Report', path: '/admin/revenue' },
+        { label: 'Payout Report', path: '/admin/payout' },
+      ]},
+    ]
+  },
+  {
+    title: 'LOCATION',
+    items: [
+      { icon: MapPin, label: 'Manage Locations', key: 'locations', children: [
+        { label: 'Geo Fence Location', path: '/admin/geo-fence' },
+        { label: 'Restricted Area', path: '/admin/restricted' },
+        { label: 'Locationwise Fare', path: '/admin/location-fare' },
+        { label: 'Airport Surcharge', path: '/admin/airport' },
+        { label: 'Country', path: '/admin/country' },
+        { label: 'State', path: '/admin/state' },
+      ]},
+      { icon: Binoculars, label: "God's View", path: '/admin/gods-view' },
+      { icon: Fire, label: 'Heat View', path: '/admin/heat-view' },
+    ]
+  },
+  {
+    title: 'PROMOTIONS & MARKETING TOOLS',
+    items: [
+      { icon: Ticket, label: 'Promocode', path: '/admin/promocodes' },
+      { icon: Gift, label: 'Manage Gift Cards', key: 'giftcards', children: [
+        { label: 'All Gift Cards', path: '/admin/giftcards' },
+      ]},
+      { icon: ShareNetwork, label: 'MLM Referral Settings', path: '/admin/referral' },
+      { icon: Image, label: 'Advertisement Banners', path: '/admin/banners' },
+      { icon: Newspaper, label: 'News', path: '/admin/news' },
+      { icon: EnvelopeSimple, label: 'Newsletter Subscribers', path: '/admin/newsletter' },
+    ]
+  },
+  {
+    title: 'CMS',
+    items: [
+      { icon: Globe, label: 'Website All Pages', key: 'pages', children: [
+        { label: 'All Pages', path: '/admin/pages' },
+      ]},
+      { icon: DeviceMobile, label: 'User App Home Screen', key: 'app-home', children: [
+        { label: 'Home Config', path: '/admin/app-home' },
+      ]},
+      { icon: Slideshow, label: 'Manage App Intro Screen', key: 'intro', children: [
+        { label: 'Intro Screens', path: '/admin/intro' },
+      ]},
+      { icon: Translate, label: 'Manage Language Labels', key: 'lang', children: [
+        { label: 'Labels', path: '/admin/labels' },
+      ]},
+      { icon: EnvelopeOpen, label: 'Email Templates', path: '/admin/email-templates' },
+      { icon: ChatCircleText, label: 'SMS Templates', path: '/admin/sms-templates' },
+      { icon: XCircle, label: 'Cancel Reason', path: '/admin/cancel-reasons' },
+    ]
+  },
+  {
+    title: 'SYSTEM',
+    items: [
+      { icon: Gear, label: 'General Settings', path: '/admin/settings' },
+    ]
+  }
+];
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [openMenus, setOpenMenus] = useState({ admin: false, drivers: false, services: false });
+  const [openMenus, setOpenMenus] = useState({});
   const [searchSidebar, setSearchSidebar] = useState('');
 
   const toggleMenu = (key) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
-  const isActive = (path) => path === '/admin' ? location.pathname === '/admin' : location.pathname.startsWith(path);
+
+  const isActive = (path) => {
+    if (path === '/admin') return location.pathname === '/admin';
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  const isParentActive = (item) => {
+    if (item.children) return item.children.some(c => isActive(c.path));
+    return isActive(item.path);
+  };
 
   const handleLogout = async () => { await logout(); navigate('/login'); };
 
-  const sections = [
-    {
-      title: 'HOME',
-      items: [
-        { icon: House, label: 'Dashboard', path: '/admin' },
-        { icon: ChartLine, label: 'Server Monitoring', path: '/admin/monitoring' },
-      ]
-    },
-    {
-      title: 'MEMBERS',
-      items: [
-        { icon: UserCircle, label: 'Admin', path: '/admin/admins', submenu: 'admin',
-          children: [
-            { label: 'Administrator', path: '/admin/admins' },
-            { label: 'Admin Groups', path: '/admin/groups' },
-          ]
-        },
-        { icon: Users, label: 'Users', path: '/admin/users' },
-        { icon: Car, label: 'Drivers / Service Providers', path: '/admin/drivers', submenu: 'drivers',
-          children: [
-            { label: 'Manage Drivers', path: '/admin/drivers' },
-            { label: 'Manage Vehicles', path: '/admin/vehicles' },
-            { label: 'Service Requests', path: '/admin/requests' },
-            { label: 'Manage Rewards', path: '/admin/rewards' },
-          ]
-        },
-        { icon: Buildings, label: 'Company', path: '/admin/company' },
-        { icon: Storefront, label: 'Stores', path: '/admin/stores' },
-      ]
-    },
-    {
-      title: 'SERVICES',
-      items: [
-        { icon: Taxi, label: 'Taxi Service', path: '/admin/rides', submenu: 'services',
-          children: [
-            { label: 'All Rides', path: '/admin/rides' },
-            { label: 'Ride Settings', path: '/admin/rides/settings' },
-          ]
-        },
-        { icon: Package, label: 'Parcel Delivery', path: '/admin/parcels' },
-        { icon: Truck, label: 'Delivery Services', path: '/admin/delivery' },
-        { icon: Wrench, label: 'On-Demand Services', path: '/admin/ondemand' },
-      ]
-    },
-    {
-      title: 'SYSTEM',
-      items: [
-        { icon: Gear, label: 'Configuration', path: '/admin/settings' },
-      ]
-    }
-  ];
+  const filteredSections = searchSidebar
+    ? sidebarConfig.map(section => ({
+        ...section,
+        items: section.items.filter(item =>
+          item.label.toLowerCase().includes(searchSidebar.toLowerCase()) ||
+          (item.children && item.children.some(c => c.label.toLowerCase().includes(searchSidebar.toLowerCase())))
+        )
+      })).filter(s => s.items.length > 0)
+    : sidebarConfig;
 
   return (
     <div className="min-h-screen bg-[#f0f2f5]" data-testid="admin-layout">
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-white border-b border-gray-200 flex items-center px-4 shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 h-[60px] bg-[#f5f5f5] border-b border-gray-200 flex items-center px-4" data-testid="admin-header">
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-500 hover:text-gray-700 mr-4" data-testid="toggle-sidebar">
-          <List size={22} />
+          <List size={22} weight="bold" />
         </button>
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-gray-800">{user?.name || 'Admin'}</span>
-          <span className="text-xs text-gray-400">Super Administrator</span>
+        <div className="flex flex-col">
+          <span className="font-bold text-gray-800 text-sm leading-tight">{user?.name || 'Admin'}</span>
+          <span className="text-xs text-gray-500">Super Administrator</span>
         </div>
-        <div className="ml-auto flex items-center gap-3">
-          <button className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><UserCircle size={20} /></button>
-          <button className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><Warning size={20} /></button>
-          <button className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><FileText size={20} /></button>
-          <button className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><Gear size={20} /></button>
-          <button onClick={handleLogout} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500" data-testid="logout-btn"><Power size={20} /></button>
+        <div className="ml-auto flex items-center gap-2">
+          {[UserCircle, Warning, FileText, Gear, Power].map((Icon, i) => (
+            <button key={i}
+              onClick={i === 4 ? handleLogout : undefined}
+              className="w-8 h-8 rounded hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+              data-testid={i === 4 ? 'logout-btn' : undefined}>
+              <Icon size={20} />
+            </button>
+          ))}
         </div>
       </header>
 
       {/* Sidebar */}
-      <aside className={`fixed top-14 left-0 bottom-0 z-40 bg-white border-r border-gray-200 overflow-y-auto transition-all duration-200
-        ${sidebarOpen ? 'w-56' : 'w-0 overflow-hidden'}`} data-testid="admin-sidebar">
+      <aside className={`fixed top-[60px] left-0 bottom-0 z-40 bg-white border-r border-gray-200 overflow-y-auto transition-all duration-200 scrollbar-thin
+        ${sidebarOpen ? 'w-[220px]' : 'w-0 overflow-hidden'}`} data-testid="admin-sidebar">
         {/* Logo */}
-        <div className="px-4 py-4 border-b border-gray-100">
-          <h1 className="font-black text-lg">
-            <span className="text-gray-800">SB</span>
-            <span className="text-[#3b82f6] font-black">DRIVE</span>
-            <span className="text-[#FF4500] text-xs ml-1 font-bold">PLUS</span>
+        <div className="px-4 py-3 border-b border-gray-100">
+          <h1 className="text-xl tracking-tight">
+            <span className="font-black text-gray-800">XJEK</span>
+            <span className="font-black text-[#3b82f6]">PLUS</span>
           </h1>
         </div>
 
@@ -110,36 +231,36 @@ const AdminLayout = () => {
           <div className="relative">
             <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={searchSidebar} onChange={(e) => setSearchSidebar(e.target.value)}
-              placeholder="Search" className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded text-gray-700 outline-none focus:border-blue-400 placeholder:text-gray-400" />
+              placeholder="Search" className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 outline-none focus:border-blue-400 placeholder:text-gray-400" data-testid="sidebar-search" />
           </div>
         </div>
 
         {/* Navigation Sections */}
         <nav className="px-2 pb-6">
-          {sections.map((section) => (
+          {filteredSections.map((section) => (
             <div key={section.title} className="mt-3">
-              <p className="px-3 text-[10px] font-bold text-gray-400 tracking-wider mb-1">{section.title}</p>
-              {section.items.filter(item =>
-                !searchSidebar || item.label.toLowerCase().includes(searchSidebar.toLowerCase())
-              ).map((item) => (
-                <div key={item.path}>
+              <p className="px-3 text-[10px] font-bold text-gray-400 tracking-wider mb-1 uppercase">{section.title}</p>
+              {section.items.map((item) => (
+                <div key={item.key || item.path}>
                   {item.children ? (
                     <>
-                      <button onClick={() => toggleMenu(item.submenu)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] transition-all ${
-                          isActive(item.path) && !openMenus[item.submenu] ? 'bg-[#3b82f6] text-white font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
-                        <item.icon size={16} weight={isActive(item.path) ? 'fill' : 'regular'} />
-                        <span className="flex-1 text-left truncate">{item.label}</span>
-                        {openMenus[item.submenu] ? <CaretUp size={12} /> : <CaretDown size={12} />}
+                      <button onClick={() => toggleMenu(item.key)}
+                        className={`w-full flex items-center gap-2 px-3 py-[7px] rounded-md text-[13px] transition-all ${
+                          isParentActive(item) && !openMenus[item.key]
+                            ? 'bg-[#3b82f6] text-white font-medium'
+                            : 'text-gray-600 hover:bg-gray-50'}`}
+                        data-testid={`nav-${item.key}`}>
+                        <item.icon size={16} weight={isParentActive(item) ? 'fill' : 'regular'} />
+                        <span className="flex-1 text-left truncate leading-tight">{item.label}</span>
+                        {openMenus[item.key] ? <CaretUp size={12} /> : <CaretDown size={12} />}
                       </button>
-                      {openMenus[item.submenu] && (
-                        <div className="ml-6 mt-0.5 space-y-0.5 border-l-2 border-gray-100 pl-2">
+                      {openMenus[item.key] && (
+                        <div className="ml-4 mt-0.5 space-y-0.5 pl-3">
                           {item.children.map((child) => (
                             <Link key={child.path} to={child.path}
-                              className={`block py-1.5 px-2 rounded text-[12px] transition-all ${
-                                location.pathname === child.path ? 'text-[#3b82f6] font-semibold bg-blue-50' : 'text-gray-500 hover:text-gray-700'}`}
-                              onClick={() => setSidebarOpen(window.innerWidth >= 1024)}>
+                              className={`flex items-center gap-2 py-1.5 px-2 rounded text-[12px] transition-all ${
+                                isActive(child.path) ? 'text-[#3b82f6] font-semibold bg-blue-50' : 'text-gray-500 hover:text-gray-700'}`}>
+                              <span className="w-1.5 h-1.5 rounded-full border border-current flex-shrink-0" />
                               {child.label}
                             </Link>
                           ))}
@@ -148,12 +269,11 @@ const AdminLayout = () => {
                     </>
                   ) : (
                     <Link to={item.path}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] transition-all ${
+                      className={`flex items-center gap-2 px-3 py-[7px] rounded-md text-[13px] transition-all ${
                         isActive(item.path) ? 'bg-[#3b82f6] text-white font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-                      onClick={() => setSidebarOpen(window.innerWidth >= 1024)}
-                      data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
+                      data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}>
                       <item.icon size={16} weight={isActive(item.path) ? 'fill' : 'regular'} />
-                      <span className="truncate">{item.label}</span>
+                      <span className="truncate leading-tight">{item.label}</span>
                     </Link>
                   )}
                 </div>
@@ -161,11 +281,18 @@ const AdminLayout = () => {
             </div>
           ))}
         </nav>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-gray-100 text-center">
+          <p className="text-[10px] text-gray-400">SB Drive VTC - 2026</p>
+        </div>
       </aside>
 
       {/* Main Content */}
-      <main className={`pt-14 min-h-screen transition-all duration-200 ${sidebarOpen ? 'ml-56' : 'ml-0'}`}>
-        <Outlet />
+      <main className={`pt-[60px] min-h-screen transition-all duration-200 ${sidebarOpen ? 'ml-[220px]' : 'ml-0'}`}>
+        <div className="bg-white min-h-[calc(100vh-60px)]">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

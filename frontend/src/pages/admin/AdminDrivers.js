@@ -1,181 +1,156 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { adminAPI } from '../../services/api';
-import { Check, X, Eye, Car, Motorcycle, Bicycle } from '@phosphor-icons/react';
+import { CaretUp, CaretDown, Check, X, Eye, Gear } from '@phosphor-icons/react';
 
 const AdminDrivers = () => {
   const [drivers, setDrivers] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sortField, setSortField] = useState('');
+  const [sortDir, setSortDir] = useState('asc');
 
-  useEffect(() => {
-    loadDrivers();
-  }, [filter]);
+  useEffect(() => { loadDrivers(); }, []);
 
   const loadDrivers = async () => {
     setLoading(true);
     try {
-      const params = {};
-      if (filter !== 'all') params.status = filter;
-      const response = await adminAPI.listDrivers(params);
-      setDrivers(response.data.drivers);
-      setTotal(response.data.total);
-    } catch (error) {
-      console.error('Load drivers error:', error);
-    } finally {
-      setLoading(false);
-    }
+      const r = await adminAPI.listDrivers({});
+      setDrivers(r.data.drivers); setTotal(r.data.total);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  const approveDriver = async (driverId) => {
-    try {
-      await adminAPI.approveDriver(driverId);
-      loadDrivers();
-    } catch (error) {
-      console.error('Approve error:', error);
-    }
+  const approveDriver = async (id) => {
+    try { await adminAPI.approveDriver(id); loadDrivers(); } catch (e) { console.error(e); }
   };
 
-  const rejectDriver = async (driverId) => {
-    try {
-      await adminAPI.rejectDriver(driverId, 'Documents not valid');
-      loadDrivers();
-    } catch (error) {
-      console.error('Reject error:', error);
-    }
+  const rejectDriver = async (id) => {
+    try { await adminAPI.rejectDriver(id, 'Documents not valid'); loadDrivers(); } catch (e) { console.error(e); }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      pending: 'bg-amber-100 text-amber-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-    };
-    return <Badge className={styles[status] || 'bg-gray-100'}>{status}</Badge>;
+  const handleReset = () => { setSearch(''); setStatusFilter(''); };
+
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
   };
 
-  const getVehicleIcon = (type) => {
-    const icons = { car: Car, motorcycle: Motorcycle, bicycle: Bicycle };
-    const Icon = icons[type] || Car;
-    return <Icon size={20} />;
-  };
+  const SortIcon = ({ field }) => (
+    <span className="inline-flex flex-col ml-1 cursor-pointer" onClick={() => toggleSort(field)}>
+      <CaretUp size={8} className={sortField === field && sortDir === 'asc' ? 'text-gray-800' : 'text-gray-300'} />
+      <CaretDown size={8} className={sortField === field && sortDir === 'desc' ? 'text-gray-800' : 'text-gray-300'} />
+    </span>
+  );
+
+  let filtered = drivers;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(d => (d.user?.name || '').toLowerCase().includes(q) || (d.user?.email || '').toLowerCase().includes(q));
+  }
+  if (statusFilter) filtered = filtered.filter(d => d.status === statusFilter);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Drivers</h1>
-          <p className="text-muted-foreground">Manage driver accounts and approvals</p>
-        </div>
-        <div className="flex gap-2">
-          {['all', 'pending', 'approved', 'rejected'].map((f) => (
-            <Button
-              key={f}
-              variant={filter === f ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter(f)}
-              className={filter === f ? 'bg-primary text-white' : ''}
-              data-testid={`filter-${f}`}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Button>
-          ))}
-        </div>
+    <div className="p-6" data-testid="admin-drivers-page">
+      <h1 className="text-3xl font-light text-gray-800 mb-1" style={{ fontFamily: 'Georgia, Times, serif' }}>Drivers / Service Providers</h1>
+      <hr className="border-gray-200 mb-5" />
+
+      {/* Search & Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <span className="font-bold text-gray-700 text-sm">Search:</span>
+        <select className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none">
+          <option>All</option>
+        </select>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder=""
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm w-48 outline-none focus:border-blue-400" data-testid="search-input" />
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none" data-testid="status-filter">
+          <option value="">Select Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <button className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
+        <button onClick={handleReset} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
+        <button className="ml-auto border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="export-btn">EXPORT</button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Driver</TableHead>
-                <TableHead>Vehicle</TableHead>
-                <TableHead>License</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Trips</TableHead>
-                <TableHead>Earnings</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
-                </TableRow>
-              ) : drivers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    No drivers found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                drivers.map((driver) => (
-                  <TableRow key={driver.id} data-testid={`driver-row-${driver.id}`}>
-                    <TableCell>
+      {/* Table */}
+      {loading ? (
+        <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" /></div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse" data-testid="drivers-table">
+              <thead>
+                <tr className="border-t border-b border-gray-200 bg-white">
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700"><input type="checkbox" className="rounded border-gray-300" /></th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('name')}>
+                    Service Provider <SortIcon field="name" />
+                  </th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Contact</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Vehicle</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">License</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('rating')}>
+                    Rating <SortIcon field="rating" />
+                  </th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Trips</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Status</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={9} className="text-center py-12 text-gray-400">No drivers found</td></tr>
+                ) : filtered.map((d, i) => (
+                  <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" data-testid={`driver-row-${i}`}>
+                    <td className="py-3 px-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                    <td className="py-3 px-3">
+                      <span className="text-sm text-blue-600 hover:underline cursor-pointer font-medium">{d.user?.name || 'Unknown'}</span>
+                    </td>
+                    <td className="py-3 px-3 text-sm text-gray-600">{d.user?.email || '-'}</td>
+                    <td className="py-3 px-3">
                       <div>
-                        <p className="font-medium">{driver.user?.name || 'Unknown'}</p>
-                        <p className="text-sm text-muted-foreground">{driver.user?.email}</p>
+                        <p className="text-sm text-gray-700 capitalize">{d.vehicle_type || '-'}</p>
+                        <p className="text-xs text-gray-400">{d.vehicle_number || ''}</p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getVehicleIcon(driver.vehicle_type)}
-                        <div>
-                          <p className="font-medium capitalize">{driver.vehicle_type}</p>
-                          <p className="text-sm text-muted-foreground">{driver.vehicle_number}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{driver.license_number}</TableCell>
-                    <TableCell>{getStatusBadge(driver.status)}</TableCell>
-                    <TableCell>{driver.rating.toFixed(1)}</TableCell>
-                    <TableCell>{driver.total_trips}</TableCell>
-                    <TableCell>${driver.earnings.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {driver.status === 'pending' && (
+                    </td>
+                    <td className="py-3 px-3 text-sm text-gray-600 font-mono">{d.license_number || '-'}</td>
+                    <td className="py-3 px-3 text-sm text-gray-700 font-medium">{(d.rating || 0).toFixed(1)}</td>
+                    <td className="py-3 px-3 text-sm text-gray-700">{d.total_trips || 0}</td>
+                    <td className="py-3 px-3">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        d.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        d.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>{d.status}</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1">
+                        {d.status === 'pending' && (
                           <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={() => approveDriver(driver.id)}
-                              data-testid={`approve-${driver.id}`}
-                            >
-                              <Check size={18} />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => rejectDriver(driver.id)}
-                              data-testid={`reject-${driver.id}`}
-                            >
-                              <X size={18} />
-                            </Button>
+                            <button onClick={() => approveDriver(d.id)} className="w-7 h-7 rounded bg-green-50 hover:bg-green-100 flex items-center justify-center text-green-600 transition-colors" data-testid={`approve-${i}`} title="Approve">
+                              <Check size={14} weight="bold" />
+                            </button>
+                            <button onClick={() => rejectDriver(d.id)} className="w-7 h-7 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors" data-testid={`reject-${i}`} title="Reject">
+                              <X size={14} weight="bold" />
+                            </button>
                           </>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          data-testid={`view-${driver.id}`}
-                        >
-                          <Eye size={18} />
-                        </Button>
+                        <button className="w-7 h-7 rounded bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors" data-testid={`view-${i}`} title="View Details">
+                          <Gear size={14} />
+                        </button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-sm text-gray-500 mt-4" data-testid="pagination-info">Showing 1 to {filtered.length} of {total} entries</p>
+        </>
+      )}
     </div>
   );
 };

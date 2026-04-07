@@ -63,6 +63,10 @@ import AdminRides from './pages/admin/AdminRides';
 import AdminRevenue from './pages/admin/AdminRevenue';
 import AdminSupport from './pages/admin/AdminSupport';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminGodsView from './pages/admin/AdminGodsView';
+import AdminHeatView from './pages/admin/AdminHeatView';
+import AdminPromocodes from './pages/admin/AdminPromocodes';
+import AdminPlaceholder from './pages/admin/AdminPlaceholder';
 
 // Dispatcher Pages
 import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
@@ -136,12 +140,68 @@ const AppRouter = () => {
       {/* ======= ADMIN ======= */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
+        {/* MEMBERS */}
         <Route path="users" element={<AdminUsers />} />
         <Route path="drivers" element={<AdminDrivers />} />
+        {/* SERVICES */}
         <Route path="rides" element={<AdminRides />} />
+        {/* BOOKINGS & REPORTS */}
+        <Route path="trips" element={<AdminRides />} />
+        <Route path="reviews" element={<AdminSupport />} />
         <Route path="revenue" element={<AdminRevenue />} />
-        <Route path="support" element={<AdminSupport />} />
+        {/* LOCATION */}
+        <Route path="gods-view" element={<AdminGodsView />} />
+        <Route path="heat-view" element={<AdminHeatView />} />
+        {/* PROMOTIONS */}
+        <Route path="promocodes" element={<AdminPromocodes />} />
+        {/* SYSTEM */}
         <Route path="settings" element={<AdminSettings />} />
+        {/* Placeholder for all other admin routes */}
+        <Route path="monitoring" element={<AdminPlaceholder />} />
+        <Route path="admins" element={<AdminPlaceholder />} />
+        <Route path="groups" element={<AdminPlaceholder />} />
+        <Route path="vehicles" element={<AdminPlaceholder />} />
+        <Route path="requests" element={<AdminPlaceholder />} />
+        <Route path="company" element={<AdminPlaceholder />} />
+        <Route path="stores" element={<AdminPlaceholder />} />
+        <Route path="hotels" element={<AdminPlaceholder />} />
+        <Route path="organization" element={<AdminPlaceholder />} />
+        <Route path="vehicle-types" element={<AdminPlaceholder />} />
+        <Route path="parcels" element={<AdminPlaceholder />} />
+        <Route path="store-delivery" element={<AdminPlaceholder />} />
+        <Route path="genie" element={<AdminPlaceholder />} />
+        <Route path="runner" element={<AdminPlaceholder />} />
+        <Route path="ondemand" element={<AdminPlaceholder />} />
+        <Route path="video" element={<AdminPlaceholder />} />
+        <Route path="bids" element={<AdminPlaceholder />} />
+        <Route path="marketplace" element={<AdminPlaceholder />} />
+        <Route path="medical" element={<AdminPlaceholder />} />
+        <Route path="rideshare" element={<AdminPlaceholder />} />
+        <Route path="nearby" element={<AdminPlaceholder />} />
+        <Route path="tracking" element={<AdminPlaceholder />} />
+        <Route path="manual-booking" element={<AdminPlaceholder />} />
+        <Route path="later-bookings" element={<AdminPlaceholder />} />
+        <Route path="create-order" element={<AdminPlaceholder />} />
+        <Route path="payout" element={<AdminPlaceholder />} />
+        <Route path="geo-fence" element={<AdminPlaceholder />} />
+        <Route path="restricted" element={<AdminPlaceholder />} />
+        <Route path="location-fare" element={<AdminPlaceholder />} />
+        <Route path="airport" element={<AdminPlaceholder />} />
+        <Route path="country" element={<AdminPlaceholder />} />
+        <Route path="state" element={<AdminPlaceholder />} />
+        <Route path="giftcards" element={<AdminPlaceholder />} />
+        <Route path="referral" element={<AdminPlaceholder />} />
+        <Route path="banners" element={<AdminPlaceholder />} />
+        <Route path="news" element={<AdminPlaceholder />} />
+        <Route path="newsletter" element={<AdminPlaceholder />} />
+        <Route path="pages" element={<AdminPlaceholder />} />
+        <Route path="app-home" element={<AdminPlaceholder />} />
+        <Route path="intro" element={<AdminPlaceholder />} />
+        <Route path="labels" element={<AdminPlaceholder />} />
+        <Route path="email-templates" element={<AdminPlaceholder />} />
+        <Route path="sms-templates" element={<AdminPlaceholder />} />
+        <Route path="cancel-reasons" element={<AdminPlaceholder />} />
+        <Route path="support" element={<AdminSupport />} />
       </Route>
 
       {/* ======= DISPATCHER ======= */}

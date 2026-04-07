@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
-import { CurrencyEur, TrendUp, Car, ArrowRight } from '@phosphor-icons/react';
+import { CaretUp, CaretDown } from '@phosphor-icons/react';
+
+const datePresets = [
+  { label: 'Today', key: 'today' }, { label: 'Yesterday', key: 'yesterday' },
+  { label: 'Current Week', key: 'week' }, { label: 'Previous Week', key: 'prev_week' },
+  { label: 'Current Month', key: 'month' }, { label: 'Previous Month', key: 'prev_month' },
+  { label: 'Current Year', key: 'year' }, { label: 'Previous Year', key: 'prev_year' },
+];
 
 const AdminRevenue = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('today');
+  const [activeDatePreset, setActiveDatePreset] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => { loadRevenue(); }, []);
 
@@ -15,103 +24,126 @@ const AdminRevenue = () => {
     finally { setLoading(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[50vh]">
-        <div className="w-10 h-10 border-2 border-[#FF4500]/30 border-t-[#FF4500] rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="p-6"><div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" /></div></div>
+  );
 
-  const periods = {
-    today: { label: "Aujourd'hui", d: data?.today },
-    week: { label: 'Cette semaine', d: data?.week },
-    month: { label: 'Ce mois', d: data?.month },
-    all_time: { label: 'Total', d: data?.all_time },
-  };
-  const current = periods[tab]?.d || { total: 0, commission: 0, rides: 0 };
+  const transactions = data?.recent_transactions || [];
 
   return (
-    <div className="p-5 lg:p-6 space-y-5" data-testid="admin-revenue-page">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Revenus & Commissions</h1>
-        <p className="text-gray-500 text-sm">Suivi financier de la plateforme</p>
+    <div className="p-6" data-testid="admin-revenue-page">
+      <h1 className="text-3xl font-light text-gray-800 mb-1" style={{ fontFamily: 'Georgia, Times, serif' }}>Service Provider Payment Report (Trips/Jobs)</h1>
+      <hr className="border-gray-200 mb-4" />
+
+      {/* Top link */}
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-gray-600 text-sm font-medium">Search by Date...</p>
+        <button className="bg-[#17a2b8] text-white text-sm px-4 py-2 rounded font-bold hover:bg-[#138496] transition-colors" data-testid="cancelled-report-btn">
+          View Cancelled Trips/Jobs Payment Report
+        </button>
       </div>
 
-      {/* Total Card */}
-      <div className="bg-gradient-to-br from-[#FF4500] to-[#FF6B35] rounded-2xl p-6">
-        <p className="text-white/80 text-sm font-medium">Revenus totaux (toutes periodes)</p>
-        <p className="text-4xl font-bold text-white mt-2" data-testid="total-revenue">
-          {(data?.all_time?.total || 0).toFixed(2)} &euro;
-        </p>
-        <div className="flex items-center gap-6 mt-3">
-          <div>
-            <p className="text-white/60 text-xs">Commissions</p>
-            <p className="text-white font-bold">{(data?.all_time?.commission || 0).toFixed(2)} &euro;</p>
-          </div>
-          <div>
-            <p className="text-white/60 text-xs">Courses completees</p>
-            <p className="text-white font-bold">{data?.all_time?.rides || 0}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Period Tabs */}
-      <div className="flex gap-2">
-        {Object.entries(periods).map(([key, val]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
-              tab === key ? 'bg-[#FF4500] text-white' : 'bg-[#161923] text-gray-400 border border-gray-800'}`}
-            data-testid={`tab-${key}`}>
-            {val.label}
-          </button>
+      {/* Date Presets */}
+      <div className="flex flex-wrap items-center gap-1 mb-4">
+        {datePresets.map((p, i) => (
+          <React.Fragment key={p.key}>
+            <button onClick={() => setActiveDatePreset(p.key)}
+              className={`text-sm transition-colors ${activeDatePreset === p.key ? 'text-blue-700 font-bold' : 'text-[#17a2b8] hover:text-blue-700'}`}>
+              {p.label}
+            </button>
+            {i < datePresets.length - 1 && <span className="text-gray-300 mx-1">|</span>}
+          </React.Fragment>
         ))}
       </div>
 
-      {/* Period Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#161923] border border-gray-800 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-white">{current.total.toFixed(2)} &euro;</p>
-          <p className="text-gray-500 text-xs mt-1">Revenus</p>
-        </div>
-        <div className="bg-[#161923] border border-gray-800 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-400">{current.commission.toFixed(2)} &euro;</p>
-          <p className="text-gray-500 text-xs mt-1">Commissions</p>
-        </div>
-        <div className="bg-[#161923] border border-gray-800 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-white">{current.rides}</p>
-          <p className="text-gray-500 text-xs mt-1">Courses</p>
-        </div>
+      {/* Filter Row */}
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-600 outline-none w-40" data-testid="from-date" />
+        <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-600 outline-none w-40" data-testid="to-date" />
+        <select className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none">
+          <option>Select Company</option>
+        </select>
+        <select className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none">
+          <option>Select Service Provider</option>
+        </select>
       </div>
 
-      {/* Recent Transactions */}
-      <div>
-        <h3 className="text-white font-semibold text-sm mb-3">Transactions recentes</h3>
-        <div className="space-y-2">
-          {(!data?.recent_transactions || data.recent_transactions.length === 0) ? (
-            <div className="bg-[#161923] border border-gray-800 rounded-xl p-8 text-center">
-              <CurrencyEur size={36} className="text-gray-700 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm">Aucune transaction</p>
-            </div>
-          ) : data.recent_transactions.map((t, i) => (
-            <div key={i} className="bg-[#161923] border border-gray-800 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                <Car size={16} className="text-emerald-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-xs font-medium truncate">{t.pickup_address || 'Course'} &rarr; {t.dropoff_address || ''}</p>
-                <p className="text-gray-600 text-[10px]">{t.created_at ? new Date(t.created_at).toLocaleString('fr-FR') : ''}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-white font-bold text-xs">{(t.final_fare || t.estimated_fare || 0).toFixed(2)} &euro;</p>
-                <p className="text-emerald-400 text-[10px]">+{((t.final_fare || t.estimated_fare || 0) * (t.commission_percent || 10) / 100).toFixed(2)} &euro;</p>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <select className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none">
+          <option>Payment Status - Unsettled</option>
+          <option>Payment Status - Settled</option>
+        </select>
       </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center gap-3 mb-5">
+        <button className="border border-gray-300 rounded px-5 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
+        <button className="border border-gray-300 rounded px-5 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
+        <button className="ml-auto border border-gray-300 rounded px-5 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="export-btn">EXPORT</button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <SummaryCard label="Today" total={data?.today?.total || 0} commission={data?.today?.commission || 0} rides={data?.today?.rides || 0} />
+        <SummaryCard label="This Week" total={data?.week?.total || 0} commission={data?.week?.commission || 0} rides={data?.week?.rides || 0} />
+        <SummaryCard label="This Month" total={data?.month?.total || 0} commission={data?.month?.commission || 0} rides={data?.month?.rides || 0} />
+        <SummaryCard label="All Time" total={data?.all_time?.total || 0} commission={data?.all_time?.commission || 0} rides={data?.all_time?.rides || 0} active />
+      </div>
+
+      {/* Transactions Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse" data-testid="revenue-table">
+          <thead>
+            <tr className="border-t border-b border-gray-200 bg-white">
+              <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Service Provider Name</th>
+              <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Total Fare</th>
+              <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Total Cash Received</th>
+              <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Commission Take From SP</th>
+              <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Amount Pay to SP</th>
+              <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Total Tax</th>
+              <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Final Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.length === 0 ? (
+              <tr><td colSpan={7} className="text-center py-12 text-gray-400">No transactions found</td></tr>
+            ) : transactions.map((t, i) => {
+              const fare = t.final_fare || t.estimated_fare || 0;
+              const commission = fare * ((t.commission_percent || 10) / 100);
+              const payout = fare - commission;
+              return (
+                <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <td className="py-3 px-3">
+                    <span className="text-sm text-blue-600 hover:underline cursor-pointer">{t.driver_name || 'Driver'}</span>
+                  </td>
+                  <td className="py-3 px-3 text-sm text-gray-700">${fare.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-sm text-gray-700">${fare.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-sm text-gray-700">${commission.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-sm text-gray-700">${payout.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-sm text-gray-700">$0.00</td>
+                  <td className="py-3 px-3 text-sm text-gray-800 font-semibold">${payout.toFixed(2)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-sm text-gray-500 mt-4">Showing 1 to {transactions.length} of {transactions.length} entries</p>
     </div>
   );
 };
+
+const SummaryCard = ({ label, total, commission, rides, active }) => (
+  <div className={`rounded-lg border p-4 ${active ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+    <p className="text-xl font-bold text-gray-800">${total.toFixed(2)}</p>
+    <div className="flex justify-between mt-2 text-xs text-gray-500">
+      <span>Commission: ${commission.toFixed(2)}</span>
+      <span>{rides} rides</span>
+    </div>
+  </div>
+);
 
 export default AdminRevenue;

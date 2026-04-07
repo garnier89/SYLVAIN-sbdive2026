@@ -147,6 +147,8 @@ export const adminAPI = {
   suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),
   unsuspendUser: (id) => api.post(`/admin/users/${id}/unsuspend`),
   revenue: () => api.get('/admin/revenue'),
+  getSettings: () => api.get('/admin/settings'),
+  updateSettings: (settings) => api.put('/admin/settings', { settings }),
   listTickets: () => api.get('/support/tickets'),
   replyTicket: (id, message) => api.post(`/support/tickets/${id}/reply`, { message }),
 };

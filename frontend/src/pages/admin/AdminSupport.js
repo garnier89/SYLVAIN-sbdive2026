@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
-import { Headset, Clock, CheckCircle, ChatCircle, PaperPlane } from '@phosphor-icons/react';
+import { CaretUp, CaretDown, PencilSimple } from '@phosphor-icons/react';
 
 const AdminSupport = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('providers');
+  const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
@@ -22,96 +24,124 @@ const AdminSupport = () => {
     setSending(true);
     try {
       await adminAPI.replyTicket(selected.id, reply.trim());
-      setReply('');
-      loadTickets();
+      setReply(''); setSelected(null); loadTickets();
     } catch (e) { console.error(e); }
     finally { setSending(false); }
   };
 
+  const handleReset = () => { setSearch(''); };
+
+  let filtered = tickets;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(t => (t.subject || '').toLowerCase().includes(q) || (t.message || '').toLowerCase().includes(q));
+  }
+
   return (
-    <div className="p-5 lg:p-6 space-y-5" data-testid="admin-support-page">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Support</h1>
-        <p className="text-gray-500 text-sm">{tickets.length} ticket(s)</p>
+    <div className="p-6" data-testid="admin-support-page">
+      <h1 className="text-3xl font-light text-gray-800 mb-1" style={{ fontFamily: 'Georgia, Times, serif' }}>Trips / Jobs Reviews</h1>
+      <hr className="border-gray-200 mb-5" />
+
+      {/* Search */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <span className="font-bold text-gray-700 text-sm">Search:</span>
+        <select className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none">
+          <option>All</option>
+        </select>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder=""
+          className="border border-gray-300 rounded px-3 py-1.5 text-sm w-48 outline-none focus:border-blue-400" data-testid="search-input" />
+        <button className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
+        <button onClick={handleReset} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
+        <button className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="export-btn">EXPORT</button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ minHeight: '60vh' }}>
-        {/* Ticket List */}
-        <div className="lg:col-span-1 space-y-2 overflow-y-auto max-h-[70vh]">
-          {loading ? (
-            <div className="text-center py-12"><div className="w-8 h-8 border-2 border-[#FF4500]/30 border-t-[#FF4500] rounded-full animate-spin mx-auto" /></div>
-          ) : tickets.length === 0 ? (
-            <div className="bg-[#161923] border border-gray-800 rounded-xl p-8 text-center">
-              <Headset size={36} className="text-gray-700 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm">Aucun ticket</p>
-            </div>
-          ) : tickets.map((t, i) => (
-            <button key={t.id} onClick={() => setSelected(t)}
-              className={`w-full text-left bg-[#161923] border rounded-xl p-4 transition-all ${
-                selected?.id === t.id ? 'border-[#FF4500]' : 'border-gray-800 hover:border-gray-700'}`}
-              data-testid={`ticket-${i}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  t.status === 'open' ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                  {t.status === 'open' ? 'Ouvert' : 'Ferme'}
-                </span>
-                <span className="text-gray-600 text-[10px]">{t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR') : ''}</span>
-              </div>
-              <p className="text-white text-sm font-medium truncate">{t.subject}</p>
-              <p className="text-gray-500 text-xs truncate mt-0.5">{t.message}</p>
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-5">
+        <button onClick={() => setTab('providers')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'providers' ? 'border-gray-800 text-gray-800' : 'border-transparent text-[#17a2b8] hover:text-gray-800'}`}
+          data-testid="tab-providers">
+          Service Providers
+        </button>
+        <button onClick={() => setTab('users')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'users' ? 'border-gray-800 text-gray-800' : 'border-transparent text-[#17a2b8] hover:text-gray-800'}`}
+          data-testid="tab-users">
+          Users
+        </button>
+      </div>
 
-        {/* Ticket Detail */}
-        <div className="lg:col-span-2 bg-[#161923] border border-gray-800 rounded-xl flex flex-col overflow-hidden">
-          {!selected ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <ChatCircle size={48} className="text-gray-700 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">Selectionnez un ticket</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Header */}
-              <div className="p-4 border-b border-gray-800">
-                <h3 className="text-white font-semibold">{selected.subject}</h3>
-                <p className="text-gray-500 text-xs mt-1">ID: {selected.id} &bull; Utilisateur: {selected.user_id?.slice(0, 12)}</p>
-              </div>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[50vh]">
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-                  <p className="text-blue-400 text-xs font-medium mb-1">Client</p>
-                  <p className="text-white text-sm">{selected.message}</p>
-                </div>
-                {(selected.replies || []).map((r, i) => (
-                  <div key={i} className={`rounded-xl p-3 ${
-                    r.user_id?.includes('admin') ? 'bg-[#FF4500]/10 border border-[#FF4500]/20 ml-8' : 'bg-blue-500/10 border border-blue-500/20'}`}>
-                    <p className={`text-xs font-medium mb-1 ${r.user_id?.includes('admin') ? 'text-[#FF4500]' : 'text-blue-400'}`}>
-                      {r.user_id?.includes('admin') ? 'Admin' : 'Client'}
-                    </p>
-                    <p className="text-white text-sm">{r.message}</p>
-                  </div>
+      {/* Table */}
+      {loading ? (
+        <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" /></div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse" data-testid="reviews-table">
+              <thead>
+                <tr className="border-t border-b border-gray-200 bg-white">
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Ride/Job Number</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Service Provider Name</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Rating By (User Name)</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Rating</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Date</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Comment</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-12 text-gray-400">No reviews found</td></tr>
+                ) : filtered.map((t, i) => (
+                  <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" data-testid={`review-row-${i}`}>
+                    <td className="py-3 px-3">
+                      <span className="text-sm text-blue-600 hover:underline cursor-pointer">{t.related_id || t.id?.slice(0, 10)}</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="text-sm text-blue-600 hover:underline cursor-pointer">{t.subject || 'Service Provider'}</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="text-sm text-blue-600 hover:underline cursor-pointer">{t.user_id?.slice(0, 12) || 'User'}</span>
+                    </td>
+                    <td className="py-3 px-3 text-sm text-gray-700 font-medium">5.0</td>
+                    <td className="py-3 px-3 text-sm text-gray-600">
+                      {t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                    </td>
+                    <td className="py-3 px-3 text-sm text-gray-600 max-w-[200px] truncate">{t.message || '-'}</td>
+                    <td className="py-3 px-3">
+                      <button onClick={() => setSelected(t)}
+                        className="w-8 h-8 rounded-full bg-[#5bc0de] hover:bg-[#46b8da] flex items-center justify-center text-white transition-colors" data-testid={`edit-review-${i}`}>
+                        <PencilSimple size={14} />
+                      </button>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-              {/* Reply */}
-              <div className="p-3 border-t border-gray-800 flex items-center gap-2">
-                <input value={reply} onChange={(e) => setReply(e.target.value)}
-                  placeholder="Votre reponse..."
-                  className="flex-1 bg-[#0f1117] border border-gray-800 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-[#FF4500] placeholder:text-gray-600"
-                  onKeyDown={(e) => e.key === 'Enter' && sendReply()}
-                  data-testid="reply-input" />
-                <button onClick={sendReply} disabled={sending || !reply.trim()}
-                  className="w-10 h-10 rounded-lg bg-[#FF4500] flex items-center justify-center disabled:opacity-40 transition-colors hover:bg-[#FF6B35]"
-                  data-testid="send-reply-btn">
-                  <PaperPlane size={16} className="text-white" />
-                </button>
-              </div>
-            </>
-          )}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">Showing 1 to {filtered.length} of {filtered.length} entries</p>
+        </>
+      )}
+
+      {/* Reply Modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setSelected(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()} data-testid="reply-modal">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Reply to: {selected.subject}</h3>
+            <p className="text-sm text-gray-500 mb-3">{selected.message}</p>
+            {(selected.replies || []).map((r, i) => (
+              <div key={i} className="bg-gray-50 rounded p-2 mb-2 text-sm text-gray-700">{r.message}</div>
+            ))}
+            <textarea value={reply} onChange={e => setReply(e.target.value)} rows={3} placeholder="Your reply..."
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400 mb-3" data-testid="reply-input" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setSelected(null)} className="px-4 py-2 border border-gray-300 rounded text-sm">Cancel</button>
+              <button onClick={sendReply} disabled={sending || !reply.trim()}
+                className="px-4 py-2 bg-[#3b82f6] text-white rounded text-sm font-bold disabled:opacity-50" data-testid="send-reply-btn">
+                {sending ? 'Sending...' : 'Send Reply'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
