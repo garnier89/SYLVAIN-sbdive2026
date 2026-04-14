@@ -62,8 +62,8 @@ const UserHome = () => {
     { id: 'taxi-pooling', name: 'VTC\nPooling', icon: UsersThree, bg: 'bg-teal-50', iconColor: 'text-teal-500', path: '/ride?type=pool' },
     { id: 'taxi-rental', name: 'VTC\nLocation', icon: Taxi, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/ride?type=rental' },
     { id: 'personal-driver', name: 'Chauffeur\nPrivé', icon: User, bg: 'bg-orange-50', iconColor: 'text-orange-700', path: '/ride?type=private' },
-    { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/ride?type=bid' },
-    { id: 'taxi-intercity', name: 'VTC\nIntercity', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/ride?type=intercity' },
+    { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/bidding' },
+    { id: 'taxi-intercity', name: 'VTC\nIntercity', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/intercity' },
     { id: 'schedule-ride', name: 'Programmer\nCourse', icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/ride?type=schedule' },
     { id: 'more-taxi', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/more-taxi' },
   ];
@@ -289,7 +289,7 @@ const UserHome = () => {
             {videoCategories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => navigate('/services')}
+                onClick={() => navigate('/video-consult')}
                 className="flex-shrink-0 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3 flex items-center gap-2"
                 data-testid={`video-${cat.id}-btn`}
               >
@@ -298,7 +298,7 @@ const UserHome = () => {
               </button>
             ))}
             <button
-              onClick={() => navigate('/services')}
+              onClick={() => navigate('/video-consult')}
               className="flex-shrink-0 bg-white/10 rounded-xl px-4 py-3 flex items-center gap-2"
               data-testid="video-more-btn"
             >
@@ -331,7 +331,7 @@ const UserHome = () => {
         <div className="grid grid-cols-2 gap-3" data-testid="medical-services-section">
           {/* Book Appointment - Large Card */}
           <button
-            onClick={() => navigate('/services')}
+            onClick={() => navigate('/video-consult')}
             className="row-span-2 rounded-2xl bg-orange-50 border border-orange-100 p-4 flex flex-col text-left group"
             data-testid="medical-appointment-btn"
           >
@@ -345,7 +345,7 @@ const UserHome = () => {
           </button>
           {/* Video Consult */}
           <button
-            onClick={() => navigate('/services')}
+            onClick={() => navigate('/video-consult')}
             className="rounded-2xl bg-yellow-50 border border-yellow-100 p-3 flex flex-col text-left group"
             data-testid="medical-video-btn"
           >
@@ -397,7 +397,7 @@ const UserHome = () => {
               {bidServices.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => navigate('/services')}
+                  onClick={() => navigate('/bidding')}
                   className="bg-white rounded-xl p-2.5 flex items-center gap-2 hover:shadow-sm transition-shadow border border-gray-100"
                   data-testid={`bid-${s.id}-btn`}
                 >
@@ -488,6 +488,44 @@ const UserHome = () => {
         </div>
       </div>
 
+      {/* ===== PARKING SERVICE ===== */}
+      <div className="px-4 mt-5">
+        <button
+          onClick={() => navigate('/parking')}
+          className="w-full rounded-2xl bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200 p-5 flex items-center gap-4 text-left"
+          data-testid="parking-section-btn"
+        >
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-900">Parking</h3>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Trouvez et réservez une place de parking à proximité. Paiement en ligne, accès facile.
+            </p>
+          </div>
+          <div className="w-16 h-16 flex-shrink-0 rounded-full bg-blue-100 flex items-center justify-center">
+            <MapPin size={32} weight="duotone" className="text-blue-600" />
+          </div>
+        </button>
+      </div>
+
+      {/* ===== GIFT CARDS ===== */}
+      <div className="px-4 mt-5">
+        <button
+          onClick={() => navigate('/giftcards')}
+          className="w-full rounded-2xl bg-gradient-to-r from-[#FF4500]/10 to-orange-50 border border-orange-200 p-5 flex items-center gap-4 text-left"
+          data-testid="giftcards-section-btn"
+        >
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-900">Cartes Cadeaux</h3>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Offrez du crédit SB Drive VTC à vos proches. Disponible de 10€ à 200€.
+            </p>
+          </div>
+          <div className="w-16 h-16 flex-shrink-0 rounded-full bg-orange-100 flex items-center justify-center">
+            <Star size={32} weight="duotone" className="text-[#FF4500]" />
+          </div>
+        </button>
+      </div>
+
       {/* ===== CAR POOL ===== */}
       <div className="px-4 mt-5">
         <button
@@ -511,14 +549,14 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Suivi Famille & Employés</h3>
         <div className="grid grid-cols-2 gap-3" data-testid="tracking-section">
-          <button className="rounded-2xl bg-yellow-50 border border-yellow-100 p-4 text-left" data-testid="track-family-btn">
+          <button className="rounded-2xl bg-yellow-50 border border-yellow-100 p-4 text-left" data-testid="track-family-btn" onClick={() => navigate('/tracking')}>
             <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center mb-2">
               <UsersFour size={28} weight="duotone" className="text-yellow-700" />
             </div>
             <h4 className="text-sm font-bold text-gray-900">Famille</h4>
             <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">Voyez où se trouvent vos proches en temps réel pour leur sécurité.</p>
           </button>
-          <button className="rounded-2xl bg-green-50 border border-green-100 p-4 text-left" data-testid="track-employees-btn">
+          <button className="rounded-2xl bg-green-50 border border-green-100 p-4 text-left" data-testid="track-employees-btn" onClick={() => navigate('/tracking')}>
             <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-2">
               <Briefcase size={28} weight="duotone" className="text-green-700" />
             </div>

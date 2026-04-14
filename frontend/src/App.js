@@ -37,6 +37,12 @@ import PetServicesPage from './pages/user/PetServicesPage';
 import CarCarePage from './pages/user/CarCarePage';
 import TowingServicesPage from './pages/user/TowingServicesPage';
 import MoreTaxiServicesPage from './pages/user/MoreTaxiServicesPage';
+import VideoConsultPage from './pages/user/VideoConsultPage';
+import BiddingPage from './pages/user/BiddingPage';
+import IntercityRidePage from './pages/user/IntercityRidePage';
+import ParkingPage from './pages/user/ParkingPage';
+import GiftCardsPage from './pages/user/GiftCardsPage';
+import TrackingServicePage from './pages/user/TrackingServicePage';
 
 // SB Drive Chauffeur Pages
 import ChauffeurWelcome from './pages/chauffeur/ChauffeurWelcome';
@@ -111,6 +117,12 @@ const AppRouter = () => {
       <Route path="/car-care" element={<ProtectedRoute allowedRoles={['user']}><CarCarePage /></ProtectedRoute>} />
       <Route path="/towing" element={<ProtectedRoute allowedRoles={['user']}><TowingServicesPage /></ProtectedRoute>} />
       <Route path="/more-taxi" element={<ProtectedRoute allowedRoles={['user']}><MoreTaxiServicesPage /></ProtectedRoute>} />
+      <Route path="/video-consult" element={<ProtectedRoute allowedRoles={['user']}><VideoConsultPage /></ProtectedRoute>} />
+      <Route path="/bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
+      <Route path="/intercity" element={<ProtectedRoute allowedRoles={['user']}><IntercityRidePage /></ProtectedRoute>} />
+      <Route path="/parking" element={<ProtectedRoute allowedRoles={['user']}><ParkingPage /></ProtectedRoute>} />
+      <Route path="/giftcards" element={<ProtectedRoute allowedRoles={['user']}><GiftCardsPage /></ProtectedRoute>} />
+      <Route path="/tracking" element={<ProtectedRoute allowedRoles={['user']}><TrackingServicePage /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><WalletPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
