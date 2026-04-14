@@ -8,7 +8,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from core.config import db, logger, client, FRONTEND_URL
+from core.config import db, logger, client, CORS_ORIGINS
 from core.deps import hash_password, verify_password, init_storage
 from core.websocket import manager
 
@@ -276,7 +276,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=[FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=CORS_ORIGINS.split(",") if CORS_ORIGINS != "*" else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
