@@ -113,8 +113,8 @@ const MerchantDashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, index) => (
-          <Card key={index} className="hover:shadow-md transition-shadow" data-testid={`stat-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}>
+        {statCards.map((stat) => (
+          <Card key={stat.label} className="hover:shadow-md transition-shadow" data-testid={`stat-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}>
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div className={`w-12 h-12 rounded-xl ${stat.color} flex items-center justify-center`}>

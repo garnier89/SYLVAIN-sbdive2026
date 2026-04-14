@@ -60,8 +60,8 @@ const AdminDashboard = () => {
             </div>
             {/* Driver Status Cards */}
             <div className="flex gap-3 mt-3 overflow-x-auto pb-1">
-              {driverStatuses.map((s, i) => (
-                <div key={i} className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-lg ${s.color} min-w-[80px]`}>
+              {driverStatuses.map((s) => (
+                <div key={s.label} className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-lg ${s.color} min-w-[80px]`}>
                   <span className="text-lg">{s.icon}</span>
                   <span className="text-[10px] text-gray-600 text-center leading-tight">{s.label}</span>
                   <span className="text-xs font-bold text-gray-800">({s.count})</span>

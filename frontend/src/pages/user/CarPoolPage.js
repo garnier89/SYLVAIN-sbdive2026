@@ -26,7 +26,7 @@ const CarPoolPage = () => {
     try {
       const res = await carpoolAPI.searchRides({});
       setRides(res.data || []);
-    } catch { /* empty */ }
+    } catch (err) { console.error('Failed to load rides:', err); }
   };
 
   const swapLocations = () => {
@@ -45,7 +45,7 @@ const CarPoolPage = () => {
       if (date) params.date = date;
       const res = await carpoolAPI.searchRides(params);
       setRides(res.data || []);
-    } catch { /* empty */ } finally {
+    } catch (err) { console.error('Search error:', err); } finally {
       setLoading(false);
     }
   };
@@ -57,7 +57,7 @@ const CarPoolPage = () => {
       setShowPublish(false);
       setPublishForm({ pickup_address: '', dropoff_address: '', departure_date: '', available_seats: 3, price_per_seat: 15 });
       loadRides();
-    } catch { /* empty */ } finally {
+    } catch (err) { console.error('Publish error:', err); } finally {
       setLoading(false);
     }
   };
@@ -66,7 +66,7 @@ const CarPoolPage = () => {
     try {
       await carpoolAPI.bookSeat(rideId);
       loadRides();
-    } catch { /* empty */ }
+    } catch (err) { console.error('Booking error:', err); }
   };
 
   return (

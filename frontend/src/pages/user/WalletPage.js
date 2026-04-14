@@ -25,19 +25,24 @@ const WalletPage = () => {
   const [showCoupons, setShowCoupons] = useState(false);
   const [paymentPolling, setPaymentPolling] = useState(false);
 
-  useEffect(() => { loadWallet(); loadCoupons(); }, []);
+  const loadWallet = useCallback(async () => {
+    try {
+      const res = await walletAPI.get();
+      setWallet(res.data);
+    } catch (err) { console.error('Failed to load wallet:', err); } finally { setLoading(false); }
+  }, []);
+
+  const loadCoupons = useCallback(async () => {
+    try {
+      const res = await couponAPI.list();
+      setCoupons(res.data);
+    } catch (err) { console.error('Failed to load coupons:', err); }
+  }, []);
+
+  useEffect(() => { loadWallet(); loadCoupons(); }, [loadWallet, loadCoupons]);
 
   // Poll Stripe payment status when returning from checkout
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const sessionId = searchParams.get('session_id');
-    if (sessionId) {
-      setPaymentPolling(true);
-      pollPaymentStatus(sessionId, 0);
-    }
-  }, [searchParams]);
-
-  const pollPaymentStatus = async (sessionId, attempts) => {
+  const pollPaymentStatus = useCallback(async (sessionId, attempts) => {
     if (attempts >= 8) {
       setPaymentPolling(false);
       setMessage('Vérification du paiement expirée. Vérifiez votre email.');
@@ -45,9 +50,7 @@ const WalletPage = () => {
       return;
     }
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/payments/status/${sessionId}`, {
-        headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
       const data = await res.json();
@@ -65,40 +68,30 @@ const WalletPage = () => {
         setSearchParams({});
         return;
       }
-      // Still pending, poll again
       setTimeout(() => pollPaymentStatus(sessionId, attempts + 1), 2000);
-    } catch {
+    } catch (err) {
+      console.error('Payment poll error:', err);
       setPaymentPolling(false);
       setMessage('Erreur lors de la vérification du paiement.');
       setSearchParams({});
     }
-  };
+  }, [setSearchParams, loadWallet]);
 
-  const loadWallet = async () => {
-    try {
-      const res = await walletAPI.get();
-      setWallet(res.data);
-    } catch { /* empty */ } finally { setLoading(false); }
-  };
-
-  const loadCoupons = async () => {
-    try {
-      const res = await couponAPI.list();
-      setCoupons(res.data);
-    } catch { /* empty */ }
-  };
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    if (sessionId) {
+      setPaymentPolling(true);
+      pollPaymentStatus(sessionId, 0);
+    }
+  }, [searchParams, pollPaymentStatus]);
 
   const handleStripeTopup = async (packageId) => {
     setTopupLoading(true);
     setMessage('');
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/payments/checkout`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           package_id: packageId,
@@ -111,7 +104,8 @@ const WalletPage = () => {
       } else {
         setMessage(data.detail || 'Erreur de paiement');
       }
-    } catch {
+    } catch (err) {
+      console.error('Stripe topup error:', err);
       setMessage('Erreur de connexion au service de paiement');
     } finally {
       setTopupLoading(false);
@@ -233,8 +227,8 @@ const WalletPage = () => {
               <p className="text-sm text-gray-400 text-center py-4">Aucun coupon disponible</p>
             ) : (
               <div className="space-y-2">
-                {coupons.map((c, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-100" data-testid={`coupon-${i}`}>
+                {coupons.map((c) => (
+                  <div key={c.code || c.id} className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-100" data-testid={`coupon-${c.code}`}>
                     <Tag size={20} className="text-[#FF4500]" />
                     <div className="flex-1">
                       <p className="font-bold text-blue-800">{c.code}</p>

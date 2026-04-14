@@ -5,11 +5,11 @@ import { MagnifyingGlass, Phone } from '@phosphor-icons/react';
 import 'leaflet/dist/leaflet.css';
 
 const statusCards = [
-  { label: 'Available', color: 'border-green-400', icon: '/api/files/placeholder', countKey: 'available' },
-  { label: 'Not Available', color: 'border-yellow-400', icon: '/api/files/placeholder', countKey: 'unavailable' },
-  { label: 'Way to Pickup', color: 'border-blue-400', icon: '/api/files/placeholder', countKey: 'to_pickup' },
-  { label: 'Arrived / Reached Pickup', color: 'border-red-400', icon: '/api/files/placeholder', countKey: 'arrived' },
-  { label: 'Way to Dropoff', color: 'border-purple-400', icon: '/api/files/placeholder', countKey: 'to_dropoff' },
+  { label: 'Available', color: 'border-green-400', countKey: 'available', emoji: 'A' },
+  { label: 'Not Available', color: 'border-yellow-400', countKey: 'unavailable', emoji: 'N' },
+  { label: 'Way to Pickup', color: 'border-blue-400', countKey: 'to_pickup', emoji: 'P' },
+  { label: 'Arrived / Reached Pickup', color: 'border-red-400', countKey: 'arrived', emoji: 'R' },
+  { label: 'Way to Dropoff', color: 'border-purple-400', countKey: 'to_dropoff', emoji: 'D' },
 ];
 
 const AdminGodsView = () => {
@@ -65,10 +65,10 @@ const AdminGodsView = () => {
         <div className="lg:col-span-1">
           {/* Status Cards */}
           <div className="flex flex-wrap gap-3 mb-4">
-            {statusCards.map((s, i) => (
-              <div key={i} className={`flex flex-col items-center px-3 py-2 bg-white border-2 ${s.color} rounded-lg min-w-[80px]`}>
+            {statusCards.map((s) => (
+              <div key={s.countKey} className={`flex flex-col items-center px-3 py-2 bg-white border-2 ${s.color} rounded-lg min-w-[80px]`}>
                 <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-1">
-                  <span className="text-xs">{['🚗', '🚫', '📍', '📌', '🏁'][i]}</span>
+                  <span className="text-xs font-bold">{s.emoji}</span>
                 </div>
                 <span className="text-[10px] text-gray-600 text-center leading-tight">{s.label}</span>
                 <span className="text-sm font-bold text-gray-800">({counts[s.countKey]})</span>
@@ -124,8 +124,8 @@ const AdminGodsView = () => {
           <div className="h-[600px] rounded-lg overflow-hidden border border-gray-200">
             <MapContainer center={[48.8566, 2.3522]} zoom={12} className="w-full h-full" zoomControl={true}>
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OSM' />
-              {drivers.filter(d => d.current_lat && d.current_lng).map((d, i) => (
-                <Marker key={i} position={[d.current_lat, d.current_lng]}>
+              {drivers.filter(d => d.current_lat && d.current_lng).map((d) => (
+                <Marker key={d.id || d.user_id} position={[d.current_lat, d.current_lng]}>
                   <Popup>
                     <div className="text-sm">
                       <p className="font-bold">Name: {d.user_name || 'Driver'}</p>

@@ -121,7 +121,8 @@ async def lifespan(app: FastAPI):
             await db.products.insert_one(product)
 
     # Seed test user
-    test_email, test_password = "test2@example.com", "TestPass123!"
+    test_email = os.environ.get("SEED_TEST_EMAIL", "test2@example.com")
+    test_password = os.environ.get("SEED_TEST_PASSWORD", "TestPass123!")
     if not await db.users.find_one({"email": test_email}):
         test_user_id = f"user_{uuid.uuid4().hex[:12]}"
         await db.users.insert_one({"id": test_user_id, "email": test_email, "password_hash": hash_password(test_password), "name": "Test User", "phone": "+33123456789", "role": "user", "is_verified": True, "avatar_url": None, "created_at": datetime.now(timezone.utc).isoformat()})
@@ -129,7 +130,8 @@ async def lifespan(app: FastAPI):
         logger.info(f"Test user created: {test_email}")
 
     # Seed merchant user
-    merchant_email, merchant_password = "merchant@example.com", "Merchant123!"
+    merchant_email = os.environ.get("SEED_MERCHANT_EMAIL", "merchant@example.com")
+    merchant_password = os.environ.get("SEED_MERCHANT_PASSWORD", "Merchant123!")
     if not await db.users.find_one({"email": merchant_email}):
         merchant_user_id = f"user_{uuid.uuid4().hex[:12]}"
         await db.users.insert_one({"id": merchant_user_id, "email": merchant_email, "password_hash": hash_password(merchant_password), "name": "Demo Merchant", "phone": "+33987654321", "role": "merchant", "is_verified": True, "avatar_url": None, "created_at": datetime.now(timezone.utc).isoformat()})

@@ -64,14 +64,14 @@ const ChauffeurLogin = () => {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.detail || 'Mot de passe incorrect'); return; }
-      if (data.access_token) localStorage.setItem('token', data.access_token);
+      if (data.access_token) localStorage.setItem('token', data.access_token); // kept for backward compat
       if (data.user.role !== 'driver') {
         setError("Ce compte n'est pas un compte chauffeur");
         return;
       }
       setUser(data.user);
       navigate('/chauffeur/home');
-    } catch { setError('Erreur de connexion'); }
+    } catch (err) { console.error('Login error:', err); setError('Erreur de connexion'); }
     finally { setLoading(false); }
   };
 
@@ -88,10 +88,10 @@ const ChauffeurLogin = () => {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.detail || "Erreur d'inscription"); return; }
-      if (data.access_token) localStorage.setItem('token', data.access_token);
+      if (data.access_token) localStorage.setItem('token', data.access_token); // kept for backward compat
       setUser(data.user);
       navigate('/chauffeur/home');
-    } catch { setError('Erreur de connexion'); }
+    } catch (err) { console.error('Register error:', err); setError('Erreur de connexion'); }
     finally { setLoading(false); }
   };
 

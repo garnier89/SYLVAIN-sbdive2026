@@ -15,13 +15,11 @@ const DonationPage = () => {
 
   const fetchDonations = async () => {
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/donations`, {
-        headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
       if (res.ok) setDonations(await res.json());
-    } catch (e) { /* empty */ }
+    } catch (err) { console.error('Failed to load donations:', err); }
     finally { setLoading(false); }
   };
 

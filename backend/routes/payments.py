@@ -164,8 +164,8 @@ async def get_payment_status(session_id: str, request: Request):
 
     # Still pending
     return {
-        "status": status.status,
-        "payment_status": status.payment_status,
+        "status": status.status if status else "unknown",
+        "payment_status": status.payment_status if status else "unknown",
         "amount": tx["amount"],
         "currency": tx["currency"],
     }

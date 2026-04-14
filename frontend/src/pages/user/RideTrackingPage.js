@@ -64,8 +64,8 @@ const RideTrackingPage = () => {
       if (res.data.status === 'completed' && !showRating) {
         setShowRating(true);
       }
-    } catch {
-      // ride not found
+    } catch (err) {
+      console.error('Failed to fetch ride:', err);
     } finally {
       setLoading(false);
     }
@@ -122,8 +122,8 @@ const RideTrackingPage = () => {
       await rideAPI.cancel(rideId, reason);
       setRide(prev => prev ? { ...prev, status: 'cancelled' } : prev);
       setShowCancel(false);
-    } catch {
-      // handle error
+    } catch (err) {
+      console.error('Cancel error:', err);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, PaperPlaneTilt, ChatCircleDots } from '@phosphor-icons/react';
@@ -38,16 +38,15 @@ const LiveChatPage = () => {
     if (!input.trim() || sending) return;
     setSending(true);
     try {
-      const token = localStorage.getItem('token');
       await fetch(`${API_URL}/api/livechat/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ message: input.trim() }),
       });
       setInput('');
       await loadMessages();
-    } catch (e) { /* empty */ }
+    } catch (err) { console.error('Failed to send message:', err); }
     finally { setSending(false); }
   };
 

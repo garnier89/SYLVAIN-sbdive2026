@@ -104,7 +104,8 @@ const LoginPage = () => {
       if (data.access_token) localStorage.setItem('token', data.access_token);
       setUser(data.user);
       navigate('/home');
-    } catch {
+    } catch (err) {
+      console.error('Phone login error:', err);
       setError('Erreur de connexion');
     } finally {
       setLoading(false);
@@ -141,7 +142,8 @@ const LoginPage = () => {
       if (data.access_token) localStorage.setItem('token', data.access_token);
       setUser(data.user);
       navigate('/home');
-    } catch {
+    } catch (err) {
+      console.error('Register error:', err);
       setError('Erreur de connexion');
     } finally {
       setLoading(false);

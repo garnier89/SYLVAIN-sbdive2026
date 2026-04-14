@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Response, HTTPException, Query
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from core.config import db, STRIPE_API_KEY, logger
@@ -183,7 +183,7 @@ async def admin_revenue(request: Request):
     await require_role(request, ["admin"])
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    week_start = (now - __import__('datetime').timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
 
     all_completed = await db.rides.find({"status": "completed"}, {"_id": 0, "estimated_fare": 1, "final_fare": 1, "created_at": 1, "commission_percent": 1}).to_list(5000)
