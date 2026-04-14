@@ -54,19 +54,70 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - General Settings avec onglets - persistant via API
 - Placeholder pages pour modules en developpement
 
-### 7. Backend APIs
+### 7. Services Gojek V3Cube (DONE - Apr 14, 2026)
+6 nouveaux services extraits du code source V3Cube et implementes:
+
+#### 7.1 Consultation Video (/video-consult)
+- 8 providers demo (medecins, avocats, tuteurs, astrologue, fitness)
+- Filtrage par categorie (doctor, lawyer, tutor, astrologer, fitness)
+- Reservation de consultation avec choix duree (15/30/45/60 min)
+- Calcul du prix automatique
+- API: GET /api/video-consult/providers, POST /api/video-consult/sessions
+
+#### 7.2 Encheres Services (/bidding)
+- 8 categories (electricien, plombier, menuisier, peintre, bricoleur, menage, demenagement, jardinage)
+- Creation de demandes avec budget et date
+- Systeme d'offres des prestataires
+- Acceptation d'offres
+- API: GET /api/bidding/categories, POST/GET /api/bidding/posts, POST offers, POST accept
+
+#### 7.3 VTC Intercity (/intercity)
+- 6 trajets populaires (Paris-Lyon, Paris-Marseille, etc.)
+- Recherche de villes
+- Reservation avec passagers et bagages
+- Calcul du prix par passager
+- API: GET /api/intercity/routes, POST /api/intercity/bookings
+
+#### 7.4 Parking (/parking)
+- 4 parkings demo a Paris avec photos
+- Details: prix/h, places dispo, equipements
+- Reservation avec plaque et duree
+- API: GET /api/parking/spots, POST /api/parking/reservations
+
+#### 7.5 Cartes Cadeaux (/giftcards)
+- 5 templates design (anniversaire, merci, fetes, etc.)
+- 8 montants (10-200 EUR)
+- Achat avec destinataire et message
+- Code unique SB-XXXXXXXX
+- Utilisation du code = credit portefeuille
+- API: GET /api/giftcards/templates, POST purchase, POST redeem, GET my-cards
+
+#### 7.6 Suivi Famille & Employes (/tracking)
+- Onglets Famille / Employes
+- Ajout de membres avec telephone et code d'appairage
+- Carte placeholder pour suivi temps reel
+- Suppression de membres
+- API: GET/POST/DELETE /api/tracking/members
+
+### 8. Backend APIs
 - Auth: /api/auth/login, /api/auth/register, /api/auth/me
 - Rides: /api/rides/request, /api/rides/history
 - Admin: /api/admin/dashboard, /api/admin/users, /api/admin/drivers, /api/admin/rides, /api/admin/revenue
 - Admin Settings: GET/PUT /api/admin/settings (persistant MongoDB)
 - Dispatcher: /api/dispatcher/live, /api/dispatcher/assign-ride
 - Simulation: /api/simulation/start, /api/simulation/stop
+- Video Consult: /api/video-consult/providers, /api/video-consult/sessions
+- Bidding: /api/bidding/categories, /api/bidding/posts, /api/bidding/posts/{id}/offers
+- Intercity: /api/intercity/routes, /api/intercity/bookings
+- Parking: /api/parking/spots, /api/parking/reservations
+- Gift Cards: /api/giftcards/templates, /api/giftcards/purchase, /api/giftcards/redeem
+- Tracking: /api/tracking/members
 
 ## Tests
-- Iteration 25: 100% pass (17 backend + 20 frontend)
+- Iteration 25: 100% pass (17 backend + 20 frontend) - Admin UI
+- Iteration 26: 100% pass (28 backend + 7 frontend) - 6 Gojek Services
 
 ## Backlog (P1)
-- Ajouter services Gojek manquants sur Home
 - Persistance panier/commandes entre sessions
 
 ## Backlog (P2)
