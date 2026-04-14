@@ -1,49 +1,50 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X } from '@phosphor-icons/react';
+import { ArrowLeft, AirplaneTilt, PawPrint, Users, BatteryCharging, Motorcycle, Moped, Taxi, Handshake, Buildings, Wheelchair } from '@phosphor-icons/react';
 
 const moreTaxiServices = [
-  { id: 'airport', name: 'Aéroport', bg: 'bg-blue-50', emoji: '✈️' },
-  { id: 'pets', name: 'Animaux', bg: 'bg-pink-50', emoji: '🐾' },
-  { id: 'book-other', name: 'Réserver\npour Autre', bg: 'bg-amber-50', emoji: '🎒' },
-  { id: 'electric', name: 'Électrique', bg: 'bg-green-50', emoji: '🔋' },
-  { id: 'moto-booking', name: 'Moto\nRéservation', bg: 'bg-orange-50', emoji: '🏍' },
-  { id: 'moto-rental', name: 'Location\nMoto', bg: 'bg-yellow-50', emoji: '🛵' },
-  { id: 'tuktuk', name: 'Tuktuk', bg: 'bg-teal-50', emoji: '🛺' },
-  { id: 'assist', name: 'Assistance', bg: 'bg-sky-50', emoji: '🤝' },
-  { id: 'corporate', name: 'Courses\nCorporate', bg: 'bg-stone-50', emoji: '💼' },
-  { id: 'access', name: 'Accessibilité', bg: 'bg-cyan-50', emoji: '♿' },
+  { id: 'airport', name: 'Aeroport', icon: AirplaneTilt, bg: 'bg-blue-50', iconColor: 'text-blue-500', type: 'airport' },
+  { id: 'pets', name: 'Animaux', icon: PawPrint, bg: 'bg-pink-50', iconColor: 'text-pink-500', type: 'pets' },
+  { id: 'book-other', name: 'Reserver\npour Autre', icon: Users, bg: 'bg-amber-50', iconColor: 'text-amber-600', type: 'other' },
+  { id: 'electric', name: 'Electrique', icon: BatteryCharging, bg: 'bg-green-50', iconColor: 'text-green-600', type: 'electric' },
+  { id: 'moto-booking', name: 'Moto\nReservation', icon: Motorcycle, bg: 'bg-orange-50', iconColor: 'text-orange-500', type: 'moto' },
+  { id: 'moto-rental', name: 'Location\nMoto', icon: Moped, bg: 'bg-yellow-50', iconColor: 'text-yellow-600', type: 'moto-rental' },
+  { id: 'tuktuk', name: 'Tuktuk', icon: Taxi, bg: 'bg-teal-50', iconColor: 'text-teal-500', type: 'tuktuk' },
+  { id: 'assist', name: 'Assistance', icon: Handshake, bg: 'bg-sky-50', iconColor: 'text-sky-500', type: 'assist' },
+  { id: 'corporate', name: 'Courses\nCorporate', icon: Buildings, bg: 'bg-stone-50', iconColor: 'text-stone-600', type: 'corporate' },
+  { id: 'access', name: 'Accessibilite', icon: Wheelchair, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', type: 'accessible' },
 ];
 
 const MoreTaxiServicesPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="mobile-container min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-[#FF4500] px-4 py-3 flex items-center justify-between">
-        <h1 className="text-white font-bold text-lg italic">Plus de Services</h1>
-        <button onClick={() => navigate(-1)} data-testid="moretaxi-close-btn">
-          <X size={24} className="text-white" />
+    <div className="mobile-container min-h-screen bg-white" data-testid="moretaxi-page">
+      <div className="bg-[#FF4500] px-4 py-3 flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="text-white" data-testid="moretaxi-back-btn">
+          <ArrowLeft size={22} />
         </button>
+        <h1 className="text-white font-bold text-lg">Plus de Services VTC</h1>
       </div>
 
-      {/* Grid */}
       <div className="p-5">
         <div className="grid grid-cols-3 gap-5">
-          {moreTaxiServices.map((service) => (
-            <button
-              key={service.id}
-              onClick={() => navigate('/ride')}
-              className="flex flex-col items-center gap-2 group"
-              data-testid={`moretaxi-${service.id}`}
-            >
-              <div className={`w-[80px] h-[80px] rounded-2xl ${service.bg} flex items-center justify-center group-hover:scale-105 transition-transform border border-gray-100`}>
-                <span className="text-3xl">{service.emoji}</span>
-              </div>
-              <span className="text-xs font-semibold text-gray-700 text-center leading-tight whitespace-pre-line">{service.name}</span>
-            </button>
-          ))}
+          {moreTaxiServices.map((service) => {
+            const Icon = service.icon;
+            return (
+              <button
+                key={service.id}
+                onClick={() => navigate(`/ride?type=${service.type}`)}
+                className="flex flex-col items-center gap-2 group"
+                data-testid={`moretaxi-${service.id}`}
+              >
+                <div className={`w-[80px] h-[80px] rounded-2xl ${service.bg} flex items-center justify-center group-hover:scale-105 transition-transform border border-gray-100`}>
+                  <Icon size={32} weight="duotone" className={service.iconColor} />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 text-center leading-tight whitespace-pre-line">{service.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
