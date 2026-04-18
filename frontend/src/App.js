@@ -97,10 +97,17 @@ import AdminTemplates from './pages/admin/AdminTemplates';
 import AdminNewsletter from './pages/admin/AdminNewsletter';
 import AdminMonitoring from './pages/admin/AdminMonitoring';
 import AdminManageAdmins from './pages/admin/AdminManageAdmins';
-import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests } from './pages/admin/AdminCrudPages';
+import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests,
+  AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancelReasons,
+  AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
+  AdminWithdrawRequests, AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications
+} from './pages/admin/AdminCrudPages';
 import AdminServiceConfig from './pages/admin/AdminServiceConfig';
 import AdminRewards from './pages/admin/AdminRewards';
 import AdminPriorityDrivers from './pages/admin/AdminPriorityDrivers';
+import AdminTopDriversSettings from './pages/admin/AdminTopDriversSettings';
+import AdminDbBackup from './pages/admin/AdminDbBackup';
+import TopDriversPage from './pages/TopDriversPage';
 import AdminDocuments from './pages/admin/AdminDocuments';
 import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminWalletRequests from './pages/admin/AdminWalletRequests';
@@ -126,7 +133,7 @@ const AppRouter = () => {
 
       {/* ======= SB DRIVE CLIENT (App Passager) ======= */}
       <Route path="/" element={user && user.role === 'user' ? <Navigate to="/home" replace /> : !user ? <LandingPage /> : <Navigate to={user.role === 'driver' ? '/chauffeur/home' : user.role === 'merchant' ? '/merchant' : user.role === 'admin' ? '/admin' : '/home'} replace />} />
-      <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
+      <Route path="/top-chauffeurs" element={<TopDriversPage />} />      <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
       <Route path="/app" element={user ? <Navigate to="/home" replace /> : <ClientWelcome />} />
       <Route path="/login" element={user ? <Navigate to="/home" replace /> : <LoginPage />} />
       <Route path="/admin-login" element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <AdminLoginPage />} />
@@ -243,6 +250,27 @@ const AppRouter = () => {
         <Route path="rewards" element={<AdminRewards />} />
         <Route path="rewards-reports" element={<AdminRewards />} />
         <Route path="priority-drivers" element={<AdminPriorityDrivers />} />
+        <Route path="top-drivers" element={<AdminTopDriversSettings />} />
+        {/* NEW DASHBOARD MISSING PAGES */}
+        <Route path="vehicle-makes" element={<AdminVehicleMakes />} />
+        <Route path="vehicle-models" element={<AdminVehicleModels />} />
+        <Route path="master-services" element={<AdminMasterServices />} />
+        <Route path="cancel-reasons" element={<AdminCancelReasons />} />
+        <Route path="email-templates" element={<AdminEmailTemplates />} />
+        <Route path="sms-templates" element={<AdminSmsTemplates />} />
+        <Route path="sos-requests" element={<AdminSosRequests />} />
+        <Route path="contact-requests" element={<AdminContactRequests />} />
+        <Route path="withdraw-requests" element={<AdminWithdrawRequests />} />
+        <Route path="order-help-requests" element={<AdminOrderHelpRequests />} />
+        <Route path="trip-help-requests" element={<AdminTripHelpRequests />} />
+        <Route path="push-notifications" element={<AdminPushNotifications />} />
+        {/* Settings & Utilities extras */}
+        <Route path="payment-options" element={<AdminServiceConfig serviceKey="payment-options" />} />
+        <Route path="currency" element={<AdminServiceConfig serviceKey="currency" />} />
+        <Route path="language" element={<AdminServiceConfig serviceKey="language" />} />
+        <Route path="seo" element={<AdminServiceConfig serviceKey="seo" />} />
+        <Route path="maps-api" element={<AdminServiceConfig serviceKey="maps-api" />} />
+        <Route path="db-backup" element={<AdminDbBackup />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />

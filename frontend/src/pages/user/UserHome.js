@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
 import LocaleSelector from '../../components/LocaleSelector';
+import TopDriversWidget from '../../components/TopDriversWidget';
 import { simulationAPI } from '../../services/api';
 import {
   Car, Motorcycle, Package, ForkKnife,
@@ -250,6 +251,9 @@ const UserHome = () => {
           </div>
         </div>
       </div>
+
+      {/* ===== TOP CHAUFFEURS WIDGET ===== */}
+      <TopDriversWidget />
 
       {/* ===== TAXI SERVICES ===== */}
       <div className="px-4 mt-5">

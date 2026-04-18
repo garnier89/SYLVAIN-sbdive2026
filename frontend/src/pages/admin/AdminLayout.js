@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power,
-  Bed, CircleWavyCheck, Binoculars, Trophy, Wallet, HandCoins, Shield
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield
 } from '@phosphor-icons/react';
 
 const sidebarConfig = [
@@ -124,6 +124,7 @@ const sidebarConfig = [
     items: [
       { icon: Trophy, label: 'Reward Program', path: '/admin/rewards' },
       { icon: Trophy, label: 'Chauffeurs Prioritaires', path: '/admin/priority-drivers' },
+      { icon: Trophy, label: 'Top Chauffeurs (Public)', path: '/admin/top-drivers' },
     ]
   },
   {
@@ -172,6 +173,34 @@ const sidebarConfig = [
       { icon: EnvelopeOpen, label: 'Email Templates', path: '/admin/email-templates' },
       { icon: ChatCircleText, label: 'SMS Templates', path: '/admin/sms-templates' },
       { icon: XCircle, label: 'Cancel Reason', path: '/admin/cancel-reasons' },
+    ]
+  },
+  {
+    title: 'SUPPORT',
+    items: [
+      { icon: EnvelopeSimple, label: 'Contact Us Requests', path: '/admin/contact-requests' },
+      { icon: Warning, label: 'SOS Requests', path: '/admin/sos-requests' },
+      { icon: FileText, label: 'Order Help Requests', path: '/admin/order-help-requests' },
+      { icon: HandCoins, label: 'Payment Requests', path: '/admin/wallet-requests' },
+      { icon: HandCoins, label: 'Withdraw Requests', path: '/admin/withdraw-requests' },
+      { icon: FileText, label: 'Trip Help Requests', path: '/admin/trip-help-requests' },
+    ]
+  },
+  {
+    title: 'SETTINGS & UTILITIES',
+    items: [
+      { icon: Gear, label: 'General', path: '/admin/settings' },
+      { icon: HandCoins, label: 'Payment Options', path: '/admin/payment-options' },
+      { icon: Wrench, label: 'Master Services', path: '/admin/master-services' },
+      { icon: SealCheck, label: 'Currency', path: '/admin/currency' },
+      { icon: Translate, label: 'Language', path: '/admin/language' },
+      { icon: MagnifyingGlass, label: 'SEO Settings', path: '/admin/seo' },
+      { icon: MapPin, label: 'Maps/Geo API Settings', path: '/admin/maps-api' },
+      { icon: EnvelopeOpen, label: 'Send Push-Notification', path: '/admin/push-notifications' },
+      { icon: FileText, label: 'Documents', path: '/admin/documents' },
+      { icon: Car, label: 'Vehicle Make', path: '/admin/vehicle-makes' },
+      { icon: Car, label: 'Vehicle Model', path: '/admin/vehicle-models' },
+      { icon: FileText, label: 'DB Backup', path: '/admin/db-backup' },
     ]
   },
   {

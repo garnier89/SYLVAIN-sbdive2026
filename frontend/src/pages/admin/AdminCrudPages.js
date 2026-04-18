@@ -2,7 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Plus, Trash, PencilSimple, MagnifyingGlass, Buildings, Car, Bed, Briefcase, UsersThree } from '@phosphor-icons/react';
+import {
+  Plus, Trash, PencilSimple, MagnifyingGlass, Buildings, Car, Bed, Briefcase, UsersThree,
+  Wrench, Warning, HandCoins, EnvelopeSimple, ChatCircleText, XCircle,
+  Bell, FileText
+} from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -75,6 +79,132 @@ const collectionConfigs = {
     defaults: [
       { id: 'r1', name: 'Mohamed K.', type: 'Inscription chauffeur', date: '2026-04-17', status: 'pending' },
     ],
+  },
+  vehicle_makes: { title: 'Vehicle Make', icon: Car, collection: 'vehicle_makes',
+    fields: [
+      { key: 'name', label: 'Marque', type: 'text' },
+      { key: 'country', label: 'Pays', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [
+      { id: 'vm1', name: 'Peugeot', country: 'France', status: 'active' },
+      { id: 'vm2', name: 'Mercedes-Benz', country: 'Allemagne', status: 'active' },
+      { id: 'vm3', name: 'Tesla', country: 'USA', status: 'active' },
+      { id: 'vm4', name: 'Renault', country: 'France', status: 'active' },
+    ],
+  },
+  vehicle_models: { title: 'Vehicle Model', icon: Car, collection: 'vehicle_models',
+    fields: [
+      { key: 'name', label: 'Modele', type: 'text' },
+      { key: 'make', label: 'Marque', type: 'text' },
+      { key: 'year', label: 'Annee', type: 'number' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [
+      { id: 'vmd1', name: '508', make: 'Peugeot', year: 2024, status: 'active' },
+      { id: 'vmd2', name: 'Classe E', make: 'Mercedes-Benz', year: 2024, status: 'active' },
+    ],
+  },
+  master_services: { title: 'Master Services', icon: Wrench, collection: 'master_services',
+    fields: [
+      { key: 'name', label: 'Nom du service', type: 'text' },
+      { key: 'slug', label: 'Slug', type: 'text' },
+      { key: 'commission', label: 'Commission %', type: 'number' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [
+      { id: 'ms1', name: 'Taxi Transport', slug: 'taxi', commission: 15, status: 'active' },
+      { id: 'ms2', name: 'Livraison Colis', slug: 'parcel', commission: 12, status: 'active' },
+      { id: 'ms3', name: 'Delivery Marchand', slug: 'store-delivery', commission: 20, status: 'active' },
+    ],
+  },
+  cancel_reasons: { title: 'Cancel Reasons', icon: XCircle, collection: 'cancel_reasons',
+    fields: [
+      { key: 'name', label: 'Raison', type: 'text' },
+      { key: 'scope', label: 'Pour', type: 'text' },
+      { key: 'order', label: 'Ordre', type: 'number' },
+    ],
+    defaults: [
+      { id: 'cr1', name: 'Chauffeur en retard', scope: 'user', order: 1 },
+      { id: 'cr2', name: 'J\'ai change d\'avis', scope: 'user', order: 2 },
+      { id: 'cr3', name: 'Adresse introuvable', scope: 'driver', order: 1 },
+    ],
+  },
+  email_templates: { title: 'Email Templates', icon: EnvelopeSimple, collection: 'email_templates',
+    fields: [
+      { key: 'name', label: 'Nom', type: 'text' },
+      { key: 'subject', label: 'Objet', type: 'text' },
+      { key: 'trigger', label: 'Trigger', type: 'text' },
+    ],
+    defaults: [
+      { id: 'et1', name: 'Bienvenue', subject: 'Bienvenue chez SB Drive VTC', trigger: 'user_register' },
+      { id: 'et2', name: 'Course terminee', subject: 'Votre course est terminee', trigger: 'ride_completed' },
+    ],
+  },
+  sms_templates: { title: 'SMS Templates', icon: ChatCircleText, collection: 'sms_templates',
+    fields: [
+      { key: 'name', label: 'Nom', type: 'text' },
+      { key: 'body', label: 'Message', type: 'text' },
+      { key: 'trigger', label: 'Trigger', type: 'text' },
+    ],
+    defaults: [
+      { id: 'sm1', name: 'Code OTP', body: 'Votre code SB Drive: {code}', trigger: 'otp' },
+      { id: 'sm2', name: 'Chauffeur arrive', body: 'Votre chauffeur est arrive !', trigger: 'driver_arrived' },
+    ],
+  },
+  sos_requests: { title: 'SOS Requests', icon: Warning, collection: 'sos_requests',
+    fields: [
+      { key: 'name', label: 'Utilisateur', type: 'text' },
+      { key: 'phone', label: 'Telephone', type: 'text' },
+      { key: 'reason', label: 'Raison', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  contact_requests: { title: 'Contact Us Requests', icon: EnvelopeSimple, collection: 'contact_requests',
+    fields: [
+      { key: 'name', label: 'Nom', type: 'text' },
+      { key: 'email', label: 'Email', type: 'text' },
+      { key: 'subject', label: 'Sujet', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  withdraw_requests: { title: 'Withdraw Requests', icon: HandCoins, collection: 'withdraw_requests',
+    fields: [
+      { key: 'name', label: 'Chauffeur', type: 'text' },
+      { key: 'amount', label: 'Montant (EUR)', type: 'number' },
+      { key: 'iban', label: 'IBAN', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  order_help_requests: { title: 'Order Help Requests', icon: FileText, collection: 'order_help_requests',
+    fields: [
+      { key: 'name', label: 'Client', type: 'text' },
+      { key: 'order_id', label: 'Commande ID', type: 'text' },
+      { key: 'issue', label: 'Probleme', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  trip_help_requests: { title: 'Trip Help Requests', icon: FileText, collection: 'trip_help_requests',
+    fields: [
+      { key: 'name', label: 'Client', type: 'text' },
+      { key: 'ride_id', label: 'Course ID', type: 'text' },
+      { key: 'issue', label: 'Probleme', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  push_notifications: { title: 'Send Push-Notification', icon: Bell, collection: 'push_notifications',
+    fields: [
+      { key: 'name', label: 'Titre', type: 'text' },
+      { key: 'body', label: 'Message', type: 'text' },
+      { key: 'target', label: 'Cible (all/users/drivers)', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
   },
 };
 
@@ -227,4 +357,16 @@ export const AdminCompany = () => <AdminCrudPage pageKey="company" />;
 export const AdminHotels = () => <AdminCrudPage pageKey="hotels" />;
 export const AdminOrganization = () => <AdminCrudPage pageKey="organization" />;
 export const AdminRequests = () => <AdminCrudPage pageKey="requests" />;
+export const AdminVehicleMakes = () => <AdminCrudPage pageKey="vehicle_makes" />;
+export const AdminVehicleModels = () => <AdminCrudPage pageKey="vehicle_models" />;
+export const AdminMasterServices = () => <AdminCrudPage pageKey="master_services" />;
+export const AdminCancelReasons = () => <AdminCrudPage pageKey="cancel_reasons" />;
+export const AdminEmailTemplates = () => <AdminCrudPage pageKey="email_templates" />;
+export const AdminSmsTemplates = () => <AdminCrudPage pageKey="sms_templates" />;
+export const AdminSosRequests = () => <AdminCrudPage pageKey="sos_requests" />;
+export const AdminContactRequests = () => <AdminCrudPage pageKey="contact_requests" />;
+export const AdminWithdrawRequests = () => <AdminCrudPage pageKey="withdraw_requests" />;
+export const AdminOrderHelpRequests = () => <AdminCrudPage pageKey="order_help_requests" />;
+export const AdminTripHelpRequests = () => <AdminCrudPage pageKey="trip_help_requests" />;
+export const AdminPushNotifications = () => <AdminCrudPage pageKey="push_notifications" />;
 export default AdminCrudPage;

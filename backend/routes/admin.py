@@ -224,28 +224,36 @@ async def save_service_config(service_key: str, request: Request):
 
 # ===== CRUD ITEMS (groups, vehicles, company, etc.) =====
 
+ALLOWED_CRUD = [
+    "groups", "vehicles", "companies", "hotels", "organizations", "pending_requests",
+    "vehicle_makes", "vehicle_models", "cancel_reasons", "email_templates", "sms_templates",
+    "master_services", "sos_requests", "contact_requests", "withdraw_requests",
+    "order_help_requests", "trip_help_requests", "push_notifications",
+]
+
+
+def _crud_col(collection: str):
+    if collection not in ALLOWED_CRUD:
+        raise HTTPException(status_code=400, detail="Invalid collection")
+    return db[f"admin_{collection}"]
+
+
 @router.get("/crud/{collection}")
 async def list_crud_items(collection: str, request: Request):
     await require_role(request, ["admin"])
-    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
-    col_name = f"admin_{collection}" if collection in allowed else None
-    if not col_name:
-        raise HTTPException(status_code=400, detail="Invalid collection")
-    items = await db[col_name].find({}, {"_id": 0}).to_list(100)
+    col = _crud_col(collection)
+    items = await col.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
     return items
 
 
 @router.post("/crud/{collection}")
 async def create_crud_item(collection: str, request: Request):
     await require_role(request, ["admin"])
-    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
-    col_name = f"admin_{collection}" if collection in allowed else None
-    if not col_name:
-        raise HTTPException(status_code=400, detail="Invalid collection")
+    col = _crud_col(collection)
     body = await request.json()
     body["id"] = f"{collection[:3]}_{uuid.uuid4().hex[:8]}"
     body["created_at"] = datetime.now(timezone.utc).isoformat()
-    await db[col_name].insert_one(body)
+    await col.insert_one(body)
     body.pop("_id", None)
     return body
 
@@ -253,14 +261,11 @@ async def create_crud_item(collection: str, request: Request):
 @router.put("/crud/{collection}/{item_id}")
 async def update_crud_item(collection: str, item_id: str, request: Request):
     await require_role(request, ["admin"])
-    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
-    col_name = f"admin_{collection}" if collection in allowed else None
-    if not col_name:
-        raise HTTPException(status_code=400, detail="Invalid collection")
+    col = _crud_col(collection)
     body = await request.json()
     body.pop("id", None)
     body.pop("_id", None)
-    result = await db[col_name].update_one({"id": item_id}, {"$set": body})
+    result = await col.update_one({"id": item_id}, {"$set": body})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"message": "Updated"}
@@ -269,11 +274,8 @@ async def update_crud_item(collection: str, item_id: str, request: Request):
 @router.delete("/crud/{collection}/{item_id}")
 async def delete_crud_item(collection: str, item_id: str, request: Request):
     await require_role(request, ["admin"])
-    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
-    col_name = f"admin_{collection}" if collection in allowed else None
-    if not col_name:
-        raise HTTPException(status_code=400, detail="Invalid collection")
-    result = await db[col_name].delete_one({"id": item_id})
+    col = _crud_col(collection)
+    result = await col.delete_one({"id": item_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"message": "Deleted"}
@@ -385,4 +387,51 @@ async def remove_priority_driver(driver_id: str, request: Request):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Driver not found")
     return {"driver_id": driver_id, "manual_priority": False}
+
+
+
+# ===== TOP CHAUFFEURS (public ranking + admin manual select) =====
+
+@router.get("/top-drivers-config")
+async def get_top_drivers_config(request: Request):
+    await require_role(request, ["admin"])
+    doc = await db.service_configs.find_one({"service_key": "top_drivers"}, {"_id": 0})
+    if not doc:
+        return {"settings": {"mode": "composite", "max_shown": 10, "manual_driver_ids": []}}
+    return doc
+
+
+@router.put("/top-drivers-config")
+async def save_top_drivers_config(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    settings = {
+        "mode": body.get("mode", "composite"),  # composite | points | manual
+        "max_shown": int(body.get("max_shown", 10)),
+        "manual_driver_ids": body.get("manual_driver_ids", []),
+    }
+    await db.service_configs.update_one(
+        {"service_key": "top_drivers"},
+        {"$set": {"service_key": "top_drivers", "settings": settings,
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"message": "Top drivers config saved", "settings": settings}
+
+
+# ===== DB BACKUP (simple collection dump list) =====
+
+@router.get("/db-backup")
+async def db_backup_status(request: Request):
+    await require_role(request, ["admin"])
+    names = await db.list_collection_names()
+    stats = []
+    for n in names:
+        try:
+            count = await db[n].count_documents({})
+            stats.append({"collection": n, "count": count})
+        except Exception:
+            pass
+    stats.sort(key=lambda x: -x["count"])
+    return {"collections": stats, "total": len(stats), "checked_at": datetime.now(timezone.utc).isoformat()}
 

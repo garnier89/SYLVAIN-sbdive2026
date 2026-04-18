@@ -297,3 +297,51 @@ async def refuse_ride(ride_id: str, request: Request):
         "points": new_points,
         "points_lost": loss,
     }
+
+
+
+# ===== TOP CHAUFFEURS PUBLIC RANKING =====
+
+@router.get("/top")
+async def get_top_drivers():
+    """Public endpoint: returns top drivers based on composite score (points, trips, rating) or admin manual list."""
+    cfg_doc = await db.service_configs.find_one({"service_key": "top_drivers"}, {"_id": 0}) or {}
+    settings = cfg_doc.get("settings", {})
+    mode = settings.get("mode", "composite")
+    max_shown = int(settings.get("max_shown", 10))
+    manual_ids = settings.get("manual_driver_ids", [])
+
+    # Pull approved drivers
+    drivers = await db.drivers.find({"status": "approved"}, {"_id": 0}).to_list(500)
+
+    # Enrich with user name
+    enriched = []
+    for d in drivers:
+        u = await db.users.find_one({"id": d["user_id"]}, {"_id": 0, "name": 1, "avatar_url": 1}) or {}
+        pts = d.get("points", 0)
+        trips = d.get("total_trips", 0)
+        rating = d.get("rating", 5.0)
+        # composite score: 40% points (0-100), 40% trips capped at 500, 20% rating (0-5)
+        composite = round(pts * 0.4 + min(trips, 500) / 5.0 * 0.4 + rating / 5.0 * 100 * 0.2, 1)
+        enriched.append({
+            "driver_id": d["id"],
+            "name": u.get("name", "Chauffeur"),
+            "avatar_url": u.get("avatar_url"),
+            "vehicle_type": d.get("vehicle_type"),
+            "vehicle_model": d.get("vehicle_model"),
+            "points": pts,
+            "total_trips": trips,
+            "rating": round(rating, 1),
+            "composite_score": composite,
+            "manual_priority": d.get("manual_priority", False),
+        })
+
+    if mode == "manual" and manual_ids:
+        ranked = [e for e in enriched if e["driver_id"] in manual_ids]
+        ranked.sort(key=lambda x: manual_ids.index(x["driver_id"]))
+    elif mode == "points":
+        ranked = sorted(enriched, key=lambda x: -x["points"])
+    else:  # composite
+        ranked = sorted(enriched, key=lambda x: -x["composite_score"])
+
+    return {"mode": mode, "drivers": ranked[:max_shown]}
