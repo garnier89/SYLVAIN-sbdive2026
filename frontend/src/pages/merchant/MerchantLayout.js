@@ -26,6 +26,7 @@ const MerchantLayout = () => {
     { icon: Tag, label: 'Promotions', path: '/merchant/promotions' },
     { icon: ChartLine, label: 'Analytics', path: '/merchant/analytics' },
     { icon: Gear, label: 'Settings', path: '/merchant/settings' },
+    { icon: Clock, label: 'Chat Support', path: '/merchant/chat' },
   ];
 
   const isActive = (path) => {

@@ -97,10 +97,10 @@ const DriverProfilePage = () => {
 
         <h3 className="text-gray-400 text-xs uppercase tracking-wide font-bold mb-2 mt-5 px-1">Actions</h3>
 
-        <MenuButton icon={Wallet} label="Mon portefeuille" onClick={() => navigate('/wallet')} />
+        <MenuButton icon={Wallet} label="Mon portefeuille" onClick={() => navigate('/chauffeur/wallet')} />
         <MenuButton icon={FileText} label="Mes documents"
           badge={driver?.documents?.length ? `${driver.documents.length} fichier(s)` : null}
-          onClick={() => navigate('/driver/register')} />
+          onClick={() => navigate('/chauffeur/documents')} />
         <MenuButton icon={ShieldCheck} label="Aide & Support" onClick={() => navigate('/support')} />
         <MenuButton icon={ChatCircleDots} label="Parler en direct" onClick={() => navigate('/chauffeur/livechat')} highlight />
         <MenuButton icon={Gear} label="Param&egrave;tres" onClick={() => {}} />

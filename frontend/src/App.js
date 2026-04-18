@@ -57,12 +57,19 @@ import DriverRegisterPage from './pages/driver/DriverRegisterPage';
 import DriverEarningsPage from './pages/driver/DriverEarningsPage';
 import DriverHistoryPage from './pages/driver/DriverHistoryPage';
 import DriverProfilePage from './pages/driver/DriverProfilePage';
+import DriverWalletPage from './pages/driver/DriverWalletPage';
+import DriverDocumentsPage from './pages/driver/DriverDocumentsPage';
+import DriverNotificationsPage from './pages/driver/DriverNotificationsPage';
 
 // Merchant Pages
 import MerchantLayout from './pages/merchant/MerchantLayout';
 import MerchantDashboard from './pages/merchant/MerchantDashboard';
 import MerchantProducts from './pages/merchant/MerchantProducts';
 import MerchantOrders from './pages/merchant/MerchantOrders';
+import MerchantPromotions from './pages/merchant/MerchantPromotions';
+import MerchantAnalytics from './pages/merchant/MerchantAnalytics';
+import MerchantSettings from './pages/merchant/MerchantSettings';
+import MerchantChat from './pages/merchant/MerchantChat';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -84,6 +91,11 @@ import AdminStores from './pages/admin/AdminStores';
 import AdminManualBooking from './pages/admin/AdminManualBooking';
 import AdminBanners from './pages/admin/AdminBanners';
 import AdminPayout from './pages/admin/AdminPayout';
+import AdminGeoFence from './pages/admin/AdminGeoFence';
+import AdminGiftCards from './pages/admin/AdminGiftCards';
+import AdminReferralSettings from './pages/admin/AdminReferralSettings';
+import AdminTemplates from './pages/admin/AdminTemplates';
+import AdminNewsletter from './pages/admin/AdminNewsletter';
 
 // Dispatcher Pages
 import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
@@ -153,6 +165,9 @@ const AppRouter = () => {
       <Route path="/chauffeur/earnings" element={<ProtectedRoute allowedRoles={['driver']}><DriverEarningsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/history" element={<ProtectedRoute allowedRoles={['driver']}><DriverHistoryPage /></ProtectedRoute>} />
       <Route path="/chauffeur/profile" element={<ProtectedRoute allowedRoles={['driver']}><DriverProfilePage /></ProtectedRoute>} />
+      <Route path="/chauffeur/wallet" element={<ProtectedRoute allowedRoles={['driver']}><DriverWalletPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/documents" element={<ProtectedRoute allowedRoles={['driver']}><DriverDocumentsPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/notifications" element={<ProtectedRoute allowedRoles={['driver']}><DriverNotificationsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/livechat" element={<ProtectedRoute allowedRoles={['driver']}><LiveChatPage /></ProtectedRoute>} />
       <Route path="/driver/register" element={<ProtectedRoute allowedRoles={['user', 'driver']}><DriverRegisterPage /></ProtectedRoute>} />
 
@@ -161,9 +176,10 @@ const AppRouter = () => {
         <Route index element={<MerchantDashboard />} />
         <Route path="orders" element={<MerchantOrders />} />
         <Route path="products" element={<MerchantProducts />} />
-        <Route path="promotions" element={<MerchantDashboard />} />
-        <Route path="analytics" element={<MerchantDashboard />} />
-        <Route path="settings" element={<MerchantDashboard />} />
+        <Route path="promotions" element={<MerchantPromotions />} />
+        <Route path="analytics" element={<MerchantAnalytics />} />
+        <Route path="settings" element={<MerchantSettings />} />
+        <Route path="chat" element={<MerchantChat />} />
       </Route>
 
       {/* ======= ADMIN ======= */}
@@ -211,24 +227,24 @@ const AppRouter = () => {
         <Route path="later-bookings" element={<AdminManualBooking />} />
         <Route path="create-order" element={<AdminManualBooking />} />
         <Route path="payout" element={<AdminPayout />} />
-        <Route path="geo-fence" element={<AdminPlaceholder />} />
-        <Route path="restricted" element={<AdminPlaceholder />} />
+        <Route path="geo-fence" element={<AdminGeoFence />} />
+        <Route path="restricted" element={<AdminGeoFence />} />
         <Route path="location-fare" element={<AdminPlaceholder />} />
-        <Route path="airport" element={<AdminPlaceholder />} />
+        <Route path="airport" element={<AdminGeoFence />} />
         <Route path="country" element={<AdminPlaceholder />} />
         <Route path="state" element={<AdminPlaceholder />} />
-        <Route path="giftcards" element={<AdminPlaceholder />} />
-        <Route path="referral" element={<AdminPlaceholder />} />
+        <Route path="giftcards" element={<AdminGiftCards />} />
+        <Route path="referral" element={<AdminReferralSettings />} />
         <Route path="banners" element={<AdminBanners />} />
-        <Route path="news" element={<AdminPlaceholder />} />
+        <Route path="news" element={<AdminNewsletter />} />
         <Route path="stores" element={<AdminStores />} />
-        <Route path="newsletter" element={<AdminPlaceholder />} />
+        <Route path="newsletter" element={<AdminNewsletter />} />
         <Route path="pages" element={<AdminPlaceholder />} />
         <Route path="app-home" element={<AdminPlaceholder />} />
         <Route path="intro" element={<AdminPlaceholder />} />
         <Route path="labels" element={<AdminPlaceholder />} />
-        <Route path="email-templates" element={<AdminPlaceholder />} />
-        <Route path="sms-templates" element={<AdminPlaceholder />} />
+        <Route path="email-templates" element={<AdminTemplates />} />
+        <Route path="sms-templates" element={<AdminTemplates />} />
         <Route path="cancel-reasons" element={<AdminPlaceholder />} />
         <Route path="support" element={<AdminSupport />} />
       </Route>
