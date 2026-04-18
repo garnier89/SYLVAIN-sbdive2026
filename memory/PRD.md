@@ -51,6 +51,11 @@ Chauffeur virtuel via WebSocket
 - Iteration 26: 100% pass (35/35) - 6 Gojek Services
 - Iteration 27: 100% pass (23/23) - 22 Service pages
 - Iteration 28: 100% pass (23/23) - Locale + Taxi V3Cube
+- Iteration 29: 100% pass (38/38) - Post-fix validation (syntax error + DB optimizations)
+
+## Optimisations DB (Apr 18, 2026)
+- Rating: aggregation pipeline MongoDB ($match + $group) au lieu de .to_list(1000)
+- Ride history chauffeur: limite a 20 resultats au lieu de 100
 
 ## Backlog (P1)
 - Persistance panier/commandes entre sessions
