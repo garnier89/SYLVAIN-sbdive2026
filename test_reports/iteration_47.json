@@ -1,0 +1,29 @@
+{
+  "summary": "Iter47 frontend-only verification of the redesigned Ride Booking map+vehicle step (RideBookingPage.js step='map'). All 11 acceptance criteria from the review pass. Test was run as authenticated passenger (test_iter47@example.com / TestPass123!), route is /ride (NOT /ride/book which hits the RideTracking catchall). Captured live screenshot confirms the UI matches the supplied mockup.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/ride step=map", "issues": ["Destination address overlay is positioned at 50%/50% of a 55vh map container, which in some viewport sizes slightly overlaps the first vehicle row. Cosmetic only."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Prompt mentioned route '/ride/book' but the real route is '/ride' (App.js:145). '/ride/book' resolves to '/ride/:rideId' and shows 'Course introuvable'. If '/ride/book' is desired, add the alias route. Otherwise update the PRD to '/ride'."
+  ],
+  "critical_code_review_comments": [
+    "getEstimateForAddress and getEstimate still hardcode payment_method: 'card' when calling rideAPI.estimate (RideBookingPage.js lines 138, 160). Only confirmRide uses the dynamic paymentMethod. Fare estimate may differ by payment rail in some pricing models; consider passing paymentMethod through to the estimate call too.",
+    "Unselected vehicle rows always display their static min_fare; only the selected row gets the real computed estimated_fare. User cannot compare vehicle pricing per-trip. Consider fetching a per-vehicle estimate map or using a distance-based local calc for the non-selected rows.",
+    "The map destination label uses `pointer-events-none` but sits at absolute top-1/2 left-1/2 of the 55vh map wrapper; on small viewports it overlaps the top of the bottom sheet's first vehicle row (see screenshot). Consider offsetting to top-1/3 or reducing max-w.",
+    "Recent locations still use synthetic `48.88 + Math.random()*0.02` coords (line 123); harmless for UI but produces non-deterministic distances. Should be replaced once places metadata is stored."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% (11/11 acceptance checks pass)"},
+  "test_credentials": "Created at runtime: test_iter47@example.com / TestPass123! (role=user). Register endpoint rejects .local TLDs so example.com was used.",
+  "seed_data_creation": "1 passenger user created via POST /api/auth/register. No ride records created (stopped before confirmRide to avoid side effects).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Route for RideBookingPage is /ride (App.js:145). /ride/book hits RideTrackingPage with rideId='book' and renders 'Course introuvable'. Easiest way to reach step='map' deterministically: after login, visit /ride and click [data-testid^=recent-location-] (triggers handleDestinationFromRecent -> getEstimateForAddress -> setStep('map')). Vehicle type list loads from GET /api/config/vehicle-types (returns 10 slugs: sb, confort, luxe, moto, pool, suv, electric, van, accessible, airport). Verified testids: booking-bottom-sheet, vehicle-{slug}, payment-method-btn, request-now-btn, map-back-btn, ride-pickup-input, ride-dropoff-input.",
+  "rca of the issue": "N/A - feature verification, no issues found. Verified: (1) bottom sheet title literal matches mockup, (2) 10 vehicle rows render with car icon + bold name + 'Proposez votre prix, negociez avec les chauffeurs' subtitle + User icon + capacity + orange #FF4500 fare + Info icon, (3) selecting a vehicle applies bg-orange-50 (confirmed with class inspection and visual), (4) payment toggle cycles cash(green Money)->card(blue CreditCard)->wallet(purple CreditCard)->cash correctly, (5) CTA reads 'Demander maintenant' with bg-[#FF4500], (6) map-back-btn renders Phosphor ArrowLeft svg (path d=M228,128... is ArrowLeft shape, NOT X), (7) ETA badge shows '22 min(s)' slate-800 box + '@Pour {dropoff.address}' white box, (8) destination label box visible and centered-ish over map, (9) confirmRide uses paymentMethod state (line 177) not hardcoded 'card', (10) plan step still renders both GooglePlacesInput inputs, (11) no console errors other than benign WS + preload 401 on /login."
+}

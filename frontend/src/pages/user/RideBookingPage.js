@@ -8,7 +8,7 @@ import {
   NavigationArrow, MapTrifold, Clock, User,
   PencilSimple, Car, CreditCard, CaretRight, Motorcycle,
   Jeep, Lightning, Van, Wheelchair, AirplaneTilt,
-  Users, Percent, Calendar, Info
+  Users, Percent, Calendar, Info, Money, ArrowLeft
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { GoogleMap, useJsApiLoader, MarkerF, PolylineF } from '@react-google-maps/api';
@@ -54,7 +54,7 @@ const RideBookingPage = () => {
   const [dropoff, setDropoff] = useState({ lat: null, lng: null, address: '' });
   const [selectingLocation, setSelectingLocation] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState('sb');
-  const [paymentMethod] = useState('Visa •••• 1111');
+  const [paymentMethod, setPaymentMethod] = useState('cash'); // cash | card | wallet
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('08:00');
@@ -174,7 +174,7 @@ const RideBookingPage = () => {
       const response = await rideAPI.create({
         pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
         dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
-        vehicle_type: selectedVehicle, payment_method: 'card',
+        vehicle_type: selectedVehicle, payment_method: paymentMethod,
       });
       const createdRide = response.data;
       setRide(createdRide);
@@ -402,12 +402,33 @@ const RideBookingPage = () => {
 
           {/* Floating back button */}
           <button
-            className="absolute top-4 left-4 z-[1000] w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center"
+            className="absolute top-4 left-4 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center"
             onClick={() => setStep('plan')}
             data-testid="map-back-btn"
           >
-            <X size={20} className="text-gray-700" />
+            <ArrowLeft size={20} className="text-gray-700" weight="bold" />
           </button>
+
+          {/* Destination address label over the map */}
+          {dropoff.lat && dropoff.address && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[500] bg-white px-3 py-2 rounded-lg shadow-lg max-w-[60%] pointer-events-none">
+              <p className="text-xs font-medium text-gray-800 leading-tight">{dropoff.address}</p>
+            </div>
+          )}
+
+          {/* ETA bubble */}
+          {estimate?.duration_mins && (
+            <div className="absolute top-6 right-4 z-[500] flex items-stretch gap-0 rounded-lg shadow-lg overflow-hidden">
+              <div className="bg-slate-800 text-white px-3 py-2 flex flex-col items-center justify-center">
+                <span className="text-lg font-bold leading-none">{Math.round(estimate.duration_mins)}</span>
+                <span className="text-[9px] font-semibold">min(s)</span>
+              </div>
+              <div className="bg-white px-3 py-2 max-w-[180px]">
+                <p className="text-[11px] text-gray-500 leading-tight truncate">@Pour</p>
+                <p className="text-[11px] font-semibold text-[#FF4500] leading-tight truncate">{dropoff.address}</p>
+              </div>
+            </div>
+          )}
 
           {selectingLocation && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md">
@@ -419,115 +440,63 @@ const RideBookingPage = () => {
         </div>
 
         {/* Bottom Sheet */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl" style={{ maxHeight: '50vh', overflowY: 'auto' }}>
-          <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-2" />
+        <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl flex flex-col" style={{ maxHeight: '65vh' }} data-testid="booking-bottom-sheet">
+          <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-2.5 mb-1" />
 
           {!estimate && selectingLocation && (
             <div className="p-5 text-center">
-              <p className="text-sm text-gray-500">Sélectionnez un point sur la carte</p>
+              <p className="text-sm text-gray-500">Selectionnez un point sur la carte</p>
             </div>
           )}
 
           {estimate && (
-            <div className="p-4 space-y-3">
-              {/* Distance/Duration */}
-              <div className="text-center pb-2">
-                <p className="text-xs text-gray-500">
-                  {estimate.distance_km?.toFixed(1) || '5.2'} km &middot; {estimate.duration_mins || 18} min
-                  {estimate.fare_type && <span className="ml-2 text-[#FF4500]">({estimate.fare_type})</span>}
+            <>
+              {/* Title */}
+              <div className="px-5 pt-3 pb-3">
+                <p className="text-center text-base font-semibold text-slate-800">
+                  Choisir une gamme ou faites glisser vers le haut
                 </p>
-                {estimate.source === 'google_maps' && (
-                  <p className="text-[10px] text-green-600 mt-0.5 flex items-center justify-center gap-1">
-                    <NavigationArrow size={10} /> Itineraire reel Google Maps
-                  </p>
-                )}
               </div>
 
-              {/* Vehicle Selection - V3Cube Grid Style */}
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              {/* Vehicle list - V3Cube/Gojek style */}
+              <div className="flex-1 overflow-y-auto border-t border-gray-100">
                 {vehicleTypes.map((v) => {
                   const fare = selectedVehicle === v.slug && estimate
                     ? estimate.estimated_fare?.toFixed(2) || v.min_fare?.toFixed(2)
                     : v.min_fare?.toFixed(2) || '--';
+                  const isSelected = selectedVehicle === v.slug;
                   return (
                     <button
                       key={v.slug}
-                      onClick={() => { setSelectedVehicle(v.slug); }}
-                      className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                        selectedVehicle === v.slug
-                          ? 'border-[#FF4500] bg-[#FF4500]/5'
-                          : 'border-gray-100 hover:border-gray-200'
-                      }`}
+                      onClick={() => setSelectedVehicle(v.slug)}
+                      className={`w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 transition-colors ${isSelected ? 'bg-orange-50' : 'hover:bg-gray-50'}`}
                       data-testid={`vehicle-${v.slug}`}
                     >
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${selectedVehicle === v.slug ? 'bg-[#FF4500]/10' : 'bg-gray-100'}`}>
-                        <VehicleIcon iconType={v.icon_type} slug={v.slug} selected={selectedVehicle === v.slug} />
+                      <div className="w-16 h-14 flex items-center justify-center flex-shrink-0">
+                        <VehicleIcon iconType={v.icon_type} slug={v.slug} selected={isSelected} />
                       </div>
-                      <div className="flex-1 text-left">
-                        <p className={`font-semibold ${selectedVehicle === v.slug ? 'text-[#FF4500]' : 'text-gray-900'}`}>{v.name_fr}</p>
-                        <p className="text-xs text-gray-500">{v.person_capacity} places &middot; {v.fare_type === 'Fixed' ? 'Prix fixe' : `${v.price_per_km?.toFixed(2) || '1.00'}/km`}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold text-lg ${selectedVehicle === v.slug ? 'text-[#FF4500]' : 'text-gray-900'}`}>
-                          {fare} &euro;
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="font-bold text-slate-800 text-[15px]">{v.name_fr}</p>
+                        <p className="text-[11px] text-gray-500 leading-tight mt-0.5 line-clamp-2">
+                          Proposez votre prix, negociez avec les chauffeurs
                         </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <User size={12} className="text-gray-500" weight="fill" />
+                          <span className="text-xs text-gray-600">{v.person_capacity || 4}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className="font-bold text-lg text-[#FF4500]">{fare} &euro;</span>
+                        <Info size={14} className="text-[#FF4500]" />
                       </div>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Fare Breakdown */}
-              {selectedVehicle && estimate && (
-                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5" data-testid="fare-breakdown">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Info size={14} className="text-gray-400" />
-                    <span className="text-xs font-semibold text-gray-600">Detail du tarif</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Tarif de base</span>
-                    <span className="text-gray-700">{(vehicleTypes.find(v => v.slug === selectedVehicle)?.base_fare || 0).toFixed(2)} &euro;</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Distance ({estimate.distance_km?.toFixed(1)} km)</span>
-                    <span className="text-gray-700">{((vehicleTypes.find(v => v.slug === selectedVehicle)?.price_per_km || 0) * (estimate.distance_km || 0)).toFixed(2)} &euro;</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Temps ({estimate.duration_mins} min)</span>
-                    <span className="text-gray-700">{((vehicleTypes.find(v => v.slug === selectedVehicle)?.price_per_min || 0) * (estimate.duration_mins || 0)).toFixed(2)} &euro;</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Prise en charge</span>
-                    <span className="text-gray-700">{(vehicleTypes.find(v => v.slug === selectedVehicle)?.pickup_price || 0).toFixed(2)} &euro;</span>
-                  </div>
-                  <div className="h-px bg-gray-200 my-1" />
-                  <div className="flex justify-between text-sm font-bold">
-                    <span className="text-gray-800">Total estime</span>
-                    <span className="text-[#FF4500]">{estimate.estimated_fare?.toFixed(2) || '--'} &euro;</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Schedule Option */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setScheduleMode(false)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${!scheduleMode ? 'bg-[#303F9F] text-white border-[#303F9F]' : 'bg-white text-gray-600 border-gray-200'}`}
-                  data-testid="ride-now-btn"
-                >
-                  <Car size={16} /> Maintenant
-                </button>
-                <button
-                  onClick={() => setScheduleMode(true)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${scheduleMode ? 'bg-[#303F9F] text-white border-[#303F9F]' : 'bg-white text-gray-600 border-gray-200'}`}
-                  data-testid="schedule-btn"
-                >
-                  <Calendar size={16} /> Programmer
-                </button>
-              </div>
-
+              {/* Schedule option (hidden by default, collapsible) */}
               {scheduleMode && (
-                <div className="flex gap-2" data-testid="schedule-inputs">
+                <div className="flex gap-2 px-5 py-2 border-t border-gray-100" data-testid="schedule-inputs">
                   <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
                     className="flex-1 border border-gray-200 rounded-xl p-2.5 text-sm" data-testid="schedule-date" />
                   <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
@@ -535,23 +504,39 @@ const RideBookingPage = () => {
                 </div>
               )}
 
-              {/* Payment Method */}
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100" data-testid="payment-method-btn">
-                <CreditCard size={22} className="text-[#FF4500]" />
-                <span className="flex-1 text-sm font-medium text-gray-700 text-left">{paymentMethod}</span>
-                <CaretRight size={16} className="text-gray-400" />
-              </button>
+              {/* Payment + CTA */}
+              <div className="border-t border-gray-100 px-5 py-3">
+                <button
+                  className="w-full flex items-center gap-3 py-3 border-b border-gray-100"
+                  data-testid="payment-method-btn"
+                  onClick={() => {
+                    const next = paymentMethod === 'cash' ? 'card' : paymentMethod === 'card' ? 'wallet' : 'cash';
+                    setPaymentMethod(next);
+                  }}
+                >
+                  {paymentMethod === 'cash' ? (
+                    <Money size={32} className="text-green-500" weight="fill" />
+                  ) : paymentMethod === 'card' ? (
+                    <CreditCard size={32} className="text-blue-500" weight="fill" />
+                  ) : (
+                    <CreditCard size={32} className="text-purple-500" weight="fill" />
+                  )}
+                  <span className="flex-1 text-base font-medium text-slate-800 text-left">
+                    {paymentMethod === 'cash' ? 'Paiement en especes' : paymentMethod === 'card' ? 'Carte bancaire' : 'Portefeuille SB'}
+                  </span>
+                  <CaretRight size={18} className="text-gray-400" />
+                </button>
 
-              {/* Request Now */}
-              <Button
-                className="w-full h-14 rounded-2xl bg-[#303F9F] hover:bg-[#283593] text-white font-bold text-base"
-                onClick={confirmRide}
-                disabled={loading}
-                data-testid="request-now-btn"
-              >
-                {loading ? 'Reservation en cours...' : scheduleMode ? `Programmer la course` : 'Reserver Maintenant'}
-              </Button>
-            </div>
+                <button
+                  className="w-full mt-3 h-14 rounded-xl bg-[#FF4500] hover:bg-[#E53E00] text-white font-bold text-base disabled:opacity-60"
+                  onClick={confirmRide}
+                  disabled={loading}
+                  data-testid="request-now-btn"
+                >
+                  {loading ? 'Reservation en cours...' : scheduleMode ? 'Programmer la course' : 'Demander maintenant'}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
