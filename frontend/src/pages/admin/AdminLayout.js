@@ -34,6 +34,10 @@ const sidebarConfig = [
         { label: 'Service Requests', path: '/admin/requests' },
         { label: 'Document Verification', path: '/admin/documents' },
       ]},
+      { icon: Trophy, label: 'Manage Rewards', key: 'rewards', children: [
+        { label: 'Reports', path: '/admin/rewards-reports' },
+        { label: 'Settings', path: '/admin/rewards' },
+      ]},
       { icon: Buildings, label: 'Company / Fleet Owner', path: '/admin/company' },
       { icon: Storefront, label: 'Store', path: '/admin/stores' },
       { icon: Bed, label: 'Hotels', key: 'hotels', children: [

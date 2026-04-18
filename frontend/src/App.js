@@ -240,6 +240,7 @@ const AppRouter = () => {
         <Route path="disputes" element={<AdminDisputes />} />
         <Route path="wallet-requests" element={<AdminWalletRequests />} />
         <Route path="rewards" element={<AdminRewards />} />
+        <Route path="rewards-reports" element={<AdminRewards />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />

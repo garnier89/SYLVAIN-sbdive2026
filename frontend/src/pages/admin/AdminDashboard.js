@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [godsViewTab, setGodsViewTab] = useState('rides');
   const [earningsTab, setEarningsTab] = useState('today');
+  const [period, setPeriod] = useState('today');
   const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
 
   const load = useCallback(async () => {
@@ -70,6 +71,9 @@ const AdminDashboard = () => {
     { user: 'felicia angliviel', action: 'CARTE GRISE uploaded ...', time: '14 Hours ago' },
   ];
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => { const t = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(t); }, []);
+
   const contactRequests = [
     { user: 'denver sv', message: 'Je risque de porter plai...', time: '1 Day ago' },
     { user: 'denver sv', message: "L'application qui a un b...", time: '1 Day ago' },
@@ -86,6 +90,36 @@ const AdminDashboard = () => {
 
   return (
     <div className="p-5 space-y-5 bg-[#f8f9fb]" data-testid="admin-dashboard">
+      {/* Header with Time & Zone */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500">Vue d'ensemble de la plateforme SB Drive VTC</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right bg-white border border-gray-200 rounded-xl px-4 py-2" data-testid="live-clock-card">
+            <p className="text-lg font-bold text-gray-900 tabular-nums" data-testid="live-clock">
+              {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </p>
+            <p className="text-xs text-gray-500">
+              {currentTime.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+            <p className="text-[10px] text-blue-500 font-medium">
+              {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            </p>
+          </div>
+          <div className="flex gap-1 bg-white rounded-lg p-1 border border-gray-200">
+            {['today', 'week', 'month'].map(p => (
+              <button key={p} onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${period === p ? 'bg-[#3b82f6] text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                data-testid={`period-${p}`}>
+                {p === 'today' ? "Aujourd'hui" : p === 'week' ? 'Semaine' : 'Mois'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KPICard icon={Users} label="Utilisateurs" value={stats.users} color="#3B82F6" onClick={() => navigate('/admin/users')} />
