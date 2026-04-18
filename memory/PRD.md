@@ -79,7 +79,7 @@ Chauffeur virtuel via WebSocket
 - Integration Stripe complete
 
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
-- Landing page sbdrivevtc.com (hero, services, how-it-works, chauffeur, marchand, temoignages, CTA, footer)
+- Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
 - Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
 - Admin Orders/Parcels (/admin/parcels, /admin/store-delivery) avec filtre et detail
 - Admin Stores (/admin/stores) avec recherche et activation
