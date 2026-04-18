@@ -1,0 +1,148 @@
+import React, { useState } from 'react';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
+import {
+  MagicWand, Truck, Lightning, VideoCamera, Gavel, Storefront,
+  FirstAid, UsersThree, MapPin, Path, CurrencyEur, Airplane,
+  Globe, Flag, XCircle, FileText, House, Slideshow, Tag
+} from '@phosphor-icons/react';
+import { toast } from 'sonner';
+
+const serviceConfigs = {
+  genie: { title: 'Genie / Personal Assistant', icon: MagicWand, color: '#8B5CF6', desc: 'Service d\'assistant personnel a la demande', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'base_fee', label: 'Frais de base (EUR)', type: 'number', value: 5 },
+    { key: 'per_hour', label: 'Tarif horaire (EUR)', type: 'number', value: 15 },
+    { key: 'commission', label: 'Commission (%)', type: 'number', value: 20 },
+  ]},
+  runner: { title: 'Runner / Coursier', icon: Truck, color: '#F59E0B', desc: 'Service de coursier express pour livraisons rapides', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'base_fee', label: 'Frais de base (EUR)', type: 'number', value: 3 },
+    { key: 'per_km', label: 'Prix par km (EUR)', type: 'number', value: 1.2 },
+    { key: 'max_weight', label: 'Poids max (kg)', type: 'number', value: 25 },
+  ]},
+  ondemand: { title: 'On-Demand Services', icon: Lightning, color: '#EF4444', desc: 'Services a la demande (menage, reparation, etc.)', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'min_booking', label: 'Reservation minimum (EUR)', type: 'number', value: 20 },
+    { key: 'categories', label: 'Categories actives', type: 'text', value: 'Menage, Plomberie, Electricite, Jardinage' },
+  ]},
+  video: { title: 'Video Consultation', icon: VideoCamera, color: '#06B6D4', desc: 'Consultations video en direct avec des professionnels', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'per_min', label: 'Tarif par minute (EUR)', type: 'number', value: 2 },
+    { key: 'max_duration', label: 'Duree max (min)', type: 'number', value: 60 },
+  ]},
+  bids: { title: 'Bidding / Encheres', icon: Gavel, color: '#10B981', desc: 'Systeme d\'encheres pour services et courses', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'min_bid', label: 'Enchere minimum (EUR)', type: 'number', value: 5 },
+    { key: 'bid_duration', label: 'Duree enchere (min)', type: 'number', value: 5 },
+  ]},
+  marketplace: { title: 'Marketplace', icon: Storefront, color: '#EC4899', desc: 'Place de marche pour produits et services', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'commission', label: 'Commission (%)', type: 'number', value: 15 },
+    { key: 'min_price', label: 'Prix min produit (EUR)', type: 'number', value: 1 },
+  ]},
+  medical: { title: 'Medical / Sante', icon: FirstAid, color: '#EF4444', desc: 'Services de sante et consultations medicales', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: false },
+    { key: 'consultation_fee', label: 'Frais consultation (EUR)', type: 'number', value: 25 },
+  ]},
+  rideshare: { title: 'Rideshare / Covoiturage', icon: UsersThree, color: '#3B82F6', desc: 'Partage de trajets entre utilisateurs', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'max_passengers', label: 'Passagers max', type: 'number', value: 4 },
+    { key: 'discount', label: 'Reduction pool (%)', type: 'number', value: 30 },
+  ]},
+  nearby: { title: 'Nearby / A proximite', icon: MapPin, color: '#F59E0B', desc: 'Decouvrir commerces et services a proximite', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'radius', label: 'Rayon par defaut (km)', type: 'number', value: 5 },
+  ]},
+  tracking: { title: 'Live Tracking', icon: Path, color: '#10B981', desc: 'Suivi en temps reel des courses et livraisons', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'refresh_interval', label: 'Intervalle refresh (s)', type: 'number', value: 5 },
+  ]},
+  'location-fare': { title: 'Location Based Fare', icon: CurrencyEur, color: '#8B5CF6', desc: 'Tarification dynamique par zone geographique', settings: [
+    { key: 'enabled', label: 'Service actif', type: 'toggle', value: true },
+    { key: 'surge_max', label: 'Multiplicateur max', type: 'number', value: 3.0 },
+    { key: 'peak_hours', label: 'Heures de pointe', type: 'text', value: '07:00-09:00, 17:00-19:00' },
+  ]},
+  country: { title: 'Country Settings', icon: Globe, color: '#06B6D4', desc: 'Configuration par pays', settings: [
+    { key: 'default_country', label: 'Pays par defaut', type: 'text', value: 'France' },
+    { key: 'supported', label: 'Pays supportes', type: 'text', value: 'France, Martinique, Guadeloupe, Guyane, Reunion' },
+  ]},
+  state: { title: 'State / Region Settings', icon: Flag, color: '#F59E0B', desc: 'Configuration par region/departement', settings: [
+    { key: 'default_state', label: 'Region par defaut', type: 'text', value: 'Martinique' },
+    { key: 'active_regions', label: 'Regions actives', type: 'text', value: 'Ile-de-France, Martinique, Guadeloupe' },
+  ]},
+  'cancel-reasons': { title: 'Raisons d\'annulation', icon: XCircle, color: '#EF4444', desc: 'Motifs d\'annulation configures', settings: [
+    { key: 'reasons_client', label: 'Raisons client', type: 'text', value: 'Chauffeur trop loin, Changement de plan, Tarif trop eleve, Erreur de destination' },
+    { key: 'reasons_driver', label: 'Raisons chauffeur', type: 'text', value: 'Client introuvable, Probleme vehicule, Urgence personnelle, Client agressif' },
+    { key: 'penalty', label: 'Penalite annulation (EUR)', type: 'number', value: 5 },
+  ]},
+  pages: { title: 'Manage Pages', icon: FileText, color: '#374151', desc: 'Pages statiques du site et de l\'app', settings: [
+    { key: 'about', label: 'Page A propos', type: 'text', value: 'Active' },
+    { key: 'terms', label: 'Conditions generales', type: 'text', value: 'Active' },
+    { key: 'privacy', label: 'Politique de confidentialite', type: 'text', value: 'Active' },
+    { key: 'faq', label: 'FAQ', type: 'text', value: 'Active' },
+  ]},
+  'app-home': { title: 'App Home Customization', icon: House, color: '#10B981', desc: 'Personnaliser l\'ecran d\'accueil de l\'app', settings: [
+    { key: 'banner_enabled', label: 'Banniere active', type: 'toggle', value: true },
+    { key: 'services_grid', label: 'Grille services (colonnes)', type: 'number', value: 4 },
+    { key: 'promo_section', label: 'Section promo active', type: 'toggle', value: true },
+  ]},
+  intro: { title: 'Intro / Onboarding', icon: Slideshow, color: '#8B5CF6', desc: 'Ecrans d\'introduction de l\'application', settings: [
+    { key: 'enabled', label: 'Onboarding actif', type: 'toggle', value: true },
+    { key: 'slides', label: 'Nombre de slides', type: 'number', value: 3 },
+    { key: 'skip_enabled', label: 'Bouton Ignorer', type: 'toggle', value: true },
+  ]},
+  labels: { title: 'Labels & Translations', icon: Tag, color: '#F59E0B', desc: 'Gerer les traductions et labels de l\'application', settings: [
+    { key: 'default_lang', label: 'Langue par defaut', type: 'text', value: 'fr' },
+    { key: 'supported', label: 'Langues supportees', type: 'text', value: 'fr, en, es, de, pt, ar' },
+    { key: 'rtl_support', label: 'Support RTL', type: 'toggle', value: true },
+  ]},
+};
+
+const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
+  const config = serviceConfigs[serviceKey] || serviceConfigs.genie;
+  const Icon = config.icon;
+  const [settings, setSettings] = useState(config.settings.map(s => ({ ...s })));
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => prev.map(s => s.key === key ? { ...s, value } : s));
+  };
+
+  const handleSave = () => toast.success('Parametres sauvegardes !');
+
+  return (
+    <div className="p-6" data-testid={`admin-service-${serviceKey}`}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: config.color + '15' }}>
+          <Icon size={24} style={{ color: config.color }} weight="duotone" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">{config.title}</h1>
+          <p className="text-sm text-gray-500">{config.desc}</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-5 max-w-2xl space-y-5">
+        {settings.map(s => (
+          <div key={s.key}>
+            <label className="text-sm font-medium text-gray-700 block mb-1.5">{s.label}</label>
+            {s.type === 'toggle' ? (
+              <button onClick={() => updateSetting(s.key, !s.value)} className={`w-12 h-7 rounded-full relative transition-colors ${s.value ? 'bg-green-500' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${s.value ? 'left-[22px]' : 'left-0.5'}`} />
+              </button>
+            ) : s.type === 'number' ? (
+              <Input type="number" value={s.value} onChange={e => updateSetting(s.key, parseFloat(e.target.value) || 0)} />
+            ) : (
+              <Input value={s.value} onChange={e => updateSetting(s.key, e.target.value)} />
+            )}
+          </div>
+        ))}
+        <Button onClick={handleSave} className="bg-[#3b82f6] text-white w-full">Sauvegarder</Button>
+      </div>
+    </div>
+  );
+};
+
+export default AdminServiceConfig;

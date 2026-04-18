@@ -84,7 +84,6 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminGodsView from './pages/admin/AdminGodsView';
 import AdminHeatView from './pages/admin/AdminHeatView';
 import AdminPromocodes from './pages/admin/AdminPromocodes';
-import AdminPlaceholder from './pages/admin/AdminPlaceholder';
 import AdminVehicleTypes from './pages/admin/AdminVehicleTypes';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminStores from './pages/admin/AdminStores';
@@ -96,6 +95,10 @@ import AdminGiftCards from './pages/admin/AdminGiftCards';
 import AdminReferralSettings from './pages/admin/AdminReferralSettings';
 import AdminTemplates from './pages/admin/AdminTemplates';
 import AdminNewsletter from './pages/admin/AdminNewsletter';
+import AdminMonitoring from './pages/admin/AdminMonitoring';
+import AdminManageAdmins from './pages/admin/AdminManageAdmins';
+import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests } from './pages/admin/AdminCrudPages';
+import AdminServiceConfig from './pages/admin/AdminServiceConfig';
 
 // Dispatcher Pages
 import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
@@ -202,50 +205,50 @@ const AppRouter = () => {
         {/* SYSTEM */}
         <Route path="settings" element={<AdminSettings />} />
         {/* Placeholder for all other admin routes */}
-        <Route path="monitoring" element={<AdminPlaceholder />} />
-        <Route path="admins" element={<AdminPlaceholder />} />
-        <Route path="groups" element={<AdminPlaceholder />} />
-        <Route path="vehicles" element={<AdminPlaceholder />} />
-        <Route path="requests" element={<AdminPlaceholder />} />
-        <Route path="company" element={<AdminPlaceholder />} />
-        <Route path="hotels" element={<AdminPlaceholder />} />
-        <Route path="organization" element={<AdminPlaceholder />} />
+        <Route path="monitoring" element={<AdminMonitoring />} />
+        <Route path="admins" element={<AdminManageAdmins />} />
+        <Route path="groups" element={<AdminGroups />} />
+        <Route path="vehicles" element={<AdminVehicles />} />
+        <Route path="requests" element={<AdminRequests />} />
+        <Route path="company" element={<AdminCompany />} />
+        <Route path="hotels" element={<AdminHotels />} />
+        <Route path="organization" element={<AdminOrganization />} />
         <Route path="vehicle-types" element={<AdminVehicleTypes />} />
         <Route path="parcels" element={<AdminOrders />} />
         <Route path="store-delivery" element={<AdminOrders />} />
-        <Route path="genie" element={<AdminPlaceholder />} />
-        <Route path="runner" element={<AdminPlaceholder />} />
-        <Route path="ondemand" element={<AdminPlaceholder />} />
-        <Route path="video" element={<AdminPlaceholder />} />
-        <Route path="bids" element={<AdminPlaceholder />} />
-        <Route path="marketplace" element={<AdminPlaceholder />} />
-        <Route path="medical" element={<AdminPlaceholder />} />
-        <Route path="rideshare" element={<AdminPlaceholder />} />
-        <Route path="nearby" element={<AdminPlaceholder />} />
-        <Route path="tracking" element={<AdminPlaceholder />} />
+        <Route path="genie" element={<AdminServiceConfig serviceKey="genie" />} />
+        <Route path="runner" element={<AdminServiceConfig serviceKey="runner" />} />
+        <Route path="ondemand" element={<AdminServiceConfig serviceKey="ondemand" />} />
+        <Route path="video" element={<AdminServiceConfig serviceKey="video" />} />
+        <Route path="bids" element={<AdminServiceConfig serviceKey="bids" />} />
+        <Route path="marketplace" element={<AdminServiceConfig serviceKey="marketplace" />} />
+        <Route path="medical" element={<AdminServiceConfig serviceKey="medical" />} />
+        <Route path="rideshare" element={<AdminServiceConfig serviceKey="rideshare" />} />
+        <Route path="nearby" element={<AdminServiceConfig serviceKey="nearby" />} />
+        <Route path="tracking" element={<AdminServiceConfig serviceKey="tracking" />} />
         <Route path="manual-booking" element={<AdminManualBooking />} />
         <Route path="later-bookings" element={<AdminManualBooking />} />
         <Route path="create-order" element={<AdminManualBooking />} />
         <Route path="payout" element={<AdminPayout />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />
-        <Route path="location-fare" element={<AdminPlaceholder />} />
+        <Route path="location-fare" element={<AdminServiceConfig serviceKey="location-fare" />} />
         <Route path="airport" element={<AdminGeoFence />} />
-        <Route path="country" element={<AdminPlaceholder />} />
-        <Route path="state" element={<AdminPlaceholder />} />
+        <Route path="country" element={<AdminServiceConfig serviceKey="country" />} />
+        <Route path="state" element={<AdminServiceConfig serviceKey="state" />} />
         <Route path="giftcards" element={<AdminGiftCards />} />
         <Route path="referral" element={<AdminReferralSettings />} />
         <Route path="banners" element={<AdminBanners />} />
         <Route path="news" element={<AdminNewsletter />} />
         <Route path="stores" element={<AdminStores />} />
         <Route path="newsletter" element={<AdminNewsletter />} />
-        <Route path="pages" element={<AdminPlaceholder />} />
-        <Route path="app-home" element={<AdminPlaceholder />} />
-        <Route path="intro" element={<AdminPlaceholder />} />
-        <Route path="labels" element={<AdminPlaceholder />} />
+        <Route path="pages" element={<AdminServiceConfig serviceKey="pages" />} />
+        <Route path="app-home" element={<AdminServiceConfig serviceKey="app-home" />} />
+        <Route path="intro" element={<AdminServiceConfig serviceKey="intro" />} />
+        <Route path="labels" element={<AdminServiceConfig serviceKey="labels" />} />
         <Route path="email-templates" element={<AdminTemplates />} />
         <Route path="sms-templates" element={<AdminTemplates />} />
-        <Route path="cancel-reasons" element={<AdminPlaceholder />} />
+        <Route path="cancel-reasons" element={<AdminServiceConfig serviceKey="cancel-reasons" />} />
         <Route path="support" element={<AdminSupport />} />
       </Route>
 

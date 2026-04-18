@@ -8,17 +8,9 @@ import {
   Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots,
   Gift, Plus, CalendarCheck
 } from '@phosphor-icons/react';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
+const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 const DriverHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -27,8 +19,10 @@ const DriverHome = () => {
   const [currentRide, setCurrentRide] = useState(null);
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [mapCenter, setMapCenter] = useState([48.8566, 2.3522]);
+  const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const locationWatchId = useRef(null);
+
+  const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
 
   const { on, sendLocation, joinRide } = useWebSocket(user?.id);
 
@@ -52,14 +46,14 @@ const DriverHome = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       ({ coords: { latitude, longitude } }) => {
-        setMapCenter([latitude, longitude]);
+        setMapCenter({ lat: latitude, lng: longitude });
         driverAPI.updateLocation(latitude, longitude).catch(() => {});
         sendLocation(latitude, longitude);
       }, () => {}
     );
     locationWatchId.current = navigator.geolocation.watchPosition(
       ({ coords: { latitude, longitude } }) => {
-        setMapCenter([latitude, longitude]);
+        setMapCenter({ lat: latitude, lng: longitude });
         sendLocation(latitude, longitude);
       }, () => {}, { enableHighAccuracy: true }
     );
@@ -187,13 +181,15 @@ const DriverHome = () => {
 
       {/* MAP */}
       <div className="flex-1" style={{ height: '45vh' }}>
-        <MapContainer center={mapCenter} zoom={15} className="w-full h-full" zoomControl={false}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <Marker position={mapCenter} />
-        </MapContainer>
+        {gmapLoaded ? (
+          <GoogleMap mapContainerStyle={{ width: '100%', height: '100%' }} center={mapCenter} zoom={15} options={{ disableDefaultUI: true, zoomControl: false }}>
+            <MarkerF position={mapCenter} />
+          </GoogleMap>
+        ) : (
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-400 text-sm">Chargement de la carte...</span>
+          </div>
+        )}
       </div>
 
       {/* FLOATING BUTTONS */}
