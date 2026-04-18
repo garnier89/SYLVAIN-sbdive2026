@@ -68,7 +68,10 @@ Chauffeur virtuel via WebSocket
 - Nettoyage: suppression 17 anciens fichiers de test, creation conftest.py
 
 ## Backlog (P1)
-- Persistance panier/commandes entre sessions
+- DONE: Persistance panier/commandes entre sessions (Apr 18, 2026)
+  - API /api/cart (GET, PUT, DELETE) avec MongoDB collection 'carts'
+  - Dual-write: localStorage + backend pour acces rapide et persistance
+  - Iteration 31: 100% pass (20/20)
 
 ## Backlog (P2)
 - Notifications push
