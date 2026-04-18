@@ -31,41 +31,21 @@ const DriverHome = () => {
 
   const { on, sendLocation, joinRide } = useWebSocket(user?.id);
 
-  useEffect(() => {
-    loadDriverProfile();
-    setupLocation();
-    return () => { if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current); };
-  }, [loadDriverProfile, setupLocation]);
-
-  useEffect(() => {
-    const unsub1 = on('new_ride_request', (msg) => {
-      if (!currentRide && isOnline) setIncomingRequest(msg);
-    });
-    const unsub2 = on('ride_status_update', (msg) => {
-      if (currentRide && msg.ride_id === currentRide.id) {
-        if (msg.status === 'cancelled') setCurrentRide(null);
-        else setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
-      }
-    });
-    return () => { unsub1(); unsub2(); };
-  }, [on, currentRide, isOnline]);
-
-  useEffect(() => {
-    if (isOnline && !currentRide) {
-      const interval = setInterval(loadPendingRides, 8000);
-      return () => clearInterval(interval);
-    }
-  }, [isOnline, currentRide, loadPendingRides]);
-
-  const loadDriverProfile = useCallback(async () => {
+  const loadDriverProfile = useCallback(async (retries = 2) => {
     try {
       const res = await driverAPI.getProfile();
       setDriver(res.data);
       setIsOnline(res.data.is_online);
+      setLoading(false);
     } catch (err) {
-      if (err.response?.status === 404) navigate('/driver/register');
-    } finally { setLoading(false); }
-  }, [navigate]);
+      if (retries > 0) {
+        setTimeout(() => loadDriverProfile(retries - 1), 1500);
+        return;
+      }
+      console.error('Driver profile error:', err.response?.status);
+      setLoading(false);
+    }
+  }, []);
 
   const setupLocation = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -91,6 +71,32 @@ const DriverHome = () => {
       if (res.data.length > 0 && !currentRide && !incomingRequest) setIncomingRequest(res.data[0]);
     } catch (err) { console.error('Failed to load pending rides:', err); }
   }, [driver, currentRide, incomingRequest]);
+
+  useEffect(() => {
+    loadDriverProfile();
+    setupLocation();
+    return () => { if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current); };
+  }, [loadDriverProfile, setupLocation]);
+
+  useEffect(() => {
+    const unsub1 = on('new_ride_request', (msg) => {
+      if (!currentRide && isOnline) setIncomingRequest(msg);
+    });
+    const unsub2 = on('ride_status_update', (msg) => {
+      if (currentRide && msg.ride_id === currentRide.id) {
+        if (msg.status === 'cancelled') setCurrentRide(null);
+        else setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
+      }
+    });
+    return () => { unsub1(); unsub2(); };
+  }, [on, currentRide, isOnline]);
+
+  useEffect(() => {
+    if (isOnline && !currentRide) {
+      const interval = setInterval(loadPendingRides, 8000);
+      return () => clearInterval(interval);
+    }
+  }, [isOnline, currentRide, loadPendingRides]);
 
   const toggleOnline = async () => {
     if (driver?.status !== 'approved') return;
