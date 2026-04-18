@@ -411,8 +411,8 @@ const RideBookingPage = () => {
 
           {/* Destination address label over the map */}
           {dropoff.lat && dropoff.address && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[500] bg-white px-3 py-2 rounded-lg shadow-lg max-w-[60%] pointer-events-none">
-              <p className="text-xs font-medium text-gray-800 leading-tight">{dropoff.address}</p>
+            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 z-[500] bg-white px-3 py-2 rounded-lg shadow-lg max-w-[60%] pointer-events-none">
+              <p className="text-xs font-medium text-gray-800 leading-tight line-clamp-2">{dropoff.address}</p>
             </div>
           )}
 
