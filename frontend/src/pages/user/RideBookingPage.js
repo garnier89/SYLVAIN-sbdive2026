@@ -2,10 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { rideAPI } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
 import {
   MapPin, CaretDown, X, Plus, House, Briefcase,
   NavigationArrow, MapTrifold, Clock, User,
-  PencilSimple, Car, CreditCard, CaretRight, Motorcycle
+  PencilSimple, Car, CreditCard, CaretRight, Motorcycle,
+  Jeep, Lightning, Van, Wheelchair, AirplaneTilt,
+  Users, Percent, Calendar, Info
 } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -36,10 +39,17 @@ const LocationSelector = ({ onSelect }) => {
   return null;
 };
 
-const VehicleIcon = ({ iconType, selected }) => {
+const VehicleIcon = ({ iconType, slug, selected }) => {
   const cls = selected ? 'text-[#FF4500]' : 'text-gray-600';
-  if (iconType === 'Bike') return <Motorcycle size={32} weight="duotone" className={cls} />;
-  return <Car size={32} weight="duotone" className={cls} />;
+  const size = 32;
+  if (iconType === 'Bike') return <Motorcycle size={size} weight="duotone" className={cls} />;
+  if (slug === 'suv') return <Jeep size={size} weight="duotone" className={cls} />;
+  if (slug === 'electric') return <Lightning size={size} weight="duotone" className={cls} />;
+  if (slug === 'van') return <Van size={size} weight="duotone" className={cls} />;
+  if (slug === 'accessible') return <Wheelchair size={size} weight="duotone" className={cls} />;
+  if (slug === 'airport') return <AirplaneTilt size={size} weight="duotone" className={cls} />;
+  if (slug === 'pool') return <Users size={size} weight="duotone" className={cls} />;
+  return <Car size={size} weight="duotone" className={cls} />;
 };
 
 const RideBookingPage = () => {
@@ -52,6 +62,9 @@ const RideBookingPage = () => {
   const [selectingLocation, setSelectingLocation] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState('sb');
   const [paymentMethod] = useState('Visa •••• 1111');
+  const [scheduleMode, setScheduleMode] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('08:00');
   const [estimate, setEstimate] = useState(null);
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -61,6 +74,10 @@ const RideBookingPage = () => {
     { address: 'Gare du Nord, 18 Rue de Dunkerque, 75010 Paris' },
     { address: 'Tour Eiffel, Champ de Mars, 75007 Paris' },
   ]);
+
+  useEffect(() => {
+    if (searchParams.get('type') === 'schedule') setScheduleMode(true);
+  }, [searchParams]);
 
   // Load V3Cube vehicle types from backend
   useEffect(() => {
@@ -268,6 +285,19 @@ const RideBookingPage = () => {
 
         <div className="h-px bg-gray-100 mx-4" />
 
+        {/* Promo Banner V3Cube */}
+        <div className="px-4 py-3">
+          <div className="bg-gradient-to-r from-[#FF4500] to-orange-400 rounded-2xl p-4 flex items-center gap-3" data-testid="promo-banner">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Percent size={24} className="text-white" weight="bold" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-white">-20% sur votre premiere course</p>
+              <p className="text-xs text-white/80 mt-0.5">Code: SB20 - Valable 7 jours</p>
+            </div>
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="px-4 py-2">
           <button className="w-full flex items-center gap-3 py-3 border-b border-gray-50" data-testid="set-current-location-btn">
@@ -366,7 +396,7 @@ const RideBookingPage = () => {
 
           {estimate && (
             <div className="p-4 space-y-3">
-              {/* Distance/Duration + Currency */}
+              {/* Distance/Duration */}
               <div className="text-center pb-2">
                 <p className="text-xs text-gray-500">
                   {estimate.distance_km?.toFixed(1) || '5.2'} km &middot; {estimate.duration_mins || 18} min
@@ -374,38 +404,97 @@ const RideBookingPage = () => {
                 </p>
               </div>
 
-              {/* Vehicle Selection from V3Cube API */}
-              <div className="space-y-2">
-                {vehicleTypes.map((v) => (
-                  <button
-                    key={v.slug}
-                    onClick={() => { setSelectedVehicle(v.slug); }}
-                    className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                      selectedVehicle === v.slug
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-100 hover:border-gray-200'
-                    }`}
-                    data-testid={`vehicle-${v.slug}`}
-                  >
-                    <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
-                      <VehicleIcon iconType={v.icon_type} selected={selectedVehicle === v.slug} />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-semibold text-gray-900">{v.name_fr}</p>
-                      <p className="text-xs text-gray-500">{v.person_capacity} places</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg text-gray-900">
-                        {selectedVehicle === v.slug && estimate
-                          ? `${estimate.estimated_fare?.toFixed(2) || v.min_fare}`
-                          : `${v.min_fare?.toFixed(2) || '—'}`
-                        } &euro;
-                      </p>
-                      <p className="text-[10px] text-gray-400">min. {v.min_fare?.toFixed(0) || '—'}&euro;</p>
-                    </div>
-                  </button>
-                ))}
+              {/* Vehicle Selection - V3Cube Grid Style */}
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                {vehicleTypes.map((v) => {
+                  const fare = selectedVehicle === v.slug && estimate
+                    ? estimate.estimated_fare?.toFixed(2) || v.min_fare?.toFixed(2)
+                    : v.min_fare?.toFixed(2) || '--';
+                  return (
+                    <button
+                      key={v.slug}
+                      onClick={() => { setSelectedVehicle(v.slug); }}
+                      className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
+                        selectedVehicle === v.slug
+                          ? 'border-[#FF4500] bg-[#FF4500]/5'
+                          : 'border-gray-100 hover:border-gray-200'
+                      }`}
+                      data-testid={`vehicle-${v.slug}`}
+                    >
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${selectedVehicle === v.slug ? 'bg-[#FF4500]/10' : 'bg-gray-100'}`}>
+                        <VehicleIcon iconType={v.icon_type} slug={v.slug} selected={selectedVehicle === v.slug} />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className={`font-semibold ${selectedVehicle === v.slug ? 'text-[#FF4500]' : 'text-gray-900'}`}>{v.name_fr}</p>
+                        <p className="text-xs text-gray-500">{v.person_capacity} places &middot; {v.fare_type === 'Fixed' ? 'Prix fixe' : `${v.price_per_km?.toFixed(2) || '1.00'}/km`}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold text-lg ${selectedVehicle === v.slug ? 'text-[#FF4500]' : 'text-gray-900'}`}>
+                          {fare} &euro;
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Fare Breakdown */}
+              {selectedVehicle && estimate && (
+                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5" data-testid="fare-breakdown">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Info size={14} className="text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-600">Detail du tarif</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Tarif de base</span>
+                    <span className="text-gray-700">{(vehicleTypes.find(v => v.slug === selectedVehicle)?.base_fare || 0).toFixed(2)} &euro;</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Distance ({estimate.distance_km?.toFixed(1)} km)</span>
+                    <span className="text-gray-700">{((vehicleTypes.find(v => v.slug === selectedVehicle)?.price_per_km || 0) * (estimate.distance_km || 0)).toFixed(2)} &euro;</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Temps ({estimate.duration_mins} min)</span>
+                    <span className="text-gray-700">{((vehicleTypes.find(v => v.slug === selectedVehicle)?.price_per_min || 0) * (estimate.duration_mins || 0)).toFixed(2)} &euro;</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Prise en charge</span>
+                    <span className="text-gray-700">{(vehicleTypes.find(v => v.slug === selectedVehicle)?.pickup_price || 0).toFixed(2)} &euro;</span>
+                  </div>
+                  <div className="h-px bg-gray-200 my-1" />
+                  <div className="flex justify-between text-sm font-bold">
+                    <span className="text-gray-800">Total estime</span>
+                    <span className="text-[#FF4500]">{estimate.estimated_fare?.toFixed(2) || '--'} &euro;</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Schedule Option */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setScheduleMode(false)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${!scheduleMode ? 'bg-[#303F9F] text-white border-[#303F9F]' : 'bg-white text-gray-600 border-gray-200'}`}
+                  data-testid="ride-now-btn"
+                >
+                  <Car size={16} /> Maintenant
+                </button>
+                <button
+                  onClick={() => setScheduleMode(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all ${scheduleMode ? 'bg-[#303F9F] text-white border-[#303F9F]' : 'bg-white text-gray-600 border-gray-200'}`}
+                  data-testid="schedule-btn"
+                >
+                  <Calendar size={16} /> Programmer
+                </button>
+              </div>
+
+              {scheduleMode && (
+                <div className="flex gap-2" data-testid="schedule-inputs">
+                  <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl p-2.5 text-sm" data-testid="schedule-date" />
+                  <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
+                    className="w-28 border border-gray-200 rounded-xl p-2.5 text-sm" data-testid="schedule-time" />
+                </div>
+              )}
 
               {/* Payment Method */}
               <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100" data-testid="payment-method-btn">
@@ -421,7 +510,7 @@ const RideBookingPage = () => {
                 disabled={loading}
                 data-testid="request-now-btn"
               >
-                {loading ? 'Réservation en cours...' : 'Réserver Maintenant'}
+                {loading ? 'Reservation en cours...' : scheduleMode ? `Programmer la course` : 'Reserver Maintenant'}
               </Button>
             </div>
           )}

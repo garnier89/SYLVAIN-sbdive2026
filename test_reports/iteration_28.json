@@ -1,0 +1,84 @@
+{
+  "summary": "Iteration 28 - Testing Language/Currency selector and Enhanced Taxi Booking features. All 11 backend tests passed (100%). All frontend tests passed for LocaleSelector (25 languages, 30 currencies) and RideBookingPage (10 vehicle types, promo banner, fare breakdown, schedule option).",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "Backend: GET /api/config/vehicle-types returns 10 vehicle types - PASS",
+    "Backend: Vehicle types include all slugs (sb, confort, luxe, moto, pool, suv, electric, van, accessible, airport) - PASS",
+    "Backend: Vehicle types have required fields (slug, name_fr, person_capacity, min_fare, base_fare, price_per_km) - PASS",
+    "Backend: Airport vehicle type has Fixed fare type with 55.00 fixed_fare - PASS",
+    "Backend: GET /api/health returns ok - PASS",
+    "Backend: GET /api/video-consult/providers returns providers - PASS",
+    "Backend: GET /api/bidding/categories returns categories - PASS",
+    "Backend: GET /api/intercity/routes returns 6+ routes - PASS",
+    "Backend: GET /api/parking/spots returns 4+ spots - PASS",
+    "Backend: GET /api/giftcards/templates returns 5+ templates - PASS",
+    "Backend: POST /api/auth/login with test user works - PASS",
+    "Frontend: Home page shows LocaleSelector button (FR | €) in header top-right - PASS",
+    "Frontend: Clicking LocaleSelector opens modal with Langues and Devises tabs - PASS",
+    "Frontend: Langues tab shows 25 languages with flags - PASS",
+    "Frontend: Devises tab shows 30 currencies (EUR, USD, GBP, XOF, MAD, CHF, etc.) with symbols - PASS",
+    "Frontend: Search functionality works in locale modal - PASS",
+    "Frontend: /ride page shows promo banner '-20% sur votre premiere course' with code SB20 - PASS",
+    "Frontend: /ride page shows 'Où allez-vous ?' input field - PASS",
+    "Frontend: /ride page shows Lieux Favoris (Domicile, Travail) - PASS",
+    "Frontend: /ride page shows Lieux Récents - PASS",
+    "Frontend: /ride map view shows all 10 vehicle types (sb, confort, luxe, moto, pool, suv, electric, van, accessible, airport) - PASS",
+    "Frontend: /ride map view shows fare breakdown (Tarif de base, Distance, Temps, Prise en charge, Total estime) - PASS",
+    "Frontend: /ride map view shows schedule option (Maintenant/Programmer buttons) - PASS"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_locale_vehicle_iter28.py",
+    "/app/test_reports/pytest/pytest_results_iter28.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "LocaleContext.js correctly defines 30 currencies and 25 languages with proper French names and flags",
+    "LocaleSelector.js implements modal with tabs, search, and proper data-testid attributes",
+    "UserHome.js correctly integrates LocaleSelector in header next to avatar",
+    "RideBookingPage.js correctly fetches vehicle types from /api/config/vehicle-types endpoint",
+    "RideBookingPage.js shows V3Cube-style promo banner with discount code",
+    "RideBookingPage.js shows fare breakdown with base fare, distance, time, and pickup price",
+    "RideBookingPage.js implements schedule mode with date/time pickers",
+    "seed_data.py correctly defines 10 vehicle types with proper pricing structure"
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_locale_vehicle_iter28.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (12/12 tests passed)"
+  },
+
+  "test_credentials": {
+    "test_user": "email: test2@example.com, password: TestPass123!",
+    "admin": "email: admin@superapp.com, password: SuperAdmin123!"
+  },
+
+  "seed_data_creation": "None - used existing test user and seed data",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Iteration 28 tested new LocaleSelector and enhanced RideBookingPage features. LocaleSelector is in UserHome header (top-right) with FR|€ button that opens modal with Langues (25) and Devises (30) tabs. RideBookingPage has promo banner, 10 vehicle types from /api/config/vehicle-types, fare breakdown, and schedule option. Login uses phone-based V3Cube auth - for testing, use API login with email (test2@example.com / TestPass123!) then navigate to pages. All features working correctly.",
+
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LocaleProvider } from './contexts/LocaleContext';
 import { Toaster } from './components/ui/sonner';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthCallback from './components/AuthCallback';
@@ -232,8 +233,10 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRouter />
-        <Toaster position="top-center" />
+        <LocaleProvider>
+          <AppRouter />
+          <Toaster position="top-center" />
+        </LocaleProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
+import LocaleSelector from '../../components/LocaleSelector';
 import { simulationAPI } from '../../services/api';
 import {
   Car, Motorcycle, Package, ForkKnife,
@@ -157,12 +158,15 @@ const UserHome = () => {
               <h2 className="text-lg font-bold text-gray-900">{user?.name || 'Utilisateur'}</h2>
             </div>
           </div>
-          <Avatar className="h-10 w-10 border-2 border-gray-200 cursor-pointer" onClick={() => navigate('/profile')}>
-            <AvatarImage src={user?.avatar_url} />
-            <AvatarFallback className="bg-gray-100 text-gray-600 font-semibold text-sm">
-              {user?.name?.charAt(0) || 'U'}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex items-center gap-2">
+            <LocaleSelector />
+            <Avatar className="h-10 w-10 border-2 border-gray-200 cursor-pointer" onClick={() => navigate('/profile')}>
+              <AvatarImage src={user?.avatar_url} />
+              <AvatarFallback className="bg-gray-100 text-gray-600 font-semibold text-sm">
+                {user?.name?.charAt(0) || 'U'}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         </div>
 
         {/* Location */}
