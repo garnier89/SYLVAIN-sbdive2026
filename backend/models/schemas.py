@@ -139,6 +139,10 @@ class RideResponse(BaseModel):
     notes: Optional[str] = None
     proposed_fare: Optional[float] = None
     counter_offers: Optional[List[dict]] = None
+    book_for_name: Optional[str] = None
+    book_for_phone: Optional[str] = None
+    stopovers: Optional[List[dict]] = None
+    start_otp: Optional[str] = None
 
 # Order Models
 class OrderItemCreate(BaseModel):

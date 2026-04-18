@@ -23,22 +23,26 @@ const SectionHeader = ({ title }) => (
 );
 
 /* ── reusable menu row ── */
-const MenuItem = ({ icon: Icon, label, subtitle, iconBg, iconColor, onClick, trailing, testId }) => (
-  <button
-    onClick={onClick}
-    className="w-full flex items-center gap-3.5 px-4 py-3 hover:bg-gray-50/80 active:bg-gray-100 transition-colors"
-    data-testid={testId}
-  >
-    <div className={`w-10 h-10 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0`}>
-      <Icon size={20} weight="fill" className={iconColor} />
-    </div>
-    <div className="flex-1 text-left min-w-0">
-      <p className="text-[14px] font-medium text-gray-900 leading-tight">{label}</p>
-      {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
-    </div>
-    {trailing || <CaretRight size={16} className="text-gray-300 flex-shrink-0" />}
-  </button>
-);
+const MenuItem = ({ icon: Icon, label, subtitle, iconBg, iconColor, onClick, trailing, testId }) => {
+  // If trailing contains an interactive element (Switch), render as div to avoid button-in-button
+  const Comp = trailing ? 'div' : 'button';
+  return (
+    <Comp
+      onClick={trailing ? undefined : onClick}
+      className={`w-full flex items-center gap-3.5 px-4 py-3 ${trailing ? '' : 'hover:bg-gray-50/80 active:bg-gray-100'} transition-colors`}
+      data-testid={testId}
+    >
+      <div className={`w-10 h-10 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0`}>
+        <Icon size={20} weight="fill" className={iconColor} />
+      </div>
+      <div className="flex-1 text-left min-w-0">
+        <p className="text-[14px] font-medium text-gray-900 leading-tight">{label}</p>
+        {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
+      </div>
+      {trailing || <CaretRight size={16} className="text-gray-300 flex-shrink-0" />}
+    </Comp>
+  );
+};
 
 /* ── white card that wraps a section ── */
 const MenuCard = ({ children }) => (
