@@ -130,6 +130,15 @@ Chauffeur virtuel via WebSocket
 - Indicateur "Itineraire reel Google Maps" affiche sous la distance
 - Iteration 37: 100% pass (8/8 backend + frontend OK)
 
+## Dashboard V3Cube + Recompenses (Apr 18, 2026) - DONE
+- Sidebar restructuree: HOME, MEMBERS, SERVICES, BOOKINGS & REPORTS, WALLET & PAYMENTS, REWARDS & LOYALTY, LOCATION, PROMOTIONS, CMS, SYSTEM
+- AdminRewards: programme de fidelite complet (points/course, points/EUR, points/parrainage, points/avis, 4 niveaux Bronze/Argent/Or/Platine, bonus chauffeurs)
+- AdminDocuments: verification documents chauffeurs (approuver/refuser)
+- AdminDisputes: gestion litiges (open/investigating/resolved)
+- AdminWalletRequests: demandes retrait/remboursement wallet
+- AdminSettlements: versements chauffeurs (brut/commission/net)
+- Iteration 38: 100% pass (5/5 backend + 21/21 frontend)
+
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
 - Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
 - Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
