@@ -114,6 +114,14 @@ Chauffeur virtuel via WebSocket
 - AdminServiceConfig charge/sauvegarde depuis le backend
 - Iteration 35: 100% pass
 
+## Estimation Temps Reel Google Maps + Admin CRUD Backend (Apr 18, 2026) - DONE
+- /api/rides/estimate utilise Google Maps Directions API (distance route reelle, duree, polyline)
+- Fallback automatique vers haversine si Google Maps echoue
+- Paris-CDG: 32.64km route (vs 18km vol d'oiseau), 37min, 38.54EUR
+- AdminCrudPages connectes au backend /api/admin/crud/{collection} (MongoDB)
+- CRUD complet: groups, vehicles, companies, hotels, organizations, pending_requests
+- Iteration 36: 100% pass (13+/13+ tests)
+
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
 - Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
 - Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
