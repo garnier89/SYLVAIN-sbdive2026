@@ -10,6 +10,9 @@ import AuthCallback from './components/AuthCallback';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
+// Landing Page
+import LandingPage from './pages/LandingPage';
+
 // SB Drive Client Pages
 import ClientWelcome from './pages/client/ClientWelcome';
 import UserHome from './pages/user/UserHome';
@@ -75,6 +78,12 @@ import AdminGodsView from './pages/admin/AdminGodsView';
 import AdminHeatView from './pages/admin/AdminHeatView';
 import AdminPromocodes from './pages/admin/AdminPromocodes';
 import AdminPlaceholder from './pages/admin/AdminPlaceholder';
+import AdminVehicleTypes from './pages/admin/AdminVehicleTypes';
+import AdminOrders from './pages/admin/AdminOrders';
+import AdminStores from './pages/admin/AdminStores';
+import AdminManualBooking from './pages/admin/AdminManualBooking';
+import AdminBanners from './pages/admin/AdminBanners';
+import AdminPayout from './pages/admin/AdminPayout';
 
 // Dispatcher Pages
 import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
@@ -91,9 +100,13 @@ const AppRouter = () => {
 
   return (
     <Routes>
+      {/* ======= LANDING PAGE / WEBSITE ======= */}
+      <Route path="/website" element={<LandingPage />} />
+
       {/* ======= SB DRIVE CLIENT (App Passager) ======= */}
-      <Route path="/" element={user && user.role === 'user' ? <Navigate to="/home" replace /> : !user ? <ClientWelcome /> : <Navigate to={user.role === 'driver' ? '/chauffeur/home' : user.role === 'merchant' ? '/merchant' : user.role === 'admin' ? '/admin' : '/home'} replace />} />
+      <Route path="/" element={user && user.role === 'user' ? <Navigate to="/home" replace /> : !user ? <LandingPage /> : <Navigate to={user.role === 'driver' ? '/chauffeur/home' : user.role === 'merchant' ? '/merchant' : user.role === 'admin' ? '/admin' : '/home'} replace />} />
       <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
+      <Route path="/app" element={user ? <Navigate to="/home" replace /> : <ClientWelcome />} />
       <Route path="/login" element={user ? <Navigate to="/home" replace /> : <LoginPage />} />
       <Route path="/admin-login" element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <AdminLoginPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -179,12 +192,11 @@ const AppRouter = () => {
         <Route path="vehicles" element={<AdminPlaceholder />} />
         <Route path="requests" element={<AdminPlaceholder />} />
         <Route path="company" element={<AdminPlaceholder />} />
-        <Route path="stores" element={<AdminPlaceholder />} />
         <Route path="hotels" element={<AdminPlaceholder />} />
         <Route path="organization" element={<AdminPlaceholder />} />
-        <Route path="vehicle-types" element={<AdminPlaceholder />} />
-        <Route path="parcels" element={<AdminPlaceholder />} />
-        <Route path="store-delivery" element={<AdminPlaceholder />} />
+        <Route path="vehicle-types" element={<AdminVehicleTypes />} />
+        <Route path="parcels" element={<AdminOrders />} />
+        <Route path="store-delivery" element={<AdminOrders />} />
         <Route path="genie" element={<AdminPlaceholder />} />
         <Route path="runner" element={<AdminPlaceholder />} />
         <Route path="ondemand" element={<AdminPlaceholder />} />
@@ -195,10 +207,10 @@ const AppRouter = () => {
         <Route path="rideshare" element={<AdminPlaceholder />} />
         <Route path="nearby" element={<AdminPlaceholder />} />
         <Route path="tracking" element={<AdminPlaceholder />} />
-        <Route path="manual-booking" element={<AdminPlaceholder />} />
-        <Route path="later-bookings" element={<AdminPlaceholder />} />
-        <Route path="create-order" element={<AdminPlaceholder />} />
-        <Route path="payout" element={<AdminPlaceholder />} />
+        <Route path="manual-booking" element={<AdminManualBooking />} />
+        <Route path="later-bookings" element={<AdminManualBooking />} />
+        <Route path="create-order" element={<AdminManualBooking />} />
+        <Route path="payout" element={<AdminPayout />} />
         <Route path="geo-fence" element={<AdminPlaceholder />} />
         <Route path="restricted" element={<AdminPlaceholder />} />
         <Route path="location-fare" element={<AdminPlaceholder />} />
@@ -207,8 +219,9 @@ const AppRouter = () => {
         <Route path="state" element={<AdminPlaceholder />} />
         <Route path="giftcards" element={<AdminPlaceholder />} />
         <Route path="referral" element={<AdminPlaceholder />} />
-        <Route path="banners" element={<AdminPlaceholder />} />
+        <Route path="banners" element={<AdminBanners />} />
         <Route path="news" element={<AdminPlaceholder />} />
+        <Route path="stores" element={<AdminStores />} />
         <Route path="newsletter" element={<AdminPlaceholder />} />
         <Route path="pages" element={<AdminPlaceholder />} />
         <Route path="app-home" element={<AdminPlaceholder />} />
