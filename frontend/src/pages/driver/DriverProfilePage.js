@@ -1,141 +1,207 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { driverAPI } from '../../services/api';
-import { DriverBottomNav } from './DriverEarningsPage';
+import { driverAPI, walletAPI } from '../../services/api';
 import {
-  User, Car, Star, SignOut, Phone, Envelope, FileText, ShieldCheck,
-  Wallet, CaretRight, Gear, CheckCircle, Clock, XCircle, ChatCircleDots
+  User, CaretRight, Gear, SignOut, ClipboardText, Wallet, Plus, EnvelopeOpen,
+  Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
+  Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
+  CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star
 } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+
+const GREEN = '#00B578';
 
 const DriverProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [driver, setDriver] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadProfile(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const loadProfile = async () => {
+  const loadData = async () => {
     try {
-      const res = await driverAPI.getProfile();
-      setDriver(res.data);
-    } catch (err) { console.error('Failed to load driver profile:', err); }
+      const [dRes, wRes] = await Promise.allSettled([
+        driverAPI.getProfile(),
+        walletAPI.get(),
+      ]);
+      if (dRes.status === 'fulfilled') setDriver(dRes.value.data);
+      if (wRes.status === 'fulfilled') setWalletBalance(wRes.value.data.balance || 0);
+    } catch (err) { console.error('Failed to load:', err); }
     finally { setLoading(false); }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/chauffeur');
-  };
+  const handleLogout = async () => { await logout(); navigate('/chauffeur'); };
 
   if (loading) {
     return (
-      <div className="mobile-container min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-12 h-12 border-3 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+      <div className="mobile-container min-h-screen bg-white flex items-center justify-center">
+        <div className="w-10 h-10 border-3 rounded-full animate-spin" style={{ borderColor: '#e5e7eb', borderTopColor: GREEN }} />
       </div>
     );
   }
 
-  const statusConfig = {
-    approved: { label: 'Approuv\u00e9', color: 'text-emerald-400', bg: 'bg-emerald-500/10', Icon: CheckCircle },
-    pending: { label: 'En attente', color: 'text-amber-400', bg: 'bg-amber-500/10', Icon: Clock },
-    rejected: { label: 'Rejet\u00e9', color: 'text-red-400', bg: 'bg-red-500/10', Icon: XCircle },
-  };
-  const status = statusConfig[driver?.status] || statusConfig.pending;
-
   return (
-    <div className="mobile-container min-h-screen bg-gray-950 flex flex-col pb-20" data-testid="driver-profile-page">
-      {/* Profile Header */}
-      <div className="px-5 pt-6 pb-2">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center border-2 border-amber-500/40">
-            <User size={32} className="text-amber-500" />
+    <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-20" data-testid="driver-profile-page">
+      {/* ===== GREEN HEADER ===== */}
+      <div className="px-5 pt-6 pb-5 relative" style={{ background: GREEN }}>
+        <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={() => {}} data-testid="settings-gear">
+          <Gear size={20} className="text-white" />
+        </button>
+        <div className="flex items-center gap-4 mt-2">
+          <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/40">
+            <User size={40} className="text-white/70" />
           </div>
-          <div className="flex-1">
+          <div>
             <h1 className="text-xl font-bold text-white" data-testid="profile-name">{user?.name || 'Chauffeur'}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
-              <Star size={14} weight="fill" className="text-amber-500" />
-              <span className="text-gray-400 text-sm">{driver?.rating?.toFixed(1) || '5.0'}</span>
-              <span className="text-gray-600 text-sm">&bull;</span>
-              <span className="text-gray-400 text-sm">{driver?.total_trips || 0} courses</span>
-            </div>
+            <p className="text-white/70 text-sm mt-0.5">{user?.email || ''}</p>
+            <p className="text-white/70 text-sm">{user?.phone || ''}</p>
           </div>
         </div>
-        {/* Status Badge */}
-        <div className={`mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl ${status.bg}`}>
-          <status.Icon size={18} weight="fill" className={status.color} />
-          <span className={`text-sm font-semibold ${status.color}`}>Statut: {status.label}</span>
+      </div>
+
+      {/* ===== WALLET CARD ===== */}
+      <div className="mx-5 -mt-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100" data-testid="wallet-card">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-gray-800">Balance de portefeuille</span>
+          <span className="text-lg font-bold" style={{ color: GREEN }}>{walletBalance.toFixed(2)} EUR</span>
+        </div>
+        <div className="grid grid-cols-4 gap-2 mt-4">
+          {[
+            { icon: ClipboardText, label: 'Les reservations', color: '#3B82F6', path: '/chauffeur/earnings' },
+            { icon: Wallet, label: 'Portefeuille', color: '#EC4899', path: '/chauffeur/wallet' },
+            { icon: Plus, label: 'Recharger', color: '#8B5CF6', path: '/chauffeur/wallet' },
+            { icon: EnvelopeOpen, label: 'Inviter', color: '#F97316', path: '/referral' },
+          ].map(item => {
+            const Icon = item.icon;
+            return (
+              <button key={item.label} onClick={() => navigate(item.path)} className="flex flex-col items-center gap-1.5">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: item.color + '15' }}>
+                  <Icon size={22} weight="duotone" style={{ color: item.color }} />
+                </div>
+                <span className="text-[10px] text-gray-600 text-center leading-tight">{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-3 px-5 mt-5">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-          <p className="text-white font-bold text-lg">{driver?.total_trips || 0}</p>
-          <p className="text-gray-500 text-xs">Courses</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-          <p className="text-white font-bold text-lg">{(driver?.earnings || 0).toFixed(0)}&euro;</p>
-          <p className="text-gray-500 text-xs">Gains</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-          <p className="text-white font-bold text-lg">{driver?.rating?.toFixed(1) || '5.0'}</p>
-          <p className="text-gray-500 text-xs">Note</p>
+      {/* ===== REGLAGES GENERAUX ===== */}
+      <div className="mt-5">
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">reglages generaux</p>
+        <div className="bg-white">
+          <ProfileRow icon={ClipboardText} color="#3B82F6" label="Mes reservations" onClick={() => navigate('/chauffeur/earnings')} />
+          <ProfileRow icon={Wrench} color="#F59E0B" label="Gerer les services" onClick={() => {}} />
+          <ProfileRow icon={FileText} color="#06B6D4" label="Gerer les documents" onClick={() => navigate('/chauffeur/documents')} />
+          <ProfileRow icon={MapPin} color="#EF4444" label="Gerer le lieu de travail" onClick={() => {}} />
+          <ProfileRow icon={Images} color="#8B5CF6" label="Gerer la galerie" onClick={() => {}} />
+          <ProfileRow icon={CalendarCheck} color="#A3A3A3" label="Ma disponibilite" onClick={() => {}} />
+          <ProfileRow icon={ChartBar} color="#22C55E" label="Statistiques" onClick={() => navigate('/chauffeur/earnings')} />
+          <ProfileRow icon={ChatCircleText} color="#06B6D4" label="Les commentaires des utilisateurs" onClick={() => {}} />
+          <ProfileRow icon={Receipt} color="#78716C" label="Lettre de voiture" onClick={() => {}} />
+          <ProfileRow icon={Bell} color="#F97316" label="Les notifications" onClick={() => navigate('/chauffeur/notifications')} />
+          <ProfileRow icon={UsersThree} color="#EF4444" label="Inviter des amis" onClick={() => navigate('/referral')} />
+          <ProfileRow icon={PhoneCall} color="#84CC16" label="Contacts d'urgence" onClick={() => {}} />
         </div>
       </div>
 
-      {/* Menu Items */}
-      <div className="px-5 mt-6 space-y-1">
-        <h3 className="text-gray-400 text-xs uppercase tracking-wide font-bold mb-2 px-1">Informations</h3>
+      {/* ===== PARAMETRE DU COMPTE ===== */}
+      <div className="mt-5">
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">Parametre du compte</p>
+        <div className="bg-white">
+          <ProfileRow icon={Fingerprint} color="#64748B" label="Activer Face ID/Touch ID" toggle />
+          <ProfileRow icon={UserCircle} color="#D946EF" label="Gerer son compte" onClick={() => {}} />
+          <ProfileRow icon={Key} color="#374151" label="Changer le mot de passe" onClick={() => {}} />
+          <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label="Changer de devise" onClick={() => {}} />
+          <ProfileRow icon={Globe} color="#0D9488" label="Changer de langue" onClick={() => {}} />
+          <ProfileRow icon={Gift} color="#22C55E" label="Programme de recompense" onClick={() => {}} />
+        </div>
+      </div>
 
-        <MenuItem icon={Phone} label="T&eacute;l&eacute;phone" value={user?.phone || '-'} />
-        <MenuItem icon={Envelope} label="Email" value={user?.email || '-'} />
-        <MenuItem icon={Car} label="V&eacute;hicule"
-          value={driver ? `${driver.vehicle_model || '-'} (${driver.vehicle_number || '-'})` : '-'} />
-        <MenuItem icon={FileText} label="Permis" value={driver?.license_number || '-'} />
+      {/* ===== PAIEMENT ===== */}
+      <div className="mt-5">
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">Paiement</p>
+        <div className="bg-white">
+          <ProfileRow icon={CreditCard} color="#3B82F6" label="Mode de paiement" onClick={() => {}} />
+          <ProfileRow icon={Bank} color="#6366F1" label="Coordonnees bancaires" onClick={() => {}} />
+          <ProfileRow icon={Wallet} color="#EF4444" label="Mon portefeuille" onClick={() => navigate('/chauffeur/wallet')} />
+          <ProfileRow icon={Plus} color="#8B5CF6" label="Ajouter de l'argent" onClick={() => navigate('/chauffeur/wallet')} />
+          <ProfileRow icon={PaperPlaneTilt} color="#D946EF" label="Envoyer de l'argent" onClick={() => {}} />
+        </div>
+      </div>
 
-        <h3 className="text-gray-400 text-xs uppercase tracking-wide font-bold mb-2 mt-5 px-1">Actions</h3>
+      {/* ===== CARTE CADEAU ===== */}
+      <div className="mt-5 mb-5">
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">Carte cadeau</p>
+        <div className="bg-white">
+          <ProfileRow icon={Gift} color="#F59E0B" label="Acheter une carte cadeau" onClick={() => navigate('/giftcards')} />
+          <ProfileRow icon={Star} color="#22C55E" label="Mes cartes cadeaux" onClick={() => {}} />
+        </div>
+      </div>
 
-        <MenuButton icon={Wallet} label="Mon portefeuille" onClick={() => navigate('/chauffeur/wallet')} />
-        <MenuButton icon={FileText} label="Mes documents"
-          badge={driver?.documents?.length ? `${driver.documents.length} fichier(s)` : null}
-          onClick={() => navigate('/chauffeur/documents')} />
-        <MenuButton icon={ShieldCheck} label="Aide & Support" onClick={() => navigate('/support')} />
-        <MenuButton icon={ChatCircleDots} label="Parler en direct" onClick={() => navigate('/chauffeur/livechat')} highlight />
-        <MenuButton icon={Gear} label="Param&egrave;tres" onClick={() => {}} />
-
-        {/* Logout */}
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-red-500/10 mt-4 hover:bg-red-500/20 transition-colors"
-          data-testid="logout-btn">
-          <SignOut size={20} className="text-red-400" />
-          <span className="text-red-400 font-medium text-sm">D&eacute;connexion</span>
+      {/* ===== DECONNEXION ===== */}
+      <div className="px-5 mb-8">
+        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 border border-red-100" data-testid="logout-btn">
+          <SignOut size={18} className="text-red-500" />
+          <span className="text-red-500 font-semibold text-sm">Deconnexion</span>
         </button>
       </div>
 
-      <DriverBottomNav active="profile" navigate={navigate} />
+      <DriverBottomNav active="profile" />
     </div>
   );
 };
 
-const MenuItem = ({ icon: Icon, label, value }) => (
-  <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-gray-900 border border-gray-800">
-    <Icon size={18} className="text-amber-500 flex-shrink-0" />
-    <span className="text-gray-400 text-sm flex-shrink-0">{label}</span>
-    <span className="text-white text-sm ml-auto truncate max-w-[180px] text-right">{value}</span>
-  </div>
-);
+const ProfileRow = ({ icon: Icon, color, label, onClick, toggle }) => {
+  const [enabled, setEnabled] = useState(true);
+  return (
+    <button
+      onClick={toggle ? () => setEnabled(!enabled) : onClick}
+      className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 last:border-0 active:bg-gray-50 transition-colors"
+      data-testid={`profile-row-${label.toLowerCase().replace(/\s+/g, '-').slice(0, 25)}`}
+    >
+      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + '18' }}>
+        <Icon size={20} weight="duotone" style={{ color }} />
+      </div>
+      <span className="text-sm text-gray-800 flex-1 text-left">{label}</span>
+      {toggle ? (
+        <div className={`w-12 h-7 rounded-full relative transition-colors ${enabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'left-[22px]' : 'left-0.5'}`} />
+        </div>
+      ) : (
+        <CaretRight size={16} className="text-gray-400 flex-shrink-0" />
+      )}
+    </button>
+  );
+};
 
-const MenuButton = ({ icon: Icon, label, badge, onClick, highlight }) => (
-  <button onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-colors ${
-      highlight ? 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' : 'bg-gray-900 border-gray-800 hover:bg-gray-800'}`}>
-    <Icon size={18} className={highlight ? 'text-emerald-400 flex-shrink-0' : 'text-amber-500 flex-shrink-0'} />
-    <span className={`text-sm font-medium ${highlight ? 'text-emerald-400' : 'text-white'}`}>{label}</span>
-    {badge && <span className="text-xs text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full ml-auto">{badge}</span>}
-    <CaretRight size={16} className="text-gray-500 ml-auto flex-shrink-0" />
-  </button>
-);
+export const DriverBottomNav = ({ active = 'home' }) => {
+  const navigate = useNavigate();
+  const tabs = [
+    { id: 'home', label: 'Accueil', icon: '🏠', path: '/chauffeur/home' },
+    { id: 'bookings', label: 'Les reservations', icon: '📋', path: '/chauffeur/earnings' },
+    { id: 'wallet', label: 'Portefeuille', icon: '💼', path: '/chauffeur/wallet' },
+    { id: 'profile', label: 'Profil', icon: '👤', path: '/chauffeur/profile' },
+  ];
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-gray-950 flex items-stretch z-50 max-w-[500px] mx-auto" data-testid="driver-bottom-nav" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {tabs.map(tab => (
+        <button key={tab.id} onClick={() => navigate(tab.path)}
+          className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${active === tab.id ? 'text-white' : 'text-gray-500'}`}
+          style={active === tab.id ? { color: GREEN } : {}}
+          data-testid={`nav-${tab.id}`}
+        >
+          <span className="text-lg">{tab.icon}</span>
+          <span className="text-[10px] font-medium">{tab.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+};
 
 export default DriverProfilePage;

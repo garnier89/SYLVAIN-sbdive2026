@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { driverAPI, walletAPI } from '../../services/api';
-import { DriverBottomNav } from './DriverEarningsPage';
+import { DriverBottomNav } from './DriverProfilePage';
 import { Button } from '../../components/ui/button';
 import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur } from '@phosphor-icons/react';
 import { toast } from 'sonner';

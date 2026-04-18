@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { driverAPI } from '../../services/api';
-import { DriverBottomNav } from './DriverEarningsPage';
+import { DriverBottomNav } from './DriverProfilePage';
 import { Car, MapPin, Clock, CheckCircle, XCircle, ArrowRight } from '@phosphor-icons/react';
 
 const statusLabels = {

@@ -84,6 +84,9 @@ Chauffeur virtuel via WebSocket
 - DriverWalletPage: solde, retrait, historique transactions
 - DriverDocumentsPage: 6 types de documents, upload, statuts (approuve/en attente/refuse)
 - DriverNotificationsPage: notifications courses, gains, systeme, promos
+- DriverHome redesign V3Cube: header vert En ligne/Hors ligne, 4 stat cards (voyages, evaluation, emplois a venir, en attente), carte, bouton Recompenses
+- DriverProfilePage redesign V3Cube: header vert avec avatar/email/phone, wallet card, sections reglages generaux (12 items), parametre du compte (6 items), paiement (5 items), carte cadeau (2 items)
+- Bottom nav V3Cube: Accueil, Les reservations, Portefeuille, Profil
 
 ### Admin Dashboard (placeholders remplaces)
 - AdminGeoFence: zones de service, aeroport, restreinte, surge

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DriverBottomNav } from './DriverEarningsPage';
+import { DriverBottomNav } from './DriverProfilePage';
 import { Button } from '../../components/ui/button';
 import { Bell, Car, Package, CheckCircle, Clock, Star, MapPin, ArrowLeft, Trash } from '@phosphor-icons/react';
 
