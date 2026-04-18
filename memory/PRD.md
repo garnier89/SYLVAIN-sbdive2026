@@ -73,10 +73,25 @@ Chauffeur virtuel via WebSocket
   - Dual-write: localStorage + backend pour acces rapide et persistance
   - Iteration 31: 100% pass (20/20)
 
-## Backlog (P2)
-- Notifications push
-- Chat/Appel chauffeur backend temps reel
-- Integration Stripe complete
+## Phase 2 - Enrichissement Apps (Apr 18, 2026) - DONE
+### SB Kiosk (Marchand)
+- MerchantPromotions: creation/gestion promos, activation/desactivation
+- MerchantAnalytics: KPI cards, graphique ventes, dernieres commandes
+- MerchantSettings: parametres boutique, contact, livraison, preferences
+- MerchantChat: chat support marchand avec auto-reply
+
+### SB Drive Chauffeur
+- DriverWalletPage: solde, retrait, historique transactions
+- DriverDocumentsPage: 6 types de documents, upload, statuts (approuve/en attente/refuse)
+- DriverNotificationsPage: notifications courses, gains, systeme, promos
+
+### Admin Dashboard (placeholders remplaces)
+- AdminGeoFence: zones de service, aeroport, restreinte, surge
+- AdminGiftCards: templates cartes cadeaux depuis API
+- AdminReferralSettings: configuration MLM parrainage avec stats
+- AdminTemplates: templates email (5) et SMS (4) avec onglets
+- AdminNewsletter: envoi newsletter, liste abonnes, stats
+- Iteration 33: 100% pass (24/24)
 
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
 - Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
