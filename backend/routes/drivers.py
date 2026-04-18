@@ -144,6 +144,6 @@ async def get_driver_ride_history(request: Request):
     rides = await db.rides.find(
         {"driver_id": user["id"]},
         {"_id": 0}
-    ).sort("created_at", -1).to_list(100)
+    ).sort("created_at", -1).limit(20).to_list(20)
 
     return {"rides": rides}

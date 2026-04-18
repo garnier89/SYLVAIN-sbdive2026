@@ -395,7 +395,11 @@ async def rate_ride(ride_id: str, request: Request):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.ratings.insert_one(rating)
-    ratings = await db.ratings.find({"driver_id": ride["driver_id"]}, {"rating": 1}).to_list(1000)
-    avg = sum(r["rating"] for r in ratings) / len(ratings) if ratings else 5.0
+    pipeline = [
+        {"$match": {"driver_id": ride["driver_id"]}},
+        {"$group": {"_id": None, "avg": {"$avg": "$rating"}}}
+    ]
+    result = await db.ratings.aggregate(pipeline).to_list(1)
+    avg = result[0]["avg"] if result else 5.0
     await db.drivers.update_one({"id": ride["driver_id"]}, {"$set": {"rating": round(avg, 2)}})
     return {"message": "Rating submitted"}
