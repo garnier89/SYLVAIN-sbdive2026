@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, ArrowRight, Eye, EyeSlash, X, CaretRight, CaretDown } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -285,7 +286,7 @@ const LoginPage = () => {
               {/* Account Options */}
               <div className="px-2">
                 {/* Apple */}
-                <button className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-apple-btn">
+                <button onClick={() => toast.info('Apple Sign-In bientot disponible')} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-apple-btn">
                   <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
                     <svg width="18" height="22" viewBox="0 0 18 22" fill="white">
                       <path d="M14.94 11.58c-.03-2.87 2.34-4.25 2.45-4.32-1.33-1.95-3.41-2.22-4.15-2.25-1.76-.18-3.45 1.04-4.34 1.04-.9 0-2.28-1.01-3.75-.99-1.93.03-3.72 1.13-4.71 2.86-2.01 3.5-.51 8.68 1.45 11.52.96 1.39 2.1 2.95 3.61 2.89 1.45-.06 1.99-.94 3.74-.94 1.74 0 2.24.94 3.76.91 1.56-.03 2.54-1.41 3.49-2.81 1.1-1.61 1.55-3.17 1.58-3.25-.03-.01-3.03-1.16-3.06-4.62l-.07-.04z"/>
@@ -315,7 +316,7 @@ const LoginPage = () => {
                 </button>
 
                 {/* Facebook */}
-                <button className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-facebook-btn">
+                <button onClick={() => toast.info('Facebook Login bientot disponible')} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-facebook-btn">
                   <div className="w-10 h-10 rounded-full bg-[#1877F2] flex items-center justify-center">
                     <svg width="12" height="22" viewBox="0 0 12 22" fill="white">
                       <path d="M11.34 0H8.5C6.06 0 3.88 1.34 3.88 4.36v2.14H1v3.64h2.88V22h4.12V10.14h3.06l.36-3.64H8V4.68c0-1.18.36-1.88 1.64-1.88H11.34V0z"/>
@@ -326,7 +327,7 @@ const LoginPage = () => {
                 </button>
 
                 {/* Face ID / Touch ID */}
-                <button className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-biometric-btn">
+                <button onClick={() => toast.info('Connectez-vous d\'abord par mobile pour activer Face ID / Touch ID')} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-biometric-btn">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                       <path d="M7 3H5a2 2 0 00-2 2v2M17 3h2a2 2 0 012 2v2M7 21H5a2 2 0 01-2-2v-2M17 21h2a2 2 0 002-2v-2"/>

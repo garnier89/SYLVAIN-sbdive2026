@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration 44 - Splash screens (passenger + chauffeur) and 'Autres options de connexion' modal verification. Backend 6/6 pytest PASS: phone auth regression (/api/auth/check-phone, /api/auth/phone-register, /api/auth/phone-login) + /api/auth/google/session endpoint correctly returns 400 on missing session_id and 401/500 on invalid session_id. Frontend fully verified: /chauffeur splash shows /sb-logo.jpg + amber 'SB DRIVE CHAUFFEUR' label; /app (ClientWelcome) splash shows /sb-logo.jpg + orange 'SB DRIVE CLIENT' label; both transition to welcome carousel after auth check + 600ms. Passenger /login shows blue 'Ou choisir une autre option de connexion' link (rgb(74,158,255)); chauffeur /chauffeur/login shows amber version (rgb(245,158,11)). Both open modal with all 4 options (Apple, Google, Facebook, Face ID/Touch ID via data-testids). Google button triggers correct Emergent OAuth redirect on both apps (https://auth.emergentagent.com/?redirect=https%3A%2F%2Fsuperapp-integration.preview.emergentagent.com%2Fauth%2Fcallback). Apple / Facebook / Face ID show sonner 'bientot disponible' toasts without crash. All feature goals met.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: POST /api/auth/check-phone returns exists=false for new number, true after register - PASS",
+    "Backend: POST /api/auth/phone-register creates user_role=user - PASS",
+    "Backend: POST /api/auth/phone-login authenticates with phone+password - PASS",
+    "Backend: POST /api/auth/phone-login with wrong password returns 4xx - PASS",
+    "Backend: POST /api/auth/google/session with missing session_id returns 400 'Session ID required' - PASS",
+    "Backend: POST /api/auth/google/session with fake session_id returns 401/500 (emergent demobackend rejects invalid session) - PASS, endpoint is wired correctly",
+    "Backend: Driver phone-login route returns clean 2xx/4xx (not 500) - PASS",
+    "Frontend: /chauffeur renders data-testid='chauffeur-splash' with data-testid='chauffeur-splash-logo' src=/sb-logo.jpg + amber 'SB DRIVE CHAUFFEUR' label - PASS",
+    "Frontend: /chauffeur transitions splash -> data-testid='chauffeur-welcome' carousel after auth load + 600ms - PASS",
+    "Frontend: /app renders data-testid='splash-screen' with data-testid='splash-logo' src=/sb-logo.jpg + 'SB DRIVE CLIENT' (orange) label - PASS",
+    "Frontend: /app transitions splash -> data-testid='welcome-screen' onboarding carousel - PASS",
+    "Frontend: Passenger /login shows data-testid='other-login-options-btn' 'Ou choisir une autre option de connexion' in blue (rgb(74,158,255)) - PASS",
+    "Frontend: Passenger /login click opens data-testid='account-modal' with all 4 options (Apple/Google/Facebook/Face ID) - PASS",
+    "Frontend: Passenger /login Google click redirects to https://auth.emergentagent.com/?redirect=...auth%2Fcallback - PASS",
+    "Frontend: Chauffeur /chauffeur/login shows data-testid='other-login-options-btn' in amber (rgb(245,158,11)) - PASS",
+    "Frontend: Chauffeur /chauffeur/login click opens account-modal with 4 options - PASS",
+    "Frontend: Chauffeur /chauffeur/login Google click redirects to auth.emergentagent.com - PASS",
+    "Frontend: Chauffeur modal Apple button shows toast 'Apple Sign-In bientot disponible' (no crash) - PASS",
+    "Frontend: Chauffeur modal Facebook button shows toast 'Facebook Login bientot disponible' (no crash) - PASS",
+    "Frontend: Chauffeur modal Face ID button shows toast 'Connectez-vous d'abord par mobile pour activer Face ID / Touch ID' (no crash) - PASS"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter44_auth_splash.py",
+    "/app/test_reports/pytest/pytest_results_iter44.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ChauffeurWelcome.js imports SteeringWheel, CurrencyEur, Clock, MapPin, Star from phosphor-icons but 'Clock' is not used in the slides array (unused import - dead code, minor).",
+    "LoginPage.js and ChauffeurLogin.js duplicate the entire 4-option account modal (Apple/Google/Facebook/FaceID) with identical toast messages and Google handler. Consider extracting a shared <OtherLoginOptionsModal /> component (DRY) - code duplication ~60 lines.",
+    "ClientWelcome + ChauffeurWelcome splash->welcome transition only fires when !loading; if useAuth() loading flag is stuck (e.g. failed /api/auth/me), the splash hangs forever. Consider adding a max-timeout fallback (e.g. 3000ms) to force transition even if auth call hangs.",
+    "AuthContext.loginWithGoogle uses window.location.href which does full page reload; acceptable here but state (like return-to path) is lost. Not a blocker.",
+    "Google session endpoint stores phone:null and role:'user' for Google-signup users; chauffeurs who sign in via Google would still get role='user', which may not be intended. If chauffeur is expected to become role=driver when signing via /chauffeur/login Google button, a driver-context flag should be passed to /api/auth/google/session. Currently this is NOT handled - worth flagging to product."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter44_auth_splash.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (all splash + modal + OAuth redirect + toast behaviors verified on both passenger and chauffeur apps)"
+  },
+  "test_credentials": {
+    "admin": "admin@superapp.com / SuperAdmin123! (at /admin-login)",
+    "driver": "+33 6 00 00 00 02 / Driver123! (phone-login; driver role; may not be seeded in all envs)",
+    "note": "/api/auth/google/session requires a real session_id from auth.emergentagent.com redirect; partial mock test only"
+  },
+  "seed_data_creation": "Phone register test creates a TEST_User_Iter44 with random +33 number per run; not cleaned (handler has no delete endpoint). Low impact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter44 regression file: /app/backend/tests/test_iter44_auth_splash.py (6 tests). Keys: splash screens use <img src='/sb-logo.jpg'/> on both /chauffeur and /app routes. Splash auto-transitions after AuthContext.loading becomes false + 600ms. Google OAuth redirect URL: https://auth.emergentagent.com/?redirect=<backend-url>/auth/callback. /api/auth/google/session validates session_id with emergent demobackend. IMPORTANT open question for product: Google signup from /chauffeur/login currently creates a role='user' account (not 'driver') in /api/auth/google/session - flagged in code review comments. If driver Google signup is expected, backend endpoint + frontend loginWithGoogle need a role/context param.",
+  "rca of the issue": "N/A - all tested features working as specified.",
+  "mocked_apis": { "has_mocked_apis": false, "mocked_apis_list": [] }
+}

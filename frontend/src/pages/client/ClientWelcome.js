@@ -43,7 +43,7 @@ const slides = [
 
 const ClientWelcome = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [phase, setPhase] = useState('splash');
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -52,9 +52,12 @@ const ClientWelcome = () => {
       navigate('/home');
       return;
     }
-    const timer = setTimeout(() => setPhase('welcome'), 2200);
-    return () => clearTimeout(timer);
-  }, [user, navigate]);
+    // Stay on splash until auth check finishes, then +600ms for brand moment
+    if (!loading) {
+      const timer = setTimeout(() => setPhase('welcome'), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [user, loading, navigate]);
 
   const nextSlide = () => {
     if (currentSlide < slides.length - 1) {

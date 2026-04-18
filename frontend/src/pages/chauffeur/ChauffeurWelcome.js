@@ -16,15 +16,17 @@ const slides = [
 
 const ChauffeurWelcome = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [phase, setPhase] = useState('splash');
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     if (user && user.role === 'driver') { navigate('/chauffeur/home'); return; }
-    const timer = setTimeout(() => setPhase('welcome'), 2200);
-    return () => clearTimeout(timer);
-  }, [user, navigate]);
+    if (!loading) {
+      const timer = setTimeout(() => setPhase('welcome'), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [user, loading, navigate]);
 
   const nextSlide = () => {
     if (currentSlide < slides.length - 1) setCurrentSlide(currentSlide + 1);
@@ -33,19 +35,17 @@ const ChauffeurWelcome = () => {
 
   if (phase === 'splash') {
     return (
-      <div className="mobile-container min-h-screen bg-gray-950 flex flex-col items-center justify-center relative" data-testid="chauffeur-splash">
+      <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center relative" data-testid="chauffeur-splash">
         <div className="flex flex-col items-center gap-4 animate-fade-in">
-          <div className="w-28 h-28 rounded-3xl bg-amber-500 flex items-center justify-center shadow-xl shadow-amber-500/25">
-            <SteeringWheel size={64} weight="duotone" className="text-white" />
-          </div>
+          <img src="/sb-logo.jpg" alt="SB Drive" className="w-44 h-44 object-contain" data-testid="chauffeur-splash-logo" />
         </div>
         <div className="absolute bottom-24 flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-          <div className="w-2 h-2 rounded-full bg-gray-600" />
-          <div className="w-2 h-2 rounded-full bg-gray-600" />
+          <div className="w-2 h-2 rounded-full bg-gray-300" />
+          <div className="w-2 h-2 rounded-full bg-gray-300" />
         </div>
         <div className="absolute bottom-14 flex flex-col items-center gap-1">
-          <p className="text-base font-bold tracking-[0.25em] text-gray-300">
+          <p className="text-base font-bold tracking-[0.25em] text-gray-700">
             SB DRIVE <span className="text-amber-500">CHAUFFEUR</span>
           </p>
         </div>
