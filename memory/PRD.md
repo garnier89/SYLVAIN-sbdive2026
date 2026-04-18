@@ -57,6 +57,16 @@ Chauffeur virtuel via WebSocket
 - Rating: aggregation pipeline MongoDB ($match + $group) au lieu de .to_list(1000)
 - Ride history chauffeur: limite a 20 resultats au lieu de 100
 
+## Code Quality Pass (Apr 18, 2026)
+- Iteration 30: 100% pass (30/30) - Code quality fixes validated
+- Securite: secrets module pour generation de codes referral (auth.py, referral.py)
+- Securite: suppression localStorage token, httpOnly cookies uniquement
+- Securite: variable status initialisee dans payments.py
+- Qualite: catch blocks avec console.error (8 fichiers)
+- Qualite: cles React stables au lieu d'index de tableau (6 fichiers)
+- Qualite: hook dependencies corrigees (useCallback + useEffect deps)
+- Nettoyage: suppression 17 anciens fichiers de test, creation conftest.py
+
 ## Backlog (P1)
 - Persistance panier/commandes entre sessions
 

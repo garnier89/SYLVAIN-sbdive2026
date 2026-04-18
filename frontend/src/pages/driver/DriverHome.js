@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -35,7 +35,7 @@ const DriverHome = () => {
     loadDriverProfile();
     setupLocation();
     return () => { if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current); };
-  }, []);
+  }, [loadDriverProfile, setupLocation]);
 
   useEffect(() => {
     const unsub1 = on('new_ride_request', (msg) => {
@@ -55,9 +55,9 @@ const DriverHome = () => {
       const interval = setInterval(loadPendingRides, 8000);
       return () => clearInterval(interval);
     }
-  }, [isOnline, currentRide, driver]);
+  }, [isOnline, currentRide, loadPendingRides]);
 
-  const loadDriverProfile = async () => {
+  const loadDriverProfile = useCallback(async () => {
     try {
       const res = await driverAPI.getProfile();
       setDriver(res.data);
@@ -65,9 +65,9 @@ const DriverHome = () => {
     } catch (err) {
       if (err.response?.status === 404) navigate('/driver/register');
     } finally { setLoading(false); }
-  };
+  }, [navigate]);
 
-  const setupLocation = () => {
+  const setupLocation = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       ({ coords: { latitude, longitude } }) => {
@@ -79,18 +79,18 @@ const DriverHome = () => {
     locationWatchId.current = navigator.geolocation.watchPosition(
       ({ coords: { latitude, longitude } }) => {
         setMapCenter([latitude, longitude]);
-        if (isOnline) sendLocation(latitude, longitude);
+        sendLocation(latitude, longitude);
       }, () => {}, { enableHighAccuracy: true }
     );
-  };
+  }, [sendLocation]);
 
-  const loadPendingRides = async () => {
+  const loadPendingRides = useCallback(async () => {
     if (!driver || driver.status !== 'approved') return;
     try {
       const res = await rideAPI.list({ status: 'pending' });
       if (res.data.length > 0 && !currentRide && !incomingRequest) setIncomingRequest(res.data[0]);
     } catch (err) { console.error('Failed to load pending rides:', err); }
-  };
+  }, [driver, currentRide, incomingRequest]);
 
   const toggleOnline = async () => {
     if (driver?.status !== 'approved') return;
