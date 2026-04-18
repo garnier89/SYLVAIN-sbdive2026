@@ -79,13 +79,14 @@ const DriverSupportPage = () => {
     if (!message.trim()) return;
     setSending(true);
     try {
-      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/crud/contact_requests`, {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/support/contact`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ name: 'Chauffeur', subject: 'Demande support chauffeur', message: message.trim(), status: 'pending' }),
+        body: JSON.stringify({ subject: 'Demande support chauffeur', message: message.trim() }),
       });
+      if (!res.ok) throw new Error('Server error');
       toast.success('Message envoye ! Nous vous repondons sous 24h.');
       setMessage('');
-    } catch (err) { toast.error('Erreur d\'envoi'); }
+    } catch (err) { toast.error('Erreur d\'envoi, reessayez'); }
     finally { setSending(false); }
   };
 

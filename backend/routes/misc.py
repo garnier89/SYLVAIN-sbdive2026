@@ -293,3 +293,30 @@ async def root():
 @router.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ===== PUBLIC/AUTHED SUPPORT CONTACT =====
+@router.post("/support/contact")
+async def submit_support_contact(request: Request):
+    """Any authenticated user (user/driver/merchant/admin) can submit a support contact message."""
+    user = await get_current_user(request)
+    body = await request.json()
+    message = (body.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Message required")
+    doc = {
+        "id": f"con_{uuid.uuid4().hex[:8]}",
+        "user_id": user["id"],
+        "name": user.get("name") or body.get("name") or "User",
+        "email": user.get("email") or body.get("email", ""),
+        "phone": user.get("phone") or body.get("phone", ""),
+        "role": user.get("role"),
+        "subject": body.get("subject", "Support request"),
+        "message": message,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.admin_contact_requests.insert_one(doc)
+    doc.pop("_id", None)
+    return {"message": "Received", "id": doc["id"]}
+
