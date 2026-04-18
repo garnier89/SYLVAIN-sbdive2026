@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -101,16 +101,50 @@ const serviceConfigs = {
   ]},
 };
 
+const API = process.env.REACT_APP_BACKEND_URL;
+
 const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
   const config = serviceConfigs[serviceKey] || serviceConfigs.genie;
   const Icon = config.icon;
   const [settings, setSettings] = useState(config.settings.map(s => ({ ...s })));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    loadConfig();
+  }, [serviceKey]);
+
+  const loadConfig = async () => {
+    try {
+      const res = await fetch(`${API}/api/admin/service-config/${serviceKey}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.settings && Object.keys(data.settings).length > 0) {
+          setSettings(prev => prev.map(s => ({
+            ...s,
+            value: data.settings[s.key] !== undefined ? data.settings[s.key] : s.value,
+          })));
+        }
+      }
+    } catch (err) { console.error('Failed to load config:', err); }
+  };
 
   const updateSetting = (key, value) => {
     setSettings(prev => prev.map(s => s.key === key ? { ...s, value } : s));
   };
 
-  const handleSave = () => toast.success('Parametres sauvegardes !');
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const settingsObj = {};
+      settings.forEach(s => { settingsObj[s.key] = s.value; });
+      await fetch(`${API}/api/admin/service-config/${serviceKey}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ settings: settingsObj }),
+      });
+      toast.success('Parametres sauvegardes !');
+    } catch (err) { console.error('Save error:', err); toast.error('Erreur de sauvegarde'); }
+    finally { setSaving(false); }
+  };
 
   return (
     <div className="p-6" data-testid={`admin-service-${serviceKey}`}>
@@ -139,7 +173,9 @@ const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
             )}
           </div>
         ))}
-        <Button onClick={handleSave} className="bg-[#3b82f6] text-white w-full">Sauvegarder</Button>
+        <Button onClick={handleSave} disabled={saving} className="bg-[#3b82f6] text-white w-full">
+          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+        </Button>
       </div>
     </div>
   );

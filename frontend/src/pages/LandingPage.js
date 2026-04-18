@@ -7,6 +7,7 @@ import {
   Receipt, Eye, LockKey, DeviceMobile, SteeringWheel,
   Buildings, Handshake, Bed, Briefcase, UserPlus
 } from '@phosphor-icons/react';
+import GooglePlacesInput from '../components/GooglePlacesInput';
 
 const SB_LOGO = 'https://www.sbdrivevtc.com/assets/img/apptype/ProPTX/logo.png';
 const PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.sbdrivervtc.client';
@@ -38,11 +39,14 @@ const registrationOptions = [
 const LandingPage = () => {
   const navigate = useNavigate();
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [pickup, setPickup] = useState('');
-  const [dropoff, setDropoff] = useState('');
+  const [pickupData, setPickupData] = useState(null);
+  const [dropoffData, setDropoffData] = useState(null);
 
   const handleBookNow = () => {
-    navigate('/login');
+    const params = new URLSearchParams();
+    if (pickupData) { params.set('plat', pickupData.lat); params.set('plng', pickupData.lng); params.set('paddr', pickupData.address); }
+    if (dropoffData) { params.set('dlat', dropoffData.lat); params.set('dlng', dropoffData.lng); params.set('daddr', dropoffData.address); }
+    navigate(`/login?redirect=/ride${params.toString() ? '?' + params.toString() : ''}`);
   };
 
   return (
@@ -99,24 +103,20 @@ const LandingPage = () => {
               {/* Booking Form */}
               <div className="mt-8 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10" data-testid="booking-form">
                 <div className="space-y-3">
-                  <div className="relative">
-                    <MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-green-400" weight="fill" />
-                    <input
-                      type="text" placeholder="Saisissez l'adresse de depart"
-                      value={pickup} onChange={e => setPickup(e.target.value)}
-                      className="w-full bg-white/10 border border-white/20 rounded-xl px-10 py-3 text-white placeholder-gray-400 text-sm focus:outline-none focus:border-[#FF5000]/50"
-                      data-testid="pickup-input"
-                    />
-                  </div>
-                  <div className="relative">
-                    <MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400" weight="fill" />
-                    <input
-                      type="text" placeholder="Saisissez l'adresse d'arrivee"
-                      value={dropoff} onChange={e => setDropoff(e.target.value)}
-                      className="w-full bg-white/10 border border-white/20 rounded-xl px-10 py-3 text-white placeholder-gray-400 text-sm focus:outline-none focus:border-[#FF5000]/50"
-                      data-testid="dropoff-input"
-                    />
-                  </div>
+                  <GooglePlacesInput
+                    placeholder="Saisissez l'adresse de depart"
+                    iconColor="#22C55E"
+                    onSelect={setPickupData}
+                    darkMode
+                    testId="pickup-input"
+                  />
+                  <GooglePlacesInput
+                    placeholder="Saisissez l'adresse d'arrivee"
+                    iconColor="#EF4444"
+                    onSelect={setDropoffData}
+                    darkMode
+                    testId="dropoff-input"
+                  />
                 </div>
                 <div className="flex gap-3 mt-4">
                   <button onClick={handleBookNow} className="flex-1 bg-[#FF5000] hover:bg-[#cc4000] text-white font-bold py-3 rounded-xl transition-colors text-sm" data-testid="book-now-btn">

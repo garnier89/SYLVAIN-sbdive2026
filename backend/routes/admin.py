@@ -88,3 +88,89 @@ async def get_admin_stats(request: Request):
         "orders": orders_count,
         "merchants": merchants_count,
     }
+
+
+# ===== SERVICE CONFIGS =====
+
+@router.get("/service-config/{service_key}")
+async def get_service_config(service_key: str, request: Request):
+    await require_role(request, ["admin"])
+    config = await db.service_configs.find_one({"service_key": service_key}, {"_id": 0})
+    if not config:
+        return {"service_key": service_key, "settings": {}}
+    return config
+
+
+@router.put("/service-config/{service_key}")
+async def save_service_config(service_key: str, request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    settings = body.get("settings", {})
+    await db.service_configs.update_one(
+        {"service_key": service_key},
+        {"$set": {
+            "service_key": service_key,
+            "settings": settings,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"message": f"Config '{service_key}' saved"}
+
+
+# ===== CRUD ITEMS (groups, vehicles, company, etc.) =====
+
+@router.get("/crud/{collection}")
+async def list_crud_items(collection: str, request: Request):
+    await require_role(request, ["admin"])
+    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
+    col_name = f"admin_{collection}" if collection in allowed else None
+    if not col_name:
+        raise HTTPException(status_code=400, detail="Invalid collection")
+    items = await db[col_name].find({}, {"_id": 0}).to_list(100)
+    return items
+
+
+@router.post("/crud/{collection}")
+async def create_crud_item(collection: str, request: Request):
+    await require_role(request, ["admin"])
+    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
+    col_name = f"admin_{collection}" if collection in allowed else None
+    if not col_name:
+        raise HTTPException(status_code=400, detail="Invalid collection")
+    body = await request.json()
+    import uuid
+    body["id"] = f"{collection[:3]}_{uuid.uuid4().hex[:8]}"
+    body["created_at"] = datetime.now(timezone.utc).isoformat()
+    await db[col_name].insert_one(body)
+    body.pop("_id", None)
+    return body
+
+
+@router.put("/crud/{collection}/{item_id}")
+async def update_crud_item(collection: str, item_id: str, request: Request):
+    await require_role(request, ["admin"])
+    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
+    col_name = f"admin_{collection}" if collection in allowed else None
+    if not col_name:
+        raise HTTPException(status_code=400, detail="Invalid collection")
+    body = await request.json()
+    body.pop("id", None)
+    body.pop("_id", None)
+    result = await db[col_name].update_one({"id": item_id}, {"$set": body})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Updated"}
+
+
+@router.delete("/crud/{collection}/{item_id}")
+async def delete_crud_item(collection: str, item_id: str, request: Request):
+    await require_role(request, ["admin"])
+    allowed = ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"]
+    col_name = f"admin_{collection}" if collection in allowed else None
+    if not col_name:
+        raise HTTPException(status_code=400, detail="Invalid collection")
+    result = await db[col_name].delete_one({"id": item_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Deleted"}

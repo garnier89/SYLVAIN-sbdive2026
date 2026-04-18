@@ -10,6 +10,7 @@ import {
   Jeep, Lightning, Van, Wheelchair, AirplaneTilt,
   Users, Percent, Calendar, Info
 } from '@phosphor-icons/react';
+import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -228,22 +229,27 @@ const RideBookingPage = () => {
             </div>
             {/* Inputs */}
             <div className="flex-1 space-y-2">
-              <div
-                className="h-11 rounded-lg border border-gray-200 px-3 flex items-center cursor-pointer"
-                onClick={() => { setSelectingLocation('pickup'); setStep('map'); }}
-                data-testid="ride-pickup-input"
-              >
-                <span className={`text-sm truncate ${pickup.address ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {pickup.address || 'Adresse de départ'}
-                </span>
-              </div>
-              <div
-                className="h-11 rounded-lg border border-gray-200 px-3 flex items-center cursor-pointer"
-                onClick={() => { setSelectingLocation('dropoff'); setStep('map'); }}
-                data-testid="ride-dropoff-input"
-              >
-                <span className="text-sm text-gray-400">Où allez-vous ?</span>
-              </div>
+              <GooglePlacesInput
+                placeholder="Adresse de depart"
+                value={pickup.address}
+                iconColor="#22C55E"
+                onSelect={(result) => {
+                  setPickup({ lat: result.lat, lng: result.lng, address: result.address });
+                  setMapCenter([result.lat, result.lng]);
+                }}
+                testId="ride-pickup-input"
+                inputClassName="h-11 !rounded-lg !border-gray-200 !py-2"
+              />
+              <GooglePlacesInput
+                placeholder="Ou allez-vous ?"
+                value={dropoff.address}
+                iconColor="#EF4444"
+                onSelect={(result) => {
+                  setDropoff({ lat: result.lat, lng: result.lng, address: result.address });
+                }}
+                testId="ride-dropoff-input"
+                inputClassName="h-11 !rounded-lg !border-gray-200 !py-2"
+              />
             </div>
             {/* + Button */}
             <div className="flex items-center pt-3">
