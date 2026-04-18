@@ -77,3 +77,15 @@ Chauffeur virtuel via WebSocket
 - Notifications push
 - Chat/Appel chauffeur backend temps reel
 - Integration Stripe complete
+
+## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
+- Landing page sbdrivevtc.com (hero, services, how-it-works, chauffeur, marchand, temoignages, CTA, footer)
+- Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
+- Admin Orders/Parcels (/admin/parcels, /admin/store-delivery) avec filtre et detail
+- Admin Stores (/admin/stores) avec recherche et activation
+- Admin Manual Booking (/admin/manual-booking, /admin/later-bookings, /admin/create-order)
+- Admin Banners (/admin/banners) gestion des publicites
+- Admin Payout (/admin/payout) rapport des versements
+- Backend /api/admin/* (CRUD vehicle-types, merchant status, stats)
+- Route /app pour l'onboarding client
+- Iteration 32: 100% pass (27/27)
