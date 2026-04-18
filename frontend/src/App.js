@@ -110,6 +110,9 @@ import AdminTopDriversSettings from './pages/admin/AdminTopDriversSettings';
 import AdminDbBackup from './pages/admin/AdminDbBackup';
 import AdminNegotiationGapReport from './pages/admin/AdminNegotiationGapReport';
 import TopDriversPage from './pages/TopDriversPage';
+import RideChatPage from './pages/RideChatPage';
+import EmergencyContactsPage from './pages/user/EmergencyContactsPage';
+import FavoriteDriversPage from './pages/user/FavoriteDriversPage';
 import AdminDocuments from './pages/admin/AdminDocuments';
 import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminWalletRequests from './pages/admin/AdminWalletRequests';
@@ -135,7 +138,10 @@ const AppRouter = () => {
 
       {/* ======= SB DRIVE CLIENT (App Passager) ======= */}
       <Route path="/" element={user && user.role === 'user' ? <Navigate to="/home" replace /> : !user ? <LandingPage /> : <Navigate to={user.role === 'driver' ? '/chauffeur/home' : user.role === 'merchant' ? '/merchant' : user.role === 'admin' ? '/admin' : '/home'} replace />} />
-      <Route path="/top-chauffeurs" element={<TopDriversPage />} />      <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
+      <Route path="/top-chauffeurs" element={<TopDriversPage />} />
+      <Route path="/ride/:rideId/chat" element={<ProtectedRoute><RideChatPage /></ProtectedRoute>} />
+      <Route path="/safety" element={<ProtectedRoute><EmergencyContactsPage /></ProtectedRoute>} />
+      <Route path="/favorite-drivers" element={<ProtectedRoute><FavoriteDriversPage /></ProtectedRoute>} />      <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
       <Route path="/app" element={user ? <Navigate to="/home" replace /> : <ClientWelcome />} />
       <Route path="/login" element={user ? <Navigate to="/home" replace /> : <LoginPage />} />
       <Route path="/admin-login" element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <AdminLoginPage />} />

@@ -56,6 +56,12 @@ class ConnectionManager:
             if cid.startswith("driver_"):
                 await self.send_personal_message(message, cid)
 
+    async def broadcast_to_admins(self, message: dict):
+        for cid in list(self.active_connections.keys()):
+            if cid.startswith("admin_"):
+                await self.send_personal_message(message, cid)
+
+
     def update_driver_location(self, driver_id: str, lat: float, lng: float):
         self.driver_locations[driver_id] = {
             "lat": lat, "lng": lng,

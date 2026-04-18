@@ -50,6 +50,8 @@ const RideTrackingPage = () => {
   const [showCancel, setShowCancel] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [rating, setRating] = useState(5);
+  const [markAsFavorite, setMarkAsFavorite] = useState(false);
+  const [startOtp, setStartOtp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelReasons, setCancelReasons] = useState([]);
 
@@ -130,10 +132,29 @@ const RideTrackingPage = () => {
   const handleRate = async () => {
     try {
       await rideAPI.rate(rideId, { rating, comment: '' });
+      if (markAsFavorite && ride?.driver_id) {
+        try {
+          await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/phase1/favorite-drivers/${ride.driver_id}`, {
+            method: 'POST', credentials: 'include',
+          });
+        } catch { /* ignore */ }
+      }
       navigate('/home');
     } catch {
       navigate('/home');
     }
+  };
+
+  const requestStartOtp = async () => {
+    try {
+      const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/phase1/rides/${rideId}/start-otp/request`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setStartOtp(d.otp);
+      }
+    } catch { /* ignore */ }
   };
 
   if (loading) {
@@ -271,7 +292,7 @@ const RideTrackingPage = () => {
                 <button className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center" data-testid="call-driver-btn">
                   <Phone size={18} className="text-[#FF4500]" />
                 </button>
-                <button className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center" data-testid="chat-driver-btn">
+                <button onClick={() => navigate(`/ride/${rideId}/chat`)} className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center" data-testid="chat-driver-btn">
                   <ChatCircle size={18} className="text-[#FF4500]" />
                 </button>
               </div>
@@ -279,12 +300,18 @@ const RideTrackingPage = () => {
           </div>
         )}
 
-        {/* OTP Display */}
-        {ride.otp && ride.status === 'arriving' && (
+        {/* OTP Display (passenger) */}
+        {ride.status === 'arriving' && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-4 text-center" data-testid="ride-otp-display">
             <Shield size={24} className="text-yellow-600 mx-auto mb-1" />
-            <p className="text-xs text-yellow-700">Partagez ce code avec le chauffeur</p>
-            <p className="text-3xl font-bold text-gray-900 tracking-[0.5em] mt-1">{ride.otp}</p>
+            <p className="text-xs text-yellow-700">Partagez ce code avec le chauffeur pour demarrer</p>
+            {startOtp ? (
+              <p className="text-3xl font-bold text-gray-900 tracking-[0.5em] mt-1" data-testid="start-otp-value">{startOtp}</p>
+            ) : (
+              <button onClick={requestStartOtp} className="mt-2 px-5 py-2 rounded-full bg-yellow-500 text-white text-sm font-bold" data-testid="generate-start-otp-btn">
+                Generer mon code OTP
+              </button>
+            )}
           </div>
         )}
 
@@ -380,13 +407,17 @@ const RideTrackingPage = () => {
           <div className="w-[90%] max-w-[380px] bg-white rounded-3xl p-6 text-center">
             <h3 className="text-lg font-bold mb-2">Évaluer votre course</h3>
             <p className="text-sm text-gray-500 mb-4">Comment était votre chauffeur ?</p>
-            <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="flex items-center justify-center gap-2 mb-4">
               {[1, 2, 3, 4, 5].map(n => (
                 <button key={n} onClick={() => setRating(n)} data-testid={`star-${n}`}>
                   <Star size={36} weight={n <= rating ? 'fill' : 'regular'} className={n <= rating ? 'text-yellow-500' : 'text-gray-300'} />
                 </button>
               ))}
             </div>
+            <label className="flex items-center justify-center gap-2 mb-5 text-sm cursor-pointer" data-testid="mark-favorite-label">
+              <input type="checkbox" checked={markAsFavorite} onChange={(e) => setMarkAsFavorite(e.target.checked)} className="w-4 h-4 accent-red-500" data-testid="mark-favorite-checkbox" />
+              <span className="text-gray-700">Ajouter ce chauffeur en favori</span>
+            </label>
             <Button className="w-full" onClick={handleRate} data-testid="submit-rating-btn">
               Envoyer ({rating}/5)
             </Button>

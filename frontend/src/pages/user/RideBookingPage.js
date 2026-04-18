@@ -50,6 +50,9 @@ const RideBookingPage = () => {
   const [searchParams] = useSearchParams();
 
   const [step, setStep] = useState('plan'); // plan, map, searching
+  const [stopovers, setStopovers] = useState([]); // [{address, lat, lng}]
+  const [bookFor, setBookFor] = useState({ name: '', phone: '' }); // empty = for me
+  const [showBookForModal, setShowBookForModal] = useState(false);
   const [pickup, setPickup] = useState({ lat: null, lng: null, address: '' });
   const [dropoff, setDropoff] = useState({ lat: null, lng: null, address: '' });
   const [selectingLocation, setSelectingLocation] = useState(null);
@@ -179,9 +182,20 @@ const RideBookingPage = () => {
         dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
         vehicle_type: selectedVehicle, payment_method: paymentMethod,
         proposed_fare: offerAmount > 0 ? offerAmount : (estimate?.estimated_fare || null),
+        book_for_name: bookFor.name || null,
+        book_for_phone: bookFor.phone || null,
       });
       const createdRide = response.data;
       setRide(createdRide);
+      // Push stopovers if any
+      if (stopovers.length > 0 && createdRide?.id) {
+        try {
+          await fetch(`${API}/api/phase1/rides/${createdRide.id}/stopovers`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ stopovers: stopovers.filter((s) => s.lat && s.lng) }),
+          });
+        } catch { /* ignore */ }
+      }
       setCounterOffers([]);
       setStep('negotiation');
     } catch {
@@ -252,9 +266,9 @@ const RideBookingPage = () => {
             <span className="font-medium">Maintenant</span>
             <CaretDown size={12} className="text-gray-400" />
           </button>
-          <button className="flex items-center gap-2 text-sm text-gray-700" data-testid="for-me-dropdown">
+          <button onClick={() => setShowBookForModal(true)} className="flex items-center gap-2 text-sm text-gray-700" data-testid="for-me-dropdown">
             <User size={16} className="text-gray-500" />
-            <span className="font-medium">Pour moi</span>
+            <span className="font-medium">{bookFor.name ? `Pour ${bookFor.name.split(' ')[0]}` : 'Pour moi'}</span>
             <CaretDown size={12} className="text-gray-400" />
           </button>
         </div>
@@ -294,11 +308,41 @@ const RideBookingPage = () => {
             </div>
             {/* + Button */}
             <div className="flex items-center pt-3">
-              <button className="w-9 h-9 rounded-full bg-[#FF4500] flex items-center justify-center" data-testid="ride-add-stop-btn">
+              <button
+                onClick={() => {
+                  if (stopovers.length >= 5) return;
+                  setStopovers((s) => [...s, { address: '', lat: null, lng: null }]);
+                }}
+                className="w-9 h-9 rounded-full bg-[#FF4500] flex items-center justify-center disabled:opacity-50"
+                data-testid="ride-add-stop-btn"
+                disabled={stopovers.length >= 5}
+              >
                 <Plus size={18} className="text-white" weight="bold" />
               </button>
             </div>
           </div>
+
+          {/* Stopovers list */}
+          {stopovers.length > 0 && (
+            <div className="mt-3 space-y-2" data-testid="stopovers-list">
+              {stopovers.map((s, i) => (
+                <div key={i} className="flex items-center gap-2" data-testid={`stopover-${i}`}>
+                  <div className="w-3 h-3 rounded-full bg-orange-400 flex-shrink-0" />
+                  <GooglePlacesInput
+                    placeholder={`Arret ${i + 1}`}
+                    value={s.address}
+                    iconColor="#F97316"
+                    onSelect={(r) => setStopovers((arr) => arr.map((x, idx) => idx === i ? { address: r.address, lat: r.lat, lng: r.lng } : x))}
+                    testId={`stopover-input-${i}`}
+                    inputClassName="h-10 !rounded-lg !border-gray-200"
+                  />
+                  <button onClick={() => setStopovers((arr) => arr.filter((_, idx) => idx !== i))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid={`remove-stopover-${i}`}>
+                    <X size={14} className="text-red-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="h-px bg-gray-100 mx-4" />
@@ -393,6 +437,44 @@ const RideBookingPage = () => {
             </button>
           ))}
         </div>
+
+        {/* Book For Someone Else Modal */}
+        {showBookForModal && (
+          <div className="fixed inset-0 z-[3000] flex items-end" data-testid="book-for-modal">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowBookForModal(false)} />
+            <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl pb-6 mx-auto">
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <h3 className="text-lg font-bold text-gray-900">Pour qui est cette course ?</h3>
+                <button onClick={() => setShowBookForModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="close-book-for-btn">
+                  <X size={16} className="text-gray-600" />
+                </button>
+              </div>
+              <div className="px-5 space-y-3">
+                <button onClick={() => { setBookFor({ name: '', phone: '' }); setShowBookForModal(false); }}
+                  className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 ${!bookFor.name ? 'border-[#FF4500] bg-orange-50' : 'border-gray-200'}`}
+                  data-testid="book-for-me-btn">
+                  <User size={22} className="text-[#FF4500]" weight="fill" />
+                  <span className="flex-1 text-left font-bold text-gray-800">Pour moi</span>
+                </button>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs font-bold text-gray-700 mb-2">Reserver pour quelqu'un d'autre</p>
+                  <input value={bookFor.name} onChange={(e) => setBookFor({ ...bookFor, name: e.target.value })}
+                    placeholder="Nom du passager" className="w-full mb-2 px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm" data-testid="book-for-name" />
+                  <input value={bookFor.phone} onChange={(e) => setBookFor({ ...bookFor, phone: e.target.value })}
+                    placeholder="Telephone (+33...)" className="w-full mb-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm" data-testid="book-for-phone" />
+                  <button onClick={() => {
+                    if (!bookFor.name.trim() || !bookFor.phone.trim()) return;
+                    setShowBookForModal(false);
+                  }} className="w-full py-2.5 rounded-lg bg-[#FF4500] text-white font-bold text-sm disabled:opacity-50"
+                    disabled={!bookFor.name.trim() || !bookFor.phone.trim()}
+                    data-testid="book-for-confirm-btn">
+                    Confirmer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

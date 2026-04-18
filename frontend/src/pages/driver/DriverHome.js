@@ -5,7 +5,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import {
-  Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots,
+  Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots, ChatCircle,
   Gift, Plus, CalendarCheck
 } from '@phosphor-icons/react';
 import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
@@ -18,6 +18,8 @@ const DriverHome = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [currentRide, setCurrentRide] = useState(null);
   const [incomingRequest, setIncomingRequest] = useState(null);
+  const [showOtpVerify, setShowOtpVerify] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const locationWatchId = useRef(null);
@@ -122,6 +124,25 @@ const DriverHome = () => {
       if (!res.ok) throw new Error('Failed');
       setIncomingRequest(null);
     } catch (err) { console.error('Counter offer failed:', err); }
+  };
+
+  const verifyStartOtp = async () => {
+    if (!otpInput || otpInput.length !== 4) return;
+    try {
+      const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/phase1/rides/${currentRide.id}/start-otp/verify`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ otp: otpInput }),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        alert(e.detail || 'OTP invalide');
+        return;
+      }
+      setShowOtpVerify(false);
+      setOtpInput('');
+      const res = await rideAPI.get(currentRide.id);
+      setCurrentRide(res.data);
+    } catch { /* ignore */ }
   };
 
   const updateRideStatus = async (status) => {
@@ -263,8 +284,8 @@ const DriverHome = () => {
               )}
               {currentRide.status === 'arriving' && (
                 <button className="flex-1 text-white rounded-full py-3 text-sm font-bold" style={{ background: '#00B578' }}
-                  onClick={() => updateRideStatus('in_progress')} data-testid="start-trip-btn">
-                  Demarrer la course
+                  onClick={() => setShowOtpVerify(true)} data-testid="start-trip-btn">
+                  Demarrer (OTP)
                 </button>
               )}
               {currentRide.status === 'in_progress' && (
@@ -277,6 +298,35 @@ const DriverHome = () => {
                 onClick={() => updateRideStatus('cancelled')} data-testid="cancel-btn">
                 Annuler
               </button>
+            </div>
+
+            {/* Chat button */}
+            <button onClick={() => navigate(`/ride/${currentRide.id}/chat`)}
+              className="w-full mt-3 bg-orange-50 text-[#FF4500] rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2" data-testid="open-chat-btn">
+              <ChatCircle size={16} weight="fill" /> Discuter avec le passager
+            </button>
+          </div>
+        )}
+
+        {/* OTP Verify Modal */}
+        {showOtpVerify && currentRide && (
+          <div className="absolute inset-0 z-[2500] bg-black/60 flex items-center justify-center p-5" data-testid="otp-verify-modal">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">Demander le code OTP</h3>
+              <p className="text-xs text-gray-500 mb-4">Demandez au passager son code a 4 chiffres pour demarrer la course</p>
+              <input type="text" inputMode="numeric" maxLength="4" value={otpInput}
+                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="0000"
+                className="w-full text-center text-3xl tracking-[0.5em] py-3 bg-gray-50 rounded-xl border border-gray-200 font-bold mb-4"
+                data-testid="otp-input" autoFocus />
+              <div className="flex gap-2">
+                <button onClick={() => { setShowOtpVerify(false); setOtpInput(''); }} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-sm text-gray-600">Annuler</button>
+                <button onClick={verifyStartOtp} disabled={otpInput.length !== 4}
+                  className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#00B578' }}
+                  data-testid="verify-otp-btn">
+                  Verifier
+                </button>
+              </div>
             </div>
           </div>
         )}

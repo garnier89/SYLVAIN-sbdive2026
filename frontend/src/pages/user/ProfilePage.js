@@ -140,9 +140,9 @@ const ProfilePage = () => {
         <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-sky-500" iconColor="text-white" testId="settings-business-btn" />
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" testId="settings-notifications-btn" />
-        <MenuItem icon={Heart} label="Fournisseurs de services préférés" iconBg="bg-yellow-500" iconColor="text-white" testId="settings-favourites-btn" />
+        <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
         <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
-        <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-green-500" iconColor="text-white" testId="settings-emergency-btn" />
+        <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-green-500" iconColor="text-white" onClick={() => navigate('/safety')} testId="settings-emergency-btn" />
         <MenuItem icon={HandHeart} label="Faire un don" iconBg="bg-lime-600" iconColor="text-white" onClick={() => navigate('/donation')} testId="settings-donate-btn" />
       </MenuCard>
 
