@@ -139,6 +139,18 @@ Chauffeur virtuel via WebSocket
 - AdminSettlements: versements chauffeurs (brut/commission/net)
 - Iteration 38: 100% pass (5/5 backend + 21/21 frontend)
 
+## Dashboard Analytics Temps Reel (Apr 18, 2026) - DONE
+- Dashboard reconstruit avec recharts (AreaChart, BarChart, PieChart, LineChart)
+- 5 KPI cards avec donnees reelles depuis /api/admin/stats
+- Graphique Revenus & Courses (area chart interactif)
+- Repartition services (donut chart: VTC 65%, Livraison 20%, Colis 8%, Services 7%)
+- Courses par heure (bar chart 24h)
+- Revenus mensuels (bar chart)
+- Top 5 Chauffeurs (ranking avec note, courses, gains)
+- God's View Google Maps avec marqueurs chauffeurs en ligne
+- Selecteur de periode (Aujourd'hui/Semaine/Mois)
+- Iteration 39: 100% pass (6/6 backend + 21/21 frontend)
+
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
 - Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
 - Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
