@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -57,9 +57,9 @@ const OrderTracking = () => {
         wsRef.current.close();
       }
     };
-  }, [orderId]);
+  }, [loadOrder, connectWebSocket]);
 
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     try {
       const response = await orderAPI.get(orderId);
       setOrder(response.data);
@@ -84,9 +84,9 @@ const OrderTracking = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
 
-  const connectWebSocket = () => {
+  const connectWebSocket = useCallback(() => {
     if (!user?.id) return;
     
     const wsUrl = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
@@ -115,7 +115,7 @@ const OrderTracking = () => {
     } catch (error) {
       console.log('WebSocket connection failed');
     }
-  };
+  }, [user?.id, loadOrder]);
 
   const getStatusSteps = () => {
     const steps = [

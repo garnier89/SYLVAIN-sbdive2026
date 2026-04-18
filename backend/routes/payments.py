@@ -104,8 +104,9 @@ async def get_payment_status(session_id: str, request: Request):
 
     # Poll Stripe for latest status
     stripe = get_stripe(request)
+    status = None
     try:
-        status: CheckoutStatusResponse = await stripe.get_checkout_status(session_id)
+        status = await stripe.get_checkout_status(session_id)
     except Exception:
         return {
             "status": tx["status"],
@@ -116,7 +117,7 @@ async def get_payment_status(session_id: str, request: Request):
 
     now = datetime.now(timezone.utc).isoformat()
 
-    if status.payment_status == "paid" and tx.get("payment_status") != "paid":
+    if status and status.payment_status == "paid" and tx.get("payment_status") != "paid":
         # Credit wallet - atomic update to prevent double crediting
         result = await db.payment_transactions.update_one(
             {"session_id": session_id, "payment_status": {"$ne": "paid"}},
@@ -150,7 +151,7 @@ async def get_payment_status(session_id: str, request: Request):
             "amount": tx["amount"],
             "currency": tx["currency"],
         }
-    elif status.status == "expired":
+    elif status and status.status == "expired":
         await db.payment_transactions.update_one(
             {"session_id": session_id},
             {"$set": {"payment_status": "expired", "status": "expired", "updated_at": now}}

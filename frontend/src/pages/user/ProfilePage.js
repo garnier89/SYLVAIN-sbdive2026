@@ -61,7 +61,7 @@ const ProfilePage = () => {
     try {
       const res = await walletAPI.get();
       setWalletBalance(res.data.balance || 0);
-    } catch (e) { /* ignore */ }
+    } catch (e) { console.error('Failed to load wallet balance:', e); }
   };
 
   const handleLogout = async () => {

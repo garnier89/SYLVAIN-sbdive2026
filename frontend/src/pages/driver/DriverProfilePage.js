@@ -20,7 +20,7 @@ const DriverProfilePage = () => {
     try {
       const res = await driverAPI.getProfile();
       setDriver(res.data);
-    } catch { }
+    } catch (err) { console.error('Failed to load driver profile:', err); }
     finally { setLoading(false); }
   };
 

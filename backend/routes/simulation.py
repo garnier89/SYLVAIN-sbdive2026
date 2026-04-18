@@ -2,7 +2,8 @@ from fastapi import APIRouter, Request, HTTPException
 import uuid
 import asyncio
 import math
-import random
+import secrets
+import random as _sim_random
 from datetime import datetime, timezone
 
 from core.config import db, logger
@@ -33,8 +34,8 @@ def interpolate_coords(start_lat, start_lng, end_lat, end_lng, steps):
         lat = start_lat + (end_lat - start_lat) * t
         lng = start_lng + (end_lng - start_lng) * t
         # Add slight random offset for realism
-        lat += random.uniform(-0.0003, 0.0003)
-        lng += random.uniform(-0.0003, 0.0003)
+        lat += _sim_random.uniform(-0.0003, 0.0003)
+        lng += _sim_random.uniform(-0.0003, 0.0003)
         coords.append((lat, lng))
     return coords
 
@@ -99,8 +100,8 @@ async def simulation_loop(user_id: str, sim_driver_id: str, sim_driver_user_id: 
                 await asyncio.sleep(2)
 
                 # Phase 1: Driver moves TOWARD pickup (from a nearby random point)
-                start_lat = ride["pickup_lat"] + random.uniform(-0.008, 0.008)
-                start_lng = ride["pickup_lng"] + random.uniform(-0.008, 0.008)
+                start_lat = ride["pickup_lat"] + _sim_random.uniform(-0.008, 0.008)
+                start_lng = ride["pickup_lng"] + _sim_random.uniform(-0.008, 0.008)
                 approach_coords = interpolate_coords(
                     start_lat, start_lng, ride["pickup_lat"], ride["pickup_lng"], 8
                 )
@@ -198,9 +199,9 @@ async def start_simulation(request: Request):
     # Create a simulation driver user + profile
     sim_user_id = f"sim_driver_{uuid.uuid4().hex[:8]}"
     sim_driver_id = f"driver_sim_{uuid.uuid4().hex[:8]}"
-    driver_name = random.choice(DRIVER_NAMES)
-    vehicle_model = random.choice(VEHICLE_MODELS)
-    vehicle_number = f"{random.choice('ABCDEFGH')}{random.choice('ABCDEFGH')}-{random.randint(100,999)}-{random.choice('ABCDEFGH')}{random.choice('ABCDEFGH')}"
+    driver_name = _sim_random.choice(DRIVER_NAMES)
+    vehicle_model = _sim_random.choice(VEHICLE_MODELS)
+    vehicle_number = f"{_sim_random.choice('ABCDEFGH')}{_sim_random.choice('ABCDEFGH')}-{_sim_random.randint(100,999)}-{_sim_random.choice('ABCDEFGH')}{_sim_random.choice('ABCDEFGH')}"
 
     # Create sim driver user
     await db.users.update_one(
@@ -208,7 +209,7 @@ async def start_simulation(request: Request):
         {"$set": {
             "id": sim_user_id, "email": f"{sim_user_id}@sim.local",
             "password_hash": hash_password("sim123"), "name": driver_name,
-            "phone": f"+33600{random.randint(100000,999999)}", "role": "driver",
+            "phone": f"+33600{_sim_random.randint(100000,999999)}", "role": "driver",
             "is_verified": True, "created_at": datetime.now(timezone.utc).isoformat(),
         }},
         upsert=True
@@ -219,13 +220,13 @@ async def start_simulation(request: Request):
         {"id": sim_driver_id},
         {"$set": {
             "id": sim_driver_id, "user_id": sim_user_id,
-            "user_name": driver_name, "user_phone": f"+33600{random.randint(100000,999999)}",
+            "user_name": driver_name, "user_phone": f"+33600{_sim_random.randint(100000,999999)}",
             "vehicle_type": "car", "vehicle_number": vehicle_number,
-            "vehicle_model": vehicle_model, "license_number": f"SIM{random.randint(10000,99999)}",
+            "vehicle_model": vehicle_model, "license_number": f"SIM{_sim_random.randint(10000,99999)}",
             "status": "approved", "is_online": True,
-            "rating": round(random.uniform(4.5, 5.0), 1),
-            "total_trips": random.randint(50, 500),
-            "earnings": round(random.uniform(500, 5000), 2),
+            "rating": round(_sim_random.uniform(4.5, 5.0), 1),
+            "total_trips": _sim_random.randint(50, 500),
+            "earnings": round(_sim_random.uniform(500, 5000), 2),
             "current_lat": 48.8566, "current_lng": 2.3522,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }},

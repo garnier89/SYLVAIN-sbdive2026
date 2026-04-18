@@ -50,7 +50,7 @@ const HistoryPage = () => {
       ]);
       setRides(ridesRes.data || []);
       setOrders(ordersRes.data || []);
-    } catch { /* empty */ } finally { setLoading(false); }
+    } catch (err) { console.error('Failed to load history:', err); } finally { setLoading(false); }
   };
 
   const filteredRides = filter === 'all' ? rides : rides.filter(r => r.status === filter);

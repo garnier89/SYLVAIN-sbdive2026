@@ -200,11 +200,11 @@ const SupportPage = () => {
             <CardTitle className="text-lg">Frequently Asked Questions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {faqs.map((faq, idx) => (
+            {faqs.map((faq) => (
               <div 
-                key={idx} 
+                key={faq.q} 
                 className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                data-testid={`faq-${idx}`}
+                data-testid={`faq-${faq.q.slice(0, 20).replace(/\s/g, '-')}`}
               >
                 <p className="font-medium text-gray-900">{faq.q}</p>
                 <p className="text-sm text-gray-500 mt-1">{faq.a}</p>

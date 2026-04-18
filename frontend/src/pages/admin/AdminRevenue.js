@@ -109,12 +109,12 @@ const AdminRevenue = () => {
           <tbody>
             {transactions.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-12 text-gray-400">No transactions found</td></tr>
-            ) : transactions.map((t, i) => {
+            ) : transactions.map((t) => {
               const fare = t.final_fare || t.estimated_fare || 0;
               const commission = fare * ((t.commission_percent || 10) / 100);
               const payout = fare - commission;
               return (
-                <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={t.id || t.created_at} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-3 px-3">
                     <span className="text-sm text-blue-600 hover:underline cursor-pointer">{t.driver_name || 'Driver'}</span>
                   </td>

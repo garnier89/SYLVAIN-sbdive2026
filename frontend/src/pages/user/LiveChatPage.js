@@ -25,13 +25,11 @@ const LiveChatPage = () => {
 
   const loadMessages = async () => {
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/livechat/messages`, {
-        headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
       if (res.ok) setMessages(await res.json());
-    } catch (e) { /* empty */ }
+    } catch (e) { console.error('Failed to load messages:', e); }
   };
 
   const sendMessage = async () => {

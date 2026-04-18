@@ -89,7 +89,7 @@ const DriverHome = () => {
     try {
       const res = await rideAPI.list({ status: 'pending' });
       if (res.data.length > 0 && !currentRide && !incomingRequest) setIncomingRequest(res.data[0]);
-    } catch {}
+    } catch (err) { console.error('Failed to load pending rides:', err); }
   };
 
   const toggleOnline = async () => {
@@ -97,7 +97,7 @@ const DriverHome = () => {
     try {
       const res = await driverAPI.toggleOnline();
       setIsOnline(res.data.is_online);
-    } catch {}
+    } catch (err) { console.error('Failed to toggle online status:', err); }
   };
 
   const acceptRide = async (rideId) => {
@@ -107,7 +107,7 @@ const DriverHome = () => {
       setCurrentRide(res.data);
       setIncomingRequest(null);
       joinRide(rideId);
-    } catch { setIncomingRequest(null); }
+    } catch (err) { console.error('Failed to accept ride:', err); setIncomingRequest(null); }
   };
 
   const updateRideStatus = async (status) => {
@@ -116,7 +116,7 @@ const DriverHome = () => {
       await rideAPI.updateStatus(currentRide.id, status);
       if (status === 'completed' || status === 'cancelled') setCurrentRide(null);
       else { const res = await rideAPI.get(currentRide.id); setCurrentRide(res.data); }
-    } catch {}
+    } catch (err) { console.error('Failed to update ride status:', err); }
   };
 
   if (loading) {

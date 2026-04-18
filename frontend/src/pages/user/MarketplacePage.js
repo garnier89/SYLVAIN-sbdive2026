@@ -92,7 +92,7 @@ const MarketplacePage = () => {
       setShowNewListing(false);
       setNewListing({ title: '', description: '', price: '', category: '', location: '' });
       loadListings();
-    } catch { /* empty */ }
+    } catch (err) { console.error('Failed to create listing:', err); }
   };
 
   return (

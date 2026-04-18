@@ -103,8 +103,8 @@ const DriverEarningsPage = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            {earnings.recent_rides.slice(0, 8).map((ride, i) => (
-              <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
+            {earnings.recent_rides.slice(0, 8).map((ride) => (
+              <div key={ride.created_at || ride.pickup_address} className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0">
                   <Car size={18} className="text-amber-500" />
                 </div>

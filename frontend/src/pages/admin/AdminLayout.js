@@ -204,11 +204,17 @@ const AdminLayout = () => {
           <span className="text-xs text-gray-500">Super Administrator</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {[UserCircle, Warning, FileText, Gear, Power].map((Icon, i) => (
-            <button key={i}
-              onClick={i === 4 ? handleLogout : undefined}
+          {[
+            { Icon: UserCircle, id: 'profile' },
+            { Icon: Warning, id: 'alerts' },
+            { Icon: FileText, id: 'docs' },
+            { Icon: Gear, id: 'settings' },
+            { Icon: Power, id: 'logout' },
+          ].map(({ Icon, id }) => (
+            <button key={id}
+              onClick={id === 'logout' ? handleLogout : undefined}
               className="w-8 h-8 rounded hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
-              data-testid={i === 4 ? 'logout-btn' : undefined}>
+              data-testid={id === 'logout' ? 'logout-btn' : `admin-header-${id}`}>
               <Icon size={20} />
             </button>
           ))}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -15,15 +15,9 @@ const ReferralPage = () => {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/referral/my-code`, {
-        headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
       if (res.ok) {
@@ -34,7 +28,11 @@ const ReferralPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const copyCode = () => {
     if (stats?.code) {

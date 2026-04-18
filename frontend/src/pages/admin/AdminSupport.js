@@ -128,7 +128,7 @@ const AdminSupport = () => {
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Reply to: {selected.subject}</h3>
             <p className="text-sm text-gray-500 mb-3">{selected.message}</p>
             {(selected.replies || []).map((r, i) => (
-              <div key={i} className="bg-gray-50 rounded p-2 mb-2 text-sm text-gray-700">{r.message}</div>
+              <div key={r.message || `reply-${i}`} className="bg-gray-50 rounded p-2 mb-2 text-sm text-gray-700">{r.message}</div>
             ))}
             <textarea value={reply} onChange={e => setReply(e.target.value)} rows={3} placeholder="Your reply..."
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-400 mb-3" data-testid="reply-input" />

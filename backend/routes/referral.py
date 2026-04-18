@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
-import random
+import secrets
 import string
 from datetime import datetime, timezone
 
@@ -17,7 +17,7 @@ REFERRAL_CURRENCY = "EUR"
 def generate_referral_code(prefix="SB"):
     """Generate unique referral code like SB-A3K7X2."""
     chars = string.ascii_uppercase + string.digits
-    code = ''.join(random.choices(chars, k=6))
+    code = ''.join(secrets.choice(chars) for _ in range(6))
     return f"{prefix}-{code}"
 
 

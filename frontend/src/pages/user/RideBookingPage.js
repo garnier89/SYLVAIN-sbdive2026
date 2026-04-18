@@ -332,12 +332,12 @@ const RideBookingPage = () => {
         {/* Recent Locations */}
         <div className="px-4 pt-4 pb-6">
           <h3 className="text-sm font-bold text-gray-900 mb-3">Lieux Récents</h3>
-          {recentLocations.map((loc, i) => (
+          {recentLocations.map((loc) => (
             <button
-              key={i}
+              key={loc.address}
               className="w-full flex items-center gap-3 py-3 border-b border-gray-50 last:border-0"
               onClick={() => handleDestinationFromRecent(loc)}
-              data-testid={`recent-location-${i}`}
+              data-testid={`recent-location-${loc.address.slice(0, 15).replace(/\s/g, '-')}`}
             >
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <MapPin size={20} className="text-gray-500" />

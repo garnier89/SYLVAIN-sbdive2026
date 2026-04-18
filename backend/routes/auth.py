@@ -95,10 +95,11 @@ async def phone_register(data: dict, response: Response):
             referrer_id = referrer["id"]
 
     # Generate unique referral code for this new user
-    import random, string
+    import secrets
+    import string
     own_code = None
     for _ in range(10):
-        own_code = f"SB-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
+        own_code = f"SB-{''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))}"
         dup = await db.users.find_one({"referral_code_own": own_code})
         if not dup:
             break

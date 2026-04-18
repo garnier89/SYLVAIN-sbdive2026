@@ -101,7 +101,9 @@ const LoginPage = () => {
         setError(data.detail || 'Mot de passe incorrect');
         return;
       }
-      if (data.access_token) localStorage.setItem('token', data.access_token);
+      if (data.access_token) {
+        // Token managed via httpOnly cookies set by backend
+      }
       setUser(data.user);
       navigate('/home');
     } catch (err) {
@@ -139,7 +141,6 @@ const LoginPage = () => {
         setError(data.detail || "Erreur lors de l'inscription");
         return;
       }
-      if (data.access_token) localStorage.setItem('token', data.access_token);
       setUser(data.user);
       navigate('/home');
     } catch (err) {
