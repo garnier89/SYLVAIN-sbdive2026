@@ -10,6 +10,34 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+
+## NEW - Feb 2026 - Rewards & Driver Points System (DONE)
+### 1. Admin Rewards Config (`/admin/rewards`)
+- **Regard Vehicules** (Tab 1) : Voiture / Moto / Velo avec activation, dates de debut/fin, horaires, zone (Martinique, Guadeloupe, Paris, etc.), bonus par course (EUR), courses minimum.
+- **Garantie de Chiffre d'Affaires** (Tab 2) : L'app complete la difference si le chauffeur n'atteint pas le CA minimum (ex: 59 EUR entre 12h-20h). Conditions : taux d'acceptation >=80%, annulation <=10%.
+- **Points Chauffeurs** (Tab 3) : Regles (points initiaux, +par course acceptee, +par course terminee, -par refus, -par annulation) + 4 palettes de priorite (Debutant / Standard / Confirme / Expert) avec seuils et acces prioritaire.
+- Backend : `GET/PUT /api/admin/rewards/config` (persistance dans `service_configs` collection).
+
+### 2. Chauffeurs Prioritaires (`/admin/priority-drivers`)
+- Liste de tous les chauffeurs avec points, palette, taux d'acceptation, note, statut online.
+- Recherche (nom/email/tel) + filtres (Tous / Avec priorite / Sans priorite).
+- Toggle manuel "Ajouter/Retirer priorite" avec note libre (VIP, partenaire...).
+- Priorite auto selon palette points, priorite manuelle overrides.
+- Backend : `GET /api/admin/priority-drivers`, `PUT/DELETE /api/admin/priority-drivers/{id}`.
+
+### 3. Mon Activite (chauffeur - `/chauffeur/profile`)
+- Card "Mon Activite" avec : palette (nom+couleur), progression points, badge PRIORITE VIP si manual_priority.
+- Stats : taux d'acceptation (%), taux d'annulation (%), score d'activite (composite 50/30/20), courses aujourd'hui, total courses, refus.
+- Footer regles : gains/pertes par action.
+- Backend : `GET /api/drivers/my-activity`, `POST /api/drivers/refuse-ride/{id}`.
+
+### 4. Ride-Hook Points Integration
+- `POST /api/rides/{id}/accept` : +2 pts, +1 offered, +1 accepted, recompute rates.
+- `POST /api/rides/{id}/status` (completed) : +3 pts, +1 total_trips, driver earnings += fare*(1-commission).
+- `POST /api/rides/{id}/status` (cancelled by driver) : -10 pts, +1 cancelled_count, recompute rates.
+- `POST /api/drivers/refuse-ride/{id}` : -5 pts, +1 offered, +1 refused, recompute rates.
+- Points capped 0-100, defaults configurable by admin.
+
 ## Modules implementes
 
 ### 1. Authentification & Onboarding (DONE)
