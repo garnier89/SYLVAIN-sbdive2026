@@ -11,34 +11,26 @@ import {
   Users, Percent, Calendar, Info
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { GoogleMap, useJsApiLoader, MarkerF, PolylineF } from '@react-google-maps/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-const greenIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-});
-const redIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-});
-
-const LocationSelector = ({ onSelect }) => {
-  useMapEvents({ click(e) { onSelect({ lat: e.latlng.lat, lng: e.latlng.lng }); } });
-  return null;
-};
+function decodePolyline(encoded) {
+  if (!encoded) return [];
+  const points = [];
+  let index = 0, lat = 0, lng = 0;
+  while (index < encoded.length) {
+    let b, shift = 0, result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+    shift = 0; result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+    points.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+  return points;
+}
 
 const VehicleIcon = ({ iconType, slug, selected }) => {
   const cls = selected ? 'text-[#FF4500]' : 'text-gray-600';
@@ -69,8 +61,10 @@ const RideBookingPage = () => {
   const [estimate, setEstimate] = useState(null);
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [mapCenter, setMapCenter] = useState([48.8566, 2.3522]);
+  const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
+  const [routePath, setRoutePath] = useState([]);
   const [vehicleTypes, setVehicleTypes] = useState([]);
+  const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
   const [recentLocations] = useState([
     { address: 'Gare du Nord, 18 Rue de Dunkerque, 75010 Paris' },
     { address: 'Tour Eiffel, Champ de Mars, 75007 Paris' },
@@ -102,7 +96,7 @@ const RideBookingPage = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          setMapCenter([latitude, longitude]);
+          setMapCenter({ lat: latitude, lng: longitude });
           setPickup({ lat: latitude, lng: longitude, address: 'Ma position actuelle' });
         },
         () => setPickup({ lat: 48.8566, lng: 2.3522, address: 'Paris, France' })
@@ -144,6 +138,7 @@ const RideBookingPage = () => {
         payment_method: 'card',
       });
       setEstimate(response.data);
+      if (response.data.route_polyline) setRoutePath(decodePolyline(response.data.route_polyline));
       setStep('map');
     } catch {
       setEstimate({ distance_km: 5.2, duration_mins: 18, estimated_fare: 23.81, currency: 'EUR' });
@@ -165,6 +160,7 @@ const RideBookingPage = () => {
         vehicle_type: selectedVehicle, payment_method: 'card',
       });
       setEstimate(response.data);
+      if (response.data.route_polyline) setRoutePath(decodePolyline(response.data.route_polyline));
     } catch {
       setEstimate({ distance_km: 5.2, duration_mins: 18, estimated_fare: 23.81, currency: 'EUR' });
     } finally {
@@ -235,7 +231,7 @@ const RideBookingPage = () => {
                 iconColor="#22C55E"
                 onSelect={(result) => {
                   setPickup({ lat: result.lat, lng: result.lng, address: result.address });
-                  setMapCenter([result.lat, result.lng]);
+                  setMapCenter({ lat: result.lat, lng: result.lng });
                 }}
                 testId="ride-pickup-input"
                 inputClassName="h-11 !rounded-lg !border-gray-200 !py-2"
@@ -358,19 +354,51 @@ const RideBookingPage = () => {
 
   // ===== STEP 2: MAP VIEW + VEHICLE SELECTION =====
   if (step === 'map') {
+    const gmapCenter = pickup.lat && dropoff.lat
+      ? { lat: (pickup.lat + dropoff.lat) / 2, lng: (pickup.lng + dropoff.lng) / 2 }
+      : pickup.lat ? { lat: pickup.lat, lng: pickup.lng } : mapCenter;
+
     return (
       <div className="mobile-container min-h-screen bg-white relative">
-        {/* Map */}
+        {/* Google Map with Route */}
         <div className="h-[55vh]">
-          <MapContainer center={mapCenter} zoom={14} className="w-full h-full" zoomControl={false}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {pickup.lat && <Marker position={[pickup.lat, pickup.lng]} icon={greenIcon} />}
-            {dropoff.lat && <Marker position={[dropoff.lat, dropoff.lng]} icon={redIcon} />}
-            {selectingLocation && <LocationSelector onSelect={(c) => { handleLocationSelect(c); if (selectingLocation === 'dropoff' && pickup.lat) getEstimate(); }} />}
-          </MapContainer>
+          {gmapLoaded ? (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={gmapCenter}
+              zoom={pickup.lat && dropoff.lat ? 12 : 14}
+              options={{ disableDefaultUI: true, zoomControl: true }}
+              onClick={(e) => {
+                if (selectingLocation) {
+                  handleLocationSelect({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+                  if (selectingLocation === 'dropoff' && pickup.lat) getEstimate();
+                }
+              }}
+            >
+              {pickup.lat && (
+                <MarkerF
+                  position={{ lat: pickup.lat, lng: pickup.lng }}
+                  icon={{ url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png' }}
+                />
+              )}
+              {dropoff.lat && (
+                <MarkerF
+                  position={{ lat: dropoff.lat, lng: dropoff.lng }}
+                  icon={{ url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
+                />
+              )}
+              {routePath.length > 0 && (
+                <PolylineF
+                  path={routePath}
+                  options={{ strokeColor: '#FF4500', strokeOpacity: 0.9, strokeWeight: 5 }}
+                />
+              )}
+            </GoogleMap>
+          ) : (
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+              <span className="text-gray-400 text-sm">Chargement de la carte...</span>
+            </div>
+          )}
 
           {/* Floating back button */}
           <button
@@ -408,6 +436,11 @@ const RideBookingPage = () => {
                   {estimate.distance_km?.toFixed(1) || '5.2'} km &middot; {estimate.duration_mins || 18} min
                   {estimate.fare_type && <span className="ml-2 text-[#FF4500]">({estimate.fare_type})</span>}
                 </p>
+                {estimate.source === 'google_maps' && (
+                  <p className="text-[10px] text-green-600 mt-0.5 flex items-center justify-center gap-1">
+                    <NavigationArrow size={10} /> Itineraire reel Google Maps
+                  </p>
+                )}
               </div>
 
               {/* Vehicle Selection - V3Cube Grid Style */}
