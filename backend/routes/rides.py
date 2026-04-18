@@ -196,6 +196,19 @@ async def accept_ride(ride_id: str, request: Request):
         "driver_vehicle_number": driver.get("vehicle_number"),
     }})
 
+    # ===== POINTS: award for accepted ride =====
+    from routes.drivers import _get_rewards_points_config, _ensure_driver_stats, _recompute_rates
+    points_cfg = await _get_rewards_points_config()
+    await _ensure_driver_stats(driver, points_cfg)
+    gain = int(points_cfg.get("points_per_ride_accepted", 2))
+    current_points = driver.get("points", points_cfg["initial_points"])
+    new_points = min(100, current_points + gain)
+    await db.drivers.update_one(
+        {"id": driver["id"]},
+        {"$set": {"points": new_points}, "$inc": {"offered_count": 1, "accepted_count": 1}},
+    )
+    await _recompute_rates(driver["id"])
+
     # Join WS ride room
     manager.join_ride_room(ride_id, user["id"])
 
@@ -262,6 +275,14 @@ async def update_ride_status(ride_id: str, request: Request):
                 {"id": ride["driver_id"]},
                 {"$inc": {"total_trips": 1, "earnings": round(driver_earnings, 2)}}
             )
+            # ===== POINTS: award for completed ride =====
+            from routes.drivers import _get_rewards_points_config
+            points_cfg = await _get_rewards_points_config()
+            gain = int(points_cfg.get("points_per_ride_completed", 3))
+            d_doc = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "points": 1})
+            if d_doc:
+                new_pts = min(100, d_doc.get("points", points_cfg["initial_points"]) + gain)
+                await db.drivers.update_one({"id": ride["driver_id"]}, {"$set": {"points": new_pts}})
 
     elif new_status == "cancelled":
         update_data["cancelled_at"] = now
@@ -274,6 +295,19 @@ async def update_ride_status(ride_id: str, request: Request):
             vtype_doc = await db.vehicle_types.find_one({"slug": ride["vehicle_type"]}, {"_id": 0})
             cancel_fee = vtype_doc.get("cancellation_fare", 5.0) if vtype_doc else 5.0
             update_data["cancellation_fee"] = cancel_fee
+        # ===== POINTS: driver-initiated cancellation penalises the driver =====
+        if is_driver and ride.get("driver_id"):
+            from routes.drivers import _get_rewards_points_config, _recompute_rates
+            points_cfg = await _get_rewards_points_config()
+            loss = int(points_cfg.get("points_lost_per_cancel", 10))
+            d_doc = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "points": 1})
+            if d_doc:
+                new_pts = max(0, d_doc.get("points", points_cfg["initial_points"]) - loss)
+                await db.drivers.update_one(
+                    {"id": ride["driver_id"]},
+                    {"$set": {"points": new_pts}, "$inc": {"cancelled_count": 1}},
+                )
+                await _recompute_rates(ride["driver_id"])
 
     await db.rides.update_one({"id": ride_id}, {"$set": update_data})
 

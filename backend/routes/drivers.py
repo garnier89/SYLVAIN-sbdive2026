@@ -147,3 +147,153 @@ async def get_driver_ride_history(request: Request):
     ).sort("created_at", -1).limit(20).to_list(20)
 
     return {"rides": rides}
+
+
+
+# ===== DRIVER ACTIVITY / POINTS =====
+
+async def _get_rewards_points_config():
+    """Read points config from service_configs (or defaults)."""
+    from routes.admin import get_rewards_config
+    cfg = await get_rewards_config()
+    return cfg["points"]
+
+
+def _resolve_palette(points: int, palettes: list):
+    for p in palettes:
+        if p["min_points"] <= points <= p["max_points"]:
+            return p
+    return palettes[0] if palettes else None
+
+
+async def _ensure_driver_stats(driver: dict, points_cfg: dict):
+    """Ensure driver has initial points/activity fields."""
+    updates = {}
+    if "points" not in driver:
+        updates["points"] = points_cfg["initial_points"]
+    if "offered_count" not in driver:
+        updates["offered_count"] = 0
+    if "accepted_count" not in driver:
+        updates["accepted_count"] = 0
+    if "refused_count" not in driver:
+        updates["refused_count"] = 0
+    if "cancelled_count" not in driver:
+        updates["cancelled_count"] = 0
+    if "acceptance_rate" not in driver:
+        updates["acceptance_rate"] = 100
+    if "cancellation_rate" not in driver:
+        updates["cancellation_rate"] = 0
+    if updates:
+        await db.drivers.update_one({"id": driver["id"]}, {"$set": updates})
+        driver.update(updates)
+    return driver
+
+
+async def _recompute_rates(driver_id: str):
+    d = await db.drivers.find_one({"id": driver_id}, {"_id": 0})
+    if not d:
+        return
+    offered = d.get("offered_count", 0) or (d.get("accepted_count", 0) + d.get("refused_count", 0))
+    accepted = d.get("accepted_count", 0)
+    cancelled = d.get("cancelled_count", 0)
+    acceptance = round((accepted / offered) * 100) if offered > 0 else 100
+    cancellation = round((cancelled / max(accepted, 1)) * 100) if accepted > 0 else 0
+    await db.drivers.update_one(
+        {"id": driver_id},
+        {"$set": {"acceptance_rate": acceptance, "cancellation_rate": cancellation}},
+    )
+
+
+@router.get("/my-activity")
+async def get_my_activity(request: Request):
+    """Return the driver's activity dashboard: points, palette, acceptance rate, score."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    points_cfg = await _get_rewards_points_config()
+    driver = await _ensure_driver_stats(driver, points_cfg)
+    palette = _resolve_palette(driver.get("points", 0), points_cfg["palettes"])
+
+    # Activity score: weighted composite (points 50% + acceptance 30% + (100-cancellation) 20%)
+    points_pct = min(driver.get("points", 0), 100)
+    acceptance = driver.get("acceptance_rate", 100)
+    cancellation = driver.get("cancellation_rate", 0)
+    activity_score = round(points_pct * 0.5 + acceptance * 0.3 + (100 - cancellation) * 0.2)
+
+    # Count today's completed rides
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    today_completed = await db.rides.count_documents({
+        "driver_id": driver["id"],
+        "status": "completed",
+        "completed_at": {"$gte": today_start},
+    })
+
+    return {
+        "points": driver.get("points", 0),
+        "initial_points": points_cfg["initial_points"],
+        "palette": {
+            "name": palette["name"] if palette else "",
+            "color": palette["color"] if palette else "#9CA3AF",
+            "priority_access": palette["priority_access"] if palette else False,
+            "max_ride_amount": palette["max_ride_amount"] if palette else 0,
+            "min_points": palette["min_points"] if palette else 0,
+            "max_points": palette["max_points"] if palette else 100,
+        },
+        "acceptance_rate": acceptance,
+        "cancellation_rate": cancellation,
+        "activity_score": activity_score,
+        "offered_count": driver.get("offered_count", 0),
+        "accepted_count": driver.get("accepted_count", 0),
+        "refused_count": driver.get("refused_count", 0),
+        "cancelled_count": driver.get("cancelled_count", 0),
+        "total_trips": driver.get("total_trips", 0),
+        "today_completed": today_completed,
+        "rating": driver.get("rating", 5.0),
+        "manual_priority": driver.get("manual_priority", False),
+        "has_priority": driver.get("manual_priority", False) or (palette["priority_access"] if palette else False),
+        "rules": {
+            "points_per_ride_accepted": points_cfg.get("points_per_ride_accepted", 2),
+            "points_per_ride_completed": points_cfg.get("points_per_ride_completed", 3),
+            "points_lost_per_refuse": points_cfg.get("points_lost_per_refuse", 5),
+            "points_lost_per_cancel": points_cfg.get("points_lost_per_cancel", 10),
+        },
+    }
+
+
+@router.post("/refuse-ride/{ride_id}")
+async def refuse_ride(ride_id: str, request: Request):
+    """Driver refuses an offered ride → lose points + increment offered/refused counters."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Ride is no longer pending")
+
+    points_cfg = await _get_rewards_points_config()
+    loss = int(points_cfg.get("points_lost_per_refuse", 5))
+    current_points = driver.get("points", points_cfg["initial_points"])
+    new_points = max(0, current_points - loss)
+
+    await db.drivers.update_one(
+        {"id": driver["id"]},
+        {
+            "$set": {"points": new_points},
+            "$inc": {"offered_count": 1, "refused_count": 1},
+            "$push": {"refused_ride_ids": ride_id},
+        },
+    )
+    await _recompute_rates(driver["id"])
+
+    return {
+        "message": "Ride refused",
+        "points": new_points,
+        "points_lost": loss,
+    }

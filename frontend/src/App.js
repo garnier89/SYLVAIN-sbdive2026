@@ -100,6 +100,7 @@ import AdminManageAdmins from './pages/admin/AdminManageAdmins';
 import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests } from './pages/admin/AdminCrudPages';
 import AdminServiceConfig from './pages/admin/AdminServiceConfig';
 import AdminRewards from './pages/admin/AdminRewards';
+import AdminPriorityDrivers from './pages/admin/AdminPriorityDrivers';
 import AdminDocuments from './pages/admin/AdminDocuments';
 import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminWalletRequests from './pages/admin/AdminWalletRequests';
@@ -241,6 +242,7 @@ const AppRouter = () => {
         <Route path="wallet-requests" element={<AdminWalletRequests />} />
         <Route path="rewards" element={<AdminRewards />} />
         <Route path="rewards-reports" element={<AdminRewards />} />
+        <Route path="priority-drivers" element={<AdminPriorityDrivers />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />

@@ -123,6 +123,7 @@ const sidebarConfig = [
     title: 'REWARDS & LOYALTY',
     items: [
       { icon: Trophy, label: 'Reward Program', path: '/admin/rewards' },
+      { icon: Trophy, label: 'Chauffeurs Prioritaires', path: '/admin/priority-drivers' },
     ]
   },
   {

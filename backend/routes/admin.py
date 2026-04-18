@@ -1,10 +1,50 @@
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timezone
+import uuid
 
 from core.config import db
 from core.deps import require_role
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+# ===== DEFAULT REWARDS / POINTS CONFIG =====
+DEFAULT_REWARDS_CONFIG = {
+    "regard_vehicles": [
+        {"id": "rv_car", "type": "Voiture", "icon": "Car", "active": True, "start_date": "", "end_date": "", "start_time": "06:00", "end_time": "23:00", "zone": "Martinique", "bonus_per_trip": 3, "min_trips": 5, "description": "Bonus course voiture"},
+        {"id": "rv_moto", "type": "Moto", "icon": "Motorcycle", "active": False, "start_date": "", "end_date": "", "start_time": "08:00", "end_time": "22:00", "zone": "Paris", "bonus_per_trip": 2, "min_trips": 8, "description": "Bonus course moto"},
+        {"id": "rv_velo", "type": "Velo", "icon": "Bicycle", "active": False, "start_date": "", "end_date": "", "start_time": "07:00", "end_time": "21:00", "zone": "Fort-de-France", "bonus_per_trip": 1.5, "min_trips": 10, "description": "Bonus course velo"},
+    ],
+    "guarantees": [
+        {"id": "g_day", "name": "Garantie Journee Standard", "active": True, "start_hour": "12:00", "end_hour": "20:00", "min_revenue": 59, "acceptance_rate": 80, "max_cancellation": 10, "zone": "Martinique", "start_date": "", "end_date": "", "description": "Entre 12h et 20h, CA min 59EUR"},
+    ],
+    "points": {
+        "initial_points": 100,
+        "points_per_ride_accepted": 2,
+        "points_per_ride_completed": 3,
+        "points_lost_per_refuse": 5,
+        "points_lost_per_cancel": 10,
+        "palettes": [
+            {"id": "p1", "name": "Debutant", "min_points": 0, "max_points": 30, "priority_access": False, "max_ride_amount": 20, "color": "#EF4444"},
+            {"id": "p2", "name": "Standard", "min_points": 31, "max_points": 60, "priority_access": False, "max_ride_amount": 50, "color": "#F59E0B"},
+            {"id": "p3", "name": "Confirme", "min_points": 61, "max_points": 80, "priority_access": True, "max_ride_amount": 100, "color": "#3B82F6"},
+            {"id": "p4", "name": "Expert", "min_points": 81, "max_points": 100, "priority_access": True, "max_ride_amount": 999, "color": "#10B981"},
+        ],
+    },
+}
+
+
+async def get_rewards_config():
+    """Return the rewards config merged with defaults."""
+    doc = await db.service_configs.find_one({"service_key": "rewards"}, {"_id": 0})
+    if not doc or not doc.get("settings"):
+        return DEFAULT_REWARDS_CONFIG
+    s = doc["settings"]
+    return {
+        "regard_vehicles": s.get("regard_vehicles") or DEFAULT_REWARDS_CONFIG["regard_vehicles"],
+        "guarantees": s.get("guarantees") or DEFAULT_REWARDS_CONFIG["guarantees"],
+        "points": s.get("points") or DEFAULT_REWARDS_CONFIG["points"],
+    }
 
 
 @router.post("/vehicle-types")
@@ -203,7 +243,6 @@ async def create_crud_item(collection: str, request: Request):
     if not col_name:
         raise HTTPException(status_code=400, detail="Invalid collection")
     body = await request.json()
-    import uuid
     body["id"] = f"{collection[:3]}_{uuid.uuid4().hex[:8]}"
     body["created_at"] = datetime.now(timezone.utc).isoformat()
     await db[col_name].insert_one(body)
@@ -238,3 +277,112 @@ async def delete_crud_item(collection: str, item_id: str, request: Request):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"message": "Deleted"}
+
+
+# ===== REWARDS CONFIG (vehicle regards + revenue guarantees + driver points) =====
+
+@router.get("/rewards/config")
+async def get_admin_rewards_config(request: Request):
+    await require_role(request, ["admin"])
+    return await get_rewards_config()
+
+
+@router.put("/rewards/config")
+async def save_admin_rewards_config(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    settings = {
+        "regard_vehicles": body.get("regard_vehicles", DEFAULT_REWARDS_CONFIG["regard_vehicles"]),
+        "guarantees": body.get("guarantees", DEFAULT_REWARDS_CONFIG["guarantees"]),
+        "points": body.get("points", DEFAULT_REWARDS_CONFIG["points"]),
+    }
+    await db.service_configs.update_one(
+        {"service_key": "rewards"},
+        {"$set": {
+            "service_key": "rewards",
+            "settings": settings,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"message": "Rewards config saved", "settings": settings}
+
+
+# ===== PRIORITY DRIVERS (manually boosted by admin) =====
+
+@router.get("/priority-drivers")
+async def list_priority_drivers(request: Request):
+    """List all drivers with their priority state (manual + computed from points)."""
+    await require_role(request, ["admin"])
+    config = await get_rewards_config()
+    palettes = config["points"]["palettes"]
+
+    def resolve_palette(points: int):
+        for p in palettes:
+            if p["min_points"] <= points <= p["max_points"]:
+                return p
+        return palettes[0] if palettes else None
+
+    drivers = await db.drivers.find({}, {"_id": 0}).to_list(500)
+    result = []
+    for d in drivers:
+        user_doc = await db.users.find_one({"id": d["user_id"]}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
+        points = d.get("points", config["points"]["initial_points"])
+        palette = resolve_palette(points)
+        result.append({
+            "driver_id": d["id"],
+            "user_id": d["user_id"],
+            "name": (user_doc or {}).get("name", "Chauffeur"),
+            "email": (user_doc or {}).get("email", ""),
+            "phone": (user_doc or {}).get("phone", ""),
+            "vehicle_type": d.get("vehicle_type"),
+            "vehicle_number": d.get("vehicle_number"),
+            "status": d.get("status"),
+            "is_online": d.get("is_online", False),
+            "points": points,
+            "total_trips": d.get("total_trips", 0),
+            "rating": d.get("rating", 5.0),
+            "manual_priority": d.get("manual_priority", False),
+            "manual_priority_note": d.get("manual_priority_note", ""),
+            "acceptance_rate": d.get("acceptance_rate", 100),
+            "cancellation_rate": d.get("cancellation_rate", 0),
+            "palette_name": palette["name"] if palette else "",
+            "palette_color": palette["color"] if palette else "#9CA3AF",
+            "has_priority": d.get("manual_priority", False) or (palette["priority_access"] if palette else False),
+        })
+    # Sort: manual priority first, then by points desc
+    result.sort(key=lambda x: (not x["manual_priority"], -x["points"]))
+    return result
+
+
+@router.put("/priority-drivers/{driver_id}")
+async def set_priority_driver(driver_id: str, request: Request):
+    """Toggle/set manual priority for a specific driver."""
+    await require_role(request, ["admin"])
+    body = await request.json()
+    manual_priority = bool(body.get("manual_priority", False))
+    note = body.get("note", "")
+    result = await db.drivers.update_one(
+        {"id": driver_id},
+        {"$set": {
+            "manual_priority": manual_priority,
+            "manual_priority_note": note,
+            "manual_priority_updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return {"driver_id": driver_id, "manual_priority": manual_priority, "note": note}
+
+
+@router.delete("/priority-drivers/{driver_id}")
+async def remove_priority_driver(driver_id: str, request: Request):
+    await require_role(request, ["admin"])
+    result = await db.drivers.update_one(
+        {"id": driver_id},
+        {"$set": {"manual_priority": False, "manual_priority_note": ""}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return {"driver_id": driver_id, "manual_priority": False}
+

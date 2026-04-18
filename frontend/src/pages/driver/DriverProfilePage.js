@@ -6,17 +6,20 @@ import {
   User, CaretRight, Gear, SignOut, ClipboardText, Wallet, Plus, EnvelopeOpen,
   Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
   Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
-  CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star
+  CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
+  Crown, Trophy, Lightning, TrendUp, TrendDown
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const GREEN = '#00B578';
+const API = process.env.REACT_APP_BACKEND_URL;
 
 const DriverProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [driver, setDriver] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,12 +28,14 @@ const DriverProfilePage = () => {
 
   const loadData = async () => {
     try {
-      const [dRes, wRes] = await Promise.allSettled([
+      const [dRes, wRes, aRes] = await Promise.allSettled([
         driverAPI.getProfile(),
         walletAPI.get(),
+        fetch(`${API}/api/drivers/my-activity`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
       ]);
       if (dRes.status === 'fulfilled') setDriver(dRes.value.data);
       if (wRes.status === 'fulfilled') setWalletBalance(wRes.value.data.balance || 0);
+      if (aRes.status === 'fulfilled' && aRes.value) setActivity(aRes.value);
     } catch (err) { console.error('Failed to load:', err); }
     finally { setLoading(false); }
   };
@@ -89,6 +94,9 @@ const DriverProfilePage = () => {
           })}
         </div>
       </div>
+
+      {/* ===== MON ACTIVITE ===== */}
+      {activity && <ActivityCard activity={activity} />}
 
       {/* ===== REGLAGES GENERAUX ===== */}
       <div className="mt-5">
@@ -155,6 +163,82 @@ const DriverProfilePage = () => {
     </div>
   );
 };
+
+const ActivityCard = ({ activity }) => {
+  const { points, palette, acceptance_rate, cancellation_rate, activity_score, total_trips, today_completed, offered_count, refused_count, manual_priority, rules } = activity;
+  const maxPts = palette?.max_points || 100;
+  const minPts = palette?.min_points || 0;
+  const pctInPalette = Math.max(0, Math.min(100, ((points - minPts) / Math.max(1, (maxPts - minPts))) * 100));
+
+  return (
+    <div className="mx-5 mt-4" data-testid="activity-card">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-base font-bold text-gray-800 flex items-center gap-2">
+          <Lightning size={18} weight="fill" style={{ color: GREEN }} />
+          Mon Activite
+        </p>
+        {(manual_priority || palette?.priority_access) && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white" style={{ background: manual_priority ? '#F59E0B' : GREEN }}>
+            <Crown size={12} weight="fill" />{manual_priority ? 'PRIORITE VIP' : 'PRIORITE'}
+          </span>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Palette banner */}
+        <div className="px-4 py-3 flex items-center justify-between" style={{ background: `${palette?.color || '#9CA3AF'}15` }}>
+          <div className="flex items-center gap-2">
+            <Trophy size={20} weight="fill" style={{ color: palette?.color }} />
+            <div>
+              <p className="text-[10px] text-gray-500 uppercase font-bold">Palette actuelle</p>
+              <p className="font-bold text-sm" style={{ color: palette?.color }}>{palette?.name}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-gray-500">Points</p>
+            <p className="font-bold text-xl" style={{ color: palette?.color }} data-testid="activity-points">{points}</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="px-4 pt-3">
+          <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+            <span>{minPts} pts</span><span>{maxPts} pts</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${pctInPalette}%`, background: palette?.color || GREEN }} />
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-3 gap-0 border-t border-gray-100 mt-3">
+          <StatCell icon={TrendUp} color="#22C55E" label="Acceptation" value={`${acceptance_rate}%`} testid="stat-acceptance" />
+          <StatCell icon={TrendDown} color="#EF4444" label="Annulation" value={`${cancellation_rate}%`} testid="stat-cancellation" border />
+          <StatCell icon={Star} color="#F59E0B" label="Score" value={activity_score} testid="stat-score" />
+        </div>
+        <div className="grid grid-cols-3 gap-0 border-t border-gray-100">
+          <StatCell label="Aujourd'hui" value={today_completed} subtle testid="stat-today" />
+          <StatCell label="Total courses" value={total_trips} subtle border testid="stat-trips" />
+          <StatCell label="Refus" value={refused_count || 0} subtle testid="stat-refused" />
+        </div>
+
+        {/* Rules info */}
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-600 space-y-0.5">
+          <p>+{rules?.points_per_ride_accepted} pts par course acceptee · +{rules?.points_per_ride_completed} pts par course terminee</p>
+          <p className="text-red-600">-{rules?.points_lost_per_refuse} pts par refus · -{rules?.points_lost_per_cancel} pts par annulation</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatCell = ({ icon: Icon, color, label, value, subtle, border, testid }) => (
+  <div className={`px-3 py-3 text-center ${border ? 'border-x border-gray-100' : ''}`} data-testid={testid}>
+    {Icon && <Icon size={16} weight="fill" style={{ color }} className="mx-auto mb-1" />}
+    <p className={`${subtle ? 'text-base' : 'text-lg'} font-bold text-gray-800`}>{value}</p>
+    <p className="text-[10px] text-gray-500 uppercase">{label}</p>
+  </div>
+);
 
 const ProfileRow = ({ icon: Icon, color, label, onClick, toggle }) => {
   const [enabled, setEnabled] = useState(true);
