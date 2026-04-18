@@ -90,6 +90,70 @@ async def get_admin_stats(request: Request):
     }
 
 
+@router.get("/analytics")
+async def get_analytics(request: Request, period: str = "week"):
+    await require_role(request, ["admin"])
+
+    # Ride status breakdown
+    pipeline_status = [
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]
+    status_results = await db.rides.aggregate(pipeline_status).to_list(20)
+    status_map = {r["_id"]: r["count"] for r in status_results}
+
+    # Recent rides
+    recent_rides = await db.rides.find({}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
+
+    # Total earnings
+    earning_pipeline = [
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": "$final_fare"}, "count": {"$sum": 1}}}
+    ]
+    earning_result = await db.rides.aggregate(earning_pipeline).to_list(1)
+    total_earning = earning_result[0]["total"] if earning_result else 0
+    completed_count = earning_result[0]["count"] if earning_result else 0
+
+    # Commission calculation (15% default)
+    commission_total = total_earning * 0.15
+
+    # Scheduled bookings
+    scheduled = await db.rides.find(
+        {"scheduled_at": {"$ne": None}}, {"_id": 0}
+    ).sort("scheduled_at", -1).limit(5).to_list(5)
+
+    # Active drivers
+    active_drivers = await db.drivers.count_documents({"is_online": True})
+    total_drivers = await db.drivers.count_documents({})
+
+    # Rides in progress
+    in_progress = status_map.get("in_progress", 0) + status_map.get("arriving", 0)
+    completed = status_map.get("completed", 0)
+    cancelled = status_map.get("cancelled", 0)
+    pending = status_map.get("pending", 0)
+
+    return {
+        "ride_status": {
+            "in_progress": in_progress,
+            "completed": completed,
+            "cancelled": cancelled,
+            "pending": pending,
+        },
+        "earnings": {
+            "total": round(total_earning, 2),
+            "commission": round(commission_total, 2),
+            "outstanding": 0,
+            "org_outstanding": 0,
+        },
+        "drivers": {
+            "active": active_drivers,
+            "total": total_drivers,
+        },
+        "recent_rides": recent_rides,
+        "scheduled_bookings": scheduled,
+        "completed_rides_count": completed_count,
+    }
+
+
 # ===== SERVICE CONFIGS =====
 
 @router.get("/service-config/{service_key}")
