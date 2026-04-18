@@ -119,6 +119,13 @@ export const orderAPI = {
   rate: (id, data) => api.post(`/orders/${id}/rate`, data),
 };
 
+// Cart APIs
+export const cartAPI = {
+  get: () => api.get('/cart'),
+  save: (merchantId, items) => api.put('/cart', { merchant_id: merchantId, items }),
+  clear: () => api.delete('/cart'),
+};
+
 // Wallet APIs
 export const walletAPI = {
   get: () => api.get('/wallet'),

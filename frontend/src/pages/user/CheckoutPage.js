@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
-import { orderAPI, merchantAPI, walletAPI } from '../../services/api';
+import { orderAPI, merchantAPI, walletAPI, cartAPI } from '../../services/api';
 import { 
   ArrowLeft, MapPin, CreditCard, Money, Wallet,
   Plus, Minus, Trash, CheckCircle
@@ -41,6 +41,17 @@ const CheckoutPage = () => {
 
   useEffect(() => {
     loadData();
+    // Try loading cart from backend for session persistence
+    const syncCart = async () => {
+      try {
+        const res = await cartAPI.get();
+        if (res.data.merchant_id === merchantId && res.data.items?.length > 0) {
+          setCart(res.data.items);
+          return;
+        }
+      } catch { /* fallback to localStorage */ }
+    };
+    syncCart();
   }, [merchantId]);
 
   const loadData = async () => {
@@ -71,6 +82,7 @@ const CheckoutPage = () => {
       }).filter(Boolean);
       
       localStorage.setItem(`cart_${merchantId}`, JSON.stringify(updated));
+      cartAPI.save(merchantId, updated).catch(() => {});
       return updated;
     });
   };
@@ -79,6 +91,7 @@ const CheckoutPage = () => {
     setCart(prev => {
       const updated = prev.filter(item => item.id !== productId);
       localStorage.setItem(`cart_${merchantId}`, JSON.stringify(updated));
+      cartAPI.save(merchantId, updated).catch(() => {});
       return updated;
     });
   };
@@ -113,14 +126,16 @@ const CheckoutPage = () => {
       setOrderId(response.data.id);
       setOrderPlaced(true);
       
-      // Clear cart
+      // Clear cart (both localStorage and backend)
       localStorage.removeItem(`cart_${merchantId}`);
+      cartAPI.clear().catch(() => {});
     } catch (error) {
       console.error('Place order error:', error);
       // For demo, simulate success
       setOrderId('order_demo_' + Date.now());
       setOrderPlaced(true);
       localStorage.removeItem(`cart_${merchantId}`);
+      cartAPI.clear().catch(() => {});
     } finally {
       setLoading(false);
     }

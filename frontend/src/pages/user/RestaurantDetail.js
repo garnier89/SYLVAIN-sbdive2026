@@ -4,7 +4,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
-import { merchantAPI } from '../../services/api';
+import { merchantAPI, cartAPI } from '../../services/api';
 import { 
   ArrowLeft, Star, Clock, MapPin, Plus, Minus,
   ShoppingCart, X
@@ -21,17 +21,31 @@ const RestaurantDetail = () => {
 
   useEffect(() => {
     loadMerchant();
-    // Load cart from localStorage
-    const savedCart = localStorage.getItem(`cart_${merchantId}`);
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
+    // Load cart: try backend first, then localStorage fallback
+    const loadCart = async () => {
+      try {
+        const res = await cartAPI.get();
+        if (res.data.merchant_id === merchantId && res.data.items?.length > 0) {
+          setCart(res.data.items);
+          localStorage.setItem(`cart_${merchantId}`, JSON.stringify(res.data.items));
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to load cart from backend:', err);
+      }
+      const savedCart = localStorage.getItem(`cart_${merchantId}`);
+      if (savedCart) {
+        try { setCart(JSON.parse(savedCart)); } catch { /* ignore parse error */ }
+      }
+    };
+    loadCart();
   }, [merchantId]);
 
   useEffect(() => {
-    // Save cart to localStorage
+    // Save cart to localStorage + backend
     if (merchantId) {
       localStorage.setItem(`cart_${merchantId}`, JSON.stringify(cart));
+      cartAPI.save(merchantId, cart).catch(() => {});
     }
   }, [cart, merchantId]);
 
