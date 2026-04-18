@@ -96,6 +96,16 @@ Chauffeur virtuel via WebSocket
 - AdminNewsletter: envoi newsletter, liste abonnes, stats
 - Iteration 33: 100% pass (24/24)
 
+## Google Maps + Admin Complet (Apr 18, 2026) - DONE
+- Google Maps API integre (cle dans frontend/.env)
+- DriverHome migre de Leaflet vers Google Maps
+- TOUS les 26 admin placeholders remplaces par des pages fonctionnelles:
+  - AdminMonitoring: KPI temps reel + courses en direct (auto-refresh 15s)
+  - AdminManageAdmins: gestion sous-admins depuis API
+  - AdminCrudPages: groups, vehicles, company, hotels, organization, requests
+  - AdminServiceConfig: 18 services (genie, runner, ondemand, video, bids, marketplace, medical, rideshare, nearby, tracking, location-fare, country, state, cancel-reasons, pages, app-home, intro, labels)
+- Iteration 34: 100% pass (27/27)
+
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
 - Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
 - Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
