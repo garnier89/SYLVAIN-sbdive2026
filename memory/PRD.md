@@ -106,6 +106,14 @@ Chauffeur virtuel via WebSocket
   - AdminServiceConfig: 18 services (genie, runner, ondemand, video, bids, marketplace, medical, rideshare, nearby, tracking, location-fare, country, state, cancel-reasons, pages, app-home, intro, labels)
 - Iteration 34: 100% pass (27/27)
 
+## Google Places Autocomplete + Admin Backend (Apr 18, 2026) - DONE
+- GooglePlacesInput composant reutilisable (restrictions: France, Martinique, Guadeloupe, Guyane, Reunion)
+- Integre dans LandingPage (formulaire de reservation) et RideBookingPage (depart/arrivee)
+- Backend /api/admin/service-config/{key} GET/PUT: configs services persistees en MongoDB (collection service_configs)
+- Backend /api/admin/crud/{collection} CRUD: groups, vehicles, companies, hotels, organizations, pending_requests
+- AdminServiceConfig charge/sauvegarde depuis le backend
+- Iteration 35: 100% pass
+
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
 - Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
 - Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
