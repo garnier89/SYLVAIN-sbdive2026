@@ -1,0 +1,27 @@
+{
+  "summary": "Iter49 validation of admin 'Rapport Ecart Negociation' (/api/admin/reports/negotiation-gap + /admin/reports/negotiation-gap). Backend: 12/12 pytest cases green (auth gating 401/403/200, full response-shape contract for top-level + daily/zones/vehicles/samples, invariants negotiated+direct==total_rides and total_revenue_gap==total_accepted-total_proposed, days query param {7,90}, zone labels). Existing seed = 4 rides (Paris / sb vehicle / avg_gap=+5.00 EUR / +20%). Frontend: admin page renders correctly with 4 KPI cards, LineChart (3 series: Ecart moyen dashed red, Offre client moyenne blue, Prix accepte moyen amber), horizontal BarChart for zones + vertical BarChart for vehicles with row summaries, samples table with exact expected headers [Date, Zone, Vehicule, Offre client, Prix accepte, Ecart, Negocie] and 4 rows. Period buttons 7j/14j/30j/90j all present and refetch on click. Sidebar entry 'Rapport Ecart Negociation' appears under the REWARDS & LOYALTY section (link navigates correctly).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter49_negotiation_gap.py",
+    "/app/test_reports/pytest/iter49_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/admin.py negotiation_gap_report: passes through vehicle_type as-is (e.g. 'sb' slug) — UI shows a capitalize() but humans would prefer display names (name_fr). Consider joining vehicle_types collection or mapping slug->name_fr server-side so the bar chart x-axis and table vehicule column are readable.",
+    "routes/admin.py: the `days` query param is unbounded. A request with days=3650 would scan up to 5000 rides and build full dicts in memory. Clamp to a sane max (e.g. max(1, min(days, 365))) and/or add an index on rides.created_at.",
+    "routes/admin.py: `samples` is truncated to the first 20 rides iterated, which is arrival order from mongo (not 'recent'). Contract says 'max 20 recent rides' — either sort rides by created_at desc before the loop or keep all samples and slice last 20 by date.",
+    "routes/admin.py avg_gap_pct averages percentages (mean of per-ride pct) rather than weighting by proposed amount. For tariff calibration the weighted gap (total_gap/total_proposed*100) is usually more meaningful — consider adding weighted_avg_gap_pct alongside.",
+    "AdminNegotiationGapReport.js fetch call ignores 401 (just toasts 'Erreur de chargement') — on expired session user sees only a toast with no redirect to /admin-login. Use the axios admin client (with the refresh interceptor) instead of raw fetch, consistent with other admin pages.",
+    "AdminNegotiationGapReport.js: `report.total_revenue_gap.toFixed(2)` will throw if backend returns undefined. Guard with `(report.total_revenue_gap ?? 0).toFixed(2)` for resilience.",
+    "Zone inference is substring-based and case-sensitive on the lowercased address only; addresses like '75001 Paris, France' match correctly but 'Paris 15e' before a comma still lands in the fallback last-segment branch if the token 'paris' isn't caught (it IS caught here). Consider backing with an explicit insee_city field when available to avoid collisions (e.g. a street named 'Paris' in another city)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter49_negotiation_gap.py", "/app/test_reports/iteration_49.json"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% on all verified testids and flows"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! (login at /admin-login). Passenger seed: neg_test@example.com / Test1234! used for 403 check.",
+  "seed_data_creation": "Reused the 4 negotiated rides from iter48 (Paris / sb / proposed 25 -> accepted 30 / +5 EUR +20%). No new rides created in this iteration.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Endpoint: GET /api/admin/reports/negotiation-gap?days=N. Admin-only (require_role['admin']). Only counts rides with status in {accepted,arriving,in_progress,completed} AND proposed_fare>0. accepted fare preference: final_fare > estimated_fare. Zone inference tokens (lowercase): martinique/fort-de-france -> Martinique; guadeloupe/pointe-a-pitre -> Guadeloupe; guyane; reunion; paris; lyon; marseille; fallback last comma segment truncated to 30 chars ('Inconnue' if empty). UI route: /admin/reports/negotiation-gap (component AdminNegotiationGapReport.js). Login with admin on /admin-login, then can directly navigate. To seed more rides for chart variety use: create ride via POST /api/rides with proposed_fare=X, then driver POST /api/rides/{id}/counter-offer {amount: Y}, then passenger POST /api/rides/{id}/accept-offer/{offer_id}.",
+  "rca of the issue": "N/A — all acceptance criteria in the review_request pass. Minor observations above are non-blocking enhancements."
+}

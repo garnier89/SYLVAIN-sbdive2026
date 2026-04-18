@@ -125,6 +125,7 @@ const sidebarConfig = [
       { icon: Trophy, label: 'Reward Program', path: '/admin/rewards' },
       { icon: Trophy, label: 'Chauffeurs Prioritaires', path: '/admin/priority-drivers' },
       { icon: Trophy, label: 'Top Chauffeurs (Public)', path: '/admin/top-drivers' },
+      { icon: Trophy, label: 'Rapport Ecart Negociation', path: '/admin/reports/negotiation-gap' },
     ]
   },
   {
