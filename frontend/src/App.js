@@ -99,6 +99,11 @@ import AdminMonitoring from './pages/admin/AdminMonitoring';
 import AdminManageAdmins from './pages/admin/AdminManageAdmins';
 import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests } from './pages/admin/AdminCrudPages';
 import AdminServiceConfig from './pages/admin/AdminServiceConfig';
+import AdminRewards from './pages/admin/AdminRewards';
+import AdminDocuments from './pages/admin/AdminDocuments';
+import AdminDisputes from './pages/admin/AdminDisputes';
+import AdminWalletRequests from './pages/admin/AdminWalletRequests';
+import AdminSettlements from './pages/admin/AdminSettlements';
 
 // Dispatcher Pages
 import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
@@ -210,6 +215,7 @@ const AppRouter = () => {
         <Route path="groups" element={<AdminGroups />} />
         <Route path="vehicles" element={<AdminVehicles />} />
         <Route path="requests" element={<AdminRequests />} />
+        <Route path="documents" element={<AdminDocuments />} />
         <Route path="company" element={<AdminCompany />} />
         <Route path="hotels" element={<AdminHotels />} />
         <Route path="organization" element={<AdminOrganization />} />
@@ -230,6 +236,11 @@ const AppRouter = () => {
         <Route path="later-bookings" element={<AdminManualBooking />} />
         <Route path="create-order" element={<AdminManualBooking />} />
         <Route path="payout" element={<AdminPayout />} />
+        <Route path="settlements" element={<AdminSettlements />} />
+        <Route path="disputes" element={<AdminDisputes />} />
+        <Route path="wallet-requests" element={<AdminWalletRequests />} />
+        <Route path="rewards" element={<AdminRewards />} />
+        <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />
         <Route path="location-fare" element={<AdminServiceConfig serviceKey="location-fare" />} />

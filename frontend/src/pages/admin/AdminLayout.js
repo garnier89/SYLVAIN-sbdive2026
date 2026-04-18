@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power,
-  Bed, CircleWavyCheck, Binoculars
+  Bed, CircleWavyCheck, Binoculars, Trophy, Wallet, HandCoins, Shield
 } from '@phosphor-icons/react';
 
 const sidebarConfig = [
@@ -32,8 +32,9 @@ const sidebarConfig = [
         { label: 'Manage Drivers', path: '/admin/drivers' },
         { label: 'Manage Vehicles', path: '/admin/vehicles' },
         { label: 'Service Requests', path: '/admin/requests' },
+        { label: 'Document Verification', path: '/admin/documents' },
       ]},
-      { icon: Buildings, label: 'Company', path: '/admin/company' },
+      { icon: Buildings, label: 'Company / Fleet Owner', path: '/admin/company' },
       { icon: Storefront, label: 'Store', path: '/admin/stores' },
       { icon: Bed, label: 'Hotels', key: 'hotels', children: [
         { label: 'All Hotels', path: '/admin/hotels' },
@@ -44,7 +45,7 @@ const sidebarConfig = [
   {
     title: 'SERVICES',
     items: [
-      { icon: Taxi, label: 'Taxi Service', key: 'taxi', children: [
+      { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
         { label: 'All Rides', path: '/admin/rides' },
         { label: 'Vehicle Types', path: '/admin/vehicle-types' },
       ]},
@@ -53,36 +54,37 @@ const sidebarConfig = [
       ]},
       { icon: ShoppingCart, label: 'Store Delivery Services', key: 'store-delivery', children: [
         { label: 'All Deliveries', path: '/admin/store-delivery' },
+        { label: 'Store Delivery Orders', path: '/admin/store-orders' },
       ]},
       { icon: Lightning, label: 'Delivery Genie', key: 'genie', children: [
-        { label: 'All Requests', path: '/admin/genie' },
+        { label: 'Settings', path: '/admin/genie' },
       ]},
       { icon: PersonSimpleRun, label: 'Delivery Runner', key: 'runner', children: [
-        { label: 'All Runs', path: '/admin/runner' },
+        { label: 'Settings', path: '/admin/runner' },
       ]},
       { icon: Wrench, label: 'On-Demand Services', key: 'ondemand', children: [
-        { label: 'All Services', path: '/admin/ondemand' },
+        { label: 'Settings', path: '/admin/ondemand' },
       ]},
       { icon: VideoCamera, label: 'Video Consultation', key: 'video', children: [
-        { label: 'All Sessions', path: '/admin/video' },
+        { label: 'Settings', path: '/admin/video' },
       ]},
       { icon: Gavel, label: 'Manage Bid Services', key: 'bid', children: [
-        { label: 'All Bids', path: '/admin/bids' },
+        { label: 'Settings', path: '/admin/bids' },
       ]},
       { icon: Tag, label: 'Buy, Sell & Rent', key: 'marketplace', children: [
-        { label: 'All Listings', path: '/admin/marketplace' },
+        { label: 'Settings', path: '/admin/marketplace' },
       ]},
       { icon: FirstAid, label: 'Medical Services', key: 'medical', children: [
-        { label: 'All Services', path: '/admin/medical' },
+        { label: 'Settings', path: '/admin/medical' },
       ]},
       { icon: UsersThree, label: 'Ride Share', key: 'rideshare', children: [
-        { label: 'All Shared Rides', path: '/admin/rideshare' },
+        { label: 'Settings', path: '/admin/rideshare' },
       ]},
       { icon: MapPinArea, label: 'Nearby Management', key: 'nearby', children: [
-        { label: 'NearBy Category', path: '/admin/nearby' },
+        { label: 'Settings', path: '/admin/nearby' },
       ]},
       { icon: Path, label: 'FET Tracking Service', key: 'tracking', children: [
-        { label: 'All Tracking', path: '/admin/tracking' },
+        { label: 'Settings', path: '/admin/tracking' },
       ]},
     ]
   },
@@ -101,7 +103,22 @@ const sidebarConfig = [
       { icon: ChartBar, label: 'Reports', key: 'reports', children: [
         { label: 'Earning Report', path: '/admin/revenue' },
         { label: 'Payout Report', path: '/admin/payout' },
+        { label: 'Settlements', path: '/admin/settlements' },
       ]},
+      { icon: Shield, label: 'Disputes', path: '/admin/disputes' },
+    ]
+  },
+  {
+    title: 'WALLET & PAYMENTS',
+    items: [
+      { icon: Wallet, label: 'Wallet Requests', path: '/admin/wallet-requests' },
+      { icon: HandCoins, label: 'Settlements', path: '/admin/settlements' },
+    ]
+  },
+  {
+    title: 'REWARDS & LOYALTY',
+    items: [
+      { icon: Trophy, label: 'Reward Program', path: '/admin/rewards' },
     ]
   },
   {
