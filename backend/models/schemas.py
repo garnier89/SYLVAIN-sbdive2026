@@ -101,6 +101,7 @@ class RideRequest(BaseModel):
     female_driver_request: bool = False
     handicap_accessibility: bool = False
     notes: Optional[str] = None
+    proposed_fare: Optional[float] = None  # passenger's price offer for negotiation
 
 class RideResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -136,6 +137,8 @@ class RideResponse(BaseModel):
     female_driver_request: bool = False
     handicap_accessibility: bool = False
     notes: Optional[str] = None
+    proposed_fare: Optional[float] = None
+    counter_offers: Optional[List[dict]] = None
 
 # Order Models
 class OrderItemCreate(BaseModel):

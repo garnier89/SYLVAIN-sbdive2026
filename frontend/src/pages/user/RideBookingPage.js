@@ -61,6 +61,8 @@ const RideBookingPage = () => {
   const [estimate, setEstimate] = useState(null);
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [proposedFare, setProposedFare] = useState('');
+  const [counterOffers, setCounterOffers] = useState([]);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const [routePath, setRoutePath] = useState([]);
   const [vehicleTypes, setVehicleTypes] = useState([]);
@@ -171,21 +173,64 @@ const RideBookingPage = () => {
   const confirmRide = async () => {
     setLoading(true);
     try {
+      const offerAmount = parseFloat(proposedFare);
       const response = await rideAPI.create({
         pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
         dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
         vehicle_type: selectedVehicle, payment_method: paymentMethod,
+        proposed_fare: offerAmount > 0 ? offerAmount : (estimate?.estimated_fare || null),
       });
       const createdRide = response.data;
       setRide(createdRide);
-      // Navigate to tracking page
-      navigate(`/ride/${createdRide.id}`);
+      setCounterOffers([]);
+      setStep('negotiation');
     } catch {
       setRide({ otp: '4521' });
       setStep('searching');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Poll for counter-offers and ride status during negotiation
+  useEffect(() => {
+    if (step !== 'negotiation' || !ride?.id) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await rideAPI.get(ride.id);
+        if (cancelled) return;
+        const r = res.data;
+        setCounterOffers(r.counter_offers || []);
+        if (r.status === 'accepted') {
+          navigate(`/ride/${r.id}`);
+        } else if (r.status === 'cancelled') {
+          setStep('plan');
+        }
+      } catch { /* keep polling */ }
+    };
+    tick();
+    const id = setInterval(tick, 3000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [step, ride?.id, navigate]);
+
+  const acceptOffer = async (offerId) => {
+    setLoading(true);
+    try {
+      await fetch(`${API}/api/rides/${ride.id}/accept-offer/${offerId}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      });
+      navigate(`/ride/${ride.id}`);
+    } catch { /* stay on page */ }
+    finally { setLoading(false); }
+  };
+
+  const cancelNegotiation = async () => {
+    if (!ride?.id) { setStep('plan'); return; }
+    try {
+      await rideAPI.cancel(ride.id, 'Passenger cancelled during negotiation');
+    } catch { /* ignore */ }
+    setStep('plan'); setRide(null); setCounterOffers([]);
   };
 
   // ===== STEP 1: PLAN YOUR RIDE =====
@@ -504,8 +549,35 @@ const RideBookingPage = () => {
                 </div>
               )}
 
-              {/* Payment + CTA */}
+              {/* Payment + Offer + CTA */}
               <div className="border-t border-gray-100 px-5 py-3">
+                {/* Your offer input */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">Votre offre de prix</label>
+                    {estimate?.estimated_fare && (
+                      <button onClick={() => setProposedFare(estimate.estimated_fare.toFixed(2))} className="text-[10px] text-[#FF4500] font-bold" data-testid="use-suggested-fare">
+                        Utiliser {estimate.estimated_fare.toFixed(2)} &euro;
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
+                    <span className="text-xl">&euro;</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.50"
+                      min="1"
+                      value={proposedFare}
+                      onChange={e => setProposedFare(e.target.value)}
+                      placeholder={estimate?.estimated_fare?.toFixed(2) || '0.00'}
+                      className="flex-1 bg-transparent outline-none text-xl font-bold text-slate-800 placeholder:text-gray-300"
+                      data-testid="proposed-fare-input"
+                    />
+                    <span className="text-[10px] text-gray-500 font-medium">Les chauffeurs peuvent accepter ou contre-proposer</span>
+                  </div>
+                </div>
+
                 <button
                   className="w-full flex items-center gap-3 py-3 border-b border-gray-100"
                   data-testid="payment-method-btn"
@@ -538,6 +610,87 @@ const RideBookingPage = () => {
               </div>
             </>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // ===== STEP 2.5: NEGOTIATION (waiting for counter-offers) =====
+  if (step === 'negotiation') {
+    const mine = parseFloat(proposedFare) || (estimate?.estimated_fare || 0);
+    return (
+      <div className="mobile-container min-h-screen bg-gray-50 flex flex-col" data-testid="negotiation-step">
+        <div className="bg-gradient-to-r from-[#FF4500] to-[#FF6B35] px-5 pt-6 pb-8 text-white">
+          <div className="flex items-center gap-3 mb-4">
+            <button onClick={cancelNegotiation} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" data-testid="cancel-negotiation-btn">
+              <ArrowLeft size={18} className="text-white" weight="bold" />
+            </button>
+            <h1 className="text-lg font-bold">Negociation en cours</h1>
+          </div>
+          <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4">
+            <p className="text-xs text-white/80 mb-1">Votre offre</p>
+            <p className="text-4xl font-black">{mine.toFixed(2)} &euro;</p>
+            <p className="text-xs text-white/80 mt-2 flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
+              Envoyee aux chauffeurs a proximite
+            </p>
+          </div>
+        </div>
+
+        <div className="flex-1 px-5 py-4 overflow-y-auto">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-slate-800">Propositions recues</h2>
+            <span className="text-xs text-gray-500" data-testid="offers-count">{counterOffers.filter(o => o.status === 'pending').length} proposition(s)</span>
+          </div>
+
+          {counterOffers.filter(o => o.status === 'pending').length === 0 && (
+            <div className="bg-white rounded-2xl p-6 text-center shadow-sm" data-testid="waiting-state">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-orange-100 flex items-center justify-center animate-pulse">
+                <Car size={28} className="text-[#FF4500]" weight="duotone" />
+              </div>
+              <p className="font-semibold text-slate-800 mb-1">En attente des chauffeurs...</p>
+              <p className="text-xs text-gray-500">Les chauffeurs vont accepter ou contre-proposer dans quelques secondes</p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {counterOffers.filter(o => o.status === 'pending').map(o => {
+              const diff = o.amount - mine;
+              const isHigher = diff > 0;
+              return (
+                <div key={o.id} className="bg-white rounded-2xl p-4 shadow-sm" data-testid={`offer-${o.id}`}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-base">
+                      {o.driver_name?.charAt(0).toUpperCase() || 'C'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-800 truncate">{o.driver_name}</p>
+                      <p className="text-xs text-gray-500 flex items-center gap-2">
+                        <span className="flex items-center gap-0.5"><Info size={10} weight="fill" className="text-amber-400" />{o.driver_rating?.toFixed(1) || '5.0'}</span>
+                        {o.driver_vehicle_model && <span>&middot; {o.driver_vehicle_model}</span>}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-slate-800">{o.amount.toFixed(2)} &euro;</p>
+                      {diff !== 0 && (
+                        <p className={`text-[10px] font-bold ${isHigher ? 'text-red-500' : 'text-green-600'}`}>
+                          {isHigher ? '+' : ''}{diff.toFixed(2)} &euro; vs votre offre
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => acceptOffer(o.id)}
+                    disabled={loading}
+                    className="w-full h-11 rounded-xl bg-[#FF4500] hover:bg-[#E53E00] text-white font-bold text-sm disabled:opacity-60"
+                    data-testid={`accept-offer-${o.id}`}
+                  >
+                    Accepter cette offre
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );

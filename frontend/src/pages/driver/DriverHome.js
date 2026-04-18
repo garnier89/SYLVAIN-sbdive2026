@@ -111,6 +111,19 @@ const DriverHome = () => {
     } catch (err) { console.error('Failed to accept ride:', err); setIncomingRequest(null); }
   };
 
+  const sendCounterOffer = async (rideId, amount) => {
+    try {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/rides/${rideId}/counter-offer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ amount: parseFloat(amount) }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setIncomingRequest(null);
+    } catch (err) { console.error('Counter offer failed:', err); }
+  };
+
   const updateRideStatus = async (status) => {
     if (!currentRide) return;
     try {
@@ -274,7 +287,15 @@ const DriverHome = () => {
           <div className="w-full bg-white rounded-t-3xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-gray-800">Nouvelle course</h3>
-              <span className="text-2xl font-bold" style={{ color: '#00B578' }}>{incomingRequest.estimated_fare?.toFixed(2)} EUR</span>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400 uppercase font-bold">Prix propose</p>
+                <span className="text-2xl font-bold" style={{ color: '#00B578' }}>
+                  {(incomingRequest.proposed_fare || incomingRequest.estimated_fare)?.toFixed(2)} EUR
+                </span>
+                {incomingRequest.proposed_fare && incomingRequest.estimated_fare && incomingRequest.proposed_fare !== incomingRequest.estimated_fare && (
+                  <p className="text-[10px] text-gray-500">Estime: {incomingRequest.estimated_fare.toFixed(2)} EUR</p>
+                )}
+              </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
@@ -301,6 +322,36 @@ const DriverHome = () => {
               <span>{incomingRequest.duration_mins} min</span>
               <span className="capitalize">{incomingRequest.vehicle_type}</span>
             </div>
+
+            {/* Counter-offer input */}
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+              <p className="text-xs font-bold text-slate-700 mb-2">Proposer un autre prix (optionnel)</p>
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                  <span className="text-base">EUR</span>
+                  <input
+                    type="number"
+                    step="0.50"
+                    min="1"
+                    placeholder={(incomingRequest.proposed_fare || incomingRequest.estimated_fare)?.toFixed(2)}
+                    className="flex-1 outline-none text-base font-bold text-slate-800"
+                    data-testid="counter-offer-input"
+                    id={`counter-input-${incomingRequest.id}`}
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    const val = document.getElementById(`counter-input-${incomingRequest.id}`)?.value;
+                    if (val && parseFloat(val) > 0) sendCounterOffer(incomingRequest.id, val);
+                  }}
+                  className="px-4 rounded-lg bg-orange-500 text-white font-bold text-sm"
+                  data-testid="send-counter-offer-btn"
+                >
+                  Envoyer
+                </button>
+              </div>
+            </div>
+
             <div className="flex gap-3">
               <button className="flex-1 border border-gray-300 text-gray-600 rounded-full h-14 font-bold flex items-center justify-center gap-2"
                 onClick={() => setIncomingRequest(null)} data-testid="reject-ride-btn">
@@ -308,7 +359,7 @@ const DriverHome = () => {
               </button>
               <button className="flex-1 text-white rounded-full h-14 font-bold flex items-center justify-center gap-2 shadow-lg" style={{ background: '#00B578' }}
                 onClick={() => acceptRide(incomingRequest.id)} data-testid="accept-ride-btn">
-                <Check size={20} /> Accepter
+                <Check size={20} /> Accepter prix
               </button>
             </div>
           </div>

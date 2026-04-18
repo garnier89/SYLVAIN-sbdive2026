@@ -116,6 +116,8 @@ async def create_ride(data: RideRequest, request: Request):
         "female_driver_request": getattr(data, 'female_driver_request', False),
         "handicap_accessibility": getattr(data, 'handicap_accessibility', False),
         "notes": getattr(data, 'notes', None),
+        "proposed_fare": float(data.proposed_fare) if data.proposed_fare else fare,
+        "counter_offers": [],  # list of {driver_id, driver_name, amount, created_at, status}
         "cancel_reason": None,
         "cancelled_by": None,
         "driver_name": None,
@@ -145,6 +147,7 @@ async def create_ride(data: RideRequest, request: Request):
         "dropoff_address": ride["dropoff_address"],
         "vehicle_type": ride["vehicle_type"],
         "estimated_fare": fare,
+        "proposed_fare": ride["proposed_fare"],
         "distance_km": ride["distance_km"],
         "duration_mins": ride["duration_mins"],
     })
@@ -472,3 +475,134 @@ async def rate_ride(ride_id: str, request: Request):
     avg = result[0]["avg"] if result else 5.0
     await db.drivers.update_one({"id": ride["driver_id"]}, {"$set": {"rating": round(avg, 2)}})
     return {"message": "Rating submitted"}
+
+
+# ===== NEGOTIATION / COUNTER-OFFERS =====
+
+@router.post("/{ride_id}/counter-offer")
+async def driver_counter_offer(ride_id: str, request: Request):
+    """Driver proposes a different fare for a pending ride (negotiation)."""
+    user = await get_current_user(request)
+    if user["role"] != "driver":
+        raise HTTPException(status_code=403, detail="Driver only")
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Ride is no longer pending")
+
+    body = await request.json()
+    amount = float(body.get("amount", 0))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    offer = {
+        "id": f"off_{uuid.uuid4().hex[:8]}",
+        "driver_id": driver["id"],
+        "driver_name": user.get("name", "Chauffeur"),
+        "driver_rating": driver.get("rating", 5.0),
+        "driver_vehicle_model": driver.get("vehicle_model"),
+        "driver_vehicle_number": driver.get("vehicle_number"),
+        "amount": amount,
+        "status": "pending",  # pending | accepted | rejected
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Prevent the same driver from spamming offers: replace previous pending
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$pull": {"counter_offers": {"driver_id": driver["id"], "status": "pending"}}},
+    )
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$push": {"counter_offers": offer}},
+    )
+
+    # Notify the passenger via WS room
+    await manager.send_to_ride_room(ride_id, {
+        "type": "counter_offer",
+        "ride_id": ride_id,
+        "offer": offer,
+    })
+
+    return {"message": "Offer sent", "offer": offer}
+
+
+@router.post("/{ride_id}/accept-offer/{offer_id}")
+async def passenger_accept_offer(ride_id: str, offer_id: str, request: Request):
+    """Passenger accepts a driver's counter-offer → ride starts."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your ride")
+    if ride.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Ride is no longer pending")
+
+    offers = ride.get("counter_offers") or []
+    offer = next((o for o in offers if o["id"] == offer_id and o["status"] == "pending"), None)
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+
+    driver = await db.drivers.find_one({"id": offer["driver_id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    driver_user = await db.users.find_one({"id": driver["user_id"]}, {"_id": 0})
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Mark offer accepted, reject others, assign driver and switch ride to accepted
+    await db.rides.update_one({"id": ride_id, "counter_offers.id": offer_id}, {"$set": {"counter_offers.$.status": "accepted"}})
+    await db.rides.update_one(
+        {"id": ride_id},
+        {
+            "$set": {
+                "driver_id": driver["id"],
+                "status": "accepted",
+                "accepted_at": now,
+                "estimated_fare": offer["amount"],
+                "driver_name": (driver_user or {}).get("name", offer.get("driver_name")),
+                "driver_phone": (driver_user or {}).get("phone"),
+                "driver_rating": driver.get("rating", 5.0),
+                "driver_vehicle_model": driver.get("vehicle_model"),
+                "driver_vehicle_number": driver.get("vehicle_number"),
+            },
+        },
+    )
+    # Reject remaining pending offers
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$set": {"counter_offers.$[elem].status": "rejected"}},
+        array_filters=[{"elem.id": {"$ne": offer_id}, "elem.status": "pending"}],
+    )
+
+    # Award points to accepting driver (same logic as accept_ride)
+    points_cfg = await _get_driver_points_cfg()
+    gain = int(points_cfg.get("points_per_ride_accepted", 2))
+    current_points = driver.get("points", points_cfg["initial_points"])
+    new_points = min(100, current_points + gain)
+    await db.drivers.update_one(
+        {"id": driver["id"]},
+        {"$set": {"points": new_points}, "$inc": {"offered_count": 1, "accepted_count": 1}},
+    )
+
+    # Notify driver via WS + ride room
+    await manager.send_to_ride_room(ride_id, {
+        "type": "offer_accepted",
+        "ride_id": ride_id,
+        "offer_id": offer_id,
+        "driver_id": driver["id"],
+    })
+
+    return {"message": "Offer accepted", "ride_id": ride_id, "final_fare": offer["amount"]}
+
+
+async def _get_driver_points_cfg():
+    from routes.drivers import _get_rewards_points_config
+    return await _get_rewards_points_config()
+
