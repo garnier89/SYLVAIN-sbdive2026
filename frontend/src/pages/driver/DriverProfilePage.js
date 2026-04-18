@@ -7,7 +7,8 @@ import {
   Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
   Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
   CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
-  Crown, Trophy, Lightning, TrendUp, TrendDown
+  Crown, Trophy, Lightning, TrendUp, TrendDown,
+  Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -146,17 +147,36 @@ const DriverProfilePage = () => {
       <div className="mt-5 mb-5">
         <p className="px-5 text-base font-bold text-gray-800 mb-2">Carte cadeau</p>
         <div className="bg-white">
-          <ProfileRow icon={Gift} color="#F59E0B" label="Acheter une carte cadeau" onClick={() => navigate('/giftcards')} />
-          <ProfileRow icon={Star} color="#22C55E" label="Mes cartes cadeaux" onClick={() => {}} />
+          <ProfileRow icon={Gift} color="#92400E" label="Envoyer une carte-cadeau" onClick={() => navigate('/giftcards')} />
+          <ProfileRow icon={Gift} color="#0E7490" label="Echanger une carte-cadeau" onClick={() => navigate('/giftcards')} />
         </div>
       </div>
 
-      {/* ===== DECONNEXION ===== */}
-      <div className="px-5 mb-8">
-        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-50 border border-red-100" data-testid="logout-btn">
-          <SignOut size={18} className="text-red-500" />
-          <span className="text-red-500 font-semibold text-sm">Deconnexion</span>
-        </button>
+      {/* ===== SUPPORT ===== */}
+      <div className="mt-5">
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">Support</p>
+        <div className="bg-white">
+          <ProfileRow icon={Info} color="#F59E0B" label="A propos de nous" onClick={() => navigate('/chauffeur/support/about')} />
+          <ProfileRow icon={ShieldCheck} color="#374151" label="Politique de confidentialite" onClick={() => navigate('/chauffeur/support/privacy')} />
+          <ProfileRow icon={Lock} color="#F87171" label="Termes et conditions" onClick={() => navigate('/chauffeur/support/terms')} />
+          <ProfileRow icon={Question} color="#EC4899" label="FAQ" onClick={() => navigate('/chauffeur/support/faq')} />
+          <ProfileRow icon={ChatsCircle} color="#10B981" label="Parler en direct" onClick={() => navigate('/chauffeur/support/chat')} />
+          <ProfileRow icon={EnvelopeSimple} color="#F97316" label="Contactez nous" onClick={() => navigate('/chauffeur/support/contact')} />
+        </div>
+      </div>
+
+      {/* ===== AUTRE / DECONNEXION ===== */}
+      <div className="mt-5 mb-8">
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">Autre</p>
+        <div className="bg-white">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 last:border-0 active:bg-gray-50 transition-colors" data-testid="logout-btn">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#6366F118' }}>
+              <SignOut size={20} weight="duotone" style={{ color: '#6366F1' }} />
+            </div>
+            <span className="text-sm text-gray-800 flex-1 text-left">Se deconnecter</span>
+            <CaretRight size={16} className="text-gray-400 flex-shrink-0" />
+          </button>
+        </div>
       </div>
 
       <DriverBottomNav active="profile" />
