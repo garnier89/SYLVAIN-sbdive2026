@@ -1,4 +1,4 @@
-# SB Drive VTC - PRD (Product Requirements Document)
+# SB Drive VTC - PRD
 
 ## Vision
 Application super-app multi-services type Gojek/V3Cube pour le marche VTC francophone.
@@ -15,51 +15,42 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 ### 1. Authentification & Onboarding (DONE)
 - Login par telephone (style V3Cube dark theme)
 - Login email/password, Google OAuth via Emergent
-- Inscription avec verification OTP
 - Roles: user, driver, admin, merchant
 
-### 2. Application Utilisateur - 22 Services Actifs (DONE - Apr 14, 2026)
-**Taxi/VTC:** Reservation, Pooling, Location, Chauffeur Prive, Intercity, Encheres, Programmer Course, 10 services supplementaires (Aeroport, Animaux, Moto, Tuktuk, Electrique, etc.)
-**Livraison:** Repas, Courses, Medicaments, Fleurs, Papeterie, Vin, Eau, Supermarche, Construction
-**Services a la demande:** 8 categories (Plomberie, Electricite, Menage, Peinture, Coiffure, Bricolage, Garde d'enfants, Securite) + 21 services en grille
-**Beaute:** 12 services (Coiffure, Barbe, Maquillage, Soins, etc.)
-**Animaux:** 12 services (Toilettage, Promenade, Dressage, Pension, etc.)
-**Entretien Auto:** 8 services (Lavage, Batterie, Carburant, Vidange, etc.)
-**Depannage:** 9 services (Remorquage, Pneu, Ouverture porte, Demarrage, etc.)
-**Medical:** Rendez-vous, Video Consultation, Pharmacie, Ambulance
-**Consultation Video:** 8 providers (medecins, avocats, tuteurs, astrologue, fitness) avec reservation
-**Encheres Services:** 8 categories de prestataires avec systeme de demandes/offres
-**VTC Intercity:** 6 trajets populaires avec reservation multi-passagers
-**Parking:** 4 parkings avec photos, prix, reservation avec duree
-**Cartes Cadeaux:** 5 templates, 8 montants, achat/utilisation/mes cartes
-**Suivi Temps Reel:** Famille et Employes, ajout/suppression de membres
-**Commerces Proches:** 10 categories avec detail (Appeler/Itineraire)
-**Covoiturage:** Recherche, publication, reservation de places
-**Marketplace:** Immobilier, Vehicules, Articles Divers avec categories
+### 2. Systeme Multi-Langue & Multi-Devise (DONE - Apr 18, 2026)
+- **25 langues**: Francais, English, Arabe, Espanol, Portugues, Deutsch, Italiano, Nederlands, Turkce, Russkiy, Zhongwen, Nihongo, Hangugeo, Hindi, Kiswahili, Hausa, Wolof, Kreyol, Malagasy, Lingala, Thai, Vietnamese, Bahasa Melayu, Bahasa Indonesia, Filipino
+- **30 devises**: EUR, USD, GBP, XOF (CFA), XAF (FCFA), MAD, CAD, CHF, TND, DZD, GNF, HTG, MGA, CDF, NGN, KES, ZAR, AED, SAR, INR, BRL, MXN, JPY, CNY, RUB, TRY, THB, PHP, IDR, MYR
+- Selecteur en haut a droite de la page d'accueil (FR | EUR)
+- Modal avec onglets Langues/Devises, recherche, drapeaux
+- Persistance dans localStorage
 
-### 3. Application Chauffeur (DONE)
-- Login, ecran d'accueil, courses en attente
-- Acceptation/refus, navigation, historique et gains
-- Bouton "Parler en direct" flottant + profil
+### 3. Systeme Taxi V3Cube Complet (DONE - Apr 18, 2026)
+- **10 types de vehicules**: SB, Confort, Luxe, Moto, Pool, SUV, Electrique, Van, Accessible, Aeroport
+- Banniere promo "-20% sur votre premiere course" (Code SB20)
+- Detail tarifaire complet (base, distance/km, temps/min, prise en charge, total)
+- Mode "Maintenant" / "Programmer" avec date/time picker
+- Selection de paiement
+- Lieux Favoris (Domicile, Travail)
+- Lieux Recents
+- "Ou allez-vous ?" style V3Cube
 
-### 4. Panel Admin XJekPlus (DONE)
-- Theme clair, sidebar complete, dashboard, users, drivers
-- God's View, Heat View, Promocodes, Settings persistants
+### 4. 22 Services Actifs (DONE)
+Taxi, Livraison, Services, Beaute, Animaux, Auto, Depannage, Medical, Video Consult, Encheres, Intercity, Parking, Cartes Cadeaux, Suivi, Commerces Proches, Covoiturage, Marketplace
 
-### 5. Mode Simulation (DONE)
-- Chauffeur virtuel, deplacement simule via WebSocket
+### 5. Application Chauffeur (DONE)
+Login, courses en attente, acceptation, navigation, historique, gains, "Parler en direct"
 
-## Code Quality (Applied Apr 14, 2026)
-- Hardcoded secrets -> env variables
-- Missing React Hook deps -> useCallback
-- Empty catch blocks -> console.error logging
-- Array index keys -> stable keys
-- Dynamic imports -> static imports
+### 6. Panel Admin XJekPlus (DONE)
+Theme clair, sidebar, dashboard, users, drivers, God's View, Heat View, Promocodes, Settings
+
+### 7. Mode Simulation (DONE)
+Chauffeur virtuel via WebSocket
 
 ## Tests
 - Iteration 25: 100% pass - Admin UI
-- Iteration 26: 100% pass (35/35) - 6 Gojek Services backend+frontend
-- Iteration 27: 100% pass (23/23) - All 22 service pages frontend
+- Iteration 26: 100% pass (35/35) - 6 Gojek Services
+- Iteration 27: 100% pass (23/23) - 22 Service pages
+- Iteration 28: 100% pass (23/23) - Locale + Taxi V3Cube
 
 ## Backlog (P1)
 - Persistance panier/commandes entre sessions
