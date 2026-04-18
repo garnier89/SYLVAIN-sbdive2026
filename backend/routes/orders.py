@@ -143,7 +143,8 @@ async def rate_order(order_id: str, request: Request):
         "comment": body.get("comment"), "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.ratings.insert_one(rating)
-    ratings = await db.ratings.find({"merchant_id": order["merchant_id"]}, {"rating": 1}).to_list(1000)
-    avg = sum(r["rating"] for r in ratings) / len(ratings) if ratings else 5.0
+    pipeline = [{"$match": {"merchant_id": order["merchant_id"]}}, {"$group": {"_id": None, "avg": {"$avg": "$rating"}}}]
+    result = await db.ratings.aggregate(pipeline).to_list(1)
+    avg = result[0]["avg"] if result else 5.0
     await db.merchants.update_one({"id": order["merchant_id"]}, {"$set": {"rating": round(avg, 2)}})
     return {"message": "Rating submitted"}

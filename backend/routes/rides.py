@@ -328,7 +328,7 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
             query["$or"] = [{"driver_id": driver["id"]}, {"status": "pending", "vehicle_type": driver["vehicle_type"]}]
     if status:
         query["status"] = status
-    rides = await db.rides.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    rides = await db.rides.find(query, {"_id": 0}).sort("created_at", -1).limit(min(limit, 100)).to_list(min(limit, 100))
     return rides
 
 

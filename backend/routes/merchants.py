@@ -55,7 +55,7 @@ async def get_merchant(merchant_id: str):
 
 @router.get("/{merchant_id}/products")
 async def get_merchant_products(merchant_id: str):
-    products = await db.products.find({"merchant_id": merchant_id, "is_available": True}, {"_id": 0}).to_list(500)
+    products = await db.products.find({"merchant_id": merchant_id, "is_available": True}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
     return products
 
 
