@@ -1,0 +1,98 @@
+{
+  "summary": "Iteration 36 - Google Maps Directions API integration and Admin CRUD MongoDB connection. Backend tests 100% pass (13/13). Frontend tests 100% pass. Google Maps Directions API returns real distance, duration, and route_polyline. AdminCrudPages connected to backend /api/admin/crud/{collection} endpoints.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "Backend: GET /api/health returns {status: ok} - PASS",
+    "Backend: POST /api/rides/estimate returns google_maps source with real distance, duration, route_polyline - PASS",
+    "Backend: Paris to CDG estimate returns distance > 25km (Google Maps road distance) - PASS",
+    "Backend: Estimate returns route_polyline field when using Google Maps - PASS",
+    "Backend: Estimate works with different vehicle types (berline, van, luxe) - PASS",
+    "Backend: POST /api/admin/crud/groups creates item in MongoDB - PASS",
+    "Backend: GET /api/admin/crud/groups lists items from MongoDB - PASS",
+    "Backend: PUT /api/admin/crud/groups/{id} updates item - PASS",
+    "Backend: DELETE /api/admin/crud/groups/{id} deletes item - PASS",
+    "Backend: POST /api/admin/crud/vehicles creates vehicle - PASS",
+    "Backend: GET /api/admin/crud/companies lists companies - PASS",
+    "Backend: Invalid collection returns 400 - PASS",
+    "Backend: POST to invalid collection returns 400 - PASS",
+    "Frontend: Landing page loads with data-testid='landing-page' - PASS",
+    "Frontend: Pickup input found with data-testid='pickup-input' - PASS",
+    "Frontend: Dropoff input found with data-testid='dropoff-input' - PASS",
+    "Frontend: Google Places Autocomplete shows suggestions (Paris, CDG Airport, etc.) - PASS",
+    "Frontend: Admin login works at /admin-login - PASS",
+    "Frontend: Admin /admin/groups page loads with CRUD form and list from backend - PASS",
+    "Frontend: Admin /admin/vehicles page loads with 2 vehicles (Peugeot 508, Mercedes Classe E) - PASS",
+    "Frontend: Admin /admin/company page loads with 1 company (TechCorp France) - PASS",
+    "Frontend: Admin /admin/genie config page loads with form fields and Save button - PASS"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_iter36_google_maps_crud.py",
+    "/app/test_reports/pytest/pytest_results_iter36.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "Google Maps Directions API integration in /api/rides/estimate works correctly - returns source='google_maps' with route_polyline",
+    "Fallback to haversine calculation when Google Maps API fails or key missing",
+    "AdminCrudPages.js now fetches data from /api/admin/crud/{collection} endpoints",
+    "CRUD operations (create, read, update, delete) all persist to MongoDB collections with 'admin_{collection}' naming",
+    "Google Places Autocomplete restricts to France and French territories (fr, mq, gp, gf, re)"
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_iter36_google_maps_crud.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+
+  "test_credentials": {
+    "admin": "email: admin@superapp.com, password: SuperAdmin123!"
+  },
+
+  "seed_data_creation": "Test data created during CRUD tests with TEST_ prefix, cleaned up after tests",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Iteration 36 validated: 1) /api/rides/estimate now uses Google Maps Directions API first (fallback to haversine). Returns 'source' field ('google_maps' or 'haversine'), distance_km, duration_mins, and route_polyline when using Google Maps. Paris to CDG returns ~30km road distance. 2) AdminCrudPages.js connected to backend /api/admin/crud/{collection} endpoints. All CRUD operations persist to MongoDB. Collections: groups, vehicles, companies, hotels, organizations, pending_requests. 3) Google Places Autocomplete working on landing page with pickup-input and dropoff-input data-testids.",
+
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": [
+      "LiveChat WebSocket backend - UI only"
+    ]
+  },
+
+  "new_features_tested": {
+    "google_maps_directions_api": {
+      "endpoint": "POST /api/rides/estimate",
+      "features": ["Real road distance (not straight-line)", "Duration in minutes", "Route polyline for map display"],
+      "source_field": "google_maps or haversine (fallback)",
+      "test_route": "Paris (48.8566,2.3522) to CDG (49.0097,2.5479) = ~30km",
+      "status": "WORKING"
+    },
+    "admin_crud_mongodb": {
+      "endpoints": ["GET /api/admin/crud/{collection}", "POST /api/admin/crud/{collection}", "PUT /api/admin/crud/{collection}/{id}", "DELETE /api/admin/crud/{collection}/{id}"],
+      "allowed_collections": ["groups", "vehicles", "companies", "hotels", "organizations", "pending_requests"],
+      "mongodb_naming": "admin_{collection}",
+      "frontend_integration": "AdminCrudPages.js fetches from backend API",
+      "status": "WORKING"
+    }
+  }
+}

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
+import os
 import secrets
+import requests
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -22,8 +24,38 @@ VALID_TRANSITIONS = {
 
 @router.post("/estimate")
 async def estimate_ride(data: RideRequest):
-    distance = calculate_distance(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng)
-    duration = int(distance * 3)
+    distance = None
+    duration = None
+    route_polyline = None
+
+    # Try Google Maps Directions API for real distance/time
+    gmaps_key = os.environ.get("GOOGLE_MAPS_KEY")
+    if gmaps_key and data.pickup_lat and data.dropoff_lat:
+        try:
+            url = "https://maps.googleapis.com/maps/api/directions/json"
+            params = {
+                "origin": f"{data.pickup_lat},{data.pickup_lng}",
+                "destination": f"{data.dropoff_lat},{data.dropoff_lng}",
+                "key": gmaps_key,
+                "language": "fr",
+                "units": "metric",
+            }
+            resp = requests.get(url, params=params, timeout=5)
+            gdata = resp.json()
+            if gdata.get("status") == "OK" and gdata.get("routes"):
+                leg = gdata["routes"][0]["legs"][0]
+                distance = leg["distance"]["value"] / 1000  # meters to km
+                duration = int(leg["duration"]["value"] / 60)  # seconds to min
+                route_polyline = gdata["routes"][0].get("overview_polyline", {}).get("points")
+        except Exception as e:
+            pass  # Fallback to haversine
+
+    # Fallback to haversine calculation
+    if distance is None:
+        distance = calculate_distance(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng)
+    if duration is None:
+        duration = int(distance * 3)
+
     vtype_doc = await db.vehicle_types.find_one({"slug": data.vehicle_type, "status": "active"}, {"_id": 0})
     fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
     result = {
@@ -32,7 +64,10 @@ async def estimate_ride(data: RideRequest):
         "estimated_fare": fare,
         "vehicle_type": data.vehicle_type,
         "currency": "EUR",
+        "source": "google_maps" if route_polyline else "haversine",
     }
+    if route_polyline:
+        result["route_polyline"] = route_polyline
     if vtype_doc:
         result["fare_type"] = vtype_doc.get("fare_type", "Regular")
         result["base_fare"] = vtype_doc.get("base_fare", 0)
