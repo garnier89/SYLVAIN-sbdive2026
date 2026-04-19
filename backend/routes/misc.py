@@ -320,3 +320,80 @@ async def submit_support_contact(request: Request):
     doc.pop("_id", None)
     return {"message": "Received", "id": doc["id"]}
 
+
+
+# ═══════════ CLIENT → ADMIN CROSS-FLOW HELPERS ═══════════
+
+@router.post("/rides/{ride_id}/help")
+async def submit_trip_help(ride_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    issue = (body.get("issue") or "").strip()
+    if not issue:
+        raise HTTPException(status_code=400, detail="Issue required")
+    doc = {
+        "id": f"trh_{uuid.uuid4().hex[:10]}",
+        "user_id": user["id"],
+        "name": user.get("name", "User"),
+        "phone": user.get("phone", ""),
+        "ride_id": ride_id,
+        "issue": issue[:500],
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.admin_trip_help_requests.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.post("/orders/{order_id}/help")
+async def submit_order_help(order_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    issue = (body.get("issue") or "").strip()
+    if not issue:
+        raise HTTPException(status_code=400, detail="Issue required")
+    doc = {
+        "id": f"oh_{uuid.uuid4().hex[:10]}",
+        "user_id": user["id"],
+        "name": user.get("name", "User"),
+        "order_id": order_id,
+        "issue": issue[:500],
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.admin_order_help_requests.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.post("/wallet/withdraw-request")
+async def submit_withdraw_request(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    amount = float(body.get("amount", 0))
+    iban = (body.get("iban") or "").strip()
+    if amount < 10:
+        raise HTTPException(status_code=400, detail="Minimum 10 EUR")
+    if not iban:
+        raise HTTPException(status_code=400, detail="IBAN required")
+    # Check wallet balance
+    wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+    if (wallet.get("balance", 0) or 0) < amount:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+    doc = {
+        "id": f"wr_{uuid.uuid4().hex[:10]}",
+        "user_id": user["id"],
+        "name": user.get("name", "User"),
+        "phone": user.get("phone", ""),
+        "amount": amount,
+        "iban": iban,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.admin_withdraw_requests.insert_one(doc)
+    # Freeze amount
+    await db.wallets.update_one({"user_id": user["id"]}, {"$inc": {"balance": -amount, "pending_withdraw": amount}})
+    doc.pop("_id", None)
+    return doc
+

@@ -432,3 +432,103 @@ async def get_my_active_rewards(request: Request):
         "driver_cancellation_rate": cancellation,
     }
 
+
+
+# ═══════════ ALIASES for UI-expected driver endpoints ═══════════
+
+@router.get("/my-stats")
+async def my_stats(request: Request):
+    """Alias combining profile + activity."""
+    user = await get_current_user(request)
+    d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not d:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    return {
+        "total_trips": d.get("total_trips", 0),
+        "earnings": d.get("earnings", 0),
+        "rating": d.get("rating", 5.0),
+        "points": d.get("points", 0),
+        "acceptance_rate": d.get("acceptance_rate", 100),
+        "cancellation_rate": d.get("cancellation_rate", 0),
+        "is_online": d.get("is_online", False),
+        "status": d.get("status"),
+        "vehicle_type": d.get("vehicle_type"),
+        "vehicle_model": d.get("vehicle_model"),
+        "vehicle_number": d.get("vehicle_number"),
+    }
+
+
+@router.get("/my-earnings")
+async def my_earnings_alias(request: Request):
+    """Stats per period."""
+    user = await get_current_user(request)
+    d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not d:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week = (now - timedelta(days=7)).isoformat()
+    month = (now - timedelta(days=30)).isoformat()
+
+    rides_today = await db.rides.find({"driver_id": d["id"], "status": "completed", "completed_at": {"$gte": today}}, {"_id": 0}).to_list(100)
+    rides_week = await db.rides.find({"driver_id": d["id"], "status": "completed", "completed_at": {"$gte": week}}, {"_id": 0}).to_list(500)
+    rides_month = await db.rides.find({"driver_id": d["id"], "status": "completed", "completed_at": {"$gte": month}}, {"_id": 0}).to_list(2000)
+
+    def total(rides):
+        return sum((r.get("final_fare") or r.get("estimated_fare") or 0) * 0.9 for r in rides)
+
+    return {
+        "today": {"earnings": round(total(rides_today), 2), "rides": len(rides_today)},
+        "week": {"earnings": round(total(rides_week), 2), "rides": len(rides_week)},
+        "month": {"earnings": round(total(rides_month), 2), "rides": len(rides_month)},
+        "total_lifetime": d.get("earnings", 0),
+    }
+
+
+@router.get("/my-documents")
+async def my_documents(request: Request):
+    user = await get_current_user(request)
+    d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not d:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    return {
+        "license_url": d.get("license_url"),
+        "insurance_url": d.get("insurance_url"),
+        "vehicle_registration_url": d.get("vehicle_registration_url"),
+        "identity_url": d.get("identity_url"),
+        "status": d.get("status"),
+        "documents_verified": d.get("status") == "approved",
+    }
+
+
+@router.get("/my-notifications")
+async def my_notifications(request: Request):
+    user = await get_current_user(request)
+    items = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return items
+
+
+@router.get("/incoming-requests")
+async def incoming_requests(request: Request):
+    """Alias of /api/rides/pending/available for drivers."""
+    user = await get_current_user(request)
+    if user.get("role") != "driver":
+        raise HTTPException(status_code=403, detail="Driver only")
+    d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not d or not d.get("is_online"):
+        return []
+    # Optional destination-mode filtering
+    target = d.get("destination_mode_target") if d.get("destination_mode_active") else None
+    rides = await db.rides.find({"status": "pending", "vehicle_type": d.get("vehicle_type")}, {"_id": 0}).sort("created_at", -1).to_list(30)
+    if target and target.get("lat"):
+        from math import radians, cos, sin, asin, sqrt
+        def km(lat1, lon1, lat2, lon2):
+            R = 6371
+            dlat = radians(lat2 - lat1)
+            dlon = radians(lon2 - lon1)
+            a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
+            return 2*R*asin(sqrt(a))
+        rides = [r for r in rides if km(r.get("dropoff_lat", 0), r.get("dropoff_lng", 0), target["lat"], target["lng"]) <= target.get("radius_km", 5)]
+    return rides
+

@@ -206,6 +206,43 @@ const collectionConfigs = {
     ],
     defaults: [],
   },
+  payouts: { title: 'Driver Payouts', icon: HandCoins, collection: 'payouts',
+    fields: [
+      { key: 'name', label: 'Chauffeur', type: 'text' },
+      { key: 'amount', label: 'Montant (EUR)', type: 'number' },
+      { key: 'period', label: 'Periode', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  settlements: { title: 'Settlements', icon: HandCoins, collection: 'settlements',
+    fields: [
+      { key: 'name', label: 'Partenaire', type: 'text' },
+      { key: 'amount', label: 'Montant (EUR)', type: 'number' },
+      { key: 'commission', label: 'Commission %', type: 'number' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  disputes: { title: 'Disputes', icon: Warning, collection: 'disputes',
+    fields: [
+      { key: 'name', label: 'Utilisateur', type: 'text' },
+      { key: 'ride_id', label: 'Course/Commande', type: 'text' },
+      { key: 'reason', label: 'Motif', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+  documents: { title: 'Documents', icon: FileText, collection: 'documents',
+    fields: [
+      { key: 'name', label: 'Titre', type: 'text' },
+      { key: 'type', label: 'Type', type: 'text' },
+      { key: 'url', label: 'URL', type: 'text' },
+      { key: 'status', label: 'Statut', type: 'text' },
+    ],
+    defaults: [],
+  },
+
 };
 
 const AdminCrudPage = ({ pageKey = 'groups' }) => {
@@ -369,4 +406,8 @@ export const AdminWithdrawRequests = () => <AdminCrudPage pageKey="withdraw_requ
 export const AdminOrderHelpRequests = () => <AdminCrudPage pageKey="order_help_requests" />;
 export const AdminTripHelpRequests = () => <AdminCrudPage pageKey="trip_help_requests" />;
 export const AdminPushNotifications = () => <AdminCrudPage pageKey="push_notifications" />;
+export const AdminPayoutsCrud = () => <AdminCrudPage pageKey="payouts" />;
+export const AdminSettlementsCrud = () => <AdminCrudPage pageKey="settlements" />;
+export const AdminDisputesCrud = () => <AdminCrudPage pageKey="disputes" />;
+export const AdminDocumentsCrud = () => <AdminCrudPage pageKey="documents" />;
 export default AdminCrudPage;

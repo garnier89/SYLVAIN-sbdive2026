@@ -229,6 +229,7 @@ ALLOWED_CRUD = [
     "vehicle_makes", "vehicle_models", "cancel_reasons", "email_templates", "sms_templates",
     "master_services", "sos_requests", "contact_requests", "withdraw_requests",
     "order_help_requests", "trip_help_requests", "push_notifications",
+    "payouts", "settlements", "disputes", "documents",
 ]
 
 

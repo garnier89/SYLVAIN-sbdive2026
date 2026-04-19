@@ -72,8 +72,8 @@ async def set_destination_mode(request: Request):
 @router.get("/driver/destination-mode")
 async def get_destination_mode(request: Request):
     user = await get_current_user(request)
-    d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "destination_mode_active": 1, "destination_mode_target": 1})
-    if not d:
+    d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if d is None:
         raise HTTPException(status_code=404, detail="Driver profile not found")
     return {"active": bool(d.get("destination_mode_active")), "target": d.get("destination_mode_target")}
 
@@ -265,6 +265,11 @@ async def redeem_gift_card(request: Request):
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"message": "Gift card redeemed", "amount": gc["amount"], "code": code}
+
+
+@router.get("/gift-cards/my")
+async def my_gift_cards_alias(request: Request):
+    return await my_gift_cards(request)
 
 
 @router.get("/gift-cards/mine")

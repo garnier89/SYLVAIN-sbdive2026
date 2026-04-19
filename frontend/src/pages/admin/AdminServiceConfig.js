@@ -104,7 +104,18 @@ const serviceConfigs = {
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
-  const config = serviceConfigs[serviceKey] || serviceConfigs.genie;
+  const config = serviceConfigs[serviceKey];
+  if (!config) {
+    return (
+      <div className="p-8" data-testid={`placeholder-${serviceKey}`}>
+        <div className="max-w-md mx-auto text-center bg-white rounded-2xl p-8 shadow-sm">
+          <div className="text-5xl mb-3">🚧</div>
+          <h2 className="text-lg font-bold text-gray-800 mb-1">Configuration bientot disponible</h2>
+          <p className="text-sm text-gray-500">La page de configuration pour <code className="bg-gray-100 px-2 py-0.5 rounded">{serviceKey}</code> n'est pas encore implementee.</p>
+        </div>
+      </div>
+    );
+  }
   const Icon = config.icon;
   const [settings, setSettings] = useState(config.settings.map(s => ({ ...s })));
   const [saving, setSaving] = useState(false);

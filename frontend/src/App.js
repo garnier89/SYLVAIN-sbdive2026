@@ -102,7 +102,8 @@ import AdminManageAdmins from './pages/admin/AdminManageAdmins';
 import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests,
   AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancelReasons,
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
-  AdminWithdrawRequests, AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications
+  AdminWithdrawRequests, AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications,
+  AdminPayoutsCrud, AdminSettlementsCrud, AdminDisputesCrud, AdminDocumentsCrud
 } from './pages/admin/AdminCrudPages';
 import AdminServiceConfig from './pages/admin/AdminServiceConfig';
 import AdminRewards from './pages/admin/AdminRewards';
@@ -234,7 +235,7 @@ const AppRouter = () => {
         <Route path="groups" element={<AdminGroups />} />
         <Route path="vehicles" element={<AdminVehicles />} />
         <Route path="requests" element={<AdminRequests />} />
-        <Route path="documents" element={<AdminDocuments />} />
+        <Route path="documents" element={<AdminDocumentsCrud />} />
         <Route path="company" element={<AdminCompany />} />
         <Route path="hotels" element={<AdminHotels />} />
         <Route path="organization" element={<AdminOrganization />} />
@@ -254,10 +255,10 @@ const AppRouter = () => {
         <Route path="manual-booking" element={<AdminManualBooking />} />
         <Route path="later-bookings" element={<AdminManualBooking />} />
         <Route path="create-order" element={<AdminManualBooking />} />
-        <Route path="payout" element={<AdminPayout />} />
-        <Route path="settlements" element={<AdminSettlements />} />
-        <Route path="disputes" element={<AdminDisputes />} />
-        <Route path="wallet-requests" element={<AdminWalletRequests />} />
+        <Route path="payout" element={<AdminPayoutsCrud />} />
+        <Route path="settlements" element={<AdminSettlementsCrud />} />
+        <Route path="disputes" element={<AdminDisputesCrud />} />
+        <Route path="wallet-requests" element={<AdminWithdrawRequests />} />
         <Route path="rewards" element={<AdminRewards />} />
         <Route path="rewards-reports" element={<AdminRewards />} />
         <Route path="priority-drivers" element={<AdminPriorityDrivers />} />
