@@ -1,0 +1,90 @@
+{
+  "summary": "Iter52 = MACRO REGRESSION AUDIT of SB Drive VTC (4 apps + admin + 9 service categories). Method: (1) grep of 40+ admin/driver/client pages to identify which ones actually call a backend API vs which ones render hardcoded mock data; (2) pytest reachability probe of 74 backend routes; (3) Playwright sweep of 49 admin URLs post-login to detect dead/placeholder screens. RESULT: admin dashboard + 18 wired pages work with real data (users=76, drivers=14, rides=87, recent rides stream live). BUT ~20+ admin pages are UNWIRED (hardcoded mock rows, no fetch at all), 6 'Settings & Utilities' routes fall through to a wrong default config, and ~10 driver-app endpoints that DriverHome / DriverEarnings / DriverDocuments rely on return 404. Top-20 blockers prioritized P0/P1/P2 below.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/drivers/my-stats", "issue": "404 — DriverHome relies on live stats; currently dead.", "priority": "P0"},
+      {"endpoint": "GET /api/drivers/my-earnings", "issue": "404 — /chauffeur/earnings page cannot show today/week/month totals.", "priority": "P0"},
+      {"endpoint": "GET /api/drivers/my-documents", "issue": "404 — /chauffeur/documents cannot list docs.", "priority": "P0"},
+      {"endpoint": "GET /api/drivers/my-notifications", "issue": "404 — /chauffeur/notifications empty.", "priority": "P0"},
+      {"endpoint": "GET /api/drivers/incoming-requests", "issue": "404 — no endpoint for driver to poll incoming ride requests; only /api/rides/pending/available exists. Driver flow broken.", "priority": "P0"},
+      {"endpoint": "GET /api/admin/geo-fence", "issue": "404; /admin/geo-fence UI shows no zones.", "priority": "P1"},
+      {"endpoint": "GET /api/admin/banners | /promocodes | /payouts | /settlements | /disputes | /wallet-requests | /sos-requests | /contact-requests | /withdraw-requests | /order-help-requests | /trip-help-requests | /push-notifications | /email-templates | /sms-templates | /cancel-reasons | /master-services | /vehicle-makes | /vehicle-models | /referral-settings | /documents", "issue": "All 404. 18 admin sidebar pages have NO dedicated backend; the frontend pages show hardcoded demo rows or blank.", "priority": "P0"},
+      {"endpoint": "GET /api/phase2/loyalty/me | /referral/me | /gift-cards/my | /subscriptions/plans | /safety/emergency-contacts | /favorites/drivers", "issue": "All 404. phase2.py actually exposes only /heatmap, /pool/matches, /rides/{id}/waybill, /config/airport-zones, /config/flat-rates, /gift-cards/mine (note 'mine' not 'my'), /driver/destination-mode. Mismatch between expected frontend shapes and deployed routes.", "priority": "P1"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/services/list, /api/users/me/favorite-drivers, /api/users/me/emergency-contacts, /api/rides/my-rides, /api/orders/my-orders, /api/wallet/balance, /api/coupons/available", "issue": "These exact paths 404 but alternatives exist (/api/phase1/favorite-drivers, /api/phase1/emergency-contacts, /api/rides?user=me, /api/orders, /api/wallet, /api/coupons). Frontend uses different paths via services/api.js abstraction. Naming inconsistency only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminServiceConfig wrong-default fall-through", "issue": "serviceConfigs object has NO keys for 'payment-options','currency','language','seo','maps-api','country','state','pages','app-home','intro','labels','cancel-reasons','location-fare' (13 routes). Line 107 `const config = serviceConfigs[serviceKey] || serviceConfigs.genie;` means every one of those sidebar links renders the GENIE form (same 4 fields: base_fee/per_hour/commission). Users see 5+ different menu items that look identical and save to different /api/admin/service-config/{key} keys. CRITICAL UX bug.", "selector": "/admin/payment-options, /admin/currency, /admin/language, /admin/seo, /admin/maps-api", "priority": "P0"},
+      {"component": "AdminPromocodes", "issue": "Page shows 5 hardcoded demo rows; no fetch call; Create/Edit/Delete buttons are dead.", "selector": "/admin/promocodes", "priority": "P0"},
+      {"component": "AdminBanners", "issue": "Hardcoded demo UI; Add Banner is dead.", "selector": "/admin/banners", "priority": "P1"},
+      {"component": "AdminPayout", "issue": "6 fake payout rows; Approve/Reject buttons dead.", "selector": "/admin/payout", "priority": "P0"},
+      {"component": "AdminSettlements", "issue": "6 fake rows; action buttons dead.", "selector": "/admin/settlements", "priority": "P0"},
+      {"component": "AdminDisputes", "issue": "Hardcoded disputes; no resolution flow wired.", "selector": "/admin/disputes", "priority": "P0"},
+      {"component": "AdminWalletRequests (also /admin/payment-requests alias)", "issue": "Static rows; Approve/Deny dead.", "selector": "/admin/wallet-requests", "priority": "P0"},
+      {"component": "AdminDocuments", "issue": "6 fake doc rows; no driver-document review workflow wired.", "selector": "/admin/documents", "priority": "P1"},
+      {"component": "AdminGeoFence", "issue": "Map-based UI; 0 zones load; Create Fence dead.", "selector": "/admin/geo-fence, /admin/restricted, /admin/airport", "priority": "P1"},
+      {"component": "AdminGodsView", "issue": "Standalone page (not dashboard widget) loads empty; no vehicles drawn on map.", "selector": "/admin/gods-view", "priority": "P1"},
+      {"component": "AdminHeatView", "issue": "Only 53 lines, placeholder; no heatmap overlay fetched.", "selector": "/admin/heat-view", "priority": "P1"},
+      {"component": "AdminNewsletter / AdminNews", "issue": "No subscriber list; Send button dead.", "selector": "/admin/newsletter, /admin/news", "priority": "P2"},
+      {"component": "AdminTemplates (email/sms)", "issue": "Shared 69-line shell; no template list; Save doesn't POST.", "selector": "/admin/email-templates, /admin/sms-templates", "priority": "P1"},
+      {"component": "AdminSettings (/admin/settings — 'General')", "issue": "228-line static form; Save button has no API wiring.", "selector": "/admin/settings", "priority": "P1"},
+      {"component": "AdminReferralSettings", "issue": "Reads /api/referral/stats which is the CLIENT stats endpoint, not an admin config endpoint; Save button has no PUT target.", "selector": "/admin/referral", "priority": "P1"},
+      {"component": "Empty CRUD SUPPORT pages", "issue": "SOS, Contact, Withdraw, OrderHelp, TripHelp, PushNotifications all show empty state because /api/admin/crud/{collection} returns empty — no backend seeding and no corresponding client endpoints to create these records.", "selector": "/admin/sos-requests,/admin/contact-requests,/admin/withdraw-requests,/admin/order-help-requests,/admin/trip-help-requests,/admin/push-notifications", "priority": "P0"},
+      {"component": "AdminCrudPages '+Ajouter' modal", "issue": "Generic CRUD works via /api/admin/crud/{col} but Edit/Delete only mutate local state when no id — creates illusion of persistence; verify with reload.", "selector": "/admin/groups, /admin/hotels, /admin/company, /admin/vehicles, /admin/requests etc.", "priority": "P2"},
+      {"component": "Driver App missing endpoints", "issue": "DriverHome / DriverEarningsPage / DriverHistoryPage / DriverDocumentsPage / DriverNotificationsPage all call paths that 404 (see backend issues). Pages render skeleton but never populate.", "selector": "/chauffeur/home, /chauffeur/earnings, /chauffeur/documents, /chauffeur/notifications", "priority": "P0"},
+      {"component": "Merchant App", "issue": "Merchant login requires role=merchant account; test_credentials.md only seeds admin. No testable merchant account, flow UNTESTABLE.", "selector": "/merchant/*", "priority": "P1"},
+      {"component": "Partenaires App", "issue": "No /partenaires or /partners route found in App.js. Feature listed in brief does not exist.", "selector": "(missing route)", "priority": "P2"},
+      {"component": "Landing page links", "issue": "/admin/reviews aliased to AdminSupport (same component), not a real review moderation page; /admin/trips aliased to AdminRides — may confuse admins.", "selector": "App.js routes", "priority": "P2"}
+    ],
+    "integration_issues": [
+      {"flow": "Client creates support contact -> admin sees it", "issue": "No POST endpoint on client side for support/contact-requests; /admin/contact-requests shows empty; cross-app data flow NOT wired.", "affected_selectors": ["/support", "/admin/contact-requests"]},
+      {"flow": "Client SOS -> admin notification", "issue": "No SOS POST endpoint; /admin/sos-requests empty.", "affected_selectors": ["/safety", "/admin/sos-requests"]},
+      {"flow": "Client ride -> driver polling -> admin tracking", "issue": "Driver polling endpoint /api/drivers/incoming-requests missing; /api/rides/pending/available exists but driver app UI doesn't poll it per grep. Partial integration.", "affected_selectors": ["DriverHome"]}
+    ],
+    "design_issues": [
+      {"screen": "Sidebar", "issues": ["Brand shows 'XJEKPLUS' even though product is SB Drive VTC — likely template leftover", "Sidebar section labels still in English (HOME / MEMBERS / SERVICES / BOOKINGS & REPORTS) while the rest of UI is French — inconsistent localization"]},
+      {"screen": "Admin service config pages", "issues": ["5 distinct sidebar items (Payment Options, Currency, Language, SEO, Maps API) render IDENTICAL Genie form due to fall-through default — users cannot tell them apart"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter52_macro_audit.py",
+    "/app/test_reports/pytest/iter52_results.xml"
+  ],
+  "action_items": [
+    "P0: Add serviceConfigs[] entries for payment-options / currency / language / seo / maps-api / country / state / pages / app-home / intro / labels / cancel-reasons / location-fare in AdminServiceConfig.js, or replace the fallback ` || serviceConfigs.genie` with a 'Coming soon' placeholder so users don't see duplicate Genie forms.",
+    "P0: Implement driver endpoints /api/drivers/my-stats, /my-earnings, /my-documents, /my-notifications, /incoming-requests (or re-point DriverHome / DriverEarnings / etc. to existing routes /api/drivers/earnings, /api/drivers/my-activity, /api/rides/pending/available).",
+    "P0: Wire AdminPromocodes / AdminBanners / AdminPayout / AdminSettlements / AdminDisputes / AdminWalletRequests / AdminDocuments / AdminGeoFence to real CRUD endpoints — either expose dedicated routes under /api/admin/ or reuse the generic /api/admin/crud/{collection} and plug it into these pages.",
+    "P0: Implement POST endpoints for client->admin cross-flows: POST /api/support/contact, POST /api/sos, POST /api/orders/{id}/help, POST /api/rides/{id}/help, POST /api/wallet/withdraw-request. Without these, admin Support sub-pages stay empty forever.",
+    "P1: Unify phase2 path naming — /api/phase2/gift-cards/my vs /mine; add /loyalty/me, /referral/me, /subscriptions/plans, /safety/emergency-contacts (or proxy to phase1 equivalents).",
+    "P1: Seed at least one test merchant account so Merchant App can be regression tested; add to /app/memory/test_credentials.md.",
+    "P1: AdminSettings, AdminTemplates, AdminNewsletter, AdminReferralSettings: hook Save button to /api/admin/service-config or a new /api/admin/settings endpoint.",
+    "P2: Remove 'XJEKPLUS' template brand from AdminLayout sidebar; localize HOME/MEMBERS/SERVICES labels to French.",
+    "P2: Either build a Partenaires app (mentioned in brief but route missing) or remove it from the requirements list.",
+    "P2: Disambiguate /admin/reviews (currently shares AdminSupport component) and /admin/trips (shares AdminRides)."
+  ],
+  "critical_code_review_comments": [
+    "AdminServiceConfig.js line 107 — silent fallback to 'genie' means 13+ sidebar items ship identical Genie-labeled form; strictly never use a silent default for a multi-route dispatcher — throw or show a placeholder.",
+    "18 of the ~38 admin pages contain 0 fetch/axios/adminAPI calls — that's a 47% placeholder rate; any 'admin dashboard' claim is heavily aspirational.",
+    "Driver-app pages reference endpoints that don't exist; contract between frontend and drivers.py router was never finalized. Suggest adding a contract test that diff's UI fetch URLs vs registered FastAPI routes and fails CI if any URL 404s.",
+    "AdminCrudPages.js uses 'defaults' arrays baked into the source: first render shows defaults before fetch; if fetch fails, defaults stay — gives false impression of persistence. Replace with explicit empty-state.",
+    "Route aliasing in App.js (/admin/trips -> AdminRides, /admin/reviews -> AdminSupport, /admin/later-bookings -> AdminManualBooking, /admin/store-orders -> AdminOrders, /admin/store-delivery -> AdminOrders) — OK short-term but every alias is a navigation surprise.",
+    "AdminReferralSettings reads from /api/referral/stats (a USER-scoped endpoint) while sitting under admin — will show the admin's own referral data, not platform-wide."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter52_macro_audit.py",
+    "/app/test_reports/iteration_52.json"
+  ],
+  "success_rate": {
+    "backend": "43% (32/74 probe endpoints reachable; 42 return 404 — many are frontend expectations that were never implemented)",
+    "frontend": "~47% wired (18 of ~38 admin pages fetch real data; the rest are hardcoded placeholders or fall-through Genie form)"
+  },
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! (verified working). Driver: testdriver@example.com / Driver123! (login OK but most driver-app pages are broken due to missing backend). Client: neg_test@example.com / Test1234! (not verified this run). Merchant: NONE SEEDED — merchant app untestable.",
+  "seed_data_creation": "None in this run. Strongly recommend seeding: 1 merchant account, 3 sample promocodes, 3 banners, 2 disputes, 2 wallet-requests, 5 contact-requests, 2 sos-requests so admin pages show non-trivial data and the 47% placeholder rate becomes visible through testing.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "This iteration is a macro audit, not feature testing. Top-20 blockers are enumerated above, grouped P0/P1/P2. Key files with 0 API calls (hardcoded): AdminPromocodes, AdminBanners, AdminPayout, AdminSettlements, AdminDisputes, AdminWalletRequests, AdminDocuments, AdminGeoFence, AdminGodsView, AdminHeatView, AdminNewsletter, AdminTemplates, AdminSettings. Key admin routes that fall through to Genie config: /admin/payment-options, /admin/currency, /admin/language, /admin/seo, /admin/maps-api, /admin/country, /admin/state, /admin/pages, /admin/app-home, /admin/intro, /admin/labels, /admin/cancel-reasons, /admin/location-fare. Driver endpoints that 404: /api/drivers/my-stats, /my-earnings, /my-documents, /my-notifications, /incoming-requests. Recommend main agent address P0 items in batches (driver endpoints, then admin CRUD, then service-config fallthrough) before requesting another full sweep.",
+  "rca of the issue": "This is a legacy-template situation: the React admin skeleton (sidebar labeled XJEKPLUS) was imported wholesale with many pages hardcoded for demo, and only ~47% of admin pages and ~60% of client endpoints were actually wired to the FastAPI backend. The team shipped the working surface (dashboard, users, drivers, rides, orders, stores, rewards, priority drivers) but left the remaining sidebar items as hardcoded placeholders or generic fall-through config. Driver-app pages reference endpoint names that were planned but never implemented — frontend and backend contracts diverged. Fix strategy: (a) for every admin page with 0 API calls, either delete the menu item or wire it to /api/admin/crud/{collection}; (b) add the 5 missing driver endpoints or re-point the UI to existing /api/drivers/earnings + /api/drivers/my-activity; (c) replace the silent Genie fallback in AdminServiceConfig with a typed placeholder; (d) seed realistic data so emptiness isn't confused with breakage."
+}
