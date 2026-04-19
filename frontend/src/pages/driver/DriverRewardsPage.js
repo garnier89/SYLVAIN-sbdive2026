@@ -109,8 +109,8 @@ const DriverRewardsPage = () => {
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <InfoChip icon={Clock} label={`${g.start_hour} - ${g.end_hour}`} />
                       <InfoChip icon={MapPin} label={g.zone || 'Toutes'} />
-                      <InfoChip icon={CheckCircle} label={`Acceptation >= ${g.acceptance_rate}%`} highlight={data.driver_acceptance_rate >= g.acceptance_rate} />
-                      <InfoChip icon={XCircle} label={`Annulation <= ${g.max_cancellation}%`} highlight={data.driver_cancellation_rate <= g.max_cancellation} />
+                      <InfoChip icon={CheckCircle} label={`Acceptation >= ${g.acceptance_rate ?? 0}%`} highlight={data.driver_acceptance_rate >= (g.acceptance_rate ?? 0)} />
+                      <InfoChip icon={XCircle} label={`Annulation <= ${g.max_cancellation ?? 100}%`} highlight={data.driver_cancellation_rate <= (g.max_cancellation ?? 100)} />
                     </div>
                   </div>
                 ))}
