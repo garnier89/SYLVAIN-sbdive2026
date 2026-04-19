@@ -21,6 +21,7 @@ const DriverProfilePage = () => {
   const [driver, setDriver] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [activity, setActivity] = useState(null);
+  const [rewardsActive, setRewardsActive] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,14 +30,16 @@ const DriverProfilePage = () => {
 
   const loadData = async () => {
     try {
-      const [dRes, wRes, aRes] = await Promise.allSettled([
+      const [dRes, wRes, aRes, rRes] = await Promise.allSettled([
         driverAPI.getProfile(),
         walletAPI.get(),
         fetch(`${API}/api/drivers/my-activity`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+        fetch(`${API}/api/drivers/my-active-rewards`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
       ]);
       if (dRes.status === 'fulfilled') setDriver(dRes.value.data);
       if (wRes.status === 'fulfilled') setWalletBalance(wRes.value.data.balance || 0);
       if (aRes.status === 'fulfilled' && aRes.value) setActivity(aRes.value);
+      if (rRes.status === 'fulfilled' && rRes.value) setRewardsActive(!!rRes.value.any_active);
     } catch (err) { console.error('Failed to load:', err); }
     finally { setLoading(false); }
   };
@@ -127,7 +130,9 @@ const DriverProfilePage = () => {
           <ProfileRow icon={Key} color="#374151" label="Changer le mot de passe" onClick={() => {}} />
           <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label="Changer de devise" onClick={() => {}} />
           <ProfileRow icon={Globe} color="#0D9488" label="Changer de langue" onClick={() => {}} />
-          <ProfileRow icon={Gift} color="#22C55E" label="Programme de recompense" onClick={() => {}} />
+          {rewardsActive && (
+            <ProfileRow icon={Gift} color="#22C55E" label="Programme de recompense" onClick={() => navigate('/chauffeur/rewards')} />
+          )}
         </div>
       </div>
 

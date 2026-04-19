@@ -58,6 +58,7 @@ import DriverEarningsPage from './pages/driver/DriverEarningsPage';
 import DriverHistoryPage from './pages/driver/DriverHistoryPage';
 import DriverProfilePage from './pages/driver/DriverProfilePage';
 import DriverSupportPage from './pages/driver/DriverSupportPage';
+import DriverRewardsPage from './pages/driver/DriverRewardsPage';
 import DriverWalletPage from './pages/driver/DriverWalletPage';
 import DriverDocumentsPage from './pages/driver/DriverDocumentsPage';
 import DriverNotificationsPage from './pages/driver/DriverNotificationsPage';
@@ -189,6 +190,7 @@ const AppRouter = () => {
       <Route path="/chauffeur/earnings" element={<ProtectedRoute allowedRoles={['driver']}><DriverEarningsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/history" element={<ProtectedRoute allowedRoles={['driver']}><DriverHistoryPage /></ProtectedRoute>} />
       <Route path="/chauffeur/profile" element={<ProtectedRoute allowedRoles={['driver']}><DriverProfilePage /></ProtectedRoute>} />
+      <Route path="/chauffeur/rewards" element={<ProtectedRoute allowedRoles={['driver']}><DriverRewardsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/support/:section" element={<ProtectedRoute allowedRoles={['driver']}><DriverSupportPage /></ProtectedRoute>} />
       <Route path="/chauffeur/wallet" element={<ProtectedRoute allowedRoles={['driver']}><DriverWalletPage /></ProtectedRoute>} />
       <Route path="/chauffeur/documents" element={<ProtectedRoute allowedRoles={['driver']}><DriverDocumentsPage /></ProtectedRoute>} />

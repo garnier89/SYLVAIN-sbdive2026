@@ -345,3 +345,90 @@ async def get_top_drivers():
         ranked = sorted(enriched, key=lambda x: -x["composite_score"])
 
     return {"mode": mode, "drivers": ranked[:max_shown]}
+
+
+# ===== ACTIVE REWARDS for the current driver =====
+
+def _vehicle_matches(regard_type: str, driver_vehicle_type: str) -> bool:
+    if not regard_type or not driver_vehicle_type:
+        return True
+    rt = regard_type.lower()
+    vt = driver_vehicle_type.lower()
+    mapping = {
+        "voiture": ("car", "taxi", "sb", "sedan", "suv", "premium"),
+        "moto": ("moto", "motorcycle", "bike", "scooter"),
+        "velo": ("velo", "bike", "bicycle"),
+    }
+    for label, aliases in mapping.items():
+        if label in rt:
+            return vt in aliases or any(a in vt for a in aliases)
+    return rt in vt or vt in rt
+
+
+def _in_date_window(start_date: str, end_date: str, now_iso: str) -> bool:
+    today = now_iso[:10]
+    if start_date and today < start_date:
+        return False
+    if end_date and today > end_date:
+        return False
+    return True
+
+
+def _in_time_window(start_time: str, end_time: str, now_hm: str) -> bool:
+    s = start_time or "00:00"
+    e = end_time or "23:59"
+    if s <= e:
+        return s <= now_hm <= e
+    # window over midnight
+    return now_hm >= s or now_hm <= e
+
+
+@router.get("/my-active-rewards")
+async def get_my_active_rewards(request: Request):
+    """Returns only the rewards currently active for the caller driver."""
+    from routes.admin import get_rewards_config
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    cfg = await get_rewards_config()
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    now_hm = now.strftime("%H:%M")
+
+    active_vehicle_rewards = []
+    for r in (cfg.get("regard_vehicles") or []):
+        if not r.get("active"):
+            continue
+        if not _vehicle_matches(r.get("type") or "", driver.get("vehicle_type") or ""):
+            continue
+        if not _in_date_window(r.get("start_date", ""), r.get("end_date", ""), now_iso):
+            continue
+        if not _in_time_window(r.get("start_time", ""), r.get("end_time", ""), now_hm):
+            continue
+        active_vehicle_rewards.append(r)
+
+    active_guarantees = []
+    acceptance = driver.get("acceptance_rate", 100)
+    cancellation = driver.get("cancellation_rate", 0)
+    for g in (cfg.get("guarantees") or []):
+        if not g.get("active"):
+            continue
+        if not _in_date_window(g.get("start_date", ""), g.get("end_date", ""), now_iso):
+            continue
+        if not _in_time_window(g.get("start_hour", ""), g.get("end_hour", ""), now_hm):
+            continue
+        eligible = acceptance >= (g.get("acceptance_rate") or 0) and cancellation <= (g.get("max_cancellation") or 100)
+        active_guarantees.append({**g, "eligible": eligible})
+
+    return {
+        "vehicle_rewards": active_vehicle_rewards,
+        "guarantees": active_guarantees,
+        "any_active": bool(active_vehicle_rewards) or bool(active_guarantees),
+        "checked_at": now_iso,
+        "driver_vehicle_type": driver.get("vehicle_type"),
+        "driver_acceptance_rate": acceptance,
+        "driver_cancellation_rate": cancellation,
+    }
+

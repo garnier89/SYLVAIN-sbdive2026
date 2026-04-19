@@ -1,0 +1,47 @@
+{
+  "summary": "Iter51 tested GET /api/drivers/my-active-rewards + driver-side conditional UI (Recompenses button on /chauffeur/home, 'Programme de recompense' row in /chauffeur/profile, /chauffeur/rewards page with vehicle_rewards + guarantees + eligibility). Backend: 14/14 pytest GREEN in /app/backend/tests/test_iter51_active_rewards.py covering: unauthenticated 401, admin (non-driver) 404, response shape (vehicle_rewards/guarantees/any_active/driver_vehicle_type/driver_acceptance_rate/driver_cancellation_rate/checked_at), car driver matches 'Voiture' and not 'Moto' (fuzzy match), inactive regard excluded, future start_date excluded, past end_date excluded, time window outside excluded, time window inside included, Velo does not match car driver, guarantee eligible=true with default driver stats (acceptance 100 cancel 0), guarantee eligible=false when acceptance threshold unreachable (999), inactive guarantee excluded, fully empty config yields any_active=false. Frontend (mobile 390x844, cookie API auth): when config is active -> [data-testid=rewards-floating-btn] visible on driver home, clicking navigates to /chauffeur/rewards, DriverRewardsPage renders with [data-testid=driver-rewards-page] + [data-testid^=reward-] (Voiture card) + [data-testid^=guarantee-] + [data-testid^=guarantee-eligibility-] ('Vous etes eligible' green badge), and 'Programme de recompense' row appears in /chauffeur/profile. When all regards+guarantees are active=false: floating btn is hidden, profile row is hidden, and /chauffeur/rewards direct visit shows [data-testid=no-rewards] empty state. Full show/hide cycle confirmed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/drivers/my-active-rewards", "issue": "Non-driver callers (e.g. admin) get 404 'Driver profile not found' instead of 403 forbidden — acceptable fall-through, but semantically 403 would be cleaner to indicate role mismatch."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.js", "issue": "CRITICAL compile error: file ended with duplicate '</AuthProvider></BrowserRouter>);}export default App;' trailing block AFTER the real 'export default App;' (lines 331-336). Babel threw SyntaxError 'Unexpected token (331:3)' and the entire frontend was serving a 'Compiled with problems' error screen. FIXED by T1.", "selector": "App.js", "priority": "CRITICAL"},
+      {"component": "App.js", "issue": "Missing <Route path=\"/chauffeur/rewards\" element={<DriverRewardsPage/>} /> despite the import at line 61 and the request to add the route. FIXED by T1 (added right after /chauffeur/profile route).", "selector": "App.js", "priority": "HIGH"},
+      {"component": "DriverRewardsPage.js guarantee chip", "issue": "If a guarantee doc is missing acceptance_rate or max_cancellation, chip renders literally 'Acceptation >= undefined%' / 'Annulation <= undefined%'. Observed once when test/admin config mutated the guarantee without those keys. Low-priority hardening.", "selector": "DriverRewardsPage.js line 112-113", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter51_active_rewards.py",
+    "/app/test_reports/pytest/iter51_results.xml"
+  ],
+  "action_items": [
+    "(Already fixed by T1) Remove duplicate trailing JSX after 'export default App;' in App.js and add <Route path=\"/chauffeur/rewards\"> — main agent should double-check App.js tail diff.",
+    "(Optional hardening) In DriverRewardsPage.js, guard acceptance_rate / max_cancellation / bonus_per_trip with '?? 0' so malformed admin config doesn't render 'undefined' in chip labels.",
+    "(Optional) Return 403 (not 404) from /api/drivers/my-active-rewards when caller has no driver profile, to distinguish role-mismatch from missing resource."
+  ],
+  "critical_code_review_comments": [
+    "App.js had a broken build: 'export default App;' appeared twice with dangling JSX between them — a PR sanity check (eslint no-unreachable / build compile step) would have caught this before ship.",
+    "drivers.py _vehicle_matches uses 'any(a in vt for a in aliases)' with 2-letter aliases like 'sb'/'bike' — possible false positives (e.g. vehicle_type 'subaru' matches 'sb' voiture, 'bike-courier' matches both moto AND velo). Consider exact-match or word-boundary check.",
+    "drivers.py _in_time_window accepts missing start/end by coalescing to '00:00'/'23:59' which is 24h by default — documented behaviour, but admin UX should warn when fields empty so regard is not unintentionally 24/7.",
+    "get_my_active_rewards imports get_rewards_config inside the function (local import) — fine for circular-import avoidance, but a comment would help future readers.",
+    "DriverRewardsPage.js uses credentials:'include' raw fetch without the shared axios 401-refresh interceptor (same pattern flagged in iter50). Unify with api client.",
+    "DriverHome.js polls my-active-rewards every 60s but also on every mount — no debounce if user toggles offline/online quickly. Minor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter51_active_rewards.py",
+    "/app/frontend/src/App.js",
+    "/app/test_reports/iteration_51.json"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (6/6 UI flows: active-state btn visible, navigation to rewards page, vehicle+guarantee+eligibility cards, profile row visible, inactive-state btn hidden, inactive-state profile row hidden, inactive-state empty state on rewards page)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! ; Driver: testdriver@example.com / Driver123! (both verified).",
+  "seed_data_creation": "Tests use admin PUT /api/admin/rewards/config to toggle active/inactive state. Each test has autouse _restore_config fixture that restores the original default config after every test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rewards active endpoint + conditional UI verified end-to-end. IMPORTANT: T1 repaired /app/frontend/src/App.js which had a blocking compile error (trailing duplicate JSX) and was missing the /chauffeur/rewards route — both fixed. After fix, BASE responded 200 and app compiled cleanly. Key testids: rewards-floating-btn (DriverHome), driver-rewards-page, reward-{id}, guarantee-{id}, guarantee-eligibility-{id}, no-rewards, back-btn (DriverRewardsPage). To test show/hide, use admin PUT /api/admin/rewards/config with all regard_vehicles[*].active=false and guarantees[*].active=false (or a single one active=true to show). DriverHome polls my-active-rewards every 60s; DriverProfilePage fetches once on mount. Default driver stats: acceptance_rate=100, cancellation_rate=0 (eligible for standard 80%/10% thresholds).",
+  "rca of the issue": "App.js had two `export default App;` statements with residual JSX (</AuthProvider></BrowserRouter>);}) in between — likely a copy/paste error by the previous agent while adding the /chauffeur/rewards route. This caused a hard Babel SyntaxError which crashed the entire SPA ('Compiled with problems: Unexpected token (331:3)'). Additionally, the Route for /chauffeur/rewards was never added despite DriverRewardsPage being imported — so even if App.js compiled, clicking the Recompenses button would have landed on a blank/404 route. Fix: removed the duplicate trailing block and inserted <Route path=\"/chauffeur/rewards\" element={<ProtectedRoute allowedRoles={['driver']}><DriverRewardsPage/></ProtectedRoute>} /> right after the /chauffeur/profile route. Frontend recompiled 200, and all active/inactive UI flows verified green."
+}

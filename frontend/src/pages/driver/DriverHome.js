@@ -20,6 +20,7 @@ const DriverHome = () => {
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [showOtpVerify, setShowOtpVerify] = useState(false);
   const [otpInput, setOtpInput] = useState('');
+  const [rewardsActive, setRewardsActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const locationWatchId = useRef(null);
@@ -72,7 +73,19 @@ const DriverHome = () => {
   useEffect(() => {
     loadDriverProfile();
     setupLocation();
-    return () => { if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current); };
+    // Poll active rewards every 60s
+    const checkRewards = async () => {
+      try {
+        const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/drivers/my-active-rewards`, { credentials: 'include' });
+        if (r.ok) {
+          const d = await r.json();
+          setRewardsActive(!!d.any_active);
+        }
+      } catch { /* ignore */ }
+    };
+    checkRewards();
+    const rewardInterval = setInterval(checkRewards, 60000);
+    return () => { if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current); clearInterval(rewardInterval); };
   }, [loadDriverProfile, setupLocation]);
 
   useEffect(() => {
@@ -228,10 +241,12 @@ const DriverHome = () => {
 
       {/* FLOATING BUTTONS */}
       <div className="absolute bottom-24 left-0 right-0 z-[1000] px-4 flex items-center justify-between">
-        <button className="flex items-center gap-2 px-5 py-3 rounded-full shadow-lg" style={{ background: '#00B578' }}>
-          <Gift size={18} className="text-white" />
-          <span className="text-white text-sm font-bold">Recompenses</span>
-        </button>
+        {rewardsActive ? (
+          <button onClick={() => navigate('/chauffeur/rewards')} className="flex items-center gap-2 px-5 py-3 rounded-full shadow-lg animate-pulse-subtle" style={{ background: '#00B578' }} data-testid="rewards-floating-btn">
+            <Gift size={18} className="text-white" />
+            <span className="text-white text-sm font-bold">Recompenses</span>
+          </button>
+        ) : <div />}
         <button className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center" style={{ background: '#00B578' }}>
           <Plus size={22} className="text-white" weight="bold" />
         </button>
