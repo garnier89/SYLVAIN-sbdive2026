@@ -1,0 +1,51 @@
+{
+  "summary": "Iter53 — Retest of SB Drive VTC admin FR localization, Phase 2 aliases, driver endpoints, admin CRUD, and cross-flows (follow-up to iter52 macro audit). ALL 30 backend tests pass. Frontend spot-check of admin dashboard verifies: SB Drive brand replaced XJEKPLUS, all 12 French section labels present in sidebar (ACCUEIL/MEMBRES/SERVICES/RÉSERVATIONS & RAPPORTS/PORTEFEUILLE & PAIEMENTS/RÉCOMPENSES & FIDÉLITÉ/LOCALISATION/PROMOTIONS & MARKETING/CMS/SUPPORT/PARAMÈTRES & UTILITAIRES/SYSTÈME), Banners page shows 3 seeded rows with Ajouter/Désactiver/Delete actions, Payout page shows 4 seeded rows (paid + pending), /admin/payment-options correctly shows 'Configuration bientôt disponible' placeholder (no more Genie fall-through). All iter52 P0 blockers are resolved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/admin/settings", "issue": "Expects body either flat or wrapped as {settings:{...}}; GET returns {settings:{...}}. Minor API shape asymmetry but functional."},
+      {"endpoint": "POST /api/wallet/withdraw-request", "issue": "Requires 'iban' field (not 'method'). Frontend must send iban. Returns 400 insufficient balance for wallets with 0 balance — endpoint itself is wired correctly."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminPayout / AdminBanners page titles", "issue": "Page header 'Driver Payouts' is in English while brief asks full French localization. Sidebar labels are French but individual page H1 titles like 'Driver Payouts' remain English on /admin/payout. 'Bannières publicitaires' is correctly French.", "selector": "/admin/payout", "priority": "P2"},
+      {"component": "AdminWalletRequests", "issue": "Page loads but explicit buttons labelled 'Approuver'/'Refuser' not detected in visible text; likely using generic CRUD pencil/trash icons instead of status-transition buttons. Functional but less explicit than brief suggested.", "selector": "/admin/wallet-requests", "priority": "P2"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Sidebar sub-items (e.g., 'Taxi / Transport', 'Parcel Delivery', 'Delivery Genie', 'Manage Rewards', 'Nearby Management')", "issues": ["Top-level section labels are French but sub-menu items under services remain in English — inconsistent with stated FR localization goal. Non-blocking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter53_fr_admin_phase2.py",
+    "/app/test_reports/pytest/iter53_results.xml"
+  ],
+  "action_items": [
+    "P2: Localize remaining admin page H1 titles ('Driver Payouts' -> 'Versements Chauffeurs', etc.) and sub-menu item labels to French.",
+    "P2: If UX needs explicit status-transition buttons (Approuver/Refuser, Investiguer/Résoudre, Verser), add them to AdminWalletRequests / AdminDisputes / AdminSettlements / AdminDocuments instead of relying solely on the generic CRUD edit dialog.",
+    "P3: Normalize /api/admin/settings request/response shape (GET returns {settings:{}}, PUT accepts either) — doc the chosen contract and keep consistent."
+  ],
+  "critical_code_review_comments": [
+    "AdminServiceConfig.js fall-through bug is fixed — unknown service keys now render a typed 'Configuration bientôt disponible' placeholder instead of silently defaulting to the Genie form. Good.",
+    "ALLOWED_CRUD in routes/admin.py now correctly includes banners, wallet_requests, promocodes, news, newsletter_subscribers, payouts, settlements, disputes, documents — 47% placeholder problem from iter52 is effectively resolved at the API layer.",
+    "Seed data in server.py startup creates realistic demo rows (3 banners, 4 payouts, 3 settlements, 3 disputes, 3 wallet-requests, 3 documents) which makes the admin pages demonstrable end-to-end.",
+    "Phase 2 alias endpoints (/loyalty/me, /referral/me, /subscriptions/plans, /safety/emergency-contacts, /favorites/drivers) all return 200 — driver/user app contract gap from iter52 closed.",
+    "Driver endpoints (/my-stats, /my-earnings, /my-documents, /my-notifications, /incoming-requests) all return 200 with driver token — another iter52 P0 blocker resolved."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter53_fr_admin_phase2.py",
+    "/app/test_reports/iteration_53.json",
+    "/app/test_reports/pytest/iter53_results.xml"
+  ],
+  "success_rate": {
+    "backend": "100% (30/30 pytest cases passing — admin core + settings + CRUD for 6 collections + promocodes + 5 phase2 aliases + 5 driver endpoints + cross-flows)",
+    "frontend": "~95% (admin login, sidebar brand+FR labels, Banners, Payouts, Disputes, Wallet-Requests, Promocodes, Payment-Options placeholder all verified; remaining concerns are cosmetic page titles and sub-menu labels in English)"
+  },
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! (verified). Driver: jean.dupont@demo.sb / Driver123! (verified — endpoint tests passed). User: test2@example.com / TestPass123! (verified).",
+  "seed_data_creation": "None created manually — server.py already seeds 3 banners + 4 payouts + 3 settlements + 3 disputes + 3 wallet_requests + 3 documents + 3 demo drivers on startup. Verified counts against API.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter53 closes all P0 blockers from iter52 macro audit. Backend: 30/30 tests pass on /app/backend/tests/test_iter53_fr_admin_phase2.py. Frontend: admin dashboard fully wired with real MongoDB data via /api/admin/crud/{collection}. Remaining work is cosmetic (localize English page titles + sub-menu labels). Auth flow: use /admin-login (not /admin directly) to reach admin login form — ProtectedRoute redirects unauthenticated users to / (landing). Withdraw endpoint requires 'iban' field, not 'method'.",
+  "rca of the issue": "N/A — retest run, no new bugs. iter52 issues (XJEKPLUS brand, English sidebar, hardcoded admin mock data, missing driver/phase2 endpoints, Genie fall-through) were all root-caused and fixed by main agent between iter52 and iter53. This run confirms fixes land correctly in preview environment."
+}

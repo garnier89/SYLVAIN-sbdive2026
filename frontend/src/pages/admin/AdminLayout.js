@@ -14,14 +14,14 @@ import {
 
 const sidebarConfig = [
   {
-    title: 'HOME',
+    title: 'ACCUEIL',
     items: [
-      { icon: SquaresFour, label: 'Dashboard', path: '/admin' },
-      { icon: ChartLine, label: 'Server Monitoring', path: '/admin/monitoring' },
+      { icon: SquaresFour, label: 'Tableau de bord', path: '/admin' },
+      { icon: ChartLine, label: 'Monitoring serveur', path: '/admin/monitoring' },
     ]
   },
   {
-    title: 'MEMBERS',
+    title: 'MEMBRES',
     items: [
       { icon: UserCircle, label: 'Admin', key: 'admin', children: [
         { label: 'Administrator', path: '/admin/admins' },
@@ -50,8 +50,8 @@ const sidebarConfig = [
     title: 'SERVICES',
     items: [
       { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
-        { label: 'All Rides', path: '/admin/rides' },
-        { label: 'Vehicle Types', path: '/admin/vehicle-types' },
+        { label: 'Toutes les courses', path: '/admin/rides' },
+        { label: 'Types de véhicules', path: '/admin/vehicle-types' },
       ]},
       { icon: Package, label: 'Parcel Delivery', key: 'parcel', children: [
         { label: 'All Parcels', path: '/admin/parcels' },
@@ -93,7 +93,7 @@ const sidebarConfig = [
     ]
   },
   {
-    title: 'BOOKINGS & REPORTS',
+    title: 'RÉSERVATIONS & RAPPORTS',
     items: [
       { icon: CalendarCheck, label: 'Bookings / Orders', key: 'bookings', children: [
         { label: 'Manual Booking', path: '/admin/manual-booking' },
@@ -113,14 +113,14 @@ const sidebarConfig = [
     ]
   },
   {
-    title: 'WALLET & PAYMENTS',
+    title: 'PORTEFEUILLE & PAIEMENTS',
     items: [
       { icon: Wallet, label: 'Wallet Requests', path: '/admin/wallet-requests' },
       { icon: HandCoins, label: 'Settlements', path: '/admin/settlements' },
     ]
   },
   {
-    title: 'REWARDS & LOYALTY',
+    title: 'RÉCOMPENSES & FIDÉLITÉ',
     items: [
       { icon: Trophy, label: 'Reward Program', path: '/admin/rewards' },
       { icon: Trophy, label: 'Chauffeurs Prioritaires', path: '/admin/priority-drivers' },
@@ -129,7 +129,7 @@ const sidebarConfig = [
     ]
   },
   {
-    title: 'LOCATION',
+    title: 'LOCALISATION',
     items: [
       { icon: MapPin, label: 'Manage Locations', key: 'locations', children: [
         { label: 'Geo Fence Location', path: '/admin/geo-fence' },
@@ -144,7 +144,7 @@ const sidebarConfig = [
     ]
   },
   {
-    title: 'PROMOTIONS & MARKETING TOOLS',
+    title: 'PROMOTIONS & MARKETING',
     items: [
       { icon: Ticket, label: 'Promocode', path: '/admin/promocodes' },
       { icon: Gift, label: 'Manage Gift Cards', key: 'giftcards', children: [
@@ -188,7 +188,7 @@ const sidebarConfig = [
     ]
   },
   {
-    title: 'SETTINGS & UTILITIES',
+    title: 'PARAMÈTRES & UTILITAIRES',
     items: [
       { icon: Gear, label: 'General', path: '/admin/settings' },
       { icon: HandCoins, label: 'Payment Options', path: '/admin/payment-options' },
@@ -205,9 +205,9 @@ const sidebarConfig = [
     ]
   },
   {
-    title: 'SYSTEM',
+    title: 'SYSTÈME',
     items: [
-      { icon: Gear, label: 'General Settings', path: '/admin/settings' },
+      { icon: Gear, label: 'Paramètres généraux', path: '/admin/settings' },
     ]
   }
 ];
@@ -278,9 +278,10 @@ const AdminLayout = () => {
         ${sidebarOpen ? 'w-[220px]' : 'w-0 overflow-hidden'}`} data-testid="admin-sidebar">
         {/* Logo */}
         <div className="px-4 py-3 border-b border-gray-100">
-          <h1 className="text-xl tracking-tight">
-            <span className="font-black text-gray-800">XJEK</span>
-            <span className="font-black text-[#3b82f6]">PLUS</span>
+          <h1 className="text-xl tracking-tight" data-testid="admin-brand">
+            <span className="font-black text-gray-800">SB</span>
+            <span className="font-black text-[#3b82f6]">Drive</span>
+            <span className="text-[10px] ml-1 text-gray-500 font-semibold uppercase tracking-wide">VTC</span>
           </h1>
         </div>
 

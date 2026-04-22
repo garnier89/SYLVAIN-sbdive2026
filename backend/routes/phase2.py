@@ -391,3 +391,86 @@ async def enable_pool(ride_id: str, request: Request):
     new_fare = ride.get("estimated_fare", 0) * 0.7 if enabled else ride.get("estimated_fare", 0)
     await db.rides.update_one({"id": ride_id}, {"$set": {"pool_enabled": enabled, "estimated_fare": new_fare}})
     return {"message": "Pool updated", "enabled": enabled, "new_fare": new_fare}
+
+
+# ═══════════ ALIASES for UI-expected endpoints ═══════════
+
+@router.get("/loyalty/me")
+async def my_loyalty(request: Request):
+    """Return loyalty points + tier for the current user."""
+    user = await get_current_user(request)
+    # Count completed rides as base for loyalty
+    rides = await db.rides.count_documents({"user_id": user["id"], "status": "completed"})
+    orders = await db.orders.count_documents({"user_id": user["id"], "status": "delivered"})
+    points = rides * 10 + orders * 5
+    tiers = [
+        {"name": "Bronze", "min": 0, "max": 99, "color": "#CD7F32", "perks": ["Offres exclusives"]},
+        {"name": "Argent", "min": 100, "max": 299, "color": "#C0C0C0", "perks": ["-5% sur courses", "Support prioritaire"]},
+        {"name": "Or", "min": 300, "max": 699, "color": "#FFD700", "perks": ["-10% sur courses", "Chauffeur favori illimité"]},
+        {"name": "Platine", "min": 700, "max": 99999, "color": "#E5E4E2", "perks": ["-15% sur courses", "Accès VIP", "Annulation gratuite"]},
+    ]
+    current = next((t for t in tiers if t["min"] <= points <= t["max"]), tiers[0])
+    next_tier = next((t for t in tiers if t["min"] > points), None)
+    return {
+        "user_id": user["id"],
+        "points": points,
+        "total_rides": rides,
+        "total_orders": orders,
+        "tier": current,
+        "next_tier": next_tier,
+        "points_to_next": (next_tier["min"] - points) if next_tier else 0,
+    }
+
+
+@router.get("/referral/me")
+async def my_referral(request: Request):
+    """Proxy to referral stats — fail-soft default."""
+    user = await get_current_user(request)
+    u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "referral_code_own": 1}) or {}
+    code = u.get("referral_code_own")
+    if not code:
+        import secrets
+        code = f"SB{secrets.token_hex(3).upper()}"
+        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code_own": code}})
+    count = await db.referrals.count_documents({"referrer_id": user["id"]})
+    earnings = await db.referrals.aggregate([
+        {"$match": {"referrer_id": user["id"]}},
+        {"$group": {"_id": None, "total": {"$sum": "$reward_amount"}}}
+    ]).to_list(1)
+    return {
+        "code": code,
+        "total_referrals": count,
+        "total_earnings": (earnings[0]["total"] if earnings else 0) or 0,
+        "reward_per_referral": 5,
+        "share_url": f"https://sbdrivevtc.com/r/{code}",
+    }
+
+
+@router.get("/subscriptions/plans")
+async def list_subscription_plans():
+    """Static marketplace subscription plans (admin-editable via service_configs)."""
+    cfg = await db.service_configs.find_one({"service_key": "subscriptions"}, {"_id": 0}) or {}
+    plans = (cfg.get("settings") or {}).get("plans")
+    if not plans:
+        plans = [
+            {"id": "sb_basic", "name": "SB Basic", "price_month": 0, "benefits": ["Tarifs standards", "Support email"]},
+            {"id": "sb_plus", "name": "SB Plus", "price_month": 9.99, "benefits": ["-10% sur courses", "Annulation gratuite", "Chauffeur favori"]},
+            {"id": "sb_premium", "name": "SB Premium", "price_month": 19.99, "benefits": ["-15% sur courses", "Support prioritaire 24/7", "Accès VIP aéroport", "Réservation garantie"]},
+        ]
+    return plans
+
+
+@router.get("/safety/emergency-contacts")
+async def my_emergency_contacts_alias(request: Request):
+    """Alias of phase1 emergency-contacts."""
+    user = await get_current_user(request)
+    contacts = await db.emergency_contacts.find({"user_id": user["id"]}, {"_id": 0}).to_list(10)
+    return contacts
+
+
+@router.get("/favorites/drivers")
+async def my_favorite_drivers_alias(request: Request):
+    """Alias of phase1 favorite-drivers."""
+    user = await get_current_user(request)
+    favs = await db.favorite_drivers.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    return favs

@@ -1,43 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { CurrencyDollar, MagnifyingGlass, Download, Calendar, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { MagnifyingGlass, Download } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+
+const API = process.env.REACT_APP_BACKEND_URL;
+const CRUD = `${API}/api/admin/crud/payouts`;
+
+const statusColors = {
+  paid: 'bg-green-100 text-green-700',
+  pending: 'bg-yellow-100 text-yellow-700',
+  processing: 'bg-blue-100 text-blue-700',
+  failed: 'bg-red-100 text-red-700',
+};
 
 const AdminPayout = () => {
-  const [dateRange, setDateRange] = useState('this_week');
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
 
-  const payouts = [
-    { id: 'pay_001', driver_name: 'Jean Dupont', amount: 347.50, rides: 28, status: 'paid', period: '7-13 Avr 2026', paid_at: '2026-04-14' },
-    { id: 'pay_002', driver_name: 'Amadou Diallo', amount: 523.00, rides: 41, status: 'paid', period: '7-13 Avr 2026', paid_at: '2026-04-14' },
-    { id: 'pay_003', driver_name: 'Sophie Martin', amount: 189.75, rides: 15, status: 'pending', period: '14-20 Avr 2026', paid_at: null },
-    { id: 'pay_004', driver_name: 'Mohamed Ben Ali', amount: 412.25, rides: 33, status: 'pending', period: '14-20 Avr 2026', paid_at: null },
-    { id: 'pay_005', driver_name: 'Claire Petit', amount: 278.00, rides: 22, status: 'processing', period: '14-20 Avr 2026', paid_at: null },
-  ];
-
-  const statusColors = {
-    paid: 'bg-green-100 text-green-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-    processing: 'bg-blue-100 text-blue-700',
-    failed: 'bg-red-100 text-red-700',
+  useEffect(() => { load(); }, []);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(CRUD, { credentials: 'include' });
+      const d = await r.json();
+      setPayouts(Array.isArray(d) ? d : []);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  const totalPending = payouts.filter(p => p.status !== 'paid').reduce((sum, p) => sum + p.amount, 0);
-  const totalPaid = payouts.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+  const markPaid = async (p) => {
+    try {
+      const updates = { ...p, status: 'paid', paid_at: new Date().toISOString().slice(0, 10) };
+      await fetch(`${CRUD}/${p.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+      setPayouts(prev => prev.map(x => x.id === p.id ? updates : x));
+      toast.success('Versement payé');
+    } catch (e) { console.error(e); toast.error('Erreur'); }
+  };
 
-  const filtered = payouts.filter(p => p.driver_name.toLowerCase().includes(filter.toLowerCase()));
+  const totalPending = payouts.filter(p => p.status !== 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+  const totalPaid = payouts.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+  const filtered = payouts.filter(p => (p.driver_name || '').toLowerCase().includes(filter.toLowerCase()));
 
   return (
     <div className="p-6" data-testid="admin-payout">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Payout Report</h1>
-          <p className="text-sm text-gray-500 mt-1">Gestion des versements chauffeurs</p>
+          <h1 className="text-2xl font-bold text-gray-800">Rapport des versements</h1>
+          <p className="text-sm text-gray-500 mt-1">Gestion des versements aux chauffeurs</p>
         </div>
-        <Button variant="outline" data-testid="export-btn">
-          <Download size={16} className="mr-1" /> Exporter
-        </Button>
+        <Button variant="outline" data-testid="export-btn"><Download size={16} className="mr-1" /> Exporter</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -61,39 +77,38 @@ const AdminPayout = () => {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600">Chauffeur</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600">Période</th>
-              <th className="text-center py-3 px-4 font-semibold text-gray-600">Courses</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-600">Montant</th>
-              <th className="text-center py-3 px-4 font-semibold text-gray-600">Statut</th>
-              <th className="text-center py-3 px-4 font-semibold text-gray-600">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(p => (
-              <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50" data-testid={`payout-row-${p.id}`}>
-                <td className="py-3 px-4 font-medium text-gray-800">{p.driver_name}</td>
-                <td className="py-3 px-4 text-gray-600">{p.period}</td>
-                <td className="py-3 px-4 text-center">{p.rides}</td>
-                <td className="py-3 px-4 text-right font-bold">{p.amount.toFixed(2)}€</td>
-                <td className="py-3 px-4 text-center">
-                  <Badge className={statusColors[p.status] || ''}>{p.status}</Badge>
-                </td>
-                <td className="py-3 px-4 text-center">
-                  {p.status === 'pending' && (
-                    <Button size="sm" className="bg-green-600 text-white text-xs">Payer</Button>
-                  )}
-                  {p.status === 'paid' && (
-                    <span className="text-xs text-gray-400">{p.paid_at}</span>
-                  )}
-                </td>
+        {loading ? (
+          <div className="p-12 text-center"><div className="w-8 h-8 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto" /></div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600">Chauffeur</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-600">Période</th>
+                <th className="text-center py-3 px-4 font-semibold text-gray-600">Courses</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-600">Montant</th>
+                <th className="text-center py-3 px-4 font-semibold text-gray-600">Statut</th>
+                <th className="text-center py-3 px-4 font-semibold text-gray-600">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map(p => (
+                <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50" data-testid={`payout-row-${p.id}`}>
+                  <td className="py-3 px-4 font-medium text-gray-800">{p.driver_name}</td>
+                  <td className="py-3 px-4 text-gray-600">{p.period}</td>
+                  <td className="py-3 px-4 text-center">{p.rides}</td>
+                  <td className="py-3 px-4 text-right font-bold">{(p.amount || 0).toFixed(2)}€</td>
+                  <td className="py-3 px-4 text-center"><Badge className={statusColors[p.status] || ''}>{p.status}</Badge></td>
+                  <td className="py-3 px-4 text-center">
+                    {p.status === 'pending' && (<Button size="sm" className="bg-green-600 text-white text-xs" onClick={() => markPaid(p)} data-testid={`pay-${p.id}`}>Payer</Button>)}
+                    {p.status === 'paid' && <span className="text-xs text-gray-400">{p.paid_at}</span>}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">Aucun versement</td></tr>}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

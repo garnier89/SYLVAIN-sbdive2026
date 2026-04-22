@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { couponAPI } from '../../services/api';
-import { Gear, CaretUp, CaretDown } from '@phosphor-icons/react';
+import { Gear } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const AdminPromocodes = () => {
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    code: '', description: '', discount_type: 'Percentage', discount_value: 10,
+    max_discount: 10, usage_limit: 100, per_user_limit: 1,
+    service_type: 'All', expiry_date: '',
+  });
 
   useEffect(() => { loadCodes(); }, []);
 
@@ -19,6 +26,21 @@ const AdminPromocodes = () => {
   };
 
   const handleReset = () => { setSearch(''); setStatusFilter(''); };
+
+  const handleAdd = async () => {
+    if (!form.code.trim()) { toast.error('Code requis'); return; }
+    try {
+      await couponAPI.adminCreate(form);
+      toast.success('Code promo créé');
+      setShowForm(false);
+      setForm({
+        code: '', description: '', discount_type: 'Percentage', discount_value: 10,
+        max_discount: 10, usage_limit: 100, per_user_limit: 1,
+        service_type: 'All', expiry_date: '',
+      });
+      loadCodes();
+    } catch (e) { console.error(e); toast.error('Erreur lors de la création'); }
+  };
 
   let filtered = codes;
   if (search) {
@@ -47,10 +69,67 @@ const AdminPromocodes = () => {
         </select>
         <button className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
         <button onClick={handleReset} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
-        <button className="ml-auto bg-[#17a2b8] text-white px-4 py-2 rounded text-sm font-bold hover:bg-[#138496] transition-colors" data-testid="add-promo-btn">
+        <button className="ml-auto bg-[#17a2b8] text-white px-4 py-2 rounded text-sm font-bold hover:bg-[#138496] transition-colors" data-testid="add-promo-btn" onClick={() => setShowForm(true)}>
           ADD PROMO CODE
         </button>
       </div>
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full shadow-2xl" onClick={e => e.stopPropagation()} data-testid="promo-form">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Nouveau code promo</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600">Code</label>
+                <input value={form.code} onChange={e => setForm({...form, code: e.target.value.toUpperCase()})} placeholder="SUMMER20" className="w-full border rounded px-3 py-2 text-sm font-mono" data-testid="promo-code-input" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Type</label>
+                <select value={form.discount_type} onChange={e => setForm({...form, discount_type: e.target.value})} className="w-full border rounded px-3 py-2 text-sm">
+                  <option value="Percentage">Pourcentage (%)</option>
+                  <option value="Flat">Montant fixe (EUR)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Valeur</label>
+                <input type="number" value={form.discount_value} onChange={e => setForm({...form, discount_value: parseFloat(e.target.value) || 0})} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Remise max (EUR)</label>
+                <input type="number" value={form.max_discount} onChange={e => setForm({...form, max_discount: parseFloat(e.target.value) || 0})} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Limite usage total</label>
+                <input type="number" value={form.usage_limit} onChange={e => setForm({...form, usage_limit: parseInt(e.target.value) || 0})} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Limite par utilisateur</label>
+                <input type="number" value={form.per_user_limit} onChange={e => setForm({...form, per_user_limit: parseInt(e.target.value) || 1})} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Service</label>
+                <select value={form.service_type} onChange={e => setForm({...form, service_type: e.target.value})} className="w-full border rounded px-3 py-2 text-sm">
+                  <option value="All">Tous</option>
+                  <option value="Ride">Course</option>
+                  <option value="Food">Livraison</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Date expiration</label>
+                <input type="date" value={form.expiry_date} onChange={e => setForm({...form, expiry_date: e.target.value})} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-medium text-gray-600">Description</label>
+                <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Code été -20%" className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5 justify-end">
+              <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm font-semibold border rounded hover:bg-gray-50">Annuler</button>
+              <button onClick={handleAdd} className="px-4 py-2 text-sm font-bold text-white bg-[#17a2b8] rounded hover:bg-[#138496]" data-testid="save-promo-btn">Créer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk action & Export */}
       <div className="flex items-center gap-3 mb-4">

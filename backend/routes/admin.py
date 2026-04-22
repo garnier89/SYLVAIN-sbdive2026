@@ -130,6 +130,34 @@ async def get_admin_stats(request: Request):
     }
 
 
+# ===== ADMIN GENERAL SETTINGS =====
+
+@router.get("/settings")
+async def get_admin_general_settings(request: Request):
+    await require_role(request, ["admin"])
+    doc = await db.service_configs.find_one({"service_key": "general"}, {"_id": 0})
+    if not doc:
+        return {"settings": {}}
+    return doc
+
+
+@router.put("/settings")
+async def save_admin_general_settings(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    settings = body.get("settings", body)
+    await db.service_configs.update_one(
+        {"service_key": "general"},
+        {"$set": {
+            "service_key": "general",
+            "settings": settings,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"message": "Settings saved", "settings": settings}
+
+
 @router.get("/analytics")
 async def get_analytics(request: Request, period: str = "week"):
     await require_role(request, ["admin"])
@@ -230,6 +258,7 @@ ALLOWED_CRUD = [
     "master_services", "sos_requests", "contact_requests", "withdraw_requests",
     "order_help_requests", "trip_help_requests", "push_notifications",
     "payouts", "settlements", "disputes", "documents",
+    "banners", "wallet_requests", "news", "newsletter_subscribers", "promocodes",
 ]
 
 

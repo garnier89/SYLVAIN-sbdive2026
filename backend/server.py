@@ -195,6 +195,82 @@ async def lifespan(app: FastAPI):
     await db.coupons.create_index("code", unique=True)
     logger.info("Demo coupons seeded")
 
+    # Seed demo admin data (only if empty — makes admin pages show realistic content)
+    demo_admin_seed = {
+        "admin_banners": [
+            {"id": "ban_welcome", "title": "-20% sur votre première course", "subtitle": "Code SB20 — valable jusqu'au 31/12", "image_url": "", "position": "home_top", "active": True},
+            {"id": "ban_free_delivery", "title": "Livraison gratuite", "subtitle": "Ce week-end seulement sur SB Eats", "image_url": "", "position": "food_top", "active": True},
+            {"id": "ban_referral", "title": "Parrainez vos amis", "subtitle": "Gagnez 5€ par parrainage", "image_url": "", "position": "home_bottom", "active": True},
+        ],
+        "admin_payouts": [
+            {"id": "pay_001", "driver_name": "Jean Dupont", "amount": 347.50, "rides": 28, "status": "paid", "period": "Sem 15 - Avril 2026", "paid_at": "2026-04-14"},
+            {"id": "pay_002", "driver_name": "Amadou Diallo", "amount": 523.00, "rides": 41, "status": "paid", "period": "Sem 15 - Avril 2026", "paid_at": "2026-04-14"},
+            {"id": "pay_003", "driver_name": "Sophie Martin", "amount": 189.75, "rides": 15, "status": "pending", "period": "Sem 16 - Avril 2026", "paid_at": None},
+            {"id": "pay_004", "driver_name": "Mohamed Ben Ali", "amount": 412.25, "rides": 33, "status": "pending", "period": "Sem 16 - Avril 2026", "paid_at": None},
+        ],
+        "admin_settlements": [
+            {"id": "stl_001", "driver_name": "Jean Dupont", "period": "Sem 15", "rides": 28, "gross": 523.00, "commission": 78.45, "net": 444.55, "status": "settled", "settled_at": "2026-04-14"},
+            {"id": "stl_002", "driver_name": "Amadou Diallo", "period": "Sem 15", "rides": 41, "gross": 812.50, "commission": 121.88, "net": 690.63, "status": "settled", "settled_at": "2026-04-14"},
+            {"id": "stl_003", "driver_name": "Sophie Martin", "period": "Sem 16", "rides": 15, "gross": 278.00, "commission": 41.70, "net": 236.30, "status": "pending", "settled_at": None},
+        ],
+        "admin_disputes": [
+            {"id": "dis_001", "ride_id": "ride_4521", "user_name": "Marie L.", "driver_name": "Jean D.", "reason": "Tarif incorrect - montant supérieur à l'estimation", "status": "open", "amount": 8.50},
+            {"id": "dis_002", "ride_id": "ride_4498", "user_name": "Paul M.", "driver_name": "Amadou D.", "reason": "Chauffeur a fait un détour inutile", "status": "investigating", "amount": 12.00},
+            {"id": "dis_003", "ride_id": "ride_4475", "user_name": "Sophie K.", "driver_name": "Claire P.", "reason": "Course annulée mais facturée", "status": "resolved", "amount": 15.00},
+        ],
+        "admin_wallet_requests": [
+            {"id": "wr_001", "user_name": "Jean Dupont", "type": "withdrawal", "amount": 150.00, "status": "pending", "method": "Virement bancaire"},
+            {"id": "wr_002", "user_name": "Amadou Diallo", "type": "withdrawal", "amount": 347.50, "status": "pending", "method": "Virement bancaire"},
+            {"id": "wr_003", "user_name": "Sophie Martin", "type": "withdrawal", "amount": 89.00, "status": "approved", "method": "PayPal"},
+        ],
+        "admin_contact_requests": [
+            {"id": "con_001", "name": "Julie Moreau", "email": "julie@example.com", "phone": "+33612345678", "subject": "Question sur la facturation", "message": "Bonjour, j'ai une question concernant ma dernière facture...", "status": "new"},
+            {"id": "con_002", "name": "Thomas Bernard", "email": "thomas@example.com", "phone": "+33687654321", "subject": "Problème de connexion", "message": "Je n'arrive pas à me connecter à mon compte.", "status": "answered"},
+        ],
+        "admin_sos_requests": [
+            {"id": "sos_demo_001", "user_name": "Demo User", "user_role": "user", "ride_id": "ride_demo", "address": "Paris, France", "lat": 48.8566, "lng": 2.3522, "message": "Test alerte SOS", "status": "resolved"},
+        ],
+        "admin_documents": [
+            {"id": "doc_001", "driver_name": "Jean Dupont", "driver_id": "drv_001", "doc_type": "Carte VTC", "status": "pending", "uploaded_at": "2026-04-17", "expires_at": "2027-04-17"},
+            {"id": "doc_002", "driver_name": "Amadou Diallo", "driver_id": "drv_002", "doc_type": "Permis de conduire", "status": "approved", "uploaded_at": "2026-03-10", "expires_at": "2031-03-10"},
+            {"id": "doc_003", "driver_name": "Sophie Martin", "driver_id": "drv_003", "doc_type": "Assurance véhicule", "status": "pending", "uploaded_at": "2026-04-15", "expires_at": "2027-04-15"},
+        ],
+    }
+    for col_name, items in demo_admin_seed.items():
+        if await db[col_name].count_documents({}) == 0:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            for it in items:
+                it.setdefault("created_at", now_iso)
+            await db[col_name].insert_many(items)
+            logger.info(f"Seeded {len(items)} items into {col_name}")
+
+    # Seed demo drivers with users so ranking/priority pages show data
+    demo_drivers_seed = [
+        {"email": "jean.dupont@demo.sb", "name": "Jean Dupont", "phone": "+33611111111", "vehicle_type": "Car", "vehicle_model": "Peugeot 508", "vehicle_number": "AB-123-CD", "points": 85, "total_trips": 420, "rating": 4.8, "earnings": 3200.50},
+        {"email": "amadou.diallo@demo.sb", "name": "Amadou Diallo", "phone": "+33622222222", "vehicle_type": "Car", "vehicle_model": "Renault Talisman", "vehicle_number": "EF-456-GH", "points": 72, "total_trips": 310, "rating": 4.9, "earnings": 2800.00},
+        {"email": "sophie.martin@demo.sb", "name": "Sophie Martin", "phone": "+33633333333", "vehicle_type": "Moto", "vehicle_model": "Yamaha MT-07", "vehicle_number": "IJ-789-KL", "points": 55, "total_trips": 180, "rating": 4.7, "earnings": 1500.00},
+    ]
+    for dd in demo_drivers_seed:
+        if not await db.users.find_one({"email": dd["email"]}):
+            uid = f"user_{uuid.uuid4().hex[:12]}"
+            await db.users.insert_one({
+                "id": uid, "email": dd["email"], "password_hash": hash_password("Driver123!"),
+                "name": dd["name"], "phone": dd["phone"], "role": "driver",
+                "is_verified": True, "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            await db.drivers.insert_one({
+                "id": f"driver_{uuid.uuid4().hex[:12]}", "user_id": uid,
+                "vehicle_type": dd["vehicle_type"], "vehicle_model": dd["vehicle_model"],
+                "vehicle_number": dd["vehicle_number"], "license_number": f"LIC-{uuid.uuid4().hex[:6].upper()}",
+                "status": "approved", "is_online": False,
+                "current_lat": None, "current_lng": None,
+                "rating": dd["rating"], "total_trips": dd["total_trips"],
+                "earnings": dd["earnings"], "points": dd["points"],
+                "acceptance_rate": 90, "cancellation_rate": 5,
+                "documents": [], "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            logger.info(f"Seeded demo driver: {dd['name']}")
+
     yield
     client.close()
 
