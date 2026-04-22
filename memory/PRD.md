@@ -191,6 +191,16 @@ Chauffeur virtuel via WebSocket
 - Sidebar: Manage Rewards > Reports + Settings sous MEMBERS
 - Iteration 41: 100% pass (7/7 backend + frontend complet)
 
+## Iter54bis - Corrections V3Cube App Client (Feb 22, 2026) - DONE
+- **Séparation Taxi Bidding vs Bid for Services** : deux services maintenant clairement distincts
+  - `/taxi-bidding` → NOUVELLE page TaxiBiddingPage (iDrive-style "Offer Your Fare" pour une course taxi)
+  - `/services-bidding` (alias `/bidding`) → marketplace enchères prestataires (électricien/plombier/menuisier/peintres/bricoleur/ménage)
+- **Service Runner/Coursier ajouté** : page `/runner` avec 2 modes (Envoi simple 1→1, Tournée multi-arrêts 1→N jusqu'à 5), 4 types de colis, tarif auto-calculé par haversine. Endpoint backend dédié `POST /api/phase2/runner/book` + `GET /api/phase2/runner/my`.
+- **Flow hybride Taxi Booking classique** : dans RideBookingPage, l'input inline de négociation a été retiré. Ajout d'un bouton "Proposer un prix différent" (pink) qui redirige vers `/taxi-bidding?pickup=...&dropoff=...` (query params prefill). Le bouton principal "Demander maintenant" reste Uber-style (tarif fixe).
+- **UserHome corrections** : carte "Enchères VTC" → `/taxi-bidding`, cartes Bid for Services → `/services-bidding?cat=bcat_*`, nouvelle carte "Coursier Express" dans deliveryServices (remplace "Livraison Médicaments").
+- **GooglePlacesInput** : props correctes maintenant utilisées partout (`onSelect`, `testId`, `value`) — plus de `onPlaceSelected`/`data-testid` fantômes.
+- **Test iter55 : 100% backend (5/5 pytest) + 100% frontend** (spec items verified end-to-end).
+
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
 
 ## Iter53 - Activation Dashboard Admin & Localisation FR (Feb 2026) - DONE
