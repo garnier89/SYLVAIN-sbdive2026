@@ -192,6 +192,25 @@ Chauffeur virtuel via WebSocket
 - Iteration 41: 100% pass (7/7 backend + frontend complet)
 
 ## Phase 1 - Site Web & Admin (Apr 18, 2026) - DONE
+
+## Iter53 - Activation Dashboard Admin & Localisation FR (Feb 2026) - DONE
+- **Admin pages re-câblées au CRUD réel** (fini les mocks hardcodés) : AdminBanners, AdminPayout, AdminSettlements, AdminDisputes, AdminWalletRequests, AdminDocuments → toutes utilisent `/api/admin/crud/{collection}` avec persistance MongoDB, actions (Approuver/Refuser/Verser/Investiguer/Résoudre) persistent.
+- **AdminPromocodes** : modal de création complet wire à `couponAPI.adminCreate`.
+- **Localisation française complète** du sidebar admin : titres de sections (ACCUEIL, MEMBRES, SERVICES, RÉSERVATIONS & RAPPORTS, PORTEFEUILLE & PAIEMENTS, RÉCOMPENSES & FIDÉLITÉ, LOCALISATION, PROMOTIONS & MARKETING, CMS, SUPPORT, PARAMÈTRES & UTILITAIRES, SYSTÈME) + tous les items et sous-items (Utilisateurs, Chauffeurs, Gérer véhicules, Vérification documents, etc.).
+- **Rebranding** : "XJEKPLUS" → "SB Drive VTC" dans le sidebar.
+- **AdminServiceConfig** : placeholder typé "Configuration bientôt disponible" pour les clés inconnues (plus de fallback silencieux vers formulaire Genie).
+- **Endpoints backend Phase 2 alias** (dans `phase2.py`) : `/api/phase2/loyalty/me` (points + tier bronze/argent/or/platine), `/api/phase2/referral/me`, `/api/phase2/subscriptions/plans`, `/api/phase2/safety/emergency-contacts`, `/api/phase2/favorites/drivers`.
+- **Admin settings endpoint** : `GET/PUT /api/admin/settings` pour sauvegarder le bundle "general" dans `service_configs`.
+- **ALLOWED_CRUD étendu** dans `admin.py` : ajout de `banners`, `wallet_requests`, `news`, `newsletter_subscribers`, `promocodes`.
+- **Seed démo au startup** : 3 bannières, 4 payouts, 3 settlements, 3 disputes, 3 wallet-requests, 5 contact-requests, 1 SOS, 3 documents + 3 chauffeurs approuvés (jean.dupont@demo.sb / amadou.diallo / sophie.martin — password Driver123!).
+- **Test iter53 : 100% backend (30/30) + ~95% frontend** — P0/P1 blockers iter52 RÉSOLUS.
+
+## Backlog restant (P2/P3)
+- Titres H1 de certaines pages admin encore en anglais → à franciser au cas par cas
+- Implémentation UI frontend des features Phase 2 (Heat View carte réelle, Taxi Pool, Waybill, Tip, Airport geofence)
+- Phase 3 : VOIP/Twilio, Dynamic pricing, WhatsApp booking, Hire a Driver
+- Stripe intégration complète (paiement réel)
+- Push notifications (Firebase/OneSignal)
 - Landing page sbdrivevtc.com (reproduction fidele du vrai site: hero avec booking form, comment ca marche, pool & location, entreprises, 4 services VTC, securite OTP/SOS, telephone, inscription 5 types, Play Store/App Store, logo officiel SB Drive)
 - Admin Vehicle Types CRUD (/admin/vehicle-types) avec API backend
 - Admin Orders/Parcels (/admin/parcels, /admin/store-delivery) avec filtre et detail

@@ -24,26 +24,26 @@ const sidebarConfig = [
     title: 'MEMBRES',
     items: [
       { icon: UserCircle, label: 'Admin', key: 'admin', children: [
-        { label: 'Administrator', path: '/admin/admins' },
-        { label: 'Admin Groups', path: '/admin/groups' },
+        { label: 'Administrateurs', path: '/admin/admins' },
+        { label: 'Groupes admin', path: '/admin/groups' },
       ]},
-      { icon: UsersThree, label: 'User', path: '/admin/users' },
-      { icon: Car, label: 'Drivers / Service Providers', key: 'drivers', children: [
-        { label: 'Manage Drivers', path: '/admin/drivers' },
-        { label: 'Manage Vehicles', path: '/admin/vehicles' },
-        { label: 'Service Requests', path: '/admin/requests' },
-        { label: 'Document Verification', path: '/admin/documents' },
+      { icon: UsersThree, label: 'Utilisateurs', path: '/admin/users' },
+      { icon: Car, label: 'Chauffeurs / Prestataires', key: 'drivers', children: [
+        { label: 'Gérer chauffeurs', path: '/admin/drivers' },
+        { label: 'Gérer véhicules', path: '/admin/vehicles' },
+        { label: 'Demandes de service', path: '/admin/requests' },
+        { label: 'Vérification documents', path: '/admin/documents' },
       ]},
-      { icon: Trophy, label: 'Manage Rewards', key: 'rewards', children: [
-        { label: 'Reports', path: '/admin/rewards-reports' },
-        { label: 'Settings', path: '/admin/rewards' },
+      { icon: Trophy, label: 'Gérer récompenses', key: 'rewards', children: [
+        { label: 'Rapports', path: '/admin/rewards-reports' },
+        { label: 'Paramètres', path: '/admin/rewards' },
       ]},
-      { icon: Buildings, label: 'Company / Fleet Owner', path: '/admin/company' },
-      { icon: Storefront, label: 'Store', path: '/admin/stores' },
-      { icon: Bed, label: 'Hotels', key: 'hotels', children: [
-        { label: 'All Hotels', path: '/admin/hotels' },
+      { icon: Buildings, label: 'Entreprise / Flotte', path: '/admin/company' },
+      { icon: Storefront, label: 'Boutiques', path: '/admin/stores' },
+      { icon: Bed, label: 'Hôtels', key: 'hotels', children: [
+        { label: 'Tous les hôtels', path: '/admin/hotels' },
       ]},
-      { icon: TreeStructure, label: 'Organization', path: '/admin/organization' },
+      { icon: TreeStructure, label: 'Organisation', path: '/admin/organization' },
     ]
   },
   {
@@ -53,155 +53,155 @@ const sidebarConfig = [
         { label: 'Toutes les courses', path: '/admin/rides' },
         { label: 'Types de véhicules', path: '/admin/vehicle-types' },
       ]},
-      { icon: Package, label: 'Parcel Delivery', key: 'parcel', children: [
-        { label: 'All Parcels', path: '/admin/parcels' },
+      { icon: Package, label: 'Livraison colis', key: 'parcel', children: [
+        { label: 'Tous les colis', path: '/admin/parcels' },
       ]},
-      { icon: ShoppingCart, label: 'Store Delivery Services', key: 'store-delivery', children: [
-        { label: 'All Deliveries', path: '/admin/store-delivery' },
-        { label: 'Store Delivery Orders', path: '/admin/store-orders' },
+      { icon: ShoppingCart, label: 'Livraisons boutiques', key: 'store-delivery', children: [
+        { label: 'Toutes les livraisons', path: '/admin/store-delivery' },
+        { label: 'Commandes boutiques', path: '/admin/store-orders' },
       ]},
       { icon: Lightning, label: 'Delivery Genie', key: 'genie', children: [
-        { label: 'Settings', path: '/admin/genie' },
+        { label: 'Paramètres', path: '/admin/genie' },
       ]},
-      { icon: PersonSimpleRun, label: 'Delivery Runner', key: 'runner', children: [
-        { label: 'Settings', path: '/admin/runner' },
+      { icon: PersonSimpleRun, label: 'Coursier / Runner', key: 'runner', children: [
+        { label: 'Paramètres', path: '/admin/runner' },
       ]},
-      { icon: Wrench, label: 'On-Demand Services', key: 'ondemand', children: [
-        { label: 'Settings', path: '/admin/ondemand' },
+      { icon: Wrench, label: 'Services à la demande', key: 'ondemand', children: [
+        { label: 'Paramètres', path: '/admin/ondemand' },
       ]},
-      { icon: VideoCamera, label: 'Video Consultation', key: 'video', children: [
-        { label: 'Settings', path: '/admin/video' },
+      { icon: VideoCamera, label: 'Consultation vidéo', key: 'video', children: [
+        { label: 'Paramètres', path: '/admin/video' },
       ]},
-      { icon: Gavel, label: 'Manage Bid Services', key: 'bid', children: [
-        { label: 'Settings', path: '/admin/bids' },
+      { icon: Gavel, label: 'Services aux enchères', key: 'bid', children: [
+        { label: 'Paramètres', path: '/admin/bids' },
       ]},
-      { icon: Tag, label: 'Buy, Sell & Rent', key: 'marketplace', children: [
-        { label: 'Settings', path: '/admin/marketplace' },
+      { icon: Tag, label: 'Acheter, Vendre & Louer', key: 'marketplace', children: [
+        { label: 'Paramètres', path: '/admin/marketplace' },
       ]},
-      { icon: FirstAid, label: 'Medical Services', key: 'medical', children: [
-        { label: 'Settings', path: '/admin/medical' },
+      { icon: FirstAid, label: 'Services médicaux', key: 'medical', children: [
+        { label: 'Paramètres', path: '/admin/medical' },
       ]},
-      { icon: UsersThree, label: 'Ride Share', key: 'rideshare', children: [
-        { label: 'Settings', path: '/admin/rideshare' },
+      { icon: UsersThree, label: 'Covoiturage', key: 'rideshare', children: [
+        { label: 'Paramètres', path: '/admin/rideshare' },
       ]},
-      { icon: MapPinArea, label: 'Nearby Management', key: 'nearby', children: [
-        { label: 'Settings', path: '/admin/nearby' },
+      { icon: MapPinArea, label: 'À proximité', key: 'nearby', children: [
+        { label: 'Paramètres', path: '/admin/nearby' },
       ]},
-      { icon: Path, label: 'FET Tracking Service', key: 'tracking', children: [
-        { label: 'Settings', path: '/admin/tracking' },
+      { icon: Path, label: 'Suivi FET', key: 'tracking', children: [
+        { label: 'Paramètres', path: '/admin/tracking' },
       ]},
     ]
   },
   {
     title: 'RÉSERVATIONS & RAPPORTS',
     items: [
-      { icon: CalendarCheck, label: 'Bookings / Orders', key: 'bookings', children: [
-        { label: 'Manual Booking', path: '/admin/manual-booking' },
-        { label: 'Ride/Job Later Bookings', path: '/admin/later-bookings' },
-        { label: 'Trips/Jobs', path: '/admin/trips' },
-        { label: 'Create order', path: '/admin/create-order' },
+      { icon: CalendarCheck, label: 'Réservations / Commandes', key: 'bookings', children: [
+        { label: 'Réservation manuelle', path: '/admin/manual-booking' },
+        { label: 'Réservations différées', path: '/admin/later-bookings' },
+        { label: 'Courses / Missions', path: '/admin/trips' },
+        { label: 'Créer une commande', path: '/admin/create-order' },
       ]},
-      { icon: Star, label: 'Reviews', key: 'reviews', children: [
-        { label: 'Trips/Jobs Reviews', path: '/admin/reviews' },
+      { icon: Star, label: 'Avis', key: 'reviews', children: [
+        { label: 'Avis courses/missions', path: '/admin/reviews' },
       ]},
-      { icon: ChartBar, label: 'Reports', key: 'reports', children: [
-        { label: 'Earning Report', path: '/admin/revenue' },
-        { label: 'Payout Report', path: '/admin/payout' },
-        { label: 'Settlements', path: '/admin/settlements' },
+      { icon: ChartBar, label: 'Rapports', key: 'reports', children: [
+        { label: 'Rapport des revenus', path: '/admin/revenue' },
+        { label: 'Rapport des versements', path: '/admin/payout' },
+        { label: 'Versements', path: '/admin/settlements' },
       ]},
-      { icon: Shield, label: 'Disputes', path: '/admin/disputes' },
+      { icon: Shield, label: 'Litiges', path: '/admin/disputes' },
     ]
   },
   {
     title: 'PORTEFEUILLE & PAIEMENTS',
     items: [
-      { icon: Wallet, label: 'Wallet Requests', path: '/admin/wallet-requests' },
-      { icon: HandCoins, label: 'Settlements', path: '/admin/settlements' },
+      { icon: Wallet, label: 'Demandes portefeuille', path: '/admin/wallet-requests' },
+      { icon: HandCoins, label: 'Versements', path: '/admin/settlements' },
     ]
   },
   {
     title: 'RÉCOMPENSES & FIDÉLITÉ',
     items: [
-      { icon: Trophy, label: 'Reward Program', path: '/admin/rewards' },
-      { icon: Trophy, label: 'Chauffeurs Prioritaires', path: '/admin/priority-drivers' },
-      { icon: Trophy, label: 'Top Chauffeurs (Public)', path: '/admin/top-drivers' },
-      { icon: Trophy, label: 'Rapport Ecart Negociation', path: '/admin/reports/negotiation-gap' },
+      { icon: Trophy, label: 'Programme de récompenses', path: '/admin/rewards' },
+      { icon: Trophy, label: 'Chauffeurs prioritaires', path: '/admin/priority-drivers' },
+      { icon: Trophy, label: 'Top Chauffeurs (public)', path: '/admin/top-drivers' },
+      { icon: Trophy, label: 'Rapport écart négociation', path: '/admin/reports/negotiation-gap' },
     ]
   },
   {
     title: 'LOCALISATION',
     items: [
-      { icon: MapPin, label: 'Manage Locations', key: 'locations', children: [
-        { label: 'Geo Fence Location', path: '/admin/geo-fence' },
-        { label: 'Restricted Area', path: '/admin/restricted' },
-        { label: 'Locationwise Fare', path: '/admin/location-fare' },
-        { label: 'Airport Surcharge', path: '/admin/airport' },
-        { label: 'Country', path: '/admin/country' },
-        { label: 'State', path: '/admin/state' },
+      { icon: MapPin, label: 'Gérer les zones', key: 'locations', children: [
+        { label: 'Geofencing', path: '/admin/geo-fence' },
+        { label: 'Zones restreintes', path: '/admin/restricted' },
+        { label: 'Tarification par zone', path: '/admin/location-fare' },
+        { label: 'Surcharge aéroport', path: '/admin/airport' },
+        { label: 'Pays', path: '/admin/country' },
+        { label: 'Régions', path: '/admin/state' },
       ]},
-      { icon: Binoculars, label: "God's View", path: '/admin/gods-view' },
-      { icon: Fire, label: 'Heat View', path: '/admin/heat-view' },
+      { icon: Binoculars, label: "Vue d'ensemble", path: '/admin/gods-view' },
+      { icon: Fire, label: 'Vue thermique', path: '/admin/heat-view' },
     ]
   },
   {
     title: 'PROMOTIONS & MARKETING',
     items: [
-      { icon: Ticket, label: 'Promocode', path: '/admin/promocodes' },
-      { icon: Gift, label: 'Manage Gift Cards', key: 'giftcards', children: [
-        { label: 'All Gift Cards', path: '/admin/giftcards' },
+      { icon: Ticket, label: 'Codes promo', path: '/admin/promocodes' },
+      { icon: Gift, label: 'Cartes cadeaux', key: 'giftcards', children: [
+        { label: 'Toutes les cartes', path: '/admin/giftcards' },
       ]},
-      { icon: ShareNetwork, label: 'MLM Referral Settings', path: '/admin/referral' },
-      { icon: Image, label: 'Advertisement Banners', path: '/admin/banners' },
-      { icon: Newspaper, label: 'News', path: '/admin/news' },
-      { icon: EnvelopeSimple, label: 'Newsletter Subscribers', path: '/admin/newsletter' },
+      { icon: ShareNetwork, label: 'Paramètres parrainage MLM', path: '/admin/referral' },
+      { icon: Image, label: 'Bannières publicitaires', path: '/admin/banners' },
+      { icon: Newspaper, label: 'Actualités', path: '/admin/news' },
+      { icon: EnvelopeSimple, label: 'Newsletter', path: '/admin/newsletter' },
     ]
   },
   {
     title: 'CMS',
     items: [
-      { icon: Globe, label: 'Website All Pages', key: 'pages', children: [
-        { label: 'All Pages', path: '/admin/pages' },
+      { icon: Globe, label: 'Pages du site web', key: 'pages', children: [
+        { label: 'Toutes les pages', path: '/admin/pages' },
       ]},
-      { icon: DeviceMobile, label: 'User App Home Screen', key: 'app-home', children: [
-        { label: 'Home Config', path: '/admin/app-home' },
+      { icon: DeviceMobile, label: 'Écran accueil app', key: 'app-home', children: [
+        { label: 'Configuration', path: '/admin/app-home' },
       ]},
-      { icon: Slideshow, label: 'Manage App Intro Screen', key: 'intro', children: [
-        { label: 'Intro Screens', path: '/admin/intro' },
+      { icon: Slideshow, label: 'Écrans d\'intro', key: 'intro', children: [
+        { label: 'Slides', path: '/admin/intro' },
       ]},
-      { icon: Translate, label: 'Manage Language Labels', key: 'lang', children: [
+      { icon: Translate, label: 'Traductions', key: 'lang', children: [
         { label: 'Labels', path: '/admin/labels' },
       ]},
-      { icon: EnvelopeOpen, label: 'Email Templates', path: '/admin/email-templates' },
-      { icon: ChatCircleText, label: 'SMS Templates', path: '/admin/sms-templates' },
-      { icon: XCircle, label: 'Cancel Reason', path: '/admin/cancel-reasons' },
+      { icon: EnvelopeOpen, label: 'Modèles email', path: '/admin/email-templates' },
+      { icon: ChatCircleText, label: 'Modèles SMS', path: '/admin/sms-templates' },
+      { icon: XCircle, label: 'Motifs d\'annulation', path: '/admin/cancel-reasons' },
     ]
   },
   {
     title: 'SUPPORT',
     items: [
-      { icon: EnvelopeSimple, label: 'Contact Us Requests', path: '/admin/contact-requests' },
-      { icon: Warning, label: 'SOS Requests', path: '/admin/sos-requests' },
-      { icon: FileText, label: 'Order Help Requests', path: '/admin/order-help-requests' },
-      { icon: HandCoins, label: 'Payment Requests', path: '/admin/wallet-requests' },
-      { icon: HandCoins, label: 'Withdraw Requests', path: '/admin/withdraw-requests' },
-      { icon: FileText, label: 'Trip Help Requests', path: '/admin/trip-help-requests' },
+      { icon: EnvelopeSimple, label: 'Demandes de contact', path: '/admin/contact-requests' },
+      { icon: Warning, label: 'Alertes SOS', path: '/admin/sos-requests' },
+      { icon: FileText, label: 'Aide commandes', path: '/admin/order-help-requests' },
+      { icon: HandCoins, label: 'Demandes de paiement', path: '/admin/wallet-requests' },
+      { icon: HandCoins, label: 'Demandes de retrait', path: '/admin/withdraw-requests' },
+      { icon: FileText, label: 'Aide courses', path: '/admin/trip-help-requests' },
     ]
   },
   {
     title: 'PARAMÈTRES & UTILITAIRES',
     items: [
-      { icon: Gear, label: 'General', path: '/admin/settings' },
-      { icon: HandCoins, label: 'Payment Options', path: '/admin/payment-options' },
-      { icon: Wrench, label: 'Master Services', path: '/admin/master-services' },
-      { icon: SealCheck, label: 'Currency', path: '/admin/currency' },
-      { icon: Translate, label: 'Language', path: '/admin/language' },
-      { icon: MagnifyingGlass, label: 'SEO Settings', path: '/admin/seo' },
-      { icon: MapPin, label: 'Maps/Geo API Settings', path: '/admin/maps-api' },
-      { icon: EnvelopeOpen, label: 'Send Push-Notification', path: '/admin/push-notifications' },
+      { icon: Gear, label: 'Paramètres généraux', path: '/admin/settings' },
+      { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-options' },
+      { icon: Wrench, label: 'Services principaux', path: '/admin/master-services' },
+      { icon: SealCheck, label: 'Devise', path: '/admin/currency' },
+      { icon: Translate, label: 'Langue', path: '/admin/language' },
+      { icon: MagnifyingGlass, label: 'Paramètres SEO', path: '/admin/seo' },
+      { icon: MapPin, label: 'Paramètres Maps/Geo', path: '/admin/maps-api' },
+      { icon: EnvelopeOpen, label: 'Notifications push', path: '/admin/push-notifications' },
       { icon: FileText, label: 'Documents', path: '/admin/documents' },
-      { icon: Car, label: 'Vehicle Make', path: '/admin/vehicle-makes' },
-      { icon: Car, label: 'Vehicle Model', path: '/admin/vehicle-models' },
-      { icon: FileText, label: 'DB Backup', path: '/admin/db-backup' },
+      { icon: Car, label: 'Marques véhicules', path: '/admin/vehicle-makes' },
+      { icon: Car, label: 'Modèles véhicules', path: '/admin/vehicle-models' },
+      { icon: FileText, label: 'Sauvegarde BDD', path: '/admin/db-backup' },
     ]
   },
   {
