@@ -75,6 +75,16 @@ const RideBookingPage = () => {
     { address: 'Tour Eiffel, Champ de Mars, 75007 Paris' },
   ]);
 
+  // French display labels + descriptions for each vehicle slug
+  const VEHICLE_META = {
+    sb:      { label: 'Standard',  desc: "Berline économique pour vos trajets quotidiens." },
+    confort: { label: 'Confort',   desc: "Véhicule spacieux avec plus de confort." },
+    luxe:    { label: 'Luxe',      desc: "Mercedes, Audi, BMW — chauffeurs d'élite." },
+    berline: { label: 'Berline',   desc: "Berline 4 places — business & longs trajets." },
+    van:     { label: 'Van',       desc: "Grande capacité jusqu'à 7 passagers." },
+    moto:    { label: 'Moto-taxi', desc: "Rapide aux heures de pointe." },
+  };
+
   useEffect(() => {
     if (searchParams.get('type') === 'schedule') setScheduleMode(true);
   }, [searchParams]);
@@ -252,7 +262,7 @@ const RideBookingPage = () => {
     return (
       <div className="mobile-container min-h-screen bg-white">
         {/* Header */}
-        <div className="bg-[#303F9F] px-4 py-4 flex items-center justify-between">
+        <div className="bg-blue-600 px-4 py-4 flex items-center justify-between">
           <h1 className="text-white font-bold text-lg">Planifier votre course</h1>
           <button onClick={() => navigate(-1)} className="text-white text-sm font-medium" data-testid="ride-cancel-btn">
             Annuler
@@ -278,9 +288,9 @@ const RideBookingPage = () => {
           <div className="flex gap-3">
             {/* Route line */}
             <div className="flex flex-col items-center pt-3 gap-1">
-              <div className="w-3 h-3 rounded-full bg-[#FF4500]" />
+              <div className="w-3 h-3 rounded-full bg-green-500" />
               <div className="w-0.5 flex-1 bg-gray-300" />
-              <div className="w-3 h-3 bg-gray-800" />
+              <div className="w-3 h-3 rounded-sm bg-slate-800" />
             </div>
             {/* Inputs */}
             <div className="flex-1 space-y-2">
@@ -517,7 +527,7 @@ const RideBookingPage = () => {
               {routePath.length > 0 && (
                 <PolylineF
                   path={routePath}
-                  options={{ strokeColor: '#FF4500', strokeOpacity: 0.9, strokeWeight: 5 }}
+                  options={{ strokeColor: '#3b82f6', strokeOpacity: 0.9, strokeWeight: 5 }}
                 />
               )}
             </GoogleMap>
@@ -543,6 +553,16 @@ const RideBookingPage = () => {
             </div>
           )}
 
+          {/* Floating "Location Taxi" shortcut (V3Cube "Rent A Taxi") */}
+          <button
+            onClick={() => navigate('/ride?type=rental')}
+            className="absolute top-4 right-4 z-[1000] bg-white px-3.5 py-2 rounded-xl shadow-lg flex items-center gap-1.5 active:scale-95 transition-transform"
+            data-testid="rent-a-taxi-btn"
+          >
+            <Car size={18} className="text-blue-600" weight="duotone" />
+            <span className="text-sm font-bold text-gray-800">Location Taxi</span>
+          </button>
+
           {/* ETA bubble */}
           {estimate?.duration_mins && (
             <div className="absolute top-6 right-4 z-[500] flex items-stretch gap-0 rounded-lg shadow-lg overflow-hidden">
@@ -552,7 +572,7 @@ const RideBookingPage = () => {
               </div>
               <div className="bg-white px-3 py-2 max-w-[180px]">
                 <p className="text-[11px] text-gray-500 leading-tight truncate">@Pour</p>
-                <p className="text-[11px] font-semibold text-[#FF4500] leading-tight truncate">{dropoff.address}</p>
+                <p className="text-[11px] font-semibold text-blue-600 leading-tight truncate">{dropoff.address}</p>
               </div>
             </div>
           )}
@@ -592,20 +612,21 @@ const RideBookingPage = () => {
                     ? estimate.estimated_fare?.toFixed(2) || v.min_fare?.toFixed(2)
                     : v.min_fare?.toFixed(2) || '--';
                   const isSelected = selectedVehicle === v.slug;
+                  const meta = VEHICLE_META[v.slug] || { label: v.name_fr, desc: v.description || 'Véhicule pour vos trajets' };
                   return (
                     <button
                       key={v.slug}
                       onClick={() => setSelectedVehicle(v.slug)}
-                      className={`w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 transition-colors ${isSelected ? 'bg-orange-50' : 'hover:bg-gray-50'}`}
+                      className={`w-full flex items-center gap-3 px-5 py-3 border-b border-gray-100 transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-gray-50'}`}
                       data-testid={`vehicle-${v.slug}`}
                     >
                       <div className="w-16 h-14 flex items-center justify-center flex-shrink-0">
                         <VehicleIcon iconType={v.icon_type} slug={v.slug} selected={isSelected} />
                       </div>
                       <div className="flex-1 text-left min-w-0">
-                        <p className="font-bold text-slate-800 text-[15px]">{v.name_fr}</p>
+                        <p className="font-bold text-slate-800 text-[15px]">{meta.label}</p>
                         <p className="text-[11px] text-gray-500 leading-tight mt-0.5 line-clamp-2">
-                          Proposez votre prix, negociez avec les chauffeurs
+                          {meta.desc}
                         </p>
                         <div className="flex items-center gap-1 mt-1">
                           <User size={12} className="text-gray-500" weight="fill" />
@@ -613,8 +634,8 @@ const RideBookingPage = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <span className="font-bold text-lg text-[#FF4500]">{fare} &euro;</span>
-                        <Info size={14} className="text-[#FF4500]" />
+                        <span className="font-bold text-lg text-blue-600">{fare} &euro;</span>
+                        <Info size={14} className="text-blue-600" />
                       </div>
                     </button>
                   );
@@ -675,7 +696,7 @@ const RideBookingPage = () => {
                 </button>
 
                 <button
-                  className="w-full mt-3 h-14 rounded-xl bg-[#FF4500] hover:bg-[#E53E00] text-white font-bold text-base disabled:opacity-60"
+                  className="w-full mt-3 h-14 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base disabled:opacity-60"
                   onClick={confirmRide}
                   disabled={loading}
                   data-testid="request-now-btn"

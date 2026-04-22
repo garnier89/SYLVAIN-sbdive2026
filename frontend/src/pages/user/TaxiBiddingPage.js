@@ -92,7 +92,12 @@ const TaxiBiddingPage = () => {
 
   const handleSubmit = async () => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }
-    if (fare <= 0) { toast.error('Tarif invalide'); return; }
+    // Fallback: if user hasn't touched the fare, use the estimate or average price
+    let finalFare = fare;
+    if (finalFare <= 0) {
+      finalFare = estimate?.estimated_fare || liveStats?.avg_accepted_fare || 10;
+      setFare(finalFare);
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/api/rides`, {
@@ -102,14 +107,17 @@ const TaxiBiddingPage = () => {
         body: JSON.stringify({
           pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
           dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
-          vehicle_type: vehicleType, payment_method: 'cash', proposed_fare: fare,
+          vehicle_type: vehicleType, payment_method: 'cash', proposed_fare: finalFare,
         }),
       });
       if (!res.ok) { const t = await res.text(); throw new Error(`ride ${res.status}: ${t}`); }
       const ride = await res.json();
       toast.success("Votre tarif a été envoyé aux chauffeurs !");
       navigate(`/ride/${ride.id}`);
-    } catch (e) { console.error(e); toast.error("Impossible de publier votre offre"); }
+    } catch (e) {
+      console.error('[TaxiBidding] submit failed:', e);
+      toast.error("Impossible de publier votre offre. Réessayez.");
+    }
     finally { setSubmitting(false); }
   };
 
@@ -295,7 +303,7 @@ const TaxiBiddingPage = () => {
           <div className="mx-5 mt-4 mb-3">
             <button
               onClick={handleSubmit}
-              disabled={submitting || fare <= 0}
+              disabled={submitting}
               className="w-full h-14 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold text-base shadow-lg transition-colors"
               data-testid="find-driver-btn"
             >
