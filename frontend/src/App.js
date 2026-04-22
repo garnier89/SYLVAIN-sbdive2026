@@ -43,6 +43,8 @@ import TowingServicesPage from './pages/user/TowingServicesPage';
 import MoreTaxiServicesPage from './pages/user/MoreTaxiServicesPage';
 import VideoConsultPage from './pages/user/VideoConsultPage';
 import BiddingPage from './pages/user/BiddingPage';
+import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
+import RunnerPage from './pages/user/RunnerPage';
 import IntercityRidePage from './pages/user/IntercityRidePage';
 import ParkingPage from './pages/user/ParkingPage';
 import GiftCardsPage from './pages/user/GiftCardsPage';
@@ -171,6 +173,9 @@ const AppRouter = () => {
       <Route path="/more-taxi" element={<ProtectedRoute allowedRoles={['user']}><MoreTaxiServicesPage /></ProtectedRoute>} />
       <Route path="/video-consult" element={<ProtectedRoute allowedRoles={['user']}><VideoConsultPage /></ProtectedRoute>} />
       <Route path="/bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
+      <Route path="/services-bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
+      <Route path="/taxi-bidding" element={<ProtectedRoute allowedRoles={['user']}><TaxiBiddingPage /></ProtectedRoute>} />
+      <Route path="/runner" element={<ProtectedRoute allowedRoles={['user']}><RunnerPage /></ProtectedRoute>} />
       <Route path="/intercity" element={<ProtectedRoute allowedRoles={['user']}><IntercityRidePage /></ProtectedRoute>} />
       <Route path="/parking" element={<ProtectedRoute allowedRoles={['user']}><ParkingPage /></ProtectedRoute>} />
       <Route path="/giftcards" element={<ProtectedRoute allowedRoles={['user']}><GiftCardsPage /></ProtectedRoute>} />

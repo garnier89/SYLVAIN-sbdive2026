@@ -64,7 +64,7 @@ const UserHome = () => {
     { id: 'taxi-pooling', name: 'VTC\nPooling', icon: UsersThree, bg: 'bg-teal-50', iconColor: 'text-teal-500', path: '/ride?type=pool' },
     { id: 'taxi-rental', name: 'VTC\nLocation', icon: Taxi, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/ride?type=rental' },
     { id: 'personal-driver', name: 'Chauffeur\nPrivé', icon: User, bg: 'bg-orange-50', iconColor: 'text-orange-700', path: '/ride?type=private' },
-    { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/bidding' },
+    { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/taxi-bidding' },
     { id: 'taxi-intercity', name: 'VTC\nIntercity', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/intercity' },
     { id: 'schedule-ride', name: 'Programmer\nCourse', icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/ride?type=schedule' },
     { id: 'more-taxi', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/more-taxi' },
@@ -74,7 +74,7 @@ const UserHome = () => {
   const deliveryServices = [
     { id: 'food-delivery', name: 'Livraison\nRepas', icon: ForkKnife, bg: 'bg-rose-50', iconColor: 'text-rose-500', path: '/food' },
     { id: 'grocery-delivery', name: 'Livraison\nCourses', icon: Storefront, bg: 'bg-emerald-50', iconColor: 'text-emerald-500', path: '/food' },
-    { id: 'medicine-delivery', name: 'Livraison\nMédicaments', icon: FirstAid, bg: 'bg-red-50', iconColor: 'text-red-500', path: '/food' },
+    { id: 'runner-courier', name: 'Coursier\nExpress', icon: Lightning, bg: 'bg-amber-50', iconColor: 'text-amber-500', path: '/runner' },
     { id: 'more-delivery', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/all-delivery' },
   ];
 
@@ -108,14 +108,14 @@ const UserHome = () => {
     { id: 'more-pet', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/pet-care' },
   ];
 
-  // ===== Bid for Services (6 items - 2x3 grid) =====
+  // ===== Bid for Services (6 items - 2x3 grid) — renvoie vers /services-bidding (marketplace enchères prestataires) =====
   const bidServices = [
-    { id: 'electrician', name: 'Électricien', icon: Lightning, bg: 'bg-yellow-50', iconColor: 'text-yellow-600' },
-    { id: 'plumber', name: 'Plombier', icon: Drop, bg: 'bg-blue-50', iconColor: 'text-blue-500' },
-    { id: 'carpenter', name: 'Menuisier', icon: Hammer, bg: 'bg-orange-50', iconColor: 'text-orange-600' },
-    { id: 'painters', name: 'Peintres', icon: PaintBrush, bg: 'bg-indigo-50', iconColor: 'text-indigo-500' },
-    { id: 'handyman-bid', name: 'Bricoleur', icon: Wrench, bg: 'bg-red-50', iconColor: 'text-red-500' },
-    { id: 'home-cleaning', name: 'Ménage\nMaison', icon: Broom, bg: 'bg-teal-50', iconColor: 'text-teal-600' },
+    { id: 'electrician', name: 'Électricien', icon: Lightning, bg: 'bg-yellow-50', iconColor: 'text-yellow-600', path: '/services-bidding?cat=bcat_electric' },
+    { id: 'plumber', name: 'Plombier', icon: Drop, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/services-bidding?cat=bcat_plumber' },
+    { id: 'carpenter', name: 'Menuisier', icon: Hammer, bg: 'bg-orange-50', iconColor: 'text-orange-600', path: '/services-bidding?cat=bcat_carpenter' },
+    { id: 'painters', name: 'Peintres', icon: PaintBrush, bg: 'bg-indigo-50', iconColor: 'text-indigo-500', path: '/services-bidding?cat=bcat_painter' },
+    { id: 'handyman-bid', name: 'Bricoleur', icon: Wrench, bg: 'bg-red-50', iconColor: 'text-red-500', path: '/services-bidding?cat=bcat_handyman' },
+    { id: 'home-cleaning', name: 'Ménage\nMaison', icon: Broom, bg: 'bg-teal-50', iconColor: 'text-teal-600', path: '/services-bidding?cat=bcat_cleaning' },
   ];
 
   // ===== Car Care Services (4 items) =====

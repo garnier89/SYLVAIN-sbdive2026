@@ -1,0 +1,49 @@
+{
+  "summary": "Frontend testing of iter54 — Taxi Bidding vs Services Bidding separation, Runner page, hybrid RideBookingPage. Logged in via POST /api/auth/login with test2@example.com. Core routes and new pages render correctly, but several testid/prefill/integration issues found.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/rides/estimate", "issue": "Returns 422 when TaxiBiddingPage auto-calls estimate with pickup_lat/pickup_lng/dropoff_lat/dropoff_lng/vehicle_type payload on prefill (Paris→Lyon). Prevents estimate-banner from rendering and fare from being suggested. Also triggers a JS TypeError 'Failed to execute json on Response: body stream already read' in fetchEstimate because error branch attempts to read body twice.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TaxiBiddingPage", "issue": "data-testid='pickup-input' and 'dropoff-input' NOT present on DOM. GooglePlacesInput component hard-codes its own data-testid='places-input' and does not forward the data-testid prop passed by TaxiBiddingPage.", "selector": "[data-testid='pickup-input'], [data-testid='dropoff-input']", "priority": "MEDIUM"},
+      {"component": "TaxiBiddingPage", "issue": "fare-minus / fare-plus / fare-input testids are only rendered when BOTH pickup && dropoff state objects are set (conditional `{pickup && dropoff && ...}`). On initial load they are absent — spec implies they should exist. Consider always rendering the fare picker or documenting the conditional behaviour.", "selector": "[data-testid='fare-input']", "priority": "MEDIUM"},
+      {"component": "TaxiBiddingPage prefill", "issue": "Query-param prefill (?pickup=Paris&plat=..&plng=..&dropoff=Lyon&dlat=..&dlng=..) sets internal state correctly BUT the two GooglePlacesInput fields render EMPTY — GooglePlacesInput does not accept/display a `value` prop reflecting parent state. User sees empty address fields despite URL params. Must pass a `value`/`defaultValue` to GooglePlacesInput and have the component display it.", "selector": "[data-testid='places-input']", "priority": "HIGH"},
+      {"component": "RunnerPage", "issue": "data-testid='runner-pickup' and 'runner-drop' NOT present. Same root cause — GooglePlacesInput does not forward data-testid prop.", "selector": "[data-testid='runner-pickup'], [data-testid='runner-drop']", "priority": "MEDIUM"},
+      {"component": "UserHome — 'Enchères VTC' card", "issue": "Clicking the 'Enchères VTC' card on /home did NOT navigate to /taxi-bidding — URL stayed on /home. Either the clickable area is wrong or there is a handler bug. (Coursier Express and Électricien cards ARE clickable.)", "selector": "text='Enchères VTC'", "priority": "HIGH"},
+      {"component": "UserHome — Bid for Services cards", "issue": "Clicking 'Électricien' navigated to /bidding instead of the expected /services-bidding?cat=bcat_electric. Source declares path='/services-bidding?cat=bcat_electric' but runtime URL drops the query string and goes to /bidding. Possible: match to wrong element or navigate using raw string. Needs investigation.", "selector": "text='Électricien'", "priority": "MEDIUM"},
+      {"component": "RideBookingPage /ride", "issue": "open-taxi-bidding-btn and request-now-btn not found on initial /ride view — page opens to 'Planifier votre course' picker. Buttons are only rendered once pickup+dropoff+vehicle are selected. Could not verify through full flow in this run; please confirm they appear after address selection and that click on open-taxi-bidding-btn navigates to /taxi-bidding?pickup=...&plat=...&dropoff=...&dlat=...", "selector": "[data-testid='open-taxi-bidding-btn']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Taxi Bidding estimate on prefill", "issue": "422 on /api/rides/estimate. Either backend schema expects different field names (e.g. nested pickup/dropoff objects) or the query-param lat/lng parsing passes stringified numbers. JS also crashes in catch branch.", "affected_selectors": ["[data-testid='estimate-banner']","[data-testid='fare-input']"]}
+    ],
+    "design_issues": [
+      {"screen": "LoginPage default", "issues": ["Default login UI is phone/OTP; there is NO visible 'Connexion email' option in the 'Choisir un compte' sheet (only Apple/Google/Facebook/Face ID). Testing agents cannot easily login via email from UI — had to authenticate via POST /api/auth/login."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix GooglePlacesInput to forward data-testid prop AND accept a controlled `value`/`defaultValue` so TaxiBiddingPage/RunnerPage prefill renders in the input box.",
+    "Fix TaxiBiddingPage.fetchEstimate: backend returns 422 — verify /api/rides/estimate payload shape; also fix double res.json() call in error path (store res.json() into const once).",
+    "Fix UserHome 'Enchères VTC' card: click does not navigate to /taxi-bidding.",
+    "Fix UserHome Bid-for-Services cards: click on Électricien navigates to /bidding (no query string) instead of /services-bidding?cat=bcat_electric.",
+    "Consider always-rendering the fare-picker block on TaxiBiddingPage (or explicitly document that fare-* testids appear only after addresses are set).",
+    "Add an email login option to the 'autre option de connexion' sheet (or a visible /admin-login-style link) so automated tests can reach /home with email+password."
+  ],
+  "critical_code_review_comments": [
+    "TaxiBiddingPage.fetchEstimate: `const data = await res.json()` runs on non-OK responses too; when the fetch later errors after body consumption you see 'body stream already read'. Wrap in `if(!res.ok) throw new Error(...)` before reading body, or read once into a variable.",
+    "GooglePlacesInput abstraction leaks: every consumer tries to pass data-testid but the child owns a hard-coded testid. Consider `data-testid={testId || 'places-input'}` and a controlled `value` prop.",
+    "TaxiBiddingPage success path does `navigate(/ride-tracking/${ride.id})` but App.js routes ride tracking as `/ride/:rideId` — will hit catch-all 404.",
+    "RunnerPage.handleSubmit posts `service_type: 'runner'` to /api/orders — not verified in this run; please confirm backend accepts this shape."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not in scope)", "frontend": "60%"},
+  "test_credentials": "test2@example.com / TestPass123! — logged in via POST /api/auth/login (email login UI not exposed in client app)",
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Email/password login is only callable via API — the client LoginPage forces phone/OTP and the 'autre option' sheet only lists Apple/Google/Facebook/FaceID. Use ctx.request.post('/api/auth/login', {email,password}) then page.goto() — cookies persist on the browser context. Routes verified: /taxi-bidding, /runner, /services-bidding (alias), /bidding all load. RideBookingPage open-taxi-bidding-btn/request-now-btn require prior pickup+dropoff+vehicle selection — retest through full happy-path. Prefill test for /taxi-bidding currently FAILS due to GooglePlacesInput not showing the prefilled value and /api/rides/estimate returning 422.",
+  "rca of the issue": "Root cause of missing pickup-input/dropoff-input/runner-pickup/runner-drop testids and of empty prefill addresses is a single component bug: GooglePlacesInput hard-codes data-testid='places-input' and ignores both the data-testid and value props passed by parents. Fix the component to: (1) `<input data-testid={props['data-testid'] || 'places-input'} defaultValue={props.value || ''} ... />` and (2) update parent addresses state to pass value='Paris' etc. /api/rides/estimate 422 is a separate backend contract mismatch between TaxiBiddingPage payload (pickup_lat/pickup_lng/dropoff_lat/dropoff_lng/vehicle_type) and the FastAPI schema — compare with RideBookingPage payload shape."
+}

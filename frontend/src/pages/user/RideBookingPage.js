@@ -8,7 +8,7 @@ import {
   NavigationArrow, MapTrifold, Clock, User,
   PencilSimple, Car, CreditCard, CaretRight, Motorcycle,
   Jeep, Lightning, Van, Wheelchair, AirplaneTilt,
-  Users, Percent, Calendar, Info, Money, ArrowLeft
+  Users, Percent, Calendar, Info, Money, ArrowLeft, Gavel
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { GoogleMap, useJsApiLoader, MarkerF, PolylineF } from '@react-google-maps/api';
@@ -633,32 +633,25 @@ const RideBookingPage = () => {
 
               {/* Payment + Offer + CTA */}
               <div className="border-t border-gray-100 px-5 py-3">
-                {/* Your offer input */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold text-slate-700">Votre offre de prix</label>
-                    {estimate?.estimated_fare && (
-                      <button onClick={() => setProposedFare(estimate.estimated_fare.toFixed(2))} className="text-[10px] text-[#FF4500] font-bold" data-testid="use-suggested-fare">
-                        Utiliser {estimate.estimated_fare.toFixed(2)} &euro;
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
-                    <span className="text-xl">&euro;</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.50"
-                      min="1"
-                      value={proposedFare}
-                      onChange={e => setProposedFare(e.target.value)}
-                      placeholder={estimate?.estimated_fare?.toFixed(2) || '0.00'}
-                      className="flex-1 bg-transparent outline-none text-xl font-bold text-slate-800 placeholder:text-gray-300"
-                      data-testid="proposed-fare-input"
-                    />
-                    <span className="text-[10px] text-gray-500 font-medium">Les chauffeurs peuvent accepter ou contre-proposer</span>
-                  </div>
-                </div>
+                {/* Negotiate fare redirect (hybrid V3Cube Taxi Bidding flow) */}
+                <button
+                  onClick={() => {
+                    const q = new URLSearchParams();
+                    if (pickup?.address) q.set('pickup', pickup.address);
+                    if (pickup?.lat) q.set('plat', pickup.lat);
+                    if (pickup?.lng) q.set('plng', pickup.lng);
+                    if (dropoff?.address) q.set('dropoff', dropoff.address);
+                    if (dropoff?.lat) q.set('dlat', dropoff.lat);
+                    if (dropoff?.lng) q.set('dlng', dropoff.lng);
+                    navigate(`/taxi-bidding?${q.toString()}`);
+                  }}
+                  className="w-full mb-3 py-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+                  data-testid="open-taxi-bidding-btn"
+                >
+                  <Gavel size={16} weight="duotone" />
+                  Proposer un prix différent
+                  <span className="text-[10px] text-pink-500 font-normal">(Enchères Taxi)</span>
+                </button>
 
                 <button
                   className="w-full flex items-center gap-3 py-3 border-b border-gray-100"
