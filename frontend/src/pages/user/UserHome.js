@@ -4,8 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
 import LocaleSelector from '../../components/LocaleSelector';
-import TopDriversWidget from '../../components/TopDriversWidget';
-import { simulationAPI } from '../../services/api';
 import {
   Car, Motorcycle, Package, ForkKnife,
   House, MapPin, Wallet, User,
@@ -17,8 +15,7 @@ import {
   Sparkle, Heart, Lightning, Drop, PaintBrush,
   Hammer, Buildings, Coffee, Wine,
   Stethoscope, Dog, UsersFour, Briefcase,
-  CarSimple, ShoppingBag, BatteryFull, HandSoap,
-  Play, Stop
+  CarSimple, ShoppingBag, BatteryFull, HandSoap
 } from '@phosphor-icons/react';
 
 const UserHome = () => {
@@ -26,37 +23,13 @@ const UserHome = () => {
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [simActive, setSimActive] = useState(false);
-  const [simDriver, setSimDriver] = useState(null);
-  const [simLoading, setSimLoading] = useState(false);
 
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Bienvenue');
     else if (hour < 18) setGreeting('Bienvenue');
     else setGreeting('Bonsoir');
-    // Check simulation status
-    simulationAPI.status().then(res => {
-      setSimActive(res.data.active);
-      if (res.data.active) setSimDriver(res.data);
-    }).catch(() => {});
   }, []);
-
-  const toggleSimulation = async () => {
-    setSimLoading(true);
-    try {
-      if (simActive) {
-        await simulationAPI.stop();
-        setSimActive(false);
-        setSimDriver(null);
-      } else {
-        const res = await simulationAPI.start();
-        setSimActive(true);
-        setSimDriver(res.data);
-      }
-    } catch (err) { console.error(err); }
-    finally { setSimLoading(false); }
-  };
 
   // ===== Taxi Services (8 items) =====
   const taxiServices = [
@@ -189,43 +162,6 @@ const UserHome = () => {
       {/* Search Overlay */}
       {showSearch && <SearchOverlay onClose={() => setShowSearch(false)} />}
 
-      {/* ===== SIMULATION MODE ===== */}
-      <div className="px-4 mt-3">
-        <div className={`rounded-xl border p-3 flex items-center gap-3 transition-all ${
-          simActive
-            ? 'bg-emerald-50 border-emerald-200'
-            : 'bg-gray-50 border-gray-200'
-        }`} data-testid="simulation-panel">
-          <button onClick={toggleSimulation} disabled={simLoading}
-            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-              simActive ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-gray-300'
-            }`} data-testid="simulation-toggle">
-            {simLoading ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : simActive ? (
-              <Stop size={18} className="text-white" weight="fill" />
-            ) : (
-              <Play size={18} className="text-white" weight="fill" />
-            )}
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className={`text-sm font-bold ${simActive ? 'text-emerald-700' : 'text-gray-600'}`}>
-              {simActive ? 'Simulation active' : 'Mode Simulation'}
-            </p>
-            {simActive && simDriver ? (
-              <p className="text-xs text-emerald-600 truncate">
-                {simDriver.driver_name} &bull; {simDriver.driver_vehicle}
-              </p>
-            ) : (
-              <p className="text-xs text-gray-400">Chauffeur virtuel pour tester les courses</p>
-            )}
-          </div>
-          {simActive && (
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-          )}
-        </div>
-      </div>
-
       {/* ===== PROMO BANNER ===== */}
       <div className="px-4 mt-3">
         <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide">
@@ -251,9 +187,6 @@ const UserHome = () => {
           </div>
         </div>
       </div>
-
-      {/* ===== TOP CHAUFFEURS WIDGET ===== */}
-      <TopDriversWidget />
 
       {/* ===== TAXI SERVICES ===== */}
       <div className="px-4 mt-5">

@@ -524,3 +524,37 @@ async def my_runner_orders(request: Request):
     user = await get_current_user(request)
     items = await db.runner_orders.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
     return items
+
+
+# ═══════════ TAXI BIDDING — LIVE INDICATORS ═══════════
+
+@router.get("/taxi-bidding/live-stats")
+async def taxi_bidding_live_stats(request: Request, lat: float = None, lng: float = None, radius_km: float = 15):
+    """Returns number of online drivers nearby + average accepted fare on last 10 rides.
+    Used by TaxiBiddingPage to show users realistic fare expectations.
+    """
+    # Count online drivers within radius (haversine proxy: simple bounding box ~0.135deg per 15km)
+    deg = max(0.1, radius_km / 111.0)
+    query = {"is_online": True, "status": "approved"}
+    if lat is not None and lng is not None:
+        query["current_lat"] = {"$gte": lat - deg, "$lte": lat + deg}
+        query["current_lng"] = {"$gte": lng - deg, "$lte": lng + deg}
+    online_drivers = await db.drivers.count_documents(query)
+
+    # Average accepted fare on last 10 completed rides
+    cursor = db.rides.find({"status": "completed", "final_fare": {"$gt": 0}}, {"_id": 0, "final_fare": 1}).sort("created_at", -1).limit(10)
+    fares = [r["final_fare"] async for r in cursor]
+    avg_fare = round(sum(fares) / len(fares), 2) if fares else None
+
+    # Acceptance rate estimate = ratio of rides that were negotiated and completed
+    negotiated = await db.rides.count_documents({"proposed_fare": {"$ne": None}})
+    accepted = await db.rides.count_documents({"proposed_fare": {"$ne": None}, "status": "completed"})
+    acceptance = round((accepted / negotiated) * 100) if negotiated > 0 else None
+
+    return {
+        "online_drivers_nearby": online_drivers,
+        "avg_accepted_fare": avg_fare,
+        "avg_fare_samples": len(fares),
+        "acceptance_rate_percent": acceptance,
+        "radius_km": radius_km,
+    }

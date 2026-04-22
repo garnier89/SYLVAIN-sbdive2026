@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Heart, Car } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import TopDriversWidget from '../../components/TopDriversWidget';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -66,6 +67,11 @@ const FavoriteDriversPage = () => {
           ))}
         </div>
       )}
+
+      {/* Top Chauffeurs de la plateforme (déplacé depuis UserHome) */}
+      <div className="mt-6">
+        <TopDriversWidget />
+      </div>
     </div>
   );
 };
