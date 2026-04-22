@@ -474,3 +474,53 @@ async def my_favorite_drivers_alias(request: Request):
     user = await get_current_user(request)
     favs = await db.favorite_drivers.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
     return favs
+
+
+# ═══════════ RUNNER / COURIER ═══════════
+
+@router.post("/runner/book")
+async def book_runner(request: Request):
+    """Book a courier for simple or multi-stop delivery."""
+    user = await get_current_user(request)
+    body = await request.json()
+
+    mode = body.get("mode", "simple")
+    pickup = {
+        "address": (body.get("pickup_address") or "").strip(),
+        "lat": body.get("pickup_lat"),
+        "lng": body.get("pickup_lng"),
+        "note": body.get("pickup_note", ""),
+    }
+    if not pickup["address"] or pickup["lat"] is None:
+        raise HTTPException(status_code=400, detail="pickup required")
+
+    drops = body.get("drops") or []
+    if not drops:
+        raise HTTPException(status_code=400, detail="at least one drop required")
+
+    doc = {
+        "id": f"runner_{uuid.uuid4().hex[:10]}",
+        "user_id": user["id"],
+        "user_name": user.get("name"),
+        "user_phone": user.get("phone"),
+        "service_type": "runner",
+        "mode": mode,
+        "package_type": body.get("package_type", "document"),
+        "pickup": pickup,
+        "drops": drops[:5],
+        "estimated_fare": float(body.get("estimated_fare") or 0),
+        "status": "pending",
+        "driver_id": None,
+        "payment_method": body.get("payment_method", "cash"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.runner_orders.insert_one(doc)
+    doc.pop("_id", None)
+    return {"message": "Coursier commandé", "order": doc}
+
+
+@router.get("/runner/my")
+async def my_runner_orders(request: Request):
+    user = await get_current_user(request)
+    items = await db.runner_orders.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return items

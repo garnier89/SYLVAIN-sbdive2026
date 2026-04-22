@@ -93,7 +93,7 @@ const RunnerPage = () => {
               name: s.name, phone: s.phone, note: s.note,
             })),
       };
-      const res = await fetch(`${API}/api/orders`, {
+      const res = await fetch(`${API}/api/phase2/runner/book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -169,8 +169,9 @@ const RunnerPage = () => {
           </label>
           <GooglePlacesInput
             placeholder="Adresse de ramassage"
-            onPlaceSelected={(p) => setPickup({ address: p.formatted_address, lat: p.geometry?.location?.lat(), lng: p.geometry?.location?.lng() })}
-            data-testid="runner-pickup"
+            value={pickup?.address || ''}
+            testId="runner-pickup"
+            onSelect={(r) => setPickup({ address: r.address, lat: r.lat, lng: r.lng })}
           />
           <input
             type="text"
@@ -190,8 +191,9 @@ const RunnerPage = () => {
             </label>
             <GooglePlacesInput
               placeholder="Adresse de livraison"
-              onPlaceSelected={(p) => setDrop({ address: p.formatted_address, lat: p.geometry?.location?.lat(), lng: p.geometry?.location?.lng() })}
-              data-testid="runner-drop"
+              value={drop?.address || ''}
+              testId="runner-drop"
+              onSelect={(r) => setDrop({ address: r.address, lat: r.lat, lng: r.lng })}
             />
             <div className="grid grid-cols-2 gap-2 mt-2">
               <input type="text" placeholder="Nom destinataire" value={dropContact.name}
@@ -225,7 +227,9 @@ const RunnerPage = () => {
                   </div>
                   <GooglePlacesInput
                     placeholder="Adresse"
-                    onPlaceSelected={(p) => updateStop(idx, 'address', { address: p.formatted_address, lat: p.geometry?.location?.lat(), lng: p.geometry?.location?.lng() })}
+                    value={s.address?.address || ''}
+                    testId={`runner-stop-${idx}`}
+                    onSelect={(r) => updateStop(idx, 'address', { address: r.address, lat: r.lat, lng: r.lng })}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input type="text" placeholder="Nom" value={s.name} onChange={(e) => updateStop(idx, 'name', e.target.value)}

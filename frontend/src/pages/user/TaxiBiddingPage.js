@@ -46,6 +46,7 @@ const TaxiBiddingPage = () => {
   }, [pickup, dropoff, vehicleType]);
 
   const fetchEstimate = async () => {
+    if (!pickup?.lat || !dropoff?.lat) return;
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/rides/estimate`, {
@@ -54,13 +55,19 @@ const TaxiBiddingPage = () => {
         credentials: 'include',
         body: JSON.stringify({
           pickup_lat: pickup.lat, pickup_lng: pickup.lng,
+          pickup_address: pickup.address,
           dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng,
+          dropoff_address: dropoff.address,
           vehicle_type: vehicleType,
+          payment_method: 'cash',
         }),
       });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`estimate ${res.status}: ${t}`);
+      }
       const data = await res.json();
       setEstimate(data);
-      // Start at 95% of estimate to show opportunity for savings
       if (data?.estimated_fare) setFare(Math.round(data.estimated_fare * 0.95 * 100) / 100);
     } catch (e) { console.error(e); toast.error("Impossible d'estimer le trajet"); }
     finally { setLoading(false); }
@@ -79,16 +86,17 @@ const TaxiBiddingPage = () => {
           pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
           dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
           vehicle_type: vehicleType,
-          proposed_fare: fare,
           payment_method: 'cash',
-          estimated_fare: estimate?.estimated_fare || fare,
-          distance_km: estimate?.distance_km || 0,
+          proposed_fare: fare,
         }),
       });
-      if (!res.ok) throw new Error('ride create failed');
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`ride ${res.status}: ${t}`);
+      }
       const ride = await res.json();
       toast.success("Votre tarif a été envoyé aux chauffeurs !");
-      navigate(`/ride-tracking/${ride.id}`);
+      navigate(`/ride/${ride.id}`);
     } catch (e) { console.error(e); toast.error("Impossible de publier votre offre"); }
     finally { setSubmitting(false); }
   };
@@ -132,16 +140,18 @@ const TaxiBiddingPage = () => {
             <label className="text-xs font-semibold text-gray-600 block mb-1">Lieu de départ</label>
             <GooglePlacesInput
               placeholder="Adresse de départ"
-              onPlaceSelected={(p) => setPickup({ address: p.formatted_address, lat: p.geometry?.location?.lat(), lng: p.geometry?.location?.lng() })}
-              data-testid="pickup-input"
+              value={pickup?.address || ''}
+              testId="pickup-input"
+              onSelect={(r) => setPickup({ address: r.address, lat: r.lat, lng: r.lng })}
             />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-600 block mb-1">Destination</label>
             <GooglePlacesInput
               placeholder="Où allez-vous ?"
-              onPlaceSelected={(p) => setDropoff({ address: p.formatted_address, lat: p.geometry?.location?.lat(), lng: p.geometry?.location?.lng() })}
-              data-testid="dropoff-input"
+              value={dropoff?.address || ''}
+              testId="dropoff-input"
+              onSelect={(r) => setDropoff({ address: r.address, lat: r.lat, lng: r.lng })}
             />
           </div>
         </div>
@@ -183,31 +193,32 @@ const TaxiBiddingPage = () => {
           </div>
         )}
 
-        {/* Fare picker */}
-        {pickup && dropoff && (
-          <div className="border border-gray-200 rounded-2xl p-5 bg-gradient-to-br from-white to-gray-50">
-            <p className="text-center text-sm font-semibold text-gray-700 mb-3">Saisissez votre tarif</p>
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <button onClick={() => adjustFare(-1)} className="w-12 h-12 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center" data-testid="fare-minus">
-                <Minus size={20} weight="bold" />
-              </button>
-              <div className="flex-1 max-w-[180px] bg-white border-2 border-gray-200 rounded-xl py-3 text-center">
-                <input
-                  type="number"
-                  value={fare}
-                  onChange={(e) => setFare(parseFloat(e.target.value) || 0)}
-                  className="w-full text-3xl font-bold text-gray-900 text-center outline-none"
-                  data-testid="fare-input"
-                />
-                <p className="text-xs text-gray-400">EUR</p>
-              </div>
-              <button onClick={() => adjustFare(1)} className="w-12 h-12 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center" data-testid="fare-plus">
-                <Plus size={20} weight="bold" />
-              </button>
+        {/* Fare picker — always rendered for accessibility */}
+        <div className={`border border-gray-200 rounded-2xl p-5 bg-gradient-to-br from-white to-gray-50 ${(!pickup || !dropoff) ? 'opacity-60' : ''}`} data-testid="fare-picker">
+          <p className="text-center text-sm font-semibold text-gray-700 mb-3">
+            {(!pickup || !dropoff) ? 'Saisissez les adresses pour continuer' : 'Saisissez votre tarif'}
+          </p>
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <button onClick={() => adjustFare(-1)} disabled={!pickup || !dropoff} className="w-12 h-12 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center disabled:bg-gray-300" data-testid="fare-minus">
+              <Minus size={20} weight="bold" />
+            </button>
+            <div className="flex-1 max-w-[180px] bg-white border-2 border-gray-200 rounded-xl py-3 text-center">
+              <input
+                type="number"
+                value={fare}
+                onChange={(e) => setFare(parseFloat(e.target.value) || 0)}
+                className="w-full text-3xl font-bold text-gray-900 text-center outline-none"
+                disabled={!pickup || !dropoff}
+                data-testid="fare-input"
+              />
+              <p className="text-xs text-gray-400">EUR</p>
             </div>
-            <p className="text-[11px] text-gray-400 text-center">Taxe appliquée sur le montant final</p>
+            <button onClick={() => adjustFare(1)} disabled={!pickup || !dropoff} className="w-12 h-12 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center disabled:bg-gray-300" data-testid="fare-plus">
+              <Plus size={20} weight="bold" />
+            </button>
           </div>
-        )}
+          <p className="text-[11px] text-gray-400 text-center">Taxe appliquée sur le montant final</p>
+        </div>
 
         {/* Submit */}
         <button

@@ -405,7 +405,7 @@ const UserHome = () => {
               {bidServices.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => navigate('/bidding')}
+                  onClick={() => navigate(s.path || '/services-bidding')}
                   className="bg-white rounded-xl p-2.5 flex items-center gap-2 hover:shadow-sm transition-shadow border border-gray-100"
                   data-testid={`bid-${s.id}-btn`}
                 >
