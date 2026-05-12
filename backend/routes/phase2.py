@@ -498,12 +498,16 @@ async def book_runner(request: Request):
     if not drops:
         raise HTTPException(status_code=400, detail="at least one drop required")
 
+    requested_service_type = (body.get("service_type") or "runner").lower()
+    if requested_service_type not in ("runner", "genie"):
+        requested_service_type = "runner"
+
     doc = {
         "id": f"runner_{uuid.uuid4().hex[:10]}",
         "user_id": user["id"],
         "user_name": user.get("name"),
         "user_phone": user.get("phone"),
-        "service_type": "runner",
+        "service_type": requested_service_type,
         "mode": mode,
         "package_type": body.get("package_type", "document"),
         "pickup": pickup,

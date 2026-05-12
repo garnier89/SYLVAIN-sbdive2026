@@ -276,3 +276,49 @@ Chauffeur virtuel via WebSocket
 - Backend /api/admin/* (CRUD vehicle-types, merchant status, stats)
 - Route /app pour l'onboarding client
 - Iteration 32: 100% pass (27/27)
+
+
+
+## Iteration 60 (Feb 12, 2026) — V3Cube Home Parity Additions + RideBookingPage Refactor (DONE)
+### Services manquants ajoutés sur la page d'accueil client (`UserHome.js`)
+- **Section "Livraison Genie & Runner"** (2 grandes cartes côte-à-côte) :
+  - *Delivery Genie* → `/runner?mode=genie` (un Genie achète vos articles à votre place)
+  - *Delivery Runner* → `/runner` (coursier express classique)
+- **Services Beauté** étendus de 4 → 8 items : Soins Cheveux, Skin & Facial, Vernis Ongles, Épilation, Maquillage & Coiffure, Massage & Spa, Soins Hommes, Plus.
+- **Entretien Auto** étendu de 4 → 8 items : Lavage Auto, Service Batterie, Boutique, Carburant, Lavage Vélos, Recharge EV, Serrurerie Auto, Plus.
+- **Dépannage & Remorquage** : bouton unique remplacé par une grille de 6 items (Remorquage Urgence, Plateau, Récupération Véhicule, Pneu Crevé, Serrure Voiture, Plus).
+- Nouveaux imports d'icônes Phosphor : `Bicycle, Plug, Key, HairDryer, MaskHappy, Bag`.
+
+### RunnerPage — détection ?mode=genie
+- `useSearchParams` lit `mode=genie` → bascule le titre vers "Delivery Genie" + icône `Bag` + sous-titre dédié.
+- `service_type` envoyé au backend = `'genie'` ou `'runner'` selon le mode.
+
+### Refactor RideBookingPage.js (835 → ~295 lignes)
+- Découpé en 4 sous-composants sous `/app/frontend/src/pages/user/ride/` :
+  - `RidePlanStep.jsx` (Step 1 : pickup/dropoff, favoris, lieux récents, modal "pour qui")
+  - `RideMapStep.jsx` (Step 2 : Google Map + bottom sheet véhicules + paiement + CTA)
+  - `RideNegotiationStep.jsx` (Step 2.5 : contre-offres chauffeurs)
+  - `RideSearchingStep.jsx` (Step 3 : fallback recherche chauffeur)
+- État + side-effects (geolocation, polling rideAPI, estimate) restent dans le parent.
+
+### Backend — `/api/phase2/runner/book`
+- Respecte désormais `body.service_type` ∈ {`runner`, `genie`} au lieu de hardcoder `'runner'`.
+
+### Fix annexe
+- `AdminServiceConfig.js` : déplacement des hooks `useState`/`useEffect` AVANT le early-return `!config` (violation des règles React Hooks qui bloquait la compilation).
+- `RidePlanStep.jsx` : data-testid `add-stopover-btn` ajouté sur le bouton "+".
+
+### Tests (iteration_60.json)
+- Backend smoke 13/13 ✅
+- Frontend 100% (nouvelles sections home + flow ride refactorisé Step1↔Step2 + modal Book For + lieux récents)
+- 2 issues non-bloquantes connues : (1) clé Google Maps expirée en preview (overlay "Oops" mais UI sous-jacente OK), (2) warning "Google Maps API loaded multiple times" (dédupe possible via loader unique).
+
+## Backlog restant (P2/P3 — mis à jour)
+- Centraliser `<LoadScript>` / `useJsApiLoader` (un seul loader Maps au niveau App)
+- Géocodage réel pour les Lieux Récents (actuellement coords aléatoires autour de Paris)
+- Phase 2 UI : Heat View carte densité, Taxi Pool, Waybill, Tip, Airport geofence
+- Phase 3 : VOIP/Video (Twilio), Photo zone pickup, Lost & Found
+- Merchant self-service Stripe checkout pour Sponsored Listings
+- Stripe paiements réels, push notifications, dynamic pricing, WhatsApp booking, Hire a Driver
+- Localiser les H1 restants du dashboard admin en français
+- Extraire les arrays de catégories de `UserHome.js` (encore ~590 lignes) vers `/src/data/homeSections.js`

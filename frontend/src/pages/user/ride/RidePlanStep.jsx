@@ -84,7 +84,7 @@ export const RidePlanStep = ({
                 setStopovers((s) => [...s, { address: '', lat: null, lng: null }]);
               }}
               className="w-9 h-9 rounded-full bg-[#FF4500] flex items-center justify-center disabled:opacity-50"
-              data-testid="ride-add-stop-btn"
+              data-testid="add-stopover-btn"
               disabled={stopovers.length >= 5}
             >
               <Plus size={18} className="text-white" weight="bold" />
