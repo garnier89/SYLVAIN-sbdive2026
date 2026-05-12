@@ -93,7 +93,7 @@ const OrderTracking = () => {
     if (!wsUrl) return;
 
     try {
-      wsRef.current = new WebSocket(`${wsUrl}/ws/${user.id}`);
+      wsRef.current = new WebSocket(`${wsUrl}/api/ws/${user.id}`);
       
       wsRef.current.onopen = () => {
         console.log('WebSocket connected for order tracking');

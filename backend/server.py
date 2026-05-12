@@ -378,8 +378,8 @@ api_router.include_router(finance_router)
 
 app.include_router(api_router)
 
-# WebSocket (not behind /api prefix)
-@app.websocket("/ws/{client_id}")
+# WebSocket — mounted under /api so it passes through the ingress
+@app.websocket("/api/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(websocket, client_id)
     try:

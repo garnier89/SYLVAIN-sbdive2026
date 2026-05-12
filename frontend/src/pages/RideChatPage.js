@@ -34,7 +34,7 @@ const RideChatPage = () => {
   useEffect(() => {
     if (!me) return;
     const wsBase = API.replace(/^http/, 'ws');
-    const ws = new WebSocket(`${wsBase}/ws/ride/${rideId}/${me.id}`);
+    const ws = new WebSocket(`${wsBase}/api/ws/ride/${rideId}/${me.id}`);
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);

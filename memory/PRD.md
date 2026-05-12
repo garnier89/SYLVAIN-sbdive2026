@@ -349,6 +349,48 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 66 (Feb 12, 2026) — WebSocket cockpit + Dashboard V3Cube enrichi (DONE)
+### A) Cockpit temps réel sur `/admin/live-rides`
+- **Backend** : `POST /api/rides` appelle désormais `manager.broadcast_to_admins({type:'new_ride_request', ride_id, booking_no, pickup_lat/lng, addresses, vehicle_type, estimated_fare, distance_km, user_id, created_at})` en plus du broadcast aux chauffeurs.
+- **Frontend `AdminLiveRides.js`** :
+  - WebSocket `wss://.../api/ws/admin_<userId>_<ts>` ouvert à l'arrivée sur la page.
+  - À la réception d'un `new_ride_request` : 🔔 **son ping** (data-URI WAV 440Hz, persistance localStorage `admin_live_sound`), 📣 **toast sonner** "🚖 Nouvelle course #...", 💫 **flash visuel 5s** sur la ligne de la liste (`animate-pulse ring-2 ring-amber-300` + icône Bell qui rebondit).
+  - Bouton `Son ON/OFF` (data-testid `toggle-sound-btn`) dans le header.
+  - Polling fallback réduit à 15s (le WS gère le temps réel).
+
+### B) Fix CRITIQUE - WebSocket path
+- **Bug** : `/ws/{client_id}` était mounté hors préfixe `/api`, donc l'ingress Kubernetes/Cloudflare ne le routait pas vers backend:8001 (404 / SPA HTML retournée).
+- **Fix** : déplacement vers `@app.websocket("/api/ws/{client_id}")` dans `server.py` + mise à jour des 4 clients frontend (`AdminLiveRides`, `OrderTracking`, `RideChatPage`, `hooks/useWebSocket`).
+- **Vérification E2E manuelle** : `wss://.../api/ws/admin_smoketest` → ping/pong OK. User crée une course via `POST /api/rides` → admin reçoit `new_ride_request` (booking 81709910, fare 10€) en ~1s. ✅
+
+### C) Dashboard V3Cube enrichi (`/admin`)
+- 6 nouvelles cartes V3Cube ajoutées après la ligne KPI :
+  - **Services à la demande** (Total Trips + Parcel Deliveries, tabs Aujourd'hui/Total)
+  - **Consultation Vidéo** (Consultations + Terminées)
+  - **Delivery Genie / Runner** (Runner + Genie)
+  - **Acheter, Vendre & Louer** (Voitures + Objets généraux + Immobilier)
+  - **Livraisons Boutiques** (Total Orders + Active Stores)
+  - **Covoiturage (Ride Share)** (En cours + Terminées)
+- Composants réutilisables : `ServiceMiniCard` (générique 2 stats + tabs + Voir tout) et `BuySellRentCard` (3 catégories spécifiques marketplace).
+- data-testids ajoutés : `on-demand-services-card`, `video-consult-card`, `genie-runner-card`, `buy-sell-rent-card`, `store-deliveries-card`, `ride-share-card`.
+
+### Tests
+- **iter65** initial : 7/8 backend OK, bug critique WS détecté → fixé.
+- **iter66** E2E manuel : WS connect via URL publique ✅, broadcast admin sur création de course ✅.
+- Régression iter62 (live-rides, SB PayGo auto-debit, profile tabs) toujours OK.
+
+### Bugs connus non bloquants
+- `REACT_APP_GOOGLE_MAPS_KEY` expirée — la clé Google Maps casse les widgets Google Maps (booking page, God's View embed). Le cockpit `/admin/live-rides` n'est PAS impacté (Leaflet/OSM). À renouveler par l'utilisateur.
+- God's View affiche "Oops! Something went wrong." sur `/admin` — conséquence directe de la clé Maps expirée.
+
+### Backlog mis à jour
+- 🔴 **P1** : Renouveler la clé Google Maps (action utilisateur)
+- P1 : Migrer God's View vers Leaflet (comme AdminLiveRides) pour ne plus dépendre de Google Maps
+- P1 : Phase 3 (VOIP/Twilio, Photo zone pickup, Lost & Found)
+- P2 : Stripe paiements réels · Merchant checkout · Push notifications
+
+
+
 ## Iteration 64 (Feb 12, 2026) — Admin Live Rides + SB PayGo auto-debit + Profile Tabs (DONE)
 ### A) Admin Live Ride Tracking
 - **Backend** : nouveau endpoint `GET /api/admin/live-rides` (admin/dispatcher only). Retourne `{rides[], counts:{pending,accepted,arriving,in_progress}, total}` avec coords pickup/dropoff/driver (depuis WS manager) + passenger_name/phone enrichis.

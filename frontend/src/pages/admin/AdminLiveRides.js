@@ -57,7 +57,7 @@ const AdminLiveRides = () => {
   useEffect(() => {
     if (!user?.id) return;
     const clientId = `admin_${user.id}_${Date.now()}`;
-    const ws = new WebSocket(`${WS_URL}/ws/${clientId}`);
+    const ws = new WebSocket(`${WS_URL}/api/ws/${clientId}`);
     wsRef.current = ws;
 
     ws.onmessage = (e) => {

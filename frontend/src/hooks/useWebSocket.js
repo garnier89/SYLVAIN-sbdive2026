@@ -12,7 +12,7 @@ export function useWebSocket(userId) {
   const connect = useCallback(() => {
     if (!userId) return;
     const wsUrl = API.replace('https://', 'wss://').replace('http://', 'ws://');
-    const ws = new WebSocket(`${wsUrl}/ws/${userId}`);
+    const ws = new WebSocket(`${wsUrl}/api/ws/${userId}`);
 
     ws.onopen = () => {
       setConnected(true);
