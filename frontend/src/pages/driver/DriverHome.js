@@ -23,6 +23,7 @@ const DriverHome = () => {
   const [rewardsActive, setRewardsActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
+  const [showMenu, setShowMenu] = useState(false);
   const locationWatchId = useRef(null);
 
   const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
@@ -181,8 +182,8 @@ const DriverHome = () => {
     <div className="mobile-container bg-white min-h-screen relative pb-20" data-testid="driver-home-page">
       {/* GREEN HEADER */}
       <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: '#00B578' }}>
-        <button onClick={() => navigate('/chauffeur/profile')} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="profile-btn">
-          <User size={20} className="text-white" />
+        <button onClick={() => setShowMenu(true)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="driver-menu-btn">
+          <List size={20} className="text-white" />
         </button>
         <button onClick={toggleOnline}
           className={`flex items-center gap-2 px-5 py-2 rounded-full border-2 ${

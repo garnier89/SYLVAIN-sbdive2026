@@ -34,6 +34,7 @@ from routes.cart import router as cart_router
 from routes.admin import router as admin_router
 from routes.phase1 import router as phase1_router
 from routes.phase2 import router as phase2_router
+from routes.finance import router as finance_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -373,6 +374,7 @@ api_router.include_router(cart_router)
 api_router.include_router(admin_router)
 api_router.include_router(phase1_router)
 api_router.include_router(phase2_router)
+api_router.include_router(finance_router)
 
 app.include_router(api_router)
 

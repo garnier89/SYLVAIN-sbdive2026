@@ -192,7 +192,7 @@ const sidebarConfig = [
     title: 'PARAMÈTRES & UTILITAIRES',
     items: [
       { icon: Gear, label: 'Paramètres généraux', path: '/admin/settings' },
-      { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-options' },
+      { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-methods' },
       { icon: Wrench, label: 'Services principaux', path: '/admin/master-services' },
       { icon: SealCheck, label: 'Devise', path: '/admin/currency' },
       { icon: Translate, label: 'Langue', path: '/admin/language' },

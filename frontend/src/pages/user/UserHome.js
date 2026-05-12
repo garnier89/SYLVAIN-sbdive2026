@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
+import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
 import {
   Car, Motorcycle, Package, ForkKnife,
@@ -24,6 +25,7 @@ const UserHome = () => {
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
   const PROMO_COUNT = 2;
 
@@ -155,7 +157,7 @@ const UserHome = () => {
       <div className="bg-white px-4 pt-5 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            <List size={24} className="text-gray-700 mr-2 cursor-pointer" data-testid="menu-btn" />
+            <List size={24} className="text-gray-700 mr-2 cursor-pointer" data-testid="menu-btn" onClick={() => setShowMenu(true)} />
             <div>
               <p className="text-xs text-gray-400">{greeting},</p>
               <h2 className="text-lg font-bold text-gray-900">{user?.name || 'Utilisateur'}</h2>
@@ -190,6 +192,9 @@ const UserHome = () => {
 
       {/* Search Overlay */}
       {showSearch && <SearchOverlay onClose={() => setShowSearch(false)} />}
+
+      {/* Side menu drawer */}
+      <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 
       {/* ===== PROMO BANNER (auto-rotating carousel) ===== */}
       <div className="px-4 mt-3" data-testid="promo-banner-carousel">

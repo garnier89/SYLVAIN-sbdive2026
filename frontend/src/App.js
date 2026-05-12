@@ -49,6 +49,7 @@ import IntercityRidePage from './pages/user/IntercityRidePage';
 import ParkingPage from './pages/user/ParkingPage';
 import GiftCardsPage from './pages/user/GiftCardsPage';
 import TrackingServicePage from './pages/user/TrackingServicePage';
+import FinancePage from './pages/user/FinancePage';
 
 // SB Drive Chauffeur Pages
 import ChauffeurWelcome from './pages/chauffeur/ChauffeurWelcome';
@@ -114,6 +115,7 @@ import AdminTopDriversSettings from './pages/admin/AdminTopDriversSettings';
 import AdminDbBackup from './pages/admin/AdminDbBackup';
 import AdminNegotiationGapReport from './pages/admin/AdminNegotiationGapReport';
 import AdminFeaturedListings from './pages/admin/AdminFeaturedListings';
+import AdminPaymentMethods from './pages/admin/AdminPaymentMethods';
 import TopDriversPage from './pages/TopDriversPage';
 import RideChatPage from './pages/RideChatPage';
 import EmergencyContactsPage from './pages/user/EmergencyContactsPage';
@@ -182,6 +184,7 @@ const AppRouter = () => {
       <Route path="/parking" element={<ProtectedRoute allowedRoles={['user']}><ParkingPage /></ProtectedRoute>} />
       <Route path="/giftcards" element={<ProtectedRoute allowedRoles={['user']}><GiftCardsPage /></ProtectedRoute>} />
       <Route path="/tracking" element={<ProtectedRoute allowedRoles={['user']}><TrackingServicePage /></ProtectedRoute>} />
+      <Route path="/finance" element={<ProtectedRoute allowedRoles={['user', 'driver']}><FinancePage /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><WalletPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
@@ -284,7 +287,8 @@ const AppRouter = () => {
         <Route path="trip-help-requests" element={<AdminTripHelpRequests />} />
         <Route path="push-notifications" element={<AdminPushNotifications />} />
         {/* Settings & Utilities extras */}
-        <Route path="payment-options" element={<AdminServiceConfig serviceKey="payment-options" />} />
+        <Route path="payment-options" element={<AdminPaymentMethods />} />
+        <Route path="payment-methods" element={<AdminPaymentMethods />} />
         <Route path="currency" element={<AdminServiceConfig serviceKey="currency" />} />
         <Route path="language" element={<AdminServiceConfig serviceKey="language" />} />
         <Route path="seo" element={<AdminServiceConfig serviceKey="seo" />} />
