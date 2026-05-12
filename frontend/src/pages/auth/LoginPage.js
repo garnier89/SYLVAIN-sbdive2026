@@ -43,7 +43,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const getFullPhone = () => `${countryCode.code} ${phone.trim()}`;
+  const getFullPhone = () => `${countryCode.code}${phone.trim().replace(/\s+/g, '')}`;
 
   /* ── Step 1: Check phone ── */
   const handleCheckPhone = async () => {
@@ -106,7 +106,12 @@ const LoginPage = () => {
         // Token managed via httpOnly cookies set by backend
       }
       setUser(data.user);
-      navigate('/home');
+      // Route based on user role so drivers/admins/merchants land on their own app
+      const role = data.user?.role;
+      if (role === 'driver') navigate('/chauffeur/home');
+      else if (role === 'admin' || role === 'dispatcher') navigate('/admin');
+      else if (role === 'merchant') navigate('/merchant');
+      else navigate('/home');
     } catch (err) {
       console.error('Phone login error:', err);
       setError('Erreur de connexion');

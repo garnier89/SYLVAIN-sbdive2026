@@ -20,7 +20,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/check-phone")
 async def check_phone(data: dict):
     """Check if a phone number is already registered."""
-    phone = data.get("phone", "").strip()
+    phone = data.get("phone", "").strip().replace(" ", "")
     if not phone:
         raise HTTPException(status_code=400, detail="Phone number required")
     user = await db.users.find_one({"phone": phone}, {"_id": 0, "id": 1, "name": 1, "phone": 1})
@@ -30,7 +30,7 @@ async def check_phone(data: dict):
 @router.post("/phone-login", response_model=TokenResponse)
 async def phone_login(data: dict, request: Request, response: Response):
     """Login with phone + password."""
-    phone = data.get("phone", "").strip()
+    phone = data.get("phone", "").strip().replace(" ", "")
     password = data.get("password", "")
     if not phone or not password:
         raise HTTPException(status_code=400, detail="Phone and password required")
