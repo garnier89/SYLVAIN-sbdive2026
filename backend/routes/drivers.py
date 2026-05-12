@@ -163,6 +163,11 @@ def _resolve_palette(points: int, palettes: list):
     for p in palettes:
         if p["min_points"] <= points <= p["max_points"]:
             return p
+    # Overflow: points exceed all ranges → return the highest palette
+    if palettes:
+        highest = max(palettes, key=lambda p: p["max_points"])
+        if points > highest["max_points"]:
+            return highest
     return palettes[0] if palettes else None
 
 

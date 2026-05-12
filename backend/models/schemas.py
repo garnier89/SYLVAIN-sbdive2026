@@ -53,10 +53,10 @@ class DriverCreate(BaseModel):
 class DriverProfile(BaseModel):
     id: str
     user_id: str
-    vehicle_type: str
-    vehicle_number: str
-    vehicle_model: str
-    license_number: str
+    vehicle_type: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    vehicle_model: Optional[str] = None
+    license_number: Optional[str] = None
     status: str
     is_online: bool = False
     current_lat: Optional[float] = None
