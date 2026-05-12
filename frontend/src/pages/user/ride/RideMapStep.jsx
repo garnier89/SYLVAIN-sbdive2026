@@ -1,11 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, MarkerF, PolylineF } from '@react-google-maps/api';
+import LeafletMap from '../../../components/LeafletMap';
 import {
   ArrowLeft, Car, CreditCard, CaretRight, Motorcycle,
   Jeep, Lightning, Van, Wheelchair, AirplaneTilt,
-  Users, Info, Money, Gavel, User,
+  Users, Info, Money, Gavel, User, Wallet, DeviceMobile, Waves, Bank,
 } from '@phosphor-icons/react';
+
+const PM_ICON_MAP = { Money, CreditCard, Wallet, DeviceMobile, Waves, Bank };
 
 const VehicleIcon = ({ iconType, slug, selected }) => {
   const cls = selected ? 'text-[#FF4500]' : 'text-gray-600';
@@ -57,45 +59,21 @@ export const RideMapStep = ({
 
   return (
     <div className="mobile-container min-h-screen bg-white relative">
-      {/* Google Map with Route */}
-      <div className="h-[55vh]">
-        {gmapLoaded ? (
-          <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={gmapCenter}
-            zoom={pickup.lat && dropoff.lat ? 12 : 14}
-            options={{ disableDefaultUI: true, zoomControl: true }}
-            onClick={(e) => {
-              if (selectingLocation) {
-                handleLocationSelect({ lat: e.latLng.lat(), lng: e.latLng.lng() });
-                if (selectingLocation === 'dropoff' && pickup.lat) getEstimate();
-              }
-            }}
-          >
-            {pickup.lat && (
-              <MarkerF
-                position={{ lat: pickup.lat, lng: pickup.lng }}
-                icon={{ url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png' }}
-              />
-            )}
-            {dropoff.lat && (
-              <MarkerF
-                position={{ lat: dropoff.lat, lng: dropoff.lng }}
-                icon={{ url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
-              />
-            )}
-            {routePath.length > 0 && (
-              <PolylineF
-                path={routePath}
-                options={{ strokeColor: '#3b82f6', strokeOpacity: 0.9, strokeWeight: 5 }}
-              />
-            )}
-          </GoogleMap>
-        ) : (
-          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-            <span className="text-gray-400 text-sm">Chargement de la carte...</span>
-          </div>
-        )}
+      {/* Map with Route (OpenStreetMap / Leaflet — free) */}
+      <div className="h-[55vh] relative">
+        <LeafletMap
+          center={gmapCenter}
+          zoom={pickup.lat && dropoff.lat ? 12 : 14}
+          pickup={pickup.lat ? pickup : null}
+          dropoff={dropoff.lat ? dropoff : null}
+          routePath={routePath}
+          onMapClick={(latLng) => {
+            if (selectingLocation) {
+              handleLocationSelect(latLng);
+              if (selectingLocation === 'dropoff' && pickup.lat) getEstimate();
+            }
+          }}
+        />
 
         {/* Floating back button */}
         <button

@@ -346,3 +346,30 @@ Chauffeur virtuel via WebSocket
 - Re-tester Waybill UI avec un vrai ride completed (vérifier que tous les champs s'affichent).
 - Tester Heat View côté chauffeur (nécessite un compte driver actif).
 - Refresh REACT_APP_GOOGLE_MAPS_KEY (clé expirée en preview).
+
+
+
+## Iteration 63 (Feb 12, 2026) — E2E Waybill + Migration Maps gratuites (DONE)
+### Test E2E WaybillPage avec vraies données
+- Flux complet : login user → register driver → seed driver approved → create ride → accept → arriving → in_progress (OTP validé) → completed → tip 5 € → GET waybill.
+- Capture finale `/ride/{id}/waybill` : N° feuille `SBD-F8D785B6`, Date 12/05/2026 02:33:40, Passager "Test User", Chauffeur "Pierre Dupont - Renault Megane · AB-123-CD", Départ "Place du Châtelet", Arrivée "Tour Eiffel", Distance 4.2 km, Pourboire 5 €, **Total 15.00 €** ✅
+- Driver seed via script `/tmp/seed_driver.py` (Mongo insert direct dans `drivers` collection avec status="approved").
+
+### Migration Google Maps → OpenStreetMap / Leaflet (gratuit)
+- **Nouveau composant** : `/app/frontend/src/components/LeafletMap.js` — wrapper réutilisable React-Leaflet avec :
+  - Markers de couleur (vert/rouge/bleu) pour pickup/dropoff/driver
+  - Polyline pour la route, Circle pour les zones chaudes (heatmap)
+  - `Recenter` (useMap) + `ClickHandler` (useMapEvents) pour gérer center dynamique + clic carte
+  - Icons fix pour bug webpack avec Leaflet default icons
+- **RideMapStep.jsx** : swap `<GoogleMap>` + `MarkerF` + `PolylineF` → `<LeafletMap>` (props pickup/dropoff/routePath/onMapClick).
+- **DriverHome.js** : swap `<GoogleMap>` + `<CircleF>` heatmap → `<LeafletMap>` avec prop `heatPoints` (cercles colorés rouge/orange/bleu selon densité).
+- Imports `@react-google-maps/api` et `GMAP_KEY` retirés des 2 fichiers.
+
+### Vérifications
+- Lint OK sur tous les fichiers modifiés ✅
+- Screenshot Step 2 ride : carte OpenStreetMap rend pleinement avec rues/arrondissements, markers visibles, ETA bubble, toggle Taxi Pool, CTA "Demander maintenant" ✅
+- WaybillPage E2E rend toutes les données réelles ✅
+
+### Reste à faire
+- Optionnel : swap `RideTrackingPage`, `TaxiBiddingPage`, `RideBookingPage` parent (qui utilise encore `useJsApiLoader`) pour Leaflet aussi — actuellement RideTrackingPage utilisait déjà Leaflet, les autres dépendent encore de `useJsApiLoader` mais le hook ne plantera pas (juste charge inutilement le SDK GM).
+- Driver Heat View : tester visuellement avec un compte driver actif (le bouton + overlay sont en place).
