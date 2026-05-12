@@ -349,6 +349,47 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 67 (Feb 12, 2026) — God's View Leaflet + Auto-dispatch (DONE) · FCM pending keys
+### A) Push Notifications Firebase FCM
+- ⏸️ **EN ATTENTE des clés utilisateur** (Service Account JSON + Web App config + VAPID Key).
+- Playbook récupéré via `integration_playbook_expert_v2`.
+
+### B) God's View → Leaflet (élimine dépendance Google Maps)
+- `AdminDashboard.js` : remplacement du `<GoogleMap>` + `<MarkerF>` par `<LeafletMap heatPoints={...}>` dans la carte God's View.
+- Suppression des imports `useJsApiLoader`, `GoogleMap`, `MarkerF` et de `GMAP_KEY`. Plus de "Oops! Something went wrong." sur `/admin`.
+- Centré Martinique 14.6161/-61.0588, 3 heat points démo.
+
+### C) Auto-dispatch (mode cockpit pro façon Uber)
+- **Backend `routes/auto_dispatch.py`** (~220 lignes) :
+  - `auto_dispatch_loop()` : tâche asyncio lancée dans `lifespan`, scan toutes les 5s des courses `pending`.
+  - Calcul distance Haversine + mapping `driver.points` → palette via config `rewards`.
+  - Tier 1 après `first_escalation_seconds` (défaut 30s) : broadcast WS `priority_ride_offer` aux drivers dans `radius_km` (5 km) matchant `first_palettes` (Expert, Confirme).
+  - Tier 2 après `second_escalation_seconds` (60s) : élargissement à `radius_km × 2` (10 km) et palettes `second_palettes` (+Standard). Forçage tier 1 si pas encore fait (stats accurate).
+  - Auto-annulation après `auto_cancel_after_seconds` (120s) : `status='cancelled'`, `cancelled_by='auto_dispatch'`, notification utilisateur + broadcast admin.
+  - Hardening : `try/except asyncio.CancelledError` pour silence à l'arrêt.
+- **Endpoints admin** :
+  - `GET /api/admin/auto-dispatch/config`
+  - `PUT /api/admin/auto-dispatch/config` (merge partiel persisté dans `service_configs.auto_dispatch`)
+  - `GET /api/admin/auto-dispatch/stats` (counts par tier)
+- **Frontend `/admin/auto-dispatch`** : page complète avec Switch Activé/Désactivé, 4 stat cards (tier 0/1/2/cancelled), 3 inputs délais, input rayon (min 10s pour auto-cancel), 2 rows de boutons palettes (toggle Expert/Confirme/Standard/Debutant pour tier 1 et 2), bouton Save. Auto-refresh stats toutes les 10s.
+- Sidebar : nouvel item "Auto-dispatch" (icône Lightning) sous ACCUEIL.
+
+### Tests iter67
+- **Backend 12/12 pytests ✅** (config admin-only 403, partial merge, stats shape, E2E escalation après 18s).
+- **Frontend 100% ✅** (13 testids, palettes toggles, save toast, God's View Leaflet rendu, /admin sans erreur).
+- **Loop confirmé** : "AutoDispatch loop started" + 62 anciennes courses pending auto-annulées.
+
+### Bugs connus
+- 🟡 `REACT_APP_GOOGLE_MAPS_KEY` expirée — toujours impactant `RideBookingPage.js` (non-corrigé ici). À renouveler.
+
+### Backlog mis à jour
+- 🔴 **P0** : Push Notifications Firebase FCM (en attente clés utilisateur)
+- P1 : Renouveler clé Google Maps OU migrer RideBookingPage vers Leaflet
+- P1 : Phase 3 (VOIP/Twilio, Photo zone pickup, Lost & Found)
+- P2 : Stripe paiements réels · Merchant checkout sponsoring · Dynamic pricing
+
+
+
 ## Iteration 66 (Feb 12, 2026) — WebSocket cockpit + Dashboard V3Cube enrichi (DONE)
 ### A) Cockpit temps réel sur `/admin/live-rides`
 - **Backend** : `POST /api/rides` appelle désormais `manager.broadcast_to_admins({type:'new_ride_request', ride_id, booking_no, pickup_lat/lng, addresses, vehicle_type, estimated_fare, distance_km, user_id, created_at})` en plus du broadcast aux chauffeurs.

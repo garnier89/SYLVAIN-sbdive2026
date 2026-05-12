@@ -57,7 +57,12 @@ const AdminAutoDispatch = () => {
 
   if (!cfg) return <div className="p-6 text-gray-400 text-sm">Chargement...</div>;
 
-  const setNum = (k, v) => setCfg({ ...cfg, [k]: Math.max(0, parseInt(v) || 0) });
+  const setNum = (k, v) => {
+    const n = parseInt(v) || 0;
+    // Enforce a minimum 10s for the auto-cancel field to avoid instant cancellations
+    const minVal = k === 'auto_cancel_after_seconds' ? 10 : 0;
+    setCfg({ ...cfg, [k]: Math.max(minVal, n) });
+  };
 
   return (
     <div className="p-6 space-y-5" data-testid="admin-auto-dispatch">

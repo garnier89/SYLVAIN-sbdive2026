@@ -192,9 +192,15 @@ async def auto_dispatch_loop():
                 if age_seconds >= cfg["auto_cancel_after_seconds"] and current_tier != -1:
                     await _auto_cancel_ride(ride)
                 elif age_seconds >= cfg["second_escalation_seconds"] and current_tier < 2:
+                    # If we never escalated to tier 1 yet, do it first so stats stay accurate
+                    if current_tier < 1:
+                        await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
                     await _escalate_ride(ride, 2, cfg["second_palettes"], cfg["radius_km"] * 2, points_cfg)
                 elif age_seconds >= cfg["first_escalation_seconds"] and current_tier < 1:
                     await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+        except asyncio.CancelledError:
+            logger.info("AutoDispatch loop stopped (cancelled)")
+            raise
         except Exception as e:
             logger.error(f"AutoDispatch loop error: {e}")
         await asyncio.sleep(5)
