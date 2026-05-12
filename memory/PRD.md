@@ -349,6 +349,37 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 69 (Feb 12, 2026) — Visibilité scoring & auto-dispatch côté chauffeur/client (DONE)
+### Audit de l'apparence par app après iter62-68
+Découvert que 3 fonctionnalités backend n'étaient pas exposées dans les UIs concernées :
+1. ❌ Chauffeur ne recevait que `new_ride_request`, pas les `priority_ride_offer` du tier 1/2 de l'auto-dispatch
+2. ❌ Chauffeur n'avait aucun moyen de voir son historique `score_log[]` (créé en iter68)
+3. ❌ Client n'avait aucun retour visuel quand sa course était auto-annulée par le dispatch
+
+### Implémentations
+- **Backend** : nouvel endpoint `GET /api/drivers/my-score-history` retournant `current_points`, `current_palette`, `next_palette` (avec `points_to_reach`), `history[]` (50 entrées max, plus récent en premier), `totals` (gained/lost/entries).
+- **`DriverHome.js`** : ajout du handler `priority_ride_offer` qui réutilise le modal `incoming-request-modal` avec un flag `is_priority=true` → badge `⚡ TIER N` ambré animé.
+- **`RideTrackingPage.js`** : handler `ride_auto_cancelled` → toast.error 'Course annulée automatiquement' + navigation auto vers /home après 4s.
+- **`DriverScorePage.js`** (nouvelle page `/chauffeur/score`) : header dégradé couleur palette, KPI gros points, barre de progression vers prochaine palette OU badge "plus haut palier", 3 totaux (gagnés/perdus/entrées), graphique Recharts d'évolution avec lignes de référence palette min/next, historique détaillé avec icônes ⚡/📉, raison, ride_id et timestamp.
+- **`DriverProfilePage.js`** : nouvelle row "Mon score" avec icône Trophy ambre.
+
+### Tests iter69
+- Backend : **8/9 pytests** (1 échec pré-existant non lié à iter69 sur `/api/drivers/profile` — Pydantic ValidationError sur driver legacy sans `vehicle_type`/`license_number`).
+- Frontend : **100% ✅** — tous les data-testids présents (`driver-score-page`, `current-palette-name`, `current-points`, `points-to-next`, `score-chart`, `score-history`, `history-entry-{i}`, `priority-badge`).
+- E2E vérifié manuellement : driver `driver_waybill` à 102 points avec 2 entrées d'historique (+3 acceptation tier 1, -1 non-réponse) → page rendue parfaitement.
+
+### Bugs pré-existants à traiter plus tard (optionnel)
+- `_resolve_palette` retourne `palettes[0]` quand points dépassent toutes les ranges (driver à 102 pts → affiche "Debutant" au lieu de la plus haute palette). Cosmetic.
+- `/api/drivers/profile` 500 pour legacy drivers sans `vehicle_type`/`license_number` (Pydantic strict). Ne casse pas l'UI grâce à `Promise.allSettled`.
+
+### Backlog mis à jour
+- 🔴 P0 : Push Notifications Firebase FCM (en attente clés utilisateur)
+- P1 : Backfill `vehicle_type`/`license_number` OU relâcher la contrainte Pydantic
+- P1 : Fix `_resolve_palette` overflow vers la plus haute palette
+- P1 : Phase 3 (VOIP/Twilio, Photo zone pickup, Lost & Found)
+
+
+
 ## Iteration 68 (Feb 12, 2026) — Driver Quality Scoring auto-régulé (DONE)
 ### 🏆 Scoring qualité chauffeur (boucle vertueuse Uber Pro)
 - **Backend `auto_dispatch.py`** :
