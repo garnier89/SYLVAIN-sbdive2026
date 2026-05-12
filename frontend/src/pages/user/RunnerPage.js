@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Package, Plus, Trash, Phone, Lightning, MapPin } from '@phosphor-icons/react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Package, Plus, Trash, Phone, Lightning, MapPin, Bag } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
- * RunnerPage — "Coursier Express" service.
+ * RunnerPage — "Coursier Express" / "Delivery Genie" service.
  *
  * Two modes:
  *   - simple: one pickup → one delivery point (fast single-drop).
  *   - multiple: one pickup → N delivery points (courier-for-the-day).
+ *
+ * Variants via ?mode=genie query param:
+ *   - genie: Genie buys items on user's behalf from chosen store.
+ *   - default: standard courier (pick-up & deliver).
  */
 const RunnerPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isGenie = searchParams.get('mode') === 'genie';
   const [mode, setMode] = useState('simple');
   const [pickup, setPickup] = useState(null);
   const [pickupNote, setPickupNote] = useState('');
@@ -78,7 +84,7 @@ const RunnerPage = () => {
     setSubmitting(true);
     try {
       const payload = {
-        service_type: 'runner',
+        service_type: isGenie ? 'genie' : 'runner',
         mode,
         pickup_address: pickup.address,
         pickup_lat: pickup.lat,
@@ -117,10 +123,10 @@ const RunnerPage = () => {
         </button>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <Lightning size={18} className="text-amber-500" weight="duotone" />
-            Coursier Express
+            {isGenie ? <Bag size={18} className="text-blue-500" weight="duotone" /> : <Lightning size={18} className="text-amber-500" weight="duotone" />}
+            {isGenie ? 'Delivery Genie' : 'Coursier Express'}
           </h1>
-          <p className="text-xs text-gray-500">Livraison rapide dans votre ville (&lt; 1 h)</p>
+          <p className="text-xs text-gray-500">{isGenie ? 'Un Genie achète vos articles à votre place' : 'Livraison rapide dans votre ville (< 1 h)'}</p>
         </div>
       </div>
 

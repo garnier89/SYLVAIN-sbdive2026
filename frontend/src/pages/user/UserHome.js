@@ -15,7 +15,8 @@ import {
   Sparkle, Heart, Lightning, Drop, PaintBrush,
   Hammer, Buildings, Coffee, Wine,
   Stethoscope, Dog, UsersFour, Briefcase,
-  CarSimple, ShoppingBag, BatteryFull, HandSoap
+  CarSimple, ShoppingBag, BatteryFull, HandSoap,
+  Bicycle, Plug, Key, HairDryer, MaskHappy, Bag
 } from '@phosphor-icons/react';
 
 const UserHome = () => {
@@ -66,11 +67,15 @@ const UserHome = () => {
     { id: 'more-ondemand', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/all-services' },
   ];
 
-  // ===== Beauty Services (4 items) =====
+  // ===== Beauty Services (8 items - 2 rows of 4) =====
   const beautyServices = [
-    { id: 'makeup', name: 'Maquillage\n& Coiffure', icon: Sparkle, bg: 'bg-purple-50', iconColor: 'text-purple-500', path: '/beauty' },
+    { id: 'hair-care', name: 'Soins\nCheveux', icon: HairDryer, bg: 'bg-amber-50', iconColor: 'text-amber-600', path: '/beauty' },
+    { id: 'skin-facial', name: 'Skin\n& Facial', icon: MaskHappy, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/beauty' },
+    { id: 'nail-polish', name: 'Vernis\nOngles', icon: Sparkle, bg: 'bg-rose-50', iconColor: 'text-rose-500', path: '/beauty' },
+    { id: 'hair-removal', name: 'Épilation', icon: Drop, bg: 'bg-yellow-50', iconColor: 'text-yellow-600', path: '/beauty' },
+    { id: 'makeup', name: 'Maquillage\n& Coiffure', icon: PaintBrush, bg: 'bg-purple-50', iconColor: 'text-purple-500', path: '/beauty' },
     { id: 'massage-spa', name: 'Massage\n& Spa', icon: HandSoap, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/beauty' },
-    { id: 'mens-grooming', name: 'Soins\nHommes', icon: Scissors, bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/beauty' },
+    { id: 'mens-grooming', name: 'Soins\nHommes', icon: Scissors, bg: 'bg-indigo-50', iconColor: 'text-indigo-600', path: '/beauty' },
     { id: 'more-beauty', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-500', path: '/beauty' },
   ];
 
@@ -91,12 +96,26 @@ const UserHome = () => {
     { id: 'home-cleaning', name: 'Ménage\nMaison', icon: Broom, bg: 'bg-teal-50', iconColor: 'text-teal-600', path: '/services-bidding?cat=bcat_cleaning' },
   ];
 
-  // ===== Car Care Services (4 items) =====
+  // ===== Car Care Services (8 items - 2 rows of 4) =====
   const carCareServices = [
     { id: 'car-wash', name: 'Lavage\nAuto & Spa', icon: CarSimple, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/car-care' },
     { id: 'battery', name: 'Service\nBatterie', icon: BatteryFull, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/car-care' },
     { id: 'shop', name: 'Boutique', icon: ShoppingBag, bg: 'bg-amber-50', iconColor: 'text-amber-600', path: '/car-care' },
     { id: 'fuel', name: 'Livraison\nCarburant', icon: GasPump, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/car-care' },
+    { id: 'bike-wash', name: 'Lavage\nVélos & Spa', icon: Bicycle, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/car-care' },
+    { id: 'ev-charging', name: 'Recharge\nEV', icon: Plug, bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/car-care' },
+    { id: 'car-keylocks', name: 'Serrurerie\nAuto', icon: Key, bg: 'bg-yellow-50', iconColor: 'text-yellow-700', path: '/car-care' },
+    { id: 'more-carcare', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-gray-50', iconColor: 'text-gray-600', path: '/car-care' },
+  ];
+
+  // ===== Towing Services (6 items - 2 rows of 3) =====
+  const towingServices = [
+    { id: 'emergency-towing', name: 'Remorquage\nUrgence', icon: Truck, bg: 'bg-red-50', iconColor: 'text-red-600', path: '/towing' },
+    { id: 'flatbed-towing', name: 'Plateau', icon: Truck, bg: 'bg-yellow-50', iconColor: 'text-yellow-600', path: '/towing' },
+    { id: 'vehicle-recovery', name: 'Récupération\nVéhicule', icon: Car, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/towing' },
+    { id: 'flat-tire', name: 'Pneu\nCrevé', icon: CarSimple, bg: 'bg-amber-50', iconColor: 'text-amber-600', path: '/towing' },
+    { id: 'lockout', name: 'Serrure\nVoiture', icon: Key, bg: 'bg-purple-50', iconColor: 'text-purple-500', path: '/towing' },
+    { id: 'more-towing', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/towing' },
   ];
 
   // ===== Nearby Businesses (4 items) =====
@@ -218,6 +237,45 @@ const UserHome = () => {
         <h3 className="text-lg font-bold text-gray-900 mb-3">Services de Livraison</h3>
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
           {deliveryServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </div>
+
+      {/* ===== DELIVERY GENIE & RUNNER ===== */}
+      <div className="px-4 mt-5">
+        <h3 className="text-lg font-bold text-gray-900 mb-3">Livraison Genie & Runner</h3>
+        <div className="grid grid-cols-2 gap-3" data-testid="genie-runner-section">
+          {/* Delivery Genie */}
+          <button
+            onClick={() => navigate('/runner?mode=genie')}
+            className="rounded-2xl bg-blue-50 border border-blue-100 p-4 flex flex-col text-left h-[200px]"
+            data-testid="delivery-genie-btn"
+          >
+            <h4 className="text-sm font-bold text-gray-900">Delivery Genie</h4>
+            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed flex-1">
+              Engagez un Genie pour ACHETER des articles à votre place dans le magasin de votre choix.
+            </p>
+            <div className="flex justify-center mt-2">
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                <Bag size={32} weight="duotone" className="text-blue-600" />
+              </div>
+            </div>
+          </button>
+          {/* Delivery Runner */}
+          <button
+            onClick={() => navigate('/runner')}
+            className="rounded-2xl bg-rose-50 border border-rose-100 p-4 flex flex-col text-left h-[200px]"
+            data-testid="delivery-runner-btn"
+          >
+            <h4 className="text-sm font-bold text-gray-900">Delivery Runner</h4>
+            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed flex-1">
+              Engagez des Coursiers pour récupérer et livrer de petits articles en ville.
+            </p>
+            <div className="flex justify-center mt-2">
+              <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center">
+                <Lightning size={32} weight="duotone" className="text-rose-600" />
+              </div>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -363,21 +421,11 @@ const UserHome = () => {
 
       {/* ===== TOWING / ROADSIDE ASSISTANCE ===== */}
       <div className="px-4 mt-5">
-        <button
-          onClick={() => navigate('/towing')}
-          className="w-full rounded-2xl bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 p-5 flex items-center gap-4 text-left"
-          data-testid="towing-section-btn"
-        >
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-900">Dépannage & Remorquage</h3>
-            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-              Remorquage d'urgence, pneu crevé, démarrage, panne sèche et plus. Assistance routière 24/7.
-            </p>
-          </div>
-          <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
-            <span className="text-4xl">🚛</span>
-          </div>
-        </button>
+        <h3 className="text-lg font-bold text-gray-900 mb-1">Dépannage & Remorquage</h3>
+        <p className="text-xs text-gray-500 mb-3 leading-relaxed">Assistance routière 24/7 - Pneu crevé, démarrage, panne sèche et plus.</p>
+        <div className="grid grid-cols-3 gap-x-3 gap-y-4" data-testid="towing-grid">
+          {towingServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
       </div>
 
       {/* ===== BUY, SELL & RENT ===== */}

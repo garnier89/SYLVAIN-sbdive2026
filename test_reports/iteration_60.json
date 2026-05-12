@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 60 — Tested home-page V3Cube parity additions (Genie/Runner, Towing grid, Beauty 8-item, Car Care 8-item) and refactored RideBookingPage flow (4 sub-components). 13/13 backend smoke tests pass. All new home-page sections render and navigate correctly. Ride flow Step1↔Step2 transitions, Book-For modal, recent-location auto-transition all work.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/phase2/runner/book", "issue": "Frontend sends service_type='genie' but backend (routes/phase2.py L506) hardcodes service_type='runner' in the stored doc — Genie mode is NOT persisted on backend. Functional impact: orders booked via Delivery Genie are indistinguishable from Runner orders in DB. Recommend: respect body.get('service_type') in ('runner','genie') with default 'runner'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RidePlanStep.jsx", "issue": "Add-stopover (+) button has NO data-testid — only locatable via FF4500 bg class. Recommend adding data-testid='add-stopover-btn'.", "selector": "button.bg-[#FF4500] near dropoff input", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Google Maps on /ride Step 2", "issue": "Google Maps API key shows 'ExpiredKeyMapError' overlay ('Oops! Something went wrong. This page didn't load Google Maps correctly.'). Map fails to render but the underlying UI structure (vehicle list, back button, bottom sheet, 'Sélectionnez un point sur la carte' instruction) renders correctly. PRE-EXISTING preview-env issue, not caused by the refactor — production key should resolve.", "affected_selectors": ["text=Oops! Something went wrong"]},
+      {"flow": "Google Maps loader", "issue": "Console warning: 'You have included the Google Maps JavaScript API multiple times on this page.' Likely caused by useJsApiLoader being called in both RideBookingPage and GooglePlacesInput. Should use a single shared loader/provider.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter60_smoke.py", "/app/test_reports/pytest/iter60_results.xml"],
+  "action_items": [
+    "(Optional/low) Backend: in /api/phase2/runner/book, persist body.service_type when it equals 'genie' (currently hardcoded to 'runner').",
+    "(Optional/low) Frontend: add data-testid='add-stopover-btn' to the + stopover button in RidePlanStep.jsx for better testability.",
+    "(Optional) Deduplicate Google Maps API loading — use a single useJsApiLoader at app root or via a context, to remove the 'API loaded multiple times' console warning.",
+    "(Env, not code) Replace expired Google Maps API key REACT_APP_GOOGLE_MAPS_KEY so the map renders in Step 2 instead of showing 'Oops!' overlay."
+  ],
+  "critical_code_review_comments": [
+    "RideBookingPage.js refactor is clean and well-scoped (~295 lines, delegates to 4 step components). State + side-effects (geolocation, polling, API calls) stay in the parent, rendering moves to children. Good separation.",
+    "UserHome.js is 590+ lines. Consider extracting the per-category service grids and the section data arrays into a /src/data/homeSections.js module to bring file under 400 lines.",
+    "Backend /api/phase2/runner/book ignores client-provided service_type — either validate it explicitly or persist it. Currently silently overwritten."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter60_smoke.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% (all navigation + ride flow checks pass)"},
+  "test_credentials": "user: neg_test@example.com / Test1234!  ;  admin: admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Created 2 runner_orders documents (runner + genie modes) during backend test — both stored as service_type='runner' on backend due to hardcoded value.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 60 covered: (a) 4 new home-page sections (Genie/Runner, expanded Beauty to 8, expanded Car Care to 8, Towing 6-grid) — all data-testids exist and navigate correctly; (b) RideBookingPage 4-component refactor — Step1 Plan renders fully, Book-For modal works, Step1↔Step2 transitions OK, recent-location auto-transition OK; (c) Backend smoke (catalogs/runner-book/taxi-bidding/ride-estimate/vehicle-types) — all green. Two known non-blocking issues: (1) Google Maps key expired in preview env (Step 2 shows 'Oops' overlay but UI works); (2) Backend runner-book hardcodes service_type='runner' so Genie mode not differentiated server-side. Refactor work itself is solid and ready to ship."
+}

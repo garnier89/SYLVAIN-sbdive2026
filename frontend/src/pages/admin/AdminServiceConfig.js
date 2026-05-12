@@ -105,6 +105,15 @@ const API = process.env.REACT_APP_BACKEND_URL;
 
 const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
   const config = serviceConfigs[serviceKey];
+  const [settings, setSettings] = useState(() => (config?.settings || []).map(s => ({ ...s })));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!config) return;
+    loadConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceKey]);
+
   if (!config) {
     return (
       <div className="p-8" data-testid={`placeholder-${serviceKey}`}>
@@ -117,12 +126,6 @@ const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
     );
   }
   const Icon = config.icon;
-  const [settings, setSettings] = useState(config.settings.map(s => ({ ...s })));
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadConfig();
-  }, [serviceKey]);
 
   const loadConfig = async () => {
     try {
