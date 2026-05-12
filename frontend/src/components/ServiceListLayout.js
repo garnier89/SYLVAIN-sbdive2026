@@ -6,7 +6,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * ServiceListLayout — generic mobile-first service listing screen.
- * Reads any /api/admin/crud/{collection} resource and renders a card grid.
+ * Reads any /api/phase2/catalogs/{collection} public resource and renders a card grid.
  *
  * Props:
  *  - title: page header

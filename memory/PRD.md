@@ -191,6 +191,20 @@ Chauffeur virtuel via WebSocket
 - Sidebar: Manage Rewards > Reports + Settings sous MEMBERS
 - Iteration 41: 100% pass (7/7 backend + frontend complet)
 
+## Iter58 - Câblage 9 catégories V3Cube + endpoint public catalogs (Feb 22, 2026) - DONE
+- **Backend** : nouveau endpoint public `GET /api/phase2/catalogs/{collection}` (whitelist 8 catalogues), ALLOWED_CRUD étendu, 8 collections seed automatique au startup:
+  - `beauty_salons` (5 items), `pet_providers` (5), `car_services` (6), `towing_partners` (4), `nearby_businesses` (6), `ondemand_services` (6), `carpool_trips` (5), `marketplace_listings` (7).
+- **Frontend** : composant générique réutilisable `ServiceListLayout` + 9 pages réécrites pour fetch depuis le nouvel endpoint :
+  - BeautyServicesPage (Coiffure/Spa/Maquillage/Soins H/Manucure)
+  - PetServicesPage (Toilettage/Promenade/Pension/Véto/Boutique)
+  - CarCarePage (Lavage/Mécanique/Pneus/Batterie/Carburant/Boutique)
+  - TowingServicesPage (custom UI tel: link, badges 24/7, response time)
+  - NearbyBusinessPage (Café/Bar/Salon/Boulangerie/Pharmacie/Restaurant)
+  - ServicesPage + AllServicesPage (Bricolage/Bien-être/Auto/Ménage/Sport)
+  - CarPoolPage (custom UI dégradé vert, cards trajets)
+  - MarketplacePage (custom UI chips + grid 2 cols, support /marketplace/:category)
+- **Test iter58 : 100% backend (14/14 pytest) + 100% frontend (9/9 routes)** end-to-end verified.
+
 ## Iter57 - Fix Enchères + Redesign /ride V3Cube (Feb 22, 2026) - DONE
 - **Bug TaxiBidding 'find-driver-btn' corrigé** : `disabled={submitting || fare<=0}` → `disabled={submitting}`. handleSubmit fallback : `estimate.estimated_fare || liveStats.avg_accepted_fare || 10 EUR`.
 - **Redesign /ride V3Cube complet** :
