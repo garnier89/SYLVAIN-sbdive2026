@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Star, MagnifyingGlass } from '@phosphor-icons/react';
+import { Star, MagnifyingGlass, X } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -23,6 +23,7 @@ const AdminFeaturedListings = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [featureDialog, setFeatureDialog] = useState(null);
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeCollection]);
 
@@ -36,17 +37,22 @@ const AdminFeaturedListings = () => {
     finally { setLoading(false); }
   };
 
-  const feature = async (item) => {
-    const days = parseInt(window.prompt('Mise en avant pour combien de jours ?', '30')) || 30;
+  const openFeatureDialog = (item) => setFeatureDialog({ item, days: 30, priority: 5 });
+
+  const confirmFeature = async () => {
+    if (!featureDialog) return;
+    const { item, days, priority } = featureDialog;
+    const safeDays = Math.max(1, Math.min(365, parseInt(days) || 30));
     try {
       const r = await fetch(`${API}/api/phase2/admin/catalogs/${activeCollection}/${item.id}/feature`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ duration_days: days, priority: 5 }),
+        body: JSON.stringify({ duration_days: safeDays, priority: Math.max(0, parseInt(priority) || 0) }),
       });
       if (!r.ok) throw new Error('feature failed');
-      toast.success(`${item.name || item.title} mis en avant ${days}j`);
+      toast.success(`${item.name || item.title} mis en avant ${safeDays}j`);
+      setFeatureDialog(null);
       load();
     } catch (e) { console.error(e); toast.error('Erreur'); }
   };
@@ -79,7 +85,6 @@ const AdminFeaturedListings = () => {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
         {COLLECTIONS.map(c => (
           <button
@@ -131,7 +136,7 @@ const AdminFeaturedListings = () => {
                     {it.is_featured ? (
                       <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => unfeature(it)} data-testid={`unfeature-${it.id}`}>Retirer</Button>
                     ) : (
-                      <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-7" onClick={() => feature(it)} data-testid={`feature-${it.id}`}>★ Mettre en avant</Button>
+                      <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-7" onClick={() => openFeatureDialog(it)} data-testid={`feature-${it.id}`}>★ Mettre en avant</Button>
                     )}
                   </td>
                 </tr>
@@ -141,6 +146,39 @@ const AdminFeaturedListings = () => {
           </table>
         )}
       </div>
+
+      {featureDialog && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setFeatureDialog(null)} data-testid="feature-dialog">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Star size={20} className="text-amber-500" weight="fill" />
+                Mettre en avant
+              </h3>
+              <button onClick={() => setFeatureDialog(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4"><span className="font-semibold">{featureDialog.item.name || featureDialog.item.title}</span></p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Durée (jours)</label>
+                <Input type="number" min="1" max="365" value={featureDialog.days} onChange={e => setFeatureDialog({...featureDialog, days: e.target.value})} data-testid="dialog-days-input" />
+                <p className="text-[10px] text-gray-400 mt-1">Entre 1 et 365 jours</p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Priorité (0–10)</label>
+                <Input type="number" min="0" max="10" value={featureDialog.priority} onChange={e => setFeatureDialog({...featureDialog, priority: e.target.value})} data-testid="dialog-priority-input" />
+                <p className="text-[10px] text-gray-400 mt-1">Plus haut = remonté plus haut dans la liste</p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <Button variant="outline" className="flex-1" onClick={() => setFeatureDialog(null)} data-testid="dialog-cancel">Annuler</Button>
+              <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={confirmFeature} data-testid="dialog-confirm">★ Activer</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

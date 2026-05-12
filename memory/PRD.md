@@ -191,6 +191,20 @@ Chauffeur virtuel via WebSocket
 - Sidebar: Manage Rewards > Reports + Settings sous MEMBERS
 - Iteration 41: 100% pass (7/7 backend + frontend complet)
 
+## Iter59 - Mise en avant sponsorisée (monétisation B2B) (Feb 22, 2026) - DONE
+- **Feature monétisation** : les prestataires (salons, garages, dépanneurs, etc.) peuvent être mis en avant pour N jours moyennant paiement, et apparaissent en tête de liste avec un badge "★ Sponsorisé" (gradient ambre→orange).
+- **Backend** :
+  - `GET /api/phase2/catalogs/{collection}` : tri auto featured-first (`is_featured DESC, featured_priority DESC, created_at DESC`) + auto-expiry au passage de `featured_until`.
+  - `POST /api/phase2/admin/catalogs/{col}/{id}/feature` body `{duration_days, priority}` (admin only).
+  - `DELETE /api/phase2/admin/catalogs/{col}/{id}/feature` (admin only).
+  - `GET /api/phase2/admin/catalogs/{col}/featured` (admin only, applique l'auto-expiry).
+- **Frontend** :
+  - Badge "Sponsorisé" ⭐ sur `ServiceCard`, `TowingServicesPage`, `MarketplacePage`, `CarPoolPage` (border amber-300 + ring + badge gradient).
+  - Nouvelle page admin `/admin/featured-listings` avec 8 tabs collections, recherche, dialog modal (au lieu de window.prompt) pour durée + priorité avec validation min/max.
+  - Item sidebar "Mise en avant sponsorisée" dans PROMOTIONS & MARKETING.
+- **3 items pré-sponsorisés** au seed : L'Atelier Coiffure (beauty), Garage Mécanique Bastille (car_services), Dépann'Express 24/7 (towing).
+- **Test iter59 : 100% backend (10/10 pytest) + 100% frontend** (3 user routes + admin page + roundtrip feature/unfeature).
+
 ## Iter58 - Câblage 9 catégories V3Cube + endpoint public catalogs (Feb 22, 2026) - DONE
 - **Backend** : nouveau endpoint public `GET /api/phase2/catalogs/{collection}` (whitelist 8 catalogues), ALLOWED_CRUD étendu, 8 collections seed automatique au startup:
   - `beauty_salons` (5 items), `pet_providers` (5), `car_services` (6), `towing_partners` (4), `nearby_businesses` (6), `ondemand_services` (6), `carpool_trips` (5), `marketplace_listings` (7).

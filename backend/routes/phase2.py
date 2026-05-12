@@ -540,10 +540,9 @@ async def list_public_catalog(collection: str, limit: int = 100, skip: int = 0):
     # Auto-expire featured listings whose featured_until is in the past
     now_iso = datetime.now(timezone.utc).isoformat()
     await db[collection].update_many(
-        {"is_featured": True, "featured_until": {"$lt": now_iso, "$ne": None}},
+        {"is_featured": True, "featured_until": {"$lt": now_iso}},
         {"$set": {"is_featured": False}},
     )
-    # Sort featured items first, then by created_at desc
     cursor = db[collection].find({}, {"_id": 0}).sort([
         ("is_featured", -1),
         ("featured_priority", -1),
@@ -600,6 +599,12 @@ async def admin_list_featured(collection: str, request: Request):
     await require_role(request, ["admin"])
     if collection not in PUBLIC_CATALOGS:
         raise HTTPException(status_code=404, detail="Catalog not found")
+    # Apply auto-expiry pass first
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db[collection].update_many(
+        {"is_featured": True, "featured_until": {"$lt": now_iso}},
+        {"$set": {"is_featured": False}},
+    )
     items = await db[collection].find(
         {"is_featured": True}, {"_id": 0}
     ).to_list(200)
