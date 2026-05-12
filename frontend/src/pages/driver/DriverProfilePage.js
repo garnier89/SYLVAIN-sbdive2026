@@ -133,6 +133,7 @@ const DriverProfilePage = () => {
           {rewardsActive && (
             <ProfileRow icon={Gift} color="#22C55E" label="Programme de recompense" onClick={() => navigate('/chauffeur/rewards')} />
           )}
+          <ProfileRow icon={Trophy} color="#F59E0B" label="Mon score" onClick={() => navigate('/chauffeur/score')} />
         </div>
       </div>
 

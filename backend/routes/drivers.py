@@ -263,6 +263,50 @@ async def get_my_activity(request: Request):
     }
 
 
+@router.get("/my-score-history")
+async def get_my_score_history(request: Request):
+    """Return the driver's recent score_log entries + next-palette distance."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "points": 1, "score_log": 1})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    points_cfg = await _get_rewards_points_config()
+    palettes = sorted(points_cfg.get("palettes", []), key=lambda p: p["min_points"])
+    current_points = driver.get("points") or 0
+    current_palette = _resolve_palette(current_points, palettes)
+    next_palette = None
+    points_to_next = None
+    for p in palettes:
+        if p["min_points"] > current_points:
+            next_palette = p
+            points_to_next = p["min_points"] - current_points
+            break
+
+    log = list(reversed(driver.get("score_log") or []))[:50]  # most recent first
+    total_gained = sum(e["delta"] for e in log if e.get("delta", 0) > 0)
+    total_lost = sum(-e["delta"] for e in log if e.get("delta", 0) < 0)
+
+    return {
+        "current_points": current_points,
+        "current_palette": {
+            "name": current_palette["name"] if current_palette else "",
+            "color": current_palette["color"] if current_palette else "#9CA3AF",
+            "min_points": current_palette["min_points"] if current_palette else 0,
+            "max_points": current_palette["max_points"] if current_palette else 100,
+        } if current_palette else None,
+        "next_palette": {
+            "name": next_palette["name"],
+            "color": next_palette["color"],
+            "min_points": next_palette["min_points"],
+            "points_to_reach": points_to_next,
+        } if next_palette else None,
+        "history": log,
+        "totals": {"gained": total_gained, "lost": total_lost, "entries": len(driver.get("score_log") or [])},
+    }
+
+
+
 @router.post("/refuse-ride/{ride_id}")
 async def refuse_ride(ride_id: str, request: Request):
     """Driver refuses an offered ride → lose points + increment offered/refused counters."""

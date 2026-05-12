@@ -112,13 +112,20 @@ const DriverHome = () => {
     const unsub1 = on('new_ride_request', (msg) => {
       if (!currentRide && isOnline) setIncomingRequest(msg);
     });
+    // Priority offers from auto-dispatch escalation (tier 1/2). Reuse the same UI as a regular request,
+    // but flag it as priority so the driver knows it's escalated.
+    const unsub3 = on('priority_ride_offer', (msg) => {
+      if (!currentRide && isOnline) {
+        setIncomingRequest({ ...msg, is_priority: true });
+      }
+    });
     const unsub2 = on('ride_status_update', (msg) => {
       if (currentRide && msg.ride_id === currentRide.id) {
         if (msg.status === 'cancelled') setCurrentRide(null);
         else setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
       }
     });
-    return () => { unsub1(); unsub2(); };
+    return () => { unsub1(); unsub2(); unsub3(); };
   }, [on, currentRide, isOnline]);
 
   useEffect(() => {
@@ -377,7 +384,14 @@ const DriverHome = () => {
         <div className="absolute inset-0 z-[2000] bg-black/50 flex items-end" data-testid="incoming-request-modal">
           <div className="w-full bg-white rounded-t-3xl p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-800">Nouvelle course</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-bold text-gray-800">{incomingRequest.is_priority ? 'Course prioritaire' : 'Nouvelle course'}</h3>
+                {incomingRequest.is_priority && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 animate-pulse" data-testid="priority-badge">
+                    ⚡ TIER {incomingRequest.tier || 1}
+                  </span>
+                )}
+              </div>
               <div className="text-right">
                 <p className="text-[10px] text-gray-400 uppercase font-bold">Prix propose</p>
                 <span className="text-2xl font-bold" style={{ color: '#00B578' }}>

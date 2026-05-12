@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { rideAPI } from '../../services/api';
@@ -118,8 +119,19 @@ const RideTrackingPage = () => {
         setDriverPos({ lat: msg.lat, lng: msg.lng });
       }
     });
-    return () => { unsub1(); unsub2(); unsub3(); };
-  }, [on, rideId]);
+    // Auto-dispatch: ride got cancelled because no driver was available
+    const unsub4 = on('ride_auto_cancelled', (msg) => {
+      if (msg.ride_id === rideId) {
+        toast.error('Course annulée automatiquement', {
+          description: msg.reason || 'Aucun chauffeur disponible dans votre zone.',
+          duration: 7000,
+        });
+        setRide(prev => prev ? { ...prev, status: 'cancelled', cancel_reason: msg.reason } : prev);
+        setTimeout(() => navigate('/home'), 4000);
+      }
+    });
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
+  }, [on, rideId, navigate]);
 
   const handleCancel = async (reason) => {
     try {
