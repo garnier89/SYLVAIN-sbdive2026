@@ -117,6 +117,7 @@ import AdminDbBackup from './pages/admin/AdminDbBackup';
 import AdminNegotiationGapReport from './pages/admin/AdminNegotiationGapReport';
 import AdminFeaturedListings from './pages/admin/AdminFeaturedListings';
 import AdminPaymentMethods from './pages/admin/AdminPaymentMethods';
+import AdminSbPayGoZones from './pages/admin/AdminSbPayGoZones';
 import TopDriversPage from './pages/TopDriversPage';
 import RideChatPage from './pages/RideChatPage';
 import EmergencyContactsPage from './pages/user/EmergencyContactsPage';
@@ -291,6 +292,7 @@ const AppRouter = () => {
         {/* Settings & Utilities extras */}
         <Route path="payment-options" element={<AdminPaymentMethods />} />
         <Route path="payment-methods" element={<AdminPaymentMethods />} />
+        <Route path="sbpaygo-zones" element={<AdminSbPayGoZones />} />
         <Route path="currency" element={<AdminServiceConfig serviceKey="currency" />} />
         <Route path="language" element={<AdminServiceConfig serviceKey="language" />} />
         <Route path="seo" element={<AdminServiceConfig serviceKey="seo" />} />

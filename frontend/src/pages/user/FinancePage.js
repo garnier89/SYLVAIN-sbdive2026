@@ -4,8 +4,10 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Bank, ArrowUp, ArrowDown,
   Wallet as WalletIcon, ShieldCheck, Lightning,
-  X, CreditCard, DeviceMobile, Buildings
+  X, CreditCard, DeviceMobile, Buildings, Globe
 } from '@phosphor-icons/react';
+import { useSbPayGoAvailability } from '../../hooks/useSbPayGoAvailability';
+import { useAuth } from '../../contexts/AuthContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -15,6 +17,8 @@ const API = process.env.REACT_APP_BACKEND_URL;
  */
 const FinancePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { available: zoneAvailable, zone, loading: zoneLoading } = useSbPayGoAvailability(user?.country);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [currency, setCurrency] = useState('EUR');
@@ -51,16 +55,26 @@ const FinancePage = () => {
     load();
   }, [reload]);
 
-  if (!moduleEnabled) {
+  if (!moduleEnabled || (!zoneLoading && !zoneAvailable)) {
     return (
       <div className="mobile-container min-h-screen bg-white">
         <div className="px-4 py-4 flex items-center gap-3 border-b">
           <button onClick={() => navigate(-1)} data-testid="finance-back-btn"><ArrowLeft size={22} /></button>
           <h1 className="text-lg font-bold">SB PayGo</h1>
         </div>
-        <div className="p-8 text-center text-gray-500">
-          <ShieldCheck size={48} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-sm">SB PayGo est actuellement désactivé par l'administrateur.</p>
+        <div className="p-8 text-center text-gray-500" data-testid="sbpaygo-unavailable">
+          {!moduleEnabled ? (
+            <>
+              <ShieldCheck size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">SB PayGo est actuellement désactivé par l'administrateur.</p>
+            </>
+          ) : (
+            <>
+              <Globe size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">SB PayGo n'est pas encore disponible dans votre région.</p>
+              <p className="text-xs text-gray-400 mt-2">Notre équipe travaille à l'extension du service. Revenez bientôt !</p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -76,7 +90,9 @@ const FinancePage = () => {
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-bold">SB PayGo</h1>
-            <p className="text-xs text-white/70">Connecté à sbdrivevtc.com</p>
+            <p className="text-xs text-white/70">
+              {zone ? `${zone.country_label}${zone.city ? ` · ${zone.city}` : ''}` : 'Connecté à sbdrivevtc.com'}
+            </p>
           </div>
           <Bank size={26} weight="duotone" className="text-white/80" />
         </div>

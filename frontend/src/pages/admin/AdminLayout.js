@@ -193,6 +193,7 @@ const sidebarConfig = [
     items: [
       { icon: Gear, label: 'Paramètres généraux', path: '/admin/settings' },
       { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-methods' },
+      { icon: HandCoins, label: 'Zones SB PayGo', path: '/admin/sbpaygo-zones' },
       { icon: Wrench, label: 'Services principaux', path: '/admin/master-services' },
       { icon: SealCheck, label: 'Devise', path: '/admin/currency' },
       { icon: Translate, label: 'Langue', path: '/admin/language' },

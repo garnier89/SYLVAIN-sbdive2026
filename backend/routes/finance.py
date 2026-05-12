@@ -142,6 +142,155 @@ async def finance_balance(request: Request):
     }
 
 
+# ============ SB PayGo ZONES (geographic availability) ============
+DEFAULT_ZONES = [
+    {"id": "fr_idf", "country": "FR", "country_label": "France", "region": "Île-de-France", "city": "Paris", "enabled": True,  "currency": "EUR"},
+    {"id": "fr_paca","country": "FR", "country_label": "France", "region": "PACA",          "city": "Marseille","enabled": False,"currency": "EUR"},
+    {"id": "ci_abj", "country": "CI", "country_label": "Côte d'Ivoire", "region": "Abidjan", "city": "Abidjan", "enabled": False, "currency": "XOF"},
+    {"id": "sn_dkr", "country": "SN", "country_label": "Sénégal", "region": "Dakar", "city": "Dakar", "enabled": False, "currency": "XOF"},
+    {"id": "be_bxl", "country": "BE", "country_label": "Belgique", "region": "Bruxelles-Capitale", "city": "Bruxelles", "enabled": False, "currency": "EUR"},
+]
+
+
+async def ensure_zones_seeded():
+    for z in DEFAULT_ZONES:
+        existing = await db.sbpaygo_zones.find_one({"id": z["id"]})
+        if not existing:
+            await db.sbpaygo_zones.insert_one({**z, "updated_at": datetime.now(timezone.utc).isoformat()})
+
+
+@router.get("/finance/sbpaygo/availability")
+async def sbpaygo_availability(country: str | None = None, city: str | None = None):
+    """
+    PUBLIC — Check if SB PayGo is available for a given country/city.
+    Client app calls this on load to decide whether to display SB PayGo
+    in the payment-method picker and the side menu.
+    """
+    await ensure_zones_seeded()
+    q = {"enabled": True}
+    if country: q["country"] = country.upper()
+    if city: q["city"] = {"$regex": f"^{city}", "$options": "i"}
+    zone = await db.sbpaygo_zones.find_one(q, {"_id": 0})
+    if not zone and country:
+        # Fallback: any enabled zone in this country
+        zone = await db.sbpaygo_zones.find_one({"country": country.upper(), "enabled": True}, {"_id": 0})
+    return {
+        "available": bool(zone),
+        "zone": zone,
+    }
+
+
+@router.get("/admin/sbpaygo/zones")
+async def admin_list_zones(request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    await ensure_zones_seeded()
+    zones = await db.sbpaygo_zones.find({}, {"_id": 0}).sort([("country", 1), ("city", 1)]).to_list(500)
+    return {"zones": zones}
+
+
+class ZoneUpsert(BaseModel):
+    country: str
+    country_label: str
+    region: str | None = ""
+    city: str | None = ""
+    enabled: bool = False
+    currency: str = "EUR"
+
+
+@router.post("/admin/sbpaygo/zones")
+async def admin_create_zone(body: ZoneUpsert, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    zone_id = f"{body.country.lower()}_{(body.city or 'all').lower().replace(' ', '_')[:12]}_{uuid.uuid4().hex[:4]}"
+    doc = {
+        "id": zone_id,
+        "country": body.country.upper(),
+        "country_label": body.country_label,
+        "region": body.region or "",
+        "city": body.city or "",
+        "enabled": body.enabled,
+        "currency": body.currency,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.sbpaygo_zones.insert_one(doc)
+    doc.pop("_id", None)
+    return {"zone": doc}
+
+
+class ZonePatch(BaseModel):
+    enabled: bool | None = None
+    region: str | None = None
+    city: str | None = None
+    currency: str | None = None
+    country_label: str | None = None
+
+
+@router.put("/admin/sbpaygo/zones/{zone_id}")
+async def admin_update_zone(zone_id: str, body: ZonePatch, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    patch = {k: v for k, v in body.dict().items() if v is not None}
+    if not patch:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    patch["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.sbpaygo_zones.update_one({"id": zone_id}, {"$set": patch})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    z = await db.sbpaygo_zones.find_one({"id": zone_id}, {"_id": 0})
+    return {"zone": z}
+
+
+@router.delete("/admin/sbpaygo/zones/{zone_id}")
+async def admin_delete_zone(zone_id: str, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    res = await db.sbpaygo_zones.delete_one({"id": zone_id})
+    return {"deleted": res.deleted_count}
+
+
+# ============ Pay a ride with SB PayGo balance ============
+class PayRideBody(BaseModel):
+    ride_id: str
+    amount: float
+
+
+@router.post("/finance/sbpaygo/pay-ride")
+async def sbpaygo_pay_ride(body: PayRideBody, request: Request):
+    """Deduct the ride amount from user's SB PayGo balance and mark the ride as paid."""
+    user = await get_current_user(request)
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="Montant invalide")
+    wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]})
+    if not wallet or wallet.get("balance", 0) < body.amount:
+        raise HTTPException(status_code=400, detail="Solde SB PayGo insuffisant")
+    now = datetime.now(timezone.utc).isoformat()
+    tx = {
+        "id": f"tx_{uuid.uuid4().hex[:10]}",
+        "type": "debit",
+        "amount": body.amount,
+        "label": f"Paiement course {body.ride_id}",
+        "ride_id": body.ride_id,
+        "created_at": now,
+    }
+    await db.sbpaygo_wallets.update_one(
+        {"user_id": user["id"]},
+        {"$inc": {"balance": -body.amount}, "$push": {"transactions": tx}},
+    )
+    await db.rides.update_one(
+        {"id": body.ride_id, "user_id": user["id"]},
+        {"$set": {"paid_with": "sbpaygo", "paid_at": now}},
+    )
+    new_wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {"ok": True, "balance": new_wallet.get("balance", 0.0)}
+
+
+
+
 class TopUpBody(BaseModel):
     amount: float
     source: str = "card"  # card | bank | mobile_money

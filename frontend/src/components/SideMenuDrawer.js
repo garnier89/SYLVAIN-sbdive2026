@@ -20,6 +20,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { available: sbpaygoAvailable } = useSbPayGoAvailability(user?.country);
 
   const [walletBalance, setWalletBalance] = useState(null);
   const [biometricsOn, setBiometricsOn] = useState(() => {
@@ -90,7 +91,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
         { icon: Wallet,       label: 'Mon portefeuille',        path: '/wallet',                   color: 'bg-rose-100 text-rose-600' },
         { icon: Plus,         label: "Ajouter de l'argent",     path: '/wallet?action=topup',      color: 'bg-violet-100 text-violet-600' },
         { icon: PaperPlaneTilt, label: "Envoyer de l'argent",   path: '/wallet?action=send',       color: 'bg-pink-100 text-pink-700' },
-        { icon: Bank,         label: 'SB PayGo',                path: '/finance',                  color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true },
+        { icon: Bank,         label: 'SB PayGo',                path: '/finance',                  color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true, hidden: !sbpaygoAvailable },
       ],
     },
     {
@@ -144,7 +145,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
       title: 'Paiement',
       items: [
         { icon: Wallet, label: 'Mon portefeuille', path: '/chauffeur/wallet', color: 'bg-rose-100 text-rose-600' },
-        { icon: Bank,   label: 'SB PayGo',         path: '/finance',          color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true },
+        { icon: Bank,   label: 'SB PayGo',         path: '/finance',          color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true, hidden: !sbpaygoAvailable },
       ],
     },
     {
@@ -220,7 +221,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
               <div className="px-5 py-2 bg-gray-50 border-y border-gray-100">
                 <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{section.title}</h3>
               </div>
-              {section.items.map((it) => (
+              {section.items.filter((it) => !it.hidden).map((it) => (
                 it.type === 'toggle' ? (
                   <div
                     key={it.label}
