@@ -59,6 +59,8 @@ const RideBookingPage = () => {
   const [loading, setLoading] = useState(false);
   const [proposedFare] = useState('');
   const [counterOffers, setCounterOffers] = useState([]);
+  const [poolEnabled, setPoolEnabled] = useState(false);
+  const [airportSurcharge, setAirportSurcharge] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const [routePath, setRoutePath] = useState([]);
   const [vehicleTypes, setVehicleTypes] = useState([]);
@@ -167,6 +169,28 @@ const RideBookingPage = () => {
     }
   }, [pickup, dropoff, selectedVehicle]);
 
+  // Airport geofence — check for surcharge once pickup + dropoff are set
+  useEffect(() => {
+    if (!pickup.lat || !dropoff.lat) { setAirportSurcharge(null); return; }
+    const ctl = new AbortController();
+    fetch(`${API}/api/phase2/airport-flat-quote`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pickup_lat: pickup.lat, pickup_lng: pickup.lng,
+        dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng,
+      }),
+      signal: ctl.signal,
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d && d.type === 'airport_surcharge') setAirportSurcharge(d);
+        else setAirportSurcharge(null);
+      })
+      .catch(() => { /* ignore */ });
+    return () => ctl.abort();
+  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng]);
+
   const confirmRide = async () => {
     setLoading(true);
     try {
@@ -178,6 +202,7 @@ const RideBookingPage = () => {
         proposed_fare: offerAmount > 0 ? offerAmount : (estimate?.estimated_fare || null),
         book_for_name: bookFor.name || null,
         book_for_phone: bookFor.phone || null,
+        pool_enabled: poolEnabled,
       });
       const createdRide = response.data;
       setRide(createdRide);
@@ -266,6 +291,8 @@ const RideBookingPage = () => {
         vehicleTypes={vehicleTypes} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle}
         paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
         paymentMethods={paymentMethods}
+        poolEnabled={poolEnabled} setPoolEnabled={setPoolEnabled}
+        airportSurcharge={airportSurcharge}
         scheduleMode={scheduleMode}
         scheduleDate={scheduleDate} setScheduleDate={setScheduleDate}
         scheduleTime={scheduleTime} setScheduleTime={setScheduleTime}

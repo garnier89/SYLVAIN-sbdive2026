@@ -1,0 +1,68 @@
+{
+  "summary": "Iter 61 — Tested Phase 2 UI integrations (Heat View, Taxi Pool toggle, Airport surcharge, Tip, Waybill). Backend: 5/6 tests pass — discovered the frontend calls a NON-EXISTENT backend route. Frontend: WaybillPage renders shell but ALL trip details show '—' and total = 0.00 € due to data shape mismatch between frontend and backend. Step 2 visual flow not testable in preview due to pre-existing expired Google Maps key.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/phase2/airport-flat-quote",
+        "issue": "Returns 404. Frontend (RideBookingPage.js L176) POSTs to /api/phase2/airport-flat-quote, but backend (routes/phase2.py L153) mounts the route at /api/phase2/pricing/quote. The airport-surcharge useEffect therefore always silently fails — airport-surcharge-banner can never render, even for true airport coords. Fix: either add an alias @router.post('/airport-flat-quote') on the same handler, or change frontend URL to /api/phase2/pricing/quote.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/phase2/rides/{id}/waybill",
+        "issue": "Response shape doesn't match what the frontend WaybillPage expects (see frontend integration_issues). Either rename backend keys (pickup/dropoff/fare blocks) OR fix frontend reads. Backend currently returns {ride:{pickup_address,dropoff_address,distance_km,estimated_fare,final_fare,tip_amount,completed_at,...}, passenger:{}, driver:{name,phone,vehicle_model,vehicle_number,rating}}, but frontend reads data.pickup?.address, data.dropoff?.address, data.fare?.distance_km, data.fare?.total, data.completed_at, data.driver?.vehicle_plate."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "WaybillPage (/ride/:rideId/waybill)",
+        "issue": "Page shell renders correctly (SB Drive VTC branding, waybill_number 'SBD-70B30EAB', Imprimer + back buttons) BUT all trip fields are empty: Date='—', Chauffeur='—', Départ='—', Arrivée='—', Distance='0 km', Total='0.00 €'. Root cause: data-shape mismatch. WaybillPage.js reads data.completed_at/data.pickup?.address/data.dropoff?.address/data.fare?.{distance_km,base_fare,surcharge,tip_amount,total}/data.driver?.vehicle_plate — none of these paths exist on the backend response. Backend returns data.ride.pickup_address, data.ride.dropoff_address, data.ride.distance_km, data.ride.final_fare, data.ride.tip_amount, data.ride.completed_at, data.driver.vehicle_number. Fix: either update WaybillPage to read the nested `ride.*` fields (and compute fare block client-side: total = final_fare + tip_amount), OR reshape backend response to flat pickup/dropoff/fare blocks.",
+        "selector": "[data-testid=\"waybill-page\"]",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Airport surcharge auto-detect on /ride Step 2",
+        "issue": "Even when pickup/dropoff overlap a configured airport_zones row, the [data-testid='airport-surcharge-banner'] will NEVER appear because RideBookingPage.js POSTs to a 404 URL (/api/phase2/airport-flat-quote vs backend's /api/phase2/pricing/quote). Test request expected the banner absent for Paris coords — that happens to render correctly here only because of the 404, not because of correct logic.",
+        "affected_selectors": ["[data-testid=\"airport-surcharge-banner\"]"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "WaybillPage CHAUFFEUR row",
+        "issues": ["When driver is null (e.g., not yet assigned ride), the subValue still renders ' - ' literally because of `${vehicle_model || ''} - ${vehicle_plate || ''}` template — should hide the dash separator when both values empty."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter61_phase2.py",
+    "/app/test_reports/pytest/iter61_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Add backend alias @router.post('/airport-flat-quote') (or rename) so frontend POST to /api/phase2/airport-flat-quote returns 200. Currently 404 — airport surcharge feature is completely non-functional client-side.",
+    "CRITICAL: Fix WaybillPage data reads — backend returns {ride:{pickup_address,dropoff_address,distance_km,estimated_fare,final_fare,tip_amount,completed_at}, driver:{vehicle_number}}, frontend reads data.pickup?.address etc. Either update WaybillPage.js or reshape backend payload. Without this, the printed receipt is blank.",
+    "Optional: refactor TipModal flow trigger so the tip can be unit-tested (currently only reachable from completed ride state).",
+    "Pre-existing/env: refresh Google Maps API key (Step 2 visual flow blocked by 'Oops! Something went wrong.' placeholder — pickup/dropoff Places autocomplete cannot be exercised in preview env)."
+  ],
+  "critical_code_review_comments": [
+    "URL mismatch between frontend (RideBookingPage.js L176 /api/phase2/airport-flat-quote) and backend (routes/phase2.py L153 /pricing/quote) — caught only because endpoint test asserted the exact URL the frontend uses. Recommend adding a contract test that mirrors every URL string used in frontend.",
+    "WaybillPage shape mismatch caught zero by TS/ESLint — adding TypeScript or zod schema validation on API responses would surface this earlier. The waybill API response IS structured, but the page uses defensive `?.` chaining everywhere so missing keys silently degrade to '—' and 0.00 — feature looks 'working' visually but is non-functional.",
+    "phase2.py 650 lines and growing — consider splitting waybill/tip/heatmap/pool/gift-cards/runner into separate router files under routes/phase2/.",
+    "WaybillPage CHAUFFEUR subValue: literal ' - ' renders even when both sides empty (cosmetic)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter61_phase2.py"],
+  "success_rate": {
+    "backend": "83% (5/6 — only the FE-used /airport-flat-quote URL is 404)",
+    "frontend": "Heat View driver UI not testable (no driver UI session), Step2 toggle not visually verifiable (Maps key expired), WaybillPage shell OK but ALL trip data blank → ~30% of integration goals met"
+  },
+  "test_credentials": "user: neg_test@example.com / Test1234! ; admin: admin@superapp.com / SuperAdmin123! ; driver: register fresh via /api/auth/register role=driver (used 'driver_iter61_*' in tests)",
+  "seed_data_creation": "Created 1 test ride (ride_19fd70b30ea*) via /api/rides during the waybill UI inspection; created throwaway driver account for heatmap auth test.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two real bugs to retest after main agent fix: (1) POST /api/phase2/airport-flat-quote should be 200 (currently 404 — confirmed via backend test test_airport_flat_quote_endpoint_used_by_frontend). (2) Visit /ride/{any-existing-ride-id}/waybill and verify Date/Driver/Départ/Arrivée/Distance/Total all show real values, not '—' / 0.00 €. Heat View driver heatmap polling visual test still pending: register a driver, login via /api/auth/login (cookie-based), then visit /chauffeur/home and click [data-testid='heat-view-toggle'] — verify button toggles 'Heat View' ↔ 'Heat View ON · N'. Pre-existing environment issue: REACT_APP_GOOGLE_MAPS_KEY is expired so Step 2 visual flow shows placeholder. Backend phase2 routes (heatmap, tip, waybill API) all confirmed working — only the URL routing for airport-flat-quote is broken.",
+  "rca of the issue": "Bug 1 (airport-flat-quote 404) — frontend RideBookingPage.js line 176 hard-codes POST '/api/phase2/airport-flat-quote' but backend phase2.py registered the handler as @router.post('/pricing/quote'). Likely a refactor where one side was renamed without the other. Reproduce: curl -X POST $REACT_APP_BACKEND_URL/api/phase2/airport-flat-quote -H 'Content-Type: application/json' -d '{}' → 404. Mitigation: add @router.post('/airport-flat-quote') decorator alongside /pricing/quote on the same function (1-line backend fix).  Bug 2 (Waybill blank data) — backend response payload contract uses nested {ride:{flat_keys}, passenger:{}, driver:{}, company:{}}, frontend reads sibling-level keys like data.pickup.address, data.fare.total, data.completed_at. Both implementations diverged. Reproduce: login, create ride via POST /api/rides, navigate to /ride/{id}/waybill — header renders but all trip fields are '—' or 0.00 €. Mitigation (recommended frontend fix): change WaybillPage.js to read data.ride.pickup_address, data.ride.dropoff_address, data.ride.distance_km, data.ride.completed_at || data.ride.created_at, total = (data.ride.final_fare ?? data.ride.estimated_fare ?? 0) + (data.ride.tip_amount || 0), driver.vehicle_number instead of vehicle_plate."
+}

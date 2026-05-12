@@ -50,6 +50,7 @@ import ParkingPage from './pages/user/ParkingPage';
 import GiftCardsPage from './pages/user/GiftCardsPage';
 import TrackingServicePage from './pages/user/TrackingServicePage';
 import FinancePage from './pages/user/FinancePage';
+import WaybillPage from './pages/user/WaybillPage';
 
 // SB Drive Chauffeur Pages
 import ChauffeurWelcome from './pages/chauffeur/ChauffeurWelcome';
@@ -185,6 +186,7 @@ const AppRouter = () => {
       <Route path="/giftcards" element={<ProtectedRoute allowedRoles={['user']}><GiftCardsPage /></ProtectedRoute>} />
       <Route path="/tracking" element={<ProtectedRoute allowedRoles={['user']}><TrackingServicePage /></ProtectedRoute>} />
       <Route path="/finance" element={<ProtectedRoute allowedRoles={['user', 'driver']}><FinancePage /></ProtectedRoute>} />
+      <Route path="/ride/:rideId/waybill" element={<ProtectedRoute allowedRoles={['user', 'driver']}><WaybillPage /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><WalletPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />

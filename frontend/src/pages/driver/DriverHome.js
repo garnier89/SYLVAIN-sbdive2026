@@ -8,8 +8,9 @@ import {
   Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots, ChatCircle,
   Gift, Plus, CalendarCheck
 } from '@phosphor-icons/react';
-import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, MarkerF, CircleF } from '@react-google-maps/api';
 
+const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 const DriverHome = () => {
   const { user } = useAuth();
@@ -24,9 +25,27 @@ const DriverHome = () => {
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const [showMenu, setShowMenu] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatPoints, setHeatPoints] = useState([]);
   const locationWatchId = useRef(null);
 
   const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
+
+  // Load heat map demand cells when toggled
+  useEffect(() => {
+    if (!showHeatmap) return;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API}/api/phase2/heatmap`, { credentials: 'include' });
+        if (!res.ok) return;
+        const d = await res.json();
+        setHeatPoints(d.points || []);
+      } catch { /* ignore */ }
+    };
+    load();
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [showHeatmap]);
 
   const { on, sendLocation, joinRide } = useWebSocket(user?.id);
 
@@ -228,16 +247,42 @@ const DriverHome = () => {
       </div>
 
       {/* MAP */}
-      <div className="flex-1" style={{ height: '45vh' }}>
+      <div className="flex-1 relative" style={{ height: '45vh' }}>
         {gmapLoaded ? (
           <GoogleMap mapContainerStyle={{ width: '100%', height: '100%' }} center={mapCenter} zoom={15} options={{ disableDefaultUI: true, zoomControl: false }}>
             <MarkerF position={mapCenter} />
+            {showHeatmap && heatPoints.map((p, idx) => {
+              const maxCount = Math.max(...heatPoints.map(x => x.count), 1);
+              const intensity = p.count / maxCount;
+              const radius = 400 + intensity * 800;
+              const color = intensity > 0.66 ? '#dc2626' : intensity > 0.33 ? '#f59e0b' : '#3b82f6';
+              return (
+                <CircleF
+                  key={idx}
+                  center={{ lat: p.lat, lng: p.lng }}
+                  radius={radius}
+                  options={{
+                    fillColor: color, fillOpacity: 0.25,
+                    strokeColor: color, strokeOpacity: 0.6, strokeWeight: 1,
+                  }}
+                />
+              );
+            })}
           </GoogleMap>
         ) : (
           <div className="w-full h-full bg-gray-100 flex items-center justify-center">
             <span className="text-gray-400 text-sm">Chargement de la carte...</span>
           </div>
         )}
+        {/* Heat View toggle button */}
+        <button
+          onClick={() => setShowHeatmap(v => !v)}
+          className={`absolute top-4 right-4 z-[500] px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 text-xs font-bold ${showHeatmap ? 'bg-red-500 text-white' : 'bg-white text-gray-800'}`}
+          data-testid="heat-view-toggle"
+        >
+          <span className="text-base">🔥</span>
+          {showHeatmap ? `Heat View ON · ${heatPoints.length}` : 'Heat View'}
+        </button>
       </div>
 
       {/* FLOATING BUTTONS */}

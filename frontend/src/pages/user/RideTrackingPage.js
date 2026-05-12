@@ -7,11 +7,12 @@ import { Button } from '../../components/ui/button';
 import {
   MapPin, Phone, ChatCircle, X, Star,
   NavigationArrow, Car, Check, Warning,
-  ArrowLeft, Shield, Clock, CaretRight
+  ArrowLeft, Shield, Clock, CaretRight, HandHeart, Receipt
 } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import TipModal from '../../components/TipModal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -49,6 +50,7 @@ const RideTrackingPage = () => {
   const [driverPos, setDriverPos] = useState(null);
   const [showCancel, setShowCancel] = useState(false);
   const [showRating, setShowRating] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
   const [rating, setRating] = useState(5);
   const [markAsFavorite, setMarkAsFavorite] = useState(false);
   const [startOtp, setStartOtp] = useState(null);
@@ -421,12 +423,38 @@ const RideTrackingPage = () => {
             <Button className="w-full" onClick={handleRate} data-testid="submit-rating-btn">
               Envoyer ({rating}/5)
             </Button>
+
+            {/* Tip + Waybill actions */}
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button
+                onClick={() => setShowTipModal(true)}
+                className="py-2.5 rounded-xl border border-pink-200 bg-pink-50 text-pink-700 text-sm font-semibold flex items-center justify-center gap-1.5"
+                data-testid="add-tip-btn"
+              >
+                <HandHeart size={16} weight="duotone" /> Pourboire
+              </button>
+              <button
+                onClick={() => navigate(`/ride/${rideId}/waybill`)}
+                className="py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-sm font-semibold flex items-center justify-center gap-1.5"
+                data-testid="view-waybill-btn"
+              >
+                <Receipt size={16} weight="duotone" /> Feuille de route
+              </button>
+            </div>
+
             <button className="text-sm text-gray-400 mt-3" onClick={() => { setShowRating(false); navigate('/home'); }}>
               Passer
             </button>
           </div>
         </div>
       )}
+      {/* Tip Modal */}
+      <TipModal
+        open={showTipModal}
+        rideId={rideId}
+        onClose={() => setShowTipModal(false)}
+        onSuccess={() => setShowTipModal(false)}
+      />
     </div>
   );
 };

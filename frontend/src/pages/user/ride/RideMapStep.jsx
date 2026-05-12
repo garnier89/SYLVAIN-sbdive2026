@@ -28,6 +28,8 @@ export const RideMapStep = ({
   vehicleTypes, selectedVehicle, setSelectedVehicle,
   paymentMethod, setPaymentMethod,
   paymentMethods = [],
+  poolEnabled, setPoolEnabled,
+  airportSurcharge,
   scheduleMode, scheduleDate, setScheduleDate, scheduleTime, setScheduleTime,
   selectingLocation, handleLocationSelect, getEstimate,
   gmapLoaded, confirmRide, loading,
@@ -210,6 +212,30 @@ export const RideMapStep = ({
 
             {/* Payment + Offer + CTA */}
             <div className="border-t border-gray-100 px-5 py-3">
+              {/* Airport surcharge banner */}
+              {airportSurcharge?.surcharge > 0 && (
+                <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center gap-2" data-testid="airport-surcharge-banner">
+                  <span className="text-base">✈️</span>
+                  <span><b>{airportSurcharge.zone}</b> · Supplément aéroport +{airportSurcharge.surcharge.toFixed(2)} €</span>
+                </div>
+              )}
+
+              {/* Taxi Pool toggle */}
+              <label className="flex items-center gap-3 py-2 mb-2 cursor-pointer" data-testid="pool-toggle-label">
+                <input
+                  type="checkbox"
+                  checked={!!poolEnabled}
+                  onChange={(e) => setPoolEnabled(e.target.checked)}
+                  className="sr-only peer"
+                  data-testid="pool-toggle-input"
+                />
+                <div className="relative w-10 h-5 bg-gray-300 peer-checked:bg-emerald-500 rounded-full transition-all after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-800">Partager la course (Taxi Pool)</p>
+                  <p className="text-[11px] text-gray-500">Jusqu'à -30% si un autre passager part dans la même direction</p>
+                </div>
+                <Users size={20} className="text-emerald-600" weight="duotone" />
+              </label>
               <button
                 onClick={() => {
                   const q = new URLSearchParams();
