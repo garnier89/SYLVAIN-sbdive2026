@@ -1,0 +1,51 @@
+{
+  "summary": "Iter 65 — Tested WebSocket admin broadcast + AdminLiveRides UI + AdminDashboard V3Cube enrichments. Backend: 7/8 pytests pass (6 admin endpoints OK, SBPayGo OK, /auth/me OK). The 1 failing test is the WebSocket E2E: wss connection to the public URL times out / fails handshake. UI: all 6 new V3Cube service cards render on /admin (on-demand-services, video-consult, genie-runner, buy-sell-rent, store-deliveries, ride-share). BuySellRent shows the 3 categories (Voitures, Objets, Immobilier). /admin/live-rides renders admin-live-rides, toggle-sound-btn, refresh-live-rides-btn, live-rides-map, live-rides-list — sound toggle persists in localStorage (on->off verified), refresh button works, 79 active rides displayed. CRITICAL: Browser console shows 'WebSocket connection to wss://.../ws/admin_user_... failed: WebSocket is closed before the connection is established' — the /ws/{client_id} path is NOT routed through the public ingress (only /api/* is). Backend WS works on localhost:8001 (verified) but the public URL serves frontend HTML for /ws/*. The new real-time toast/sound/flash feature will NOT work in production until WS path is moved under /api or ingress is updated. Polling fallback (15s) still works.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "WSS /ws/{client_id}", "issue": "Public ingress does not route /ws/* to backend port 8001 — request returns frontend HTML (port 3000). External wss:// handshake times out. broadcast_to_admins is wired correctly server-side, but admin clients can never establish the WS in production. Real-time new_ride_request notifications, sound, and visual flash are therefore non-functional via the deployed URL. Either (a) move the WebSocket endpoint to @app.websocket('/api/ws/{client_id}') in server.py and update WS_URL in AdminLiveRides.js + AdminRideRequest/driver clients, OR (b) request ingress to route /ws/* to backend.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminDashboard / God's View card", "issue": "Card body renders 'Oops! Something went wrong.' (component-level ErrorBoundary fallback). Likely a child component throws on mount (probably the Leaflet/Google map). Visible in iter65 screenshot.", "selector": "[data-testid*='god-view'] (no testid found — using positional)", "priority": "MEDIUM"},
+      {"component": "Google Maps", "issue": "Console: 'Google Maps JavaScript API error: ExpiredKeyMapError'. The API key in /app/frontend/.env (REACT_APP_GOOGLE_MAPS_KEY) is expired. All Google Maps widgets on dashboard/booking pages are broken. AdminLiveRides uses Leaflet so it is unaffected.", "selector": "any [class*='gm-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin real-time new_ride_request", "issue": "Frontend opens wss://.../ws/admin_<id>_<ts>; browser logs 'WebSocket is closed before the connection is established'. Toast/sound/flash will never fire from a real ride creation event. Only the 15s polling refresh shows the ride.", "affected_selectors": ["[data-testid='admin-live-rides']", "[data-testid^='live-ride-']"]}
+    ],
+    "design_issues": [
+      {"screen": "/admin God's View", "issues": ["Error boundary fallback visible at bottom-left of dashboard — degrades trust."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter65_ws_admin_dashboard.py",
+    "/app/test_reports/pytest/iter65_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Make WebSocket reachable from public URL — move endpoint to /api/ws/{client_id} in backend/server.py and update WS_URL build in /app/frontend/src/pages/admin/AdminLiveRides.js (replace `${WS_URL}/ws/...` with `${WS_URL}/api/ws/...`) and any driver WS clients. Verify by reconnecting AdminLiveRides and watching for new_ride_request after creating a ride.",
+    "HIGH: Renew REACT_APP_GOOGLE_MAPS_KEY in frontend/.env — current key returns ExpiredKeyMapError. Breaks all Google Maps widgets (booking, dashboards). Then sudo supervisorctl restart frontend.",
+    "MEDIUM: Investigate the 'Oops! Something went wrong.' error inside the God's View card on /admin — likely a render error in the embedded map/chart component (probably a victim of the expired Maps key).",
+    "Add data-testid='god-view', 'recent-rides', 'admin-earnings', 'contact-us', 'scheduled-bookings', 'server-stats', 'donut-chart' to existing AdminDashboard sections for regression-friendly testing (none were found)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:382 — @app.websocket('/ws/{client_id}') is mounted OUTSIDE api_router (prefix='/api'). Ingress only forwards /api/* to backend:8001, so /ws/* falls through to the frontend. Either move the route under /api or change ingress rules. Same applies to any other non-/api routes the backend exposes.",
+    "AdminLiveRides.js:10 — WS_URL = API.replace(/^http/, 'ws') is fine, but the path '/ws/...' must align with backend mount; right now it does not work over the public URL.",
+    "AdminLiveRides.js:31 — `data-URI WAV` is hard-coded as a 4KB constant inline. Functional but inflates bundle by ~5KB; consider lazy-import or static asset.",
+    "rides.py:140-169 — broadcast_to_admins payload is correct and includes all required fields per spec. Backend side is bug-free.",
+    "AdminDashboard.js — God's View child component triggers an error boundary; add try/catch + skeleton fallback rather than 'Oops!' user-facing text."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter65_ws_admin_dashboard.py"
+  ],
+  "success_rate": {
+    "backend": "87.5% (7/8 — WS E2E fails due to ingress, all REST endpoints OK)",
+    "frontend": "90% (all new testids present, sound persistence + refresh work, but live WS feature is broken in production + Maps key expired)"
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; neg_test@example.com / Test1234!",
+  "seed_data_creation": "Test attempted to create a ride via POST /api/rides as neg_test user (TEST_iter65 addresses) inside the WS test — that request DID succeed when its own WS handshake bypassed (verified via REST tests), but the test asserts on the WS message which never arrives.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Iter65: The WS path /ws/{client_id} is unreachable from the public ingress. Verified by (a) curl with Upgrade headers returning frontend HTML, (b) python websockets.connect timing out, (c) browser console 'WebSocket is closed before connection established'. Backend code itself (rides.py broadcast_to_admins + core/websocket.py) is correct — local ws://localhost:8001/ws/... works (sent ping, got pong). All 6 new V3Cube AdminDashboard cards render with correct testids and BuySellRent shows the 3 sub-categories. AdminLiveRides UI is complete: sound toggle persists, refresh works, list shows 79 active rides. Google Maps API key is EXPIRED (ExpiredKeyMapError) — unrelated to iter65 but breaks Maps everywhere except AdminLiveRides (which uses Leaflet/OSM). Polling fallback (15s) means AdminLiveRides still gets data without WS, just without instant notifications.",
+  "rca of the issue": "Root cause of WS failure: server.py mounts the WebSocket route at '/ws/{client_id}' outside the '/api' prefixed APIRouter. The Kubernetes/Cloudflare ingress in this environment routes only '/api/*' to backend:8001; all other paths go to frontend:3000 which has no WS handler and returns the SPA HTML, causing the upgrade handshake to fail/time out. Fix: rename the FastAPI decorator to '@app.websocket(\"/api/ws/{client_id}\")' and update the client URL in AdminLiveRides.js (and any driver/passenger WS connectors) from `${WS_URL}/ws/${clientId}` to `${WS_URL}/api/ws/${clientId}`. After restart of backend+frontend, re-run test_ws_admin_receives_new_ride_request to confirm a new_ride_request frame is received within 2s of POST /api/rides."
+}

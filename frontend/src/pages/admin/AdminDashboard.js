@@ -129,6 +129,60 @@ const AdminDashboard = () => {
         <KPICard icon={Storefront} label="Marchands" value={stats.merchants} color="#EC4899" onClick={() => navigate('/admin/stores')} />
       </div>
 
+      {/* V3Cube Service Cards Row: On Demand Services + Video Consult + Delivery Genie/Runner */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <ServiceMiniCard
+          title="Services à la demande"
+          subtitle="Total Trips / Parcel Deliveries"
+          stat1={{ label: 'Total Trips', value: analytics?.completed_rides_count || stats.rides || 0, icon: Taxi, color: '#3B82F6' }}
+          stat2={{ label: 'Total Parcel Deliveries', value: stats.orders || 0, icon: Package, color: '#8B5CF6' }}
+          tabs={['today', 'total']}
+          onView={() => navigate('/admin/rides')}
+          testId="on-demand-services-card"
+        />
+        <ServiceMiniCard
+          title="Consultation Vidéo"
+          subtitle="Sessions Médicales"
+          stat1={{ label: 'Consultations', value: 0, icon: ChartLine, color: '#10B981' }}
+          stat2={{ label: 'Terminées', value: 0, icon: CheckCircle, color: '#3B82F6' }}
+          tabs={['today', 'total']}
+          onView={() => navigate('/admin/video')}
+          testId="video-consult-card"
+        />
+        <ServiceMiniCard
+          title="Delivery Genie / Runner"
+          subtitle="Coursiers express"
+          stat1={{ label: 'Runner', value: 0, icon: Wrench, color: '#F59E0B' }}
+          stat2={{ label: 'Genie', value: 0, icon: Package, color: '#EC4899' }}
+          tabs={['today', 'total']}
+          onView={() => navigate('/admin/runner')}
+          testId="genie-runner-card"
+        />
+      </div>
+
+      {/* V3Cube Commerce Row: Buy Sell Rent + Store Deliveries + Ride Share */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <BuySellRentCard onView={() => navigate('/admin/marketplace')} />
+        <ServiceMiniCard
+          title="Livraisons Boutiques"
+          subtitle="No. of orders"
+          stat1={{ label: 'Total Orders', value: stats.orders || 0, icon: Storefront, color: '#EF4444' }}
+          stat2={{ label: 'Active Stores', value: stats.merchants || 0, icon: Storefront, color: '#10B981' }}
+          tabs={['today', 'total']}
+          onView={() => navigate('/admin/store-orders')}
+          testId="store-deliveries-card"
+        />
+        <ServiceMiniCard
+          title="Covoiturage (Ride Share)"
+          subtitle="No. of Rides"
+          stat1={{ label: 'En cours', value: analytics?.ride_status?.in_progress || 0, icon: Users, color: '#3B82F6' }}
+          stat2={{ label: 'Terminées', value: analytics?.ride_status?.completed || 0, icon: CheckCircle, color: '#10B981' }}
+          tabs={['today', 'total']}
+          onView={() => navigate('/admin/rideshare')}
+          testId="ride-share-card"
+        />
+      </div>
+
       {/* God's View + Donut + Recent Rides */}
       <div className="grid lg:grid-cols-3 gap-5">
         {/* God's View */}
@@ -418,5 +472,97 @@ const EarningBox = ({ icon, label, sublabel, value, color }) => (
     <p className={`text-lg font-bold ${color} text-right`}>{value}</p>
   </div>
 );
+
+const ServiceMiniCard = ({ title, subtitle, stat1, stat2, tabs = [], onView, testId }) => {
+  const [tab, setTab] = useState(tabs[0] || 'total');
+  const Icon1 = stat1.icon, Icon2 = stat2.icon;
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid={testId}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="font-bold text-gray-800 text-sm">{title}</h3>
+          <p className="text-[10px] text-gray-400">{subtitle}</p>
+        </div>
+        {tabs.length > 0 && (
+          <div className="flex gap-1 bg-gray-100 rounded-md p-0.5">
+            {tabs.map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className={`px-2.5 py-1 rounded text-[10px] font-semibold capitalize ${tab === t ? 'bg-[#3b82f6] text-white' : 'text-gray-500'}`}>
+                {t === 'today' ? "Aujourd'hui" : 'Total'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {[stat1, stat2].map((s, i) => {
+          const Ic = i === 0 ? Icon1 : Icon2;
+          return (
+            <div key={i} className="bg-gray-50 rounded-lg p-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: s.color + '20' }}>
+                <Ic size={16} style={{ color: s.color }} weight="fill" />
+              </div>
+              <p className="text-xl font-bold text-gray-900 tabular-nums">{s.value}</p>
+              <p className="text-[10px] text-gray-500 leading-tight">{s.label}</p>
+            </div>
+          );
+        })}
+      </div>
+      {onView && (
+        <button onClick={onView} className="w-full mt-3 text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center gap-1" data-testid={`${testId}-view-all`}>
+          Voir tout <ArrowRight size={12} />
+        </button>
+      )}
+    </div>
+  );
+};
+
+const BuySellRentCard = ({ onView }) => {
+  const [tab, setTab] = useState('total');
+  const cats = [
+    { key: 'cars', label: 'Voitures', icon: Car, color: '#3B82F6' },
+    { key: 'items', label: 'Objets généraux', icon: Package, color: '#F59E0B' },
+    { key: 'realestate', label: 'Immobilier', icon: Storefront, color: '#EC4899' },
+  ];
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="buy-sell-rent-card">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="font-bold text-gray-800 text-sm">Acheter, Vendre & Louer</h3>
+          <p className="text-[10px] text-gray-400">No. of posts</p>
+        </div>
+        <div className="flex gap-1 bg-gray-100 rounded-md p-0.5">
+          {['today', 'total'].map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-2.5 py-1 rounded text-[10px] font-semibold ${tab === t ? 'bg-[#3b82f6] text-white' : 'text-gray-500'}`}>
+              {t === 'today' ? "Aujourd'hui" : 'Total'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {cats.map(c => {
+          const Ic = c.icon;
+          return (
+            <div key={c.key} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: c.color + '20' }}>
+                  <Ic size={14} style={{ color: c.color }} weight="fill" />
+                </div>
+                <span className="text-xs text-gray-700">{c.label}</span>
+              </div>
+              <span className="text-sm font-bold text-gray-900">0</span>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={onView} className="w-full mt-3 text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center gap-1" data-testid="buy-sell-rent-view-all">
+        Voir tout <ArrowRight size={12} />
+      </button>
+    </div>
+  );
+};
+
+
 
 export default AdminDashboard;

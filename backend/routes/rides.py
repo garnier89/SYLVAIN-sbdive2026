@@ -152,6 +152,22 @@ async def create_ride(data: RideRequest, request: Request):
         "duration_mins": ride["duration_mins"],
     })
 
+    # Also broadcast to admins watching the live-rides cockpit
+    await manager.broadcast_to_admins({
+        "type": "new_ride_request",
+        "ride_id": ride["id"],
+        "booking_no": ride["booking_no"],
+        "pickup_lat": ride["pickup_lat"],
+        "pickup_lng": ride["pickup_lng"],
+        "pickup_address": ride["pickup_address"],
+        "dropoff_address": ride["dropoff_address"],
+        "vehicle_type": ride["vehicle_type"],
+        "estimated_fare": fare,
+        "distance_km": ride["distance_km"],
+        "user_id": ride["user_id"],
+        "created_at": ride["created_at"],
+    })
+
     ride.pop("_id", None)
     ride["created_at"] = datetime.fromisoformat(ride["created_at"])
     return RideResponse(**ride)

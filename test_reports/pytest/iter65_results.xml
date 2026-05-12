@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="8" time="11.479" timestamp="2026-05-12T04:12:11.062364+00:00" hostname="agent-env-71749278-54a7-4bc5-89dd-d46ccdb76e63"><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_ws_admin_receives_new_ride_request" time="10.507"><failure message="TimeoutError: timed out during opening handshake">/root/.venv/lib/python3.11/site-packages/websockets/asyncio/client.py:543: in __await_impl__
+    await self.connection.handshake(
+/root/.venv/lib/python3.11/site-packages/websockets/asyncio/client.py:104: in handshake
+    await asyncio.wait(
+/usr/local/lib/python3.11/asyncio/tasks.py:428: in wait
+    return await _wait(fs, timeout, return_when, loop)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/tasks.py:535: in _wait
+    await waiter
+E   asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+/root/.venv/lib/python3.11/site-packages/websockets/asyncio/client.py:539: in __await_impl__
+    async with asyncio_timeout(self.open_timeout):
+/usr/local/lib/python3.11/asyncio/timeouts.py:115: in __aexit__
+    raise TimeoutError from exc_val
+E   TimeoutError
+
+The above exception was the direct cause of the following exception:
+backend/tests/test_iter65_ws_admin_dashboard.py:88: in test_ws_admin_receives_new_ride_request
+    asyncio.get_event_loop().run_until_complete(run()) if False else asyncio.run(run())
+                                                                     ^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_iter65_ws_admin_dashboard.py:57: in run
+    async with websockets.connect(ws_full, open_timeout=10) as ws:
+/root/.venv/lib/python3.11/site-packages/websockets/asyncio/client.py:587: in __aenter__
+    return await self
+           ^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/websockets/asyncio/client.py:578: in __await_impl__
+    raise TimeoutError("timed out during opening handshake") from exc
+E   TimeoutError: timed out during opening handshake</failure></testcase><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_admin_live_rides_endpoint_200" time="0.439" /><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_admin_dashboard_endpoint_200" time="0.061" /><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_admin_recent_rides_200" time="0.047" /><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_admin_scheduled_bookings_200" time="0.048" /><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_admin_server_stats_200" time="0.107" /><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_sbpaygo_wallet_endpoint" time="0.048" /><testcase classname="backend.tests.test_iter65_ws_admin_dashboard" name="test_auth_me_works" time="0.059" /></testsuite></testsuites>

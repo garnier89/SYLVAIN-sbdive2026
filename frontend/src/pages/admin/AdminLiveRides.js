@@ -1,10 +1,16 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
 import LeafletMap from '../../components/LeafletMap';
 import { Card, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
-import { MapPin, Car, User, Phone, Clock, ArrowsClockwise, Path } from '@phosphor-icons/react';
+import { MapPin, Car, User, Phone, Clock, ArrowsClockwise, Path, Bell, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+const WS_URL = API.replace(/^http/, 'ws');
+
+// Short data-URI "ping" sound (440Hz beep, 200ms) — works offline, no external asset needed
+const PING_SOUND_URI = 'data:audio/wav;base64,UklGRiQEAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAEAAB/gIB/f4F/foCBfn6BgH1+goB8foOAe36DgHt+g4B7foOAfH6CgH1+gn99f4F/fX+AgH1/gIB+gH+Afn9/gH9/foB/gH+AgH9/gIB/f4CAgH+AgIB/gICAgH+AgH9/f3+AgIB/f4CAf3+AgIB/f4CAgH9/gICAf3+AgIB/f4CAgH9/gICAf3+AgIB/f4CAgH+AgICAf4CAgH9/gICAgH+AgIB/f4CAgH+AgICAf4CAgIB/gICAgH+AgIB/f4CAgIB/gICAgH+AgIB/f4CAgIB/gICAgH9/gICAf4CAgIB/gICAf3+AgICAf4CAgIB/gICAf3+AgICAf4CAgIB/gICAf3+AgICAf4CAgH9/gICAgH+AgICAf3+AgICAf4CAgH9/gICAgH+AgIB/f4CAgIB/gICAf3+AgIB/f4CAgIB/gICAf3+AgIB/f4CAgH+AgICAf3+AgIB/f4CAgH+AgIB/f4CAgH9/gICAf4CAgH9/gICAf3+AgIB/f4CAgH+AgIB/f4CAgH9/gIB/gICAf3+AgH9/gICAgH+AgH9/gICAf3+AgH9/gICAgH+AgH9/gICAf3+AgH9/gICAf3+AgH9/gIB/f4CAf3+AgH9/gIB/f4CAf4CAf3+AgH+AgH9/gIB/gIB/f4CAf4CAf3+AgH+AgH9/gIB/gIB/f4CAf4CAf3+AgH+AgIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/gIB/';
 
 const STATUS_COLORS = {
   pending: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'En attente' },
@@ -14,11 +20,19 @@ const STATUS_COLORS = {
 };
 
 const AdminLiveRides = () => {
+  const { user } = useAuth();
   const [data, setData] = useState({ rides: [], counts: {}, total: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem('admin_live_sound') !== 'off');
+  const [flashIds, setFlashIds] = useState(new Set()); // rides currently flashing
+  const audioRef = useRef(null);
+  const wsRef = useRef(null);
+
+  // Persist sound preference
+  useEffect(() => { localStorage.setItem('admin_live_sound', soundOn ? 'on' : 'off'); }, [soundOn]);
 
   const load = useCallback(async () => {
     try {
@@ -32,11 +46,51 @@ const AdminLiveRides = () => {
     finally { setLoading(false); }
   }, []);
 
+  // Initial + polling fallback (every 15s — WS handles real-time deltas)
   useEffect(() => {
     load();
-    const i = setInterval(load, 5000);
+    const i = setInterval(load, 15000);
     return () => clearInterval(i);
   }, [load]);
+
+  // WebSocket subscription
+  useEffect(() => {
+    if (!user?.id) return;
+    const clientId = `admin_${user.id}_${Date.now()}`;
+    const ws = new WebSocket(`${WS_URL}/ws/${clientId}`);
+    wsRef.current = ws;
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'new_ride_request') {
+          // Sound
+          if (soundOn && audioRef.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play().catch(() => {});
+          }
+          // Toast
+          toast(`🚖 Nouvelle course #${msg.booking_no || msg.ride_id?.slice(-6)}`, {
+            description: `${msg.pickup_address?.slice(0, 40)} → ${msg.dropoff_address?.slice(0, 40)} · ${msg.estimated_fare?.toFixed(2)}€`,
+            duration: 6000,
+          });
+          // Flash effect (5s)
+          setFlashIds((prev) => new Set([...prev, msg.ride_id]));
+          setTimeout(() => {
+            setFlashIds((prev) => {
+              const next = new Set(prev);
+              next.delete(msg.ride_id);
+              return next;
+            });
+          }, 5000);
+          // Reload to pull the full ride (with user info)
+          load();
+        }
+      } catch (err) { console.error('WS parse error', err); }
+    };
+    ws.onerror = (e) => console.error('WS error', e);
+    return () => { try { ws.close(); } catch {} };
+  }, [user?.id, soundOn, load]);
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return data.rides;
@@ -48,7 +102,6 @@ const AdminLiveRides = () => {
     [filtered, selectedId]
   );
 
-  // Map center: selected ride pickup, fallback to Paris
   const mapCenter = selectedRide?.pickup_lat
     ? { lat: selectedRide.pickup_lat, lng: selectedRide.pickup_lng }
     : { lat: 48.8566, lng: 2.3522 };
@@ -56,16 +109,16 @@ const AdminLiveRides = () => {
   const pickup = selectedRide?.pickup_lat ? { lat: selectedRide.pickup_lat, lng: selectedRide.pickup_lng } : null;
   const dropoff = selectedRide?.dropoff_lat ? { lat: selectedRide.dropoff_lat, lng: selectedRide.dropoff_lng } : null;
   const driver = selectedRide?.driver_lat ? { lat: selectedRide.driver_lat, lng: selectedRide.driver_lng } : null;
-
   const routePath = pickup && dropoff ? [pickup, dropoff] : [];
 
   return (
     <div className="p-6" data-testid="admin-live-rides">
+      <audio ref={audioRef} src={PING_SOUND_URI} preload="auto" />
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Courses en direct</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Suivi temps réel des courses en cours · actualisation toutes les 5 s
+            Cockpit temps réel · WebSocket + auto-refresh 15s
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -74,6 +127,17 @@ const AdminLiveRides = () => {
               <Clock size={14} /> {lastUpdate.toLocaleTimeString('fr-FR')}
             </span>
           )}
+          <button
+            onClick={() => setSoundOn(s => !s)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+              soundOn ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+            data-testid="toggle-sound-btn"
+            title={soundOn ? 'Son activé — cliquez pour désactiver' : 'Son désactivé — cliquez pour activer'}
+          >
+            {soundOn ? <SpeakerHigh size={14} /> : <SpeakerSlash size={14} />}
+            {soundOn ? 'Son ON' : 'Son OFF'}
+          </button>
           <button
             onClick={load}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 text-sm hover:bg-blue-100"
@@ -198,17 +262,23 @@ const AdminLiveRides = () => {
                   filtered.map(ride => {
                     const sc = STATUS_COLORS[ride.status] || { bg: 'bg-gray-100', text: 'text-gray-700', label: ride.status };
                     const isSelected = selectedRide?.id === ride.id;
+                    const isFlashing = flashIds.has(ride.id);
                     return (
                       <button
                         key={ride.id}
                         onClick={() => setSelectedId(ride.id)}
                         className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-0 transition-all ${
-                          isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-gray-50'
+                          isFlashing
+                            ? 'bg-amber-100 border-l-4 border-l-amber-500 animate-pulse ring-2 ring-amber-300'
+                            : isSelected
+                            ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                            : 'hover:bg-gray-50'
                         }`}
                         data-testid={`live-ride-${ride.id}`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-semibold text-gray-800">
+                          <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                            {isFlashing && <Bell size={12} weight="fill" className="text-amber-600 animate-bounce" />}
                             #{ride.booking_no || ride.id?.slice(-6)}
                           </p>
                           <Badge className={`${sc.bg} ${sc.text} border-0 text-[10px]`}>
