@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { rideAPI } from '../../services/api';
-import { useJsApiLoader } from '@react-google-maps/api';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 
 import RidePlanStep from './ride/RidePlanStep';
@@ -10,7 +9,6 @@ import RideNegotiationStep from './ride/RideNegotiationStep';
 import RideSearchingStep from './ride/RideSearchingStep';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 
 function decodePolyline(encoded) {
   if (!encoded) return [];
@@ -64,7 +62,6 @@ const RideBookingPage = () => {
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const [routePath, setRoutePath] = useState([]);
   const [vehicleTypes, setVehicleTypes] = useState([]);
-  const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
   const { methods: paymentMethods } = usePaymentMethods();
   const [recentLocations] = useState([
     { address: 'Gare du Nord, 18 Rue de Dunkerque, 75010 Paris' },
@@ -299,7 +296,7 @@ const RideBookingPage = () => {
         selectingLocation={selectingLocation}
         handleLocationSelect={handleLocationSelect}
         getEstimate={getEstimate}
-        gmapLoaded={gmapLoaded}
+        gmapLoaded={true}
         confirmRide={confirmRide}
         loading={loading}
         vehicleMeta={VEHICLE_META}

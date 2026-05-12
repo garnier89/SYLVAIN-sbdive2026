@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, Bank, ArrowSquareOut, ArrowUp, ArrowDown,
-  Wallet as WalletIcon, ShieldCheck, Lightning
+  ArrowLeft, Bank, ArrowUp, ArrowDown,
+  Wallet as WalletIcon, ShieldCheck, Lightning,
+  X, CreditCard, DeviceMobile, Buildings
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
 /**
- * FinancePage — SB PayGo dashboard for SB Drive users.
- * Shows balance + last transactions, and an SSO link to sbpaygo.com.
+ * FinancePage — SB PayGo dashboard, 100% in-app.
+ * No external redirect — TopUp and Send Money are handled via modals.
  */
 const FinancePage = () => {
   const navigate = useNavigate();
@@ -18,8 +19,22 @@ const FinancePage = () => {
   const [transactions, setTransactions] = useState([]);
   const [currency, setCurrency] = useState('EUR');
   const [loading, setLoading] = useState(true);
-  const [redirecting, setRedirecting] = useState(false);
   const [moduleEnabled, setModuleEnabled] = useState(true);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [showSend, setShowSend] = useState(false);
+
+  const reload = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/finance/balance`, { credentials: 'include' });
+      if (!res.ok) throw new Error('balance fetch failed');
+      const data = await res.json();
+      setBalance(data.balance);
+      setCurrency(data.currency || 'EUR');
+      setTransactions((data.transactions || []).slice().reverse());
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -28,40 +43,13 @@ const FinancePage = () => {
         const statusData = await statusRes.json();
         setModuleEnabled(statusData.enabled);
         if (!statusData.enabled) { setLoading(false); return; }
-
-        const res = await fetch(`${API}/api/finance/balance`, { credentials: 'include' });
-        if (!res.ok) throw new Error('balance fetch failed');
-        const data = await res.json();
-        setBalance(data.balance);
-        setCurrency(data.currency || 'EUR');
-        setTransactions(data.transactions || []);
+        await reload();
       } catch (e) {
-        console.error(e);
         toast.error('Erreur lors du chargement du solde');
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
     load();
-  }, []);
-
-  const openSbPaygo = async () => {
-    setRedirecting(true);
-    try {
-      const res = await fetch(`${API}/api/finance/sbpaygo/sso-link`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('sso failed');
-      const data = await res.json();
-      window.open(data.url, '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      console.error(e);
-      toast.error('Impossible d\'ouvrir SB PayGo');
-    } finally {
-      setRedirecting(false);
-    }
-  };
+  }, [reload]);
 
   if (!moduleEnabled) {
     return (
@@ -102,27 +90,18 @@ const FinancePage = () => {
               {balance?.toFixed(2)} <span className="text-base font-bold">{currency === 'EUR' ? '€' : currency}</span>
             </p>
           )}
-          <button
-            onClick={openSbPaygo}
-            disabled={redirecting}
-            className="mt-4 inline-flex items-center gap-2 bg-white text-indigo-700 px-4 py-2 rounded-full text-sm font-bold disabled:opacity-60"
-            data-testid="open-sbpaygo-btn"
-          >
-            {redirecting ? 'Ouverture...' : 'Ouvrir SB PayGo'}
-            <ArrowSquareOut size={16} weight="bold" />
-          </button>
         </div>
       </div>
 
-      {/* Quick actions */}
+      {/* Quick actions (in-app, no redirect) */}
       <div className="px-4 -mt-6 grid grid-cols-3 gap-3" data-testid="finance-actions">
-        <button onClick={openSbPaygo} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center" data-testid="finance-topup-btn">
+        <button onClick={() => setShowTopUp(true)} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center" data-testid="finance-topup-btn">
           <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-1">
             <ArrowDown size={20} weight="bold" className="text-emerald-600" />
           </div>
           <span className="text-[11px] font-semibold text-gray-700">Recharger</span>
         </button>
-        <button onClick={openSbPaygo} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center" data-testid="finance-send-btn">
+        <button onClick={() => setShowSend(true)} className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col items-center text-center" data-testid="finance-send-btn">
           <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center mb-1">
             <ArrowUp size={20} weight="bold" className="text-orange-600" />
           </div>
@@ -152,7 +131,7 @@ const FinancePage = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-800 truncate">{t.label || 'Transaction'}</p>
-                <p className="text-[11px] text-gray-500">{t.created_at}</p>
+                <p className="text-[11px] text-gray-500">{new Date(t.created_at).toLocaleString('fr-FR')}</p>
               </div>
               <p className={`text-sm font-bold ${t.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {t.type === 'credit' ? '+' : '-'}{Number(t.amount).toFixed(2)} €
@@ -167,9 +146,213 @@ const FinancePage = () => {
         <div className="rounded-2xl bg-indigo-50 border border-indigo-100 p-4 flex gap-3" data-testid="finance-info-card">
           <Lightning size={22} weight="duotone" className="text-indigo-600 flex-shrink-0 mt-0.5" />
           <div className="text-xs text-gray-700 leading-relaxed">
-            Votre compte SB Drive VTC est <b>connecté à SB PayGo</b>. Aucune nouvelle inscription n'est requise — utilisez directement votre identifiant SB Drive pour vous connecter sur sbpaygo.com.
+            <b>SB PayGo intégré.</b> Rechargez votre solde et envoyez de l'argent à un autre utilisateur sans jamais quitter l'application. Toutes vos opérations sont sécurisées par votre compte SB Drive.
           </div>
         </div>
+      </div>
+
+      {/* Top-up modal */}
+      {showTopUp && (
+        <TopUpModal
+          onClose={() => setShowTopUp(false)}
+          onDone={() => { setShowTopUp(false); reload(); }}
+        />
+      )}
+      {/* Send modal */}
+      {showSend && (
+        <SendModal
+          balance={balance || 0}
+          onClose={() => setShowSend(false)}
+          onDone={() => { setShowSend(false); reload(); }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ============ TopUpModal ============
+const TOPUP_PRESETS = [10, 25, 50, 100];
+const SOURCES = [
+  { id: 'card', label: 'Carte bancaire', icon: CreditCard },
+  { id: 'mobile_money', label: 'Mobile Money', icon: DeviceMobile },
+  { id: 'bank', label: 'Virement bancaire', icon: Buildings },
+];
+
+const TopUpModal = ({ onClose, onDone }) => {
+  const [amount, setAmount] = useState(25);
+  const [custom, setCustom] = useState('');
+  const [source, setSource] = useState('card');
+  const [loading, setLoading] = useState(false);
+  const finalAmount = custom ? parseFloat(custom) : amount;
+
+  const submit = async () => {
+    if (!finalAmount || finalAmount <= 0) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/finance/sbpaygo/topup`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: finalAmount, source }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'topup failed');
+      }
+      toast.success(`+${finalAmount.toFixed(2)} € rechargés`);
+      onDone();
+    } catch (e) {
+      toast.error(e.message || 'Recharge échouée');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50" data-testid="topup-modal">
+      <div className="w-full max-w-[430px] bg-white rounded-t-3xl sm:rounded-3xl p-6 mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <ArrowDown size={20} weight="duotone" className="text-emerald-600" />
+            Recharger SB PayGo
+          </h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="topup-close">
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {TOPUP_PRESETS.map((v) => (
+            <button
+              key={v}
+              onClick={() => { setAmount(v); setCustom(''); }}
+              className={`py-3 rounded-xl border-2 font-bold text-sm ${!custom && amount === v ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-700'}`}
+              data-testid={`topup-preset-${v}`}
+            >
+              {v} €
+            </button>
+          ))}
+        </div>
+        <div className="mb-4">
+          <input
+            type="number" min="1" max="5000" step="1"
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="Montant personnalisé (€)"
+            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+            data-testid="topup-custom-input"
+          />
+        </div>
+
+        <p className="text-xs font-bold text-gray-700 mb-2">Source de paiement</p>
+        <div className="space-y-2 mb-5">
+          {SOURCES.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSource(s.id)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 ${source === s.id ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'}`}
+              data-testid={`topup-source-${s.id}`}
+            >
+              <s.icon size={20} weight="duotone" className={source === s.id ? 'text-indigo-600' : 'text-gray-500'} />
+              <span className="text-sm font-medium text-gray-800">{s.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={submit}
+          disabled={loading || !finalAmount}
+          className="w-full h-12 rounded-xl bg-indigo-600 text-white font-bold disabled:opacity-60"
+          data-testid="topup-confirm-btn"
+        >
+          {loading ? 'Recharge…' : `Recharger ${finalAmount?.toFixed(2) || '0.00'} €`}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ============ SendModal ============
+const SendModal = ({ balance, onClose, onDone }) => {
+  const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  const numAmount = parseFloat(amount) || 0;
+
+  const submit = async () => {
+    if (!recipient.trim() || numAmount <= 0) return;
+    if (numAmount > balance) { toast.error('Solde insuffisant'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/finance/sbpaygo/send`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_phone: recipient, amount: numAmount, note: note || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'send failed');
+      }
+      const data = await res.json();
+      toast.success(`${numAmount.toFixed(2)} € envoyés${data.recipient_found ? '' : ' (destinataire en attente)'}`);
+      onDone();
+    } catch (e) {
+      toast.error(e.message || 'Envoi échoué');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50" data-testid="send-modal">
+      <div className="w-full max-w-[430px] bg-white rounded-t-3xl sm:rounded-3xl p-6 mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <ArrowUp size={20} weight="duotone" className="text-orange-600" />
+            Envoyer de l'argent
+          </h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="send-close">
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="mb-4 text-xs text-gray-500">Solde disponible : <b className="text-gray-900">{balance.toFixed(2)} €</b></div>
+
+        <div className="space-y-3 mb-5">
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1 block">Téléphone du destinataire</label>
+            <input
+              type="tel" value={recipient} onChange={(e) => setRecipient(e.target.value)}
+              placeholder="+33 6 12 34 56 78"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              data-testid="send-recipient-input"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1 block">Montant (€)</label>
+            <input
+              type="number" min="0.5" step="0.5" max={balance}
+              value={amount} onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              data-testid="send-amount-input"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1 block">Note (optionnel)</label>
+            <input
+              type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Ex : Remboursement repas"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              data-testid="send-note-input"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={submit}
+          disabled={loading || !recipient.trim() || numAmount <= 0 || numAmount > balance}
+          className="w-full h-12 rounded-xl bg-orange-600 text-white font-bold disabled:opacity-60"
+          data-testid="send-confirm-btn"
+        >
+          {loading ? 'Envoi…' : `Envoyer ${numAmount.toFixed(2)} €`}
+        </button>
       </div>
     </div>
   );
