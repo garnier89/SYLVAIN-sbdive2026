@@ -269,8 +269,33 @@ async def update_ride_status(ride_id: str, request: Request):
 
     elif new_status == "completed":
         update_data["completed_at"] = now
-        update_data["final_fare"] = ride["estimated_fare"]
-        update_data["payment_status"] = "completed" if ride["payment_method"] != "cash" else "pending_cash"
+        final_fare = ride["estimated_fare"]
+        update_data["final_fare"] = final_fare
+        pm = ride.get("payment_method")
+        # === SB PayGo auto-deduction ===
+        if pm == "sbpaygo":
+            wallet = await db.sbpaygo_wallets.find_one({"user_id": ride["user_id"]})
+            if wallet and wallet.get("balance", 0) >= final_fare:
+                tx = {
+                    "id": f"tx_{uuid.uuid4().hex[:10]}",
+                    "type": "debit",
+                    "amount": final_fare,
+                    "label": f"Paiement course {ride['id']}",
+                    "ride_id": ride["id"],
+                    "created_at": now,
+                }
+                await db.sbpaygo_wallets.update_one(
+                    {"user_id": ride["user_id"]},
+                    {"$inc": {"balance": -final_fare}, "$push": {"transactions": tx}},
+                )
+                update_data["payment_status"] = "paid"
+                update_data["paid_with"] = "sbpaygo"
+                update_data["paid_at"] = now
+            else:
+                # Insufficient balance: leave open so user can top-up and pay
+                update_data["payment_status"] = "unpaid_insufficient"
+        else:
+            update_data["payment_status"] = "completed" if pm != "cash" else "pending_cash"
         if ride.get("driver_id"):
             commission = ride.get("commission_percent", 10) / 100
             driver_earnings = ride["estimated_fare"] * (1 - commission)

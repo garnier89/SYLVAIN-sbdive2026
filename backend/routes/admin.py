@@ -618,3 +618,42 @@ async def negotiation_gap_report(request: Request, days: int = 30):
         "samples": samples,
     }
 
+
+
+# ===== LIVE RIDES (Admin real-time monitoring) =====
+@router.get("/live-rides")
+async def admin_live_rides(request: Request):
+    """Return all currently active rides (accepted/arriving/in_progress) with
+    pickup/dropoff coords + live driver location from WebSocket manager."""
+    await require_role(request, ["admin", "dispatcher"])
+    from core.websocket import manager
+
+    rides = await db.rides.find(
+        {"status": {"$in": ["pending", "accepted", "arriving", "in_progress"]}},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(100).to_list(100)
+
+    # Attach live driver location + user contact
+    for r in rides:
+        if r.get("driver_id"):
+            loc = manager.get_driver_location(r["driver_id"])
+            if loc:
+                r["driver_lat"] = loc.get("lat")
+                r["driver_lng"] = loc.get("lng")
+                r["driver_last_seen"] = loc.get("timestamp")
+        # Attach passenger name/phone for display
+        if r.get("user_id"):
+            u = await db.users.find_one({"id": r["user_id"]}, {"_id": 0, "name": 1, "phone": 1, "email": 1})
+            if u:
+                r["passenger_name"] = u.get("name")
+                r["passenger_phone"] = u.get("phone")
+                r["passenger_email"] = u.get("email")
+
+    # Aggregate counts per status
+    counts = {"pending": 0, "accepted": 0, "arriving": 0, "in_progress": 0}
+    for r in rides:
+        s = r.get("status")
+        if s in counts:
+            counts[s] += 1
+
+    return {"rides": rides, "counts": counts, "total": len(rides)}

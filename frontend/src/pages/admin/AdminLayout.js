@@ -18,6 +18,7 @@ const sidebarConfig = [
     items: [
       { icon: SquaresFour, label: 'Tableau de bord', path: '/admin' },
       { icon: ChartLine, label: 'Monitoring serveur', path: '/admin/monitoring' },
+      { icon: Path, label: 'Courses en direct', path: '/admin/live-rides' },
     ]
   },
   {

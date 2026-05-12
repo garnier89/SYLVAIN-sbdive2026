@@ -333,6 +333,25 @@ async def google_session(request: Request, response: Response):
     return TokenResponse(access_token=access_token, user=UserResponse(**user))
 
 
+@router.post("/change-password")
+async def change_password(request: Request):
+    """Change the current user's password (requires current password)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    current_password = body.get("current_password", "")
+    new_password = body.get("new_password", "")
+    if not new_password or len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Nouveau mot de passe trop court (min 6 caractères)")
+    full_user = await db.users.find_one({"id": user["id"]})
+    if not full_user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    if full_user.get("password_hash") and not verify_password(current_password, full_user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": hash_password(new_password)}})
+    return {"ok": True, "message": "Mot de passe modifié avec succès"}
+
+
+
 # === User Addresses ===
 users_router = APIRouter(prefix="/users", tags=["users"])
 

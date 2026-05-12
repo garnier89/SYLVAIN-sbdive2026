@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import ProfileTabView from './profile/ProfileTabView';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Switch } from '../../components/ui/switch';
 import { walletAPI } from '../../services/api';
@@ -54,6 +55,7 @@ const MenuCard = ({ children }) => (
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [search] = useSearchParams();
   const [walletBalance, setWalletBalance] = useState(0);
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
 
@@ -72,6 +74,9 @@ const ProfilePage = () => {
     await logout();
     navigate('/');
   };
+
+  // When ?tab= is set, render the focused tab view instead of the full profile menu.
+  if (search.get('tab')) return <ProfileTabView />;
 
   /* ── quick‑action buttons under wallet card ── */
   const quickActions = [
@@ -139,11 +144,11 @@ const ProfilePage = () => {
       {/* ═══════════ RÉGLAGES GÉNÉRAUX ═══════════ */}
       <SectionHeader title="réglages généraux" />
       <MenuCard>
-        <MenuItem icon={User} label="Au propos de vous" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-red-800" iconColor="text-white" testId="settings-about-btn" />
+        <MenuItem icon={User} label="Au propos de vous" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-red-800" iconColor="text-white" onClick={() => navigate('/profile?tab=about')} testId="settings-about-btn" />
         <MenuItem icon={ClipboardText} label="Mes réservations" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/history')} testId="settings-bookings-btn" />
-        <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-sky-500" iconColor="text-white" testId="settings-business-btn" />
+        <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-sky-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
-        <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" testId="settings-notifications-btn" />
+        <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
         <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
         <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
         <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-green-500" iconColor="text-white" onClick={() => navigate('/safety')} testId="settings-emergency-btn" />
@@ -182,10 +187,10 @@ const ProfilePage = () => {
           }
         />
         <MenuItem icon={UserCircle} label="Gérer son compte" iconBg="bg-pink-600" iconColor="text-white" testId="settings-manage-account-btn" />
-        <MenuItem icon={FileText} label="Gérer les documents" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-cyan-500" iconColor="text-white" testId="settings-documents-btn" />
-        <MenuItem icon={Key} label="Changer le mot de passe" iconBg="bg-gray-700" iconColor="text-white" testId="settings-password-btn" />
-        <MenuItem icon={CurrencyCircleDollar} label="Changer de devise" iconBg="bg-purple-600" iconColor="text-white" testId="settings-currency-btn" />
-        <MenuItem icon={Globe} label="Changer de langue" iconBg="bg-indigo-800" iconColor="text-white" testId="settings-language-btn" />
+        <MenuItem icon={FileText} label="Gérer les documents" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-cyan-500" iconColor="text-white" onClick={() => navigate('/profile?tab=documents')} testId="settings-documents-btn" />
+        <MenuItem icon={Key} label="Changer le mot de passe" iconBg="bg-gray-700" iconColor="text-white" onClick={() => navigate('/profile?tab=password')} testId="settings-password-btn" />
+        <MenuItem icon={CurrencyCircleDollar} label="Changer de devise" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=currency')} testId="settings-currency-btn" />
+        <MenuItem icon={Globe} label="Changer de langue" iconBg="bg-indigo-800" iconColor="text-white" onClick={() => navigate('/profile?tab=language')} testId="settings-language-btn" />
       </MenuCard>
 
       {/* ═══════════ PAIEMENT ═══════════ */}

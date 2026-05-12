@@ -102,6 +102,7 @@ import AdminReferralSettings from './pages/admin/AdminReferralSettings';
 import AdminTemplates from './pages/admin/AdminTemplates';
 import AdminNewsletter from './pages/admin/AdminNewsletter';
 import AdminMonitoring from './pages/admin/AdminMonitoring';
+import AdminLiveRides from './pages/admin/AdminLiveRides';
 import AdminManageAdmins from './pages/admin/AdminManageAdmins';
 import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests,
   AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancelReasons,
@@ -244,6 +245,7 @@ const AppRouter = () => {
         <Route path="settings" element={<AdminSettings />} />
         {/* Placeholder for all other admin routes */}
         <Route path="monitoring" element={<AdminMonitoring />} />
+        <Route path="live-rides" element={<AdminLiveRides />} />
         <Route path="admins" element={<AdminManageAdmins />} />
         <Route path="groups" element={<AdminGroups />} />
         <Route path="vehicles" element={<AdminVehicles />} />
