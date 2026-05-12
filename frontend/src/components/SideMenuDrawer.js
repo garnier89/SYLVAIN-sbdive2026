@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSbPayGoAvailability } from '../hooks/useSbPayGoAvailability';
 import {
   X, House, Car, Wallet, User, Gift, ShareNetwork, Heart, Question,
   SignOut, Bank, Star, MapPin, ListChecks, CreditCard, PaperPlaneTilt,

@@ -349,6 +349,33 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 70 (Feb 12, 2026) — Fix pages blanches chauffeur & client + identifiants démo (DONE)
+### 🐛 Bug 1 : Page blanche `/chauffeur/home`
+- **Cause** : `DriverProfile` Pydantic exigeait `vehicle_type`, `vehicle_number`, `vehicle_model`, `license_number` en string obligatoire. Sur les drivers legacy (créés avant l'ajout de ces champs ou seedés sans), `find_one` retournait un doc valide mais le `response_model=DriverProfile` rejetait la sérialisation → 500 → `loadDriverProfile()` plantait dans le `DriverHome.js` → tout le render échouait silencieusement.
+- **Fix** : 4 champs rendus `Optional[str] = None` dans `/app/backend/models/schemas.py`.
+
+### 🐛 Bug 2 : `_resolve_palette` overflow (cosmétique)
+- **Cause** : Driver à 102 pts (au-dessus de toutes les palettes) retombait sur `palettes[0]` = "Debutant".
+- **Fix** : Si `points > max(palettes)`, retourner la plus haute palette. `_resolve_palette` dans `/app/backend/routes/drivers.py`.
+
+### 🐛 Bug 3 : Page blanche `/home` client
+- **Cause** : `useSbPayGoAvailability` était utilisé ligne 23 de `SideMenuDrawer.js` mais l'import manquait → `ReferenceError` au render → écran blanc avec error overlay.
+- **Fix** : Ajout de `import { useSbPayGoAvailability } from '../hooks/useSbPayGoAvailability';`.
+
+### 🔑 Nouveau compte chauffeur de démo (phone login)
+- **Téléphone** : `+33644112233`
+- **Mot de passe** : `Chauffeur2026!`
+- **Statut** : approved + actif
+- Permet de tester le flow phone-login complet sur l'app chauffeur.
+- Documenté dans `/app/memory/test_credentials.md`.
+
+### Tests
+- ✅ `/chauffeur/home` : body 207 chars, 0 erreur JS, dashboard complet (En ligne, gains 23€, carte Leaflet Paris, bottom nav)
+- ✅ `/home` client : body 2560 chars, 0 erreur JS, dashboard complet (Services Taxi 8 tuiles, Livraison Colis, Services Livraison)
+- ✅ Phone-login `+33644112233` / `Chauffeur2026!` → role=driver, JWT créé
+
+
+
 ## Iteration 69 (Feb 12, 2026) — Visibilité scoring & auto-dispatch côté chauffeur/client (DONE)
 ### Audit de l'apparence par app après iter62-68
 Découvert que 3 fonctionnalités backend n'étaient pas exposées dans les UIs concernées :
