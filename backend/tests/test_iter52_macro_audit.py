@@ -7,7 +7,7 @@ import os
 import pytest
 import requests
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://superapp-integration.preview.emergentagent.com").rstrip("/")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://taxi-marketplace-3.preview.emergentagent.com").rstrip("/")
 ADMIN = {"email": "admin@superapp.com", "password": "SuperAdmin123!"}
 DRIVER = {"email": "testdriver@example.com", "password": "Driver123!"}
 
