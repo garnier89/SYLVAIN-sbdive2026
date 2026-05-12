@@ -1,0 +1,249 @@
+"""
+Auto-dispatch service for SB Drive VTC.
+
+When a ride stays in `pending` status for too long without driver acceptance,
+the dispatcher escalates the ride to priority drivers in widening radius.
+
+Config (stored in `service_configs` under `auto_dispatch`):
+  enabled: bool
+  first_escalation_seconds: int (default 30)
+  second_escalation_seconds: int (default 60)
+  auto_cancel_after_seconds: int (default 120)
+  radius_km: int (default 5)
+  first_palettes: [str]  (e.g. ["Expert", "Confirme"])
+  second_palettes: [str] (e.g. ["Expert", "Confirme", "Standard"])
+
+Stats tracked per ride:
+  auto_dispatch_tier: 0 (no escalation yet) | 1 (priority only) | 2 (all) | -1 (cancelled)
+  auto_dispatch_log: [{ tier, at, drivers_notified }]
+"""
+import asyncio
+import math
+from datetime import datetime, timezone
+from fastapi import APIRouter, Request, HTTPException
+from pydantic import BaseModel
+
+from core.config import db, logger
+from core.deps import require_role
+from core.websocket import manager
+
+router = APIRouter(prefix="/admin/auto-dispatch", tags=["auto-dispatch"])
+
+CONFIG_KEY = "auto_dispatch"
+
+DEFAULT_CONFIG = {
+    "enabled": True,
+    "first_escalation_seconds": 30,
+    "second_escalation_seconds": 60,
+    "auto_cancel_after_seconds": 120,
+    "radius_km": 5,
+    "first_palettes": ["Expert", "Confirme"],
+    "second_palettes": ["Expert", "Confirme", "Standard"],
+}
+
+
+async def get_config():
+    doc = await db.service_configs.find_one({"service_key": CONFIG_KEY}, {"_id": 0})
+    if not doc or not doc.get("settings"):
+        return DEFAULT_CONFIG
+    merged = {**DEFAULT_CONFIG, **doc["settings"]}
+    return merged
+
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    if None in (lat1, lng1, lat2, lng2):
+        return 9999
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+async def _palette_for(points, points_cfg):
+    """Map driver points → palette name based on rewards config."""
+    palettes = (points_cfg or {}).get("palettes") or []
+    for p in palettes:
+        if p["min_points"] <= (points or 0) <= p["max_points"]:
+            return p["name"]
+    return "Standard"
+
+
+async def _drivers_in_radius(pickup_lat, pickup_lng, radius_km, allowed_palettes, points_cfg):
+    """Find approved online drivers within radius matching allowed palettes."""
+    cursor = db.drivers.find(
+        {"status": "approved", "is_online": True},
+        {"_id": 0, "id": 1, "user_id": 1, "points": 1, "current_lat": 1, "current_lng": 1, "vehicle_type": 1},
+    )
+    matches = []
+    async for d in cursor:
+        loc = manager.get_driver_location(d["user_id"]) or {}
+        lat = loc.get("lat", d.get("current_lat"))
+        lng = loc.get("lng", d.get("current_lng"))
+        if lat is None or lng is None:
+            continue
+        dist = _haversine_km(pickup_lat, pickup_lng, lat, lng)
+        if dist > radius_km:
+            continue
+        palette = await _palette_for(d.get("points"), points_cfg)
+        if palette not in allowed_palettes:
+            continue
+        matches.append({**d, "distance_km": round(dist, 2), "palette": palette})
+    matches.sort(key=lambda x: x["distance_km"])
+    return matches
+
+
+async def _escalate_ride(ride, tier, allowed_palettes, radius_km, points_cfg):
+    drivers = await _drivers_in_radius(
+        ride["pickup_lat"], ride["pickup_lng"], radius_km, allowed_palettes, points_cfg
+    )
+    notified_user_ids = [d["user_id"] for d in drivers[:10]]  # cap at 10 per escalation
+    payload = {
+        "type": "priority_ride_offer",
+        "ride_id": ride["id"],
+        "booking_no": ride.get("booking_no"),
+        "pickup_lat": ride["pickup_lat"],
+        "pickup_lng": ride["pickup_lng"],
+        "pickup_address": ride["pickup_address"],
+        "dropoff_address": ride["dropoff_address"],
+        "vehicle_type": ride["vehicle_type"],
+        "estimated_fare": ride["estimated_fare"],
+        "distance_km": ride["distance_km"],
+        "tier": tier,
+        "palettes": allowed_palettes,
+    }
+    for uid in notified_user_ids:
+        await manager.send_personal_message(payload, uid)
+
+    now = datetime.now(timezone.utc).isoformat()
+    log_entry = {"tier": tier, "at": now, "drivers_notified": len(notified_user_ids), "palettes": allowed_palettes}
+    await db.rides.update_one(
+        {"id": ride["id"]},
+        {"$set": {"auto_dispatch_tier": tier}, "$push": {"auto_dispatch_log": log_entry}},
+    )
+    logger.info(
+        f"AutoDispatch ride={ride['id']} tier={tier} notified={len(notified_user_ids)} palettes={allowed_palettes}"
+    )
+    return len(notified_user_ids)
+
+
+async def _auto_cancel_ride(ride):
+    now = datetime.now(timezone.utc).isoformat()
+    await db.rides.update_one(
+        {"id": ride["id"]},
+        {
+            "$set": {
+                "status": "cancelled",
+                "cancelled_at": now,
+                "cancelled_by": "auto_dispatch",
+                "cancel_reason": "Aucun chauffeur disponible (auto-dispatch)",
+                "auto_dispatch_tier": -1,
+            }
+        },
+    )
+    # Notify user
+    await manager.send_personal_message(
+        {
+            "type": "ride_auto_cancelled",
+            "ride_id": ride["id"],
+            "reason": "Aucun chauffeur disponible dans votre zone.",
+        },
+        ride["user_id"],
+    )
+    # Notify admins
+    await manager.broadcast_to_admins(
+        {
+            "type": "ride_auto_cancelled",
+            "ride_id": ride["id"],
+            "booking_no": ride.get("booking_no"),
+            "reason": "auto_dispatch_failed",
+        }
+    )
+    logger.warning(f"AutoDispatch CANCELLED ride={ride['id']} after timeout")
+
+
+async def auto_dispatch_loop():
+    """Background task — runs every 5s while the server is alive."""
+    logger.info("AutoDispatch loop started")
+    while True:
+        try:
+            cfg = await get_config()
+            if not cfg.get("enabled", True):
+                await asyncio.sleep(5)
+                continue
+
+            # Pull rewards points config to map driver.points → palette name
+            rewards_doc = await db.service_configs.find_one({"service_key": "rewards"}, {"_id": 0})
+            points_cfg = (rewards_doc or {}).get("settings", {}).get("points") or {}
+
+            now = datetime.now(timezone.utc)
+            pending_rides = await db.rides.find({"status": "pending"}, {"_id": 0}).to_list(200)
+            for ride in pending_rides:
+                created_at_iso = ride.get("created_at")
+                if not created_at_iso:
+                    continue
+                try:
+                    created_at = datetime.fromisoformat(created_at_iso.replace("Z", "+00:00"))
+                except Exception:
+                    continue
+                age_seconds = (now - created_at).total_seconds()
+                current_tier = ride.get("auto_dispatch_tier", 0)
+
+                if age_seconds >= cfg["auto_cancel_after_seconds"] and current_tier != -1:
+                    await _auto_cancel_ride(ride)
+                elif age_seconds >= cfg["second_escalation_seconds"] and current_tier < 2:
+                    await _escalate_ride(ride, 2, cfg["second_palettes"], cfg["radius_km"] * 2, points_cfg)
+                elif age_seconds >= cfg["first_escalation_seconds"] and current_tier < 1:
+                    await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+        except Exception as e:
+            logger.error(f"AutoDispatch loop error: {e}")
+        await asyncio.sleep(5)
+
+
+# ============ ADMIN API ============
+@router.get("/config")
+async def get_auto_dispatch_config(request: Request):
+    await require_role(request, ["admin"])
+    return {"config": await get_config()}
+
+
+class AutoDispatchConfigUpdate(BaseModel):
+    enabled: bool | None = None
+    first_escalation_seconds: int | None = None
+    second_escalation_seconds: int | None = None
+    auto_cancel_after_seconds: int | None = None
+    radius_km: int | None = None
+    first_palettes: list[str] | None = None
+    second_palettes: list[str] | None = None
+
+
+@router.put("/config")
+async def update_auto_dispatch_config(body: AutoDispatchConfigUpdate, request: Request):
+    await require_role(request, ["admin"])
+    patch = {k: v for k, v in body.dict().items() if v is not None}
+    if not patch:
+        raise HTTPException(status_code=400, detail="Rien à mettre à jour")
+    await db.service_configs.update_one(
+        {"service_key": CONFIG_KEY},
+        {"$set": {"service_key": CONFIG_KEY, "settings": {**(await get_config()), **patch}}},
+        upsert=True,
+    )
+    return {"config": await get_config()}
+
+
+@router.get("/stats")
+async def get_auto_dispatch_stats(request: Request):
+    """Live stats — number of rides per escalation tier in the last 24h."""
+    await require_role(request, ["admin"])
+    pipeline = [
+        {"$match": {"auto_dispatch_tier": {"$exists": True}}},
+        {"$group": {"_id": "$auto_dispatch_tier", "count": {"$sum": 1}}},
+    ]
+    rows = await db.rides.aggregate(pipeline).to_list(50)
+    stats = {row["_id"]: row["count"] for row in rows}
+    return {
+        "tier_0_no_escalation": stats.get(0, 0),
+        "tier_1_priority": stats.get(1, 0),
+        "tier_2_all": stats.get(2, 0),
+        "tier_minus_1_cancelled": stats.get(-1, 0),
+    }

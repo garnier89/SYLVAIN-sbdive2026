@@ -35,6 +35,7 @@ from routes.admin import router as admin_router
 from routes.phase1 import router as phase1_router
 from routes.phase2 import router as phase2_router
 from routes.finance import router as finance_router
+from routes.auto_dispatch import router as auto_dispatch_router, auto_dispatch_loop
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -343,7 +344,13 @@ async def lifespan(app: FastAPI):
             })
             logger.info(f"Seeded demo driver: {dd['name']}")
 
+    # Start auto-dispatch background loop
+    import asyncio as _asyncio
+    dispatch_task = _asyncio.create_task(auto_dispatch_loop())
+
     yield
+    if dispatch_task:
+        dispatch_task.cancel()
     client.close()
 
 
@@ -375,6 +382,7 @@ api_router.include_router(admin_router)
 api_router.include_router(phase1_router)
 api_router.include_router(phase2_router)
 api_router.include_router(finance_router)
+api_router.include_router(auto_dispatch_router)
 
 app.include_router(api_router)
 

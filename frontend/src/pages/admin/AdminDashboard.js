@@ -10,10 +10,9 @@ import {
 } from '@phosphor-icons/react';
 import { AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
+import LeafletMap from '../../components/LeafletMap';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -23,7 +22,6 @@ const AdminDashboard = () => {
   const [godsViewTab, setGodsViewTab] = useState('rides');
   const [earningsTab, setEarningsTab] = useState('today');
   const [period, setPeriod] = useState('today');
-  const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
 
   const load = useCallback(async () => {
     try {
@@ -210,15 +208,15 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="h-[220px]">
-            {gmapLoaded ? (
-              <GoogleMap mapContainerStyle={{ width: '100%', height: '100%' }}
-                center={{ lat: 14.6161, lng: -61.0588 }} zoom={11}
-                options={{ disableDefaultUI: true, zoomControl: true }}>
-                {[{ lat: 14.6161, lng: -61.0588 }, { lat: 14.605, lng: -61.07 }, { lat: 14.625, lng: -61.045 }].map((p, i) => (
-                  <MarkerF key={i} position={p} icon={{ url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png' }} />
-                ))}
-              </GoogleMap>
-            ) : <div className="w-full h-full bg-gray-100 flex items-center justify-center"><span className="text-gray-400 text-xs">Chargement...</span></div>}
+            <LeafletMap
+              center={{ lat: 14.6161, lng: -61.0588 }}
+              zoom={11}
+              heatPoints={[
+                { lat: 14.6161, lng: -61.0588, count: 3 },
+                { lat: 14.605, lng: -61.07, count: 2 },
+                { lat: 14.625, lng: -61.045, count: 1 },
+              ]}
+            />
           </div>
         </div>
 

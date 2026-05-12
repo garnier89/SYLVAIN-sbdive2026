@@ -1,0 +1,41 @@
+{
+  "summary": "Iter67 — Backend: 12/12 pytests pass for auto-dispatch (config GET/PUT admin-only with 403 for non-admin/anon, partial merge persisted in service_configs, stats endpoint shape OK, E2E loop test confirmed escalation increments tier counter after ~18s wait on a fresh pending ride created at Paris 48.857/2.347). Regression: /api/admin/stats, /api/admin/analytics, /api/auth/me all 200. Frontend: /admin renders WITHOUT 'Oops!' error boundary — LeafletMap now renders inside God's View card with 6 OSM tiles loaded. /admin/auto-dispatch container + all 13 required testids present (enabled-toggle, first/second/auto-cancel/radius inputs, first-palette-expert/confirme-btn, second-palette-standard-btn, save-config-btn, stat-tier-0/1/2/cancelled). Palette toggle flips class state correctly; save-config-btn returns 'Configuration enregistrée' sonner toast. /admin/live-rides still loads with admin-live-rides container. AutoDispatch loop confirmed in backend logs: 'AutoDispatch loop started' on boot + active cancellations of stale pending rides. All 3 iter67 features (b LeafletMap, c loop + c admin endpoints + c admin UI) PASS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Real-time WS notifications (carryover from iter65)", "issue": "Browser still logs 'WS error Event' on admin pages — /ws/{client_id} is still mounted outside /api prefix and not routed by ingress. Not part of iter67 scope but still unresolved.", "affected_selectors": ["[data-testid='admin-live-rides']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter67_auto_dispatch.py",
+    "/app/test_reports/pytest/iter67_results.xml"
+  ],
+  "action_items": [
+    "(carryover from iter65) MOVE WebSocket route to /api/ws/{client_id} in server.py and update WS_URL builders in frontend so real-time new_ride_request / priority_ride_offer frames reach admins and drivers in production. Auto-dispatch will silently degrade to polling for drivers until this is fixed because `manager.send_personal_message` payloads cannot reach driver WS sessions via the public ingress.",
+    "(carryover from iter65) Renew expired REACT_APP_GOOGLE_MAPS_KEY in /app/frontend/.env — Google Maps widgets on other booking pages still throw ExpiredKeyMapError. God's View is fine now (uses Leaflet)."
+  ],
+  "critical_code_review_comments": [
+    "routes/auto_dispatch.py:194-197 — escalation chain uses elif so a ride aged >= second_escalation_seconds will jump from tier 0 straight to tier 2 in a single sweep (skipping tier 1). This is acceptable but means tier_1_priority stat can be undercounted vs reality when loop sweep interval (5s) is large relative to escalation gap. Document or split into sequential if blocks if accuracy of tier-1 counts matters.",
+    "routes/auto_dispatch.py:165 — auto_dispatch_loop has no shutdown guard; if cancelled mid-iteration it will log a CancelledError. Wrap the while True in `try/except asyncio.CancelledError: raise` to silence shutdown noise.",
+    "AdminAutoDispatch.js:42 — `save` sends the full cfg object (including stale `enabled`, all palettes). Fine, but on rapid double-clicks could overwrite values; consider debounce or disable Save during loading.",
+    "AdminAutoDispatch.js:60 — `parseInt(v) || 0` silently converts empty/invalid input to 0; risk of admin saving 0s for auto_cancel_after_seconds → instant ride cancellation. Add a min sane bound (e.g. 10s)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter67_auto_dispatch.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 pytests)",
+    "frontend": "100% (all 13 testids + LeafletMap + toggle + save toast + regression routes all OK)"
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; neg_test@example.com / Test1234!",
+  "seed_data_creation": "One TEST_iter67 pending ride created at Paris (48.857, 2.347) via /api/rides as neg_test user during E2E loop test; the auto-dispatch loop escalated it to tier 2 within ~18s (then config was restored).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter67 all features pass cleanly. Auto-dispatch admin page at /admin/auto-dispatch has full testid coverage. God's View card on /admin now uses LeafletMap (no more error boundary). Background loop logs 'AutoDispatch loop started' at boot and runs every 5s. Pre-existing carryover issues (unchanged): (a) /ws/{client_id} not reachable from public ingress — affects real-time priority_ride_offer notifications to drivers; falls back to polling. (b) Google Maps API key expired in frontend/.env. For E2E loop verification next time, lower escalation thresholds via PUT /api/admin/auto-dispatch/config to 5/15/300, create a ride, wait 18s, then check stats delta — that's how test_pending_ride_escalates_to_tier_1 works.",
+  "rca of the issue": "N/A — no failing scenarios in iter67 scope. Carryover WS issue RCA documented in iter65 report."
+}
