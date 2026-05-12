@@ -39,6 +39,11 @@ DEFAULT_CONFIG = {
     "radius_km": 5,
     "first_palettes": ["Expert", "Confirme"],
     "second_palettes": ["Expert", "Confirme", "Standard"],
+    # === Driver Quality Scoring ===
+    "scoring_enabled": True,
+    "accept_bonus_points": 2,        # +N points when a driver accepts an escalated ride
+    "no_response_penalty": 1,        # -N points when a driver was offered tier-1 but didn't accept before tier-2 / cancel
+    "min_points_floor": 0,           # don't let points go below this
 }
 
 
@@ -93,6 +98,77 @@ async def _drivers_in_radius(pickup_lat, pickup_lng, radius_km, allowed_palettes
     return matches
 
 
+async def _adjust_driver_points(user_id: str, delta: int, reason: str, ride_id: str, floor: int = 0):
+    """Increment/decrement driver.points and append a score_log entry. Keeps floor."""
+    if not user_id or delta == 0:
+        return
+    drv = await db.drivers.find_one({"user_id": user_id}, {"_id": 0, "points": 1})
+    if not drv:
+        return
+    current = drv.get("points") or 0
+    new_pts = max(floor, current + delta)
+    real_delta = new_pts - current
+    if real_delta == 0:
+        return
+    entry = {
+        "at": datetime.now(timezone.utc).isoformat(),
+        "delta": real_delta,
+        "reason": reason,
+        "ride_id": ride_id,
+    }
+    await db.drivers.update_one(
+        {"user_id": user_id},
+        {"$set": {"points": new_pts}, "$push": {"score_log": {"$each": [entry], "$slice": -200}}},
+    )
+    logger.info(f"Scoring driver={user_id} {real_delta:+d} → {new_pts} ({reason})")
+
+
+async def award_escalation_bonus(ride: dict):
+    """Called by rides.py when a previously-escalated ride gets accepted.
+    Award accept_bonus_points to the accepting driver."""
+    cfg = await get_config()
+    if not cfg.get("scoring_enabled"):
+        return
+    if ride.get("auto_dispatch_tier", 0) <= 0:
+        return  # ride wasn't escalated, no bonus
+    driver_user_id = ride.get("driver_id")
+    if not driver_user_id:
+        return
+    await _adjust_driver_points(
+        driver_user_id,
+        cfg["accept_bonus_points"],
+        f"Acceptation course escaladée (tier {ride['auto_dispatch_tier']})",
+        ride["id"],
+        floor=cfg["min_points_floor"],
+    )
+
+
+async def _penalize_non_responders(ride: dict, cfg: dict):
+    """When a ride escalates past tier 1 or gets auto-cancelled, deduct points
+    from drivers who received the offer but didn't accept."""
+    if not cfg.get("scoring_enabled"):
+        return
+    offered = ride.get("offered_to_drivers") or []
+    penalized = set(ride.get("penalized_drivers") or [])
+    accepting_driver = ride.get("driver_id")
+    for uid in offered:
+        if uid in penalized or uid == accepting_driver:
+            continue
+        await _adjust_driver_points(
+            uid,
+            -cfg["no_response_penalty"],
+            "Non-réponse à une offre prioritaire",
+            ride["id"],
+            floor=cfg["min_points_floor"],
+        )
+        penalized.add(uid)
+    if penalized:
+        await db.rides.update_one(
+            {"id": ride["id"]},
+            {"$set": {"penalized_drivers": list(penalized)}},
+        )
+
+
 async def _escalate_ride(ride, tier, allowed_palettes, radius_km, points_cfg):
     drivers = await _drivers_in_radius(
         ride["pickup_lat"], ride["pickup_lng"], radius_km, allowed_palettes, points_cfg
@@ -117,9 +193,14 @@ async def _escalate_ride(ride, tier, allowed_palettes, radius_km, points_cfg):
 
     now = datetime.now(timezone.utc).isoformat()
     log_entry = {"tier": tier, "at": now, "drivers_notified": len(notified_user_ids), "palettes": allowed_palettes}
+    # Track every driver who ever received the offer for this ride (dedup via $addToSet)
     await db.rides.update_one(
         {"id": ride["id"]},
-        {"$set": {"auto_dispatch_tier": tier}, "$push": {"auto_dispatch_log": log_entry}},
+        {
+            "$set": {"auto_dispatch_tier": tier},
+            "$push": {"auto_dispatch_log": log_entry},
+            "$addToSet": {"offered_to_drivers": {"$each": notified_user_ids}},
+        },
     )
     logger.info(
         f"AutoDispatch ride={ride['id']} tier={tier} notified={len(notified_user_ids)} palettes={allowed_palettes}"
@@ -129,6 +210,9 @@ async def _escalate_ride(ride, tier, allowed_palettes, radius_km, points_cfg):
 
 async def _auto_cancel_ride(ride):
     now = datetime.now(timezone.utc).isoformat()
+    # Penalize drivers who never responded to the priority offers
+    cfg = await get_config()
+    await _penalize_non_responders(ride, cfg)
     await db.rides.update_one(
         {"id": ride["id"]},
         {
@@ -195,6 +279,10 @@ async def auto_dispatch_loop():
                     # If we never escalated to tier 1 yet, do it first so stats stay accurate
                     if current_tier < 1:
                         await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+                    # Tier 1 drivers got their chance and didn't accept → penalize them
+                    fresh_ride = await db.rides.find_one({"id": ride["id"]}, {"_id": 0})
+                    if fresh_ride:
+                        await _penalize_non_responders(fresh_ride, cfg)
                     await _escalate_ride(ride, 2, cfg["second_palettes"], cfg["radius_km"] * 2, points_cfg)
                 elif age_seconds >= cfg["first_escalation_seconds"] and current_tier < 1:
                     await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
@@ -221,6 +309,10 @@ class AutoDispatchConfigUpdate(BaseModel):
     radius_km: int | None = None
     first_palettes: list[str] | None = None
     second_palettes: list[str] | None = None
+    scoring_enabled: bool | None = None
+    accept_bonus_points: int | None = None
+    no_response_penalty: int | None = None
+    min_points_floor: int | None = None
 
 
 @router.put("/config")

@@ -228,6 +228,20 @@ async def accept_ride(ride_id: str, request: Request):
     )
     await _recompute_rates(driver["id"])
 
+    # ===== Auto-dispatch quality bonus (if ride was escalated) =====
+    fresh_ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if fresh_ride and fresh_ride.get("auto_dispatch_tier", 0) > 0:
+        from routes.auto_dispatch import _adjust_driver_points, get_config as _get_ad_cfg
+        ad_cfg = await _get_ad_cfg()
+        if ad_cfg.get("scoring_enabled"):
+            await _adjust_driver_points(
+                user["id"],
+                ad_cfg["accept_bonus_points"],
+                f"Acceptation course escaladée (tier {fresh_ride['auto_dispatch_tier']})",
+                ride_id,
+                floor=ad_cfg["min_points_floor"],
+            )
+
     # Join WS ride room
     manager.join_ride_room(ride_id, user["id"])
 

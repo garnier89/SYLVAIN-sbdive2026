@@ -349,6 +349,44 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 68 (Feb 12, 2026) — Driver Quality Scoring auto-régulé (DONE)
+### 🏆 Scoring qualité chauffeur (boucle vertueuse Uber Pro)
+- **Backend `auto_dispatch.py`** :
+  - 3 nouvelles clés config : `scoring_enabled` (bool), `accept_bonus_points` (défaut +2), `no_response_penalty` (défaut −1), `min_points_floor` (défaut 0).
+  - `_adjust_driver_points(user_id, delta, reason, ride_id, floor)` : helper qui modifie `drivers.points`, respecte le plancher, et append un `score_log[]` plafonné à 200 entrées (slice).
+  - `_escalate_ride` enrichi : persiste `offered_to_drivers[]` via `$addToSet` (déduplication automatique).
+  - `_penalize_non_responders` : appelé lors de la transition tier 1 → tier 2 ET lors de l'auto-cancel → retire `no_response_penalty` points à chaque driver offert qui n'a pas accepté. Drivers déjà pénalisés sont tracés dans `penalized_drivers[]` pour éviter double-pénalité.
+  - `award_escalation_bonus` (callable depuis rides.py) : si `auto_dispatch_tier > 0` et acceptation, +`accept_bonus_points` au driver.
+- **Hook dans `rides.py` `accept_ride`** : après l'attribution des points classiques, vérifie `auto_dispatch_tier` et déclenche le bonus via `_adjust_driver_points`.
+- **Frontend `/admin/auto-dispatch`** : nouvelle section "Scoring qualité chauffeur" avec toggle Activé + 3 inputs (bonus, malus, plancher) + explication. Icône Trophy amber.
+
+### Tests E2E manuels validés
+- ✅ Course créée → escaladée tier 1 → acceptée → driver +3 points (100 → 103).
+- ✅ Course créée → escaladée tier 1 → non acceptée (timeout 10s) → transition tier 2 → 3 drivers pénalisés (−1 chacun, 103 → 102).
+- ✅ `penalized_drivers[]` empêche la double pénalité si l'auto-cancel survient ensuite.
+- ✅ Plancher de points respecté (test mental : floor=0 empêche la descente sous zéro).
+
+### Architecture du flux
+```
+RIDE PENDING ─┬─ 30s: tier 1 → priority_ride_offer (WS) aux palettes Expert/Confirme
+              │       offered_to_drivers[] = [d1, d2, d3]
+              ├─ acceptation par d2 → driver_id=d2, status=accepted, +2 points pour d2
+              │
+              ├─ OU 60s sans acceptation: tier 2 escalation
+              │     → pénalise d1, d2, d3 (−1 chacun) → penalized_drivers[]=[d1,d2,d3]
+              │     → priority_ride_offer aux palettes +Standard, rayon ×2
+              │
+              └─ OU 120s sans acceptation: auto_cancel
+                    → re-pénalise les drivers tier 2 non encore pénalisés
+                    → notif client + broadcast admin
+```
+
+### Backlog mis à jour
+- 🔴 P0 : Push Notifications Firebase FCM (en attente clés utilisateur)
+- P1 : Renouveler clé Google Maps · Phase 3 VOIP/Twilio · Stripe paiements réels
+
+
+
 ## Iteration 67 (Feb 12, 2026) — God's View Leaflet + Auto-dispatch (DONE) · FCM pending keys
 ### A) Push Notifications Firebase FCM
 - ⏸️ **EN ATTENTE des clés utilisateur** (Service Account JSON + Web App config + VAPID Key).

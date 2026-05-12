@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Switch } from '../../components/ui/switch';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Lightning, Timer, MapTrifold, Users, FloppyDisk, ChartBar } from '@phosphor-icons/react';
+import { Lightning, Timer, MapTrifold, Users, FloppyDisk, ChartBar, Trophy } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const PALETTES = ['Expert', 'Confirme', 'Standard', 'Debutant'];
@@ -160,6 +160,52 @@ const AdminAutoDispatch = () => {
               palettes={cfg.second_palettes}
               onToggle={(p) => togglePalette('second', p)}
               testIdPrefix="second"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Driver Quality Scoring Card */}
+      <Card>
+        <CardContent className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-gray-800 flex items-center gap-2">
+              <Trophy size={18} weight="fill" className="text-amber-500" /> Scoring qualité chauffeur
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-600">Activé</span>
+              <Switch
+                checked={!!cfg.scoring_enabled}
+                onCheckedChange={(v) => setCfg({ ...cfg, scoring_enabled: v })}
+                className="data-[state=checked]:bg-amber-500"
+                data-testid="scoring-enabled-toggle"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 -mt-2">
+            Récompense les chauffeurs qui acceptent les courses escaladées et pénalise les non-répondants. Affecte directement la palette (Standard → Confirme → Expert).
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <NumberField
+              label="Bonus à l'acceptation"
+              hint="+N points si le chauffeur accepte une course escaladée"
+              value={cfg.accept_bonus_points}
+              onChange={(v) => setNum('accept_bonus_points', v)}
+              testId="accept-bonus-input"
+            />
+            <NumberField
+              label="Malus de non-réponse"
+              hint="−N points pour les chauffeurs offerts en tier 1 qui n'acceptent pas"
+              value={cfg.no_response_penalty}
+              onChange={(v) => setNum('no_response_penalty', v)}
+              testId="no-response-penalty-input"
+            />
+            <NumberField
+              label="Plancher de points"
+              hint="Les points ne descendent jamais en dessous de ce seuil"
+              value={cfg.min_points_floor}
+              onChange={(v) => setNum('min_points_floor', v)}
+              testId="min-points-floor-input"
             />
           </div>
         </CardContent>
