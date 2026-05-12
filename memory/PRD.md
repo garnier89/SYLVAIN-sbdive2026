@@ -349,6 +349,43 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 64 (Feb 12, 2026) — Admin Live Rides + SB PayGo auto-debit + Profile Tabs (DONE)
+### A) Admin Live Ride Tracking
+- **Backend** : nouveau endpoint `GET /api/admin/live-rides` (admin/dispatcher only). Retourne `{rides[], counts:{pending,accepted,arriving,in_progress}, total}` avec coords pickup/dropoff/driver (depuis WS manager) + passenger_name/phone enrichis.
+- **Frontend** : nouvelle page `/admin/live-rides` (`AdminLiveRides.js`) — carte Leaflet 560px avec markers pickup (vert) / dropoff (rouge) / driver (bleu) + polyline. Sidebar courses actives (auto-refresh 5s) avec pills filtre par statut. Sélection d'une course re-centre la carte + affiche fiche détaillée (passager/chauffeur/distance/tarif).
+- **Sidebar Admin** : nouvel item "Courses en direct" sous ACCUEIL.
+
+### B) SB PayGo auto-débit en fin de course
+- Quand `update_ride_status('completed')` est appelé sur une course dont `payment_method == 'sbpaygo'`, le backend débite automatiquement `final_fare` du wallet `sbpaygo_wallets`, crée une transaction `{type:'debit', ride_id, label}`, et marque `payment_status='paid'`, `paid_with='sbpaygo'`, `paid_at=now`.
+- Si solde insuffisant → `payment_status='unpaid_insufficient'` (pas d'erreur, l'utilisateur peut recharger et payer manuellement via `/api/finance/sbpaygo/pay-ride`).
+
+### C) ProfilePage Tabs (14 sous-vues)
+- `?tab=` query param lu via `useSearchParams` → rend `ProfileTabView` au lieu du menu plein écran.
+- **Tabs fonctionnels** :
+  - `password` : formulaire 3 champs → `POST /api/auth/change-password` (nouveau endpoint, vérifie mdp actuel, min 6 chars).
+  - `language` : 5 langues (FR/EN/ES/AR/PT), persistance localStorage `sb_lang`.
+  - `currency` : 5 devises (EUR/USD/XOF/XAF/MAD), persistance localStorage `sb_currency`.
+  - `notifications` : 4 switches (push/email/sms/promos), persistance localStorage `sb_notif_prefs`.
+  - `verify-email` : bouton "Envoyer le lien de vérification" (mock toast).
+- **Tabs "Bientôt"** (10 vues placeholders avec CTA navigation) : documents, cart, about, company, articles, properties, vehicles, fav-home, fav-work.
+- ProfilePage menu items câblés avec onClick `navigate('/profile?tab=...')` (password, language, currency, notifications, documents, about, company, business).
+
+### Tests
+- **iter62 backend** : 8/8 pytest ✅ (live-rides, change-password 3 cases, SB PayGo auto-debit E2E).
+- **iter62 frontend** : 100% — admin-live-rides UI + 14 profile tabs interactifs + régression OK (/admin, /admin/monitoring, /profile, /ride).
+- **E2E manuel** confirmé : wallet 100€ → ride sbpaygo terminée → wallet 90€ avec tx debit 10€ loggée.
+
+### Backlog mis à jour
+- P1 : VOIP/Twilio, Photo zone pickup, Lost & Found (Phase 3).
+- P1 : Stripe paiements réels (top-up wallet, méthodes de paiement).
+- P2 : Merchant self-service checkout pour Sponsored Listings.
+- P2 : Splitter admin.py (660 lignes) en sous-modules dashboard/live_rides/reports.
+- P2 : WebSocket push pour Live Rides au lieu du polling 5s.
+- P2 : Rotation JWT au changement de mot de passe (invalider anciennes sessions).
+- P2 : Dynamic pricing, WhatsApp booking, Hire a Driver, push notifications Firebase/OneSignal.
+
+
+
 ## Iteration 63 (Feb 12, 2026) — E2E Waybill + Migration Maps gratuites (DONE)
 ### Test E2E WaybillPage avec vraies données
 - Flux complet : login user → register driver → seed driver approved → create ride → accept → arriving → in_progress (OTP validé) → completed → tip 5 € → GET waybill.
