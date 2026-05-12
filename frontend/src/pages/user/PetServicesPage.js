@@ -1,59 +1,30 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { X } from '@phosphor-icons/react';
-import ServiceBookingSheet from '../../components/ServiceBookingSheet';
-
-const petServices = [
-  { id: 'grooming', name: 'Toilettage', bg: 'bg-yellow-50', emoji: '🐕' },
-  { id: 'walking', name: 'Promenade', bg: 'bg-blue-50', emoji: '🚶‍♂️' },
-  { id: 'training', name: 'Dressage', bg: 'bg-green-50', emoji: '🎓' },
-  { id: 'boarding', name: 'Pension', bg: 'bg-orange-50', emoji: '🏠' },
-  { id: 'sitting', name: 'Garde', bg: 'bg-pink-50', emoji: '🐾' },
-  { id: 'vet', name: 'Soins\nVétérinaires', bg: 'bg-red-50', emoji: '🩺' },
-  { id: 'spa', name: 'Spa &\nBien-être', bg: 'bg-teal-50', emoji: '🛁' },
-  { id: 'food', name: 'Alimentation\n& Nutrition', bg: 'bg-amber-50', emoji: '🍖' },
-  { id: 'accessories', name: 'Accessoires\n& Fournitures', bg: 'bg-rose-50', emoji: '🦴' },
-  { id: 'transport', name: 'Transport', bg: 'bg-cyan-50', emoji: '🚐' },
-  { id: 'adoption', name: 'Adoption &\nÉlevage', bg: 'bg-lime-50', emoji: '🐶' },
-  { id: 'photo', name: 'Photos &\nÉvénements', bg: 'bg-violet-50', emoji: '📸' },
-];
+import React from 'react';
+import { toast } from 'sonner';
+import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayout';
 
 const PetServicesPage = () => {
-  const navigate = useNavigate();
-  const [selectedService, setSelectedService] = useState(null);
-
+  const book = (item) => toast.success(`Réservation envoyée chez ${item.name}`);
   return (
-    <div className="mobile-container min-h-screen bg-white">
-      <div className="bg-[#FF4500] px-4 py-3 flex items-center justify-between">
-        <h1 className="text-white font-bold text-lg italic">Services Animaux</h1>
-        <button onClick={() => navigate(-1)} data-testid="pet-close-btn"><X size={24} className="text-white" /></button>
-      </div>
-
-      <div className="mx-4 mt-3 rounded-2xl overflow-hidden bg-gradient-to-r from-blue-100 to-blue-50 border border-orange-200 flex items-stretch h-[120px]">
-        <div className="flex-1 p-4 flex flex-col justify-center">
-          <h2 className="text-xl font-extrabold text-gray-900 leading-tight">SERVICES<br/>ANIMAUX</h2>
-          <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">Toilettage, promenade, dressage et soins pour vos compagnons.</p>
-        </div>
-        <div className="w-1/3">
-          <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=200&h=150&fit=crop" alt="Pet" className="w-full h-full object-cover" />
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="grid grid-cols-3 gap-4">
-          {petServices.map((service) => (
-            <button key={service.id} onClick={() => setSelectedService(service)} className="flex flex-col items-center gap-2 group" data-testid={`pet-${service.id}`}>
-              <div className={`w-[80px] h-[80px] rounded-2xl ${service.bg} flex items-center justify-center group-hover:scale-105 transition-transform border border-gray-100`}>
-                <span className="text-3xl">{service.emoji}</span>
-              </div>
-              <span className="text-xs font-semibold text-gray-700 text-center leading-tight whitespace-pre-line">{service.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {selectedService && <ServiceBookingSheet service={selectedService} category="pet" onClose={() => setSelectedService(null)} />}
-    </div>
+    <ServiceListLayout
+      title="Services Animaux"
+      collection="pet_providers"
+      colorClass="bg-amber-50 text-amber-700"
+      categories={['Toilettage', 'Promenade', 'Pension', 'Vétérinaire', 'Boutique']}
+      searchPlaceholder="Prestataire, service..."
+      emptyHint="Aucun prestataire dans cette catégorie"
+      testId="pet-services-page"
+      renderCard={({ item }) => (
+        <ServiceCard
+          item={item}
+          onClick={() => book(item)}
+          badges={[
+            { label: item.category, colorClass: 'bg-amber-50 text-amber-700' },
+            ...(item.price_range ? [{ label: item.price_range, colorClass: 'bg-gray-100 text-gray-700' }] : []),
+            ...((item.pet_types || []).slice(0, 2).map(p => ({ label: p, colorClass: 'bg-blue-50 text-blue-700' }))),
+          ]}
+        />
+      )}
+    />
   );
 };
 

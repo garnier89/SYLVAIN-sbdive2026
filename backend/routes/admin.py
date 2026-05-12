@@ -259,6 +259,8 @@ ALLOWED_CRUD = [
     "order_help_requests", "trip_help_requests", "push_notifications",
     "payouts", "settlements", "disputes", "documents",
     "banners", "wallet_requests", "news", "newsletter_subscribers", "promocodes",
+    "beauty_salons", "pet_providers", "car_services", "towing_partners",
+    "nearby_businesses", "ondemand_services", "carpool_trips", "marketplace_listings",
 ]
 
 

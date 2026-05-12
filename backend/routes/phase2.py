@@ -526,6 +526,21 @@ async def my_runner_orders(request: Request):
     return items
 
 
+# ═══════════ PUBLIC CATALOGS (read-only) ═══════════
+
+PUBLIC_CATALOGS = {
+    "beauty_salons", "pet_providers", "car_services", "towing_partners",
+    "nearby_businesses", "ondemand_services", "carpool_trips", "marketplace_listings",
+}
+
+@router.get("/catalogs/{collection}")
+async def list_public_catalog(collection: str, limit: int = 100):
+    if collection not in PUBLIC_CATALOGS:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    items = await db[collection].find({}, {"_id": 0}).limit(limit).to_list(limit)
+    return items
+
+
 # ═══════════ TAXI BIDDING — LIVE INDICATORS ═══════════
 
 @router.get("/taxi-bidding/live-stats")

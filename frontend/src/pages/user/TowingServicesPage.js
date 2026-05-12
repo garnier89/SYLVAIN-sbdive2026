@@ -1,56 +1,46 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { X } from '@phosphor-icons/react';
-import ServiceBookingSheet from '../../components/ServiceBookingSheet';
-
-const towingServices = [
-  { id: 'emergency', name: 'Remorquage\nUrgence', bg: 'bg-red-50', emoji: '🚨' },
-  { id: 'flatbed', name: 'Remorquage\nPlateau', bg: 'bg-orange-50', emoji: '🛻' },
-  { id: 'recovery', name: 'Récupération\nVéhicule', bg: 'bg-blue-50', emoji: '🏗' },
-  { id: 'flat-tire', name: 'Pneu\nCrevé', bg: 'bg-yellow-50', emoji: '🛞' },
-  { id: 'lockout', name: 'Ouverture\nPorte', bg: 'bg-gray-50', emoji: '🔑' },
-  { id: 'jumpstart', name: 'Démarrage', bg: 'bg-amber-50', emoji: '⚡' },
-  { id: 'fuel', name: 'Panne\nSèche', bg: 'bg-orange-100', emoji: '⛽' },
-  { id: 'battery-change', name: 'Changement\nBatterie', bg: 'bg-green-50', emoji: '🔋' },
-  { id: 'ev-charging', name: 'Recharge\nEV', bg: 'bg-emerald-50', emoji: '🔌' },
-];
+import React from 'react';
+import { toast } from 'sonner';
+import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayout';
+import { Phone, Clock } from '@phosphor-icons/react';
 
 const TowingServicesPage = () => {
-  const navigate = useNavigate();
-  const [selectedService, setSelectedService] = useState(null);
-
+  const call = (item) => {
+    toast.success(`Appel en cours vers ${item.name}...`);
+    if (item.phone) window.location.href = `tel:${item.phone}`;
+  };
   return (
-    <div className="mobile-container min-h-screen bg-white">
-      <div className="bg-[#FF4500] px-4 py-3 flex items-center justify-between">
-        <h1 className="text-white font-bold text-lg italic">Dépannage & Remorquage</h1>
-        <button onClick={() => navigate(-1)} data-testid="towing-close-btn"><X size={24} className="text-white" /></button>
-      </div>
-
-      <div className="mx-4 mt-3 rounded-2xl overflow-hidden bg-gradient-to-r from-blue-100 to-indigo-50 border border-orange-200 flex items-stretch h-[120px]">
-        <div className="flex-1 p-4 flex flex-col justify-center">
-          <h2 className="text-lg font-extrabold text-[#E03D00] leading-tight">DÉPANNAGE &<br/>REMORQUAGE</h2>
-          <p className="text-[10px] text-gray-600 mt-1 leading-relaxed">Assistance routière 24/7. Du remorquage à la recharge EV.</p>
-        </div>
-        <div className="w-1/3 flex items-center justify-center bg-blue-50">
-          <span className="text-5xl">🚛</span>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="grid grid-cols-3 gap-4">
-          {towingServices.map((service) => (
-            <button key={service.id} onClick={() => setSelectedService(service)} className="flex flex-col items-center gap-2 group" data-testid={`towing-${service.id}`}>
-              <div className={`w-[80px] h-[80px] rounded-2xl ${service.bg} flex items-center justify-center group-hover:scale-105 transition-transform border border-gray-100`}>
-                <span className="text-3xl">{service.emoji}</span>
-              </div>
-              <span className="text-xs font-semibold text-gray-700 text-center leading-tight whitespace-pre-line">{service.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {selectedService && <ServiceBookingSheet service={selectedService} category="towing" onClose={() => setSelectedService(null)} />}
-    </div>
+    <ServiceListLayout
+      title="Dépannage & Remorquage"
+      collection="towing_partners"
+      colorClass="bg-orange-50 text-orange-700"
+      searchPlaceholder="Dépanneur, zone..."
+      emptyHint="Aucun dépanneur disponible"
+      testId="towing-page"
+      renderCard={({ item }) => (
+        <button onClick={() => call(item)} className="w-full bg-white rounded-2xl border border-gray-100 p-4 text-left hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
+            {item.available_24h && (
+              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">24/7</span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">{item.address}</p>
+          <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
+            <span className="flex items-center gap-1"><Clock size={12} />~{item.response_time_mins} min</span>
+            <span className="font-semibold text-emerald-600">dès {item.price_from}€</span>
+            <span className="text-amber-500">★ {item.rating?.toFixed(1)}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {(item.services || []).map((s, i) => (
+              <span key={i} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">{s}</span>
+            ))}
+          </div>
+          <div className="mt-3 inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-bold">
+            <Phone size={14} weight="fill" />Appeler maintenant
+          </div>
+        </button>
+      )}
+    />
   );
 };
 

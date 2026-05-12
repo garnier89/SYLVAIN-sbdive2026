@@ -244,6 +244,77 @@ async def lifespan(app: FastAPI):
             await db[col_name].insert_many(items)
             logger.info(f"Seeded {len(items)} items into {col_name}")
 
+    # ===== Seed Category-specific demo data (Beauty, Pet, CarCare, Towing, etc.) =====
+    category_seeds = {
+        "beauty_salons": [
+            {"id": "bs_01", "name": "L'Atelier Coiffure", "category": "Coiffure", "address": "12 Rue Saint-Honoré, Paris 75001", "phone": "+33145678901", "rating": 4.8, "price_range": "€€", "services": ["Coupe", "Couleur", "Brushing"], "image": "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400", "open_hours": "9h-19h"},
+            {"id": "bs_02", "name": "Beauty Spa Marais", "category": "Spa & Massage", "address": "8 Rue de Bretagne, Paris 75003", "phone": "+33142345678", "rating": 4.9, "price_range": "€€€", "services": ["Massage", "Soins visage", "Manucure"], "image": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400", "open_hours": "10h-21h"},
+            {"id": "bs_03", "name": "Glamour Maquillage", "category": "Maquillage", "address": "25 Bd Saint-Germain, Paris 75005", "phone": "+33143987654", "rating": 4.7, "price_range": "€€", "services": ["Maquillage soirée", "Mariée", "Cours"], "image": "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=400", "open_hours": "11h-20h"},
+            {"id": "bs_04", "name": "Barber Shop Pigalle", "category": "Soins Hommes", "address": "3 Rue Frochot, Paris 75009", "phone": "+33148765432", "rating": 4.6, "price_range": "€€", "services": ["Coupe homme", "Taille barbe", "Rasage"], "image": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=400", "open_hours": "10h-20h"},
+            {"id": "bs_05", "name": "Nail Studio Opéra", "category": "Manucure", "address": "17 Rue Auber, Paris 75009", "phone": "+33147892345", "rating": 4.5, "price_range": "€", "services": ["Manucure", "Pédicure", "Vernis semi-permanent"], "image": "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400", "open_hours": "10h-19h"},
+        ],
+        "pet_providers": [
+            {"id": "pp_01", "name": "Toilettage Canin du Marais", "category": "Toilettage", "address": "5 Rue Vieille du Temple, Paris 75004", "phone": "+33142111213", "rating": 4.9, "price_range": "€€", "services": ["Bain", "Tonte", "Coupe griffes"], "image": "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=400", "pet_types": ["Chien", "Chat"]},
+            {"id": "pp_02", "name": "Dog Walker Paris", "category": "Promenade", "address": "Paris 75011 (mobile)", "phone": "+33645678901", "rating": 4.8, "price_range": "€", "services": ["Promenade 30min", "Promenade 1h", "Garde journée"], "image": "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=400", "pet_types": ["Chien"]},
+            {"id": "pp_03", "name": "Pension Féline Bastille", "category": "Pension", "address": "22 Rue de Lyon, Paris 75012", "phone": "+33143222324", "rating": 4.7, "price_range": "€€", "services": ["Pension journalière", "Long séjour"], "image": "https://images.unsplash.com/photo-1574144611937-0df059b5ef3e?w=400", "pet_types": ["Chat"]},
+            {"id": "pp_04", "name": "Vétérinaire Express", "category": "Vétérinaire", "address": "10 Av. de la République, Paris 75011", "phone": "+33148334455", "rating": 4.9, "price_range": "€€", "services": ["Consultation", "Vaccins", "Urgences"], "image": "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400", "pet_types": ["Chien", "Chat", "NAC"]},
+            {"id": "pp_05", "name": "Pet Shop Premium", "category": "Boutique", "address": "33 Bd Voltaire, Paris 75011", "phone": "+33143556677", "rating": 4.6, "price_range": "€€", "services": ["Croquettes", "Accessoires", "Jouets"], "image": "https://images.unsplash.com/photo-1601758174039-7c5b8b3e7d75?w=400", "pet_types": ["Chien", "Chat", "Oiseau"]},
+        ],
+        "car_services": [
+            {"id": "cs_01", "name": "Lavage Auto Express", "category": "Lavage", "address": "5 Rue de la Roquette, Paris 75011", "phone": "+33142112233", "rating": 4.7, "price_from": 15.0, "services": ["Lavage extérieur", "Intérieur", "Polish"], "image": "https://images.unsplash.com/photo-1605164599901-db7f68c4b7a4?w=400", "duration_mins": 30},
+            {"id": "cs_02", "name": "Garage Mécanique Bastille", "category": "Mécanique", "address": "15 Av. Ledru-Rollin, Paris 75012", "phone": "+33143112233", "rating": 4.8, "price_from": 50.0, "services": ["Vidange", "Freins", "Diagnostic"], "image": "https://images.unsplash.com/photo-1486754735734-325b5831c3ad?w=400", "duration_mins": 60},
+            {"id": "cs_03", "name": "Pneus 24/7", "category": "Pneumatiques", "address": "8 Bd Diderot, Paris 75012", "phone": "+33144112233", "rating": 4.6, "price_from": 80.0, "services": ["Montage", "Équilibrage", "Géométrie"], "image": "https://images.unsplash.com/photo-1632823469850-2f77dd9c7f93?w=400", "duration_mins": 45},
+            {"id": "cs_04", "name": "Auto Battery Service", "category": "Batterie", "address": "Service à domicile Paris", "phone": "+33645223344", "rating": 4.9, "price_from": 120.0, "services": ["Test batterie", "Remplacement", "Dépannage"], "image": "https://images.unsplash.com/photo-1597077962467-be16edbab6e1?w=400", "duration_mins": 30},
+            {"id": "cs_05", "name": "Carburant Mobile", "category": "Carburant", "address": "Service à domicile Paris", "phone": "+33646334455", "rating": 4.7, "price_from": 25.0, "services": ["SP95", "SP98", "Diesel"], "image": "https://images.unsplash.com/photo-1545262810-77515befe149?w=400", "duration_mins": 20},
+            {"id": "cs_06", "name": "Pièces Auto Pro", "category": "Boutique", "address": "44 Rue de Charenton, Paris 75012", "phone": "+33145443322", "rating": 4.5, "price_from": 10.0, "services": ["Pièces neuves", "Pièces occasion", "Accessoires"], "image": "https://images.unsplash.com/photo-1486326658981-ed68abe5868e?w=400", "duration_mins": 0},
+        ],
+        "towing_partners": [
+            {"id": "tw_01", "name": "Dépann'Express 24/7", "address": "Île-de-France", "phone": "+33800111222", "rating": 4.8, "response_time_mins": 30, "services": ["Remorquage", "Démarrage", "Pneu crevé"], "available_24h": True, "price_from": 80.0},
+            {"id": "tw_02", "name": "Auto Secours Paris", "address": "Paris intra-muros", "phone": "+33800333444", "rating": 4.7, "response_time_mins": 25, "services": ["Remorquage moto/auto", "Panne sèche"], "available_24h": True, "price_from": 70.0},
+            {"id": "tw_03", "name": "Roadside Pro", "address": "Banlieue Est & Sud", "phone": "+33800555666", "rating": 4.6, "response_time_mins": 40, "services": ["Remorquage longue distance", "Convoyage"], "available_24h": False, "price_from": 100.0},
+            {"id": "tw_04", "name": "Allo Dépanneur", "address": "Banlieue Ouest & Nord", "phone": "+33800777888", "rating": 4.9, "response_time_mins": 20, "services": ["Démarrage", "Ouverture portière", "Carburant"], "available_24h": True, "price_from": 60.0},
+        ],
+        "nearby_businesses": [
+            {"id": "nb_01", "name": "Café de Flore", "category": "Café", "address": "172 Bd Saint-Germain, Paris 75006", "rating": 4.5, "distance_km": 0.8, "image": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400", "open_now": True},
+            {"id": "nb_02", "name": "Bar Le Mary Celeste", "category": "Bar", "address": "1 Rue Commines, Paris 75003", "rating": 4.7, "distance_km": 1.2, "image": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400", "open_now": True},
+            {"id": "nb_03", "name": "Salon Pure Beauty", "category": "Salon", "address": "10 Rue de Rivoli, Paris 75004", "rating": 4.6, "distance_km": 0.5, "image": "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=400", "open_now": True},
+            {"id": "nb_04", "name": "Boulangerie du Coin", "category": "Boulangerie", "address": "5 Rue de Turenne, Paris 75004", "rating": 4.8, "distance_km": 0.3, "image": "https://images.unsplash.com/photo-1568254183919-78a4f43a2877?w=400", "open_now": True},
+            {"id": "nb_05", "name": "Pharmacie Centrale", "category": "Pharmacie", "address": "21 Rue Saint-Antoine, Paris 75004", "rating": 4.4, "distance_km": 0.7, "image": "https://images.unsplash.com/photo-1631549916768-4119b4123a21?w=400", "open_now": True},
+            {"id": "nb_06", "name": "Le Petit Bistrot", "category": "Restaurant", "address": "33 Rue des Archives, Paris 75004", "rating": 4.6, "distance_km": 1.0, "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400", "open_now": False},
+        ],
+        "ondemand_services": [
+            {"id": "od_01", "name": "Bricoleur Express", "category": "Bricolage", "rating": 4.8, "price_from": 35.0, "price_unit": "/h", "image": "https://images.unsplash.com/photo-1581244277943-fe4a9c777189?w=400", "services": ["Montage meuble", "Petite réparation", "Étagère"]},
+            {"id": "od_02", "name": "Massage à Domicile", "category": "Bien-être", "rating": 4.9, "price_from": 60.0, "price_unit": "/séance", "image": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400", "services": ["Relaxant", "Sportif", "Thaïlandais"]},
+            {"id": "od_03", "name": "Mécano à Domicile", "category": "Auto", "rating": 4.7, "price_from": 50.0, "price_unit": "/h", "image": "https://images.unsplash.com/photo-1486754735734-325b5831c3ad?w=400", "services": ["Diagnostic", "Petite réparation", "Vidange"]},
+            {"id": "od_04", "name": "Ménage à la Demande", "category": "Ménage", "rating": 4.8, "price_from": 25.0, "price_unit": "/h", "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400", "services": ["Ménage régulier", "Grand nettoyage", "Vitres"]},
+            {"id": "od_05", "name": "Cours de Yoga", "category": "Sport", "rating": 4.9, "price_from": 40.0, "price_unit": "/cours", "image": "https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400", "services": ["Hatha", "Vinyasa", "Méditation"]},
+            {"id": "od_06", "name": "Coach Sportif", "category": "Sport", "rating": 4.8, "price_from": 50.0, "price_unit": "/séance", "image": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400", "services": ["Musculation", "Cardio", "Perte de poids"]},
+        ],
+        "carpool_trips": [
+            {"id": "cp_01", "driver_name": "Marc D.", "driver_rating": 4.9, "from_city": "Paris", "to_city": "Lyon", "departure_at": "2026-04-25T08:00:00Z", "seats_available": 3, "price_per_seat": 35.0, "vehicle": "Peugeot 508", "duration_h": 4.5},
+            {"id": "cp_02", "driver_name": "Sophie L.", "driver_rating": 4.8, "from_city": "Paris", "to_city": "Bordeaux", "departure_at": "2026-04-26T07:30:00Z", "seats_available": 2, "price_per_seat": 45.0, "vehicle": "Renault Talisman", "duration_h": 5.5},
+            {"id": "cp_03", "driver_name": "Karim B.", "driver_rating": 4.7, "from_city": "Paris", "to_city": "Marseille", "departure_at": "2026-04-27T06:00:00Z", "seats_available": 4, "price_per_seat": 50.0, "vehicle": "VW Passat", "duration_h": 7.5},
+            {"id": "cp_04", "driver_name": "Émilie R.", "driver_rating": 5.0, "from_city": "Lyon", "to_city": "Paris", "departure_at": "2026-04-25T15:00:00Z", "seats_available": 2, "price_per_seat": 30.0, "vehicle": "Tesla Model 3", "duration_h": 4.5},
+            {"id": "cp_05", "driver_name": "Antoine F.", "driver_rating": 4.6, "from_city": "Nantes", "to_city": "Paris", "departure_at": "2026-04-26T09:00:00Z", "seats_available": 3, "price_per_seat": 40.0, "vehicle": "Citroën C5", "duration_h": 4.0},
+        ],
+        "marketplace_listings": [
+            {"id": "ml_01", "title": "Appartement 3 pièces à louer", "category": "real-estate", "type": "Location", "price": 1450, "currency": "EUR/mois", "location": "Paris 11ème", "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400", "description": "65m², balcon, métro Voltaire"},
+            {"id": "ml_02", "title": "Studio meublé", "category": "real-estate", "type": "Location", "price": 850, "currency": "EUR/mois", "location": "Paris 9ème", "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400", "description": "25m², proche Opéra"},
+            {"id": "ml_03", "title": "Maison à vendre", "category": "real-estate", "type": "Vente", "price": 285000, "currency": "EUR", "location": "Saint-Mandé", "image": "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400", "description": "Maison 4 ch., jardin 200m²"},
+            {"id": "ml_04", "title": "Peugeot 308 - 2020", "category": "cars", "type": "Vente", "price": 14500, "currency": "EUR", "location": "Paris", "image": "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400", "description": "45 000 km, essence, première main"},
+            {"id": "ml_05", "title": "Tesla Model Y - 2022", "category": "cars", "type": "Vente", "price": 39900, "currency": "EUR", "location": "Boulogne", "image": "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400", "description": "12 000 km, autonomie 480 km"},
+            {"id": "ml_06", "title": "iPhone 14 Pro - 256 Go", "category": "items", "type": "Vente", "price": 850, "currency": "EUR", "location": "Paris", "image": "https://images.unsplash.com/photo-1663499482523-1c0c1bae4ce1?w=400", "description": "Comme neuf, sous garantie"},
+            {"id": "ml_07", "title": "Canapé d'angle cuir", "category": "items", "type": "Vente", "price": 480, "currency": "EUR", "location": "Paris", "image": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400", "description": "Très bon état, livraison possible"},
+        ],
+    }
+    for col_name, items in category_seeds.items():
+        if await db[col_name].count_documents({}) == 0:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            for it in items:
+                it.setdefault("created_at", now_iso)
+            await db[col_name].insert_many(items)
+            logger.info(f"Seeded {len(items)} items into {col_name}")
+
     # Seed demo drivers with users so ranking/priority pages show data
     demo_drivers_seed = [
         {"email": "jean.dupont@demo.sb", "name": "Jean Dupont", "phone": "+33611111111", "vehicle_type": "Car", "vehicle_model": "Peugeot 508", "vehicle_number": "AB-123-CD", "points": 85, "total_trips": 420, "rating": 4.8, "earnings": 3200.50},
