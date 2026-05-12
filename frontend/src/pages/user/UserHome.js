@@ -24,12 +24,22 @@ const UserHome = () => {
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [promoIndex, setPromoIndex] = useState(0);
+  const PROMO_COUNT = 2;
 
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Bienvenue');
     else if (hour < 18) setGreeting('Bienvenue');
     else setGreeting('Bonsoir');
+  }, []);
+
+  // Auto-rotate promo banners every 4s
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPromoIndex((i) => (i + 1) % PROMO_COUNT);
+    }, 4000);
+    return () => clearInterval(id);
   }, []);
 
   // ===== Taxi Services (8 items) =====
@@ -181,29 +191,46 @@ const UserHome = () => {
       {/* Search Overlay */}
       {showSearch && <SearchOverlay onClose={() => setShowSearch(false)} />}
 
-      {/* ===== PROMO BANNER ===== */}
-      <div className="px-4 mt-3">
-        <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide">
-          <div className="min-w-[92%] snap-start rounded-2xl overflow-hidden bg-gradient-to-r from-gray-100 to-gray-50 border border-gray-200 flex items-stretch h-[140px]" data-testid="promo-banner-1">
-            <div className="w-2/5 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=200&fit=crop')" }} />
-            <div className="flex-1 p-4 flex flex-col justify-center">
-              <p className="font-bold text-gray-900 text-base leading-tight">Courses fraîches livrées vite.</p>
-              <p className="text-sm text-gray-500 mt-1">Commandez maintenant !</p>
-              <button className="mt-2 self-start px-4 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-lg" onClick={() => navigate('/food')}>
-                Commander
-              </button>
+      {/* ===== PROMO BANNER (auto-rotating carousel) ===== */}
+      <div className="px-4 mt-3" data-testid="promo-banner-carousel">
+        <div className="relative overflow-hidden rounded-2xl">
+          <div
+            className="flex transition-transform duration-700 ease-in-out"
+            style={{ transform: `translateX(-${promoIndex * 100}%)` }}
+          >
+            <div className="w-full flex-shrink-0 rounded-2xl overflow-hidden bg-gradient-to-r from-gray-100 to-gray-50 border border-gray-200 flex items-stretch h-[140px]" data-testid="promo-banner-1">
+              <div className="w-2/5 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=200&fit=crop')" }} />
+              <div className="flex-1 p-4 flex flex-col justify-center">
+                <p className="font-bold text-gray-900 text-base leading-tight">Courses fraîches livrées vite.</p>
+                <p className="text-sm text-gray-500 mt-1">Commandez maintenant !</p>
+                <button className="mt-2 self-start px-4 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-lg" onClick={() => navigate('/food')}>
+                  Commander
+                </button>
+              </div>
+            </div>
+            <div className="w-full flex-shrink-0 rounded-2xl overflow-hidden bg-gradient-to-r from-[#FF4500]/10 to-orange-50 border border-orange-200 flex items-stretch h-[140px]" data-testid="promo-banner-2">
+              <div className="flex-1 p-4 flex flex-col justify-center">
+                <p className="font-bold text-gray-900 text-base leading-tight">Première course VTC</p>
+                <p className="text-2xl font-bold text-[#FF4500] mt-1">-50%</p>
+                <p className="text-xs text-gray-500 mt-1">Code : BIENVENUE</p>
+              </div>
+              <div className="w-2/5 flex items-center justify-center bg-[#FF4500]/5">
+                <Car size={64} weight="duotone" className="text-[#FF4500]" />
+              </div>
             </div>
           </div>
-          <div className="min-w-[92%] snap-start rounded-2xl overflow-hidden bg-gradient-to-r from-[#FF4500]/10 to-orange-50 border border-orange-200 flex items-stretch h-[140px]" data-testid="promo-banner-2">
-            <div className="flex-1 p-4 flex flex-col justify-center">
-              <p className="font-bold text-gray-900 text-base leading-tight">Première course VTC</p>
-              <p className="text-2xl font-bold text-[#FF4500] mt-1">-50%</p>
-              <p className="text-xs text-gray-500 mt-1">Code : BIENVENUE</p>
-            </div>
-            <div className="w-2/5 flex items-center justify-center bg-[#FF4500]/5">
-              <Car size={64} weight="duotone" className="text-[#FF4500]" />
-            </div>
-          </div>
+        </div>
+        {/* Pagination dots */}
+        <div className="flex items-center justify-center gap-1.5 mt-2" data-testid="promo-dots">
+          {Array.from({ length: PROMO_COUNT }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPromoIndex(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${promoIndex === i ? 'w-5 bg-[#FF4500]' : 'w-1.5 bg-gray-300'}`}
+              data-testid={`promo-dot-${i}`}
+              aria-label={`Aller au panneau ${i + 1}`}
+            />
+          ))}
         </div>
       </div>
 
