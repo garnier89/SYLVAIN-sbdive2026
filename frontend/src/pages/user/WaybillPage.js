@@ -8,7 +8,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 /**
  * WaybillPage — Printable trip receipt / waybill.
  * Route: /ride/:rideId/waybill
- * Pulls structured data from GET /api/phase2/rides/{rideId}/waybill.
+ * Reads GET /api/phase2/rides/{rideId}/waybill (response shape: {ride, passenger, driver, company, waybill_number}).
  */
 const WaybillPage = () => {
   const { rideId } = useParams();
@@ -32,6 +32,22 @@ const WaybillPage = () => {
 
   if (loading) return <div className="p-8 text-sm text-gray-500">Chargement…</div>;
   if (!data) return <div className="p-8 text-sm text-red-500">Feuille de route introuvable.</div>;
+
+  // Map backend nested shape to local view-model
+  const ride = data.ride || {};
+  const passenger = data.passenger || {};
+  const driver = data.driver || {};
+
+  const dateRaw = ride.completed_at || ride.created_at || '';
+  const dateLabel = dateRaw ? new Date(dateRaw).toLocaleString('fr-FR') : '—';
+  const baseFare = Number(ride.final_fare ?? ride.estimated_fare ?? 0);
+  const tipAmount = Number(ride.tip_amount || 0);
+  const surcharge = Number(ride.surcharge_amount || 0);
+  const total = baseFare + tipAmount;
+  const distanceKm = Number(ride.distance_km || 0);
+
+  const vehicleSub = [driver.vehicle_model, driver.vehicle_number || driver.vehicle_plate]
+    .filter(Boolean).join(' · ');
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="waybill-page">
@@ -59,17 +75,17 @@ const WaybillPage = () => {
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase font-semibold">N° Feuille</p>
-              <p className="font-bold text-gray-900" data-testid="waybill-number">{data.waybill_number}</p>
+              <p className="font-bold text-gray-900" data-testid="waybill-number">{data.waybill_number || '—'}</p>
             </div>
           </div>
 
           {/* Trip block */}
           <div className="space-y-4 mb-5">
-            <Row icon={Clock} label="Date et heure" value={data.completed_at || data.created_at} />
-            <Row icon={User} label="Passager" value={data.passenger?.name || '—'} subValue={data.passenger?.phone} />
-            <Row icon={Car} label="Chauffeur" value={data.driver?.name || '—'} subValue={`${data.driver?.vehicle_model || ''} - ${data.driver?.vehicle_plate || ''}`} />
-            <Row icon={MapPin} label="Départ" value={data.pickup?.address} iconColor="text-emerald-600" />
-            <Row icon={MapPin} label="Arrivée" value={data.dropoff?.address} iconColor="text-rose-600" />
+            <Row icon={Clock} label="Date et heure" value={dateLabel} />
+            <Row icon={User} label="Passager" value={passenger.name || '—'} subValue={passenger.phone} />
+            <Row icon={Car} label="Chauffeur" value={driver.name || '—'} subValue={vehicleSub || null} />
+            <Row icon={MapPin} label="Départ" value={ride.pickup_address} iconColor="text-emerald-600" />
+            <Row icon={MapPin} label="Arrivée" value={ride.dropoff_address} iconColor="text-rose-600" />
           </div>
 
           {/* Fare breakdown */}
@@ -78,13 +94,13 @@ const WaybillPage = () => {
               <Receipt size={14} /> Détail tarif
             </h3>
             <div className="space-y-1.5 text-sm">
-              <Line label={`Distance (${data.fare?.distance_km?.toFixed(1) || 0} km)`} value={`${(data.fare?.base_fare || 0).toFixed(2)} €`} />
-              {!!data.fare?.surcharge && <Line label="Suppléments" value={`${data.fare.surcharge.toFixed(2)} €`} />}
-              {!!data.fare?.tip_amount && <Line label="Pourboire" value={`${data.fare.tip_amount.toFixed(2)} €`} />}
+              <Line label={`Distance (${distanceKm.toFixed(1)} km)`} value={`${baseFare.toFixed(2)} €`} />
+              {!!surcharge && <Line label="Suppléments" value={`${surcharge.toFixed(2)} €`} />}
+              {!!tipAmount && <Line label="Pourboire" value={`${tipAmount.toFixed(2)} €`} />}
               <div className="border-t border-gray-100 my-2" />
               <div className="flex items-center justify-between font-bold text-base">
                 <span>Total</span>
-                <span className="text-[#FF4500]" data-testid="waybill-total">{(data.fare?.total || 0).toFixed(2)} €</span>
+                <span className="text-[#FF4500]" data-testid="waybill-total">{total.toFixed(2)} €</span>
               </div>
             </div>
           </div>

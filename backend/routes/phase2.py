@@ -151,6 +151,7 @@ async def delete_flat_rate(fid: str, request: Request):
 
 
 @router.post("/pricing/quote")
+@router.post("/airport-flat-quote")
 async def airport_flat_quote(request: Request):
     """Public helper: check if a pickup/dropoff matches a flat-rate or airport surcharge."""
     body = await request.json()

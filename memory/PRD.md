@@ -322,3 +322,27 @@ Chauffeur virtuel via WebSocket
 - Stripe paiements réels, push notifications, dynamic pricing, WhatsApp booking, Hire a Driver
 - Localiser les H1 restants du dashboard admin en français
 - Extraire les arrays de catégories de `UserHome.js` (encore ~590 lignes) vers `/src/data/homeSections.js`
+
+
+
+## Iteration 62 (Feb 12, 2026) — Phase 2 UI Complete (DONE)
+### 5 features Phase 2 livrées (Heat View, Taxi Pool, Waybill, Tip, Airport geofence)
+- **Heat View** (chauffeur) : bouton toggle `[data-testid=heat-view-toggle]` sur DriverHome, overlay `CircleF` Google Maps (rouge/orange/bleu selon densité), polling `/api/phase2/heatmap` toutes les 30s.
+- **Taxi Pool** : toggle dans le bottom sheet de RideMapStep (`[data-testid=pool-toggle-input]`), texte "Partager la course (-30%)". Champ `pool_enabled` envoyé dans POST /api/rides.
+- **Waybill** : nouvelle page `/ride/:rideId/waybill` (`WaybillPage.js`) avec branding SB Drive, N° feuille, date, passager, chauffeur, départ, arrivée, détail tarif (distance/suppléments/pourboire/total), bouton `Imprimer` (window.print()).
+- **Tip** : `TipModal.js` avec presets 2/5/10 € + champ personnalisé, POST `/api/phase2/rides/{id}/tip`. Accessible depuis le rating modal de RideTrackingPage via le bouton `Pourboire`.
+- **Airport geofence** : useEffect dans RideBookingPage qui appelle POST `/api/phase2/airport-flat-quote` quand pickup+dropoff sont fixés. Si `type=airport_surcharge`, bannière jaune au-dessus du CTA (`[data-testid=airport-surcharge-banner]`).
+
+### Bugs corrigés (iter61 → iter62)
+- **URL mismatch** (CRITICAL) : backend exposait `/api/phase2/pricing/quote` mais le frontend appelait `/api/phase2/airport-flat-quote` → ajout d'un alias double décorator. Vérifié curl HTTP 200 sur les 2 URLs.
+- **Waybill data shape** (CRITICAL) : WaybillPage lisait `data.pickup.address` / `data.fare.total` mais le backend renvoie `data.ride.pickup_address` / `data.ride.final_fare`. Réécriture de WaybillPage pour mapper correctement la shape `{ride, passenger, driver, waybill_number}` + agréger total = final_fare + tip_amount.
+- **DriverHome JSX** : bouton Heat View sorti du ternaire `gmapLoaded ?` pour éviter les frères JSX adjacents ; conteneur passé en `relative` pour ancrer le bouton absolu.
+
+### Tests
+- Iter 61 testing agent : 5/6 backend OK + Waybill blank → 2 bugs critiques identifiés.
+- Post-fix iter 62 : `/api/phase2/airport-flat-quote` HTTP 200 ✅, `/api/phase2/pricing/quote` HTTP 200 ✅, WaybillPage lint OK ✅.
+
+### Reste à faire
+- Re-tester Waybill UI avec un vrai ride completed (vérifier que tous les champs s'affichent).
+- Tester Heat View côté chauffeur (nécessite un compte driver actif).
+- Refresh REACT_APP_GOOGLE_MAPS_KEY (clé expirée en preview).
