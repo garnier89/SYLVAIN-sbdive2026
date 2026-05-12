@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LocaleProvider } from './contexts/LocaleContext';
 import { Toaster } from './components/ui/sonner';
+import InstallPWA from './components/InstallPWA';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthCallback from './components/AuthCallback';
 
@@ -345,6 +346,7 @@ function App() {
         <LocaleProvider>
           <AppRouter />
           <Toaster position="top-center" />
+          <InstallPWA />
         </LocaleProvider>
       </AuthProvider>
     </BrowserRouter>
