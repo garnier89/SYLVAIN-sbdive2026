@@ -1,0 +1,27 @@
+{
+  "summary": "Iter59 — Sponsored / Featured listings end-to-end verification. Backend pytest 10/10 PASSED: public catalogs return featured items first (bs_01, cs_02, tw_01) with is_featured/featured_until/featured_priority fields; admin POST /api/phase2/admin/catalogs/{col}/{id}/feature with duration_days+priority returns 200 and updates featured_until ~N days in future; DELETE removes feature; admin GET /featured lists only featured; auth gates work (401 unauth, 403 non-admin); 404 for non-whitelisted collection and unknown item_id; auto-expiry verified by feature with duration_days=-1 then GET catalogs auto-toggles is_featured=false. Frontend UI 100% PASSED: /beauty /car-care /towing all show sponsored badge (data-testid='sponsored-bs_01' / 'sponsored-cs_02' / 'sponsored-tw_01') visible; /towing first card confirmed 'Dépann\\'Express 24/7'; /admin/featured-listings loads with data-testid='admin-featured-page' + 8 collection tabs (tab-beauty_salons … tab-marketplace_listings) + bs_01 shows Retirer button + bs_02 shows Mettre en avant button + clicking feature-bs_02 (window.prompt mocked to 30) → row updates to Sponsorisé and unfeature-bs_02 appears → click → reverts; sidebar 'Mise en avant sponsorisée' entry present.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter59_featured.py",
+    "/app/test_reports/pytest/iter59_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminFeaturedListings.feature() uses window.prompt() which is blocked in many embedded/iframe contexts and breaks UX; replace with a shadcn Dialog + Input for days selection (testing required prompt-override via add_init_script).",
+    "Backend auto-expiry query in /catalogs/{col}: {is_featured:True, featured_until:{$lt: now, $ne: None}} — $ne:None is redundant inside $lt comparison (Mongo $lt:null already excludes null/missing); harmless but worth simplifying. Also fields featured_until/featured_priority are only added once an item is featured — items never featured still return undefined which the frontend handles, OK.",
+    "/admin/catalogs/{col}/featured GET endpoint returns featured items but does NOT trigger auto-expiry pass, so an expired-but-not-yet-cleaned item could appear there until the next public /catalogs GET runs. Consider running the same update_many before filtering.",
+    "ServiceListLayout.js card click reads any field from the catalog without sanitization — fine for the controlled seed but ensure XSS-safe rendering if admin-editable names land here later.",
+    "AdminFeaturedListings.js doesn't validate duration_days input range — user could enter -1 (would create immediately-expired listing) or 99999. Add min=1, max=365 validation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter59_featured.py (new pytest suite — 10 tests)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (3 user routes + admin page + cleanup roundtrip verified)"},
+  "test_credentials": "test2@example.com / TestPass123! (user), admin@superapp.com / SuperAdmin123! (admin). Login via POST /api/auth/login (cookie session).",
+  "seed_data_creation": "None — used existing startup seed (bs_01, cs_02, tw_01 pre-featured). Tests are idempotent: feature/unfeature roundtrips on bs_02 and bs_03 leave DB in original state at end (bs_03 ends auto-expired = is_featured:false which matches initial state).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Sponsored listings monetization feature fully wired (backend + UI). Public catalog auto-sorts featured-first via .sort([(is_featured,-1),(featured_priority,-1),(created_at,-1)]) and auto-expires past listings on read. Admin page /admin/featured-listings uses window.prompt() for days — playwright tests must override prompt via page.add_init_script(\\\"window.prompt=()=>'30'\\\") BEFORE goto. PUBLIC_CATALOGS whitelist has 8 collections; testing with 'users' returns 404 (good). 3 seeded featured items: bs_01 (beauty_salons), cs_02 (car_services), tw_01 (towing_partners). Non-regression with iter58 confirmed implicit (same catalogs endpoint).",
+  "rca of the issue": "N/A — feature addition only, all flows green on first run."
+}

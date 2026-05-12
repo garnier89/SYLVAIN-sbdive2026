@@ -6,7 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from core.config import db, logger, client, CORS_ORIGINS
 from core.deps import hash_password, verify_password, init_storage
@@ -247,7 +247,7 @@ async def lifespan(app: FastAPI):
     # ===== Seed Category-specific demo data (Beauty, Pet, CarCare, Towing, etc.) =====
     category_seeds = {
         "beauty_salons": [
-            {"id": "bs_01", "name": "L'Atelier Coiffure", "category": "Coiffure", "address": "12 Rue Saint-Honoré, Paris 75001", "phone": "+33145678901", "rating": 4.8, "price_range": "€€", "services": ["Coupe", "Couleur", "Brushing"], "image": "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400", "open_hours": "9h-19h"},
+            {"id": "bs_01", "name": "L'Atelier Coiffure", "category": "Coiffure", "address": "12 Rue Saint-Honoré, Paris 75001", "phone": "+33145678901", "rating": 4.8, "price_range": "€€", "services": ["Coupe", "Couleur", "Brushing"], "image": "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400", "open_hours": "9h-19h", "is_featured": True, "featured_until": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(), "featured_priority": 10},
             {"id": "bs_02", "name": "Beauty Spa Marais", "category": "Spa & Massage", "address": "8 Rue de Bretagne, Paris 75003", "phone": "+33142345678", "rating": 4.9, "price_range": "€€€", "services": ["Massage", "Soins visage", "Manucure"], "image": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400", "open_hours": "10h-21h"},
             {"id": "bs_03", "name": "Glamour Maquillage", "category": "Maquillage", "address": "25 Bd Saint-Germain, Paris 75005", "phone": "+33143987654", "rating": 4.7, "price_range": "€€", "services": ["Maquillage soirée", "Mariée", "Cours"], "image": "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=400", "open_hours": "11h-20h"},
             {"id": "bs_04", "name": "Barber Shop Pigalle", "category": "Soins Hommes", "address": "3 Rue Frochot, Paris 75009", "phone": "+33148765432", "rating": 4.6, "price_range": "€€", "services": ["Coupe homme", "Taille barbe", "Rasage"], "image": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=400", "open_hours": "10h-20h"},
@@ -262,14 +262,14 @@ async def lifespan(app: FastAPI):
         ],
         "car_services": [
             {"id": "cs_01", "name": "Lavage Auto Express", "category": "Lavage", "address": "5 Rue de la Roquette, Paris 75011", "phone": "+33142112233", "rating": 4.7, "price_from": 15.0, "services": ["Lavage extérieur", "Intérieur", "Polish"], "image": "https://images.unsplash.com/photo-1605164599901-db7f68c4b7a4?w=400", "duration_mins": 30},
-            {"id": "cs_02", "name": "Garage Mécanique Bastille", "category": "Mécanique", "address": "15 Av. Ledru-Rollin, Paris 75012", "phone": "+33143112233", "rating": 4.8, "price_from": 50.0, "services": ["Vidange", "Freins", "Diagnostic"], "image": "https://images.unsplash.com/photo-1486754735734-325b5831c3ad?w=400", "duration_mins": 60},
+            {"id": "cs_02", "name": "Garage Mécanique Bastille", "category": "Mécanique", "address": "15 Av. Ledru-Rollin, Paris 75012", "phone": "+33143112233", "rating": 4.8, "price_from": 50.0, "services": ["Vidange", "Freins", "Diagnostic"], "image": "https://images.unsplash.com/photo-1486754735734-325b5831c3ad?w=400", "duration_mins": 60, "is_featured": True, "featured_until": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(), "featured_priority": 10},
             {"id": "cs_03", "name": "Pneus 24/7", "category": "Pneumatiques", "address": "8 Bd Diderot, Paris 75012", "phone": "+33144112233", "rating": 4.6, "price_from": 80.0, "services": ["Montage", "Équilibrage", "Géométrie"], "image": "https://images.unsplash.com/photo-1632823469850-2f77dd9c7f93?w=400", "duration_mins": 45},
             {"id": "cs_04", "name": "Auto Battery Service", "category": "Batterie", "address": "Service à domicile Paris", "phone": "+33645223344", "rating": 4.9, "price_from": 120.0, "services": ["Test batterie", "Remplacement", "Dépannage"], "image": "https://images.unsplash.com/photo-1597077962467-be16edbab6e1?w=400", "duration_mins": 30},
             {"id": "cs_05", "name": "Carburant Mobile", "category": "Carburant", "address": "Service à domicile Paris", "phone": "+33646334455", "rating": 4.7, "price_from": 25.0, "services": ["SP95", "SP98", "Diesel"], "image": "https://images.unsplash.com/photo-1545262810-77515befe149?w=400", "duration_mins": 20},
             {"id": "cs_06", "name": "Pièces Auto Pro", "category": "Boutique", "address": "44 Rue de Charenton, Paris 75012", "phone": "+33145443322", "rating": 4.5, "price_from": 10.0, "services": ["Pièces neuves", "Pièces occasion", "Accessoires"], "image": "https://images.unsplash.com/photo-1486326658981-ed68abe5868e?w=400", "duration_mins": 0},
         ],
         "towing_partners": [
-            {"id": "tw_01", "name": "Dépann'Express 24/7", "address": "Île-de-France", "phone": "+33800111222", "rating": 4.8, "response_time_mins": 30, "services": ["Remorquage", "Démarrage", "Pneu crevé"], "available_24h": True, "price_from": 80.0},
+            {"id": "tw_01", "name": "Dépann'Express 24/7", "address": "Île-de-France", "phone": "+33800111222", "rating": 4.8, "response_time_mins": 30, "services": ["Remorquage", "Démarrage", "Pneu crevé"], "available_24h": True, "price_from": 80.0, "is_featured": True, "featured_until": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(), "featured_priority": 10},
             {"id": "tw_02", "name": "Auto Secours Paris", "address": "Paris intra-muros", "phone": "+33800333444", "rating": 4.7, "response_time_mins": 25, "services": ["Remorquage moto/auto", "Panne sèche"], "available_24h": True, "price_from": 70.0},
             {"id": "tw_03", "name": "Roadside Pro", "address": "Banlieue Est & Sud", "phone": "+33800555666", "rating": 4.6, "response_time_mins": 40, "services": ["Remorquage longue distance", "Convoyage"], "available_24h": False, "price_from": 100.0},
             {"id": "tw_04", "name": "Allo Dépanneur", "address": "Banlieue Ouest & Nord", "phone": "+33800777888", "rating": 4.9, "response_time_mins": 20, "services": ["Démarrage", "Ouverture portière", "Carburant"], "available_24h": True, "price_from": 60.0},

@@ -1,7 +1,7 @@
 """Phase 2 Taxi features: Heat View, Destination Mode, Airport surcharge, Flat Rate, Tip, Gift Card, Waybill, Taxi Pool."""
 import uuid
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request, HTTPException
 
 from core.config import db
@@ -534,10 +534,75 @@ PUBLIC_CATALOGS = {
 }
 
 @router.get("/catalogs/{collection}")
-async def list_public_catalog(collection: str, limit: int = 100):
+async def list_public_catalog(collection: str, limit: int = 100, skip: int = 0):
     if collection not in PUBLIC_CATALOGS:
         raise HTTPException(status_code=404, detail="Catalog not found")
-    items = await db[collection].find({}, {"_id": 0}).limit(limit).to_list(limit)
+    # Auto-expire featured listings whose featured_until is in the past
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db[collection].update_many(
+        {"is_featured": True, "featured_until": {"$lt": now_iso, "$ne": None}},
+        {"$set": {"is_featured": False}},
+    )
+    # Sort featured items first, then by created_at desc
+    cursor = db[collection].find({}, {"_id": 0}).sort([
+        ("is_featured", -1),
+        ("featured_priority", -1),
+        ("created_at", -1),
+    ]).skip(skip).limit(limit)
+    return await cursor.to_list(limit)
+
+
+@router.post("/admin/catalogs/{collection}/{item_id}/feature")
+async def admin_feature_catalog_item(collection: str, item_id: str, request: Request):
+    """Admin endpoint to mark an item as featured for N days (default 30).
+    Body: { duration_days: int (optional), priority: int (optional, default 0) }
+    """
+    from core.deps import require_role
+    await require_role(request, ["admin"])
+    if collection not in PUBLIC_CATALOGS:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    body = await request.json() if await request.body() else {}
+    duration_days = int(body.get("duration_days", 30))
+    priority = int(body.get("priority", 0))
+    until = (datetime.now(timezone.utc) + timedelta(days=duration_days)).isoformat()
+    result = await db[collection].update_one(
+        {"id": item_id},
+        {"$set": {
+            "is_featured": True,
+            "featured_until": until,
+            "featured_priority": priority,
+        }},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Featured", "featured_until": until, "priority": priority}
+
+
+@router.delete("/admin/catalogs/{collection}/{item_id}/feature")
+async def admin_unfeature_catalog_item(collection: str, item_id: str, request: Request):
+    from core.deps import require_role
+    await require_role(request, ["admin"])
+    if collection not in PUBLIC_CATALOGS:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    result = await db[collection].update_one(
+        {"id": item_id},
+        {"$set": {"is_featured": False, "featured_until": None, "featured_priority": 0}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Unfeatured"}
+
+
+@router.get("/admin/catalogs/{collection}/featured")
+async def admin_list_featured(collection: str, request: Request):
+    """Returns featured + expired items for the admin management panel."""
+    from core.deps import require_role
+    await require_role(request, ["admin"])
+    if collection not in PUBLIC_CATALOGS:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    items = await db[collection].find(
+        {"is_featured": True}, {"_id": 0}
+    ).to_list(200)
     return items
 
 

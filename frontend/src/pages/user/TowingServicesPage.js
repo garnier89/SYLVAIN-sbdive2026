@@ -17,13 +17,21 @@ const TowingServicesPage = () => {
       emptyHint="Aucun dépanneur disponible"
       testId="towing-page"
       renderCard={({ item }) => (
-        <button onClick={() => call(item)} className="w-full bg-white rounded-2xl border border-gray-100 p-4 text-left hover:shadow-md transition-shadow">
+        <button onClick={() => call(item)} className={`w-full bg-white rounded-2xl border p-4 text-left hover:shadow-md transition-shadow relative ${item.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`}>
+          {item.is_featured && (
+            <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow-sm" data-testid={`sponsored-${item.id}`}>
+              ★ Sponsorisé
+            </span>
+          )}
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
-            {item.available_24h && (
+            <h3 className="font-bold text-gray-900 text-base pr-20">{item.name}</h3>
+            {item.available_24h && !item.is_featured && (
               <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">24/7</span>
             )}
           </div>
+          {item.available_24h && item.is_featured && (
+            <div className="mt-1"><span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">24/7</span></div>
+          )}
           <p className="text-xs text-gray-500 mt-1">{item.address}</p>
           <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
             <span className="flex items-center gap-1"><Clock size={12} />~{item.response_time_mins} min</span>

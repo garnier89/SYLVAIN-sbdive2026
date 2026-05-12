@@ -79,7 +79,12 @@ const MarketplacePage = () => {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map(l => (
-              <button key={l.id} onClick={() => toast.info(l.title)} className="bg-white rounded-2xl overflow-hidden border border-gray-100 text-left hover:shadow-md transition-shadow" data-testid={`listing-${l.id}`}>
+              <button key={l.id} onClick={() => toast.info(l.title)} className={`bg-white rounded-2xl overflow-hidden border text-left hover:shadow-md transition-shadow relative ${l.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`} data-testid={`listing-${l.id}`}>
+                {l.is_featured && (
+                  <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow" data-testid={`sponsored-${l.id}`}>
+                    ★ Sponsorisé
+                  </span>
+                )}
                 {l.image && (
                   <div className="w-full h-28 bg-gray-100">
                     <img src={l.image} alt={l.title} className="w-full h-full object-cover" loading="lazy" />

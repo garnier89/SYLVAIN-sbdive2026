@@ -113,6 +113,7 @@ import AdminPriorityDrivers from './pages/admin/AdminPriorityDrivers';
 import AdminTopDriversSettings from './pages/admin/AdminTopDriversSettings';
 import AdminDbBackup from './pages/admin/AdminDbBackup';
 import AdminNegotiationGapReport from './pages/admin/AdminNegotiationGapReport';
+import AdminFeaturedListings from './pages/admin/AdminFeaturedListings';
 import TopDriversPage from './pages/TopDriversPage';
 import RideChatPage from './pages/RideChatPage';
 import EmergencyContactsPage from './pages/user/EmergencyContactsPage';
@@ -290,6 +291,7 @@ const AppRouter = () => {
         <Route path="maps-api" element={<AdminServiceConfig serviceKey="maps-api" />} />
         <Route path="db-backup" element={<AdminDbBackup />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
+        <Route path="featured-listings" element={<AdminFeaturedListings />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />

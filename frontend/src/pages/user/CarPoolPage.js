@@ -58,7 +58,12 @@ const CarPoolPage = () => {
         ) : (
           <div className="space-y-3">
             {filtered.map(t => (
-              <button key={t.id} onClick={() => book(t)} className="w-full bg-white rounded-2xl border border-gray-100 p-4 text-left hover:shadow-md transition-shadow" data-testid={`trip-${t.id}`}>
+              <button key={t.id} onClick={() => book(t)} className={`w-full bg-white rounded-2xl border p-4 text-left hover:shadow-md transition-shadow relative ${t.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`} data-testid={`trip-${t.id}`}>
+                {t.is_featured && (
+                  <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow-sm" data-testid={`sponsored-${t.id}`}>
+                    ★ Sponsorisé
+                  </span>
+                )}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-bold">{t.driver_name?.charAt(0)}</div>

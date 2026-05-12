@@ -122,7 +122,12 @@ const ServiceListLayout = ({
 
 /** Re-usable card UI used by most pages. */
 export const ServiceCard = ({ item, badges = [], onClick }) => (
-  <button onClick={onClick} className="w-full bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow text-left flex">
+  <button onClick={onClick} className={`w-full bg-white rounded-2xl overflow-hidden border hover:shadow-md transition-shadow text-left flex relative ${item.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`}>
+    {item.is_featured && (
+      <span className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow-sm" data-testid={`sponsored-${item.id}`}>
+        <Star size={9} weight="fill" />Sponsorisé
+      </span>
+    )}
     {(item.image) && (
       <div className="w-28 h-28 flex-shrink-0 bg-gray-100">
         <img src={item.image} alt={item.name || item.title} className="w-full h-full object-cover" loading="lazy" />
@@ -130,14 +135,20 @@ export const ServiceCard = ({ item, badges = [], onClick }) => (
     )}
     <div className="flex-1 min-w-0 p-3">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="font-bold text-gray-900 text-sm leading-tight truncate">{item.name || item.title}</h3>
-        {item.rating != null && (
+        <h3 className="font-bold text-gray-900 text-sm leading-tight truncate pr-16">{item.name || item.title}</h3>
+        {item.rating != null && !item.is_featured && (
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <Star size={12} weight="fill" className="text-amber-400" />
             <span className="text-xs font-semibold text-gray-700">{item.rating.toFixed(1)}</span>
           </div>
         )}
       </div>
+      {item.is_featured && item.rating != null && (
+        <div className="flex items-center gap-0.5 mt-0.5">
+          <Star size={12} weight="fill" className="text-amber-400" />
+          <span className="text-xs font-semibold text-gray-700">{item.rating.toFixed(1)}</span>
+        </div>
+      )}
       {(item.address || item.location) && (
         <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 leading-tight">
           <MapPin size={10} className="inline mr-1 text-gray-400" />{item.address || item.location}
