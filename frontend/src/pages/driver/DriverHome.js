@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import LeafletMap from '../../components/LeafletMap';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
+import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -27,6 +28,7 @@ const DriverHome = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [heatPoints, setHeatPoints] = useState([]);
+  const [showEarningsBreakdown, setShowEarningsBreakdown] = useState(false);
   const locationWatchId = useRef(null);
 
   const { isLoaded: gmapLoaded } = { isLoaded: true };
@@ -233,7 +235,20 @@ const DriverHome = () => {
       {/* GAINS D'AUJOURD'HUI */}
       <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-gray-100">
         <span className="text-base font-bold text-gray-800">Gains d'aujourd'hui</span>
-        <span className="text-base font-bold text-gray-800">{(driver.earnings || 0).toFixed(2)} EUR</span>
+        <button
+          type="button"
+          onClick={() => setShowEarningsBreakdown(true)}
+          className="flex items-center gap-1.5 group"
+          data-testid="open-earnings-breakdown-btn"
+          aria-label="Voir le détail des revenus"
+        >
+          <span className="text-base font-bold text-gray-800 group-hover:text-[#FF4500] transition-colors">
+            {(driver.earnings || 0).toFixed(2)} EUR
+          </span>
+          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[11px] font-bold group-hover:bg-blue-200">
+            i
+          </span>
+        </button>
       </div>
 
       {/* 4 STAT CARDS */}
@@ -473,6 +488,12 @@ const DriverHome = () => {
 
       {/* Bottom Nav */}
       <DriverBottomNav active="home" />
+
+      {/* Earnings Breakdown Modal */}
+      <EarningsBreakdownModal
+        open={showEarningsBreakdown}
+        onClose={() => setShowEarningsBreakdown(false)}
+      />
     </div>
   );
 };

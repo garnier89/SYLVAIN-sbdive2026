@@ -311,6 +311,45 @@ async def get_my_score_history(request: Request):
     }
 
 
+@router.get("/my-earnings-breakdown")
+async def get_my_earnings_breakdown(request: Request):
+    """Return the driver's earnings split into today, this week (Mon-Sun) and this month."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    now = datetime.now(timezone.utc)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_week = (start_of_day - timedelta(days=start_of_day.weekday()))
+    start_of_month = start_of_day.replace(day=1)
+
+    async def sum_fares(since_iso: str) -> dict:
+        pipeline = [
+            {"$match": {
+                "driver_id": driver["id"],
+                "status": "completed",
+                "completed_at": {"$gte": since_iso},
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$final_fare"}, "count": {"$sum": 1}}},
+        ]
+        rows = await db.rides.aggregate(pipeline).to_list(1)
+        if rows:
+            return {"earnings": round(rows[0]["total"] or 0, 2), "trips": rows[0]["count"]}
+        return {"earnings": 0.0, "trips": 0}
+
+    today = await sum_fares(start_of_day.isoformat())
+    week = await sum_fares(start_of_week.isoformat())
+    month = await sum_fares(start_of_month.isoformat())
+
+    return {
+        "today": today,
+        "week": week,
+        "month": month,
+        "currency": "EUR",
+        "as_of": now.isoformat(),
+    }
+
 
 @router.post("/refuse-ride/{ride_id}")
 async def refuse_ride(ride_id: str, request: Request):
