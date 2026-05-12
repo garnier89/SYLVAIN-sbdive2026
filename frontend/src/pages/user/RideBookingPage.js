@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { rideAPI } from '../../services/api';
 import { useJsApiLoader } from '@react-google-maps/api';
+import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 
 import RidePlanStep from './ride/RidePlanStep';
 import RideMapStep from './ride/RideMapStep';
@@ -62,6 +63,7 @@ const RideBookingPage = () => {
   const [routePath, setRoutePath] = useState([]);
   const [vehicleTypes, setVehicleTypes] = useState([]);
   const { isLoaded: gmapLoaded } = useJsApiLoader({ googleMapsApiKey: GMAP_KEY || '' });
+  const { methods: paymentMethods } = usePaymentMethods();
   const [recentLocations] = useState([
     { address: 'Gare du Nord, 18 Rue de Dunkerque, 75010 Paris' },
     { address: 'Tour Eiffel, Champ de Mars, 75007 Paris' },
@@ -263,6 +265,7 @@ const RideBookingPage = () => {
         routePath={routePath} estimate={estimate}
         vehicleTypes={vehicleTypes} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle}
         paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+        paymentMethods={paymentMethods}
         scheduleMode={scheduleMode}
         scheduleDate={scheduleDate} setScheduleDate={setScheduleDate}
         scheduleTime={scheduleTime} setScheduleTime={setScheduleTime}

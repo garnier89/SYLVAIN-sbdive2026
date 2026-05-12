@@ -27,6 +27,7 @@ export const RideMapStep = ({
   pickup, dropoff, mapCenter, routePath, estimate,
   vehicleTypes, selectedVehicle, setSelectedVehicle,
   paymentMethod, setPaymentMethod,
+  paymentMethods = [],
   scheduleMode, scheduleDate, setScheduleDate, scheduleTime, setScheduleTime,
   selectingLocation, handleLocationSelect, getEstimate,
   gmapLoaded, confirmRide, loading,
@@ -37,6 +38,20 @@ export const RideMapStep = ({
   const gmapCenter = pickup.lat && dropoff.lat
     ? { lat: (pickup.lat + dropoff.lat) / 2, lng: (pickup.lng + dropoff.lng) / 2 }
     : pickup.lat ? { lat: pickup.lat, lng: pickup.lng } : mapCenter;
+
+  // Compose dynamic payment methods (fallback to cash/card/wallet if API list empty)
+  const pmList = paymentMethods.length > 0 ? paymentMethods : [
+    { id: 'cash', label: 'Espèces', icon: 'Money' },
+    { id: 'card', label: 'Carte bancaire', icon: 'CreditCard' },
+    { id: 'wallet', label: 'Portefeuille SB', icon: 'Wallet' },
+  ];
+  const currentPm = pmList.find((m) => m.id === paymentMethod) || pmList[0];
+  const CurrentPmIcon = PM_ICON_MAP[currentPm?.icon] || CreditCard;
+  const cyclePayment = () => {
+    const idx = pmList.findIndex((m) => m.id === paymentMethod);
+    const next = pmList[(idx + 1) % pmList.length];
+    setPaymentMethod(next.id);
+  };
 
   return (
     <div className="mobile-container min-h-screen bg-white relative">

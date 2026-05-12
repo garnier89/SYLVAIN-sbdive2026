@@ -8,13 +8,17 @@ import { Textarea } from '../../components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '../../components/ui/radio-group';
 import { orderAPI, merchantAPI, walletAPI, cartAPI } from '../../services/api';
 import { 
-  ArrowLeft, MapPin, CreditCard, Money, Wallet,
+  ArrowLeft, MapPin, CreditCard, Money, Wallet, DeviceMobile, Waves, Bank,
   Plus, Minus, Trash, CheckCircle
 } from '@phosphor-icons/react';
+import { usePaymentMethods } from '../../hooks/usePaymentMethods';
+
+const ICON_MAP = { CreditCard, Money, Wallet, DeviceMobile, Waves, Bank };
 
 const CheckoutPage = () => {
   const { merchantId } = useParams();
   const navigate = useNavigate();
+  const { methods: paymentMethods } = usePaymentMethods();
   
   // Read cart immediately from localStorage to avoid flash of empty state
   const getInitialCart = () => {
@@ -300,31 +304,25 @@ const CheckoutPage = () => {
               value={formData.payment_method}
               onValueChange={(value) => setFormData({ ...formData, payment_method: value })}
               className="space-y-3"
+              data-testid="checkout-payment-methods"
             >
-              <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                <RadioGroupItem value="card" id="card" data-testid="payment-card" />
-                <Label htmlFor="card" className="flex items-center gap-2 cursor-pointer flex-1">
-                  <CreditCard size={20} className="text-blue-500" />
-                  <span>Credit/Debit Card</span>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                <RadioGroupItem value="wallet" id="wallet" data-testid="payment-wallet" />
-                <Label htmlFor="wallet" className="flex items-center justify-between cursor-pointer flex-1">
-                  <div className="flex items-center gap-2">
-                    <Wallet size={20} className="text-green-500" />
-                    <span>Wallet</span>
+              {paymentMethods.map((m) => {
+                const Icon = ICON_MAP[m.icon] || CreditCard;
+                return (
+                  <div key={m.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                    <RadioGroupItem value={m.id} id={`pm-${m.id}`} data-testid={`payment-${m.id}`} />
+                    <Label htmlFor={`pm-${m.id}`} className="flex items-center justify-between cursor-pointer flex-1">
+                      <div className="flex items-center gap-2">
+                        <Icon size={20} className="text-gray-700" weight="duotone" />
+                        <span>{m.label}</span>
+                      </div>
+                      {m.id === 'wallet' && (
+                        <span className="text-sm text-gray-500">Solde : {wallet.balance.toFixed(2)} €</span>
+                      )}
+                    </Label>
                   </div>
-                  <span className="text-sm text-gray-500">Balance: ${wallet.balance.toFixed(2)}</span>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                <RadioGroupItem value="cash" id="cash" data-testid="payment-cash" />
-                <Label htmlFor="cash" className="flex items-center gap-2 cursor-pointer flex-1">
-                  <Money size={20} className="text-emerald-500" />
-                  <span>Cash on Delivery</span>
-                </Label>
-              </div>
+                );
+              })}
             </RadioGroup>
           </CardContent>
         </Card>

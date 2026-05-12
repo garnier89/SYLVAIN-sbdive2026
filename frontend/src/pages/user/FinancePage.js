@@ -68,11 +68,11 @@ const FinancePage = () => {
       <div className="mobile-container min-h-screen bg-white">
         <div className="px-4 py-4 flex items-center gap-3 border-b">
           <button onClick={() => navigate(-1)} data-testid="finance-back-btn"><ArrowLeft size={22} /></button>
-          <h1 className="text-lg font-bold">Finance</h1>
+          <h1 className="text-lg font-bold">SB PayGo</h1>
         </div>
         <div className="p-8 text-center text-gray-500">
           <ShieldCheck size={48} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-sm">Le module Finance est actuellement désactivé par l'administrateur.</p>
+          <p className="text-sm">SB PayGo est actuellement désactivé par l'administrateur.</p>
         </div>
       </div>
     );
@@ -87,7 +87,7 @@ const FinancePage = () => {
             <ArrowLeft size={18} weight="bold" />
           </button>
           <div className="flex-1">
-            <h1 className="text-lg font-bold">Finance — SB PayGo</h1>
+            <h1 className="text-lg font-bold">SB PayGo</h1>
             <p className="text-xs text-white/70">Connecté à sbdrivevtc.com</p>
           </div>
           <Bank size={26} weight="duotone" className="text-white/80" />
