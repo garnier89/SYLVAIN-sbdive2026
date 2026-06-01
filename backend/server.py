@@ -37,6 +37,9 @@ from routes.phase2 import router as phase2_router
 from routes.finance import router as finance_router
 from routes.auto_dispatch import router as auto_dispatch_router, auto_dispatch_loop
 from routes.kiosk import router as kiosk_router
+from routes.acl import router as acl_router, seed_acl
+from routes.subscriptions import router as subscriptions_router, seed_subscription_plans
+from routes.geo import router as geo_router, seed_countries
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -191,6 +194,27 @@ async def lifespan(app: FastAPI):
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
             logger.info(f"Panel demo created: {p['email']} -> {p['panel_preference']}")
+
+    # Seed ACL (admin_roles, admin_permissions) + map demo accounts to proper roles
+    try:
+        await seed_acl()
+        logger.info("ACL seeded (roles + permissions + demo accounts mapped)")
+    except Exception as e:
+        logger.error(f"ACL seed failed: {e}")
+
+    # Seed driver subscription plans (Free / Pro / VIP / Elite Annual)
+    try:
+        await seed_subscription_plans()
+        logger.info("Driver subscription plans seeded")
+    except Exception as e:
+        logger.error(f"Subscription seed failed: {e}")
+
+    # Seed geographic referentials (250 countries from V3Cube)
+    try:
+        await seed_countries()
+        logger.info("Countries seeded from V3Cube SQL")
+    except Exception as e:
+        logger.error(f"Countries seed failed: {e}")
 
     init_storage()
     logger.info("SuperApp Backend Started (Modular)")
@@ -432,6 +456,9 @@ api_router.include_router(phase2_router)
 api_router.include_router(finance_router)
 api_router.include_router(auto_dispatch_router)
 api_router.include_router(kiosk_router)
+api_router.include_router(acl_router)
+api_router.include_router(subscriptions_router)
+api_router.include_router(geo_router)
 
 app.include_router(api_router)
 

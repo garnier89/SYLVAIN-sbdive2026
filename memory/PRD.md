@@ -349,6 +349,62 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 74 (Jun 1, 2026) — Récupération BDD V3Cube + Améliorations (DONE)
+### 📥 Récupération du code source BDD V3Cube
+- Source : `sbdriv5_db2024.sql.gz` (8.3 MB compressé → 51 MB SQL, MariaDB 10.11, charset utf8mb4)
+- **224 tables V3Cube** décodées et catégorisées
+- Document de mapping créé : `/app/memory/V3CUBE_DB_MAPPING.md` (224 tables → 56 collections MongoDB existantes + 30 manquantes prioritaires + 65 inutiles legacy)
+
+### 🔐 Amélioration #1 — ACL granulaire (V3Cube admin_groups + admin_permissions)
+**Nouveau fichier** : `/app/backend/routes/acl.py` + `/app/backend/core/permissions.py`
+- 2 nouvelles collections : `admin_permissions` (33 permissions seedées) + `admin_roles` (7 rôles système seedés)
+- Champ `users.role_ids[]` + `users.role_name` ajoutés
+- Helper FastAPI : `require_permission("dispatch.assign")` à utiliser sur endpoints sensibles
+- Helper alternatif : `require_any_permission(p1, p2)`
+- **Migration auto au startup** : les 6 comptes panel démo se voient assigner leur rôle proprement (`dispatch@superapp.com` → role `dispatcher` avec 5 permissions ciblées)
+- 7 endpoints CRUD : `/api/acl/roles`, `/api/acl/users`, `/api/acl/permissions/registry`, `/api/acl/me/permissions`, etc.
+
+### 💳 Amélioration #2 — Driver Subscriptions (V3Cube driver_subscription_plan)
+**Nouveau fichier** : `/app/backend/routes/subscriptions.py`
+- 2 nouvelles collections : `subscription_plans` + `driver_subscriptions`
+- **4 plans par défaut seedés** :
+  - **Free** : 0€ / commission 20%
+  - **Pro** : 19.90€/mois / commission 10% / support prioritaire
+  - **VIP** : 49.90€/mois / commission 5% / badge VIP / priorité auto-dispatch
+  - **Elite Annual** : 449€/an / commission 3% / VIP + manager dédié
+- 9 endpoints : `/api/subscriptions/plans`, `/api/subscriptions/my`, `/api/subscriptions/subscribe`, `/api/subscriptions/cancel`, admin CRUD
+- Paiement via wallet (Stripe TODO pour cartes)
+- À l'activation : update `drivers.subscription_id`, `vip_badge`, `priority_dispatch`, `commission_pct`
+
+### 🌍 Amélioration #3 — Référentiels géographiques (V3Cube country/state/city)
+**Nouveau fichier** : `/app/backend/routes/geo.py`
+- Nouvelle collection : `countries` (**250 pays seedés** depuis le SQL V3Cube)
+- Champs : `code, iso3, name, native, phone_code, currency, lat, lng, capital, timezone, emergency_code, unit, tax1, tax2, enable_toll, is_active`
+- Seed file : `/app/backend/seed_data/v3cube_countries.json` (76 KB, généré automatiquement depuis SQL)
+- 3 endpoints publics : `/api/geo/countries?q=`, `/api/geo/countries/{code}`, `/api/geo/phone-codes`
+- Utilisable pour cascade Pays → État → Ville sur formulaires d'inscription
+
+### Tests E2E (manuel curl)
+- ✅ `/api/subscriptions/plans` : 4 plans retournés
+- ✅ `/api/geo/countries?q=fr` : 8 résultats (France, French Guiana, etc.)
+- ✅ `/api/acl/roles` : 7 rôles système avec permissions
+- ✅ `/api/acl/me/permissions` super_admin → `["super.all"]`
+- ✅ `dispatch@superapp.com` → permissions correctement assignées (5 perms)
+- ✅ `billing@superapp.com` → permissions billing
+- ✅ `crm-drivers@superapp.com` → 7 permissions chauffeurs
+- ✅ Backend startup logs OK : "ACL seeded", "Subscription plans seeded", "Countries seeded from V3Cube SQL"
+- ✅ Lint Python : 4/4 PASS
+
+### Reste à faire (sessions futures)
+- 🟠 Frontend : page admin `/admin/acl` pour CRUD rôles + assignment
+- 🟠 Frontend : page driver `/chauffeur/subscriptions` pour souscrire à un plan
+- 🟠 Frontend : selector phone code/country sur form inscription
+- 🟠 Étendre `require_permission` aux endpoints admin existants (au lieu du simple check `role=='admin'`)
+- 🔴 P0 résiduel : OTP "Démarrer course" validation E2E (iter69 script Playwright crashed)
+- 🟡 Itérations 75-78 du V3CUBE_DB_MAPPING (audit logs, driver shifts, multi-tenant orgs, i18n labels, call masking Twilio)
+
+
+
 ## Iteration 73 (Jun 1, 2026) — Audit BDD & APIs : Discovery & Documentation complète (DONE)
 ### 📚 4 livrables exhaustifs créés dans `/app/memory/`
 - **`DATABASE_SCHEMA.md`** (395 lignes) — 56 collections documentées, regroupées en 13 domaines (Auth, VTC, Chauffeurs, Marchands, Finance, Promotions, Kiosk, Marketplace, Services, Référentiels, Config, Support, Phase 2). Pour chaque collection : tableau des champs (type, nullable, description), indexes, relations.
