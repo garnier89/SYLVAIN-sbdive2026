@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 import uuid
 import math
 import secrets
+import httpx
 
 from core.config import db
 from core.deps import get_current_user
@@ -357,3 +358,30 @@ async def kiosk_ride_status(token: str, ride_id: str):
                 "rating": driver.get("rating", 5.0),
             }
     return {**ride, "driver_info": driver_info}
+
+
+
+@router.get("/{token}/geocode")
+async def kiosk_geocode(token: str, q: str):
+    """Server-side proxy to Nominatim (OpenStreetMap) for destination search.
+    Avoids browser CORS / rate limiting by setting a proper User-Agent server-side.
+    """
+    await _get_kiosk_by_token(token)
+    if not q or len(q.strip()) < 2:
+        return {"results": []}
+    headers = {"User-Agent": "SBDriveVTC-Kiosk/1.0 (contact@sbdrivevtc.com)"}
+    params = {"format": "json", "q": q, "limit": 8, "addressdetails": 1}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get("https://nominatim.openstreetmap.org/search", params=params, headers=headers)
+            if r.status_code != 200:
+                return {"results": []}
+            data = r.json() or []
+            results = [{
+                "lat": float(item.get("lat")),
+                "lng": float(item.get("lon")),
+                "address": item.get("display_name", ""),
+            } for item in data]
+            return {"results": results}
+    except Exception:
+        return {"results": []}

@@ -295,17 +295,18 @@ const KioskDestination = ({ info, vehicle, onBack, onConfirm }) => {
   const debounceRef = useRef(null);
   const token = localStorage.getItem(KIOSK_TOKEN_KEY);
 
-  // Nominatim free geocoding (open street map)
+  // Backend proxy to Nominatim geocoding (avoids browser CORS / rate limiting)
   const fetchSuggestions = useCallback(async (q) => {
     if (!q || q.length < 3) { setSuggestions([]); return; }
     setSearchLoading(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=8&addressdetails=1`);
-      const data = await res.json();
-      setSuggestions(data || []);
+      const data = await kioskAPI.geocode(token, q);
+      // Map backend shape {lat, lng, address} -> internal shape with display_name/lon
+      const items = (data.results || []).map(r => ({ lat: r.lat, lon: r.lng, display_name: r.address }));
+      setSuggestions(items);
     } catch (e) { setSuggestions([]); }
     finally { setSearchLoading(false); }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

@@ -8,6 +8,7 @@ export const kioskAPI = {
   estimate: (token, body) => api.post(`/kiosk/${token}/estimate`, body).then(r => r.data),
   book: (token, body) => api.post(`/kiosk/${token}/book`, body).then(r => r.data),
   rideStatus: (token, ride_id) => api.get(`/kiosk/${token}/ride/${ride_id}`).then(r => r.data),
+  geocode: (token, q) => api.get(`/kiosk/${token}/geocode`, { params: { q } }).then(r => r.data),
   // Admin
   adminCreate: (body) => api.post('/kiosk/admin/create', body).then(r => r.data),
   adminList: () => api.get('/kiosk/admin/list').then(r => r.data),

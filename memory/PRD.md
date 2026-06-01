@@ -349,6 +349,63 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 71 (Jun 1, 2026) — Phase A : SB Drive Tab (Kiosk libre-service) (DONE)
+### 📱 Nouvelle app : SB Drive Tab — borne hôtel/restaurant
+- **Concept** : tablette installée chez un partenaire (hôtel, restaurant) qui permet aux clients sur place de commander un taxi sans avoir d'app à installer. Mode libre-service, design V3Cube fidèle.
+- **Couleur principale** : orange #FF6B1A. Layout landscape tablette.
+
+### Backend `/app/backend/routes/kiosk.py` (10 endpoints)
+**Admin (JWT cookie admin)** :
+- `POST /api/kiosk/admin/create` body `{hotel_name, address, lat, lng, pin_code, language, currency, image_url, pickup_label}` → retourne `{id, session_token, kiosk_url}`
+- `GET /api/kiosk/admin/list`
+- `PUT /api/kiosk/admin/{id}` (update)
+- `DELETE /api/kiosk/admin/{id}`
+- `POST /api/kiosk/admin/{id}/regenerate-token`
+
+**Public (session_token de borne)** :
+- `POST /api/kiosk/unlock` body `{pin_code}` → retourne session_token + hotel info (401 si PIN incorrect)
+- `GET /api/kiosk/{token}/info` → hotel info + 5 véhicules (sb 0.80€/km, confort 0.90, fast 1.30, taxi 1.20, van 1.20) + langue + devise
+- `GET /api/kiosk/{token}/nearest-driver` → ETA min du chauffeur le plus proche (cap 50km radius pour zone borne)
+- `POST /api/kiosk/{token}/estimate` body `{dest_lat, dest_lng, vehicle_type}` → distance_km + estimated_fare + duration
+- `POST /api/kiosk/{token}/book` → crée guest user via phone + ride pending. Broadcast WS admin + drivers
+- `GET /api/kiosk/{token}/ride/{ride_id}` → status pour UI 'searching driver'
+- `GET /api/kiosk/{token}/geocode?q=` → proxy Nominatim/OSM (avec User-Agent) pour éviter CORS/rate-limit côté tablette
+
+### Frontend `/app/frontend/src/pages/kiosk/KioskApp.js` (state machine 7 étapes)
+1. **Splash** : logo SB rouge dans cercle conic + "SB DRIVE TAB" (1.5s)
+2. **Unlock PIN** : keypad numérique 4-6 chiffres, gradient orange
+3. **Home** : split layout — gauche orange (logo SB + hotel_name + image carrousel + bouton blanc "RÉSERVER UN CHAUFFEUR"), droite orange clair (sélecteur langue/devise + ETA driver le plus proche en widget rond + icône logout)
+4. **Customer Form** : Prénom + Nom + Email (optionnel) + Pays +33 + Mobile, boutons "RÉINITIALISER" + "SUIVANT"
+5. **Vehicle Select** : cards horizontales scrollables (SB/Confort/Fast/TAXI/Van) avec icône info + emoji car + prix /km
+6. **Destination** : (sous-écran "Chercher" → suggestions via backend proxy /geocode) puis split layout map Leaflet + sidebar récap "1 Type de cabine" + "2 Détails du tarif" + boutons "RÉSERVER MAINTENANT" + "ANNULER"
+7. **Searching** : map + animation pulse orange (cercles concentriques + pin user noir/orange) → switch automatique en card chauffeur trouvé avec name/vehicle/phone/rating
+
+### Frontend Admin `/admin/kiosks` (AdminKiosks.js)
+- Table : Partenaire / Adresse / PIN / Lang+Devise / Courses totales / Actions
+- Modal Nouvelle/Modifier borne (10 champs)
+- Actions : Copier URL borne (clipboard) / Régénérer token / Modifier / Supprimer
+- Sidebar : ajout sous MEMBRES > Hôtels > "Bornes SB Drive Tab"
+
+### Borne démo créée
+- **TAB CLIC** — Ducos 97224, Martinique — PIN: `1234` — coords: 14.5882, -60.9494
+- URL borne : `/kiosk?token=<session_token>` (à ouvrir en plein écran sur la tablette)
+- Alias : `/tab` redirige aussi vers KioskApp
+
+### Routing & sous-domaines
+- En preview : route `/kiosk` (et `/tab`). En production sbdrivevtc.com, configurer DNS CNAME `kiosk.sbdrivevtc.com` → app + route catch-all → `/kiosk`.
+
+### Tests iter71 (test_reports/iteration_70.json)
+- **Backend** : 16/16 pytest PASS (admin CRUD + public endpoints + unlock correct/wrong PIN + estimate van-vs-sb + book + ride-status + geocode)
+- **Frontend** : 100% PASS (Splash → Unlock PIN 1234 → Home TAB CLIC + Ducos → Form → 5 vehicle cards → Destination search → Admin create/list/delete CRUD)
+- **Limitation initiale** : Nominatim bloqué depuis sandbox preview → **FIXÉ** via proxy backend `/api/kiosk/{token}/geocode` (vérifié : Fort-de-France retourne 2 résultats).
+
+### Reste à faire (Phase B + C)
+- **Phase B** : séparer le Dashboard en 7 web panels distincts (`/dispatch`, `/billing`, `/server`, `/users-admin`, `/drivers-admin`, `/merchants-admin`) avec rôles différenciés
+- **Phase C** : website vitrine public sbdrivevtc.com (hero + booking form + 4 services VTC + 5 types inscription + Play/App Store)
+- (Optional) Persistance lang/currency change sur la borne (PATCH /api/kiosk/{token}/preferences)
+
+
+
 ## Iteration 70 (Feb 12, 2026) — Fix pages blanches chauffeur & client + identifiants démo (DONE)
 ### 🐛 Bug 1 : Page blanche `/chauffeur/home`
 - **Cause** : `DriverProfile` Pydantic exigeait `vehicle_type`, `vehicle_number`, `vehicle_model`, `license_number` en string obligatoire. Sur les drivers legacy (créés avant l'ajout de ces champs ou seedés sans), `find_one` retournait un doc valide mais le `response_model=DriverProfile` rejetait la sérialisation → 500 → `loadDriverProfile()` plantait dans le `DriverHome.js` → tout le render échouait silencieusement.
