@@ -36,6 +36,7 @@ from routes.phase1 import router as phase1_router
 from routes.phase2 import router as phase2_router
 from routes.finance import router as finance_router
 from routes.auto_dispatch import router as auto_dispatch_router, auto_dispatch_loop
+from routes.kiosk import router as kiosk_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -383,6 +384,7 @@ api_router.include_router(phase1_router)
 api_router.include_router(phase2_router)
 api_router.include_router(finance_router)
 api_router.include_router(auto_dispatch_router)
+api_router.include_router(kiosk_router)
 
 app.include_router(api_router)
 

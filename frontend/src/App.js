@@ -134,6 +134,10 @@ import AdminSettlements from './pages/admin/AdminSettlements';
 // Dispatcher Pages
 import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
 
+// SB Drive Tab (Kiosk)
+import KioskApp from './pages/kiosk/KioskApp';
+import AdminKiosks from './pages/admin/AdminKiosks';
+
 import './index.css';
 
 const AppRouter = () => {
@@ -148,6 +152,10 @@ const AppRouter = () => {
     <Routes>
       {/* ======= LANDING PAGE / WEBSITE ======= */}
       <Route path="/website" element={<LandingPage />} />
+
+      {/* ======= SB DRIVE TAB (Kiosk libre-service) ======= */}
+      <Route path="/kiosk" element={<KioskApp />} />
+      <Route path="/tab" element={<KioskApp />} />
 
       {/* ======= SB DRIVE CLIENT (App Passager) ======= */}
       <Route path="/" element={user && user.role === 'user' ? <Navigate to="/home" replace /> : !user ? <LandingPage /> : <Navigate to={user.role === 'driver' ? '/chauffeur/home' : user.role === 'merchant' ? '/merchant' : user.role === 'admin' ? '/admin' : '/home'} replace />} />
@@ -307,6 +315,7 @@ const AppRouter = () => {
         <Route path="db-backup" element={<AdminDbBackup />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
         <Route path="featured-listings" element={<AdminFeaturedListings />} />
+        <Route path="kiosks" element={<AdminKiosks />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />

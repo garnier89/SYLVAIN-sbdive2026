@@ -44,6 +44,7 @@ const sidebarConfig = [
       { icon: Storefront, label: 'Boutiques', path: '/admin/stores' },
       { icon: Bed, label: 'Hôtels', key: 'hotels', children: [
         { label: 'Tous les hôtels', path: '/admin/hotels' },
+        { label: 'Bornes SB Drive Tab', path: '/admin/kiosks' },
       ]},
       { icon: TreeStructure, label: 'Organisation', path: '/admin/organization' },
     ]

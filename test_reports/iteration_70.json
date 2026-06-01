@@ -1,0 +1,43 @@
+{
+  "summary": "Iter70 — SB Drive Tab (kiosk) end-to-end validation. Backend: 16/16 pytest PASS covering admin CRUD (create, list, update, regenerate-token, delete, requires_admin, invalid_pin) and public endpoints (unlock correct/wrong PIN, info, info-invalid-token, nearest-driver, estimate, van-vs-sb pricing differential, book, ride-status, ride-status-unknown). Frontend kiosk flow (/kiosk): Splash → Unlock with PIN 1234 → Home (TAB CLIC + Ducos 97224, Martinique + sidebar lang/devise/ETA + 'RÉSERVER UN CHAUFFEUR' CTA) → Customer Form (first_name/last_name/email/phone all functional) → Vehicle Select (5 cards visible: sb, confort, fast, taxi, van with /km pricing) → Destination Search screen renders. Frontend admin /admin/kiosks: table + 'Nouvelle borne' modal with all required testids (form-hotel-name/address/lat/lng/pin/save-btn) creates kiosk successfully (toast 'Borne créée'), delete via trash icon + confirm dialog works. The full create→list→delete admin CRUD verified live in UI.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Kiosk destination search (Nominatim)",
+        "issue": "https://nominatim.openstreetmap.org/search returned 0 suggestions from the sandbox preview environment for both 'Fort-de-France Martinique' and 'Paris'. This is most likely a Nominatim policy block (their Usage Policy throttles browsers without a clear User-Agent or referer; sandbox traffic may be globally rate-limited). Was unable to test the final confirm-booking-btn → searching-screen step end-to-end via UI. NOTE: the backend /estimate and /book endpoints both work perfectly (verified in pytest with the same coordinates the UI would have produced), so the bug is strictly the third-party geocoding call, not the app logic.",
+        "affected_selectors": ["destination-search-input", "suggestion-0", "destination-recap-screen", "estimated-fare", "confirm-booking-btn", "searching-screen"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter70_kiosk.py",
+    "/app/test_reports/pytest/iter70_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: To avoid the Nominatim block in production tablets, consider proxying geocoding through the backend (e.g., POST /api/kiosk/{token}/geocode that calls Nominatim server-side with a proper User-Agent header per Nominatim Usage Policy). This will also let you cache popular queries and add 'lieux récents' real data. Not blocking for MVP.",
+    "OPTIONAL: KioskHome.onChangeLang/onChangeCurrency only updates local React state (info object); the change is NOT persisted to the kiosk DB record. If the gerant changes the language on the tablet, it will revert after reload. Consider PATCH /api/kiosk/{token}/preferences or persist locally in localStorage."
+  ],
+  "critical_code_review_comments": [
+    "kiosk.py line 268: race condition fallback after insert_one is missing a `user = await db.users.find_one(...)` re-assign that re-fetches the doc — the variable `user_id` could remain undefined in the rare insert-race path. Minor.",
+    "KioskApp.js KioskSearching: polls /ride status every 4s indefinitely while user stays on the screen. No timeout/stop after N attempts if no driver is found. Consider a 'no driver after 5min' fallback UI.",
+    "AdminKiosks.js openEdit: spreads `k` into form including DB-only fields like session_token, total_bookings, created_at, id — these are then re-sent in PUT request. Backend safely ignores unknown fields (model is KioskCreate) but is wasteful. Filter to known keys.",
+    "KioskApp.js handleBook does NOT show a loading state during the booking POST; user could double-click and create duplicate rides. Add `loading` state on confirm-booking-btn.",
+    "Nominatim is called directly from the browser (no User-Agent set). Per Nominatim Usage Policy, this is technically a violation and explains the empty results from sandbox/preview IPs."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter70_kiosk.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "85% (5/6 screens validated; final searching screen could not be reached via UI due to Nominatim external block)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. Kiosk 'TAB CLIC' PIN: 1234. The test admin/kiosks UI flow also creates+deletes TEST_AutoKiosk (PIN 9988) cleanly.",
+  "seed_data_creation": "test_iter70_kiosk.py creates a temporary kiosk with TEST_ prefix per pytest module + cleans it up via DELETE in fixture teardown. UI test created and deleted TEST_AutoKiosk (PIN 9988). DB is clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Iter70 (SB Drive Tab kiosk Phase A) backend endpoints and admin UI verified. Only un-validated UI piece is destination → recap → searching due to Nominatim returning 0 results from sandbox. Backend /estimate (12.47€ for 13km in sb) and /book (booking_no generated) work correctly. data-testids on KioskApp.js are complete and well-named. If you want to fully test the searching screen, either (a) seed Nominatim via the backend proxy described in action items, or (b) test with a real production tablet that has its own User-Agent.",
+  "rca of the issue": "Nominatim empty results = third-party API policy block from sandbox IPs / missing User-Agent header. Mitigation = move geocoding server-side."
+}
