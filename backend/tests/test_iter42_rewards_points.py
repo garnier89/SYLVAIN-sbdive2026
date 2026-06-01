@@ -16,9 +16,9 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://taxi-marketplace-3.p
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
 DRIVER_EMAIL = "testdriver@example.com"
-DRIVER_PASSWORD = "Driver123!"
+DRIVER_PASSWORD = os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")
 
 
 def _login(email, password):
@@ -222,10 +222,10 @@ class TestRefuseRide:
         # Create a passenger + ride
         passenger_email = f"testrider_{uuid.uuid4().hex[:6]}@example.com"
         requests.post(f"{API}/auth/register", json={
-            "name": "Rider", "email": passenger_email, "password": "Rider123!",
+            "name": "Rider", "email": passenger_email, "password": os.environ.get("TEST_RIDER_PASSWORD", "Rider123!"),
             "phone": "+33611111111", "role": "user"
         }, timeout=15)
-        ptok = _login(passenger_email, "Rider123!")
+        ptok = _login(passenger_email, os.environ.get("TEST_RIDER_PASSWORD", "Rider123!"))
         assert ptok, "Passenger login failed"
         ride_body = {
             "pickup_lat": 14.6, "pickup_lng": -61.08, "pickup_address": "A",
@@ -257,10 +257,10 @@ class TestRidePointHooks:
     def _create_ride_as_new_passenger(self, vehicle_type):
         email = f"testrider_{uuid.uuid4().hex[:6]}@example.com"
         requests.post(f"{API}/auth/register", json={
-            "name": "Rider", "email": email, "password": "Rider123!",
+            "name": "Rider", "email": email, "password": os.environ.get("TEST_RIDER_PASSWORD", "Rider123!"),
             "phone": "+33612222222", "role": "user"
         }, timeout=15)
-        tok = _login(email, "Rider123!")
+        tok = _login(email, os.environ.get("TEST_RIDER_PASSWORD", "Rider123!"))
         assert tok
         ride_body = {
             "pickup_lat": 14.6, "pickup_lng": -61.08, "pickup_address": "A",

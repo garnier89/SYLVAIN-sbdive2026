@@ -19,9 +19,9 @@ def _load_base_url():
 
 BASE_URL = _load_base_url()
 DRIVER_EMAIL = "driver_waybill_1778553153@test.com"
-DRIVER_PASS = "Driver1234!"
+DRIVER_PASS = os.environ.get("TEST_DRIVER_PASSWORD_ALT", "Driver1234!")
 USER_EMAIL = "neg_test@example.com"
-USER_PASS = "Test1234!"
+USER_PASS = os.environ.get("TEST_NEG_PASSWORD", "Test1234!")
 
 
 def _login(session, email, password):

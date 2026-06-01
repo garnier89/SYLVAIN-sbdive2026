@@ -6,7 +6,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 USER_EMAIL = "neg_test@example.com"
-USER_PW = "Test1234!"
+USER_PW = os.environ.get("TEST_NEG_PASSWORD", "Test1234!")
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +23,7 @@ def driver_session():
     email = f"driver_iter61_{uuid.uuid4().hex[:6]}@test.com"
     r = s.post(
         f"{BASE_URL}/api/auth/register",
-        json={"name": "Iter61 Driver", "email": email, "password": "Driver1234!", "phone": "+33611111111", "role": "driver"},
+        json={"name": "Iter61 Driver", "email": email, "password": os.environ.get("TEST_DRIVER_PASSWORD_ALT", "Driver1234!"), "phone": "+33611111111", "role": "driver"},
         timeout=20,
     )
     if r.status_code not in (200, 201):

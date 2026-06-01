@@ -20,8 +20,8 @@ def _read_env_url():
 BASE = _read_env_url()
 API = f"{BASE}/api"
 
-ADMIN = {"email": "admin@superapp.com", "password": "SuperAdmin123!"}
-USER = {"email": "neg_test@example.com", "password": "Test1234!"}
+ADMIN = {"email": "admin@superapp.com", "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")}
+USER = {"email": "neg_test@example.com", "password": os.environ.get("TEST_NEG_PASSWORD", "Test1234!")}
 
 
 def login(email, password):
@@ -121,7 +121,7 @@ class TestSbPayGoAutoDebit:
         # Register a fresh driver for this test
         ts = int(time.time())
         email = f"drv_iter62_{ts}@test.com"
-        pwd = "Driver1234!"
+        pwd = os.environ.get("TEST_DRIVER_PASSWORD_ALT", "Driver1234!")
         s = requests.Session()
         reg = s.post(f"{API}/auth/register", json={
             "email": email, "password": pwd, "name": f"Iter62 Drv {ts}", "role": "driver", "phone": f"+33600{ts % 1000000:06d}"

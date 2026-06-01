@@ -58,7 +58,7 @@ class TestAuthentication:
         """POST /api/auth/login with admin credentials"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "admin@superapp.com", "password": "SuperAdmin123!"}
+            json={"email": "admin@superapp.com", "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")}
         )
         assert response.status_code == 200
         data = response.json()
@@ -74,7 +74,7 @@ class TestAuthentication:
         # First login
         login_response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "admin@superapp.com", "password": "SuperAdmin123!"}
+            json={"email": "admin@superapp.com", "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")}
         )
         assert login_response.status_code == 200
         cookies = login_response.cookies

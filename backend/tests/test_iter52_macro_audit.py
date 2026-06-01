@@ -8,8 +8,8 @@ import pytest
 import requests
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://taxi-marketplace-3.preview.emergentagent.com").rstrip("/")
-ADMIN = {"email": "admin@superapp.com", "password": "SuperAdmin123!"}
-DRIVER = {"email": "testdriver@example.com", "password": "Driver123!"}
+ADMIN = {"email": "admin@superapp.com", "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")}
+DRIVER = {"email": "testdriver@example.com", "password": os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")}
 
 
 @pytest.fixture(scope="module")

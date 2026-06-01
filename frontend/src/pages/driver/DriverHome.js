@@ -29,6 +29,9 @@ const DriverHome = () => {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [heatPoints, setHeatPoints] = useState([]);
   const [showEarningsBreakdown, setShowEarningsBreakdown] = useState(false);
+  const [showDestModal, setShowDestModal] = useState(false);
+  const [destMode, setDestMode] = useState(null); // { enabled, destination_lat, destination_lng, address, expires_at }
+  const [destInput, setDestInput] = useState({ address: '', lat: '', lng: '' });
   const locationWatchId = useRef(null);
 
   const { isLoaded: gmapLoaded } = { isLoaded: true };
@@ -48,6 +51,37 @@ const DriverHome = () => {
     const id = setInterval(load, 30000);
     return () => clearInterval(id);
   }, [showHeatmap]);
+
+  // Load current destination mode on mount
+  useEffect(() => {
+    fetch(`${API}/api/phase2/driver/destination-mode`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setDestMode(d); })
+      .catch(() => {});
+  }, []);
+
+  const saveDestinationMode = async (active) => {
+    try {
+      const body = active
+        ? { active: true, lat: parseFloat(destInput.lat), lng: parseFloat(destInput.lng), address: destInput.address, radius_km: 5 }
+        : { active: false };
+      const res = await fetch(`${API}/api/phase2/driver/destination-mode`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        // Normalize response to {active, target} shape
+        setDestMode({
+          active: d.destination_mode_active ?? d.active ?? active,
+          target: d.destination_mode_target ?? d.target ?? null,
+        });
+        setShowDestModal(false);
+      }
+    } catch { /* ignore */ }
+  };
 
   const { on, sendLocation, joinRide } = useWebSocket(user?.id);
 
@@ -285,6 +319,15 @@ const DriverHome = () => {
           <span className="text-base">🔥</span>
           {showHeatmap ? `Heat View ON · ${heatPoints.length}` : 'Heat View'}
         </button>
+        {/* Destination Mode toggle button */}
+        <button
+          onClick={() => setShowDestModal(true)}
+          className={`absolute top-16 right-4 z-[500] px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 text-xs font-bold ${destMode?.active ? 'bg-emerald-600 text-white' : 'bg-white text-gray-800'}`}
+          data-testid="destination-mode-toggle"
+        >
+          <NavigationArrow size={14} weight="fill" />
+          {destMode?.active ? 'Destination ON' : 'Mode Destination'}
+        </button>
       </div>
 
       {/* FLOATING BUTTONS */}
@@ -494,6 +537,53 @@ const DriverHome = () => {
         open={showEarningsBreakdown}
         onClose={() => setShowEarningsBreakdown(false)}
       />
+
+      {/* Destination Mode Modal */}
+      {showDestModal && (
+        <div className="fixed inset-0 z-[10000] bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowDestModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()} data-testid="destination-mode-modal">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Mode Destination</h2>
+              <button onClick={() => setShowDestModal(false)} className="text-gray-400"><X size={20} /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">Définissez votre destination pour ne recevoir que les courses qui vont dans cette direction (rentrer à la maison, fin de service, etc.).</p>
+            {destMode?.active ? (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 mb-3">
+                <div className="text-xs text-emerald-700 font-semibold">ACTIF</div>
+                <div className="text-sm text-gray-900 mt-1">{destMode.target?.address || `${destMode.target?.lat?.toFixed(4)}, ${destMode.target?.lng?.toFixed(4)}`}</div>
+              </div>
+            ) : (
+              <div className="space-y-2 mb-3">
+                <input type="text" placeholder="Adresse (ex: 10 Rue de Rivoli, Paris)" value={destInput.address}
+                  onChange={(e) => setDestInput({ ...destInput, address: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-input-address" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" step="0.0001" placeholder="Latitude" value={destInput.lat}
+                    onChange={(e) => setDestInput({ ...destInput, lat: e.target.value })}
+                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-input-lat" />
+                  <input type="number" step="0.0001" placeholder="Longitude" value={destInput.lng}
+                    onChange={(e) => setDestInput({ ...destInput, lng: e.target.value })}
+                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-input-lng" />
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              {destMode?.active ? (
+                <button onClick={() => saveDestinationMode(false)}
+                  className="flex-1 bg-red-500 text-white rounded-full h-11 font-bold text-sm" data-testid="dest-disable-btn">
+                  Désactiver
+                </button>
+              ) : (
+                <button onClick={() => saveDestinationMode(true)}
+                  disabled={!destInput.lat || !destInput.lng}
+                  className="flex-1 bg-emerald-600 text-white rounded-full h-11 font-bold text-sm disabled:opacity-50" data-testid="dest-enable-btn">
+                  Activer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -29,9 +29,9 @@ BASE = _load_base()
 assert BASE, "REACT_APP_BACKEND_URL not configured"
 
 ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
 DRIVER_EMAIL = "testdriver@example.com"
-DRIVER_PASSWORD = "Driver123!"
+DRIVER_PASSWORD = os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")
 
 
 def _login(email, password):

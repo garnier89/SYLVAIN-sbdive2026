@@ -15,9 +15,9 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 WS_URL = BASE_URL.replace("http", "ws", 1)
 
 ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASS = "SuperAdmin123!"
+ADMIN_PASS = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
 USER_EMAIL = "neg_test@example.com"
-USER_PASS = "Test1234!"
+USER_PASS = os.environ.get("TEST_NEG_PASSWORD", "Test1234!")
 
 
 def _login(email, password):

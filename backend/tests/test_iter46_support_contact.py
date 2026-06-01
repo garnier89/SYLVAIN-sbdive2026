@@ -7,7 +7,7 @@ Iter46 retest: POST /api/support/contact
 """
 import os
 import uuid
-import random
+import secrets
 import pytest
 import requests
 from pathlib import Path
@@ -29,7 +29,7 @@ BASE_URL = _load_backend_url()
 
 
 def _random_phone():
-    return "+336" + "".join(str(random.randint(0, 9)) for _ in range(8))
+    return "+336" + "".join(str(secrets.randbelow(10)) for _ in range(8))
 
 
 @pytest.fixture(scope="module")
@@ -38,7 +38,7 @@ def driver_session():
     s = requests.Session()
     s.headers.update({"Content-Type": "application/json"})
     phone = _random_phone()
-    password = "Driver123!"
+    password = os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")
     r = s.post(f"{BASE_URL}/api/auth/phone-register", json={
         "phone": phone,
         "password": password,
@@ -94,7 +94,7 @@ class TestSupportContact:
         # Try email login first, fall back to phone-login path if needed
         r = admin.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@superapp.com",
-            "password": "SuperAdmin123!",
+            "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!"),
         })
         if r.status_code != 200:
             pytest.skip(f"admin login failed ({r.status_code}): cannot verify persistence via admin endpoint")

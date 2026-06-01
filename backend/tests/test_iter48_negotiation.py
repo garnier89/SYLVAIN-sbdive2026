@@ -15,9 +15,9 @@ if not BASE_URL:
 API = f"{BASE_URL}/api"
 
 PASSENGER_EMAIL = f"TEST_pax_{uuid.uuid4().hex[:6]}@example.com"
-PASSENGER_PASSWORD = "TestPass123!"
+PASSENGER_PASSWORD = os.environ.get("TEST_USER_PASSWORD", "TestPass123!")
 DRIVER_EMAIL = "testdriver@example.com"
-DRIVER_PASSWORD = "Driver123!"
+DRIVER_PASSWORD = os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")
 
 
 @pytest.fixture(scope="module")
@@ -170,7 +170,7 @@ def test_accept_offer_rejects_non_owner(passenger_token, driver_token):
     # Create another passenger
     other_email = f"TEST_other_{uuid.uuid4().hex[:6]}@example.com"
     rr = requests.post(f"{API}/auth/register", json={
-        "email": other_email, "password": "TestPass123!", "name": "Other", "phone": "+33600000001",
+        "email": other_email, "password": os.environ.get("TEST_USER_PASSWORD", "TestPass123!"), "name": "Other", "phone": "+33600000001",
     })
     other_tok = rr.json()["access_token"]
     r3 = requests.post(f"{API}/rides/{rid}/accept-offer/{offer_id}", headers=_h(other_tok))

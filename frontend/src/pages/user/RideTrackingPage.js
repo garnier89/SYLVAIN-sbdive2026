@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/button';
 import {
   MapPin, Phone, ChatCircle, X, Star,
   NavigationArrow, Car, Check, Warning,
-  ArrowLeft, Shield, Clock, CaretRight, HandHeart, Receipt
+  ArrowLeft, Shield, Clock, CaretRight, HandHeart, Receipt, UsersThree
 } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
 import L from 'leaflet';
@@ -57,6 +57,28 @@ const RideTrackingPage = () => {
   const [startOtp, setStartOtp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelReasons, setCancelReasons] = useState([]);
+  const [poolEnabled, setPoolEnabled] = useState(false);
+  const [poolLoading, setPoolLoading] = useState(false);
+
+  const togglePool = useCallback(async () => {
+    if (poolLoading) return;
+    setPoolLoading(true);
+    try {
+      const next = !poolEnabled;
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/phase2/pool/enable/${rideId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      });
+      if (res.ok) {
+        setPoolEnabled(next);
+        const d = await res.json();
+        if (d.new_fare != null) setRide((r) => r ? { ...r, estimated_fare: d.new_fare, pool_enabled: next } : r);
+      }
+    } catch { /* ignore */ }
+    setPoolLoading(false);
+  }, [poolEnabled, poolLoading, rideId]);
 
   // Load ride data
   const fetchRide = useCallback(async () => {
@@ -281,6 +303,27 @@ const RideTrackingPage = () => {
             <p className="font-semibold text-blue-800">Recherche d'un chauffeur...</p>
             <p className="text-xs text-[#FF4500] mt-1">Veuillez patienter</p>
           </div>
+        )}
+
+        {/* Taxi Pool toggle (only available while pending) */}
+        {ride.status === 'pending' && (
+          <button
+            onClick={togglePool}
+            disabled={poolLoading}
+            className={`w-full rounded-2xl p-3 mb-4 flex items-center gap-3 border ${poolEnabled ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200'}`}
+            data-testid="toggle-taxi-pool-btn"
+          >
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${poolEnabled ? 'bg-emerald-500' : 'bg-gray-100'}`}>
+              <UsersThree size={20} weight="duotone" className={poolEnabled ? 'text-white' : 'text-gray-500'} />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-gray-900">Taxi Pool <span className="text-xs font-semibold text-emerald-700">−30%</span></p>
+              <p className="text-[11px] text-gray-500">{poolEnabled ? 'Activé — vous partagez la course' : 'Partagez votre course pour économiser'}</p>
+            </div>
+            <div className={`w-10 h-6 rounded-full relative transition-colors ${poolEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${poolEnabled ? 'left-4' : 'left-0.5'}`} />
+            </div>
+          </button>
         )}
 
         {/* Driver Info (when accepted) */}

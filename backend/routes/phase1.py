@@ -79,8 +79,8 @@ async def request_start_otp(ride_id: str, request: Request):
     if ride["user_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not your ride")
 
-    import random
-    otp = str(random.randint(1000, 9999))
+    import secrets
+    otp = f"{secrets.randbelow(9000) + 1000:04d}"
     await db.rides.update_one({"id": ride_id}, {"$set": {"start_otp": otp}})
     return {"otp": otp}
 

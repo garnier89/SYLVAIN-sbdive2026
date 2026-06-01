@@ -16,7 +16,7 @@ if not BASE_URL:
         pass
 
 USER_EMAIL = 'test2@example.com'
-USER_PASSWORD = 'TestPass123!'
+USER_PASSWORD = os.environ.get('TEST_USER_PASSWORD', 'TestPass123!')
 
 
 @pytest.fixture(scope='module')

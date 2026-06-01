@@ -39,7 +39,7 @@ class TestRewardsServiceConfig:
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@superapp.com",
-            "password": "SuperAdmin123!"
+            "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
         })
         if response.status_code == 200:
             return response.cookies.get("access_token") or response.json().get("access_token")
@@ -105,7 +105,7 @@ class TestAnalyticsEndpoint:
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@superapp.com",
-            "password": "SuperAdmin123!"
+            "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
         })
         if response.status_code == 200:
             return response.cookies.get("access_token") or response.json().get("access_token")
@@ -161,7 +161,7 @@ class TestAdminStats:
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@superapp.com",
-            "password": "SuperAdmin123!"
+            "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
         })
         if response.status_code == 200:
             return response.cookies.get("access_token") or response.json().get("access_token")

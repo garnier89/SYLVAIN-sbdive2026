@@ -246,46 +246,50 @@ async def _auto_cancel_ride(ride):
     logger.warning(f"AutoDispatch CANCELLED ride={ride['id']} after timeout")
 
 
+async def _process_pending_ride(ride: dict, now, cfg, points_cfg):
+    """Inspect a single pending ride and trigger escalation / cancellation if due."""
+    created_at_iso = ride.get("created_at")
+    if not created_at_iso:
+        return
+    try:
+        created_at = datetime.fromisoformat(created_at_iso.replace("Z", "+00:00"))
+    except Exception:
+        return
+    age_seconds = (now - created_at).total_seconds()
+    current_tier = ride.get("auto_dispatch_tier", 0)
+
+    if age_seconds >= cfg["auto_cancel_after_seconds"] and current_tier != -1:
+        await _auto_cancel_ride(ride)
+    elif age_seconds >= cfg["second_escalation_seconds"] and current_tier < 2:
+        if current_tier < 1:
+            await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+        fresh_ride = await db.rides.find_one({"id": ride["id"]}, {"_id": 0})
+        if fresh_ride:
+            await _penalize_non_responders(fresh_ride, cfg)
+        await _escalate_ride(ride, 2, cfg["second_palettes"], cfg["radius_km"] * 2, points_cfg)
+    elif age_seconds >= cfg["first_escalation_seconds"] and current_tier < 1:
+        await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+
+
+async def _run_dispatch_cycle():
+    """Single pass: load config, scan pending rides, process each one."""
+    cfg = await get_config()
+    if not cfg.get("enabled", True):
+        return
+    rewards_doc = await db.service_configs.find_one({"service_key": "rewards"}, {"_id": 0})
+    points_cfg = (rewards_doc or {}).get("settings", {}).get("points") or {}
+    now = datetime.now(timezone.utc)
+    pending_rides = await db.rides.find({"status": "pending"}, {"_id": 0}).to_list(200)
+    for ride in pending_rides:
+        await _process_pending_ride(ride, now, cfg, points_cfg)
+
+
 async def auto_dispatch_loop():
     """Background task — runs every 5s while the server is alive."""
     logger.info("AutoDispatch loop started")
     while True:
         try:
-            cfg = await get_config()
-            if not cfg.get("enabled", True):
-                await asyncio.sleep(5)
-                continue
-
-            # Pull rewards points config to map driver.points → palette name
-            rewards_doc = await db.service_configs.find_one({"service_key": "rewards"}, {"_id": 0})
-            points_cfg = (rewards_doc or {}).get("settings", {}).get("points") or {}
-
-            now = datetime.now(timezone.utc)
-            pending_rides = await db.rides.find({"status": "pending"}, {"_id": 0}).to_list(200)
-            for ride in pending_rides:
-                created_at_iso = ride.get("created_at")
-                if not created_at_iso:
-                    continue
-                try:
-                    created_at = datetime.fromisoformat(created_at_iso.replace("Z", "+00:00"))
-                except Exception:
-                    continue
-                age_seconds = (now - created_at).total_seconds()
-                current_tier = ride.get("auto_dispatch_tier", 0)
-
-                if age_seconds >= cfg["auto_cancel_after_seconds"] and current_tier != -1:
-                    await _auto_cancel_ride(ride)
-                elif age_seconds >= cfg["second_escalation_seconds"] and current_tier < 2:
-                    # If we never escalated to tier 1 yet, do it first so stats stay accurate
-                    if current_tier < 1:
-                        await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
-                    # Tier 1 drivers got their chance and didn't accept → penalize them
-                    fresh_ride = await db.rides.find_one({"id": ride["id"]}, {"_id": 0})
-                    if fresh_ride:
-                        await _penalize_non_responders(fresh_ride, cfg)
-                    await _escalate_ride(ride, 2, cfg["second_palettes"], cfg["radius_km"] * 2, points_cfg)
-                elif age_seconds >= cfg["first_escalation_seconds"] and current_tier < 1:
-                    await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+            await _run_dispatch_cycle()
         except asyncio.CancelledError:
             logger.info("AutoDispatch loop stopped (cancelled)")
             raise

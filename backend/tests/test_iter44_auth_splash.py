@@ -38,7 +38,7 @@ class TestPhoneAuthRegression:
     """Existing phone auth flows should still work after splash/modal changes."""
 
     unique_phone = f"+33 6 99 {uuid.uuid4().int % 900000 + 100000}"
-    password = "TestPass123!"
+    password = os.environ.get("TEST_USER_PASSWORD", "TestPass123!")
 
     def test_check_phone_new_number(self, client):
         r = client.post(f"{API}/auth/check-phone", json={"phone": self.unique_phone})
@@ -109,7 +109,7 @@ class TestDriverAuthRegression:
     def test_existing_driver_login(self, client):
         r = client.post(
             f"{API}/auth/phone-login",
-            json={"phone": "+33 6 00 00 00 02", "password": "Driver123!"},
+            json={"phone": "+33 6 00 00 00 02", "password": os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")},
         )
         # Credentials may or may not be seeded; accept 200 OR clean 4xx (NOT 500)
         assert r.status_code in (200, 400, 401, 404), (

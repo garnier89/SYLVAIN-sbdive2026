@@ -479,7 +479,6 @@ async def negotiation_gap_report(request: Request, days: int = 30):
     from datetime import timedelta
     since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
-    # Only rides that went past negotiation (accepted/completed) with a proposed_fare
     query = {
         "created_at": {"$gte": since},
         "proposed_fare": {"$ne": None, "$gt": 0},
@@ -492,44 +491,59 @@ async def negotiation_gap_report(request: Request, days: int = 30):
         "counter_offers": 1, "status": 1,
     }).to_list(5000)
 
-    def infer_zone(addr: str) -> str:
-        if not addr:
-            return "Inconnue"
-        low = addr.lower()
-        for token, label in [
-            ("martinique", "Martinique"), ("fort-de-france", "Martinique"),
-            ("guadeloupe", "Guadeloupe"), ("pointe-a-pitre", "Guadeloupe"),
-            ("guyane", "Guyane"), ("reunion", "Reunion"),
-            ("paris", "Paris"), ("lyon", "Lyon"), ("marseille", "Marseille"),
-        ]:
-            if token in low:
-                return label
-        # fallback: last comma-delimited segment
-        parts = [p.strip() for p in addr.split(",") if p.strip()]
-        return parts[-1][:30] if parts else "Inconnue"
+    agg = _aggregate_negotiation_rides(rides)
+    return {
+        "period_days": days,
+        **agg["totals"],
+        "daily": _finalize_daily(agg["by_day"]),
+        "zones": _finalize_zones(agg["by_zone"]),
+        "vehicles": _finalize_vehicles(agg["by_vehicle"]),
+        "samples": agg["samples"],
+    }
 
-    by_day = {}
-    by_zone = {}
-    by_vehicle = {}
-    total_gap_abs = 0.0
-    total_gap_pct = 0.0
-    total_proposed = 0.0
-    total_accepted = 0.0
-    n = 0
-    negotiated_count = 0  # rides where a counter-offer was accepted
-    accepted_at_offer_count = 0  # rides where driver accepted passenger's price directly
 
+_ZONE_TOKENS = [
+    ("martinique", "Martinique"), ("fort-de-france", "Martinique"),
+    ("guadeloupe", "Guadeloupe"), ("pointe-a-pitre", "Guadeloupe"),
+    ("guyane", "Guyane"), ("reunion", "Reunion"),
+    ("paris", "Paris"), ("lyon", "Lyon"), ("marseille", "Marseille"),
+]
+
+
+def _infer_zone(addr: str) -> str:
+    if not addr:
+        return "Inconnue"
+    low = addr.lower()
+    for token, label in _ZONE_TOKENS:
+        if token in low:
+            return label
+    parts = [p.strip() for p in addr.split(",") if p.strip()]
+    return parts[-1][:30] if parts else "Inconnue"
+
+
+def _extract_ride_metrics(r: dict):
+    """Return (proposed, accepted, gap_abs, gap_pct, was_negotiated) or None if invalid."""
+    proposed = float(r.get("proposed_fare") or 0)
+    accepted = float(r.get("final_fare") or r.get("estimated_fare") or 0)
+    if proposed <= 0 or accepted <= 0:
+        return None
+    gap_abs = accepted - proposed
+    gap_pct = (gap_abs / proposed) * 100 if proposed > 0 else 0
+    was_negotiated = any((o or {}).get("status") == "accepted" for o in (r.get("counter_offers") or []))
+    return proposed, accepted, gap_abs, gap_pct, was_negotiated
+
+
+def _aggregate_negotiation_rides(rides):
+    by_day, by_zone, by_vehicle = {}, {}, {}
+    total_gap_abs = total_gap_pct = total_proposed = total_accepted = 0.0
+    n = negotiated_count = accepted_at_offer_count = 0
     samples = []
 
     for r in rides:
-        proposed = float(r.get("proposed_fare") or 0)
-        accepted = float(r.get("final_fare") or r.get("estimated_fare") or 0)
-        if proposed <= 0 or accepted <= 0:
+        metrics = _extract_ride_metrics(r)
+        if metrics is None:
             continue
-        gap_abs = accepted - proposed
-        gap_pct = (gap_abs / proposed) * 100 if proposed > 0 else 0
-        was_negotiated = any((o or {}).get("status") == "accepted" for o in (r.get("counter_offers") or []))
-
+        proposed, accepted, gap_abs, gap_pct, was_negotiated = metrics
         n += 1
         total_gap_abs += gap_abs
         total_gap_pct += gap_pct
@@ -541,69 +555,36 @@ async def negotiation_gap_report(request: Request, days: int = 30):
             accepted_at_offer_count += 1
 
         day = (r.get("created_at") or "")[:10]
-        by_day.setdefault(day, {"day": day, "count": 0, "avg_gap": 0, "sum_gap": 0, "sum_proposed": 0, "sum_accepted": 0})
-        by_day[day]["count"] += 1
-        by_day[day]["sum_gap"] += gap_abs
-        by_day[day]["sum_proposed"] += proposed
-        by_day[day]["sum_accepted"] += accepted
+        d = by_day.setdefault(day, {"day": day, "count": 0, "avg_gap": 0, "sum_gap": 0, "sum_proposed": 0, "sum_accepted": 0})
+        d["count"] += 1
+        d["sum_gap"] += gap_abs
+        d["sum_proposed"] += proposed
+        d["sum_accepted"] += accepted
 
-        zone = infer_zone(r.get("pickup_address") or "")
-        by_zone.setdefault(zone, {"zone": zone, "count": 0, "sum_gap": 0, "sum_pct": 0, "sum_proposed": 0, "sum_accepted": 0})
-        by_zone[zone]["count"] += 1
-        by_zone[zone]["sum_gap"] += gap_abs
-        by_zone[zone]["sum_pct"] += gap_pct
-        by_zone[zone]["sum_proposed"] += proposed
-        by_zone[zone]["sum_accepted"] += accepted
+        zone = _infer_zone(r.get("pickup_address") or "")
+        z = by_zone.setdefault(zone, {"zone": zone, "count": 0, "sum_gap": 0, "sum_pct": 0, "sum_proposed": 0, "sum_accepted": 0})
+        z["count"] += 1
+        z["sum_gap"] += gap_abs
+        z["sum_pct"] += gap_pct
+        z["sum_proposed"] += proposed
+        z["sum_accepted"] += accepted
 
         vt = r.get("vehicle_type") or "unknown"
-        by_vehicle.setdefault(vt, {"vehicle": vt, "count": 0, "sum_gap": 0, "sum_pct": 0})
-        by_vehicle[vt]["count"] += 1
-        by_vehicle[vt]["sum_gap"] += gap_abs
-        by_vehicle[vt]["sum_pct"] += gap_pct
+        v = by_vehicle.setdefault(vt, {"vehicle": vt, "count": 0, "sum_gap": 0, "sum_pct": 0})
+        v["count"] += 1
+        v["sum_gap"] += gap_abs
+        v["sum_pct"] += gap_pct
 
         if len(samples) < 20:
             samples.append({
-                "ride_id": r["id"],
-                "created_at": r.get("created_at"),
-                "proposed": round(proposed, 2),
-                "accepted": round(accepted, 2),
-                "gap_abs": round(gap_abs, 2),
-                "gap_pct": round(gap_pct, 1),
-                "pickup": r.get("pickup_address"),
-                "zone": zone,
-                "vehicle_type": vt,
-                "negotiated": was_negotiated,
+                "ride_id": r["id"], "created_at": r.get("created_at"),
+                "proposed": round(proposed, 2), "accepted": round(accepted, 2),
+                "gap_abs": round(gap_abs, 2), "gap_pct": round(gap_pct, 1),
+                "pickup": r.get("pickup_address"), "zone": zone,
+                "vehicle_type": vt, "negotiated": was_negotiated,
             })
 
-    # Finalize averages
-    daily_series = []
-    for day in sorted(by_day.keys()):
-        d = by_day[day]
-        d["avg_gap"] = round(d["sum_gap"] / d["count"], 2) if d["count"] else 0
-        d["avg_proposed"] = round(d["sum_proposed"] / d["count"], 2) if d["count"] else 0
-        d["avg_accepted"] = round(d["sum_accepted"] / d["count"], 2) if d["count"] else 0
-        daily_series.append(d)
-
-    zone_rows = []
-    for zone in by_zone:
-        z = by_zone[zone]
-        z["avg_gap"] = round(z["sum_gap"] / z["count"], 2) if z["count"] else 0
-        z["avg_gap_pct"] = round(z["sum_pct"] / z["count"], 1) if z["count"] else 0
-        z["avg_proposed"] = round(z["sum_proposed"] / z["count"], 2) if z["count"] else 0
-        z["avg_accepted"] = round(z["sum_accepted"] / z["count"], 2) if z["count"] else 0
-        zone_rows.append(z)
-    zone_rows.sort(key=lambda x: -x["count"])
-
-    vehicle_rows = []
-    for vt in by_vehicle:
-        v = by_vehicle[vt]
-        v["avg_gap"] = round(v["sum_gap"] / v["count"], 2) if v["count"] else 0
-        v["avg_gap_pct"] = round(v["sum_pct"] / v["count"], 1) if v["count"] else 0
-        vehicle_rows.append(v)
-    vehicle_rows.sort(key=lambda x: -x["count"])
-
-    return {
-        "period_days": days,
+    totals = {
         "total_rides": n,
         "negotiated_count": negotiated_count,
         "accepted_at_offer_count": accepted_at_offer_count,
@@ -612,11 +593,44 @@ async def negotiation_gap_report(request: Request, days: int = 30):
         "total_proposed": round(total_proposed, 2),
         "total_accepted": round(total_accepted, 2),
         "total_revenue_gap": round(total_accepted - total_proposed, 2),
-        "daily": daily_series,
-        "zones": zone_rows,
-        "vehicles": vehicle_rows,
-        "samples": samples,
     }
+    return {"totals": totals, "by_day": by_day, "by_zone": by_zone, "by_vehicle": by_vehicle, "samples": samples}
+
+
+def _finalize_daily(by_day):
+    out = []
+    for day in sorted(by_day.keys()):
+        d = by_day[day]
+        c = d["count"] or 1
+        d["avg_gap"] = round(d["sum_gap"] / c, 2)
+        d["avg_proposed"] = round(d["sum_proposed"] / c, 2)
+        d["avg_accepted"] = round(d["sum_accepted"] / c, 2)
+        out.append(d)
+    return out
+
+
+def _finalize_zones(by_zone):
+    rows = []
+    for z in by_zone.values():
+        c = z["count"] or 1
+        z["avg_gap"] = round(z["sum_gap"] / c, 2)
+        z["avg_gap_pct"] = round(z["sum_pct"] / c, 1)
+        z["avg_proposed"] = round(z["sum_proposed"] / c, 2)
+        z["avg_accepted"] = round(z["sum_accepted"] / c, 2)
+        rows.append(z)
+    rows.sort(key=lambda x: -x["count"])
+    return rows
+
+
+def _finalize_vehicles(by_vehicle):
+    rows = []
+    for v in by_vehicle.values():
+        c = v["count"] or 1
+        v["avg_gap"] = round(v["sum_gap"] / c, 2)
+        v["avg_gap_pct"] = round(v["sum_pct"] / c, 1)
+        rows.append(v)
+    rows.sort(key=lambda x: -x["count"])
+    return rows
 
 
 

@@ -5,7 +5,7 @@ import requests
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://taxi-marketplace-3.preview.emergentagent.com').rstrip('/')
 ADMIN_EMAIL = 'admin@superapp.com'
-ADMIN_PASSWORD = 'SuperAdmin123!'
+ADMIN_PASSWORD = os.environ.get('TEST_ADMIN_PASSWORD', 'SuperAdmin123!')
 
 
 @pytest.fixture(scope="module")

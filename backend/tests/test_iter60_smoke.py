@@ -10,14 +10,14 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://taxi-marketplace-3.p
 def user_session():
     s = requests.Session()
     r = s.post(f"{BASE_URL}/api/auth/login",
-               json={"email": "neg_test@example.com", "password": "Test1234!"},
+               json={"email": "neg_test@example.com", "password": os.environ.get("TEST_NEG_PASSWORD", "Test1234!")},
                timeout=15)
     if r.status_code != 200:
         s.post(f"{BASE_URL}/api/auth/register",
-               json={"email": "neg_test@example.com", "password": "Test1234!", "name": "Neg Test", "role": "user"},
+               json={"email": "neg_test@example.com", "password": os.environ.get("TEST_NEG_PASSWORD", "Test1234!"), "name": "Neg Test", "role": "user"},
                timeout=15)
         r = s.post(f"{BASE_URL}/api/auth/login",
-                   json={"email": "neg_test@example.com", "password": "Test1234!"},
+                   json={"email": "neg_test@example.com", "password": os.environ.get("TEST_NEG_PASSWORD", "Test1234!")},
                    timeout=15)
         if r.status_code != 200:
             pytest.skip(f"User login failed: {r.status_code}")

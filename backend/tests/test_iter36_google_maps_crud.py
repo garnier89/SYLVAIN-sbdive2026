@@ -22,7 +22,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Admin credentials
 ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
 
 
 class TestHealthCheck:

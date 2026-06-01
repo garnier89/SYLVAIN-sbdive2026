@@ -135,7 +135,7 @@ class TestAuthEndpoints:
         """POST /api/auth/login with valid credentials"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@superapp.com",
-            "password": "SuperAdmin123!"
+            "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
         })
         assert response.status_code == 200
         data = response.json()

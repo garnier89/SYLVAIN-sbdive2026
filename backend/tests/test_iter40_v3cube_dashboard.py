@@ -21,7 +21,7 @@ class TestAdminAnalytics:
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@superapp.com",
-            "password": "SuperAdmin123!"
+            "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
         })
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
         self.token = login_resp.json().get("token")
@@ -148,7 +148,7 @@ class TestAdminStats:
         self.session = requests.Session()
         login_resp = self.session.post(f"{BASE_URL}/api/auth/login", json={
             "email": "admin@superapp.com",
-            "password": "SuperAdmin123!"
+            "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
         })
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
         self.token = login_resp.json().get("token")

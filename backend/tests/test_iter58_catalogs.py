@@ -83,7 +83,7 @@ def test_admin_login_still_works(client):
     """Non-regression — admin auth still works."""
     r = client.post(f"{BASE_URL}/api/auth/login", json={
         "email": "admin@superapp.com",
-        "password": "SuperAdmin123!",
+        "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!"),
     })
     assert r.status_code == 200
     data = r.json()

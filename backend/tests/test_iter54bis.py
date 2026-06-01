@@ -17,7 +17,7 @@ def user_session():
     s.headers.update({"Content-Type": "application/json"})
     r = s.post(
         f"{BASE_URL}/api/auth/login",
-        json={"email": "test2@example.com", "password": "TestPass123!"},
+        json={"email": "test2@example.com", "password": os.environ.get("TEST_USER_PASSWORD", "TestPass123!")},
     )
     if r.status_code != 200:
         # try register then login
@@ -25,7 +25,7 @@ def user_session():
             f"{BASE_URL}/api/auth/register",
             json={
                 "email": "test2@example.com",
-                "password": "TestPass123!",
+                "password": os.environ.get("TEST_USER_PASSWORD", "TestPass123!"),
                 "name": "Test2",
                 "phone": "+33600000002",
                 "role": "user",
@@ -33,7 +33,7 @@ def user_session():
         )
         r = s.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "test2@example.com", "password": "TestPass123!"},
+            json={"email": "test2@example.com", "password": os.environ.get("TEST_USER_PASSWORD", "TestPass123!")},
         )
     assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
     return s

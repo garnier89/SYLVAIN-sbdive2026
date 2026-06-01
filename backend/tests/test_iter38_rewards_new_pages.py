@@ -31,7 +31,7 @@ class TestRewardsConfig:
         self.session = requests.Session()
         login_response = self.session.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "admin@superapp.com", "password": "SuperAdmin123!"}
+            json={"email": "admin@superapp.com", "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")}
         )
         assert login_response.status_code == 200, f"Admin login failed: {login_response.text}"
         self.token = login_response.json().get("access_token")

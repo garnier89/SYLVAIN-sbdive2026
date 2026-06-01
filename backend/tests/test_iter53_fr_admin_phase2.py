@@ -17,11 +17,11 @@ import uuid
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://taxi-marketplace-3.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASS = "SuperAdmin123!"
+ADMIN_PASS = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
 DRIVER_EMAIL = "jean.dupont@demo.sb"
-DRIVER_PASS = "Driver123!"
+DRIVER_PASS = os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")
 USER_EMAIL = "test2@example.com"
-USER_PASS = "TestPass123!"
+USER_PASS = os.environ.get("TEST_USER_PASSWORD", "TestPass123!")
 
 
 def _login(email, password):

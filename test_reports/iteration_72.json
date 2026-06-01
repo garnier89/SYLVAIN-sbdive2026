@@ -1,0 +1,41 @@
+{
+  "summary": "Iter72 — Validated 3 newly-activated Phase 2 features (Driver Destination Mode UI, Taxi Pool toggle on /ride/:id, Tip jar endpoint), 9 catalog endpoints, 10 admin pages, and P0 regression endpoints. Driver Destination Mode E2E works perfectly (UI ↔ backend in sync). Taxi Pool toggle UI works but backend has a fare-restoration bug. bidding_posts catalog returns 404 (not registered in PUBLIC_CATALOGS). Tip UI on completed ride could not be UI-tested (status transitions blocked for owner) but POST /api/phase2/rides/{id}/tip endpoint shape is correct.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PUT /api/phase2/pool/enable/{ride_id}", "issue": "On disable (enabled=false), backend sets new_fare = ride['estimated_fare'] which is already the discounted value from previous ON toggle. Fare stays at 70% forever after first enable. Need to persist original_fare on first enable and restore from it on disable. File: /app/backend/routes/phase2.py line 392.", "priority": "HIGH"},
+      {"endpoint": "GET /api/phase2/catalogs/bidding_posts", "issue": "Returns 404 — bidding_posts is in the spec list but missing from PUBLIC_CATALOGS set in /app/backend/routes/phase2.py. Add it so the new auction/bidding feature is reachable.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/rides/{id}/status (user role)", "issue": "Returns 403 for accepted (correct), but then 400 for arrived/started/completed when ride is still pending. Expected — but could not exercise tip UI without driver-flow seed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Email login on /login", "issue": "'Ou choisir une autre option de connexion' modal only exposes Apple/Google/Facebook/Biometric — no email+password option, so test2@example.com cannot log in via UI. Spec says email-login should be reachable via this link.", "affected_selectors": ["[data-testid=account-modal]"]}
+    ],
+    "design_issues": [
+      {"screen": "DriverHome destination modal", "issues": ["Spec used testids dest-address-input / dest-lat-input / dest-lng-input but implementation uses dest-input-address / dest-input-lat / dest-input-lng. Naming inconsistent with main-agent spec — either update spec or rename testids. Functionality works."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter72_phase2_ui.py", "/app/test_reports/pytest/iter72_results.xml"],
+  "action_items": [
+    "FIX phase2.py:392 pool/enable — persist original_fare so disable restores correct amount.",
+    "ADD 'bidding_posts' to PUBLIC_CATALOGS in phase2.py so GET /api/phase2/catalogs/bidding_posts returns [].",
+    "Decide: add email-login option to the 'autre option' modal, OR document that admin/email accounts must use a different login path.",
+    "Optional: rename destination-modal inputs to match spec (dest-address-input / dest-lat-input / dest-lng-input) or update spec."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routes/phase2.py line 392 — stateful bug: estimated_fare is mutated in place by pool toggle, no original_fare stored. Fix by storing original_fare on first ON and using it on OFF.",
+    "PUBLIC_CATALOGS in phase2.py is missing bidding_posts despite UI/spec referencing it.",
+    "/api/phase2/driver/destination-mode endpoint is well-designed (PUT body {active, lat, lng, address, radius_km}; GET returns {active, target}). Good shape."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter72_phase2_ui.py"],
+  "success_rate": {"backend": "95% (19/20 pytest passed; 1 failure = bidding_posts 404)", "frontend": "90% (driver destination-mode 100%, taxi-pool toggle UI 100%, admin spot-check 10/10 routes load 200, tip UI not exercised due to status-transition gate)"},
+  "test_credentials": "Driver: +33644112233 / Chauffeur2026! (works). Admin: admin@superapp.com / SuperAdmin123! (works via API). Test user: phone-register fresh user (test2@example.com cannot login on /login because no email option in modal).",
+  "seed_data_creation": "Created phone-registered user +33990003867 (TEST_Iter72User) and ride_72d746cb7b04 for pool toggle testing.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run pytest /app/backend/tests/test_iter72_phase2_ui.py to regress all 20 tests (1 failure is the bidding_posts catalog bug to be fixed). Driver Destination Mode E2E: login as +33644112233 / Chauffeur2026!, /chauffeur/home, click [data-testid=destination-mode-toggle], modal inputs are dest-input-address / dest-input-lat / dest-input-lng (NOT the spec's dest-*-input). Taxi Pool toggle: create a fresh ride and visit /ride/{id}, the [data-testid=toggle-taxi-pool-btn] is wired but the pool/enable backend has a fare-restoration bug.",
+  "rca_of_the_issue": "Pool fare bug RCA: phase2.py enable_pool reads ride['estimated_fare'] and writes new_fare = current * 0.7 on enable. On disable it writes new_fare = current (already 0.7x). Repro: POST /api/rides to get fare F, PUT /pool/enable enabled=true → fare becomes 0.7F, PUT /pool/enable enabled=false → fare stays 0.7F instead of returning to F. Mitigation: on first enable when pool_enabled is False, also write original_fare = current estimated_fare; on disable, restore estimated_fare = original_fare and clear it. bidding_posts RCA: phase2.py PUBLIC_CATALOGS frozenset omits 'bidding_posts' so /api/phase2/catalogs/bidding_posts → 404. Mitigation: add 'bidding_posts' to PUBLIC_CATALOGS."
+}
