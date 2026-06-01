@@ -130,6 +130,114 @@ async def get_admin_stats(request: Request):
     }
 
 
+# ===== USER DETAIL / EDIT (matches XJekPlus Edit User page) =====
+
+@router.get("/users/{user_id}")
+async def admin_get_user(user_id: str, request: Request):
+    await require_role(request, ["admin"], permission="users.view")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(404, "User not found")
+    wallet = await db.wallets.find_one({"user_id": user_id}, {"_id": 0, "balance": 1}) or {}
+    user["wallet_balance"] = wallet.get("balance", 0)
+    return user
+
+
+@router.post("/users")
+async def admin_create_user(request: Request):
+    await require_role(request, ["admin"], permission="users.create")
+    from core.deps import hash_password
+    body = await request.json()
+    first_name = (body.get("first_name") or "").strip()
+    last_name = (body.get("last_name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+    phone_code = (body.get("phone_code") or "").strip()
+    phone = (body.get("phone") or "").strip().replace(" ", "")
+    if not first_name or not email or not password:
+        raise HTTPException(400, "first_name, email et password sont requis")
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(400, "Email déjà utilisé")
+    full_phone = f"{phone_code}{phone}" if phone_code and not phone.startswith("+") else phone
+    if full_phone and await db.users.find_one({"phone": full_phone}):
+        raise HTTPException(400, "Numéro déjà utilisé")
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    doc = {
+        "id": user_id,
+        "email": email,
+        "password_hash": hash_password(password),
+        "first_name": first_name,
+        "last_name": last_name,
+        "name": f"{first_name} {last_name}".strip() or email,
+        "phone": full_phone or None,
+        "phone_code": phone_code or None,
+        "gender": body.get("gender"),
+        "country": body.get("country"),
+        "language": body.get("language") or "fr",
+        "currency": body.get("currency") or "EUR",
+        "avatar_url": body.get("avatar_url"),
+        "role": "user",
+        "is_verified": False,
+        "is_suspended": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.users.insert_one(doc)
+    await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "created_at": doc["created_at"]})
+    doc.pop("password_hash", None)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/users/{user_id}")
+async def admin_update_user(user_id: str, request: Request):
+    await require_role(request, ["admin"], permission="users.edit")
+    from core.deps import hash_password
+    body = await request.json()
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(404, "User not found")
+    updates = {}
+    for field in ("first_name", "last_name", "gender", "country", "language", "currency", "avatar_url", "phone_code"):
+        if body.get(field) is not None:
+            updates[field] = body[field]
+    if body.get("first_name") is not None or body.get("last_name") is not None:
+        fn = body.get("first_name", user.get("first_name", ""))
+        ln = body.get("last_name", user.get("last_name", ""))
+        updates["name"] = f"{fn} {ln}".strip() or user.get("name") or user.get("email")
+    if body.get("email"):
+        email = body["email"].strip().lower()
+        if email != user.get("email") and await db.users.find_one({"email": email, "id": {"$ne": user_id}}):
+            raise HTTPException(400, "Email déjà utilisé")
+        updates["email"] = email
+    if body.get("phone") is not None:
+        phone = body["phone"].strip().replace(" ", "")
+        code = body.get("phone_code", user.get("phone_code", ""))
+        full = f"{code}{phone}" if code and not phone.startswith("+") else phone
+        if full and await db.users.find_one({"phone": full, "id": {"$ne": user_id}}):
+            raise HTTPException(400, "Numéro déjà utilisé")
+        updates["phone"] = full or None
+    if body.get("password"):
+        updates["password_hash"] = hash_password(body["password"])
+    if body.get("is_active") is not None:
+        updates["is_suspended"] = not bool(body["is_active"])
+    if updates:
+        await db.users.update_one({"id": user_id}, {"$set": updates})
+    return {"updated": True}
+
+
+@router.delete("/users/{user_id}")
+async def admin_delete_user(user_id: str, request: Request):
+    await require_role(request, ["admin"], permission="users.delete")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1})
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.get("role") == "admin":
+        raise HTTPException(400, "Impossible de supprimer un admin via cette route (utilisez /api/acl/admins)")
+    await db.users.delete_one({"id": user_id})
+    await db.wallets.delete_many({"user_id": user_id})
+    return {"deleted": True}
+
+
 # ===== ADMIN GENERAL SETTINGS =====
 
 @router.get("/settings")

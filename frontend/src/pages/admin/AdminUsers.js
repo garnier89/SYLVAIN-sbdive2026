@@ -1,168 +1,250 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
-import { MagnifyingGlass, CaretUp, CaretDown, Prohibit, ShieldCheck } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, X, Plus, Export, PencilSimple, Eye, Trash, ToggleLeft, ToggleRight, Wallet, CaretUp, CaretDown } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const AdminUsers = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [searchField, setSearchField] = useState('all');
   const [statusFilter, setStatusFilter] = useState('');
-  const [sortField, setSortField] = useState('name');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
+  const [selected, setSelected] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState('');
 
-  useEffect(() => { loadUsers(); }, []);
-
-  const loadUsers = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await adminAPI.listUsers({ limit: 200 });
-      setUsers(r.data.users); setTotal(r.data.total);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      const r = await adminAPI.listUsers({ limit: 500 });
+      setUsers(r.data.users || []);
+    } catch (e) { console.error('[AdminUsers] load failed', e); }
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const toggleSort = (f) => {
+    if (sortField === f) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(f); setSortDir('asc'); }
   };
 
-  const toggleSuspend = async (u) => {
-    try {
-      if (u.is_suspended) await adminAPI.unsuspendUser(u.id);
-      else await adminAPI.suspendUser(u.id);
-      loadUsers();
-    } catch (e) { console.error(e); }
-  };
+  const resetFilters = () => { setSearch(''); setSearchField('all'); setStatusFilter(''); };
 
-  const handleSearch = () => { /* filtering is done client-side below */ };
-  const handleReset = () => { setSearch(''); setSearchField('all'); setStatusFilter(''); };
-
-  const toggleSort = (field) => {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortDir('asc'); }
-  };
-
-  const SortIcon = ({ field }) => (
-    <span className="inline-flex flex-col ml-1 cursor-pointer" onClick={() => toggleSort(field)}>
-      <CaretUp size={8} className={sortField === field && sortDir === 'asc' ? 'text-gray-800' : 'text-gray-300'} />
-      <CaretDown size={8} className={sortField === field && sortDir === 'desc' ? 'text-gray-800' : 'text-gray-300'} />
-    </span>
-  );
-
-  let filtered = users;
+  let rows = users.slice();
   if (search) {
     const q = search.toLowerCase();
-    filtered = filtered.filter(u => {
+    rows = rows.filter(u => {
       if (searchField === 'name') return (u.name || '').toLowerCase().includes(q);
       if (searchField === 'email') return (u.email || '').toLowerCase().includes(q);
       if (searchField === 'phone') return (u.phone || '').includes(q);
       return (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.phone || '').includes(q);
     });
   }
-  if (statusFilter === 'active') filtered = filtered.filter(u => !u.is_suspended);
-  if (statusFilter === 'suspended') filtered = filtered.filter(u => u.is_suspended);
-
-  filtered.sort((a, b) => {
-    const va = (a[sortField] || '').toString().toLowerCase();
-    const vb = (b[sortField] || '').toString().toLowerCase();
-    return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+  if (statusFilter === 'active') rows = rows.filter(u => !u.is_suspended);
+  if (statusFilter === 'suspended') rows = rows.filter(u => u.is_suspended);
+  rows.sort((a, b) => {
+    const va = (a[sortField] || ''); const vb = (b[sortField] || '');
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
   });
 
-  return (
-    <div className="p-6" data-testid="admin-users-page">
-      <h1 className="text-3xl font-light text-gray-800 mb-1" style={{ fontFamily: 'Georgia, Times, serif' }}>Users</h1>
-      <hr className="border-gray-200 mb-5" />
+  const allSelected = rows.length > 0 && rows.every(r => selected.has(r.id));
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(rows.map(r => r.id)));
+  };
+  const toggleOne = (id) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  };
 
-      {/* Search & Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <span className="font-bold text-gray-700 text-sm">Search:</span>
-        <select value={searchField} onChange={e => setSearchField(e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none" data-testid="search-field-select">
-          <option value="all">All</option>
-          <option value="name">Name</option>
-          <option value="email">Email</option>
-          <option value="phone">Phone</option>
-        </select>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder=""
-          className="border border-gray-300 rounded px-3 py-1.5 text-sm w-48 outline-none focus:border-blue-400" data-testid="search-input" />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-600 outline-none" data-testid="status-filter">
-          <option value="">Select Status</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-        </select>
-        <button onClick={handleSearch} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
-        <button onClick={handleReset} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
-        <button className="ml-auto border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="export-btn">EXPORT</button>
+  const toggleSuspend = async (u) => {
+    try {
+      if (u.is_suspended) await adminAPI.unsuspendUser(u.id);
+      else await adminAPI.suspendUser(u.id);
+      toast.success('Statut mis à jour');
+      load();
+    } catch { toast.error('Erreur'); }
+  };
+
+  const remove = async (u) => {
+    if (!window.confirm(`Supprimer l'utilisateur "${u.name || u.email}" ?`)) return;
+    try {
+      await adminAPI.deleteUser(u.id);
+      toast.success('Utilisateur supprimé');
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+  };
+
+  const runBulk = async () => {
+    if (!bulkAction || selected.size === 0) { toast.error('Sélectionnez des utilisateurs et une action'); return; }
+    const ids = Array.from(selected);
+    try {
+      if (bulkAction === 'activate') {
+        await Promise.all(ids.map(id => adminAPI.unsuspendUser(id)));
+        toast.success(`${ids.length} activés`);
+      } else if (bulkAction === 'suspend') {
+        await Promise.all(ids.map(id => adminAPI.suspendUser(id)));
+        toast.success(`${ids.length} suspendus`);
+      } else if (bulkAction === 'delete') {
+        if (!window.confirm(`Supprimer ${ids.length} utilisateurs ?`)) return;
+        await Promise.all(ids.map(id => adminAPI.deleteUser(id)));
+        toast.success(`${ids.length} supprimés`);
+      }
+      setSelected(new Set()); setBulkAction(''); load();
+    } catch { toast.error('Erreur sur l\'action en masse'); }
+  };
+
+  const exportCsv = () => {
+    const headers = ['Nom', 'Email', 'Inscription', 'Téléphone', 'Wallet', 'Statut'];
+    const lines = [headers, ...rows.map(u => [
+      u.name || '', u.email || '', u.created_at || '', u.phone || '',
+      u.wallet_balance != null ? `${u.wallet_balance}` : '0',
+      u.is_suspended ? 'Suspendu' : 'Actif',
+    ])];
+    const csv = lines.map(r => r.map(c => `"${(c || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `users_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  };
+
+  const fmtDate = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    const months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()} (${days[d.getDay()]}) à ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const SortBtn = ({ field, label }) => (
+    <button onClick={() => toggleSort(field)} className="inline-flex items-center gap-1 font-semibold text-gray-700" data-testid={`sort-${field}`}>
+      {label}
+      <span className="flex flex-col -space-y-0.5">
+        <CaretUp size={8} className={sortField === field && sortDir === 'asc' ? 'text-gray-900' : 'text-gray-300'} />
+        <CaretDown size={8} className={sortField === field && sortDir === 'desc' ? 'text-gray-900' : 'text-gray-300'} />
+      </span>
+    </button>
+  );
+
+  return (
+    <div className="p-4 md:p-6 bg-gray-50 min-h-screen" data-testid="admin-users-page">
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-gray-900">Utilisateurs</h1>
+        <p className="text-sm text-gray-500">Gérez les passagers et leur accès à la plateforme.</p>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+          <select value={searchField} onChange={(e) => setSearchField(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" data-testid="filter-field">
+            <option value="all">Tous</option>
+            <option value="name">Nom</option>
+            <option value="email">Email</option>
+            <option value="phone">Téléphone</option>
+          </select>
+          <div className="relative">
+            <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher..." className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm" data-testid="filter-search" />
+          </div>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" data-testid="filter-status">
+            <option value="">Sélectionner le statut</option>
+            <option value="active">Actif</option>
+            <option value="suspended">Suspendu</option>
+          </select>
+          <div />
+        </div>
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          <button className="w-9 h-9 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center" data-testid="filter-search-btn" title="Rechercher"><MagnifyingGlass size={16} /></button>
+          <button onClick={resetFilters} className="w-9 h-9 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center" data-testid="filter-reset-btn" title="Réinitialiser"><X size={16} /></button>
+          <button onClick={load} className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center" data-testid="filter-refresh" title="Rafraîchir"><ArrowsClockwise size={16} /></button>
+          <select value={bulkAction} onChange={(e) => setBulkAction(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" data-testid="bulk-action">
+            <option value="">Action groupée</option>
+            <option value="activate">Activer</option>
+            <option value="suspend">Suspendre</option>
+            <option value="delete">Supprimer</option>
+          </select>
+          <button onClick={runBulk} className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold bg-white" data-testid="bulk-apply">Appliquer</button>
+          <button onClick={exportCsv} className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold flex items-center gap-1.5 bg-white" data-testid="export-btn">
+            <Export size={14} /> Exporter
+          </button>
+          <button onClick={() => navigate('/admin/users/new')} className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold flex items-center gap-1.5" data-testid="add-user-btn">
+            <Plus size={14} /> Ajouter
+          </button>
+        </div>
       </div>
 
       {/* Table */}
-      {loading ? (
-        <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" /></div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" data-testid="users-table">
-              <thead>
-                <tr className="border-t border-b border-gray-200 bg-white">
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">
-                    <input type="checkbox" className="rounded border-gray-300" />
-                  </th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('name')}>
-                    Name <SortIcon field="name" />
-                  </th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('email')}>
-                    Email <SortIcon field="email" />
-                  </th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Phone</th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('role')}>
-                    Role <SortIcon field="role" />
-                  </th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Status</th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-400">No users found</td></tr>
-                ) : filtered.map((u, i) => (
-                  <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" data-testid={`user-row-${i}`}>
-                    <td className="py-3 px-3"><input type="checkbox" className="rounded border-gray-300" /></td>
-                    <td className="py-3 px-3">
-                      <span className="text-sm text-blue-600 hover:underline cursor-pointer font-medium">{u.name || 'N/A'}</span>
-                    </td>
-                    <td className="py-3 px-3 text-sm text-gray-600">{u.email || '-'}</td>
-                    <td className="py-3 px-3 text-sm text-gray-600">{u.phone || '-'}</td>
-                    <td className="py-3 px-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                        u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                        u.role === 'driver' ? 'bg-orange-100 text-orange-700' :
-                        u.role === 'merchant' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                      }`}>{u.role}</span>
-                    </td>
-                    <td className="py-3 px-3">
-                      {u.is_suspended ? (
-                        <span className="inline-flex items-center gap-1 text-red-500 text-xs font-semibold">
-                          <Prohibit size={14} /> Suspended
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center justify-center w-6 h-6">
-                          <svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10" fill="#d4edda" stroke="#28a745" strokeWidth="1.5"/><path d="M6 11l3 3 6-6" stroke="#28a745" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      {u.role !== 'admin' && (
-                        <button onClick={() => toggleSuspend(u)} className="text-gray-400 hover:text-gray-600 transition-colors" data-testid={`action-btn-${i}`} title={u.is_suspended ? 'Unsuspend' : 'Suspend'}>
-                          {u.is_suspended ? <ShieldCheck size={20} className="text-green-500" /> : <Prohibit size={20} />}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-sm text-gray-500 mt-4" data-testid="pagination-info">Showing 1 to {filtered.length} of {total} entries</p>
-        </>
-      )}
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-3 px-4 w-8"><input type="checkbox" checked={allSelected} onChange={toggleAll} data-testid="select-all" /></th>
+              <th className="text-left py-3 px-4"><SortBtn field="name" label="Nom" /></th>
+              <th className="text-left py-3 px-4"><SortBtn field="email" label="Email" /></th>
+              <th className="text-left py-3 px-4"><SortBtn field="created_at" label="Inscription" /></th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700">Téléphone</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700">Wallet</th>
+              <th className="text-center py-3 px-4 font-semibold text-gray-700">Documents</th>
+              <th className="text-center py-3 px-4"><SortBtn field="is_suspended" label="Statut" /></th>
+              <th className="text-center py-3 px-4 font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((u) => (
+              <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50" data-testid={`user-row-${u.id}`}>
+                <td className="py-3 px-4"><input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleOne(u.id)} data-testid={`select-user-${u.id}`} /></td>
+                <td className="py-3 px-4">
+                  <button onClick={() => navigate(`/admin/users/${u.id}`)} className="font-medium text-gray-900 underline hover:text-blue-600" data-testid={`user-name-${u.id}`}>
+                    {u.name || (u.first_name && `${u.first_name} ${u.last_name || ''}`) || '—'}
+                  </button>
+                </td>
+                <td className="py-3 px-4 text-gray-600">{u.email}</td>
+                <td className="py-3 px-4 text-gray-600 text-xs">{fmtDate(u.created_at)}</td>
+                <td className="py-3 px-4 text-gray-600">{u.phone || '—'}</td>
+                <td className="py-3 px-4">
+                  <span className="inline-flex items-center gap-1 text-gray-700">
+                    <Wallet size={14} className="text-emerald-500" />
+                    {(u.wallet_balance != null ? u.wallet_balance : 0).toFixed(2)} €
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-center">
+                  <button onClick={() => navigate(`/admin/users/${u.id}`)} className="text-gray-400 hover:text-blue-600" data-testid={`view-docs-${u.id}`} title="Voir documents">
+                    <Eye size={16} />
+                  </button>
+                </td>
+                <td className="py-3 px-4 text-center">
+                  <span className={`inline-block px-3 py-0.5 text-xs rounded-md font-semibold ${u.is_suspended ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`} data-testid={`user-status-${u.id}`}>
+                    {u.is_suspended ? 'Suspendu' : 'Actif'}
+                  </span>
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => navigate(`/admin/users/${u.id}`)} className="text-gray-500 hover:text-blue-600" data-testid={`edit-user-${u.id}`} title="Modifier"><PencilSimple size={16} /></button>
+                    <button onClick={() => toggleSuspend(u)} className="text-gray-500 hover:text-emerald-600" data-testid={`toggle-user-${u.id}`} title={u.is_suspended ? 'Activer' : 'Suspendre'}>
+                      {u.is_suspended ? <ToggleLeft size={18} /> : <ToggleRight size={18} />}
+                    </button>
+                    <button onClick={() => remove(u)} className="text-gray-500 hover:text-red-600" data-testid={`delete-user-${u.id}`} title="Supprimer"><Trash size={16} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {loading && <div className="p-8 text-center text-gray-400">Chargement...</div>}
+        {!loading && rows.length === 0 && <div className="p-8 text-center text-gray-400">Aucun utilisateur</div>}
+      </div>
     </div>
   );
 };

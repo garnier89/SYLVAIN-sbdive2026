@@ -149,6 +149,7 @@ import AdminAuditLogs from './pages/admin/AdminAuditLogs';
 import AdminOrganizations from './pages/admin/AdminOrganizations';
 import AdminI18n from './pages/admin/AdminI18n';
 import AdminGroupsPage from './pages/admin/AdminGroupsPage';
+import AdminUserEdit from './pages/admin/AdminUserEdit';
 import DriverSubscriptions from './pages/driver/DriverSubscriptions';
 
 import './index.css';
@@ -256,6 +257,8 @@ const AppRouter = () => {
         <Route index element={<AdminDashboard />} />
         {/* MEMBERS */}
         <Route path="users" element={<AdminUsers />} />
+        <Route path="users/new" element={<AdminUserEdit />} />
+        <Route path="users/:id" element={<AdminUserEdit />} />
         <Route path="drivers" element={<AdminDrivers />} />
         {/* SERVICES */}
         <Route path="rides" element={<AdminRides />} />
