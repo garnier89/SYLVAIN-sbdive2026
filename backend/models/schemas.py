@@ -24,6 +24,7 @@ class UserResponse(BaseModel):
     role: str
     avatar_url: Optional[str] = None
     is_verified: bool = False
+    panel_preference: Optional[str] = None
     created_at: datetime
 
 class TokenResponse(BaseModel):

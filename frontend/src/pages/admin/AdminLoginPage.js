@@ -21,7 +21,7 @@ const AdminLoginPage = () => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        if (result.user?.role === 'admin') navigate('/admin');
+        if (result.user?.role === 'admin') navigate(result.user?.panel_preference || '/admin');
         else setError('Ce compte n\'a pas les droits administrateur');
       } else {
         setError(result.error || 'Identifiants invalides');

@@ -108,8 +108,10 @@ const LoginPage = () => {
       setUser(data.user);
       // Route based on user role so drivers/admins/merchants land on their own app
       const role = data.user?.role;
+      const panelPref = data.user?.panel_preference;
       if (role === 'driver') navigate('/chauffeur/home');
-      else if (role === 'admin' || role === 'dispatcher') navigate('/admin');
+      else if (role === 'admin') navigate(panelPref || '/admin');
+      else if (role === 'dispatcher') navigate('/dispatch');
       else if (role === 'merchant') navigate('/merchant');
       else navigate('/home');
     } catch (err) {

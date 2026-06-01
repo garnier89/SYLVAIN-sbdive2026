@@ -349,6 +349,75 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 72 (Jun 1, 2026) — Phase B : 6 Web Panels + Phase C : Landing page vitrine (DONE)
+### 🏢 Phase B — Séparation 7 web panels métier
+Architecture : 1 layout générique `PanelLayout` + 1 config dictionnaire `panelConfigs.js` réutilisant les pages admin existantes. Chaque panel a sa propre couleur, sidebar filtré, et un compte démo dédié.
+
+**Les 7 panels :**
+1. `/admin` → Super Admin (existant, garde accès à tout)
+2. `/dispatch` (bleu #0EA5E9) → Dispatcher : Live rides + Auto-dispatch + Monitoring + Drivers + Priority + Rides + SOS + Disputes
+3. `/billing` (vert #10B981) → Comptabilité : Revenus + Settlements + Payouts + Wallet requests + Promocodes + Giftcards + Payment methods
+4. `/server` (indigo #6366F1) → Sys Admin : Settings + Language/Currency + Maps + SEO + Geofences + Templates email/SMS + Push + Référentiels véhicules
+5. `/users-admin` (ambre #F59E0B) → CRM Clients : Users + Referral + News + Newsletter + Banners + Promocodes + Contact/SOS
+6. `/drivers-admin` (rouge #DC2626) → CRM Chauffeurs : Drivers + Priority + Top + Documents + Requests + Rewards
+7. `/merchants-admin` (violet #7C3AED) → CRM Marchands : Stores + Company + Hotels + Kiosks + Orders + Parcels + Featured
+
+**Fichiers créés** :
+- `/app/frontend/src/pages/panels/PanelLayout.js` (140 lignes — sidebar collapsible avec recherche, header brand color, Outlet pour sous-routes)
+- `/app/frontend/src/pages/panels/panelConfigs.js` (config sidebar des 6 panels)
+- `/app/frontend/src/pages/panels/PanelHome.js` (page d'accueil générique : hero gradient + 4 KPI cards + 6 shortcuts)
+- 7 routes top-level dans `App.js` (chacune avec nested sub-routes pointant vers les pages admin existantes)
+
+**Backend** :
+- Ajout du champ `panel_preference` dans `UserResponse` (Pydantic) et dans la collection `users`.
+- Seed 6 comptes démo (role='admin' avec `panel_preference`) :
+  - `dispatch@superapp.com` → `/dispatch`
+  - `billing@superapp.com` → `/billing`
+  - `sysadmin@superapp.com` → `/server`
+  - `crm-users@superapp.com` → `/users-admin`
+  - `crm-drivers@superapp.com` → `/drivers-admin`
+  - `crm-merchants@superapp.com` → `/merchants-admin`
+  - Mot de passe commun : `PanelDemo123!`
+
+**Login redirect** : `LoginPage.js` et `AdminLoginPage.js` lisent `user.panel_preference` et redirigent vers le bon panel après login (le super-admin sans `panel_preference` va sur `/admin`).
+
+**Sous-domaines en production** : Le déploiement sur `sbdrivevtc.com` nécessite la configuration DNS CNAME pour chaque panel :
+- `dashboard.sbdrivevtc.com` → /admin
+- `dispatch.sbdrivevtc.com` → /dispatch
+- `billing.sbdrivevtc.com` → /billing
+- `server.sbdrivevtc.com` → /server
+- `users.sbdrivevtc.com` → /users-admin
+- `drivers.sbdrivevtc.com` → /drivers-admin
+- `merchants.sbdrivevtc.com` → /merchants-admin
+- `kiosk.sbdrivevtc.com` → /kiosk
+- `www.sbdrivevtc.com` → /website (landing)
+
+### 🌐 Phase C — Landing page vitrine
+Le `LandingPage.js` existait déjà (428 lignes) et couvrait toutes les exigences :
+- Hero avec form de réservation (pickup + dropoff Google Places)
+- "Comment ça marche" 4 étapes
+- "Pool & Location" section
+- 4 services VTC (Taxi/Pool/Bid/Réserver à l'avance)
+- Section sécurité (suivi temps réel + bouton SOS + code OTP)
+- "Réserver par téléphone" + boutons Play Store / App Store officiels
+- 5 types d'inscription (Client/Chauffeur/Marchand/Hôtel/Partenaire)
+- Footer
+
+Aucune réécriture nécessaire — la page est déjà conforme aux spécifications V3Cube et adressable via `/website` (et `/` pour les visiteurs non connectés).
+
+### Tests
+- ✅ Backend : login démo retourne `role=admin` + `panel_preference=/dispatch` (vérifié curl 3 comptes)
+- ✅ Frontend : screenshot du `/dispatch` post-login parfait — header bleu + sidebar 3 sections (OPÉRATIONS/RESSOURCES/INCIDENTS) + hero gradient bleu "SB Drive Dispatch" + 6 cartes Accès rapide
+
+### Reste à faire
+- 🔴 P0 : Validation E2E finale OTP "Démarrer la course" (issue iter69 — script Playwright avait crashé)
+- 🟠 Tester chaque panel via testing_agent_v3_fork (charge tous les sous-routes ne fonctionnent pas tous : certains chemins admin n'existent pas en double, à vérifier au cas par cas)
+- 🟠 Stripe paiements réels + Push Notifications Firebase FCM (nécessitent clés user)
+- 🟡 Phase 3 : VOIP/Twilio, Photo zone pickup, Lost & Found
+- 🟡 Granularité rôle au niveau backend (actuellement tous les panels demandent role='admin' ; pour vrais users non-admin, étendre `get_current_user` pour accepter `dispatcher`/`billing`/etc. sur les endpoints concernés)
+
+
+
 ## Iteration 71 (Jun 1, 2026) — Phase A : SB Drive Tab (Kiosk libre-service) (DONE)
 ### 📱 Nouvelle app : SB Drive Tab — borne hôtel/restaurant
 - **Concept** : tablette installée chez un partenaire (hôtel, restaurant) qui permet aux clients sur place de commander un taxi sans avoir d'app à installer. Mode libre-service, design V3Cube fidèle.

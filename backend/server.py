@@ -78,10 +78,31 @@ async def lifespan(app: FastAPI):
     with open("/app/memory/test_credentials.md", "w") as f:
         f.write(f"""# Test Credentials
 
-## Admin Account
+## Super Admin Account
 - Email: {admin_email}
 - Password: {admin_password}
 - Role: admin
+
+## Driver Test Account (phone login)
+- Phone: +33644112233
+- Password: Chauffeur2026!
+
+## Demo Drivers (Driver123!)
+- jean.dupont@demo.sb / amadou.diallo@demo.sb / sophie.martin@demo.sb
+
+## Merchant Demo
+- Email: merchant@example.com / Password: Merchant123!
+
+## SB Drive Tab — Borne TAB CLIC
+- PIN unlock: 1234 (URL: /kiosk)
+
+## Phase B — Comptes Demo Web Panels (password: PanelDemo123!)
+- dispatch@superapp.com -> /dispatch (Dispatcher)
+- billing@superapp.com -> /billing (Comptabilite)
+- sysadmin@superapp.com -> /server (Sys Admin)
+- crm-users@superapp.com -> /users-admin (CRM Clients)
+- crm-drivers@superapp.com -> /drivers-admin (CRM Chauffeurs)
+- crm-merchants@superapp.com -> /merchants-admin (CRM Marchands)
 
 ## Auth Endpoints
 - POST /api/auth/register
@@ -144,6 +165,32 @@ async def lifespan(app: FastAPI):
         await db.users.insert_one({"id": merchant_user_id, "email": merchant_email, "password_hash": hash_password(merchant_password), "name": "Demo Merchant", "phone": "+33987654321", "role": "merchant", "is_verified": True, "avatar_url": None, "created_at": datetime.now(timezone.utc).isoformat()})
         await db.wallets.insert_one({"user_id": merchant_user_id, "balance": 0.0, "created_at": datetime.now(timezone.utc).isoformat()})
         logger.info(f"Merchant user created: {merchant_email}")
+
+    # Seed 6 panel-specific admin demo accounts (Phase B)
+    # Each has role='admin' but a `panel_preference` field so LoginPage can redirect to their home panel.
+    panel_demos = [
+        {"email": "dispatch@superapp.com",  "name": "Demo Dispatcher", "panel_preference": "/dispatch"},
+        {"email": "billing@superapp.com",   "name": "Demo Comptable",  "panel_preference": "/billing"},
+        {"email": "sysadmin@superapp.com",  "name": "Demo Sys Admin",  "panel_preference": "/server"},
+        {"email": "crm-users@superapp.com", "name": "Demo CRM Clients", "panel_preference": "/users-admin"},
+        {"email": "crm-drivers@superapp.com", "name": "Demo CRM Chauffeurs", "panel_preference": "/drivers-admin"},
+        {"email": "crm-merchants@superapp.com", "name": "Demo CRM Marchands", "panel_preference": "/merchants-admin"},
+    ]
+    panel_demo_pwd = os.environ.get("SEED_PANEL_PASSWORD", "PanelDemo123!")
+    for p in panel_demos:
+        if not await db.users.find_one({"email": p["email"]}):
+            await db.users.insert_one({
+                "id": f"user_{uuid.uuid4().hex[:12]}",
+                "email": p["email"],
+                "password_hash": hash_password(panel_demo_pwd),
+                "name": p["name"],
+                "phone": None,
+                "role": "admin",
+                "is_verified": True,
+                "panel_preference": p["panel_preference"],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            logger.info(f"Panel demo created: {p['email']} -> {p['panel_preference']}")
 
     init_storage()
     logger.info("SuperApp Backend Started (Modular)")
