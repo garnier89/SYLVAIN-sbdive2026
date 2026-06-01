@@ -7,13 +7,10 @@ import os
 import uuid
 import requests
 import pytest
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_USER_EMAIL as USER_EMAIL, TEST_USER_PASSWORD as USER_PASSWORD
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 API = f"{BASE}/api"
-ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
-USER_EMAIL = "test2@example.com"
-USER_PASSWORD = "TestPass123!"
 
 
 def _login_email(email, password):

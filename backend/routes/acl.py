@@ -312,34 +312,55 @@ async def create_admin(body: AdminUserCreate, current_user: dict = Depends(requi
 
 @router.put("/admins/{user_id}")
 async def update_admin(user_id: str, body: AdminUserUpdate, current_user: dict = Depends(require_super_admin)):
-    from core.deps import hash_password
     user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(404, "Admin introuvable")
     updates = {}
-    if body.first_name is not None:
-        updates["first_name"] = body.first_name
-    if body.last_name is not None:
-        updates["last_name"] = body.last_name
-    if body.first_name is not None or body.last_name is not None:
-        updates["name"] = f"{body.first_name or user.get('first_name','')} {body.last_name or user.get('last_name','')}".strip()
-    if body.email is not None:
-        if await db.users.find_one({"email": body.email.lower(), "id": {"$ne": user_id}}):
-            raise HTTPException(400, "Email déjà utilisé")
-        updates["email"] = body.email.lower()
-    if body.password:
-        updates["password_hash"] = hash_password(body.password)
-    if body.role_id is not None:
-        role = await db.admin_roles.find_one({"id": body.role_id}, {"_id": 0})
-        if not role:
-            raise HTTPException(400, "Rôle introuvable")
-        updates["role_ids"] = [body.role_id]
-        updates["role_name"] = role["name"]
+    _apply_name_updates(updates, body, user)
+    await _apply_email_update(updates, body, user_id)
+    _apply_password_update(updates, body)
+    await _apply_role_update(updates, body)
     if body.is_active is not None:
         updates["is_active"] = bool(body.is_active)
     if updates:
         await db.users.update_one({"id": user_id}, {"$set": updates})
     return {"updated": True}
+
+
+def _apply_name_updates(updates: dict, body: "AdminUserUpdate", user: dict) -> None:
+    if body.first_name is not None:
+        updates["first_name"] = body.first_name
+    if body.last_name is not None:
+        updates["last_name"] = body.last_name
+    if body.first_name is not None or body.last_name is not None:
+        fn = body.first_name or user.get("first_name", "")
+        ln = body.last_name or user.get("last_name", "")
+        updates["name"] = f"{fn} {ln}".strip()
+
+
+async def _apply_email_update(updates: dict, body: "AdminUserUpdate", user_id: str) -> None:
+    if body.email is None:
+        return
+    email = body.email.lower()
+    if await db.users.find_one({"email": email, "id": {"$ne": user_id}}):
+        raise HTTPException(400, "Email déjà utilisé")
+    updates["email"] = email
+
+
+def _apply_password_update(updates: dict, body: "AdminUserUpdate") -> None:
+    if body.password:
+        from core.deps import hash_password
+        updates["password_hash"] = hash_password(body.password)
+
+
+async def _apply_role_update(updates: dict, body: "AdminUserUpdate") -> None:
+    if body.role_id is None:
+        return
+    role = await db.admin_roles.find_one({"id": body.role_id}, {"_id": 0})
+    if not role:
+        raise HTTPException(400, "Rôle introuvable")
+    updates["role_ids"] = [body.role_id]
+    updates["role_name"] = role["name"]
 
 
 @router.delete("/admins/{user_id}")

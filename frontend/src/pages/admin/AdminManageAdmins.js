@@ -3,10 +3,7 @@ import { Plus, MagnifyingGlass, PencilSimple, Trash, Export, ToggleLeft, ToggleR
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const authHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+// Auth: rely on httpOnly cookies (set by backend on login). credentials:'include' carries them automatically — XSS-safe.
 
 const initialForm = { first_name: '', last_name: '', email: '', password: '', role_id: '' };
 
@@ -26,8 +23,8 @@ const AdminManageAdmins = () => {
     setLoading(true);
     try {
       const [admRes, rolesRes] = await Promise.all([
-        fetch(`${API}/api/acl/users`, { credentials: 'include', headers: authHeaders() }),
-        fetch(`${API}/api/acl/roles`, { credentials: 'include', headers: authHeaders() }),
+        fetch(`${API}/api/acl/users`, { credentials: 'include' }),
+        fetch(`${API}/api/acl/roles`, { credentials: 'include' }),
       ]);
       if (admRes.ok) {
         const d = await admRes.json();
@@ -82,7 +79,7 @@ const AdminManageAdmins = () => {
       if (editing && !payload.password) delete payload.password;
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload),
       });
@@ -100,7 +97,7 @@ const AdminManageAdmins = () => {
 
   const toggleStatus = async (a) => {
     const res = await fetch(`${API}/api/acl/admins/${a.id}/toggle-status`, {
-      method: 'POST', credentials: 'include', headers: authHeaders(),
+      method: 'POST', credentials: 'include',
     });
     if (res.ok) { toast.success('Statut mis à jour'); load(); }
     else toast.error('Erreur');
@@ -109,7 +106,7 @@ const AdminManageAdmins = () => {
   const remove = async (a) => {
     if (!window.confirm(`Supprimer l'admin ${a.email} ?`)) return;
     const res = await fetch(`${API}/api/acl/admins/${a.id}`, {
-      method: 'DELETE', credentials: 'include', headers: authHeaders(),
+      method: 'DELETE', credentials: 'include',
     });
     if (res.ok) { toast.success('Admin supprimé'); load(); }
     else { const d = await res.json().catch(() => ({})); toast.error(d.detail || 'Erreur'); }

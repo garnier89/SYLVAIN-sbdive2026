@@ -3,10 +3,7 @@ import { Plus, MagnifyingGlass, PencilSimple, Trash, ArrowsClockwise, X, Check }
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const authHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+// Auth: rely on httpOnly cookies (set by backend on login). credentials:'include' carries them automatically — XSS-safe.
 
 const AdminGroupsPage = () => {
   const [groups, setGroups] = useState([]);
@@ -24,8 +21,8 @@ const AdminGroupsPage = () => {
     setLoading(true);
     try {
       const [rolesRes, regRes] = await Promise.all([
-        fetch(`${API}/api/acl/roles`, { credentials: 'include', headers: authHeaders() }),
-        fetch(`${API}/api/acl/permissions/registry`, { credentials: 'include', headers: authHeaders() }),
+        fetch(`${API}/api/acl/roles`, { credentials: 'include' }),
+        fetch(`${API}/api/acl/permissions/registry`, { credentials: 'include' }),
       ]);
       if (rolesRes.ok) {
         const d = await rolesRes.json();
@@ -64,7 +61,7 @@ const AdminGroupsPage = () => {
       const method = editing ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(form),
       });
@@ -82,7 +79,7 @@ const AdminGroupsPage = () => {
 
   const remove = async (g) => {
     if (!window.confirm(`Supprimer le groupe "${g.name}" ?`)) return;
-    const res = await fetch(`${API}/api/acl/roles/${g.id}`, { method: 'DELETE', credentials: 'include', headers: authHeaders() });
+    const res = await fetch(`${API}/api/acl/roles/${g.id}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) { toast.success('Groupe supprimé'); load(); }
     else { const d = await res.json().catch(() => ({})); toast.error(d.detail || 'Erreur'); }
   };

@@ -109,7 +109,7 @@ class TestAclAdminsCrud:
 
     def test_create_admin_success_and_login(self, auth_headers, crm_drivers_role_id):
         email = self._unique_email()
-        password = "TestIter74Pass!"
+        password = os.environ.get("TEST_NEW_ADMIN_PASSWORD", "TestIter74Pass!")
         payload = {
             "first_name": "TestIter74",
             "last_name": "Doe",

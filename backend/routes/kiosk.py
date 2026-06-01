@@ -21,6 +21,7 @@ import secrets
 import httpx
 
 from core.config import db
+from core.config import logger
 from core.deps import get_current_user
 from core.websocket import manager
 
@@ -244,40 +245,54 @@ async def kiosk_estimate(token: str, body: KioskEstimateBody):
 async def kiosk_book(token: str, body: KioskBookBody):
     """Create a ride from the kiosk on behalf of a walk-in customer."""
     kiosk = await _get_kiosk_by_token(token)
-
-    # 1) Find/create user by phone (lightweight - guest user)
-    phone_norm = body.phone.strip().replace(" ", "")
-    user = await db.users.find_one({"phone": phone_norm})
-    if not user:
-        user_id = f"kiosk_user_{uuid.uuid4().hex[:10]}"
-        user_doc = {
-            "id": user_id,
-            "email": body.email or f"{user_id}@kiosk.sbdrive.vtc",
-            "password_hash": "$kiosk_guest$",
-            "name": f"{body.first_name} {body.last_name}".strip(),
-            "phone": phone_norm,
-            "role": "user",
-            "is_verified": False,
-            "is_kiosk_guest": True,
-            "kiosk_id": kiosk["id"],
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        try:
-            await db.users.insert_one(user_doc)
-        except Exception:
-            # Race condition fallback
-            user = await db.users.find_one({"phone": phone_norm})
-            user_id = user["id"] if user else user_id
-    else:
-        user_id = user["id"]
-
-    # 2) Compute fare
+    user_id = await _ensure_kiosk_user(body, kiosk)
     distance_km = round(_haversine_km(kiosk["lat"], kiosk["lng"], body.dest_lat, body.dest_lng), 2)
     fare = _calc_fare(distance_km, body.vehicle_type)
     booking_no = uuid.uuid4().hex[:8].upper()
+    ride = _build_kiosk_ride(body, kiosk, user_id, booking_no, distance_km, fare)
+    await db.rides.insert_one(ride)
+    await db.kiosks.update_one({"id": kiosk["id"]}, {"$inc": {"total_bookings": 1}})
+    await _broadcast_kiosk_ride(ride, kiosk, body, fare, distance_km, user_id, booking_no)
+    return {
+        "ride_id": ride["id"],
+        "booking_no": booking_no,
+        "estimated_fare": fare,
+        "currency": kiosk.get("currency", "EUR"),
+        "distance_km": distance_km,
+    }
 
-    # 3) Create ride
-    ride = {
+
+async def _ensure_kiosk_user(body: "KioskBookBody", kiosk: dict) -> str:
+    phone_norm = body.phone.strip().replace(" ", "")
+    user = await db.users.find_one({"phone": phone_norm})
+    if user:
+        return user["id"]
+    user_id = f"kiosk_user_{uuid.uuid4().hex[:10]}"
+    user_doc = {
+        "id": user_id,
+        "email": body.email or f"{user_id}@kiosk.sbdrive.vtc",
+        "password_hash": "$kiosk_guest$",
+        "name": f"{body.first_name} {body.last_name}".strip(),
+        "phone": phone_norm,
+        "role": "user",
+        "is_verified": False,
+        "is_kiosk_guest": True,
+        "kiosk_id": kiosk["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        await db.users.insert_one(user_doc)
+        return user_id
+    except Exception:
+        # Race condition: another request created the same phone — fetch and reuse
+        existing = await db.users.find_one({"phone": phone_norm})
+        return existing["id"] if existing else user_id
+
+
+def _build_kiosk_ride(body: "KioskBookBody", kiosk: dict, user_id: str,
+                      booking_no: str, distance_km: float, fare: float) -> dict:
+    phone_norm = body.phone.strip().replace(" ", "")
+    return {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
         "booking_no": booking_no,
         "user_id": user_id,
@@ -302,12 +317,11 @@ async def kiosk_book(token: str, body: KioskBookBody):
         "kiosk_hotel": kiosk["hotel_name"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db.rides.insert_one(ride)
 
-    # 4) Increment kiosk stats
-    await db.kiosks.update_one({"id": kiosk["id"]}, {"$inc": {"total_bookings": 1}})
 
-    # 5) Broadcast to admins + drivers
+async def _broadcast_kiosk_ride(ride: dict, kiosk: dict, body: "KioskBookBody",
+                                fare: float, distance_km: float,
+                                user_id: str, booking_no: str) -> None:
     payload = {
         "type": "new_ride_request",
         "ride_id": ride["id"],
@@ -326,16 +340,8 @@ async def kiosk_book(token: str, body: KioskBookBody):
     try:
         await manager.broadcast_to_admins(payload)
         await manager.broadcast_to_drivers(payload)
-    except Exception:
-        pass
-
-    return {
-        "ride_id": ride["id"],
-        "booking_no": booking_no,
-        "estimated_fare": fare,
-        "currency": kiosk.get("currency", "EUR"),
-        "distance_km": distance_km,
-    }
+    except Exception as e:
+        logger.warning("kiosk_book: broadcast failed: %s", e)
 
 
 @router.get("/{token}/ride/{ride_id}")

@@ -225,7 +225,7 @@ const AdminDashboard = () => {
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={rideDonut} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={2} dataKey="value">
-                {rideDonut.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                {rideDonut.map((entry) => <Cell key={entry.name || entry.color} fill={entry.color} />)}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
             </PieChart>
@@ -400,7 +400,7 @@ const AdminDashboard = () => {
           </div>
           <div className="space-y-2 max-h-[280px] overflow-y-auto">
             {notifications.map((n, i) => (
-              <div key={i} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+              <div key={n.id || `${n.user}-${n.time}-${i}`} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
                 <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
                   <Bell size={18} className="text-amber-500" weight="fill" />
                 </div>
@@ -425,7 +425,7 @@ const AdminDashboard = () => {
           </div>
           <div className="space-y-2 max-h-[280px] overflow-y-auto">
             {contactRequests.map((c, i) => (
-              <div key={i} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+              <div key={c.id || `${c.user}-${c.time}-${i}`} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
                 <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
                   <Bell size={18} className="text-amber-500" weight="fill" />
                 </div>

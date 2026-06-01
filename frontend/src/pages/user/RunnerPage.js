@@ -31,9 +31,9 @@ const RunnerPage = () => {
   const [drop, setDrop] = useState(null);
   const [dropContact, setDropContact] = useState({ name: '', phone: '' });
 
-  // multiple mode
+  // multiple mode — each stop carries a stable _key for React reconciliation
   const [stops, setStops] = useState([
-    { address: null, name: '', phone: '', note: '' },
+    { _key: `stop_${Date.now()}_0`, address: null, name: '', phone: '', note: '' },
   ]);
 
   const packageTypes = [
@@ -45,7 +45,7 @@ const RunnerPage = () => {
 
   const addStop = () => {
     if (stops.length >= 5) { toast.error('Max 5 arrêts'); return; }
-    setStops([...stops, { address: null, name: '', phone: '', note: '' }]);
+    setStops([...stops, { _key: `stop_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, address: null, name: '', phone: '', note: '' }]);
   };
   const removeStop = (idx) => setStops(stops.filter((_, i) => i !== idx));
   const updateStop = (idx, field, value) => setStops(stops.map((s, i) => i === idx ? { ...s, [field]: value } : s));
@@ -222,7 +222,7 @@ const RunnerPage = () => {
             </div>
             <div className="space-y-3">
               {stops.map((s, idx) => (
-                <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2" data-testid={`stop-${idx}`}>
+                <div key={s._key} className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2" data-testid={`stop-${idx}`}>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-gray-500">Arrêt {idx + 1}</span>
                     {stops.length > 1 && (

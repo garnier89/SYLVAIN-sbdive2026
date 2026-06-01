@@ -76,7 +76,7 @@ const RideTrackingPage = () => {
         const d = await res.json();
         if (d.new_fare != null) setRide((r) => r ? { ...r, estimated_fare: d.new_fare, pool_enabled: next } : r);
       }
-    } catch { /* ignore */ }
+    } catch (_err) { console.warn('[RideTracking] silent error', _err); }
     setPoolLoading(false);
   }, [poolEnabled, poolLoading, rideId]);
 
@@ -173,7 +173,7 @@ const RideTrackingPage = () => {
           await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/phase1/favorite-drivers/${ride.driver_id}`, {
             method: 'POST', credentials: 'include',
           });
-        } catch { /* ignore */ }
+        } catch (_err) { console.warn('[RideTracking] silent error', _err); }
       }
       navigate('/home');
     } catch {
@@ -190,7 +190,7 @@ const RideTrackingPage = () => {
         const d = await r.json();
         setStartOtp(d.otp);
       }
-    } catch { /* ignore */ }
+    } catch (_err) { console.warn('[RideTracking] silent error', _err); }
   };
 
   if (loading) {

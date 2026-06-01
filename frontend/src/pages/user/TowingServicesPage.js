@@ -40,7 +40,7 @@ const TowingServicesPage = () => {
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">
             {(item.services || []).map((s, i) => (
-              <span key={i} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">{s}</span>
+              <span key={s} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">{s}</span>
             ))}
           </div>
           <div className="mt-3 inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-bold">

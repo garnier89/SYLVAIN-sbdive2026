@@ -209,7 +209,7 @@ const RideBookingPage = () => {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
             body: JSON.stringify({ stopovers: stopovers.filter((s) => s.lat && s.lng) }),
           });
-        } catch { /* ignore */ }
+        } catch (_err) { console.warn('[RideBooking] silent error', _err); }
       }
       setCounterOffers([]);
       setStep('negotiation');
@@ -236,7 +236,7 @@ const RideBookingPage = () => {
         } else if (r.status === 'cancelled') {
           setStep('plan');
         }
-      } catch { /* keep polling */ }
+      } catch (_err) { console.warn('[RideBooking] poll error', _err); }
     };
     tick();
     const id = setInterval(tick, 3000);
@@ -250,7 +250,7 @@ const RideBookingPage = () => {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
       });
       navigate(`/ride/${ride.id}`);
-    } catch { /* stay on page */ }
+    } catch (_err) { console.warn('[RideBooking] navigation error', _err); }
     finally { setLoading(false); }
   };
 
@@ -258,7 +258,7 @@ const RideBookingPage = () => {
     if (!ride?.id) { setStep('plan'); return; }
     try {
       await rideAPI.cancel(ride.id, 'Passenger cancelled during negotiation');
-    } catch { /* ignore */ }
+    } catch (_err) { console.warn('[RideBooking] silent error', _err); }
     setStep('plan'); setRide(null); setCounterOffers([]);
   };
 

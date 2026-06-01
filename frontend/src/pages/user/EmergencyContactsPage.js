@@ -54,7 +54,7 @@ const EmergencyContactsPage = () => {
       try {
         const pos = await new Promise((res, rej) => navigator.geolocation?.getCurrentPosition(res, rej, { timeout: 5000 }) || rej());
         coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      } catch { /* no geoloc */ }
+      } catch (_err) { console.warn('[EmergencyContacts] no geolocation', _err); }
       const r = await fetch(`${API}/api/phase1/sos`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ ...coords, message: 'Urgence declenchee depuis l app' }),

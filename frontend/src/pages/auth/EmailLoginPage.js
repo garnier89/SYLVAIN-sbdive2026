@@ -28,8 +28,8 @@ const EmailLoginPage = () => {
         { email: email.trim().toLowerCase(), password },
         { withCredentials: true },
       );
-      const { access_token, user } = res.data;
-      if (access_token) localStorage.setItem('access_token', access_token);
+      const { user } = res.data;
+      // Token is set as httpOnly cookie by the backend; no need to store in localStorage (XSS-safe).
       setUser(user);
       // Role-based redirect
       const r = user.role;

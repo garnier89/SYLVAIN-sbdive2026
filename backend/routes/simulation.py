@@ -3,8 +3,7 @@ import uuid
 import asyncio
 import math
 import secrets
-import secrets as _secrets
-_sim_random = _secrets.SystemRandom()  # cryptographically secure RNG with random.* API for simulation jitter
+_sim_random = secrets.SystemRandom()  # cryptographically secure RNG with random.* API for simulation jitter
 from datetime import datetime, timezone
 
 from core.config import db, logger

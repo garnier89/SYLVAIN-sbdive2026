@@ -53,7 +53,7 @@ const CheckoutPage = () => {
           setCart(res.data.items);
           return;
         }
-      } catch { /* fallback to localStorage */ }
+      } catch (_err) { console.warn('[Checkout] fallback to localStorage', _err); }
     };
     syncCart();
   }, [merchantId]);

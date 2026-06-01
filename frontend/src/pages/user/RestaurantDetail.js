@@ -35,7 +35,7 @@ const RestaurantDetail = () => {
       }
       const savedCart = localStorage.getItem(`cart_${merchantId}`);
       if (savedCart) {
-        try { setCart(JSON.parse(savedCart)); } catch { /* ignore parse error */ }
+        try { setCart(JSON.parse(savedCart)); } catch (_err) { console.warn('[RestaurantDetail] parse error', _err); }
       }
     };
     loadCart();
