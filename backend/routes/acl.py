@@ -258,3 +258,105 @@ async def my_permissions(current_user: dict = Depends(get_current_user)):
     """Return permissions for the current user (for frontend route guards)."""
     perms = await get_user_permissions(current_user.get("id"))
     return {"permissions": sorted(perms), "user_id": current_user.get("id"), "email": current_user.get("email")}
+
+
+# ===================== ADMIN USER CRUD (matches XJekPlus "Administrator" page) =====================
+
+class AdminUserCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    password: str
+    role_id: str  # FK to admin_roles
+
+
+class AdminUserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    role_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@router.post("/admins")
+async def create_admin(body: AdminUserCreate, current_user: dict = Depends(require_super_admin)):
+    from core.deps import hash_password
+    if await db.users.find_one({"email": body.email.lower()}):
+        raise HTTPException(400, "Email déjà utilisé")
+    role = await db.admin_roles.find_one({"id": body.role_id}, {"_id": 0})
+    if not role:
+        raise HTTPException(400, "Rôle introuvable")
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    doc = {
+        "id": user_id,
+        "email": body.email.lower(),
+        "password_hash": hash_password(body.password),
+        "name": f"{body.first_name} {body.last_name}".strip(),
+        "first_name": body.first_name,
+        "last_name": body.last_name,
+        "phone": None,
+        "role": "admin",
+        "role_ids": [body.role_id],
+        "role_name": role["name"],
+        "is_verified": True,
+        "is_active": True,
+        "avatar_url": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.users.insert_one(doc)
+    doc.pop("password_hash", None)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/admins/{user_id}")
+async def update_admin(user_id: str, body: AdminUserUpdate, current_user: dict = Depends(require_super_admin)):
+    from core.deps import hash_password
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(404, "Admin introuvable")
+    updates = {}
+    if body.first_name is not None:
+        updates["first_name"] = body.first_name
+    if body.last_name is not None:
+        updates["last_name"] = body.last_name
+    if body.first_name is not None or body.last_name is not None:
+        updates["name"] = f"{body.first_name or user.get('first_name','')} {body.last_name or user.get('last_name','')}".strip()
+    if body.email is not None:
+        if await db.users.find_one({"email": body.email.lower(), "id": {"$ne": user_id}}):
+            raise HTTPException(400, "Email déjà utilisé")
+        updates["email"] = body.email.lower()
+    if body.password:
+        updates["password_hash"] = hash_password(body.password)
+    if body.role_id is not None:
+        role = await db.admin_roles.find_one({"id": body.role_id}, {"_id": 0})
+        if not role:
+            raise HTTPException(400, "Rôle introuvable")
+        updates["role_ids"] = [body.role_id]
+        updates["role_name"] = role["name"]
+    if body.is_active is not None:
+        updates["is_active"] = bool(body.is_active)
+    if updates:
+        await db.users.update_one({"id": user_id}, {"$set": updates})
+    return {"updated": True}
+
+
+@router.delete("/admins/{user_id}")
+async def delete_admin(user_id: str, current_user: dict = Depends(require_super_admin)):
+    if user_id == current_user.get("id"):
+        raise HTTPException(400, "Impossible de se supprimer soi-même")
+    res = await db.users.delete_one({"id": user_id, "role": "admin"})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Admin introuvable")
+    return {"deleted": True}
+
+
+@router.post("/admins/{user_id}/toggle-status")
+async def toggle_admin_status(user_id: str, current_user: dict = Depends(require_super_admin)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_active": 1})
+    if not user:
+        raise HTTPException(404, "Admin introuvable")
+    new_status = not bool(user.get("is_active", True))
+    await db.users.update_one({"id": user_id}, {"$set": {"is_active": new_status}})
+    return {"is_active": new_status}

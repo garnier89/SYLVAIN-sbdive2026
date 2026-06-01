@@ -1,0 +1,40 @@
+{
+  "summary": "Iter74 — Tested 4 new ACL Admin CRUD endpoints (POST/PUT/DELETE/toggle /api/acl/admins) and the two new admin pages (/admin/groups + /admin/admins). 16/16 new backend tests PASS. 33/33 regression tests (iter71+72+73) still PASS. Frontend renders 7 default groups with view-perms modal, filter+'Voir (N)' buttons, and the Administrator page supports full create → toggle → delete flow against the live backend. No bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter74_acl_admins.py",
+    "/app/test_reports/pytest/iter74_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/backend/routes/acl.py:282-310 — create_admin correctly bcrypt-hashes via core.deps.hash_password, lowercases email for dedup, returns user dict with password_hash stripped. role_name + role_ids[] both set so frontend list resolves the role badge.",
+    "/app/backend/routes/acl.py:313-342 — update_admin builds a partial $set payload; name auto-recomputed when first/last changes; email collision check uses {'id': {'$ne': user_id}}. Correct.",
+    "/app/backend/routes/acl.py:345-352 — delete_admin self-delete guard (400) is BEFORE the DB lookup, so users matching by id but not having role='admin' return 404 (correct).",
+    "/app/backend/routes/acl.py:355-362 — toggle_status defaults missing is_active to True (so a never-set user is flipped to False on first call). Behavior is consistent with frontend expectation.",
+    "/app/frontend/src/pages/admin/AdminManageAdmins.js — clean split of fields into first_name/last_name; password optional on edit. exportCsv uses simple BLOB download, no XSS risk since values are quote-escaped. Good data-testid coverage on every row and form field.",
+    "/app/frontend/src/pages/admin/AdminGroupsPage.js — system roles correctly disable edit/delete buttons (disabled={g.is_system}); view-permissions modal opens with green check chips per permission. 'Voir (N)' black button matches the V3Cube screenshot.",
+    "Minor (informational, not blocking): At /admin/admins first paint the row count is briefly 0 before /api/acl/users resolves — typical async load. Add a skeleton/loader if you want to hide this flash, but it is < 500 ms and resolves correctly.",
+    "Minor: pre-existing — backend/tests/test_iter71_p0_refactor.py and test_iter72_phase2_ui.py use 'from tests._creds import ...' which requires PYTHONPATH=/app/backend or running from /app/backend. test_iter73 + test_iter74 use 'from _creds import ...' (relative). For consistency, harmonize to one style. NOT caused by iter74."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter74_acl_admins.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16 new + 33/33 regression = 49/49 pytest passed)",
+    "frontend": "100% (groups page renders 7 roles, view-perms modal works, filter works, admins page create+toggle+delete end-to-end OK)"
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (super-admin) — works. test2@example.com / TestPass123! used to verify 403 on non-admin POST /api/acl/admins.",
+  "seed_data_creation": "Tests create one admin per run with email TEST_iter74_<hex>@example.com and TEST_iter74_ui_<ts>@example.com; both are deleted in-test (no orphans).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && pytest tests/test_iter74_acl_admins.py -v (16 tests, no PYTHONPATH needed). For full backend regression: cd /app/backend && PYTHONPATH=/app/backend pytest tests/test_iter71_p0_refactor.py tests/test_iter72_phase2_ui.py tests/test_iter73_fixes.py tests/test_iter74_acl_admins.py -v (49 tests). Frontend: /admin/groups and /admin/admins are reachable from /admin sidebar after login at /login/email with admin@superapp.com. The new admin page uses [data-testid=admin-manage-admins] and [data-testid=admin-form-modal]; the groups page uses [data-testid=admin-groups-page] and [data-testid=view-permissions-modal].",
+  "rca_of_the_issue": "N/A — no bug found. End-to-end POST /api/acl/admins followed by POST /api/auth/login with the same email/password returns 200 and user.role='admin', confirming bcrypt hashing path is correct."
+}

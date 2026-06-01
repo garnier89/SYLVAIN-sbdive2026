@@ -148,6 +148,7 @@ import AdminACL from './pages/admin/AdminACL';
 import AdminAuditLogs from './pages/admin/AdminAuditLogs';
 import AdminOrganizations from './pages/admin/AdminOrganizations';
 import AdminI18n from './pages/admin/AdminI18n';
+import AdminGroupsPage from './pages/admin/AdminGroupsPage';
 import DriverSubscriptions from './pages/driver/DriverSubscriptions';
 
 import './index.css';
@@ -274,7 +275,7 @@ const AppRouter = () => {
         <Route path="live-rides" element={<AdminLiveRides />} />
         <Route path="auto-dispatch" element={<AdminAutoDispatch />} />
         <Route path="admins" element={<AdminManageAdmins />} />
-        <Route path="groups" element={<AdminGroups />} />
+        <Route path="groups" element={<AdminGroupsPage />} />
         <Route path="vehicles" element={<AdminVehicles />} />
         <Route path="requests" element={<AdminRequests />} />
         <Route path="documents" element={<AdminDocumentsCrud />} />
