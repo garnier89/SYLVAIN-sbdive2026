@@ -270,6 +270,9 @@ async def admin_upload_user_document(user_id: str, request: Request):
     file_url = body.get("file_url")
     if not file_url:
         raise HTTPException(400, "file_url requis")
+    if isinstance(file_url, str) and len(file_url) > 11_000_000:
+        # ~8 MB binary => ~11 MB base64; protects MongoDB 16MB doc limit and prevents DoS
+        raise HTTPException(413, "Fichier trop volumineux (max 8 Mo)")
     doc = {
         "id": f"doc_{uuid.uuid4().hex[:12]}",
         "user_id": user_id,

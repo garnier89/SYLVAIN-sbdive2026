@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2026-06-01 — Iter78: Bouton Documents activé (eye icon)
+
+### Added
+- **Bouton œil cliquable** dans la colonne Documents de `/admin/users` ouvre la modal **"Documents de [Nom]"**
+- **Modal** avec : titre + bouton vert "+ Ajouter" + bouton cyan "Fermer", grille 3 colonnes des documents (thumbnail image ou icône PDF cliquable), état vide "Aucun document trouvé" avec icône FileText, suppression via trash icon (masquée pour le doc profile synthétique)
+- **3 endpoints backend** :
+  - `GET /api/admin/users/{id}/documents` → liste + injection synthétique de l'avatar comme "profile"
+  - `POST /api/admin/users/{id}/documents` → upload data URL (cap 8 Mo, status `pending_review`)
+  - `DELETE /api/admin/users/{id}/documents/{doc_id}` → suppression
+
+### Tests
+- 9 nouveaux tests `test_iter78_user_documents.py` PASS
+- **100/100 régressions iter70-78** (0 bugs critiques)
+
 ## 2026-06-01 — Iter77: Bouton "Créditer l'utilisateur" (Add Balance)
 
 ### Added
