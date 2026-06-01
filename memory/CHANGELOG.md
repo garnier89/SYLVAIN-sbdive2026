@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-06-01 — Iter74: V3Cube/XJekPlus Admin Groups + Administrator Pages
+
+### Added
+- **`/admin/groups` (AdminGroupsPage)** — reproduit exactement le design XJekPlus : filtres (Tous/Recherche/Statut), 7 groupes système (billing, crm_drivers, crm_merchants, crm_users, dispatcher, super_admin, sysadmin) avec bouton noir "Voir (N)" qui ouvre un modal listant les permissions par catégorie, badge "Système" pour les groupes verrouillés, statut Actif vert.
+- **`/admin/admins` (AdminManageAdmins refondue)** — design XJekPlus : filtres (Tous/Recherche/Statut/Rôle), boutons Refresh + Clear + Exporter CSV + Ajouter, table avec colonnes Nom (souligné cliquable), Email, Rôles, Statut, Action (Edit / Toggle status / Delete). Modal Add/Edit avec champs Groupe (dropdown), Prénom, Nom, Email, Mot de passe.
+- **4 nouveaux endpoints backend** `/api/acl/admins` :
+  - `POST /api/acl/admins` — créer admin (bcrypt, dedup email)
+  - `PUT /api/acl/admins/{id}` — update partiel (champs optionnels)
+  - `DELETE /api/acl/admins/{id}` — supprimer (guard contre auto-suppression)
+  - `POST /api/acl/admins/{id}/toggle-status` — basculer is_active
+
+### Tests
+- 16/16 nouveaux tests `test_iter74_acl_admins.py` PASS
+- 33/33 régressions iter71+72+73 toujours PASS (total 49/49)
+
 ## 2026-06-01 — Iter71-73: Code Quality Refactor + Phase 2 Feature Activation
 
 ### Added (Phase 2 UI activation)
