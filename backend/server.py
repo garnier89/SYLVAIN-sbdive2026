@@ -40,6 +40,10 @@ from routes.kiosk import router as kiosk_router
 from routes.acl import router as acl_router, seed_acl
 from routes.subscriptions import router as subscriptions_router, seed_subscription_plans
 from routes.geo import router as geo_router, seed_countries
+from routes.audit_logs import router as audit_logs_router
+from routes.driver_shifts import router as driver_shifts_router
+from routes.organizations import router as organizations_router
+from routes.i18n import router as i18n_router, seed_i18n
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -215,6 +219,13 @@ async def lifespan(app: FastAPI):
         logger.info("Countries seeded from V3Cube SQL")
     except Exception as e:
         logger.error(f"Countries seed failed: {e}")
+
+    # Seed i18n languages + base labels (FR, EN)
+    try:
+        await seed_i18n()
+        logger.info("i18n languages + base labels seeded")
+    except Exception as e:
+        logger.error(f"i18n seed failed: {e}")
 
     init_storage()
     logger.info("SuperApp Backend Started (Modular)")
@@ -459,6 +470,10 @@ api_router.include_router(kiosk_router)
 api_router.include_router(acl_router)
 api_router.include_router(subscriptions_router)
 api_router.include_router(geo_router)
+api_router.include_router(audit_logs_router)
+api_router.include_router(driver_shifts_router)
+api_router.include_router(organizations_router)
+api_router.include_router(i18n_router)
 
 app.include_router(api_router)
 

@@ -349,6 +349,68 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 75 (Jun 1, 2026) — V3Cube Itérations 75-78 + Frontend ACL/Subscriptions (DONE)
+### 📋 Backend — 4 nouveaux modules (V3Cube tables 75-78)
+
+**1. Audit logs** (`/app/backend/routes/audit_logs.py`)
+- Collection `audit_logs` : trace actor/action/target/payload_before/payload_after/ip/user_agent
+- Décorateur `@audit("action", target_type="driver")` à appliquer sur endpoints sensibles
+- Endpoint `/api/audit/logs` (filtres : actor, target, action, from/to date, pagination)
+- Endpoint `/api/audit/actions` (top actions par fréquence)
+- Protégé par `require_permission("super.audit.view")`
+
+**2. Driver shifts** (`/app/backend/routes/driver_shifts.py`) — V3Cube driver_manage_timing
+- Collection `driver_shifts` : start_at, end_at, duration_min, total_rides, total_earnings, vehicle_used, status
+- Endpoints driver : `/start`, `/end`, `/my`, `/my/active`
+- Endpoints admin : `/admin/by-driver/{id}`, `/admin/summary`
+- Auto-set `drivers.is_online` lors du start/end
+
+**3. Organizations** (`/app/backend/routes/organizations.py`) — V3Cube company + organization
+- Collection `organizations` : multi-tenant (company / hotel / airport / corporate)
+- Champs : commission_pct par org, linked_drivers[], linked_kiosks[], parent_org_id
+- Endpoints admin CRUD + `/admin/{id}/link-driver/{driver_id}` + `/admin/{id}/link-kiosk/{kiosk_id}`
+- Protégé par `require_permission("merchants.view"/"merchants.activate")`
+
+**4. i18n** (`/app/backend/routes/i18n.py`) — V3Cube language_label
+- Collections `i18n_languages` (4 langues seedées : FR/EN/ES/PT) + `i18n_translations`
+- 23 labels FR + 23 labels EN seedés au startup (clés `common.*`, `auth.*`, `ride.*`, `kiosk.*`, `subscription.*`)
+- Endpoint public `/api/i18n/{lang}` retourne dict `{key: value}` (à charger côté frontend au démarrage)
+- Endpoints admin : `/admin/labels` (set), `/admin/labels/{lang}/{key}` (delete), `/admin/missing` (clés manquantes vs base_lang)
+
+### 🎨 Frontend — 2 pages majeures
+
+**1. `/admin/acl`** (`/app/frontend/src/pages/admin/AdminACL.js`)
+- Tabs : Rôles (CRUD avec permissions checkboxes groupées par domaine) + Utilisateurs admin (assignment modal)
+- Affichage des 7 rôles système (super_admin/dispatcher/billing/sysadmin/crm_*)
+- Système et démo accounts protégés contre suppression
+- Smoke test E2E ✅ (screenshot : 7 cards visibles + sidebar admin)
+
+**2. `/chauffeur/subscriptions`** (`/app/frontend/src/pages/driver/DriverSubscriptions.js`)
+- 4 plans cards (Free/Pro/VIP/Elite Annual) avec gradient distinct + icônes Crown/TrendUp/ShieldStar
+- Banner du plan actuel avec date d'expiration et commission verrouillée
+- Boutons "Souscrire" (paiement wallet) + "Annuler renouvellement"
+- Liste des perks par plan
+
+### Helper `core/permissions.py`
+- `require_permission("dispatch.assign")` — dependency FastAPI
+- `require_any_permission(p1, p2)` — au moins une permission requise
+- `super.all` = wildcard pour super_admin
+
+### Tests
+- ✅ Lint Python : 4 fichiers cleans (E701 corrigés)
+- ✅ Lint JavaScript : 2 fichiers cleans
+- ✅ E2E curl : i18n FR (23 labels), languages (4), audit logs vide, shifts summary, orgs vide
+- ✅ Frontend screenshot `/admin/acl` : 7 rôles avec permissions + sidebar avec entrée ACL
+
+### Reste à faire (Itération 76+)
+- 🟡 Étendre `require_permission` aux 200+ endpoints admin existants (actuellement seuls les nouveaux endpoints sont protégés finement)
+- 🟡 Frontend pages : `/admin/audit-logs` (table filtre), `/admin/organizations` (CRUD multi-tenant), `/admin/i18n` (CRUD labels)
+- 🟡 Selector phone-code/country sur form inscription (geo API prêt côté backend)
+- 🟡 Call masking Twilio (nécessite vos clés Twilio)
+- 🔴 P0 résiduel : OTP "Démarrer course" validation E2E
+
+
+
 ## Iteration 74 (Jun 1, 2026) — Récupération BDD V3Cube + Améliorations (DONE)
 ### 📥 Récupération du code source BDD V3Cube
 - Source : `sbdriv5_db2024.sql.gz` (8.3 MB compressé → 51 MB SQL, MariaDB 10.11, charset utf8mb4)

@@ -151,6 +151,7 @@ const sidebarConfig = [
     items: [
       { icon: Ticket, label: 'Codes promo', path: '/admin/promocodes' },
       { icon: Star, label: 'Mise en avant sponsorisée', path: '/admin/featured-listings' },
+      { icon: Bed, label: 'ACL — Rôles & Permissions', path: '/admin/acl' },
       { icon: Gift, label: 'Cartes cadeaux', key: 'giftcards', children: [
         { label: 'Toutes les cartes', path: '/admin/giftcards' },
       ]},

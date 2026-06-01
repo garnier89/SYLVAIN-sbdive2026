@@ -142,6 +142,10 @@ import AdminKiosks from './pages/admin/AdminKiosks';
 import PanelLayout from './pages/panels/PanelLayout';
 import PanelHome from './pages/panels/PanelHome';
 
+// V3Cube enhancements (Iteration 74-75)
+import AdminACL from './pages/admin/AdminACL';
+import DriverSubscriptions from './pages/driver/DriverSubscriptions';
+
 import './index.css';
 
 const AppRouter = () => {
@@ -222,6 +226,7 @@ const AppRouter = () => {
       <Route path="/chauffeur/profile" element={<ProtectedRoute allowedRoles={['driver']}><DriverProfilePage /></ProtectedRoute>} />
       <Route path="/chauffeur/rewards" element={<ProtectedRoute allowedRoles={['driver']}><DriverRewardsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/score" element={<ProtectedRoute allowedRoles={['driver']}><DriverScorePage /></ProtectedRoute>} />
+      <Route path="/chauffeur/subscriptions" element={<ProtectedRoute allowedRoles={['driver']}><DriverSubscriptions /></ProtectedRoute>} />
       <Route path="/chauffeur/support/:section" element={<ProtectedRoute allowedRoles={['driver']}><DriverSupportPage /></ProtectedRoute>} />
       <Route path="/chauffeur/wallet" element={<ProtectedRoute allowedRoles={['driver']}><DriverWalletPage /></ProtectedRoute>} />
       <Route path="/chauffeur/documents" element={<ProtectedRoute allowedRoles={['driver']}><DriverDocumentsPage /></ProtectedRoute>} />
@@ -320,6 +325,7 @@ const AppRouter = () => {
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
         <Route path="featured-listings" element={<AdminFeaturedListings />} />
         <Route path="kiosks" element={<AdminKiosks />} />
+        <Route path="acl" element={<AdminACL />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />
