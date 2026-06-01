@@ -120,21 +120,35 @@ async def admin_list_drivers(request: Request, status: Optional[str] = None, lim
 
 @router.post("/admin/drivers/{driver_id}/approve")
 async def approve_driver(driver_id: str, request: Request):
-    await require_role(request, ["admin"])
+    user = await require_role(request, ["admin"], permission="drivers.approve")
     result = await db.drivers.update_one({"id": driver_id}, {"$set": {"status": "approved"}})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Driver not found")
+    try:
+        from routes.audit_logs import log_action
+        await log_action(actor_id=user["id"], actor_role=user["role"], action="driver.approve",
+                         target_type="driver", target_id=driver_id,
+                         ip_address=request.client.host if request.client else None)
+    except Exception:
+        pass
     return {"message": "Driver approved"}
 
 
 @router.post("/admin/drivers/{driver_id}/reject")
 async def reject_driver(driver_id: str, request: Request):
-    await require_role(request, ["admin"])
+    user = await require_role(request, ["admin"], permission="drivers.reject")
     body = await request.json()
     reason = body.get("reason", "")
     result = await db.drivers.update_one({"id": driver_id}, {"$set": {"status": "rejected", "rejection_reason": reason}})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Driver not found")
+    try:
+        from routes.audit_logs import log_action
+        await log_action(actor_id=user["id"], actor_role=user["role"], action="driver.reject",
+                         target_type="driver", target_id=driver_id, reason=reason,
+                         ip_address=request.client.host if request.client else None)
+    except Exception:
+        pass
     return {"message": "Driver rejected"}
 
 
@@ -162,16 +176,23 @@ async def admin_list_orders(request: Request, status: Optional[str] = None, limi
 
 @router.post("/admin/users/{user_id}/suspend")
 async def suspend_user(user_id: str, request: Request):
-    await require_role(request, ["admin"])
+    actor = await require_role(request, ["admin"], permission="users.suspend")
     result = await db.users.update_one({"id": user_id}, {"$set": {"is_suspended": True}})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    try:
+        from routes.audit_logs import log_action
+        await log_action(actor_id=actor["id"], actor_role=actor["role"], action="user.suspend",
+                         target_type="user", target_id=user_id,
+                         ip_address=request.client.host if request.client else None)
+    except Exception:
+        pass
     return {"message": "User suspended"}
 
 
 @router.post("/admin/users/{user_id}/unsuspend")
 async def unsuspend_user(user_id: str, request: Request):
-    await require_role(request, ["admin"])
+    actor = await require_role(request, ["admin"], permission="users.suspend")
     result = await db.users.update_one({"id": user_id}, {"$set": {"is_suspended": False}})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="User not found")

@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import kioskAPI from '../../api/kioskAPI';
 import LeafletMap from '../../components/LeafletMap';
+import PhoneCountrySelector from '../../components/PhoneCountrySelector';
 import { MagnifyingGlass, ArrowLeft, Info, Wallet, Clock, MapPin, SignOut, X } from '@phosphor-icons/react';
 
 const ORANGE = '#FF6B1A';
@@ -183,7 +184,7 @@ const KioskHome = ({ info, nearestDriver, onStart, onLogout, onChangeLang, onCha
 );
 
 const KioskCustomerForm = ({ onBack, onNext }) => {
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', country_code: '+33' });
   const setF = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = (e) => {
@@ -196,7 +197,8 @@ const KioskCustomerForm = ({ onBack, onNext }) => {
       toast.error('Numéro de téléphone invalide');
       return;
     }
-    onNext({ ...form, phone: form.phone.startsWith('+') ? form.phone : `+33${form.phone.replace(/^0/, '')}` });
+    const phoneClean = form.phone.replace(/^0/, '');
+    onNext({ ...form, phone: form.phone.startsWith('+') ? form.phone : `${form.country_code}${phoneClean}` });
   };
 
   return (
@@ -225,7 +227,7 @@ const KioskCustomerForm = ({ onBack, onNext }) => {
           </div>
           <div>
             <label className="text-sm text-gray-500 mb-1 block">Pays</label>
-            <input value="+33" readOnly className="w-full border-b-2 border-gray-300 py-3 text-xl bg-transparent" />
+            <PhoneCountrySelector value={form.country_code} onChange={(v) => setForm({ ...form, country_code: v })} />
           </div>
           <div>
             <label className="text-sm text-gray-500 mb-1 block">Mobile</label>

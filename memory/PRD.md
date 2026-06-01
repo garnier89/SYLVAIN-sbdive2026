@@ -349,6 +349,45 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 76 (Jun 1, 2026) — Extension require_permission + 3 pages admin V3Cube (DONE)
+### 🔐 Extension `require_role` avec permissions
+- `core/deps.py` : signature étendue `require_role(request, roles, permission=None)` — backwards-compatible
+- Lorsque `permission` est fourni, le helper résout les role_ids du user via la collection `admin_roles`, agrège les permissions, et vérifie que le user les détient (ou `super.all` wildcard).
+- **Tests E2E** (curl) :
+  - `billing@superapp.com` → 403 sur `/api/admin/drivers/{id}/approve` (n'a pas `drivers.approve`)
+  - `crm-drivers@superapp.com` → 404 (permission passe, juste pas de driver)
+  - `admin@superapp.com` → 404 (super.all wildcard fonctionne)
+- **Endpoints couverts en pilote** : `approve_driver`, `reject_driver`, `suspend_user`, `unsuspend_user` (avec audit log automatique)
+- Pattern à étendre progressivement aux 200+ autres endpoints admin
+
+### 🖥 3 nouvelles pages admin frontend
+1. **`/admin/audit-logs`** (`AdminAuditLogs.js`) — Table avec filtres (action, actor, target_type, dates), drilldown JSON détaillé par entrée
+2. **`/admin/organizations`** (`AdminOrganizations.js`) — CRUD multi-tenant (company/hotel/airport/corporate) avec commission_pct, liens drivers/kiosks
+3. **`/admin/i18n`** (`AdminI18n.js`) — CRUD labels par langue (FR/EN/ES/PT) + détection clés manquantes via `/api/i18n/admin/missing`
+
+### 🌍 Composant PhoneCountrySelector
+- `/app/frontend/src/components/PhoneCountrySelector.jsx` — Dropdown searchable utilisant `/api/geo/phone-codes` (250 pays V3Cube)
+- Flag emoji auto-généré depuis le code ISO (regional indicators)
+- **Intégré dans KioskApp.js** (form client borne) en remplacement du `+33` hard-codé
+
+### Tests
+- ✅ Lint Python & JS : 100% clean
+- ✅ Backend startup OK avec tous les modules (ACL/Subscriptions/Geo/AuditLogs/DriverShifts/Organizations/i18n)
+- ✅ E2E permissions : billing/crm-drivers/super-admin différenciés correctement
+- ✅ Frontend screenshots : 3 pages admin rendues (audit-logs, organizations, i18n)
+
+### Sidebar admin enrichi
+Entrées ajoutées : ACL, Audit Logs, Organisations, Traductions i18n.
+
+### Reste à faire
+- 🟠 Étendre `require_permission` aux 200+ endpoints admin restants (pattern établi, juste à répliquer)
+- 🟠 Stripe paiements réels — clé TEST `sk_test_emergent` dispo dans env, à intégrer via `integration_playbook_expert_v2`
+- 🟠 Call masking Twilio (en attente vos clés Twilio Account SID + Auth Token + numéro virtuel)
+- 🟠 Selector PhoneCountrySelector à étendre sur le form d'inscription user/driver classique
+- 🔴 P0 résiduel : OTP "Démarrer course" validation E2E (iter69)
+
+
+
 ## Iteration 75 (Jun 1, 2026) — V3Cube Itérations 75-78 + Frontend ACL/Subscriptions (DONE)
 ### 📋 Backend — 4 nouveaux modules (V3Cube tables 75-78)
 

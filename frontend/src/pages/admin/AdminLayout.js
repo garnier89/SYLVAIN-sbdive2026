@@ -152,6 +152,9 @@ const sidebarConfig = [
       { icon: Ticket, label: 'Codes promo', path: '/admin/promocodes' },
       { icon: Star, label: 'Mise en avant sponsorisée', path: '/admin/featured-listings' },
       { icon: Bed, label: 'ACL — Rôles & Permissions', path: '/admin/acl' },
+      { icon: Bed, label: 'Audit Logs', path: '/admin/audit-logs' },
+      { icon: Bed, label: 'Organisations (multi-tenant)', path: '/admin/organizations' },
+      { icon: Bed, label: 'Traductions i18n', path: '/admin/i18n' },
       { icon: Gift, label: 'Cartes cadeaux', key: 'giftcards', children: [
         { label: 'Toutes les cartes', path: '/admin/giftcards' },
       ]},

@@ -67,10 +67,29 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-async def require_role(request: Request, roles: List[str]) -> dict:
+async def require_role(request: Request, roles: List[str], permission: str = None) -> dict:
+    """Backwards-compatible role check + optional permission enforcement.
+
+    If `permission` is provided, user must hold this specific permission via ACL roles
+    (or super.all wildcard). Falls back to role-list check if no permission is given.
+    """
     user = await get_current_user(request)
     if user["role"] not in roles:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
+    if permission and user["role"] == "admin":
+        # Resolve user permissions via ACL roles
+        from core.config import db as _db
+        u = await _db.users.find_one({"id": user["id"]}, {"_id": 0, "role_ids": 1})
+        role_ids = (u or {}).get("role_ids") or []
+        if not role_ids:
+            # Legacy super-admin without role assignment -> allowed
+            return user
+        roles_docs = await _db.admin_roles.find({"id": {"$in": role_ids}}, {"_id": 0, "permissions": 1}).to_list(50)
+        perms = set()
+        for r in roles_docs:
+            perms.update(r.get("permissions", []))
+        if "super.all" not in perms and permission not in perms:
+            raise HTTPException(status_code=403, detail=f"Missing permission: {permission}")
     return user
 
 

@@ -144,6 +144,9 @@ import PanelHome from './pages/panels/PanelHome';
 
 // V3Cube enhancements (Iteration 74-75)
 import AdminACL from './pages/admin/AdminACL';
+import AdminAuditLogs from './pages/admin/AdminAuditLogs';
+import AdminOrganizations from './pages/admin/AdminOrganizations';
+import AdminI18n from './pages/admin/AdminI18n';
 import DriverSubscriptions from './pages/driver/DriverSubscriptions';
 
 import './index.css';
@@ -326,6 +329,9 @@ const AppRouter = () => {
         <Route path="featured-listings" element={<AdminFeaturedListings />} />
         <Route path="kiosks" element={<AdminKiosks />} />
         <Route path="acl" element={<AdminACL />} />
+        <Route path="audit-logs" element={<AdminAuditLogs />} />
+        <Route path="organizations" element={<AdminOrganizations />} />
+        <Route path="i18n" element={<AdminI18n />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
         <Route path="restricted" element={<AdminGeoFence />} />
