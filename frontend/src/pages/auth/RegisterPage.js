@@ -7,6 +7,7 @@ import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Car, GoogleLogo, Envelope, Lock, User, Phone, ArrowRight } from '@phosphor-icons/react';
+import PhoneCountrySelector from '../../components/PhoneCountrySelector';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +15,7 @@ const RegisterPage = () => {
     email: '',
     password: '',
     phone: '',
+    country_code: '+33',
     role: 'user',
   });
   const [error, setError] = useState('');
@@ -40,7 +42,14 @@ const RegisterPage = () => {
     setLoading(true);
 
     try {
-      const result = await register(formData);
+      // Merge country code + phone before submit (e.g. "+33" + "612345678")
+      const phoneClean = (formData.phone || '').replace(/^0/, '').replace(/\s/g, '');
+      const payload = {
+        ...formData,
+        phone: phoneClean ? `${formData.country_code}${phoneClean}` : '',
+      };
+      delete payload.country_code;
+      const result = await register(payload);
       const roleRedirects = {
         user: '/home',
         driver: '/chauffeur/home',
@@ -113,18 +122,25 @@ const RegisterPage = () => {
 
             <div className="space-y-2">
               <Label htmlFor="phone">Téléphone (optionnel)</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  placeholder="+1 234 567 8900"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="pl-10"
-                  data-testid="register-phone-input"
+              <div className="flex items-end gap-2">
+                <PhoneCountrySelector
+                  value={formData.country_code}
+                  onChange={(v) => setFormData(prev => ({ ...prev, country_code: v }))}
+                  className="flex-shrink-0"
                 />
+                <div className="relative flex-1">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    placeholder="6 12 34 56 78"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="pl-10"
+                    data-testid="register-phone-input"
+                  />
+                </div>
               </div>
             </div>
 

@@ -349,6 +349,58 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 77 (Jun 1, 2026) — 49 endpoints permission-protected + PhoneSelector inscription (DONE)
+### 🔐 Extension `require_permission` à 49 endpoints admin
+
+**Batch 1 — admin.py / phase2.py / coupons.py (34 endpoints)** :
+- `vehicle-types/*` CRUD → `server.settings.edit`
+- `merchants/{id}/status` → `merchants.activate`
+- `settings` GET/PUT → `server.settings.edit`
+- `service-config/{key}` GET/PUT → `server.settings.edit`
+- `crud/{collection}/*` → `server.settings.edit`
+- `rewards/config` + `top-drivers-config` → `drivers.rewards.config`
+- `priority-drivers/*` → `drivers.priority.toggle`
+- `db-backup` → `server.settings.edit`
+- `reports/negotiation-gap` → `billing.view`
+- `config/airport-zones/*` → `server.geofences.edit`
+- `config/flat-rates/*` → `billing.view`
+- `catalogs/{collection}/{id}/feature` (phase2) → `merchants.featured.toggle`
+- `coupons/admin/*` → `billing.promocodes.create`
+
+**Batch 2 — misc.py / config.py / auto_dispatch.py / orders.py (15 endpoints)** :
+- `users` GET → `users.view`
+- `drivers` GET → `drivers.view`
+- `rides` (admin) → `dispatch.view`
+- `orders` (admin) → `merchants.view`
+- `revenue` → `billing.view`
+- `dispatcher/live` → `dispatch.view`
+- `dispatcher/assign-ride` + `orders` assign → `dispatch.assign`
+- `settings` (misc) → `server.settings.edit`
+- `auto-dispatch/config` → `dispatch.view/assign`
+
+**Restant intentionnellement ouvert à tous admins** (4 endpoints) :
+- `/admin/stats`, `/admin/analytics`, `/admin/dashboard` (KPI globaux pour landing panel)
+
+### Tests E2E (curl)
+- ✅ `billing@superapp.com` → POST `/admin/vehicle-types` → **HTTP 403**
+- ✅ `sysadmin@superapp.com` → POST `/admin/vehicle-types` → **HTTP 200** (créé)
+- ✅ `crm-drivers@superapp.com` → POST `/coupons/admin/create` → **HTTP 403**
+- ✅ `admin@superapp.com` (super-admin) → toutes routes OK via `super.all` wildcard
+
+### 📱 PhoneCountrySelector intégré au form d'inscription user
+- `RegisterPage.js` : sélecteur 250 pays remplace le placeholder `+1 234...`
+- Helper `country_code` ajouté au state du form
+- `handleSubmit` merge `country_code + phone` (clean trailing 0, espaces) avant submit à `/api/auth/register`
+- Le `LoginPage` conserve son propre picker (12 pays principaux, modal full-screen) — UX différente, non régressée
+
+### Reste à faire
+- 🟠 **Stripe paiements réels** — clé TEST `sk_test_emergent` dispo dans env, à intégrer via `integration_playbook_expert_v2` (priorité revenus)
+- 🟠 Call masking Twilio (en attente vos clés Twilio)
+- 🔴 P0 résiduel : OTP "Démarrer course" validation E2E (iter69)
+- 🟡 PhoneCountrySelector sur DriverRegisterPage (actuellement sans champ phone car driver = user existant)
+
+
+
 ## Iteration 76 (Jun 1, 2026) — Extension require_permission + 3 pages admin V3Cube (DONE)
 ### 🔐 Extension `require_role` avec permissions
 - `core/deps.py` : signature étendue `require_role(request, roles, permission=None)` — backwards-compatible

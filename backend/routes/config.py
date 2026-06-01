@@ -89,7 +89,7 @@ async def get_track_categories():
 @router.get("/admin/all")
 async def admin_get_all_configs(request: Request):
     """Get all configurations (admin only)."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     configs = await db.app_configurations.find({}, {"_id": 0}).to_list(500)
     return configs
 
@@ -97,7 +97,7 @@ async def admin_get_all_configs(request: Request):
 @router.put("/admin/{key}")
 async def admin_update_config(key: str, request: Request):
     """Update a configuration value (admin only)."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     new_value = body.get("value")
     if new_value is None:

@@ -49,7 +49,7 @@ async def get_rewards_config():
 
 @router.post("/vehicle-types")
 async def create_vehicle_type(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     slug = body.get("slug")
     if not slug:
@@ -79,7 +79,7 @@ async def create_vehicle_type(request: Request):
 
 @router.put("/vehicle-types/{slug}")
 async def update_vehicle_type(slug: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     update = {}
     for field in ["name_fr", "person_capacity", "min_fare", "base_fare", "price_per_km", "price_per_min", "commission_percent", "cancellation_fare", "icon_type", "status", "display_order"]:
@@ -95,7 +95,7 @@ async def update_vehicle_type(slug: str, request: Request):
 
 @router.delete("/vehicle-types/{slug}")
 async def delete_vehicle_type(slug: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     result = await db.vehicle_types.delete_one({"slug": slug})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Vehicle type not found")
@@ -104,7 +104,7 @@ async def delete_vehicle_type(slug: str, request: Request):
 
 @router.post("/merchants/{merchant_id}/status")
 async def update_merchant_status(merchant_id: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="merchants.activate")
     body = await request.json()
     new_status = body.get("status", "active")
     result = await db.merchants.update_one({"id": merchant_id}, {"$set": {"status": new_status}})
@@ -134,7 +134,7 @@ async def get_admin_stats(request: Request):
 
 @router.get("/settings")
 async def get_admin_general_settings(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     doc = await db.service_configs.find_one({"service_key": "general"}, {"_id": 0})
     if not doc:
         return {"settings": {}}
@@ -143,7 +143,7 @@ async def get_admin_general_settings(request: Request):
 
 @router.put("/settings")
 async def save_admin_general_settings(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     settings = body.get("settings", body)
     await db.service_configs.update_one(
@@ -226,7 +226,7 @@ async def get_analytics(request: Request, period: str = "week"):
 
 @router.get("/service-config/{service_key}")
 async def get_service_config(service_key: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     config = await db.service_configs.find_one({"service_key": service_key}, {"_id": 0})
     if not config:
         return {"service_key": service_key, "settings": {}}
@@ -235,7 +235,7 @@ async def get_service_config(service_key: str, request: Request):
 
 @router.put("/service-config/{service_key}")
 async def save_service_config(service_key: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     settings = body.get("settings", {})
     await db.service_configs.update_one(
@@ -272,7 +272,7 @@ def _crud_col(collection: str):
 
 @router.get("/crud/{collection}")
 async def list_crud_items(collection: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     col = _crud_col(collection)
     items = await col.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
     return items
@@ -280,7 +280,7 @@ async def list_crud_items(collection: str, request: Request):
 
 @router.post("/crud/{collection}")
 async def create_crud_item(collection: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     col = _crud_col(collection)
     body = await request.json()
     body["id"] = f"{collection[:3]}_{uuid.uuid4().hex[:8]}"
@@ -292,7 +292,7 @@ async def create_crud_item(collection: str, request: Request):
 
 @router.put("/crud/{collection}/{item_id}")
 async def update_crud_item(collection: str, item_id: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     col = _crud_col(collection)
     body = await request.json()
     body.pop("id", None)
@@ -305,7 +305,7 @@ async def update_crud_item(collection: str, item_id: str, request: Request):
 
 @router.delete("/crud/{collection}/{item_id}")
 async def delete_crud_item(collection: str, item_id: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     col = _crud_col(collection)
     result = await col.delete_one({"id": item_id})
     if result.deleted_count == 0:
@@ -317,13 +317,13 @@ async def delete_crud_item(collection: str, item_id: str, request: Request):
 
 @router.get("/rewards/config")
 async def get_admin_rewards_config(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.rewards.config")
     return await get_rewards_config()
 
 
 @router.put("/rewards/config")
 async def save_admin_rewards_config(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.rewards.config")
     body = await request.json()
     settings = {
         "regard_vehicles": body.get("regard_vehicles", DEFAULT_REWARDS_CONFIG["regard_vehicles"]),
@@ -347,7 +347,7 @@ async def save_admin_rewards_config(request: Request):
 @router.get("/priority-drivers")
 async def list_priority_drivers(request: Request):
     """List all drivers with their priority state (manual + computed from points)."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.priority.toggle")
     config = await get_rewards_config()
     palettes = config["points"]["palettes"]
 
@@ -392,7 +392,7 @@ async def list_priority_drivers(request: Request):
 @router.put("/priority-drivers/{driver_id}")
 async def set_priority_driver(driver_id: str, request: Request):
     """Toggle/set manual priority for a specific driver."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.priority.toggle")
     body = await request.json()
     manual_priority = bool(body.get("manual_priority", False))
     note = body.get("note", "")
@@ -411,7 +411,7 @@ async def set_priority_driver(driver_id: str, request: Request):
 
 @router.delete("/priority-drivers/{driver_id}")
 async def remove_priority_driver(driver_id: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.priority.toggle")
     result = await db.drivers.update_one(
         {"id": driver_id},
         {"$set": {"manual_priority": False, "manual_priority_note": ""}},
@@ -426,7 +426,7 @@ async def remove_priority_driver(driver_id: str, request: Request):
 
 @router.get("/top-drivers-config")
 async def get_top_drivers_config(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.rewards.config")
     doc = await db.service_configs.find_one({"service_key": "top_drivers"}, {"_id": 0})
     if not doc:
         return {"settings": {"mode": "composite", "max_shown": 10, "manual_driver_ids": []}}
@@ -435,7 +435,7 @@ async def get_top_drivers_config(request: Request):
 
 @router.put("/top-drivers-config")
 async def save_top_drivers_config(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.rewards.config")
     body = await request.json()
     settings = {
         "mode": body.get("mode", "composite"),  # composite | points | manual
@@ -455,7 +455,7 @@ async def save_top_drivers_config(request: Request):
 
 @router.get("/db-backup")
 async def db_backup_status(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     names = await db.list_collection_names()
     stats = []
     for n in names:
@@ -475,7 +475,7 @@ async def db_backup_status(request: Request):
 async def negotiation_gap_report(request: Request, days: int = 30):
     """Report on the gap between passenger proposed_fare and the final accepted fare,
     grouped by day and by pickup zone (vehicle_type as a proxy zone when address parsing fails)."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="billing.view")
     from datetime import timedelta
     since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 

@@ -82,14 +82,14 @@ async def get_destination_mode(request: Request):
 
 @router.get("/config/airport-zones")
 async def list_airport_zones(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.geofences.edit")
     items = await db.airport_zones.find({}, {"_id": 0}).to_list(50)
     return items
 
 
 @router.post("/config/airport-zones")
 async def create_airport_zone(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.geofences.edit")
     body = await request.json()
     doc = {
         "id": f"az_{uuid.uuid4().hex[:10]}",
@@ -108,21 +108,21 @@ async def create_airport_zone(request: Request):
 
 @router.delete("/config/airport-zones/{zid}")
 async def delete_airport_zone(zid: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.geofences.edit")
     await db.airport_zones.delete_one({"id": zid})
     return {"message": "Deleted"}
 
 
 @router.get("/config/flat-rates")
 async def list_flat_rates(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="billing.view")
     items = await db.flat_rates.find({}, {"_id": 0}).to_list(100)
     return items
 
 
 @router.post("/config/flat-rates")
 async def create_flat_rate(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="billing.view")
     body = await request.json()
     doc = {
         "id": f"fr_{uuid.uuid4().hex[:10]}",
@@ -145,7 +145,7 @@ async def create_flat_rate(request: Request):
 
 @router.delete("/config/flat-rates/{fid}")
 async def delete_flat_rate(fid: str, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="billing.view")
     await db.flat_rates.delete_one({"id": fid})
     return {"message": "Deleted"}
 
@@ -562,7 +562,7 @@ async def admin_feature_catalog_item(collection: str, item_id: str, request: Req
     Body: { duration_days: int (optional), priority: int (optional, default 0) }
     """
     from core.deps import require_role
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="merchants.featured.toggle")
     if collection not in PUBLIC_CATALOGS:
         raise HTTPException(status_code=404, detail="Catalog not found")
     body = await request.json() if await request.body() else {}
@@ -585,7 +585,7 @@ async def admin_feature_catalog_item(collection: str, item_id: str, request: Req
 @router.delete("/admin/catalogs/{collection}/{item_id}/feature")
 async def admin_unfeature_catalog_item(collection: str, item_id: str, request: Request):
     from core.deps import require_role
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="merchants.featured.toggle")
     if collection not in PUBLIC_CATALOGS:
         raise HTTPException(status_code=404, detail="Catalog not found")
     result = await db[collection].update_one(
@@ -601,7 +601,7 @@ async def admin_unfeature_catalog_item(collection: str, item_id: str, request: R
 async def admin_list_featured(collection: str, request: Request):
     """Returns featured + expired items for the admin management panel."""
     from core.deps import require_role
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="merchants.featured.toggle")
     if collection not in PUBLIC_CATALOGS:
         raise HTTPException(status_code=404, detail="Catalog not found")
     # Apply auto-expiry pass first

@@ -98,7 +98,7 @@ async def update_order_status(order_id: str, request: Request):
 @router.post("/{order_id}/assign-driver")
 async def assign_driver_to_order(order_id: str, request: Request):
     from core.deps import require_role
-    await require_role(request, ["admin", "dispatcher"])
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.assign")
     body = await request.json()
     driver_id = body.get("driver_id")
     driver = await db.drivers.find_one({"id": driver_id})

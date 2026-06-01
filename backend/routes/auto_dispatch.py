@@ -297,7 +297,7 @@ async def auto_dispatch_loop():
 # ============ ADMIN API ============
 @router.get("/config")
 async def get_auto_dispatch_config(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="dispatch.view")
     return {"config": await get_config()}
 
 
@@ -317,7 +317,7 @@ class AutoDispatchConfigUpdate(BaseModel):
 
 @router.put("/config")
 async def update_auto_dispatch_config(body: AutoDispatchConfigUpdate, request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="dispatch.assign")
     patch = {k: v for k, v in body.dict().items() if v is not None}
     if not patch:
         raise HTTPException(status_code=400, detail="Rien à mettre à jour")
@@ -332,7 +332,7 @@ async def update_auto_dispatch_config(body: AutoDispatchConfigUpdate, request: R
 @router.get("/stats")
 async def get_auto_dispatch_stats(request: Request):
     """Live stats — number of rides per escalation tier in the last 24h."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="dispatch.view")
     pipeline = [
         {"$match": {"auto_dispatch_tier": {"$exists": True}}},
         {"$group": {"_id": "$auto_dispatch_tier", "count": {"$sum": 1}}},

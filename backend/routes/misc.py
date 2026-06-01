@@ -95,7 +95,7 @@ async def admin_dashboard(request: Request):
 
 @router.get("/admin/users")
 async def admin_list_users(request: Request, role: Optional[str] = None, limit: int = 50, skip: int = 0):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="users.view")
     query = {}
     if role:
         query["role"] = role
@@ -106,7 +106,7 @@ async def admin_list_users(request: Request, role: Optional[str] = None, limit: 
 
 @router.get("/admin/drivers")
 async def admin_list_drivers(request: Request, status: Optional[str] = None, limit: int = 50, skip: int = 0):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="drivers.view")
     query = {}
     if status:
         query["status"] = status
@@ -154,7 +154,7 @@ async def reject_driver(driver_id: str, request: Request):
 
 @router.get("/admin/rides")
 async def admin_list_rides(request: Request, status: Optional[str] = None, limit: int = 50, skip: int = 0):
-    await require_role(request, ["admin", "dispatcher"])
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
     query = {}
     if status:
         query["status"] = status
@@ -165,7 +165,7 @@ async def admin_list_rides(request: Request, status: Optional[str] = None, limit
 
 @router.get("/admin/orders")
 async def admin_list_orders(request: Request, status: Optional[str] = None, limit: int = 50, skip: int = 0):
-    await require_role(request, ["admin", "dispatcher"])
+    await require_role(request, ["admin", "dispatcher"], permission="merchants.view")
     query = {}
     if status:
         query["status"] = status
@@ -192,7 +192,7 @@ async def suspend_user(user_id: str, request: Request):
 
 @router.post("/admin/users/{user_id}/unsuspend")
 async def unsuspend_user(user_id: str, request: Request):
-    actor = await require_role(request, ["admin"], permission="users.suspend")
+    await require_role(request, ["admin"], permission="users.suspend")
     result = await db.users.update_one({"id": user_id}, {"$set": {"is_suspended": False}})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
@@ -201,7 +201,7 @@ async def unsuspend_user(user_id: str, request: Request):
 
 @router.get("/admin/revenue")
 async def admin_revenue(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="billing.view")
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
@@ -239,7 +239,7 @@ async def admin_revenue(request: Request):
 # ===== DISPATCHER =====
 @router.get("/dispatcher/live")
 async def dispatcher_live_data(request: Request):
-    await require_role(request, ["admin", "dispatcher"])
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
     online_drivers = await db.drivers.find({"is_online": True, "current_lat": {"$ne": None}}, {"_id": 0}).to_list(500)
     pending_rides = await db.rides.find({"status": {"$in": ["pending", "accepted", "arriving", "in_progress"]}}, {"_id": 0}).to_list(100)
     pending_orders = await db.orders.find({"status": {"$in": ["pending", "accepted", "preparing", "ready", "picked_up"]}}, {"_id": 0}).to_list(100)
@@ -248,7 +248,7 @@ async def dispatcher_live_data(request: Request):
 
 @router.post("/dispatcher/assign-ride")
 async def dispatcher_assign_ride(request: Request):
-    await require_role(request, ["admin", "dispatcher"])
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.assign")
     body = await request.json()
     ride_id, driver_id = body.get("ride_id"), body.get("driver_id")
     driver = await db.drivers.find_one({"id": driver_id, "status": "approved", "is_online": True})
@@ -275,7 +275,7 @@ async def download_file(path: str, request: Request, auth: Optional[str] = Query
 # ===== ADMIN SETTINGS =====
 @router.get("/admin/settings")
 async def get_admin_settings(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     doc = await db.admin_settings.find_one({"key": "global"}, {"_id": 0})
     if not doc:
         return {"settings": {
@@ -295,7 +295,7 @@ async def get_admin_settings(request: Request):
 
 @router.put("/admin/settings")
 async def update_admin_settings(request: Request):
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     settings = body.get("settings", {})
     await db.admin_settings.update_one(

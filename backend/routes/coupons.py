@@ -120,7 +120,7 @@ async def list_active_coupons(request: Request):
 @router.post("/admin/create")
 async def create_coupon(request: Request):
     """Create a new coupon (admin only)."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="billing.promocodes.create")
     body = await request.json()
 
     code = body.get("code", "").strip().upper()
@@ -154,6 +154,6 @@ async def create_coupon(request: Request):
 @router.get("/admin/all")
 async def admin_list_coupons(request: Request):
     """List all coupons (admin only)."""
-    await require_role(request, ["admin"])
+    await require_role(request, ["admin"], permission="billing.promocodes.create")
     coupons = await db.coupons.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
     return coupons
