@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-06-01 — Iter76: Page Utilisateurs (Liste + Édition)
+
+### Added
+- **`/admin/users` (refonte)** — Filtres (Tous/Nom/Email/Tél + Recherche + Statut), boutons d'action (Recherche, Reset, Refresh, Actions groupées Activer/Suspendre/Supprimer, Exporter CSV, Ajouter), table triable avec colonnes Nom (souligné cliquable), Email, Inscription (format FR), Téléphone, Wallet (€), Documents, Statut, Actions (Edit/Toggle/Delete). Sélection multi-lignes pour actions en masse.
+- **`/admin/users/new` + `/admin/users/:id` (nouvelle page)** — Formulaire complet : Prénom, Nom, Email, Mot de passe (optionnel en édition), Genre (Homme/Femme/Autre), Photo de profil (drag & drop), Pays (13 pays avec dial code auto), Téléphone avec code, Langue (4), Devise (6), Statut toggle. Boutons Créer/Mettre à jour + Réinitialiser + Retour à la liste.
+- **4 endpoints backend** sous `/api/admin/users` : GET (avec wallet_balance), POST (création + wallet), PUT (update partiel avec dédup email/phone), DELETE (avec garde anti-admin). Bcrypt pour mots de passe.
+
+### Tests
+- 12/12 nouveaux tests `test_iter76_admin_users.py` PASS
+- 70/70 régressions iter70-75 toujours PASS (total **82/82**)
+- E2E validé : login → liste (166 lignes) → Ajouter → créer → éditer → mettre à jour → retour → supprimer
+
 ## 2026-06-01 — Iter75: Code Quality Report Fixes (Critical + Important)
 
 ### Security (CRITICAL)
