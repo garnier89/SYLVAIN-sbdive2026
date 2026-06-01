@@ -179,15 +179,25 @@ async def get_ride(ride_id: str, request: Request):
     ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
     if not ride:
         raise HTTPException(status_code=404, detail="Ride not found")
-    if ride["user_id"] != user["id"] and ride.get("driver_id") != user["id"] and user["role"] not in ["admin", "dispatcher"]:
+    # Authorization: passenger, assigned driver (driver.id matches OR driver.user_id matches), or admin/dispatcher
+    is_passenger = ride["user_id"] == user["id"]
+    is_admin = user["role"] in ["admin", "dispatcher"]
+    is_assigned_driver = False
+    if ride.get("driver_id") and user["role"] == "driver":
+        drv = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+        if drv and drv["id"] == ride["driver_id"]:
+            is_assigned_driver = True
+    if not (is_passenger or is_assigned_driver or is_admin):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Attach live driver location if in progress
+    # Attach live driver location if in progress (driver_locations is keyed by user_id of the driver)
     if ride.get("driver_id") and ride["status"] in ["accepted", "arriving", "in_progress"]:
-        loc = manager.get_driver_location(ride["driver_id"])
-        if loc:
-            ride["driver_lat"] = loc["lat"]
-            ride["driver_lng"] = loc["lng"]
+        drv = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "user_id": 1})
+        if drv:
+            loc = manager.get_driver_location(drv["user_id"])
+            if loc:
+                ride["driver_lat"] = loc["lat"]
+                ride["driver_lng"] = loc["lng"]
 
     return ride
 
