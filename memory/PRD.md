@@ -349,6 +349,32 @@ Chauffeur virtuel via WebSocket
 
 
 
+## Iteration 73 (Jun 1, 2026) — Audit BDD & APIs : Discovery & Documentation complète (DONE)
+### 📚 4 livrables exhaustifs créés dans `/app/memory/`
+- **`DATABASE_SCHEMA.md`** (395 lignes) — 56 collections documentées, regroupées en 13 domaines (Auth, VTC, Chauffeurs, Marchands, Finance, Promotions, Kiosk, Marketplace, Services, Référentiels, Config, Support, Phase 2). Pour chaque collection : tableau des champs (type, nullable, description), indexes, relations.
+- **`API_REFERENCE.md`** (233 lignes) — **227 endpoints** classés par module (22 modules), endpoints par rôle (public/user/driver/merchant/admin), pointeurs Swagger UI / ReDoc.
+- **`DATABASE_DIAGRAM.md`** (315 lignes) — Diagrammes Mermaid ER de l'écosystème (vue d'ensemble + 5 vues par domaine). Visualisable directement sur GitHub ou mermaid.live.
+- **`DATABASE_RESTRUCTURE_PLAN.md`** (244 lignes) — Plan d'exécution **safe** en 7 étapes pour les prochaines itérations : indexes manquants, soft-delete, migration created_at, collections manquantes (`audit_logs`, `driver_shifts`, `vehicle_inspections`, `subscription_plans`, `complaints`, `webhooks_events`, `notifications_preferences`), externalisation arrays inline, ~30 endpoints à générer.
+
+### 🔍 Inconsistances détectées (10 items)
+1. Doublon nom `carpool_rides` vs V3Cube `carpool_trips`
+2. Snapshot `passenger_name/phone` dans `rides` (redondant mais nécessaire pour kiosk guests)
+3. `score_log` inline plafonné à 200 entrées (à externaliser)
+4. `stopovers` inline (OK MVP)
+5. `replies` inline dans `support_tickets`
+6. Pas de soft-delete sur entités critiques
+7. `created_at` en string ISO au lieu de BSON Date
+8. `merchants.user_id` non strictement UNIQUE
+9. **Pas de collection `audit_logs`** — aucune trace des actions admin sensibles
+10. Pas de `notifications_preferences` côté serveur
+
+### 🏗 Collections manquantes recommandées (7)
+`audit_logs`, `driver_shifts`, `vehicle_inspections`, `tax_reports`, `subscription_plans`+`user_subscriptions`, `complaints`, `webhooks_events`.
+
+### 📈 Effort estimé pour la restructuration safe : ~16h focused (réparti sur 3 itérations futures iter74-iter76)
+
+
+
 ## Iteration 72 (Jun 1, 2026) — Phase B : 6 Web Panels + Phase C : Landing page vitrine (DONE)
 ### 🏢 Phase B — Séparation 7 web panels métier
 Architecture : 1 layout générique `PanelLayout` + 1 config dictionnaire `panelConfigs.js` réutilisant les pages admin existantes. Chaque panel a sa propre couleur, sidebar filtré, et un compte démo dédié.
