@@ -1,0 +1,30 @@
+{
+  "summary": "Iter73 — Verified all 3 fixes from iter72. (1) Pool enable/disable now correctly preserves original_fare across multiple toggles (100 → 70 → 100 → 70). (2) GET /api/phase2/catalogs/bidding_posts now returns 200 with array. (3) NEW /login/email page works end-to-end: admin@superapp.com → /admin (full sidebar with all sections renders), test2@example.com → /home, invalid creds → 'Invalid email or password' toast. (4) /login modal now exposes new [data-testid=login-email-btn] at top, which navigates to /login/email. All 25 backend tests pass (5 new iter73 + 20 iter72 regression). No new issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/login modal", "issues": ["Modal slides up from bottom; on viewport heights ≤844px the bottom-most options (Face ID) can be slightly clipped. Not blocking — scroll works. Consider reducing the modal padding or letting it become fully scrollable inside."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter73_fixes.py", "/app/backend/tests/test_iter72_phase2_ui.py", "/app/test_reports/pytest/iter73_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/backend/routes/phase2.py:392-399 — pool/enable fix is correct: original_fare is persisted on first enable and used for all subsequent toggles. Idempotent and safe.",
+    "/app/frontend/src/pages/auth/EmailLoginPage.js — clean implementation with role-based redirect (admin→/admin, driver→/chauffeur/home, merchant→/merchant/dashboard, default→/home). Uses REACT_APP_BACKEND_URL correctly. Toast errors via sonner.",
+    "/app/frontend/src/pages/auth/LoginPage.js:294-310 — new login-email-btn correctly placed at top of modal options, navigation closes modal before navigating, good UX.",
+    "PUBLIC_CATALOGS in phase2.py now includes 'bidding_posts' — fix is correct."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter73_fixes.py"],
+  "success_rate": {"backend": "100% (25/25 pytest passed — 5 new + 20 iter72 regression)", "frontend": "100% (admin email-login + redirect, test2 email-login + redirect, modal→/login/email nav, invalid-creds toast — all PASS)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! (works). User: test2@example.com / TestPass123! (works). Driver: +33644112233 / Chauffeur2026! (works on /login phone-flow).",
+  "seed_data_creation": "Iter73 tests create ephemeral rides for pool-toggle assertions; phone-register fallback users prefixed TEST_Iter73.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run `cd /app/backend && pytest tests/test_iter73_fixes.py tests/test_iter72_phase2_ui.py -v` for the full regression suite (25 tests). All 3 iter72 critical issues are resolved. The 'Iter72 admin dashboard' renders correctly with full sidebar: Tableau de bord, Monitoring serveur, Courses en direct, Auto-dispatch, Admin, Utilisateurs, Chauffeurs/Prestataires, Gérer récompenses, Entreprise/Flotte, Boutiques, Hôtels, Organisation, Taxi/Transport, Livraison colis, Livraisons boutiques, Delivery Genie, Coursier/Runner, Services à la demande, Consultation vidéo, etc. Email-login flow now works for admin/merchant/user accounts via /login/email; the phone-flow on /login is unchanged.",
+  "rca_of_the_issue": "N/A — iter72 RCAs are now fixed and verified. Pool fix: original_fare persisted on first enable via `ride.get('original_fare') or ride.get('estimated_fare')` and written back on every toggle. bidding_posts catalog now in PUBLIC_CATALOGS frozenset. Email-login route + page + modal entry all functional."
+}

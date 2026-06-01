@@ -9,6 +9,7 @@ import AuthCallback from './components/AuthCallback';
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
+import EmailLoginPage from './pages/auth/EmailLoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
 // Landing Page
@@ -176,6 +177,7 @@ const AppRouter = () => {
       <Route path="/favorite-drivers" element={<ProtectedRoute><FavoriteDriversPage /></ProtectedRoute>} />      <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
       <Route path="/app" element={user ? <Navigate to="/home" replace /> : <ClientWelcome />} />
       <Route path="/login" element={user ? <Navigate to="/home" replace /> : <LoginPage />} />
+      <Route path="/login/email" element={user ? <Navigate to="/home" replace /> : <EmailLoginPage />} />
       <Route path="/admin-login" element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <AdminLoginPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
       <Route path="/auth/callback" element={<AuthCallback />} />

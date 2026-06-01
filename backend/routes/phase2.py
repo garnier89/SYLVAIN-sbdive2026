@@ -389,9 +389,14 @@ async def enable_pool(ride_id: str, request: Request):
         raise HTTPException(status_code=403, detail="Not your ride")
     body = await request.json()
     enabled = bool(body.get("enabled", True))
-    new_fare = ride.get("estimated_fare", 0) * 0.7 if enabled else ride.get("estimated_fare", 0)
-    await db.rides.update_one({"id": ride_id}, {"$set": {"pool_enabled": enabled, "estimated_fare": new_fare}})
-    return {"message": "Pool updated", "enabled": enabled, "new_fare": new_fare}
+    # Preserve the original (non-discounted) fare across toggles
+    original_fare = ride.get("original_fare") or ride.get("estimated_fare", 0)
+    new_fare = original_fare * 0.7 if enabled else original_fare
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$set": {"pool_enabled": enabled, "estimated_fare": new_fare, "original_fare": original_fare}},
+    )
+    return {"message": "Pool updated", "enabled": enabled, "new_fare": new_fare, "original_fare": original_fare}
 
 
 # ═══════════ ALIASES for UI-expected endpoints ═══════════
@@ -536,6 +541,7 @@ async def my_runner_orders(request: Request):
 PUBLIC_CATALOGS = {
     "beauty_salons", "pet_providers", "car_services", "towing_partners",
     "nearby_businesses", "ondemand_services", "carpool_trips", "marketplace_listings",
+    "bidding_posts",
 }
 
 @router.get("/catalogs/{collection}")

@@ -292,6 +292,22 @@ const LoginPage = () => {
 
               {/* Account Options */}
               <div className="px-2">
+                {/* Email + Password */}
+                <button
+                  onClick={() => { setShowAccountModal(false); navigate('/login/email'); }}
+                  className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors"
+                  data-testid="login-email-btn"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </div>
+                  <span className="text-base font-medium text-gray-900 flex-1 text-left">Email & mot de passe</span>
+                  <CaretRight size={18} className="text-gray-400" />
+                </button>
+
                 {/* Apple */}
                 <button onClick={() => toast.info('Apple Sign-In bientot disponible')} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-apple-btn">
                   <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">

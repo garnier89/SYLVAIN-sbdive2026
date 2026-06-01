@@ -556,14 +556,14 @@ const DriverHome = () => {
               <div className="space-y-2 mb-3">
                 <input type="text" placeholder="Adresse (ex: 10 Rue de Rivoli, Paris)" value={destInput.address}
                   onChange={(e) => setDestInput({ ...destInput, address: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-input-address" />
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-address-input" />
                 <div className="grid grid-cols-2 gap-2">
                   <input type="number" step="0.0001" placeholder="Latitude" value={destInput.lat}
                     onChange={(e) => setDestInput({ ...destInput, lat: e.target.value })}
-                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-input-lat" />
+                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-lat-input" />
                   <input type="number" step="0.0001" placeholder="Longitude" value={destInput.lng}
                     onChange={(e) => setDestInput({ ...destInput, lng: e.target.value })}
-                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-input-lng" />
+                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-lng-input" />
                 </div>
               </div>
             )}
