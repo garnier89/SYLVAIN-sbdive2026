@@ -1,0 +1,44 @@
+{
+  "summary": "Iter78 — Admin User Documents (Eye icon) feature fully functional. Backend GET/POST/DELETE on /api/admin/users/{id}/documents all working: 9/9 new pytest cases pass + 100/100 full regression (iter70-78). UI verified end-to-end via Playwright: clicking the Eye icon ([data-testid=view-docs-<id>]) opens the docs modal, title shows 'Documents de <Name>', empty state shows 'Aucun document trouvé', uploading a PNG via the hidden file input creates a [data-testid=doc-card-doc_*] card, and clicking the trash button on that card removes it. The Fermer (docs-close-btn) button cleanly closes the modal. No regressions detected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/users/{id}/documents", "issue": "No server-side validation of file_url size or MIME type. A malicious admin could upload a multi-MB base64 data URL straight into MongoDB (Mongo single-doc 16MB limit becomes the only ceiling). Consider a sanity size cap (e.g. 5MB) and/or storing files outside Mongo."},
+      {"endpoint": "GET /api/admin/users/{id}/documents", "issue": "Synthetic profile doc is built every time even when an actual profile-type document already exists; the check `not any(d.get('type') == 'profile' for d in docs)` only suppresses duplicates if a stored doc explicitly uses type='profile'. Acceptable, but means switching avatar via /api/admin/users PUT will not delete an old synthetic doc — it is recomputed each GET, which is fine."},
+      {"endpoint": "DELETE /api/admin/users/{id}/documents/{doc_id}", "issue": "Synthetic profile doc (id=profile_<uid>) cannot be deleted via this endpoint because it does not exist in user_documents collection — returns 404. UI should probably hide the trash icon on the synthetic profile card to avoid a confusing 404 toast. Currently not blocking because user has to upload a real doc to see a card."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/users — Documents modal", "issues": ["Trash icon on the synthetic profile-photo card (when user has avatar_url) will call DELETE and the backend returns 404 because the synthetic doc does not exist in user_documents. Either hide the trash for type='profile' or treat avatar deletion specially via PUT /api/admin/users {avatar_url: null}."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter78_user_documents.py",
+    "/app/test_reports/pytest/iter78_results.xml",
+    "/app/test_reports/pytest/iter78_regression.xml"
+  ],
+  "action_items": [
+    "(Optional, low priority) On the synthetic profile card in AdminUsers.js, hide [data-testid=delete-doc-profile_*] or special-case it to PUT /api/admin/users {avatar_url: null}.",
+    "(Optional, low priority) Add a server-side size guard on file_url in POST /admin/users/{id}/documents to prevent large base64 blobs from being stored directly in MongoDB.",
+    "Pre-existing (carried over from iter77, not part of this iteration): GET /api/admin/users list still does not return wallet_balance, so the Wallet column shows 0.00 € for everyone except users credited via the iter77 smoke. Already documented in iteration_77.json."
+  ],
+  "critical_code_review_comments": [
+    "admin.py:248-258 — the synthetic profile doc has uploaded_at=None; the UI must handle a null uploaded_at when formatting dates (verified during UI test, no crash because most cards are real).",
+    "admin.py:284 — insert_one mutates the doc by appending _id; the subsequent doc.pop('_id', None) handles it correctly. Good.",
+    "AdminUsers.js openDocs handler re-fetches the entire documents list on every upload/delete; for users with many docs this could be optimized via optimistic state updates, but it is correct and not a bug.",
+    "AdminUsers.js — no aria-label on the Eye/Document button, only title='Voir documents'. Minor accessibility concern."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter78_user_documents.py (NEW — 9 tests)"
+  ],
+  "success_rate": {"backend": "100% (100/100 — 91 regression + 9 new)", "frontend": "100% (modal open, title, empty state, upload-creates-card, delete-removes-card, close-button all verified end-to-end via Playwright)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (login flow: /login -> 'Ou choisir une autre option de connexion' -> 'Email & mot de passe' -> /login/email)",
+  "seed_data_creation": "Each pytest creates ephemeral TEST_Iter78_* users and deletes them in fixture teardown. UI smoke uploaded then deleted a single PNG on the first listed user (Fatou Konaté / sim_driver_2c58a658), so no residual data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Full regression command: cd /app/backend && python -m pytest tests/test_iter70_kiosk.py tests/test_iter71_p0_refactor.py tests/test_iter72_phase2_ui.py tests/test_iter73_fixes.py tests/test_iter74_acl_admins.py tests/test_iter75_refactor_smoke.py tests/test_iter76_admin_users.py tests/test_iter77_wallet_credit.py tests/test_iter78_user_documents.py — currently 100/100 passed in ~25s. The Eye/Documents feature is solid; only cosmetic action items remain (synthetic profile card trash button + wallet_balance list endpoint enrichment carried from iter77).",
+  "rca_of_the_issue": "Original user complaint ('Le bouton document ne fonctionne pas') was that the Eye/Documents icon on the admin users table was an inert decoration. Main agent wired it to openDocs(u) which fetches GET /api/admin/users/{id}/documents and renders a modal with upload/delete capability. The 3 new backend endpoints are correctly authorized (require_role admin + users.view/users.edit permission), validate input (file_url required, 400 otherwise; user existence checked, 404 otherwise), and persist into a new user_documents collection. The synthetic profile-doc fabrication for users with avatar_url is a nice touch but introduces the only quirky case: the trash icon on it returns 404 because that doc has no row in user_documents. End-to-end Playwright test confirmed: open → upload PNG → card appears → delete → card disappears → close, all working."
+}

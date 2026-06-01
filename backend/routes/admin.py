@@ -237,6 +237,65 @@ async def admin_delete_user(user_id: str, request: Request):
     await db.wallets.delete_many({"user_id": user_id})
     return {"deleted": True}
 
+@router.get("/users/{user_id}/documents")
+async def admin_get_user_documents(user_id: str, request: Request):
+    """Return documents uploaded by the user (or empty list)."""
+    await require_role(request, ["admin"], permission="users.view")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1, "first_name": 1, "last_name": 1, "avatar_url": 1})
+    if not user:
+        raise HTTPException(404, "User not found")
+    docs = await db.user_documents.find({"user_id": user_id}, {"_id": 0}).to_list(50)
+    if user.get("avatar_url") and not any(d.get("type") == "profile" for d in docs):
+        docs.insert(0, {
+            "id": f"profile_{user_id}",
+            "user_id": user_id,
+            "type": "profile",
+            "label": "Photo de profil",
+            "file_url": user["avatar_url"],
+            "mime_type": "image/*",
+            "uploaded_at": None,
+            "status": "active",
+        })
+    return {"user": user, "documents": docs, "total": len(docs)}
+
+
+@router.post("/users/{user_id}/documents")
+async def admin_upload_user_document(user_id: str, request: Request):
+    """Attach a document on behalf of the user (data-URL or external link)."""
+    await require_role(request, ["admin"], permission="users.edit")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1})
+    if not user:
+        raise HTTPException(404, "User not found")
+    body = await request.json()
+    file_url = body.get("file_url")
+    if not file_url:
+        raise HTTPException(400, "file_url requis")
+    doc = {
+        "id": f"doc_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "type": (body.get("type") or "other").strip(),
+        "label": (body.get("label") or "Document").strip(),
+        "file_url": file_url,
+        "mime_type": body.get("mime_type") or "application/octet-stream",
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        "uploaded_by": "admin",
+        "status": "pending_review",
+    }
+    await db.user_documents.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.delete("/users/{user_id}/documents/{doc_id}")
+async def admin_delete_user_document(user_id: str, doc_id: str, request: Request):
+    await require_role(request, ["admin"], permission="users.edit")
+    res = await db.user_documents.delete_one({"id": doc_id, "user_id": user_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Document introuvable")
+    return {"deleted": True}
+
+
+
 
 @router.post("/users/{user_id}/wallet/credit")
 async def admin_credit_user_wallet(user_id: str, request: Request):

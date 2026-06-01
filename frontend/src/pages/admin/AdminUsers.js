@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
-import { MagnifyingGlass, ArrowsClockwise, X, Plus, Export, PencilSimple, Eye, Trash, ToggleLeft, ToggleRight, Wallet, CaretUp, CaretDown, PlusCircle } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, X, Plus, Export, PencilSimple, Eye, Trash, ToggleLeft, ToggleRight, Wallet, CaretUp, CaretDown, PlusCircle, FileText, UploadSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const AdminUsers = () => {
@@ -19,6 +19,46 @@ const AdminUsers = () => {
   const [creditAmount, setCreditAmount] = useState('');
   const [creditNote, setCreditNote] = useState('');
   const [creditSaving, setCreditSaving] = useState(false);
+  const [docsTarget, setDocsTarget] = useState(null);
+  const [docsData, setDocsData] = useState(null);
+  const [docsLoading, setDocsLoading] = useState(false);
+
+  const openDocs = async (u) => {
+    setDocsTarget(u);
+    setDocsData(null);
+    setDocsLoading(true);
+    try {
+      const r = await adminAPI.getUserDocuments(u.id);
+      setDocsData(r.data);
+    } catch (e) { toast.error('Erreur de chargement des documents'); }
+    setDocsLoading(false);
+  };
+
+  const onAdminUploadDoc = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !docsTarget) return;
+    if (file.size > 8 * 1024 * 1024) { toast.error('Fichier trop volumineux (max 8 Mo)'); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        await adminAPI.uploadUserDocument(docsTarget.id, {
+          type: 'other', label: file.name, file_url: reader.result, mime_type: file.type,
+        });
+        toast.success('Document ajouté');
+        openDocs(docsTarget);
+      } catch { toast.error('Erreur d\'upload'); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeDoc = async (docId) => {
+    if (!window.confirm('Supprimer ce document ?')) return;
+    try {
+      await adminAPI.deleteUserDocument(docsTarget.id, docId);
+      toast.success('Document supprimé');
+      openDocs(docsTarget);
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -241,7 +281,7 @@ const AdminUsers = () => {
                   </span>
                 </td>
                 <td className="py-3 px-4 text-center">
-                  <button onClick={() => navigate(`/admin/users/${u.id}`)} className="text-gray-400 hover:text-blue-600" data-testid={`view-docs-${u.id}`} title="Voir documents">
+                  <button onClick={() => openDocs(u)} className="text-gray-400 hover:text-blue-600" data-testid={`view-docs-${u.id}`} title="Voir documents">
                     <Eye size={16} />
                   </button>
                 </td>
@@ -306,6 +346,68 @@ const AdminUsers = () => {
                 className="px-6 py-2.5 rounded-full bg-gray-900 text-white text-sm font-semibold disabled:opacity-50" data-testid="credit-save-btn">
                 {creditSaving ? 'Enregistrement...' : 'Enregistrer'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Documents Modal */}
+      {docsTarget && (
+        <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4" onClick={() => setDocsTarget(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="docs-modal">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
+              <h2 className="text-lg font-bold text-gray-900" data-testid="docs-modal-title">
+                Documents de {docsTarget.name || docsTarget.email}
+              </h2>
+              <div className="flex items-center gap-2">
+                <label htmlFor="admin-upload-doc-input" className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold flex items-center gap-1.5 cursor-pointer" data-testid="upload-doc-btn">
+                  <UploadSimple size={14} weight="bold" /> Ajouter
+                </label>
+                <input id="admin-upload-doc-input" type="file" accept="image/*,application/pdf" className="hidden" onChange={onAdminUploadDoc} data-testid="upload-doc-input" />
+                <button onClick={() => setDocsTarget(null)} className="px-4 py-2 rounded-lg bg-cyan-500 text-white text-sm font-semibold" data-testid="docs-close-btn">
+                  Fermer
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              {docsLoading && <div className="text-center text-gray-400 py-10">Chargement...</div>}
+              {!docsLoading && docsData && docsData.documents.length === 0 && (
+                <div className="text-center py-12 text-gray-500" data-testid="no-docs-msg">
+                  <FileText size={40} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-base font-semibold">Aucun document trouvé</p>
+                  <p className="text-xs mt-1">Cliquez sur « Ajouter » pour téléverser un document pour cet utilisateur.</p>
+                </div>
+              )}
+              {!docsLoading && docsData && docsData.documents.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {docsData.documents.map((d) => (
+                    <div key={d.id} className="border border-gray-200 rounded-xl overflow-hidden flex flex-col" data-testid={`doc-card-${d.id}`}>
+                      <div className="bg-gray-50 aspect-video flex items-center justify-center">
+                        {d.mime_type && d.mime_type.startsWith('image/') ? (
+                          <a href={d.file_url} target="_blank" rel="noreferrer">
+                            <img src={d.file_url} alt={d.label} className="max-h-full max-w-full object-contain" />
+                          </a>
+                        ) : (
+                          <a href={d.file_url} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 text-gray-500">
+                            <FileText size={32} /> <span className="text-xs">Ouvrir</span>
+                          </a>
+                        )}
+                      </div>
+                      <div className="p-3 flex items-center justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate" title={d.label}>{d.label}</p>
+                          <p className="text-[11px] text-gray-400">{d.type}{d.status ? ` · ${d.status}` : ''}</p>
+                        </div>
+                        {!d.id.startsWith('profile_') && (
+                          <button onClick={() => removeDoc(d.id)} className="text-gray-400 hover:text-red-600" data-testid={`delete-doc-${d.id}`} title="Supprimer">
+                            <Trash size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
