@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-06-01 — Iter77: Bouton "Créditer l'utilisateur" (Add Balance)
+
+### Added
+- **Bouton `+` vert** dans la colonne Wallet de `/admin/users` à côté du montant
+- **Modal "Ajouter solde"** identique à XJekPlus : titre noir, X blanc rond, affichage du solde actuel, champ Montant (négatif accepté pour débit), champ Note optionnel, boutons Fermer/Enregistrer noirs
+- **Endpoint backend** `POST /api/admin/users/{id}/wallet/credit` : crédit/débit avec validation, insertion `wallet_transactions`, type `admin_credit`/`admin_debit`, retour `new_balance`
+- **Fix régression** : `GET /api/admin/users` (liste) enrichi avec `wallet_balance` via batch lookup pour que l'affichage se rafraîchisse après crédit
+
+### Tests
+- 9 nouveaux tests `test_iter77_wallet_credit.py` PASS
+- 77 régressions iter70-76 toujours PASS (total **86/86**)
+- E2E validé : crédit +25.50 → balance 170.50, débit -5 → 165.50, montant 0 rejeté (400)
+
 ## 2026-06-01 — Iter76: Page Utilisateurs (Liste + Édition)
 
 ### Added

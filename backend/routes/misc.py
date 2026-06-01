@@ -101,6 +101,13 @@ async def admin_list_users(request: Request, role: Optional[str] = None, limit: 
         query["role"] = role
     users = await db.users.find(query, {"_id": 0, "password_hash": 0}).skip(skip).limit(limit).to_list(limit)
     total = await db.users.count_documents(query)
+    # Enrich each user with wallet_balance via batched fetch
+    if users:
+        ids = [u["id"] for u in users]
+        wallets = await db.wallets.find({"user_id": {"$in": ids}}, {"_id": 0, "user_id": 1, "balance": 1}).to_list(len(ids))
+        wallet_map = {w["user_id"]: w.get("balance", 0) for w in wallets}
+        for u in users:
+            u["wallet_balance"] = wallet_map.get(u["id"], 0)
     return {"users": users, "total": total}
 
 
