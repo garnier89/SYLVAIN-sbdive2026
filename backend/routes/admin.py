@@ -238,6 +238,42 @@ async def admin_delete_user(user_id: str, request: Request):
     return {"deleted": True}
 
 
+@router.post("/users/{user_id}/wallet/credit")
+async def admin_credit_user_wallet(user_id: str, request: Request):
+    """Manually credit (or debit, with negative amount) a user's wallet from the admin UI."""
+    await require_role(request, ["admin"], permission="billing.edit")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "name": 1, "email": 1})
+    if not user:
+        raise HTTPException(404, "User not found")
+    body = await request.json()
+    try:
+        amount = float(body.get("amount") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Montant invalide")
+    if amount == 0:
+        raise HTTPException(400, "Montant requis")
+    note = (body.get("note") or "").strip()[:200]
+    now = datetime.now(timezone.utc).isoformat()
+    await db.wallets.update_one(
+        {"user_id": user_id},
+        {"$inc": {"balance": amount}, "$setOnInsert": {"user_id": user_id, "created_at": now}},
+        upsert=True,
+    )
+    wallet = await db.wallets.find_one({"user_id": user_id}, {"_id": 0, "balance": 1})
+    new_balance = wallet["balance"] if wallet else amount
+    tx_type = "admin_credit" if amount > 0 else "admin_debit"
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "amount": amount,
+        "type": tx_type,
+        "description": note or ("Crédit administrateur" if amount > 0 else "Débit administrateur"),
+        "balance_after": new_balance,
+        "created_at": now,
+    })
+    return {"new_balance": new_balance, "amount": amount, "type": tx_type}
+
+
 # ===== ADMIN GENERAL SETTINGS =====
 
 @router.get("/settings")

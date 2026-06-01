@@ -1,0 +1,47 @@
+{
+  "summary": "Iter77 wallet credit feature: backend endpoint POST /api/admin/users/{id}/wallet/credit is fully functional and well-tested (9/9 new pytest cases pass). Full regression on iter70-76 + iter77 = 91/91 pass. UI modal renders correctly with all required data-testids; Enregistrer call returns 200 and shows the success toast with the new balance. HOWEVER an integration gap was found: the admin users LIST endpoint does NOT return wallet_balance, so after a successful credit the row in the table still displays '0.00 €' (only the toast reflects the truth). GET /api/admin/users/{id} correctly returns the updated balance (verified 7.77 € after smoke credit).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/users/{id}/wallet/credit", "issue": "Allows debit even when it would drive balance < 0 (no overdraft guard). Spec didn't require one, just noting for future."},
+      {"endpoint": "POST /api/admin/users/{id}/wallet/credit", "issue": "Error message for missing amount is 'Montant requis' (because float(None or 0)==0). Acceptable, but a non-numeric string yields 'Montant invalide' — both 400, both clear."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin Users list — wallet column refresh after credit",
+        "issue": "After saveCredit returns success and the success toast (Solde mis à jour : X €) is shown, AdminUsers.js calls load() which hits GET /api/admin/users. That listing endpoint does NOT include wallet_balance in user objects, so the table column stubbornly shows '0.00 €' for every user even when the real wallet has funds. Verified by GET /api/admin/users/{id} returning wallet_balance=7.77 immediately after credit, while the list returns no wallet_balance key. Same issue affects the 'Solde actuel' line inside the credit modal (always shows 0.00 € unless the user was loaded via a GET-by-id elsewhere).",
+        "affected_selectors": ["[data-testid^='user-row-'] td:nth-child(6)", "[data-testid='credit-modal']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter77_wallet_credit.py",
+    "/app/test_reports/pytest/iter77_results.xml",
+    "/app/test_reports/pytest/iter77_regression.xml"
+  ],
+  "action_items": [
+    "Backend: enrich GET /api/admin/users (list) responses with wallet_balance per user (single $lookup to wallets, or batched fetch). Without this, the +créditer feature's UI feedback is broken even though the backend works.",
+    "Frontend (alternative if backend stays as-is): after saveCredit, optimistically update the affected row's wallet_balance using r.data.new_balance from the credit response, instead of relying on load()."
+  ],
+  "critical_code_review_comments": [
+    "admin.py credit endpoint: float(body.get('amount') or 0) means amount=null/missing collapses to 0 and triggers 'Montant requis'. Functionally fine but slightly confusing message for a missing key vs explicit 0.",
+    "admin.py credit endpoint: no upper bound on amount (admin could credit 1e12). Consider sanity cap.",
+    "admin.py credit endpoint: balance_after uses fetched wallet after $inc — good (avoids race conditions with concurrent updates within the same Mongo op).",
+    "AdminUsers.js saveCredit: relies on full list reload — see integration_issues. Also the +PlusCircle button has no aria-label / accessible name beyond the title attribute.",
+    "AdminUsers.js Modal: clicking the dark backdrop closes the modal (onClick on the outer div) — could discard typed input by accident. Consider only closing via the explicit Fermer/X buttons."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter77_wallet_credit.py (NEW — 9 tests)"
+  ],
+  "success_rate": {"backend": "100% (91/91: 82 regression + 9 new)", "frontend": "Modal & POST integration 100%, but list-refresh integration shows stale 0.00 € due to backend list endpoint omitting wallet_balance"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (cookie auth via POST /api/auth/login)",
+  "seed_data_creation": "Each pytest creates ephemeral TEST_iter77_* users and deletes them in fixture teardown. One UI smoke credit of 7.77 € was applied to existing seeded driver-user sim_driver_ef625151 — not cleaned up (recommended for main agent to either zero it back or ignore — irrelevant for further tests).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run regression with: cd /app/backend && python -m pytest tests/test_iter70_kiosk.py tests/test_iter71_p0_refactor.py tests/test_iter72_phase2_ui.py tests/test_iter73_fixes.py tests/test_iter74_acl_admins.py tests/test_iter75_refactor_smoke.py tests/test_iter76_admin_users.py tests/test_iter77_wallet_credit.py — 91 passed. The new wallet credit backend endpoint is bulletproof and well-covered. The OUTSTANDING ITEM is enriching GET /api/admin/users with wallet_balance so the UI updates after credit/debit; once fixed, re-run the playwright smoke that we already wrote (it asserts that the row's wallet column updates by +7.77 €).",
+  "rca_of_the_issue": "User opens credit modal -> types +25.50 -> Enregistrer -> backend POST /api/admin/users/{id}/wallet/credit returns 200 {new_balance: 25.50} -> sonner toast shows 'Solde mis à jour : 25.50 €' (CORRECT) -> AdminUsers.saveCredit calls load() -> load() calls adminAPI.listUsers() -> backend handler for GET /api/admin/users returns each user document WITHOUT wallet_balance (no $lookup against wallets collection) -> UI re-renders the row showing '0.00 €' because (u.wallet_balance != null ? u.wallet_balance : 0).toFixed(2) falls back to 0. Mitigation #1 (backend, recommended): join wallets into the list query. Mitigation #2 (frontend, quick): in saveCredit success handler, update creditTarget locally: setUsers(users.map(u => u.id===creditTarget.id ? {...u, wallet_balance: r.data.new_balance} : u)) and skip load(). Already verified: GET /api/admin/users/{id} DOES return wallet_balance correctly — only the list endpoint lacks it."
+}

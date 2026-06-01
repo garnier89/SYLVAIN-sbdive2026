@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
-import { MagnifyingGlass, ArrowsClockwise, X, Plus, Export, PencilSimple, Eye, Trash, ToggleLeft, ToggleRight, Wallet, CaretUp, CaretDown } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, X, Plus, Export, PencilSimple, Eye, Trash, ToggleLeft, ToggleRight, Wallet, CaretUp, CaretDown, PlusCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const AdminUsers = () => {
@@ -15,6 +15,10 @@ const AdminUsers = () => {
   const [sortDir, setSortDir] = useState('desc');
   const [selected, setSelected] = useState(new Set());
   const [bulkAction, setBulkAction] = useState('');
+  const [creditTarget, setCreditTarget] = useState(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditNote, setCreditNote] = useState('');
+  const [creditSaving, setCreditSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,6 +83,19 @@ const AdminUsers = () => {
       toast.success('Utilisateur supprimé');
       load();
     } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+  };
+
+  const saveCredit = async () => {
+    const amt = parseFloat(creditAmount);
+    if (isNaN(amt) || amt === 0) { toast.error('Montant requis (différent de 0)'); return; }
+    setCreditSaving(true);
+    try {
+      const r = await adminAPI.creditUserWallet(creditTarget.id, amt, creditNote);
+      toast.success(`Solde mis à jour : ${r.data.new_balance.toFixed(2)} €`);
+      setCreditTarget(null); setCreditAmount(''); setCreditNote('');
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+    setCreditSaving(false);
   };
 
   const runBulk = async () => {
@@ -214,9 +231,13 @@ const AdminUsers = () => {
                 <td className="py-3 px-4 text-gray-600 text-xs">{fmtDate(u.created_at)}</td>
                 <td className="py-3 px-4 text-gray-600">{u.phone || '—'}</td>
                 <td className="py-3 px-4">
-                  <span className="inline-flex items-center gap-1 text-gray-700">
+                  <span className="inline-flex items-center gap-1.5">
                     <Wallet size={14} className="text-emerald-500" />
-                    {(u.wallet_balance != null ? u.wallet_balance : 0).toFixed(2)} €
+                    <span className="text-gray-700">{(u.wallet_balance != null ? u.wallet_balance : 0).toFixed(2)} €</span>
+                    <button onClick={() => { setCreditTarget(u); setCreditAmount(''); setCreditNote(''); }}
+                      className="text-emerald-500 hover:text-emerald-700" title="Créditer l'utilisateur" data-testid={`credit-user-${u.id}`}>
+                      <PlusCircle size={18} weight="fill" />
+                    </button>
                   </span>
                 </td>
                 <td className="py-3 px-4 text-center">
@@ -245,6 +266,50 @@ const AdminUsers = () => {
         {loading && <div className="p-8 text-center text-gray-400">Chargement...</div>}
         {!loading && rows.length === 0 && <div className="p-8 text-center text-gray-400">Aucun utilisateur</div>}
       </div>
+
+      {/* Add Balance Modal */}
+      {creditTarget && (
+        <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4" onClick={() => setCreditTarget(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()} data-testid="credit-modal">
+            <div className="bg-gray-900 text-white px-5 py-4 flex items-center justify-between">
+              <h2 className="text-base font-bold">Ajouter solde</h2>
+              <button onClick={() => setCreditTarget(null)} className="bg-white text-gray-900 rounded-full w-7 h-7 flex items-center justify-center" data-testid="credit-close-x">
+                <X size={14} weight="bold" />
+              </button>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-gray-700 mb-4">
+                Le montant saisi sera <strong>directement ajouté</strong> au compte de <strong>{creditTarget.name || creditTarget.email}</strong>.
+                <br />
+                <span className="text-xs text-gray-500">Solde actuel : {(creditTarget.wallet_balance != null ? creditTarget.wallet_balance : 0).toFixed(2)} €</span>
+              </p>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Montant (€)</label>
+              <input
+                type="number" step="0.01" autoFocus
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+                placeholder="ex: 10.00 (négatif pour débiter)"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-3" data-testid="credit-amount" />
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Note <span className="font-normal text-xs text-gray-400">(optionnel)</span></label>
+              <input
+                type="text" maxLength={200}
+                value={creditNote}
+                onChange={(e) => setCreditNote(e.target.value)}
+                placeholder="Raison du crédit"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" data-testid="credit-note" />
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 pb-5">
+              <button onClick={() => setCreditTarget(null)} className="px-5 py-2.5 rounded-full border border-gray-300 text-sm font-semibold text-gray-700" data-testid="credit-close-btn">
+                Fermer
+              </button>
+              <button onClick={saveCredit} disabled={creditSaving || !creditAmount}
+                className="px-6 py-2.5 rounded-full bg-gray-900 text-white text-sm font-semibold disabled:opacity-50" data-testid="credit-save-btn">
+                {creditSaving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
