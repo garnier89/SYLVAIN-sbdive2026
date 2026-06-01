@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-06-01 — Iter75: Code Quality Report Fixes (Critical + Important)
+
+### Security (CRITICAL)
+- Removed hardcoded secrets from `test_iter73_fixes.py` (4 constants → `_creds.py` import) and `test_iter74_acl_admins.py` (1 password → `os.environ.get`).
+- Consolidated `simulation.py` to a single `secrets.SystemRandom()` import (removed duplicate `random as _sim_random` alias).
+- Removed `localStorage.setItem('access_token')` from `EmailLoginPage.js` — relies on httpOnly cookies set by backend (XSS-safe).
+- Removed `authHeaders()` localStorage reads from `AdminManageAdmins.js` and `AdminGroupsPage.js` — all requests now use `credentials:'include'` only.
+
+### Refactoring (IMPORTANT)
+- `kiosk_book()` (94 lines) split into `_ensure_kiosk_user`, `_build_kiosk_ride`, `_broadcast_kiosk_ride` helpers + main now 13 lines.
+- `update_admin()` (complexity 15) split into `_apply_name_updates`, `_apply_email_update`, `_apply_password_update`, `_apply_role_update`.
+- Replaced 5 silent `} catch { /* ignore */ }` with `console.warn` logging in RideTrackingPage, RideBookingPage, RestaurantDetail, EmergencyContactsPage, CheckoutPage.
+- Replaced array-index React keys with stable IDs in: TowingServicesPage (string `s`), RunnerPage (added `_key`), DriverSupportPage chat (`msg_id`), AdminDashboard (donut `entry.color`, notifications, contactRequests).
+
+### Tests
+- 70/70 tests PASS (65 regression iter70-74 + 5 new smoke tests).
+- Frontend Playwright: login no longer writes any token to localStorage; `/api/auth/me` works via httpOnly cookie; admin CRUD pages load and operate via cookie auth.
+
 ## 2026-06-01 — Iter74: V3Cube/XJekPlus Admin Groups + Administrator Pages
 
 ### Added
