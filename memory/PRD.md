@@ -4,11 +4,25 @@
 Application super-app multi-services type Gojek/V3Cube pour le marche VTC francophone.
 
 ## Architecture
-- **Frontend**: React + Tailwind CSS + Leaflet Maps + Phosphor Icons
-- **Backend**: FastAPI + MongoDB
-- **Auth**: JWT (cookie-based) + Google OAuth via Emergent
+- **Frontend Web**: React + Tailwind CSS + Leaflet Maps + Phosphor Icons
+- **Frontend Mobile** (NEW Feb 2026): Expo + React Native + React Navigation v7 + i18next
+- **Backend**: FastAPI + MongoDB (partage par web + mobile)
+- **Auth Web**: JWT (cookie-based) + Google OAuth via Emergent
+- **Auth Mobile**: JWT Bearer tokens via expo-secure-store (Keychain/Keystore)
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
+
+## NEW - Feb 2026 - Mobile App (Expo / React Native) (FOUNDATION DONE)
+- Monorepo : `/app/mobile/` (Expo SDK 52, React Native 0.76, TypeScript)
+- Bundles iOS + Android compiles sans erreur (1286 modules, ~9.7 MB)
+- Auth flows : Welcome, EmailLogin, PhoneLogin + OTP, Register (role: user/driver/merchant)
+- App User : Home (12 services tiles), Booking taxi (estimate + create), Orders, Wallet, Profile, Catalog generique (9 V3Cube collections)
+- App Driver : Home (toggle online + stats activity), Rides (available + accept), Earnings, Profile
+- App Merchant : Dashboard (stats), Profile
+- Voice Assistant FAB global (mic flottant) -> `/api/voice/parse-booking`
+- i18n : FR + EN (auto-detect via expo-localization)
+- Theme V3Cube/SB Drive (jaune #FFC107 + navy #0B1426)
+- Demarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec Expo Go
 
 
 ## NEW - Feb 2026 - Rewards & Driver Points System (DONE)

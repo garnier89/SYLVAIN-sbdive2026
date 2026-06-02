@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-06-02 — Mobile App Foundation (Expo / React Native)
+
+### Added (NEW `/app/mobile/`)
+- Monorepo Expo SDK 52 + RN 0.76 + TypeScript (web `/app/frontend` reste intact)
+- **Auth Bearer tokens** via `expo-secure-store` (Keychain iOS / Keystore Android) + axios interceptor auto-refresh
+- **Navigation** : React Navigation v7 (RootStack + role-based : User/Driver/Merchant Tabs)
+- **i18n** : i18next + expo-localization (FR + EN, auto-detect)
+- **Theme** : tokens V3Cube (jaune #FFC107, navy #0B1426)
+- **App User** : Home (12 services tiles), Booking taxi, Orders, Wallet, Profile, Catalog générique branché sur les 9 collections V3Cube via `/api/phase2/catalogs/{collection}`
+- **App Driver** : Home (toggle online + activity stats), Rides disponibles, Earnings, Profile
+- **App Merchant** : Dashboard + Profile
+- **Voice Assistant FAB global** : appel `/api/voice/parse-booking` (Claude Sonnet) — STT mobile à brancher (placeholder MVP)
+- Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
+- Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
+
+
+
 ## 2026-06-02 — Iter79-80: Réservation de Taxi par la Voix
 
 ### Added

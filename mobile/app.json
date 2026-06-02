@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "SB Drive VTC",
+    "slug": "sb-drive-vtc",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "sbdrive",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1426"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sbdrive.vtc",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Cette app a besoin de votre position pour la prise en charge et le suivi de course.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Position requise pour le suivi en arriere-plan des courses.",
+        "NSMicrophoneUsageDescription": "Microphone requis pour l'assistant vocal.",
+        "NSCameraUsageDescription": "Camera requise pour l'upload des documents KYC."
+      }
+    },
+    "android": {
+      "package": "com.sbdrive.vtc",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B1426"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-location",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B1426",
+          "image": "./assets/splash.png",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
