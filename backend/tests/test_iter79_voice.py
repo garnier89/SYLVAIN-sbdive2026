@@ -84,7 +84,19 @@ class TestVoiceLLM:
         # Expect either "unknown" or low confidence
         assert p["intent"] in ("unknown", "book_taxi"), p
         if p["intent"] == "unknown":
+            # After fix: confidence=0.0 must be preserved (was 0.6 due to falsy-zero bug)
             assert float(p["confidence"]) < 0.5
+            assert float(p["confidence"]) == 0.0, f"Expected 0.0, got {p['confidence']} (regression of falsy-zero bug)"
+
+    def test_valid_book_taxi_chatelet_saint_lazare(self, user_session):
+        """Regression: known route should yield book_taxi with high confidence."""
+        r = user_session.post(f"{API}/voice/parse-booking", json={"transcript": "Réserve un taxi de Châtelet à Saint-Lazare"}, timeout=60)
+        assert r.status_code == 200, r.text[:300]
+        p = r.json()["parsed"]
+        assert p["intent"] == "book_taxi", p
+        assert float(p["confidence"]) > 0.7, p
+        assert "châtelet" in (p["pickup"] or "").lower(), p
+        assert "saint-lazare" in (p["dropoff"] or "").lower() or "saint lazare" in (p["dropoff"] or "").lower(), p
 
 
 class TestVoiceFallbackHeuristic:
@@ -115,6 +127,34 @@ class TestVoiceFallbackHeuristic:
         from routes.voice import _fallback_extract
         out = _fallback_extract("Livrer un colis de Lyon à Marseille")
         assert out["intent"] == "book_delivery"
+
+    def test_fallback_regex_straight_apostrophe(self):
+        """Regression: 'jusqu'à' with STRAIGHT apostrophe must extract pickup/dropoff."""
+        from routes.voice import _fallback_extract
+        out = _fallback_extract("Taxi de Bastille jusqu'à Opéra")
+        assert out["intent"] == "book_taxi"
+        assert out["pickup"] is not None and "bastille" in out["pickup"].lower(), out
+        assert out["dropoff"] is not None and "opéra" in out["dropoff"].lower(), out
+
+    def test_fallback_regex_curly_apostrophe(self):
+        """Regression: 'jusqu’à' with CURLY apostrophe (U+2019) must extract pickup/dropoff."""
+        from routes.voice import _fallback_extract
+        out = _fallback_extract("Taxi de Bastille jusqu\u2019à Opéra")
+        assert out["intent"] == "book_taxi"
+        assert out["pickup"] is not None and "bastille" in out["pickup"].lower(), out
+        assert out["dropoff"] is not None and "opéra" in out["dropoff"].lower(), out
+
+    def test_normalize_preserves_zero_confidence(self):
+        """Regression: _normalize must preserve confidence=0.0 (not inflate to 0.6 via `or`)."""
+        from routes.voice import _normalize
+        out = _normalize({"intent": "unknown", "confidence": 0.0})
+        assert out["confidence"] == 0.0, f"Expected 0.0, got {out['confidence']} (falsy-zero bug regression)"
+
+    def test_normalize_defaults_when_missing(self):
+        """If confidence absent → default to 0.6."""
+        from routes.voice import _normalize
+        out = _normalize({"intent": "book_taxi"})
+        assert out["confidence"] == 0.6
 
 
 class TestVoiceAnalytics:

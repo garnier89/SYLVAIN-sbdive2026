@@ -101,6 +101,9 @@ async def _llm_extract(transcript: str) -> dict:
 
 def _normalize(parsed: dict) -> dict:
     """Ensure all expected fields are present with valid types."""
+    confidence = parsed.get("confidence")
+    if confidence is None:
+        confidence = 0.6
     return {
         "intent": parsed.get("intent") or "unknown",
         "pickup": parsed.get("pickup") or None,
@@ -109,7 +112,7 @@ def _normalize(parsed: dict) -> dict:
         "when": parsed.get("when") or "now",
         "passengers": int(parsed.get("passengers") or 1),
         "notes": parsed.get("notes") or None,
-        "confidence": float(parsed.get("confidence") or 0.6),
+        "confidence": float(confidence),
     }
 
 
@@ -127,7 +130,7 @@ def _fallback_extract(transcript: str) -> dict:
     pickup = dropoff = None
     # Pattern: "de X à Y" / "du X au Y"
     import re
-    m = re.search(r"\b(?:de|du)\s+([^,]+?)\s+(?:à|au|jusqu['e]à?)\s+(.+)$", low)
+    m = re.search(r"\b(?:de|du)\s+([^,]+?)\s+(?:à|au|jusqu['’]?à?)\s+(.+)$", low)
     if m:
         pickup = m.group(1).strip()
         dropoff = m.group(2).strip()

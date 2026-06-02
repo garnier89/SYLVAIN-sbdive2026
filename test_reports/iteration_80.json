@@ -1,0 +1,40 @@
+{
+  "summary": "Iter80 — Re-verified iter79 critical fixes. BOTH BUGS CONFIRMED FIXED: (1) VoiceAssistant.js now navigates to /ride (not /ride/book) — UI test confirms URL=/ride, header 'Planifier votre course' rendered, NO 'Course introuvable' text. (2) backend _normalize preserves confidence=0.0 — unit + integration tests confirm. Added 5 new regression tests (curly apostrophe, straight apostrophe, zero-confidence preservation, normalize default, valid Châtelet→Saint-Lazare route). All 16/16 voice tests pass. 100/100 prior iter70-78 tests still pass. Voice booking flow end-to-end working.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/voice/parse-booking", "issue": "voice_bookings collection grows unbounded (every call inserted, including malformed). Non-critical — flagged previously, left as-is per main agent note."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Voice → Ride booking prefill (geocoding)", "issue": "After successful navigation to /ride, prefill geocoding partially fails. In manual run, pickup field showed 'Paris, France' instead of expected 'Gare du Nord, 18 Rue de Dunkerque…' and dropoff was empty. Likely race condition: window.google.maps.Geocoder not fully ready when useEffect runs. This was already flagged as optional in iter79; remains optional/minor since user can still pick from 'Lieux Récents' showing 'Gare du Nord'.", "affected_selectors": ["RideBookingPage prefill useEffect"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter79_voice.py",
+    "/app/test_reports/pytest/iter80_voice.xml",
+    "/app/test_reports/pytest/iter80_regression.xml"
+  ],
+  "action_items": [
+    "OPTIONAL (low priority): Make RideBookingPage prefill useEffect wait for window.google.maps.Geocoder availability (retry loop or maps-loader promise) so that voice-sourced pickup/dropoff populate reliably instead of falling back to 'Paris, France'.",
+    "OPTIONAL: Add per-user rate limit or daily quota on /api/voice/parse-booking to protect EMERGENT_LLM_KEY budget.",
+    "OPTIONAL: Cap voice_bookings collection size / TTL index on created_at."
+  ],
+  "critical_code_review_comments": [
+    "voice.py:105-106 — confidence default now correctly uses 'is None' check. Good.",
+    "voice.py:108-114 — note `parsed.get('pickup') or None` is redundant (both produce None for empty/None), harmless.",
+    "voice.py:113 — `int(parsed.get('passengers') or 1)` will still silently rewrite passengers=0 to 1. Minor edge case but not user-impacting.",
+    "VoiceAssistant.js:84 — '/ride' target verified working. The intent→route mapping ('book_runner'/'book_delivery' → '/runner') assumes /runner exists; not verified but not in scope.",
+    "VoiceAssistant.js:174 — data-testid uses ex.slice(0,10) still fragile to collisions; non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter79_voice.py (added 5 regression tests; total 16)"
+  ],
+  "success_rate": {"backend": "100% (16/16 voice tests + 100/100 iter70-78 regression)", "frontend": "100% (voice FAB → sheet → example → submit → /ride; no Course introuvable)"},
+  "test_credentials": "test2@example.com / TestPass123!",
+  "seed_data_creation": "Each voice POST inserts into voice_bookings collection (no cleanup, ~5 new docs during this run).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter79 critical bugs (navigation + confidence) are fully fixed and validated. Voice flow end-to-end works through /ride. Only remaining (optional) item is RideBookingPage prefill geocoding race when window.google.maps not yet loaded — pickup falls back to 'Paris, France' instead of the prefill address. Not a blocker for shipping. Test file: /app/backend/tests/test_iter79_voice.py (16 tests). Reusable for future regressions.",
+  "rca_of_the_issue": "Both fixes verified: (a) routes/voice.py _normalize replaced `confidence or 0.6` with `if confidence is None: confidence = 0.6` — confirmed via test_normalize_preserves_zero_confidence + test_unknown_intent_phrase (both pass; LLM returns 0.0 for 'météo' query and 0.0 is preserved). (b) VoiceAssistant.js navigate target changed to '/ride' — confirmed via playwright UI test (URL=/ride, RideBookingPage 'Planifier votre course' visible, no 'Course introuvable'). Bonus fix verified: fallback regex line 133 now accepts both ['] and [’] apostrophes via test_fallback_regex_straight_apostrophe + test_fallback_regex_curly_apostrophe."
+}

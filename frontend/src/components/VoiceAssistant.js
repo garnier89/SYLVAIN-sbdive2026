@@ -81,7 +81,7 @@ const VoiceAssistant = () => {
         return;
       }
       // Map intent → route
-      const target = p.intent === 'book_runner' || p.intent === 'book_delivery' ? '/runner' : '/ride/book';
+      const target = p.intent === 'book_runner' || p.intent === 'book_delivery' ? '/runner' : '/ride';
       setOpen(false);
       navigate(target, { state: { prefill: p, source: 'voice' } });
     } catch (e) {
