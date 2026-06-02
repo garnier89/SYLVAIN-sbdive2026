@@ -14,6 +14,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 
 // Landing Page
 import LandingPage from './pages/LandingPage';
+import VoiceAssistant from './components/VoiceAssistant';
 
 // SB Drive Client Pages
 import ClientWelcome from './pages/client/ClientWelcome';
@@ -162,8 +163,14 @@ const AppRouter = () => {
     return <AuthCallback />;
   }
 
+  // Mount global voice FAB for logged-in passenger users on app pages (not landing, kiosk, auth, admin/driver panels)
+  const HIDE_VOICE = ['/website', '/kiosk', '/tab', '/login', '/register', '/auth'];
+  const showVoiceFab = !!user && user.role === 'user' && !HIDE_VOICE.some(p => location.pathname.startsWith(p));
+
   return (
-    <Routes>
+    <>
+      {showVoiceFab && <VoiceAssistant />}
+      <Routes>
       {/* ======= LANDING PAGE / WEBSITE ======= */}
       <Route path="/website" element={<LandingPage />} />
 
@@ -454,6 +461,7 @@ const AppRouter = () => {
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 };
 

@@ -17,26 +17,46 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice"])
 
 
-SYSTEM_PROMPT = """Tu es un assistant qui extrait une intention de réservation de taxi à partir d'une phrase en français parlée par un utilisateur.
+SYSTEM_PROMPT = """Tu es un assistant qui extrait une intention de service à la demande à partir d'une phrase en français parlée par l'utilisateur d'une super-app (taxi, livraison, beauté, animaux, food, etc.).
 
 Tu DOIS répondre UNIQUEMENT par un objet JSON valide (sans backticks, sans markdown, sans texte autour) avec exactement ces champs:
 {
-  "intent": "book_taxi" | "book_delivery" | "book_runner" | "unknown",
+  "intent": "book_taxi" | "book_runner" | "book_delivery" | "book_food" | "book_beauty" | "book_pet_care" | "book_car_care" | "book_towing" | "book_intercity" | "book_carpool" | "book_video_consult" | "book_parking" | "search_marketplace" | "search_nearby" | "open_wallet" | "view_rides" | "call_sos" | "unknown",
   "pickup": "adresse complète ou null",
   "dropoff": "adresse complète ou null",
   "vehicle_type": "vtc-taxi" | "moto-taxi" | "premium" | "van" | null,
-  "when": "now" | "ISO8601 datetime" | null,
+  "category": "string ou null",
+  "when": "now" | "ISO8601" | null,
   "passengers": 1,
-  "notes": "instructions ou null",
+  "notes": "instructions précises mentionnées ou null",
   "confidence": 0.0 à 1.0
 }
 
-Règles:
-- Si l'utilisateur dit "ma position", "ici", "actuelle" pour le départ → pickup = "current_location"
-- Si le type de véhicule n'est pas précisé → vehicle_type = "vtc-taxi"
-- "moto", "scooter" → "moto-taxi". "premium", "berline", "haut de gamme" → "premium". "van", "minibus" → "van".
-- Si l'intention n'est pas une réservation de taxi/livraison/coursier → intent = "unknown" et confidence = 0
-- Adresses: garde le texte exact mentionné, ne devine pas de code postal
+Règles d'intention:
+- "taxi", "vtc", "voiture", "course", "ramène-moi", "déposer", "rejoindre" → book_taxi
+- "coursier", "récupère", "ramène le sac", "va chercher" → book_runner
+- "livre", "livraison", "envoie le colis" → book_delivery
+- "restaurant", "à manger", "pizza", "sushi", "burger", "food", "commander à manger" → book_food
+- "coiffeur", "salon de beauté", "manucure", "épilation", "massage" → book_beauty
+- "vétérinaire", "toiletteur", "promener mon chien", "garder mon animal" → book_pet_care
+- "garagiste", "lavage auto", "vidange", "entretien voiture", "carrosserie" → book_car_care
+- "dépannage", "panne", "remorquage", "batterie déchargée", "crevaison" → book_towing
+- "trajet longue distance", "Paris-Lyon", "intercity", "covoiturage" + ville lointaine → book_intercity
+- "covoiturage", "carpool", "partager le trajet" → book_carpool
+- "consultation médicale", "téléconsultation", "voir un médecin", "vidéo médecin" → book_video_consult
+- "parking", "garer", "place de stationnement" → book_parking
+- "trouve une boutique", "magasin", "annonces", "vente" → search_marketplace
+- "autour de moi", "près de moi", "nearby" → search_nearby
+- "mon portefeuille", "mon solde", "wallet" → open_wallet
+- "mes courses", "historique" → view_rides
+- "urgence", "police", "SOS", "à l'aide" → call_sos
+- Si rien ne matche, intent = "unknown" et confidence = 0
+
+Règles d'adresses:
+- Pour pickup: "ma position", "ici", "actuelle", "depuis chez moi" → "current_location"
+- vehicle_type uniquement si l'intent est book_taxi/book_runner/book_delivery
+- Pour book_food/book_beauty/etc., utilise "category" pour préciser (ex: "pizza", "sushi", "coiffeur homme")
+- Garde le texte exact d'adresse mentionné, ne devine pas
 """
 
 
@@ -109,6 +129,7 @@ def _normalize(parsed: dict) -> dict:
         "pickup": parsed.get("pickup") or None,
         "dropoff": parsed.get("dropoff") or None,
         "vehicle_type": parsed.get("vehicle_type") or ("vtc-taxi" if (parsed.get("intent") == "book_taxi") else None),
+        "category": parsed.get("category") or None,
         "when": parsed.get("when") or "now",
         "passengers": int(parsed.get("passengers") or 1),
         "notes": parsed.get("notes") or None,
@@ -117,18 +138,39 @@ def _normalize(parsed: dict) -> dict:
 
 
 def _fallback_extract(transcript: str) -> dict:
-    """Heuristic fallback when LLM is unavailable."""
+    """Heuristic fallback when LLM is unavailable. Maps French keywords → intent."""
     low = transcript.lower()
     intent = "unknown"
-    if any(w in low for w in ("taxi", "vtc", "voiture", "course", "déposer", "ramener")):
-        intent = "book_taxi"
-    elif any(w in low for w in ("colis", "livrer", "livraison")):
-        intent = "book_delivery"
-    elif any(w in low for w in ("coursier", "runner", "récupère")):
-        intent = "book_runner"
+    category = None
+
+    keyword_map = [
+        (("taxi", "vtc", "voiture", "course", "déposer", "ramener", "ramène"), "book_taxi"),
+        (("coursier", "récupère", "va chercher"), "book_runner"),
+        (("livre", "livraison", "envoie le colis"), "book_delivery"),
+        (("restaurant", "manger", "pizza", "sushi", "burger", "food", "commander"), "book_food"),
+        (("coiffeur", "salon de beauté", "manucure", "épilation", "massage", "esthétique"), "book_beauty"),
+        (("vétérinaire", "toiletteur", "chien", "chat", "animal"), "book_pet_care"),
+        (("garagiste", "lavage", "vidange", "entretien voiture", "carrosserie"), "book_car_care"),
+        (("dépannage", "panne", "remorquage", "crevaison"), "book_towing"),
+        (("covoiturage", "carpool"), "book_carpool"),
+        (("téléconsultation", "consultation médicale", "vidéo médecin"), "book_video_consult"),
+        (("parking", "garer", "stationnement"), "book_parking"),
+        (("portefeuille", "mon solde", "wallet"), "open_wallet"),
+        (("urgence", "sos", "à l'aide", "police"), "call_sos"),
+    ]
+    for kws, label in keyword_map:
+        if any(k in low for k in kws):
+            intent = label
+            break
+
+    # Category hints for non-transport services
+    if intent == "book_food":
+        for c in ("pizza", "sushi", "burger", "tacos", "asiatique", "indien", "italien", "français"):
+            if c in low:
+                category = c
+                break
 
     pickup = dropoff = None
-    # Pattern: "de X à Y" / "du X au Y"
     import re
     m = re.search(r"\b(?:de|du)\s+([^,]+?)\s+(?:à|au|jusqu['’]?à?)\s+(.+)$", low)
     if m:
@@ -138,18 +180,20 @@ def _fallback_extract(transcript: str) -> dict:
         pickup = "current_location"
 
     vehicle = "vtc-taxi" if intent == "book_taxi" else None
-    if "moto" in low or "scooter" in low:
-        vehicle = "moto-taxi"
-    elif "premium" in low or "berline" in low:
-        vehicle = "premium"
-    elif "van" in low or "minibus" in low:
-        vehicle = "van"
+    if intent == "book_taxi":
+        if "moto" in low or "scooter" in low:
+            vehicle = "moto-taxi"
+        elif "premium" in low or "berline" in low:
+            vehicle = "premium"
+        elif "van" in low or "minibus" in low:
+            vehicle = "van"
 
     return _normalize({
         "intent": intent,
         "pickup": pickup,
         "dropoff": dropoff,
         "vehicle_type": vehicle,
+        "category": category,
         "when": "now",
         "passengers": 1,
         "notes": None,

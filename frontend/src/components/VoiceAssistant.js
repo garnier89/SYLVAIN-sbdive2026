@@ -8,9 +8,32 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const EXAMPLES = [
   'Réserve-moi un taxi de Gare du Nord à Tour Eiffel',
-  'VTC premium de ma position à Orly',
-  'Un van pour 6 personnes vers Châtelet',
+  'Commande des sushis pour ce soir',
+  'Trouve-moi un coiffeur près de moi',
+  'Téléconsultation médicale rapide',
+  'Mon portefeuille',
 ];
+
+// Map LLM intent → in-app route. Optional state.prefill is forwarded.
+const INTENT_ROUTE = {
+  book_taxi: '/ride',
+  book_runner: '/runner',
+  book_delivery: '/parcel',
+  book_food: '/food',
+  book_beauty: '/beauty',
+  book_pet_care: '/pet-care',
+  book_car_care: '/car-care',
+  book_towing: '/towing',
+  book_intercity: '/intercity',
+  book_carpool: '/carpool',
+  book_video_consult: '/video-consult',
+  book_parking: '/parking',
+  search_marketplace: '/marketplace',
+  search_nearby: '/nearby',
+  open_wallet: '/finance',
+  view_rides: '/history',
+  call_sos: '/safety',
+};
 
 const VoiceAssistant = () => {
   const navigate = useNavigate();
@@ -76,12 +99,16 @@ const VoiceAssistant = () => {
       const r = await axios.post(`${API_URL}/api/voice/parse-booking`, { transcript: text }, { withCredentials: true });
       const p = r.data.parsed;
       if (!p || p.intent === 'unknown' || (p.confidence || 0) < 0.3) {
-        toast.error('Je n\'ai pas compris. Essayez : "Réserve un taxi de X à Y"');
+        toast.error('Je n\'ai pas compris. Essayez : "Réserve un taxi de X à Y" ou "Commande à manger"');
         setParsing(false);
         return;
       }
-      // Map intent → route
-      const target = p.intent === 'book_runner' || p.intent === 'book_delivery' ? '/runner' : '/ride';
+      const target = INTENT_ROUTE[p.intent];
+      if (!target) {
+        toast.error('Service non supporté pour le moment');
+        setParsing(false);
+        return;
+      }
       setOpen(false);
       navigate(target, { state: { prefill: p, source: 'voice' } });
     } catch (e) {
