@@ -86,6 +86,16 @@ const RideBookingPage = () => {
       setSelectedVehicle(v);
     }
 
+    const waitForMaps = () => new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        if (window.google && window.google.maps && window.google.maps.Geocoder) return resolve(true);
+        if (Date.now() - start > 5000) return resolve(false);
+        setTimeout(check, 150);
+      };
+      check();
+    });
+
     const geocode = (addr) => new Promise((resolve) => {
       if (!addr || addr === 'current_location') return resolve(null);
       const w = window;
@@ -100,6 +110,7 @@ const RideBookingPage = () => {
     });
 
     (async () => {
+      await waitForMaps();
       let pickedUp = false;
       if (prefill.pickup === 'current_location' && navigator.geolocation) {
         await new Promise((resolve) => {

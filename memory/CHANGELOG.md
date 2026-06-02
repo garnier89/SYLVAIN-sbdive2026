@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-06-02 — Iter79-80: Réservation de Taxi par la Voix
+
+### Added
+- **Bouton flottant 🎤** (FAB noir) sur `/home` (UserHome) au-dessus de la TabBar
+- **Bottom sheet "Comment puis-je vous aider ?"** : zone transcript live, gros bouton micro central (pulse rouge quand actif), 3 exemples cliquables (« Réserve-moi un taxi de X à Y »), bouton vert "Réserver maintenant" qui apparait quand un transcript est saisi
+- **Web Speech API** (gratuit) : reconnaissance vocale native fr-FR, fallback gracieux si non supporté
+- **Endpoint backend** `POST /api/voice/parse-booking` : utilise **Claude Sonnet 4.6 via Emergent LLM key** pour extraire `{intent, pickup, dropoff, vehicle_type, when, passengers, confidence}` du transcript. Fallback heuristique si LLM indispo. Stocke chaque requête dans `voice_bookings` pour analytics.
+- **Pré-remplissage automatique** sur `/ride` : `useEffect` lit `location.state.prefill`, attend que Google Maps soit prêt (retry 150ms × 5s), géocode pickup/dropoff via `google.maps.Geocoder`, sélectionne le bon véhicule, toast "Réservation pré-remplie par la voix"
+
+### Bugs corrigés (iter79 → iter80)
+- `/ride/book` → `/ride` (l'ancienne URL matchait `/ride/:rideId` et affichait "Course introuvable")
+- `_normalize`: `confidence or 0.6` → `if confidence is None: 0.6` (préserve les 0.0 légitimes)
+- Regex fallback acceptant apostrophe droite et courbe (`jusqu'à` / `jusqu'à`)
+- Race condition Google Maps via `waitForMaps()`
+
+### Tests
+- 16/16 nouveaux tests `test_iter79_voice.py` PASS
+- **116/116 régressions** iter70-79 toujours PASS
+- E2E validé : FAB → sheet → exemple → submit → /ride (page Planifier votre course) → pas de "Course introuvable"
+
 ## 2026-06-01 — Iter78: Bouton Documents activé (eye icon)
 
 ### Added
