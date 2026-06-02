@@ -1,0 +1,52 @@
+{
+  "summary": "Iter79 — Voice booking feature tested end-to-end. Backend voice endpoint works (9/11 new tests pass; 2 reveal a real bug). FULL regression 100/100. UI: FAB/sheet/examples/transcript/submit all work and API returns 200 with correct parsed JSON (intent=book_taxi, pickup=Gare du Nord, dropoff=Tour Eiffel, confidence=0.97). CRITICAL bug found: VoiceAssistant.js navigates to /ride/book which matches the route /ride/:rideId with rideId='book' → user lands on a 'Course introuvable' (Ride not found) page instead of the booking form. The actual booking route is /ride (App.js line 188). As a consequence the prefill useEffect never runs, no pickup/dropoff is set, and the 'Réservation pré-remplie par la voix' toast never appears.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/voice/parse-booking (_normalize)", "issue": "Confidence falsy-zero bug. In routes/voice.py line 112, `float(parsed.get('confidence') or 0.6)` converts confidence=0.0 → 0.6 because 0.0 is falsy in Python. This (a) inflates the confidence of unknown-intent phrases (e.g. 'Quelle est la météo demain à Paris ?' returns confidence 0.6 from the LLM path) and (b) overrides the fallback's own 0.0 confidence for non-taxi intents. Fix: `parsed.get('confidence') if parsed.get('confidence') is not None else 0.6`. Same anti-pattern applies to other `or` defaults if 0/empty are legitimate values.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/voice/parse-booking", "issue": "voice_bookings collection is written on every call (including malformed/unknown intents). Consider only logging useful records or capping size for cleanup."},
+      {"endpoint": "routes/voice.py:130", "issue": "Regex `r\"\\\\b(?:de|du)\\\\s+([^,]+?)\\\\s+(?:à|au|jusqu['e]à?)\\\\s+(.+)$\"` uses `['e]` which means 'apostrophe or e' — almost certainly intended `[''e]` (curly apostrophe or e). Edge case: 'jusqu'à' typed with straight quote still matches via the `e` branch, but with a curly apostrophe it won't."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VoiceAssistant.js", "issue": "navigate('/ride/book', ...) lands on /ride/:rideId with rideId='book' → shows 'Course introuvable'. The actual booking route is /ride (App.js:188). Fix: change `/ride/book` → `/ride` (and `/runner` → verify exists; if not, choose correct path).", "selector": "[data-testid=voice-submit-btn]", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Voice → Ride booking prefill", "issue": "Because the target route is wrong, the prefill useEffect on RideBookingPage never executes. Even when /ride/book is fixed to /ride, the geocode path requires window.google.maps.Geocoder; if Google Maps script is still loading when the user lands, geocode returns null silently and no toast fires. Add a retry/wait-for-google strategy or render a loading state.", "affected_selectors": ["[data-testid=voice-submit-btn]"]}
+    ],
+    "design_issues": [
+      {"screen": "/home — Voice FAB", "issues": ["FAB position (bottom-24 right-5 z-900) overlaps with the bottom tab bar in some viewport heights — fine on 390x844 but worth verifying on smaller phones (e.g. iPhone SE 375x667)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter79_voice.py",
+    "/app/test_reports/pytest/iter79_results.xml",
+    "/app/test_reports/pytest/iter79_regression.xml"
+  ],
+  "action_items": [
+    "CRITICAL: In /app/frontend/src/components/VoiceAssistant.js line 84, change navigate target from '/ride/book' to '/ride' (and verify '/runner' route exists; if not, pick a real one).",
+    "HIGH: Fix confidence default in /app/backend/routes/voice.py _normalize: replace `float(parsed.get('confidence') or 0.6)` with `float(parsed['confidence']) if parsed.get('confidence') is not None else 0.6`.",
+    "Optional: ensure RideBookingPage prefill waits for window.google.maps before geocoding (loop until available or use a Maps loader promise).",
+    "Optional: clean the dictionary character class in fallback regex (line 130) — use `[\u2019']` instead of `['e]` (likely typo)."
+  ],
+  "critical_code_review_comments": [
+    "routes/voice.py:112 — falsy-zero bug on `confidence`. Real impact: unknown intent phrases (LLM returns 0.0) get 0.6 and pass the frontend's 0.3 threshold; only the parallel `intent=='unknown'` guard saves the UX.",
+    "routes/voice.py:108 — same pattern: `vehicle_type` defaults to 'vtc-taxi' only when intent=='book_taxi' which is fine, but `passengers` `or 1` would turn passengers=0 (invalid) silently into 1 — minor.",
+    "VoiceAssistant.js:84 — `/ride/book` is a dead route. Should be `/ride`. This is the single biggest bug from this iteration and it makes the whole voice→booking flow unusable.",
+    "VoiceAssistant.js:174 — data-testid uses `ex.slice(0,10)` which yields collisions if two examples share the same 10-char prefix; today they don't, but it's fragile.",
+    "RideBookingPage.js:78-123 — useEffect dependency `[location.state]` may re-trigger geocoding if React re-creates the state object on re-render. Consider keying on a stable hash (e.g. JSON.stringify(prefill)) or running once with a ref guard.",
+    "voice.py — no rate limiting / per-user quota. Each call hits Claude Sonnet; a user could spam the endpoint and burn the EMERGENT_LLM_KEY budget."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter79_voice.py (NEW — 11 tests; 9 pass, 2 fail revealing bugs)"
+  ],
+  "success_rate": {"backend": "82% (9/11 new) + 100% regression (100/100 iter70-78)", "frontend": "70% (UI render + API integration perfect, but navigation target wrong → flow dead-ends on Course introuvable page)"},
+  "test_credentials": "test2@example.com / TestPass123! (login: /login → 'Ou choisir une autre option de connexion' → 'Email & mot de passe')",
+  "seed_data_creation": "Each voice POST inserts a row into voice_bookings collection (user_id, transcript, parsed, created_at) — no cleanup; volume is minimal (~5 docs).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes (a) VoiceAssistant navigate target '/ride/book' → '/ride', and (b) the _normalize falsy-zero on confidence, rerun: cd /app/backend && pytest tests/test_iter79_voice.py -v ; then UI smoke: login as test2 → /home → click voice FAB → click first example → click 'Réserver maintenant' → expect /ride to load with pickup='Gare du Nord' and dropoff='Tour Eiffel' filled AND a toast 'Réservation pré-remplie par la voix'.",
+  "rca_of_the_issue": "Root cause of the dead-end after submit: VoiceAssistant.js was written assuming a /ride/book route, but App.js exposes /ride for booking and /ride/:rideId for tracking. React Router matches /ride/book against /ride/:rideId with rideId='book', sending the user to RideTrackingPage which tries GET /api/rides/book → 404 → renders 'Course introuvable'. Reproduction: login as test2 → /home → click voice mic FAB → click any example pill → click 'Réserver maintenant' (API returns 200 with parsed payload) → URL becomes /ride/book and screen shows 'Course introuvable / Retour'. Mitigation: one-line change in VoiceAssistant.js line 84 (`/ride/book` → `/ride`). The prefill effect in RideBookingPage.js already reads location.state.prefill so once the route is correct the toast and address fields should populate (assuming Google Maps script loaded)."
+}

@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import SearchOverlay from '../../components/SearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
+import VoiceAssistant from '../../components/VoiceAssistant';
 import {
   Car, Motorcycle, Package, ForkKnife,
   House, MapPin, Wallet, User,
@@ -192,6 +193,7 @@ const UserHome = () => {
 
       {/* Search Overlay */}
       {showSearch && <SearchOverlay onClose={() => setShowSearch(false)} />}
+      <VoiceAssistant />
 
       {/* Side menu drawer */}
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />

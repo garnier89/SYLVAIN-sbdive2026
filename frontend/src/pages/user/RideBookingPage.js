@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import { rideAPI } from '../../services/api';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 
@@ -39,6 +40,7 @@ const VEHICLE_META = {
 const RideBookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
 
   const [step, setStep] = useState('plan'); // plan | map | negotiation | searching
   const [stopovers, setStopovers] = useState([]);
@@ -71,6 +73,54 @@ const RideBookingPage = () => {
   useEffect(() => {
     if (searchParams.get('type') === 'schedule') setScheduleMode(true);
   }, [searchParams]);
+
+  // Voice-assistant prefill: geocode pickup/dropoff and select vehicle
+  useEffect(() => {
+    const prefill = location.state?.prefill;
+    if (!prefill || location.state?.source !== 'voice') return;
+
+    // Map LLM vehicle slug to our internal slug
+    const vehicleMap = { 'vtc-taxi': 'sb', premium: 'luxe', van: 'van', 'moto-taxi': 'moto' };
+    if (prefill.vehicle_type) {
+      const v = vehicleMap[prefill.vehicle_type] || 'sb';
+      setSelectedVehicle(v);
+    }
+
+    const geocode = (addr) => new Promise((resolve) => {
+      if (!addr || addr === 'current_location') return resolve(null);
+      const w = window;
+      if (!w.google || !w.google.maps) return resolve(null);
+      const geocoder = new w.google.maps.Geocoder();
+      geocoder.geocode({ address: `${addr}, France` }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          resolve({ lat: loc.lat(), lng: loc.lng(), address: results[0].formatted_address || addr });
+        } else { resolve(null); }
+      });
+    });
+
+    (async () => {
+      let pickedUp = false;
+      if (prefill.pickup === 'current_location' && navigator.geolocation) {
+        await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => { setPickup({ lat: pos.coords.latitude, lng: pos.coords.longitude, address: 'Ma position' }); pickedUp = true; resolve(); },
+            () => resolve(),
+            { timeout: 4000 },
+          );
+        });
+      } else if (prefill.pickup) {
+        const p = await geocode(prefill.pickup);
+        if (p) { setPickup(p); pickedUp = true; }
+      }
+      if (prefill.dropoff) {
+        const d = await geocode(prefill.dropoff);
+        if (d) setDropoff(d);
+      }
+      if (pickedUp) toast.success('Réservation pré-remplie par la voix');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   // Load V3Cube vehicle types from backend
   useEffect(() => {

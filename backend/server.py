@@ -44,6 +44,7 @@ from routes.audit_logs import router as audit_logs_router
 from routes.driver_shifts import router as driver_shifts_router
 from routes.organizations import router as organizations_router
 from routes.i18n import router as i18n_router, seed_i18n
+from routes.voice import router as voice_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -474,6 +475,7 @@ api_router.include_router(audit_logs_router)
 api_router.include_router(driver_shifts_router)
 api_router.include_router(organizations_router)
 api_router.include_router(i18n_router)
+api_router.include_router(voice_router)
 
 app.include_router(api_router)
 
