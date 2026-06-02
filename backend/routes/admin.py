@@ -298,6 +298,28 @@ async def admin_delete_user_document(user_id: str, doc_id: str, request: Request
     return {"deleted": True}
 
 
+@router.put("/users/{user_id}/documents/{doc_id}/status")
+async def admin_update_document_status(user_id: str, doc_id: str, request: Request):
+    """Approve/reject a KYC document. Sets is_verified=True on user when at least one doc is approved."""
+    await require_role(request, ["admin"], permission="users.edit")
+    body = await request.json()
+    status_value = (body.get("status") or "").strip()
+    if status_value not in ("approved", "rejected", "pending_review"):
+        raise HTTPException(400, "status doit être approved, rejected ou pending_review")
+    reason = (body.get("reason") or "").strip()[:300]
+    now = datetime.now(timezone.utc).isoformat()
+    updates = {"status": status_value, "reviewed_at": now, "reviewed_by": "admin"}
+    if reason:
+        updates["review_reason"] = reason
+    res = await db.user_documents.update_one({"id": doc_id, "user_id": user_id}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Document introuvable")
+    # If at least one doc approved → mark user verified; if all rejected → unverified
+    approved_count = await db.user_documents.count_documents({"user_id": user_id, "status": "approved"})
+    await db.users.update_one({"id": user_id}, {"$set": {"is_verified": approved_count > 0}})
+    return {"status": status_value, "is_verified": approved_count > 0, "approved_count": approved_count}
+
+
 
 
 @router.post("/users/{user_id}/wallet/credit")
