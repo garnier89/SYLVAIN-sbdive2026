@@ -22,6 +22,7 @@ import OrdersScreen from '@/screens/user/OrdersScreen';
 import WalletScreen from '@/screens/user/WalletScreen';
 import ProfileScreen from '@/screens/user/ProfileScreen';
 import CatalogScreen from '@/screens/user/CatalogScreen';
+import RideTrackingScreen from '@/screens/user/RideTrackingScreen';
 
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import DriverRidesScreen from '@/screens/driver/DriverRidesScreen';
@@ -79,6 +80,7 @@ function UserNavigator() {
     <UserStack.Navigator screenOptions={{ headerShown: false }}>
       <UserStack.Screen name="UserTabs" component={UserTabsNav} />
       <UserStack.Screen name="Booking" component={BookingScreen} />
+      <UserStack.Screen name="RideTracking" component={RideTrackingScreen} />
       <UserStack.Screen name="Wallet" component={WalletScreen} />
       <UserStack.Screen name="Beauty" component={CatalogScreen} initialParams={{ service: 'beauty' }} />
       <UserStack.Screen name="Pet" component={CatalogScreen} initialParams={{ service: 'pet' }} />

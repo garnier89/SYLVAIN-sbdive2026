@@ -15,6 +15,17 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
+## 2026-06-02 — Mobile App : react-native-maps + Ride Tracking temps réel
+
+### Added
+- **BookingScreen** : MapView Google Maps (provider=GOOGLE sur Android), géolocalisation auto, **markers visuels** pickup (vert) + dropoff (rouge), **Polyline** jaune entre les deux points, bottom sheet avec adresses + chips véhicules + estimate/book, mode "tap-to-pick" sur la carte pour choisir un point géolocalisé inverse-géocodé (`expo-location`)
+- **RideTrackingScreen** (nouveau) : MapView + marker chauffeur dynamique (icône car-sport jaune sur fond navy), pill de statut coloré (pending/accepted/in_progress/completed/cancelled), card chauffeur (avatar, nom, rating, plate, bouton appel `tel:`), polling fallback toutes les 8s, **WebSocket live** `/api/ws/{user_id}` (auto-join ride room, écoute `driver_location` + `ride_status_update`), bouton "Annuler la course"
+- **Hook `useRideSocket`** : gestion connexion WS auto avec `auth/me` pour récupérer user_id réel
+- Helper `regionFromCoords` (utils/geo) pour fit map automatique sur les points
+- Navigation : `Booking` → `RideTracking` (replace) après création course
+- Validation : bundle Android 9.85 MB / iOS 9.83 MB (1311 modules, 0 erreur)
+
+
 
 
 ## 2026-06-02 — Iter79-80: Réservation de Taxi par la Voix
