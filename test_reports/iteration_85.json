@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend test of /taxi hub (iter86). All 16 modes render and switch panels correctly. CTA labels adapt per mode. Toast errors on empty submit. ACME corporate account (-10%) visible in select. Home tiles have correct data-testid mapping. CRITICAL BUG FOUND: live-price-card never appears because GooglePlacesInput integration is broken in TaxiHubPage — onChange returns a STRING, but the code expects {lat,lng,address} object. The component supports onSelect for the object but TaxiHubPage passes only onChange={setPickup}/{setDropoff}. As a result pickup.lat / dropoff.lat are always undefined, /api/rides/estimate is never triggered after place selection, and ride submission would also fail.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TaxiHubPage", "issue": "live-price-card never appears for non-rental modes because pickup/dropoff state stores a string (not {lat,lng,address}). Root cause: GooglePlacesInput.onChange passes the address STRING; the {lat,lng,address} object is only emitted through onSelect, which TaxiHubPage does NOT supply.", "selector": "[data-testid='live-price-card']", "priority": "CRITICAL"},
+      {"component": "TaxiHubPage", "issue": "Ride submission will fail for all modes: buildPayload uses pickup.lat/lng but pickup is a plain string. Estimate call also early-returns (`if (!pickup?.lat)`)", "selector": "[data-testid='cta-book-button']", "priority": "CRITICAL"},
+      {"component": "GooglePlacesInput", "issue": "Passing object as `value` triggers React warnings ('value prop on input should not be null', 'uncontrolled to controlled') because value is expected to be a string. With current TaxiHubPage usage, value={pickup} is object/null/string.", "selector": "[data-testid='pickup-address-input']", "priority": "HIGH"},
+      {"component": "TaxiHubPage corporate select", "issue": "Hydration warning: <span> appears as child of <option> due to data-ve-dynamic wrapper from the build tooling. Not blocking but noisy.", "selector": "[data-testid='corporate-account-select']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Address selection → live price estimate", "issue": "GooglePlacesInput integration in TaxiHubPage uses onChange instead of onSelect; pickup/dropoff never carry lat/lng so /api/rides/estimate is never called after a Google place is selected (despite autocomplete suggestions working). Backend /api/rides/estimate confirmed 200 OK for the earlier session when the test simulated a manual click on .pac-item suggestions — that suggests Google's listeners did fire there but state still wasn't an object, so the estimate firing was likely from typing edge cases. In any case the live price card never appears.", "affected_selectors": ["[data-testid='pickup-address-input']","[data-testid='dropoff-address-input']","[data-testid='live-price-card']","[data-testid='live-price-value']"]},
+      {"flow": "Ride creation from hub", "issue": "Not testable end-to-end because pickup/dropoff coords are never set. Will throw on submit (pickup.lat undefined).", "affected_selectors": ["[data-testid='cta-book-button']"]}
+    ],
+    "design_issues": [
+      {"screen": "/taxi hub", "issues": ["UX OK and bento grid renders nicely with 3 categories", "Header dark / yellow accent, good contrast"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX TaxiHubPage to use GooglePlacesInput properly: either (a) pass onSelect={setPickup} and value={pickup?.address || ''} OR (b) refactor GooglePlacesInput to always emit the {lat,lng,address} object via onChange. Without this, the entire ride booking hub is non-functional (no price display, no submission).",
+    "After fix, verify live-price-card renders with the live-price-value populated from /api/rides/estimate, and that POST /api/rides succeeds for at least one mode (e.g., standard).",
+    "Address React console warnings about controlled/uncontrolled input by passing a defined string value to <input>.",
+    "Optional: switch to google.maps.places.PlaceAutocompleteElement (warning logged repeatedly)."
+  ],
+  "critical_code_review_comments": [
+    "TaxiHubPage.js line 267/272: <GooglePlacesInput value={pickup} onChange={setPickup} ...> is incompatible with the component contract — onChange emits a string, not an object. Must use onSelect for the {lat,lng,address} payload.",
+    "TaxiHubPage uses fetchEstimate guard `if (!pickup?.lat)` which silently no-ops when pickup is a string — masks the integration bug, no error surfaced to UI/console.",
+    "GooglePlacesInput.js: ambiguous contract (onChange emits string from typing AND from place_changed). Consider unifying onChange to always emit an object, or rename/document explicitly.",
+    "TaxiHubPage corporate <option>: ensure the source value is a plain string (currently flagged by hydration warning due to dynamic wrappers)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "60% — UI/panels/modes/CTAs OK, but price + booking integration broken"},
+  "test_credentials": "test2@example.com / TestPass123! (login OK, redirected to /home)",
+  "seed_data_creation": "None created.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Hub renders all 16 modes, all data-testid panels switch correctly, ACME-2026 corporate -10% appears in the select. Toast errors fire on empty CTA. The blocking issue is integration of GooglePlacesInput in TaxiHubPage — pickup/dropoff store a plain string instead of {lat,lng,address}, so live-price-card never appears and submission would fail. Once fixed, re-test: (1) live-price-card appears with a € amount once both addresses are selected; (2) Successful POST /api/rides for standard mode; (3) Corporate -10% reflected in displayed price.",
+  "rca of the issue": "Component contract mismatch. GooglePlacesInput.js emits the lat/lng OBJECT only through `onSelect`. The string address is emitted through `onChange` (both during typing and place_changed). TaxiHubPage.js (lines 267/272) wires `onChange={setPickup}` / `onChange={setDropoff}` without providing onSelect. Consequence: `pickup` state is always a string. The code paths at lines 111-112 (`if (!pickup?.lat) return`) silently skip estimate fetching; line 280's render condition `(displayPrice || isRental)` is false for non-rental modes; and buildPayload at line 160 would crash on submit. Fix: change to `onSelect={setPickup} value={pickup?.address || ''}` (and same for dropoff) OR refactor GooglePlacesInput to always emit the object via onChange."
+}

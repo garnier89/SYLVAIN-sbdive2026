@@ -49,6 +49,7 @@ import BiddingPage from './pages/user/BiddingPage';
 import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
 import AdvancedTaxiBookingPage from './pages/user/AdvancedTaxiBookingPage';
 import CorporateAccountPage from './pages/user/CorporateAccountPage';
+import TaxiHubPage from './pages/user/TaxiHubPage';
 import ScheduledRidesPage from './pages/user/ScheduledRidesPage';
 import RunnerPage from './pages/user/RunnerPage';
 import IntercityRidePage from './pages/user/IntercityRidePage';
@@ -227,6 +228,7 @@ const AppRouter = () => {
       <Route path="/services-bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
       <Route path="/taxi-bidding" element={<ProtectedRoute allowedRoles={['user']}><TaxiBiddingPage /></ProtectedRoute>} />
       <Route path="/taxi-advanced" element={<ProtectedRoute allowedRoles={['user']}><AdvancedTaxiBookingPage /></ProtectedRoute>} />
+      <Route path="/taxi" element={<ProtectedRoute allowedRoles={['user']}><TaxiHubPage /></ProtectedRoute>} />
       <Route path="/scheduled-rides" element={<ProtectedRoute allowedRoles={['user']}><ScheduledRidesPage /></ProtectedRoute>} />
       <Route path="/corporate" element={<ProtectedRoute allowedRoles={['user']}><CorporateAccountPage /></ProtectedRoute>} />
       <Route path="/runner" element={<ProtectedRoute allowedRoles={['user']}><RunnerPage /></ProtectedRoute>} />

@@ -46,14 +46,14 @@ const UserHome = () => {
 
   // ===== Taxi Services (8 items) =====
   const taxiServices = [
-    { id: 'taxi-booking', name: 'VTC\nRéservation', icon: Car, bg: 'bg-amber-50', iconColor: 'text-amber-500', path: '/ride' },
-    { id: 'taxi-pooling', name: 'VTC\nPooling', icon: UsersThree, bg: 'bg-teal-50', iconColor: 'text-teal-500', path: '/ride?type=pool' },
-    { id: 'taxi-rental', name: 'VTC\nLocation', icon: Taxi, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/taxi-advanced?mode=rental' },
+    { id: 'taxi-booking', name: 'VTC\nRéservation', icon: Car, bg: 'bg-amber-50', iconColor: 'text-amber-500', path: '/taxi?mode=standard' },
+    { id: 'taxi-pooling', name: 'VTC\nPooling', icon: UsersThree, bg: 'bg-teal-50', iconColor: 'text-teal-500', path: '/taxi?mode=pool' },
+    { id: 'taxi-rental', name: 'VTC\nLocation', icon: Taxi, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/taxi?mode=rental' },
     { id: 'personal-driver', name: 'Chauffeur\nPrivé', icon: User, bg: 'bg-orange-50', iconColor: 'text-orange-700', path: '/taxi-advanced?mode=buddy_driver' },
-    { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/taxi-bidding' },
-    { id: 'taxi-intercity', name: 'VTC\nIntercity', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/taxi-advanced?mode=intercity' },
-    { id: 'schedule-ride', name: 'Programmer\nCourse', icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/taxi-advanced?mode=scheduled' },
-    { id: 'more-taxi', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi-advanced?mode=airport' },
+    { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/taxi?mode=bidding' },
+    { id: 'taxi-intercity', name: 'VTC\nIntercity', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/taxi?mode=intercity' },
+    { id: 'schedule-ride', name: 'Programmer\nCourse', icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/taxi?mode=book_later' },
+    { id: 'more-taxi', name: 'Tous les\nTaxis', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi' },
   ];
 
   // ===== Delivery Services (4 items) =====
