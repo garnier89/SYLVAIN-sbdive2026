@@ -11,7 +11,7 @@ import secrets as _s
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://taxi-marketplace-3.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sb-drive-vtc.preview.emergentagent.com").rstrip("/")
 from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 
 

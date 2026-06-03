@@ -5,7 +5,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://taxi-marketplace-3.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sb-drive-vtc.preview.emergentagent.com").rstrip("/")
 PASSENGER = {"email": "neg_test@example.com", "password": os.environ.get("TEST_NEG_PASSWORD", "Test1234!")}
 DRIVER = {"email": "testdriver@example.com", "password": os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")}
 

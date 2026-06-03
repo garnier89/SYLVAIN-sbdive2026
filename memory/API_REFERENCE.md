@@ -1,7 +1,7 @@
 # SB Drive VTC — API Reference
 
 > **Version 1.0 (Jun 1, 2026)** — Toutes les APIs en place (227 endpoints).
-> Documentation Swagger interactive : `https://taxi-marketplace-3.preview.emergentagent.com/api/docs`
+> Documentation Swagger interactive : `https://sb-drive-vtc.preview.emergentagent.com/api/docs`
 
 ## 🗂 Sommaire par module
 
@@ -204,8 +204,8 @@ Voir Swagger pour détails. Inclut :
 ## 🏪 merchants, orders, marketplace, carpool, services, coupons, referral, wallet, features, config, payments, webhooks, simulation, auto_dispatch
 
 Tous ces modules suivent le pattern REST classique CRUD. Voir Swagger pour les payloads détaillés :
-- `https://taxi-marketplace-3.preview.emergentagent.com/api/docs` (Swagger UI)
-- `https://taxi-marketplace-3.preview.emergentagent.com/api/redoc` (ReDoc)
+- `https://sb-drive-vtc.preview.emergentagent.com/api/docs` (Swagger UI)
+- `https://sb-drive-vtc.preview.emergentagent.com/api/redoc` (ReDoc)
 
 ---
 
