@@ -15,7 +15,24 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
-## 2026-06-02 — Mobile App : react-native-maps + Ride Tracking temps réel
+## 2026-06-02 — Mobile App : Mode Course Chauffeur (Turn-by-Turn)
+
+### Added
+- **DriverActiveRideScreen** (`/mobile/src/screens/driver/`) : écran plein écran avec MapView (provider Google sur Android), marker dynamique pickup/dropoff selon la phase, polyline vers la cible courante
+- **Phases automatiques** déduites du `ride.status` backend : `to_pickup` → `arrived_at_pickup` → `to_dropoff` → `completed`. Header navy/jaune affichant le titre + hint contextualisé.
+- **Bouton flottant "Naviguer"** (Ionicons navigate, fond bleu info) → deep-link via `utils/navApps.ts` :
+  - **iOS** : `ActionSheetIOS` propose Plans (Apple) / Google Maps / Waze
+  - **Android** : Google Maps en priorité, fallback `geo:` URI (laisse l'utilisateur choisir Waze/Google/etc.)
+- **Tracking position chauffeur** : `Location.watchPositionAsync` (15m / 5s), push HTTP `driverAPI.updateLocation` + WS `location_update` pour mettre à jour la map passager temps réel
+- **Actions phase-dépendantes** :
+  - `to_pickup` → "Je suis arrivé" (`status=arrived`)
+  - `arrived_at_pickup` → "Démarrer la course" (`status=in_progress`)
+  - `to_dropoff` → "Terminer la course" (`status=completed`)
+- **Card Passager** : avatar, nom, tarif, distance restante (m/km), bouton appel `tel:` direct
+- **DriverRidesScreen** : accept → `nav.navigate('ActiveRide', { rideId })` (au lieu de simple reload)
+- **DriverHomeScreen** : banner jaune "Course en cours" auto-affiché si `rides/active/current` retourne une course active (resume après quit/relaunch)
+- Validation : `tsc --noEmit` PASS · bundle Android 9.88 MB (1313 modules) · bundle iOS 9.87 MB (1309 modules)
+
 
 ### Added
 - **BookingScreen** : MapView Google Maps (provider=GOOGLE sur Android), géolocalisation auto, **markers visuels** pickup (vert) + dropoff (rouge), **Polyline** jaune entre les deux points, bottom sheet avec adresses + chips véhicules + estimate/book, mode "tap-to-pick" sur la carte pour choisir un point géolocalisé inverse-géocodé (`expo-location`)

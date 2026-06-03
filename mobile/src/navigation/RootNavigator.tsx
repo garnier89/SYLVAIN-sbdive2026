@@ -27,6 +27,7 @@ import RideTrackingScreen from '@/screens/user/RideTrackingScreen';
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import DriverRidesScreen from '@/screens/driver/DriverRidesScreen';
 import DriverEarningsScreen from '@/screens/driver/DriverEarningsScreen';
+import DriverActiveRideScreen from '@/screens/driver/DriverActiveRideScreen';
 
 import MerchantHomeScreen from '@/screens/merchant/MerchantHomeScreen';
 
@@ -112,6 +113,7 @@ function DriverNavigator() {
   return (
     <DriverStack.Navigator screenOptions={{ headerShown: false }}>
       <DriverStack.Screen name="DriverTabs" component={DriverTabsNav} />
+      <DriverStack.Screen name="ActiveRide" component={DriverActiveRideScreen} />
     </DriverStack.Navigator>
   );
 }

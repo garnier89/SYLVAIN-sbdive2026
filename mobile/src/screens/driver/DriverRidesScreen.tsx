@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '@/components/Button';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
@@ -9,6 +10,7 @@ import { rideAPI } from '@/api/endpoints';
 
 export default function DriverRidesScreen() {
   const { t } = useTranslation();
+  const nav = useNavigation<any>();
   const [available, setAvailable] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +35,7 @@ export default function DriverRidesScreen() {
   const accept = async (id: string) => {
     try {
       await rideAPI.accept(id);
-      await load();
+      nav.navigate('ActiveRide', { rideId: id });
     } catch {}
   };
 
