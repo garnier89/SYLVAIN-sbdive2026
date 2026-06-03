@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LeafletMap from '../../components/LeafletMap';
 import { Card, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
-import { MapPin, Car, User, Phone, Clock, ArrowsClockwise, Path, Bell, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
+import { MapPin, Car, User, Phone, Clock, ArrowsClockwise, Path, Bell, SpeakerHigh, SpeakerSlash, Timer } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const WS_URL = API.replace(/^http/, 'ws');
@@ -28,11 +28,29 @@ const AdminLiveRides = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem('admin_live_sound') !== 'off');
   const [flashIds, setFlashIds] = useState(new Set()); // rides currently flashing
+  const [etas, setEtas] = useState({}); // { [ride_id]: { eta_min, distance_m, updated_at } }
   const audioRef = useRef(null);
   const wsRef = useRef(null);
 
   // Persist sound preference
   useEffect(() => { localStorage.setItem('admin_live_sound', soundOn ? 'on' : 'off'); }, [soundOn]);
+
+  // Purge stale ETAs (>60s without update — the driver likely went offline or completed)
+  useEffect(() => {
+    const t = setInterval(() => {
+      setEtas((prev) => {
+        const now = Date.now();
+        const next = {};
+        let changed = false;
+        for (const [k, v] of Object.entries(prev)) {
+          if (now - v.updated_at < 60000) next[k] = v;
+          else changed = true;
+        }
+        return changed ? next : prev;
+      });
+    }, 15000);
+    return () => clearInterval(t);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -63,6 +81,17 @@ const AdminLiveRides = () => {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
+        if (msg.type === 'eta_update' && msg.ride_id) {
+          setEtas((prev) => ({
+            ...prev,
+            [msg.ride_id]: {
+              eta_min: msg.eta_min,
+              distance_m: msg.distance_m,
+              updated_at: Date.now(),
+            },
+          }));
+          return;
+        }
         if (msg.type === 'new_ride_request') {
           // Sound
           if (soundOn && audioRef.current) {
@@ -236,6 +265,26 @@ const AdminLiveRides = () => {
                     <p className="text-xs text-gray-500">Tarif</p>
                     <p className="font-bold text-blue-600">{selectedRide.estimated_fare?.toFixed(2)} €</p>
                   </div>
+                  {etas[selectedRide.id]?.eta_min != null && (
+                    <div className="col-span-2 mt-1 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+                      <Timer size={16} className="text-emerald-600" weight="bold" />
+                      <div className="flex-1">
+                        <p className="text-[10px] text-emerald-700 font-semibold uppercase tracking-wide">
+                          ETA temps réel
+                        </p>
+                        <p className="text-sm text-emerald-800 font-bold">
+                          {selectedRide.status === 'in_progress' ? 'Arrivée dans' : 'Chauffeur dans'}{' '}
+                          {etas[selectedRide.id].eta_min} min
+                          {etas[selectedRide.id].distance_m != null && (
+                            <span className="text-xs text-emerald-600 font-normal ml-1">
+                              · {(etas[selectedRide.id].distance_m / 1000).toFixed(1)} km
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -296,7 +345,18 @@ const AdminLiveRides = () => {
                             <MapPin size={10} className="inline mr-0.5" />
                             {ride.pickup_address?.slice(0, 20)} → {ride.dropoff_address?.slice(0, 20)}
                           </p>
-                          <p className="text-xs font-bold text-blue-600 ml-2">{ride.estimated_fare?.toFixed(0)}€</p>
+                          <div className="flex items-center gap-1.5 ml-2">
+                            {etas[ride.id]?.eta_min != null && (
+                              <span
+                                className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5 flex items-center gap-0.5"
+                                data-testid={`ride-eta-${ride.id}`}
+                                title={`ETA temps réel · MAJ il y a ${Math.round((Date.now() - etas[ride.id].updated_at) / 1000)}s`}
+                              >
+                                <Timer size={9} weight="bold" /> {etas[ride.id].eta_min}min
+                              </span>
+                            )}
+                            <p className="text-xs font-bold text-blue-600">{ride.estimated_fare?.toFixed(0)}€</p>
+                          </div>
                         </div>
                       </button>
                     );

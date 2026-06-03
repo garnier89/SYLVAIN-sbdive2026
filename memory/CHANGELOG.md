@@ -15,6 +15,16 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
+## 2026-06-02 — Admin Dispatcher : ETA temps réel sur la map live
+
+### Added
+- **AdminLiveRides.js** : nouveau state `etas` (map `{[ride_id]: { eta_min, distance_m, updated_at }}`) alimenté par les messages WS `eta_update` (déjà émis par l'app mobile chauffeur)
+- **Card course sélectionnée** : bandeau émeraude "ETA temps réel — Chauffeur dans X min · Y.Y km" avec pulse animé
+- **Liste des courses actives** : pill compact `Timer + Xmin` (testID `ride-eta-{id}`) à côté du tarif sur chaque card
+- **Auto-purge** : les ETAs sans update depuis >60s sont nettoyés automatiquement (toutes les 15s)
+- **Backend** (`server.py`) : le handler `eta_update` broadcaste désormais aussi via `manager.broadcast_to_admins(payload)` en plus du passager + ride room
+- Validation : ESLint PASS · backend healthy `/api/health` · smoke WS test (admin + driver connect, `eta_update` handler exécuté sans erreur)
+
 ## 2026-06-02 — Mobile App : ETA dynamique côté client (sans coût API)
 
 ### Added

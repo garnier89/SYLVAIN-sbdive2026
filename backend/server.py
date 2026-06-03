@@ -539,6 +539,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         }
                         await manager.send_personal_message(payload, ride["user_id"])
                         await manager.send_to_ride_room(ride_id, payload, exclude=client_id)
+                        await manager.broadcast_to_admins(payload)
 
             elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
