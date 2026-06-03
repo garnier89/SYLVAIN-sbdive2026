@@ -108,6 +108,7 @@ async def verify_start_otp(ride_id: str, request: Request):
         "started_at": now,
     }})
     await manager.send_to_ride_room(ride_id, {"type": "ride_started", "ride_id": ride_id, "started_at": now})
+    await manager.send_personal_message({"type": "ride_status_update", "ride_id": ride_id, "status": "in_progress", "timestamp": now}, ride["user_id"])
     return {"message": "Ride started", "ride_id": ride_id}
 
 

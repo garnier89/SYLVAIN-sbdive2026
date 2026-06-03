@@ -1,9 +1,9 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import {
   List, PencilSimple, Phone, ChatCircleDots, ShareNetwork, X,
-  Star, StarHalf, User, NavigationArrow,
+  Star, StarHalf, User, NavigationArrow, Siren,
 } from '@phosphor-icons/react';
 import { decodePolyline } from '../../../utils/polyline';
 import 'leaflet/dist/leaflet.css';
@@ -15,6 +15,15 @@ const distKm = (a, b) => {
   const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+};
+
+// Bearing in degrees (0 = north) from point a to b — used to rotate the car
+const bearingDeg = (a, b) => {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const y = Math.sin(toRad(b.lng - a.lng)) * Math.cos(toRad(b.lat));
+  const x = Math.cos(toRad(a.lat)) * Math.sin(toRad(b.lat)) -
+    Math.sin(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.cos(toRad(b.lng - a.lng));
+  return (Math.atan2(y, x) * 180) / Math.PI;
 };
 
 // Top-view white car marker
@@ -74,13 +83,52 @@ const MapResizer = () => {
   return null;
 };
 
+// Uber/inDrive-style smooth car: interpolates between GPS updates + rotates to heading
+const AnimatedCarMarker = ({ position }) => {
+  const map = useMap();
+  const markerRef = useRef(null);
+  const curRef = useRef(position);
+  const rafRef = useRef(null);
+  const headingRef = useRef(0);
+
+  useEffect(() => {
+    if (!markerRef.current) {
+      markerRef.current = L.marker([position.lat, position.lng], { icon: carIcon, zIndexOffset: 1200, interactive: false }).addTo(map);
+      curRef.current = { ...position };
+      return undefined;
+    }
+    const from = { ...curRef.current };
+    const to = { lat: position.lat, lng: position.lng };
+    if (distKm(from, to) > 0.0005) headingRef.current = bearingDeg(from, to);
+    const duration = 1400;
+    const start = performance.now();
+    cancelAnimationFrame(rafRef.current);
+    const step = (t) => {
+      const k = Math.min(1, (t - start) / duration);
+      const lat = from.lat + (to.lat - from.lat) * k;
+      const lng = from.lng + (to.lng - from.lng) * k;
+      markerRef.current.setLatLng([lat, lng]);
+      curRef.current = { lat, lng };
+      const el = markerRef.current.getElement();
+      const svg = el && el.querySelector('svg');
+      if (svg) { svg.style.transformOrigin = 'center'; svg.style.transform = `rotate(${headingRef.current}deg)`; }
+      if (k < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [position, map]);
+
+  useEffect(() => () => { if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; } }, []);
+  return null;
+};
+
 /**
  * DriverEnRouteView — immersive V3Cube-style "EN ARRIVANT / EN COURSE" screen
  * shown to the passenger once a driver is assigned (accepted/arriving/in_progress).
  */
-const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat, onShare, onCancel, onEditDest, otp, onRequestOtp }) => {
+const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat, onShare, onCancel, onEditDest, otp, onRequestOtp, onSos }) => {
   const inProgress = ride.status === 'in_progress';
-  const title = inProgress ? 'EN COURSE' : 'EN ARRIVANT';
+  const title = inProgress ? 'EN ROUTE' : 'EN ARRIVANT';
   const target = inProgress
     ? { lat: ride.dropoff_lat, lng: ride.dropoff_lng }
     : { lat: ride.pickup_lat, lng: ride.pickup_lng };
@@ -142,12 +190,19 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
           {inProgress && <Polyline positions={blueRoute} pathOptions={{ color: '#3b82f6', weight: 4 }} />}
           <Polyline positions={[[carPos.lat, carPos.lng], [target.lat, target.lng]]} pathOptions={{ color: '#111', weight: 4 }} />
           <Marker position={[target.lat, target.lng]} icon={etaIcon(eta)} />
-          <Marker position={[carPos.lat, carPos.lng]} icon={carIcon} />
+          <AnimatedCarMarker position={carPos} />
         </MapContainer>
 
         <div className={`absolute top-3 right-3 z-[1000] px-2 py-1 rounded-full text-[10px] font-semibold ${connected ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
           {connected ? 'En direct' : 'Reconnexion…'}
         </div>
+
+        {/* SOS button — emergency, shown once the trip is in progress */}
+        {inProgress && (
+          <button onClick={onSos} className="absolute top-12 right-3 z-[1000] w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shadow-lg active:scale-95 transition-transform animate-pulse" data-testid="enroute-sos-btn" aria-label="Urgence SOS">
+            <Siren size={24} weight="fill" className="text-white" />
+          </button>
+        )}
 
         {/* OTP pill — passenger shares this code so the driver can start the trip */}
         {!inProgress && (

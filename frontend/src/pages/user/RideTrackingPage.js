@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,6 +16,21 @@ import DriverEnRouteView from './ride-tracking/DriverEnRouteView';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+// V3Cube-style status notification dialog ("Le chauffeur est arrivé.", etc.)
+const StatusDialog = ({ dialog }) => {
+  if (!dialog) return null;
+  return (
+    <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/40 px-8" data-testid="status-dialog">
+      <div className="bg-white rounded-2xl w-full max-w-xs p-6 text-center shadow-2xl">
+        <p className="text-base font-bold text-gray-900 mb-5" data-testid="status-dialog-text">{dialog.title}</p>
+        <button onClick={dialog.onOk} className="text-[#4361EE] font-extrabold text-sm uppercase tracking-wide" data-testid="status-dialog-ok">
+          D'accord
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const STATUS_STEPS = [
   { key: 'pending', label: 'Recherche', icon: Clock },
@@ -43,6 +58,8 @@ const RideTrackingPage = () => {
   const [cancelReasons, setCancelReasons] = useState([]);
   const [poolEnabled, setPoolEnabled] = useState(false);
   const [poolLoading, setPoolLoading] = useState(false);
+  const [statusDialog, setStatusDialog] = useState(null);
+  const prevStatusRef = useRef(null);
 
   const togglePool = useCallback(async () => {
     if (poolLoading) return;
@@ -75,13 +92,30 @@ const RideTrackingPage = () => {
       if (res.data.driver_lat && res.data.driver_lng) {
         setDriverPos({ lat: res.data.driver_lat, lng: res.data.driver_lng });
       }
-      if (res.data.status === 'completed') setShowRating(true);
+      if (res.data.start_otp) setStartOtp(res.data.start_otp);
     } catch (err) {
       console.error('Failed to fetch ride:', err);
     } finally {
       setLoading(false);
     }
   }, [rideId]);
+
+  // Detect status transitions → notification dialogs + navigate to receipt on completion
+  useEffect(() => {
+    if (!ride) return;
+    const prev = prevStatusRef.current;
+    const cur = ride.status;
+    if (prev === null) {
+      prevStatusRef.current = cur;
+      if (cur === 'completed') navigate(`/ride/${rideId}/receipt`);
+      return;
+    }
+    if (prev === cur) return;
+    prevStatusRef.current = cur;
+    if (cur === 'arriving') setStatusDialog({ title: 'Le chauffeur est arrivé.', onOk: () => setStatusDialog(null) });
+    else if (cur === 'in_progress') setStatusDialog({ title: 'Votre voyage a commencé.', onOk: () => setStatusDialog(null) });
+    else if (cur === 'completed') setStatusDialog({ title: 'Votre voyage est terminé.', onOk: () => navigate(`/ride/${rideId}/receipt`) });
+  }, [ride, rideId, navigate]);
 
   // Initial load + cancel reasons (run once per rideId change)
   useEffect(() => {
@@ -97,6 +131,14 @@ const RideTrackingPage = () => {
     if (connected && rideId) joinRide(rideId);
   }, [connected, rideId, joinRide]);
 
+  // Polling fallback (covers environments where the WebSocket is unavailable):
+  // keep the ride status fresh so notifications + receipt navigation always fire.
+  useEffect(() => {
+    if (!ride || ['completed', 'cancelled'].includes(ride.status)) return undefined;
+    const id = setInterval(fetchRide, 5000);
+    return () => clearInterval(id);
+  }, [ride?.status, fetchRide]);
+
   // Subscribe to live ride events
   useEffect(() => {
     const unsub1 = on('ride_status_update', (msg) => {
@@ -104,7 +146,10 @@ const RideTrackingPage = () => {
       setRide((prev) =>
         prev ? { ...prev, status: msg.status, otp: msg.otp || prev.otp, final_fare: msg.final_fare || prev.final_fare } : prev
       );
-      if (msg.status === 'completed') setShowRating(true);
+    });
+    const unsubStarted = on('ride_started', (msg) => {
+      if (msg.ride_id !== rideId) return;
+      setRide((prev) => (prev ? { ...prev, status: 'in_progress', started_at: msg.started_at } : prev));
     });
     const unsub2 = on('ride_accepted', (msg) => {
       if (msg.ride_id !== rideId) return;
@@ -137,6 +182,7 @@ const RideTrackingPage = () => {
     });
     return () => {
       unsub1();
+      unsubStarted();
       unsub2();
       unsub3();
       unsub4();
@@ -221,7 +267,7 @@ const RideTrackingPage = () => {
     } catch (err) { console.warn('[share] cancelled:', err?.message || err); }
   };
 
-  // Immersive V3Cube-style "EN ARRIVANT / EN COURSE" experience once a driver is assigned
+  // Immersive V3Cube-style "EN ARRIVANT / EN ROUTE" experience once a driver is assigned
   if (isAssigned) {
     return (
       <div data-testid="ride-tracking-page">
@@ -229,12 +275,13 @@ const RideTrackingPage = () => {
           ride={ride}
           driverPos={driverPos}
           connected={connected}
-          otp={startOtp}
+          otp={startOtp || ride.start_otp}
           onRequestOtp={requestStartOtp}
           onBack={() => navigate('/home')}
           onCall={() => { if (ride.driver_phone) window.location.href = `tel:${ride.driver_phone}`; else toast.info('Numéro du chauffeur indisponible'); }}
           onChat={() => navigate(`/ride/${rideId}/chat`)}
           onShare={handleShare}
+          onSos={() => { toast.error("Alerte d'urgence envoyée au support et à vos contacts."); navigate('/safety'); }}
           onCancel={() => (canCancel ? setShowCancel(true) : toast.info('La course est déjà en cours'))}
         />
         <CancelRideModal
@@ -243,6 +290,7 @@ const RideTrackingPage = () => {
           onCancel={handleCancel}
           onClose={() => setShowCancel(false)}
         />
+        <StatusDialog dialog={statusDialog} />
       </div>
     );
   }
@@ -457,6 +505,8 @@ const RideTrackingPage = () => {
         onClose={() => setShowTipModal(false)}
         onSuccess={() => setShowTipModal(false)}
       />
+
+      <StatusDialog dialog={statusDialog} />
     </div>
   );
 };

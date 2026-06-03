@@ -410,7 +410,7 @@ const DriverHome = () => {
                 currentRide.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
                 currentRide.status === 'arriving' ? 'bg-amber-100 text-amber-700' :
                 'bg-green-100 text-green-700'}`}>
-                {currentRide.status === 'accepted' ? 'Acceptee' : currentRide.status === 'arriving' ? 'En route' : 'En cours'}
+                {currentRide.status === 'accepted' ? 'Acceptee' : currentRide.status === 'arriving' ? 'Arrivé' : 'En cours'}
               </span>
               <span className="font-bold text-lg" style={{ color: '#00B578' }}>{currentRide.estimated_fare?.toFixed(2)} EUR</span>
             </div>
@@ -453,7 +453,7 @@ const DriverHome = () => {
               {currentRide.status === 'accepted' && (
                 <button className="flex-1 text-white rounded-full py-3 text-sm font-bold flex items-center justify-center gap-1.5" style={{ background: '#00B578' }}
                   onClick={() => updateRideStatus('arriving')} data-testid="arriving-btn">
-                  <NavigationArrow size={16} /> En route
+                  <NavigationArrow size={16} /> Je suis arrivé
                 </button>
               )}
               {currentRide.status === 'arriving' && (

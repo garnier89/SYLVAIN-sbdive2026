@@ -163,6 +163,7 @@ async def create_ride(data: RideRequest, request: Request):
         "payment_method": data.payment_method,
         "payment_status": "pending",
         "otp": otp,
+        "start_otp": otp,
         "fare_type": vtype_doc.get("fare_type", "Regular") if vtype_doc else "Regular",
         "base_fare": vtype_doc.get("base_fare", 0) if vtype_doc else 0,
         "price_per_km": vtype_doc.get("price_per_km", 0) if vtype_doc else 0,
@@ -310,6 +311,12 @@ async def get_ride(ride_id: str, request: Request):
                 ride["driver_lat"] = loc["lat"]
                 ride["driver_lng"] = loc["lng"]
 
+    # The start OTP must never be exposed to the driver — only the passenger
+    # (in their app) and the admin (who can relay it if the phone is off).
+    if is_assigned_driver and not is_admin:
+        ride.pop("start_otp", None)
+        ride.pop("otp", None)
+
     return ride
 
 
@@ -409,6 +416,12 @@ async def update_ride_status(ride_id: str, request: Request):
     elif not (is_driver or is_admin):
         raise HTTPException(status_code=403, detail="Only the driver can update ride status")
 
+    # The driver cannot start the trip via the generic status endpoint: they MUST
+    # verify the passenger's start OTP (POST /phase1/rides/{id}/start-otp/verify).
+    # Admins may force-start (e.g. they relayed the OTP and the phone is off).
+    if new_status == "in_progress" and is_driver and not is_admin:
+        raise HTTPException(status_code=400, detail="Le code OTP du client est requis pour démarrer la course")
+
     now = datetime.now(timezone.utc).isoformat()
     update_data = {"status": new_status}
 
@@ -420,8 +433,38 @@ async def update_ride_status(ride_id: str, request: Request):
 
     elif new_status == "completed":
         update_data["completed_at"] = now
-        final_fare = ride["estimated_fare"]
+        # ===== Invoice fare breakdown (V3Cube "Résumé de paiement") =====
+        vtype = await db.vehicle_types.find_one({"slug": ride["vehicle_type"]}, {"_id": 0}) or {}
+        base = round(vtype.get("base_fare", ride.get("base_fare", 0)) + vtype.get("pickup_price", 0), 2)
+        per_km = vtype.get("price_per_km", ride.get("price_per_km", 0))
+        per_min = vtype.get("price_per_min", 0)
+        min_fare = vtype.get("min_fare", 0)
+        dist = ride.get("distance_km", 0) or 0
+        dist_charge = round(dist * per_km, 2)
+        elapsed_sec = 0
+        if ride.get("started_at"):
+            try:
+                started = datetime.fromisoformat(ride["started_at"])
+                elapsed_sec = max(0, int((datetime.now(timezone.utc) - started).total_seconds()))
+            except (ValueError, TypeError):
+                pass
+        time_charge = round((elapsed_sec / 60) * per_min, 2)
+        subtotal = round(base + dist_charge + time_charge, 2)
+        min_adj = round(max(0, min_fare - subtotal), 2)
+        final_fare = round(subtotal + min_adj, 2)
         update_data["final_fare"] = final_fare
+        update_data["fare_breakdown"] = {
+            "vehicle_label": vtype.get("name", ride.get("vehicle_type", "")),
+            "base_fare": base,
+            "distance_km": round(dist, 2),
+            "distance_charge": dist_charge,
+            "time_seconds": elapsed_sec,
+            "time_charge": time_charge,
+            "min_fare": min_fare,
+            "min_adjustment": min_adj,
+            "total": final_fare,
+            "currency": "EUR",
+        }
         pm = ride.get("payment_method")
         # === SB PayGo auto-deduction ===
         if pm == "sbpaygo":
@@ -449,7 +492,7 @@ async def update_ride_status(ride_id: str, request: Request):
             update_data["payment_status"] = "completed" if pm != "cash" else "pending_cash"
         if ride.get("driver_id"):
             commission = ride.get("commission_percent", 10) / 100
-            driver_earnings = ride["estimated_fare"] * (1 - commission)
+            driver_earnings = final_fare * (1 - commission)
             await db.drivers.update_one(
                 {"id": ride["driver_id"]},
                 {"$inc": {"total_trips": 1, "earnings": round(driver_earnings, 2)}}
@@ -505,7 +548,7 @@ async def update_ride_status(ride_id: str, request: Request):
     if new_status == "arriving":
         ws_message["otp"] = ride.get("otp")
     if new_status == "completed":
-        ws_message["final_fare"] = ride["estimated_fare"]
+        ws_message["final_fare"] = update_data.get("final_fare")
     if new_status == "cancelled":
         ws_message["cancelled_by"] = update_data.get("cancelled_by")
         ws_message["cancel_reason"] = update_data.get("cancel_reason")
@@ -651,6 +694,8 @@ async def rate_ride(ride_id: str, request: Request):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.ratings.insert_one(rating)
+    if body.get("favorite_driver") and ride.get("driver_id"):
+        await db.users.update_one({"id": user["id"]}, {"$addToSet": {"favorite_driver_ids": ride["driver_id"]}})
     pipeline = [
         {"$match": {"driver_id": ride["driver_id"]}},
         {"$group": {"_id": None, "avg": {"$avg": "$rating"}}}

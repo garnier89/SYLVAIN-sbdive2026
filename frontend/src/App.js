@@ -21,6 +21,7 @@ import ClientWelcome from './pages/client/ClientWelcome';
 import UserHome from './pages/user/UserHome';
 import RideBookingPage from './pages/user/RideBookingPage';
 import RideTrackingPage from './pages/user/RideTrackingPage';
+import RideReceiptPage from './pages/user/RideReceiptPage';
 import FoodPage from './pages/user/FoodPage';
 import RestaurantDetail from './pages/user/RestaurantDetail';
 import CheckoutPage from './pages/user/CheckoutPage';
@@ -245,6 +246,7 @@ const AppRouter = () => {
       <Route path="/tracking" element={<ProtectedRoute allowedRoles={['user']}><TrackingServicePage /></ProtectedRoute>} />
       <Route path="/finance" element={<ProtectedRoute allowedRoles={['user', 'driver']}><FinancePage /></ProtectedRoute>} />
       <Route path="/ride/:rideId/waybill" element={<ProtectedRoute allowedRoles={['user', 'driver']}><WaybillPage /></ProtectedRoute>} />
+      <Route path="/ride/:rideId/receipt" element={<ProtectedRoute allowedRoles={['user']}><RideReceiptPage /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><WalletPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
