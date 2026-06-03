@@ -12,6 +12,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Refonte hub: Grille vs "Planifiez votre trajet" + arrêts multiples (DONE — iter 89)
+- `/taxi` (Plus de Services) = vue **Grille** des 16 services, sans adresses. Clic sur un service = vue **Réservation** « Planifiez votre trajet » sans les autres services (parité image 1 V3Cube).
+- En-tête : toggles **Ramassage maintenant/plus tard** + **Pour moi/Pour un proche**. **Arrêts multiples** via bouton « + » (`stops[]`).
+- Backend : champ `stops` + contrôles timing/forWho applicables à tout mode. Vérifié curl + screenshots.
+
 ## NEW - Jun 2026 - Géoloc départ + raccourcis Maison/Travail/récents (DONE — iter 88)
 - Hub `/taxi` : départ **auto-localisé** (géoloc + reverse-geocode). Sous la destination : raccourcis **Utiliser ma localisation actuelle**, **Maison**, **Travail** (enregistrables) + **lieux récents**.
 - Backend `routes/places.py` (`/api/places/saved`, `/recent`) — collection `user_places`. 3/3 pytest, UI vérifiée (conforme maquette V3Cube).

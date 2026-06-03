@@ -13,7 +13,7 @@ import {
   Clock, MapTrifold, CalendarPlus, Key, Gavel, AirplaneTilt, PawPrint, UserPlus,
   Van, HandHeart, Briefcase, Wheelchair, Lightning, Plus, Minus,
   Money, CreditCard, Wallet, Tag, CheckCircle,
-  House, NavigationArrow, Pencil, CaretRight,
+  House, NavigationArrow, Pencil, CaretRight, X,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { corporateAPI, couponAPI, placesAPI } from '../../services/api';
@@ -71,11 +71,17 @@ const PAYMENT_METHODS = [
 const TaxiHubPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const cameFromGrid = !params.get('mode');
+  const [view, setView] = useState(params.get('mode') ? 'booking' : 'grid');
   const [modeId, setModeId] = useState(params.get('mode') || 'standard');
   const mode = useMemo(() => MODES.find((m) => m.id === modeId) || MODES[0], [modeId]);
 
   const [pickup, setPickup] = useState(null);
   const [dropoff, setDropoff] = useState(null);
+  const [stops, setStops] = useState([]);
+  const [pickupTiming, setPickupTiming] = useState('now'); // now | later
+  const [forWho, setForWho] = useState('me'); // me | other
+  const [topMenu, setTopMenu] = useState(null); // 'timing' | 'who' | null
   const [scheduledAt, setScheduledAt] = useState('');
   const [flightNumber, setFlightNumber] = useState('');
   const [rentalPkg, setRentalPkg] = useState('2h_20km');
@@ -154,6 +160,24 @@ const TaxiHubPage = () => {
       toast.success(kind === 'home' ? 'Adresse maison enregistrée' : 'Adresse travail enregistrée');
     } catch (e) { toast.error('Erreur enregistrement'); }
   };
+
+  const selectMode = (id) => { setModeId(id); setTopMenu(null); setView('booking'); };
+  const goBack = () => {
+    if (view === 'booking' && cameFromGrid) { setView('grid'); setTopMenu(null); }
+    else navigate('/home');
+  };
+  const addStop = () => setStops((s) => [...s, { address: '', lat: null, lng: null }]);
+  const setStop = (idx, place) => setStops((s) => s.map((st, i) => (i === idx ? place : st)));
+  const removeStop = (idx) => setStops((s) => s.filter((_, i) => i !== idx));
+
+  // Default schedule time when switching to "later"
+  useEffect(() => {
+    if (pickupTiming === 'later' && !scheduledAt) {
+      const d = new Date();
+      d.setHours(d.getHours() + 1, 0, 0, 0);
+      setScheduledAt(d.toISOString().slice(0, 16));
+    }
+  }, [pickupTiming, scheduledAt]);
 
   // default scheduled date
   useEffect(() => {
@@ -267,6 +291,15 @@ const TaxiHubPage = () => {
     if (mode.id === 'access') base.handicap_accessibility = true;
     if (mode.id === 'pool') base.pool_enabled = true;
     if (mode.id === 'book_for_someone') { base.book_for_name = bookForName; base.book_for_phone = bookForPhone; }
+    // Top controls (apply to any mode)
+    if (pickupTiming === 'later') {
+      base.scheduled_at = scheduledAt || null;
+      if (base.ride_type === 'instant') base.ride_type = 'scheduled';
+    }
+    if (forWho === 'other') { base.book_for_name = bookForName; base.book_for_phone = bookForPhone; }
+    // Multi-stop waypoints
+    const validStops = stops.filter((s) => s?.lat);
+    if (validStops.length) base.stops = validStops.map((s) => ({ address: s.address, lat: s.lat, lng: s.lng }));
     return base;
   };
 
@@ -283,7 +316,7 @@ const TaxiHubPage = () => {
       if (biddingFare) q.set('fare', biddingFare);
       return navigate(`/taxi-bidding?${q.toString()}`);
     }
-    if (mode.id === 'book_for_someone' && !bookForName) return toast.error('Indiquez le nom du passager');
+    if ((mode.id === 'book_for_someone' || forWho === 'other') && !bookForName) return toast.error('Indiquez le nom du passager');
 
     setSubmitting(true);
     try {
@@ -310,38 +343,74 @@ const TaxiHubPage = () => {
     <div className="mobile-container min-h-screen bg-[#F8F9FA] pb-40" data-testid="taxi-hub-page">
       {/* Header */}
       <div className="bg-[#0B1426] text-white px-5 pt-12 pb-6">
-        <button onClick={() => navigate('/home')} className="mb-4" data-testid="taxi-hub-back"><ArrowLeft size={24} /></button>
+        <button onClick={goBack} className="mb-4" data-testid="taxi-hub-back"><ArrowLeft size={24} /></button>
         <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#FFC107]">SB Drive · Se déplacer</p>
-        <h1 className="text-3xl font-black tracking-tight mt-1">Comment voyagez-vous&nbsp;?</h1>
+        <h1 className="text-3xl font-black tracking-tight mt-1">
+          {view === 'grid' ? 'Choisissez un service' : 'Planifiez votre trajet'}
+        </h1>
+
+        {/* Top controls (booking view) — Ramassage / Pour qui */}
+        {view === 'booking' && (
+          <div className="flex gap-2 mt-4" data-testid="trip-top-controls">
+            <div className="relative flex-1">
+              <button onClick={() => setTopMenu(topMenu === 'timing' ? null : 'timing')}
+                className="w-full bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-left" data-testid="timing-toggle">
+                <span className="flex items-center gap-2 min-w-0"><Clock size={18} className="text-[#FFC107] flex-shrink-0" />
+                  <span className="text-sm font-semibold truncate">{pickupTiming === 'now' ? 'Ramassage maintenant' : 'Plus tard'}</span>
+                </span>
+                <CaretRight size={14} className={`transition-transform ${topMenu === 'timing' ? 'rotate-90' : ''}`} />
+              </button>
+              {topMenu === 'timing' && (
+                <div className="absolute z-30 mt-1 left-0 right-0 bg-white text-[#0B1426] rounded-xl shadow-xl overflow-hidden">
+                  <button onClick={() => { setPickupTiming('now'); setTopMenu(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50" data-testid="timing-now">Ramassage maintenant</button>
+                  <button onClick={() => { setPickupTiming('later'); setTopMenu(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-t" data-testid="timing-later">Programmer plus tard</button>
+                </div>
+              )}
+            </div>
+            <div className="relative flex-1">
+              <button onClick={() => setTopMenu(topMenu === 'who' ? null : 'who')}
+                className="w-full bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-left" data-testid="who-toggle">
+                <span className="flex items-center gap-2 min-w-0"><UserPlus size={18} className="text-[#FFC107] flex-shrink-0" />
+                  <span className="text-sm font-semibold truncate">{forWho === 'me' ? 'Pour moi' : 'Pour un proche'}</span>
+                </span>
+                <CaretRight size={14} className={`transition-transform ${topMenu === 'who' ? 'rotate-90' : ''}`} />
+              </button>
+              {topMenu === 'who' && (
+                <div className="absolute z-30 mt-1 left-0 right-0 bg-white text-[#0B1426] rounded-xl shadow-xl overflow-hidden">
+                  <button onClick={() => { setForWho('me'); setTopMenu(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50" data-testid="who-me">Pour moi</button>
+                  <button onClick={() => { setForWho('other'); setTopMenu(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-t" data-testid="who-other">Pour un proche</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Mode hub — Tactical Bento Grid */}
-      <div className="px-5 -mt-3">
+      {/* ===== GRID VIEW — only when choosing a service ("Plus de Services") ===== */}
+      {view === 'grid' && (
+      <div className="px-5 -mt-3" data-testid="mode-grid-view">
         {CATS.map((cat) => (
           <div key={cat.key} className="mb-5">
             <p className="text-[11px] tracking-[0.12em] uppercase font-bold text-slate-500 mb-2">{cat.title}</p>
             <div className={cat.key === 'everyday' ? 'grid grid-cols-2 gap-3' : cat.key === 'time' ? 'flex overflow-x-auto gap-3 pb-2 hide-scrollbar' : 'flex flex-wrap gap-2'}>
               {MODES.filter((m) => m.cat === cat.key).map((m) => {
-                const active = m.id === modeId;
                 const MIcon = m.icon;
                 if (cat.key === 'special') {
                   return (
-                    <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => setModeId(m.id)}
-                      className={`px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors ${active ? 'text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}
-                      style={active ? { backgroundColor: m.color } : {}}>
-                      <MIcon size={16} weight={active ? 'fill' : 'regular'} /> {m.label}
+                    <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => selectMode(m.id)}
+                      className="px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors bg-white text-[#0B1426] border-[#E2E8F0]">
+                      <MIcon size={16} style={{ color: m.color }} /> {m.label}
                     </button>
                   );
                 }
                 return (
-                  <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => setModeId(m.id)}
-                    className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all ${active ? 'text-white border-transparent shadow-lg' : 'bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426]'}`}
-                    style={active ? { backgroundColor: m.color } : {}}>
-                    {m.badge && <span className={`absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-[#FFC107] text-[#0B1426]'}`}>{m.badge}</span>}
-                    <MIcon size={26} weight={cat.key === 'everyday' ? 'duotone' : 'regular'} style={!active ? { color: m.color } : {}} />
+                  <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => selectMode(m.id)}
+                    className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426]`}>
+                    {m.badge && <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FFC107] text-[#0B1426]">{m.badge}</span>}
+                    <MIcon size={26} weight={cat.key === 'everyday' ? 'duotone' : 'regular'} style={{ color: m.color }} />
                     <div>
                       <p className="font-bold text-sm leading-tight">{m.label}</p>
-                      <p className={`text-[10px] ${active ? 'text-white/70' : 'text-slate-400'}`}>{m.sub}</p>
+                      <p className="text-[10px] text-slate-400">{m.sub}</p>
                     </div>
                   </button>
                 );
@@ -350,22 +419,70 @@ const TaxiHubPage = () => {
           </div>
         ))}
       </div>
+      )}
+
+      {/* ===== BOOKING VIEW — "Planifiez votre trajet" (no other services shown) ===== */}
+      {view === 'booking' && (
+      <>
+      {/* Selected service chip */}
+      <div className="px-5 -mt-3 mb-2">
+        <div className="bg-white rounded-xl border border-[#E2E8F0] px-3 py-2.5 flex items-center justify-between shadow-sm" data-testid="selected-service-chip">
+          <span className="flex items-center gap-2">
+            <Icon size={20} weight="duotone" style={{ color: mode.color }} />
+            <span className="text-sm font-bold text-[#0B1426]">{mode.label}</span>
+            <span className="text-[11px] text-slate-400">{mode.sub}</span>
+          </span>
+          <button onClick={() => { setView('grid'); setTopMenu(null); }} className="text-xs font-semibold text-indigo-600" data-testid="change-service-btn">Changer</button>
+        </div>
+      </div>
 
       {/* Booking sheet */}
       <div className="px-5">
         <div className="bg-white rounded-2xl shadow-[0_-2px_24px_rgba(11,20,38,0.06)] p-4 border border-[#E2E8F0]">
+          {/* Date picker when "later" */}
+          {pickupTiming === 'later' && (
+            <div className="mb-3" data-testid="timing-datetime">
+              <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Date & heure de ramassage</label>
+              <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="timing-datetime-input" />
+            </div>
+          )}
+          {/* Passenger contact when "other" */}
+          {forWho === 'other' && (
+            <div className="mb-3 grid grid-cols-2 gap-2" data-testid="who-contact">
+              <input value={bookForName} onChange={(e) => setBookForName(e.target.value)} placeholder="Nom du passager" className="border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm" data-testid="who-name-input" />
+              <input value={bookForPhone} onChange={(e) => setBookForPhone(e.target.value)} placeholder="Téléphone" className="border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm" data-testid="who-phone-input" />
+            </div>
+          )}
           {/* Address entry */}
           <div className="mb-4" data-testid="address-block">
-            <div className="border-l-4 border-[#0B1426] pl-3 py-1 mb-2">
-              <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><MapPin size={11} /> Départ</label>
-              <GooglePlacesInput value={pickup?.address || ''} onSelect={setPickup} placeholder="Lieu de prise en charge" testId="pickup-address-input" />
-            </div>
-            {needsDropoff && (
-              <div className="border-l-4 border-[#FFC107] pl-3 py-1">
-                <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><FlagCheckered size={11} /> Destination</label>
-                <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="border-l-4 border-[#0B1426] pl-3 py-1 mb-2">
+                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><MapPin size={11} /> Départ</label>
+                  <GooglePlacesInput value={pickup?.address || ''} onSelect={setPickup} placeholder="Lieu de prise en charge" testId="pickup-address-input" />
+                </div>
+                {needsDropoff && stops.map((s, idx) => (
+                  <div key={`stop-${idx}`} className="border-l-4 border-slate-300 pl-3 py-1 mb-2 flex items-end gap-1" data-testid={`stop-row-${idx}`}>
+                    <div className="flex-1 min-w-0">
+                      <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-400">Arrêt {idx + 1}</label>
+                      <GooglePlacesInput value={s?.address || ''} onSelect={(p) => setStop(idx, p)} placeholder="Arrêt intermédiaire" testId={`stop-input-${idx}`} />
+                    </div>
+                    <button onClick={() => removeStop(idx)} className="p-1.5 text-gray-400 hover:text-red-500" data-testid={`remove-stop-${idx}`}><X size={16} /></button>
+                  </div>
+                ))}
+                {needsDropoff && (
+                  <div className="border-l-4 border-[#FFC107] pl-3 py-1">
+                    <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><FlagCheckered size={11} /> Destination</label>
+                    <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
+                  </div>
+                )}
               </div>
-            )}
+              {needsDropoff && (
+                <button onClick={addStop} className="mt-7 w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform" title="Ajouter un arrêt" data-testid="add-stop-btn">
+                  <Plus size={18} weight="bold" />
+                </button>
+              )}
+            </div>
 
             {/* Lieux favoris / raccourcis (style V3Cube) */}
             {needsDropoff && (
@@ -576,6 +693,8 @@ const TaxiHubPage = () => {
           <Lightning size={20} weight="fill" /> {submitting ? 'Envoi…' : ctaLabel}
         </button>
       </div>
+      </>
+      )}
     </div>
   );
 };

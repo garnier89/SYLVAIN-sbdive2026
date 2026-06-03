@@ -1,6 +1,24 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Refonte hub : vue Grille vs vue « Planifiez votre trajet » + arrêts multiples — Iteration 89
+
+### Changed (Hub /taxi — parité V3Cube image 1)
+- **Deux vues distinctes** dans TaxiHubPage :
+  - **Vue Grille** (`/taxi` sans mode, via « Plus de Services ») : titre « Choisissez un service » + grille bento des 16 services. **Aucun champ d'adresse.**
+  - **Vue Réservation** (`/taxi?mode=X`, depuis une tuile de service) : titre « Planifiez votre trajet », **sans** la grille des autres services. Puce du service sélectionné + bouton « Changer ».
+- **En-tête de trajet** : toggles **« Ramassage maintenant / Plus tard »** (révèle un datetime) et **« Pour moi / Pour un proche »** (révèle nom + téléphone).
+- **Arrêts multiples** : bouton « + » bleu qui ajoute des arrêts intermédiaires (input + suppression) entre départ et destination. Envoyés dans `stops[]`.
+- Navigation : retour intelligent (vue réservation issue de la grille → revient à la grille ; sinon → accueil).
+
+### Backend
+- `RideRequest`/`RideResponse` : champ `stops` (waypoints). Persisté dans `create_ride`.
+- Les contrôles « plus tard » (→ ride_type scheduled + scheduled_at) et « pour un proche » (→ book_for_name/phone) s'appliquent à n'importe quel mode.
+
+### Tests
+- Backend vérifié (curl) : course avec `stops` + `scheduled_at` + `book_for_name` + paiement carte persistés ✅.
+- UI vérifiée par screenshots : vue grille (16 services, sans adresses) et vue réservation (toggles + puce + add-stop + raccourcis, sans autres services) conformes à la maquette. Lint clean.
+
 ## 2026-06-03 — Géolocalisation départ + raccourcis Maison/Travail/récents — Iteration 88
 
 ### Added (Hub /taxi)

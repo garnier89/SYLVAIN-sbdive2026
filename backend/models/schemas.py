@@ -115,6 +115,7 @@ class RideRequest(BaseModel):
     pets_size: Optional[str] = None  # small | large
     assist_needs: Optional[str] = None  # wheelchair | elderly | luggage | medical
     pool_enabled: bool = False
+    stops: Optional[list] = None  # intermediate waypoints [{address,lat,lng}]
 
 class RideResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -168,6 +169,7 @@ class RideResponse(BaseModel):
     pets_size: Optional[str] = None
     assist_needs: Optional[str] = None
     pool_enabled: bool = False
+    stops: Optional[list] = None
     start_otp: Optional[str] = None
 
 # Order Models

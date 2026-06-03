@@ -146,6 +146,7 @@ async def create_ride(data: RideRequest, request: Request):
         "pets_size": getattr(data, 'pets_size', None),
         "assist_needs": getattr(data, 'assist_needs', None),
         "pool_enabled": getattr(data, 'pool_enabled', False),
+        "stops": getattr(data, 'stops', None),
         "cancel_reason": None,
         "cancelled_by": None,
         "driver_name": None,
