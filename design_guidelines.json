@@ -1,93 +1,138 @@
 {
   "theme_and_archetype": {
-    "domain": "VTC, Ride-Hailing, Multi-service Delivery",
+    "archetype": "Archetype 4: Swiss & High-Contrast",
     "theme": "Light",
-    "archetype": "Archetype 4 (Swiss & High-Contrast) adapted for Mobile Web",
-    "vibe": "Professional, Premium, Clear, Trustworthy (French VTC identity)",
-    "primary_color_intent": "Brand Green (#00C853) used for main CTAs, active states, and highlights. Neutrals are crisp whites and deep blacks to create a high-contrast, premium French VTC aesthetic."
+    "reasoning": "Mobility requires absolute clarity, fast decision-making, and trust. The contrast of deep navy against stark white, paired with the signal yellow, creates an authoritative, technical 'dispatch' feel rather than a generic tech app."
   },
-  "colors": {
-    "primary": "#00C853",
-    "primary_hover": "#009624",
-    "primary_light": "#E8F5E9",
-    "background_app": "#F9FAFB",
-    "surface": "#FFFFFF",
-    "surface_secondary": "#F3F4F6",
-    "text_primary": "#111827",
-    "text_secondary": "#4B5563",
-    "text_tertiary": "#9CA3AF",
-    "border": "#E5E7EB",
-    "border_light": "#F3F4F6",
-    "error": "#EF4444",
-    "warning": "#F59E0B",
-    "success": "#10B981"
+  "brand_colors": {
+    "primary_yellow": "#FFC107",
+    "primary_yellow_hover": "#E5AD06",
+    "navy_base": "#0B1426",
+    "navy_surface": "#121F3A",
+    "background_light": "#F8F9FA",
+    "surface_white": "#FFFFFF",
+    "text_primary": "#0B1426",
+    "text_secondary": "#475569",
+    "border_subtle": "#E2E8F0",
+    "accent_eco": "#10B981",
+    "accent_alert": "#EF4444",
+    "accent_pool": "#3B82F6",
+    "accent_corporate": "#334155"
   },
   "typography": {
-    "fonts": {
-      "headings": "Outfit, sans-serif",
-      "body": "Satoshi, sans-serif"
-    },
-    "hierarchy": {
-      "h1": "font-outfit text-3xl font-bold tracking-tight text-gray-900",
-      "h2": "font-outfit text-2xl font-bold tracking-tight text-gray-900",
-      "h3": "font-outfit text-xl font-semibold text-gray-900",
-      "body_base": "font-satoshi text-base font-medium text-gray-700 leading-relaxed",
-      "body_small": "font-satoshi text-sm text-gray-500",
-      "label": "font-satoshi text-xs font-bold text-gray-500 uppercase tracking-[0.1em]"
+    "heading_font": "Cabinet Grotesk",
+    "body_font": "IBM Plex Sans",
+    "rules": {
+      "h1": "text-4xl tracking-tight font-black",
+      "h2": "text-2xl tracking-tight font-bold",
+      "h3": "text-xl tracking-tight font-semibold",
+      "body": "text-base leading-relaxed font-normal",
+      "labels": "text-xs tracking-[0.1em] uppercase font-bold text-text_secondary",
+      "price_display": "text-4xl font-black tracking-tighter"
     }
   },
   "spacing_and_layout": {
-    "mobile_container": "max-w-[430px] w-full mx-auto h-[100dvh] overflow-hidden bg-background_app relative shadow-2xl flex flex-col",
-    "padding_standard": "p-5",
-    "bento_grid": "grid grid-cols-4 gap-3",
-    "bento_item": "flex flex-col items-center justify-center p-3 bg-white rounded-2xl shadow-sm border border-gray-100 gap-2 hover:bg-gray-50 transition-colors cursor-pointer",
-    "bottom_nav": "absolute bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-gray-200 pb-safe-area pt-3 px-6 flex justify-between items-center z-50 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]",
-    "bottom_sheet": "absolute bottom-0 w-full bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] p-6 z-40 transition-transform duration-300"
+    "container": "max-w-[430px] mx-auto min-h-screen bg-background_light relative overflow-hidden shadow-2xl",
+    "padding_standard": "p-6",
+    "padding_dense": "p-4",
+    "gap_standard": "gap-4",
+    "radius_system": {
+      "bottom_sheet": "rounded-t-3xl",
+      "cards": "rounded-xl",
+      "buttons": "rounded-none",
+      "inputs": "rounded-none"
+    },
+    "alignment": "Optical alignment over perfect symmetry. Left-align text content, stretch actionable areas."
   },
-  "components": {
-    "button_primary": "w-full bg-[#00C853] text-white font-semibold py-4 rounded-2xl hover:bg-[#009624] transition-colors shadow-lg shadow-[#00C853]/25 flex items-center justify-center gap-2 text-lg",
-    "button_secondary": "w-full bg-white text-gray-900 border border-gray-200 font-semibold py-4 rounded-2xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2",
-    "input_wrapper": "space-y-1.5",
-    "input_field": "w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 focus:ring-2 focus:ring-[#00C853]/20 focus:border-[#00C853] transition-all placeholder:text-gray-400 font-satoshi text-base",
-    "card_ride": "bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between",
-    "badge_status": "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
-  },
-  "icons": {
-    "library": "lucide-react",
-    "usage": "Use stroke-width 2 or 2.5 for clarity. Icons should be 24px (w-6 h-6) for standard nav, 32px (w-8 h-8) for service grid."
-  },
-  "image_urls": {
-    "chauffeur_vehicle": {
-      "url": "https://images.unsplash.com/photo-1565461526658-b7bd67af12fe?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBkcml2ZXIlMjBjYXJ8ZW58MHx8fHwxNzc1NDM0NzYwfDA&ixlib=rb-4.1.0&q=85",
-      "description": "White coupe for premium ride selection thumbnail"
+  "components_strategy": {
+    "map_background": {
+      "style": "Full bleed absolute background. Use a desaturated or high-contrast silver map style to make the yellow/navy UI pop.",
+      "markers": "Custom HTML markers. Pickup is a solid black square, Dropoff is a yellow square with navy dot."
     },
-    "food_delivery_service": {
-      "url": "https://images.pexels.com/photos/4393245/pexels-photo-4393245.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-      "description": "Scooter delivery for food service banner"
+    "bottom_sheet": {
+      "layout": "absolute bottom-0 w-full bg-surface_white rounded-t-3xl shadow-[0_-8px_32px_rgba(11,20,38,0.12)] border-t border-navy_base/5 z-50 transition-transform duration-300 flex flex-col max-h-[85vh]",
+      "dragger": "w-12 h-1.5 bg-border_subtle rounded-full mx-auto mt-3 mb-4"
     },
-    "parcel_delivery_service": {
-      "url": "https://images.unsplash.com/photo-1620455800201-7f00aeef12ed?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHxwYXJjZWwlMjBkZWxpdmVyeSUyMGNvdXJpZXJ8ZW58MHx8fHwxNzc1NDM0NzYwfDA&ixlib=rb-4.1.0&q=85",
-      "description": "Cardboard boxes for parcel delivery banner"
+    "address_entry": {
+      "style": "Neumorphic-tactile hybrid. Instead of full boxes, use left-bordered segments.",
+      "pickup": "border-l-4 border-navy_base pl-3 py-2 mb-2",
+      "dropoff": "border-l-4 border-primary_yellow pl-3 py-2",
+      "input_classes": "w-full bg-transparent text-lg font-bold placeholder:font-normal placeholder:text-slate-400 focus:outline-none",
+      "icon": "Use Phosphor MapPin (pickup) and FlagCheckered (dropoff)"
     },
-    "map_placeholder": {
-      "url": "https://images.unsplash.com/photo-1758872014553-f0deb7b12d58?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxjaXR5JTIwbWFwJTIwZ3BzJTIwbmF2aWdhdGlvbnxlbnwwfHx8fDE3NzU0MzQ3NzR8MA&ixlib=rb-4.1.0&q=85",
-      "description": "City map GPS navigation placeholder for map background"
+    "live_price_estimate": {
+      "style": "Floating high-contrast card appearing instantly after address entry.",
+      "classes": "bg-navy_base text-white p-4 rounded-xl flex items-center justify-between mb-6 shadow-xl relative overflow-hidden",
+      "layout": "Left: ETA + Mode name. Right: Giant price in Cabinet Grotesk. Add a subtle 10% opacity primary_yellow gradient beam tracing the top border."
     },
-    "scooter_2": {
-      "url": "https://images.unsplash.com/photo-1762851452423-34e7cf452780?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwyfHxmb29kJTIwZGVsaXZlcnklMjBzY29vdGVyfGVufDB8fHx8MTc3NTQzNDc2MHww&ixlib=rb-4.1.0&q=85",
-      "description": "Two people riding electric scooters"
+    "mode_hub": {
+      "layout_concept": "The Tactical Bento Grid. Do not use 16 identical pills. Categorize them for cognitive ease.",
+      "categories": [
+        {
+          "name": "Everyday",
+          "layout": "grid grid-cols-2 gap-3 mb-4",
+          "card_style": "aspect-square bg-background_light border border-border_subtle rounded-xl p-3 flex flex-col justify-between hover:border-navy_base data-[state=active]:bg-navy_base data-[state=active]:text-white transition-colors"
+        },
+        {
+          "name": "Time & Distance",
+          "layout": "flex overflow-x-auto gap-3 pb-4 snap-x hide-scrollbar",
+          "card_style": "min-w-[140px] bg-surface_white border border-border_subtle rounded-xl p-3 snap-start"
+        },
+        {
+          "name": "Specialty & Inclusive",
+          "layout": "flex flex-wrap gap-2",
+          "card_style": "px-4 py-2 bg-background_light text-sm rounded-full border border-transparent hover:border-border_subtle font-medium"
+        }
+      ]
+    },
+    "dynamic_panels": {
+      "style": "Slide-down or accordion sections just above the CTA.",
+      "datetime_picker": "Horizontal scroll of dates, vertical scroll of times. Minimalist black-and-white.",
+      "flight_number": "Input field with airplane icon, validates format.",
+      "rental_package": "Grid of 2h, 4h, 8h blocks.",
+      "pets": "Counter (+/-) and small/large toggle.",
+      "corporate": "Dropdown selecting billed entity."
+    },
+    "adaptive_cta": {
+      "style": "w-full bg-primary_yellow text-navy_base py-4 font-black text-lg flex items-center justify-center gap-2 hover:bg-primary_yellow_hover active:scale-[0.98] transition-all",
+      "layout": "Sticky to bottom of sheet with safe-area padding."
     }
   },
-  "instructions_to_main_agent": [
-    "Core Layout: The entire app MUST be contained within a max-w-[430px] wrapper to simulate a mobile app experience on web. Center it on the screen with a neutral gray backdrop (bg-gray-100) outside the wrapper.",
-    "Brand Structure: Build 'SB Drive Client' for passengers and 'SB Drive Chauffeur' for drivers. You can toggle or route between them.",
-    "UI Vibe: Use pure white cards with very subtle borders (border-gray-100) and soft shadows. Apply rounded-2xl to cards and inputs. This contrasts sharply with the vibrant #00C853 green to create a high-end French VTC look.",
-    "Home Screen (Client): Use a 4-column Bento grid for services (Ride, Moto, Food, Parcel). Each item should have a light gray background icon wrapper and dark text.",
-    "Chauffeur App: Needs a massive 'Go Online' / 'Go Offline' toggle button at the top, a live map view (Leaflet), and a sleek bottom sheet for incoming ride requests.",
-    "Map Integration: Use React Leaflet. Make sure the map sits behind the UI elements (bottom sheets, top search bars) with proper z-index management.",
-    "Forms & Inputs: Do not use default HTML inputs. Create Shadcn-like customized inputs with padding, rounded-2xl, and the brand focus ring.",
-    "Bottom Navigation: Floating/Fixed at the bottom of the mobile wrapper. Must have glassmorphism (backdrop-blur-xl bg-white/90) and clearly indicate the active tab with the primary green color.",
-    "Fonts: Ensure 'Outfit' is used for Headings/brand names, and 'Satoshi' for body text. Add them to standard Tailwind sans stack."
+  "modes_configuration": [
+    { "id": "standard", "category": "Everyday", "label": "Taxi VTC", "icon": "CarProfile", "badge": null, "panel": "none", "cta": "Commander Taxi" },
+    { "id": "pool", "category": "Everyday", "label": "Pool", "icon": "Users", "badge": "-30%", "panel": "none", "cta": "Commander Pool" },
+    { "id": "electric", "category": "Everyday", "label": "Green", "icon": "Leaf", "badge": "Eco", "panel": "none", "cta": "Commander Green" },
+    { "id": "moto", "category": "Everyday", "label": "Moto", "icon": "Motorcycle", "badge": "Fast", "panel": "none", "cta": "Commander Moto" },
+    { "id": "rental", "category": "Time & Distance", "label": "Mise à Dispo", "icon": "Clock", "badge": null, "panel": "rental_package", "cta": "Réserver [X]h" },
+    { "id": "intercity", "category": "Time & Distance", "label": "Intercity", "icon": "MapTrifold", "badge": null, "panel": "datetime_picker", "cta": "Planifier Voyage" },
+    { "id": "book_later", "category": "Time & Distance", "label": "Plus Tard", "icon": "CalendarPlus", "badge": null, "panel": "datetime_picker", "cta": "Planifier" },
+    { "id": "moto_rental", "category": "Time & Distance", "label": "Loc Moto", "icon": "Key", "badge": null, "panel": "rental_package", "cta": "Louer Moto [X]h" },
+    { "id": "bidding", "category": "Specialty & Inclusive", "label": "Enchères", "icon": "Gavel", "badge": null, "panel": "bidding_input", "cta": "Proposer Prix" },
+    { "id": "airport", "category": "Specialty & Inclusive", "label": "Aéroport", "icon": "AirplaneTilt", "badge": null, "panel": "flight_number", "cta": "Réserver Aéroport" },
+    { "id": "pets", "category": "Specialty & Inclusive", "label": "Animaux", "icon": "PawPrint", "badge": null, "panel": "pets", "cta": "Commander Taxi Animaux" },
+    { "id": "book_for_someone", "category": "Specialty & Inclusive", "label": "Pour un Proche", "icon": "UserPlus", "badge": null, "panel": "contact_details", "cta": "Commander pour [Nom]" },
+    { "id": "tuktuk", "category": "Specialty & Inclusive", "label": "TukTuk", "icon": "Van", "badge": null, "panel": "none", "cta": "Commander TukTuk" },
+    { "id": "assist", "category": "Specialty & Inclusive", "label": "Assistance", "icon": "HandHeart", "badge": null, "panel": "assist_options", "cta": "Demander Assistance" },
+    { "id": "corporate", "category": "Specialty & Inclusive", "label": "Corporate", "icon": "Briefcase", "badge": null, "panel": "corporate", "cta": "Commander Pro" },
+    { "id": "access", "category": "Specialty & Inclusive", "label": "PMR", "icon": "Wheelchair", "badge": null, "panel": "none", "cta": "Commander PMR" }
   ],
-  "data_testid_rules": "You MUST add descriptive kebab-case 'data-testid' attributes to all interactive elements. E.g., data-testid='service-ride-btn', data-testid='go-online-toggle'."
+  "motion_and_interactions": {
+    "bottom_sheet": "transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+    "price_reveal": "Animate price entering with a slight Y-axis slide (framer-motion initial={{y:10, opacity:0}} animate={{y:0, opacity:1}}).",
+    "bento_cards": "On click, active cards invert to navy background, white text, and icon slightly scales up (scale 1.05).",
+    "panel_slide": "Mode specific panels animate in height (AnimatePresence) so layout shift is smooth, not jarring."
+  },
+  "testing_attributes": {
+    "rules": "Every interactive element must have a data-testid attribute in kebab-case.",
+    "examples": [
+      "data-testid='pickup-address-input'",
+      "data-testid='mode-select-[mode_id]'",
+      "data-testid='cta-book-button'",
+      "data-testid='live-price-card'",
+      "data-testid='flight-number-input'"
+    ]
+  },
+  "icons_library": {
+    "instruction": "Use @phosphor-icons/react. Use 'Duotone' weight for Everyday category to feel premium, 'Regular' weight for the rest."
+  }
 }
