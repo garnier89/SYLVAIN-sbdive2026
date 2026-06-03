@@ -12,6 +12,7 @@ import LeafletMap from '../../components/LeafletMap';
 import { decodePolyline } from '../../utils/polyline';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
+import { CountdownRing } from '../../components/CountdownRing';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -21,6 +22,8 @@ const DriverHome = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [currentRide, setCurrentRide] = useState(null);
   const [incomingRequest, setIncomingRequest] = useState(null);
+  const [myOffer, setMyOffer] = useState(null); // { rideId, amount, expires_at, ttl_seconds }
+  const [nowTs, setNowTs] = useState(Date.now());
   const [showOtpVerify, setShowOtpVerify] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [rewardsActive, setRewardsActive] = useState(false);
@@ -172,6 +175,31 @@ const DriverHome = () => {
     }
   }, [isOnline, currentRide, loadPendingRides]);
 
+  // While our counter-offer is pending: tick the countdown + poll the ride.
+  // If the passenger picks us, transition straight into the active ride.
+  useEffect(() => {
+    if (!myOffer) return;
+    const tick = setInterval(() => setNowTs(Date.now()), 500);
+    const poll = setInterval(async () => {
+      try {
+        const res = await rideAPI.get(myOffer.rideId);
+        const ride = res.data;
+        if (ride.status && ride.status !== 'pending') {
+          clearInterval(poll); clearInterval(tick);
+          if (ride.driver_id && driver && ride.driver_id === driver.id) {
+            // Passenger accepted OUR offer
+            setCurrentRide(ride);
+            joinRide(myOffer.rideId);
+          }
+          // Otherwise the ride was taken by someone else or cancelled
+          setMyOffer(null);
+          setIncomingRequest(null);
+        }
+      } catch { /* keep polling */ }
+    }, 2500);
+    return () => { clearInterval(poll); clearInterval(tick); };
+  }, [myOffer, driver, joinRide]);
+
   const toggleOnline = async () => {
     if (driver?.status !== 'approved') return;
     try {
@@ -199,8 +227,26 @@ const DriverHome = () => {
         body: JSON.stringify({ amount: parseFloat(amount) }),
       });
       if (!res.ok) throw new Error('Failed');
-      setIncomingRequest(null);
+      const data = await res.json();
+      const offer = data.offer || {};
+      // Keep the request open and switch to "offer pending" state with a live countdown
+      setMyOffer({
+        rideId,
+        amount: parseFloat(amount),
+        expires_at: offer.expires_at,
+        ttl_seconds: offer.ttl_seconds || 30,
+      });
+      setNowTs(Date.now());
     } catch (err) { console.error('Counter offer failed:', err); }
+  };
+
+  const renewOffer = () => {
+    if (myOffer) sendCounterOffer(myOffer.rideId, myOffer.amount);
+  };
+
+  const cancelOffer = () => {
+    setMyOffer(null);
+    setIncomingRequest(null);
   };
 
   const verifyStartOtp = async () => {
@@ -517,45 +563,87 @@ const DriverHome = () => {
               <span className="capitalize">{incomingRequest.vehicle_type}</span>
             </div>
 
-            {/* Counter-offer input */}
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
-              <p className="text-xs font-bold text-slate-700 mb-2">Proposer un autre prix (optionnel)</p>
-              <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-                  <span className="text-base">EUR</span>
-                  <input
-                    type="number"
-                    step="0.50"
-                    min="1"
-                    placeholder={(incomingRequest.proposed_fare || incomingRequest.estimated_fare)?.toFixed(2)}
-                    className="flex-1 outline-none text-base font-bold text-slate-800"
-                    data-testid="counter-offer-input"
-                    id={`counter-input-${incomingRequest.id}`}
-                  />
+            {/* Counter-offer: input (before sending) OR pending panel with countdown (after) */}
+            {myOffer && myOffer.rideId === incomingRequest.id ? (
+              (() => {
+                const rem = myOffer.expires_at
+                  ? Math.max(0, Math.ceil((new Date(myOffer.expires_at).getTime() - nowTs) / 1000))
+                  : null;
+                const expired = rem === 0;
+                return (
+                  <div className={`rounded-xl p-4 border ${expired ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`} data-testid="my-offer-panel">
+                    <div className="flex items-center gap-3">
+                      {rem !== null && !expired && <CountdownRing seconds={rem} total={myOffer.ttl_seconds || 30} size={44} />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Votre offre envoyée</p>
+                        <p className="text-2xl font-extrabold text-slate-900" data-testid="my-offer-amount">{myOffer.amount.toFixed(2)} EUR</p>
+                        <p className={`text-xs font-semibold ${expired ? 'text-red-600' : 'text-emerald-700'}`} data-testid="my-offer-status">
+                          {expired ? 'Offre expirée — renvoyez-la pour rester visible' : `Expire dans ${rem}s · en attente du client`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={cancelOffer}
+                        className="px-4 h-11 rounded-full border border-gray-300 text-gray-600 font-bold text-sm"
+                        data-testid="cancel-offer-btn"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={renewOffer}
+                        className={`flex-1 h-11 rounded-full text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg ${expired ? 'bg-red-500 animate-pulse' : 'bg-orange-500'}`}
+                        data-testid="renew-offer-btn"
+                      >
+                        <Plus size={18} /> Renouveler mon offre
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <>
+                {/* Counter-offer input */}
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                  <p className="text-xs font-bold text-slate-700 mb-2">Proposer un autre prix (optionnel)</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                      <span className="text-base">EUR</span>
+                      <input
+                        type="number"
+                        step="0.50"
+                        min="1"
+                        placeholder={(incomingRequest.proposed_fare || incomingRequest.estimated_fare)?.toFixed(2)}
+                        className="flex-1 outline-none text-base font-bold text-slate-800"
+                        data-testid="counter-offer-input"
+                        id={`counter-input-${incomingRequest.id}`}
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const val = document.getElementById(`counter-input-${incomingRequest.id}`)?.value;
+                        if (val && parseFloat(val) > 0) sendCounterOffer(incomingRequest.id, val);
+                      }}
+                      className="px-4 rounded-lg bg-orange-500 text-white font-bold text-sm"
+                      data-testid="send-counter-offer-btn"
+                    >
+                      Envoyer
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    const val = document.getElementById(`counter-input-${incomingRequest.id}`)?.value;
-                    if (val && parseFloat(val) > 0) sendCounterOffer(incomingRequest.id, val);
-                  }}
-                  className="px-4 rounded-lg bg-orange-500 text-white font-bold text-sm"
-                  data-testid="send-counter-offer-btn"
-                >
-                  Envoyer
-                </button>
-              </div>
-            </div>
 
-            <div className="flex gap-3">
-              <button className="flex-1 border border-gray-300 text-gray-600 rounded-full h-14 font-bold flex items-center justify-center gap-2"
-                onClick={() => setIncomingRequest(null)} data-testid="reject-ride-btn">
-                <X size={20} /> Refuser
-              </button>
-              <button className="flex-1 text-white rounded-full h-14 font-bold flex items-center justify-center gap-2 shadow-lg" style={{ background: '#00B578' }}
-                onClick={() => acceptRide(incomingRequest.id)} data-testid="accept-ride-btn">
-                <Check size={20} /> Accepter prix
-              </button>
-            </div>
+                <div className="flex gap-3">
+                  <button className="flex-1 border border-gray-300 text-gray-600 rounded-full h-14 font-bold flex items-center justify-center gap-2"
+                    onClick={() => setIncomingRequest(null)} data-testid="reject-ride-btn">
+                    <X size={20} /> Refuser
+                  </button>
+                  <button className="flex-1 text-white rounded-full h-14 font-bold flex items-center justify-center gap-2 shadow-lg" style={{ background: '#00B578' }}
+                    onClick={() => acceptRide(incomingRequest.id)} data-testid="accept-ride-btn">
+                    <Check size={20} /> Accepter prix
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

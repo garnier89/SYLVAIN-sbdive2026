@@ -3,30 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Info, Minus, Plus, Gavel, Users, TrendUp } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import { CountdownRing } from '../../components/CountdownRing';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
-
-/** Circular countdown ring shown on each driver offer (inDrive-style urgency). */
-const OfferCountdown = ({ seconds, total = 30 }) => {
-  const r = 16;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(1, seconds / total));
-  const color = seconds <= 8 ? '#ef4444' : seconds <= 15 ? '#f59e0b' : '#10b981';
-  return (
-    <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0" data-testid="offer-countdown">
-      <svg className="w-9 h-9 -rotate-90" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="#e5e7eb" strokeWidth="3" />
-        <circle
-          cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round"
-          strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
-          style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
-        />
-      </svg>
-      <span className="absolute text-[11px] font-extrabold tabular-nums" style={{ color }}>{seconds}</span>
-    </div>
-  );
-};
 
 /**
  * TaxiBiddingPage — iDrive-style "Offer Your Fare" (V3Cube mockup match).
@@ -466,7 +446,7 @@ const TaxiBiddingPage = () => {
                           ⭐ {(o.driver_rating || 5).toFixed(1)}{o.driver_vehicle_model ? ` · ${o.driver_vehicle_model}` : ''}
                         </p>
                       </div>
-                      {rem !== null && <OfferCountdown seconds={rem} total={o.ttl_seconds || 30} />}
+                      {rem !== null && <CountdownRing seconds={rem} total={o.ttl_seconds || 30} size={36} />}
                       <div className="text-right">
                         <p className="text-lg font-extrabold text-gray-900">{o.amount.toFixed(2)} €</p>
                       </div>
