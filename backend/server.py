@@ -432,6 +432,14 @@ async def lifespan(app: FastAPI):
             })
             logger.info(f"Seeded demo driver: {dd['name']}")
 
+    # Migration: normalize legacy driver docs where 'status' was corrupted to 'online'
+    # (older code path set status='online'; the approved-guard now rejects them).
+    norm = await db.drivers.update_many(
+        {"status": "online"}, {"$set": {"status": "approved", "is_online": True}}
+    )
+    if norm.modified_count:
+        logger.info(f"Normalized {norm.modified_count} driver(s) status 'online' -> 'approved'")
+
     # Seed demo corporate account (Pack C — B2B) with test user as member
     if not await db.corporate_accounts.find_one({"join_code": "ACME-2026"}):
         corp_id = f"corp_{uuid.uuid4().hex[:10]}"

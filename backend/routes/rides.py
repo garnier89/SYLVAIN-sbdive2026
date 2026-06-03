@@ -575,7 +575,10 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
     elif user["role"] == "driver":
         driver = await db.drivers.find_one({"user_id": user["id"]})
         if driver:
-            query["$or"] = [{"driver_id": driver["id"]}, {"status": "pending", "vehicle_type": driver["vehicle_type"]}]
+            # Drivers see their own rides + ALL pending requests (consistent with the
+            # WS broadcast_to_drivers model). Vehicle-type matching is not enforced so
+            # approved drivers always receive incoming requests regardless of category.
+            query["$or"] = [{"driver_id": driver["id"]}, {"status": "pending"}]
     if status:
         query["status"] = status
     rides = await db.rides.find(query, {"_id": 0}).sort("created_at", -1).limit(min(limit, 100)).to_list(min(limit, 100))

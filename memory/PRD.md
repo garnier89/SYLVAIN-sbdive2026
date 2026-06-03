@@ -13,6 +13,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Real-time**: WebSockets (ride tracking, simulation)
 
 ## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+## NEW - Jun 2026 - Fix réception courses chauffeur + normalisation statut (DONE — iter 94)
+- `list_rides` (GET /api/rides?status=pending) côté chauffeur ne filtre plus par `vehicle_type` : tout chauffeur approuvé reçoit les courses en attente (cohérent avec le broadcast WS `broadcast_to_drivers`). Débloque l'`incoming-request-modal` + contre-offre chauffeur quel que soit le type de véhicule (Berline/Car/Moto vs slugs sb/confort/luxe).
+- Migration idempotente au startup : docs chauffeurs hérités avec `status='online'` (corrompus) → normalisés en `status='approved'` (débloque `toggle-online`).
+- E2E vérifié : passager crée course 'confort' → chauffeur 'Berline' la voit → contre-offre 15€ → passager accepte → course `accepted` à 15€. Pytest iter92/93 verts (4/4). Frontend passager 100% (iter87).
+
 - Écran de recherche client : liste temps réel des contre-offres chauffeurs (nom/note/véhicule/montant) + « Choisir » un chauffeur précis. Suggestion auto d'augmentation après 20s.
 - `route_polyline` stocké (Google Directions + waypoints) ; tracé routier réel sur carte chauffeur + suivi passager + arrêts numérotés.
 - Backend bidirectionnel déjà en place (`/counter-offer`, `/accept-offer/{id}`). E2E + 4/4 pytest.
