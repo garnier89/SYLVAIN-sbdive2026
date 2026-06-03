@@ -15,6 +15,32 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
+## 2026-06-02 — Code Quality : Split RideTrackingPage + useEffect deps (iter 81-82)
+
+### Refactor RideTrackingPage.js (518L → 431L + 3 sous-composants 232L réutilisables)
+- **`/app/frontend/src/pages/user/ride-tracking/RideTrackingMap.jsx`** (69L) : MapContainer Leaflet, pickup/dropoff/driver markers, polyline route, back btn, indicateur de connexion WS
+- **`/app/frontend/src/pages/user/ride-tracking/DriverInfoCard.jsx`** (51L) : Card chauffeur (avatar, nom, rating, vehicle, boutons call/chat)
+- **`/app/frontend/src/pages/user/ride-tracking/RideActions.jsx`** (112L) : `CancelRideModal` + `RatingModal` (avec tip + waybill)
+- useEffect deps : Toutes correctes, callbacks `useCallback` avec deps explicites
+- empty catches : remplacés par `console.warn` contextuels (pool toggle, favorite driver, start OTP, rating, cancel reasons)
+
+### TaxiBiddingPage.js — Fix bug TDZ critique
+- `const fetchEstimate = useCallback(...)` déplacé AVANT le useEffect qui le consomme (était en dessous → ReferenceError sur initial render, page complètement cassée)
+- Empty catch `.catch(() => {})` remplacé par `console.warn` contextuel
+- ✅ Testing : POST /api/rides/estimate appelé 2x (debounced), pas de loop infini
+
+### CancelRideModal — Fix duplicate React keys
+- Backend `/api/config/cancel-reasons` retourne 2x "Autre raison" (slug `other`) → React warning éliminé via clé composée `${slug || id}-${index}`
+- Note : la testid `cancel-reason-other` colle encore sur 2 nodes DOM (côté backend à corriger plus tard)
+
+### Validation (iter 81 → 82)
+- ✅ ESLint PASS sur tous fichiers modifiés
+- ✅ `yarn build` PASS (26s)
+- ✅ testing_agent_v3_fork iter 82 : 4/4 fixes confirmés (TDZ + estimate loop + ride tracking + duplicate keys), 100% backend success rate, 100% frontend success rate
+
+### Blocker externe observé (non lié au refactor)
+- ⚠️ `REACT_APP_GOOGLE_MAPS_KEY` expirée (ExpiredKeyMapError) → GooglePlacesInput désactivé. Workaround testing : `/taxi-bidding?pickup=...&plat=...&dropoff=...&dlat=...&dlng=...` (URL params shortcut fonctionnel)
+
 ## 2026-06-02 — Code Quality Report : corrections critiques sécurité + nettoyage
 
 ### Backend
