@@ -15,6 +15,29 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
+## 2026-06-02 — V3Cube Pack A — Taxi Avancé (7 modes) DONE
+
+### Backend
+- **`models/schemas.py`** : `RideRequest` + `RideResponse` enrichis avec `ride_type` (instant/scheduled/intercity/airport/rental/buddy_driver/corporate), `flight_number`, `rental_hours`, `rental_package`, `corporate_account_id`, `buddy_hours`
+- **`routes/rides.py`** : 4 nouveaux endpoints
+  - `GET /api/rides/scheduled/list` — liste courses planifiées à venir (filtre `scheduled_at >= now`, status pending/accepted)
+  - `PUT /api/rides/{id}/reschedule` — modifier `scheduled_at`
+  - `POST /api/rides/rental-packages` — 3 forfaits par défaut (2h/20km, 4h/40km, 8h/80km)
+  - `POST /api/rides/airport-multipliers` — multiplicateur 1.25 + min fare 25 EUR + waiting fee 0.5/min
+- Création de ride persiste maintenant tous les champs Pack A
+
+### Frontend
+- **`AdvancedTaxiBookingPage.js`** (`/taxi-advanced`) : page unifiée 7-mode tabs (scheduled/intercity/airport/rental/buddy_driver/corporate/moto), chaque mode révèle ses champs spécifiques (datetime, vol AF1234, forfait, durée chauffeur perso, code entreprise, sous-type moto), deep-link `?mode=xxx`
+- **`ScheduledRidesPage.js`** (`/scheduled-rides`) : liste courses planifiées avec actions Modifier (datetime-local inline) + Annuler
+- **`UserHome.js`** : 5 tiles taxi re-routés vers `/taxi-advanced?mode=...` (Location, Chauffeur privé, Intercity, Programmer, Plus de services → Aéroport)
+- **`App.js`** : 2 nouvelles routes protégées (`/taxi-advanced`, `/scheduled-rides`)
+
+### Validation (iter 83)
+- ✅ Backend 12/12 pytest PASS (persistence + endpoints) — `/app/backend/tests/test_iter83_pack_a_taxi.py`
+- ✅ Frontend 100% sur flux testés (7 mode tabs, scheduled list, deep-link)
+- ✅ Lint Python + JS PASS · yarn build PASS (32s)
+- ⚠️ Bloqueur externe : `REACT_APP_GOOGLE_MAPS_KEY` expirée (renouveler dans Google Cloud Console)
+
 ## 2026-06-02 — Code Quality : Split RideTrackingPage + useEffect deps (iter 81-82)
 
 ### Refactor RideTrackingPage.js (518L → 431L + 3 sous-composants 232L réutilisables)

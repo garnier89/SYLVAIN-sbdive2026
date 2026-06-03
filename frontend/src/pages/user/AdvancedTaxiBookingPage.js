@@ -62,9 +62,10 @@ const AdvancedTaxiBookingPage = () => {
       .catch(e => console.warn('rental packages load failed:', e?.message || e));
   }, [rentalPkg]);
 
-  // Default scheduled_at = next hour, rounded to :00
+  // Default scheduled_at = next hour (for any mode that uses scheduling)
   useEffect(() => {
-    if (!scheduledAt && mode === 'scheduled') {
+    const needsSchedule = ['scheduled', 'intercity', 'airport'].includes(mode);
+    if (needsSchedule && !scheduledAt) {
       const d = new Date();
       d.setHours(d.getHours() + 1, 0, 0, 0);
       setScheduledAt(d.toISOString().slice(0, 16));
