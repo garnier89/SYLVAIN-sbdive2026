@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase
 } from '@phosphor-icons/react';
 
 const sidebarConfig = [
@@ -47,6 +47,7 @@ const sidebarConfig = [
         { label: 'Bornes SB Drive Tab', path: '/admin/kiosks' },
       ]},
       { icon: TreeStructure, label: 'Organisation', path: '/admin/organization' },
+      { icon: Briefcase, label: 'Comptes Entreprise', path: '/admin/corporate' },
     ]
   },
   {

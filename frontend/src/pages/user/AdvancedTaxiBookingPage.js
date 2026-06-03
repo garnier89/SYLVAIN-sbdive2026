@@ -14,6 +14,7 @@ import {
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import { corporateAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -45,6 +46,7 @@ const AdvancedTaxiBookingPage = () => {
   const [rentalPkg, setRentalPkg] = useState(null);
   const [buddyHours, setBuddyHours] = useState(4);
   const [corporateAccountId, setCorporateAccountId] = useState('');
+  const [corporateAccounts, setCorporateAccounts] = useState([]);
   const [motoSubType, setMotoSubType] = useState('bike'); // bike | scooter | sport
   const [estimate, setEstimate] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -71,6 +73,18 @@ const AdvancedTaxiBookingPage = () => {
       setScheduledAt(d.toISOString().slice(0, 16));
     }
   }, [mode, scheduledAt]);
+
+  // Load corporate accounts when corporate mode is active
+  useEffect(() => {
+    if (mode !== 'corporate') return;
+    corporateAPI.my()
+      .then(r => {
+        const items = r.data.items || [];
+        setCorporateAccounts(items);
+        if (items.length && !corporateAccountId) setCorporateAccountId(items[0].join_code);
+      })
+      .catch(e => console.warn('corporate accounts load failed:', e?.message || e));
+  }, [mode, corporateAccountId]);
 
   const fetchEstimate = useCallback(async () => {
     if (!pickup?.lat) return;
@@ -292,14 +306,38 @@ const AdvancedTaxiBookingPage = () => {
         {mode === 'corporate' && (
           <div className="bg-white rounded-2xl p-3 shadow-sm">
             <label className="text-[11px] text-gray-500 font-semibold uppercase mb-1 block">
-              Code compte entreprise
+              Compte entreprise
             </label>
-            <Input
-              placeholder="Ex: ACME-2026"
-              value={corporateAccountId}
-              onChange={(e) => setCorporateAccountId(e.target.value.toUpperCase())}
-              data-testid="corporate-account-input"
-            />
+            {corporateAccounts.length > 0 ? (
+              <select
+                value={corporateAccountId}
+                onChange={(e) => setCorporateAccountId(e.target.value)}
+                data-testid="corporate-account-select"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              >
+                {corporateAccounts.map((a) => (
+                  <option key={a.id} value={a.join_code}>
+                    {a.name} (-{a.discount_pct}%)
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <Input
+                  placeholder="Ex: ACME-2026"
+                  value={corporateAccountId}
+                  onChange={(e) => setCorporateAccountId(e.target.value.toUpperCase())}
+                  data-testid="corporate-account-input"
+                />
+                <button
+                  onClick={() => navigate('/corporate')}
+                  className="text-[11px] text-indigo-600 font-semibold mt-2"
+                  data-testid="manage-corporate-link"
+                >
+                  Rejoindre une entreprise →
+                </button>
+              </>
+            )}
             <p className="text-[10px] text-gray-400 mt-1">
               La course sera facturée directement à votre entreprise.
             </p>

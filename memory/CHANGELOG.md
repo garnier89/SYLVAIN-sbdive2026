@@ -1,6 +1,32 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — V3Cube Pack C (Comptes Entreprise B2B) — Iteration 85
+
+### Added (Backend `/api/corporate/`)
+- **Module `routes/corporate.py`** : comptes entreprise multi-membres avec code d'adhésion, remise %, plafond mensuel, suivi crédit utilisé.
+- **Admin** (require_permission merchants.view/activate) : `GET/POST /admin`, `GET/PUT/DELETE /admin/{id}`, gestion membres `POST/DELETE /admin/{id}/members`, facture mensuelle `GET /admin/{id}/invoice?month=YYYY-MM`.
+- **User** : `GET /my` (mes entreprises), `POST /join` (code), `POST /leave/{id}`.
+- **Hook rides.py** : à la création d'une course `ride_type=corporate`, validation de l'adhésion active (403 sinon) + application de la remise entreprise sur le tarif. À la complétion, enregistrement d'une charge dans `corporate_charges` + incrément `credit_used`/`total_rides`/`total_revenue`.
+- Schéma `RideResponse` enrichi : `corporate_name`, `corporate_discount_pct`.
+- Seed démo : ACME Corporation (code ACME-2026, 10%), test2@example.com membre manager.
+
+### Added (Frontend)
+- `pages/admin/AdminCorporate.js` — liste + création comptes, modal détail (membres + facture mensuelle KPI brut/remise/net), copie du code, gestion membres par email.
+- `pages/user/CorporateAccountPage.js` (`/corporate`) — rejoindre par code, liste de mes entreprises, quitter.
+- `AdvancedTaxiBookingPage.js` mode corporate : dropdown des entreprises du user (au lieu du champ libre), lien "Rejoindre une entreprise".
+- `services/api.js` : `corporateAPI`.
+
+### Navigation
+- `App.js` : route user `/corporate` + route admin `corporate`.
+- `AdminLayout.js` : entrée "Comptes Entreprise" (icône Briefcase) sous MEMBRES.
+
+### Tests
+- `/app/backend/tests/test_iter85_corporate.py` — 4 tests pytest (CRUD admin + membres, join/leave, remise course + facture, guard non-admin 403) : **4/4 ✅**
+- Smoke UI admin `/admin/corporate` : page + ligne ACME rendues, sidebar OK.
+
+
+
 ## 2026-06-03 — V3Cube Pack B (Driver Pro) — Iteration 84
 
 ### Added (Backend `/api/driver-pro/`)

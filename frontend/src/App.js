@@ -48,6 +48,7 @@ import VideoConsultPage from './pages/user/VideoConsultPage';
 import BiddingPage from './pages/user/BiddingPage';
 import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
 import AdvancedTaxiBookingPage from './pages/user/AdvancedTaxiBookingPage';
+import CorporateAccountPage from './pages/user/CorporateAccountPage';
 import ScheduledRidesPage from './pages/user/ScheduledRidesPage';
 import RunnerPage from './pages/user/RunnerPage';
 import IntercityRidePage from './pages/user/IntercityRidePage';
@@ -150,6 +151,7 @@ import PanelHome from './pages/panels/PanelHome';
 import AdminACL from './pages/admin/AdminACL';
 import AdminAuditLogs from './pages/admin/AdminAuditLogs';
 import AdminOrganizations from './pages/admin/AdminOrganizations';
+import AdminCorporate from './pages/admin/AdminCorporate';
 import AdminI18n from './pages/admin/AdminI18n';
 import AdminGroupsPage from './pages/admin/AdminGroupsPage';
 import AdminUserEdit from './pages/admin/AdminUserEdit';
@@ -226,6 +228,7 @@ const AppRouter = () => {
       <Route path="/taxi-bidding" element={<ProtectedRoute allowedRoles={['user']}><TaxiBiddingPage /></ProtectedRoute>} />
       <Route path="/taxi-advanced" element={<ProtectedRoute allowedRoles={['user']}><AdvancedTaxiBookingPage /></ProtectedRoute>} />
       <Route path="/scheduled-rides" element={<ProtectedRoute allowedRoles={['user']}><ScheduledRidesPage /></ProtectedRoute>} />
+      <Route path="/corporate" element={<ProtectedRoute allowedRoles={['user']}><CorporateAccountPage /></ProtectedRoute>} />
       <Route path="/runner" element={<ProtectedRoute allowedRoles={['user']}><RunnerPage /></ProtectedRoute>} />
       <Route path="/intercity" element={<ProtectedRoute allowedRoles={['user']}><IntercityRidePage /></ProtectedRoute>} />
       <Route path="/parking" element={<ProtectedRoute allowedRoles={['user']}><ParkingPage /></ProtectedRoute>} />
@@ -361,6 +364,7 @@ const AppRouter = () => {
         <Route path="acl" element={<AdminACL />} />
         <Route path="audit-logs" element={<AdminAuditLogs />} />
         <Route path="organizations" element={<AdminOrganizations />} />
+        <Route path="corporate" element={<AdminCorporate />} />
         <Route path="i18n" element={<AdminI18n />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />

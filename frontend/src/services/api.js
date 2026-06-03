@@ -223,6 +223,22 @@ export const couponAPI = {
 };
 
 // Simulation APIs
+export const corporateAPI = {
+  // user
+  my: () => api.get('/corporate/my'),
+  join: (joinCode) => api.post('/corporate/join', { join_code: joinCode }),
+  leave: (corporateId) => api.post(`/corporate/leave/${corporateId}`),
+  // admin
+  adminList: () => api.get('/corporate/admin'),
+  adminCreate: (data) => api.post('/corporate/admin', data),
+  adminDetail: (id) => api.get(`/corporate/admin/${id}`),
+  adminUpdate: (id, data) => api.put(`/corporate/admin/${id}`, data),
+  adminDelete: (id) => api.delete(`/corporate/admin/${id}`),
+  adminAddMember: (id, email, role) => api.post(`/corporate/admin/${id}/members`, { email, member_role: role }),
+  adminRemoveMember: (id, memberId) => api.delete(`/corporate/admin/${id}/members/${memberId}`),
+  adminInvoice: (id, month) => api.get(`/corporate/admin/${id}/invoice`, { params: month ? { month } : {} }),
+};
+
 export const simulationAPI = {
   start: () => api.post('/simulation/start'),
   stop: () => api.post('/simulation/stop'),

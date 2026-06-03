@@ -86,6 +86,21 @@ async def create_ride(data: RideRequest, request: Request):
     fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
     otp = str(secrets.randbelow(10000)).zfill(4)
 
+    # ===== Pack C — Corporate booking validation + discount =====
+    corporate_id = None
+    corporate_discount_pct = 0.0
+    corporate_name = None
+    if getattr(data, "corporate_account_id", None):
+        from routes.corporate import resolve_corporate_for_booking
+        corp = await resolve_corporate_for_booking(user["id"], data.corporate_account_id)
+        if not corp:
+            raise HTTPException(status_code=403, detail="Code entreprise invalide ou vous n'êtes pas membre actif")
+        corporate_id = corp["id"]
+        corporate_discount_pct = float(corp.get("discount_pct", 0))
+        corporate_name = corp.get("name")
+        if corporate_discount_pct > 0:
+            fare = round(fare * (1 - corporate_discount_pct / 100), 2)
+
     ride = {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
         "booking_no": str(secrets.randbelow(90000000) + 10000000),
@@ -123,7 +138,9 @@ async def create_ride(data: RideRequest, request: Request):
         "flight_number": getattr(data, 'flight_number', None),
         "rental_hours": getattr(data, 'rental_hours', None),
         "rental_package": getattr(data, 'rental_package', None),
-        "corporate_account_id": getattr(data, 'corporate_account_id', None),
+        "corporate_account_id": corporate_id,
+        "corporate_name": corporate_name,
+        "corporate_discount_pct": corporate_discount_pct,
         "buddy_hours": getattr(data, 'buddy_hours', None),
         "cancel_reason": None,
         "cancelled_by": None,
@@ -358,6 +375,11 @@ async def update_ride_status(ride_id: str, request: Request):
             if d_doc:
                 new_pts = min(100, d_doc.get("points", points_cfg["initial_points"]) + gain)
                 await db.drivers.update_one({"id": ride["driver_id"]}, {"$set": {"points": new_pts}})
+
+        # ===== Pack C: record corporate charge on completion =====
+        if ride.get("corporate_account_id"):
+            from routes.corporate import record_corporate_charge
+            await record_corporate_charge(ride["corporate_account_id"], ride, final_fare)
 
     elif new_status == "cancelled":
         update_data["cancelled_at"] = now

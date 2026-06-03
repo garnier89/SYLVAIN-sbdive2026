@@ -109,6 +109,8 @@ class RideRequest(BaseModel):
     rental_hours: Optional[int] = None  # for rental ride_type
     rental_package: Optional[str] = None  # "2h/20km", "4h/40km", "8h/80km"
     corporate_account_id: Optional[str] = None
+    corporate_name: Optional[str] = None
+    corporate_discount_pct: float = 0.0
     buddy_hours: Optional[int] = None  # for buddy_driver (chauffeur personnel)
 
 class RideResponse(BaseModel):

@@ -12,6 +12,12 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - V3Cube Pack C (Comptes Entreprise B2B) (DONE — iter 85)
+- **Admin** (`/admin/corporate`) : CRUD comptes entreprise (code d'adhésion, remise %, plafond mensuel), gestion membres par email, facture mensuelle (brut/remise/net), suivi crédit utilisé.
+- **Client** (`/corporate`) : rejoindre une entreprise par code, voir/quitter ses entreprises.
+- **Réservation** (`/taxi-advanced?mode=corporate`) : dropdown des entreprises du user, course facturée à l'entreprise avec remise auto.
+- **Backend** `/api/corporate/*` : validation adhésion + remise à la création, charge enregistrée à la complétion (collections `corporate_accounts`, `corporate_members`, `corporate_charges`). 4/4 tests pytest.
+
 ## NEW - Jun 2026 - V3Cube Pack B (Driver Pro) (DONE — iter 84)
 - **Mes véhicules** (`/chauffeur/vehicles`) : CRUD multi-véhicules + véhicule principal sync
 - **Coordonnées bancaires** (`/chauffeur/bank`) : IBAN masqué côté API (jamais retourné en clair)

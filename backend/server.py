@@ -46,6 +46,7 @@ from routes.driver_shifts import router as driver_shifts_router
 from routes.organizations import router as organizations_router
 from routes.i18n import router as i18n_router, seed_i18n
 from routes.voice import router as voice_router
+from routes.corporate import router as corporate_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -429,6 +430,27 @@ async def lifespan(app: FastAPI):
             })
             logger.info(f"Seeded demo driver: {dd['name']}")
 
+    # Seed demo corporate account (Pack C — B2B) with test user as member
+    if not await db.corporate_accounts.find_one({"join_code": "ACME-2026"}):
+        corp_id = f"corp_{uuid.uuid4().hex[:10]}"
+        await db.corporate_accounts.insert_one({
+            "id": corp_id, "name": "ACME Corporation", "join_code": "ACME-2026",
+            "billing_email": "finance@acme.example", "contact_phone": "+33140000000",
+            "address": "1 Rue de la Paix, Paris 75002", "discount_pct": 10.0,
+            "monthly_credit_limit": 5000.0, "credit_used": 0.0,
+            "total_rides": 0, "total_revenue": 0.0, "is_active": True,
+            "notes": "Compte démo Pack C", "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        test_u = await db.users.find_one({"email": os.environ.get("SEED_TEST_EMAIL", "test2@example.com")}, {"_id": 0, "id": 1, "name": 1, "email": 1})
+        if test_u:
+            await db.corporate_members.insert_one({
+                "id": f"cmb_{uuid.uuid4().hex[:10]}", "corporate_id": corp_id,
+                "user_id": test_u["id"], "user_email": test_u.get("email"),
+                "user_name": test_u.get("name"), "member_role": "manager",
+                "status": "active", "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        logger.info("Seeded demo corporate account ACME-2026")
+
     # Start auto-dispatch background loop
     import asyncio as _asyncio
     dispatch_task = _asyncio.create_task(auto_dispatch_loop())
@@ -477,6 +499,7 @@ api_router.include_router(driver_shifts_router)
 api_router.include_router(organizations_router)
 api_router.include_router(i18n_router)
 api_router.include_router(voice_router)
+api_router.include_router(corporate_router)
 api_router.include_router(driver_pro_router)
 
 app.include_router(api_router)
