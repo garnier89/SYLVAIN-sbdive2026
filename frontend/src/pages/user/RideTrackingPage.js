@@ -12,6 +12,7 @@ import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
 import SearchingRadar from '../../components/SearchingRadar';
 import DriverInfoCard from './ride-tracking/DriverInfoCard';
+import DriverEnRouteView from './ride-tracking/DriverEnRouteView';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -210,6 +211,41 @@ const RideTrackingPage = () => {
   const isCancelled = ride.status === 'cancelled';
   const isCompleted = ride.status === 'completed';
   const canCancel = ['pending', 'accepted', 'arriving'].includes(ride.status);
+  const isAssigned = ['accepted', 'arriving', 'in_progress'].includes(ride.status) && ride.driver_name;
+
+  const handleShare = async () => {
+    const text = `Je suis en route avec SB Drive VTC.\nChauffeur : ${ride.driver_name || ''} ${ride.driver_vehicle_number ? `(${ride.driver_vehicle_number})` : ''}\nDestination : ${ride.dropoff_address}`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'Ma course SB Drive', text });
+      else { await navigator.clipboard.writeText(text); toast.success('Détails copiés dans le presse-papier'); }
+    } catch (err) { console.warn('[share] cancelled:', err?.message || err); }
+  };
+
+  // Immersive V3Cube-style "EN ARRIVANT / EN COURSE" experience once a driver is assigned
+  if (isAssigned) {
+    return (
+      <div data-testid="ride-tracking-page">
+        <DriverEnRouteView
+          ride={ride}
+          driverPos={driverPos}
+          connected={connected}
+          otp={startOtp}
+          onRequestOtp={requestStartOtp}
+          onBack={() => navigate('/home')}
+          onCall={() => { if (ride.driver_phone) window.location.href = `tel:${ride.driver_phone}`; else toast.info('Numéro du chauffeur indisponible'); }}
+          onChat={() => navigate(`/ride/${rideId}/chat`)}
+          onShare={handleShare}
+          onCancel={() => (canCancel ? setShowCancel(true) : toast.info('La course est déjà en cours'))}
+        />
+        <CancelRideModal
+          open={showCancel}
+          reasons={cancelReasons}
+          onCancel={handleCancel}
+          onClose={() => setShowCancel(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mobile-container min-h-screen bg-white flex flex-col" data-testid="ride-tracking-page">

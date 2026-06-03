@@ -13,6 +13,15 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Real-time**: WebSockets (ride tracking, simulation)
 
 ## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+## NEW - Jun 2026 - Écran client "EN ARRIVANT" type V3Cube (chauffeur assigné) (DONE — iter 99)
+- Nouveau composant immersif `DriverEnRouteView.jsx` affiché côté client dès qu'un chauffeur est assigné (accepted/arriving/in_progress), fidèle au design V3Cube fourni :
+  - En-tête bleu avec statut (« EN ARRIVANT » / « EN COURSE ») + menu.
+  - Carte d'itinéraire flottante (Ramassage / Déposer + crayon édition).
+  - Carte plein écran (Leaflet) avec **marqueur voiture blanc (vue de dessus)**, **pin ETA noir en goutte « X min »** (ETA calculé via haversine), ligne noire chauffeur→cible, polyline bleue en course, bouton recentrer.
+  - 4 boutons d'action ronds : Appeler (bleu/tel:), Message (orange→chat), Partager (violet→navigator.share), Annuler (gris→modale).
+  - Fiche chauffeur en bas : avatar bordé bleu, nom, plaque, note en étoiles (demi-étoile), modèle véhicule, type.
+  - Pastille OTP « code départ » (générer/afficher) pour démarrer la course.
+- Fix Leaflet en conteneur flex (`MapResizer` + `invalidateSize`, layout `h-screen`). Vérifié visuellement (screenshot — 12 tuiles chargées, rendu conforme) + lint propre.
 ## NEW - Jun 2026 - Animation "Recherche d'un chauffeur" (radar) (DONE — iter 98)
 - Composant réutilisable `SearchingRadar.jsx` fidèle au design fourni : pin de localisation blanc (disque bleu) au centre, anneau bleu brisé en 4 arcs en rotation continue, cercles concentriques pulsants (radar).
 - Branché sur les 3 écrans de recherche : `TaxiBiddingPage` (searching-sheet), `RideSearchingStep.jsx`, `RideTrackingPage` (statut pending). Vérifié visuellement (screenshot) + lint propre.
