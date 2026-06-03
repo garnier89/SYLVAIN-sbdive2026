@@ -1,0 +1,58 @@
+{
+  "summary": "Regression test of RideTrackingPage refactor (split into RideTrackingMap, DriverInfoCard, RideActions) + TaxiBiddingPage useCallback wrap. RideTrackingPage works correctly (renders, map+markers, status bar, fare details, cancel modal with 7 reasons, cancellation flow). TaxiBiddingPage is COMPLETELY BROKEN: shows 'Uncaught runtime error: Cannot access fetchEstimate before initialization' (TDZ ReferenceError).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/config/cancel-reasons?user_type=User", "issue": "Returns duplicate 'Autre raison' entries (visible duplicate in cancel modal + React warning 'Encountered two children with the same key'). 7 reasons returned but two are labeled 'Autre raison'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TaxiBiddingPage",
+        "issue": "CRITICAL ReferenceError at render: 'Cannot access fetchEstimate before initialization'. Page is fully broken (white screen + dev overlay). Root cause: useEffect at line 53 lists `fetchEstimate` in its dependency array (line 58) but `const fetchEstimate = useCallback(...)` is declared later at line 69. JS const declarations are in TDZ until their definition line, so reading `fetchEstimate` while building the deps array at line 58 throws synchronously during the initial render.",
+        "selector": "[data-testid=\"taxi-bidding-page\"]",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "CancelRideModal (ride-tracking/RideActions.jsx)",
+        "issue": "React 'duplicate key' warning when rendering cancel-reasons list. Need to use a unique key (e.g., reason.id) or de-duplicate the array returned by the backend.",
+        "selector": "[data-testid^=\"cancel-reason-\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {"flow": "Taxi bidding (Offer Your Fare)", "issue": "Whole feature unusable - users see runtime error overlay instead of the form. Cannot enter pickup/dropoff, cannot trigger fare estimate, cannot submit bid.", "affected_selectors": ["[data-testid=\"taxi-bidding-page\"]","[data-testid=\"pickup-input\"]","[data-testid=\"dropoff-input\"]","[data-testid=\"offer-fare-sheet\"]"]}
+    ],
+    "design_issues": []
+  },
+  "verified_passing_flows": [
+    "Login (email/password) - test2@example.com works",
+    "/home dashboard renders correctly for user role",
+    "POST /api/rides creates a pending ride (200 OK)",
+    "/ride/:rideId loads RideTrackingPage and renders: ride-tracking-page, tracking-back-btn, ride-status-bar, ride-searching, ride-fare-details, cancel-ride-btn, toggle-taxi-pool-btn",
+    "RideTrackingMap renders Leaflet map with pickup (green) + dropoff (red) markers and polyline",
+    "Cancel modal opens via cancel-ride-btn (data-testid=\"cancel-modal\") and lists 7 reasons",
+    "Cancellation flow: clicking a reason -> ride status updates -> 'Course annulée' banner shown (ride-cancelled-banner)",
+    "Non-existent ride id renders 'Course introuvable' fallback (no crash)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "URGENT: Fix TaxiBiddingPage TDZ error. Move the `const fetchEstimate = useCallback(...)` block ABOVE both useEffect hooks that reference it (current order is broken). Recommended order: 1) state/refs, 2) fetchEstimate useCallback, 3) useEffect that consumes fetchEstimate. After the move, retest /taxi-bidding to confirm bottom sheet appears with pickup+dropoff filled.",
+    "Fix duplicate cancel reasons in /api/config/cancel-reasons?user_type=User (or in RideActions.jsx use a stable unique key like reason.id and de-duplicate by id).",
+    "Re-run full TaxiBiddingPage flow once fix is applied: pickup autocomplete -> dropoff autocomplete -> auto-estimate API call -> offer-fare-sheet visible -> submit bid."
+  ],
+  "critical_code_review_comments": [
+    "TaxiBiddingPage.js lines 53-91: useEffect at 53 closes over `fetchEstimate` (declared at line 69 with const+useCallback). Because the deps array is evaluated synchronously while the function body of the component runs, this triggers a ReferenceError on every initial render. The eslint react-hooks/exhaustive-deps fix the user wanted is correct in spirit, but the function MUST be defined before its consumers.",
+    "RideTrackingPage.js: refactor looks clean (431 lines, sub-components in /ride-tracking/). No regression detected in the actual ride flow. Good split.",
+    "RideActions.jsx (CancelRideModal): When rendering cancel-reasons list, use `key={reason.id}` (not the array index or label) and ideally de-duplicate by id."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "95%", "frontend": "50% (RideTrackingPage OK, TaxiBiddingPage broken)"},
+  "test_credentials": "test2@example.com / TestPass123! (regular user role - used because admin gets redirected away from /taxi-bidding which requires role=user)",
+  "seed_data_creation": "Created two pending rides via POST /api/rides for test user_02206b484249 (ride_8925e971daa4, ride_d61cb1855c9c). The second ride was cancelled via the UI cancel flow.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes the TDZ bug in TaxiBiddingPage (move fetchEstimate useCallback ABOVE the useEffect at line 53), re-test by: 1) login as test2@example.com / TestPass123!, 2) goto /taxi-bidding, 3) confirm no runtime error overlay, [data-testid=taxi-bidding-page] visible, 4) fill pickup-input + dropoff-input via Google Places (use 'Tour Eiffel' + 'Louvre'), 5) confirm offer-fare-sheet appears, 6) confirm no infinite re-render loop in Network tab (estimate endpoint should fire once, debounced). RideTrackingPage flow is already validated and should not need re-testing unless RideActions/RideTrackingMap/DriverInfoCard are modified. The /ride route uses /ride/:rideId not /rides/:rideId. TaxiBiddingPage route is /taxi-bidding not /bidding.",
+  "rca of the issue": "TaxiBiddingPage.js TDZ ReferenceError: In strict-mode JavaScript, `const` and `let` bindings are hoisted but remain in the 'Temporal Dead Zone' until execution reaches the declaration line. The function body of TaxiBiddingPage runs top-to-bottom on every render. At line 53 React calls useEffect(fn, deps). The deps array `[pickup, dropoff, vehicleType, fetchEstimate]` is evaluated synchronously at line 58, but `fetchEstimate` is not yet defined (its useCallback declaration is at line 69). Hence: `ReferenceError: Cannot access 'fetchEstimate' before initialization`. The page never finishes its first render and React renders the error overlay. Reproduction: GET /taxi-bidding as logged-in user. Mitigation: simply move the `const fetchEstimate = useCallback(...)` block to line ~52 (just above the first useEffect that uses it). No other logic change is needed; the deps arrays are correct."
+}

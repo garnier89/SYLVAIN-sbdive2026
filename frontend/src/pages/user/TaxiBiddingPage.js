@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Info, Minus, Plus, Gavel, Users, TrendUp } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -55,7 +55,7 @@ const TaxiBiddingPage = () => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(fetchEstimate, 350);
     setShowSheet(true);
-  }, [pickup, dropoff, vehicleType]);
+  }, [pickup, dropoff, vehicleType, fetchEstimate]);
 
   // Fetch live indicator stats on mount and when pickup changes
   useEffect(() => {
@@ -66,7 +66,7 @@ const TaxiBiddingPage = () => {
       .catch(() => {});
   }, [pickup]);
 
-  const fetchEstimate = async () => {
+  const fetchEstimate = useCallback(async () => {
     if (!pickup?.lat || !dropoff?.lat) return;
     setLoading(true);
     try {
@@ -88,7 +88,7 @@ const TaxiBiddingPage = () => {
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  };
+  }, [pickup, dropoff, vehicleType, fare]);
 
   const handleSubmit = async () => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }
