@@ -12,6 +12,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+- Écran de recherche client : liste temps réel des contre-offres chauffeurs (nom/note/véhicule/montant) + « Choisir » un chauffeur précis. Suggestion auto d'augmentation après 20s.
+- `route_polyline` stocké (Google Directions + waypoints) ; tracé routier réel sur carte chauffeur + suivi passager + arrêts numérotés.
+- Backend bidirectionnel déjà en place (`/counter-offer`, `/accept-offer/{id}`). E2E + 4/4 pytest.
+
 ## NEW - Jun 2026 - Taxi Bidding: tarif minimum + recherche sans quitter (DONE — iter 92)
 - Offre par défaut = tarif recommandé ; impossible de descendre en dessous (clamp + bouton −).
 - Après envoi, le client reste sur l'écran (radar « Recherche d'un chauffeur ») et peut augmenter (+1/+2/+5€) ; polling → navigation auto à l'acceptation.

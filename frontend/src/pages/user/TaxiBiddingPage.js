@@ -47,6 +47,8 @@ const TaxiBiddingPage = () => {
   const [liveStats, setLiveStats] = useState(null);
   const [searching, setSearching] = useState(null); // rideId once submitted
   const [searchSeconds, setSearchSeconds] = useState(0);
+  const [offers, setOffers] = useState([]);
+  const suggestedRef = useRef(false);
   const debounceRef = useRef(null);
 
   const mapReady = pickup?.lat && dropoff?.lat;
@@ -134,15 +136,35 @@ const TaxiBiddingPage = () => {
         const r = await fetch(`${API}/api/rides/${searching}`, { credentials: 'include' });
         if (!r.ok) return;
         const ride = await r.json();
+        setOffers((ride.counter_offers || []).filter((o) => o.status === 'pending'));
         if (ride.status && ride.status !== 'pending') {
           clearInterval(poll); clearInterval(tick);
           if (ride.status === 'cancelled') { toast.info('Course annulée'); setSearching(null); }
           else { toast.success('Chauffeur trouvé !'); navigate(`/ride/${searching}`); }
         }
       } catch (e) { /* keep polling */ }
-    }, 3000);
+    }, 2500);
     return () => { clearInterval(poll); clearInterval(tick); };
   }, [searching, navigate]);
+
+  // Auto-suggest raising the fare after 20s with no offers
+  useEffect(() => {
+    if (searching && searchSeconds === 20 && offers.length === 0 && !suggestedRef.current) {
+      suggestedRef.current = true;
+      toast('Aucune offre pour le moment — augmentez votre tarif pour attirer les chauffeurs', { icon: '⏱️' });
+    }
+  }, [searching, searchSeconds, offers.length]);
+
+  const acceptOffer = async (offerId) => {
+    try {
+      const r = await fetch(`${API}/api/rides/${searching}/accept-offer/${offerId}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      });
+      if (!r.ok) { const t = await r.json().catch(() => ({})); throw new Error(t.detail || 'Erreur'); }
+      toast.success('Chauffeur sélectionné !');
+      navigate(`/ride/${searching}`);
+    } catch (e) { toast.error(e.message || 'Impossible d\'accepter cette offre'); }
+  };
 
   const raiseFare = async (delta) => {
     const newFare = Math.round((fare + delta) * 100) / 100;
@@ -394,8 +416,35 @@ const TaxiBiddingPage = () => {
             )}
           </div>
 
+          {/* Driver offers list (inDrive-style bidirectional bidding) */}
+          {offers.length > 0 && (
+            <div className="mx-5 mt-1 mb-2 space-y-2 max-h-64 overflow-y-auto" data-testid="driver-offers-list">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{offers.length} chauffeur(s) proposent un tarif</p>
+              {offers.map((o) => (
+                <div key={o.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-3 shadow-sm" data-testid={`offer-${o.id}`}>
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Users size={20} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{o.driver_name || 'Chauffeur'}</p>
+                    <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                      ⭐ {(o.driver_rating || 5).toFixed(1)}{o.driver_vehicle_model ? ` · ${o.driver_vehicle_model}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-extrabold text-gray-900">{o.amount.toFixed(2)} €</p>
+                  </div>
+                  <button onClick={() => acceptOffer(o.id)} data-testid={`accept-offer-${o.id}`}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm transition-transform">
+                    Choisir
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Raise fare to attract drivers (cannot lower) */}
-          <div className="mx-5 mt-2 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-4" data-testid="raise-fare-block">
+          <div className={`mx-5 mt-2 rounded-2xl px-4 py-4 border ${searchSeconds >= 20 && offers.length === 0 ? 'bg-amber-100 border-amber-300 animate-pulse' : 'bg-amber-50 border-amber-100'}`} data-testid="raise-fare-block">
             <p className="text-center text-sm font-semibold text-gray-700">
               {searchSeconds >= 12 ? 'Pas encore de chauffeur ? Augmentez votre tarif' : 'Augmentez votre tarif pour aller plus vite'}
             </p>

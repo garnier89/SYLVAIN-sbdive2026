@@ -106,6 +106,29 @@ async def create_ride(data: RideRequest, request: Request):
     fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
     otp = str(secrets.randbelow(10000)).zfill(4)
 
+    # Best-effort real route polyline (Google Directions with waypoints) for maps
+    route_polyline = None
+    gmaps_key = os.environ.get("GOOGLE_MAPS_KEY")
+    if gmaps_key and data.pickup_lat and data.dropoff_lat:
+        try:
+            params = {
+                "origin": f"{data.pickup_lat},{data.pickup_lng}",
+                "destination": f"{data.dropoff_lat},{data.dropoff_lng}",
+                "key": gmaps_key, "language": "fr", "units": "metric",
+            }
+            if stop_points:
+                params["waypoints"] = "|".join(f"{lat},{lng}" for lat, lng in stop_points)
+            gresp = requests.get("https://maps.googleapis.com/maps/api/directions/json", params=params, timeout=5)
+            gjson = gresp.json()
+            if gjson.get("status") == "OK" and gjson.get("routes"):
+                route_polyline = gjson["routes"][0].get("overview_polyline", {}).get("points")
+                legs = gjson["routes"][0]["legs"]
+                distance = sum(leg["distance"]["value"] for leg in legs) / 1000
+                duration = int(sum(leg["duration"]["value"] for leg in legs) / 60)
+                fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
+        except Exception:
+            pass
+
     # ===== Pack C — Corporate booking validation + discount =====
     corporate_id = None
     corporate_discount_pct = 0.0
@@ -167,6 +190,7 @@ async def create_ride(data: RideRequest, request: Request):
         "assist_needs": getattr(data, 'assist_needs', None),
         "pool_enabled": getattr(data, 'pool_enabled', False),
         "stops": getattr(data, 'stops', None),
+        "route_polyline": route_polyline,
         "cancel_reason": None,
         "cancelled_by": None,
         "driver_name": None,

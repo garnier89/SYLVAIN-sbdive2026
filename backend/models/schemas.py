@@ -170,6 +170,7 @@ class RideResponse(BaseModel):
     assist_needs: Optional[str] = None
     pool_enabled: bool = False
     stops: Optional[list] = None
+    route_polyline: Optional[str] = None
     start_otp: Optional[str] = None
 
 # Order Models

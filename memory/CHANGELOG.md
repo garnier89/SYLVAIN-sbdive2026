@@ -1,6 +1,23 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Enchère bidirectionnelle (inDrive) + itinéraire réel — Iteration 93
+
+### Added (Enchère bidirectionnelle façon inDrive)
+- **Écran de recherche client** (`TaxiBiddingPage`) : liste en **temps réel** des **offres/contre-offres des chauffeurs** (`driver-offers-list`) — nom, note, véhicule, montant — avec bouton **« Choisir »** par chauffeur (`accept-offer-*`) → accepte ce chauffeur précis et lance la course. Polling toutes les 2,5 s.
+- **Suggestion auto d'augmentation** après 20 s sans offre : toast + mise en évidence (pulse) du bloc d'augmentation de tarif.
+- Côté chauffeur (déjà présent) : contre-offre via le modal de course (`send-counter-offer-btn`). Backend déjà en place : `POST /counter-offer`, `POST /accept-offer/{id}`.
+
+### Added (Itinéraire réel sur cartes)
+- `create_ride` stocke désormais `route_polyline` (Google Directions avec waypoints) + recalcule distance/durée/tarif sur l'itinéraire réel quand disponible. Exposé dans `RideResponse`.
+- Util `utils/polyline.js` (décodage polyline Google).
+- **Carte chauffeur** (`DriverHome`/`LeafletMap`) : trace le **tracé routier réel** (polyline décodée) + marqueurs d'arrêts numérotés ; fallback segments droits.
+- **Suivi passager** (`RideTrackingMap`) : affiche les **arrêts intermédiaires** (marqueurs numérotés) + le tracé routier réel.
+
+### Tests
+- `tests/test_iter93_bidirectional.py` — flow complet contre-offre → acceptation chauffeur précis + route_polyline ✅. `test_iter92_bidding.py` 3/3 ✅.
+- E2E curl validé : contre-offre Jean Dupont 13€ → acceptée → course assignée à 13€, route_polyline stocké.
+
 ## 2026-06-03 — Taxi Bidding : tarif minimum + écran de recherche sans quitter — Iteration 92
 
 ### Changed (TaxiBiddingPage)

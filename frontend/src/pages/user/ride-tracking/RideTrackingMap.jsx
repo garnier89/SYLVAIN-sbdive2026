@@ -2,6 +2,7 @@ import React from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
 import { ArrowLeft } from '@phosphor-icons/react';
+import { decodePolyline } from '../../../utils/polyline';
 import 'leaflet/dist/leaflet.css';
 
 const driverIcon = new L.Icon({
@@ -20,17 +21,29 @@ const dropoffIcon = new L.Icon({
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
 });
 
-const POLYLINE_OPTS = { color: '#3b82f6', weight: 3, dashArray: '8 8' };
+const POLYLINE_OPTS = { color: '#3b82f6', weight: 4 };
+
+const stopIcon = (n) => L.divIcon({
+  className: '',
+  html: `<div style="background:#f59e0b;color:#0B1426;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)">${n}</div>`,
+  iconSize: [22, 22], iconAnchor: [11, 11],
+});
 
 /**
- * Map view for ride tracking: pickup, dropoff, live driver position + back button + connection indicator.
+ * Map view for ride tracking: pickup, dropoff, intermediate stops, live driver
+ * position, real route polyline + back button + connection indicator.
  */
 const RideTrackingMap = ({ ride, driverPos, connected, onBack }) => {
   const mapCenter = driverPos || { lat: ride.pickup_lat, lng: ride.pickup_lng };
-  const route = [
-    [ride.pickup_lat, ride.pickup_lng],
-    [ride.dropoff_lat, ride.dropoff_lng],
-  ];
+  const stops = (ride.stops || []).filter((s) => s?.lat);
+  const decoded = decodePolyline(ride.route_polyline);
+  const route = decoded.length
+    ? decoded.map((p) => [p.lat, p.lng])
+    : [
+      [ride.pickup_lat, ride.pickup_lng],
+      ...stops.map((s) => [s.lat, s.lng]),
+      [ride.dropoff_lat, ride.dropoff_lng],
+    ];
 
   return (
     <div className="h-[45vh] relative">
@@ -42,6 +55,9 @@ const RideTrackingMap = ({ ride, driverPos, connected, onBack }) => {
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <Marker position={[ride.pickup_lat, ride.pickup_lng]} icon={pickupIcon} />
+        {stops.map((s, i) => (
+          <Marker key={`tr-stop-${i}`} position={[s.lat, s.lng]} icon={stopIcon(i + 1)} />
+        ))}
         <Marker position={[ride.dropoff_lat, ride.dropoff_lng]} icon={dropoffIcon} />
         {driverPos && <Marker position={[driverPos.lat, driverPos.lng]} icon={driverIcon} />}
         <Polyline positions={route} pathOptions={POLYLINE_OPTS} />

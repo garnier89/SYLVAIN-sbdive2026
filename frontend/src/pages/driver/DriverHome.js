@@ -9,6 +9,7 @@ import {
   Gift, Plus, CalendarCheck, List
 } from '@phosphor-icons/react';
 import LeafletMap from '../../components/LeafletMap';
+import { decodePolyline } from '../../utils/polyline';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 
@@ -311,11 +312,15 @@ const DriverHome = () => {
           pickup={currentRide ? { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng } : undefined}
           dropoff={currentRide ? { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng } : undefined}
           waypoints={(currentRide?.stops || []).filter((s) => s?.lat)}
-          routePath={currentRide ? [
-            { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng },
-            ...(currentRide.stops || []).filter((s) => s?.lat).map((s) => ({ lat: s.lat, lng: s.lng })),
-            { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng },
-          ] : []}
+          routePath={currentRide ? (
+            decodePolyline(currentRide.route_polyline).length
+              ? decodePolyline(currentRide.route_polyline)
+              : [
+                { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng },
+                ...(currentRide.stops || []).filter((s) => s?.lat).map((s) => ({ lat: s.lat, lng: s.lng })),
+                { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng },
+              ]
+          ) : []}
           heatPoints={showHeatmap ? heatPoints : []}
         />
         {/* Heat View toggle button */}
