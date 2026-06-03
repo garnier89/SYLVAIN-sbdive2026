@@ -12,6 +12,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Hub paiement/promo + CMS Catégories accueil (DONE — iter 87)
+- Hub `/taxi` : sélecteur de paiement HORIZONTAL (Espèces/Carte/SB PayGo) + code promo (recalcul prix) avant le CTA.
+- **CMS catégories d'accueil** entièrement configurable par l'admin (`/admin/home-categories`) : ajout/édition/suppression, icône bibliothèque OU image uploadée, nom FR/EN, sous-titre, ordre, visibilité accueil, route cible. 41 catégories / 8 sections seedées.
+- L'accueil (`UserHome`) lit la config : catégories visibles affichées, reste sous « Plus de Services » ; clic → page d'adresses directement. Backend `routes/home_categories.py` + `DynamicIcon`. 5/5 pytest + 7/7 frontend.
+
 ## NEW - Jun 2026 - Hub Taxi moderne : 16 modes de réservation (DONE — iter 86)
 - Nouvelle page `/taxi` (TaxiHubPage) — design "Swiss & High-Contrast / Tactical Bento Grid".
 - 16 modes distincts : Taxi VTC, Pool, Green (électrique), Moto, Mise à dispo (rental), Intercité, Plus tard, Loc Moto, Enchères, Aéroport, Animaux, Pour un proche, TukTuk, Assistance, Corporate, PMR.

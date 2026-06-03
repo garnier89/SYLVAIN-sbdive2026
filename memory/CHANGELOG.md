@@ -1,6 +1,25 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Paiement & Promo dans le hub + CMS Catégories d'accueil — Iteration 87
+
+### Added (Hub /taxi — Partie 1)
+- **Sélecteur de paiement horizontal** (`payment-selector`) : Espèces / Carte / SB PayGo, surbrillance navy au clic. Envoyé dans `payment_method` du POST /api/rides.
+- **Code promo** (`promo-block`) : input + Appliquer → validation via `couponAPI.validate`, recalcul du prix (déduction affichée dans la carte live), badge vert + retrait. `coupon_code` transmis à la course.
+
+### Added (CMS Catégories d'accueil — Partie 2)
+- **Backend** `routes/home_categories.py` (collection `home_categories`) :
+  - Public `GET /api/home-categories[?section=]` (config active ordonnée + sections).
+  - Admin (permission `content.manage`) : `GET/POST/PUT/DELETE /home-categories/admin`, `POST /admin/reorder`, `GET /icons` (bibliothèque). Garde-fou image 8 Mo.
+  - Seed idempotent de 41 catégories (8 sections) dont 17 modes taxi (7 visibles).
+- **Admin** `pages/admin/AdminHomeCategories.js` (`/admin/home-categories`, menu CMS › Écran accueil app) : liste groupée par section, **réordonnancement** (flèches), **visibilité accueil** (œil), **icône** via bibliothèque (`icon-picker`) OU **upload image** (data-URL), nom FR/EN, sous-titre, couleurs, route cible, aperçu live, CRUD complet.
+- **Composant** `components/DynamicIcon.js` : rend une icône Phosphor par nom OU une image personnalisée.
+- **`UserHome.js`** désormais **piloté par la config** : `displayFor(section)` lit le CMS (fallback sur les tableaux codés en dur si vide). Catégories `visible_home` affichées ; le reste regroupé sous une tuile **« Plus de Services »** menant à la liste de la section. Clic catégorie taxi → directement la page d'adresses `/taxi?mode=...`.
+
+### Tests
+- `tests/test_iter87_home_cms.py` — 5/5 ✅ (public seed, CRUD+reorder, permission 403, garde-fou image 413, paiement carte).
+- Testing agent frontend : **7/7 scénarios PASS** (paiement horizontal, promo, prix live 20.68 €, accueil config-driven + overflow, CMS admin CRUD/reorder/toggle/icon-picker/upload). Aucun bug critique/mineur.
+
 ## 2026-06-03 — Toutes les options Taxi : Hub moderne 16 modes — Iteration 86
 
 ### Added (Frontend)
