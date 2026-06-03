@@ -1,0 +1,31 @@
+{
+  "summary": "V3Cube Pack A — Taxi Avancé end-to-end testing. Backend: 12/12 pytest cases pass (scheduled/list auth+success, reschedule PUT happy + 400, rental-packages, airport-multipliers, and POST /api/rides Pack A field persistence for scheduled/airport+flight/rental+package/buddy+hours/corporate+account, all verified by Create→GET). Frontend: /taxi-advanced renders all 7 mode tabs (scheduled/intercity/airport/rental/buddy_driver/corporate/moto), each tab toggles its mode-specific section (datetime, flight number, 3 rental packages, buddy-hours grid, corporate account input, moto subtype). /scheduled-rides loads the user's upcoming list (5 rides for test2@example.com after the persistence tests), reschedule + cancel buttons present per row. Deep-link /taxi-advanced?mode=rental correctly preselects rental mode. No runtime JS errors. All Pack A features are working as specified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/taxi-advanced", "issues": ["Mode pills strip is horizontally scrollable on mobile (390px) but 7 tabs fit barely; on narrower devices labels may truncate. Cosmetic only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter83_pack_a_taxi.py",
+    "/app/test_reports/pytest/iter83_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "rides.py /rental-packages and /airport-multipliers are exposed as POST but the handlers are read-only configuration fetchers — semantically these should be GET. Not a bug (frontend POSTs without body and it works), but RESTfully unclean. Optional refactor.",
+    "rides.py /scheduled/list query filters scheduled_at >= now_iso lexicographically on ISO8601 strings. Works because the stored value is the same isoformat() (UTC-aware) — keep this invariant. If a future code path stores naive datetimes or different timezone strings, the comparison will silently break. Consider normalising scheduled_at server-side at create time.",
+    "AdvancedTaxiBookingPage.js calls /api/rides/rental-packages without an Authorization header but with credentials:'include' — currently the backend endpoint is unauthenticated, so it works. If it ever becomes auth-protected, the cookie-based session will be required.",
+    "AdvancedTaxiBookingPage.js: useEffect that initialises scheduledAt only runs when mode==='scheduled' — switching to intercity/airport from a fresh page (without ever visiting scheduled first) leaves scheduledAt empty, which is then sent as null. UX nit: also default-init for intercity/airport.",
+    "Google Maps key (REACT_APP_GOOGLE_MAPS_KEY) is still expired (known external blocker from iter82) — GooglePlacesInput on /taxi-advanced will be disabled. Submit flow couldn't be UI-tested end-to-end because of this, but backend persistence tests cover the same code path."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter83_pack_a_taxi.py"],
+  "success_rate": {"backend": "100% (12/12 pytest)", "frontend": "100% on tested flows (mode switching, scheduled list rendering, deep-link)"},
+  "test_credentials": "test2@example.com / TestPass123! (login via 'Ou choisir une autre option de connexion' → 'Email & mot de passe')",
+  "seed_data_creation": "Created 6 rides for test2@example.com via Pack A persistence tests (1 scheduled, 1 airport, 1 rental, 1 buddy, 1 corporate, plus the reschedule fixture rides). They remain in DB (pending status). Cleanup not performed because subsequent /scheduled-rides UI test needs them to demonstrate non-empty list state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pack A backend endpoints (/api/rides/scheduled/list, /api/rides/{id}/reschedule, /api/rides/rental-packages, /api/rides/airport-multipliers) are fully working. Pack A fields on POST /api/rides persist correctly: ride_type, scheduled_at, flight_number, rental_package, rental_hours, corporate_account_id, buddy_hours. Frontend pages /taxi-advanced (AdvancedTaxiBookingPage) and /scheduled-rides (ScheduledRidesPage) are wired correctly with data-testids for every mode tab and per-row action button. Google Maps key remains expired — GooglePlacesInput is disabled, so end-to-end UI submission can't be exercised in the preview env; use the backend pytest suite for payload validation instead. Login form requires clicking 'Ou choisir une autre option de connexion' → 'Email & mot de passe' before email+password become visible.",
+  "rca of the issue": "N/A — no bugs found. All 9 backend + 3 frontend assertions from the review request returned the expected behaviour on first run."
+}

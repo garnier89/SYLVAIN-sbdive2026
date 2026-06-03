@@ -1,0 +1,370 @@
+/**
+ * AdvancedTaxiBookingPage — V3Cube Pack A
+ * Single unified page with mode tabs: Ride Later, Intercity, Airport, Rental,
+ * Hire A Driver (Buddy), Corporate, Moto.
+ * Reuses the same backend POST /api/rides with `ride_type` discriminator.
+ */
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import {
+  ArrowLeft, Calendar, MapPin, Airplane, Clock, Briefcase,
+  UserCheck, Motorcycle, RoadHorizon,
+} from '@phosphor-icons/react';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import GooglePlacesInput from '../../components/GooglePlacesInput';
+
+const API = process.env.REACT_APP_BACKEND_URL;
+
+const MODES = [
+  { key: 'scheduled', label: 'Plus tard', icon: Calendar, color: '#3B82F6' },
+  { key: 'intercity', label: 'Intercité', icon: RoadHorizon, color: '#8B5CF6' },
+  { key: 'airport', label: 'Aéroport', icon: Airplane, color: '#0EA5E9' },
+  { key: 'rental', label: 'Location', icon: Clock, color: '#F59E0B' },
+  { key: 'buddy_driver', label: 'Chauffeur perso', icon: UserCheck, color: '#10B981' },
+  { key: 'corporate', label: 'Pro / Entreprise', icon: Briefcase, color: '#6366F1' },
+  { key: 'moto', label: 'Moto', icon: Motorcycle, color: '#EF4444' },
+];
+
+const VEHICLE_BY_MODE = {
+  scheduled: 'comfort', intercity: 'premium', airport: 'comfort',
+  rental: 'comfort', buddy_driver: 'comfort', corporate: 'premium', moto: 'moto',
+};
+
+const AdvancedTaxiBookingPage = () => {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState(params.get('mode') || 'scheduled');
+
+  const [pickup, setPickup] = useState(null);
+  const [dropoff, setDropoff] = useState(null);
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [flightNumber, setFlightNumber] = useState('');
+  const [rentalPackages, setRentalPackages] = useState([]);
+  const [rentalPkg, setRentalPkg] = useState(null);
+  const [buddyHours, setBuddyHours] = useState(4);
+  const [corporateAccountId, setCorporateAccountId] = useState('');
+  const [motoSubType, setMotoSubType] = useState('bike'); // bike | scooter | sport
+  const [estimate, setEstimate] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Load rental packages once
+  useEffect(() => {
+    fetch(`${API}/api/rides/rental-packages`, { method: 'POST', credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.packages) {
+          setRentalPackages(d.packages);
+          if (!rentalPkg) setRentalPkg(d.packages[0]?.slug);
+        }
+      })
+      .catch(e => console.warn('rental packages load failed:', e?.message || e));
+  }, [rentalPkg]);
+
+  // Default scheduled_at = next hour, rounded to :00
+  useEffect(() => {
+    if (!scheduledAt && mode === 'scheduled') {
+      const d = new Date();
+      d.setHours(d.getHours() + 1, 0, 0, 0);
+      setScheduledAt(d.toISOString().slice(0, 16));
+    }
+  }, [mode, scheduledAt]);
+
+  const fetchEstimate = useCallback(async () => {
+    if (!pickup?.lat) return;
+    if (mode !== 'rental' && mode !== 'buddy_driver' && !dropoff?.lat) return;
+    try {
+      const vehicleType = mode === 'moto' ? motoSubType : VEHICLE_BY_MODE[mode];
+      const dest = dropoff || pickup; // rental/buddy don't require dropoff
+      const r = await fetch(`${API}/api/rides/estimate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
+          dropoff_lat: dest.lat, dropoff_lng: dest.lng, dropoff_address: dest.address,
+          vehicle_type: vehicleType, payment_method: 'cash',
+        }),
+      });
+      if (r.ok) setEstimate(await r.json());
+    } catch (e) { console.warn('estimate failed:', e?.message || e); }
+  }, [pickup, dropoff, mode, motoSubType]);
+
+  useEffect(() => {
+    const t = setTimeout(fetchEstimate, 400);
+    return () => clearTimeout(t);
+  }, [fetchEstimate]);
+
+  const buildPayload = () => {
+    const vehicleType = mode === 'moto' ? motoSubType : VEHICLE_BY_MODE[mode];
+    const base = {
+      pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
+      dropoff_lat: (dropoff || pickup).lat, dropoff_lng: (dropoff || pickup).lng,
+      dropoff_address: (dropoff || pickup).address,
+      vehicle_type: vehicleType, payment_method: 'cash', ride_type: mode,
+    };
+    if (mode === 'scheduled' || mode === 'intercity' || mode === 'airport') {
+      base.scheduled_at = scheduledAt || null;
+    }
+    if (mode === 'airport') base.flight_number = flightNumber || null;
+    if (mode === 'rental') {
+      const p = rentalPackages.find(p => p.slug === rentalPkg);
+      base.rental_package = rentalPkg;
+      base.rental_hours = p?.hours || 2;
+    }
+    if (mode === 'buddy_driver') base.buddy_hours = buddyHours;
+    if (mode === 'corporate') base.corporate_account_id = corporateAccountId || null;
+    return base;
+  };
+
+  const onSubmit = async () => {
+    if (!pickup?.lat) return toast.error('Choisissez un lieu de départ');
+    if (mode !== 'rental' && mode !== 'buddy_driver' && !dropoff?.lat) {
+      return toast.error('Choisissez une destination');
+    }
+    setSubmitting(true);
+    try {
+      const r = await fetch(`${API}/api/rides`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(buildPayload()),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      toast.success('Réservation enregistrée !');
+      if (mode === 'scheduled' || mode === 'intercity' || mode === 'airport') {
+        navigate('/scheduled-rides');
+      } else {
+        navigate(`/ride/${data.id}`);
+      }
+    } catch (e) {
+      toast.error('Échec : ' + (e.message || 'erreur inconnue'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const current = MODES.find((m) => m.key === mode);
+  const Icon = current?.icon || Calendar;
+
+  return (
+    <div className="mobile-container min-h-screen bg-gray-50 pb-32" data-testid="advanced-taxi-page">
+      <div className="bg-gradient-to-br from-[#0B1426] to-[#1E293B] text-white px-4 pt-12 pb-6 rounded-b-3xl">
+        <button onClick={() => navigate(-1)} className="mb-3" data-testid="adv-back">
+          <ArrowLeft size={24} />
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: current?.color + '33' }}>
+            <Icon size={26} style={{ color: current?.color }} weight="duotone" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Taxi Avancé</h1>
+            <p className="text-xs text-gray-400">{current?.label}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Mode pills */}
+      <div className="px-4 -mt-3 mb-4">
+        <div className="bg-white rounded-2xl p-2 shadow-md overflow-x-auto flex gap-1" data-testid="mode-tabs">
+          {MODES.map((m) => {
+            const Ic = m.icon;
+            const active = m.key === mode;
+            return (
+              <button
+                key={m.key}
+                data-testid={`mode-${m.key}`}
+                onClick={() => setMode(m.key)}
+                className={`flex flex-col items-center px-3 py-2 rounded-xl text-xs whitespace-nowrap transition-colors ${
+                  active ? 'text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                style={active ? { backgroundColor: m.color } : {}}
+              >
+                <Ic size={18} weight={active ? 'fill' : 'regular'} />
+                <span className="mt-1 font-medium">{m.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="px-4 space-y-3">
+        {/* Pickup / Dropoff */}
+        <div className="bg-white rounded-2xl p-3 shadow-sm">
+          <label className="text-[11px] text-gray-500 font-semibold uppercase mb-1 block flex items-center gap-1">
+            <MapPin size={12} className="text-emerald-600" /> Départ
+          </label>
+          <GooglePlacesInput value={pickup} onChange={setPickup} placeholder="Lieu de prise en charge" testId="pickup-input" />
+          {mode !== 'rental' && mode !== 'buddy_driver' && (
+            <>
+              <label className="text-[11px] text-gray-500 font-semibold uppercase mt-3 mb-1 block flex items-center gap-1">
+                <MapPin size={12} className="text-red-600" /> Destination
+              </label>
+              <GooglePlacesInput value={dropoff} onChange={setDropoff} placeholder="Destination" testId="dropoff-input" />
+            </>
+          )}
+        </div>
+
+        {/* Mode-specific fields */}
+        {(mode === 'scheduled' || mode === 'intercity' || mode === 'airport') && (
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <label className="text-[11px] text-gray-500 font-semibold uppercase mb-1 block">
+              Date et heure
+            </label>
+            <Input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              data-testid="scheduled-at-input"
+              min={new Date().toISOString().slice(0, 16)}
+            />
+          </div>
+        )}
+
+        {mode === 'airport' && (
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <label className="text-[11px] text-gray-500 font-semibold uppercase mb-1 block">
+              Numéro de vol (optionnel)
+            </label>
+            <Input
+              placeholder="Ex: AF1234"
+              value={flightNumber}
+              onChange={(e) => setFlightNumber(e.target.value.toUpperCase())}
+              data-testid="flight-number-input"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Nous suivons votre vol pour ajuster automatiquement l&apos;heure de prise en charge.
+            </p>
+          </div>
+        )}
+
+        {mode === 'rental' && (
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <label className="text-[11px] text-gray-500 font-semibold uppercase mb-2 block">
+              Forfait
+            </label>
+            <div className="grid grid-cols-3 gap-2" data-testid="rental-packages">
+              {rentalPackages.map((p) => (
+                <button
+                  key={p.slug}
+                  onClick={() => setRentalPkg(p.slug)}
+                  data-testid={`rental-pkg-${p.slug}`}
+                  className={`p-3 rounded-xl border text-center transition-colors ${
+                    rentalPkg === p.slug ? 'border-amber-500 bg-amber-50' : 'border-gray-200'
+                  }`}
+                >
+                  <p className="font-bold text-sm">{p.label}</p>
+                  <p className="text-xs text-gray-500">{p.price} €</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {mode === 'buddy_driver' && (
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <label className="text-[11px] text-gray-500 font-semibold uppercase mb-2 block">
+              Durée du chauffeur personnel
+            </label>
+            <div className="grid grid-cols-4 gap-2" data-testid="buddy-hours">
+              {[2, 4, 6, 8].map((h) => (
+                <button
+                  key={h}
+                  onClick={() => setBuddyHours(h)}
+                  data-testid={`buddy-${h}h`}
+                  className={`p-3 rounded-xl border text-center transition-colors ${
+                    buddyHours === h ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'
+                  }`}
+                >
+                  <p className="font-bold">{h}h</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-2">
+              Votre chauffeur conduira votre voiture pour la durée choisie.
+            </p>
+          </div>
+        )}
+
+        {mode === 'corporate' && (
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <label className="text-[11px] text-gray-500 font-semibold uppercase mb-1 block">
+              Code compte entreprise
+            </label>
+            <Input
+              placeholder="Ex: ACME-2026"
+              value={corporateAccountId}
+              onChange={(e) => setCorporateAccountId(e.target.value.toUpperCase())}
+              data-testid="corporate-account-input"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              La course sera facturée directement à votre entreprise.
+            </p>
+          </div>
+        )}
+
+        {mode === 'moto' && (
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <label className="text-[11px] text-gray-500 font-semibold uppercase mb-2 block">
+              Type de moto
+            </label>
+            <div className="grid grid-cols-3 gap-2" data-testid="moto-types">
+              {[
+                { k: 'bike', l: 'Moto' },
+                { k: 'scooter', l: 'Scooter' },
+                { k: 'sport', l: 'Sport' },
+              ].map((t) => (
+                <button
+                  key={t.k}
+                  onClick={() => setMotoSubType(t.k)}
+                  data-testid={`moto-${t.k}`}
+                  className={`p-3 rounded-xl border text-center transition-colors ${
+                    motoSubType === t.k ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                  }`}
+                >
+                  <Motorcycle size={20} className="mx-auto" />
+                  <p className="text-xs mt-1 font-medium">{t.l}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Estimate preview */}
+        {estimate?.estimated_fare && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between" data-testid="estimate-card">
+            <div>
+              <p className="text-xs text-gray-500">Tarif estimé</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {estimate.estimated_fare?.toFixed(2)} €
+              </p>
+              <p className="text-[10px] text-gray-400">
+                {estimate.distance_km?.toFixed(1)} km • {estimate.duration_mins} min
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: current?.color + '22' }}>
+              <Icon size={24} style={{ color: current?.color }} weight="duotone" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sticky CTA */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 max-w-[430px] mx-auto">
+        <Button
+          className="w-full"
+          onClick={onSubmit}
+          disabled={submitting}
+          data-testid="adv-submit"
+          style={{ backgroundColor: current?.color }}
+        >
+          {submitting ? 'Envoi...' : (mode === 'scheduled' || mode === 'intercity' || mode === 'airport') ? 'Planifier la course' : 'Réserver'}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default AdvancedTaxiBookingPage;

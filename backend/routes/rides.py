@@ -118,6 +118,13 @@ async def create_ride(data: RideRequest, request: Request):
         "notes": getattr(data, 'notes', None),
         "proposed_fare": float(data.proposed_fare) if data.proposed_fare else fare,
         "counter_offers": [],  # list of {driver_id, driver_name, amount, created_at, status}
+        # Pack A — Taxi Avance V3Cube
+        "ride_type": getattr(data, 'ride_type', 'instant'),
+        "flight_number": getattr(data, 'flight_number', None),
+        "rental_hours": getattr(data, 'rental_hours', None),
+        "rental_package": getattr(data, 'rental_package', None),
+        "corporate_account_id": getattr(data, 'corporate_account_id', None),
+        "buddy_hours": getattr(data, 'buddy_hours', None),
         "cancel_reason": None,
         "cancelled_by": None,
         "driver_name": None,
@@ -670,4 +677,75 @@ async def passenger_accept_offer(ride_id: str, offer_id: str, request: Request):
 async def _get_driver_points_cfg():
     from routes.drivers import _get_rewards_points_config
     return await _get_rewards_points_config()
+
+
+# ============================================================
+# Pack A — Taxi Avance V3Cube : Scheduled rides management
+# ============================================================
+
+@router.get("/scheduled/list")
+async def list_scheduled_rides(request: Request):
+    """List the current user's upcoming scheduled rides (Ride Later)."""
+    user = await get_current_user(request)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cursor = db.rides.find(
+        {
+            "user_id": user["id"],
+            "scheduled_at": {"$ne": None, "$gte": now_iso},
+            "status": {"$in": ["pending", "accepted"]},
+        },
+        {"_id": 0},
+    ).sort("scheduled_at", 1)
+    items = await cursor.to_list(100)
+    return {"items": items, "count": len(items)}
+
+
+@router.put("/{ride_id}/reschedule")
+async def reschedule_ride(ride_id: str, request: Request):
+    """Reschedule a pending scheduled ride to a new datetime."""
+    user = await get_current_user(request)
+    body = await request.json()
+    new_at = body.get("scheduled_at")
+    if not new_at:
+        raise HTTPException(status_code=400, detail="scheduled_at required")
+    ride = await db.rides.find_one({"id": ride_id, "user_id": user["id"]}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride.get("status") not in ("pending", "accepted"):
+        raise HTTPException(status_code=400, detail="Cannot reschedule a ride in this state")
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$set": {"scheduled_at": new_at, "rescheduled_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"message": "Rescheduled", "ride_id": ride_id, "scheduled_at": new_at}
+
+
+@router.post("/airport-multipliers")
+async def airport_multipliers(request: Request):
+    """Return airport fare multiplier config (V3Cube parity)."""
+    cfg = await db.app_configurations.find_one(
+        {"key": "airport_pricing"}, {"_id": 0, "value": 1}
+    ) or {}
+    return cfg.get("value") or {
+        "multiplier": 1.25,
+        "min_fare": 25.0,
+        "waiting_fee_per_min": 0.5,
+        "currency": "EUR",
+    }
+
+
+@router.post("/rental-packages")
+async def rental_packages(request: Request):
+    """Return available rental packages (hourly / km bundles)."""
+    cfg = await db.app_configurations.find_one(
+        {"key": "rental_packages"}, {"_id": 0, "value": 1}
+    ) or {}
+    return cfg.get("value") or {
+        "packages": [
+            {"slug": "2h_20km", "label": "2h / 20 km", "hours": 2, "km": 20, "price": 40},
+            {"slug": "4h_40km", "label": "4h / 40 km", "hours": 4, "km": 40, "price": 75},
+            {"slug": "8h_80km", "label": "8h / 80 km", "hours": 8, "km": 80, "price": 140},
+        ],
+        "currency": "EUR",
+    }
 

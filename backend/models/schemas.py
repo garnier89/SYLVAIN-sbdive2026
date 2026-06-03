@@ -103,6 +103,13 @@ class RideRequest(BaseModel):
     handicap_accessibility: bool = False
     notes: Optional[str] = None
     proposed_fare: Optional[float] = None  # passenger's price offer for negotiation
+    # Pack A — Taxi Avancé (V3Cube parity)
+    ride_type: str = "instant"  # instant | scheduled | intercity | airport | rental | buddy_driver | corporate
+    flight_number: Optional[str] = None  # for airport pickup
+    rental_hours: Optional[int] = None  # for rental ride_type
+    rental_package: Optional[str] = None  # "2h/20km", "4h/40km", "8h/80km"
+    corporate_account_id: Optional[str] = None
+    buddy_hours: Optional[int] = None  # for buddy_driver (chauffeur personnel)
 
 class RideResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -143,6 +150,13 @@ class RideResponse(BaseModel):
     book_for_name: Optional[str] = None
     book_for_phone: Optional[str] = None
     stopovers: Optional[List[dict]] = None
+    # Pack A
+    ride_type: str = "instant"
+    flight_number: Optional[str] = None
+    rental_hours: Optional[int] = None
+    rental_package: Optional[str] = None
+    corporate_account_id: Optional[str] = None
+    buddy_hours: Optional[int] = None
     start_otp: Optional[str] = None
 
 # Order Models
