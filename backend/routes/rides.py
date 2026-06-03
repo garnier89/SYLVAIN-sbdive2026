@@ -3,8 +3,11 @@ import uuid
 import os
 import secrets
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+# Bidirectional bidding: driver counter-offers expire after this many seconds
+OFFER_TTL_SECONDS = 30
 
 from core.config import db
 from core.deps import get_current_user, calculate_distance, calculate_fare
@@ -691,6 +694,8 @@ async def driver_counter_offer(ride_id: str, request: Request):
         "amount": amount,
         "status": "pending",  # pending | accepted | rejected
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=OFFER_TTL_SECONDS)).isoformat(),
+        "ttl_seconds": OFFER_TTL_SECONDS,
     }
 
     # Prevent the same driver from spamming offers: replace previous pending
@@ -729,6 +734,19 @@ async def passenger_accept_offer(ride_id: str, offer_id: str, request: Request):
     offer = next((o for o in offers if o["id"] == offer_id and o["status"] == "pending"), None)
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
+
+    # Reject expired offers (driver counter-offers live for OFFER_TTL_SECONDS)
+    exp = offer.get("expires_at")
+    if exp:
+        try:
+            if datetime.fromisoformat(exp) < datetime.now(timezone.utc):
+                await db.rides.update_one(
+                    {"id": ride_id, "counter_offers.id": offer_id},
+                    {"$set": {"counter_offers.$.status": "expired"}},
+                )
+                raise HTTPException(status_code=400, detail="Cette offre a expiré")
+        except ValueError:
+            pass
 
     driver = await db.drivers.find_one({"id": offer["driver_id"]}, {"_id": 0})
     if not driver:

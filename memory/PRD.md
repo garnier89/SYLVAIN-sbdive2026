@@ -13,6 +13,10 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Real-time**: WebSockets (ride tracking, simulation)
 
 ## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+## NEW - Jun 2026 - Minuteur d'expiration des contre-offres chauffeurs (DONE — iter 95)
+- Chaque contre-offre chauffeur expire après `OFFER_TTL_SECONDS=30s` (`expires_at` + `ttl_seconds` stockés dans `counter_offers[]`). `accept-offer` refuse une offre expirée (HTTP 400 "Cette offre a expiré", offre marquée `expired`).
+- Côté passager (`TaxiBiddingPage.js`) : composant `OfferCountdown` (anneau SVG circulaire animé, vert→orange→rouge selon temps restant) sur chaque carte d'offre ; les offres expirées disparaissent automatiquement de la liste. Sentiment d'urgence inDrive.
+- Vérifié : E2E curl (offre valide acceptée 200, offre expirée 400), lint JS clean, pytest iter93 vert.
 ## NEW - Jun 2026 - Fix réception courses chauffeur + normalisation statut (DONE — iter 94)
 - `list_rides` (GET /api/rides?status=pending) côté chauffeur ne filtre plus par `vehicle_type` : tout chauffeur approuvé reçoit les courses en attente (cohérent avec le broadcast WS `broadcast_to_drivers`). Débloque l'`incoming-request-modal` + contre-offre chauffeur quel que soit le type de véhicule (Berline/Car/Moto vs slugs sb/confort/luxe).
 - Migration idempotente au startup : docs chauffeurs hérités avec `status='online'` (corrompus) → normalisés en `status='approved'` (débloque `toggle-online`).

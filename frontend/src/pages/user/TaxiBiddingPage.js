@@ -7,6 +7,27 @@ import GooglePlacesInput from '../../components/GooglePlacesInput';
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 
+/** Circular countdown ring shown on each driver offer (inDrive-style urgency). */
+const OfferCountdown = ({ seconds, total = 30 }) => {
+  const r = 16;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(1, seconds / total));
+  const color = seconds <= 8 ? '#ef4444' : seconds <= 15 ? '#f59e0b' : '#10b981';
+  return (
+    <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0" data-testid="offer-countdown">
+      <svg className="w-9 h-9 -rotate-90" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="#e5e7eb" strokeWidth="3" />
+        <circle
+          cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
+          style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+        />
+      </svg>
+      <span className="absolute text-[11px] font-extrabold tabular-nums" style={{ color }}>{seconds}</span>
+    </div>
+  );
+};
+
 /**
  * TaxiBiddingPage — iDrive-style "Offer Your Fare" (V3Cube mockup match).
  *
@@ -48,6 +69,7 @@ const TaxiBiddingPage = () => {
   const [searching, setSearching] = useState(null); // rideId once submitted
   const [searchSeconds, setSearchSeconds] = useState(0);
   const [offers, setOffers] = useState([]);
+  const [nowTs, setNowTs] = useState(Date.now());
   const suggestedRef = useRef(false);
   const debounceRef = useRef(null);
 
@@ -130,7 +152,7 @@ const TaxiBiddingPage = () => {
   // Poll ride status while searching; navigate once a driver accepts
   useEffect(() => {
     if (!searching) return;
-    const tick = setInterval(() => setSearchSeconds((s) => s + 1), 1000);
+    const tick = setInterval(() => { setSearchSeconds((s) => s + 1); setNowTs(Date.now()); }, 1000);
     const poll = setInterval(async () => {
       try {
         const r = await fetch(`${API}/api/rides/${searching}`, { credentials: 'include' });
@@ -417,31 +439,47 @@ const TaxiBiddingPage = () => {
           </div>
 
           {/* Driver offers list (inDrive-style bidirectional bidding) */}
-          {offers.length > 0 && (
-            <div className="mx-5 mt-1 mb-2 space-y-2 max-h-64 overflow-y-auto" data-testid="driver-offers-list">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{offers.length} chauffeur(s) proposent un tarif</p>
-              {offers.map((o) => (
-                <div key={o.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-3 shadow-sm" data-testid={`offer-${o.id}`}>
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Users size={20} className="text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{o.driver_name || 'Chauffeur'}</p>
-                    <p className="text-[11px] text-gray-500 flex items-center gap-1">
-                      ⭐ {(o.driver_rating || 5).toFixed(1)}{o.driver_vehicle_model ? ` · ${o.driver_vehicle_model}` : ''}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-extrabold text-gray-900">{o.amount.toFixed(2)} €</p>
-                  </div>
-                  <button onClick={() => acceptOffer(o.id)} data-testid={`accept-offer-${o.id}`}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm transition-transform">
-                    Choisir
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const remainingFor = (o) => {
+              if (!o.expires_at) return null;
+              const ms = new Date(o.expires_at).getTime() - nowTs;
+              return Math.max(0, Math.ceil(ms / 1000));
+            };
+            const liveOffers = offers.filter((o) => {
+              const rem = remainingFor(o);
+              return rem === null || rem > 0;
+            });
+            if (liveOffers.length === 0) return null;
+            return (
+              <div className="mx-5 mt-1 mb-2 space-y-2 max-h-64 overflow-y-auto" data-testid="driver-offers-list">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{liveOffers.length} chauffeur(s) proposent un tarif</p>
+                {liveOffers.map((o) => {
+                  const rem = remainingFor(o);
+                  return (
+                    <div key={o.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-3 shadow-sm" data-testid={`offer-${o.id}`}>
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Users size={20} className="text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{o.driver_name || 'Chauffeur'}</p>
+                        <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                          ⭐ {(o.driver_rating || 5).toFixed(1)}{o.driver_vehicle_model ? ` · ${o.driver_vehicle_model}` : ''}
+                        </p>
+                      </div>
+                      {rem !== null && <OfferCountdown seconds={rem} total={o.ttl_seconds || 30} />}
+                      <div className="text-right">
+                        <p className="text-lg font-extrabold text-gray-900">{o.amount.toFixed(2)} €</p>
+                      </div>
+                      <button onClick={() => acceptOffer(o.id)} data-testid={`accept-offer-${o.id}`}
+                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm transition-transform">
+                        Choisir
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* Raise fare to attract drivers (cannot lower) */}
           <div className={`mx-5 mt-2 rounded-2xl px-4 py-4 border ${searchSeconds >= 20 && offers.length === 0 ? 'bg-amber-100 border-amber-300 animate-pulse' : 'bg-amber-50 border-amber-100'}`} data-testid="raise-fare-block">
