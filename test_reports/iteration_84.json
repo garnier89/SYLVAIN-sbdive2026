@@ -1,0 +1,36 @@
+{
+  "iteration": 84,
+  "scope": "V3Cube Pack B (Driver Pro) — wiring + new pages",
+  "status": "PASS",
+  "backend": {
+    "pytest_file": "/app/backend/tests/test_iter84_pack_b_driver_pro.py",
+    "results": "24 passed / 0 failed",
+    "covers": [
+      "GET /api/driver-pro/cancellation-reasons (public)",
+      "Vehicles CRUD (create/list/set-primary/update/delete/duplicate-plate-400)",
+      "Bank GET/PUT with IBAN masking (raw IBAN never returned)",
+      "Earnings stats day/week/month bucket logic",
+      "Gallery list/add/delete with base64 file_url",
+      "Admin cancellation-reasons CRUD + non-admin 401/403"
+    ]
+  },
+  "frontend": {
+    "method": "Playwright login via /api/auth/login + page nav with data-testid checks",
+    "results": {
+      "/chauffeur/vehicles": "manage-vehicles-page present",
+      "/chauffeur/bank": "bank-details-page present",
+      "/chauffeur/earnings/stats": "earnings-stats-page present",
+      "/chauffeur/gallery": "gallery-page present",
+      "/admin/cancel-reasons": "admin-cancellation-reasons-page present (Chauffeurs/Clients tabs visible)"
+    }
+  },
+  "changes": [
+    "Wired 3 existing pages (ManageVehicles, BankDetails, AdminCancellationReasons) into App.js routes",
+    "Created DriverEarningsStatsPage.js (period filter + bar chart)",
+    "Created DriverGalleryPage.js (upload up to 20 photos, base64)",
+    "Added /api/driver-pro/gallery endpoints to backend",
+    "Updated SideMenuDrawer driver section with Mes véhicules / Coordonnées bancaires / Ma galerie / Statistiques gains",
+    "Replaced /admin/cancel-reasons to use the new feature-rich AdminCancellationReasonsPage (legacy moved to /admin/cancel-reasons-legacy)"
+  ],
+  "retest_needed": false
+}

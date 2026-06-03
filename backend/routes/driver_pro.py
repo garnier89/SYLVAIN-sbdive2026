@@ -15,6 +15,53 @@ router = APIRouter(prefix="/driver-pro", tags=["driver-pro"])
 
 
 # ============================================================
+# Driver Gallery (Pack B)
+# ============================================================
+
+@router.get("/gallery")
+async def list_gallery(request: Request):
+    user = await get_current_user(request)
+    cursor = db.driver_gallery.find({"driver_id": user["id"]}, {"_id": 0}).sort("created_at", -1)
+    items = await cursor.to_list(100)
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/gallery")
+async def add_gallery_item(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    file_url = body.get("file_url")
+    if not file_url:
+        raise HTTPException(status_code=400, detail="file_url required")
+    if isinstance(file_url, str) and len(file_url) > 11_000_000:
+        raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 8 Mo)")
+    count = await db.driver_gallery.count_documents({"driver_id": user["id"]})
+    if count >= 20:
+        raise HTTPException(status_code=400, detail="Limite 20 photos atteinte")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "driver_id": user["id"],
+        "category": body.get("category", "vehicle"),  # vehicle | id | other
+        "caption": (body.get("caption") or "").strip()[:120],
+        "file_url": file_url,
+        "mime_type": body.get("mime_type", "image/jpeg"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.driver_gallery.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.delete("/gallery/{gid}")
+async def delete_gallery_item(gid: str, request: Request):
+    user = await get_current_user(request)
+    res = await db.driver_gallery.delete_one({"id": gid, "driver_id": user["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Photo introuvable")
+    return {"message": "deleted"}
+
+
+# ============================================================
 # Manage Vehicles
 # ============================================================
 

@@ -12,6 +12,16 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - V3Cube Pack B (Driver Pro) (DONE — iter 84)
+- **Mes véhicules** (`/chauffeur/vehicles`) : CRUD multi-véhicules + véhicule principal sync
+- **Coordonnées bancaires** (`/chauffeur/bank`) : IBAN masqué côté API (jamais retourné en clair)
+- **Statistiques gains** (`/chauffeur/earnings/stats`) : filtre période day/week/month + bar chart
+- **Galerie chauffeur** (`/chauffeur/gallery`) : max 20 photos base64 catégorisées (Véhicule/Identité/Autres)
+- **Admin Motifs d'annulation** (`/admin/cancel-reasons`) : onglets Chauffeurs/Clients, FR/EN, ordre
+- Backend routes sous `/api/driver-pro/*` (24/24 tests pytest verts)
+- Frontend pages câblées dans `App.js` + entrées drawer chauffeur
+
+
 ## NEW - Feb 2026 - Mobile App (Expo / React Native) (FOUNDATION DONE)
 - Monorepo : `/app/mobile/` (Expo SDK 52, React Native 0.76, TypeScript)
 - Bundles iOS + Android compiles sans erreur (1286 modules, ~9.7 MB)

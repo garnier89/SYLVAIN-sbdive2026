@@ -1,4 +1,31 @@
 # CHANGELOG
+# CHANGELOG
+
+## 2026-06-03 — V3Cube Pack B (Driver Pro) — Iteration 84
+
+### Added (Backend `/api/driver-pro/`)
+- **Vehicles CRUD multi-véhicules** : `GET/POST/PUT/DELETE /vehicles`, `POST /vehicles/{id}/set-primary` (sync `drivers` doc avec véhicule principal)
+- **Bank details sécurisé** : `GET/PUT /bank` avec masquage IBAN (jamais retourné en clair, seul `iban_masked` + `iban_last4` exposés), validation longueur 14–34
+- **Driver Gallery** : `GET/POST/DELETE /gallery` jusqu'à 20 photos, base64 ≤ 8 Mo, catégories vehicle/id/other
+- **Earnings stats** : `GET /earnings/stats?period=day|week|month` avec bucket auto (hour/day) et série triée pour bar chart
+- **Cancellation reasons** : liste publique `GET /cancellation-reasons?user_type=Driver|User` + CRUD admin `GET/POST/PUT/DELETE /admin/cancellation-reasons` avec onglets séparés User/Driver, FR/EN, ordre d'affichage
+
+### Added (Frontend)
+- `pages/driver/ManageVehiclesPage.js` — gestion multi-véhicules avec formulaire intégré, badge primaire, types eco/confort/premium/moto/van
+- `pages/driver/BankDetailsPage.js` — IBAN masqué après save, statut "en attente de vérification 24-48h"
+- `pages/driver/DriverEarningsStatsPage.js` — sélecteur période + cartes total/courses + bar chart CSS
+- `pages/driver/DriverGalleryPage.js` — upload photos avec catégories (Véhicule/Identité/Autres) et caption optionnelle
+- `pages/admin/AdminCancellationReasonsPage.js` — tableau avec onglets Chauffeurs/Clients, toggle actif, ordre
+
+### Navigation
+- `App.js` : 4 routes driver (`/chauffeur/vehicles|bank|earnings/stats|gallery`) + remplacement `/admin/cancel-reasons` par `AdminCancellationReasonsPage`
+- `components/SideMenuDrawer.js` : entrées "Mes véhicules", "Ma galerie", "Coordonnées bancaires", "Statistiques gains" dans le drawer chauffeur
+
+### Tests
+- `/app/backend/tests/test_iter84_pack_b_driver_pro.py` — 24 tests pytest (vehicles, bank, gallery, earnings, admin reasons + non-admin 401/403) : **24/24 ✅**
+- UI : Playwright login API → navigation aux 5 pages avec vérification data-testid, toutes présentes
+
+
 
 ## 2026-06-02 — Mobile App Foundation (Expo / React Native)
 

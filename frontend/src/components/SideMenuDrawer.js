@@ -7,7 +7,7 @@ import {
   SignOut, Bank, Star, MapPin, ListChecks, CreditCard, PaperPlaneTilt,
   Plus, Ticket, ShieldCheck, Phone, FileText, Info, ChatCircle, EnvelopeSimple,
   Bell, ShoppingCart, Briefcase, Package, Buildings, Car as CarIcon,
-  Fingerprint, EnvelopeOpen, Key, Coins, Globe, Pencil
+  Fingerprint, EnvelopeOpen, Key, Coins, Globe, Pencil, Image, ChartBar
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -137,7 +137,9 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
       items: [
         { type: 'toggle', icon: Fingerprint, label: "Activer l'empreinte digitale", color: 'bg-blue-100 text-blue-600', value: biometricsOn, onToggle: toggleBiometrics, testId: 'toggle-biometrics-driver' },
         { icon: User,     label: 'Mon profil',     path: '/chauffeur/profile',   color: 'bg-fuchsia-100 text-fuchsia-600' },
+        { icon: Car,      label: 'Mes véhicules',  path: '/chauffeur/vehicles',  color: 'bg-amber-100 text-amber-600' },
         { icon: FileText, label: 'Mes documents',  path: '/chauffeur/documents', color: 'bg-sky-100 text-sky-600' },
+        { icon: Image,    label: 'Ma galerie',     path: '/chauffeur/gallery',   color: 'bg-pink-100 text-pink-600' },
         { icon: Key,      label: 'Changer le mot de passe', path: '/chauffeur/profile?tab=password', color: 'bg-slate-200 text-slate-700' },
         { icon: Globe,    label: 'Changer la langue', path: '/chauffeur/profile?tab=language', color: 'bg-blue-100 text-blue-700' },
       ],
@@ -146,6 +148,8 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
       title: 'Paiement',
       items: [
         { icon: Wallet, label: 'Mon portefeuille', path: '/chauffeur/wallet', color: 'bg-rose-100 text-rose-600' },
+        { icon: Bank,   label: 'Coordonnées bancaires', path: '/chauffeur/bank', color: 'bg-indigo-100 text-indigo-600' },
+        { icon: ChartBar, label: 'Statistiques gains', path: '/chauffeur/earnings/stats', color: 'bg-emerald-100 text-emerald-700' },
         { icon: Bank,   label: 'SB PayGo',         path: '/finance',          color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true, hidden: !sbpaygoAvailable },
       ],
     },

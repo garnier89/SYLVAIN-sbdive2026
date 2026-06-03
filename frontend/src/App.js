@@ -155,6 +155,13 @@ import AdminGroupsPage from './pages/admin/AdminGroupsPage';
 import AdminUserEdit from './pages/admin/AdminUserEdit';
 import DriverSubscriptions from './pages/driver/DriverSubscriptions';
 
+// V3Cube Pack B — Driver Pro
+import ManageVehiclesPage from './pages/driver/ManageVehiclesPage';
+import BankDetailsPage from './pages/driver/BankDetailsPage';
+import DriverEarningsStatsPage from './pages/driver/DriverEarningsStatsPage';
+import DriverGalleryPage from './pages/driver/DriverGalleryPage';
+import AdminCancellationReasonsPage from './pages/admin/AdminCancellationReasonsPage';
+
 import './index.css';
 
 const AppRouter = () => {
@@ -250,6 +257,11 @@ const AppRouter = () => {
       <Route path="/chauffeur/documents" element={<ProtectedRoute allowedRoles={['driver']}><DriverDocumentsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/notifications" element={<ProtectedRoute allowedRoles={['driver']}><DriverNotificationsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/livechat" element={<ProtectedRoute allowedRoles={['driver']}><LiveChatPage /></ProtectedRoute>} />
+      {/* Pack B — Driver Pro */}
+      <Route path="/chauffeur/vehicles" element={<ProtectedRoute allowedRoles={['driver']}><ManageVehiclesPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/bank" element={<ProtectedRoute allowedRoles={['driver']}><BankDetailsPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/earnings/stats" element={<ProtectedRoute allowedRoles={['driver']}><DriverEarningsStatsPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/gallery" element={<ProtectedRoute allowedRoles={['driver']}><DriverGalleryPage /></ProtectedRoute>} />
       <Route path="/driver/register" element={<ProtectedRoute allowedRoles={['user', 'driver']}><DriverRegisterPage /></ProtectedRoute>} />
 
       {/* ======= MERCHANT ======= */}
@@ -324,7 +336,8 @@ const AppRouter = () => {
         <Route path="vehicle-makes" element={<AdminVehicleMakes />} />
         <Route path="vehicle-models" element={<AdminVehicleModels />} />
         <Route path="master-services" element={<AdminMasterServices />} />
-        <Route path="cancel-reasons" element={<AdminCancelReasons />} />
+        <Route path="cancel-reasons" element={<AdminCancellationReasonsPage />} />
+        <Route path="cancel-reasons-legacy" element={<AdminCancelReasons />} />
         <Route path="email-templates" element={<AdminEmailTemplates />} />
         <Route path="sms-templates" element={<AdminSmsTemplates />} />
         <Route path="sos-requests" element={<AdminSosRequests />} />
@@ -368,7 +381,6 @@ const AppRouter = () => {
         <Route path="labels" element={<AdminServiceConfig serviceKey="labels" />} />
         <Route path="email-templates" element={<AdminTemplates />} />
         <Route path="sms-templates" element={<AdminTemplates />} />
-        <Route path="cancel-reasons" element={<AdminServiceConfig serviceKey="cancel-reasons" />} />
         <Route path="support" element={<AdminSupport />} />
       </Route>
 
