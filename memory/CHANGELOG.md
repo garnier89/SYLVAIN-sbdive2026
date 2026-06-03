@@ -1,6 +1,29 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Toutes les options Taxi : Hub moderne 16 modes — Iteration 86
+
+### Added (Frontend)
+- **`pages/user/TaxiHubPage.js`** (`/taxi`) — Nouveau hub de réservation unifié, design "Swiss & High-Contrast / Tactical Bento Grid" (cf. `design_guidelines.json`). 16 modes regroupés en 3 catégories :
+  - **Au quotidien** (grille bento) : Taxi VTC, Pool (-30%), Green (électrique/Eco), Moto (Fast)
+  - **Temps & Distance** (scroll horizontal) : Mise à Dispo (forfait), Intercité, Plus Tard (programmer), Loc Moto
+  - **Spécialisé & Inclusif** (pills) : Enchères, Aéroport (suivi vol), Animaux, Pour un proche, TukTuk, Assistance, Corporate, PMR
+- **Prix live** : carte navy haute-contraste `live-price-card` affichée dès que départ + destination saisis (appel `/api/rides/estimate`), avec distance/durée + remise entreprise.
+- **Panneaux spécifiques par mode** (animés framer-motion) : datetime, n° de vol, forfait location, compteur animaux + taille, type d'assistance, sélecteur compte entreprise, contact passager, prix proposé (enchères).
+- **CTA adaptatif** jaune sticky (libellé change selon le mode). Mode Enchères délègue à `/taxi-bidding` avec query params.
+- Tuiles taxi de `UserHome` re-pointées vers `/taxi?mode=...`.
+
+### Added (Backend)
+- 3 nouveaux types de véhicules dans `core/seed_data.py` : **pets** (animaux), **tuktuk**, **assist** (assistance) avec tarification dédiée.
+- `RideRequest`/`RideResponse` enrichis : `pets_count`, `pets_size`, `assist_needs`, `pool_enabled`. Persistés dans `create_ride`.
+
+### Fixed (CRITICAL)
+- **GooglePlacesInput mal câblé** dans TaxiHubPage ET AdvancedTaxiBookingPage : `value`/`onChange` (string) au lieu de `value={x?.address}` + `onSelect` (objet {lat,lng,address}). Conséquence : prix jamais affiché + soumission cassée. Corrigé → prix live vérifié (13.65 € sur Tour Eiffel→Gare du Nord).
+
+### Tests
+- `tests/test_iter86_taxi_modes.py` — 4 tests (estimate 6 véhicules, persistance pets/assist/access/pool/book_for) : **4/4 ✅**
+- Testing agent frontend : 16 modes rendus + switch panneaux + CTA adaptatif + corporate select OK. Bug critique prix corrigé post-rapport et validé par screenshot.
+
 ## 2026-06-03 — V3Cube Pack C (Comptes Entreprise B2B) — Iteration 85
 
 ### Added (Backend `/api/corporate/`)

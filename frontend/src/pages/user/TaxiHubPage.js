@@ -264,12 +264,12 @@ const TaxiHubPage = () => {
           <div className="mb-4" data-testid="address-block">
             <div className="border-l-4 border-[#0B1426] pl-3 py-1 mb-2">
               <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><MapPin size={11} /> Départ</label>
-              <GooglePlacesInput value={pickup} onChange={setPickup} placeholder="Lieu de prise en charge" testId="pickup-address-input" />
+              <GooglePlacesInput value={pickup?.address || ''} onSelect={setPickup} placeholder="Lieu de prise en charge" testId="pickup-address-input" />
             </div>
             {needsDropoff && (
               <div className="border-l-4 border-[#FFC107] pl-3 py-1">
                 <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><FlagCheckered size={11} /> Destination</label>
-                <GooglePlacesInput value={dropoff} onChange={setDropoff} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
+                <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
               </div>
             )}
           </div>

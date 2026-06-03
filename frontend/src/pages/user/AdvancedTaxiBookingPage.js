@@ -211,13 +211,13 @@ const AdvancedTaxiBookingPage = () => {
           <label className="text-[11px] text-gray-500 font-semibold uppercase mb-1 block flex items-center gap-1">
             <MapPin size={12} className="text-emerald-600" /> Départ
           </label>
-          <GooglePlacesInput value={pickup} onChange={setPickup} placeholder="Lieu de prise en charge" testId="pickup-input" />
+          <GooglePlacesInput value={pickup?.address || ''} onSelect={setPickup} placeholder="Lieu de prise en charge" testId="pickup-input" />
           {mode !== 'rental' && mode !== 'buddy_driver' && (
             <>
               <label className="text-[11px] text-gray-500 font-semibold uppercase mt-3 mb-1 block flex items-center gap-1">
                 <MapPin size={12} className="text-red-600" /> Destination
               </label>
-              <GooglePlacesInput value={dropoff} onChange={setDropoff} placeholder="Destination" testId="dropoff-input" />
+              <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} placeholder="Destination" testId="dropoff-input" />
             </>
           )}
         </div>

@@ -12,6 +12,12 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Hub Taxi moderne : 16 modes de réservation (DONE — iter 86)
+- Nouvelle page `/taxi` (TaxiHubPage) — design "Swiss & High-Contrast / Tactical Bento Grid".
+- 16 modes distincts : Taxi VTC, Pool, Green (électrique), Moto, Mise à dispo (rental), Intercité, Plus tard, Loc Moto, Enchères, Aéroport, Animaux, Pour un proche, TukTuk, Assistance, Corporate, PMR.
+- **Prix live affiché dès la saisie de l'adresse** + panneaux spécifiques par mode + CTA adaptatif.
+- Backend : 3 véhicules ajoutés (pets/tuktuk/assist), champs ride (pets_count/pets_size/assist_needs/pool_enabled). Fix critique GooglePlacesInput (onSelect). 4/4 pytest + validation visuelle.
+
 ## NEW - Jun 2026 - V3Cube Pack C (Comptes Entreprise B2B) (DONE — iter 85)
 - **Admin** (`/admin/corporate`) : CRUD comptes entreprise (code d'adhésion, remise %, plafond mensuel), gestion membres par email, facture mensuelle (brut/remise/net), suivi crédit utilisé.
 - **Client** (`/corporate`) : rejoindre une entreprise par code, voir/quitter ses entreprises.
