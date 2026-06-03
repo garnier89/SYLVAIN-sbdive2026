@@ -49,23 +49,6 @@ const TaxiBiddingPage = () => {
 
   const mapReady = pickup?.lat && dropoff?.lat;
 
-  // Auto-estimate + show bottom sheet when both points are set
-  useEffect(() => {
-    if (!pickup?.lat || !dropoff?.lat) return;
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(fetchEstimate, 350);
-    setShowSheet(true);
-  }, [pickup, dropoff, vehicleType, fetchEstimate]);
-
-  // Fetch live indicator stats on mount and when pickup changes
-  useEffect(() => {
-    const qs = pickup?.lat ? `?lat=${pickup.lat}&lng=${pickup.lng}` : '';
-    fetch(`${API}/api/phase2/taxi-bidding/live-stats${qs}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(setLiveStats)
-      .catch(() => {});
-  }, [pickup]);
-
   const fetchEstimate = useCallback(async () => {
     if (!pickup?.lat || !dropoff?.lat) return;
     setLoading(true);
@@ -89,6 +72,23 @@ const TaxiBiddingPage = () => {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [pickup, dropoff, vehicleType, fare]);
+
+  // Auto-estimate + show bottom sheet when both points are set
+  useEffect(() => {
+    if (!pickup?.lat || !dropoff?.lat) return;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(fetchEstimate, 350);
+    setShowSheet(true);
+  }, [pickup, dropoff, vehicleType, fetchEstimate]);
+
+  // Fetch live indicator stats on mount and when pickup changes
+  useEffect(() => {
+    const qs = pickup?.lat ? `?lat=${pickup.lat}&lng=${pickup.lng}` : '';
+    fetch(`${API}/api/phase2/taxi-bidding/live-stats${qs}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(setLiveStats)
+      .catch((e) => console.warn('live-stats fetch failed:', e?.message || e));
+  }, [pickup]);
 
   const handleSubmit = async () => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }

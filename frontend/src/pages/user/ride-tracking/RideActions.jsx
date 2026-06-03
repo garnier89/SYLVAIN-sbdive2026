@@ -18,12 +18,12 @@ export const CancelRideModal = ({ open, reasons, onCancel, onClose }) => {
         </div>
         <p className="text-sm text-gray-500 mb-4">Choisissez une raison :</p>
         <div className="space-y-2">
-          {reasons.map((r) => (
+          {reasons.map((r, i) => (
             <button
-              key={r.slug}
+              key={`${r.slug || r.id || 'reason'}-${i}`}
               className="w-full text-left p-3 rounded-xl border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors flex items-center justify-between"
               onClick={() => onCancel(r.reason_fr)}
-              data-testid={`cancel-reason-${r.slug}`}
+              data-testid={`cancel-reason-${r.slug || i}`}
             >
               <span className="text-sm">{r.reason_fr}</span>
               <CaretRight size={16} className="text-gray-400" />

@@ -1,0 +1,65 @@
+{
+  "summary": "Retest of TDZ fix on TaxiBiddingPage and duplicate-key fix in CancelRideModal (after iteration 81). Both critical fixes are CONFIRMED WORKING. /taxi-bidding renders cleanly with no runtime error overlay, bottom sheet (offer-fare-sheet) appears once pickup+dropoff are set, and /api/rides/estimate is called only 2 times (debounced, then stable - no infinite loop). /ride/:rideId still works (no regression). React no longer emits 'Encountered two children with the same key' for the cancel-reasons list (key uses slug+index).",
+  "retested_fixes": {
+    "tdz_taxi_bidding": {
+      "status": "PASS",
+      "evidence": "[data-testid=taxi-bidding-page] visible=true, address-card visible=true, no error overlay, no 'Cannot access fetchEstimate before initialization' in console or pageerror. After loading /taxi-bidding?pickup=...&dropoff=... the route-summary + offer-fare-sheet + avg-price-banner + fare-input + find-driver-btn all render."
+    },
+    "estimate_loop": {
+      "status": "PASS",
+      "evidence": "POST /api/rides/estimate called 2 times during initial render (once per state settle: pickup + dropoff + vehicleType debounced), then 0 additional calls over a 4-second idle window. No spam loop."
+    },
+    "ride_tracking_no_regression": {
+      "status": "PASS",
+      "evidence": "POST /api/rides (200), /ride/<id> renders [data-testid=ride-tracking-page], [data-testid=ride-status-bar], [data-testid=cancel-ride-btn]. Clicking cancel-ride-btn opens [data-testid=cancel-modal] listing 7 reasons."
+    },
+    "duplicate_key_warning": {
+      "status": "PASS",
+      "evidence": "console captured 0 'two children with the same key' warnings during cancel modal render (was previously emitted in iteration_81). The new key pattern key={`${r.slug || r.id || 'reason'}-${i}`} guarantees uniqueness even when backend returns duplicate slugs ('Autre raison' x2)."
+    }
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/config/cancel-reasons?user_type=User",
+        "issue": "Still returns 7 reasons including a duplicate 'Autre raison' (same slug 'other'). React key warning no longer fires (fixed via key suffix), but [data-testid=cancel-reason-other] collides on 2 buttons in the DOM (6 unique testids out of 7). Per main-agent instructions this is out of scope for this iteration but worth noting for next cleanup."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "external_blockers_observed": [
+    "Google Maps JavaScript API key is expired (ExpiredKeyMapError). GooglePlacesInput becomes disabled with placeholder 'Oops! Something went wrong.' on /taxi-bidding when typing manually. Workaround used in this test: navigated to /taxi-bidding with pickup/dropoff query params (the page reads them via useSearchParams) which exercised the exact same code path. NOT a regression from this fix - it's a separate env/config issue blocking end-to-end Places autocomplete in the UI."
+  ],
+  "verified_passing_flows": [
+    "Login email/password (test2@example.com / TestPass123!) -> /home",
+    "GET /taxi-bidding (no query) -> renders address-card with Standard/Confort/Luxe selector, no TDZ error",
+    "GET /taxi-bidding?pickup=...&dropoff=... -> renders route-summary + offer-fare-sheet (Offrez votre tarif, Prix moyen 10.00 EUR, fare picker, Trouver un chauffeur button)",
+    "POST /api/rides/estimate fires once after debounce, no loop",
+    "POST /api/rides 200 -> /ride/<id>",
+    "/ride/<id> renders ride-tracking-page + map + status bar (Recherche d'un chauffeur)",
+    "cancel-ride-btn -> cancel-modal opens with 7 reasons, ZERO duplicate-key warnings in console"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "(Out of scope, already known) De-dupe /api/config/cancel-reasons or add a unique reason.id and dedupe in RideActions.jsx before rendering, so the testid stops colliding for the 'Autre raison' duplicate.",
+    "(External) Renew the Google Maps JavaScript API key (REACT_APP_GOOGLE_MAPS_KEY) - currently ExpiredKeyMapError blocks Places autocomplete on TaxiBiddingPage and any other page using GooglePlacesInput."
+  ],
+  "critical_code_review_comments": [
+    "TaxiBiddingPage.js: declaration order is now correct (fetchEstimate useCallback at line 52, useEffect that consumes it at line 77). TDZ resolved. Deps array of fetchEstimate still includes `fare` which causes a new useCallback identity each time the user adjusts the fare, but the consuming useEffect's debounce gate (debounceRef + 350ms) keeps it harmless - estimate calls remained at 2 over the entire test. Optional micro-improvement: drop `fare` from fetchEstimate deps (use a ref) to avoid re-creating the callback on every increment.",
+    "RideActions.jsx CancelRideModal: key={`${r.slug || r.id || 'reason'}-${i}`} is a correct, defensive fix. Optional cleanup once backend returns unique ids: switch to key={r.id} only.",
+    "Pre-existing: HTML id collisions on data-testid=cancel-reason-other (two DOM nodes share it). Not a React warning anymore, but tests that select by that testid will pick the first match only."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3 endpoints exercised: /api/rides, /api/rides/estimate, /api/rides/my-rides)", "frontend": "100% on the two retested pages (/taxi-bidding, /ride/:rideId)"},
+  "test_credentials": "test2@example.com / TestPass123! (user role)",
+  "seed_data_creation": "Created 1 pending ride (ride_ad324b04bb51) for test user via POST /api/rides. Not cancelled (left pending for any next iteration).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both critical fixes from iteration_81 are confirmed working. The Google Maps API key (REACT_APP_GOOGLE_MAPS_KEY) is currently expired - to test end-to-end Places autocomplete on TaxiBiddingPage you either need to renew the key or use the URL-params shortcut /taxi-bidding?pickup=ADDR&plat=LAT&plng=LNG&dropoff=ADDR&dlat=LAT&dlng=LNG which is fully wired up in the page (useSearchParams init). Tour Eiffel = 48.8584/2.2945, Louvre = 48.8606/2.3376 are stable test coords.",
+  "rca of the issue": "Verified the fix from iteration_81. fetchEstimate useCallback was hoisted above the useEffect at line 77, which references it in the deps array. JS no longer hits Temporal Dead Zone during initial render. Separately, RideActions.jsx now uses a composite React key (slug + index) which is unique even when the backend returns duplicate reason slugs, eliminating the 'two children with the same key' warning."
+}
