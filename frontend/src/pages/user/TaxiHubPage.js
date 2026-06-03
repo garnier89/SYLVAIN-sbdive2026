@@ -13,9 +13,10 @@ import {
   Clock, MapTrifold, CalendarPlus, Key, Gavel, AirplaneTilt, PawPrint, UserPlus,
   Van, HandHeart, Briefcase, Wheelchair, Lightning, Plus, Minus,
   Money, CreditCard, Wallet, Tag, CheckCircle,
-  House, NavigationArrow, Pencil, CaretRight, X,
+  House, NavigationArrow, Pencil, CaretRight, X, User,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import MapLocationPicker from '../../components/MapLocationPicker';
 import { corporateAPI, couponAPI, placesAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -32,6 +33,7 @@ const MODES = [
   { id: 'intercity', cat: 'time', label: 'Intercité', sub: 'Longue distance', icon: MapTrifold, color: '#8B5CF6', vehicle: 'confort', ride_type: 'intercity', panel: 'datetime', badge: null, cta: 'Planifier le voyage' },
   { id: 'book_later', cat: 'time', label: 'Plus Tard', sub: 'Programmer', icon: CalendarPlus, color: '#0EA5E9', vehicle: 'sb', ride_type: 'scheduled', panel: 'datetime', badge: null, cta: 'Planifier' },
   { id: 'moto_rental', cat: 'time', label: 'Loc Moto', sub: 'Moto à l\'heure', icon: Key, color: '#DC2626', vehicle: 'moto', ride_type: 'rental', panel: 'rental', badge: null, cta: 'Louer Moto' },
+  { id: 'buddy_driver', cat: 'time', label: 'Chauffeur Privé', sub: 'À l\'heure', icon: User, color: '#10B981', vehicle: 'confort', ride_type: 'buddy_driver', panel: 'buddy', badge: null, cta: 'Réserver' },
   // Specialty & Inclusive
   { id: 'bidding', cat: 'special', label: 'Enchères', sub: 'Proposez votre prix', icon: Gavel, color: '#EC4899', vehicle: 'sb', ride_type: 'instant', panel: 'bidding', badge: null, cta: 'Proposer un prix' },
   { id: 'airport', cat: 'special', label: 'Aéroport', sub: 'Suivi de vol', icon: AirplaneTilt, color: '#0EA5E9', vehicle: 'airport', ride_type: 'airport', panel: 'flight', badge: 'Fixe', cta: 'Réserver Aéroport' },
@@ -101,9 +103,12 @@ const TaxiHubPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
   const [locating, setLocating] = useState(false);
+  const [buddyHours, setBuddyHours] = useState(4);
+  const [mapPicker, setMapPicker] = useState({ open: false, target: 'dropoff' });
 
-  const needsDropoff = mode.ride_type !== 'rental';
+  const needsDropoff = !['rental', 'buddy_driver'].includes(mode.ride_type);
   const isRental = mode.ride_type === 'rental';
+  const isBuddy = mode.id === 'buddy_driver';
 
   // ── Geolocation + reverse geocoding (auto-localize departure) ──
   const reverseGeocode = (lat, lng) => new Promise((resolve) => {
@@ -206,6 +211,7 @@ const TaxiHubPage = () => {
     if (needsDropoff && !dropoff?.lat) { setEstimate(null); return; }
     try {
       const dest = dropoff || pickup;
+      const validStops = stops.filter((s) => s?.lat).map((s) => ({ address: s.address, lat: s.lat, lng: s.lng }));
       const r = await fetch(`${API}/api/rides/estimate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,11 +220,12 @@ const TaxiHubPage = () => {
           pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
           dropoff_lat: dest.lat, dropoff_lng: dest.lng, dropoff_address: dest.address,
           vehicle_type: mode.vehicle, payment_method: 'cash',
+          stops: validStops.length ? validStops : undefined,
         }),
       });
       if (r.ok) setEstimate(await r.json());
     } catch (e) { console.warn('estimate:', e?.message || e); }
-  }, [pickup, dropoff, mode.vehicle, needsDropoff]);
+  }, [pickup, dropoff, stops, mode.vehicle, needsDropoff]);
 
   useEffect(() => {
     const t = setTimeout(fetchEstimate, 350);
@@ -266,6 +273,7 @@ const TaxiHubPage = () => {
       const pkg = RENTAL_PACKAGES.find((p) => p.slug === rentalPkg);
       return `${mode.cta} ${pkg?.label || ''}`.trim();
     }
+    if (isBuddy) return `Réserver ${buddyHours}h`;
     if (mode.id === 'book_for_someone' && bookForName) return `Commander pour ${bookForName}`;
     return mode.cta;
   }, [mode, rentalPkg, bookForName]);
@@ -285,6 +293,7 @@ const TaxiHubPage = () => {
       base.rental_package = rentalPkg;
       base.rental_hours = pkg?.hours || 2;
     }
+    if (isBuddy) base.buddy_hours = buddyHours;
     if (mode.id === 'corporate') base.corporate_account_id = corpId || null;
     if (mode.id === 'pets') { base.pets_count = petsCount; base.pets_size = petsSize; }
     if (mode.id === 'assist') base.assist_needs = assistNeeds;
@@ -495,6 +504,14 @@ const TaxiHubPage = () => {
                   <span className="text-sm font-semibold text-[#0B1426]">{locating ? 'Localisation…' : 'Utiliser ma localisation actuelle'}</span>
                 </button>
 
+                <button onClick={() => setMapPicker({ open: true, target: 'dropoff' })}
+                  className="w-full flex items-center gap-3 py-2.5 text-left active:opacity-70 border-t border-gray-100" data-testid="set-on-map-btn">
+                  <span className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                    <MapTrifold size={18} className="text-[#FFC107]" />
+                  </span>
+                  <span className="text-sm font-semibold text-[#0B1426]">Définir l'emplacement sur la carte</span>
+                </button>
+
                 {[{ kind: 'home', label: 'Maison', icon: House, place: savedPlaces.home },
                   { kind: 'work', label: 'Travail', icon: Briefcase, place: savedPlaces.work }].map(({ kind, label, icon: PIcon, place }) => (
                   <div key={kind} className="flex items-center gap-3 py-2.5 border-t border-gray-100" data-testid={`place-${kind}-row`}>
@@ -533,7 +550,7 @@ const TaxiHubPage = () => {
 
           {/* Live price card */}
           <AnimatePresence>
-            {(displayPrice || isRental) && (
+            {(displayPrice || isRental || isBuddy) && (
               <motion.div
                 initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }}
                 className="bg-[#0B1426] text-white p-4 rounded-xl flex items-center justify-between mb-4 relative overflow-hidden"
@@ -543,6 +560,8 @@ const TaxiHubPage = () => {
                   <p className="text-[10px] tracking-[0.1em] uppercase text-[#FFC107] font-bold">{mode.label}</p>
                   {isRental ? (
                     <p className="text-xs text-white/60 mt-0.5">Forfait {RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.label}</p>
+                  ) : isBuddy ? (
+                    <p className="text-xs text-white/60 mt-0.5">{buddyHours}h de chauffeur dédié</p>
                   ) : (
                     <p className="text-xs text-white/60 mt-0.5">{estimate?.distance_km?.toFixed(1)} km · {estimate?.duration_mins} min</p>
                   )}
@@ -551,7 +570,7 @@ const TaxiHubPage = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-4xl font-black tracking-tighter" data-testid="live-price-value">
-                    {isRental ? `${(RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.hours || 2) * 18}` : displayPrice?.toFixed(2)}<span className="text-lg"> €</span>
+                    {isRental ? `${(RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.hours || 2) * 18}` : isBuddy ? `${buddyHours * 20}` : displayPrice?.toFixed(2)}<span className="text-lg"> €</span>
                   </p>
                 </div>
               </motion.div>
@@ -585,6 +604,18 @@ const TaxiHubPage = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+              {mode.panel === 'buddy' && (
+                <div data-testid="panel-buddy" className="mb-2">
+                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Durée (heures)</label>
+                  <div className="grid grid-cols-4 gap-2 mt-1">
+                    {[1, 2, 4, 8].map((h) => (
+                      <button key={h} onClick={() => setBuddyHours(h)} data-testid={`buddy-hours-${h}`}
+                        className={`p-3 rounded-lg border text-center font-bold ${buddyHours === h ? 'border-[#10B981] bg-emerald-50 text-emerald-700' : 'border-[#E2E8F0]'}`}>{h}h</button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Un chauffeur dédié reste à votre disposition pendant toute la durée.</p>
                 </div>
               )}
               {mode.panel === 'pets' && (
@@ -695,6 +726,17 @@ const TaxiHubPage = () => {
       </div>
       </>
       )}
+
+      <MapLocationPicker
+        open={mapPicker.open}
+        target={mapPicker.target}
+        initial={mapPicker.target === 'pickup' ? pickup : dropoff}
+        onClose={() => setMapPicker({ ...mapPicker, open: false })}
+        onConfirm={(place, target) => {
+          if (target === 'pickup') setPickup(place); else setDropoff(place);
+          setMapPicker({ open: false, target });
+        }}
+      />
     </div>
   );
 };

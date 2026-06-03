@@ -12,6 +12,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Carte interactive + Chauffeur Privé + tarif multi-arrêts (DONE — iter 90)
+- **« Définir l'emplacement sur la carte »** : `MapLocationPicker` (carte plein écran, pin central, reverse-geocode, Départ/Destination).
+- **Chauffeur Privé (buddy_driver)** intégré au hub (durée 1/2/4/8h, prix horaire). Tuile + CMS → `/taxi?mode=buddy_driver`.
+- **Tarification multi-arrêts** : estimate + create_ride calculent la distance via waypoints (Google Directions ou somme haversine). 3/3 pytest + screenshots.
+
 ## NEW - Jun 2026 - Refonte hub: Grille vs "Planifiez votre trajet" + arrêts multiples (DONE — iter 89)
 - `/taxi` (Plus de Services) = vue **Grille** des 16 services, sans adresses. Clic sur un service = vue **Réservation** « Planifiez votre trajet » sans les autres services (parité image 1 V3Cube).
 - En-tête : toggles **Ramassage maintenant/plus tard** + **Pour moi/Pour un proche**. **Arrêts multiples** via bouton « + » (`stops[]`).

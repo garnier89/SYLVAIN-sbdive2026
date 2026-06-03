@@ -28,7 +28,15 @@ async def estimate_ride(data: RideRequest):
     duration = None
     route_polyline = None
 
-    # Try Google Maps Directions API for real distance/time
+    # Build ordered route points: pickup -> stops[] -> dropoff
+    stop_points = []
+    for s in (data.stops or []):
+        lat = s.get("lat") if isinstance(s, dict) else None
+        lng = s.get("lng") if isinstance(s, dict) else None
+        if lat and lng:
+            stop_points.append((lat, lng))
+
+    # Try Google Maps Directions API for real distance/time (with waypoints)
     gmaps_key = os.environ.get("GOOGLE_MAPS_KEY")
     if gmaps_key and data.pickup_lat and data.dropoff_lat:
         try:
@@ -40,19 +48,25 @@ async def estimate_ride(data: RideRequest):
                 "language": "fr",
                 "units": "metric",
             }
+            if stop_points:
+                params["waypoints"] = "|".join(f"{lat},{lng}" for lat, lng in stop_points)
             resp = requests.get(url, params=params, timeout=5)
             gdata = resp.json()
             if gdata.get("status") == "OK" and gdata.get("routes"):
-                leg = gdata["routes"][0]["legs"][0]
-                distance = leg["distance"]["value"] / 1000  # meters to km
-                duration = int(leg["duration"]["value"] / 60)  # seconds to min
+                legs = gdata["routes"][0]["legs"]
+                distance = sum(leg["distance"]["value"] for leg in legs) / 1000  # meters to km
+                duration = int(sum(leg["duration"]["value"] for leg in legs) / 60)  # seconds to min
                 route_polyline = gdata["routes"][0].get("overview_polyline", {}).get("points")
-        except Exception as e:
+        except Exception:
             pass  # Fallback to haversine
 
-    # Fallback to haversine calculation
+    # Fallback to haversine calculation (sum legs through stops)
     if distance is None:
-        distance = calculate_distance(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng)
+        route = [(data.pickup_lat, data.pickup_lng)] + stop_points + [(data.dropoff_lat, data.dropoff_lng)]
+        distance = sum(
+            calculate_distance(route[i][0], route[i][1], route[i + 1][0], route[i + 1][1])
+            for i in range(len(route) - 1)
+        )
     if duration is None:
         duration = int(distance * 3)
 
@@ -80,7 +94,13 @@ async def estimate_ride(data: RideRequest):
 @router.post("", response_model=RideResponse)
 async def create_ride(data: RideRequest, request: Request):
     user = await get_current_user(request)
-    distance = calculate_distance(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng)
+    # Distance through optional intermediate stops: pickup -> stops[] -> dropoff
+    stop_points = [(s.get("lat"), s.get("lng")) for s in (data.stops or []) if isinstance(s, dict) and s.get("lat") and s.get("lng")]
+    route = [(data.pickup_lat, data.pickup_lng)] + stop_points + [(data.dropoff_lat, data.dropoff_lng)]
+    distance = sum(
+        calculate_distance(route[i][0], route[i][1], route[i + 1][0], route[i + 1][1])
+        for i in range(len(route) - 1)
+    )
     duration = int(distance * 3)
     vtype_doc = await db.vehicle_types.find_one({"slug": data.vehicle_type, "status": "active"}, {"_id": 0})
     fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)

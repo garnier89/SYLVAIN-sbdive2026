@@ -1,6 +1,20 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Carte interactive + Chauffeur Privé + tarification multi-arrêts — Iteration 90
+
+### Added
+- **« Définir l'emplacement sur la carte »** : nouveau composant `components/MapLocationPicker.js` — carte Google plein écran avec pin central fixe, reverse-geocoding en direct, bascule Départ/Destination, bouton « Confirmer ce lieu ». Accessible depuis les raccourcis du hub (`set-on-map-btn`). Réutilise le script Maps déjà chargé (pas de conflit).
+- **Mode « Chauffeur Privé » (buddy_driver) intégré au hub** : nouvelle entrée dans MODES (catégorie Temps & Distance), panneau de durée 1h/2h/4h/8h, prix horaire affiché, pas de destination requise. Tuile accueil + CMS re-routés vers `/taxi?mode=buddy_driver`.
+
+### Changed (Tarification multi-arrêts)
+- `POST /api/rides/estimate` et `POST /api/rides` calculent désormais la distance/durée **en passant par chaque arrêt** (`pickup → stops[] → dropoff`) : via Google Directions `waypoints` si dispo, sinon somme des segments haversine. Le prix live reflète les arrêts (ex. 7.51 km/12.81 € → 26.59 km/34.59 € avec détour).
+- `fetchEstimate` du hub transmet `stops`.
+
+### Tests
+- `tests/test_iter90_stops_buddy.py` — 3/3 ✅ (multistop > direct, persistance stops + prix waypoints, buddy_driver). Régression iters 85-88 : 16/16 ✅.
+- UI vérifiée par screenshots : carte interactive (pin + adresse géocodée), panneau buddy (80€/4h), ajout d'arrêt.
+
 ## 2026-06-03 — Refonte hub : vue Grille vs vue « Planifiez votre trajet » + arrêts multiples — Iteration 89
 
 ### Changed (Hub /taxi — parité V3Cube image 1)
