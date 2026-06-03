@@ -4,6 +4,7 @@ import { ArrowLeft, Info, Minus, Plus, Gavel, Users, TrendUp } from '@phosphor-i
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { CountdownRing } from '../../components/CountdownRing';
+import SearchingRadar from '../../components/SearchingRadar';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
@@ -404,13 +405,7 @@ const TaxiBiddingPage = () => {
           <div className="flex justify-center pt-3"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
           {/* Radar animation */}
           <div className="flex flex-col items-center pt-4 pb-2">
-            <div className="relative w-24 h-24 flex items-center justify-center">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-30 animate-ping" />
-              <span className="absolute inline-flex h-16 w-16 rounded-full bg-blue-400 opacity-40 animate-ping" style={{ animationDelay: '0.4s' }} />
-              <div className="relative w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center">
-                <Gavel size={26} weight="fill" className="text-white" />
-              </div>
-            </div>
+            <SearchingRadar size={150} />
             <h2 className="text-lg font-bold text-gray-900 mt-3" data-testid="searching-title">Recherche d'un chauffeur…</h2>
             <p className="text-sm text-gray-500">Votre offre : <span className="font-bold text-blue-600" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
             {liveStats?.online_drivers_nearby != null && (

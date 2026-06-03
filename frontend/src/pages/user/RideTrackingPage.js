@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
+import SearchingRadar from '../../components/SearchingRadar';
 import DriverInfoCard from './ride-tracking/DriverInfoCard';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
 
@@ -265,13 +266,9 @@ const RideTrackingPage = () => {
 
         {/* Searching animation */}
         {ride.status === 'pending' && (
-          <div className="bg-blue-50 border border-orange-200 rounded-2xl p-5 mb-4 text-center" data-testid="ride-searching">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" />
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
-            </div>
-            <p className="font-semibold text-blue-800">Recherche d'un chauffeur...</p>
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-4 flex flex-col items-center text-center" data-testid="ride-searching">
+            <SearchingRadar size={140} />
+            <p className="font-semibold text-blue-800 mt-4">Recherche d'un chauffeur...</p>
             <p className="text-xs text-[#FF4500] mt-1">Veuillez patienter</p>
           </div>
         )}

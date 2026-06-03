@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/button';
+import SearchingRadar from '../../../components/SearchingRadar';
 
 /**
  * Step 3 — Searching for a driver (fallback / fast booking path).
@@ -10,10 +10,8 @@ export const RideSearchingStep = ({ pickup, dropoff, ride }) => {
   const navigate = useNavigate();
   return (
     <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center px-6">
-      <div className="w-24 h-24 rounded-full bg-[#303F9F]/10 flex items-center justify-center animate-pulse mb-6">
-        <Car size={48} weight="duotone" className="text-[#303F9F]" />
-      </div>
-      <h3 className="text-xl font-bold text-gray-900 mb-2">Recherche d'un chauffeur</h3>
+      <SearchingRadar size={190} />
+      <h3 className="text-xl font-bold text-gray-900 mb-2 mt-6">Recherche d'un chauffeur</h3>
       <p className="text-sm text-gray-500 mb-4">Cela peut prendre un moment...</p>
 
       <div className="w-full bg-gray-50 rounded-2xl p-4 space-y-3 mb-6">

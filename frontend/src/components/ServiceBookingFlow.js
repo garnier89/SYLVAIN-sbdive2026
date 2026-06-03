@@ -65,7 +65,7 @@ const ServiceBookingFlow = () => {
 
   // Live estimate (debounced)
   const fetchEstimate = useCallback(async () => {
-    if (!subService) return;
+    if (!subService) return null;
     try {
       const r = await fetch(`${API}/api/services/estimate`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -74,8 +74,9 @@ const ServiceBookingFlow = () => {
           coupon_code: promoCode.trim().toUpperCase() || null,
         }),
       });
-      if (r.ok) setEstimate(await r.json());
+      if (r.ok) { const d = await r.json(); setEstimate(d); return d; }
     } catch { /* ignore */ }
+    return null;
   }, [subService, quantity, promoCode]);
 
   useEffect(() => {
@@ -94,19 +95,11 @@ const ServiceBookingFlow = () => {
   const Icon = cfg.icon;
   const promoOk = estimate?.promo_valid;
 
-  const applyPromo = () => {
+  const applyPromo = async () => {
     if (!promoCode.trim()) return;
-    fetchEstimate().then(() => {
-      // estimate refresh carries promo_valid; toast based on next render snapshot
-    });
-    setTimeout(() => {
-      // read latest estimate via state setter
-      setEstimate((e) => {
-        if (e?.promo_valid) toast.success(`Code promo appliqué : -${e.discount.toFixed(2)} €`);
-        else toast.error('Code promo invalide');
-        return e;
-      });
-    }, 400);
+    const d = await fetchEstimate();
+    if (d?.promo_valid) toast.success(`Code promo appliqué : -${d.discount.toFixed(2)} €`);
+    else toast.error('Code promo invalide');
   };
 
   const onSubmit = async () => {

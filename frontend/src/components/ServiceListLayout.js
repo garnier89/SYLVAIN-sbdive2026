@@ -122,7 +122,7 @@ const ServiceListLayout = ({
 
 /** Re-usable card UI used by most pages. */
 export const ServiceCard = ({ item, badges = [], onClick }) => (
-  <button onClick={onClick} className={`w-full bg-white rounded-2xl overflow-hidden border hover:shadow-md transition-shadow text-left flex relative ${item.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`}>
+  <button onClick={onClick} data-testid={`service-card-${item.id}`} className={`w-full bg-white rounded-2xl overflow-hidden border hover:shadow-md transition-shadow text-left flex relative ${item.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`}>
     {item.is_featured && (
       <span className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow-sm" data-testid={`sponsored-${item.id}`}>
         <Star size={9} weight="fill" />Sponsorisé

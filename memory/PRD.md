@@ -13,6 +13,16 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Real-time**: WebSockets (ride tracking, simulation)
 
 ## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+## NEW - Jun 2026 - Animation "Recherche d'un chauffeur" (radar) (DONE — iter 98)
+- Composant réutilisable `SearchingRadar.jsx` fidèle au design fourni : pin de localisation blanc (disque bleu) au centre, anneau bleu brisé en 4 arcs en rotation continue, cercles concentriques pulsants (radar).
+- Branché sur les 3 écrans de recherche : `TaxiBiddingPage` (searching-sheet), `RideSearchingStep.jsx`, `RideTrackingPage` (statut pending). Vérifié visuellement (screenshot) + lint propre.
+## NEW - Jun 2026 - Modernisation de TOUS les services (réservation réelle type taxi) (DONE — iter 97)
+- **Hub Services moderne** (`/services-hub`, `ServicesHubPage.js`) : grille bento « Swiss & High-Contrast » groupée en Mobilité & Livraison / À domicile & Bien-être / Urgences & Assistance. Bannière d'accès « Tous les services » sur l'accueil.
+- **Flux de réservation unifié** (`/service/:key`, `ServiceBookingFlow.js`) inspiré du TaxiHub : sélection prestataire (catalogue) → prestation + quantité + adresse (Google Places + carte) + planification (maintenant/programmer) + sélecteur paiement (Espèces/Carte/SB PayGo) + code promo + **prix live** → confirmation. 6 services : Beauté, Animaux, Auto, Dépannage (instant), Maison, Commerces.
+- **« Mes réservations »** (`/my-bookings`, `MyServiceBookingsPage.js`) : suivi temps réel (polling 5s) avec badges de statut (En attente → Confirmé → En cours → Terminé / Annulé) + annulation.
+- **Backend** (`services.py`) : `POST /services/estimate` (prix + promo serveur), `create_service_booking` enrichi (prestataire auto-confirme, promo via helper `compute_coupon_discount` réutilisable, breakdown prix, WS admin), `POST /services/bookings/{id}/status` (cycle de vie admin), cancel. Fini les toasts factices.
+- Pages annuaire (Beauté/Animaux/Auto/Commerces/Dépannage) recâblées : clic prestataire → flux de réservation (preselect). `data-testid` ajouté à `ServiceCard`.
+- Testé : testing agent iter89 → 100% des flux critiques (hub, flux unifié, prix live, promo SBDRIVE10, confirmation → my-bookings, annulation). Backend E2E curl complet (estimate/booking/status/promo).
 ## NEW - Jun 2026 - Compte à rebours chauffeur + "Renouveler mon offre" (DONE — iter 96)
 - Côté chauffeur (`DriverHome.js`) : après l'envoi d'une contre-offre, la modale reste ouverte et affiche un panneau `my-offer-panel` avec l'anneau `CountdownRing` (composant partagé), le montant, le statut « Expire dans Ns · en attente du client » et deux boutons : « Renouveler mon offre » (renvoi du même montant → nouveau timer 30s) et « Annuler ».
 - Détection auto : pendant que l'offre est en attente, polling 2.5s de `rideAPI.get` ; si le passager choisit ce chauffeur (`ride.driver_id === driver.id`), passage direct à la course active (`currentRide`) + join WS room.
