@@ -17,6 +17,7 @@ import Button from '@/components/Button';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { rideAPI } from '@/api/endpoints';
 import { regionFromCoords, PARIS } from '@/utils/geo';
+import { estimateEtaMinutes, formatEta } from '@/utils/eta';
 import useRideSocket from '@/hooks/useRideSocket';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -48,6 +49,7 @@ export default function RideTrackingScreen() {
 
   const [ride, setRide] = useState<any>(null);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [etaMin, setEtaMin] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchRide = useCallback(async () => {
@@ -80,8 +82,29 @@ export default function RideTrackingScreen() {
       if (msg?.type === 'ride_status_update' && msg.ride_id === rideId) {
         setRide((r: any) => (r ? { ...r, status: msg.status } : r));
       }
+      if (msg?.type === 'eta_update' && msg.ride_id === rideId) {
+        if (typeof msg.eta_min === 'number') setEtaMin(msg.eta_min);
+      }
     },
   });
+
+  // Fallback: estimate ETA locally if driver pushes location but no eta_update yet
+  useEffect(() => {
+    if (etaMin != null || !ride || !driverLoc) return;
+    const phase = ride.status === 'in_progress' ? 'dropoff' : 'pickup';
+    const target =
+      phase === 'pickup'
+        ? { lat: ride.pickup_lat, lng: ride.pickup_lng }
+        : { lat: ride.dropoff_lat, lng: ride.dropoff_lng };
+    const local = estimateEtaMinutes(
+      driverLoc.lat,
+      driverLoc.lng,
+      target.lat,
+      target.lng,
+      ride.vehicle_type
+    );
+    if (local != null) setEtaMin(local);
+  }, [driverLoc, ride, etaMin]);
 
   // Fit map to all points
   useEffect(() => {
@@ -164,6 +187,11 @@ export default function RideTrackingScreen() {
           </Pressable>
           <View style={[styles.statusPill, { backgroundColor: STATUS_COLOR[status] ?? colors.info }]}>
             <Text style={styles.statusText}>{STATUS_LABEL[status] ?? status}</Text>
+            {etaMin != null && isActive ? (
+              <Text style={styles.etaText}>
+                {status === 'in_progress' ? 'Arrivee dans' : 'Chauffeur dans'} {formatEta(etaMin)}
+              </Text>
+            ) : null}
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -282,6 +310,7 @@ const styles = StyleSheet.create({
     ...shadow.md,
   },
   statusText: { color: '#fff', fontWeight: '800' },
+  etaText: { color: '#fff', fontSize: fontSizes.xs, opacity: 0.9, marginTop: 2 },
   driverDot: {
     width: 38,
     height: 38,

@@ -17,6 +17,7 @@ import Button from '@/components/Button';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { driverAPI, rideAPI } from '@/api/endpoints';
 import { metersBetween, regionFromCoords, PARIS } from '@/utils/geo';
+import { estimateEtaMinutes, formatEta } from '@/utils/eta';
 import { openNavigation } from '@/utils/navApps';
 import useRideSocket from '@/hooks/useRideSocket';
 
@@ -129,6 +130,25 @@ export default function DriverActiveRideScreen() {
 
   const distanceToTarget =
     me && target ? metersBetween(me, { lat: target.lat, lng: target.lng }) : null;
+
+  const etaMin = estimateEtaMinutes(
+    me?.lat,
+    me?.lng,
+    target?.lat,
+    target?.lng,
+    ride?.vehicle_type
+  );
+
+  // Push ETA to passenger via websocket so it shows in their RideTracking
+  useEffect(() => {
+    if (etaMin == null) return;
+    wsRef.current?.send?.({
+      type: 'eta_update',
+      ride_id: rideId,
+      eta_min: etaMin,
+      distance_m: distanceToTarget,
+    });
+  }, [etaMin, distanceToTarget, rideId]);
 
   useEffect(() => {
     const points: any[] = [];
@@ -252,6 +272,7 @@ export default function DriverActiveRideScreen() {
                 <Text style={styles.fareInline}>
                   {(ride?.fare ?? 0).toFixed?.(2) ?? ride?.fare ?? '--'} EUR
                   {distanceToTarget != null ? ` · ${(distanceToTarget / 1000).toFixed(1)} km` : ''}
+                  {etaMin != null ? ` · ETA ${formatEta(etaMin)}` : ''}
                 </Text>
               </View>
               {(ride?.user?.phone ?? ride?.passenger_phone) ? (

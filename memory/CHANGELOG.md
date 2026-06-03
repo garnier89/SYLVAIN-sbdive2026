@@ -15,7 +15,17 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
+## 2026-06-02 — Mobile App : ETA dynamique côté client (sans coût API)
+
+### Added
+- **utils/eta.ts** : `estimateEtaMinutes()` calcule l'ETA basé sur distance crow-flies × 1.3 (correction urbaine) ÷ vitesse moyenne par type de véhicule (eco 30 km/h, comfort 32, premium 34, moto 38). `formatEta()` pour affichage "12 min" / "1 h 5".
+- **DriverActiveRideScreen** : ETA affiché dans la card passager (ex : "12,50 EUR · 2.3 km · ETA 8 min"), recalculé à chaque update GPS et **pushé via WebSocket** (`eta_update`) vers le passager
+- **RideTrackingScreen (passenger)** : ETA reçu via WS affiché dans la status pill ("Chauffeur en route — Chauffeur dans 8 min" / "Course en cours — Arrivée dans 12 min"), fallback de calcul local si le driver ne pushe pas encore
+- **Backend** : nouveau handler WS `eta_update` dans `server.py` qui relaie aux room members + au passager (via `send_personal_message`)
+- Validation : `tsc --noEmit` PASS · bundle Android 9.88 MB (1314 modules) · backend healthy
+
 ## 2026-06-02 — Mobile App : Mode Course Chauffeur (Turn-by-Turn)
+
 
 ### Added
 - **DriverActiveRideScreen** (`/mobile/src/screens/driver/`) : écran plein écran avec MapView (provider Google sur Android), marker dynamique pickup/dropoff selon la phase, polyline vers la cible courante

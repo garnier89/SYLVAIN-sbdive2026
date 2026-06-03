@@ -524,6 +524,22 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 if ride_id:
                     manager.leave_ride_room(ride_id, client_id)
 
+            elif msg_type == "eta_update":
+                ride_id = data.get("ride_id")
+                if ride_id:
+                    ride = await db.rides.find_one(
+                        {"id": ride_id}, {"_id": 0, "user_id": 1, "id": 1}
+                    )
+                    if ride:
+                        payload = {
+                            "type": "eta_update",
+                            "ride_id": ride_id,
+                            "eta_min": data.get("eta_min"),
+                            "distance_m": data.get("distance_m"),
+                        }
+                        await manager.send_personal_message(payload, ride["user_id"])
+                        await manager.send_to_ride_room(ride_id, payload, exclude=client_id)
+
             elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
 
