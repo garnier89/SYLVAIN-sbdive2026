@@ -13,6 +13,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Real-time**: WebSockets (ride tracking, simulation)
 
 ## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+## NEW - Jun 2026 - Compte à rebours chauffeur + "Renouveler mon offre" (DONE — iter 96)
+- Côté chauffeur (`DriverHome.js`) : après l'envoi d'une contre-offre, la modale reste ouverte et affiche un panneau `my-offer-panel` avec l'anneau `CountdownRing` (composant partagé), le montant, le statut « Expire dans Ns · en attente du client » et deux boutons : « Renouveler mon offre » (renvoi du même montant → nouveau timer 30s) et « Annuler ».
+- Détection auto : pendant que l'offre est en attente, polling 2.5s de `rideAPI.get` ; si le passager choisit ce chauffeur (`ride.driver_id === driver.id`), passage direct à la course active (`currentRide`) + join WS room.
+- Composant `CountdownRing.jsx` extrait et partagé entre passager et chauffeur (DRY).
+- Testé : testing agent iter88 (panneau + countdown qui décroît + renew reset = PASS) ; E2E curl (renew remplace l'offre en attente avec nouvel `expires_at` ; accept-offer pose `driver_id`).
 ## NEW - Jun 2026 - Minuteur d'expiration des contre-offres chauffeurs (DONE — iter 95)
 - Chaque contre-offre chauffeur expire après `OFFER_TTL_SECONDS=30s` (`expires_at` + `ttl_seconds` stockés dans `counter_offers[]`). `accept-offer` refuse une offre expirée (HTTP 400 "Cette offre a expiré", offre marquée `expired`).
 - Côté passager (`TaxiBiddingPage.js`) : composant `OfferCountdown` (anneau SVG circulaire animé, vert→orange→rouge selon temps restant) sur chaque carte d'offre ; les offres expirées disparaissent automatiquement de la liste. Sentiment d'urgence inDrive.
