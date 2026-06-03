@@ -1,9 +1,10 @@
 import React from 'react';
-import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayout';
 
 const BeautyServicesPage = () => {
-  const book = (item) => toast.success(`Réservation envoyée chez ${item.name}`);
+  const navigate = useNavigate();
+  const book = (item) => navigate(`/service/beauty?provider=${item.id}`);
   return (
     <ServiceListLayout
       title="Services Beauté"

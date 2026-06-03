@@ -1,9 +1,10 @@
 import React from 'react';
-import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayout';
 
 const CarCarePage = () => {
-  const book = (item) => toast.success(`Demande envoyée à ${item.name}`);
+  const navigate = useNavigate();
+  const book = (item) => navigate(`/service/auto?provider=${item.id}`);
   return (
     <ServiceListLayout
       title="Entretien Auto"

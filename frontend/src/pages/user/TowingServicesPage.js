@@ -1,11 +1,12 @@
 import React from 'react';
-import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayout';
-import { Phone, Clock } from '@phosphor-icons/react';
+import { Phone, Clock, Lightning } from '@phosphor-icons/react';
 
 const TowingServicesPage = () => {
-  const call = (item) => {
-    toast.success(`Appel en cours vers ${item.name}...`);
+  const navigate = useNavigate();
+  const call = (e, item) => {
+    e.stopPropagation();
     if (item.phone) window.location.href = `tel:${item.phone}`;
   };
   return (
@@ -17,7 +18,7 @@ const TowingServicesPage = () => {
       emptyHint="Aucun dépanneur disponible"
       testId="towing-page"
       renderCard={({ item }) => (
-        <button onClick={() => call(item)} className={`w-full bg-white rounded-2xl border p-4 text-left hover:shadow-md transition-shadow relative ${item.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`}>
+        <div onClick={() => navigate(`/service/towing?provider=${item.id}`)} className={`w-full bg-white rounded-2xl border p-4 text-left hover:shadow-md transition-shadow relative cursor-pointer ${item.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`} data-testid={`towing-card-${item.id}`}>
           {item.is_featured && (
             <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow-sm" data-testid={`sponsored-${item.id}`}>
               ★ Sponsorisé
@@ -39,14 +40,19 @@ const TowingServicesPage = () => {
             <span className="text-amber-500">★ {item.rating?.toFixed(1)}</span>
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {(item.services || []).map((s, i) => (
+            {(item.services || []).map((s) => (
               <span key={s} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">{s}</span>
             ))}
           </div>
-          <div className="mt-3 inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-bold">
-            <Phone size={14} weight="fill" />Appeler maintenant
+          <div className="flex gap-2 mt-3">
+            <div className="flex-1 inline-flex items-center justify-center gap-1.5 bg-orange-500 text-white px-3 py-2 rounded-lg text-sm font-bold">
+              <Lightning size={14} weight="fill" />Réserver
+            </div>
+            <button onClick={(e) => call(e, item)} className="inline-flex items-center justify-center gap-1.5 border border-orange-300 text-orange-600 px-3 py-2 rounded-lg text-sm font-bold" data-testid={`call-${item.id}`}>
+              <Phone size={14} weight="fill" />Appeler
+            </button>
           </div>
-        </button>
+        </div>
       )}
     />
   );

@@ -1,8 +1,9 @@
 import React from 'react';
-import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayout';
 
 const NearbyBusinessPage = () => {
+  const navigate = useNavigate();
   return (
     <ServiceListLayout
       title="Commerces Proches"
@@ -15,7 +16,7 @@ const NearbyBusinessPage = () => {
       renderCard={({ item }) => (
         <ServiceCard
           item={item}
-          onClick={() => toast.info(`${item.name} — ${item.distance_km} km`)}
+          onClick={() => navigate(`/service/nearby?provider=${item.id}`)}
           badges={[
             { label: item.category, colorClass: 'bg-indigo-50 text-indigo-700' },
             { label: `${item.distance_km} km`, colorClass: 'bg-gray-100 text-gray-700' },

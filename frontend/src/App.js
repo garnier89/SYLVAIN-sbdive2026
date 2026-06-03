@@ -50,6 +50,9 @@ import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
 import AdvancedTaxiBookingPage from './pages/user/AdvancedTaxiBookingPage';
 import CorporateAccountPage from './pages/user/CorporateAccountPage';
 import TaxiHubPage from './pages/user/TaxiHubPage';
+import ServicesHubPage from './pages/user/ServicesHubPage';
+import ServiceBookingFlow from './components/ServiceBookingFlow';
+import MyServiceBookingsPage from './pages/user/MyServiceBookingsPage';
 import ScheduledRidesPage from './pages/user/ScheduledRidesPage';
 import RunnerPage from './pages/user/RunnerPage';
 import IntercityRidePage from './pages/user/IntercityRidePage';
@@ -213,6 +216,9 @@ const AppRouter = () => {
       <Route path="/order/:orderId" element={<ProtectedRoute allowedRoles={['user']}><OrderTracking /></ProtectedRoute>} />
       <Route path="/parcel" element={<ProtectedRoute allowedRoles={['user']}><ParcelPage /></ProtectedRoute>} />
       <Route path="/services" element={<ProtectedRoute allowedRoles={['user']}><ServicesPage /></ProtectedRoute>} />
+      <Route path="/services-hub" element={<ProtectedRoute allowedRoles={['user']}><ServicesHubPage /></ProtectedRoute>} />
+      <Route path="/service/:serviceKey" element={<ProtectedRoute allowedRoles={['user']}><ServiceBookingFlow /></ProtectedRoute>} />
+      <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={['user']}><MyServiceBookingsPage /></ProtectedRoute>} />
       <Route path="/all-delivery" element={<ProtectedRoute allowedRoles={['user']}><AllDeliveryPage /></ProtectedRoute>} />
       <Route path="/all-services" element={<ProtectedRoute allowedRoles={['user']}><AllServicesPage /></ProtectedRoute>} />
       <Route path="/carpool" element={<ProtectedRoute allowedRoles={['user']}><CarPoolPage /></ProtectedRoute>} />

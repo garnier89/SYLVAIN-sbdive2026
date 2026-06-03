@@ -8,6 +8,34 @@ from core.deps import get_current_user, require_role
 router = APIRouter(prefix="/coupons", tags=["coupons"])
 
 
+async def compute_coupon_discount(code: str, amount: float, user_id: str = None) -> dict:
+    """Server-side coupon evaluation reused by services/orders booking flows.
+    Returns {valid, discount_amount, reason}. Never raises."""
+    code = (code or "").strip().upper()
+    if not code or amount <= 0:
+        return {"valid": False, "discount_amount": 0.0, "reason": "no_code"}
+    coupon = await db.coupons.find_one({"code": code, "status": "active"}, {"_id": 0})
+    if not coupon:
+        return {"valid": False, "discount_amount": 0.0, "reason": "invalid"}
+    now = datetime.now(timezone.utc)
+    if coupon.get("expiry_date"):
+        try:
+            expiry = datetime.fromisoformat(coupon["expiry_date"]).replace(tzinfo=timezone.utc)
+            if now > expiry:
+                return {"valid": False, "discount_amount": 0.0, "reason": "expired"}
+        except (ValueError, TypeError):
+            pass
+    if coupon.get("usage_limit", 0) > 0 and coupon.get("used", 0) >= coupon["usage_limit"]:
+        return {"valid": False, "discount_amount": 0.0, "reason": "limit"}
+    discount_type = coupon.get("discount_type", "Flat")
+    discount_value = coupon.get("discount_value", 0)
+    if discount_type == "Percentage":
+        discount = min(amount * (discount_value / 100), coupon.get("max_discount", 999999))
+    else:
+        discount = min(discount_value, amount)
+    return {"valid": True, "discount_amount": round(discount, 2), "reason": "ok", "code": code}
+
+
 @router.post("/validate")
 async def validate_coupon(request: Request):
     """Validate a coupon code and return discount info."""

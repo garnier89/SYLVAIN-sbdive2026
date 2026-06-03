@@ -287,6 +287,25 @@ const UserHome = () => {
       {/* ===== PARCEL DELIVERY BANNER ===== */}
       <div className="px-4 mt-5">
         <div
+          className="rounded-2xl overflow-hidden bg-[#0B1426] text-white p-5 flex items-center gap-4 cursor-pointer relative"
+          onClick={() => navigate('/services-hub')}
+          data-testid="services-hub-banner"
+        >
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFC107] to-transparent opacity-70" />
+          <div className="flex-1">
+            <h3 className="text-lg font-black tracking-tight">Tous les services</h3>
+            <p className="text-sm text-white/60 mt-1 leading-relaxed">Beauté, auto, animaux, dépannage, maison… Réservez en quelques secondes.</p>
+            <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-[#FFC107]">Explorer le hub →</span>
+          </div>
+          <div className="w-16 h-16 flex-shrink-0 rounded-2xl bg-white/10 flex items-center justify-center">
+            <GridFour size={36} weight="duotone" className="text-[#FFC107]" />
+          </div>
+        </div>
+      </div>
+
+      {/* ===== PARCEL DELIVERY BANNER ===== */}
+      <div className="px-4 mt-5">
+        <div
           className="rounded-2xl overflow-hidden bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 p-5 flex items-center gap-4 cursor-pointer"
           onClick={() => navigate('/parcel')}
           data-testid="parcel-delivery-section"
