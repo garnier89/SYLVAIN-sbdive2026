@@ -15,6 +15,35 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
+## 2026-06-02 — Google Maps Admin Integration (Option C, partie 1/2)
+
+### Clé API renouvelée
+- `/app/frontend/.env` REACT_APP_GOOGLE_MAPS_KEY mise à jour
+- `/app/backend/.env` GOOGLE_MAPS_KEY mise à jour
+- ⚠️ Recommandation : restreindre la clé aux référents HTTP `*.emergent.host`, `*.emergentagent.com` dans Google Cloud Console + limiter aux APIs : Maps JavaScript, Places, Directions, Geocoding, Visualization
+
+### Composant réutilisable
+- `/app/frontend/src/components/admin/AdminGoogleMap.jsx` — wrapper `@react-google-maps/api` avec props : center, zoom, pickup/dropoff/driver markers, routePath polyline, mapType (roadmap/satellite/hybrid/terrain), showTraffic, heatmapData, markers[], onMapClick
+
+### Pages admin migrées Leaflet → Google Maps
+- **AdminLiveRides** : carte centrale 560px avec markers pickup/dropoff/driver + polyline route + couche TrafficLayer
+- **AdminGodsView** : 600px markers chauffeurs (vert online / orange en course) avec onClick → driver detail
+- **AdminHeatView** : refait complet avec **HeatmapLayer Google Maps Visualization API**, sélecteur mapType (Plan/Satellite/Hybride/Terrain), data depuis nouveaux endpoints backend, refresh 30s
+
+### Backend nouveaux endpoints (admin)
+- `GET /api/admin/heatmap/drivers` — positions chauffeurs en ligne (auth admin)
+- `GET /api/admin/heatmap/rides` — pickups des dernières 24h (auth admin)
+
+### Validation
+- ✅ Lint Python + JS PASS sur les 5 fichiers modifiés
+- ✅ `yarn build` PASS (29s)
+- ✅ Backend `/api/admin/heatmap/drivers` retourne 401 sans auth, 200 avec admin auth (testé via curl admin login)
+
+### Restant pour la session suivante (Option C, partie 2/2)
+- AdminDashboard sparkline migration (faible priorité, juste mini-map)
+- Option B : GooglePlacesInput sur pages admin config (Fare Config, Geofence Airport, Stations interdites)
+- AdminFareConfig avec dessin de zones tarifaires sur Google Maps (Drawing Manager)
+
 ## 2026-06-02 — V3Cube Pack A — Taxi Avancé (7 modes) DONE
 
 ### Backend

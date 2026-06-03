@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dispatcherAPI } from '../../services/api';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { MagnifyingGlass, Phone } from '@phosphor-icons/react';
-import 'leaflet/dist/leaflet.css';
+import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
 
 const statusCards = [
   { label: 'Available', color: 'border-green-400', countKey: 'available', emoji: 'A' },
@@ -122,20 +121,22 @@ const AdminGodsView = () => {
         {/* Right Panel - Map */}
         <div className="lg:col-span-2 relative">
           <div className="h-[600px] rounded-lg overflow-hidden border border-gray-200">
-            <MapContainer center={[48.8566, 2.3522]} zoom={12} className="w-full h-full" zoomControl={true}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OSM' />
-              {drivers.filter(d => d.current_lat && d.current_lng).map((d) => (
-                <Marker key={d.id || d.user_id} position={[d.current_lat, d.current_lng]}>
-                  <Popup>
-                    <div className="text-sm">
-                      <p className="font-bold">Name: {d.user_name || 'Driver'}</p>
-                      <p>Mobile: {d.phone || 'N/A'}</p>
-                      <p>Email: {d.email || 'N/A'}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+            <AdminGoogleMap
+              center={{ lat: 48.8566, lng: 2.3522 }}
+              zoom={12}
+              showTraffic
+              mapType="roadmap"
+              markers={drivers
+                .filter((d) => d.current_lat && d.current_lng)
+                .map((d) => ({
+                  id: d.id || d.user_id,
+                  lat: d.current_lat,
+                  lng: d.current_lng,
+                  label: (d.user_name || 'D')[0].toUpperCase(),
+                  color: d.is_online && !d.current_ride_id ? '#22C55E' : '#F59E0B',
+                  onClick: () => setSelectedDriver(d),
+                }))}
+            />
           </div>
 
           {/* Driver Info Popup */}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
-import LeafletMap from '../../components/LeafletMap';
+import LeafletMap from '../../components/LeafletMap'; // legacy fallback (unused after migration)
+import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
 import { Card, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { MapPin, Car, User, Phone, Clock, ArrowsClockwise, Path, Bell, SpeakerHigh, SpeakerSlash, Timer } from '@phosphor-icons/react';
@@ -210,13 +211,15 @@ const AdminLiveRides = () => {
         <div className="lg:col-span-2">
           <Card className="overflow-hidden">
             <div className="h-[560px]" data-testid="live-rides-map">
-              <LeafletMap
+              <AdminGoogleMap
                 center={mapCenter}
                 zoom={selectedRide ? 13 : 11}
                 pickup={pickup}
                 dropoff={dropoff}
                 driver={driver}
                 routePath={routePath}
+                showTraffic
+                mapType="roadmap"
               />
             </div>
             {selectedRide && (

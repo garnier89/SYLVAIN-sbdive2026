@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 
 from core.config import db
@@ -899,3 +899,42 @@ async def admin_live_rides(request: Request):
             counts[s] += 1
 
     return {"rides": rides, "counts": counts, "total": len(rides)}
+
+
+# ============================================================
+# Heatmap endpoints (Admin Heat View - Google Maps)
+# ============================================================
+
+@router.get("/heatmap/drivers")
+async def heatmap_drivers(request: Request):
+    """Return active driver positions as heatmap points (for density visualisation)."""
+    await require_role(request, ["admin"], permission="dashboard.view")
+    cursor = db.drivers.find(
+        {
+            "is_online": True,
+            "current_lat": {"$exists": True, "$ne": None},
+            "current_lng": {"$exists": True, "$ne": None},
+        },
+        {"_id": 0, "current_lat": 1, "current_lng": 1},
+    )
+    docs = await cursor.to_list(2000)
+    items = [{"lat": d["current_lat"], "lng": d["current_lng"], "weight": 1} for d in docs]
+    return {"items": items, "count": len(items)}
+
+
+@router.get("/heatmap/rides")
+async def heatmap_rides(request: Request):
+    """Return recent ride pickup points as heatmap (last 24h)."""
+    await require_role(request, ["admin"], permission="dashboard.view")
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    cursor = db.rides.find(
+        {
+            "created_at": {"$gte": since},
+            "pickup_lat": {"$exists": True, "$ne": None},
+            "pickup_lng": {"$exists": True, "$ne": None},
+        },
+        {"_id": 0, "pickup_lat": 1, "pickup_lng": 1},
+    )
+    docs = await cursor.to_list(5000)
+    items = [{"lat": d["pickup_lat"], "lng": d["pickup_lng"], "weight": 1} for d in docs]
+    return {"items": items, "count": len(items)}
