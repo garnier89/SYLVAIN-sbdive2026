@@ -12,6 +12,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Arrêts sur fiche/itinéraire chauffeur + mémorisation point carte (DONE — iter 91)
+- Arrêts intermédiaires affichés sur la fiche course active + modal nouvelle course du chauffeur (puces numérotées).
+- Itinéraire sur carte chauffeur : `LeafletMap` prop `waypoints` (marqueurs numérotés) + `routePath` (polyline Départ→arrêts→Arrivée).
+- Point choisi sur la carte ajouté aux lieux récents. E2E curl OK (stops Louvre/Opera reçus côté chauffeur).
+
 ## NEW - Jun 2026 - Carte interactive + Chauffeur Privé + tarif multi-arrêts (DONE — iter 90)
 - **« Définir l'emplacement sur la carte »** : `MapLocationPicker` (carte plein écran, pin central, reverse-geocode, Départ/Destination).
 - **Chauffeur Privé (buddy_driver)** intégré au hub (durée 1/2/4/8h, prix horaire). Tuile + CMS → `/taxi?mode=buddy_driver`.

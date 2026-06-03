@@ -734,6 +734,12 @@ const TaxiHubPage = () => {
         onClose={() => setMapPicker({ ...mapPicker, open: false })}
         onConfirm={(place, target) => {
           if (target === 'pickup') setPickup(place); else setDropoff(place);
+          // Mémoriser le point choisi dans les lieux récents
+          if (place?.lat) {
+            placesAPI.addRecent({ address: place.address, lat: place.lat, lng: place.lng })
+              .then(() => placesAPI.getSaved().then((r) => setSavedPlaces(r.data)))
+              .catch(() => {});
+          }
           setMapPicker({ open: false, target });
         }}
       />

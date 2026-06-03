@@ -27,6 +27,12 @@ const blueIcon = new L.Icon({
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
 });
 
+const numberedIcon = (n) => L.divIcon({
+  className: '',
+  html: `<div style="background:#f59e0b;color:#0B1426;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)">${n}</div>`,
+  iconSize: [24, 24], iconAnchor: [12, 12],
+});
+
 const Recenter = ({ center, zoom }) => {
   const map = useMap();
   useEffect(() => {
@@ -63,6 +69,7 @@ const LeafletMap = ({
   zoom = 13,
   pickup, dropoff, driver,
   routePath = [],
+  waypoints = [],
   heatPoints = [],
   onMapClick,
   height = '100%',
@@ -82,6 +89,9 @@ const LeafletMap = ({
       {onMapClick && <ClickHandler onClick={onMapClick} />}
       {pickup?.lat && <Marker position={[pickup.lat, pickup.lng]} icon={greenIcon} />}
       {dropoff?.lat && <Marker position={[dropoff.lat, dropoff.lng]} icon={redIcon} />}
+      {waypoints.filter(w => w?.lat).map((w, i) => (
+        <Marker key={`wp-${i}`} position={[w.lat, w.lng]} icon={numberedIcon(i + 1)} />
+      ))}
       {driver?.lat && <Marker position={[driver.lat, driver.lng]} icon={blueIcon} />}
       {routePath.length > 1 && (
         <Polyline positions={routePath.map(p => [p.lat, p.lng])} pathOptions={{ color: '#3b82f6', weight: 5, opacity: 0.85 }} />

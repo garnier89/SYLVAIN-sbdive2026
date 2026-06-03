@@ -1,6 +1,17 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Arrêts sur fiche/itinéraire chauffeur + mémorisation point carte — Iteration 91
+
+### Added
+- **Arrêts intermédiaires côté chauffeur** : les arrêts (`stops`) s'affichent désormais dans la **fiche course active** (`current-ride-stop-*`) ET dans le **modal de nouvelle course** (`request-stop-*`), entre Départ et Arrivée, avec puces numérotées.
+- **Itinéraire sur la carte chauffeur** : `LeafletMap` reçoit un nouveau prop `waypoints` (marqueurs numérotés orange) + `routePath` (polyline Départ → arrêts → Arrivée). DriverHome trace l'itinéraire complet de la course en cours.
+- **Mémorisation du point carte** : à la confirmation d'un lieu via `MapLocationPicker`, le point est ajouté aux **lieux récents** (`placesAPI.addRecent`) et la liste est rechargée.
+
+### Tests
+- E2E vérifié (curl) : une course créée avec 2 arrêts (Louvre, Opera) est bien renvoyée au chauffeur via `/api/rides/pending/available` avec ses `stops`.
+- Smoke screenshot DriverHome : chargement OK, carte rendue, aucun crash. Lint clean (LeafletMap, DriverHome, TaxiHubPage).
+
 ## 2026-06-03 — Carte interactive + Chauffeur Privé + tarification multi-arrêts — Iteration 90
 
 ### Added

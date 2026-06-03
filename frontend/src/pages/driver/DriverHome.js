@@ -308,6 +308,14 @@ const DriverHome = () => {
           center={mapCenter}
           zoom={15}
           driver={mapCenter}
+          pickup={currentRide ? { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng } : undefined}
+          dropoff={currentRide ? { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng } : undefined}
+          waypoints={(currentRide?.stops || []).filter((s) => s?.lat)}
+          routePath={currentRide ? [
+            { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng },
+            ...(currentRide.stops || []).filter((s) => s?.lat).map((s) => ({ lat: s.lat, lng: s.lng })),
+            { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng },
+          ] : []}
           heatPoints={showHeatmap ? heatPoints : []}
         />
         {/* Heat View toggle button */}
@@ -365,6 +373,15 @@ const DriverHome = () => {
                   <p className="text-gray-800 text-sm font-medium">{currentRide.pickup_address}</p>
                 </div>
               </div>
+              {(currentRide.stops || []).filter((s) => s?.address).map((s, i) => (
+                <div key={`cr-stop-${i}`} className="flex items-start gap-2.5" data-testid={`current-ride-stop-${i}`}>
+                  <div className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center mt-0.5 flex-shrink-0 text-[10px] font-bold text-[#0B1426]">{i + 1}</div>
+                  <div>
+                    <p className="text-gray-400 text-[10px] uppercase tracking-wider">Arrêt {i + 1}</p>
+                    <p className="text-gray-800 text-sm font-medium">{s.address}</p>
+                  </div>
+                </div>
+              ))}
               <div className="flex items-start gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center mt-0.5 flex-shrink-0">
                   <MapPin size={10} className="text-red-500" />
@@ -470,6 +487,15 @@ const DriverHome = () => {
                   <p className="font-medium text-gray-800">{incomingRequest.pickup_address}</p>
                 </div>
               </div>
+              {(incomingRequest.stops || []).filter((s) => s?.address).map((s, i) => (
+                <div key={`rq-stop-${i}`} className="flex items-start gap-3" data-testid={`request-stop-${i}`}>
+                  <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center mt-0.5 text-[11px] font-bold text-[#0B1426]">{i + 1}</div>
+                  <div>
+                    <p className="text-gray-400 text-xs">Arrêt {i + 1}</p>
+                    <p className="font-medium text-gray-800">{s.address}</p>
+                  </div>
+                </div>
+              ))}
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center mt-0.5">
                   <MapPin size={12} className="text-red-500" />
