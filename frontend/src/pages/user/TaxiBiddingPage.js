@@ -45,9 +45,13 @@ const TaxiBiddingPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
   const [liveStats, setLiveStats] = useState(null);
+  const [searching, setSearching] = useState(null); // rideId once submitted
+  const [searchSeconds, setSearchSeconds] = useState(0);
   const debounceRef = useRef(null);
 
   const mapReady = pickup?.lat && dropoff?.lat;
+  // Recommended fare = minimum allowed (cannot bid lower)
+  const fareFloor = Math.round((estimate?.estimated_fare || liveStats?.avg_accepted_fare || 1) * 100) / 100;
 
   const fetchEstimate = useCallback(async () => {
     if (!pickup?.lat || !dropoff?.lat) return;
@@ -67,7 +71,8 @@ const TaxiBiddingPage = () => {
       const data = await res.json();
       setEstimate(data);
       if (data?.estimated_fare && fare === 0) {
-        setFare(Math.round(data.estimated_fare * 0.95 * 100) / 100);
+        // Default offer = recommended fare (cannot go below it)
+        setFare(Math.round(data.estimated_fare * 100) / 100);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -92,12 +97,9 @@ const TaxiBiddingPage = () => {
 
   const handleSubmit = async () => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }
-    // Fallback: if user hasn't touched the fare, use the estimate or average price
-    let finalFare = fare;
-    if (finalFare <= 0) {
-      finalFare = estimate?.estimated_fare || liveStats?.avg_accepted_fare || 10;
-      setFare(finalFare);
-    }
+    // Offer cannot be below the recommended (minimum) fare
+    const finalFare = Math.max(fareFloor, fare || fareFloor);
+    setFare(finalFare);
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/api/rides`, {
@@ -112,16 +114,68 @@ const TaxiBiddingPage = () => {
       });
       if (!res.ok) { const t = await res.text(); throw new Error(`ride ${res.status}: ${t}`); }
       const ride = await res.json();
-      toast.success("Votre tarif a été envoyé aux chauffeurs !");
-      navigate(`/ride/${ride.id}`);
+      toast.success('Votre tarif a été envoyé aux chauffeurs !');
+      // Stay on the interface: enter "searching" mode (no navigation)
+      setSearching(ride.id);
+      setSearchSeconds(0);
     } catch (e) {
       console.error('[TaxiBidding] submit failed:', e);
-      toast.error("Impossible de publier votre offre. Réessayez.");
+      toast.error('Impossible de publier votre offre. Réessayez.');
     }
     finally { setSubmitting(false); }
   };
 
-  const adjustFare = (delta) => setFare(prev => Math.max(1, Math.round((prev + delta) * 100) / 100));
+  // Poll ride status while searching; navigate once a driver accepts
+  useEffect(() => {
+    if (!searching) return;
+    const tick = setInterval(() => setSearchSeconds((s) => s + 1), 1000);
+    const poll = setInterval(async () => {
+      try {
+        const r = await fetch(`${API}/api/rides/${searching}`, { credentials: 'include' });
+        if (!r.ok) return;
+        const ride = await r.json();
+        if (ride.status && ride.status !== 'pending') {
+          clearInterval(poll); clearInterval(tick);
+          if (ride.status === 'cancelled') { toast.info('Course annulée'); setSearching(null); }
+          else { toast.success('Chauffeur trouvé !'); navigate(`/ride/${searching}`); }
+        }
+      } catch (e) { /* keep polling */ }
+    }, 3000);
+    return () => { clearInterval(poll); clearInterval(tick); };
+  }, [searching, navigate]);
+
+  const raiseFare = async (delta) => {
+    const newFare = Math.round((fare + delta) * 100) / 100;
+    try {
+      const r = await fetch(`${API}/api/rides/${searching}/proposed-fare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ proposed_fare: newFare }),
+      });
+      if (!r.ok) { const t = await r.json().catch(() => ({})); throw new Error(t.detail || 'Erreur'); }
+      setFare(newFare);
+      toast.success(`Tarif augmenté à ${newFare.toFixed(2)} € et renvoyé`);
+    } catch (e) { toast.error(e.message || 'Impossible d\'augmenter le tarif'); }
+  };
+
+  const cancelSearch = async () => {
+    if (searching) {
+      try {
+        await fetch(`${API}/api/rides/${searching}/status`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ status: 'cancelled', cancel_reason: 'Annulé par le passager' }),
+        });
+      } catch (e) { /* ignore */ }
+    }
+    setSearching(null);
+  };
+
+  const adjustFare = (delta) => setFare(prev => Math.max(fareFloor, Math.round((prev + delta) * 100) / 100));
+  const onFareInput = (e) => {
+    const v = parseFloat(e.target.value) || 0;
+    setFare(v < fareFloor ? fareFloor : v);
+  };
 
   // Static Google Map URL for the background
   const staticMapUrl = mapReady && GMAP_KEY
@@ -234,7 +288,7 @@ const TaxiBiddingPage = () => {
       )}
 
       {/* Bottom sheet (Offer Your Fare) */}
-      {showSheet && mapReady && (
+      {showSheet && mapReady && !searching && (
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl shadow-2xl animate-slide-up" data-testid="offer-fare-sheet">
           {/* Handle */}
           <div className="flex justify-center pt-3">
@@ -286,7 +340,7 @@ const TaxiBiddingPage = () => {
                 <input
                   type="number"
                   value={fare}
-                  onChange={(e) => setFare(parseFloat(e.target.value) || 0)}
+                  onChange={onFareInput}
                   className="w-full text-3xl font-extrabold text-gray-900 text-center outline-none"
                   data-testid="fare-input"
                 />
@@ -296,7 +350,7 @@ const TaxiBiddingPage = () => {
                 <Plus size={20} weight="bold" />
               </button>
             </div>
-            <p className="text-[11px] text-gray-400 text-center mt-3">Note : Taxe appliquée sur le montant final</p>
+            <p className="text-[11px] text-gray-500 text-center mt-3" data-testid="min-fare-note">Tarif minimum : <span className="font-bold">{fareFloor.toFixed(2)} €</span> · vous ne pouvez pas proposer moins</p>
           </div>
 
           {/* Find a Driver */}
@@ -315,6 +369,49 @@ const TaxiBiddingPage = () => {
           <div className="text-center pb-6">
             <button onClick={() => navigate(-1)} className="text-gray-500 text-sm font-medium hover:text-gray-700" data-testid="cancel-btn">
               Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Searching overlay — stays on this interface; raise fare if no driver */}
+      {searching && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-2xl animate-slide-up" data-testid="searching-sheet">
+          <div className="flex justify-center pt-3"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
+          {/* Radar animation */}
+          <div className="flex flex-col items-center pt-4 pb-2">
+            <div className="relative w-24 h-24 flex items-center justify-center">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-30 animate-ping" />
+              <span className="absolute inline-flex h-16 w-16 rounded-full bg-blue-400 opacity-40 animate-ping" style={{ animationDelay: '0.4s' }} />
+              <div className="relative w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center">
+                <Gavel size={26} weight="fill" className="text-white" />
+              </div>
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mt-3" data-testid="searching-title">Recherche d'un chauffeur…</h2>
+            <p className="text-sm text-gray-500">Votre offre : <span className="font-bold text-blue-600" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
+            {liveStats?.online_drivers_nearby != null && (
+              <p className="text-[11px] text-gray-400 mt-0.5">{liveStats.online_drivers_nearby} chauffeurs en ligne à proximité</p>
+            )}
+          </div>
+
+          {/* Raise fare to attract drivers (cannot lower) */}
+          <div className="mx-5 mt-2 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-4" data-testid="raise-fare-block">
+            <p className="text-center text-sm font-semibold text-gray-700">
+              {searchSeconds >= 12 ? 'Pas encore de chauffeur ? Augmentez votre tarif' : 'Augmentez votre tarif pour aller plus vite'}
+            </p>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {[1, 2, 5].map((d) => (
+                <button key={d} onClick={() => raiseFare(d)} data-testid={`raise-fare-${d}`}
+                  className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold transition-transform">
+                  +{d} €
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-center py-5">
+            <button onClick={cancelSearch} className="text-gray-500 text-sm font-medium hover:text-gray-700" data-testid="cancel-search-btn">
+              Annuler la recherche
             </button>
           </div>
         </div>

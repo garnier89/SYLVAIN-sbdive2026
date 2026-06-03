@@ -222,6 +222,41 @@ async def create_ride(data: RideRequest, request: Request):
     return RideResponse(**ride)
 
 
+@router.post("/{ride_id}/proposed-fare")
+async def update_proposed_fare(ride_id: str, request: Request):
+    """Bidding: passenger raises their offered fare on a still-pending ride and
+    re-broadcasts the request to nearby drivers (cannot lower below current)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    new_fare = float(body.get("proposed_fare") or 0)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if ride["status"] != "pending":
+        raise HTTPException(status_code=400, detail="La course n'est plus en attente")
+    current = float(ride.get("proposed_fare") or 0)
+    if new_fare <= current:
+        raise HTTPException(status_code=400, detail="Le nouveau tarif doit être supérieur au tarif actuel")
+    await db.rides.update_one({"id": ride_id}, {"$set": {"proposed_fare": new_fare}})
+    # Re-broadcast to drivers with the higher offer
+    await manager.broadcast_to_drivers({
+        "type": "new_ride_request",
+        "ride_id": ride["id"],
+        "pickup_lat": ride["pickup_lat"],
+        "pickup_lng": ride["pickup_lng"],
+        "pickup_address": ride["pickup_address"],
+        "dropoff_address": ride["dropoff_address"],
+        "vehicle_type": ride["vehicle_type"],
+        "estimated_fare": ride.get("estimated_fare"),
+        "proposed_fare": new_fare,
+        "distance_km": ride.get("distance_km"),
+        "duration_mins": ride.get("duration_mins"),
+    })
+    return {"message": "Tarif augmenté et renvoyé aux chauffeurs", "proposed_fare": new_fare}
+
+
 @router.get("/{ride_id}")
 async def get_ride(ride_id: str, request: Request):
     user = await get_current_user(request)

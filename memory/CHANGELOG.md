@@ -1,6 +1,20 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Taxi Bidding : tarif minimum + écran de recherche sans quitter — Iteration 92
+
+### Changed (TaxiBiddingPage)
+- **Tarif minimum = tarif recommandé** : l'offre par défaut est désormais le tarif recommandé (et non 95%). Le client **ne peut plus descendre en dessous** (bouton « − » plancher + clamp de la saisie). Note « Tarif minimum : X € · vous ne pouvez pas proposer moins ».
+- **Le client ne quitte plus l'interface** : après envoi de l'offre, passage à un **écran de recherche** (animation radar, « Recherche d'un chauffeur… », tarif + secondes écoulées, nb chauffeurs en ligne) au lieu de naviguer. Polling du statut → navigation auto vers la course dès qu'un chauffeur accepte.
+- **Augmenter le tarif sans quitter** : boutons **+1€ / +2€ / +5€** qui ré-émettent l'offre aux chauffeurs (impossible de baisser). Bouton « Annuler la recherche » (annule la course).
+
+### Added (Backend)
+- `POST /api/rides/{ride_id}/proposed-fare` : augmente l'offre d'une course **en attente** (propriétaire only, nouveau tarif strictement supérieur sinon 400) et **re-broadcast** aux chauffeurs via WebSocket.
+
+### Tests
+- `tests/test_iter92_bidding.py` — 3/3 ✅ (augmentation OK, baisse/égal rejetés 400, course non-pending 400, owner-only).
+- UI vérifiée par screenshots : tarif bloqué au plancher (10€ après 8× « − »), écran radar + boutons +1/+2/+5 après soumission.
+
 ## 2026-06-03 — Arrêts sur fiche/itinéraire chauffeur + mémorisation point carte — Iteration 91
 
 ### Added

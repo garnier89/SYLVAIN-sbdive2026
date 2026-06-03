@@ -12,6 +12,11 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Taxi Bidding: tarif minimum + recherche sans quitter (DONE — iter 92)
+- Offre par défaut = tarif recommandé ; impossible de descendre en dessous (clamp + bouton −).
+- Après envoi, le client reste sur l'écran (radar « Recherche d'un chauffeur ») et peut augmenter (+1/+2/+5€) ; polling → navigation auto à l'acceptation.
+- Backend `POST /api/rides/{id}/proposed-fare` (re-broadcast WS, owner-only, refus si ≤ actuel). 3/3 pytest + screenshots.
+
 ## NEW - Jun 2026 - Arrêts sur fiche/itinéraire chauffeur + mémorisation point carte (DONE — iter 91)
 - Arrêts intermédiaires affichés sur la fiche course active + modal nouvelle course du chauffeur (puces numérotées).
 - Itinéraire sur carte chauffeur : `LeafletMap` prop `waypoints` (marqueurs numérotés) + `routePath` (polyline Départ→arrêts→Arrivée).
