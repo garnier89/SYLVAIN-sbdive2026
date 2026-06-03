@@ -1,0 +1,42 @@
+{
+  "summary": "Iter 87 — Frontend E2E for bidirectional taxi bidding (inDrive-style). PASSENGER FLOW: 100% PASS. Login -> /taxi-bidding -> GooglePlacesInput pickup (Tour Eiffel) + dropoff (Gare du Nord) -> offer-fare-sheet visible with min-fare-note (13.65 €), live-stats-strip, avg-price-banner. fare-minus correctly clamps at floor (13.65). fare-plus increments by +1. find-driver-btn submits proposed_fare=14.65 and enters searching-sheet WITHOUT navigation. Driver counter-offer injected via backend (jean.dupont) appeared in driver-offers-list within ~3s with accept-offer-{id} 'Choisir' button. raise-fare-1 raised fare to 15.65 € with toast 'Tarif augmenté à 15.65 € et renvoyé'. Clicking accept-offer-{id} navigated correctly to /ride/{rideId}. DRIVER FLOW: partial — driver-home-page renders, online-toggle works (Hors ligne -> En ligne), but the incoming-request-modal did NOT appear via the 8s poll despite a pending ride being available, because /api/rides?status=pending returns 0 for the logged-in driver (likely vehicle_type filter mismatch: driver.vehicle_type='Car' vs ride.vehicle_type='sb', and WebSocket new_ride_request also fails in preview). counter-offer-input + send-counter-offer-btn elements exist in code with correct data-testids but couldn't be exercised in UI. route_polyline IS stored on the ride (409 chars verified) and decode logic in DriverHome routePath is correct.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/rides?status=pending (driver-side)", "issue": "Returns 0 rides for an online+approved driver (amadou.diallo) even when a matching pending ride exists at Paris center. Likely vehicle_type mismatch in driver doc ('Car' vs ride.vehicle_type='sb'). Blocks driver-side UI testing of incoming-request-modal."},
+      {"endpoint": "/api/drivers/toggle-online", "issue": "jean.dupont@demo.sb seed driver has profile.status='online' (custom value) which fails the 'approved' guard — toggle returns 400 'Driver not approved'. Should be 'approved' in seed."},
+      {"endpoint": "WebSocket /api/ws/{user_id}", "issue": "WS connection consistently fails in preview ('closed before the connection is established'). Forces fallback to polling for new_ride_request and ride_status_update."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Driver incoming-request-modal", "issue": "Could not be triggered in preview because backend /api/rides?status=pending returned 0 for the online driver (matching filter). Modal code is correct.", "affected_selectors": ["incoming-request-modal", "counter-offer-input", "send-counter-offer-btn"]}
+    ],
+    "design_issues": [
+      {"screen": "TaxiBiddingPage", "issues": ["Google Maps Autocomplete deprecation warning (March 2025) — repeated console warning, non-blocking, already known"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Backend) Investigate /api/rides?status=pending driver-side filter: ensure approved+online drivers receive rides matching their vehicle category. Seed drivers' vehicle_type should match ride request categories (sb/confort/luxe).",
+    "(Backend) Fix jean.dupont@demo.sb seed: status should be 'approved' (currently 'online') so toggle-online works.",
+    "(Backend/Infra) Investigate WebSocket failures in preview — the WS endpoint wss://.../api/ws/{user_id} closes before handshake completes."
+  ],
+  "critical_code_review_comments": [
+    "TaxiBiddingPage line 169 raiseFare() uses optimistic local setFare AFTER successful POST — correct. Toast confirms the new fare; UI re-renders searching-fare.",
+    "TaxiBiddingPage line 139 reads counter_offers from ride GET poll and filters status==='pending' — correct. Offer cards key by o.id, accept button posts /accept-offer/{id} then navigates. Works as designed.",
+    "TaxiBiddingPage line 196 adjustFare uses Math.max(fareFloor, ...) — confirmed by test: 20x minus from 13.65 keeps value at 13.65.",
+    "DriverHome counter-offer-input uses uncontrolled DOM lookup via document.getElementById(`counter-input-${incomingRequest.id}`) — fragile but functional; consider useRef instead.",
+    "DriverHome routePath (lines 315-323) correctly decodes route_polyline and falls back to straight line if empty — verified ride.route_polyline has 409-char encoded polyline.",
+    "Polling interval 8s for pending rides + 2.5s for ride status is reasonable but combined with WS failure leads to up to 8s delay before driver sees a request."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request, but ad-hoc curl verified counter-offer & accept-offer endpoints)", "frontend": "passenger 100% (6/6 scenarios), driver 50% (page renders + online toggle OK, modal flow blocked by backend filter)"},
+  "test_credentials": "Passenger: test2@example.com / TestPass123! (OK). Driver UI: amadou.diallo@demo.sb / Driver123! (approved, online toggle OK). Counter-offer injector: jean.dupont@demo.sb / Driver123! (status='online' seed bug, counter-offer endpoint still works).",
+  "seed_data_creation": "Created 3 ephemeral rides (ride_f0da6b7d4842 accepted -> assigned to jean.dupont; ride_61ef5af99667 + ride_2490d97609a3 left pending). All test rides use TEST-grade fares 14-35 EUR; safe to leave in DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bidirectional bidding passenger-side is fully working. To test driver-side incoming-request-modal in this preview, you need: (a) seed drivers with vehicle_type matching ride categories (sb/confort/luxe), and (b) WS endpoint to work — OR adjust /api/rides?status=pending driver-side filter so it returns rides without strict vehicle_type matching. Or inject the ride directly into the driver's view by using a backend test endpoint that bypasses the matching filter.",
+  "rca of the issue": "Driver UI did not show incoming-request-modal because backend /api/rides?status=pending returned [] for the online driver. Two contributing factors: (1) driver.vehicle_type='Car' on the seed account doesn't match request vehicle_type='sb', and (2) WebSocket push channel is closed in preview, so the only delivery mechanism is the 8s poll which returns []. Reproduction: login amadou.diallo, set online, POST /api/rides as test2 with vehicle_type='sb' -> GET /api/rides?status=pending as driver -> 0 rows. Mitigation: align seed vehicle_type or loosen the driver-side filter; restore WS connectivity in preview."
+}
