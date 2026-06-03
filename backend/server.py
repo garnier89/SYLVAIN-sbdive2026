@@ -14,6 +14,7 @@ from core.websocket import manager
 
 from routes.auth import router as auth_router, users_router
 from routes.drivers import router as drivers_router
+from routes.driver_pro import router as driver_pro_router
 from routes.merchants import router as merchants_router
 from routes.rides import router as rides_router
 from routes.orders import router as orders_router
@@ -476,6 +477,7 @@ api_router.include_router(driver_shifts_router)
 api_router.include_router(organizations_router)
 api_router.include_router(i18n_router)
 api_router.include_router(voice_router)
+api_router.include_router(driver_pro_router)
 
 app.include_router(api_router)
 
