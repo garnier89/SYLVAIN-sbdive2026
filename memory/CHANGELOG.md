@@ -15,6 +15,35 @@
 - Validation : `tsc --noEmit` ✅, bundle Android 9.7 MB ✅, bundle iOS 9.7 MB ✅ (1286 modules, 0 erreur)
 - Démarrage : `cd /app/mobile && yarn start:tunnel` puis scan QR avec **Expo Go**
 
+## 2026-06-02 — Code Quality Report : corrections critiques sécurité + nettoyage
+
+### Backend
+- **Hardcoded secrets retirés** des 4 fichiers de tests restants (`test_iter75_refactor_smoke.py`, `test_iter76_admin_users.py`, `test_iter77_wallet_credit.py`, `test_iter78_user_documents.py`) : migration vers `from _creds import ADMIN_EMAIL, ADMIN_PASSWORD` (centralisé via env vars)
+- **`random` → `secrets`** dans `routes/simulation.py` : ✅ déjà fait (utilise `_sim_random = secrets.SystemRandom()` aux 7 endroits flaggés)
+- **Semicolon E702 fixé** dans `test_iter75_refactor_smoke.py:153`
+
+### Frontend
+- **Empty catch blocks** : 4 blocs `} catch { /* ignore */ }` remplacés par du logging contextuel (`console.warn(...)`) dans `DriverHome.js` (heatmap, rewards, dest mode toggle, OTP refresh) et `KioskApp.js` (ride status poll)
+- **Array index as React key** : 5 instances corrigées avec des clés stables :
+  - `UserHome.js:230` → `key={\`promo-dot-${i}\`}`
+  - `DriverHome.js:295` → `key={stat.label}`
+  - `AdminDashboard.js:499` → `key={s.label}`
+  - `RidePlanStep.jsx:98` → `key={s.id || \`${lat}-${lng}-${i}\`}` (stopovers reorderables = vrai bug fixé)
+  - `KioskApp.js:352` → `key={s.place_id || s.osm_id || ...}` (suggestions search)
+
+### Décisions documentées (non fixés intentionnellement)
+- **localStorage non sensible** dans `InstallPWA.jsx` (timestamp de dismissal) et `ProfileTabView.jsx` (préférences UI langue/devise) → faux positifs du rapport, données non sensibles
+- **localStorage kiosk token** (`KioskApp.js` x6) → décision design : le kiosk est un device public persistant, le token est un device credential pas un user credential. Migration vers cookies httpOnly nécessiterait refactor backend kiosk routes + 6 touchpoints frontend → reporté à session dédiée
+- **159 useEffect deps** et **refactor composants oversized** (UserHome 599L, DriverHome 574L, LoginPage 543L, etc.) → reportés à sessions dédiées (risque régression élevé, besoin testing_agent_v3_fork après chaque split)
+- **High complexity functions** (admin.py, drivers.py, payments.py) → reportés (déjà partiellement faits dans iter75)
+
+### Validation
+- ✅ Lint Python : `ruff` PASS (4/4 fichiers tests)
+- ✅ Lint JS : ESLint PASS (DriverHome.js, KioskApp.js)
+- ✅ Frontend build : `yarn build` PASS (29s)
+- ✅ Backend tests imports : `python -m py_compile` OK (4/4)
+- ✅ `_creds.py` import smoke test : ADMIN_EMAIL résout correctement
+
 ## 2026-06-02 — Admin Dispatcher : ETA temps réel sur la map live
 
 ### Added

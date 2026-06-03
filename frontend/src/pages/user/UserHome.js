@@ -229,7 +229,7 @@ const UserHome = () => {
         <div className="flex items-center justify-center gap-1.5 mt-2" data-testid="promo-dots">
           {Array.from({ length: PROMO_COUNT }).map((_, i) => (
             <button
-              key={i}
+              key={`promo-dot-${i}`}
               onClick={() => setPromoIndex(i)}
               className={`h-1.5 rounded-full transition-all duration-300 ${promoIndex === i ? 'w-5 bg-[#FF4500]' : 'w-1.5 bg-gray-300'}`}
               data-testid={`promo-dot-${i}`}

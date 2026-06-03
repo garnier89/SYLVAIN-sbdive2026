@@ -19,8 +19,7 @@ BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL",
     "https://taxi-marketplace-3.preview.emergentagent.com",
 ).rstrip("/")
-ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 TINY_PNG_DATA_URL = (
     "data:image/png;base64,"
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="

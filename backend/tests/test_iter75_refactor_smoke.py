@@ -6,8 +6,7 @@ import requests
 import pytest
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://taxi-marketplace-3.preview.emergentagent.com").rstrip("/")
-ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -151,7 +150,8 @@ def test_update_admin_email_collision_400(admin_session, first_role_id):
     }, timeout=15)
     assert ra.status_code == 200, ra.text
     assert rb.status_code == 200, rb.text
-    a = ra.json(); b = rb.json()
+    a = ra.json()
+    b = rb.json()
 
     try:
         r = admin_session.put(f"{BASE_URL}/api/acl/admins/{b['id']}", json={"email": e1}, timeout=15)

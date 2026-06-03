@@ -350,7 +350,7 @@ const KioskDestination = ({ info, vehicle, onBack, onConfirm }) => {
           {searchLoading && <p className="p-6 text-gray-400">Recherche…</p>}
           {!searchLoading && suggestions.length === 0 && search.length >= 3 && <p className="p-6 text-gray-400">Aucun résultat</p>}
           {suggestions.map((s, i) => (
-            <button key={i} onClick={() => pickSuggestion(s)} data-testid={`suggestion-${i}`} className="w-full text-left px-6 py-4 border-b hover:bg-orange-50 flex items-start gap-3">
+            <button key={s.place_id || s.osm_id || `${s.lat}-${s.lon}-${i}`} onClick={() => pickSuggestion(s)} data-testid={`suggestion-${i}`} className="w-full text-left px-6 py-4 border-b hover:bg-orange-50 flex items-start gap-3">
               <MapPin size={20} weight="fill" className="text-orange-500 mt-1 flex-shrink-0" />
               <span className="text-base">{s.display_name}</span>
             </button>
@@ -447,7 +447,9 @@ const KioskSearching = ({ info, dest, bookingNo, rideId, onDone }) => {
         const r = await kioskAPI.rideStatus(token, rideId);
         setRideStatus(r.status);
         if (r.driver_info) setDriver(r.driver_info);
-      } catch (e) { /* ignore */ }
+      } catch (e) {
+        console.warn('kiosk ride status poll failed:', e?.message || e);
+      }
     };
     tick();
     const i = setInterval(tick, 4000);

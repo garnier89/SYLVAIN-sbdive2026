@@ -80,7 +80,7 @@ const DriverHome = () => {
         });
         setShowDestModal(false);
       }
-    } catch { /* ignore */ }
+    } catch (e) { console.warn('dest mode toggle failed:', e?.message || e); }
   };
 
   const { on, sendLocation, joinRide } = useWebSocket(user?.id);
@@ -137,7 +137,7 @@ const DriverHome = () => {
           const d = await r.json();
           setRewardsActive(!!d.any_active);
         }
-      } catch { /* ignore */ }
+      } catch (e) { console.warn('rewards check failed:', e?.message || e); }
     };
     checkRewards();
     const rewardInterval = setInterval(checkRewards, 60000);
@@ -218,7 +218,7 @@ const DriverHome = () => {
       setOtpInput('');
       const res = await rideAPI.get(currentRide.id);
       setCurrentRide(res.data);
-    } catch { /* ignore */ }
+    } catch (e) { console.warn('refresh ride after OTP failed:', e?.message || e); }
   };
 
   const updateRideStatus = async (status) => {
@@ -292,8 +292,8 @@ const DriverHome = () => {
           { value: (driver.rating || 5.0).toFixed(1), label: 'Moy.\nEvaluation', color: '#F8D7DA' },
           { value: 0, label: 'Emplois a\nvenir', color: '#FFF3CD' },
           { value: 0, label: 'Emplois en\nattente', color: '#D4EDDA' },
-        ].map((stat, i) => (
-          <div key={i} className="flex flex-col items-center text-center">
+        ].map((stat) => (
+          <div key={stat.label} className="flex flex-col items-center text-center">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-1" style={{ backgroundColor: stat.color }}>
               <span className="text-lg font-bold text-gray-800">{stat.value}</span>
             </div>

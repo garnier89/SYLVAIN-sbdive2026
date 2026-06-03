@@ -96,7 +96,7 @@ export const RidePlanStep = ({
         {stopovers.length > 0 && (
           <div className="mt-3 space-y-2" data-testid="stopovers-list">
             {stopovers.map((s, i) => (
-              <div key={i} className="flex items-center gap-2" data-testid={`stopover-${i}`}>
+              <div key={s.id || `${s.lat || ''}-${s.lng || ''}-${i}`} className="flex items-center gap-2" data-testid={`stopover-${i}`}>
                 <div className="w-3 h-3 rounded-full bg-orange-400 flex-shrink-0" />
                 <GooglePlacesInput
                   placeholder={`Arret ${i + 1}`}

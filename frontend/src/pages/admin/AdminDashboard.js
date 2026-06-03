@@ -496,7 +496,7 @@ const ServiceMiniCard = ({ title, subtitle, stat1, stat2, tabs = [], onView, tes
         {[stat1, stat2].map((s, i) => {
           const Ic = i === 0 ? Icon1 : Icon2;
           return (
-            <div key={i} className="bg-gray-50 rounded-lg p-3">
+            <div key={s.label} className="bg-gray-50 rounded-lg p-3">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: s.color + '20' }}>
                 <Ic size={16} style={{ color: s.color }} weight="fill" />
               </div>
