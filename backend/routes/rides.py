@@ -452,6 +452,12 @@ async def update_ride_status(ride_id: str, request: Request):
         subtotal = round(base + dist_charge + time_charge, 2)
         min_adj = round(max(0, min_fare - subtotal), 2)
         final_fare = round(subtotal + min_adj, 2)
+        # Safety floor: never bill below the originally estimated fare (covers
+        # edge cases such as an unregistered vehicle slug → empty pricing doc).
+        est = round(ride.get("estimated_fare", 0) or 0, 2)
+        if final_fare < est:
+            min_adj = round(min_adj + (est - final_fare), 2)
+            final_fare = est
         update_data["final_fare"] = final_fare
         update_data["fare_breakdown"] = {
             "vehicle_label": vtype.get("name", ride.get("vehicle_type", "")),

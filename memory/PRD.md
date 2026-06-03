@@ -13,6 +13,13 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Real-time**: WebSockets (ride tracking, simulation)
 
 ## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+## NEW - Jun 2026 - Cycle de course V3Cube complet : OTP, notifications, voiture animée, facture & évaluation (DONE — iter 100)
+- **Voiture animée temps réel** (`DriverEnRouteView` → `AnimatedCarMarker`) : interpolation fluide entre positions GPS + rotation selon le cap (effet Uber/inDrive).
+- **OTP de démarrage sécurisé** : `start_otp` auto-généré à la création, **visible uniquement dans l'app client** (pastille « CODE DÉPART ») + admin (peut le relayer si téléphone éteint), **masqué au chauffeur**. Le chauffeur ne peut PAS démarrer via `/status` (HTTP 400) — il doit vérifier l'OTP via `/phase1/.../start-otp/verify`.
+- **Notifications de statut** (dialogues client) : chauffeur « Je suis arrivé » → « Le chauffeur est arrivé. » ; OTP vérifié → « Votre voyage a commencé. » + en-tête « EN ROUTE » + bouton **SOS** rouge ; « Terminé » → « Votre voyage est terminé. » → navigation vers la facture.
+- **Facture « Résumé de paiement »** (`RideReceiptPage`, `/ride/:id/receipt`) : total, itinéraire, détail des charges (Tarif de base, Distance, Temps en secondes, Le minimum) calculé serveur (`fare_breakdown`), mode de paiement.
+- **Évaluation chauffeur** : 5 étoiles, « Pilote préféré » (favori), commentaire, Sauter/Soumettre.
+- Fallback polling 5s (WS KO en preview), plancher tarifaire de sécurité. Testé : testing agent iter100 = **100%** (backend 7/7 pytest `test_iter94_otp_security.py`, frontend 13/13 flux live), + vérif visuelle facture & écran EN ARRIVANT.
 ## NEW - Jun 2026 - Écran client "EN ARRIVANT" type V3Cube (chauffeur assigné) (DONE — iter 99)
 - Nouveau composant immersif `DriverEnRouteView.jsx` affiché côté client dès qu'un chauffeur est assigné (accepted/arriving/in_progress), fidèle au design V3Cube fourni :
   - En-tête bleu avec statut (« EN ARRIVANT » / « EN COURSE ») + menu.
