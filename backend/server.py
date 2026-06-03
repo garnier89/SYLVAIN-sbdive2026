@@ -47,6 +47,7 @@ from routes.organizations import router as organizations_router
 from routes.i18n import router as i18n_router, seed_i18n
 from routes.voice import router as voice_router
 from routes.corporate import router as corporate_router
+from routes.home_categories import router as home_categories_router, seed_home_categories
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -451,6 +452,9 @@ async def lifespan(app: FastAPI):
             })
         logger.info("Seeded demo corporate account ACME-2026")
 
+    # Seed home categories CMS (Iter 87)
+    await seed_home_categories()
+
     # Start auto-dispatch background loop
     import asyncio as _asyncio
     dispatch_task = _asyncio.create_task(auto_dispatch_loop())
@@ -500,6 +504,7 @@ api_router.include_router(organizations_router)
 api_router.include_router(i18n_router)
 api_router.include_router(voice_router)
 api_router.include_router(corporate_router)
+api_router.include_router(home_categories_router)
 api_router.include_router(driver_pro_router)
 
 app.include_router(api_router)

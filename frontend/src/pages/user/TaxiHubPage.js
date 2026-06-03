@@ -12,9 +12,10 @@ import {
   ArrowLeft, MapPin, FlagCheckered, CarProfile, UsersThree, Leaf, Motorcycle,
   Clock, MapTrifold, CalendarPlus, Key, Gavel, AirplaneTilt, PawPrint, UserPlus,
   Van, HandHeart, Briefcase, Wheelchair, Lightning, Plus, Minus,
+  Money, CreditCard, Wallet, Tag, CheckCircle,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
-import { corporateAPI } from '../../services/api';
+import { corporateAPI, couponAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -60,6 +61,12 @@ const ASSIST_OPTIONS = [
   { k: 'luggage', l: 'Aide bagages' },
 ];
 
+const PAYMENT_METHODS = [
+  { k: 'cash', l: 'Espèces', icon: Money },
+  { k: 'card', l: 'Carte', icon: CreditCard },
+  { k: 'sbpaygo', l: 'SB PayGo', icon: Wallet },
+];
+
 const TaxiHubPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -79,6 +86,10 @@ const TaxiHubPage = () => {
   const [bookForName, setBookForName] = useState('');
   const [bookForPhone, setBookForPhone] = useState('');
   const [biddingFare, setBiddingFare] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoApplied, setPromoApplied] = useState(false);
   const [estimate, setEstimate] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -142,8 +153,30 @@ const TaxiHubPage = () => {
     if (!estimate?.estimated_fare) return null;
     let p = estimate.estimated_fare;
     if (corpDiscount) p = p * (1 - corpDiscount / 100);
+    if (promoDiscount) p = Math.max(0, p - promoDiscount);
     return p;
-  }, [estimate, corpDiscount]);
+  }, [estimate, corpDiscount, promoDiscount]);
+
+  const applyPromo = async () => {
+    if (!promoCode.trim()) return;
+    const fareBase = estimate?.estimated_fare || 0;
+    if (!fareBase) { toast.error('Saisissez d\'abord vos adresses'); return; }
+    try {
+      const r = await couponAPI.validate(promoCode.trim().toUpperCase(), fareBase, 'Ride');
+      if (r.data?.valid) {
+        setPromoDiscount(r.data.discount_amount || 0);
+        setPromoApplied(true);
+        toast.success(r.data.message || 'Code promo appliqué');
+      } else {
+        setPromoDiscount(0); setPromoApplied(false);
+        toast.error(r.data?.message || 'Code invalide');
+      }
+    } catch (e) {
+      setPromoDiscount(0); setPromoApplied(false);
+      toast.error(e.response?.data?.detail || 'Code promo invalide');
+    }
+  };
+  const clearPromo = () => { setPromoCode(''); setPromoDiscount(0); setPromoApplied(false); };
 
   const ctaLabel = useMemo(() => {
     if (mode.id === 'rental' || mode.id === 'moto_rental') {
@@ -159,8 +192,9 @@ const TaxiHubPage = () => {
     const base = {
       pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
       dropoff_lat: dest.lat, dropoff_lng: dest.lng, dropoff_address: dest.address,
-      vehicle_type: mode.vehicle, payment_method: 'cash', ride_type: mode.ride_type,
+      vehicle_type: mode.vehicle, payment_method: paymentMethod, ride_type: mode.ride_type,
     };
+    if (promoApplied && promoCode) base.coupon_code = promoCode.trim().toUpperCase();
     if (mode.panel === 'datetime') base.scheduled_at = scheduledAt || null;
     if (mode.id === 'airport') base.flight_number = flightNumber || null;
     if (isRental) {
@@ -290,6 +324,7 @@ const TaxiHubPage = () => {
                     <p className="text-xs text-white/60 mt-0.5">{estimate?.distance_km?.toFixed(1)} km · {estimate?.duration_mins} min</p>
                   )}
                   {corpDiscount > 0 && <p className="text-[10px] text-emerald-400 font-bold mt-0.5">Remise entreprise -{corpDiscount}%</p>}
+                  {promoDiscount > 0 && <p className="text-[10px] text-emerald-400 font-bold mt-0.5">Code promo -{promoDiscount.toFixed(2)} €</p>}
                 </div>
                 <div className="text-right">
                   <p className="text-4xl font-black tracking-tighter" data-testid="live-price-value">
@@ -389,6 +424,41 @@ const TaxiHubPage = () => {
               )}
             </motion.div>
           </AnimatePresence>
+
+          {/* Payment method — horizontal selector */}
+          <div className="mt-1 mb-3" data-testid="payment-selector">
+            <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Moyen de paiement</label>
+            <div className="flex gap-2 mt-1.5 overflow-x-auto hide-scrollbar">
+              {PAYMENT_METHODS.map((pm) => {
+                const PmIcon = pm.icon;
+                const active = paymentMethod === pm.k;
+                return (
+                  <button key={pm.k} onClick={() => setPaymentMethod(pm.k)} data-testid={`payment-${pm.k}`}
+                    className={`flex-1 min-w-[96px] flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${active ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}>
+                    <PmIcon size={18} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FFC107]' : ''} /> {pm.l}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Promo code */}
+          <div data-testid="promo-block">
+            <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><Tag size={11} /> Code promo</label>
+            {promoApplied ? (
+              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 mt-1.5">
+                <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5" data-testid="promo-applied-label">
+                  <CheckCircle size={16} weight="fill" /> {promoCode.toUpperCase()} · -{promoDiscount.toFixed(2)} €
+                </span>
+                <button onClick={clearPromo} className="text-xs text-emerald-700 underline" data-testid="promo-clear-btn">Retirer</button>
+              </div>
+            ) : (
+              <div className="flex gap-2 mt-1.5">
+                <input value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="Ex: SB10" className="flex-1 border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm" data-testid="promo-code-input" />
+                <button onClick={applyPromo} className="px-4 rounded-xl bg-[#0B1426] text-white text-sm font-semibold" data-testid="promo-apply-btn">Appliquer</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

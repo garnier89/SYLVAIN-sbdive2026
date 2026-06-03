@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import SearchOverlay from '../../components/SearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
+import DynamicIcon from '../../components/DynamicIcon';
+import { homeCategoriesAPI } from '../../services/api';
 import {
   Car, Motorcycle, Package, ForkKnife,
   House, MapPin, Wallet, User,
@@ -27,7 +29,15 @@ const UserHome = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [promoIndex, setPromoIndex] = useState(0);
+  const [cmsItems, setCmsItems] = useState([]);
   const PROMO_COUNT = 2;
+
+  // Load admin-configured home categories (CMS). Falls back to hardcoded arrays if empty.
+  useEffect(() => {
+    homeCategoriesAPI.public()
+      .then((r) => setCmsItems(r.data.items || []))
+      .catch((e) => console.warn('home categories load:', e?.message || e));
+  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -145,11 +155,38 @@ const UserHome = () => {
       data-testid={`service-${service.id}-btn`}
     >
       <div className={`${size === 'small' ? 'w-[56px] h-[56px]' : 'w-[62px] h-[62px]'} rounded-2xl ${service.bg} flex items-center justify-center group-hover:scale-105 transition-transform border border-gray-100/50`}>
-        <service.icon size={size === 'small' ? 24 : 28} weight="duotone" className={service.iconColor} />
+        {service.iconName || service.imageUrl ? (
+          <DynamicIcon name={service.iconName} imageUrl={service.imageUrl} size={size === 'small' ? 24 : 28} className={service.iconColor} />
+        ) : (
+          <service.icon size={size === 'small' ? 24 : 28} weight="duotone" className={service.iconColor} />
+        )}
       </div>
       <span className="text-[11px] font-medium text-gray-700 text-center leading-tight whitespace-pre-line">{service.name}</span>
     </button>
   );
+
+  // CMS-driven sections: admin-configured categories override the hardcoded arrays.
+  const sectionFallback = {
+    taxi: taxiServices, delivery: deliveryServices, ondemand: onDemandServices,
+    beauty: beautyServices, pet: petServices, carcare: carCareServices,
+    towing: towingServices, nearby: nearbyServices,
+  };
+  const sectionAllRoute = {
+    taxi: '/taxi', delivery: '/all-delivery', ondemand: '/all-services', beauty: '/beauty',
+    pet: '/pet-care', carcare: '/car-care', towing: '/towing', nearby: '/nearby',
+  };
+  const displayFor = (key) => {
+    const cms = cmsItems.filter((i) => i.section === key).sort((a, b) => a.display_order - b.display_order);
+    if (!cms.length) return sectionFallback[key] || [];
+    const visible = cms.filter((i) => i.visible_home).map((i) => ({
+      id: i.id, name: i.label_fr, iconName: i.icon_name, imageUrl: i.image_url,
+      bg: i.bg_class, iconColor: i.icon_color_class, path: i.target_route,
+    }));
+    if (cms.some((i) => !i.visible_home)) {
+      visible.push({ id: `${key}-more`, name: 'Plus de\nServices', iconName: 'GridFour', bg: 'bg-gray-50', iconColor: 'text-gray-600', path: sectionAllRoute[key] });
+    }
+    return visible;
+  };
 
   return (
     <div className="mobile-container min-h-screen pb-20 bg-gray-50 text-gray-900">
@@ -243,7 +280,7 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Services Taxi</h3>
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
-          {taxiServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+          {displayFor('taxi').map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
       </div>
 
@@ -268,7 +305,7 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Services de Livraison</h3>
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
-          {deliveryServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+          {displayFor('delivery').map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
       </div>
 
@@ -344,7 +381,7 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Services à la demande</h3>
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
-          {onDemandServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+          {displayFor('ondemand').map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
       </div>
 
@@ -352,7 +389,7 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Services Beauté</h3>
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
-          {beautyServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+          {displayFor('beauty').map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
       </div>
 
@@ -405,7 +442,7 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Services Animaux</h3>
         <div className="grid grid-cols-3 gap-x-4 gap-y-4">
-          {petServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+          {displayFor('pet').map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
       </div>
 
@@ -447,7 +484,7 @@ const UserHome = () => {
       <div className="px-4 mt-5">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Entretien Auto</h3>
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
-          {carCareServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+          {displayFor('carcare').map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
       </div>
 
@@ -456,7 +493,7 @@ const UserHome = () => {
         <h3 className="text-lg font-bold text-gray-900 mb-1">Dépannage & Remorquage</h3>
         <p className="text-xs text-gray-500 mb-3 leading-relaxed">Assistance routière 24/7 - Pneu crevé, démarrage, panne sèche et plus.</p>
         <div className="grid grid-cols-3 gap-x-3 gap-y-4" data-testid="towing-grid">
-          {towingServices.map((s) => <ServiceIcon key={s.id} service={s} />)}
+          {displayFor('towing').map((s) => <ServiceIcon key={s.id} service={s} />)}
         </div>
       </div>
 
@@ -591,7 +628,7 @@ const UserHome = () => {
       <div className="px-4 mt-5 mb-4">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Commerces Proches</h3>
         <div className="grid grid-cols-4 gap-x-3 gap-y-4">
-          {nearbyServices.map((s) => <ServiceIcon key={s.id} service={s} size="small" />)}
+          {displayFor('nearby').map((s) => <ServiceIcon key={s.id} service={s} size="small" />)}
         </div>
       </div>
 

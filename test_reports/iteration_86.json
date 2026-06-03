@@ -1,0 +1,38 @@
+{
+  "summary": "Iter 87 frontend testing: payment selector horizontal + promo block in /taxi, CMS-driven home tiles with overflow 'Plus de Services', AND full admin CMS CRUD on /admin/home-categories. All scenarios pass. Live price now renders correctly (regression of iter86 GooglePlacesInput bug confirmed fixed: pickup Tour Eiffel + dropoff Gare du Nord → 20.68 €). Invalid promo path returns a clear toast error without breaking the UI.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/taxi hub (mode=intercity)", "issues": ["Google Maps API console warnings about Autocomplete deprecation + loading=async (non-blocking, already known)"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Non-blocking: migrate google.maps.places.Autocomplete → PlaceAutocompleteElement (recurring console warning).",
+    "Non-blocking: add loading=async to Maps JS script include."
+  ],
+  "critical_code_review_comments": [
+    "AdminHomeCategories.move(): performs local optimistic reorder then calls reorder API with IDs ordered for ONE section only — backend should preserve cross-section ordering. Verified visually OK with 8 sections / 41 rows; no regression observed.",
+    "TaxiHubPage: payment-card active style applied via Tailwind class string (`bg-[#0B1426]`), passes contrast check (white text on navy).",
+    "UserHome.displayFor(): falls back to hardcoded arrays when CMS empty; works as expected (CMS-driven now shows hcat_* IDs).",
+    "TaxiHubPage paymentMethod is sent in /api/rides POST (buildPayload) but estimate endpoint hardcodes payment_method:'cash' — confirm this is intentional (estimate identical across methods)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% — all 7 scenarios pass"},
+  "test_credentials": "USER: test2@example.com / TestPass123! (login OK). ADMIN: admin@superapp.com / SuperAdmin123! (login OK, redirects to /admin).",
+  "seed_data_creation": "Created+deleted 1 ephemeral category 'Test QA' (hcat_ce1cde71b2). DB returned to 41 rows.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 87 hub + CMS admin all green. payment-selector with 3 horizontal buttons (cash/card/sbpaygo) works; payment-card click applies bg-[#0B1426]. promo-block: invalid code → toast 'Code promo invalide ou expire' or 'Saisissez d''abord vos adresses' when no fare. Google autocomplete worked: Tour Eiffel → Gare du Nord produced 20.68 €. Home shows 32 service tiles; taxi section shows 8 visible (7 categories + 'Plus de Services' overflow). Admin /admin/home-categories shows 41 rows / 8 sections, Add/Edit/Delete/Toggle/Reorder all functional, icon-picker + cat-image-upload present.",
+  "scenarios_pass": [
+    "payment-selector + 3 options (cash/card/sbpaygo) + active highlight on card",
+    "promo-block + promo-code-input + promo-apply-btn",
+    "Invalid promo path (toast, UI does not break)",
+    "Google autocomplete pickup+dropoff → live-price-card visible with live-price-value=20.68 €",
+    "Home /home: VTC tile click navigates to /taxi; Plus de Services overflow tile present in Services Taxi",
+    "/admin/home-categories: 41 rows, 8 sections, add-category-btn → modal with icon-picker + cat-image-upload + icon-opt-Leaf, save creates row (42), toggle-visible-<id> OFF/ON, move-up reorder, delete → row removed (41 restored)",
+    "Regression: other sections (Livraison, Beauté, etc.) render correctly via CMS"
+  ]
+}

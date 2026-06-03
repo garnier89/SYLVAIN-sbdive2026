@@ -239,6 +239,15 @@ export const corporateAPI = {
   adminInvoice: (id, month) => api.get(`/corporate/admin/${id}/invoice`, { params: month ? { month } : {} }),
 };
 
+export const homeCategoriesAPI = {
+  public: (section) => api.get('/home-categories', { params: section ? { section } : {} }),
+  adminList: () => api.get('/home-categories/admin'),
+  create: (data) => api.post('/home-categories/admin', data),
+  update: (id, data) => api.put(`/home-categories/admin/${id}`, data),
+  remove: (id) => api.delete(`/home-categories/admin/${id}`),
+  reorder: (orderedIds) => api.post('/home-categories/admin/reorder', { ordered_ids: orderedIds }),
+};
+
 export const simulationAPI = {
   start: () => api.post('/simulation/start'),
   stop: () => api.post('/simulation/stop'),

@@ -153,6 +153,7 @@ import AdminACL from './pages/admin/AdminACL';
 import AdminAuditLogs from './pages/admin/AdminAuditLogs';
 import AdminOrganizations from './pages/admin/AdminOrganizations';
 import AdminCorporate from './pages/admin/AdminCorporate';
+import AdminHomeCategories from './pages/admin/AdminHomeCategories';
 import AdminI18n from './pages/admin/AdminI18n';
 import AdminGroupsPage from './pages/admin/AdminGroupsPage';
 import AdminUserEdit from './pages/admin/AdminUserEdit';
@@ -367,6 +368,7 @@ const AppRouter = () => {
         <Route path="audit-logs" element={<AdminAuditLogs />} />
         <Route path="organizations" element={<AdminOrganizations />} />
         <Route path="corporate" element={<AdminCorporate />} />
+        <Route path="home-categories" element={<AdminHomeCategories />} />
         <Route path="i18n" element={<AdminI18n />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />
