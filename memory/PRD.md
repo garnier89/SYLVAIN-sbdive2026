@@ -12,6 +12,10 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Payments**: Stripe Checkout
 - **Real-time**: WebSockets (ride tracking, simulation)
 
+## NEW - Jun 2026 - Géoloc départ + raccourcis Maison/Travail/récents (DONE — iter 88)
+- Hub `/taxi` : départ **auto-localisé** (géoloc + reverse-geocode). Sous la destination : raccourcis **Utiliser ma localisation actuelle**, **Maison**, **Travail** (enregistrables) + **lieux récents**.
+- Backend `routes/places.py` (`/api/places/saved`, `/recent`) — collection `user_places`. 3/3 pytest, UI vérifiée (conforme maquette V3Cube).
+
 ## NEW - Jun 2026 - Hub paiement/promo + CMS Catégories accueil (DONE — iter 87)
 - Hub `/taxi` : sélecteur de paiement HORIZONTAL (Espèces/Carte/SB PayGo) + code promo (recalcul prix) avant le CTA.
 - **CMS catégories d'accueil** entièrement configurable par l'admin (`/admin/home-categories`) : ajout/édition/suppression, icône bibliothèque OU image uploadée, nom FR/EN, sous-titre, ordre, visibilité accueil, route cible. 41 catégories / 8 sections seedées.

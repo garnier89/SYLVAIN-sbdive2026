@@ -48,6 +48,7 @@ from routes.i18n import router as i18n_router, seed_i18n
 from routes.voice import router as voice_router
 from routes.corporate import router as corporate_router
 from routes.home_categories import router as home_categories_router, seed_home_categories
+from routes.places import router as places_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -505,6 +506,7 @@ api_router.include_router(i18n_router)
 api_router.include_router(voice_router)
 api_router.include_router(corporate_router)
 api_router.include_router(home_categories_router)
+api_router.include_router(places_router)
 api_router.include_router(driver_pro_router)
 
 app.include_router(api_router)

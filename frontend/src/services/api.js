@@ -248,6 +248,13 @@ export const homeCategoriesAPI = {
   reorder: (orderedIds) => api.post('/home-categories/admin/reorder', { ordered_ids: orderedIds }),
 };
 
+export const placesAPI = {
+  getSaved: () => api.get('/places/saved'),
+  setSaved: (kind, place) => api.put(`/places/saved/${kind}`, place),
+  deleteSaved: (kind) => api.delete(`/places/saved/${kind}`),
+  addRecent: (place) => api.post('/places/recent', place),
+};
+
 export const simulationAPI = {
   start: () => api.post('/simulation/start'),
   stop: () => api.post('/simulation/stop'),

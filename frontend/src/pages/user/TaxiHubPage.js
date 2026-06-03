@@ -13,9 +13,10 @@ import {
   Clock, MapTrifold, CalendarPlus, Key, Gavel, AirplaneTilt, PawPrint, UserPlus,
   Van, HandHeart, Briefcase, Wheelchair, Lightning, Plus, Minus,
   Money, CreditCard, Wallet, Tag, CheckCircle,
+  House, NavigationArrow, Pencil, CaretRight,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
-import { corporateAPI, couponAPI } from '../../services/api';
+import { corporateAPI, couponAPI, placesAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -92,9 +93,67 @@ const TaxiHubPage = () => {
   const [promoApplied, setPromoApplied] = useState(false);
   const [estimate, setEstimate] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
+  const [locating, setLocating] = useState(false);
 
   const needsDropoff = mode.ride_type !== 'rental';
   const isRental = mode.ride_type === 'rental';
+
+  // ── Geolocation + reverse geocoding (auto-localize departure) ──
+  const reverseGeocode = (lat, lng) => new Promise((resolve) => {
+    const tryGeocode = () => {
+      if (!window.google?.maps) return resolve(null);
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        resolve(status === 'OK' && results?.[0] ? results[0].formatted_address : null);
+      });
+    };
+    if (window.google?.maps) return tryGeocode();
+    let tries = 0;
+    const iv = setInterval(() => {
+      tries += 1;
+      if (window.google?.maps) { clearInterval(iv); tryGeocode(); }
+      else if (tries > 25) { clearInterval(iv); resolve(null); }
+    }, 300);
+  });
+
+  const detectCurrentLocation = useCallback((announce = false) => {
+    if (!navigator.geolocation) { if (announce) toast.error('Géolocalisation non supportée'); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const address = (await reverseGeocode(latitude, longitude)) || 'Ma position actuelle';
+        setPickup({ lat: latitude, lng: longitude, address });
+        setLocating(false);
+        if (announce) toast.success('Position actuelle définie comme départ');
+      },
+      () => { setLocating(false); if (announce) toast.error('Localisation indisponible (autorisez l\'accès)'); },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }, []);
+
+  // Auto-localize departure + load saved places once on mount
+  useEffect(() => {
+    placesAPI.getSaved().then((r) => setSavedPlaces(r.data || { recent: [] })).catch(() => {});
+    detectCurrentLocation(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const applySavedDestination = (place) => {
+    if (!place?.address) return;
+    setDropoff({ address: place.address, lat: place.lat, lng: place.lng });
+  };
+
+  const saveCurrentDestinationAs = async (kind) => {
+    if (!dropoff?.lat) { toast.error('Entrez d\'abord une destination à enregistrer'); return; }
+    try {
+      await placesAPI.setSaved(kind, { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng });
+      const r = await placesAPI.getSaved();
+      setSavedPlaces(r.data);
+      toast.success(kind === 'home' ? 'Adresse maison enregistrée' : 'Adresse travail enregistrée');
+    } catch (e) { toast.error('Erreur enregistrement'); }
+  };
 
   // default scheduled date
   useEffect(() => {
@@ -237,6 +296,7 @@ const TaxiHubPage = () => {
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
       toast.success('Réservation enregistrée !');
+      if (dropoff?.lat) placesAPI.addRecent({ address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }).catch(() => {});
       if (mode.panel === 'datetime') navigate('/scheduled-rides');
       else navigate(`/ride/${data.id}`);
     } catch (e) {
@@ -304,6 +364,52 @@ const TaxiHubPage = () => {
               <div className="border-l-4 border-[#FFC107] pl-3 py-1">
                 <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><FlagCheckered size={11} /> Destination</label>
                 <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
+              </div>
+            )}
+
+            {/* Lieux favoris / raccourcis (style V3Cube) */}
+            {needsDropoff && (
+              <div className="mt-3" data-testid="places-shortcuts">
+                <button onClick={() => detectCurrentLocation(true)} disabled={locating}
+                  className="w-full flex items-center gap-3 py-2.5 text-left active:opacity-70" data-testid="use-current-location-btn">
+                  <span className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <NavigationArrow size={18} weight="fill" className="text-blue-500" />
+                  </span>
+                  <span className="text-sm font-semibold text-[#0B1426]">{locating ? 'Localisation…' : 'Utiliser ma localisation actuelle'}</span>
+                </button>
+
+                {[{ kind: 'home', label: 'Maison', icon: House, place: savedPlaces.home },
+                  { kind: 'work', label: 'Travail', icon: Briefcase, place: savedPlaces.work }].map(({ kind, label, icon: PIcon, place }) => (
+                  <div key={kind} className="flex items-center gap-3 py-2.5 border-t border-gray-100" data-testid={`place-${kind}-row`}>
+                    <span className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <PIcon size={18} className="text-gray-600" />
+                    </span>
+                    {place?.address ? (
+                      <button onClick={() => applySavedDestination(place)} className="flex-1 text-left min-w-0" data-testid={`place-${kind}-use`}>
+                        <p className="text-sm font-semibold text-[#0B1426] leading-tight">{label}</p>
+                        <p className="text-xs text-gray-400 truncate">{place.address}</p>
+                      </button>
+                    ) : (
+                      <span className="flex-1 text-sm font-semibold text-[#0B1426]">{label}</span>
+                    )}
+                    <button onClick={() => saveCurrentDestinationAs(kind)} className="p-1.5 text-gray-400 hover:text-[#0B1426]" title={place?.address ? 'Mettre à jour' : 'Enregistrer la destination actuelle'} data-testid={`place-${kind}-save`}>
+                      {place?.address ? <Pencil size={16} /> : <Plus size={18} weight="bold" />}
+                    </button>
+                  </div>
+                ))}
+
+                {savedPlaces.recent?.length > 0 && (
+                  <div className="border-t border-gray-100 pt-2 mt-1">
+                    <p className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-400 mb-1">Lieux récents</p>
+                    {savedPlaces.recent.slice(0, 4).map((rp, i) => (
+                      <button key={`${rp.address}-${i}`} onClick={() => applySavedDestination(rp)} className="w-full flex items-center gap-3 py-2 text-left active:opacity-70" data-testid={`recent-place-${i}`}>
+                        <MapPin size={16} className="text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate flex-1">{rp.address}</span>
+                        <CaretRight size={14} className="text-gray-300" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

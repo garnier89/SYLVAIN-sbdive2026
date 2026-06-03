@@ -1,6 +1,24 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-03 — Géolocalisation départ + raccourcis Maison/Travail/récents — Iteration 88
+
+### Added (Hub /taxi)
+- **Localisation automatique du départ** : au chargement du hub, géolocalisation navigateur (`navigator.geolocation`) + reverse-geocoding Google (`Geocoder`) remplit automatiquement le champ Départ.
+- **Raccourcis « Lieux favoris »** sous la destination (style V3Cube / image de référence) :
+  - **Utiliser ma localisation actuelle** (re-localise le départ).
+  - **Maison** et **Travail** : si enregistrés → définissent la destination au clic ; sinon « + » enregistre la destination courante. Icône crayon pour mettre à jour.
+  - **Lieux récents** : 4 dernières destinations (clic → remplit la destination).
+- Enregistrement automatique de la destination dans les récents à la création d'une course.
+
+### Added (Backend `/api/places`)
+- `routes/places.py` (collection `user_places`) : `GET /places/saved`, `PUT/DELETE /places/saved/{home|work}`, `POST /places/recent` (dédoublonnage + plafond 8). Auth utilisateur requise.
+- `placesAPI` ajouté côté frontend.
+
+### Tests
+- `tests/test_iter88_places.py` — 3/3 ✅ (CRUD home/work, récents dédupliqués/plafonnés, auth requise). Régression CMS 5/5 ✅.
+- UI vérifiée par screenshot : raccourcis rendus conformes à la maquette, garde-fous OK.
+
 ## 2026-06-03 — Paiement & Promo dans le hub + CMS Catégories d'accueil — Iteration 87
 
 ### Added (Hub /taxi — Partie 1)
