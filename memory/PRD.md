@@ -3,6 +3,10 @@
 
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Alerte « Votre coursier arrive ! » (ETA < 2 min) (DONE — iter 111)
+- Sur la page de suivi passager, un **toast in-app** « 🛵 Votre coursier arrive ! Préparez-vous. » se déclenche **une seule fois** dès que l'`eta_minutes` (déjà fourni par le backend) passe **≤ 2 min** (course non terminée). Réutilise le mécanisme de notification in-app (`sonner`). Anti-répétition via `useRef`.
+- Frontend uniquement (`DeliveryTrackingPage`), lint clean. Migrable vers une vraie push une fois Firebase/OneSignal branché.
+
 ## NEW - Jun 2026 - ETA dynamique sur le suivi (« Coursier à ~6 min ») (DONE — iter 110)
 - **ETA dynamique** affiché sur la page de suivi passager (`tracking-eta`) : « Coursier à ~X min · vers [cible] ». La cible s'adapte au statut — colis : ramassage (avant récupération) → prochain dépôt non livré ; transport : prise en charge (avant patient à bord) → destination.
 - **Backend** : `GET /api/parcels/{id}` & `/api/medical/transport/{id}` calculent `eta_minutes` + `eta_target_label` (distance coursier→cible via Haversine, vitesse urbaine ~25 km/h, min 1 min). Mis à jour au polling 8s.

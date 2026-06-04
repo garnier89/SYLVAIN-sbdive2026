@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { parcelAPI, medicalAPI } from '../../services/api';
 import { ArrowLeft, Package, FirstAid, CheckCircle, Circle, FlagCheckered } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -44,12 +45,18 @@ const DeliveryTrackingPage = () => {
   const navigate = useNavigate();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
+  const arrivalNotified = useRef(false);
   const steps = ORDER[type] || PARCEL_STEPS;
 
   const load = useCallback(async () => {
     try {
       const r = type === 'transport' ? await medicalAPI.transportGet(id) : await parcelAPI.get(id);
       setItem(r.data);
+      // Notify once when the courier is about to arrive (ETA < 2 min)
+      if (r.data?.eta_minutes != null && r.data.eta_minutes <= 2 && r.data.status !== 'completed' && !arrivalNotified.current) {
+        arrivalNotified.current = true;
+        toast.success('🛵 Votre coursier arrive ! Préparez-vous.', { duration: 7000 });
+      }
     } catch { /* ignore transient */ } finally { setLoading(false); }
   }, [type, id]);
 
