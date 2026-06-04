@@ -1,5 +1,11 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Pack F : Multi-livraisons réelles (un coursier, plusieurs dépôts) (DONE — iter 106)
+- **`ParcelPage` (/parcel)** : la « Livraison Multiple » était un stub (un seul dépôt + `confirm()` mocké). Désormais **réelle** : 1 ramassage + **N points de dépôt** (ajout/suppression), destinataire + téléphone par dépôt, placement sur carte Leaflet, **prix calculé par segment** (ramassage→dépôt1→dépôt2…), écran Confirmer avec détail par segment, et **création d'une vraie commande**.
+- **Backend** : nouveau module `routes/parcels.py` (collection `parcels`) — `POST /api/parcels/estimate` (legs + total km/durée/tarif), `POST /api/parcels` (crée, broadcast `new_parcel` aux chauffeurs), `GET /api/parcels`, `GET /api/parcels/{id}`. Tarif par segment via `calculate_fare` (moto→motorcycle, box→car). Validation `stops` non vide (422). Enregistré dans `server.py`.
+- **Frontend** : `parcelAPI.estimate/create/list/get` ; mode simple masque add-stop + champs destinataire ; mode multi les affiche.
+- Testé iter106 : **100% frontend PASS** (4 choix, ajout/suppression dépôts + ré-indexation, placement carte→estimation→confirmation→succès→/history, distinction simple/multi) + backend curl (estimate/create/get/422). Correctif hauteur Leaflet (`MapContainer style height`).
+
 ## NEW - Jun 2026 - FAB assistant vocal : réduit + limité à l'accueil (DONE — iter 106)
 - Le bouton micro (FAB `VoiceAssistant`) était monté globalement sur toutes les pages passager. Désormais **affiché uniquement sur l'accueil `/home`** (`App.js` : `location.pathname === '/home'`).
 - **Taille réduite** : `w-14 h-14` → `w-11 h-11`, icône Microphone `size 26` → `20` (`VoiceAssistant.js`).
