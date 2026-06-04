@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { parcelAPI, medicalAPI, driverAPI } from '../../services/api';
 import {
-  ArrowLeft, Package, FirstAid, MapPin, FlagCheckered, CheckCircle, CaretRight, ArrowsClockwise,
+  ArrowLeft, Package, FirstAid, MapPin, FlagCheckered, CheckCircle, CaretRight, ArrowsClockwise, Phone,
 } from '@phosphor-icons/react';
 
 const PARCEL_NEXT = { accepted: 'arrived_pickup', arrived_pickup: 'picked_up', picked_up: 'in_transit' };
@@ -139,16 +139,24 @@ const DeliveryJobsPage = () => {
                 {/* per-leg delivery after picked up / in transit */}
                 {['picked_up', 'in_transit'].includes(p.status) && (
                   <div className="space-y-2" data-testid={`parcel-legs-${p.id}`}>
-                    {(p.legs || []).map((leg) => (
-                      <div key={leg.index} className="flex items-center justify-between border border-gray-100 rounded-xl px-3 py-2">
-                        <span className="text-xs text-gray-700"><FlagCheckered size={12} className="inline text-red-500" /> Dépôt {leg.index + 1}{leg.recipient_name ? ` · ${leg.recipient_name}` : ''}</span>
-                        {leg.status === 'delivered' ? (
-                          <span className="text-[11px] font-bold text-green-600 flex items-center gap-1"><CheckCircle size={14} weight="fill" /> Livré</span>
-                        ) : (
-                          <button onClick={() => deliverLeg(p.id, leg.index)} data-testid={`deliver-leg-${p.id}-${leg.index}`} className="text-[11px] font-bold text-white bg-green-600 px-3 py-1.5 rounded-lg">Marquer livré</button>
-                        )}
-                      </div>
-                    ))}
+                    {(p.legs || []).map((leg) => {
+                      const phone = p.stops?.[leg.index]?.recipient_phone;
+                      return (
+                        <div key={leg.index} className="flex items-center justify-between border border-gray-100 rounded-xl px-3 py-2">
+                          <span className="text-xs text-gray-700"><FlagCheckered size={12} className="inline text-red-500" /> Dépôt {leg.index + 1}{leg.recipient_name ? ` · ${leg.recipient_name}` : ''}</span>
+                          <div className="flex items-center gap-2">
+                            {phone && leg.status !== 'delivered' && (
+                              <a href={`tel:${phone}`} data-testid={`call-recipient-${p.id}-${leg.index}`} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center" title="Appeler le destinataire"><Phone size={15} weight="fill" /></a>
+                            )}
+                            {leg.status === 'delivered' ? (
+                              <span className="text-[11px] font-bold text-green-600 flex items-center gap-1"><CheckCircle size={14} weight="fill" /> Livré</span>
+                            ) : (
+                              <button onClick={() => deliverLeg(p.id, leg.index)} data-testid={`deliver-leg-${p.id}-${leg.index}`} className="text-[11px] font-bold text-white bg-green-600 px-3 py-1.5 rounded-lg">Marquer livré</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -161,6 +169,11 @@ const DeliveryJobsPage = () => {
                   <span className="ml-auto"><StatusBadge label={MEDTR_LABEL[t.status]} /></span>
                 </div>
                 <p className="text-xs text-gray-500 mb-3">Patient : {t.patient_name || '—'} → {t.destination_name || 'Destination'}</p>
+                {t.patient_phone && (
+                  <a href={`tel:${t.patient_phone}`} data-testid={`call-patient-${t.id}`} className="w-full mb-2 flex items-center justify-center gap-1.5 bg-blue-50 text-blue-700 py-2.5 rounded-xl text-sm font-semibold">
+                    <Phone size={15} weight="fill" /> Appeler le patient
+                  </a>
+                )}
                 {MEDTR_NEXT[t.status] && (
                   <button onClick={() => advanceTransport(t.id, MEDTR_NEXT[t.status])} data-testid={`transport-advance-${t.id}`}
                     className="w-full bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5">

@@ -3,6 +3,9 @@
 
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)
+- Sur les missions **en cours** de la page chauffeur (`DeliveryJobsPage`) : bouton d'appel `tel:` — par dépôt non livré (`call-recipient-<id>-<index>`, téléphone destinataire) pour les colis, et « Appeler le patient » (`call-patient-<id>`) sur le transport médical. Affichés uniquement si un téléphone est renseigné. Lint clean (frontend only, page déjà validée).
+
 ## NEW - Jun 2026 - Alerte « Votre coursier arrive ! » (ETA < 2 min) (DONE — iter 111)
 - Sur la page de suivi passager, un **toast in-app** « 🛵 Votre coursier arrive ! Préparez-vous. » se déclenche **une seule fois** dès que l'`eta_minutes` (déjà fourni par le backend) passe **≤ 2 min** (course non terminée). Réutilise le mécanisme de notification in-app (`sonner`). Anti-répétition via `useRef`.
 - Frontend uniquement (`DeliveryTrackingPage`), lint clean. Migrable vers une vraie push une fois Firebase/OneSignal branché.
