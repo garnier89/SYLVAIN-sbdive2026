@@ -1,5 +1,12 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Planning d'activation horaire par service VTC (DONE — iter 103)
+- **Automatisation de l'offre selon les heures de pointe** : chaque service `service_categories` peut avoir un **planning horaire** (ex: Pool 7h-10h / 17h-20h, Aéroport 24/7). En dehors des plages, le service devient **indisponible à la réservation**.
+- **Backend** (`service_categories.py`) : helper `is_category_available_now(cat)` (fuseau `Europe/Paris`, gère les plages chevauchant minuit, jours optionnels = tous les jours). Champ `available_now` ajouté au `GET /api/service-categories` public. `PUT /admin/service-categories/{key}` accepte `schedule_enabled` / `schedule_windows` (`[{days:[0-6], start:"HH:MM", end:"HH:MM"}]`) / `schedule_tz`. `create_ride` rejette (400) un service hors plage.
+- **Frontend admin** (`AdminServiceCategories.js`) : bouton **Planning** + badge (`24/7` ou `N plages horaires`) par carte ; `ScheduleModal` (toggle 24/7 vs planifié, multi-plages, sélecteur jours Lun-Dim, heures début/fin, ajout/suppression de plage).
+- **Frontend passager** : `catConfig` lit `available_now` ; grille masque les services hors plage ; bannière `mode-unavailable-banner` + CTA « Indisponible » en deep-link.
+- Testé iter103 : **12/12 frontend PASS** + backend curl (fenêtre non-couvrante→indispo+400, couvrante/24-7→dispo+200). État restauré (17 services 24/7 actifs).
+
 ## NEW - Jun 2026 - Modes Taxi activables/désactivables depuis l'admin (verrou complet) (DONE — iter 102)
 - **Pilotage de l'offre VTC sans redéploiement** : la collection `service_categories` (17 clés = IDs des modes TaxiHub) était déjà togglable via `/admin/service-categories` et masquait les modes inactifs dans la **grille**. AJOUT : verrouillage complet de la **réservation** d'un mode désactivé.
 - **Backend** (`rides.py` create_ride) : nouveau champ `RideRequest.mode_id`. Si `service_categories[mode_id].active === false` → **HTTP 400** « Le service « X » est actuellement indisponible. » (defense in depth, même via deep-link/API directe).
