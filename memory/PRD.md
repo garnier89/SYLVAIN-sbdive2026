@@ -1,5 +1,10 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Refonte gros fichiers : TaxiHubPage + AdminDashboard découpés (DONE — iter 101)
+- **TaxiHubPage.js** : 861 → **628 lignes**. Extraction dans `src/pages/user/taxihub/` : `taxiHubConstants.js` (MODES/CATS/RENTAL_PACKAGES/ASSIST_OPTIONS/PAYMENT_METHODS), `TaxiModeGrid.jsx` (vue grille 16 modes), `TaxiModePanels.jsx` (panneaux par mode : datetime/flight/rental/buddy/pets/assist/corporate/contact/bidding), `TaxiCheckoutSection.jsx` (profil de course + paiement + promo).
+- **AdminDashboard.js** : 609 → **490 lignes**. Extraction dans `src/pages/admin/dashboard/DashboardCards.jsx` : `KPICard`, `EarningBox`, `ServiceMiniCard`, `BuySellRentCard`.
+- **Refactoring pur, ZÉRO changement de comportement.** Testé iter101 (frontend regression) : **100% PASS** — tous les sous-composants extraits rendent et se comportent à l'identique, 0 erreur JS, tous les `data-testid` préservés, flux profils de course iter100 toujours OK. Lint JS 100% clean.
+
 ## NEW - Jun 2026 - Profils de course passager + Stripe vérifié + audit dette technique (DONE — iter 100)
 - **Profils de course dans le checkout passager** (`TaxiHubPage`) : sélecteur **Business / Personnel** (`ride-profile-selector`) + menu déroulant **Motif de trajet professionnel** (`business-trip-reason-select`) affiché uniquement si profil Business. Alimenté par `GET /api/config/ride-profiles` + `/api/config/business-trip-reasons` (collections seedées). Champs `ride_profile`, `ride_profile_org_type`, `business_trip_reason` ajoutés à `RideRequest`/`RideResponse` (schemas.py) + persistés dans `create_ride` (rides.py). Affichés sur le **reçu** (`RideReceiptPage` → `receipt-ride-profile`) pour les notes de frais. API getters `configAPI.getRideProfiles/getBusinessTripReasons`.
 - **Stripe paiements réels (test) VÉRIFIÉ** : `POST /api/payments/checkout` (recharge wallet, packages fixes 10/20/50/100€) retourne une vraie session `checkout.stripe.com` avec `sk_test_emergent`. Crédit wallet atomique au polling `/payments/status/{session_id}`. Frontend `WalletPage` câblé (sélection package + redirection + polling retour). Fonctionne en mode test Stripe.
