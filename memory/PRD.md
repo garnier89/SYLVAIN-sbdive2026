@@ -3,6 +3,14 @@
 ## Vision
 Application super-app multi-services type Gojek/V3Cube pour le marche VTC francophone.
 
+## NEW - Jun 2026 - Refonte Tarification dynamique V3Cube + Heatmap + Météo réelle (DONE — iter 98)
+- **AI Dynamic Surge (modèle V3Cube)** : collections `surge_rules` + `surge_locations`. Règles par **Lieu × Type de véhicule** avec **plages de demande** (min/max demandes → multiplicateur). **Activation automatique** : une règle `status=active` s'applique immédiatement (plus d'interrupteur global). Multiplicateur choisi selon le nb de courses `pending` dans le rayon de la zone. CRUD complet + toggle + DELETE lieu. Endpoints `/api/admin/pricing/surge[/locations|/heatmap|/{id}/toggle]`.
+- **Carte de chaleur temps réel** : `GET /api/admin/pricing/surge/heatmap` + public `/api/pricing/demand-heatmap` → points (courses pending) + zones. Affichée sur `/admin/dynamic-pricing` (Google Maps `AdminGoogleMap` heatmap + marqueurs de zones).
+- **Weather Surcharge (modèle V3Cube)** : collection `weather_surcharges` par **Type de véhicule**, multiplicateur **par condition météo** (Thunderstorm/Drizzle/Rain/Snow/Clouds/Clear/Mist). Condition détectée en **direct via OpenWeatherMap** (`OPENWEATHER_KEY` dans backend/.env, endpoint 2.5/weather, cache 10 min). CRUD + toggle. ⚠️ Clé OpenWeatherMap récente = 401 temporaire (~10min-2h) ; `get_current_condition` échoue proprement (pas de surcharge, pas de crash) jusqu'à activation.
+- `compute_pricing_adjustment(fare, lat, lng, vehicle_type)` applique surge puis météo dans `/rides/estimate` + `create_ride`. Notes affichées côté passager (`pricing-reason-N`).
+- Page admin `/admin/dynamic-pricing` refondue : onglets Surge (heatmap + table + modale règle) et Weather (table + modale par conditions).
+- Testé iter98 : **16/16 pytest + UI PASS**. Données de test nettoyées.
+
 ## NEW - Jun 2026 - Delta tarif live + Dashboard SERVICES (Phases A→D) (DONE — iter 96/97)
 - **Delta de tarif en direct** (`RouteEditModal`) : bannière « Nouveau tarif estimé » + pastille `+X,XX €`/`−X,XX €` vs ancien tarif, recalcul live (`/rides/estimate`) pendant l'édition d'itinéraire en course.
 - **Phase A — Gérer les catégories de service** : collection `service_categories` (17 catégories alignées sur TaxiHub MODES). Endpoints `GET /api/service-categories` (public), `GET/PUT /api/admin/service-categories/{key}`, `POST .../{key}/toggle`. Page admin `/admin/service-categories` (grille + toggle Actif/Inactif + édition nom/icône emoji ou image base64). **Câblé** : désactiver une catégorie la masque dans `/taxi`.

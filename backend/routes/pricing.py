@@ -187,6 +187,13 @@ async def create_surge_location(request: Request):
     return doc
 
 
+@router.delete("/surge/locations/{loc_id}")
+async def delete_surge_location(loc_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    await db.surge_locations.delete_one({"id": loc_id})
+    return {"deleted": True}
+
+
 # ═══════════════════════ Surge: rules CRUD ═══════════════════════
 @router.get("/surge")
 async def list_surge_rules(request: Request):

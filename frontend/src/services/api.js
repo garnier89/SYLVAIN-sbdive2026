@@ -179,6 +179,7 @@ export const adminAPI = {
   toggleSurgeRule: (id) => api.post(`/admin/pricing/surge/${id}/toggle`),
   getSurgeLocations: () => api.get('/admin/pricing/surge/locations'),
   createSurgeLocation: (data) => api.post('/admin/pricing/surge/locations', data),
+  deleteSurgeLocation: (id) => api.delete(`/admin/pricing/surge/locations/${id}`),
   getSurgeHeatmap: () => api.get('/admin/pricing/surge/heatmap'),
   getWeather: () => api.get('/admin/pricing/weather'),
   createWeatherRule: (data) => api.post('/admin/pricing/weather', data),
