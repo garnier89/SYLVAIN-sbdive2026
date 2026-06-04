@@ -1,0 +1,66 @@
+{
+  "summary": "Iter98 — Refonte Phase B (AI Dynamic Surge rules per location/vehicle/ranges + Weather Surcharge). 16/16 pytest PASS on /api/admin/pricing/surge[/locations|/heatmap|/{id}/toggle] and /api/admin/pricing/weather[/conditions|/current|/{id}/toggle], plus auto-activation via demand. Backend verified end-to-end: with 0 pending rides in the zone, /api/rides/estimate returns surge_multiplier=1.0 (matches range 0..2); after 3 pending pickups within radius=8km of (14.6,-61.07), next estimate returns surge_multiplier=1.5 and pricing_reasons contains 'Tarif majoré x1.5 — forte demande (TEST_FortDeFrance)' — confirming a single status=active rule auto-applies WITHOUT global switch. /admin/pricing/surge/heatmap and public /pricing/demand-heatmap both return {points,zones} with len(points)>=3. Weather CRUD (conditions list contains the 7 OWM groups, create/list/update/toggle/delete) all pass. /admin/pricing/weather/current?lat&lng returns 200 with condition=null (expected — OPENWEATHER_KEY is still 401), proving the endpoint does NOT crash. Admin UI /admin/dynamic-pricing: both tabs (pricing-tab-surge / pricing-tab-weather) visible; surge-heatmap-card + surge-heatmap render Google Map; surge-add-btn opens surge-form-modal; surge-loc-new + surge-loc-name/lat/lng/radius + surge-vehicle-select + surge-range-min/max/mult-0 + surge-add-range + surge-range-1 + surge-form-save create a rule (modal closes, row appears in table); surge-toggle-{id} + surge-delete-{id} work end-to-end with 'Supprimé' toast. Weather UI: weather-add-btn opens weather-form-modal; weather-cond-Thunderstorm + weather-cond-Rain accept multipliers; weather-form-save persists; weather-toggle-{id} + weather-delete-{id} work. Cleanup: all TEST_ surge rules and the TEST weather rule deleted; demo rule 'Centre FDF' (which UI test inadvertently removed because list is sorted created_at DESC and accessed [-1]) was re-created via API at the end so the env is back to baseline.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/admin/pricing/surge/locations/{id}", "issue": "Endpoint missing — surge locations created via POST cannot be removed via API/UI, leaving permanent TEST_ entries in the surge-loc-select dropdown across testing iterations. Currently 4 leftover TEST_* locations exist in DB. Consider adding a delete endpoint or skipping in admin dropdown by name prefix."},
+      {"endpoint": "POST /api/rides/estimate", "issue": "RideRequest requires payment_method even for a pure estimate. Public estimate should ideally accept it as optional (only the create_ride flow needs it). Not blocking — easily worked around in tests/UI."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_scenarios": [
+    "POST /api/admin/pricing/surge/locations creates a location with id, name, lat, lng, radius_km — PASS.",
+    "GET /api/admin/pricing/surge/locations lists TEST zone — PASS.",
+    "POST /api/admin/pricing/surge with location/vehicle_type/ranges/status=active returns id + total_ranges=3 + max_surcharge=2.0 + ranges_preview — PASS.",
+    "GET /api/admin/pricing/surge returns rule with summary fields — PASS.",
+    "AUTO-ACTIVATION (no global switch): estimate at zone w/ 0 pending → surge=1.0; create 3 pending rides → estimate=1.5 with reason 'Tarif majoré x1.5 — forte demande (TEST_FortDeFrance)' — PASS.",
+    "GET /api/admin/pricing/surge/heatmap → {points:[≥3], zones:[Centre FDF, TEST_FortDeFrance, ...]} — PASS.",
+    "GET /api/pricing/demand-heatmap (public) → same structure with ≥3 pending points — PASS.",
+    "PUT /api/admin/pricing/surge/{id} updates ranges/status — PASS.",
+    "POST /api/admin/pricing/surge/{id}/toggle flips active→inactive (verified by GET list) — PASS.",
+    "DELETE /api/admin/pricing/surge/{id} → 200 — PASS.",
+    "GET /api/admin/pricing/weather/conditions returns [Thunderstorm,Drizzle,Rain,Snow,Clouds,Clear,Mist] — PASS.",
+    "POST /api/admin/pricing/weather creates rule with conditions map and status=active — PASS.",
+    "PUT /api/admin/pricing/weather/{id} mutates a condition multiplier — PASS.",
+    "POST /api/admin/pricing/weather/{id}/toggle → inactive — PASS.",
+    "GET /api/admin/pricing/weather/current?lat=14.6&lng=-61.07 → 200 condition=null (OWM 401 expected) — does NOT crash — PASS.",
+    "DELETE /api/admin/pricing/weather/{id} → 200 — PASS.",
+    "Admin UI /admin/dynamic-pricing: pricing-tab-surge + pricing-tab-weather visible — PASS.",
+    "Admin UI surge: surge-heatmap-card + surge-heatmap (Google Map) render — PASS.",
+    "Admin UI surge-add-btn → surge-form-modal opens; surge-loc-new + surge-loc-name/lat/lng/radius + surge-vehicle-select + surge-range-min-0/max-0/mult-0 + surge-add-range + surge-range-1 filled + surge-form-save → modal closes, new surge-rule-{id} appears — PASS.",
+    "Admin UI surge-toggle-{id} + surge-delete-{id} (window.confirm accepted) → 'Supprimé' toast — PASS.",
+    "Admin UI weather: weather-add-btn → weather-form-modal; weather-cond-Thunderstorm=1.3, weather-cond-Rain=1.2 ; weather-form-save → row added; weather-toggle-{id} + weather-delete-{id} → PASS."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter98_surge_weather.py",
+    "/app/test_reports/pytest/iter98_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Add DELETE /api/admin/pricing/surge/locations/{id} to allow removing dead/test zones from surge-loc-select dropdown (4 TEST_* leftovers currently in DB).",
+    "(Optional) Make payment_method optional on RideRequest when used for /rides/estimate (currently 422 without it).",
+    "(Info — not a bug) /admin/pricing/weather/current returns condition=null because OPENWEATHER_KEY is still being activated (~401). UI/UX is correct: the weather rule simply does not apply a multiplier until the key is live. Verify again later by hitting /admin/pricing/weather/current?lat=14.6&lng=-61.07 once OWM key propagates."
+  ],
+  "critical_code_review_comments": [
+    "routes/pricing.py: _surge_multiplier loops rules then queries db.rides for EACH rule. For N active rules it makes N pending-rides queries. Move the pending-rides find OUTSIDE the loop (compute once) and reuse for distance checks. Currently fine (1 rule typically) but worth fixing before scale.",
+    "routes/pricing.py: surge POST allows arbitrary 'status' string; consider validating ∈ {'active','inactive'} to prevent typos that silently disable a rule.",
+    "routes/pricing.py: surge_locations CRUD lacks PUT and DELETE — admin cannot fix a typo in a location nor remove a stale one. Add them.",
+    "_rule_summary uses '∞' for missing max_requests in ranges_preview but the original tuple keeps max_requests=None — UI table shows '∞' correctly. Good.",
+    "Backend correctly excludes mongo _id from all surge/weather responses (using {'_id':0}).",
+    "AdminDynamicPricing.js: all interactive selectors have data-testid (surge-loc-new/existing/select/name/lat/lng/radius, surge-vehicle-select, surge-range-{min,max,mult}-{i}, surge-add-range, surge-status-toggle, surge-form-save, surge-toggle-{id}, surge-delete-{id}; weather-*). Modal closes after save (verified). Confirmation uses window.confirm — Playwright must register a dialog handler before clicking surge-delete-{id}.",
+    "Surge table is sorted created_at DESC: deleting [-1] in tests removes the OLDEST rule. Tests should match by id (not by last index) — already adopted in the pytest suite via state['rule_id']; UI test inadvertently deleted the demo 'Centre FDF' rule. Restored at cleanup."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter98_surge_weather.py (new, 16 pytest cases all PASS)"
+  ],
+  "success_rate": {"backend": "100% (16/16 pytest)", "frontend": "100% — every requested data-testid (surge + weather modals, toggle, delete, heatmap) found and exercised end-to-end on /admin/dynamic-pricing."},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! ; Passenger test2@example.com / TestPass123!",
+  "seed_data_creation": "Created TEST_FortDeFrance surge location + active rule (ranges 0-2→1.0, 3-10→1.5, 11-∞→2.0), 3 pending rides at (14.6,-61.07) used to push demand→x1.5, plus a Weather rule {Thunderstorm:1.3, Rain:1.2}. ALL deleted at end (TEST_ rides cancelled, TEST surge rule deleted, weather rule deleted). UI test accidentally deleted the demo 'Centre FDF' surge rule (list is created_at DESC, [-1] = oldest) — recreated via API at end so the environment matches the handoff state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend collections used: surge_rules, surge_locations, weather_surcharges. A single status=active rule auto-applies without any global switch (no /api/admin/pricing config endpoint anymore). Important quirks: (1) /api/admin/pricing/surge/locations has NO DELETE — TEST_* leftovers (currently 4) persist in surge-loc-select dropdown; (2) RideRequest requires payment_method even on /api/rides/estimate (422 otherwise); (3) Surge list is sorted created_at DESC — when locating freshly-created rule in UI test, the NEW rule is rows[0], NOT rows[-1]; (4) OPENWEATHER_KEY is still 401 → /admin/pricing/weather/current returns 200 condition=null (expected, not a bug, and weather multiplier is not applied to fares until the key is live). The 'Centre FDF' demo surge rule is the one originally created via curl by the main agent; tests should never delete it.",
+  "rca_of_the_issue": "No code bugs found. Phase B refonte fully matches the spec (rule-based surge with auto-activation, demand-driven multiplier, heatmap, weather CRUD, graceful OWM failure). Minor backend gap: no DELETE for surge_locations (recommend adding)."
+}

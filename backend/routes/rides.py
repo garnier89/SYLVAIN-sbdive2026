@@ -78,7 +78,7 @@ async def estimate_ride(data: RideRequest):
 
     # Dynamic pricing (AI Surge + Weather Surcharge)
     from routes.pricing import compute_pricing_adjustment
-    adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng)
+    adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng, data.vehicle_type)
     fare = adj["fare"]
 
     result = {
@@ -89,7 +89,8 @@ async def estimate_ride(data: RideRequest):
         "currency": "EUR",
         "source": "google_maps" if route_polyline else "haversine",
         "surge_multiplier": adj["surge_multiplier"],
-        "weather_surcharge": adj["weather_surcharge"],
+        "weather_multiplier": adj["weather_multiplier"],
+        "weather_condition": adj["weather_condition"],
         "pricing_reasons": adj["reasons"],
     }
     if route_polyline:
@@ -174,7 +175,7 @@ async def create_ride(data: RideRequest, request: Request):
 
     # Dynamic pricing (AI Surge + Weather Surcharge) — applied before corporate discount
     from routes.pricing import compute_pricing_adjustment
-    pricing_adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng)
+    pricing_adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng, data.vehicle_type)
     fare = pricing_adj["fare"]
 
     # ===== Pack C — Corporate booking validation + discount =====
@@ -241,7 +242,8 @@ async def create_ride(data: RideRequest, request: Request):
         "stops": getattr(data, 'stops', None),
         "route_polyline": route_polyline,
         "surge_multiplier": pricing_adj["surge_multiplier"],
-        "weather_surcharge": pricing_adj["weather_surcharge"],
+        "weather_multiplier": pricing_adj["weather_multiplier"],
+        "weather_condition": pricing_adj["weather_condition"],
         "cancel_reason": None,
         "cancelled_by": None,
         "driver_name": None,

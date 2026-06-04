@@ -1,141 +1,347 @@
 """
-Dynamic pricing (V3Cube "AI Dynamic Surge" + "Weather Surcharge").
-Both adjustments are applied to the computed fare in /rides/estimate and
-when creating a ride. Configs are stored in service_configs.
+Dynamic pricing (V3Cube parity): AI Dynamic Surge + Weather Surcharge.
+
+AI Dynamic Surge: rules per Location x Vehicle Type, with demand "ranges".
+A rule with status=active auto-applies (no global switch). The surge multiplier
+is chosen from the range matching the current pickup-request demand in the zone.
+
+Weather Surcharge: per Vehicle Type, a multiplier per weather condition. The
+current condition at the pickup point is fetched live from OpenWeatherMap.
+
+Both adjustments apply to the computed fare in /rides/estimate and create_ride.
 """
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timezone
+import uuid
+import os
+import time
+import requests
 
 from core.config import db
 from core.deps import require_role, calculate_distance
 
 router = APIRouter(prefix="/admin/pricing", tags=["pricing"])
+public_router = APIRouter(prefix="/pricing", tags=["pricing-public"])
 
-DEFAULT_SURGE = {
-    "enabled": False,
-    "mode": "auto",            # auto (demand-based) | manual
-    "manual_multiplier": 1.5,
-    "max_multiplier": 3.0,
-    "radius_km": 5,
-    # auto tiers: applied when demand_ratio >= min_ratio (pending rides / online drivers)
-    "tiers": [
-        {"min_ratio": 1.0, "multiplier": 1.2},
-        {"min_ratio": 2.0, "multiplier": 1.5},
-        {"min_ratio": 3.0, "multiplier": 2.0},
-    ],
-}
+# OpenWeatherMap "main" condition groups we support
+WEATHER_CONDITIONS = ["Thunderstorm", "Drizzle", "Rain", "Snow", "Clouds", "Clear", "Mist"]
 
-DEFAULT_WEATHER = {
-    "enabled": False,
-    "active_now": False,       # admin manual switch (bad weather currently active)
-    "type": "percent",         # percent | flat
-    "amount": 15,              # 15% or 15 EUR
-    "condition_label": "Pluie / intempéries",
-}
+# Simple in-process cache for weather lookups (rounded coords -> (ts, condition))
+_weather_cache = {}
+_WEATHER_TTL = 600  # 10 min
 
 
-async def _get_cfg(key, defaults):
-    doc = await db.service_configs.find_one({"service_key": key}, {"_id": 0})
-    settings = (doc or {}).get("settings") or {}
-    return {**defaults, **settings}
+# ───────────────────────── Weather helper ─────────────────────────
+def _normalize_condition(main):
+    if not main:
+        return "Clear"
+    if main in WEATHER_CONDITIONS:
+        return main
+    # Atmosphere group (Mist, Smoke, Haze, Dust, Fog, Sand, Ash, Squall, Tornado) -> Mist
+    return "Mist"
 
 
-async def get_surge_config():
-    return await _get_cfg("dynamic_surge", DEFAULT_SURGE)
+def get_current_condition(lat, lng):
+    """Live OpenWeatherMap current condition at coords, cached 10 min."""
+    if lat is None or lng is None:
+        return None
+    key = (round(float(lat), 2), round(float(lng), 2))
+    now = time.time()
+    cached = _weather_cache.get(key)
+    if cached and now - cached[0] < _WEATHER_TTL:
+        return cached[1]
+    api_key = os.environ.get("OPENWEATHER_KEY")
+    if not api_key:
+        return None
+    try:
+        resp = requests.get(
+            "https://api.openweathermap.org/data/2.5/weather",
+            params={"lat": lat, "lon": lng, "appid": api_key, "units": "metric"},
+            timeout=5,
+        )
+        data = resp.json()
+        if resp.status_code == 200 and data.get("weather"):
+            cond = _normalize_condition(data["weather"][0].get("main"))
+            _weather_cache[key] = (now, cond)
+            return cond
+    except Exception:
+        pass
+    return None
 
 
-async def get_weather_config():
-    return await _get_cfg("weather_surcharge", DEFAULT_WEATHER)
+# ───────────────────────── Surge computation ─────────────────────────
+async def _surge_multiplier(lat, lng, vehicle_type):
+    """Find the best active surge rule matching the zone+vehicle and return its
+    multiplier based on current pickup-request demand in the zone."""
+    if lat is None or lng is None:
+        return 1.0, None
+    rules = await db.surge_rules.find({"status": "active"}, {"_id": 0}).to_list(200)
+    best_mult = 1.0
+    best_label = None
+    for rule in rules:
+        loc = rule.get("location") or {}
+        if loc.get("lat") is None:
+            continue
+        radius = float(loc.get("radius_km", 5))
+        if calculate_distance(lat, lng, loc["lat"], loc["lng"]) > radius:
+            continue
+        vt = rule.get("vehicle_type", "all")
+        if vt not in ("all", None, vehicle_type):
+            continue
+        # Demand = pending pickup requests within the zone
+        pending = await db.rides.find({"status": "pending"}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1}).to_list(500)
+        demand = sum(1 for r in pending if r.get("pickup_lat") and calculate_distance(loc["lat"], loc["lng"], r["pickup_lat"], r["pickup_lng"]) <= radius)
+        for rng in rule.get("ranges", []):
+            lo = rng.get("min_requests", 0)
+            hi = rng.get("max_requests")
+            if demand >= lo and (hi is None or demand <= hi):
+                mult = float(rng.get("surcharge", 1.0))
+                if mult > best_mult:
+                    best_mult = mult
+                    best_label = loc.get("name")
+                break
+    return best_mult, best_label
 
 
-async def _compute_surge_multiplier(surge, lat, lng):
-    if not surge.get("enabled"):
-        return 1.0
-    if surge.get("mode") == "manual":
-        return min(float(surge.get("manual_multiplier", 1.0)), float(surge.get("max_multiplier", 3.0)))
-    # auto: demand ratio = pending rides nearby / online drivers nearby
-    radius = float(surge.get("radius_km", 5))
-    pending = await db.rides.find({"status": "pending"}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1}).to_list(500)
-    drivers = await db.drivers.find({"is_online": True}, {"_id": 0, "current_lat": 1, "current_lng": 1}).to_list(500)
-    near_pending = sum(1 for r in pending if r.get("pickup_lat") and calculate_distance(lat, lng, r["pickup_lat"], r["pickup_lng"]) <= radius)
-    near_drivers = sum(1 for d in drivers if d.get("current_lat") and calculate_distance(lat, lng, d["current_lat"], d["current_lng"]) <= radius)
-    ratio = near_pending / (near_drivers + 1)
+async def _weather_multiplier(lat, lng, vehicle_type):
+    """Live weather condition -> configured multiplier for the vehicle type."""
+    rules = await db.weather_surcharges.find({"status": "active"}, {"_id": 0}).to_list(100)
+    if not rules:
+        return 1.0, None
+    condition = get_current_condition(lat, lng)
+    if not condition:
+        return 1.0, None
     mult = 1.0
-    for tier in sorted(surge.get("tiers", []), key=lambda t: t.get("min_ratio", 0)):
-        if ratio >= tier.get("min_ratio", 0):
-            mult = float(tier.get("multiplier", 1.0))
-    return min(mult, float(surge.get("max_multiplier", 3.0)))
+    matched = None
+    for rule in rules:
+        vt = rule.get("vehicle_type", "all")
+        if vt not in ("all", None, vehicle_type):
+            continue
+        conds = rule.get("conditions") or {}
+        m = float(conds.get(condition, 1.0) or 1.0)
+        if m > mult:
+            mult = m
+            matched = condition
+    return mult, matched
 
 
-async def compute_pricing_adjustment(base_fare, lat, lng):
-    """Returns {fare, surge_multiplier, weather_surcharge, reasons[]} applying
-    both Dynamic Surge and Weather Surcharge to base_fare."""
-    surge = await get_surge_config()
-    weather = await get_weather_config()
+async def compute_pricing_adjustment(base_fare, lat, lng, vehicle_type="all"):
+    """Apply AI Dynamic Surge + Weather Surcharge. Returns {fare, surge_multiplier,
+    weather_multiplier, weather_condition, reasons[]}."""
+    fare = float(base_fare or 0)
     reasons = []
 
-    fare = float(base_fare or 0)
-    multiplier = 1.0
-    if lat is not None and lng is not None:
-        multiplier = await _compute_surge_multiplier(surge, lat, lng)
-    if multiplier > 1.0:
-        fare = round(fare * multiplier, 2)
-        reasons.append(f"Tarif majoré x{multiplier:g} (forte demande)")
+    surge_mult, zone = await _surge_multiplier(lat, lng, vehicle_type)
+    if surge_mult > 1.0:
+        fare = round(fare * surge_mult, 2)
+        z = f" ({zone})" if zone else ""
+        reasons.append(f"Tarif majoré x{surge_mult:g} — forte demande{z}")
 
-    weather_surcharge = 0.0
-    if weather.get("enabled") and weather.get("active_now"):
-        amt = float(weather.get("amount", 0))
-        if weather.get("type") == "flat":
-            weather_surcharge = round(amt, 2)
-        else:
-            weather_surcharge = round(fare * amt / 100, 2)
-        if weather_surcharge > 0:
-            fare = round(fare + weather_surcharge, 2)
-            label = weather.get("condition_label") or "Intempéries"
-            reasons.append(f"Supplément météo ({label}) +{weather_surcharge:.2f} €")
+    weather_mult, condition = await _weather_multiplier(lat, lng, vehicle_type)
+    if weather_mult > 1.0:
+        fare = round(fare * weather_mult, 2)
+        labels = {"Thunderstorm": "Orage", "Rain": "Pluie", "Drizzle": "Bruine", "Snow": "Neige", "Mist": "Brouillard", "Clouds": "Nuageux", "Clear": "Dégagé"}
+        reasons.append(f"Supplément météo x{weather_mult:g} ({labels.get(condition, condition)})")
 
     return {
         "fare": fare,
-        "surge_multiplier": multiplier,
-        "weather_surcharge": weather_surcharge,
+        "surge_multiplier": surge_mult,
+        "weather_multiplier": weather_mult,
+        "weather_condition": condition,
         "reasons": reasons,
     }
 
 
-# ── Admin endpoints ───────────────────────────────────────────────────────
-@router.get("/surge")
-async def get_surge(request: Request):
+def _rule_summary(rule):
+    ranges = rule.get("ranges", [])
+    max_s = max([float(r.get("surcharge", 1)) for r in ranges], default=1.0)
+    preview = ", ".join(
+        f"{r.get('min_requests', 0)}-{r.get('max_requests', '∞')}→x{r.get('surcharge', 1)}" for r in ranges[:3]
+    )
+    return {**rule, "total_ranges": len(ranges), "max_surcharge": max_s, "ranges_preview": preview}
+
+
+# ═══════════════════════ Surge: locations ═══════════════════════
+@router.get("/surge/locations")
+async def list_surge_locations(request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
-    return await get_surge_config()
+    return await db.surge_locations.find({}, {"_id": 0}).sort("name", 1).to_list(200)
 
 
-@router.put("/surge")
-async def put_surge(request: Request):
+@router.post("/surge/locations")
+async def create_surge_location(request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
-    settings = body.get("settings", body)
-    await db.service_configs.update_one(
-        {"service_key": "dynamic_surge"},
-        {"$set": {"service_key": "dynamic_surge", "settings": settings, "updated_at": datetime.now(timezone.utc).isoformat()}},
-        upsert=True,
-    )
-    return await get_surge_config()
+    if not body.get("name") or body.get("lat") is None or body.get("lng") is None:
+        raise HTTPException(status_code=400, detail="name, lat, lng requis")
+    doc = {
+        "id": f"loc_{uuid.uuid4().hex[:10]}",
+        "name": body["name"],
+        "lat": float(body["lat"]),
+        "lng": float(body["lng"]),
+        "radius_km": float(body.get("radius_km", 5)),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.surge_locations.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+# ═══════════════════════ Surge: rules CRUD ═══════════════════════
+@router.get("/surge")
+async def list_surge_rules(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    rules = await db.surge_rules.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    return [_rule_summary(r) for r in rules]
+
+
+@router.post("/surge")
+async def create_surge_rule(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    loc = body.get("location") or {}
+    if loc.get("lat") is None or loc.get("lng") is None:
+        raise HTTPException(status_code=400, detail="Lieu (location) requis avec coordonnées")
+    doc = {
+        "id": f"surge_{uuid.uuid4().hex[:10]}",
+        "location": {
+            "name": loc.get("name", "Zone"),
+            "lat": float(loc["lat"]),
+            "lng": float(loc["lng"]),
+            "radius_km": float(loc.get("radius_km", 5)),
+        },
+        "vehicle_type": body.get("vehicle_type", "all"),
+        "ranges": body.get("ranges", []),
+        "status": body.get("status", "active"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.surge_rules.insert_one(doc)
+    doc.pop("_id", None)
+    return _rule_summary(doc)
+
+
+@router.put("/surge/{rule_id}")
+async def update_surge_rule(rule_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    allowed = {}
+    for f in ("location", "vehicle_type", "ranges", "status"):
+        if f in body:
+            allowed[f] = body[f]
+    if not allowed:
+        raise HTTPException(status_code=400, detail="Rien à mettre à jour")
+    allowed["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.surge_rules.update_one({"id": rule_id}, {"$set": allowed})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Règle introuvable")
+    rule = await db.surge_rules.find_one({"id": rule_id}, {"_id": 0})
+    return _rule_summary(rule)
+
+
+@router.delete("/surge/{rule_id}")
+async def delete_surge_rule(rule_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    await db.surge_rules.delete_one({"id": rule_id})
+    return {"deleted": True}
+
+
+@router.post("/surge/{rule_id}/toggle")
+async def toggle_surge_rule(rule_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    rule = await db.surge_rules.find_one({"id": rule_id}, {"_id": 0})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Règle introuvable")
+    new_status = "inactive" if rule.get("status") == "active" else "active"
+    await db.surge_rules.update_one({"id": rule_id}, {"$set": {"status": new_status}})
+    return {"id": rule_id, "status": new_status}
+
+
+# ═══════════════════════ Demand heatmap ═══════════════════════
+async def _demand_points():
+    pending = await db.rides.find({"status": "pending"}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1}).to_list(1000)
+    return [{"lat": r["pickup_lat"], "lng": r["pickup_lng"], "weight": 1} for r in pending if r.get("pickup_lat")]
+
+
+@router.get("/surge/heatmap")
+async def admin_demand_heatmap(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    points = await _demand_points()
+    zones = await db.surge_rules.find({"status": "active"}, {"_id": 0, "location": 1}).to_list(200)
+    return {"points": points, "zones": [z.get("location") for z in zones if z.get("location")]}
+
+
+@public_router.get("/demand-heatmap")
+async def public_demand_heatmap(request: Request):
+    points = await _demand_points()
+    zones = await db.surge_rules.find({"status": "active"}, {"_id": 0, "location": 1}).to_list(200)
+    return {"points": points, "zones": [z.get("location") for z in zones if z.get("location")]}
+
+
+# ═══════════════════════ Weather surcharge CRUD ═══════════════════════
+@router.get("/weather/conditions")
+async def weather_conditions(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    return {"conditions": WEATHER_CONDITIONS}
+
+
+@router.get("/weather/current")
+async def weather_current(request: Request, lat: float, lng: float):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    return {"condition": get_current_condition(lat, lng)}
 
 
 @router.get("/weather")
-async def get_weather(request: Request):
+async def list_weather_surcharges(request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
-    return await get_weather_config()
+    return await db.weather_surcharges.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
 
-@router.put("/weather")
-async def put_weather(request: Request):
+@router.post("/weather")
+async def create_weather_surcharge(request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
-    settings = body.get("settings", body)
-    await db.service_configs.update_one(
-        {"service_key": "weather_surcharge"},
-        {"$set": {"service_key": "weather_surcharge", "settings": settings, "updated_at": datetime.now(timezone.utc).isoformat()}},
-        upsert=True,
-    )
-    return await get_weather_config()
+    doc = {
+        "id": f"weather_{uuid.uuid4().hex[:10]}",
+        "vehicle_type": body.get("vehicle_type", "all"),
+        "conditions": body.get("conditions", {}),
+        "status": body.get("status", "active"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.weather_surcharges.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/weather/{rule_id}")
+async def update_weather_surcharge(rule_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    allowed = {}
+    for f in ("vehicle_type", "conditions", "status"):
+        if f in body:
+            allowed[f] = body[f]
+    if not allowed:
+        raise HTTPException(status_code=400, detail="Rien à mettre à jour")
+    allowed["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.weather_surcharges.update_one({"id": rule_id}, {"$set": allowed})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Règle introuvable")
+    return await db.weather_surcharges.find_one({"id": rule_id}, {"_id": 0})
+
+
+@router.delete("/weather/{rule_id}")
+async def delete_weather_surcharge(rule_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    await db.weather_surcharges.delete_one({"id": rule_id})
+    return {"deleted": True}
+
+
+@router.post("/weather/{rule_id}/toggle")
+async def toggle_weather_surcharge(rule_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    rule = await db.weather_surcharges.find_one({"id": rule_id}, {"_id": 0})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Règle introuvable")
+    new_status = "inactive" if rule.get("status") == "active" else "active"
+    await db.weather_surcharges.update_one({"id": rule_id}, {"$set": {"status": new_status}})
+    return {"id": rule_id, "status": new_status}
