@@ -1,0 +1,52 @@
+{
+  "summary": "Iter97 — Validated Phase B (Dynamic Surge + Weather Surcharge), Phase C (Taxi Configs: rental_packages / personal_driver / taxi_bid / ride_profiles) and Phase D (admin dashboard delivery cards). 7/7 pytest PASS on /api/admin/pricing/surge|weather, /api/config/taxi-options, /api/admin/taxi-configs/{key}, /api/admin/analytics/delivery-monthly. Backend integration verified end-to-end: surge x2 doubles estimated_fare and emits pricing_reasons (Tarif majoré x2); weather +5€ flat adds exactly 5€ and emits Supplément météo reason; both correctly become 1.0 / 0.0 / [] after disable. Admin UI /admin/dynamic-pricing renders both tabs (pricing-tab-surge, pricing-tab-weather) with working enable toggle, mode select (native SELECT), manual multiplier input and save; surge_manual_input=2.0 persisted across reload. Admin UI /admin/taxi-configs renders 4 tabs; rental-pkg-price-0, rental-add-pkg, pd-rate-input, bid-ttl-input and profile-allow_pets-toggle all present; pd-rate-input=25 persisted across reload then reset to 20. Admin /admin landing shows store-deliveries-card (total 7), delivery-genie-runner-card (total 8) and 18 recharts SVG/bar elements (Store + Genie+Runner stacked bar charts). All admin configs reset to factory defaults at end (surge enabled=false, weather enabled=false/active_now=false, hourly_rate=20, ttl=30, rental 36/72/144, allow_pets=true) — re-checked via /api/config/taxi-options and final estimate (fare=12.05, surge=1.0, weather=0.0, reasons=[]).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Passenger /taxi pricing-reason-0 display when surge ON", "issue": "Not verified end-to-end via UI: /taxi shows the service category picker first (Taxi VTC / Pool / Green / Moto / etc.), so a passenger must click a service tile before the booking screen with pickup/destination inputs and live-price-card appears. The backend already returns pricing_reasons[0]='Tarif majoré x2 (forte demande)' from /api/rides/estimate when surge is active (verified by pytest), so the UI will render pricing-reason-0 once the booking screen is reached. Recommend a follow-up smoke test that clicks the Taxi VTC tile and types two addresses to exercise live-price-card with surge on.", "affected_selectors": ["[data-testid=\"pricing-reason-0\"]", "[data-testid=\"live-price-card\"]"]}
+    ],
+    "design_issues": []
+  },
+  "verified_scenarios": [
+    "PUT /api/admin/pricing/surge {enabled:true,mode:manual,manual_multiplier:2.0} → next /api/rides/estimate returns surge_multiplier=2.0, fare ≈ base*2, pricing_reasons contains 'Tarif majoré x2' — PASS.",
+    "PUT /api/admin/pricing/weather {enabled:true,active_now:true,type:flat,amount:5} → estimated_fare increases by exactly 5.00, weather_surcharge=5.0, pricing_reasons contains 'Supplément météo' — PASS.",
+    "PUT surge enabled=false + weather enabled=false → estimate returns surge=1.0, weather=0.0, reasons=[] — PASS.",
+    "GET /api/config/taxi-options → returns rental_packages.packages, personal_driver.hourly_rate, taxi_bid.offer_ttl_seconds, ride_profiles — PASS.",
+    "PUT /api/admin/taxi-configs/personal_driver {hourly_rate:25} → 200, public taxi-options reflects 25 — PASS.",
+    "PUT /api/admin/taxi-configs/taxi_bid {offer_ttl_seconds:45} → 200, public reflects 45 — PASS.",
+    "PUT /api/admin/taxi-configs/rental_packages with new prices → 200, public reflects them — PASS.",
+    "PUT /api/admin/taxi-configs/ride_profiles {allow_pets:false} → 200, public reflects false — PASS.",
+    "PUT /api/admin/taxi-configs/__unknown__ → 404 — PASS.",
+    "GET /api/admin/analytics/delivery-monthly → 200 with store_deliveries.monthly (12) and delivery_genie_runner.monthly (12, each item has runner+genie keys) — PASS.",
+    "Admin UI /admin/dynamic-pricing: pricing-tab-surge & pricing-tab-weather visible; surge-enabled-toggle clickable; surge-mode-select (native SELECT) accepts 'manual'; surge-manual-input fills 2.0; surge-save-btn persists; after reload surge-manual-input=2 — PASS.",
+    "Admin UI weather tab: weather-enabled-toggle / weather-active-toggle / weather-type-select / weather-amount-input / weather-save-btn all present and save succeeds — PASS.",
+    "Admin UI /admin/taxi-configs: 4 tabs (taxi-cfg-tab-rental_packages | personal_driver | taxi_bid | ride_profiles) render; rental-pkg-price-0 + rental-add-pkg + taxi-cfg-save-rental_packages work; pd-rate-input + bid-ttl-input + profile-allow_pets-toggle present; pd-rate-input=25 persisted across reload — PASS.",
+    "Admin UI /admin landing: store-deliveries-card + store-deliveries-total='7' + delivery-genie-runner-card + delivery-genie-runner-total='8'; 18 recharts SVG/rect elements (bar charts rendering) — PASS.",
+    "Cleanup: surge OFF, weather OFF, hourly_rate=20, ttl=30, rental 36/72/144, allow_pets=true. Estimate after cleanup: fare=12.05, surge=1.0, weather=0.0, reasons=[] — PASS."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter97_pricing_taxi_delivery.py",
+    "/app/test_reports/pytest/iter97_results.xml"
+  ],
+  "action_items": [
+    "(Optional follow-up) Click a service tile on /taxi then drive the addresses inputs to render the live-price-card and visually confirm pricing-reason-0 selector when surge is on — current verification was through backend estimate API only (which is the data source for that selector)."
+  ],
+  "critical_code_review_comments": [
+    "routes/pricing.py: compute_pricing_adjustment correctly applies surge then weather, caps multiplier at max_multiplier, rounds at 2 decimals. _id properly excluded from service_configs. Defaults are merged with stored settings (shallow merge) — fine for current schema but a nested 'tiers' write would replace the whole list (expected).",
+    "routes/taxi_configs.py: tight VALID_KEYS guard prevents arbitrary writes; public /config/taxi-options exposes only the 4 known keys; defaults merged correctly. ObjectId stripped via {'_id':0}.",
+    "AdminDynamicPricing.js + AdminTaxiConfigs.js: all interactive elements expose data-testid; native <select> for surge-mode-select and weather-type-select avoids shadcn overlay issues; persistence verified across reload.",
+    "AdminDashboard.js: store-deliveries-card and delivery-genie-runner-card consume /api/admin/analytics/delivery-monthly; recharts stacked BarChart renders runner+genie segments correctly with 12 months.",
+    "Minor: /admin/dynamic-pricing surge-enabled-toggle does not expose aria-checked attribute (current implementation uses inner span position). Already functional via click → save → reload; consider adding aria-pressed/aria-checked for assertive a11y."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter97_pricing_taxi_delivery.py (new, 7 pytest cases all PASS)"
+  ],
+  "success_rate": { "backend": "100% (7/7 pytest)", "frontend": "95% — all admin selectors validated; passenger /taxi pricing-reason-0 selector not driven end-to-end through UI (Google Places autocomplete on service-specific screen) but backend data source is proven." },
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! ; Passenger test2@example.com / TestPass123! ; Driver jean.dupont@demo.sb / Driver123!",
+  "seed_data_creation": "No new rides created. Temporarily wrote surge=manual_x2, weather=flat+5, personal_driver.hourly_rate=25, taxi_bid.offer_ttl_seconds=45, rental prices 40/80/150, allow_pets=false — ALL reverted at the end to defaults (verified via /api/config/taxi-options and /api/rides/estimate).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All admin & taxi configs are at factory defaults at handoff (surge OFF, weather OFF, hourly_rate=20, ttl=30, rental 36/72/144, allow_pets=true). The /taxi route renders the service-category picker first (TaxiHubPage 'Choisissez un service'); to test the passenger pricing-reason-0 chip end-to-end, click the 'Taxi VTC' tile to enter the booking screen, then fill pickup/destination via Google Places (ArrowDown+Enter to commit autocomplete) before the live-price-card and pricing-reason-0 appear. The surge/weather inputs use native <select> elements (page.select_option works). pytest fixture should fall back to access_token (not 'token') from /api/auth/login.",
+  "rca_of_the_issue": "No bugs. Phase B/C/D backend + admin UI behave per spec. Only nuance: the passenger /taxi page is a service-category picker; the pricing-reason-0 surge chip lives on the booking sub-screen (live-price-card) which is reached after picking 'Taxi VTC' — not on the /taxi index itself."
+}

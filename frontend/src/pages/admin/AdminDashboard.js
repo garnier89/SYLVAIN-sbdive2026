@@ -8,7 +8,7 @@ import {
   CurrencyEur, Star, ChartLine, CalendarCheck, Clock, MapPin, Trophy,
   Bell, CheckCircle, XCircle, Warning, Eye, Gear, UserCircle
 } from '@phosphor-icons/react';
-import { AreaChart, Area, PieChart, Pie, Cell,
+import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import LeafletMap from '../../components/LeafletMap';
 
@@ -18,6 +18,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ users: 0, drivers: 0, rides: 0, orders: 0, merchants: 0 });
   const [analytics, setAnalytics] = useState(null);
+  const [delivery, setDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [godsViewTab, setGodsViewTab] = useState('rides');
   const [earningsTab, setEarningsTab] = useState('today');
@@ -25,12 +26,14 @@ const AdminDashboard = () => {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, aRes] = await Promise.allSettled([
+      const [sRes, aRes, dRes] = await Promise.allSettled([
         fetch(`${API}/api/admin/stats`, { credentials: 'include' }),
         fetch(`${API}/api/admin/analytics`, { credentials: 'include' }),
+        fetch(`${API}/api/admin/analytics/delivery-monthly`, { credentials: 'include' }),
       ]);
       if (sRes.status === 'fulfilled' && sRes.value.ok) setStats(await sRes.value.json());
       if (aRes.status === 'fulfilled' && aRes.value.ok) setAnalytics(await aRes.value.json());
+      if (dRes.status === 'fulfilled' && dRes.value.ok) setDelivery(await dRes.value.json());
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }, []);
@@ -352,6 +355,46 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Delivery analytics — Store Deliveries + Delivery Genie / Runner */}
+      <div className="grid lg:grid-cols-2 gap-5" data-testid="delivery-analytics">
+        <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="store-deliveries-card">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-bold text-gray-800 text-base">Store Deliveries</h3>
+            <Storefront size={20} className="text-[#3B82F6]" weight="duotone" />
+          </div>
+          <p className="text-3xl font-black text-gray-900 mb-3" data-testid="store-deliveries-total">{delivery?.store_deliveries?.total ?? 0}</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={delivery?.store_deliveries?.monthly || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#9CA3AF' }} interval={1} />
+              <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '11px' }} />
+              <Bar dataKey="count" name="Livraisons" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="delivery-genie-runner-card">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-bold text-gray-800 text-base">Delivery Genie / Runner</h3>
+            <Package size={20} className="text-[#F59E0B]" weight="duotone" />
+          </div>
+          <p className="text-3xl font-black text-gray-900 mb-3" data-testid="delivery-genie-runner-total">{delivery?.delivery_genie_runner?.total ?? 0}</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={delivery?.delivery_genie_runner?.monthly || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#9CA3AF' }} interval={1} />
+              <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '11px' }} />
+              <Legend wrapperStyle={{ fontSize: '10px' }} />
+              <Bar dataKey="runner" name="Runner" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="genie" name="Genie" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
 
       {/* Server Statistics + Notification Alerts + Contact Requests */}
       <div className="grid lg:grid-cols-3 gap-5">

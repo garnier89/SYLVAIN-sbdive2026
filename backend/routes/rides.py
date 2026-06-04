@@ -75,6 +75,12 @@ async def estimate_ride(data: RideRequest):
 
     vtype_doc = await db.vehicle_types.find_one({"slug": data.vehicle_type, "status": "active"}, {"_id": 0})
     fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
+
+    # Dynamic pricing (AI Surge + Weather Surcharge)
+    from routes.pricing import compute_pricing_adjustment
+    adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng)
+    fare = adj["fare"]
+
     result = {
         "distance_km": round(distance, 2),
         "duration_mins": duration,
@@ -82,6 +88,9 @@ async def estimate_ride(data: RideRequest):
         "vehicle_type": data.vehicle_type,
         "currency": "EUR",
         "source": "google_maps" if route_polyline else "haversine",
+        "surge_multiplier": adj["surge_multiplier"],
+        "weather_surcharge": adj["weather_surcharge"],
+        "pricing_reasons": adj["reasons"],
     }
     if route_polyline:
         result["route_polyline"] = route_polyline
@@ -163,6 +172,11 @@ async def create_ride(data: RideRequest, request: Request):
         except Exception:
             pass
 
+    # Dynamic pricing (AI Surge + Weather Surcharge) — applied before corporate discount
+    from routes.pricing import compute_pricing_adjustment
+    pricing_adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng)
+    fare = pricing_adj["fare"]
+
     # ===== Pack C — Corporate booking validation + discount =====
     corporate_id = None
     corporate_discount_pct = 0.0
@@ -226,6 +240,8 @@ async def create_ride(data: RideRequest, request: Request):
         "pool_enabled": getattr(data, 'pool_enabled', False),
         "stops": getattr(data, 'stops', None),
         "route_polyline": route_polyline,
+        "surge_multiplier": pricing_adj["surge_multiplier"],
+        "weather_surcharge": pricing_adj["weather_surcharge"],
         "cancel_reason": None,
         "cancelled_by": None,
         "driver_name": None,
@@ -854,6 +870,10 @@ async def driver_counter_offer(ride_id: str, request: Request):
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
 
+    from routes.taxi_configs import get_taxi_config
+    bid_cfg = await get_taxi_config("taxi_bid")
+    ttl = int(bid_cfg.get("offer_ttl_seconds", OFFER_TTL_SECONDS))
+
     offer = {
         "id": f"off_{uuid.uuid4().hex[:8]}",
         "driver_id": driver["id"],
@@ -864,8 +884,8 @@ async def driver_counter_offer(ride_id: str, request: Request):
         "amount": amount,
         "status": "pending",  # pending | accepted | rejected
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=OFFER_TTL_SECONDS)).isoformat(),
-        "ttl_seconds": OFFER_TTL_SECONDS,
+        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=ttl)).isoformat(),
+        "ttl_seconds": ttl,
     }
 
     # Prevent the same driver from spamming offers: replace previous pending

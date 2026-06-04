@@ -386,6 +386,64 @@ async def save_admin_general_settings(request: Request):
     return {"message": "Settings saved", "settings": settings}
 
 
+@router.get("/analytics/delivery-monthly")
+async def get_delivery_monthly(request: Request):
+    """Monthly counts for Store Deliveries and Delivery Genie/Runner (last 12 months)."""
+    await require_role(request, ["admin"])
+
+    # Build the last 12 month buckets (oldest → newest)
+    now = datetime.now(timezone.utc)
+    y, m = now.year, now.month
+    months_back = []
+    for _ in range(12):
+        months_back.append((y, m))
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    months_back.reverse()
+    MONTH_ABBR = ["", "Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+    label = {(yy, mm): f"{MONTH_ABBR[mm]} {yy}" for (yy, mm) in months_back}
+
+    def _bucket_key(iso):
+        try:
+            d = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+            return (d.year, d.month)
+        except (TypeError, ValueError):
+            return None
+
+    # Store deliveries (orders collection)
+    store_monthly = {k: 0 for k in months_back}
+    store_total = 0
+    async for o in db.orders.find({}, {"_id": 0, "created_at": 1}):
+        store_total += 1
+        bk = _bucket_key(o.get("created_at"))
+        if bk in store_monthly:
+            store_monthly[bk] += 1
+
+    # Delivery Genie / Runner (runner_orders collection, split by service_type)
+    runner_monthly = {k: {"runner": 0, "genie": 0} for k in months_back}
+    gr_total = 0
+    async for r in db.runner_orders.find({}, {"_id": 0, "created_at": 1, "service_type": 1}):
+        gr_total += 1
+        bk = _bucket_key(r.get("created_at"))
+        if bk in runner_monthly:
+            st = "genie" if (r.get("service_type") == "genie") else "runner"
+            runner_monthly[bk][st] += 1
+
+    buckets = months_back
+    return {
+        "store_deliveries": {
+            "total": store_total,
+            "monthly": [{"month": label[k], "count": store_monthly[k]} for k in buckets],
+        },
+        "delivery_genie_runner": {
+            "total": gr_total,
+            "monthly": [{"month": label[k], "runner": runner_monthly[k]["runner"], "genie": runner_monthly[k]["genie"]} for k in buckets],
+        },
+    }
+
+
 @router.get("/analytics")
 async def get_analytics(request: Request, period: str = "week"):
     await require_role(request, ["admin"])

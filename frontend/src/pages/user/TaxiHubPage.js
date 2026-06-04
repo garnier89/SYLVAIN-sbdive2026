@@ -109,6 +109,7 @@ const TaxiHubPage = () => {
   const [schedConfig, setSchedConfig] = useState({ enabled: true, min_advance_minutes: 60, max_advance_days: 30, disabled_modes: ['pool', 'bidding'] });
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [catConfig, setCatConfig] = useState({}); // key -> { active, name }
+  const [taxiOpts, setTaxiOpts] = useState(null); // rental_packages / personal_driver / taxi_bid / ride_profiles
 
   // Scheduling allowance for the current mode (pool/bidding disabled by default)
   const modeSchedKey = mode.id === 'pool' ? 'pool' : (mode.id === 'bidding' ? 'bidding' : mode.id);
@@ -162,6 +163,7 @@ const TaxiHubPage = () => {
       (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, name: c.name }; });
       setCatConfig(map);
     }).catch(() => {});
+    configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -607,10 +609,13 @@ const TaxiHubPage = () => {
                   )}
                   {corpDiscount > 0 && <p className="text-[10px] text-emerald-400 font-bold mt-0.5">Remise entreprise -{corpDiscount}%</p>}
                   {promoDiscount > 0 && <p className="text-[10px] text-emerald-400 font-bold mt-0.5">Code promo -{promoDiscount.toFixed(2)} €</p>}
+                  {(estimate?.pricing_reasons || []).map((reason, i) => (
+                    <p key={`pr-${i}`} className="text-[10px] text-amber-400 font-bold mt-0.5" data-testid={`pricing-reason-${i}`}>⚡ {reason}</p>
+                  ))}
                 </div>
                 <div className="text-right">
                   <p className="text-4xl font-black tracking-tighter" data-testid="live-price-value">
-                    {isRental ? `${(RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.hours || 2) * 18}` : isBuddy ? `${buddyHours * 20}` : displayPrice?.toFixed(2)}<span className="text-lg"> €</span>
+                    {isRental ? `${(taxiOpts?.rental_packages?.packages?.find((p) => p.slug === rentalPkg)?.price ?? (RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.hours || 2) * 18)}` : isBuddy ? `${buddyHours * (taxiOpts?.personal_driver?.hourly_rate || 20)}` : displayPrice?.toFixed(2)}<span className="text-lg"> €</span>
                   </p>
                 </div>
               </motion.div>

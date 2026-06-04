@@ -172,6 +172,12 @@ export const adminAPI = {
   listServiceCategories: () => api.get('/admin/service-categories'),
   updateServiceCategory: (key, data) => api.put(`/admin/service-categories/${key}`, data),
   toggleServiceCategory: (key) => api.post(`/admin/service-categories/${key}/toggle`),
+  getSurge: () => api.get('/admin/pricing/surge'),
+  saveSurge: (settings) => api.put('/admin/pricing/surge', { settings }),
+  getWeather: () => api.get('/admin/pricing/weather'),
+  saveWeather: (settings) => api.put('/admin/pricing/weather', { settings }),
+  getTaxiConfig: (key) => api.get(`/admin/taxi-configs/${key}`),
+  saveTaxiConfig: (key, settings) => api.put(`/admin/taxi-configs/${key}`, { settings }),
 };
 
 // Dispatcher APIs
@@ -219,6 +225,7 @@ export const configAPI = {
   getTrackCategories: () => api.get('/config/track-categories'),
   getScheduling: () => api.get('/config/scheduling'),
   getServiceCategories: () => api.get('/service-categories'),
+  getTaxiOptions: () => api.get('/config/taxi-options'),
 };
 
 // Coupon APIs
