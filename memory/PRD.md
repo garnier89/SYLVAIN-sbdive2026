@@ -3,6 +3,12 @@
 
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Position live du coursier sur carte (suivi passager) (DONE — iter 109)
+- **Carte live du coursier** dans la page de suivi passager (`DeliveryTrackingPage`) pour colis & transport médical : marqueur coursier 🛵 + ramassage (vert) + dépôt(s)/destination (rouge), mise à jour au polling 8s + **recentrage auto** (`Recenter`/`useMap` → `panTo`).
+- **Backend** : `GET /api/parcels/{id}` et `GET /api/medical/transport/{id}` exposent `driver_location` via `_driver_live_location` (mémoire `manager` en priorité, sinon `db.drivers.current_lat/lng`). La carte n'apparaît qu'une fois le chauffeur assigné + position connue.
+- **App chauffeur** : `DeliveryJobsPage` émet la **géoloc navigateur** toutes les 10s tant qu'une mission est active (`driverAPI.updateLocation`).
+- Testé iter109 : **100% PASS (backend + frontend)** — carte masquée avant assignation, marqueurs corrects après acceptation + position, refresh au polling. Test pytest `test_parcel_live_tracking.py`. Lint clean.
+
 ## NEW - Jun 2026 - Suivi chauffeur colis multi-dépôts + transport médical (DONE — iter 108)
 - **App chauffeur — page « Livraisons & Transport »** (`/chauffeur/livraisons`, `DeliveryJobsPage`, lien dans le menu latéral) : onglets **Disponibles** / **En cours**. Le chauffeur voit les colis & transports en attente, les **accepte**, et met à jour le **statut par étape**.
   - Colis : accepté → arrivé ramassage → colis récupéré → puis **livraison par dépôt** (bouton « Marquer livré » par point) → terminé auto quand tous les dépôts livrés.

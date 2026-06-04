@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { parcelAPI, medicalAPI } from '../../services/api';
 import { ArrowLeft, Package, FirstAid, CheckCircle, Circle, FlagCheckered } from '@phosphor-icons/react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -15,6 +15,13 @@ L.Icon.Default.mergeOptions({
 const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
 const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
 const courierIcon = L.divIcon({ html: '<div style="font-size:26px;line-height:1">🛵</div>', className: 'courier-marker', iconSize: [30, 30], iconAnchor: [15, 15] });
+
+// Smoothly re-centers the map on the courier's latest position as it moves
+const Recenter = ({ lat, lng }) => {
+  const map = useMap();
+  useEffect(() => { if (lat != null && lng != null) map.panTo([lat, lng], { animate: true }); }, [lat, lng, map]);
+  return null;
+};
 
 const PARCEL_STEPS = [
   { k: 'accepted', l: 'Coursier assigné' },
@@ -86,6 +93,7 @@ const DeliveryTrackingPage = () => {
               {type === 'transport' && item.dest_lat && <Marker position={[item.dest_lat, item.dest_lng]} icon={redIcon}><Popup>Destination</Popup></Marker>}
               {type !== 'transport' && (item.stops || []).map((s, i) => (s.lat ? <Marker key={i} position={[s.lat, s.lng]} icon={redIcon}><Popup>Dépôt {i + 1}</Popup></Marker> : null))}
               {item.driver_location && <Marker position={[item.driver_location.lat, item.driver_location.lng]} icon={courierIcon}><Popup>Votre coursier</Popup></Marker>}
+              {item.driver_location && <Recenter lat={item.driver_location.lat} lng={item.driver_location.lng} />}
             </MapContainer>
           </div>
         )}
