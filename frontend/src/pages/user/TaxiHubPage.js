@@ -71,8 +71,8 @@ const TaxiHubPage = () => {
   // Scheduling allowance for the current mode (pool/bidding disabled by default)
   const modeSchedKey = mode.id === 'pool' ? 'pool' : (mode.id === 'bidding' ? 'bidding' : mode.id);
   const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(modeSchedKey);
-  // Admin can disable a Taxi mode without redeploy (service_categories[mode.id].active === false)
-  const modeDisabled = catConfig[mode.id]?.active === false;
+  // Admin can disable a Taxi mode or restrict it to time windows (service_categories)
+  const modeDisabled = catConfig[mode.id]?.available === false;
 
   const needsDropoff = !['rental', 'buddy_driver'].includes(mode.ride_type);
   const isRental = mode.ride_type === 'rental';  const isBuddy = mode.id === 'buddy_driver';
@@ -118,7 +118,7 @@ const TaxiHubPage = () => {
     configAPI.getScheduling().then((r) => r.data && setSchedConfig(r.data)).catch(() => {});
     configAPI.getServiceCategories().then((r) => {
       const map = {};
-      (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, name: c.name }; });
+      (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, available: c.available_now !== false, name: c.name }; });
       setCatConfig(map);
     }).catch(() => {});
     configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});

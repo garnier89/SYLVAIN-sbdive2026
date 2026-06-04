@@ -5,10 +5,17 @@
  */
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, Clock, Plus, Trash } from '@phosphor-icons/react';
 import { adminAPI } from '../../services/api';
 
 const GROUP_LABELS = { everyday: 'Au quotidien', time: 'Temps & Distance', special: 'Spécialisé & Inclusif' };
+const DAYS = [{ v: 0, l: 'Lun' }, { v: 1, l: 'Mar' }, { v: 2, l: 'Mer' }, { v: 3, l: 'Jeu' }, { v: 4, l: 'Ven' }, { v: 5, l: 'Sam' }, { v: 6, l: 'Dim' }];
+
+const scheduleSummary = (c) => {
+  if (!c.schedule_enabled || !(c.schedule_windows || []).length) return '24/7';
+  const n = c.schedule_windows.length;
+  return `${n} plage${n > 1 ? 's' : ''} horaire${n > 1 ? 's' : ''}`;
+};
 
 const isImage = (icon) => typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:'));
 
@@ -23,6 +30,7 @@ const AdminServiceCategories = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [editing, setEditing] = useState(null);
+  const [scheduling, setScheduling] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -91,10 +99,21 @@ const AdminServiceCategories = () => {
               </div>
               <p className="font-bold text-slate-900">{c.name}</p>
               <p className="text-[11px] text-slate-400 mb-3">{GROUP_LABELS[c.group] || c.group}</p>
-              <button onClick={() => setEditing(c)} data-testid={`svc-cat-edit-${c.key}`}
-                className="text-sm font-semibold text-violet-600 flex items-center gap-1">
-                Modifier <PencilSimple size={14} />
-              </button>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${c.schedule_enabled && (c.schedule_windows || []).length ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`} data-testid={`svc-cat-schedule-badge-${c.key}`}>
+                  <Clock size={11} weight="bold" /> {scheduleSummary(c)}
+                </span>
+              </div>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setEditing(c)} data-testid={`svc-cat-edit-${c.key}`}
+                  className="text-sm font-semibold text-violet-600 flex items-center gap-1">
+                  Modifier <PencilSimple size={14} />
+                </button>
+                <button onClick={() => setScheduling(c)} data-testid={`svc-cat-schedule-${c.key}`}
+                  className="text-sm font-semibold text-amber-600 flex items-center gap-1">
+                  Planning <Clock size={14} />
+                </button>
+              </div>
             </div>
           ))}
           {filtered.length === 0 && <p className="text-slate-400 col-span-full text-center py-8">Aucune catégorie</p>}
@@ -104,6 +123,11 @@ const AdminServiceCategories = () => {
       {editing && (
         <EditCategoryModal cat={editing} onClose={() => setEditing(null)}
           onSaved={(updated) => { setCats((cs) => cs.map((c) => (c.key === updated.key ? updated : c))); setEditing(null); }} />
+      )}
+
+      {scheduling && (
+        <ScheduleModal cat={scheduling} onClose={() => setScheduling(null)}
+          onSaved={(updated) => { setCats((cs) => cs.map((c) => (c.key === updated.key ? updated : c))); setScheduling(null); }} />
       )}
     </div>
   );
@@ -161,6 +185,91 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
         <button onClick={save} disabled={saving || !name.trim()} data-testid="svc-cat-edit-save"
           className="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
           <Check size={18} /> {saving ? 'Enregistrement…' : 'Mettre à jour'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ScheduleModal = ({ cat, onClose, onSaved }) => {
+  const [enabled, setEnabled] = useState(!!cat.schedule_enabled);
+  const [windows, setWindows] = useState(
+    (cat.schedule_windows || []).length
+      ? cat.schedule_windows.map((w) => ({ days: w.days || [], start: w.start || '07:00', end: w.end || '10:00' }))
+      : [{ days: [], start: '07:00', end: '10:00' }]
+  );
+  const [saving, setSaving] = useState(false);
+
+  const addWindow = () => setWindows((ws) => [...ws, { days: [], start: '07:00', end: '10:00' }]);
+  const removeWindow = (i) => setWindows((ws) => ws.filter((_, idx) => idx !== i));
+  const setWin = (i, patch) => setWindows((ws) => ws.map((w, idx) => (idx === i ? { ...w, ...patch } : w)));
+  const toggleDay = (i, d) => setWin(i, { days: windows[i].days.includes(d) ? windows[i].days.filter((x) => x !== d) : [...windows[i].days, d].sort() });
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const cleanWindows = windows.filter((w) => w.start && w.end);
+      const r = await adminAPI.updateServiceCategory(cat.key, {
+        schedule_enabled: enabled,
+        schedule_windows: enabled ? cleanWindows : [],
+      });
+      toast.success(enabled ? 'Planning enregistré' : 'Service disponible 24/7');
+      onSaved(r.data);
+    } catch { toast.error('Échec de l\'enregistrement'); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose} data-testid="svc-cat-schedule-modal">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-lg font-bold text-slate-900">Planning — {cat.name}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" data-testid="svc-cat-schedule-close"><X size={20} /></button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">Définissez les heures d'ouverture de ce service (fuseau Europe/Paris). En dehors des plages, il devient indisponible à la réservation.</p>
+
+        <label className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 mb-4 cursor-pointer">
+          <span className="text-sm font-semibold text-slate-800">{enabled ? 'Planning horaire activé' : 'Disponible 24/7'}</span>
+          <button onClick={() => setEnabled((v) => !v)} data-testid="svc-cat-schedule-enable-toggle"
+            className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-[#0B1426]' : 'bg-slate-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+        </label>
+
+        {enabled && (
+          <div className="space-y-3" data-testid="svc-cat-schedule-windows">
+            {windows.map((w, i) => (
+              <div key={i} className="border border-slate-200 rounded-xl p-3" data-testid={`svc-cat-window-${i}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Plage {i + 1}</span>
+                  {windows.length > 1 && (
+                    <button onClick={() => removeWindow(i)} className="text-rose-500 p-1" data-testid={`svc-cat-window-remove-${i}`}><Trash size={15} /></button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {DAYS.map((d) => (
+                    <button key={d.v} onClick={() => toggleDay(i, d.v)} data-testid={`svc-cat-window-${i}-day-${d.v}`}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${w.days.includes(d.v) ? 'bg-[#0B1426] text-white' : 'bg-slate-100 text-slate-500'}`}>{d.l}</button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 mb-2">Aucun jour sélectionné = tous les jours.</p>
+                <div className="flex items-center gap-2">
+                  <input type="time" value={w.start} onChange={(e) => setWin(i, { start: e.target.value })} data-testid={`svc-cat-window-${i}-start`}
+                    className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+                  <span className="text-slate-400 text-sm">→</span>
+                  <input type="time" value={w.end} onChange={(e) => setWin(i, { end: e.target.value })} data-testid={`svc-cat-window-${i}-end`}
+                    className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+              </div>
+            ))}
+            <button onClick={addWindow} data-testid="svc-cat-window-add" className="text-sm font-semibold text-amber-600 flex items-center gap-1">
+              <Plus size={15} /> Ajouter une plage
+            </button>
+          </div>
+        )}
+
+        <button onClick={save} disabled={saving} data-testid="svc-cat-schedule-save"
+          className="w-full mt-5 py-3 rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
+          <Check size={18} /> {saving ? 'Enregistrement…' : 'Enregistrer le planning'}
         </button>
       </div>
     </div>

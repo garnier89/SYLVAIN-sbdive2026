@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the new 'Service Category Activation Schedule' feature end-to-end via UI: admin can define multiple time windows per VTC service, the schedule badge updates correctly (24/7 vs N plages), and passenger UI properly hides scheduled-but-out-of-window services from the /taxi grid + shows unavailability banner + disabled CTA when accessed directly. All 17 service category cards expose svc-cat-schedule-badge-<key> and svc-cat-schedule-<key>; modal flow (toggle, days, start/end, add/remove window, save) works fully. Final state restored: all 17 services are 24/7 + active.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ScheduleModal.save() in AdminServiceCategories.js sends schedule_windows even when no day or empty time is given (filter only checks start && end). Backend should normalize, but consider client-side validation for clearer UX (e.g., end > start, no overlapping windows).",
+    "When re-opening ScheduleModal for a category already in 24/7 mode, the enabled toggle correctly defaults OFF; however the toggle 'on' state class detection in tests is fragile because Tailwind arbitrary-value class bg-[#0B1426] is not easily inspectable — consider adding aria-pressed / data-state on the toggle button for testability.",
+    "Toast 'Service disponible 24/7' is shown on disable-and-save — good UX. No regression observed on the existing manual Active/Inactive toggle."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100%"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! ; Rider: rider.qa@demo.sb / Rider123!",
+  "seed_data_creation": "None. Temporarily configured pool with 2 windows (22:00-23:00 Lun/Mar + 22:30-23:30) for unavailability test, then restored to 24/7.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 17 service categories were verified active + 24/7 after the test run (final state confirmed via UI scan). The unavailability flow is wired correctly: GET /api/service-categories/public returns available_now=false when current Europe/Paris time falls outside any schedule_window, TaxiModeGrid filters available !== false, TaxiHubPage shows mode-unavailable-banner + 'Indisponible' CTA disabled. Tested at ~09:40 Paris time using windows 22:00-23:00 to force unavailability.",
+  "test_results_detail": {
+    "admin_page_loads": "PASS",
+    "default_badge_pool_24_7": "PASS",
+    "all_cards_have_schedule_badge_and_button": "PASS (17/17)",
+    "schedule_modal_opens_on_pool": "PASS",
+    "enable_toggle_reveals_windows_editor": "PASS",
+    "window_0_days_start_end_configurable": "PASS",
+    "add_second_window": "PASS",
+    "save_updates_badge_to_2_plages_horaires": "PASS",
+    "passenger_taxi_grid_hides_unavailable_pool": "PASS",
+    "passenger_direct_url_shows_banner_and_disabled_cta": "PASS (banner 'Ce service est actuellement indisponible' + CTA text 'Indisponible' disabled)",
+    "disable_toggle_then_save_restores_24_7_badge": "PASS",
+    "all_services_restored_active_24_7": "PASS"
+  },
+  "rca_of_the_issue": "N/A - feature works as specified."
+}

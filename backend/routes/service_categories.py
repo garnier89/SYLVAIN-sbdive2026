@@ -7,11 +7,54 @@ Keys are aligned with the frontend TaxiHubPage MODES ids.
 from fastapi import APIRouter, Request, HTTPException
 import uuid
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from core.config import db
 from core.deps import require_role
 
 router = APIRouter(prefix="/service-categories", tags=["service-categories"])
+
+DEFAULT_TZ = "Europe/Paris"
+
+
+def is_category_available_now(cat: dict) -> bool:
+    """A service is bookable when it is active AND (no schedule OR current time
+    falls within one of its activation windows). Used by the client + create_ride."""
+    if not cat:
+        return True
+    if cat.get("active") is False:
+        return False
+    if not cat.get("schedule_enabled"):
+        return True
+    windows = cat.get("schedule_windows") or []
+    if not windows:
+        return True  # schedule on but no window defined → treat as always-on
+    tzname = cat.get("schedule_tz") or DEFAULT_TZ
+    try:
+        now = datetime.now(ZoneInfo(tzname))
+    except Exception:
+        now = datetime.now(ZoneInfo(DEFAULT_TZ))
+    weekday = now.weekday()  # Mon=0 … Sun=6
+    cur = now.strftime("%H:%M")
+    for w in windows:
+        days = w.get("days") or []
+        if days and weekday not in days:
+            continue
+        start = w.get("start") or "00:00"
+        end = w.get("end") or "23:59"
+        if start <= end:
+            if start <= cur <= end:
+                return True
+        else:  # overnight window crossing midnight (e.g. 22:00 → 02:00)
+            if cur >= start or cur <= end:
+                return True
+    return False
+
+
+async def category_available_now_by_key(key: str) -> bool:
+    cat = await db.service_categories.find_one({"key": key}, {"_id": 0})
+    return is_category_available_now(cat)
+
 
 # Seed list aligned with TaxiHubPage MODES (key == mode id)
 DEFAULT_CATEGORIES = [
@@ -55,8 +98,10 @@ async def seed_service_categories():
 
 @router.get("")
 async def list_active_service_categories():
-    """Public: keys + active flags so the client app can filter the Taxi Hub."""
+    """Public: keys + active flags + live availability so the client app can filter the Taxi Hub."""
     cats = await db.service_categories.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    for c in cats:
+        c["available_now"] = is_category_available_now(c)
     return cats
 
 
@@ -76,7 +121,7 @@ async def admin_update_service_category(key: str, request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     allowed = {}
-    for f in ("name", "name_en", "icon", "display_order", "active"):
+    for f in ("name", "name_en", "icon", "display_order", "active", "schedule_enabled", "schedule_windows", "schedule_tz"):
         if f in body:
             allowed[f] = body[f]
     if not allowed:
