@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { parcelAPI, medicalAPI, driverAPI } from '@/api/endpoints';
-import useRideSocket from '@/hooks/useRideSocket';
+import { useDriverMissions } from '@/contexts/DriverMissionsContext';
 
 const PARCEL_NEXT: Record<string, string> = { accepted: 'arrived_pickup', arrived_pickup: 'picked_up', picked_up: 'in_transit' };
 const PARCEL_LABEL: Record<string, string> = { pending: 'En attente', accepted: 'Acceptée', arrived_pickup: 'Arrivé au ramassage', picked_up: 'Colis récupéré', in_transit: 'En livraison', completed: 'Terminée' };
@@ -40,36 +40,14 @@ const Badge = ({ label, tone = 'blue' }: { label: string; tone?: 'blue' | 'red' 
 };
 
 export default function DriverDeliveryJobsScreen() {
+  const {
+    availParcels, availTransports, activeParcels, activeTransports,
+    loading, availableCount, activeCount, latestEvent, refresh,
+  } = useDriverMissions();
   const [tab, setTab] = useState<'available' | 'active'>('available');
-  const [availParcels, setAvailParcels] = useState<any[]>([]);
-  const [availTransports, setAvailTransports] = useState<any[]>([]);
-  const [activeParcels, setActiveParcels] = useState<any[]>([]);
-  const [activeTransports, setActiveTransports] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<{ text: string; tone: 'success' | 'urgent' } | null>(null);
   const bannerAnim = useRef(new Animated.Value(0)).current;
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [ap, at, mp, mt] = await Promise.all([
-        parcelAPI.driverAvailable(),
-        medicalAPI.transportDriverAvailable(),
-        parcelAPI.driverActive(),
-        medicalAPI.transportDriverActive(),
-      ]);
-      setAvailParcels(ap.data || []);
-      setAvailTransports(at.data || []);
-      setActiveParcels(mp.data || []);
-      setActiveTransports(mt.data || []);
-    } catch {
-      // keep previous data
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
+  const lastTsRef = useRef(0);
 
   const showBanner = useCallback((text: string, tone: 'success' | 'urgent') => {
     setBanner({ text, tone });
@@ -79,22 +57,13 @@ export default function DriverDeliveryJobsScreen() {
     }, 4500);
   }, [bannerAnim]);
 
-  // Live push of new missions broadcast to drivers
-  const onSocket = useCallback((msg: any) => {
-    if (msg?.type === 'new_parcel') {
-      showBanner(`📦 Nouvelle livraison · ${fEuro(msg.fare)} €`, 'success');
-      refresh();
-    } else if (msg?.type === 'new_transport') {
-      const urgent = msg.urgency && msg.urgency !== 'normal';
-      showBanner(`🚑 Nouveau transport médical${urgent ? ' (URGENT)' : ''} · ${fEuro(msg.fare)} €`, urgent ? 'urgent' : 'success');
-      refresh();
+  // Show a banner when a new mission event arrives (driven by shared context WS)
+  useEffect(() => {
+    if (latestEvent && latestEvent.ts !== lastTsRef.current) {
+      lastTsRef.current = latestEvent.ts;
+      showBanner(latestEvent.text, latestEvent.tone);
     }
-  }, [refresh, showBanner]);
-
-  useRideSocket({ enabled: true, onMessage: onSocket });
-
-  const activeCount = activeParcels.length + activeTransports.length;
-  const availableCount = availParcels.length + availTransports.length;
+  }, [latestEvent, showBanner]);
 
   // Broadcast live position while there are active deliveries (passenger live map)
   useEffect(() => {

@@ -43,6 +43,11 @@
 - Endpoints ajoutés à `mobile/src/api/endpoints.ts` : `parcelAPI` (driver/available, driver/active, accept, status, deliverLeg) + `medicalAPI` (transport driver/available, active, accept, status). Libellé i18n `tabs.jobs` (fr/en).
 - Vérifié : `tsc --noEmit` ✅ (0 erreur), logique miroir du flux web déjà testé, endpoints backend déjà validés. ⚠️ Test e2e device via Expo Go (non automatisable ici).
 
+## UPDATE - Jun 2026 - Mobile Chauffeur : badge compteur de missions sur l'onglet « Missions »
+- Nouveau contexte `mobile/src/contexts/DriverMissionsContext.tsx` : **une seule connexion WS** pour toute la session chauffeur (évite le conflit `client_id` côté `ConnectionManager`), maintient les listes dispo/actives + compteurs + poll fallback (25s) + `latestEvent` pour la bannière.
+- L'onglet **« Missions »** affiche une **pastille rouge** (`tabBarBadge`) = nombre de missions disponibles, mis à jour en temps réel par `new_parcel`/`new_transport`. Le chauffeur voit les nouvelles courses sans ouvrir l'écran.
+- `DriverDeliveryJobsScreen` refactorisé pour **consommer le contexte** (plus de WS/fetch locaux). `DriverNavigator` enveloppé par `DriverMissionsProvider`. Vérifié `tsc --noEmit` ✅.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)
