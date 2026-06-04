@@ -28,6 +28,7 @@ import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import DriverRidesScreen from '@/screens/driver/DriverRidesScreen';
 import DriverEarningsScreen from '@/screens/driver/DriverEarningsScreen';
 import DriverActiveRideScreen from '@/screens/driver/DriverActiveRideScreen';
+import DriverDeliveryJobsScreen from '@/screens/driver/DriverDeliveryJobsScreen';
 
 import MerchantHomeScreen from '@/screens/merchant/MerchantHomeScreen';
 
@@ -103,6 +104,7 @@ function DriverTabsNav() {
     <DriverTabs.Navigator screenOptions={tabBarOptions}>
       <DriverTabs.Screen name="Home" component={DriverHomeScreen} options={{ title: t('tabs.home'), tabBarIcon: tabIcon('home') }} />
       <DriverTabs.Screen name="Rides" component={DriverRidesScreen} options={{ title: t('tabs.rides'), tabBarIcon: tabIcon('car-sport') }} />
+      <DriverTabs.Screen name="Jobs" component={DriverDeliveryJobsScreen} options={{ title: t('tabs.jobs'), tabBarIcon: tabIcon('cube') }} />
       <DriverTabs.Screen name="Earnings" component={DriverEarningsScreen} options={{ title: t('tabs.earnings'), tabBarIcon: tabIcon('cash') }} />
       <DriverTabs.Screen name="ProfileTab" component={ProfileScreen} options={{ title: t('tabs.profile'), tabBarIcon: tabIcon('person') }} />
     </DriverTabs.Navigator>

@@ -102,6 +102,24 @@ export const voiceAPI = {
     api.post('/voice/parse-booking', { transcript }),
 };
 
+export const parcelAPI = {
+  driverAvailable: () => api.get('/parcels/driver/available'),
+  driverActive: () => api.get('/parcels/driver/active'),
+  accept: (id: string) => api.post(`/parcels/${id}/accept`),
+  updateStatus: (id: string, status: string) =>
+    api.post(`/parcels/${id}/status`, { status }),
+  deliverLeg: (id: string, index: number) =>
+    api.post(`/parcels/${id}/legs/${index}/deliver`),
+};
+
+export const medicalAPI = {
+  transportDriverAvailable: () => api.get('/medical/transport/driver/available'),
+  transportDriverActive: () => api.get('/medical/transport/driver/active'),
+  acceptTransport: (id: string) => api.post(`/medical/transport/${id}/accept`),
+  updateTransportStatus: (id: string, status: string) =>
+    api.post(`/medical/transport/${id}/status`, { status }),
+};
+
 export const adminAPI = {
   dashboard: () => api.get('/admin/dashboard'),
 };

@@ -36,6 +36,13 @@
 ## UPDATE - Jun 2026 - Boost : recharge contextuelle (portefeuille / SB PayGo SSO)
 - Dans la modale de paiement du boost, chaque moyen avec **solde insuffisant** affiche un bouton de recharge dédié : **« Recharger mon portefeuille → »** (vers `/wallet`) ou **« Recharger SB PayGo → »** (redirection SSO `POST /finance/sbpaygo/sso-link` vers sbpaygo.com). Évite l'abandon du boost faute de solde. Vérifié (lint + screenshot + SSO 200). `realEstateAPI.sbpaygoSsoLink()` ajouté.
 
+## NEW - Jun 2026 - App Mobile Expo Chauffeur : écran « Missions Livraison & Transport »
+- Portage de la page web `DeliveryJobsPage` vers React Native : nouvel écran `mobile/src/screens/driver/DriverDeliveryJobsScreen.tsx` + onglet **« Missions »** (icône cube) dans la nav chauffeur (`RootNavigator`).
+- Fonctionnalités identiques au web : onglets **Disponibles / En cours**, cartes **colis** + **transport médical** (badge urgence), Accepter, avancement de statut (ramassage → récupéré → livraison ; en route → patient à bord → arrivé → terminé), **livraison par dépôt** (multi-stops), **appel client/patient** (`Linking tel:`).
+- **Push WS live** des nouvelles missions (`new_parcel` / `new_transport`) via `useRideSocket` → bannière animée in-app + refresh auto. **Position live** diffusée (`expo-location` watchPosition → `driverAPI.updateLocation`) tant qu'une mission est en cours (carte passager).
+- Endpoints ajoutés à `mobile/src/api/endpoints.ts` : `parcelAPI` (driver/available, driver/active, accept, status, deliverLeg) + `medicalAPI` (transport driver/available, active, accept, status). Libellé i18n `tabs.jobs` (fr/en).
+- Vérifié : `tsc --noEmit` ✅ (0 erreur), logique miroir du flux web déjà testé, endpoints backend déjà validés. ⚠️ Test e2e device via Expo Go (non automatisable ici).
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)
