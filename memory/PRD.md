@@ -26,6 +26,13 @@
 - **Plan de boost GRATUIT (offre de lancement)** : plan à prix 0 **« Lancement — Gratuit 7 jours 🎉 »** seedé par pays (idempotent à chaque démarrage). Le checkout contourne Stripe si `price <= 0` → applique directement `is_featured`+`featured_until`+`featured_priority` et enregistre une `payment_transactions` `paid/free`. Côté UI : plan affiché en vert « Gratuit », toast « 🎉 Annonce boostée gratuitement ». L'admin peut créer d'autres plans gratuits (prix 0).
 - Vérifié E2E httpx (free boost applique le boost sans Stripe ✅, unread-count + badge + marquage vu ✅) + screenshot (modale affiche les 4 plans dont le gratuit en vert). Lint clean.
 
+## UPDATE - Jun 2026 - Boost Immobilier : paiement Portefeuille / SB PayGo (Stripe masqué, gratuit retiré)
+- **Paiement du boost via le compte marchand SB Drive VTC** : la mention « Stripe » est retirée de l'UI. L'annonceur paie via **son portefeuille** (`db.wallets`) ou **SB PayGo** (`db.sbpaygo_wallets`).
+- **Plan GRATUIT supprimé** : `seed_real_estate_boost_plans()` purge tout plan `price<=0` au démarrage. Plans payants uniquement (4,99 / 8,99 / 14,99 €).
+- **Modale boost en 2 étapes** : (1) choix du plan → (2) choix du moyen de paiement avec **soldes affichés** + état « insuffisant » + lien « Recharger mon portefeuille ». Débit atomique (`{balance: {$gte}}`), boost appliqué, transaction enregistrée (`payment_transactions` method=wallet|sbpaygo, paid).
+- **Backend** : `GET /real-estate/boost/payment-methods` (soldes wallet + sbpaygo), `POST /real-estate/listings/{id}/boost/pay` {plan_id, payment_method}. Anciens endpoints Stripe (`boost/checkout`, `boost/status`) supprimés. Import `emergentintegrations` retiré de `real_estate.py`.
+- Vérifié E2E httpx : paiement portefeuille (100€→95,01€, is_featured ✅), SB PayGo solde insuffisant → 400 ✅, 0 plan gratuit restant. Screenshot UI OK (aucun « Stripe »). Lint clean.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)

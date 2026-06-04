@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { realEstateAPI } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useWebSocket } from '../../../hooks/useWebSocket';
-import { ArrowLeft, Plus, PencilSimple, Trash, Buildings, Envelope, CurrencyEur, Phone, Star, Rocket, X } from '@phosphor-icons/react';
+import { ArrowLeft, Plus, PencilSimple, Trash, Buildings, Envelope, CurrencyEur, Phone, Star, Rocket, X, Wallet, Bank, CaretLeft } from '@phosphor-icons/react';
 import { fmtPrice, catLabel, STATUS_META } from './realEstateConstants';
 
-const planPrice = (p) => (p.price > 0
-  ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: p.currency || 'EUR', maximumFractionDigits: 2 }).format(p.price)
-  : 'Gratuit');
+const money = (v, cur = 'EUR') => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur, maximumFractionDigits: 2 }).format(v || 0);
 
 const MyPropertiesPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { on } = useWebSocket(user?.id);
-  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState('listings');
   const [listings, setListings] = useState([]);
   const [inquiries, setInquiries] = useState([]);
@@ -24,6 +21,9 @@ const MyPropertiesPage = () => {
   const [boostFor, setBoostFor] = useState(null); // listing being boosted
   const [boostPlans, setBoostPlans] = useState([]);
   const [boostLoading, setBoostLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [payMethods, setPayMethods] = useState([]);
+  const [paying, setPaying] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,28 +44,6 @@ const MyPropertiesPage = () => {
     return () => unsub();
   }, [on, load]);
 
-  // Handle Stripe boost return (?boost_session=...)
-  useEffect(() => {
-    const sid = searchParams.get('boost_session');
-    if (!sid) return;
-    let tries = 0;
-    const poll = async () => {
-      try {
-        const r = await realEstateAPI.boostStatus(sid);
-        if (r.data.payment_status === 'paid') {
-          toast.success('🚀 Votre annonce est boostée et sponsorisée !', { duration: 6000 });
-          setSearchParams({}, { replace: true });
-          load();
-          return;
-        }
-      } catch { /* ignore */ }
-      if (tries++ < 6) setTimeout(poll, 2000);
-      else { setSearchParams({}, { replace: true }); }
-    };
-    poll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const setStatus = async (id, status) => { try { await realEstateAPI.setStatus(id, status); toast.success('Statut mis à jour'); load(); } catch { toast.error('Échec'); } };
   const remove = async (id) => { if (!window.confirm('Supprimer cette annonce ?')) return; try { await realEstateAPI.remove(id); toast.success('Annonce supprimée'); load(); } catch { toast.error('Échec'); } };
   const viewInquiries = async (id) => {
@@ -74,21 +52,20 @@ const MyPropertiesPage = () => {
   };
 
   const openBoost = async (listing) => {
-    setBoostFor(listing); setBoostPlans([]); setBoostLoading(true);
-    try { const r = await realEstateAPI.boostPlans(listing.country); setBoostPlans(r.data || []); }
-    catch { toast.error('Aucun plan disponible'); } finally { setBoostLoading(false); }
-  };
-  const startBoost = async (planId) => {
-    setBoostLoading(true);
+    setBoostFor(listing); setBoostPlans([]); setSelectedPlan(null); setPayMethods([]); setBoostLoading(true);
     try {
-      const r = await realEstateAPI.boostCheckout(boostFor.id, planId, window.location.origin);
-      if (r.data.free) {
-        toast.success('🎉 Annonce boostée gratuitement (offre de lancement) !', { duration: 6000 });
-        setBoostFor(null); setBoostLoading(false); load();
-        return;
-      }
-      window.location.href = r.data.url; // redirect to Stripe checkout
-    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec du paiement'); setBoostLoading(false); }
+      const [p, m] = await Promise.all([realEstateAPI.boostPlans(listing.country), realEstateAPI.boostPaymentMethods()]);
+      setBoostPlans(p.data || []); setPayMethods(m.data?.methods || []);
+    } catch { toast.error('Aucun plan disponible'); } finally { setBoostLoading(false); }
+  };
+  const closeBoost = () => { setBoostFor(null); setSelectedPlan(null); };
+  const payBoost = async (methodId) => {
+    setPaying(true);
+    try {
+      await realEstateAPI.boostPay(boostFor.id, selectedPlan.id, methodId);
+      toast.success('🚀 Votre annonce est boostée et sponsorisée !', { duration: 6000 });
+      closeBoost(); load();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec du paiement'); } finally { setPaying(false); }
   };
 
   return (
@@ -188,33 +165,73 @@ const MyPropertiesPage = () => {
         )}
       </div>
 
-      {/* Boost plan selection modal */}
+      {/* Boost: 2-step modal (plan selection -> payment method) */}
       {boostFor && (
-        <div className="fixed inset-0 bg-black/50 z-40 flex items-end sm:items-center justify-center" onClick={() => setBoostFor(null)}>
+        <div className="fixed inset-0 bg-black/50 z-40 flex items-end sm:items-center justify-center" onClick={closeBoost}>
           <div className="bg-white w-full max-w-[480px] rounded-t-3xl sm:rounded-3xl p-5 space-y-3" onClick={(e) => e.stopPropagation()} data-testid="boost-modal">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-lg flex items-center gap-2"><Rocket size={20} weight="fill" className="text-orange-500" /> Booster l'annonce</h3>
-                <p className="text-xs text-gray-500 truncate max-w-[300px]">{boostFor.title}</p>
+              <div className="flex items-center gap-2">
+                {selectedPlan && <button onClick={() => setSelectedPlan(null)} className="text-gray-400" data-testid="boost-back"><CaretLeft size={20} /></button>}
+                <div>
+                  <h3 className="font-bold text-lg flex items-center gap-2"><Rocket size={20} weight="fill" className="text-orange-500" /> {selectedPlan ? 'Choisir le paiement' : "Booster l'annonce"}</h3>
+                  <p className="text-xs text-gray-500 truncate max-w-[280px]">{boostFor.title}</p>
+                </div>
               </div>
-              <button onClick={() => setBoostFor(null)} className="text-gray-400" data-testid="boost-close"><X size={22} /></button>
+              <button onClick={closeBoost} className="text-gray-400" data-testid="boost-close"><X size={22} /></button>
             </div>
-            <p className="text-sm text-gray-600">Passez en tête de liste avec le badge <span className="font-bold text-orange-500">★ Sponsorisé</span> pendant la durée choisie.</p>
-            {boostLoading && boostPlans.length === 0 && <p className="text-center text-gray-400 py-6">Chargement des offres...</p>}
-            {!boostLoading && boostPlans.length === 0 && <p className="text-center text-gray-400 py-6" data-testid="boost-no-plans">Aucune offre disponible pour cette zone.</p>}
-            <div className="space-y-2">
-              {boostPlans.map((pl) => (
-                <button key={pl.id} onClick={() => startBoost(pl.id)} disabled={boostLoading} data-testid={`boost-plan-${pl.id}`}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-colors disabled:opacity-60 ${pl.price > 0 ? 'border-gray-200 hover:border-orange-400 hover:bg-orange-50' : 'border-green-300 bg-green-50 hover:bg-green-100'}`}>
-                  <div className="text-left">
-                    <p className="font-bold text-gray-900 text-sm">{pl.label || `Boost ${pl.duration_days} jours`}</p>
-                    <p className="text-xs text-gray-500">{pl.duration_days} jours en tête de liste</p>
-                  </div>
-                  <span className={`font-extrabold ${pl.price > 0 ? 'text-orange-500' : 'text-green-600'}`}>{planPrice(pl)}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] text-gray-400 text-center">Paiement sécurisé via Stripe.</p>
+
+            {/* Step 1: plans */}
+            {!selectedPlan && (
+              <>
+                <p className="text-sm text-gray-600">Passez en tête de liste avec le badge <span className="font-bold text-orange-500">★ Sponsorisé</span> pendant la durée choisie.</p>
+                {boostLoading && boostPlans.length === 0 && <p className="text-center text-gray-400 py-6">Chargement des offres...</p>}
+                {!boostLoading && boostPlans.length === 0 && <p className="text-center text-gray-400 py-6" data-testid="boost-no-plans">Aucune offre disponible pour cette zone.</p>}
+                <div className="space-y-2">
+                  {boostPlans.map((pl) => (
+                    <button key={pl.id} onClick={() => setSelectedPlan(pl)} data-testid={`boost-plan-${pl.id}`}
+                      className="w-full flex items-center justify-between p-3.5 rounded-xl border border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                      <div className="text-left">
+                        <p className="font-bold text-gray-900 text-sm">{pl.label || `Boost ${pl.duration_days} jours`}</p>
+                        <p className="text-xs text-gray-500">{pl.duration_days} jours en tête de liste</p>
+                      </div>
+                      <span className="font-extrabold text-orange-500">{money(pl.price, pl.currency)}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-400 text-center">Paiement sécurisé via votre portefeuille ou SB PayGo.</p>
+              </>
+            )}
+
+            {/* Step 2: payment method */}
+            {selectedPlan && (
+              <>
+                <div className="bg-orange-50 rounded-xl p-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-800">{selectedPlan.label || `Boost ${selectedPlan.duration_days} jours`}</span>
+                  <span className="font-extrabold text-orange-500">{money(selectedPlan.price, selectedPlan.currency)}</span>
+                </div>
+                <p className="text-sm font-semibold text-gray-700">Payer avec :</p>
+                <div className="space-y-2">
+                  {payMethods.map((m) => {
+                    const insufficient = m.balance < selectedPlan.price;
+                    const Icon = m.id === 'wallet' ? Wallet : Bank;
+                    return (
+                      <button key={m.id} disabled={insufficient || paying} onClick={() => payBoost(m.id)} data-testid={`boost-pay-${m.id}`}
+                        className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-colors ${insufficient ? 'border-gray-200 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:border-[#FF5000] hover:bg-orange-50'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${m.id === 'wallet' ? 'bg-[#FF5000]/10 text-[#FF5000]' : 'bg-blue-50 text-blue-600'}`}><Icon size={20} weight="duotone" /></div>
+                        <div className="flex-1 text-left">
+                          <p className="font-bold text-gray-900 text-sm">{m.label}</p>
+                          <p className={`text-xs ${insufficient ? 'text-red-500' : 'text-gray-500'}`}>Solde : {money(m.balance, m.currency)}{insufficient ? ' · insuffisant' : ''}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {payMethods.some((m) => m.balance < selectedPlan.price) && (
+                  <button onClick={() => navigate('/wallet')} className="w-full text-sm font-semibold text-[#FF5000] py-2" data-testid="boost-topup">Recharger mon portefeuille →</button>
+                )}
+                {paying && <p className="text-center text-gray-400 text-sm">Paiement en cours...</p>}
+              </>
+            )}
           </div>
         </div>
       )}

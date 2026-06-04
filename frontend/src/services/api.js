@@ -344,10 +344,10 @@ export const realEstateAPI = {
   myUnreadCount: () => api.get('/real-estate/my/unread-count'),
   createInquiry: (id, data) => api.post(`/real-estate/listings/${id}/inquiries`, data),
   listingInquiries: (id) => api.get(`/real-estate/listings/${id}/inquiries`),
-  // boost (self-checkout)
+  // boost (paiement portefeuille / SB PayGo)
   boostPlans: (country) => api.get('/real-estate/boost-plans', { params: country ? { country } : {} }),
-  boostCheckout: (id, planId, originUrl) => api.post(`/real-estate/listings/${id}/boost/checkout`, { plan_id: planId, origin_url: originUrl }),
-  boostStatus: (sessionId) => api.get(`/real-estate/boost/status/${sessionId}`),
+  boostPaymentMethods: () => api.get('/real-estate/boost/payment-methods'),
+  boostPay: (id, planId, paymentMethod) => api.post(`/real-estate/listings/${id}/boost/pay`, { plan_id: planId, payment_method: paymentMethod }),
   // admin
   adminList: (status) => api.get('/admin/real-estate/listings', { params: status ? { status } : {} }),
   adminToggleStatus: (id) => api.post(`/admin/real-estate/listings/${id}/toggle-status`),

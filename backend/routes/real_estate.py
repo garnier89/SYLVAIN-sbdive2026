@@ -5,15 +5,11 @@ others browse/filter and contact the owner (call or in-app inquiry/offer).
 App owner monetises via paid "featured" plans (admin-managed).
 """
 from fastapi import APIRouter, Request, HTTPException
-import os
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from pydantic import BaseModel, Field
 
-from emergentintegrations.payments.stripe.checkout import (
-    StripeCheckout, CheckoutSessionRequest, CheckoutSessionResponse,
-)
 from core.config import db
 from core.deps import get_current_user
 from core.websocket import manager
@@ -23,13 +19,6 @@ router = APIRouter(prefix="/real-estate", tags=["real-estate"])
 LISTING_TYPES = {"sale", "rent"}
 CATEGORIES = {"residential", "commercial", "land"}
 STATUSES = {"active", "sold", "rented", "inactive"}
-
-STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
-
-
-def _get_stripe(request: Request):
-    host_url = str(request.base_url).rstrip("/")
-    return StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=f"{host_url}/api/webhook/stripe")
 
 
 async def _expire_featured():
@@ -299,14 +288,30 @@ async def get_boost_plans(request: Request, country: Optional[str] = None):
     return plans
 
 
-@router.post("/listings/{listing_id}/boost/checkout")
-async def boost_checkout(listing_id: str, request: Request):
+@router.get("/boost/payment-methods")
+async def boost_payment_methods(request: Request):
+    """Return the user's available balances for boost payment (wallet + SB PayGo)."""
+    user = await get_current_user(request)
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    sb = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {
+        "methods": [
+            {"id": "wallet", "label": "Mon portefeuille", "balance": (w or {}).get("balance", 0.0), "currency": (w or {}).get("currency", "EUR")},
+            {"id": "sbpaygo", "label": "SB PayGo", "balance": (sb or {}).get("balance", 0.0), "currency": (sb or {}).get("currency", "EUR")},
+        ],
+    }
+
+
+@router.post("/listings/{listing_id}/boost/pay")
+async def boost_pay(listing_id: str, request: Request):
+    """Pay for a boost using the user's wallet or SB PayGo balance, then feature the listing."""
     user = await get_current_user(request)
     body = await request.json()
     plan_id = body.get("plan_id")
-    origin_url = body.get("origin_url")
-    if not origin_url:
-        raise HTTPException(status_code=400, detail="Origin URL required")
+    method = body.get("payment_method")  # 'wallet' | 'sbpaygo'
+    if method not in ("wallet", "sbpaygo"):
+        raise HTTPException(status_code=400, detail="Méthode de paiement invalide")
+
     listing = await db.property_listings.find_one({"id": listing_id}, {"_id": 0})
     if not listing:
         raise HTTPException(status_code=404, detail="Annonce introuvable")
@@ -316,92 +321,51 @@ async def boost_checkout(listing_id: str, request: Request):
     if not plan:
         raise HTTPException(status_code=404, detail="Plan de boost introuvable")
 
-    # Free launch plan (price == 0): apply boost immediately, skip Stripe
-    if float(plan["price"]) <= 0:
-        now = datetime.now(timezone.utc)
-        until = (now + timedelta(days=int(plan["duration_days"]))).isoformat()
-        await db.property_listings.update_one(
-            {"id": listing_id},
-            {"$set": {"is_featured": True, "featured_until": until, "featured_priority": int(plan.get("priority", 5))}},
-        )
-        await db.payment_transactions.insert_one({
-            "id": f"pay_{uuid.uuid4().hex[:12]}",
-            "session_id": f"free_{uuid.uuid4().hex[:12]}",
-            "user_id": user["id"], "amount": 0.0, "currency": str(plan["currency"]).upper(),
-            "type": "real_estate_boost", "payment_status": "paid", "status": "complete",
-            "metadata": {"listing_id": listing_id, "plan_id": plan_id, "duration_days": plan["duration_days"], "priority": plan.get("priority", 5), "free": True},
-            "created_at": now.isoformat(), "updated_at": now.isoformat(),
-        })
-        return {"free": True, "listing_id": listing_id}
-
-    success_url = f"{origin_url}/real-estate/my?boost_session={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{origin_url}/real-estate/{listing_id}"
-    stripe = _get_stripe(request)
-    checkout_req = CheckoutSessionRequest(
-        amount=float(plan["price"]),
-        currency=str(plan["currency"]).lower(),
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata={
-            "user_id": user["id"],
-            "listing_id": listing_id,
-            "plan_id": plan_id,
-            "type": "real_estate_boost",
-            "duration_days": str(plan["duration_days"]),
-            "priority": str(plan.get("priority", 5)),
-        },
-    )
-    session: CheckoutSessionResponse = await stripe.create_checkout_session(checkout_req)
-    now = datetime.now(timezone.utc).isoformat()
-    await db.payment_transactions.insert_one({
-        "id": f"pay_{uuid.uuid4().hex[:12]}",
-        "session_id": session.session_id,
-        "user_id": user["id"],
-        "amount": float(plan["price"]),
-        "currency": str(plan["currency"]).upper(),
-        "type": "real_estate_boost",
-        "payment_status": "pending",
-        "status": "initiated",
-        "metadata": {"listing_id": listing_id, "plan_id": plan_id, "duration_days": plan["duration_days"], "priority": plan.get("priority", 5)},
-        "created_at": now,
-        "updated_at": now,
-    })
-    return {"url": session.url, "session_id": session.session_id}
-
-
-@router.get("/boost/status/{session_id}")
-async def boost_status(session_id: str, request: Request):
-    user = await get_current_user(request)
-    tx = await db.payment_transactions.find_one(
-        {"session_id": session_id, "user_id": user["id"], "type": "real_estate_boost"}, {"_id": 0}
-    )
-    if not tx:
-        raise HTTPException(status_code=404, detail="Transaction introuvable")
-    if tx.get("payment_status") == "paid":
-        return {"status": tx["status"], "payment_status": "paid", "listing_id": tx["metadata"]["listing_id"]}
-
-    stripe = _get_stripe(request)
-    try:
-        status = await stripe.get_checkout_status(session_id)
-    except Exception:
-        return {"status": tx["status"], "payment_status": tx["payment_status"], "listing_id": tx["metadata"]["listing_id"]}
-
+    amount = round(float(plan["price"]), 2)
     now = datetime.now(timezone.utc)
-    if status and status.payment_status == "paid":
-        # Atomic: only apply boost once
-        result = await db.payment_transactions.update_one(
-            {"session_id": session_id, "payment_status": {"$ne": "paid"}},
-            {"$set": {"payment_status": "paid", "status": "complete", "updated_at": now.isoformat()}},
+    ts = now.isoformat()
+
+    # Atomically debit the chosen wallet only if balance is sufficient
+    if method == "wallet":
+        res = await db.wallets.update_one(
+            {"user_id": user["id"], "balance": {"$gte": amount}},
+            {"$inc": {"balance": -amount}},
         )
-        if result.modified_count > 0:
-            meta = tx["metadata"]
-            until = (now + timedelta(days=int(meta["duration_days"]))).isoformat()
-            await db.property_listings.update_one(
-                {"id": meta["listing_id"]},
-                {"$set": {"is_featured": True, "featured_until": until, "featured_priority": int(meta.get("priority", 5))}},
-            )
-        return {"status": "complete", "payment_status": "paid", "listing_id": tx["metadata"]["listing_id"]}
-    return {"status": tx["status"], "payment_status": tx.get("payment_status", "pending"), "listing_id": tx["metadata"]["listing_id"]}
+        if res.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Solde portefeuille insuffisant")
+        w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+        new_balance = round(w["balance"], 2)
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
+            "amount": -amount, "balance_after": new_balance,
+            "description": f"Boost annonce — {plan.get('label') or plan['duration_days']+' j'}",
+            "status": "completed", "created_at": ts,
+        })
+    else:  # sbpaygo
+        res = await db.sbpaygo_wallets.update_one(
+            {"user_id": user["id"], "balance": {"$gte": amount}},
+            {"$inc": {"balance": -amount},
+             "$push": {"transactions": {"id": f"tx_{uuid.uuid4().hex[:10]}", "type": "boost", "amount": -amount, "description": "Boost annonce immobilière", "created_at": ts}}},
+        )
+        if res.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Solde SB PayGo insuffisant")
+        sb = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+        new_balance = round(sb["balance"], 2)
+
+    # Apply the boost
+    until = (now + timedelta(days=int(plan["duration_days"]))).isoformat()
+    await db.property_listings.update_one(
+        {"id": listing_id},
+        {"$set": {"is_featured": True, "featured_until": until, "featured_priority": int(plan.get("priority", 5))}},
+    )
+    await db.payment_transactions.insert_one({
+        "id": f"pay_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "amount": amount,
+        "currency": str(plan["currency"]).upper(), "type": "real_estate_boost",
+        "payment_method": method, "payment_status": "paid", "status": "complete",
+        "metadata": {"listing_id": listing_id, "plan_id": plan_id, "duration_days": plan["duration_days"], "priority": plan.get("priority", 5)},
+        "created_at": ts, "updated_at": ts,
+    })
+    return {"success": True, "listing_id": listing_id, "balance": new_balance, "method": method}
 
 
 # ── Admin ─────────────────────────────────────────────────────────────────
@@ -529,29 +493,19 @@ SEED_TIERS = [
 
 
 async def seed_real_estate_boost_plans():
-    if await db.real_estate_boost_plans.count_documents({}) == 0:
-        docs = []
-        for code, label, currency in SEED_COUNTRIES:
-            for days, price, priority, plan_label in SEED_TIERS:
-                docs.append({
-                    "id": f"boost_{uuid.uuid4().hex[:10]}",
-                    "country": code, "country_label": label, "currency": currency,
-                    "duration_days": days, "price": price, "priority": priority,
-                    "label": plan_label, "active": True,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                })
-        if docs:
-            await db.real_estate_boost_plans.insert_many(docs)
-
-    # Ensure a FREE launch plan exists per country (idempotent — runs each startup).
-    # Free = price 0, applied without Stripe. Lower priority than paid tiers.
+    # Remove any legacy free (price 0) plans — boost is now paid-only (wallet / SB PayGo).
+    await db.real_estate_boost_plans.delete_many({"price": {"$lte": 0}})
+    if await db.real_estate_boost_plans.count_documents({}) > 0:
+        return
+    docs = []
     for code, label, currency in SEED_COUNTRIES:
-        exists = await db.real_estate_boost_plans.find_one({"country": code, "price": 0})
-        if not exists:
-            await db.real_estate_boost_plans.insert_one({
+        for days, price, priority, plan_label in SEED_TIERS:
+            docs.append({
                 "id": f"boost_{uuid.uuid4().hex[:10]}",
                 "country": code, "country_label": label, "currency": currency,
-                "duration_days": 7, "price": 0, "priority": 3,
-                "label": "Lancement — Gratuit 7 jours 🎉", "active": True,
+                "duration_days": days, "price": price, "priority": priority,
+                "label": plan_label, "active": True,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
+    if docs:
+        await db.real_estate_boost_plans.insert_many(docs)
