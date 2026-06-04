@@ -1,5 +1,11 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Modes Taxi activables/désactivables depuis l'admin (verrou complet) (DONE — iter 102)
+- **Pilotage de l'offre VTC sans redéploiement** : la collection `service_categories` (17 clés = IDs des modes TaxiHub) était déjà togglable via `/admin/service-categories` et masquait les modes inactifs dans la **grille**. AJOUT : verrouillage complet de la **réservation** d'un mode désactivé.
+- **Backend** (`rides.py` create_ride) : nouveau champ `RideRequest.mode_id`. Si `service_categories[mode_id].active === false` → **HTTP 400** « Le service « X » est actuellement indisponible. » (defense in depth, même via deep-link/API directe).
+- **Frontend** (`TaxiHubPage.js`) : `modeDisabled = catConfig[mode.id]?.active === false`. Bannière `mode-unavailable-banner` dans la vue réservation + **CTA désactivé** (label « Indisponible ») + garde dans `onSubmit`. `mode_id` envoyé dans le payload.
+- Testé iter102 : **10/10 scénarios frontend PASS** (toggle admin → masquage grille + bannière + CTA bloqué + backend 400 ; ré-activation → tout revient) + backend curl (400/200). État restauré (tous services actifs).
+
 ## NEW - Jun 2026 - Refonte gros fichiers : TaxiHubPage + AdminDashboard découpés (DONE — iter 101)
 - **TaxiHubPage.js** : 861 → **628 lignes**. Extraction dans `src/pages/user/taxihub/` : `taxiHubConstants.js` (MODES/CATS/RENTAL_PACKAGES/ASSIST_OPTIONS/PAYMENT_METHODS), `TaxiModeGrid.jsx` (vue grille 16 modes), `TaxiModePanels.jsx` (panneaux par mode : datetime/flight/rental/buddy/pets/assist/corporate/contact/bidding), `TaxiCheckoutSection.jsx` (profil de course + paiement + promo).
 - **AdminDashboard.js** : 609 → **490 lignes**. Extraction dans `src/pages/admin/dashboard/DashboardCards.jsx` : `KPICard`, `EarningBox`, `ServiceMiniCard`, `BuySellRentCard`.
