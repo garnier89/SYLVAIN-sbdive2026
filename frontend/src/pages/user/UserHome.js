@@ -522,7 +522,7 @@ const UserHome = () => {
         <div className="space-y-3">
           {/* Real Estate */}
           <button
-            onClick={() => navigate('/marketplace/real-estate')}
+            onClick={() => navigate('/real-estate')}
             className="w-full rounded-2xl overflow-hidden bg-gradient-to-r from-[#FF4500] to-[#E03D00] flex items-stretch h-[90px] text-left"
             data-testid="marketplace-realestate-btn"
           >

@@ -85,6 +85,7 @@ const sidebarConfig = [
         { label: 'Paramètres', path: '/admin/bids' },
       ]},
       { icon: Tag, label: 'Acheter, Vendre & Louer', key: 'marketplace', children: [
+        { label: 'Immobilier — Annonces', path: '/admin/real-estate' },
         { label: 'Paramètres', path: '/admin/marketplace' },
       ]},
       { icon: FirstAid, label: 'Services médicaux', key: 'medical', children: [

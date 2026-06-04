@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only E2E test of the new Immobilier (Real Estate) module on SB Drive VTC. All 8 user scenarios validated end-to-end via Playwright on the public preview URL (mobile container, 480px). Browse with Acheter/Louer toggle + category chips + debounced search filter; Publier flow creates a listing and redirects to Mes biens; PropertyDetailPage renders price/title and sticky contact bar; Inquiry modal (offer/message/phone) succeeds when sent from a different account (qatest_re@demo.sb created via /api/auth/register); MyPropertiesPage tabs work (Mes biens / Mes demandes (1)), Modifier prefilled + update works, Demandes expands inline inquiry list, Marquer vendu/loué updates status, Supprimer removes the listing. Admin panel /admin/real-estate renders Immobilier table with status filter chips (re-admin-filter-all/active/inactive/sold), feature (annonce sponsorisée + star), toggle status (Active→Inactive), and delete all functional.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "RealEstatePage (browse)", "issues": ["Property cards have no photo placeholder image when no base64 uploaded — just a faint building icon on light grey. Acceptable but a more polished placeholder would help. Currency formatting (EUR fr-FR) renders correctly: '285 000 €'."]},
+      {"screen": "PropertyDetailPage", "issues": ["When listing has no photo, large grey hero area takes ~250px with only a thin icon — consider tighter layout for media-less listings."]},
+      {"screen": "MyPropertiesPage", "issues": ["Filter chip labels admin side are in French ('Toutes/Active/Inactive/Vendu/Loué') while data-testids use English suffixes — fine for testing, but be aware re-admin-filter-sold maps to label 'Vendu'."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Inquiry phone field accepts any string (no E.164 validation client-side). Backend accepts +33611112222. Consider client-side phone format hint.",
+    "MyPropertiesPage 'Marquer vendu/loué' button label is contextual but the toast text 'Statut mis à jour' is generic — could specify 'Annonce marquée vendue/louée' for better UX feedback.",
+    "Delete uses browser confirm() dialog (handled via page.on('dialog')). Consider a styled modal for consistency with the rest of the app.",
+    "Backend rejects self-inquiry with 400 (correct). Frontend does NOT hide the 'Faire une offre' button for the listing owner — clicking would show a backend 400 error toast. Either hide the contact bar or short-circuit client-side when listing.user_id === current user id.",
+    "Successful inquiry toast 'Votre demande a été envoyée au propriétaire !' is good. Modal closes properly."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (8/8 scenarios)"},
+  "test_credentials": "rider.qa@demo.sb / Rider123! (owner) ; qatest_re@demo.sb / Test123! (created during test via POST /api/auth/register for inquiry scenario) ; admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Created via UI: 1 listing 'TEST QA Villa moderne EDITED' (later deleted via Suppr.). Existing seeded prop_1d3481bccfdb 'Appartement T3 lumineux' (Active → toggled Inactive by admin → featured). Created user account qatest_re@demo.sb via /api/auth/register (POST) for cross-user inquiry. One inquiry record persisted on prop_1d3481bccfdb (offer 275000, msg 'TEST QA inquiry from other user').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Real Estate module is functional end-to-end. Admin toggle currently left prop_1d3481bccfdb in Inactive + Featured state — main agent may want to reset. To test inquiry, must use a different account than the listing owner (backend returns 400 on self-inquiry). The frontend does NOT hide 'Faire une offre' for owners — flagged as minor UX issue. All data-testids match the request exactly. Listing prop_1d3481bccfdb owner = rider.qa@demo.sb. Use qatest_re@demo.sb / Test123! for cross-user flows.",
+  "rca of the issue": "No bugs. All 8 frontend scenarios pass. One UX improvement candidate: hide 'Faire une offre' / contact modal when current user is the listing owner (backend already prevents self-inquiry with 400)."
+}

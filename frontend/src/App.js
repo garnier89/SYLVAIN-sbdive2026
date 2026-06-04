@@ -50,6 +50,10 @@ import MedicalAppointmentPage from './pages/user/MedicalAppointmentPage';
 import MedicalTransportPage from './pages/user/MedicalTransportPage';
 import DeliveryTrackingPage from './pages/user/DeliveryTrackingPage';
 import DeliveryJobsPage from './pages/driver/DeliveryJobsPage';
+import RealEstatePage from './pages/user/realestate/RealEstatePage';
+import PropertyDetailPage from './pages/user/realestate/PropertyDetailPage';
+import PostPropertyPage from './pages/user/realestate/PostPropertyPage';
+import MyPropertiesPage from './pages/user/realestate/MyPropertiesPage';
 import BiddingPage from './pages/user/BiddingPage';
 import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
 import AdvancedTaxiBookingPage from './pages/user/AdvancedTaxiBookingPage';
@@ -134,6 +138,7 @@ import AdminTopDriversSettings from './pages/admin/AdminTopDriversSettings';
 import AdminDbBackup from './pages/admin/AdminDbBackup';
 import AdminNegotiationGapReport from './pages/admin/AdminNegotiationGapReport';
 import AdminFeaturedListings from './pages/admin/AdminFeaturedListings';
+import AdminRealEstate from './pages/admin/AdminRealEstate';
 import AdminPaymentMethods from './pages/admin/AdminPaymentMethods';
 import AdminSbPayGoZones from './pages/admin/AdminSbPayGoZones';
 import TopDriversPage from './pages/TopDriversPage';
@@ -244,6 +249,11 @@ const AppRouter = () => {
       <Route path="/medical/appointment" element={<ProtectedRoute allowedRoles={['user']}><MedicalAppointmentPage /></ProtectedRoute>} />
       <Route path="/medical/transport" element={<ProtectedRoute allowedRoles={['user']}><MedicalTransportPage /></ProtectedRoute>} />
       <Route path="/track/:type/:id" element={<ProtectedRoute allowedRoles={['user']}><DeliveryTrackingPage /></ProtectedRoute>} />
+      <Route path="/real-estate" element={<ProtectedRoute allowedRoles={['user']}><RealEstatePage /></ProtectedRoute>} />
+      <Route path="/real-estate/post" element={<ProtectedRoute allowedRoles={['user']}><PostPropertyPage /></ProtectedRoute>} />
+      <Route path="/real-estate/edit/:id" element={<ProtectedRoute allowedRoles={['user']}><PostPropertyPage /></ProtectedRoute>} />
+      <Route path="/real-estate/my" element={<ProtectedRoute allowedRoles={['user']}><MyPropertiesPage /></ProtectedRoute>} />
+      <Route path="/real-estate/:id" element={<ProtectedRoute allowedRoles={['user']}><PropertyDetailPage /></ProtectedRoute>} />
       <Route path="/chauffeur/livraisons" element={<ProtectedRoute allowedRoles={['driver']}><DeliveryJobsPage /></ProtectedRoute>} />
       <Route path="/bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
       <Route path="/services-bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
@@ -390,6 +400,7 @@ const AppRouter = () => {
         <Route path="db-backup" element={<AdminDbBackup />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
         <Route path="featured-listings" element={<AdminFeaturedListings />} />
+        <Route path="real-estate" element={<AdminRealEstate />} />
         <Route path="kiosks" element={<AdminKiosks />} />
         <Route path="acl" element={<AdminACL />} />
         <Route path="audit-logs" element={<AdminAuditLogs />} />

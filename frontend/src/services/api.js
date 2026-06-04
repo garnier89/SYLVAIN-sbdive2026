@@ -332,6 +332,24 @@ export const homeCategoriesAPI = {
   reorder: (orderedIds) => api.post('/home-categories/admin/reorder', { ordered_ids: orderedIds }),
 };
 
+export const realEstateAPI = {
+  list: (params) => api.get('/real-estate/listings', { params }),
+  get: (id) => api.get(`/real-estate/listings/${id}`),
+  create: (data) => api.post('/real-estate/listings', data),
+  update: (id, data) => api.put(`/real-estate/listings/${id}`, data),
+  remove: (id) => api.delete(`/real-estate/listings/${id}`),
+  setStatus: (id, status) => api.post(`/real-estate/listings/${id}/status`, { status }),
+  myListings: () => api.get('/real-estate/my/listings'),
+  myInquiries: () => api.get('/real-estate/my/inquiries'),
+  createInquiry: (id, data) => api.post(`/real-estate/listings/${id}/inquiries`, data),
+  listingInquiries: (id) => api.get(`/real-estate/listings/${id}/inquiries`),
+  // admin
+  adminList: (status) => api.get('/admin/real-estate/listings', { params: status ? { status } : {} }),
+  adminToggleStatus: (id) => api.post(`/admin/real-estate/listings/${id}/toggle-status`),
+  adminFeature: (id) => api.post(`/admin/real-estate/listings/${id}/feature`),
+  adminRemove: (id) => api.delete(`/admin/real-estate/listings/${id}`),
+};
+
 export const placesAPI = {
   getSaved: () => api.get('/places/saved'),
   setSaved: (kind, place) => api.put(`/places/saved/${kind}`, place),
