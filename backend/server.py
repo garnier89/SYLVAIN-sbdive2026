@@ -54,6 +54,7 @@ from routes.pricing import router as pricing_router, public_router as pricing_pu
 from routes.taxi_configs import router as taxi_configs_router, public_router as taxi_configs_public_router
 from routes.taxi_extra import admin_router as taxi_extra_admin_router, public_router as taxi_extra_public_router, seed_taxi_extra
 from routes.parcels import router as parcels_router
+from routes.chat import router as chat_router
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -536,6 +537,7 @@ api_router.include_router(taxi_extra_admin_router)
 api_router.include_router(taxi_extra_public_router)
 api_router.include_router(driver_pro_router)
 api_router.include_router(parcels_router)
+api_router.include_router(chat_router)
 
 app.include_router(api_router)
 

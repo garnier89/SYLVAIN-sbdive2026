@@ -274,6 +274,12 @@ export const parcelAPI = {
 };
 
 // Medical module APIs (prise de RDV + transport médical / ambulance)
+export const chatAPI = {
+  messages: (refType, refId, after) => api.get(`/chat/${refType}/${refId}/messages`, { params: after ? { after } : {} }),
+  send: (refType, refId, text) => api.post(`/chat/${refType}/${refId}/messages`, { text }),
+  unread: (refType, refId) => api.get(`/chat/${refType}/${refId}/unread`),
+};
+
 export const medicalAPI = {
   listDoctors: (specialty) => api.get('/medical/doctors', { params: specialty && specialty !== 'all' ? { specialty } : {} }),
   createAppointment: (data) => api.post('/medical/appointments', data),
