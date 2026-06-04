@@ -107,6 +107,7 @@ export const rideAPI = {
   rate: (id, data) => api.post(`/rides/${id}/rate`, data),
   getActive: () => api.get('/rides/active/current'),
   getAvailable: () => api.get('/rides/pending/available'),
+  updateRoute: (id, data) => api.post(`/rides/${id}/update-route`, data),
 };
 
 // Order APIs
@@ -166,6 +167,8 @@ export const adminAPI = {
   updateSettings: (settings) => api.put('/admin/settings', { settings }),
   listTickets: () => api.get('/support/tickets'),
   replyTicket: (id, message) => api.post(`/support/tickets/${id}/reply`, { message }),
+  getServiceConfig: (key) => api.get(`/admin/service-config/${key}`),
+  saveServiceConfig: (key, settings) => api.put(`/admin/service-config/${key}`, { settings }),
 };
 
 // Dispatcher APIs
@@ -211,6 +214,7 @@ export const configAPI = {
   getCancelReasons: (userType) => api.get('/config/cancel-reasons', { params: userType ? { user_type: userType } : {} }),
   getMasterCategories: () => api.get('/config/master-categories'),
   getTrackCategories: () => api.get('/config/track-categories'),
+  getScheduling: () => api.get('/config/scheduling'),
 };
 
 // Coupon APIs

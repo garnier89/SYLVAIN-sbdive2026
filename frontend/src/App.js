@@ -169,6 +169,7 @@ import BankDetailsPage from './pages/driver/BankDetailsPage';
 import DriverEarningsStatsPage from './pages/driver/DriverEarningsStatsPage';
 import DriverGalleryPage from './pages/driver/DriverGalleryPage';
 import AdminCancellationReasonsPage from './pages/admin/AdminCancellationReasonsPage';
+import AdminScheduling from './pages/admin/AdminScheduling';
 
 import './index.css';
 
@@ -352,6 +353,7 @@ const AppRouter = () => {
         <Route path="master-services" element={<AdminMasterServices />} />
         <Route path="cancel-reasons" element={<AdminCancellationReasonsPage />} />
         <Route path="cancel-reasons-legacy" element={<AdminCancelReasons />} />
+        <Route path="scheduling" element={<AdminScheduling />} />
         <Route path="email-templates" element={<AdminEmailTemplates />} />
         <Route path="sms-templates" element={<AdminSmsTemplates />} />
         <Route path="sos-requests" element={<AdminSosRequests />} />

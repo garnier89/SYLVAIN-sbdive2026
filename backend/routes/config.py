@@ -6,6 +6,44 @@ from core.deps import get_current_user, require_role
 
 router = APIRouter(prefix="/config", tags=["configuration"])
 
+# ── Scheduling (programmer une course) configuration ──────────────────────
+# Stored in service_configs under service_key="scheduling".
+# disabled_modes: liste des modes où la planification n'est PAS autorisée
+# (par défaut Pool et Enchères, conformément à la logique métier V3Cube).
+DEFAULT_SCHEDULING = {
+    "enabled": True,
+    "min_advance_minutes": 60,
+    "max_advance_days": 30,
+    "disabled_modes": ["pool", "bidding"],
+}
+
+
+async def get_scheduling_config():
+    """Merge persisted admin settings over the safe defaults."""
+    doc = await db.service_configs.find_one({"service_key": "scheduling"}, {"_id": 0})
+    settings = (doc or {}).get("settings") or {}
+    cfg = {**DEFAULT_SCHEDULING, **settings}
+    # Sanitize types
+    cfg["enabled"] = bool(cfg.get("enabled", True))
+    try:
+        cfg["min_advance_minutes"] = max(0, int(cfg.get("min_advance_minutes", 60)))
+    except (TypeError, ValueError):
+        cfg["min_advance_minutes"] = 60
+    try:
+        cfg["max_advance_days"] = max(1, int(cfg.get("max_advance_days", 30)))
+    except (TypeError, ValueError):
+        cfg["max_advance_days"] = 30
+    if not isinstance(cfg.get("disabled_modes"), list):
+        cfg["disabled_modes"] = DEFAULT_SCHEDULING["disabled_modes"]
+    return cfg
+
+
+@router.get("/scheduling")
+async def get_scheduling():
+    """Public scheduling config — consumed by the booking hub to gate the
+    'Programmer plus tard' option per mode and enforce the min advance time."""
+    return await get_scheduling_config()
+
 
 @router.get("/app")
 async def get_app_config():

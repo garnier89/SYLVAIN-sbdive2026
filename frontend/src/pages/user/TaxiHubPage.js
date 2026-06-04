@@ -17,7 +17,8 @@ import {
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import MapLocationPicker from '../../components/MapLocationPicker';
-import { corporateAPI, couponAPI, placesAPI } from '../../services/api';
+import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
+import { corporateAPI, couponAPI, placesAPI, configAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -105,6 +106,12 @@ const TaxiHubPage = () => {
   const [locating, setLocating] = useState(false);
   const [buddyHours, setBuddyHours] = useState(4);
   const [mapPicker, setMapPicker] = useState({ open: false, target: 'dropoff' });
+  const [schedConfig, setSchedConfig] = useState({ enabled: true, min_advance_minutes: 60, max_advance_days: 30, disabled_modes: ['pool', 'bidding'] });
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Scheduling allowance for the current mode (pool/bidding disabled by default)
+  const modeSchedKey = mode.id === 'pool' ? 'pool' : (mode.id === 'bidding' ? 'bidding' : mode.id);
+  const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(modeSchedKey);
 
   const needsDropoff = !['rental', 'buddy_driver'].includes(mode.ride_type);
   const isRental = mode.ride_type === 'rental';
@@ -148,12 +155,31 @@ const TaxiHubPage = () => {
   useEffect(() => {
     placesAPI.getSaved().then((r) => setSavedPlaces(r.data || { recent: [] })).catch(() => {});
     detectCurrentLocation(false);
+    configAPI.getScheduling().then((r) => r.data && setSchedConfig(r.data)).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // If scheduling not allowed for this mode, force "now"
+  useEffect(() => {
+    if (!schedulingAllowed && pickupTiming === 'later') setPickupTiming('now');
+  }, [schedulingAllowed, pickupTiming]);
+
+  // Auto-detect departure when the user starts on the destination (if pickup empty)
+  const ensurePickupDetected = useCallback(() => {
+    if (!pickup?.lat && !locating) detectCurrentLocation(false);
+  }, [pickup, locating, detectCurrentLocation]);
 
   const applySavedDestination = (place) => {
     if (!place?.address) return;
     setDropoff({ address: place.address, lat: place.lat, lng: place.lng });
+  };
+
+  const formatScheduled = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' }) +
+      ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
   const saveCurrentDestinationAs = async (kind) => {
@@ -372,7 +398,11 @@ const TaxiHubPage = () => {
               {topMenu === 'timing' && (
                 <div className="absolute z-30 mt-1 left-0 right-0 bg-white text-[#0B1426] rounded-xl shadow-xl overflow-hidden">
                   <button onClick={() => { setPickupTiming('now'); setTopMenu(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50" data-testid="timing-now">Ramassage maintenant</button>
-                  <button onClick={() => { setPickupTiming('later'); setTopMenu(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-t" data-testid="timing-later">Programmer plus tard</button>
+                  {schedulingAllowed ? (
+                    <button onClick={() => { setPickupTiming('later'); setTopMenu(null); setCalendarOpen(true); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 border-t" data-testid="timing-later">Programmer plus tard</button>
+                  ) : (
+                    <div className="px-3 py-2.5 text-xs text-slate-400 border-t" data-testid="timing-later-disabled">Planification indisponible pour ce mode</div>
+                  )}
                 </div>
               )}
             </div>
@@ -452,7 +482,11 @@ const TaxiHubPage = () => {
           {pickupTiming === 'later' && (
             <div className="mb-3" data-testid="timing-datetime">
               <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Date & heure de ramassage</label>
-              <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="timing-datetime-input" />
+              <button onClick={() => setCalendarOpen(true)} data-testid="timing-datetime-trigger"
+                className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2.5 mt-1 text-sm text-left flex items-center justify-between hover:border-[#0B1426]">
+                <span className={scheduledAt ? 'text-[#0B1426] font-semibold' : 'text-slate-400'}>{formatScheduled(scheduledAt) || 'Choisir une date'}</span>
+                <CalendarPlus size={16} className="text-[#FFC107]" />
+              </button>
             </div>
           )}
           {/* Passenger contact when "other" */}
@@ -482,7 +516,7 @@ const TaxiHubPage = () => {
                 {needsDropoff && (
                   <div className="border-l-4 border-[#FFC107] pl-3 py-1">
                     <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><FlagCheckered size={11} /> Destination</label>
-                    <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
+                    <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} onFocus={ensurePickupDetected} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
                   </div>
                 )}
               </div>
@@ -583,7 +617,11 @@ const TaxiHubPage = () => {
               {mode.panel === 'datetime' && (
                 <div data-testid="panel-datetime" className="mb-2">
                   <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Date & heure</label>
-                  <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="datetime-input" />
+                  <button onClick={() => setCalendarOpen(true)} data-testid="datetime-trigger"
+                    className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2.5 mt-1 text-sm text-left flex items-center justify-between hover:border-[#0B1426]">
+                    <span className={scheduledAt ? 'text-[#0B1426] font-semibold' : 'text-slate-400'}>{formatScheduled(scheduledAt) || 'Choisir une date'}</span>
+                    <CalendarPlus size={16} className="text-[#FFC107]" />
+                  </button>
                 </div>
               )}
               {mode.panel === 'flight' && (
@@ -726,6 +764,15 @@ const TaxiHubPage = () => {
       </div>
       </>
       )}
+
+      <ScheduleCalendarModal
+        open={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        minAdvanceMinutes={schedConfig.min_advance_minutes}
+        maxAdvanceDays={schedConfig.max_advance_days}
+        initialValue={scheduledAt}
+        onConfirm={(iso) => { setScheduledAt(iso); if (mode.panel !== 'datetime') setPickupTiming('later'); setCalendarOpen(false); }}
+      />
 
       <MapLocationPicker
         open={mapPicker.open}

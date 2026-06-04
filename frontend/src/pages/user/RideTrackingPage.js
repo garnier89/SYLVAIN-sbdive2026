@@ -13,6 +13,7 @@ import RideTrackingMap from './ride-tracking/RideTrackingMap';
 import SearchingRadar from '../../components/SearchingRadar';
 import DriverInfoCard from './ride-tracking/DriverInfoCard';
 import DriverEnRouteView from './ride-tracking/DriverEnRouteView';
+import RouteEditModal from './ride-tracking/RouteEditModal';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -59,6 +60,7 @@ const RideTrackingPage = () => {
   const [poolEnabled, setPoolEnabled] = useState(false);
   const [poolLoading, setPoolLoading] = useState(false);
   const [statusDialog, setStatusDialog] = useState(null);
+  const [showRouteEdit, setShowRouteEdit] = useState(false);
   const prevStatusRef = useRef(null);
 
   const togglePool = useCallback(async () => {
@@ -283,6 +285,13 @@ const RideTrackingPage = () => {
           onShare={handleShare}
           onSos={() => { toast.error("Alerte d'urgence envoyée au support et à vos contacts."); navigate('/safety'); }}
           onCancel={() => (canCancel ? setShowCancel(true) : toast.info('La course est déjà en cours'))}
+          onEditDest={() => setShowRouteEdit(true)}
+        />
+        <RouteEditModal
+          open={showRouteEdit}
+          ride={ride}
+          onClose={() => setShowRouteEdit(false)}
+          onUpdated={(updated) => setRide((prev) => ({ ...prev, ...updated }))}
         />
         <CancelRideModal
           open={showCancel}

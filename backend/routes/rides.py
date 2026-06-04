@@ -97,6 +97,37 @@ async def estimate_ride(data: RideRequest):
 @router.post("", response_model=RideResponse)
 async def create_ride(data: RideRequest, request: Request):
     user = await get_current_user(request)
+
+    # ── Scheduling restrictions (Programmer une course) ──────────────────
+    if getattr(data, "scheduled_at", None):
+        from routes.config import get_scheduling_config
+        sched_cfg = await get_scheduling_config()
+        ride_type = getattr(data, "ride_type", "instant")
+        is_pool = bool(getattr(data, "pool_enabled", False))
+        is_bidding = ride_type == "bidding"
+        disabled = sched_cfg.get("disabled_modes", [])
+        mode_key = "pool" if is_pool else ("bidding" if is_bidding else ride_type)
+        if not sched_cfg.get("enabled", True):
+            raise HTTPException(status_code=400, detail="La planification des courses est actuellement désactivée.")
+        if is_pool and "pool" in disabled:
+            raise HTTPException(status_code=400, detail="La planification n'est pas disponible pour les courses Pool.")
+        if mode_key in disabled:
+            raise HTTPException(status_code=400, detail="La planification n'est pas disponible pour ce mode de réservation.")
+        # Validate min advance & max horizon
+        try:
+            sched_dt = datetime.fromisoformat(str(data.scheduled_at).replace("Z", "+00:00"))
+            if sched_dt.tzinfo is None:
+                sched_dt = sched_dt.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Date de planification invalide.")
+        now = datetime.now(timezone.utc)
+        min_adv = sched_cfg.get("min_advance_minutes", 60)
+        if sched_dt < now + timedelta(minutes=min_adv):
+            raise HTTPException(status_code=400, detail=f"La course doit être planifiée au moins {min_adv} minutes à l'avance.")
+        max_days = sched_cfg.get("max_advance_days", 30)
+        if sched_dt > now + timedelta(days=max_days):
+            raise HTTPException(status_code=400, detail=f"La course ne peut pas être planifiée au-delà de {max_days} jours.")
+
     # Distance through optional intermediate stops: pickup -> stops[] -> dropoff
     stop_points = [(s.get("lat"), s.get("lng")) for s in (data.stops or []) if isinstance(s, dict) and s.get("lat") and s.get("lng")]
     route = [(data.pickup_lat, data.pickup_lng)] + stop_points + [(data.dropoff_lat, data.dropoff_lng)]
@@ -283,6 +314,94 @@ async def update_proposed_fare(ride_id: str, request: Request):
         "duration_mins": ride.get("duration_mins"),
     })
     return {"message": "Tarif augmenté et renvoyé aux chauffeurs", "proposed_fare": new_fare}
+
+
+@router.post("/{ride_id}/update-route")
+async def update_ride_route(ride_id: str, request: Request):
+    """In-ride modification: the passenger can change the departure/destination
+    addresses or add/remove intermediate stops even after the driver has accepted
+    or the ride has started. Recomputes distance/fare/polyline and notifies the
+    assigned driver via the ride WS room."""
+    user = await get_current_user(request)
+    body = await request.json()
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if ride["status"] not in ["pending", "accepted", "arriving", "in_progress"]:
+        raise HTTPException(status_code=400, detail="La course ne peut plus être modifiée")
+
+    in_progress = ride["status"] == "in_progress"
+
+    # New values fall back to current ride values
+    pickup_lat = body.get("pickup_lat", ride["pickup_lat"])
+    pickup_lng = body.get("pickup_lng", ride["pickup_lng"])
+    pickup_address = body.get("pickup_address", ride["pickup_address"])
+    dropoff_lat = body.get("dropoff_lat", ride["dropoff_lat"])
+    dropoff_lng = body.get("dropoff_lng", ride["dropoff_lng"])
+    dropoff_address = body.get("dropoff_address", ride["dropoff_address"])
+    stops = body.get("stops", ride.get("stops")) or []
+
+    # The pickup point cannot change once the trip is underway
+    pickup_changed = (pickup_lat != ride["pickup_lat"] or pickup_lng != ride["pickup_lng"])
+    if in_progress and pickup_changed:
+        raise HTTPException(status_code=400, detail="Le point de départ ne peut pas être modifié une fois la course commencée")
+
+    # Recompute distance / duration / fare / polyline through stops
+    stop_points = [(s.get("lat"), s.get("lng")) for s in stops if isinstance(s, dict) and s.get("lat") and s.get("lng")]
+    route = [(pickup_lat, pickup_lng)] + stop_points + [(dropoff_lat, dropoff_lng)]
+    distance = sum(
+        calculate_distance(route[i][0], route[i][1], route[i + 1][0], route[i + 1][1])
+        for i in range(len(route) - 1)
+    )
+    duration = int(distance * 3)
+    vtype_doc = await db.vehicle_types.find_one({"slug": ride["vehicle_type"], "status": "active"}, {"_id": 0})
+    fare = calculate_fare(distance, ride["vehicle_type"], duration, vtype_doc)
+
+    route_polyline = ride.get("route_polyline")
+    gmaps_key = os.environ.get("GOOGLE_MAPS_KEY")
+    if gmaps_key and pickup_lat and dropoff_lat:
+        try:
+            params = {
+                "origin": f"{pickup_lat},{pickup_lng}",
+                "destination": f"{dropoff_lat},{dropoff_lng}",
+                "key": gmaps_key, "language": "fr", "units": "metric",
+            }
+            if stop_points:
+                params["waypoints"] = "|".join(f"{lat},{lng}" for lat, lng in stop_points)
+            gresp = requests.get("https://maps.googleapis.com/maps/api/directions/json", params=params, timeout=5)
+            gjson = gresp.json()
+            if gjson.get("status") == "OK" and gjson.get("routes"):
+                route_polyline = gjson["routes"][0].get("overview_polyline", {}).get("points")
+                legs = gjson["routes"][0]["legs"]
+                distance = sum(leg["distance"]["value"] for leg in legs) / 1000
+                duration = int(sum(leg["duration"]["value"] for leg in legs) / 60)
+                fare = calculate_fare(distance, ride["vehicle_type"], duration, vtype_doc)
+        except Exception:
+            pass
+
+    update = {
+        "pickup_lat": pickup_lat, "pickup_lng": pickup_lng, "pickup_address": pickup_address,
+        "dropoff_lat": dropoff_lat, "dropoff_lng": dropoff_lng, "dropoff_address": dropoff_address,
+        "stops": stops or None,
+        "distance_km": round(distance, 2),
+        "duration_mins": duration,
+        "estimated_fare": fare,
+        "route_polyline": route_polyline,
+        "route_updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.rides.update_one({"id": ride_id}, {"$set": update})
+
+    # Notify the assigned driver (and passenger) in the ride room
+    await manager.send_to_ride_room(ride_id, {
+        "type": "route_updated",
+        "ride_id": ride_id,
+        **update,
+    })
+
+    updated = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    return updated
 
 
 @router.get("/{ride_id}")

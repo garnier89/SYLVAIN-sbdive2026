@@ -66,7 +66,7 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
                   <p className="text-[11px] text-gray-400">Déposer</p>
                   <p className="text-sm font-bold text-gray-900 truncate" data-testid="enroute-dropoff">{ride.dropoff_address}</p>
                 </div>
-                {!inProgress && onEditDest && (
+                {onEditDest && (
                   <button onClick={onEditDest} className="text-gray-400 flex-shrink-0" data-testid="edit-dest-btn"><PencilSimple size={20} /></button>
                 )}
               </div>

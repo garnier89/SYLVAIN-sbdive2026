@@ -29,6 +29,7 @@ const GooglePlacesInput = ({
   inputClassName = '',
   testId = 'places-input',
   darkMode = false,
+  onFocus,
 }) => {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
@@ -82,6 +83,7 @@ const GooglePlacesInput = ({
         placeholder={placeholder}
         value={localValue}
         onChange={handleChange}
+        onFocus={onFocus}
         className={`${base} ${inputClassName}`}
         data-testid={testId}
         autoComplete="off"

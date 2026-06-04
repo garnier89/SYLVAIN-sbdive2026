@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import {
   Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots, ChatCircle,
   Gift, Plus, CalendarCheck, List
 } from '@phosphor-icons/react';
-import LeafletMap from '../../components/LeafletMap';
+import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
 import { decodePolyline } from '../../utils/polyline';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
@@ -165,7 +166,13 @@ const DriverHome = () => {
         else setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
       }
     });
-    return () => { unsub1(); unsub2(); unsub3(); };
+    const unsub4 = on('route_updated', (msg) => {
+      if (currentRide && msg.ride_id === currentRide.id) {
+        setCurrentRide(prev => prev ? { ...prev, ...msg } : null);
+        toast.info('Le passager a modifié l\'itinéraire');
+      }
+    });
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
   }, [on, currentRide, isOnline]);
 
   useEffect(() => {
@@ -351,13 +358,13 @@ const DriverHome = () => {
 
       {/* MAP */}
       <div className="flex-1 relative" style={{ height: '45vh' }}>
-        <LeafletMap
+        <AdminGoogleMap
           center={mapCenter}
           zoom={15}
           driver={mapCenter}
           pickup={currentRide ? { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng } : undefined}
           dropoff={currentRide ? { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng } : undefined}
-          waypoints={(currentRide?.stops || []).filter((s) => s?.lat)}
+          markers={(currentRide?.stops || []).filter((s) => s?.lat).map((s, i) => ({ id: `wp-${i}`, lat: s.lat, lng: s.lng, label: String(i + 1), color: '#64748B' }))}
           routePath={currentRide ? (
             decodePolyline(currentRide.route_polyline).length
               ? decodePolyline(currentRide.route_polyline)
@@ -367,7 +374,7 @@ const DriverHome = () => {
                 { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng },
               ]
           ) : []}
-          heatPoints={showHeatmap ? heatPoints : []}
+          heatmapData={showHeatmap ? heatPoints.map((p) => [p.lat, p.lng, p.count || 1]) : undefined}
         />
         {/* Heat View toggle button */}
         <button

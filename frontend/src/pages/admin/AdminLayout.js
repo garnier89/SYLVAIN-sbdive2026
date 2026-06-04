@@ -8,7 +8,7 @@ import {
   MapPinArea, Path, CalendarCheck, Star, ChartBar, MapPin, Eye, Fire,
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
-  Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power,
+  Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
   Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase
 } from '@phosphor-icons/react';
 
@@ -201,6 +201,7 @@ const sidebarConfig = [
     title: 'PARAMÈTRES & UTILITAIRES',
     items: [
       { icon: Gear, label: 'Paramètres généraux', path: '/admin/settings' },
+      { icon: Clock, label: 'Planification des courses', path: '/admin/scheduling' },
       { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-methods' },
       { icon: HandCoins, label: 'Zones SB PayGo', path: '/admin/sbpaygo-zones' },
       { icon: Wrench, label: 'Services principaux', path: '/admin/master-services' },
