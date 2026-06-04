@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend regression testing of the TaxiHubPage.js and AdminDashboard.js refactoring (Iter 101). All extracted sub-components (TaxiModeGrid, TaxiModePanels, TaxiCheckoutSection, KPICard, EarningBox, ServiceMiniCard, BuySellRentCard) render and behave identically to the pre-refactor implementation. Zero JS page errors detected. All required data-testid hooks remain present and functional.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "T1_passenger_login": "PASS — rider.qa@demo.sb logged in and was redirected to /home",
+    "T2_taxi_grid_view": "PASS — [data-testid='mode-grid-view'] present; mode-select-standard/rental/pets/airport/corporate/bidding/buddy_driver all rendered",
+    "T3_booking_view_standard": "PASS — clicking mode-select-standard switched to booking view; selected-service-chip, pickup-address-input, dropoff-address-input, add-stop-btn, ride-profile-selector, ride-profile-business, ride-profile-personal, payment-cash/card/sbpaygo, promo-code-input, promo-apply-btn, cta-book-button all present",
+    "T4_mode_panels": "PASS — /taxi?mode=rental → panel-rental + rental-pkg-2h_20km; mode=buddy_driver → panel-buddy + buddy-hours-4; mode=pets → panel-pets + pets-plus/minus/count; mode=airport → panel-flight + flight-number-input; mode=corporate → panel-corporate; mode=bidding → panel-bidding + bidding-fare-input",
+    "T5_ride_profile_business_reason": "PASS — clicking ride-profile-business reveals business-trip-reason-select with 4 reason options (regression of Iter100 feature confirmed intact)",
+    "T6_admin_dashboard": "PASS — admin-dashboard root + kpi-utilisateurs/chauffeurs/courses/commandes/marchands + on-demand-services-card, video-consult-card, genie-runner-card, store-deliveries-card, ride-share-card, buy-sell-rent-card + period-today/week/month all rendered. Donut chart and earnings area chart visible in screenshot.",
+    "page_errors_captured": 0
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TaxiHubPage.js: minor warning — eslint disabled for exhaustive-deps in mount-effect (line 126), acceptable for one-shot init.",
+    "TaxiCheckoutSection: ride profile testid uses p.org_type.toLowerCase() — works for 'Business'/'Personnel' but would crash if org_type is undefined; current backend returns it so OK.",
+    "Google Maps loaded synchronously (warning only, not blocking) — consider migrating to loading=async + PlaceAutocompleteElement (deprecation notice on Autocomplete since March 2025).",
+    "AdminDashboard.js still 490 lines and could further extract the God's View / Recent Rides / Notifications panels if size <400 is desired.",
+    "KPICard uses label.toLowerCase() for data-testid — labels with accents (e.g., 'Utilisateurs') work because toLowerCase preserves them; verified rendered testids include accented chars correctly."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "seed_data_creation": "None — used existing rider.qa@demo.sb and admin@superapp.com seeded accounts.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Refactor of TaxiHubPage + AdminDashboard validated: all extracted sub-components render identically. Iter100 ride-profile Business+reason flow still works after the extraction into TaxiCheckoutSection. Booking POST /api/rides was not exercised in this run (Google Places autocomplete is flaky headless and not needed to validate refactor presence); E1 may run the dedicated test_iter100_ride_profiles.py if a behavioural re-check on the API is desired."
+}

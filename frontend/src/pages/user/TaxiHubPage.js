@@ -9,67 +9,20 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, MapPin, FlagCheckered, CarProfile, UsersThree, Leaf, Motorcycle,
-  Clock, MapTrifold, CalendarPlus, Key, Gavel, AirplaneTilt, PawPrint, UserPlus,
-  Van, HandHeart, Briefcase, Wheelchair, Lightning, Plus, Minus,
-  Money, CreditCard, Wallet, Tag, CheckCircle,
-  House, NavigationArrow, Pencil, CaretRight, X, User,
+  ArrowLeft, MapPin, FlagCheckered, Clock, MapTrifold, CalendarPlus,
+  UserPlus, Briefcase, Lightning, Plus,
+  House, NavigationArrow, Pencil, CaretRight, X,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import MapLocationPicker from '../../components/MapLocationPicker';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { corporateAPI, couponAPI, placesAPI, configAPI } from '../../services/api';
+import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
+import { TaxiModeGrid } from './taxihub/TaxiModeGrid';
+import { TaxiModePanels } from './taxihub/TaxiModePanels';
+import { TaxiCheckoutSection } from './taxihub/TaxiCheckoutSection';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-
-// ── 16 modes configuration ───────────────────────────────────────────────
-const MODES = [
-  // Everyday
-  { id: 'standard', cat: 'everyday', label: 'Taxi VTC', sub: 'Course standard', icon: CarProfile, color: '#0B1426', vehicle: 'sb', ride_type: 'instant', panel: null, badge: null, cta: 'Commander' },
-  { id: 'pool', cat: 'everyday', label: 'Pool', sub: 'Partagé, -30%', icon: UsersThree, color: '#3B82F6', vehicle: 'pool', ride_type: 'instant', panel: null, badge: '-30%', cta: 'Commander Pool' },
-  { id: 'electric', cat: 'everyday', label: 'Green', sub: '100% électrique', icon: Leaf, color: '#10B981', vehicle: 'electric', ride_type: 'instant', panel: null, badge: 'Eco', cta: 'Commander Green' },
-  { id: 'moto', cat: 'everyday', label: 'Moto', sub: 'Rapide en ville', icon: Motorcycle, color: '#EF4444', vehicle: 'moto', ride_type: 'instant', panel: null, badge: 'Fast', cta: 'Commander Moto' },
-  // Time & Distance
-  { id: 'rental', cat: 'time', label: 'Mise à Dispo', sub: 'Forfait horaire', icon: Clock, color: '#F59E0B', vehicle: 'confort', ride_type: 'rental', panel: 'rental', badge: null, cta: 'Réserver' },
-  { id: 'intercity', cat: 'time', label: 'Intercité', sub: 'Longue distance', icon: MapTrifold, color: '#8B5CF6', vehicle: 'confort', ride_type: 'intercity', panel: 'datetime', badge: null, cta: 'Planifier le voyage' },
-  { id: 'book_later', cat: 'time', label: 'Plus Tard', sub: 'Programmer', icon: CalendarPlus, color: '#0EA5E9', vehicle: 'sb', ride_type: 'scheduled', panel: 'datetime', badge: null, cta: 'Planifier' },
-  { id: 'moto_rental', cat: 'time', label: 'Loc Moto', sub: 'Moto à l\'heure', icon: Key, color: '#DC2626', vehicle: 'moto', ride_type: 'rental', panel: 'rental', badge: null, cta: 'Louer Moto' },
-  { id: 'buddy_driver', cat: 'time', label: 'Chauffeur Privé', sub: 'À l\'heure', icon: User, color: '#10B981', vehicle: 'confort', ride_type: 'buddy_driver', panel: 'buddy', badge: null, cta: 'Réserver' },
-  // Specialty & Inclusive
-  { id: 'bidding', cat: 'special', label: 'Enchères', sub: 'Proposez votre prix', icon: Gavel, color: '#EC4899', vehicle: 'sb', ride_type: 'instant', panel: 'bidding', badge: null, cta: 'Proposer un prix' },
-  { id: 'airport', cat: 'special', label: 'Aéroport', sub: 'Suivi de vol', icon: AirplaneTilt, color: '#0EA5E9', vehicle: 'airport', ride_type: 'airport', panel: 'flight', badge: 'Fixe', cta: 'Réserver Aéroport' },
-  { id: 'pets', cat: 'special', label: 'Animaux', sub: 'Pet friendly', icon: PawPrint, color: '#F97316', vehicle: 'pets', ride_type: 'instant', panel: 'pets', badge: null, cta: 'Commander' },
-  { id: 'book_for_someone', cat: 'special', label: 'Pour un proche', sub: 'Réserver pour autrui', icon: UserPlus, color: '#14B8A6', vehicle: 'sb', ride_type: 'instant', panel: 'contact', badge: null, cta: 'Commander' },
-  { id: 'tuktuk', cat: 'special', label: 'TukTuk', sub: 'Fun & local', icon: Van, color: '#84CC16', vehicle: 'tuktuk', ride_type: 'instant', panel: null, badge: null, cta: 'Commander TukTuk' },
-  { id: 'assist', cat: 'special', label: 'Assistance', sub: 'Aide à la personne', icon: HandHeart, color: '#F43F5E', vehicle: 'assist', ride_type: 'instant', panel: 'assist', badge: null, cta: 'Demander Assistance' },
-  { id: 'corporate', cat: 'special', label: 'Corporate', sub: 'Facturé entreprise', icon: Briefcase, color: '#334155', vehicle: 'confort', ride_type: 'corporate', panel: 'corporate', badge: null, cta: 'Commander Pro' },
-  { id: 'access', cat: 'special', label: 'PMR', sub: 'Accès fauteuil', icon: Wheelchair, color: '#6366F1', vehicle: 'accessible', ride_type: 'instant', panel: null, badge: null, cta: 'Commander PMR' },
-];
-
-const CATS = [
-  { key: 'everyday', title: 'Au quotidien' },
-  { key: 'time', title: 'Temps & Distance' },
-  { key: 'special', title: 'Spécialisé & Inclusif' },
-];
-
-const RENTAL_PACKAGES = [
-  { slug: '2h_20km', label: '2h', km: 20, hours: 2 },
-  { slug: '4h_40km', label: '4h', km: 40, hours: 4 },
-  { slug: '8h_80km', label: '8h', km: 80, hours: 8 },
-];
-
-const ASSIST_OPTIONS = [
-  { k: 'wheelchair', l: 'Fauteuil roulant' },
-  { k: 'elderly', l: 'Personne âgée' },
-  { k: 'medical', l: 'Sortie médicale' },
-  { k: 'luggage', l: 'Aide bagages' },
-];
-
-const PAYMENT_METHODS = [
-  { k: 'cash', l: 'Espèces', icon: Money },
-  { k: 'card', l: 'Carte', icon: CreditCard },
-  { k: 'sbpaygo', l: 'SB PayGo', icon: Wallet },
-];
 
 const TaxiHubPage = () => {
   const navigate = useNavigate();
@@ -452,39 +405,7 @@ const TaxiHubPage = () => {
       </div>
 
       {/* ===== GRID VIEW — only when choosing a service ("Plus de Services") ===== */}
-      {view === 'grid' && (
-      <div className="px-5 -mt-3" data-testid="mode-grid-view">
-        {CATS.map((cat) => (
-          <div key={cat.key} className="mb-5">
-            <p className="text-[11px] tracking-[0.12em] uppercase font-bold text-slate-500 mb-2">{cat.title}</p>
-            <div className={cat.key === 'everyday' ? 'grid grid-cols-2 gap-3' : cat.key === 'time' ? 'flex overflow-x-auto gap-3 pb-2 hide-scrollbar' : 'flex flex-wrap gap-2'}>
-              {MODES.filter((m) => m.cat === cat.key && (catConfig[m.id]?.active !== false)).map((m) => {
-                const MIcon = m.icon;
-                if (cat.key === 'special') {
-                  return (
-                    <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => selectMode(m.id)}
-                      className="px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors bg-white text-[#0B1426] border-[#E2E8F0]">
-                      <MIcon size={16} style={{ color: m.color }} /> {catConfig[m.id]?.name || m.label}
-                    </button>
-                  );
-                }
-                return (
-                  <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => selectMode(m.id)}
-                    className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426]`}>
-                    {m.badge && <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF5000] text-[#0B1426]">{m.badge}</span>}
-                    <MIcon size={26} weight={cat.key === 'everyday' ? 'duotone' : 'regular'} style={{ color: m.color }} />
-                    <div>
-                      <p className="font-bold text-sm leading-tight">{catConfig[m.id]?.name || m.label}</p>
-                      <p className="text-[10px] text-slate-400">{m.sub}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-      )}
+      {view === 'grid' && <TaxiModeGrid catConfig={catConfig} onSelect={selectMode} />}
 
       {/* ===== BOOKING VIEW — "Planifiez votre trajet" (no other services shown) ===== */}
       {view === 'booking' && (
@@ -641,179 +562,26 @@ const TaxiHubPage = () => {
           </AnimatePresence>
 
           {/* Dynamic mode-specific panels */}
-          <AnimatePresence mode="wait">
-            <motion.div key={mode.panel || 'none'} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-              {mode.panel === 'datetime' && (
-                <div data-testid="panel-datetime" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Date & heure</label>
-                  <button onClick={() => setCalendarOpen(true)} data-testid="datetime-trigger"
-                    className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2.5 mt-1 text-sm text-left flex items-center justify-between hover:border-[#0B1426]">
-                    <span className={scheduledAt ? 'text-[#0B1426] font-semibold' : 'text-slate-400'}>{formatScheduled(scheduledAt) || 'Choisir une date'}</span>
-                    <CalendarPlus size={16} className="text-[#FF5000]" />
-                  </button>
-                </div>
-              )}
-              {mode.panel === 'flight' && (
-                <div data-testid="panel-flight" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">N° de vol (optionnel)</label>
-                  <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value.toUpperCase())} placeholder="AF1234" className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="flight-number-input" />
-                  <p className="text-[10px] text-slate-400 mt-1">Nous suivons votre vol pour ajuster la prise en charge.</p>
-                </div>
-              )}
-              {mode.panel === 'rental' && (
-                <div data-testid="panel-rental" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Forfait</label>
-                  <div className="grid grid-cols-3 gap-2 mt-1">
-                    {RENTAL_PACKAGES.map((p) => (
-                      <button key={p.slug} onClick={() => setRentalPkg(p.slug)} data-testid={`rental-pkg-${p.slug}`}
-                        className={`p-3 rounded-lg border text-center ${rentalPkg === p.slug ? 'border-[#F59E0B] bg-amber-50' : 'border-[#E2E8F0]'}`}>
-                        <p className="font-bold">{p.label}</p><p className="text-[10px] text-slate-400">{p.km} km</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {mode.panel === 'buddy' && (
-                <div data-testid="panel-buddy" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Durée (heures)</label>
-                  <div className="grid grid-cols-4 gap-2 mt-1">
-                    {[1, 2, 4, 8].map((h) => (
-                      <button key={h} onClick={() => setBuddyHours(h)} data-testid={`buddy-hours-${h}`}
-                        className={`p-3 rounded-lg border text-center font-bold ${buddyHours === h ? 'border-[#10B981] bg-emerald-50 text-emerald-700' : 'border-[#E2E8F0]'}`}>{h}h</button>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Un chauffeur dédié reste à votre disposition pendant toute la durée.</p>
-                </div>
-              )}
-              {mode.panel === 'pets' && (
-                <div data-testid="panel-pets" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Nombre d'animaux</label>
-                  <div className="flex items-center gap-4 mt-1 mb-3">
-                    <button onClick={() => setPetsCount(Math.max(1, petsCount - 1))} className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center" data-testid="pets-minus"><Minus size={16} /></button>
-                    <span className="text-lg font-bold w-6 text-center" data-testid="pets-count">{petsCount}</span>
-                    <button onClick={() => setPetsCount(petsCount + 1)} className="w-9 h-9 rounded-full border border-[#E2E8F0] flex items-center justify-center" data-testid="pets-plus"><Plus size={16} /></button>
-                  </div>
-                  <div className="flex gap-2">
-                    {[{ k: 'small', l: 'Petit' }, { k: 'large', l: 'Grand' }].map((s) => (
-                      <button key={s.k} onClick={() => setPetsSize(s.k)} data-testid={`pets-size-${s.k}`}
-                        className={`flex-1 py-2 rounded-lg border text-sm font-medium ${petsSize === s.k ? 'border-[#F97316] bg-orange-50' : 'border-[#E2E8F0]'}`}>{s.l}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {mode.panel === 'assist' && (
-                <div data-testid="panel-assist" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Type d'assistance</label>
-                  <div className="grid grid-cols-2 gap-2 mt-1">
-                    {ASSIST_OPTIONS.map((o) => (
-                      <button key={o.k} onClick={() => setAssistNeeds(o.k)} data-testid={`assist-${o.k}`}
-                        className={`py-2 rounded-lg border text-sm font-medium ${assistNeeds === o.k ? 'border-[#F43F5E] bg-rose-50' : 'border-[#E2E8F0]'}`}>{o.l}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {mode.panel === 'corporate' && (
-                <div data-testid="panel-corporate" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Compte entreprise</label>
-                  {corpAccounts.length > 0 ? (
-                    <select value={corpId} onChange={(e) => setCorpId(e.target.value)} className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="corporate-account-select">
-                      {corpAccounts.map((a) => <option key={a.id} value={a.join_code}>{a.name} (-{a.discount_pct}%)</option>)}
-                    </select>
-                  ) : (
-                    <button onClick={() => navigate('/corporate')} className="text-xs text-indigo-600 font-semibold mt-1" data-testid="join-corporate-link">Rejoindre une entreprise →</button>
-                  )}
-                </div>
-              )}
-              {mode.panel === 'contact' && (
-                <div data-testid="panel-contact" className="mb-2 space-y-2">
-                  <div>
-                    <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Nom du passager</label>
-                    <input value={bookForName} onChange={(e) => setBookForName(e.target.value)} placeholder="Ex: Marie" className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="book-for-name-input" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Téléphone</label>
-                    <input value={bookForPhone} onChange={(e) => setBookForPhone(e.target.value)} placeholder="+33..." className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="book-for-phone-input" />
-                  </div>
-                </div>
-              )}
-              {mode.panel === 'bidding' && (
-                <div data-testid="panel-bidding" className="mb-2">
-                  <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Votre prix proposé (€)</label>
-                  <input type="number" value={biddingFare} onChange={(e) => setBiddingFare(e.target.value)} placeholder={estimate?.estimated_fare ? `Suggéré: ${estimate.estimated_fare.toFixed(2)}` : '15.00'} className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mt-1 text-sm" data-testid="bidding-fare-input" />
-                  <p className="text-[10px] text-slate-400 mt-1">Les chauffeurs proches verront votre offre et pourront l'accepter.</p>
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
+          <TaxiModePanels
+            mode={mode} scheduledAt={scheduledAt} formatScheduled={formatScheduled} setCalendarOpen={setCalendarOpen}
+            flightNumber={flightNumber} setFlightNumber={setFlightNumber}
+            rentalPkg={rentalPkg} setRentalPkg={setRentalPkg}
+            buddyHours={buddyHours} setBuddyHours={setBuddyHours}
+            petsCount={petsCount} setPetsCount={setPetsCount} petsSize={petsSize} setPetsSize={setPetsSize}
+            assistNeeds={assistNeeds} setAssistNeeds={setAssistNeeds}
+            corpAccounts={corpAccounts} corpId={corpId} setCorpId={setCorpId} navigate={navigate}
+            bookForName={bookForName} setBookForName={setBookForName} bookForPhone={bookForPhone} setBookForPhone={setBookForPhone}
+            biddingFare={biddingFare} setBiddingFare={setBiddingFare} estimate={estimate}
+          />
 
-          {/* Ride profile (Business / Personnel) + business trip reason — V3Cube */}
-          {rideProfiles.length > 0 && (
-            <div className="mt-1 mb-3" data-testid="ride-profile-selector">
-              <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><User size={11} /> Profil de course</label>
-              <div className="flex gap-2 mt-1.5 overflow-x-auto hide-scrollbar">
-                {rideProfiles.map((p) => {
-                  const active = rideProfileId === p.id;
-                  return (
-                    <button key={p.id} onClick={() => { setRideProfileId(active ? '' : p.id); setBusinessReasonId(''); }}
-                      data-testid={`ride-profile-${p.org_type.toLowerCase()}`}
-                      className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl border text-left transition-colors ${active ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}>
-                      <span className="text-sm font-semibold block">{p.short_name}</span>
-                      <span className={`text-[10px] block truncate ${active ? 'text-white/70' : 'text-slate-400'}`}>{p.title_description}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {(() => {
-                const prof = rideProfiles.find((p) => p.id === rideProfileId);
-                if (prof?.org_type === 'Business' && businessReasons.length > 0) {
-                  return (
-                    <select value={businessReasonId} onChange={(e) => setBusinessReasonId(e.target.value)}
-                      data-testid="business-trip-reason-select"
-                      className="w-full mt-2 border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm bg-white">
-                      <option value="">Motif du trajet professionnel…</option>
-                      {businessReasons.map((b) => <option key={b.id} value={b.id}>{b.trip_reason}</option>)}
-                    </select>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          )}
-
-          {/* Payment method — horizontal selector */}
-          <div className="mt-1 mb-3" data-testid="payment-selector">
-            <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Moyen de paiement</label>
-            <div className="flex gap-2 mt-1.5 overflow-x-auto hide-scrollbar">
-              {PAYMENT_METHODS.map((pm) => {
-                const PmIcon = pm.icon;
-                const active = paymentMethod === pm.k;
-                return (
-                  <button key={pm.k} onClick={() => setPaymentMethod(pm.k)} data-testid={`payment-${pm.k}`}
-                    className={`flex-1 min-w-[96px] flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${active ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}>
-                    <PmIcon size={18} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : ''} /> {pm.l}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Promo code */}
-          <div data-testid="promo-block">
-            <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><Tag size={11} /> Code promo</label>
-            {promoApplied ? (
-              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 mt-1.5">
-                <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5" data-testid="promo-applied-label">
-                  <CheckCircle size={16} weight="fill" /> {promoCode.toUpperCase()} · -{promoDiscount.toFixed(2)} €
-                </span>
-                <button onClick={clearPromo} className="text-xs text-emerald-700 underline" data-testid="promo-clear-btn">Retirer</button>
-              </div>
-            ) : (
-              <div className="flex gap-2 mt-1.5">
-                <input value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="Ex: SB10" className="flex-1 border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm" data-testid="promo-code-input" />
-                <button onClick={applyPromo} className="px-4 rounded-xl bg-[#0B1426] text-white text-sm font-semibold" data-testid="promo-apply-btn">Appliquer</button>
-              </div>
-            )}
-          </div>
+          {/* Ride profile + payment + promo */}
+          <TaxiCheckoutSection
+            rideProfiles={rideProfiles} rideProfileId={rideProfileId} setRideProfileId={setRideProfileId}
+            businessReasons={businessReasons} businessReasonId={businessReasonId} setBusinessReasonId={setBusinessReasonId}
+            paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+            promoCode={promoCode} setPromoCode={setPromoCode} promoApplied={promoApplied}
+            promoDiscount={promoDiscount} applyPromo={applyPromo} clearPromo={clearPromo}
+          />
         </div>
       </div>
 
