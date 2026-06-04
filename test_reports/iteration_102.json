@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend E2E validation of the NEW feature 'admin toggle Taxi service categories + booking lock when disabled'. Full happy + deep-link + regression + restore scenario passed end-to-end. State restored: 'Animaux' (pets) re-activated; no leftover inactive services.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "T1_admin_login": "PASS — admin@superapp.com authenticated and redirected to /admin",
+    "T2_admin_service_categories_page": "PASS — /admin/service-categories renders [data-testid='admin-service-categories-page'] with 17 svc-cat-card-* tiles; pets initially Actif",
+    "T3_toggle_pets_off": "PASS — click [data-testid='svc-cat-toggle-pets'] flips badge to 'Inactif' (PATCH succeeded)",
+    "T4_rider_login": "PASS — rider.qa@demo.sb authenticated (note: console 403s observed while logged-in rider briefly stayed on /admin route after switching accounts — purely cosmetic, not user-facing)",
+    "T5_grid_hides_disabled_mode": "PASS — on /taxi grid view, [data-testid='mode-select-pets'] count = 0 while [data-testid='mode-select-standard'] count = 1 (other modes still visible)",
+    "T6_deeplink_banner_and_cta_lock": "PASS — /taxi?mode=pets renders [data-testid='mode-unavailable-banner'] ('Ce service est actuellement indisponible. Choisissez un autre service.') AND [data-testid='cta-book-button'] is disabled with label 'Indisponible' (orange disabled state) — see screenshot",
+    "T7_regression_active_mode": "PASS — /taxi?mode=standard shows NO banner (count=0) and CTA enabled with label 'Commander'",
+    "T8_reactivate_pets": "PASS — back in admin, toggling pets flips back to 'Actif'; safety net found no other inactive leftovers",
+    "T9_grid_recovers": "PASS — rider /taxi grid: [data-testid='mode-select-pets'] count = 1 again",
+    "T10_deeplink_recovers": "PASS — rider /taxi?mode=pets: no banner (count=0), CTA enabled, label 'Commander'",
+    "page_errors_captured": "Only Google Maps Autocomplete deprecation warning (pre-existing) and 401 on initial /api/auth/me (expected for unauthed bootstrap). No JS exceptions thrown."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminServiceCategories.js: pets card state is detected by substring 'Inactif' in card HTML — works but is text-fragile; future-proofing would benefit from an explicit data-testid like 'svc-cat-status-pets' carrying 'active' | 'inactive' (test-only suggestion).",
+    "TaxiHubPage.js modeDisabled relies on catConfig[mode.id]?.active===false. If /api/service-categories ever returns an empty list (network error), catConfig stays {} and modeDisabled is false — meaning a backend outage would NOT silently block bookings; backend create_ride still 400s. Acceptable defense in depth.",
+    "Pre-existing (not from this iter): Google Maps loaded synchronously, google.maps.places.Autocomplete deprecation warning. Not blocking but worth migrating per Iter 101 note.",
+    "Console 403 noise when navigating between admin and rider sessions on /admin — purely because rider transiently stays on /admin URL during the logout->login transition. Harmless. Could be hardened by clearing route on logout, but not a bug for this feature."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (covered by main agent's curl)", "frontend": "100% (10/10 scenarios)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!  ;  rider.qa@demo.sb / Rider123!",
+  "seed_data_creation": "None. Used existing seeded service_categories list.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 102 fully validated the toggle+lock feature for service categories. After the run, ALL 17 services are confirmed active (pets re-enabled, no leftovers). If reproducing, beware: localStorage.clear() is used to logout between roles, then /login/email is re-entered. The pets card detects active/inactive via the 'Actif'/'Inactif' badge text inside [data-testid='svc-cat-card-pets']. Banner testid: 'mode-unavailable-banner'. Disabled CTA label: 'Indisponible'. Active CTA label observed: 'Commander'.",
+  "rca of the issue": "N/A — no defects found."
+}

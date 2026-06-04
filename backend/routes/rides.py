@@ -108,6 +108,13 @@ async def estimate_ride(data: RideRequest):
 async def create_ride(data: RideRequest, request: Request):
     user = await get_current_user(request)
 
+    # ── Service availability (admin can disable a Taxi mode without redeploy) ──
+    mode_id = getattr(data, "mode_id", None)
+    if mode_id:
+        cat = await db.service_categories.find_one({"key": mode_id}, {"_id": 0, "active": 1, "name": 1})
+        if cat and cat.get("active") is False:
+            raise HTTPException(status_code=400, detail=f"Le service « {cat.get('name', mode_id)} » est actuellement indisponible.")
+
     # ── Scheduling restrictions (Programmer une course) ──────────────────
     if getattr(data, "scheduled_at", None):
         from routes.config import get_scheduling_config

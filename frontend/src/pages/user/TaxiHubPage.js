@@ -71,10 +71,11 @@ const TaxiHubPage = () => {
   // Scheduling allowance for the current mode (pool/bidding disabled by default)
   const modeSchedKey = mode.id === 'pool' ? 'pool' : (mode.id === 'bidding' ? 'bidding' : mode.id);
   const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(modeSchedKey);
+  // Admin can disable a Taxi mode without redeploy (service_categories[mode.id].active === false)
+  const modeDisabled = catConfig[mode.id]?.active === false;
 
   const needsDropoff = !['rental', 'buddy_driver'].includes(mode.ride_type);
-  const isRental = mode.ride_type === 'rental';
-  const isBuddy = mode.id === 'buddy_driver';
+  const isRental = mode.ride_type === 'rental';  const isBuddy = mode.id === 'buddy_driver';
 
   // ── Geolocation + reverse geocoding (auto-localize departure) ──
   const reverseGeocode = (lat, lng) => new Promise((resolve) => {
@@ -277,6 +278,7 @@ const TaxiHubPage = () => {
       pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
       dropoff_lat: dest.lat, dropoff_lng: dest.lng, dropoff_address: dest.address,
       vehicle_type: mode.vehicle, payment_method: paymentMethod, ride_type: mode.ride_type,
+      mode_id: mode.id,
     };
     if (promoApplied && promoCode) base.coupon_code = promoCode.trim().toUpperCase();
     if (mode.panel === 'datetime') base.scheduled_at = scheduledAt || null;
@@ -320,6 +322,7 @@ const TaxiHubPage = () => {
   const onSubmit = async () => {
     if (!pickup?.lat) return toast.error('Choisissez un lieu de départ');
     if (needsDropoff && !dropoff?.lat) return toast.error('Choisissez une destination');
+    if (modeDisabled) return toast.error('Ce service est actuellement indisponible.');
 
     // Bidding delegates to the dedicated negotiation page
     if (mode.id === 'bidding') {
@@ -420,6 +423,12 @@ const TaxiHubPage = () => {
           </span>
           <button onClick={() => { setView('grid'); setTopMenu(null); }} className="text-xs font-semibold text-indigo-600" data-testid="change-service-btn">Changer</button>
         </div>
+        {modeDisabled && (
+          <div className="mt-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5 flex items-center gap-2" data-testid="mode-unavailable-banner">
+            <X size={16} weight="bold" className="text-rose-500 flex-shrink-0" />
+            <span className="text-xs font-semibold text-rose-700">Ce service est actuellement indisponible. Choisissez un autre service.</span>
+          </div>
+        )}
       </div>
 
       {/* Booking sheet */}
@@ -587,10 +596,10 @@ const TaxiHubPage = () => {
 
       {/* Sticky adaptive CTA */}
       <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-[#E2E8F0] p-4">
-        <button onClick={onSubmit} disabled={submitting} data-testid="cta-book-button"
+        <button onClick={onSubmit} disabled={submitting || modeDisabled} data-testid="cta-book-button"
           className="w-full py-4 font-black text-lg flex items-center justify-center gap-2 rounded-xl active:scale-[0.98] transition-transform disabled:opacity-60"
           style={{ backgroundColor: '#FF5000', color: '#0B1426' }}>
-          <Lightning size={20} weight="fill" /> {submitting ? 'Envoi…' : ctaLabel}
+          <Lightning size={20} weight="fill" /> {submitting ? 'Envoi…' : modeDisabled ? 'Indisponible' : ctaLabel}
         </button>
       </div>
       </>
