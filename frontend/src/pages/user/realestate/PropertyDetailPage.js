@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { realEstateAPI } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
   ArrowLeft, Bed, Bathtub, Ruler, MapPin, Buildings, Star, Phone, ChatCircleText, Check, X, CurrencyEur,
 } from '@phosphor-icons/react';
@@ -20,6 +21,7 @@ L.Icon.Default.mergeOptions({
 const PropertyDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [p, setP] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
@@ -49,6 +51,7 @@ const PropertyDetailPage = () => {
   if (!p) return <div className="mobile-container min-h-screen bg-white flex items-center justify-center text-gray-400">Introuvable.</div>;
 
   const images = p.images || [];
+  const isOwner = user && p.user_id === user.id;
   const details = [
     p.bedrooms != null && { icon: Bed, label: `${p.bedrooms} ch.` },
     p.bathrooms != null && { icon: Bathtub, label: `${p.bathrooms} sdb` },
@@ -134,18 +137,26 @@ const PropertyDetailPage = () => {
 
       {/* Sticky contact bar */}
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-gray-100 p-3 flex gap-3 z-20">
-        {p.owner_phone && (
-          <a href={`tel:${p.owner_phone}`} data-testid="property-call-btn" className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-2xl font-semibold">
-            <Phone size={18} weight="fill" /> Appeler
-          </a>
+        {isOwner ? (
+          <button onClick={() => navigate(`/real-estate/edit/${p.id}`)} data-testid="property-edit-owner-btn" className="flex-1 flex items-center justify-center gap-2 bg-[#0B1426] text-white py-3 rounded-2xl font-semibold">
+            Modifier mon annonce
+          </button>
+        ) : (
+          <>
+            {p.owner_phone && (
+              <a href={`tel:${p.owner_phone}`} data-testid="property-call-btn" className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-2xl font-semibold">
+                <Phone size={18} weight="fill" /> Appeler
+              </a>
+            )}
+            <button onClick={() => setShowContact(true)} data-testid="property-contact-btn" className="flex-1 flex items-center justify-center gap-2 bg-[#FF5000] text-white py-3 rounded-2xl font-semibold">
+              <ChatCircleText size={18} weight="fill" /> Faire une offre
+            </button>
+          </>
         )}
-        <button onClick={() => setShowContact(true)} data-testid="property-contact-btn" className="flex-1 flex items-center justify-center gap-2 bg-[#FF5000] text-white py-3 rounded-2xl font-semibold">
-          <ChatCircleText size={18} weight="fill" /> Faire une offre
-        </button>
       </div>
 
       {/* Contact / offer modal */}
-      {showContact && (
+      {showContact && !isOwner && (
         <div className="fixed inset-0 bg-black/50 z-40 flex items-end sm:items-center justify-center" onClick={() => setShowContact(false)}>
           <div className="bg-white w-full max-w-[480px] rounded-t-3xl sm:rounded-3xl p-5 space-y-3" onClick={(e) => e.stopPropagation()} data-testid="property-contact-modal">
             <div className="flex items-center justify-between">

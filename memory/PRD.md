@@ -7,6 +7,13 @@
 - **Backend** : `create_medical_transport` diffuse maintenant `new_transport` (les colis diffusaient déjà `new_parcel`).
 - Vérifié E2E (`tests/test_new_parcel_ws.py`) : chauffeur connecté WS reçoit `new_parcel` ET `new_transport` après création passager. Lint clean (front + back).
 
+## NEW - Jun 2026 - Module Immobilier (Acheter · Vendre · Louer) — parité V3Cube (DONE — iter 110)
+- **Petites annonces immobilières** (modèle V3Cube « Buy, Sell & Rent Real Estate ») : l'utilisateur publie une annonce (Vente/Location · Résidentiel/Commercial/Terrain), les autres parcourent/filtrent et **contactent le propriétaire** (appel `tel:` + demande/offre in-app). Monétisation via annonces **sponsorisées** côté admin.
+- **Passager** : `/real-estate` (`RealEstatePage` — toggle Acheter/Louer, chips catégorie, recherche debouncée, FAB Publier), `/real-estate/:id` (`PropertyDetailPage` — galerie photos, prix, détails ch./sdb/m², équipements, carte Leaflet, barre contact ; **masque « Faire une offre » si propriétaire** → affiche « Modifier »), `/real-estate/post` & `/real-estate/edit/:id` (`PostPropertyPage` — formulaire complet + upload photos base64 max 12 + placement carte), `/real-estate/my` (`MyPropertiesPage` — Mes biens : éditer/marquer vendu-loué/supprimer/voir demandes ; Mes demandes envoyées). Tuile accueil `marketplace-realestate-btn` → `/real-estate`.
+- **Admin** : `/admin/real-estate` (`AdminRealEstate`) — table des annonces, filtres statut, sponsoriser (feature), activer/désactiver, supprimer. Entrée sidebar sous SERVICES › Acheter, Vendre & Louer.
+- **Backend** : `routes/real_estate.py` — collections `property_listings` + `property_inquiries`. `GET/POST /real-estate/listings`, `GET/PUT/DELETE /listings/{id}`, `POST /listings/{id}/status`, `POST/GET /listings/{id}/inquiries`, `GET /my/listings`, `GET /my/inquiries` ; admin `/admin/real-estate/*` (toggle-status, feature, delete). Self-inquiry rejetée (400). Tri featured-first.
+- Testé iter110 : **frontend 100% (8/8 scénarios)** + backend E2E httpx (create/list/detail/inquiry/owner-inquiries/delete). Lint clean.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)
