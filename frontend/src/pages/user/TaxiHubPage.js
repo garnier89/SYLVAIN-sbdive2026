@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, MapPin, FlagCheckered, Clock, MapTrifold, CalendarPlus,
-  UserPlus, Briefcase, Lightning, Plus,
+  UserPlus, Briefcase, Lightning, Plus, Bell,
   House, NavigationArrow, Pencil, CaretRight, X,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
@@ -61,7 +61,8 @@ const TaxiHubPage = () => {
   const [mapPicker, setMapPicker] = useState({ open: false, target: 'dropoff' });
   const [schedConfig, setSchedConfig] = useState({ enabled: true, min_advance_minutes: 60, max_advance_days: 30, disabled_modes: ['pool', 'bidding'] });
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [catConfig, setCatConfig] = useState({}); // key -> { active, name }
+  const [catConfig, setCatConfig] = useState({}); // key -> { active, available, hint, name }
+  const [remindedKeys, setRemindedKeys] = useState(new Set()); // services the user asked to be notified about
   const [taxiOpts, setTaxiOpts] = useState(null); // rental_packages / personal_driver / taxi_bid / ride_profiles
   const [rideProfiles, setRideProfiles] = useState([]); // Business / Personnel
   const [rideProfileId, setRideProfileId] = useState('');
@@ -124,6 +125,11 @@ const TaxiHubPage = () => {
     configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});
     configAPI.getRideProfiles().then((r) => setRideProfiles(r.data || [])).catch(() => {});
     configAPI.getBusinessTripReasons().then((r) => setBusinessReasons(r.data || [])).catch(() => {});
+    // Reminders: subscribed services + any that just reopened (in-app toast)
+    configAPI.getServiceReminders().then((r) => {
+      setRemindedKeys(new Set(r.data?.subscribed || []));
+      (r.data?.ready || []).forEach((s) => toast.success(`🔔 ${s.name} est de nouveau disponible !`, { duration: 6000 }));
+    }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -161,6 +167,17 @@ const TaxiHubPage = () => {
   };
 
   const selectMode = (id) => { setModeId(id); setTopMenu(null); setView('booking'); };
+  const toggleRemind = async (key, name) => {
+    const isOn = remindedKeys.has(key);
+    setRemindedKeys((prev) => { const n = new Set(prev); if (isOn) n.delete(key); else n.add(key); return n; });
+    try {
+      if (isOn) { await configAPI.unsubscribeServiceReminder(key); toast('Rappel annulé'); }
+      else { await configAPI.subscribeServiceReminder(key); toast.success(`Vous serez prévenu à l'ouverture de ${name}`); }
+    } catch {
+      setRemindedKeys((prev) => { const n = new Set(prev); if (isOn) n.add(key); else n.delete(key); return n; }); // revert
+      toast.error('Action impossible');
+    }
+  };
   const goBack = () => {
     if (view === 'booking' && cameFromGrid) { setView('grid'); setTopMenu(null); }
     else navigate('/home');
@@ -408,7 +425,7 @@ const TaxiHubPage = () => {
       </div>
 
       {/* ===== GRID VIEW — only when choosing a service ("Plus de Services") ===== */}
-      {view === 'grid' && <TaxiModeGrid catConfig={catConfig} onSelect={selectMode} />}
+      {view === 'grid' && <TaxiModeGrid catConfig={catConfig} onSelect={selectMode} remindedKeys={remindedKeys} onToggleRemind={toggleRemind} />}
 
       {/* ===== BOOKING VIEW — "Planifiez votre trajet" (no other services shown) ===== */}
       {view === 'booking' && (
@@ -424,11 +441,18 @@ const TaxiHubPage = () => {
           <button onClick={() => { setView('grid'); setTopMenu(null); }} className="text-xs font-semibold text-indigo-600" data-testid="change-service-btn">Changer</button>
         </div>
         {modeDisabled && (
-          <div className="mt-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5 flex items-center gap-2" data-testid="mode-unavailable-banner">
-            <X size={16} weight="bold" className="text-rose-500 flex-shrink-0" />
-            <span className="text-xs font-semibold text-rose-700">
-              Ce service est actuellement indisponible.{catConfig[mode.id]?.hint ? ` ${catConfig[mode.id].hint}.` : ' Choisissez un autre service.'}
-            </span>
+          <div className="mt-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5" data-testid="mode-unavailable-banner">
+            <div className="flex items-center gap-2">
+              <X size={16} weight="bold" className="text-rose-500 flex-shrink-0" />
+              <span className="text-xs font-semibold text-rose-700">
+                Ce service est actuellement indisponible.{catConfig[mode.id]?.hint ? ` ${catConfig[mode.id].hint}.` : ' Choisissez un autre service.'}
+              </span>
+            </div>
+            <button onClick={() => toggleRemind(mode.id, catConfig[mode.id]?.name || mode.label)} data-testid={`remind-btn-${mode.id}`}
+              className={`mt-2 w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${remindedKeys.has(mode.id) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
+              <Bell size={13} weight={remindedKeys.has(mode.id) ? 'fill' : 'bold'} />
+              {remindedKeys.has(mode.id) ? 'Vous serez prévenu à l\'ouverture' : 'Me prévenir à l\'ouverture'}
+            </button>
           </div>
         )}
       </div>

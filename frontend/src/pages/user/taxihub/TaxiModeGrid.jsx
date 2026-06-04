@@ -1,13 +1,27 @@
 /**
  * TaxiModeGrid — vue grille de sélection des 16 modes (vue "Plus de Services").
- * Les services planifiés hors créneau restent visibles (grisés + badge "Dispo 7h-10h").
- * Seuls les services désactivés manuellement (active===false) sont masqués.
+ * Les services planifiés hors créneau restent visibles (grisés + badge "Dispo 7h-10h"
+ * + bouton "Me prévenir à l'ouverture"). Les services désactivés manuellement sont masqués.
  */
 import React from 'react';
-import { Clock } from '@phosphor-icons/react';
+import { Clock, BellSimple, BellSimpleRinging } from '@phosphor-icons/react';
 import { MODES, CATS } from './taxiHubConstants';
 
-export const TaxiModeGrid = ({ catConfig, onSelect }) => (
+const RemindButton = ({ mode, name, reminded, onToggleRemind }) => (
+  <span
+    role="button"
+    tabIndex={0}
+    data-testid={`remind-btn-${mode}`}
+    onClick={(e) => { e.stopPropagation(); onToggleRemind(mode, name); }}
+    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onToggleRemind(mode, name); } }}
+    className={`mt-1.5 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${reminded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}
+  >
+    {reminded ? <BellSimpleRinging size={11} weight="fill" /> : <BellSimple size={11} weight="bold" />}
+    {reminded ? 'Prévenu' : 'Me prévenir'}
+  </span>
+);
+
+export const TaxiModeGrid = ({ catConfig, onSelect, remindedKeys = new Set(), onToggleRemind }) => (
   <div className="px-5 -mt-3" data-testid="mode-grid-view">
     {CATS.map((cat) => (
       <div key={cat.key} className="mb-5">
@@ -18,18 +32,20 @@ export const TaxiModeGrid = ({ catConfig, onSelect }) => (
             const cfg = catConfig[m.id];
             const unavailable = cfg?.available === false;
             const hint = cfg?.hint;
+            const reminded = remindedKeys.has(m.id);
             if (cat.key === 'special') {
               return (
                 <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => onSelect(m.id)}
-                  className={`px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors bg-white text-[#0B1426] border-[#E2E8F0] ${unavailable ? 'opacity-60' : ''}`}>
+                  className={`px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors bg-white text-[#0B1426] border-[#E2E8F0] ${unavailable ? 'opacity-70' : ''}`}>
                   <MIcon size={16} style={{ color: m.color }} /> {cfg?.name || m.label}
                   {unavailable && hint && <span className="text-[9px] font-bold text-amber-600 flex items-center gap-0.5" data-testid={`mode-hint-${m.id}`}><Clock size={9} weight="bold" />{hint.replace('Dispo ', '')}</span>}
+                  {unavailable && onToggleRemind && <RemindButton mode={m.id} name={cfg?.name || m.label} reminded={reminded} onToggleRemind={onToggleRemind} />}
                 </button>
               );
             }
             return (
               <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => onSelect(m.id)}
-                className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426] ${unavailable ? 'opacity-60' : ''}`}>
+                className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426] ${unavailable ? 'opacity-70' : ''}`}>
                 {unavailable && hint ? (
                   <span className="absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-0.5" data-testid={`mode-hint-${m.id}`}><Clock size={8} weight="bold" />{hint.replace('Dispo ', '')}</span>
                 ) : m.badge ? (
@@ -39,6 +55,7 @@ export const TaxiModeGrid = ({ catConfig, onSelect }) => (
                 <div>
                   <p className="font-bold text-sm leading-tight">{cfg?.name || m.label}</p>
                   <p className="text-[10px] text-slate-400">{m.sub}</p>
+                  {unavailable && onToggleRemind && <RemindButton mode={m.id} name={cfg?.name || m.label} reminded={reminded} onToggleRemind={onToggleRemind} />}
                 </div>
               </button>
             );

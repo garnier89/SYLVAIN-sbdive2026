@@ -1,0 +1,24 @@
+{
+  "summary": "E2E test of 'Me prévenir à l'ouverture' feature (in-app reminder + reopen toast). All 8 scenarios passed: schedule setup, greyed tile with badge+remind button, stopPropagation on remind click, toast 'Vous serez prévenu à l'ouverture de Moto', state→'Prévenu', persistence after reload (GET /reminders returns subscribed:['moto']), banner in booking view contains remind-btn, admin reopens (schedule_enabled=false) → rider sees toast '🔔 Moto est de nouveau disponible !' once on next mount, tile back to opacity 1 / no badge / no remind button, second reload → NO spam toast and reminders empty (notified=true filter works). Final cleanup performed (moto schedule_enabled=false ⇒ 24/7, reminder DELETEd for rider.qa).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_105.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TaxiHubPage.js is 663 lines — already large but functionally cohesive. The remind flow is small (toggleRemind + getServiceReminders side-effect in mount) and clean.",
+    "Backend lazy delivery (GET /reminders flips notified=true and returns ready[]) correctly prevents spam — verified empirically (second reload returns ready=[]).",
+    "RemindButton uses role='button' + tabIndex + stopPropagation correctly so clicking it inside the tile does not select the mode (verified: URL stayed at /taxi after click)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "admin@superapp.com/SuperAdmin123!, rider.qa@demo.sb/Rider123!",
+  "seed_data_creation": "Temporarily set Moto schedule 13:00-13:30 Europe/Paris to force unavailable state, then disabled schedule (schedule_enabled=false) restoring 24/7. Created and removed one rider reminder for moto.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Moto category schedule_windows still contains 13:00-13:30 but schedule_enabled=false → effectively 24/7. If a future test needs a pristine state, PUT /api/admin/service-categories/moto with {schedule_windows: []} to remove the stale window. Reminder collection for rider.qa is empty.",
+  "rca of the issue": "No bug found — feature works as specified."
+}

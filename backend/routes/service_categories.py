@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from core.config import db
-from core.deps import require_role
+from core.deps import require_role, get_current_user
 
 router = APIRouter(prefix="/service-categories", tags=["service-categories"])
 
@@ -132,6 +132,59 @@ async def list_active_service_categories():
         c["available_now"] = is_category_available_now(c)
         c["availability_hint"] = availability_hint(c)
     return cats
+
+
+# ── "Me prévenir à l'ouverture" reminders (in-app, push-ready) ─────────────
+@router.get("/reminders")
+async def my_service_reminders(request: Request):
+    """Returns the user's active reminders + any service that just reopened (delivered in-app as a toast)."""
+    user = await get_current_user(request)
+    pending = await db.service_reminders.find(
+        {"user_id": user["id"], "notified": False}, {"_id": 0}
+    ).to_list(100)
+    subscribed, ready = [], []
+    for rem in pending:
+        cat = await db.service_categories.find_one({"key": rem["category_key"]}, {"_id": 0})
+        if cat and is_category_available_now(cat):
+            await db.service_reminders.update_one(
+                {"id": rem["id"]},
+                {"$set": {"notified": True, "notified_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            ready.append({"key": rem["category_key"], "name": rem.get("category_name") or rem["category_key"]})
+        else:
+            subscribed.append(rem["category_key"])
+    return {"subscribed": subscribed, "ready": ready}
+
+
+@router.post("/{key}/remind")
+async def subscribe_service_reminder(key: str, request: Request):
+    user = await get_current_user(request)
+    cat = await db.service_categories.find_one({"key": key}, {"_id": 0})
+    if not cat:
+        raise HTTPException(status_code=404, detail="Service category not found")
+    existing = await db.service_reminders.find_one(
+        {"user_id": user["id"], "category_key": key, "notified": False}
+    )
+    if not existing:
+        await db.service_reminders.insert_one({
+            "id": f"rem_{uuid.uuid4().hex[:10]}",
+            "user_id": user["id"],
+            "category_key": key,
+            "category_name": cat.get("name", key),
+            "notified": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    return {"key": key, "subscribed": True}
+
+
+@router.delete("/{key}/remind")
+async def unsubscribe_service_reminder(key: str, request: Request):
+    user = await get_current_user(request)
+    await db.service_reminders.delete_many(
+        {"user_id": user["id"], "category_key": key, "notified": False}
+    )
+    return {"key": key, "subscribed": False}
+
 
 
 # ── Admin management ──────────────────────────────────────────────────────
