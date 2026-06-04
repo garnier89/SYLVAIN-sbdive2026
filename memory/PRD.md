@@ -1,5 +1,12 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Pack D : Module Médical passager (RDV + Transport médical) (DONE — iter 107)
+- **Prise de RDV médical** (`/medical/appointment`, `MedicalAppointmentPage`) : liste de 6 médecins (filtre par spécialité), choix **cabinet/domicile** (adresse requise si domicile), date + créneau horaire, infos patient (nom, tél, âge, symptômes), confirmation → écran succès → /history.
+- **Transport médical / Ambulance** (`/medical/transport`, `MedicalTransportPage`) : 3 types (Standard, Médicalisée USI, PMR), carte Leaflet (départ + hôpital/destination), niveau d'urgence (normale/urgente/critique), infos patient, **estimation tarif** (base + €/km) puis demande → écran succès → /history.
+- **Backend** (`gojek_services.py` → `medical_router`, préfixe `/medical`) : `GET /doctors`, `POST /appointments`, `GET /appointments`, `GET /ambulance-types`, `POST /transport/estimate`, `POST /transport`, `GET /transport`. Collections `medical_appointments`, `medical_transport`. Tarif ambulance = base_fee + per_km × distance (Haversine).
+- **Accueil** : boutons `medical-appointment-btn` → /medical/appointment, `medical-other-btn` (« Transport Médical ») → /medical/transport. `medicalAPI` ajouté.
+- Testé iter107 : **100% frontend PASS** (liste+filtre médecins, RDV cabinet/domicile+validation, 3 ambulances, carte+urgence+estimation+confirmation) + backend curl. Aucun bug.
+
 ## NEW - Jun 2026 - Pack F : Multi-livraisons réelles (un coursier, plusieurs dépôts) (DONE — iter 106)
 - **`ParcelPage` (/parcel)** : la « Livraison Multiple » était un stub (un seul dépôt + `confirm()` mocké). Désormais **réelle** : 1 ramassage + **N points de dépôt** (ajout/suppression), destinataire + téléphone par dépôt, placement sur carte Leaflet, **prix calculé par segment** (ramassage→dépôt1→dépôt2…), écran Confirmer avec détail par segment, et **création d'une vraie commande**.
 - **Backend** : nouveau module `routes/parcels.py` (collection `parcels`) — `POST /api/parcels/estimate` (legs + total km/durée/tarif), `POST /api/parcels` (crée, broadcast `new_parcel` aux chauffeurs), `GET /api/parcels`, `GET /api/parcels/{id}`. Tarif par segment via `calculate_fare` (moto→motorcycle, box→car). Validation `stops` non vide (422). Enregistré dans `server.py`.
