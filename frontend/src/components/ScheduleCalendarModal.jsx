@@ -85,7 +85,7 @@ const ScheduleCalendarModal = ({ open, onClose, onConfirm, minAdvanceMinutes = 6
           className="w-full max-w-[430px] bg-white rounded-t-3xl p-5 pb-8">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-black text-[#0B1426] flex items-center gap-2">
-              <CalendarBlank size={20} className="text-[#FFC107]" weight="duotone" /> Programmer la course
+              <CalendarBlank size={20} className="text-[#FF5000]" weight="duotone" /> Programmer la course
             </h3>
             <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" data-testid="schedule-close-btn"><X size={20} /></button>
           </div>
@@ -152,7 +152,7 @@ const ScheduleCalendarModal = ({ open, onClose, onConfirm, minAdvanceMinutes = 6
           <button onClick={confirm} disabled={!isTimeValid()}
             data-testid="schedule-confirm-btn"
             className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{ backgroundColor: '#FFC107', color: '#0B1426' }}>
+            style={{ backgroundColor: '#FF5000', color: '#0B1426' }}>
             <Check size={20} weight="bold" /> Confirmer
           </button>
           {!isTimeValid() && <p className="text-center text-[11px] text-rose-500 mt-2" data-testid="schedule-time-warning">Choisissez une heure ultérieure au délai minimum.</p>}

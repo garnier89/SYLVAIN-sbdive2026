@@ -82,7 +82,7 @@ const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClo
         {!ready && <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">Chargement de la carte…</div>}
         {/* Fixed center pin */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full pointer-events-none">
-          <MapPin size={42} weight="fill" className="text-[#FFC107] drop-shadow-lg" />
+          <MapPin size={42} weight="fill" className="text-[#FF5000] drop-shadow-lg" />
         </div>
       </div>
 
@@ -93,7 +93,7 @@ const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClo
           <p className="text-sm text-gray-700 flex-1" data-testid="map-picker-address">{address || 'Déplacez la carte pour choisir un lieu'}</p>
         </div>
         <button onClick={confirm} disabled={!ready} data-testid="map-picker-confirm"
-          className="w-full py-3.5 rounded-xl font-bold text-[#0B1426] disabled:opacity-50" style={{ backgroundColor: '#FFC107' }}>
+          className="w-full py-3.5 rounded-xl font-bold text-[#0B1426] disabled:opacity-50" style={{ backgroundColor: '#FF5000' }}>
           Confirmer ce lieu
         </button>
       </div>

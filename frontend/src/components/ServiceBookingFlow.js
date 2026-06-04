@@ -276,7 +276,7 @@ const ServiceBookingFlow = () => {
                 return (
                   <button key={pm.k} onClick={() => setPayment(pm.k)} data-testid={`payment-${pm.k}`}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-sm font-semibold ${active ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-gray-200'}`}>
-                    <PmIcon size={18} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FFC107]' : ''} /> {pm.l}
+                    <PmIcon size={18} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : ''} /> {pm.l}
                   </button>
                 );
               })}

@@ -387,7 +387,7 @@ const TaxiHubPage = () => {
       {/* Header */}
       <div className="bg-[#0B1426] text-white px-5 pt-12 pb-6">
         <button onClick={goBack} className="mb-4" data-testid="taxi-hub-back"><ArrowLeft size={24} /></button>
-        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#FFC107]">SB Drive · Se déplacer</p>
+        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#FF5000]">SB Drive · Se déplacer</p>
         <h1 className="text-3xl font-black tracking-tight mt-1">
           {view === 'grid' ? 'Choisissez un service' : 'Planifiez votre trajet'}
         </h1>
@@ -398,7 +398,7 @@ const TaxiHubPage = () => {
             <div className="relative flex-1">
               <button onClick={() => setTopMenu(topMenu === 'timing' ? null : 'timing')}
                 className="w-full bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-left" data-testid="timing-toggle">
-                <span className="flex items-center gap-2 min-w-0"><Clock size={18} className="text-[#FFC107] flex-shrink-0" />
+                <span className="flex items-center gap-2 min-w-0"><Clock size={18} className="text-[#FF5000] flex-shrink-0" />
                   <span className="text-sm font-semibold truncate">{pickupTiming === 'now' ? 'Ramassage maintenant' : 'Plus tard'}</span>
                 </span>
                 <CaretRight size={14} className={`transition-transform ${topMenu === 'timing' ? 'rotate-90' : ''}`} />
@@ -417,7 +417,7 @@ const TaxiHubPage = () => {
             <div className="relative flex-1">
               <button onClick={() => setTopMenu(topMenu === 'who' ? null : 'who')}
                 className="w-full bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-left" data-testid="who-toggle">
-                <span className="flex items-center gap-2 min-w-0"><UserPlus size={18} className="text-[#FFC107] flex-shrink-0" />
+                <span className="flex items-center gap-2 min-w-0"><UserPlus size={18} className="text-[#FF5000] flex-shrink-0" />
                   <span className="text-sm font-semibold truncate">{forWho === 'me' ? 'Pour moi' : 'Pour un proche'}</span>
                 </span>
                 <CaretRight size={14} className={`transition-transform ${topMenu === 'who' ? 'rotate-90' : ''}`} />
@@ -453,7 +453,7 @@ const TaxiHubPage = () => {
                 return (
                   <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => selectMode(m.id)}
                     className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426]`}>
-                    {m.badge && <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FFC107] text-[#0B1426]">{m.badge}</span>}
+                    {m.badge && <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF5000] text-[#0B1426]">{m.badge}</span>}
                     <MIcon size={26} weight={cat.key === 'everyday' ? 'duotone' : 'regular'} style={{ color: m.color }} />
                     <div>
                       <p className="font-bold text-sm leading-tight">{catConfig[m.id]?.name || m.label}</p>
@@ -493,7 +493,7 @@ const TaxiHubPage = () => {
               <button onClick={() => setCalendarOpen(true)} data-testid="timing-datetime-trigger"
                 className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2.5 mt-1 text-sm text-left flex items-center justify-between hover:border-[#0B1426]">
                 <span className={scheduledAt ? 'text-[#0B1426] font-semibold' : 'text-slate-400'}>{formatScheduled(scheduledAt) || 'Choisir une date'}</span>
-                <CalendarPlus size={16} className="text-[#FFC107]" />
+                <CalendarPlus size={16} className="text-[#FF5000]" />
               </button>
             </div>
           )}
@@ -522,7 +522,7 @@ const TaxiHubPage = () => {
                   </div>
                 ))}
                 {needsDropoff && (
-                  <div className="border-l-4 border-[#FFC107] pl-3 py-1">
+                  <div className="border-l-4 border-[#FF5000] pl-3 py-1">
                     <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><FlagCheckered size={11} /> Destination</label>
                     <GooglePlacesInput value={dropoff?.address || ''} onSelect={setDropoff} onFocus={ensurePickupDetected} placeholder="Où allez-vous ?" testId="dropoff-address-input" />
                   </div>
@@ -549,7 +549,7 @@ const TaxiHubPage = () => {
                 <button onClick={() => setMapPicker({ open: true, target: 'dropoff' })}
                   className="w-full flex items-center gap-3 py-2.5 text-left active:opacity-70 border-t border-gray-100" data-testid="set-on-map-btn">
                   <span className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
-                    <MapTrifold size={18} className="text-[#FFC107]" />
+                    <MapTrifold size={18} className="text-[#FF5000]" />
                   </span>
                   <span className="text-sm font-semibold text-[#0B1426]">Définir l'emplacement sur la carte</span>
                 </button>
@@ -597,9 +597,9 @@ const TaxiHubPage = () => {
                 initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }}
                 className="bg-[#0B1426] text-white p-4 rounded-xl flex items-center justify-between mb-4 relative overflow-hidden"
                 data-testid="live-price-card">
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFC107] to-transparent opacity-60" />
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FF5000] to-transparent opacity-60" />
                 <div>
-                  <p className="text-[10px] tracking-[0.1em] uppercase text-[#FFC107] font-bold">{mode.label}</p>
+                  <p className="text-[10px] tracking-[0.1em] uppercase text-[#FF5000] font-bold">{mode.label}</p>
                   {isRental ? (
                     <p className="text-xs text-white/60 mt-0.5">Forfait {RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.label}</p>
                   ) : isBuddy ? (
@@ -631,7 +631,7 @@ const TaxiHubPage = () => {
                   <button onClick={() => setCalendarOpen(true)} data-testid="datetime-trigger"
                     className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2.5 mt-1 text-sm text-left flex items-center justify-between hover:border-[#0B1426]">
                     <span className={scheduledAt ? 'text-[#0B1426] font-semibold' : 'text-slate-400'}>{formatScheduled(scheduledAt) || 'Choisir une date'}</span>
-                    <CalendarPlus size={16} className="text-[#FFC107]" />
+                    <CalendarPlus size={16} className="text-[#FF5000]" />
                   </button>
                 </div>
               )}
@@ -738,7 +738,7 @@ const TaxiHubPage = () => {
                 return (
                   <button key={pm.k} onClick={() => setPaymentMethod(pm.k)} data-testid={`payment-${pm.k}`}
                     className={`flex-1 min-w-[96px] flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${active ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}>
-                    <PmIcon size={18} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FFC107]' : ''} /> {pm.l}
+                    <PmIcon size={18} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : ''} /> {pm.l}
                   </button>
                 );
               })}
@@ -769,7 +769,7 @@ const TaxiHubPage = () => {
       <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-[#E2E8F0] p-4">
         <button onClick={onSubmit} disabled={submitting} data-testid="cta-book-button"
           className="w-full py-4 font-black text-lg flex items-center justify-center gap-2 rounded-xl active:scale-[0.98] transition-transform disabled:opacity-60"
-          style={{ backgroundColor: '#FFC107', color: '#0B1426' }}>
+          style={{ backgroundColor: '#FF5000', color: '#0B1426' }}>
           <Lightning size={20} weight="fill" /> {submitting ? 'Envoi…' : ctaLabel}
         </button>
       </div>

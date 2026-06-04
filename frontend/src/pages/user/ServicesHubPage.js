@@ -44,7 +44,7 @@ const ServicesHubPage = () => {
     <div className="mobile-container min-h-screen bg-gray-50 pb-10" data-testid="services-hub-page">
       {/* Header */}
       <div className="px-4 pt-10 pb-6 bg-[#0B1426] text-white relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFC107] to-transparent opacity-60" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FF5000] to-transparent opacity-60" />
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/home')} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center" data-testid="back-btn">

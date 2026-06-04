@@ -123,7 +123,7 @@ const RouteEditModal = ({ open, ride, onClose, onUpdated }) => {
             <div className="bg-[#0B1426] text-white rounded-xl p-4 mb-4" data-testid="route-edit-fare-preview">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] uppercase tracking-wide text-[#FFC107] font-bold">Nouveau tarif estimé</p>
+                  <p className="text-[10px] uppercase tracking-wide text-[#FF5000] font-bold">Nouveau tarif estimé</p>
                   <p className="text-2xl font-black" data-testid="route-edit-new-fare">{preview.fare.toFixed(2)} €</p>
                   {preview.distance != null && <p className="text-[11px] text-white/50">{preview.distance.toFixed(1)} km</p>}
                 </div>
@@ -145,7 +145,7 @@ const RouteEditModal = ({ open, ride, onClose, onUpdated }) => {
 
           <button onClick={save} disabled={saving} data-testid="route-edit-save"
             className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{ backgroundColor: '#FFC107', color: '#0B1426' }}>
+            style={{ backgroundColor: '#FF5000', color: '#0B1426' }}>
             <Check size={20} weight="bold" /> {saving ? 'Mise à jour…' : 'Valider les modifications'}
           </button>
         </motion.div>

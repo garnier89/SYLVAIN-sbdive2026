@@ -54,7 +54,7 @@ const MyServiceBookingsPage = () => {
 
       <div className="px-4 mt-4">
         {loading ? (
-          <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-gray-200 border-t-[#FFC107] rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-gray-200 border-t-[#FF5000] rounded-full animate-spin" /></div>
         ) : bookings.length === 0 ? (
           <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center" data-testid="empty-bookings">
             <CalendarBlank size={36} className="mx-auto mb-3 text-gray-300" weight="duotone" />
@@ -67,7 +67,7 @@ const MyServiceBookingsPage = () => {
               const meta = STATUS_META[b.status] || STATUS_META.pending;
               const SIcon = meta.Icon;
               return (
-                <div key={b.id} className={`bg-white rounded-2xl border p-4 ${focusId === b.id ? 'border-[#FFC107] ring-1 ring-[#FFC107]' : 'border-gray-100'}`} data-testid={`booking-${b.id}`}>
+                <div key={b.id} className={`bg-white rounded-2xl border p-4 ${focusId === b.id ? 'border-[#FF5000] ring-1 ring-[#FF5000]' : 'border-gray-100'}`} data-testid={`booking-${b.id}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-bold text-gray-900 text-sm">{b.service_name}</p>

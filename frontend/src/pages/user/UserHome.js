@@ -291,14 +291,14 @@ const UserHome = () => {
           onClick={() => navigate('/services-hub')}
           data-testid="services-hub-banner"
         >
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFC107] to-transparent opacity-70" />
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FF5000] to-transparent opacity-70" />
           <div className="flex-1">
             <h3 className="text-lg font-black tracking-tight">Tous les services</h3>
             <p className="text-sm text-white/60 mt-1 leading-relaxed">Beauté, auto, animaux, dépannage, maison… Réservez en quelques secondes.</p>
-            <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-[#FFC107]">Explorer le hub →</span>
+            <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-[#FF5000]">Explorer le hub →</span>
           </div>
           <div className="w-16 h-16 flex-shrink-0 rounded-2xl bg-white/10 flex items-center justify-center">
-            <GridFour size={36} weight="duotone" className="text-[#FFC107]" />
+            <GridFour size={36} weight="duotone" className="text-[#FF5000]" />
           </div>
         </div>
       </div>
