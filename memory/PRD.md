@@ -3,6 +3,11 @@
 
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - ETA dynamique sur le suivi (« Coursier à ~6 min ») (DONE — iter 110)
+- **ETA dynamique** affiché sur la page de suivi passager (`tracking-eta`) : « Coursier à ~X min · vers [cible] ». La cible s'adapte au statut — colis : ramassage (avant récupération) → prochain dépôt non livré ; transport : prise en charge (avant patient à bord) → destination.
+- **Backend** : `GET /api/parcels/{id}` & `/api/medical/transport/{id}` calculent `eta_minutes` + `eta_target_label` (distance coursier→cible via Haversine, vitesse urbaine ~25 km/h, min 1 min). Mis à jour au polling 8s.
+- Vérifié E2E curl : statut accepted → ETA « le ramassage » ; après picked_up → ETA « le dépôt 1 » (cible recalculée). Lint clean.
+
 ## NEW - Jun 2026 - Position live du coursier sur carte (suivi passager) (DONE — iter 109)
 - **Carte live du coursier** dans la page de suivi passager (`DeliveryTrackingPage`) pour colis & transport médical : marqueur coursier 🛵 + ramassage (vert) + dépôt(s)/destination (rouge), mise à jour au polling 8s + **recentrage auto** (`Recenter`/`useMap` → `panTo`).
 - **Backend** : `GET /api/parcels/{id}` et `GET /api/medical/transport/{id}` exposent `driver_location` via `_driver_live_location` (mémoire `manager` en priorité, sinon `db.drivers.current_lat/lng`). La carte n'apparaît qu'une fois le chauffeur assigné + position connue.

@@ -84,6 +84,17 @@ const DeliveryTrackingPage = () => {
           </div>
         </div>
 
+        {/* Dynamic ETA */}
+        {item.driver_id && item.eta_minutes != null && item.status !== 'completed' && (
+          <div className="bg-[#0B1426] text-white rounded-2xl px-4 py-3 flex items-center gap-3" data-testid="tracking-eta">
+            <span className="text-2xl">🛵</span>
+            <div>
+              <p className="text-lg font-bold leading-tight">Coursier à ~{item.eta_minutes} min</p>
+              {item.eta_target_label && <p className="text-xs text-white/70">vers {item.eta_target_label}</p>}
+            </div>
+          </div>
+        )}
+
         {/* Live courier map */}
         {item.driver_id && (item.driver_location || item.pickup_lat) && (
           <div className="rounded-2xl overflow-hidden border border-gray-100 h-[220px]" data-testid="tracking-live-map">

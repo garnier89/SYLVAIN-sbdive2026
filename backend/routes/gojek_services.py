@@ -582,6 +582,19 @@ async def get_medical_transport(transport_id: str, request: Request):
             if drv and drv.get("current_lat") is not None:
                 loc = {"lat": drv["current_lat"], "lng": drv["current_lng"]}
     tr["driver_location"] = loc
+    # Dynamic ETA: courier → next point (pickup before onboard, else destination)
+    eta, label = None, None
+    if loc:
+        status = tr.get("status")
+        if status in ("accepted", "en_route_pickup", "pending", None):
+            tgt, label = (tr.get("pickup_lat"), tr.get("pickup_lng")), "la prise en charge"
+        else:
+            tgt, label = (tr.get("dest_lat"), tr.get("dest_lng")), "la destination"
+        if tgt[0] is not None:
+            km = calculate_distance(loc["lat"], loc["lng"], tgt[0], tgt[1])
+            eta = max(1, round(km / 25 * 60))
+    tr["eta_minutes"] = eta
+    tr["eta_target_label"] = label
     return tr
 
 

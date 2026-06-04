@@ -143,6 +143,26 @@ async def get_parcel(parcel_id: str, request: Request):
     if parcel["user_id"] != user["id"] and user["role"] not in ["admin", "dispatcher", "driver"]:
         raise HTTPException(status_code=403, detail="Access denied")
     parcel["driver_location"] = await _driver_live_location(parcel.get("driver_id"))
+    # Dynamic ETA: courier → next relevant point (pickup, or next undelivered drop-off)
+    loc = parcel["driver_location"]
+    label, eta = None, None
+    if loc:
+        status = parcel.get("status")
+        if status in ("accepted", "arrived_pickup", "pending", None):
+            tgt, label = (parcel.get("pickup_lat"), parcel.get("pickup_lng")), "le ramassage"
+        else:
+            nxt = next((lg for lg in parcel.get("legs", []) if lg.get("status") != "delivered"), None)
+            stops = parcel.get("stops", [])
+            if nxt and nxt["index"] < len(stops):
+                s = stops[nxt["index"]]
+                tgt, label = (s.get("lat"), s.get("lng")), f"le dépôt {nxt['index'] + 1}"
+            else:
+                tgt = (None, None)
+        if tgt[0] is not None:
+            km = calculate_distance(loc["lat"], loc["lng"], tgt[0], tgt[1])
+            eta = max(1, round(km / 25 * 60))
+    parcel["eta_minutes"] = eta
+    parcel["eta_target_label"] = label
     return parcel
 
 
