@@ -3,6 +3,14 @@
 
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Suivi chauffeur colis multi-dépôts + transport médical (DONE — iter 108)
+- **App chauffeur — page « Livraisons & Transport »** (`/chauffeur/livraisons`, `DeliveryJobsPage`, lien dans le menu latéral) : onglets **Disponibles** / **En cours**. Le chauffeur voit les colis & transports en attente, les **accepte**, et met à jour le **statut par étape**.
+  - Colis : accepté → arrivé ramassage → colis récupéré → puis **livraison par dépôt** (bouton « Marquer livré » par point) → terminé auto quand tous les dépôts livrés.
+  - Transport médical : accepté → en route → patient à bord → arrivé → terminé.
+- **Suivi passager** (`/track/:type/:id`, `DeliveryTrackingPage`) : **timeline de statut par étape** (polling 8s) + statut par dépôt pour les colis. Les écrans succès colis/transport redirigent désormais vers le suivi.
+- **Backend** : parcels (`driver/available`, `driver/active`, `{id}/accept`, `{id}/status`, `{id}/legs/{index}/deliver`) ; medical transport (`transport/driver/available`, `driver/active`, `{id}/accept`, `{id}/status`, `GET transport/{id}`). Statut par leg (pending→delivered), flows validés.
+- Testé iter108 : **100% PASS (chauffeur + passager)** + backend E2E curl (accept→étapes→livraison par dépôt→completed ; transport 5 étapes ; suivi passager). Aucun bug. Lint clean.
+
 ## NEW - Jun 2026 - Pack D : Module Médical passager (RDV + Transport médical) (DONE — iter 107)
 - **Prise de RDV médical** (`/medical/appointment`, `MedicalAppointmentPage`) : liste de 6 médecins (filtre par spécialité), choix **cabinet/domicile** (adresse requise si domicile), date + créneau horaire, infos patient (nom, tél, âge, symptômes), confirmation → écran succès → /history.
 - **Transport médical / Ambulance** (`/medical/transport`, `MedicalTransportPage`) : 3 types (Standard, Médicalisée USI, PMR), carte Leaflet (départ + hôpital/destination), niveau d'urgence (normale/urgente/critique), infos patient, **estimation tarif** (base + €/km) puis demande → écran succès → /history.
