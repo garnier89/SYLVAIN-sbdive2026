@@ -1,0 +1,23 @@
+{
+  "summary": "Tested live courier position tracking on passenger tracking pages (parcels & medical transport). Backend returns driver_location after driver accepts + POSTs /api/drivers/location. Frontend (DeliveryTrackingPage) renders Leaflet live map (data-testid='tracking-live-map') with courier 🛵 marker, pickup (green) and drop-off (red) markers. Map is correctly hidden before driver assignment. Polling (8s) refreshes driver position. All 4 user scenarios from the request pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_parcel_live_tracking.py",
+    "/app/test_reports/pytest/iter109_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DeliveryTrackingPage.js: MapContainer center re-renders with new center on every poll, but Leaflet only honors center on initial mount unless `key` or programmatic setView is used. Currently the map does NOT re-center on the new courier location after polls. Marker position does update (Marker prop is reactive), so this is acceptable for short trips but may need MapController for long-distance recentering. Not blocking.",
+    "DeliveryTrackingPage.js: `catch { /* ignore transient */ }` swallows all errors silently. A persistent backend failure on /api/parcels/{id} (e.g., 401) will keep showing the previously-loaded item without any user feedback. Consider logging or showing a soft retry indicator.",
+    "Both Driver and Rider tokens come via `access_token` field in response (not `token`). Frontend services use `access_token` — OK. Test must match."
+  ],
+  "updated_files": ["/app/backend/tests/test_parcel_live_tracking.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "rider.qa@demo.sb / Rider123!, jean.dupont@demo.sb / Driver123! (POST /api/auth/login)",
+  "seed_data_creation": "Created TEST parcel + medical transport during tests (POST /api/parcels, POST /api/medical/transport). Not cleaned up; uses auto-generated UUIDs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Live tracking flow validated end-to-end. Backend endpoint /api/parcels/{id} and /api/medical/transport/{id} both expose driver_location via _driver_live_location() (in-memory manager fallback to db.drivers.current_lat/lng). Frontend uses react-leaflet with divIcon 🛵 courier. Test pattern: POST /api/auth/login returns {access_token}, then API-create parcel as rider, API-accept + POST /api/drivers/location as driver, navigate UI to /track/parcel/{id} as logged-in rider.",
+  "rca of the issue": "No bug. Feature works as designed: map appears only when driver_id && (driver_location || pickup_lat). Before driver acceptance, 'Recherche d'un coursier...' shown in timeline area. After acceptance + location POST, map mounts with 3 markers (pickup green, drop-off red, courier 🛵)."
+}

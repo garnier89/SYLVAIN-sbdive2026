@@ -121,6 +121,19 @@ async def list_my_parcels(request: Request, limit: int = 20):
     return items
 
 
+async def _driver_live_location(driver_id):
+    """Last known driver position: in-memory (live) first, else persisted in db.drivers."""
+    if not driver_id:
+        return None
+    loc = manager.get_driver_location(driver_id)
+    if loc and loc.get("lat") is not None:
+        return {"lat": loc["lat"], "lng": loc["lng"]}
+    drv = await db.drivers.find_one({"user_id": driver_id}, {"_id": 0, "current_lat": 1, "current_lng": 1})
+    if drv and drv.get("current_lat") is not None:
+        return {"lat": drv["current_lat"], "lng": drv["current_lng"]}
+    return None
+
+
 @router.get("/{parcel_id}")
 async def get_parcel(parcel_id: str, request: Request):
     user = await get_current_user(request)
@@ -129,6 +142,7 @@ async def get_parcel(parcel_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Parcel not found")
     if parcel["user_id"] != user["id"] and user["role"] not in ["admin", "dispatcher", "driver"]:
         raise HTTPException(status_code=403, detail="Access denied")
+    parcel["driver_location"] = await _driver_live_location(parcel.get("driver_id"))
     return parcel
 
 

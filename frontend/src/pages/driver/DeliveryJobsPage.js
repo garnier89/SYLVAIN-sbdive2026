@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { parcelAPI, medicalAPI } from '../../services/api';
+import { parcelAPI, medicalAPI, driverAPI } from '../../services/api';
 import {
   ArrowLeft, Package, FirstAid, MapPin, FlagCheckered, CheckCircle, CaretRight, ArrowsClockwise,
 } from '@phosphor-icons/react';
@@ -41,6 +41,20 @@ const DeliveryJobsPage = () => {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  const activeCount = activeParcels.length + activeTransports.length;
+
+  // Broadcast live position while the driver has active deliveries (passenger live map)
+  useEffect(() => {
+    if (activeCount === 0 || !navigator.geolocation) return;
+    const send = () => navigator.geolocation.getCurrentPosition(
+      (pos) => driverAPI.updateLocation(pos.coords.latitude, pos.coords.longitude).catch(() => {}),
+      () => {}, { enableHighAccuracy: true, maximumAge: 8000 }
+    );
+    send();
+    const t = setInterval(send, 10000);
+    return () => clearInterval(t);
+  }, [activeCount]);
+
   const acceptParcel = async (id) => { try { await parcelAPI.accept(id); toast.success('Colis accepté'); setTab('active'); refresh(); } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } };
   const acceptTransport = async (id) => { try { await medicalAPI.acceptTransport(id); toast.success('Transport accepté'); setTab('active'); refresh(); } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } };
   const advanceParcel = async (id, next) => { try { await parcelAPI.updateStatus(id, next); refresh(); } catch { toast.error('Échec'); } };
@@ -48,7 +62,6 @@ const DeliveryJobsPage = () => {
   const advanceTransport = async (id, next) => { try { await medicalAPI.updateTransportStatus(id, next); if (next === 'completed') toast.success('Course terminée'); refresh(); } catch { toast.error('Échec'); } };
 
   const availableCount = availParcels.length + availTransports.length;
-  const activeCount = activeParcels.length + activeTransports.length;
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="delivery-jobs-page">

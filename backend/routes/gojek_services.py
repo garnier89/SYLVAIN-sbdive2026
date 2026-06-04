@@ -9,6 +9,7 @@ from typing import Optional
 
 from core.config import db
 from core.deps import get_current_user, calculate_distance
+from core.websocket import manager
 
 router = APIRouter(tags=["gojek-services"])
 
@@ -570,6 +571,17 @@ async def get_medical_transport(transport_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Transport not found")
     if tr["user_id"] != user["id"] and user["role"] not in ["admin", "dispatcher", "driver"]:
         raise HTTPException(status_code=403, detail="Accès refusé")
+    drv_id = tr.get("driver_id")
+    loc = None
+    if drv_id:
+        live = manager.get_driver_location(drv_id)
+        if live and live.get("lat") is not None:
+            loc = {"lat": live["lat"], "lng": live["lng"]}
+        else:
+            drv = await db.drivers.find_one({"user_id": drv_id}, {"_id": 0, "current_lat": 1, "current_lng": 1})
+            if drv and drv.get("current_lat") is not None:
+                loc = {"lat": drv["current_lat"], "lng": drv["current_lng"]}
+    tr["driver_location"] = loc
     return tr
 
 

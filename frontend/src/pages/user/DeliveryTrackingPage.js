@@ -2,6 +2,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { parcelAPI, medicalAPI } from '../../services/api';
 import { ArrowLeft, Package, FirstAid, CheckCircle, Circle, FlagCheckered } from '@phosphor-icons/react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+const courierIcon = L.divIcon({ html: '<div style="font-size:26px;line-height:1">🛵</div>', className: 'courier-marker', iconSize: [30, 30], iconAnchor: [15, 15] });
 
 const PARCEL_STEPS = [
   { k: 'accepted', l: 'Coursier assigné' },
@@ -63,6 +76,19 @@ const DeliveryTrackingPage = () => {
             <p className="text-xs text-gray-500">{item.fare?.toFixed(2)} € · {item.driver_id ? 'Coursier en route' : 'Recherche d\'un coursier...'}</p>
           </div>
         </div>
+
+        {/* Live courier map */}
+        {item.driver_id && (item.driver_location || item.pickup_lat) && (
+          <div className="rounded-2xl overflow-hidden border border-gray-100 h-[220px]" data-testid="tracking-live-map">
+            <MapContainer center={[item.driver_location?.lat || item.pickup_lat, item.driver_location?.lng || item.pickup_lng]} zoom={13} className="w-full h-full" style={{ height: '100%' }} zoomControl={false}>
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {item.pickup_lat && <Marker position={[item.pickup_lat, item.pickup_lng]} icon={greenIcon}><Popup>Ramassage</Popup></Marker>}
+              {type === 'transport' && item.dest_lat && <Marker position={[item.dest_lat, item.dest_lng]} icon={redIcon}><Popup>Destination</Popup></Marker>}
+              {type !== 'transport' && (item.stops || []).map((s, i) => (s.lat ? <Marker key={i} position={[s.lat, s.lng]} icon={redIcon}><Popup>Dépôt {i + 1}</Popup></Marker> : null))}
+              {item.driver_location && <Marker position={[item.driver_location.lat, item.driver_location.lng]} icon={courierIcon}><Popup>Votre coursier</Popup></Marker>}
+            </MapContainer>
+          </div>
+        )}
 
         {/* Status timeline */}
         <div className="bg-white rounded-2xl p-5" data-testid="tracking-timeline">
