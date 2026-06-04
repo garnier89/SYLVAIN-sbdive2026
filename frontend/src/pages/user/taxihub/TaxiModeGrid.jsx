@@ -1,8 +1,10 @@
 /**
  * TaxiModeGrid — vue grille de sélection des 16 modes (vue "Plus de Services").
- * Extrait de TaxiHubPage.js (présentation pure).
+ * Les services planifiés hors créneau restent visibles (grisés + badge "Dispo 7h-10h").
+ * Seuls les services désactivés manuellement (active===false) sont masqués.
  */
 import React from 'react';
+import { Clock } from '@phosphor-icons/react';
 import { MODES, CATS } from './taxiHubConstants';
 
 export const TaxiModeGrid = ({ catConfig, onSelect }) => (
@@ -11,23 +13,31 @@ export const TaxiModeGrid = ({ catConfig, onSelect }) => (
       <div key={cat.key} className="mb-5">
         <p className="text-[11px] tracking-[0.12em] uppercase font-bold text-slate-500 mb-2">{cat.title}</p>
         <div className={cat.key === 'everyday' ? 'grid grid-cols-2 gap-3' : cat.key === 'time' ? 'flex overflow-x-auto gap-3 pb-2 hide-scrollbar' : 'flex flex-wrap gap-2'}>
-          {MODES.filter((m) => m.cat === cat.key && (catConfig[m.id]?.available !== false)).map((m) => {
+          {MODES.filter((m) => m.cat === cat.key && (catConfig[m.id]?.active !== false)).map((m) => {
             const MIcon = m.icon;
+            const cfg = catConfig[m.id];
+            const unavailable = cfg?.available === false;
+            const hint = cfg?.hint;
             if (cat.key === 'special') {
               return (
                 <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => onSelect(m.id)}
-                  className="px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors bg-white text-[#0B1426] border-[#E2E8F0]">
-                  <MIcon size={16} style={{ color: m.color }} /> {catConfig[m.id]?.name || m.label}
+                  className={`px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors bg-white text-[#0B1426] border-[#E2E8F0] ${unavailable ? 'opacity-60' : ''}`}>
+                  <MIcon size={16} style={{ color: m.color }} /> {cfg?.name || m.label}
+                  {unavailable && hint && <span className="text-[9px] font-bold text-amber-600 flex items-center gap-0.5" data-testid={`mode-hint-${m.id}`}><Clock size={9} weight="bold" />{hint.replace('Dispo ', '')}</span>}
                 </button>
               );
             }
             return (
               <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => onSelect(m.id)}
-                className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426]`}>
-                {m.badge && <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF5000] text-[#0B1426]">{m.badge}</span>}
+                className={`relative ${cat.key === 'everyday' ? 'aspect-[1.4]' : 'min-w-[136px]'} rounded-xl p-3 flex flex-col justify-between border text-left transition-all bg-white text-[#0B1426] border-[#E2E8F0] hover:border-[#0B1426] ${unavailable ? 'opacity-60' : ''}`}>
+                {unavailable && hint ? (
+                  <span className="absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-0.5" data-testid={`mode-hint-${m.id}`}><Clock size={8} weight="bold" />{hint.replace('Dispo ', '')}</span>
+                ) : m.badge ? (
+                  <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF5000] text-[#0B1426]">{m.badge}</span>
+                ) : null}
                 <MIcon size={26} weight={cat.key === 'everyday' ? 'duotone' : 'regular'} style={{ color: m.color }} />
                 <div>
-                  <p className="font-bold text-sm leading-tight">{catConfig[m.id]?.name || m.label}</p>
+                  <p className="font-bold text-sm leading-tight">{cfg?.name || m.label}</p>
                   <p className="text-[10px] text-slate-400">{m.sub}</p>
                 </div>
               </button>

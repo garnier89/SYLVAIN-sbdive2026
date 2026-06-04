@@ -1,0 +1,36 @@
+{
+  "summary": "Validated French passenger-side rendering of scheduled service categories: out-of-window scheduled services appear GREYED with a time-window badge (no longer hidden), while manually-deactivated services remain HIDDEN. Setup done via admin API: Moto -> schedule_enabled=true, window 14:00-14:30 all days, Europe/Paris (current Paris time ~09:48, so out-of-window). Pets -> active=false, schedule_enabled=false (manual deactivation, control case). All 5 acceptance checks PASSED on /taxi grid view as the rider rider.qa@demo.sb. Final state restored: all 17 service categories set back to active=true / schedule_enabled=false (24/7).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_104.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TaxiModeGrid.jsx line 16: filter is `catConfig[m.id]?.active !== false` — works as expected (hides only manually inactive). Good distinction between active=false (hidden) and available=false (greyed + badge).",
+    "Badge strip uses `hint.replace('Dispo ', '')` to drop the 'Dispo ' prefix from the backend label — relies on backend always emitting that exact prefix. If backend i18n changes the label, badge text will silently fall back to full label. Consider returning a structured array of windows from backend in addition to the localized string for robustness.",
+    "Banner copy in TaxiHubPage.js line 430 concatenates hint after a space; produces correct French sentence here ('Ce service est actuellement indisponible. Dispo 14h-14h30.'). Acceptable for current scope."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100% (5/5 checks)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! ; Rider: rider.qa@demo.sb / Rider123!",
+  "seed_data_creation": "Temporarily set moto schedule 14:00-14:30 Europe/Paris and pets active=false; both restored to active=true + schedule_enabled=false at end of test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Service categories model exposes `active`, `available_now`, `availability_hint` in GET /api/service-categories. Frontend rule: active=false -> tile hidden; active=true + schedule_enabled=true + available_now=false -> tile visible with opacity-60 + data-testid mode-hint-<id> badge. Banner data-testid mode-unavailable-banner includes the hint when present. To reproduce, schedule a service to a window not covering current Europe/Paris time via PUT /api/admin/service-categories/<key>.",
+  "test_results_detail": {
+    "moto_tile_visible_with_opacity60": true,
+    "mode_hint_moto_text": "14h-14h30",
+    "mode_hint_no_Dispo_prefix": true,
+    "pets_tile_hidden_when_active_false": true,
+    "standard_tile_no_badge_no_opacity": true,
+    "banner_text": "Ce service est actuellement indisponible. Dispo 14h-14h30.",
+    "cta_book_button_disabled": true,
+    "cta_book_button_label": "Indisponible",
+    "final_state_all_services_active_24_7": true
+  }
+}

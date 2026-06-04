@@ -56,6 +56,34 @@ async def category_available_now_by_key(key: str) -> bool:
     return is_category_available_now(cat)
 
 
+def _fmt_time(t: str) -> str:
+    """'07:00' → '7h' ; '17:30' → '17h30'."""
+    try:
+        h, m = t.split(":")
+        h = int(h)
+        return f"{h}h" if m == "00" else f"{h}h{m}"
+    except Exception:
+        return t
+
+
+def availability_hint(cat: dict) -> str:
+    """Short FR label of opening windows for scheduled services (e.g. 'Dispo 7h-10h · 17h-20h')."""
+    if not cat or not cat.get("schedule_enabled"):
+        return ""
+    windows = cat.get("schedule_windows") or []
+    if not windows:
+        return ""
+    try:
+        now = datetime.now(ZoneInfo(cat.get("schedule_tz") or DEFAULT_TZ))
+    except Exception:
+        now = datetime.now(ZoneInfo(DEFAULT_TZ))
+    weekday = now.weekday()
+    todays = [w for w in windows if not w.get("days") or weekday in w.get("days", [])]
+    show = todays if todays else windows
+    parts = [f"{_fmt_time(w.get('start', '00:00'))}-{_fmt_time(w.get('end', '23:59'))}" for w in show]
+    return "Dispo " + " · ".join(parts[:3])
+
+
 # Seed list aligned with TaxiHubPage MODES (key == mode id)
 DEFAULT_CATEGORIES = [
     {"key": "standard", "name": "Taxi VTC", "name_en": "Taxi Booking", "icon": "🚕", "group": "everyday", "display_order": 1},
@@ -102,6 +130,7 @@ async def list_active_service_categories():
     cats = await db.service_categories.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
     for c in cats:
         c["available_now"] = is_category_available_now(c)
+        c["availability_hint"] = availability_hint(c)
     return cats
 
 

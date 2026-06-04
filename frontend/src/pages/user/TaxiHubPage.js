@@ -118,7 +118,7 @@ const TaxiHubPage = () => {
     configAPI.getScheduling().then((r) => r.data && setSchedConfig(r.data)).catch(() => {});
     configAPI.getServiceCategories().then((r) => {
       const map = {};
-      (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, available: c.available_now !== false, name: c.name }; });
+      (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, available: c.available_now !== false, hint: c.availability_hint || '', name: c.name }; });
       setCatConfig(map);
     }).catch(() => {});
     configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});
@@ -426,7 +426,9 @@ const TaxiHubPage = () => {
         {modeDisabled && (
           <div className="mt-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5 flex items-center gap-2" data-testid="mode-unavailable-banner">
             <X size={16} weight="bold" className="text-rose-500 flex-shrink-0" />
-            <span className="text-xs font-semibold text-rose-700">Ce service est actuellement indisponible. Choisissez un autre service.</span>
+            <span className="text-xs font-semibold text-rose-700">
+              Ce service est actuellement indisponible.{catConfig[mode.id]?.hint ? ` ${catConfig[mode.id].hint}.` : ' Choisissez un autre service.'}
+            </span>
           </div>
         )}
       </div>
