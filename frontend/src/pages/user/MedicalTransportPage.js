@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { medicalAPI } from '../../services/api';
 import {
-  ArrowLeft, FirstAid, Wheelchair, Ambulance, MapPin, Hospital, CheckCircle, Warning,
+  ArrowLeft, FirstAid, Wheelchair, Ambulance, MapPin, Hospital, CheckCircle, Warning, PhoneCall,
 } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -99,6 +99,13 @@ const MedicalTransportPage = () => {
           <p className="text-[11px] text-white/80">Ambulance & transport sanitaire</p>
         </div>
       </div>
+
+      {/* Emergency call — vital emergency shortcut */}
+      <a href="tel:15" data-testid="emergency-call-btn"
+        className="flex items-center justify-center gap-2 bg-red-700 text-white text-sm font-bold py-2.5 active:bg-red-800">
+        <PhoneCall size={18} weight="fill" className="animate-pulse" />
+        Urgence vitale ? Appelez le 15 (SAMU) · 112
+      </a>
 
       {/* Map */}
       <div className="relative h-[220px]">

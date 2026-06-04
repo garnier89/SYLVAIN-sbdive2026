@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { medicalAPI } from '../../services/api';
 import {
-  ArrowLeft, Star, Stethoscope, House, Hospital, CalendarBlank, Clock, CheckCircle, CaretRight,
+  ArrowLeft, Star, Stethoscope, House, Hospital, CalendarBlank, Clock, CheckCircle, CaretRight, PhoneCall,
 } from '@phosphor-icons/react';
 
 const TIME_SLOTS = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
@@ -140,6 +140,10 @@ const MedicalAppointmentPage = () => {
           <h1 className="text-lg font-bold text-white">Prendre rendez-vous</h1>
         </div>
         <p className="text-sm text-white/80">Médecin ou expert médical, en cabinet ou à domicile.</p>
+        <a href="tel:15" data-testid="emergency-call-btn"
+          className="mt-3 flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold py-2 rounded-xl backdrop-blur-sm">
+          <PhoneCall size={15} weight="fill" /> Urgence vitale ? Appelez le 15 (SAMU) · 112
+        </a>
       </div>
 
       <div className="px-4 py-3 flex gap-2 overflow-x-auto scrollbar-hide" data-testid="specialty-filter">

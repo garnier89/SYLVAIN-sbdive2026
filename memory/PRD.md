@@ -1,3 +1,6 @@
+## NEW - Jun 2026 - Bouton d'urgence 15/112 sur le module Médical (DONE — iter 108)
+- Ajout d'un **bouton d'appel d'urgence** `tel:15` (« Urgence vitale ? Appelez le 15 (SAMU) · 112 ») bien visible : bandeau rouge proéminent en haut de **Transport Médical** (`emergency-call-btn`, icône pulsante) + bouton dans l'en-tête de **Prise de RDV**. Réflexe de sécurité attendu sur un module santé. Lint clean.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Pack D : Module Médical passager (RDV + Transport médical) (DONE — iter 107)
