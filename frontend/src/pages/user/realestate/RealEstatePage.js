@@ -39,6 +39,11 @@ const RealEstatePage = () => {
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    realEstateAPI.myUnreadCount?.().then((r) => setUnread(r.data?.count || 0)).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,8 +64,9 @@ const RealEstatePage = () => {
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/home')} className="text-white" data-testid="re-back-btn"><ArrowLeft size={22} /></button>
           <h1 className="text-white font-bold text-lg flex-1">Immobilier</h1>
-          <button onClick={() => navigate('/real-estate/my')} className="text-white flex items-center gap-1 text-xs font-semibold" data-testid="re-my-btn">
+          <button onClick={() => navigate('/real-estate/my')} className="text-white flex items-center gap-1 text-xs font-semibold relative" data-testid="re-my-btn">
             <ListBullets size={18} /> Mes annonces
+            {unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-white text-[#FF5000] text-[9px] font-bold flex items-center justify-center" data-testid="re-my-unread">{unread}</span>}
           </button>
         </div>
         {/* Buy / Rent segmented */}

@@ -341,6 +341,7 @@ export const realEstateAPI = {
   setStatus: (id, status) => api.post(`/real-estate/listings/${id}/status`, { status }),
   myListings: () => api.get('/real-estate/my/listings'),
   myInquiries: () => api.get('/real-estate/my/inquiries'),
+  myUnreadCount: () => api.get('/real-estate/my/unread-count'),
   createInquiry: (id, data) => api.post(`/real-estate/listings/${id}/inquiries`, data),
   listingInquiries: (id) => api.get(`/real-estate/listings/${id}/inquiries`),
   // boost (self-checkout)

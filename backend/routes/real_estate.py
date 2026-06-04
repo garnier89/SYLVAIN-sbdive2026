@@ -16,6 +16,7 @@ from emergentintegrations.payments.stripe.checkout import (
 )
 from core.config import db
 from core.deps import get_current_user
+from core.websocket import manager
 
 router = APIRouter(prefix="/real-estate", tags=["real-estate"])
 
@@ -130,7 +131,15 @@ async def my_listings(request: Request):
         it["thumbnail"] = imgs[0] if imgs else None
         it["images_count"] = len(imgs)
         it.pop("images", None)
+        it["unread_inquiries"] = await db.property_inquiries.count_documents({"listing_id": it["id"], "seen": {"$ne": True}})
     return items
+
+
+@router.get("/my/unread-count")
+async def my_unread_count(request: Request):
+    user = await get_current_user(request)
+    count = await db.property_inquiries.count_documents({"owner_user_id": user["id"], "seen": {"$ne": True}})
+    return {"count": count}
 
 
 @router.get("/my/inquiries")
@@ -235,11 +244,23 @@ async def create_inquiry(listing_id: str, data: InquiryCreate, request: Request)
         "offer_amount": data.offer_amount,
         "contact_phone": data.contact_phone or user.get("phone"),
         "status": "new",
+        "seen": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.property_inquiries.insert_one(inquiry)
     inquiry.pop("_id", None)
     await db.property_listings.update_one({"id": listing_id}, {"$inc": {"inquiries_count": 1}})
+    # Real-time signal to the listing owner
+    try:
+        await manager.send_personal_message({
+            "type": "new_property_inquiry",
+            "listing_id": listing_id,
+            "listing_title": listing.get("title"),
+            "from_name": user.get("name"),
+            "offer_amount": data.offer_amount,
+        }, listing["user_id"])
+    except Exception:
+        pass
     return inquiry
 
 
@@ -252,6 +273,9 @@ async def listing_inquiries(listing_id: str, request: Request):
     if listing["user_id"] != user["id"] and user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Accès refusé")
     items = await db.property_inquiries.find({"listing_id": listing_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    # Mark inquiries as seen when the owner opens them
+    if listing["user_id"] == user["id"]:
+        await db.property_inquiries.update_many({"listing_id": listing_id, "seen": {"$ne": True}}, {"$set": {"seen": True}})
     return items
 
 
@@ -291,6 +315,24 @@ async def boost_checkout(listing_id: str, request: Request):
     plan = await db.real_estate_boost_plans.find_one({"id": plan_id, "active": True}, {"_id": 0})
     if not plan:
         raise HTTPException(status_code=404, detail="Plan de boost introuvable")
+
+    # Free launch plan (price == 0): apply boost immediately, skip Stripe
+    if float(plan["price"]) <= 0:
+        now = datetime.now(timezone.utc)
+        until = (now + timedelta(days=int(plan["duration_days"]))).isoformat()
+        await db.property_listings.update_one(
+            {"id": listing_id},
+            {"$set": {"is_featured": True, "featured_until": until, "featured_priority": int(plan.get("priority", 5))}},
+        )
+        await db.payment_transactions.insert_one({
+            "id": f"pay_{uuid.uuid4().hex[:12]}",
+            "session_id": f"free_{uuid.uuid4().hex[:12]}",
+            "user_id": user["id"], "amount": 0.0, "currency": str(plan["currency"]).upper(),
+            "type": "real_estate_boost", "payment_status": "paid", "status": "complete",
+            "metadata": {"listing_id": listing_id, "plan_id": plan_id, "duration_days": plan["duration_days"], "priority": plan.get("priority", 5), "free": True},
+            "created_at": now.isoformat(), "updated_at": now.isoformat(),
+        })
+        return {"free": True, "listing_id": listing_id}
 
     success_url = f"{origin_url}/real-estate/my?boost_session={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin_url}/real-estate/{listing_id}"
@@ -487,17 +529,29 @@ SEED_TIERS = [
 
 
 async def seed_real_estate_boost_plans():
-    if await db.real_estate_boost_plans.count_documents({}) > 0:
-        return
-    docs = []
+    if await db.real_estate_boost_plans.count_documents({}) == 0:
+        docs = []
+        for code, label, currency in SEED_COUNTRIES:
+            for days, price, priority, plan_label in SEED_TIERS:
+                docs.append({
+                    "id": f"boost_{uuid.uuid4().hex[:10]}",
+                    "country": code, "country_label": label, "currency": currency,
+                    "duration_days": days, "price": price, "priority": priority,
+                    "label": plan_label, "active": True,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                })
+        if docs:
+            await db.real_estate_boost_plans.insert_many(docs)
+
+    # Ensure a FREE launch plan exists per country (idempotent — runs each startup).
+    # Free = price 0, applied without Stripe. Lower priority than paid tiers.
     for code, label, currency in SEED_COUNTRIES:
-        for days, price, priority, plan_label in SEED_TIERS:
-            docs.append({
+        exists = await db.real_estate_boost_plans.find_one({"country": code, "price": 0})
+        if not exists:
+            await db.real_estate_boost_plans.insert_one({
                 "id": f"boost_{uuid.uuid4().hex[:10]}",
                 "country": code, "country_label": label, "currency": currency,
-                "duration_days": days, "price": price, "priority": priority,
-                "label": plan_label, "active": True,
+                "duration_days": 7, "price": 0, "priority": 3,
+                "label": "Lancement — Gratuit 7 jours 🎉", "active": True,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
-    if docs:
-        await db.real_estate_boost_plans.insert_many(docs)

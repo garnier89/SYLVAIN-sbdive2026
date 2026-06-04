@@ -2,13 +2,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { realEstateAPI } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useWebSocket } from '../../../hooks/useWebSocket';
 import { ArrowLeft, Plus, PencilSimple, Trash, Buildings, Envelope, CurrencyEur, Phone, Star, Rocket, X } from '@phosphor-icons/react';
 import { fmtPrice, catLabel, STATUS_META } from './realEstateConstants';
 
-const planPrice = (p) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: p.currency || 'EUR', maximumFractionDigits: 2 }).format(p.price || 0);
+const planPrice = (p) => (p.price > 0
+  ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: p.currency || 'EUR', maximumFractionDigits: 2 }).format(p.price)
+  : 'Gratuit');
 
 const MyPropertiesPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { on } = useWebSocket(user?.id);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState('listings');
   const [listings, setListings] = useState([]);
@@ -27,6 +33,16 @@ const MyPropertiesPage = () => {
     } catch { toast.error('Erreur de chargement'); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Real-time signal when a buyer sends an inquiry/offer on one of my listings
+  useEffect(() => {
+    const unsub = on('new_property_inquiry', (msg) => {
+      const offer = msg.offer_amount != null ? ` · offre ${msg.offer_amount} €` : '';
+      toast.success(`📩 Nouvelle demande sur « ${msg.listing_title || 'votre annonce'} »${offer}`, { duration: 7000 });
+      load();
+    });
+    return () => unsub();
+  }, [on, load]);
 
   // Handle Stripe boost return (?boost_session=...)
   useEffect(() => {
@@ -66,6 +82,11 @@ const MyPropertiesPage = () => {
     setBoostLoading(true);
     try {
       const r = await realEstateAPI.boostCheckout(boostFor.id, planId, window.location.origin);
+      if (r.data.free) {
+        toast.success('🎉 Annonce boostée gratuitement (offre de lancement) !', { duration: 6000 });
+        setBoostFor(null); setBoostLoading(false); load();
+        return;
+      }
       window.location.href = r.data.url; // redirect to Stripe checkout
     } catch (e) { toast.error(e?.response?.data?.detail || 'Échec du paiement'); setBoostLoading(false); }
   };
@@ -116,7 +137,10 @@ const MyPropertiesPage = () => {
                   </div>
                   <div className="flex border-t border-gray-100 text-xs font-semibold">
                     <button onClick={() => navigate(`/real-estate/edit/${p.id}`)} className="flex-1 py-2.5 text-gray-600 flex items-center justify-center gap-1 border-r border-gray-100" data-testid={`my-edit-${p.id}`}><PencilSimple size={14} /> Modifier</button>
-                    <button onClick={() => viewInquiries(p.id)} className="flex-1 py-2.5 text-gray-600 flex items-center justify-center gap-1 border-r border-gray-100" data-testid={`my-inquiries-${p.id}`}><Envelope size={14} /> Demandes</button>
+                    <button onClick={() => viewInquiries(p.id)} className="flex-1 py-2.5 text-gray-600 flex items-center justify-center gap-1 border-r border-gray-100 relative" data-testid={`my-inquiries-${p.id}`}>
+                      <Envelope size={14} /> Demandes
+                      {p.unread_inquiries > 0 && <span className="absolute top-1 right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center" data-testid={`my-unread-${p.id}`}>{p.unread_inquiries}</span>}
+                    </button>
                     {p.status === 'active'
                       ? <button onClick={() => setStatus(p.id, p.listing_type === 'rent' ? 'rented' : 'sold')} className="flex-1 py-2.5 text-green-600 flex items-center justify-center gap-1 border-r border-gray-100" data-testid={`my-close-${p.id}`}>Marquer {p.listing_type === 'rent' ? 'loué' : 'vendu'}</button>
                       : <button onClick={() => setStatus(p.id, 'active')} className="flex-1 py-2.5 text-[#FF5000] flex items-center justify-center gap-1 border-r border-gray-100" data-testid={`my-reactivate-${p.id}`}>Réactiver</button>}
@@ -181,12 +205,12 @@ const MyPropertiesPage = () => {
             <div className="space-y-2">
               {boostPlans.map((pl) => (
                 <button key={pl.id} onClick={() => startBoost(pl.id)} disabled={boostLoading} data-testid={`boost-plan-${pl.id}`}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-colors disabled:opacity-60">
+                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-colors disabled:opacity-60 ${pl.price > 0 ? 'border-gray-200 hover:border-orange-400 hover:bg-orange-50' : 'border-green-300 bg-green-50 hover:bg-green-100'}`}>
                   <div className="text-left">
                     <p className="font-bold text-gray-900 text-sm">{pl.label || `Boost ${pl.duration_days} jours`}</p>
                     <p className="text-xs text-gray-500">{pl.duration_days} jours en tête de liste</p>
                   </div>
-                  <span className="font-extrabold text-orange-500">{planPrice(pl)}</span>
+                  <span className={`font-extrabold ${pl.price > 0 ? 'text-orange-500' : 'text-green-600'}`}>{planPrice(pl)}</span>
                 </button>
               ))}
             </div>

@@ -21,6 +21,11 @@
 - **Backend** (`real_estate.py`) : `GET /real-estate/boost-plans?country=`, `POST /real-estate/listings/{id}/boost/checkout` (montant serveur via `emergentintegrations` StripeCheckout, `payment_transactions` type `real_estate_boost`), `GET /real-estate/boost/status/{session_id}` (applique `is_featured`+`featured_until`+`featured_priority`, idempotent). Admin boost CRUD + `seed_real_estate_boost_plans()`. Tri liste : featured_priority ; **auto-expiration** des boosts échus. ⚠️ Stripe en mode **TEST** (clé test) — brancher la clé live pour la prod.
 - Testé iter111 : **frontend 100%** (flux boost user + redirection Stripe `cs_test_` + onglet admin Plans de Boost CRUD) + backend E2E httpx (plans, checkout URL Stripe réelle, CRUD admin).
 
+## NEW - Jun 2026 - Immobilier : notif propriétaire + plan de boost GRATUIT de lancement (DONE)
+- **Notification temps réel au propriétaire** : à l'envoi d'une demande/offre, broadcast WS `new_property_inquiry` vers le propriétaire de l'annonce → toast in-app « 📩 Nouvelle demande sur … » (écoute dans `MyPropertiesPage` via `useWebSocket`). **Badge non-lus** : pastille rouge sur le bouton « Demandes » de chaque annonce (`unread_inquiries`) + pastille sur « Mes annonces » dans `RealEstatePage` (`GET /real-estate/my/unread-count`). Marquage « vu » automatique quand le propriétaire ouvre les demandes. Inquiry doc enrichi `seen: bool`.
+- **Plan de boost GRATUIT (offre de lancement)** : plan à prix 0 **« Lancement — Gratuit 7 jours 🎉 »** seedé par pays (idempotent à chaque démarrage). Le checkout contourne Stripe si `price <= 0` → applique directement `is_featured`+`featured_until`+`featured_priority` et enregistre une `payment_transactions` `paid/free`. Côté UI : plan affiché en vert « Gratuit », toast « 🎉 Annonce boostée gratuitement ». L'admin peut créer d'autres plans gratuits (prix 0).
+- Vérifié E2E httpx (free boost applique le boost sans Stripe ✅, unread-count + badge + marquage vu ✅) + screenshot (modale affiche les 4 plans dont le gratuit en vert). Lint clean.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)
