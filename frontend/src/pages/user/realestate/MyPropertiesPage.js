@@ -67,6 +67,12 @@ const MyPropertiesPage = () => {
       closeBoost(); load();
     } catch (e) { toast.error(e?.response?.data?.detail || 'Échec du paiement'); } finally { setPaying(false); }
   };
+  const rechargeSbpaygo = async () => {
+    try {
+      const r = await realEstateAPI.sbpaygoSsoLink();
+      window.location.href = r.data.url; // SSO redirect to sbpaygo.com
+    } catch { toast.error('Impossible d\'ouvrir SB PayGo'); }
+  };
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-24" data-testid="my-properties-page">
@@ -215,20 +221,27 @@ const MyPropertiesPage = () => {
                     const insufficient = m.balance < selectedPlan.price;
                     const Icon = m.id === 'wallet' ? Wallet : Bank;
                     return (
-                      <button key={m.id} disabled={insufficient || paying} onClick={() => payBoost(m.id)} data-testid={`boost-pay-${m.id}`}
-                        className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-colors ${insufficient ? 'border-gray-200 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:border-[#FF5000] hover:bg-orange-50'}`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${m.id === 'wallet' ? 'bg-[#FF5000]/10 text-[#FF5000]' : 'bg-blue-50 text-blue-600'}`}><Icon size={20} weight="duotone" /></div>
-                        <div className="flex-1 text-left">
-                          <p className="font-bold text-gray-900 text-sm">{m.label}</p>
-                          <p className={`text-xs ${insufficient ? 'text-red-500' : 'text-gray-500'}`}>Solde : {money(m.balance, m.currency)}{insufficient ? ' · insuffisant' : ''}</p>
-                        </div>
-                      </button>
+                      <div key={m.id} className={`rounded-xl border ${insufficient ? 'border-gray-200' : 'border-gray-200'}`}>
+                        <button disabled={insufficient || paying} onClick={() => payBoost(m.id)} data-testid={`boost-pay-${m.id}`}
+                          className={`w-full flex items-center gap-3 p-3.5 rounded-xl transition-colors ${insufficient ? 'opacity-60 cursor-not-allowed' : 'hover:bg-orange-50'}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${m.id === 'wallet' ? 'bg-[#FF5000]/10 text-[#FF5000]' : 'bg-blue-50 text-blue-600'}`}><Icon size={20} weight="duotone" /></div>
+                          <div className="flex-1 text-left">
+                            <p className="font-bold text-gray-900 text-sm">{m.label}</p>
+                            <p className={`text-xs ${insufficient ? 'text-red-500' : 'text-gray-500'}`}>Solde : {money(m.balance, m.currency)}{insufficient ? ' · insuffisant' : ''}</p>
+                          </div>
+                        </button>
+                        {insufficient && (
+                          <button
+                            onClick={() => (m.id === 'wallet' ? navigate('/wallet') : rechargeSbpaygo())}
+                            data-testid={`boost-topup-${m.id}`}
+                            className="w-full text-xs font-semibold text-[#FF5000] py-2 border-t border-gray-100 flex items-center justify-center gap-1">
+                            {m.id === 'wallet' ? 'Recharger mon portefeuille' : 'Recharger SB PayGo'} →
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
-                {payMethods.some((m) => m.balance < selectedPlan.price) && (
-                  <button onClick={() => navigate('/wallet')} className="w-full text-sm font-semibold text-[#FF5000] py-2" data-testid="boost-topup">Recharger mon portefeuille →</button>
-                )}
                 {paying && <p className="text-center text-gray-400 text-sm">Paiement en cours...</p>}
               </>
             )}

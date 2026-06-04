@@ -33,6 +33,9 @@
 - **Backend** : `GET /real-estate/boost/payment-methods` (soldes wallet + sbpaygo), `POST /real-estate/listings/{id}/boost/pay` {plan_id, payment_method}. Anciens endpoints Stripe (`boost/checkout`, `boost/status`) supprimés. Import `emergentintegrations` retiré de `real_estate.py`.
 - Vérifié E2E httpx : paiement portefeuille (100€→95,01€, is_featured ✅), SB PayGo solde insuffisant → 400 ✅, 0 plan gratuit restant. Screenshot UI OK (aucun « Stripe »). Lint clean.
 
+## UPDATE - Jun 2026 - Boost : recharge contextuelle (portefeuille / SB PayGo SSO)
+- Dans la modale de paiement du boost, chaque moyen avec **solde insuffisant** affiche un bouton de recharge dédié : **« Recharger mon portefeuille → »** (vers `/wallet`) ou **« Recharger SB PayGo → »** (redirection SSO `POST /finance/sbpaygo/sso-link` vers sbpaygo.com). Évite l'abandon du boost faute de solde. Vérifié (lint + screenshot + SSO 200). `realEstateAPI.sbpaygoSsoLink()` ajouté.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)

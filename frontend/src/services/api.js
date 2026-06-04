@@ -359,6 +359,8 @@ export const realEstateAPI = {
   adminUpdateBoostPlan: (id, data) => api.put(`/admin/real-estate/boost-plans/${id}`, data),
   adminToggleBoostPlan: (id) => api.post(`/admin/real-estate/boost-plans/${id}/toggle`),
   adminDeleteBoostPlan: (id) => api.delete(`/admin/real-estate/boost-plans/${id}`),
+  // SB PayGo SSO recharge link
+  sbpaygoSsoLink: () => api.post('/finance/sbpaygo/sso-link'),
 };
 
 export const placesAPI = {
