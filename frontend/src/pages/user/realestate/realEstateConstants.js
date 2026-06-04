@@ -39,5 +39,12 @@ export const fmtPrice = (v) => {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 };
 
+export const COUNTRIES = [
+  { id: 'FR', label: 'France 🇫🇷' },
+  { id: 'MQ', label: 'Martinique 🇲🇶' },
+  { id: 'GP', label: 'Guadeloupe 🇬🇵' },
+  { id: 'GF', label: 'Guyane 🇬🇫' },
+];
+
 export const catLabel = (id) => CATEGORIES.find((c) => c.id === id)?.label || id;
 export const rentSuffix = (p) => RENT_PERIODS.find((r) => r.id === p)?.label || '';

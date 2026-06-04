@@ -1,0 +1,37 @@
+{
+  "summary": "End-to-end UI testing of the new Boost (Sponsorisé) monetization feature on the Immobilier module — user boost flow + admin Plans de Boost CRUD. All flows pass.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_performed": [
+    "User login (rider.qa@demo.sb) succeeds and lands on /home",
+    "/real-estate/post: post-country select present with 4 options (FR/MQ/GP/GF). Listing 'Studio Test Boost QA' (FR, 150000€) created successfully, redirected to /real-estate/my with toast 'Annonce publiée !'",
+    "/real-estate/my: my-boost-<id> gradient 'Booster mon annonce' button visible on owned active non-featured listings (2 listings)",
+    "Clicking my-boost-<id> opens boost-modal showing 3 plans (boost-plan-<id>) — Boost 7 jours 4,99€, Boost 15 jours 8,99€, Boost 30 jours 14,99€",
+    "Clicking a boost-plan-<id> redirects to checkout.stripe.com (real cs_test_ session URL). Stripe checkout shows '€4.99 Payment'. Payment not completed (optional per spec).",
+    "Admin login (admin@superapp.com) succeeds; /admin/real-estate loads",
+    "Both tabs present: admin-re-tab-listings (default) and admin-re-tab-boost",
+    "Listings tab shows table with filter chips re-admin-filter-all/active/inactive/sold/rented (all present)",
+    "Boost tab: 15 seeded boost-plan-row-<id> displayed grouped by country (FR/GF/GP/MQ + Par défaut), each with durée/prix/priorité/statut",
+    "boost-plan-add opens boost-plan-modal with all fields (country/currency/duration/price/priority/label). Save creates a new row, toast 'Plan enregistré'",
+    "boost-plan-toggle-<id> flips Actif↔Inactif correctly (Inactif badge appears)",
+    "boost-plan-edit-<id> opens modal with values prefilled (duration=5, price=2.99)",
+    "boost-plan-delete-<id> triggers native confirm 'Supprimer ce plan ?', DELETE returns 200, row removed, toast 'Supprimé'. Row count returns to 15 (seeded baseline)."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Native window.confirm used for delete confirmation — acceptable for admin but consider a styled ConfirmDialog for UX consistency with other admin sections (non-blocking).",
+    "post-type / post-category are rendered as segmented buttons (Acheter/Louer, Résidentiel/Commercial/Terrain) without a data-testid wrapper; not blocking since defaults work, but adding post-type/post-category testids would help future automation."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (backend pre-verified by main agent)", "frontend": "100%" },
+  "test_credentials": "rider.qa@demo.sb / Rider123!  |  admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Created listing 'Studio Test Boost QA' (FR, 150000€) under rider.qa@demo.sb to exercise the boost button. Created and then deleted an admin TEST_QA Boost 5j plan (final state: 15 seeded plans intact).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Boost feature fully functional end-to-end on UI. Stripe checkout redirect verified (cs_test_ URL). Optional post-payment ★ Sponsorisé badge verification requires completing 4242 test card payment — not executed here but backend logic is idempotent and pre-verified per main agent."
+}

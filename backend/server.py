@@ -55,7 +55,7 @@ from routes.taxi_configs import router as taxi_configs_router, public_router as 
 from routes.taxi_extra import admin_router as taxi_extra_admin_router, public_router as taxi_extra_public_router, seed_taxi_extra
 from routes.parcels import router as parcels_router
 from routes.chat import router as chat_router
-from routes.real_estate import router as real_estate_router, admin_router as real_estate_admin_router
+from routes.real_estate import router as real_estate_router, admin_router as real_estate_admin_router, seed_real_estate_boost_plans
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -476,6 +476,9 @@ async def lifespan(app: FastAPI):
 
     # Seed taxi extra (ride profiles + business trip reasons)
     await seed_taxi_extra()
+
+    # Seed real estate boost plans (Immobilier monetisation)
+    await seed_real_estate_boost_plans()
 
     # Start auto-dispatch background loop
     import asyncio as _asyncio

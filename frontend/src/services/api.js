@@ -343,11 +343,21 @@ export const realEstateAPI = {
   myInquiries: () => api.get('/real-estate/my/inquiries'),
   createInquiry: (id, data) => api.post(`/real-estate/listings/${id}/inquiries`, data),
   listingInquiries: (id) => api.get(`/real-estate/listings/${id}/inquiries`),
+  // boost (self-checkout)
+  boostPlans: (country) => api.get('/real-estate/boost-plans', { params: country ? { country } : {} }),
+  boostCheckout: (id, planId, originUrl) => api.post(`/real-estate/listings/${id}/boost/checkout`, { plan_id: planId, origin_url: originUrl }),
+  boostStatus: (sessionId) => api.get(`/real-estate/boost/status/${sessionId}`),
   // admin
   adminList: (status) => api.get('/admin/real-estate/listings', { params: status ? { status } : {} }),
   adminToggleStatus: (id) => api.post(`/admin/real-estate/listings/${id}/toggle-status`),
   adminFeature: (id) => api.post(`/admin/real-estate/listings/${id}/feature`),
   adminRemove: (id) => api.delete(`/admin/real-estate/listings/${id}`),
+  // admin boost plans
+  adminBoostPlans: () => api.get('/admin/real-estate/boost-plans'),
+  adminCreateBoostPlan: (data) => api.post('/admin/real-estate/boost-plans', data),
+  adminUpdateBoostPlan: (id, data) => api.put(`/admin/real-estate/boost-plans/${id}`, data),
+  adminToggleBoostPlan: (id) => api.post(`/admin/real-estate/boost-plans/${id}/toggle`),
+  adminDeleteBoostPlan: (id) => api.delete(`/admin/real-estate/boost-plans/${id}`),
 };
 
 export const placesAPI = {

@@ -5,11 +5,15 @@ others browse/filter and contact the owner (call or in-app inquiry/offer).
 App owner monetises via paid "featured" plans (admin-managed).
 """
 from fastapi import APIRouter, Request, HTTPException
+import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from pydantic import BaseModel, Field
 
+from emergentintegrations.payments.stripe.checkout import (
+    StripeCheckout, CheckoutSessionRequest, CheckoutSessionResponse,
+)
 from core.config import db
 from core.deps import get_current_user
 
@@ -18,6 +22,22 @@ router = APIRouter(prefix="/real-estate", tags=["real-estate"])
 LISTING_TYPES = {"sale", "rent"}
 CATEGORIES = {"residential", "commercial", "land"}
 STATUSES = {"active", "sold", "rented", "inactive"}
+
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+
+
+def _get_stripe(request: Request):
+    host_url = str(request.base_url).rstrip("/")
+    return StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=f"{host_url}/api/webhook/stripe")
+
+
+async def _expire_featured():
+    """Auto-expire boosted listings whose featured_until has passed."""
+    now = datetime.now(timezone.utc).isoformat()
+    await db.property_listings.update_many(
+        {"is_featured": True, "featured_until": {"$ne": None, "$lt": now}},
+        {"$set": {"is_featured": False, "featured_priority": 0}},
+    )
 
 
 class ListingCreate(BaseModel):
@@ -36,6 +56,7 @@ class ListingCreate(BaseModel):
     images: List[str] = []  # base64 data URLs or remote URLs
     address: Optional[str] = None
     city: Optional[str] = None
+    country: Optional[str] = None  # country code/key, e.g. FR, MQ, GP, GF
     lat: Optional[float] = None
     lng: Optional[float] = None
     owner_name: Optional[str] = None
@@ -67,6 +88,7 @@ async def list_listings(
     limit: int = 50,
 ):
     await get_current_user(request)
+    await _expire_featured()
     query: dict = {"status": "active"}
     if listing_type in LISTING_TYPES:
         query["listing_type"] = listing_type
@@ -88,7 +110,7 @@ async def list_listings(
     if price_q:
         query["price"] = price_q
     items = await db.property_listings.find(query, {"_id": 0}).sort(
-        [("is_featured", -1), ("created_at", -1)]
+        [("is_featured", -1), ("featured_priority", -1), ("created_at", -1)]
     ).to_list(limit)
     # Trim heavy image payload for the list view (keep first as thumbnail)
     for it in items:
@@ -133,6 +155,7 @@ async def create_listing(data: ListingCreate, request: Request):
         "status": "active",
         "is_featured": False,
         "featured_until": None,
+        "featured_priority": 0,
         "views": 0,
         "inquiries_count": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -232,6 +255,113 @@ async def listing_inquiries(listing_id: str, request: Request):
     return items
 
 
+# ── Boost (self-checkout Stripe) ──────────────────────────────────────────
+DEFAULT_COUNTRY = "default"
+
+
+@router.get("/boost-plans")
+async def get_boost_plans(request: Request, country: Optional[str] = None):
+    """Active boost plans for a country (falls back to default plans)."""
+    await get_current_user(request)
+    plans = []
+    if country:
+        plans = await db.real_estate_boost_plans.find(
+            {"country": country, "active": True}, {"_id": 0}
+        ).sort("duration_days", 1).to_list(50)
+    if not plans:
+        plans = await db.real_estate_boost_plans.find(
+            {"country": DEFAULT_COUNTRY, "active": True}, {"_id": 0}
+        ).sort("duration_days", 1).to_list(50)
+    return plans
+
+
+@router.post("/listings/{listing_id}/boost/checkout")
+async def boost_checkout(listing_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    plan_id = body.get("plan_id")
+    origin_url = body.get("origin_url")
+    if not origin_url:
+        raise HTTPException(status_code=400, detail="Origin URL required")
+    listing = await db.property_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    if listing["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    plan = await db.real_estate_boost_plans.find_one({"id": plan_id, "active": True}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan de boost introuvable")
+
+    success_url = f"{origin_url}/real-estate/my?boost_session={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}/real-estate/{listing_id}"
+    stripe = _get_stripe(request)
+    checkout_req = CheckoutSessionRequest(
+        amount=float(plan["price"]),
+        currency=str(plan["currency"]).lower(),
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            "user_id": user["id"],
+            "listing_id": listing_id,
+            "plan_id": plan_id,
+            "type": "real_estate_boost",
+            "duration_days": str(plan["duration_days"]),
+            "priority": str(plan.get("priority", 5)),
+        },
+    )
+    session: CheckoutSessionResponse = await stripe.create_checkout_session(checkout_req)
+    now = datetime.now(timezone.utc).isoformat()
+    await db.payment_transactions.insert_one({
+        "id": f"pay_{uuid.uuid4().hex[:12]}",
+        "session_id": session.session_id,
+        "user_id": user["id"],
+        "amount": float(plan["price"]),
+        "currency": str(plan["currency"]).upper(),
+        "type": "real_estate_boost",
+        "payment_status": "pending",
+        "status": "initiated",
+        "metadata": {"listing_id": listing_id, "plan_id": plan_id, "duration_days": plan["duration_days"], "priority": plan.get("priority", 5)},
+        "created_at": now,
+        "updated_at": now,
+    })
+    return {"url": session.url, "session_id": session.session_id}
+
+
+@router.get("/boost/status/{session_id}")
+async def boost_status(session_id: str, request: Request):
+    user = await get_current_user(request)
+    tx = await db.payment_transactions.find_one(
+        {"session_id": session_id, "user_id": user["id"], "type": "real_estate_boost"}, {"_id": 0}
+    )
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction introuvable")
+    if tx.get("payment_status") == "paid":
+        return {"status": tx["status"], "payment_status": "paid", "listing_id": tx["metadata"]["listing_id"]}
+
+    stripe = _get_stripe(request)
+    try:
+        status = await stripe.get_checkout_status(session_id)
+    except Exception:
+        return {"status": tx["status"], "payment_status": tx["payment_status"], "listing_id": tx["metadata"]["listing_id"]}
+
+    now = datetime.now(timezone.utc)
+    if status and status.payment_status == "paid":
+        # Atomic: only apply boost once
+        result = await db.payment_transactions.update_one(
+            {"session_id": session_id, "payment_status": {"$ne": "paid"}},
+            {"$set": {"payment_status": "paid", "status": "complete", "updated_at": now.isoformat()}},
+        )
+        if result.modified_count > 0:
+            meta = tx["metadata"]
+            until = (now + timedelta(days=int(meta["duration_days"]))).isoformat()
+            await db.property_listings.update_one(
+                {"id": meta["listing_id"]},
+                {"$set": {"is_featured": True, "featured_until": until, "featured_priority": int(meta.get("priority", 5))}},
+            )
+        return {"status": "complete", "payment_status": "paid", "listing_id": tx["metadata"]["listing_id"]}
+    return {"status": tx["status"], "payment_status": tx.get("payment_status", "pending"), "listing_id": tx["metadata"]["listing_id"]}
+
+
 # ── Admin ─────────────────────────────────────────────────────────────────
 admin_router = APIRouter(prefix="/admin/real-estate", tags=["admin-real-estate"])
 
@@ -285,3 +415,89 @@ async def admin_delete(listing_id: str, request: Request):
     await _require_admin(request)
     await db.property_listings.delete_one({"id": listing_id})
     return {"ok": True}
+
+
+# ── Admin: boost plans CRUD ───────────────────────────────────────────────
+class BoostPlan(BaseModel):
+    country: str = "default"          # FR | MQ | GP | GF | default
+    country_label: Optional[str] = None
+    currency: str = "EUR"
+    duration_days: int = Field(..., ge=1)
+    price: float = Field(..., ge=0)
+    priority: int = 5
+    label: Optional[str] = None
+    active: bool = True
+
+
+@admin_router.get("/boost-plans")
+async def admin_list_plans(request: Request):
+    await _require_admin(request)
+    return await db.real_estate_boost_plans.find({}, {"_id": 0}).sort([("country", 1), ("duration_days", 1)]).to_list(200)
+
+
+@admin_router.post("/boost-plans")
+async def admin_create_plan(data: BoostPlan, request: Request):
+    await _require_admin(request)
+    plan = {"id": f"boost_{uuid.uuid4().hex[:10]}", **data.model_dump(), "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.real_estate_boost_plans.insert_one(plan)
+    plan.pop("_id", None)
+    return plan
+
+
+@admin_router.put("/boost-plans/{plan_id}")
+async def admin_update_plan(plan_id: str, data: BoostPlan, request: Request):
+    await _require_admin(request)
+    r = await db.real_estate_boost_plans.update_one({"id": plan_id}, {"$set": data.model_dump()})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Plan introuvable")
+    return {"id": plan_id, **data.model_dump()}
+
+
+@admin_router.post("/boost-plans/{plan_id}/toggle")
+async def admin_toggle_plan(plan_id: str, request: Request):
+    await _require_admin(request)
+    plan = await db.real_estate_boost_plans.find_one({"id": plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan introuvable")
+    new_val = not plan.get("active", True)
+    await db.real_estate_boost_plans.update_one({"id": plan_id}, {"$set": {"active": new_val}})
+    return {"id": plan_id, "active": new_val}
+
+
+@admin_router.delete("/boost-plans/{plan_id}")
+async def admin_delete_plan(plan_id: str, request: Request):
+    await _require_admin(request)
+    await db.real_estate_boost_plans.delete_one({"id": plan_id})
+    return {"ok": True}
+
+
+# ── Seed default boost plans (idempotent) ─────────────────────────────────
+SEED_COUNTRIES = [
+    ("FR", "France 🇫🇷", "EUR"),
+    ("MQ", "Martinique 🇲🇶", "EUR"),
+    ("GP", "Guadeloupe 🇬🇵", "EUR"),
+    ("GF", "Guyane 🇬🇫", "EUR"),
+    ("default", "Par défaut (tous)", "EUR"),
+]
+SEED_TIERS = [
+    (7, 4.99, 5, "Boost 7 jours"),
+    (15, 8.99, 7, "Boost 15 jours"),
+    (30, 14.99, 9, "Boost 30 jours · meilleure visibilité"),
+]
+
+
+async def seed_real_estate_boost_plans():
+    if await db.real_estate_boost_plans.count_documents({}) > 0:
+        return
+    docs = []
+    for code, label, currency in SEED_COUNTRIES:
+        for days, price, priority, plan_label in SEED_TIERS:
+            docs.append({
+                "id": f"boost_{uuid.uuid4().hex[:10]}",
+                "country": code, "country_label": label, "currency": currency,
+                "duration_days": days, "price": price, "priority": priority,
+                "label": plan_label, "active": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+    if docs:
+        await db.real_estate_boost_plans.insert_many(docs)

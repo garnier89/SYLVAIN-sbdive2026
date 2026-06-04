@@ -7,7 +7,7 @@ import { ArrowLeft, Camera, X, MapPin } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LISTING_TYPES, CATEGORIES, SUBTYPES, RENT_PERIODS, AMENITIES } from './realEstateConstants';
+import { LISTING_TYPES, CATEGORIES, SUBTYPES, RENT_PERIODS, AMENITIES, COUNTRIES } from './realEstateConstants';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -31,7 +31,7 @@ const PostPropertyPage = () => {
   const [f, setF] = useState({
     listing_type: 'sale', category: 'residential', property_subtype: '', title: '', description: '',
     price: '', rent_period: 'month', bedrooms: '', bathrooms: '', area_sqm: '', furnished: false,
-    amenities: [], images: [], address: '', city: '', lat: null, lng: null,
+    amenities: [], images: [], address: '', city: '', country: 'FR', lat: null, lng: null,
     owner_name: '', owner_phone: '',
   });
   const [selecting, setSelecting] = useState(false);
@@ -74,7 +74,7 @@ const PostPropertyPage = () => {
       bathrooms: f.bathrooms !== '' ? parseInt(f.bathrooms) : null,
       area_sqm: f.area_sqm !== '' ? parseFloat(f.area_sqm) : null,
       furnished: f.category === 'residential' ? f.furnished : null,
-      amenities: f.amenities, images: f.images, address: f.address, city: f.city,
+      amenities: f.amenities, images: f.images, address: f.address, city: f.city, country: f.country,
       lat: f.lat, lng: f.lng, owner_name: f.owner_name, owner_phone: f.owner_phone,
     };
     try {
@@ -192,6 +192,11 @@ const PostPropertyPage = () => {
 
         {/* Location */}
         <div className="bg-white rounded-2xl p-4 space-y-3">
+          <Field label="Pays / localité">
+            <select value={f.country} onChange={(e) => set('country', e.target.value)} className={inputCls} data-testid="post-country">
+              {COUNTRIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </Field>
           <Field label="Adresse"><input value={f.address} onChange={(e) => set('address', e.target.value)} placeholder="Rue, quartier" className={inputCls} data-testid="post-address" /></Field>
           <Field label="Ville"><input value={f.city} onChange={(e) => set('city', e.target.value)} placeholder="Ville" className={inputCls} data-testid="post-city" /></Field>
           <button onClick={() => setSelecting((s) => !s)} className="flex items-center gap-2 text-sm font-semibold text-[#FF5000]" data-testid="post-toggle-map">
