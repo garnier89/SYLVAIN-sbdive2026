@@ -507,6 +507,16 @@ async def create_medical_transport(request: Request):
         raise HTTPException(status_code=400, detail="Lieu de départ et destination requis")
     await db.medical_transport.insert_one(transport)
     transport.pop("_id", None)
+    try:
+        await manager.broadcast_to_drivers({
+            "type": "new_transport",
+            "transport_id": transport["id"],
+            "ambulance_name": transport["ambulance_name"],
+            "urgency": transport["urgency"],
+            "fare": fare,
+        })
+    except Exception:
+        pass
     return transport
 
 

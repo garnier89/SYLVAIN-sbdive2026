@@ -1,6 +1,12 @@
 ## NEW - Jun 2026 - Bouton d'urgence 15/112 sur le module Médical (DONE — iter 108)
 - Ajout d'un **bouton d'appel d'urgence** `tel:15` (« Urgence vitale ? Appelez le 15 (SAMU) · 112 ») bien visible : bandeau rouge proéminent en haut de **Transport Médical** (`emergency-call-btn`, icône pulsante) + bouton dans l'en-tête de **Prise de RDV**. Réflexe de sécurité attendu sur un module santé. Lint clean.
 
+## NEW - Jun 2026 - Push live missions colis/transport vers l'app chauffeur (WebSocket) (DONE — iter 113)
+- **App chauffeur (`DeliveryJobsPage`)** : écoute désormais les events WS `new_parcel` & `new_transport` (toast + refresh auto de la liste « Disponibles », sans refresh manuel). Toast urgence rouge si transport `urgent/critical`.
+- **Correctif racine WS chauffeur** : `broadcast_to_drivers` filtrait sur `cid.startswith("driver_")` alors que les chauffeurs se connectent avec leur `user_id` brut → le broadcast n'atteignait jamais l'app (le flux course fonctionnait via polling). Ajout `ConnectionManager.driver_clients` + enregistrement par rôle à la connexion WS (`server.py` lookup `db.users.role`). Bénéficie aussi au push `new_ride_request`.
+- **Backend** : `create_medical_transport` diffuse maintenant `new_transport` (les colis diffusaient déjà `new_parcel`).
+- Vérifié E2E (`tests/test_new_parcel_ws.py`) : chauffeur connecté WS reçoit `new_parcel` ET `new_transport` après création passager. Lint clean (front + back).
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)

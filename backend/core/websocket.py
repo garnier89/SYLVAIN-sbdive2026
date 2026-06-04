@@ -10,6 +10,10 @@ class ConnectionManager:
         self.active_connections: Dict[str, WebSocket] = {}
         self.driver_locations: Dict[str, Dict] = {}
         self.ride_rooms: Dict[str, Set[str]] = {}
+        # Client IDs of connected drivers (registered by role on connect).
+        # Driver client_ids are raw user ids (user_xxx), not prefixed, so role
+        # tracking is required to actually reach them via broadcast_to_drivers.
+        self.driver_clients: Set[str] = set()
 
     async def connect(self, websocket: WebSocket, client_id: str):
         await websocket.accept()
@@ -18,6 +22,7 @@ class ConnectionManager:
 
     def disconnect(self, client_id: str):
         self.active_connections.pop(client_id, None)
+        self.driver_clients.discard(client_id)
         for room_id, members in list(self.ride_rooms.items()):
             members.discard(client_id)
             if not members:
@@ -51,10 +56,19 @@ class ConnectionManager:
         for cid in list(self.active_connections.keys()):
             await self.send_personal_message(message, cid)
 
+    def register_driver(self, client_id: str):
+        """Flag a connected client as a driver (looked up by role on connect)."""
+        self.driver_clients.add(client_id)
+
     async def broadcast_to_drivers(self, message: dict):
-        for cid in list(self.active_connections.keys()):
-            if cid.startswith("driver_"):
-                await self.send_personal_message(message, cid)
+        # Reach clients registered as drivers (raw user ids) AND any legacy
+        # "driver_"-prefixed client ids, restricted to live connections.
+        targets = {
+            cid for cid in self.active_connections
+            if cid in self.driver_clients or cid.startswith("driver_")
+        }
+        for cid in list(targets):
+            await self.send_personal_message(message, cid)
 
     async def broadcast_to_admins(self, message: dict):
         for cid in list(self.active_connections.keys()):

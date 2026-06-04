@@ -545,6 +545,14 @@ app.include_router(api_router)
 @app.websocket("/api/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(websocket, client_id)
+    # Register drivers by role so broadcast_to_drivers actually reaches them
+    # (driver client_ids are raw user ids, not "driver_"-prefixed).
+    try:
+        u = await db.users.find_one({"id": client_id}, {"_id": 0, "role": 1})
+        if u and u.get("role") == "driver":
+            manager.register_driver(client_id)
+    except Exception:
+        pass
     try:
         while True:
             data = await websocket.receive_json()

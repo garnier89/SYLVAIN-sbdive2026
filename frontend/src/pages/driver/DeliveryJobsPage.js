@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { parcelAPI, medicalAPI, driverAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import {
   ArrowLeft, Package, FirstAid, MapPin, FlagCheckered, CheckCircle, CaretRight, ArrowsClockwise, Phone,
 } from '@phosphor-icons/react';
@@ -20,6 +22,8 @@ const StatusBadge = ({ label }) => (
 
 const DeliveryJobsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { on } = useWebSocket(user?.id);
   const [tab, setTab] = useState('available');
   const [availParcels, setAvailParcels] = useState([]);
   const [availTransports, setAvailTransports] = useState([]);
@@ -40,6 +44,20 @@ const DeliveryJobsPage = () => {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Live push: new parcel / medical transport missions broadcast to drivers
+  useEffect(() => {
+    const unsubP = on('new_parcel', (msg) => {
+      toast.success(`📦 Nouvelle livraison disponible · ${msg.fare?.toFixed?.(2) ?? msg.fare} €`, { duration: 6000 });
+      refresh();
+    });
+    const unsubT = on('new_transport', (msg) => {
+      const urgent = msg.urgency && msg.urgency !== 'normal';
+      toast[urgent ? 'error' : 'success'](`🚑 Nouveau transport médical${urgent ? ' (URGENT)' : ''} · ${msg.fare?.toFixed?.(2) ?? msg.fare} €`, { duration: 7000 });
+      refresh();
+    });
+    return () => { unsubP(); unsubT(); };
+  }, [on, refresh]);
 
   const activeCount = activeParcels.length + activeTransports.length;
 
