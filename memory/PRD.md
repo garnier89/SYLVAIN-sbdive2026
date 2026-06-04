@@ -1,5 +1,11 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Bouton « Me prévenir à l'ouverture » + notification in-app (DONE — iter 105)
+- **Levier de réengagement** : sur une tuile de service grisée (hors créneau), un bouton **« Me prévenir »** permet à l'utilisateur de s'abonner. Quand le service rouvre, il reçoit un **toast in-app** « 🔔 X est de nouveau disponible ! » à sa prochaine ouverture de la page Taxi. (Push Firebase/OneSignal à brancher plus tard — l'infra d'abonnement est prête.)
+- **Backend** (`service_categories.py`) : collection `service_reminders` ; `POST /service-categories/{key}/remind` (idempotent), `DELETE .../remind`, `GET /service-categories/reminders` → `{subscribed:[...], ready:[...]}` (livraison *lazy* : marque `notified=true` et renvoie `ready` une seule fois → aucun spam).
+- **Frontend** : `TaxiModeGrid` → `RemindButton` (span role=button + stopPropagation) sur tuiles grisées ; bannière de réservation enrichie d'un bouton « Me prévenir à l'ouverture » ; `TaxiHubPage` charge les rappels au mount + affiche les toasts `ready`. API : `configAPI.getServiceReminders/subscribe/unsubscribe`.
+- Testé iter105 : **8/8 PASS (100% backend + frontend)** — abonnement idempotent, persistance, toast unique à la réouverture, pas de spam, désabonnement, stopPropagation. État restauré (17 services 24/7 actifs, collection nettoyée).
+
 ## NEW - Jun 2026 - Indicateur passager « Dispo 7h-10h » sur tuiles planifiées (DONE — iter 104)
 - **UX anti-frustration** : un service planifié **hors créneau** n'est plus masqué côté passager — sa tuile reste **visible, grisée (opacity-60), avec un badge horaire** (`mode-hint-<id>`, ex: « 14h-14h30 ») indiquant quand il revient. Seuls les services **désactivés manuellement** (`active=false`) restent masqués.
 - **Backend** (`service_categories.py`) : helper `availability_hint(cat)` → libellé FR « Dispo 7h-10h · 17h30-20h » (fenêtres du jour courant, fuseau Europe/Paris, format `7h`/`17h30`). Champ `availability_hint` ajouté au `GET /api/service-categories` public.
