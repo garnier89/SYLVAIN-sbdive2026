@@ -1,5 +1,11 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Profils de course passager + Stripe vérifié + audit dette technique (DONE — iter 100)
+- **Profils de course dans le checkout passager** (`TaxiHubPage`) : sélecteur **Business / Personnel** (`ride-profile-selector`) + menu déroulant **Motif de trajet professionnel** (`business-trip-reason-select`) affiché uniquement si profil Business. Alimenté par `GET /api/config/ride-profiles` + `/api/config/business-trip-reasons` (collections seedées). Champs `ride_profile`, `ride_profile_org_type`, `business_trip_reason` ajoutés à `RideRequest`/`RideResponse` (schemas.py) + persistés dans `create_ride` (rides.py). Affichés sur le **reçu** (`RideReceiptPage` → `receipt-ride-profile`) pour les notes de frais. API getters `configAPI.getRideProfiles/getBusinessTripReasons`.
+- **Stripe paiements réels (test) VÉRIFIÉ** : `POST /api/payments/checkout` (recharge wallet, packages fixes 10/20/50/100€) retourne une vraie session `checkout.stripe.com` avec `sk_test_emergent`. Crédit wallet atomique au polling `/payments/status/{session_id}`. Frontend `WalletPage` câblé (sélection package + redirection + polling retour). Fonctionne en mode test Stripe.
+- **Audit dette technique** : frontend `src/` **100% lint clean** (dépendances de hooks déjà corrigées sur `WaybillPage.js`/`WalletPage.js`). `ProfileTabView.jsx` n'utilise pas localStorage. `KioskApp.js` stocke un token de **session borne** (pattern device légitime PIN-protégé) — conservé. Refonte des gros fichiers (`TaxiHubPage.js`, `AdminDashboard.js`) différée (risque de régression sur app mature pour gain marginal).
+- Testé iter100 : **5/5 backend pytest + flux UI complet PASS** (sélecteur + dropdown + toggle + booking + reçu). Compte QA : `rider.qa@demo.sb / Rider123!`.
+
 ## Vision
 Application super-app multi-services type Gojek/V3Cube pour le marche VTC francophone.
 
