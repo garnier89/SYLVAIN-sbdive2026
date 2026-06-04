@@ -1,0 +1,57 @@
+{
+  "summary": "Iter99 — Taxi Service extra modules (V3Cube parity): Rental Packages (per vehicle type), Ride Profile Type, Business Trip Reason. Backend pytest 4/4 PASS on /api/admin/rental-packages[/vehicles], /api/admin/ride-profiles, /api/admin/business-trip-reasons (LIST/POST/PUT/POST toggle/DELETE) + public getters /api/config/rental-packages, /api/config/ride-profiles, /api/config/business-trip-reasons. Frontend Playwright UI 3/3 flows PASS on /admin/rental-packages (table of 14 vehicles, modal with hours/km/prix form, add → row appears → delete → row disappears, counter increments after close) and /admin/ride-profiles (both tabs Type/Motif, add modal with all fields, edit/toggle/delete). Seed status verified: 2 ride profiles (Business, Personnel), 3 trip reasons (Bureau⇄Domicile, Visite client/partenaire, Trajet aéroport/gare). All TEST_ data and orphan rental package created during pytest (vehicle_type=sb-drive-vtc) deleted at end — final state 0 rental packages / 2 profiles / 3 reasons as required.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/rental-packages", "issue": "Accepts any vehicle_type string with no validation against db.vehicle_types — could create orphan packages with non-existent slug (reproduced: created pkg with vehicle_type='sb-drive-vtc' even though no such slug exists; package was invisible in /vehicles aggregation but listable via /rental-packages). Consider validating vehicle_type ∈ db.vehicle_types.slug or normalising."},
+      {"endpoint": "review_request data-testid mismatch", "issue": "Review request mentions data-testid 'rental-vehicle-sb-drive-vtc' / 'rental-addview-sb-drive-vtc' but real vehicle slug in seeded vehicle_types is 'sb' (name 'SB'). Effective testids are 'rental-vehicle-sb' / 'rental-addview-sb'. Not a code bug — the testid template uses {v.slug} dynamically — but the playbook/spec should reflect the actual slug."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_scenarios": [
+    "GET /api/admin/rental-packages/vehicles → 14 vehicle types each with {slug,name,count} — PASS.",
+    "POST /api/admin/rental-packages {vehicle_type:sb,hours:2,km:20,price:36} → 200 with full doc (id, status=active) — PASS.",
+    "GET /api/admin/rental-packages?vehicle_type=sb returns created pkg; /vehicles counter for 'sb' becomes >=1 — PASS.",
+    "PUT /api/admin/rental-packages/{id} {price:40} → price persisted — PASS.",
+    "GET /api/config/rental-packages?vehicle_type=sb (public, no auth) returns active package — PASS.",
+    "DELETE /api/admin/rental-packages/{id} → {deleted:true}; subsequent list does not contain it — PASS.",
+    "GET /api/admin/ride-profiles → 2 seeded (Business, Personnel) — PASS.",
+    "POST /api/admin/ride-profiles (TEST_) → 200; PUT updates profile_title; POST /{id}/toggle → status=inactive; public GET /api/config/ride-profiles excludes inactive; DELETE → 200 — PASS.",
+    "GET /api/admin/business-trip-reasons → 3 seeded — PASS.",
+    "POST/PUT/toggle/DELETE on business-trip-reasons + public /api/config/business-trip-reasons — PASS.",
+    "UI /admin/rental-packages: admin-rental-packages-page + rental-vehicle-sb + rental-addview-sb 'Ajouter / Voir (0)' → click opens rental-manage-modal → fill hours/km/price → rental-form-add adds row rental-pkg-row-{id} → rental-pkg-del-{id} removes it — PASS.",
+    "UI /admin/ride-profiles: admin-ride-profiles-page with profiles-tab-type + profiles-tab-reason tabs. Type tab: 2 rows visible, profile-add-btn → profile-edit-modal with profile-field-short_name/org_type/profile_title/title_description → profile-save adds row → profile-toggle-{id} flips, profile-del-{id} removes. Motif tab: 3 rows visible, reason-add-btn → reason-edit-modal with reason-field-trip_reason/profile_short_name/org_type/profile_title/title_description → reason-save adds row → reason-toggle-{id} flips, reason-del-{id} removes — PASS."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter99_taxi_extra.py",
+    "/app/test_reports/pytest/iter99_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Validate POST /api/admin/rental-packages.vehicle_type against db.vehicle_types.slug to prevent orphan packages with non-existent slugs.",
+    "(Doc) Update internal data-testid spec: rental table rows use the actual vehicle slug from db.vehicle_types (e.g., 'rental-vehicle-sb', 'rental-addview-sb'), not literal 'sb-drive-vtc'."
+  ],
+  "critical_code_review_comments": [
+    "routes/taxi_extra.py is clean, async-first, uses {'_id':0} projections everywhere — no MongoDB ObjectId leakage.",
+    "_make_crud helper produces 5 routes per resource with closure-captured collection name — works but each defines /list /post /put /delete /toggle inside a single function, so /admin/ride-profiles and /admin/business-trip-reasons each register correctly via side effects. Decent DRY.",
+    "POST /api/admin/rental-packages defaults: hours=1, km=10, price=0 — price=0 silently allowed. UI guards with 'Prix requis' but backend doesn't enforce >0. Consider 400 if price <= 0.",
+    "PUT /api/admin/rental-packages/{id} only allows {location_name,hours,km,price,status}; vehicle_type is intentionally immutable — good.",
+    "seed_taxi_extra is idempotent (count_documents==0 check) — re-runs do not duplicate seed data.",
+    "AdminRentalPackages.js + AdminRideProfiles.js: all interactive elements have correct data-testid following the spec template. ResourceTable correctly emits `${resourceKey}-row-{id}`, `${resourceKey}-toggle-{id}`, `${resourceKey}-edit-{id}`, `${resourceKey}-del-{id}`, `${resourceKey}-add-btn`, `${resourceKey}-edit-modal`, `${resourceKey}-field-{key}`, `${resourceKey}-save`.",
+    "Modal close-on-backdrop pattern (onClick={onClose} + stopPropagation on inner) works in both modals.",
+    "Toast 'Supprimé' shown only for ride_profiles/trip_reasons delete; rental-pkg delete is silent (no toast on success). Minor UX inconsistency — consider adding toast.success('Forfait supprimé') in AdminRentalPackages.js remove()."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter99_taxi_extra.py (new, 4 pytest cases all PASS)"
+  ],
+  "success_rate": {"backend": "100% (4/4 pytest)", "frontend": "100% (rental-packages + ride-profiles type + ride-profiles reason — all CRUD via UI)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Created 1 rental pkg (vehicle_type=sb), 1 ride profile (TEST_iter99 + TEST_UI_iter99), 1 trip reason (TEST_iter99 + TEST_UI_iter99) during pytest+UI tests. ALL deleted at end. Also cleaned 1 orphan rental package (vehicle_type='sb-drive-vtc', price=36€) accidentally left by my first pytest run before slug correction. Final DB state: rental_packages=0, ride_profiles=2 (Business+Personnel), business_trip_reasons=3 — matches the cleanup requirement exactly.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter99 Taxi Service parity modules (rental packages, ride profiles, trip reasons) are fully working end-to-end. Backend collections: rental_packages, ride_profiles, business_trip_reasons. seed_taxi_extra() runs once at startup and is idempotent. NOTE: vehicle slug for the main 'SB Drive VTC' service is 'sb' (NOT 'sb-drive-vtc') — testids in /admin/rental-packages use the dynamic slug so should target 'rental-vehicle-sb' / 'rental-addview-sb'. There is no API-side validation that vehicle_type matches an existing slug — orphan packages are possible (and were observed). Profile/Reason CRUD uses the generic _make_crud helper in routes/taxi_extra.py.",
+  "rca_of_the_issue": "No code bugs. Two minor design observations: (a) backend accepts unknown vehicle_type strings for rental packages (creates orphan rows invisible in the per-vehicle aggregation), (b) review_request mentions slug 'sb-drive-vtc' but actual vehicle_types collection has slug 'sb' — testids in UI use the actual slug correctly."
+}

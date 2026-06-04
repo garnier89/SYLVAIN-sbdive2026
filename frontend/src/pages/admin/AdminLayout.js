@@ -56,6 +56,8 @@ const sidebarConfig = [
       { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
         { label: 'Gérer les catégories', path: '/admin/service-categories' },
         { label: 'Tarification dynamique', path: '/admin/dynamic-pricing' },
+        { label: 'Forfaits de location', path: '/admin/rental-packages' },
+        { label: 'Profils de course', path: '/admin/ride-profiles' },
         { label: 'Configurations Taxi', path: '/admin/taxi-configs' },
         { label: 'Toutes les courses', path: '/admin/rides' },
         { label: 'Types de véhicules', path: '/admin/vehicle-types' },

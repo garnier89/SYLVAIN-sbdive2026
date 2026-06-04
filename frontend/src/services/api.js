@@ -190,6 +190,21 @@ export const adminAPI = {
   getWeatherCurrent: (lat, lng) => api.get('/admin/pricing/weather/current', { params: { lat, lng } }),
   getTaxiConfig: (key) => api.get(`/admin/taxi-configs/${key}`),
   saveTaxiConfig: (key, settings) => api.put(`/admin/taxi-configs/${key}`, { settings }),
+  getRentalVehicles: () => api.get('/admin/rental-packages/vehicles'),
+  getRentalPackages: (vt) => api.get('/admin/rental-packages', { params: { vehicle_type: vt } }),
+  createRentalPackage: (data) => api.post('/admin/rental-packages', data),
+  updateRentalPackage: (id, data) => api.put(`/admin/rental-packages/${id}`, data),
+  deleteRentalPackage: (id) => api.delete(`/admin/rental-packages/${id}`),
+  getRideProfiles: () => api.get('/admin/ride-profiles'),
+  createRideProfile: (data) => api.post('/admin/ride-profiles', data),
+  updateRideProfile: (id, data) => api.put(`/admin/ride-profiles/${id}`, data),
+  deleteRideProfile: (id) => api.delete(`/admin/ride-profiles/${id}`),
+  toggleRideProfile: (id) => api.post(`/admin/ride-profiles/${id}/toggle`),
+  getTripReasons: () => api.get('/admin/business-trip-reasons'),
+  createTripReason: (data) => api.post('/admin/business-trip-reasons', data),
+  updateTripReason: (id, data) => api.put(`/admin/business-trip-reasons/${id}`, data),
+  deleteTripReason: (id) => api.delete(`/admin/business-trip-reasons/${id}`),
+  toggleTripReason: (id) => api.post(`/admin/business-trip-reasons/${id}/toggle`),
 };
 
 // Dispatcher APIs

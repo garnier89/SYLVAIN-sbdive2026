@@ -173,6 +173,8 @@ import AdminScheduling from './pages/admin/AdminScheduling';
 import AdminServiceCategories from './pages/admin/AdminServiceCategories';
 import AdminDynamicPricing from './pages/admin/AdminDynamicPricing';
 import AdminTaxiConfigs from './pages/admin/AdminTaxiConfigs';
+import AdminRentalPackages from './pages/admin/AdminRentalPackages';
+import AdminRideProfiles from './pages/admin/AdminRideProfiles';
 
 import './index.css';
 
@@ -360,6 +362,8 @@ const AppRouter = () => {
         <Route path="service-categories" element={<AdminServiceCategories />} />
         <Route path="dynamic-pricing" element={<AdminDynamicPricing />} />
         <Route path="taxi-configs" element={<AdminTaxiConfigs />} />
+        <Route path="rental-packages" element={<AdminRentalPackages />} />
+        <Route path="ride-profiles" element={<AdminRideProfiles />} />
         <Route path="email-templates" element={<AdminEmailTemplates />} />
         <Route path="sms-templates" element={<AdminSmsTemplates />} />
         <Route path="sos-requests" element={<AdminSosRequests />} />
