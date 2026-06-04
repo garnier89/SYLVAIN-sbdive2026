@@ -1,5 +1,11 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - Indicateur passager « Dispo 7h-10h » sur tuiles planifiées (DONE — iter 104)
+- **UX anti-frustration** : un service planifié **hors créneau** n'est plus masqué côté passager — sa tuile reste **visible, grisée (opacity-60), avec un badge horaire** (`mode-hint-<id>`, ex: « 14h-14h30 ») indiquant quand il revient. Seuls les services **désactivés manuellement** (`active=false`) restent masqués.
+- **Backend** (`service_categories.py`) : helper `availability_hint(cat)` → libellé FR « Dispo 7h-10h · 17h30-20h » (fenêtres du jour courant, fuseau Europe/Paris, format `7h`/`17h30`). Champ `availability_hint` ajouté au `GET /api/service-categories` public.
+- **Frontend** : `catConfig` stocke `{active, available, hint, name}` ; `TaxiModeGrid` filtre désormais sur `active!==false` (et grise + badge si `available===false`) ; bannière de réservation enrichie avec le créneau (« Ce service est actuellement indisponible. Dispo 14h-14h30. »).
+- Testé iter104 : **5/5 frontend PASS** (tuile visible grisée + badge, distinction avec active=false masqué, service 24/7 normal, bannière + CTA bloqué). État restauré.
+
 ## NEW - Jun 2026 - Planning d'activation horaire par service VTC (DONE — iter 103)
 - **Automatisation de l'offre selon les heures de pointe** : chaque service `service_categories` peut avoir un **planning horaire** (ex: Pool 7h-10h / 17h-20h, Aéroport 24/7). En dehors des plages, le service devient **indisponible à la réservation**.
 - **Backend** (`service_categories.py`) : helper `is_category_available_now(cat)` (fuseau `Europe/Paris`, gère les plages chevauchant minuit, jours optionnels = tous les jours). Champ `available_now` ajouté au `GET /api/service-categories` public. `PUT /admin/service-categories/{key}` accepte `schedule_enabled` / `schedule_windows` (`[{days:[0-6], start:"HH:MM", end:"HH:MM"}]`) / `schedule_tz`. `create_ride` rejette (400) un service hors plage.
