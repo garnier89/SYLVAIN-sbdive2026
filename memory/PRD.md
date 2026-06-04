@@ -14,6 +14,13 @@
 - **Backend** : `routes/real_estate.py` — collections `property_listings` + `property_inquiries`. `GET/POST /real-estate/listings`, `GET/PUT/DELETE /listings/{id}`, `POST /listings/{id}/status`, `POST/GET /listings/{id}/inquiries`, `GET /my/listings`, `GET /my/inquiries` ; admin `/admin/real-estate/*` (toggle-status, feature, delete). Self-inquiry rejetée (400). Tri featured-first.
 - Testé iter110 : **frontend 100% (8/8 scénarios)** + backend E2E httpx (create/list/detail/inquiry/owner-inquiries/delete). Lint clean.
 
+## NEW - Jun 2026 - Immobilier : « Booster mon annonce » (self-checkout Stripe) (DONE — iter 111)
+- **Monétisation B2C** : l'annonceur paie en ligne (Stripe) pour passer son annonce **★ Sponsorisé** en tête de liste pendant N jours. Tarifs **configurés par l'admin par pays/localité + devise**.
+- **Admin** : page `/admin/real-estate` désormais à 2 onglets — **Annonces** + **Plans de Boost** (`BoostPlansTab`) : CRUD complet des plans (pays/localité, devise, durée jours, prix, priorité, libellé, actif). 15 plans seedés (FR/MQ/GP/GF + Par défaut × 7j=4,99€/15j=8,99€/30j=14,99€).
+- **Annonceur** : bouton « 🚀 Booster mon annonce » sur `MyPropertiesPage` (annonces actives non sponsorisées) → modale des plans du **pays de l'annonce** (fallback « Par défaut ») → **redirection Stripe Checkout** → retour `?boost_session=` (polling) → toast succès + badge ★ Sponsorisé. Sélecteur **Pays** ajouté au formulaire de publication.
+- **Backend** (`real_estate.py`) : `GET /real-estate/boost-plans?country=`, `POST /real-estate/listings/{id}/boost/checkout` (montant serveur via `emergentintegrations` StripeCheckout, `payment_transactions` type `real_estate_boost`), `GET /real-estate/boost/status/{session_id}` (applique `is_featured`+`featured_until`+`featured_priority`, idempotent). Admin boost CRUD + `seed_real_estate_boost_plans()`. Tri liste : featured_priority ; **auto-expiration** des boosts échus. ⚠️ Stripe en mode **TEST** (clé test) — brancher la clé live pour la prod.
+- Testé iter111 : **frontend 100%** (flux boost user + redirection Stripe `cs_test_` + onglet admin Plans de Boost CRUD) + backend E2E httpx (plans, checkout URL Stripe réelle, CRUD admin).
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)
