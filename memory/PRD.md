@@ -3,6 +3,13 @@
 ## Vision
 Application super-app multi-services type Gojek/V3Cube pour le marche VTC francophone.
 
+## NEW - Jun 2026 - Planification configurable + Calendrier V3Cube + Modif itinéraire en course + Carte chauffeur Google Maps (DONE — iter 95)
+- **Étape 1 — Restrictions de planification + Config Admin** : `GET /api/config/scheduling` (public) renvoie `{enabled, min_advance_minutes:60, max_advance_days:30, disabled_modes:['pool','bidding']}` (stocké dans `service_configs` clé `scheduling`). `create_ride` refuse (400) un `scheduled_at` < délai mini, > horizon max, ou un mode désactivé (Pool/Enchères). Nouvelle page admin `/admin/scheduling` (`AdminScheduling.js`, sidebar PARAMÈTRES) : toggle global, délai mini, horizon, cases modes interdits — persisté via `/admin/service-config/scheduling`.
+- **Étape 2 — Calendrier V3Cube + auto-détection départ** : composant `ScheduleCalendarModal.jsx` (grille mensuelle, sélecteurs heure/minute, jours/horaires avant délai mini désactivés) remplace les `datetime-local` dans `TaxiHubPage`. L'option « Programmer plus tard » est masquée (`timing-later-disabled`) pour Pool/Enchères. Le départ s'auto-localise au focus du champ destination (`GooglePlacesInput onFocus`).
+- **Étape 3 — Modification d'itinéraire en cours** : `POST /api/rides/{id}/update-route` (propriétaire) modifie départ/destination/arrêts sur course pending/accepted/arriving/in_progress (départ verrouillé une fois `in_progress`), recalcule distance/tarif/polyline, notifie le chauffeur via WS `route_updated`. UI : `RouteEditModal.jsx` ouvert par le crayon (`edit-dest-btn`) de `DriverEnRouteView`. Driver écoute `route_updated` (toast + refresh carte).
+- **Étape 4 — Carte chauffeur Google Maps** : `DriverHome.js` migré de `LeafletMap` vers `AdminGoogleMap` (`@react-google-maps/api`), arrêts en markers numérotés, heatmap via `heatmapData`. Heat View + Mode Destination conservés.
+- Testé iter95 : **7/7 backend pytest + tous les flux frontend PASS**, aucun bug.
+
 ## Architecture
 - **Frontend Web**: React + Tailwind CSS + Leaflet Maps + Phosphor Icons
 - **Frontend Mobile** (NEW Feb 2026): Expo + React Native + React Navigation v7 + i18next
