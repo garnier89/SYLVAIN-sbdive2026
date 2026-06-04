@@ -64,6 +64,9 @@ async def create_rental_package(request: Request):
     body = await request.json()
     if not body.get("vehicle_type"):
         raise HTTPException(status_code=400, detail="vehicle_type requis")
+    vt = body["vehicle_type"]
+    if vt != "all" and not await db.vehicle_types.find_one({"slug": vt}):
+        raise HTTPException(status_code=400, detail="Type de véhicule inconnu")
     doc = {
         "id": f"rpkg_{uuid.uuid4().hex[:10]}",
         "vehicle_type": body["vehicle_type"],

@@ -3,6 +3,16 @@
 ## Vision
 Application super-app multi-services type Gojek/V3Cube pour le marche VTC francophone.
 
+## NEW - Jun 2026 - App passager en orange #FF5000 + Modules Taxi Service V3Cube (DONE — iter 99)
+- **Couleur app passager** : accent jaune `#FFC107` remplacé par **orange #FF5000** dans toute l'app passager + composants partagés (cohérent avec la landing).
+- **Manage Rental Packages (par véhicule)** : `routes/taxi_extra.py` collection `rental_packages` (vehicle_type × lieu : hours/km/price/status). Admin `/admin/rental-packages` (table véhicules + compteur Add/View(N) + modale gestion). Public `GET /api/config/rental-packages?vehicle_type=`. Validation : `vehicle_type` doit exister dans `vehicle_types`.
+- **Ride Profile Type** : collection `ride_profiles` (short_name, org_type, profile_title, title_description, status). Seed : Business, Personnel.
+- **Business Trip Reason** : collection `business_trip_reasons` (trip_reason + champs profil). Seed : Bureau⇄Domicile, Visite client/partenaire, Trajet aéroport/gare.
+- Admin `/admin/ride-profiles` (onglets Type de profil + Motif pro, CRUD + toggle + delete). Public getters `/api/config/ride-profiles`, `/api/config/business-trip-reasons`.
+- **Vehicle Type** : déjà complet (`/admin/vehicle-types` — prix/km, prix/min, base, commission, capacité, ordre, statut).
+- Sidebar Taxi enrichie : Catégories, Tarification dynamique, Forfaits de location, Profils de course, Configurations Taxi, Véhicules, Courses.
+- Testé iter99 : **4/4 backend pytest + 3/3 UI PASS**. Données de test nettoyées.
+
 ## NEW - Jun 2026 - Refonte Tarification dynamique V3Cube + Heatmap + Météo réelle (DONE — iter 98)
 - **AI Dynamic Surge (modèle V3Cube)** : collections `surge_rules` + `surge_locations`. Règles par **Lieu × Type de véhicule** avec **plages de demande** (min/max demandes → multiplicateur). **Activation automatique** : une règle `status=active` s'applique immédiatement (plus d'interrupteur global). Multiplicateur choisi selon le nb de courses `pending` dans le rayon de la zone. CRUD complet + toggle + DELETE lieu. Endpoints `/api/admin/pricing/surge[/locations|/heatmap|/{id}/toggle]`.
 - **Carte de chaleur temps réel** : `GET /api/admin/pricing/surge/heatmap` + public `/api/pricing/demand-heatmap` → points (courses pending) + zones. Affichée sur `/admin/dynamic-pricing` (Google Maps `AdminGoogleMap` heatmap + marqueurs de zones).
