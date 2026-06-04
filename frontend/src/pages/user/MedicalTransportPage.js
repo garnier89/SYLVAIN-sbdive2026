@@ -69,14 +69,15 @@ const MedicalTransportPage = () => {
     if (!form.patient_name) return toast.error('Nom du patient requis');
     setLoading(true);
     try {
-      await medicalAPI.createTransport({
+      const r = await medicalAPI.createTransport({
         ambulance_type: ambulanceType, pickup_lat: pickup.lat, pickup_lng: pickup.lng,
         dest_lat: dest.lat, dest_lng: dest.lng, destination_name: form.destination_name,
         patient_name: form.patient_name, patient_phone: form.patient_phone,
         patient_condition: form.patient_condition, urgency: form.urgency, payment_method: 'cash',
       });
       setDone(true);
-      setTimeout(() => navigate('/history'), 2800);
+      const tid = r.data?.id;
+      setTimeout(() => navigate(tid ? `/track/transport/${tid}` : '/history'), 2400);
     } catch { toast.error('Échec de la demande'); } finally { setLoading(false); }
   };
 

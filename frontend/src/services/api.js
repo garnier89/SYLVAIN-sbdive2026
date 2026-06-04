@@ -266,6 +266,11 @@ export const parcelAPI = {
   create: (data) => api.post('/parcels', data),
   list: () => api.get('/parcels'),
   get: (id) => api.get(`/parcels/${id}`),
+  driverAvailable: () => api.get('/parcels/driver/available'),
+  driverActive: () => api.get('/parcels/driver/active'),
+  accept: (id) => api.post(`/parcels/${id}/accept`),
+  updateStatus: (id, status) => api.post(`/parcels/${id}/status`, { status }),
+  deliverLeg: (id, index) => api.post(`/parcels/${id}/legs/${index}/deliver`),
 };
 
 // Medical module APIs (prise de RDV + transport médical / ambulance)
@@ -277,6 +282,11 @@ export const medicalAPI = {
   estimateTransport: (data) => api.post('/medical/transport/estimate', data),
   createTransport: (data) => api.post('/medical/transport', data),
   listTransport: () => api.get('/medical/transport'),
+  transportGet: (id) => api.get(`/medical/transport/${id}`),
+  transportDriverAvailable: () => api.get('/medical/transport/driver/available'),
+  transportDriverActive: () => api.get('/medical/transport/driver/active'),
+  acceptTransport: (id) => api.post(`/medical/transport/${id}/accept`),
+  updateTransportStatus: (id, status) => api.post(`/medical/transport/${id}/status`, { status }),
 };
 
 

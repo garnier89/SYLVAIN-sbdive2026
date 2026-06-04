@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend E2E + Backend smoke testing of Driver Delivery/Transport flow and Passenger tracking pages. All flows passed end-to-end on https://sb-drive-vtc.preview.emergentagent.com.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/test_reports/iteration_108.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DeliveryJobsPage.js: refresh polled only on action — for live updates without manual refresh, consider polling interval (already done on tracking page with 8s interval). Acceptable for driver use.",
+    "DeliveryTrackingPage.js: silently swallows fetch errors (catch ignores); consider showing a transient error toast for non-404 errors. Non-blocking.",
+    "Backend medical/transport accepts only dest_lat/dest_lng (not destination_lat/destination_lng). Frontend MedicalTransportPage submits dest_lat (correct). Confirm naming is consistent across all callers to avoid 400 'Lieu de départ et destination requis'.",
+    "Both pages have all required data-testid attributes — testing fully reliable."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (smoke)", "frontend": "100%"},
+  "test_credentials": "Driver jean.dupont@demo.sb / Driver123! — works. Passenger rider.qa@demo.sb / Rider123! — works.",
+  "seed_data_creation": "Created parcel parcel_a1cef7517305 (multi, 2 stops, 6.01€) and medtr_7459b0788ab1 (Ambulance Standard, 54€) via API as rider.qa@demo.sb. Both completed during the test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Driver/passenger delivery & medical transport flow fully functional. Driver: /chauffeur/livraisons → tab-available lists avail-parcel-<id>/avail-transport-<id>; accept-* moves to tab-active; parcel-advance-* steps accepted→arrived_pickup→picked_up (then parcel-legs-<id> shows deliver-leg-<id>-0/1, marking all delivered closes the mission with toast 'Toutes les livraisons effectuées !'). Transport advance: accepted→en_route_pickup→patient_onboard→arrived→completed (toast 'Course terminée'). Passenger tracking /track/parcel/<id> and /track/transport/<id> shows tracking-timeline with all step-* nodes reflecting current status; tracking-legs lists per-stop status. Polling every 8s on tracking page works.",
+  "detailed_results": {
+    "driver_flow": {
+      "login_via_/login/email": "OK (redirects to /chauffeur/home after detecting driver role)",
+      "navigation_/chauffeur/livraisons": "delivery-jobs-page loaded",
+      "available_tab": "avail-parcel-parcel_a1cef7517305 + avail-transport-medtr_7459b0788ab1 visible",
+      "accept_parcel": "accept-parcel-* clicked → toast 'Colis accepté' → moves to En cours",
+      "accept_transport": "accept-transport-* clicked → toast 'Transport accepté' → En cours",
+      "parcel_advance": "2 advance clicks: accepted→arrived_pickup→picked_up; parcel-legs-<id> then visible",
+      "deliver_legs": "deliver-leg-<id>-0 then -1 clicked; final toast 'Toutes les livraisons effectuées !'; parcel disappears from active list",
+      "transport_advance": "4 advance clicks → completed; toast 'Course terminée'; transport disappears from active list"
+    },
+    "passenger_tracking": {
+      "parcel_page": "/track/parcel/<id> → delivery-tracking-page; tracking-timeline with step-accepted, step-arrived_pickup, step-picked_up, step-in_transit, step-completed all rendered; tracking-legs shows Dépôt 1 · Alice ✓ Livré and Dépôt 2 · Bob ✓ Livré",
+      "transport_page": "/track/transport/<id> → all 5 medical steps rendered; final status 'Course terminée' active"
+    },
+    "backend_smoke": {
+      "POST /api/auth/login": "200 (rider + driver)",
+      "POST /api/parcels": "200 multi 2 stops, fare 6.01€",
+      "POST /api/medical/transport": "200 with dest_lat/dest_lng; 400 'Lieu de départ et destination requis' if using destination_lat/destination_lng (naming gotcha)"
+    }
+  }
+}

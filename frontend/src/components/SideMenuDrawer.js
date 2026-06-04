@@ -128,6 +128,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
       items: [
         { icon: House,      label: 'Accueil',           path: '/chauffeur/home',    color: 'bg-emerald-100 text-emerald-600' },
         { icon: Car,        label: 'Mes courses',       path: '/chauffeur/history', color: 'bg-blue-100 text-blue-600' },
+        { icon: Package,    label: 'Livraisons & Transport', path: '/chauffeur/livraisons', color: 'bg-teal-100 text-teal-600' },
         { icon: Star,       label: 'Récompenses',       path: '/chauffeur/rewards', color: 'bg-amber-100 text-amber-600' },
         { icon: Bell,       label: 'Les notifications', path: '/chauffeur/notifications',     color: 'bg-purple-100 text-purple-600' },
       ],

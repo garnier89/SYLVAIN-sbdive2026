@@ -48,6 +48,8 @@ import MoreTaxiServicesPage from './pages/user/MoreTaxiServicesPage';
 import VideoConsultPage from './pages/user/VideoConsultPage';
 import MedicalAppointmentPage from './pages/user/MedicalAppointmentPage';
 import MedicalTransportPage from './pages/user/MedicalTransportPage';
+import DeliveryTrackingPage from './pages/user/DeliveryTrackingPage';
+import DeliveryJobsPage from './pages/driver/DeliveryJobsPage';
 import BiddingPage from './pages/user/BiddingPage';
 import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
 import AdvancedTaxiBookingPage from './pages/user/AdvancedTaxiBookingPage';
@@ -241,6 +243,8 @@ const AppRouter = () => {
       <Route path="/video-consult" element={<ProtectedRoute allowedRoles={['user']}><VideoConsultPage /></ProtectedRoute>} />
       <Route path="/medical/appointment" element={<ProtectedRoute allowedRoles={['user']}><MedicalAppointmentPage /></ProtectedRoute>} />
       <Route path="/medical/transport" element={<ProtectedRoute allowedRoles={['user']}><MedicalTransportPage /></ProtectedRoute>} />
+      <Route path="/track/:type/:id" element={<ProtectedRoute allowedRoles={['user']}><DeliveryTrackingPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/livraisons" element={<ProtectedRoute allowedRoles={['driver']}><DeliveryJobsPage /></ProtectedRoute>} />
       <Route path="/bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
       <Route path="/services-bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
       <Route path="/taxi-bidding" element={<ProtectedRoute allowedRoles={['user']}><TaxiBiddingPage /></ProtectedRoute>} />

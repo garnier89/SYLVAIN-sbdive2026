@@ -75,13 +75,14 @@ const ParcelPage = () => {
   const confirm = async () => {
     setLoading(true);
     try {
-      await parcelAPI.create({
+      const res = await parcelAPI.create({
         pickup_lat: pickup.lat, pickup_lng: pickup.lng,
         stops: stops.map((s) => ({ lat: s.lat, lng: s.lng, recipient_name: s.recipient_name, recipient_phone: s.recipient_phone })),
         vehicle_type: vehicleType, payment_method: 'cash',
       });
       setStep('success');
-      setTimeout(() => navigate('/history'), 2500);
+      const pid = res.data?.id;
+      setTimeout(() => navigate(pid ? `/track/parcel/${pid}` : '/history'), 2200);
     } catch (e) { toast.error('Échec de la commande'); } finally { setLoading(false); }
   };
 

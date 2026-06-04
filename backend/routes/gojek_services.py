@@ -516,6 +516,63 @@ async def list_medical_transport(request: Request):
     return items
 
 
+# ── Driver side: medical transport accept & per-step status ──────────────
+MEDTR_FLOW = ["pending", "accepted", "en_route_pickup", "patient_onboard", "arrived", "completed"]
+
+
+@medical_router.get("/transport/driver/available")
+async def medtr_driver_available(request: Request):
+    await get_current_user(request)
+    items = await db.medical_transport.find({"status": "pending", "driver_id": None}, {"_id": 0}).sort("created_at", -1).to_list(30)
+    return items
+
+
+@medical_router.get("/transport/driver/active")
+async def medtr_driver_active(request: Request):
+    user = await get_current_user(request)
+    items = await db.medical_transport.find({"driver_id": user["id"], "status": {"$ne": "completed"}}, {"_id": 0}).sort("created_at", -1).to_list(30)
+    return items
+
+
+@medical_router.post("/transport/{transport_id}/accept")
+async def medtr_accept(transport_id: str, request: Request):
+    user = await get_current_user(request)
+    tr = await db.medical_transport.find_one({"id": transport_id}, {"_id": 0})
+    if not tr:
+        raise HTTPException(status_code=404, detail="Transport not found")
+    if tr.get("driver_id"):
+        raise HTTPException(status_code=400, detail="Transport déjà pris en charge")
+    await db.medical_transport.update_one({"id": transport_id}, {"$set": {"driver_id": user["id"], "status": "accepted", "accepted_at": datetime.now(timezone.utc).isoformat()}})
+    return {**tr, "driver_id": user["id"], "status": "accepted"}
+
+
+@medical_router.post("/transport/{transport_id}/status")
+async def medtr_update_status(transport_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    new_status = body.get("status")
+    if new_status not in MEDTR_FLOW:
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    tr = await db.medical_transport.find_one({"id": transport_id}, {"_id": 0})
+    if not tr:
+        raise HTTPException(status_code=404, detail="Transport not found")
+    if tr.get("driver_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    await db.medical_transport.update_one({"id": transport_id}, {"$set": {"status": new_status}})
+    return {"id": transport_id, "status": new_status}
+
+
+@medical_router.get("/transport/{transport_id}")
+async def get_medical_transport(transport_id: str, request: Request):
+    user = await get_current_user(request)
+    tr = await db.medical_transport.find_one({"id": transport_id}, {"_id": 0})
+    if not tr:
+        raise HTTPException(status_code=404, detail="Transport not found")
+    if tr["user_id"] != user["id"] and user["role"] not in ["admin", "dispatcher", "driver"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    return tr
+
+
 # ==========================================
 # REGISTER ALL SUB-ROUTERS
 # ==========================================

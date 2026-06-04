@@ -81,6 +81,8 @@ async def estimate_parcel(data: ParcelEstimateRequest, request: Request):
 async def create_parcel(data: ParcelCreateRequest, request: Request):
     user = await get_current_user(request)
     legs, total_km, total_fare = _compute_legs(data.pickup_lat, data.pickup_lng, data.stops, data.vehicle_type)
+    for leg in legs:
+        leg["status"] = "pending"  # pending → delivered (per drop-off)
     parcel = {
         "id": f"parcel_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
@@ -128,3 +130,67 @@ async def get_parcel(parcel_id: str, request: Request):
     if parcel["user_id"] != user["id"] and user["role"] not in ["admin", "dispatcher", "driver"]:
         raise HTTPException(status_code=403, detail="Access denied")
     return parcel
+
+
+# ── Driver side: accept & per-step status ─────────────────────────────────
+PARCEL_FLOW = ["pending", "accepted", "arrived_pickup", "picked_up", "in_transit", "completed"]
+
+
+@router.get("/driver/available")
+async def driver_available_parcels(request: Request):
+    await get_current_user(request)
+    items = await db.parcels.find({"status": "pending", "driver_id": None}, {"_id": 0}).sort("created_at", -1).to_list(30)
+    return items
+
+
+@router.get("/driver/active")
+async def driver_active_parcels(request: Request):
+    user = await get_current_user(request)
+    items = await db.parcels.find({"driver_id": user["id"], "status": {"$ne": "completed"}}, {"_id": 0}).sort("created_at", -1).to_list(30)
+    return items
+
+
+@router.post("/{parcel_id}/accept")
+async def accept_parcel(parcel_id: str, request: Request):
+    user = await get_current_user(request)
+    parcel = await db.parcels.find_one({"id": parcel_id}, {"_id": 0})
+    if not parcel:
+        raise HTTPException(status_code=404, detail="Parcel not found")
+    if parcel.get("driver_id"):
+        raise HTTPException(status_code=400, detail="Colis déjà pris en charge")
+    await db.parcels.update_one({"id": parcel_id}, {"$set": {"driver_id": user["id"], "status": "accepted", "accepted_at": datetime.now(timezone.utc).isoformat()}})
+    return {**parcel, "driver_id": user["id"], "status": "accepted"}
+
+
+@router.post("/{parcel_id}/status")
+async def update_parcel_status(parcel_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    new_status = body.get("status")
+    if new_status not in PARCEL_FLOW:
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    parcel = await db.parcels.find_one({"id": parcel_id}, {"_id": 0})
+    if not parcel:
+        raise HTTPException(status_code=404, detail="Parcel not found")
+    if parcel.get("driver_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    await db.parcels.update_one({"id": parcel_id}, {"$set": {"status": new_status}})
+    return {"id": parcel_id, "status": new_status}
+
+
+@router.post("/{parcel_id}/legs/{index}/deliver")
+async def deliver_parcel_leg(parcel_id: str, index: int, request: Request):
+    user = await get_current_user(request)
+    parcel = await db.parcels.find_one({"id": parcel_id}, {"_id": 0})
+    if not parcel:
+        raise HTTPException(status_code=404, detail="Parcel not found")
+    if parcel.get("driver_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    legs = parcel.get("legs", [])
+    if index < 0 or index >= len(legs):
+        raise HTTPException(status_code=404, detail="Dépôt introuvable")
+    legs[index]["status"] = "delivered"
+    all_done = all(leg.get("status") == "delivered" for leg in legs)
+    new_status = "completed" if all_done else "in_transit"
+    await db.parcels.update_one({"id": parcel_id}, {"$set": {"legs": legs, "status": new_status}})
+    return {"id": parcel_id, "legs": legs, "status": new_status, "all_delivered": all_done}
