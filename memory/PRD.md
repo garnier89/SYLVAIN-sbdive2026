@@ -1,5 +1,10 @@
 # SB Drive VTC - PRD
 
+## NEW - Jun 2026 - FAB assistant vocal : réduit + limité à l'accueil (DONE — iter 106)
+- Le bouton micro (FAB `VoiceAssistant`) était monté globalement sur toutes les pages passager. Désormais **affiché uniquement sur l'accueil `/home`** (`App.js` : `location.pathname === '/home'`).
+- **Taille réduite** : `w-14 h-14` → `w-11 h-11`, icône Microphone `size 26` → `20` (`VoiceAssistant.js`).
+- Lint clean. (Capture post-login non vérifiable via le tool screenshot — à valider côté utilisateur.)
+
 ## NEW - Jun 2026 - Bouton « Me prévenir à l'ouverture » + notification in-app (DONE — iter 105)
 - **Levier de réengagement** : sur une tuile de service grisée (hors créneau), un bouton **« Me prévenir »** permet à l'utilisateur de s'abonner. Quand le service rouvre, il reçoit un **toast in-app** « 🔔 X est de nouveau disponible ! » à sa prochaine ouverture de la page Taxi. (Push Firebase/OneSignal à brancher plus tard — l'infra d'abonnement est prête.)
 - **Backend** (`service_categories.py`) : collection `service_reminders` ; `POST /service-categories/{key}/remind` (idempotent), `DELETE .../remind`, `GET /service-categories/reminders` → `{subscribed:[...], ready:[...]}` (livraison *lazy* : marque `notified=true` et renvoie `ready` une seule fois → aucun spam).

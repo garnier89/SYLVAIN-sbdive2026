@@ -186,9 +186,8 @@ const AppRouter = () => {
     return <AuthCallback />;
   }
 
-  // Mount global voice FAB for logged-in passenger users on app pages (not landing, kiosk, auth, admin/driver panels)
-  const HIDE_VOICE = ['/website', '/kiosk', '/tab', '/login', '/register', '/auth'];
-  const showVoiceFab = !!user && user.role === 'user' && !HIDE_VOICE.some(p => location.pathname.startsWith(p));
+  // Mount global voice FAB ONLY on the passenger home screen (/home)
+  const showVoiceFab = !!user && user.role === 'user' && location.pathname === '/home';
 
   return (
     <>

@@ -129,11 +129,11 @@ const VoiceAssistant = () => {
       {/* Floating mic FAB */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-5 z-[900] w-14 h-14 rounded-full bg-gray-900 text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-24 right-5 z-[900] w-11 h-11 rounded-full bg-gray-900 text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
         data-testid="voice-assistant-fab"
         aria-label="Assistant vocal"
       >
-        <Microphone size={26} weight="fill" />
+        <Microphone size={20} weight="fill" />
       </button>
 
       {/* Bottom sheet */}
