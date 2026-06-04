@@ -1,0 +1,46 @@
+{
+  "summary": "Iter100 — Validation des Profils de course (Business/Personnel) + Motif de trajet professionnel dans le flux passager /taxi. Backend pytest 5/5 PASS: (a) GET /api/config/ride-profiles retourne 2 profils actifs (Business, Personnel) avec id/short_name/org_type/title_description; (b) GET /api/config/business-trip-reasons retourne 3 motifs seedés (Bureau ⇄ Domicile, Visite client / partenaire, Trajet aéroport / gare); (c) POST /api/rides avec ride_profile=Business + ride_profile_org_type=Business + business_trip_reason='Visite client / partenaire' crée la course et persiste les 3 champs — confirmé via GET /api/rides/{id}; (d) POST /api/rides avec ride_profile=Personnel (org_type=Personal) sans motif fonctionne; (e) POST /api/rides sans aucun champ profil reste rétro-compatible. Frontend Playwright PASS: connexion via /login/email (rider.qa@demo.sb / Rider123!), navigation /taxi?mode=standard, ride-profile-selector + ride-profile-business + ride-profile-personal visibles dès le chargement (rideProfiles fetched en mount), clic Business affiche business-trip-reason-select avec les 3 motifs, clic Personnel masque correctement le select, CTA cta-book-button visible et cliquable. Réservation complète via POST /api/rides (couche fetch côté browser avec cookies) → ride créée avec status=200, ride_profile='Business', business_trip_reason='Visite client / partenaire'. Page reçu /ride/{id}/receipt affiche data-testid='receipt-ride-profile' avec 'Profil: Business' + 'Motif professionnel: Visite client / partenaire'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_scenarios": [
+    "GET /api/config/ride-profiles (public, no auth) → 200, 2 items, Business+Personnel — PASS.",
+    "GET /api/config/business-trip-reasons (public) → 200, 3 items seedés — PASS.",
+    "POST /api/rides (rider auth) avec ride_profile=Business + business_trip_reason → 200, fields persisted; GET /api/rides/{id} returns them — PASS.",
+    "POST /api/rides avec ride_profile=Personnel (Personal) sans business_trip_reason → 200, business_trip_reason null — PASS.",
+    "POST /api/rides sans aucun champ profil → 200 (backward compat) — PASS.",
+    "UI /taxi?mode=standard: ride-profile-selector + ride-profile-business + ride-profile-personal présents — PASS.",
+    "UI: clic ride-profile-business → business-trip-reason-select s'affiche avec 4 options (placeholder + 3 motifs) — PASS.",
+    "UI: clic ride-profile-personal → business-trip-reason-select disparaît — PASS.",
+    "UI: cta-book-button cliquable; POST /api/rides via fetch credentials:include retourne ride avec ride_profile=Business + business_trip_reason — PASS.",
+    "UI /ride/{id}/receipt: data-testid='receipt-ride-profile' affiche 'Profil de course' avec Profil=Business et Motif professionnel=Visite client / partenaire — PASS."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter100_ride_profiles.py",
+    "/app/test_reports/pytest/iter100_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TaxiHubPage.js (~ligne 113-116, 171-172, 343-360, 749-781): ride profile + business reason intégrés proprement; le sélecteur n'apparaît que si rideProfiles.length>0 (graceful fallback si seed vide). Clic sur un profil déjà actif le désélectionne (UX clean). Lors du changement de profil, businessReasonId est reset à '' — bonne hygiène d'état.",
+    "buildPayload n'envoie business_trip_reason QUE si org_type === 'Business' ET businessReasonId set — empêche la fuite de motifs sur les courses Personnel. Bonne défense en profondeur.",
+    "rides.py (~ligne 243-245): getattr() avec default None — robuste si le frontend omet les champs.",
+    "RideReceiptPage.jsx (~ligne 112-118): bloc 'Profil de course' conditionné sur ride.ride_profile — pas affiché si la course est sans profil. Le motif est imbriqué et ne s'affiche que s'il existe — cohérent.",
+    "taxi_extra.py public endpoints filtrent {status:'active'} — toggle admin a effet immédiat côté client. Projection {_id:0} partout — pas de fuite ObjectId."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter100_ride_profiles.py (new — 5 pytest cases PASS)"
+  ],
+  "success_rate": {"backend": "100% (5/5 pytest)", "frontend": "100% (selector + reason dropdown + toggle + booking + receipt)"},
+  "test_credentials": "rider.qa@demo.sb / Rider123! (passenger). Login UI: /login/email (data-testid=email-input + input[type=password] + button[type=submit]).",
+  "seed_data_creation": "3 courses de test créées via API pendant pytest+UI (pickup/dropoff Paris, vehicle_type=sb, payment=cash). Aucune supprimée — les courses restent en status 'pending' sans chauffeur assigné. Pas d'impact sur la prod (ce sont des courses jamais acceptées). Si nettoyage requis, filtrer par rider.qa@demo.sb + booking_no récents.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Profils de course + motifs trajet pro sont entièrement intégrés au flux passager. Backend collections: ride_profiles (2 items seedés), business_trip_reasons (3 items seedés). Le sélecteur UI apparaît dans la vue booking de TaxiHub dès que rideProfiles est fetched (pas de dépendance à pickup/dropoff). Pour tester le booking complet UI, le plus simple est de POSTer /api/rides via fetch credentials:include (httpOnly cookie) — Google Places autocomplete peut être flaky en headless. Login: /login/email avec data-testid='email-input' + password type input + button[type=submit] (pas de testid sur le bouton submit lui-même).",
+  "rca_of_the_issue": "Aucun bug détecté — fonctionnalité fully working end-to-end. Note environnementale: tests pytest nécessitent l'export REACT_APP_BACKEND_URL (la variable n'est pas chargée automatiquement depuis frontend/.env par pytest)."
+}

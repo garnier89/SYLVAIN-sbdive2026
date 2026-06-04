@@ -253,6 +253,8 @@ export const configAPI = {
   getScheduling: () => api.get('/config/scheduling'),
   getServiceCategories: () => api.get('/service-categories'),
   getTaxiOptions: () => api.get('/config/taxi-options'),
+  getRideProfiles: () => api.get('/config/ride-profiles'),
+  getBusinessTripReasons: () => api.get('/config/business-trip-reasons'),
 };
 
 // Coupon APIs

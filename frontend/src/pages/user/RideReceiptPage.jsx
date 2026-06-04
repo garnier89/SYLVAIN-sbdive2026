@@ -108,6 +108,15 @@ const RideReceiptPage = () => {
           <Line label={PAYMENT_LABELS[ride.payment_method] || ride.payment_method} value={cur(total)} />
         </div>
 
+        {/* Ride profile / business trip reason (notes de frais) */}
+        {ride.ride_profile && (
+          <div className="bg-white rounded-2xl shadow-sm p-4" data-testid="receipt-ride-profile">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Profil de course</p>
+            <Line label="Profil" value={ride.ride_profile} />
+            {ride.business_trip_reason && <Line label="Motif professionnel" value={ride.business_trip_reason} />}
+          </div>
+        )}
+
         {/* Rating */}
         <div className="bg-white rounded-2xl shadow-sm p-5" data-testid="receipt-rating">
           <p className="text-center text-base font-bold text-gray-900 mb-4">Comment était ta balade ?</p>

@@ -116,6 +116,10 @@ class RideRequest(BaseModel):
     assist_needs: Optional[str] = None  # wheelchair | elderly | luggage | medical
     pool_enabled: bool = False
     stops: Optional[list] = None  # intermediate waypoints [{address,lat,lng}]
+    # Ride profile (V3Cube) — Business / Personnel + business trip reason
+    ride_profile: Optional[str] = None  # short_name (Business | Personnel)
+    ride_profile_org_type: Optional[str] = None  # Business | Personal
+    business_trip_reason: Optional[str] = None
 
 class RideResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -172,6 +176,9 @@ class RideResponse(BaseModel):
     stops: Optional[list] = None
     route_polyline: Optional[str] = None
     start_otp: Optional[str] = None
+    ride_profile: Optional[str] = None
+    ride_profile_org_type: Optional[str] = None
+    business_trip_reason: Optional[str] = None
 
 # Order Models
 class OrderItemCreate(BaseModel):

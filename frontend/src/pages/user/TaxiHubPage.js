@@ -110,6 +110,10 @@ const TaxiHubPage = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [catConfig, setCatConfig] = useState({}); // key -> { active, name }
   const [taxiOpts, setTaxiOpts] = useState(null); // rental_packages / personal_driver / taxi_bid / ride_profiles
+  const [rideProfiles, setRideProfiles] = useState([]); // Business / Personnel
+  const [rideProfileId, setRideProfileId] = useState('');
+  const [businessReasons, setBusinessReasons] = useState([]);
+  const [businessReasonId, setBusinessReasonId] = useState('');
 
   // Scheduling allowance for the current mode (pool/bidding disabled by default)
   const modeSchedKey = mode.id === 'pool' ? 'pool' : (mode.id === 'bidding' ? 'bidding' : mode.id);
@@ -164,6 +168,8 @@ const TaxiHubPage = () => {
       setCatConfig(map);
     }).catch(() => {});
     configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});
+    configAPI.getRideProfiles().then((r) => setRideProfiles(r.data || [])).catch(() => {});
+    configAPI.getBusinessTripReasons().then((r) => setBusinessReasons(r.data || [])).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -340,6 +346,18 @@ const TaxiHubPage = () => {
       if (base.ride_type === 'instant') base.ride_type = 'scheduled';
     }
     if (forWho === 'other') { base.book_for_name = bookForName; base.book_for_phone = bookForPhone; }
+    // Ride profile (Business / Personnel) + business trip reason
+    if (rideProfileId) {
+      const prof = rideProfiles.find((p) => p.id === rideProfileId);
+      if (prof) {
+        base.ride_profile = prof.short_name;
+        base.ride_profile_org_type = prof.org_type;
+        if (prof.org_type === 'Business' && businessReasonId) {
+          const reason = businessReasons.find((b) => b.id === businessReasonId);
+          if (reason) base.business_trip_reason = reason.trip_reason;
+        }
+      }
+    }
     // Multi-stop waypoints
     const validStops = stops.filter((s) => s?.lat);
     if (validStops.length) base.stops = validStops.map((s) => ({ address: s.address, lat: s.lat, lng: s.lng }));
@@ -727,6 +745,40 @@ const TaxiHubPage = () => {
               )}
             </motion.div>
           </AnimatePresence>
+
+          {/* Ride profile (Business / Personnel) + business trip reason — V3Cube */}
+          {rideProfiles.length > 0 && (
+            <div className="mt-1 mb-3" data-testid="ride-profile-selector">
+              <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 flex items-center gap-1"><User size={11} /> Profil de course</label>
+              <div className="flex gap-2 mt-1.5 overflow-x-auto hide-scrollbar">
+                {rideProfiles.map((p) => {
+                  const active = rideProfileId === p.id;
+                  return (
+                    <button key={p.id} onClick={() => { setRideProfileId(active ? '' : p.id); setBusinessReasonId(''); }}
+                      data-testid={`ride-profile-${p.org_type.toLowerCase()}`}
+                      className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl border text-left transition-colors ${active ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}>
+                      <span className="text-sm font-semibold block">{p.short_name}</span>
+                      <span className={`text-[10px] block truncate ${active ? 'text-white/70' : 'text-slate-400'}`}>{p.title_description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {(() => {
+                const prof = rideProfiles.find((p) => p.id === rideProfileId);
+                if (prof?.org_type === 'Business' && businessReasons.length > 0) {
+                  return (
+                    <select value={businessReasonId} onChange={(e) => setBusinessReasonId(e.target.value)}
+                      data-testid="business-trip-reason-select"
+                      className="w-full mt-2 border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm bg-white">
+                      <option value="">Motif du trajet professionnel…</option>
+                      {businessReasons.map((b) => <option key={b.id} value={b.id}>{b.trip_reason}</option>)}
+                    </select>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
 
           {/* Payment method — horizontal selector */}
           <div className="mt-1 mb-3" data-testid="payment-selector">
