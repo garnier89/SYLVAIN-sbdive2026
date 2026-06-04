@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend testing of multi-drop parcel delivery (/parcel) for SB Drive VTC. All 4 choice buttons present. Multi mode: pickup btn, initial stop with recipient/phone fields, add-stop btn all working. Add/remove of stops works correctly (re-indexing OK). Map placement → estimate → confirm → success → /history redirect all functional. Single mode correctly hides add-stop and recipient fields. Fixed a CRITICAL Leaflet container height=0 bug (MapContainer needed inline style height) — without this fix, the map cannot be clicked.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ParcelPage/MapContainer", "issue": "Leaflet container rendered with height:0 because className='h-full' on .leaflet-container did not resolve a usable height (parent flex chain rooted at min-h-screen). Map was invisible and unclickable, blocking entire multi-drop flow. Fixed by adding style={{height: '100%', minHeight: '240px'}} on MapContainer.", "selector": ".leaflet-container", "priority": "HIGH (fixed by tester)"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Review the inline style applied on MapContainer in /app/frontend/src/pages/user/ParcelPage.js (line ~151) — keep or refactor to a CSS class. Consider checking other Leaflet maps in the app for the same h-0 issue."
+  ],
+  "critical_code_review_comments": [
+    "Per-leg breakdown shows recipient_name when provided — works as expected.",
+    "After successful POST /api/parcels, the success screen flashes briefly (~2.5s) before navigate('/history'); consider a slightly longer timeout for visibility.",
+    "Leaflet h-full pattern is fragile inside min-h-screen+flex containers — prefer explicit pixel/vh heights or set a parent with h-screen."
+  ],
+  "updated_files": ["/app/frontend/src/pages/user/ParcelPage.js"],
+  "success_rate": {"backend": "N/A (not tested per request)", "frontend": "100% (after leaflet height fix)"},
+  "test_credentials": "rider.qa@demo.sb / Rider123!",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Multi-drop parcel flow works end-to-end. Verified: 4 choice buttons, multi-moto opens map screen with pickup/stop-0/add-stop, recipient fields appear only in multi mode, add stop creates parcel-stop-1/2 with parcel-stop-remove-1, removal reindexes correctly, map click places markers, estimate button enables once pickup+all stops placed, confirm screen shows stops count, total fare, per-leg breakdown, confirm POSTs and redirects to /history. The MapContainer needed style={{height:'100%', minHeight:'240px'}} — without it the leaflet-container has height 0.",
+  "rca of the issue": "Bug: Leaflet map invisible/unclickable on /parcel map screen. Reproduction: login → /parcel → multi-moto-btn → map screen shows empty white area instead of map tiles. Cause: <MapContainer className='w-full h-full'> resolves to a .leaflet-container with height:0 because the ancestor flex chain (mobile-container is min-h-screen, not h-screen) does not pass an explicit height down through flex-1. Mitigation applied: added style={{height:'100%', minHeight:'240px'}} to MapContainer to force the leaflet-container to take the parent's available height (parent has min-h-[240px])."
+}

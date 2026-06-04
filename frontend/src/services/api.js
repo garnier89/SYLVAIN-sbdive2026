@@ -260,6 +260,15 @@ export const configAPI = {
   getBusinessTripReasons: () => api.get('/config/business-trip-reasons'),
 };
 
+// Parcel delivery APIs (single & multi-drop)
+export const parcelAPI = {
+  estimate: (data) => api.post('/parcels/estimate', data),
+  create: (data) => api.post('/parcels', data),
+  list: () => api.get('/parcels'),
+  get: (id) => api.get(`/parcels/${id}`),
+};
+
+
 // Coupon APIs
 export const couponAPI = {
   validate: (code, amount, serviceType) => api.post('/coupons/validate', { code, amount, service_type: serviceType }),
