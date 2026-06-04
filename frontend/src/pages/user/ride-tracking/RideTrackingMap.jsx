@@ -1,67 +1,37 @@
 import React from 'react';
-import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
 import { ArrowLeft } from '@phosphor-icons/react';
 import { decodePolyline } from '../../../utils/polyline';
-import 'leaflet/dist/leaflet.css';
-
-const driverIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-});
-const pickupIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-});
-const dropoffIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-});
-
-const POLYLINE_OPTS = { color: '#3b82f6', weight: 4 };
-
-const stopIcon = (n) => L.divIcon({
-  className: '',
-  html: `<div style="background:#f59e0b;color:#0B1426;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)">${n}</div>`,
-  iconSize: [22, 22], iconAnchor: [11, 11],
-});
+import AdminGoogleMap from '../../../components/admin/AdminGoogleMap';
 
 /**
- * Map view for ride tracking: pickup, dropoff, intermediate stops, live driver
- * position, real route polyline + back button + connection indicator.
+ * Map view for ride tracking (Google Maps): pickup, dropoff, intermediate
+ * stops, live driver position and the real route polyline. Migrated off
+ * Leaflet/OSM which rendered as blank "tofu" tiles on some devices.
  */
 const RideTrackingMap = ({ ride, driverPos, connected, onBack }) => {
-  const mapCenter = driverPos || { lat: ride.pickup_lat, lng: ride.pickup_lng };
   const stops = (ride.stops || []).filter((s) => s?.lat);
   const decoded = decodePolyline(ride.route_polyline);
-  const route = decoded.length
-    ? decoded.map((p) => [p.lat, p.lng])
+  const routePath = decoded.length
+    ? decoded.map((p) => ({ lat: p.lat, lng: p.lng }))
     : [
-      [ride.pickup_lat, ride.pickup_lng],
-      ...stops.map((s) => [s.lat, s.lng]),
-      [ride.dropoff_lat, ride.dropoff_lng],
+      { lat: ride.pickup_lat, lng: ride.pickup_lng },
+      ...stops.map((s) => ({ lat: s.lat, lng: s.lng })),
+      { lat: ride.dropoff_lat, lng: ride.dropoff_lng },
     ];
+  const center = driverPos || { lat: ride.pickup_lat, lng: ride.pickup_lng };
+  const markers = stops.map((s, i) => ({ id: `stop-${i}`, lat: s.lat, lng: s.lng, label: String(i + 1), color: '#f59e0b' }));
 
   return (
-    <div className="h-[45vh] relative">
-      <MapContainer
-        center={[mapCenter.lat, mapCenter.lng]}
+    <div className="h-[45vh] relative" data-testid="ride-tracking-map">
+      <AdminGoogleMap
+        center={center}
         zoom={14}
-        style={{ height: '100%', width: '100%' }}
-        zoomControl={false}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <Marker position={[ride.pickup_lat, ride.pickup_lng]} icon={pickupIcon} />
-        {stops.map((s, i) => (
-          <Marker key={`tr-stop-${i}`} position={[s.lat, s.lng]} icon={stopIcon(i + 1)} />
-        ))}
-        <Marker position={[ride.dropoff_lat, ride.dropoff_lng]} icon={dropoffIcon} />
-        {driverPos && <Marker position={[driverPos.lat, driverPos.lng]} icon={driverIcon} />}
-        <Polyline positions={route} pathOptions={POLYLINE_OPTS} />
-      </MapContainer>
+        pickup={{ lat: ride.pickup_lat, lng: ride.pickup_lng }}
+        dropoff={{ lat: ride.dropoff_lat, lng: ride.dropoff_lng }}
+        driver={driverPos}
+        routePath={routePath}
+        markers={markers}
+      />
 
       <button
         className="absolute top-4 left-4 z-[1000] bg-white rounded-full p-2 shadow-lg"

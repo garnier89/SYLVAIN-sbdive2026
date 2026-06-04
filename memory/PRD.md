@@ -13,6 +13,13 @@ Application super-app multi-services type Gojek/V3Cube pour le marche VTC franco
 - **Real-time**: WebSockets (ride tracking, simulation)
 
 ## NEW - Jun 2026 - Enchère bidirectionnelle (inDrive) + itinéraire réel (DONE — iter 93)
+## NEW - Jun 2026 - Migration des cartes vers Google Maps + présentation responsive "écran téléphone" (DONE — iter 101)
+- **Google Maps activé** sur le flux client (les tuiles Leaflet/OSM s'affichaient en « toufu » / blanc sur certains appareils) :
+  - Écran EN ARRIVANT / EN ROUTE (`GoogleRideMap.jsx`) : Google Maps propre (POI masqués), pin ETA noir en goutte « X min » + voiture blanche animée (interpolation + rotation cap) via `OverlayView`, ligne d'itinéraire. Utilise `useJsApiLoader` (id `google-map-script`, libs `['places','visualization']`).
+  - Carte de suivi (`RideTrackingMap.jsx`) migrée vers `AdminGoogleMap` (pickup/dropoff/stops/driver/route).
+- **Présentation responsive** : sur grand écran (≥1024px), l'app s'affiche comme un écran de téléphone (fond sombre en radial-gradient + ombre portée sur `.mobile-container`). Sur mobile : plein écran inchangé.
+- Vérifié visuellement (screenshots) : Google Maps rend correctement (`.gm-style`, tuiles `maps.googleapis`, watermark Google), aucun crash. Lint propre.
+- NOTE : la carte chauffeur/admin/kiosk utilise encore le composant partagé `LeafletMap` (5 usages) — migration différée (risque/scope).
 ## NEW - Jun 2026 - Cycle de course V3Cube complet : OTP, notifications, voiture animée, facture & évaluation (DONE — iter 100)
 - **Voiture animée temps réel** (`DriverEnRouteView` → `AnimatedCarMarker`) : interpolation fluide entre positions GPS + rotation selon le cap (effet Uber/inDrive).
 - **OTP de démarrage sécurisé** : `start_otp` auto-généré à la création, **visible uniquement dans l'app client** (pastille « CODE DÉPART ») + admin (peut le relayer si téléphone éteint), **masqué au chauffeur**. Le chauffeur ne peut PAS démarrer via `/status` (HTTP 400) — il doit vérifier l'OTP via `/phase1/.../start-otp/verify`.

@@ -1,56 +1,9 @@
-import React, { useMemo, useEffect, useRef } from 'react';
-import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
+import React from 'react';
 import {
   List, PencilSimple, Phone, ChatCircleDots, ShareNetwork, X,
   Star, StarHalf, User, NavigationArrow, Siren,
 } from '@phosphor-icons/react';
-import { decodePolyline } from '../../../utils/polyline';
-import 'leaflet/dist/leaflet.css';
-
-// Haversine distance in km
-const distKm = (a, b) => {
-  if (!a || !b) return 0;
-  const R = 6371, toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-};
-
-// Bearing in degrees (0 = north) from point a to b — used to rotate the car
-const bearingDeg = (a, b) => {
-  const toRad = (d) => (d * Math.PI) / 180;
-  const y = Math.sin(toRad(b.lng - a.lng)) * Math.cos(toRad(b.lat));
-  const x = Math.cos(toRad(a.lat)) * Math.sin(toRad(b.lat)) -
-    Math.sin(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.cos(toRad(b.lng - a.lng));
-  return (Math.atan2(y, x) * 180) / Math.PI;
-};
-
-// Top-view white car marker
-const carIcon = L.divIcon({
-  className: '',
-  html: `<div style="filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))">
-    <svg width="40" height="40" viewBox="0 0 64 64">
-      <rect x="17" y="5" width="30" height="54" rx="13" fill="#ffffff" stroke="#1a1a1a" stroke-width="2.5"/>
-      <rect x="22" y="12" width="20" height="13" rx="4" fill="#9fb3c8"/>
-      <rect x="22" y="38" width="20" height="11" rx="4" fill="#9fb3c8"/>
-      <rect x="24" y="27" width="16" height="9" rx="2" fill="#dfe7ef"/>
-      <circle cx="22" cy="55" r="2.4" fill="#e11d2a"/><circle cx="42" cy="55" r="2.4" fill="#e11d2a"/>
-    </svg></div>`,
-  iconSize: [40, 40], iconAnchor: [20, 20],
-});
-
-// Black teardrop ETA pin
-const etaIcon = (eta) => L.divIcon({
-  className: '',
-  html: `<div style="position:relative;width:64px;height:64px;">
-    <div style="position:absolute;inset:0;background:#111;border-radius:50% 50% 50% 0;transform:rotate(45deg);box-shadow:0 5px 12px rgba(0,0,0,.45)"></div>
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:800;line-height:1;">
-      <span style="font-size:15px">${eta}</span><span style="font-size:11px;font-weight:600">min</span>
-    </div>
-  </div>`,
-  iconSize: [64, 64], iconAnchor: [32, 60],
-});
+import GoogleRideMap from './GoogleRideMap';
 
 const RatingStars = ({ value = 5 }) => {
   const full = Math.floor(value);
@@ -73,74 +26,14 @@ const ActionBtn = ({ Icon, bg, onClick, testId, label }) => (
   </button>
 );
 
-// Forces Leaflet to recompute its size once the flex container has laid out
-const MapResizer = () => {
-  const map = useMap();
-  useEffect(() => {
-    const t = setTimeout(() => map.invalidateSize(), 250);
-    return () => clearTimeout(t);
-  }, [map]);
-  return null;
-};
-
-// Uber/inDrive-style smooth car: interpolates between GPS updates + rotates to heading
-const AnimatedCarMarker = ({ position }) => {
-  const map = useMap();
-  const markerRef = useRef(null);
-  const curRef = useRef(position);
-  const rafRef = useRef(null);
-  const headingRef = useRef(0);
-
-  useEffect(() => {
-    if (!markerRef.current) {
-      markerRef.current = L.marker([position.lat, position.lng], { icon: carIcon, zIndexOffset: 1200, interactive: false }).addTo(map);
-      curRef.current = { ...position };
-      return undefined;
-    }
-    const from = { ...curRef.current };
-    const to = { lat: position.lat, lng: position.lng };
-    if (distKm(from, to) > 0.0005) headingRef.current = bearingDeg(from, to);
-    const duration = 1400;
-    const start = performance.now();
-    cancelAnimationFrame(rafRef.current);
-    const step = (t) => {
-      const k = Math.min(1, (t - start) / duration);
-      const lat = from.lat + (to.lat - from.lat) * k;
-      const lng = from.lng + (to.lng - from.lng) * k;
-      markerRef.current.setLatLng([lat, lng]);
-      curRef.current = { lat, lng };
-      const el = markerRef.current.getElement();
-      const svg = el && el.querySelector('svg');
-      if (svg) { svg.style.transformOrigin = 'center'; svg.style.transform = `rotate(${headingRef.current}deg)`; }
-      if (k < 1) rafRef.current = requestAnimationFrame(step);
-    };
-    rafRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [position, map]);
-
-  useEffect(() => () => { if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; } }, []);
-  return null;
-};
-
 /**
- * DriverEnRouteView — immersive V3Cube-style "EN ARRIVANT / EN COURSE" screen
+ * DriverEnRouteView — immersive V3Cube-style "EN ARRIVANT / EN ROUTE" screen
  * shown to the passenger once a driver is assigned (accepted/arriving/in_progress).
+ * Map is rendered with Google Maps via GoogleRideMap.
  */
 const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat, onShare, onCancel, onEditDest, otp, onRequestOtp, onSos }) => {
   const inProgress = ride.status === 'in_progress';
   const title = inProgress ? 'EN ROUTE' : 'EN ARRIVANT';
-  const target = inProgress
-    ? { lat: ride.dropoff_lat, lng: ride.dropoff_lng }
-    : { lat: ride.pickup_lat, lng: ride.pickup_lng };
-
-  // Car position (fallback: slightly offset from target so the route is visible)
-  const carPos = driverPos || { lat: target.lat + 0.0045, lng: target.lng + 0.0045 };
-  const eta = useMemo(() => Math.max(1, Math.round((distKm(carPos, target) / 28) * 60)), [carPos, target]);
-
-  const decoded = decodePolyline(ride.route_polyline);
-  const blueRoute = decoded.length
-    ? decoded.map((p) => [p.lat, p.lng])
-    : [[ride.pickup_lat, ride.pickup_lng], [ride.dropoff_lat, ride.dropoff_lng]];
 
   return (
     <div className="w-full max-w-[480px] mx-auto h-screen overflow-hidden bg-white flex flex-col" data-testid="driver-enroute-view">
@@ -184,14 +77,7 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
 
       {/* Map */}
       <div className="flex-1 relative -mt-3">
-        <MapContainer center={[carPos.lat, carPos.lng]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapResizer />
-          {inProgress && <Polyline positions={blueRoute} pathOptions={{ color: '#3b82f6', weight: 4 }} />}
-          <Polyline positions={[[carPos.lat, carPos.lng], [target.lat, target.lng]]} pathOptions={{ color: '#111', weight: 4 }} />
-          <Marker position={[target.lat, target.lng]} icon={etaIcon(eta)} />
-          <AnimatedCarMarker position={carPos} />
-        </MapContainer>
+        <GoogleRideMap ride={ride} driverPos={driverPos} />
 
         <div className={`absolute top-3 right-3 z-[1000] px-2 py-1 rounded-full text-[10px] font-semibold ${connected ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
           {connected ? 'En direct' : 'Reconnexion…'}
@@ -219,10 +105,6 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
             )}
           </div>
         )}
-
-        <div className="absolute bottom-4 right-4 z-[1000] w-12 h-12 rounded-full bg-[#0B1426] flex items-center justify-center shadow-lg">
-          <NavigationArrow size={22} weight="fill" className="text-white" />
-        </div>
       </div>
 
       {/* Action buttons */}

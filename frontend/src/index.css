@@ -170,6 +170,15 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
+  background: #ffffff;
+}
+
+/* On large screens, present the app like a crisp phone screen on a backdrop */
+@media (min-width: 1024px) {
+  body { background: radial-gradient(circle at 50% -10%, #1c2738, #0b0e14 70%); }
+  .mobile-container {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 30px 80px rgba(0, 0, 0, 0.55);
+  }
 }
 
 /* Bottom sheet */
