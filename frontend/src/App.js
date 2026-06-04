@@ -170,6 +170,7 @@ import DriverEarningsStatsPage from './pages/driver/DriverEarningsStatsPage';
 import DriverGalleryPage from './pages/driver/DriverGalleryPage';
 import AdminCancellationReasonsPage from './pages/admin/AdminCancellationReasonsPage';
 import AdminScheduling from './pages/admin/AdminScheduling';
+import AdminServiceCategories from './pages/admin/AdminServiceCategories';
 
 import './index.css';
 
@@ -354,6 +355,7 @@ const AppRouter = () => {
         <Route path="cancel-reasons" element={<AdminCancellationReasonsPage />} />
         <Route path="cancel-reasons-legacy" element={<AdminCancelReasons />} />
         <Route path="scheduling" element={<AdminScheduling />} />
+        <Route path="service-categories" element={<AdminServiceCategories />} />
         <Route path="email-templates" element={<AdminEmailTemplates />} />
         <Route path="sms-templates" element={<AdminSmsTemplates />} />
         <Route path="sos-requests" element={<AdminSosRequests />} />

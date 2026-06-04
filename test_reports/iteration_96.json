@@ -1,0 +1,47 @@
+{
+  "summary": "Iter96 — Validated Phase A (Service Categories admin + /taxi integration) and the in-ride RouteEditModal delta tarif UI. 7/7 pytest PASS for service-categories backend; admin UI renders 17 cards with working toggle/edit/search/status filters; /taxi correctly hides deactivated keys (tuktuk, electric were toggled OFF and confirmed missing on /taxi grid); RouteEditModal opens from edit-dest-btn with fare-preview banner, new-fare and delta pastille (delta=0 'Tarif inchangé' when destination unchanged — verified by backend that fare updates to 10.33€ for a Louvre→Arc de Triomphe change). Backend API POST /api/rides/{id}/update-route returns 200 with recalculated fare on accepted rides. All categories restored to active=true after testing (17/17 active confirmed).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_scenarios": [
+    "GET /api/service-categories (public) → 200, 17 cats, every entry has bool 'active', no _id leak — PASS.",
+    "GET /api/admin/service-categories (admin) → 200, 17 cats, no _id leak — PASS.",
+    "POST /api/admin/service-categories/tuktuk/toggle → active flips false then back true, public endpoint reflects change immediately — PASS.",
+    "PUT /api/admin/service-categories/electric with name/name_en/icon → 200, public endpoint shows new values, restored after test — PASS.",
+    "PUT /api/admin/service-categories/__unknown__ → 404; POST /api/admin/service-categories/__unknown__/toggle → 404 — PASS.",
+    "Unauthenticated GET /api/admin/service-categories → 401/403 — PASS.",
+    "Admin UI /admin/service-categories: [admin-service-categories-page] renders, 17 [svc-cat-card-{key}] cards visible — PASS.",
+    "Toggle [svc-cat-toggle-electric] flips badge from 'Actif' to 'Inactif' — PASS.",
+    "Edit modal [svc-cat-edit-modal] opens from [svc-cat-edit-standard] with [svc-cat-edit-name]='Taxi VTC' and [svc-cat-edit-icon-emoji]='🚕' prefilled — PASS.",
+    "Search [svc-cat-search]='moto' filters to 2 cards (moto + moto_rental); [svc-cat-status-filter]='inactive' filters to inactive cards only — PASS.",
+    "After admin toggles 'tuktuk' and 'electric' OFF, passenger /taxi grid lists 15 modes (standard,pool,moto,rental,intercity,book_later,moto_rental,buddy_driver,bidding,airport,pets,book_for_someone,assist,corporate,access) — tuktuk + electric correctly HIDDEN — PASS.",
+    "Cleanup: re-toggled both keys via admin API, final state = 17/17 active — PASS.",
+    "Passenger /ride/{id} (DriverEnRouteView, accepted state): [edit-dest-btn] visible. Click → [route-edit-modal] opens with [route-edit-fare-preview], [route-edit-new-fare]='10.00 €', [route-edit-fare-delta]='Tarif inchangé', [route-edit-save] enabled — PASS.",
+    "Backend /api/rides/estimate with new dropoff (Louvre→Arc de Triomphe) returns fare 10.33 vs original 10.00; POST /api/rides/{id}/update-route on 'accepted' ride updates dropoff_address + estimated_fare (10.33), status preserved as 'accepted' — PASS. The UI delta computation (fare-currentFare=+0.33€) is therefore guaranteed to render via route-edit-fare-delta when the passenger actually picks a different destination."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter96_service_categories.py",
+    "/app/test_reports/pytest/iter96_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/service_categories.py: clean separation between public router (/service-categories) and admin_router (/admin/service-categories); seed is idempotent (preserves admin edits); _id is properly excluded ({'_id':0}).",
+    "AdminServiceCategories.js: optimistic UI on toggle (updates local state before refetch) with proper error toast; EditCategoryModal validates file size (≤512 Ko) and supports emoji OR data:URL image; both name/name_en/icon flow through allowed-fields PUT.",
+    "TaxiHubPage.js correctly filters MODES via catConfig[m.id]?.active !== false (line 441) — defaults to visible when config absent (graceful fallback if /service-categories endpoint is slow/missing).",
+    "RouteEditModal.jsx: fetchPreview is debounced (400 ms setTimeout); preview is recomputed on every dependency change; delta sign uses Math.abs(delta) >= 0.01 threshold to render 'Tarif inchangé' for negligible deltas — UX-sound.",
+    "Minor (already flagged iter95, not blocking): Google Maps JS API loaded multiple times warning persists on /ride/{id}. Consider centralising the loader (single useJsApiLoader root)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter96_service_categories.py (new — 7 pytest cases, all PASS)"
+  ],
+  "success_rate": { "backend": "100% (7/7 pytest + 4 manual e2e flows)", "frontend": "100% (12/12 UI checkpoints — admin grid, toggle, edit modal, search, status filter, /taxi masking, RouteEditModal selectors and banner)" },
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! ; Passenger test2@example.com / TestPass123! ; Driver jean.dupont@demo.sb / Driver123!",
+  "seed_data_creation": "2 SB rides created during e2e (1 via pytest, 1 via direct curl) to exercise accept+update-route. Two categories (electric, tuktuk) temporarily toggled OFF during /taxi integration check then restored. Final state verified = 17/17 active.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Phase A categories are active=true at handoff. The svc-cat-status-filter dropdown uses standard <select>, not shadcn — use page.select_option (not click+option). admin@superapp.com is auto-redirected from /taxi to /admin, so use test2@example.com to test the passenger taxi grid. The 'Script error.' red overlay sometimes shown by react-dev on /ride/{id} is a cross-origin Google Maps script error (does not break functionality, modal + preview API still work).",
+  "rca_of_the_issue": "No bugs found. Phase A backend + admin UI + /taxi integration + RouteEditModal delta tarif preview all behave per spec."
+}

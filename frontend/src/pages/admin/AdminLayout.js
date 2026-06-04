@@ -54,6 +54,7 @@ const sidebarConfig = [
     title: 'SERVICES',
     items: [
       { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
+        { label: 'Gérer les catégories', path: '/admin/service-categories' },
         { label: 'Toutes les courses', path: '/admin/rides' },
         { label: 'Types de véhicules', path: '/admin/vehicle-types' },
       ]},

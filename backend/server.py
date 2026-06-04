@@ -49,6 +49,7 @@ from routes.voice import router as voice_router
 from routes.corporate import router as corporate_router
 from routes.home_categories import router as home_categories_router, seed_home_categories
 from routes.places import router as places_router
+from routes.service_categories import router as service_categories_router, admin_router as service_categories_admin_router, seed_service_categories
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -464,6 +465,9 @@ async def lifespan(app: FastAPI):
     # Seed home categories CMS (Iter 87)
     await seed_home_categories()
 
+    # Seed taxi service categories (V3Cube Manage Service Category)
+    await seed_service_categories()
+
     # Start auto-dispatch background loop
     import asyncio as _asyncio
     dispatch_task = _asyncio.create_task(auto_dispatch_loop())
@@ -515,6 +519,8 @@ api_router.include_router(voice_router)
 api_router.include_router(corporate_router)
 api_router.include_router(home_categories_router)
 api_router.include_router(places_router)
+api_router.include_router(service_categories_router)
+api_router.include_router(service_categories_admin_router)
 api_router.include_router(driver_pro_router)
 
 app.include_router(api_router)

@@ -169,6 +169,9 @@ export const adminAPI = {
   replyTicket: (id, message) => api.post(`/support/tickets/${id}/reply`, { message }),
   getServiceConfig: (key) => api.get(`/admin/service-config/${key}`),
   saveServiceConfig: (key, settings) => api.put(`/admin/service-config/${key}`, { settings }),
+  listServiceCategories: () => api.get('/admin/service-categories'),
+  updateServiceCategory: (key, data) => api.put(`/admin/service-categories/${key}`, data),
+  toggleServiceCategory: (key) => api.post(`/admin/service-categories/${key}/toggle`),
 };
 
 // Dispatcher APIs
@@ -215,6 +218,7 @@ export const configAPI = {
   getMasterCategories: () => api.get('/config/master-categories'),
   getTrackCategories: () => api.get('/config/track-categories'),
   getScheduling: () => api.get('/config/scheduling'),
+  getServiceCategories: () => api.get('/service-categories'),
 };
 
 // Coupon APIs
