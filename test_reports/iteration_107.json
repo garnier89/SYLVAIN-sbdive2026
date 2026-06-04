@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend E2E testing of V3Cube Pack D Medical Module (Appointment + Transport) on UserHome → /medical/appointment and /medical/transport. All critical flows passed including doctor listing, specialty filter, RDV creation, ambulance type selection, Leaflet map pickup/destination selection via map clicks, fare estimation and transport confirmation, with redirection to /history.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_107.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MedicalTransportPage.js: useEffect resets estimate when pickup/dest/ambulanceType change — correct, prevents stale fare. OK.",
+    "MedicalAppointmentPage.js: HTML allows nested <label> with <flex> wrappers — minor a11y nit, not blocking.",
+    "Both pages handle empty submit with toast properly and disable submit buttons during async ops — good UX."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "100%"},
+  "test_credentials": "Passenger rider.qa@demo.sb / Rider123! — works",
+  "seed_data_creation": "Created 1 appointment (doctor doc_gp1, tomorrow 14:00, clinic mode) and 1 transport request (ICU, urgent, Paris coordinates ~48.8566,2.34→2.36) via API during E2E tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Medical module fully functional. Appointment flow: 6 doctors, 7 specialties, validation toast on empty submit, success screen + redirect /history. Transport flow: 3 ambulance types (basic/icu/wheelchair), Leaflet map 220px height visible, pickup/dest selectable via map clicks, urgency 3 levels, fare estimation works (ICU 1.93km ≈ 125.88€), confirmation + redirect /history. Both pages have all required data-testid attributes.",
+  "detailed_results": {
+    "appointment_flow": {
+      "home_buttons": "medical-appointment-btn and medical-other-btn both present on /home",
+      "doctor_list": "6 doctors loaded, doctor-doc_gp1 found",
+      "specialty_filter": "7 specialties + 'all'; filtering by Cardiologie reduced list from 6 to 1",
+      "validation_toast": "Empty submit shows toast (date/heure/nom requis)",
+      "mode_switching": "mode-clinic ↔ mode-home works; appointment-address input appears in home mode",
+      "booking_creation": "POST /api/medical/appointments succeeded → appointment-success shown → redirected to /history"
+    },
+    "transport_flow": {
+      "page_load": "medical-transport-page loaded",
+      "leaflet_map": "leaflet-container rendered with bounding box width=390 height=220",
+      "ambulance_types": "amb-type-amb_basic, amb-type-amb_icu, amb-type-amb_wheelchair all present",
+      "map_pickup_dest": "transport-pickup-btn → map click sets coords (48.8566, 2.3421); transport-dest-btn → map click sets coords (48.8566, 2.3622)",
+      "urgency_selection": "urgency-normal/urgent/critical all selectable",
+      "fare_estimate": "transport-fare shown as 125.88 € for ICU type",
+      "confirmation": "POST /api/medical/transport succeeded → transport-success shown → redirected to /history"
+    }
+  }
+}

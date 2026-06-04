@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from core.config import db
-from core.deps import get_current_user
+from core.deps import get_current_user, calculate_distance
 
 router = APIRouter(tags=["gojek-services"])
 
@@ -385,6 +385,138 @@ async def remove_tracked_member(member_id: str, request: Request):
 
 
 # ==========================================
+# MEDICAL SERVICES (V3Cube) — Prise de RDV + Transport médical / Ambulance
+# Tables: medical_appointments, medical_transport
+# ==========================================
+medical_router = APIRouter(prefix="/medical")
+
+DEMO_DOCTORS = [
+    {"id": "doc_gp1", "name": "Dr. Sophie Martin", "specialty": "Médecine générale", "rating": 4.9, "reviews": 234, "fee": 40, "experience_years": 12, "modes": ["clinic", "home"], "clinic": "Clinique Saint-Louis, Paris", "image_url": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200", "languages": ["Français", "Anglais"], "next_slot": "Aujourd'hui 14:30"},
+    {"id": "doc_ped1", "name": "Dr. Amélie Rousseau", "specialty": "Pédiatrie", "rating": 4.8, "reviews": 187, "fee": 50, "experience_years": 9, "modes": ["clinic", "home"], "clinic": "Cabinet des Lilas, Paris", "image_url": "https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=200", "languages": ["Français"], "next_slot": "Demain 09:00"},
+    {"id": "doc_derm1", "name": "Dr. Pierre Dubois", "specialty": "Dermatologie", "rating": 4.7, "reviews": 189, "fee": 60, "experience_years": 15, "modes": ["clinic"], "clinic": "Centre Dermato, Paris", "image_url": "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200", "languages": ["Français"], "next_slot": "Demain 11:30"},
+    {"id": "doc_cardio1", "name": "Dr. Karim Benali", "specialty": "Cardiologie", "rating": 4.9, "reviews": 142, "fee": 80, "experience_years": 18, "modes": ["clinic", "home"], "clinic": "Hôpital du Cœur, Paris", "image_url": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200", "languages": ["Français", "Arabe"], "next_slot": "Jeu. 15:00"},
+    {"id": "doc_dent1", "name": "Dr. Lucie Garnier", "specialty": "Dentiste", "rating": 4.6, "reviews": 211, "fee": 55, "experience_years": 11, "modes": ["clinic"], "clinic": "Dental Smile, Paris", "image_url": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=200", "languages": ["Français", "Anglais"], "next_slot": "Aujourd'hui 17:00"},
+    {"id": "doc_gyn1", "name": "Dr. Nadia Cherif", "specialty": "Gynécologie", "rating": 4.8, "reviews": 165, "fee": 65, "experience_years": 14, "modes": ["clinic", "home"], "clinic": "Centre Femme & Santé, Paris", "image_url": "https://images.unsplash.com/photo-1591604021695-0c69b7c05981?w=200", "languages": ["Français"], "next_slot": "Demain 10:00"},
+]
+
+AMBULANCE_TYPES = [
+    {"id": "amb_basic", "name": "Ambulance Standard", "desc": "Transport assis/allongé, premiers secours", "base_fee": 50, "per_km": 2.5, "icon": "basic"},
+    {"id": "amb_icu", "name": "Ambulance Médicalisée (USI)", "desc": "Équipement de réanimation, personnel médical", "base_fee": 120, "per_km": 4.0, "icon": "icu"},
+    {"id": "amb_wheelchair", "name": "Transport PMR", "desc": "Véhicule adapté fauteuil roulant", "base_fee": 35, "per_km": 1.8, "icon": "wheelchair"},
+]
+
+
+@medical_router.get("/doctors")
+async def list_doctors(specialty: Optional[str] = None):
+    docs = DEMO_DOCTORS
+    if specialty and specialty != "all":
+        docs = [d for d in docs if d["specialty"] == specialty]
+    specialties = sorted({d["specialty"] for d in DEMO_DOCTORS})
+    return {"doctors": docs, "specialties": specialties}
+
+
+@medical_router.post("/appointments")
+async def create_appointment(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    appt = {
+        "id": f"appt_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "doctor_id": body.get("doctor_id"),
+        "doctor_name": body.get("doctor_name", ""),
+        "specialty": body.get("specialty", ""),
+        "mode": body.get("mode", "clinic"),  # clinic | home
+        "scheduled_date": body.get("scheduled_date"),
+        "scheduled_time": body.get("scheduled_time"),
+        "patient_name": body.get("patient_name", ""),
+        "patient_phone": body.get("patient_phone", ""),
+        "patient_age": body.get("patient_age"),
+        "symptoms": body.get("symptoms", ""),
+        "address": body.get("address"),
+        "fee": body.get("fee", 0),
+        "payment_method": body.get("payment_method", "cash"),
+        "status": "scheduled",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if not appt["doctor_id"] or not appt["scheduled_date"] or not appt["scheduled_time"]:
+        raise HTTPException(status_code=400, detail="Médecin, date et heure requis")
+    await db.medical_appointments.insert_one(appt)
+    appt.pop("_id", None)
+    return appt
+
+
+@medical_router.get("/appointments")
+async def list_appointments(request: Request):
+    user = await get_current_user(request)
+    items = await db.medical_appointments.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return items
+
+
+@medical_router.get("/ambulance-types")
+async def list_ambulance_types():
+    return {"types": AMBULANCE_TYPES}
+
+
+@medical_router.post("/transport/estimate")
+async def estimate_medical_transport(request: Request):
+    await get_current_user(request)
+    body = await request.json()
+    amb = next((a for a in AMBULANCE_TYPES if a["id"] == body.get("ambulance_type")), AMBULANCE_TYPES[0])
+    km = body.get("distance_km")
+    if km is None and all(body.get(k) is not None for k in ("pickup_lat", "pickup_lng", "dest_lat", "dest_lng")):
+        km = calculate_distance(body["pickup_lat"], body["pickup_lng"], body["dest_lat"], body["dest_lng"])
+    km = round(km or 0, 2)
+    fare = round(amb["base_fee"] + amb["per_km"] * km, 2)
+    return {"ambulance_type": amb["id"], "ambulance_name": amb["name"], "distance_km": km, "base_fee": amb["base_fee"], "estimated_fare": fare}
+
+
+@medical_router.post("/transport")
+async def create_medical_transport(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    amb = next((a for a in AMBULANCE_TYPES if a["id"] == body.get("ambulance_type")), AMBULANCE_TYPES[0])
+    km = body.get("distance_km")
+    if km is None and all(body.get(k) is not None for k in ("pickup_lat", "pickup_lng", "dest_lat", "dest_lng")):
+        km = calculate_distance(body["pickup_lat"], body["pickup_lng"], body["dest_lat"], body["dest_lng"])
+    km = round(km or 0, 2)
+    fare = round(amb["base_fee"] + amb["per_km"] * km, 2)
+    transport = {
+        "id": f"medtr_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "driver_id": None,
+        "ambulance_type": amb["id"],
+        "ambulance_name": amb["name"],
+        "pickup_lat": body.get("pickup_lat"),
+        "pickup_lng": body.get("pickup_lng"),
+        "pickup_address": body.get("pickup_address"),
+        "destination_name": body.get("destination_name"),
+        "dest_lat": body.get("dest_lat"),
+        "dest_lng": body.get("dest_lng"),
+        "patient_name": body.get("patient_name", ""),
+        "patient_phone": body.get("patient_phone", ""),
+        "patient_condition": body.get("patient_condition", ""),
+        "urgency": body.get("urgency", "normal"),  # normal | urgent | critical
+        "distance_km": km,
+        "fare": fare,
+        "payment_method": body.get("payment_method", "cash"),
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if transport["pickup_lat"] is None or transport["dest_lat"] is None:
+        raise HTTPException(status_code=400, detail="Lieu de départ et destination requis")
+    await db.medical_transport.insert_one(transport)
+    transport.pop("_id", None)
+    return transport
+
+
+@medical_router.get("/transport")
+async def list_medical_transport(request: Request):
+    user = await get_current_user(request)
+    items = await db.medical_transport.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return items
+
+
+# ==========================================
 # REGISTER ALL SUB-ROUTERS
 # ==========================================
 router.include_router(video_router)
@@ -393,3 +525,4 @@ router.include_router(intercity_router)
 router.include_router(parking_router)
 router.include_router(giftcard_router)
 router.include_router(tracking_router)
+router.include_router(medical_router)

@@ -268,6 +268,18 @@ export const parcelAPI = {
   get: (id) => api.get(`/parcels/${id}`),
 };
 
+// Medical module APIs (prise de RDV + transport médical / ambulance)
+export const medicalAPI = {
+  listDoctors: (specialty) => api.get('/medical/doctors', { params: specialty && specialty !== 'all' ? { specialty } : {} }),
+  createAppointment: (data) => api.post('/medical/appointments', data),
+  listAppointments: () => api.get('/medical/appointments'),
+  ambulanceTypes: () => api.get('/medical/ambulance-types'),
+  estimateTransport: (data) => api.post('/medical/transport/estimate', data),
+  createTransport: (data) => api.post('/medical/transport', data),
+  listTransport: () => api.get('/medical/transport'),
+};
+
+
 
 // Coupon APIs
 export const couponAPI = {

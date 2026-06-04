@@ -418,7 +418,7 @@ const UserHome = () => {
         <div className="grid grid-cols-2 gap-3" data-testid="medical-services-section">
           {/* Book Appointment - Large Card */}
           <button
-            onClick={() => navigate('/video-consult')}
+            onClick={() => navigate('/medical/appointment')}
             className="row-span-2 rounded-2xl bg-orange-50 border border-orange-100 p-4 flex flex-col text-left group"
             data-testid="medical-appointment-btn"
           >
@@ -444,12 +444,12 @@ const UserHome = () => {
           </button>
           {/* Other Medical */}
           <button
-            onClick={() => navigate('/services')}
+            onClick={() => navigate('/medical/transport')}
             className="rounded-2xl bg-green-50 border border-green-100 p-3 flex flex-col text-left group"
             data-testid="medical-other-btn"
           >
-            <h4 className="text-xs font-bold text-gray-900">Autres Services</h4>
-            <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">Pharmacie, Ambulance, Urgence.</p>
+            <h4 className="text-xs font-bold text-gray-900">Transport Médical</h4>
+            <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">Ambulance, transport sanitaire.</p>
             <div className="flex justify-end mt-2">
               <FirstAid size={28} weight="duotone" className="text-green-600" />
             </div>

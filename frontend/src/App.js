@@ -46,6 +46,8 @@ import CarCarePage from './pages/user/CarCarePage';
 import TowingServicesPage from './pages/user/TowingServicesPage';
 import MoreTaxiServicesPage from './pages/user/MoreTaxiServicesPage';
 import VideoConsultPage from './pages/user/VideoConsultPage';
+import MedicalAppointmentPage from './pages/user/MedicalAppointmentPage';
+import MedicalTransportPage from './pages/user/MedicalTransportPage';
 import BiddingPage from './pages/user/BiddingPage';
 import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
 import AdvancedTaxiBookingPage from './pages/user/AdvancedTaxiBookingPage';
@@ -237,6 +239,8 @@ const AppRouter = () => {
       <Route path="/towing" element={<ProtectedRoute allowedRoles={['user']}><TowingServicesPage /></ProtectedRoute>} />
       <Route path="/more-taxi" element={<ProtectedRoute allowedRoles={['user']}><MoreTaxiServicesPage /></ProtectedRoute>} />
       <Route path="/video-consult" element={<ProtectedRoute allowedRoles={['user']}><VideoConsultPage /></ProtectedRoute>} />
+      <Route path="/medical/appointment" element={<ProtectedRoute allowedRoles={['user']}><MedicalAppointmentPage /></ProtectedRoute>} />
+      <Route path="/medical/transport" element={<ProtectedRoute allowedRoles={['user']}><MedicalTransportPage /></ProtectedRoute>} />
       <Route path="/bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
       <Route path="/services-bidding" element={<ProtectedRoute allowedRoles={['user']}><BiddingPage /></ProtectedRoute>} />
       <Route path="/taxi-bidding" element={<ProtectedRoute allowedRoles={['user']}><TaxiBiddingPage /></ProtectedRoute>} />
