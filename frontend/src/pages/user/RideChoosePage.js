@@ -21,7 +21,8 @@ import {
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import SearchingRadar from '../../components/SearchingRadar';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
-import { configAPI, rideAPI, placesAPI, corporateAPI } from '../../services/api';
+import DynamicIcon from '../../components/DynamicIcon';
+import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
@@ -81,6 +82,7 @@ const RideChoosePage = () => {
   const [searching, setSearching] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
   const [taxiOpts, setTaxiOpts] = useState(null);
+  const [modeCms, setModeCms] = useState(null); // admin CMS override for label/sub/icon
 
   // Mode-specific state
   const [scheduledAt, setScheduledAt] = useState('');
@@ -106,6 +108,14 @@ const RideChoosePage = () => {
     configAPI.getScheduling().then((r) => r.data && setSchedConfig(r.data)).catch(() => {});
     configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});
     placesAPI.getSaved().then((r) => setSavedPlaces(r.data || { recent: [] })).catch(() => {});
+    // Admin CMS entry for this mode (label/subtitle/icon) — edited in « Catégories accueil ».
+    homeCategoriesAPI.public('taxi')
+      .then((r) => {
+        const items = r.data?.items || [];
+        const match = items.find((it) => (it.target_route || '').includes(`mode=${mode.id}`));
+        if (match) setModeCms(match);
+      })
+      .catch(() => {});
     configAPI.getVehicleTypes()
       .then((res) => {
         const list = (res.data || [])
@@ -160,16 +170,20 @@ const RideChoosePage = () => {
     }).catch((e) => console.warn('corp load:', e?.message || e));
   }, [mode.id, corpId]);
 
-  const reverseGeocode = (lat, lng) => new Promise((resolve) => {
+  const reverseGeocode = (lat, lng, attempt = 0) => new Promise((resolve) => {
     // Prefer the already-loaded Google Maps JS Geocoder (no CORS/referrer issues
-    // unlike the REST endpoint, which often fails silently from the browser).
+    // unlike the REST endpoint). Retry on throttling before falling back to coords.
     try {
       if (window.google?.maps?.Geocoder) {
         new window.google.maps.Geocoder().geocode(
           { location: { lat, lng } },
           (results, status) => {
-            if (status === 'OK' && results?.[0]) resolve(results[0].formatted_address);
-            else resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+            if (status === 'OK' && results?.[0]) { resolve(results[0].formatted_address); return; }
+            if (status === 'OVER_QUERY_LIMIT' && attempt < 2) {
+              setTimeout(() => reverseGeocode(lat, lng, attempt + 1).then(resolve), 1000 + attempt * 800);
+              return;
+            }
+            resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
           },
         );
         return;
@@ -335,9 +349,13 @@ const RideChoosePage = () => {
           </div>
         </div>
         <div className="mt-2 inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1" data-testid="ride-choose-mode-chip">
-          <ModeIcon size={15} weight="duotone" className="text-[#FF5000]" />
-          <span className="text-xs font-bold text-[#0B1426]">{mode.label}</span>
-          <span className="text-[10px] text-gray-400">{mode.sub}</span>
+          {modeCms ? (
+            <DynamicIcon name={modeCms.icon_name} imageUrl={modeCms.image_url} size={15} weight="duotone" className="text-[#FF5000]" />
+          ) : (
+            <ModeIcon size={15} weight="duotone" className="text-[#FF5000]" />
+          )}
+          <span className="text-xs font-bold text-[#0B1426]">{modeCms?.label_fr ? modeCms.label_fr.replace(/\n/g, ' ') : mode.label}</span>
+          <span className="text-[10px] text-gray-400">{modeCms?.subtitle_fr || mode.sub}</span>
         </div>
       </div>
 
@@ -345,7 +363,9 @@ const RideChoosePage = () => {
         {/* Address card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 space-y-2">
           <div>
-            <p className="text-[10px] font-bold uppercase text-gray-400 mb-1 ml-1">Départ</p>
+            <p className="text-[10px] font-bold uppercase text-gray-400 mb-1 ml-1">
+              Départ{locating && !pickup?.address ? ' · Localisation…' : ''}
+            </p>
             <GooglePlacesInput placeholder="Lieu de départ" value={pickup?.address || ''} iconColor="#22C55E" testId="ride-choose-pickup" onSelect={(p) => setPickup(p)} />
           </div>
           {needsDropoff && (

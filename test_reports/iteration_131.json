@@ -1,0 +1,74 @@
+{
+  "summary": "Frontend-only e2e verification of CMS-driven mode chip on /course?mode=standard. Admin edited the 'standard' Taxi category (target_route /taxi?mode=standard, id hcat_c290befb06) → user view of /course?mode=standard reflects new label+subtitle in the chip; /home tile reflects new label (same CMS source). Values were restored after the test. All 4 assertions PASS.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "evidence": {
+    "assertion_1_chip_editable_via_cms": {
+      "admin_target_row": {
+        "id": "hcat_c290befb06",
+        "target_route": "/taxi?mode=standard",
+        "original_label": "VTC Réservation",
+        "original_subtitle": ""
+      },
+      "edit_payload_applied_in_modal": {
+        "label_fr": "VTC Premium",
+        "subtitle_fr": "Trajet rapide"
+      },
+      "save_toast": "Catégorie mise à jour",
+      "chip_spans_after_edit_user_view": ["VTC Premium", "Trajet rapide"],
+      "chip_testid": "ride-choose-mode-chip",
+      "passed": true
+    },
+    "assertion_2_home_tile_reflects_cms": {
+      "tile_text": "VTC Premium",
+      "tile_tag": "BUTTON",
+      "url": "/home (Services Taxi section)",
+      "passed": true,
+      "screenshot": "/app/test_reports/home_after_edit.png"
+    },
+    "assertion_3_geoloc_pickup_autofill": {
+      "permission_granted_before_navigation": true,
+      "geolocation_set": "48.8584, 2.2945 (Eiffel Tower)",
+      "ride_choose_pickup_value": "48.85840, 2.29450",
+      "value_non_empty": true,
+      "human_readable_address_resolved": false,
+      "note": "Reverse-geocoding to a real address is intermittent (Google OVER_QUERY_LIMIT throttling). Field is consistently auto-populated (lat/lng fallback accepted per request). In iteration 130 the same flow produced 'Av. Gustave Eiffel, 75007 Paris, France' on a separate run — proves the retry path works when not throttled."
+    },
+    "assertion_4_header_unchanged": {
+      "ride_choose_eyebrow_text": "SB DRIVE · SE DÉPLACER",
+      "ride_choose_eyebrow_color": "rgb(255, 80, 0)",
+      "ride_choose_title_text": "Planifiez votre trajet",
+      "ride_choose_title_color": "rgb(11, 20, 38)",
+      "page_bg": "rgb(255, 255, 255)",
+      "passed": true
+    },
+    "restoration": {
+      "before_restore_save_label_in_modal": "VTC Réservation",
+      "before_restore_save_subtitle_in_modal": "",
+      "restore_toast": "Catégorie mise à jour",
+      "chip_spans_after_restore_user_view": ["VTC Réservation", "Course standard"],
+      "note": "Subtitle restored to empty; chip falls back to constants 'Course standard' as expected by RideChoosePage code: modeCms?.subtitle_fr || mode.sub.",
+      "passed": true
+    }
+  },
+  "test_credentials_used": "Admin admin@superapp.com / SuperAdmin123!. User rider.qa@demo.sb / Rider123! (via /login/email direct). Auth via httpOnly cookie. Geolocation granted via context.grant_permissions(['geolocation']) + context.set_geolocation BEFORE navigating to /course.",
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminHomeCategories: the Sous-titre input has no data-testid (label reads 'Sous-titre (optionnel)'). Consider adding data-testid='cat-subtitle-fr-input' for stability — testing-agent had to use label-traversal in JS to set it.",
+    "AdminHomeCategories: row Edit (Pencil) and Delete buttons have no data-testid. Adding data-testid={`edit-category-${id}`} and `delete-category-${id}` would make admin CRUD tests more robust.",
+    "RideChoosePage reverse-geocoding: when Google Geocoder is throttled (OVER_QUERY_LIMIT), pickup still falls back to raw 'lat, lng' string. Retry loop exists (2 attempts) but throttling persisted across the test run — UX nicety would be a small spinner/loader and a third retry after a longer back-off, or caching last-known reverse-geocode in localStorage.",
+    "Mode chip in /course currently relies on first match of target_route containing 'mode=<id>' — if a CMS admin accidentally creates two categories pointing to the same mode= the chip will pick the first found. Consider documenting or asserting uniqueness server-side."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only)", "frontend": "100% — 4/4 assertions pass" },
+  "seed_data_creation": "None. CMS category hcat_c290befb06 was edited and restored to its original values (label='VTC Réservation', subtitle='').",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The chip on /course is now sourced from CMS home-categories (homeCategoriesAPI.public('taxi') match by target_route containing 'mode=<id>') with fallback to MODES constants. Tested live admin→user round-trip plus /home tile reflection. Same CMS row drives both surfaces. Restore step is required: edit hcat_c290befb06 back to label='VTC Réservation' and empty subtitle if any future test changes it. Geoloc reverse-geocode is intermittent due to Google API throttling — accept lat/lng fallback. Mobile viewport 430x900 used.",
+  "rca of the issue": "n/a — feature validation, no bugs found. Earlier in the run the testing-agent used a label regex /Sous-titre.*FR/ which failed because the actual label is 'Sous-titre (optionnel)' — fixed in the retest with /Sous-titre/. This is a test-script note, not a product issue."
+}
