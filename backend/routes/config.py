@@ -73,6 +73,44 @@ async def get_ride_search_config():
     return cfg
 
 
+# ── Taxi booking flow + WhatsApp booking configuration ────────────────────
+# Stored in service_configs under service_key="taxi_booking".
+# Pilote le flux unifié « Choisissez un voyage » et l'option de réservation
+# via WhatsApp (numéro + modèle de message), administrables côté admin.
+DEFAULT_TAXI_BOOKING = {
+    "unified_flow_enabled": True,
+    "whatsapp_enabled": False,
+    "whatsapp_number": "",
+    "whatsapp_message_template": (
+        "Bonjour SB Drive, je souhaite réserver une course.\n\n"
+        "Service : {mode}\nDépart : {pickup}\nDestination : {dropoff}\n"
+        "Véhicule : {vehicle}\nPrix estimé : {price}\nQuand : {when}\nPaiement : {payment}"
+    ),
+}
+
+
+async def get_taxi_booking_config():
+    """Merge persisted admin settings over the safe defaults."""
+    doc = await db.service_configs.find_one({"service_key": "taxi_booking"}, {"_id": 0})
+    settings = (doc or {}).get("settings") or {}
+    cfg = {**DEFAULT_TAXI_BOOKING, **settings}
+    cfg["unified_flow_enabled"] = bool(cfg.get("unified_flow_enabled", True))
+    cfg["whatsapp_enabled"] = bool(cfg.get("whatsapp_enabled", False))
+    cfg["whatsapp_number"] = str(cfg.get("whatsapp_number") or "").strip()
+    cfg["whatsapp_message_template"] = (
+        str(cfg.get("whatsapp_message_template") or "").strip()
+        or DEFAULT_TAXI_BOOKING["whatsapp_message_template"]
+    )
+    return cfg
+
+
+@router.get("/taxi-booking")
+async def get_taxi_booking():
+    """Public booking config — drives the unified 'Choisissez un voyage' flow
+    and the WhatsApp booking button (number + prefilled message template)."""
+    return await get_taxi_booking_config()
+
+
 @router.get("/app")
 async def get_app_config():
     """Public app configuration (currency, company info, feature flags)."""

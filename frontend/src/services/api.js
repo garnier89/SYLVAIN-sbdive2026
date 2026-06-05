@@ -260,6 +260,7 @@ export const configAPI = {
   getTaxiOptions: () => api.get('/config/taxi-options'),
   getRideProfiles: () => api.get('/config/ride-profiles'),
   getBusinessTripReasons: () => api.get('/config/business-trip-reasons'),
+  getTaxiBooking: () => api.get('/config/taxi-booking'),
 };
 
 // Parcel delivery APIs (single & multi-drop)

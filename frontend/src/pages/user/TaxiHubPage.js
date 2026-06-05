@@ -168,7 +168,7 @@ const TaxiHubPage = () => {
     } catch (e) { toast.error('Erreur enregistrement'); }
   };
 
-  const selectMode = (id) => { setModeId(id); setTopMenu(null); setView('booking'); };
+  const selectMode = (id) => { navigate(`/course?mode=${id}`); };
   const toggleRemind = async (key, name) => {
     const isOn = remindedKeys.has(key);
     setRemindedKeys((prev) => { const n = new Set(prev); if (isOn) n.delete(key); else n.add(key); return n; });

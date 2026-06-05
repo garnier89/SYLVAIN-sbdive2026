@@ -1,0 +1,46 @@
+{
+  "summary": "Frontend-only validation of the unified ride flow (/course?mode=X), WhatsApp booking button, and admin taxi_booking config. The core unified flow on /course?mode=standard WORKS end-to-end (Google Places autocompletion → multi-vehicle comparison with live prices → WhatsApp button visible → request → searching overlay → navigation to /ride/<id>). However, THREE CRITICAL regressions block the spec: (1) home tiles route to legacy /taxi (CMS overrides hardcoded taxiServices paths), (2) ModePanel early-return hides airport/pets/assist/corporate/book_for_someone panels, (3) admin /admin/taxi-booking-config page shows 'Configuration bientôt disponible' — the taxi_booking schema is MISSING from AdminServiceConfig.js serviceConfigs map.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminServiceConfig.js", "issue": "serviceConfigs map has no 'taxi_booking' entry → /admin/taxi-booking-config renders placeholder 'Configuration bientôt disponible. La page de configuration pour taxi_booking n'est pas encore implementee.' Admin cannot toggle unified flow / WhatsApp / edit number / edit message template.", "selector": "[data-testid='placeholder-taxi_booking']", "priority": "CRITICAL"},
+      {"component": "RideChoosePage.js → ModePanel (line ~495)", "issue": "Early return: if (mode.panel === 'datetime' || (!isRental && !isBuddy && !isBidding && schedulingAllowed)) returns the SCHEDULE panel for ALL other modes too. Result: airport/pets/assist/corporate/book_for_someone/access NEVER render their custom panel (panel-flight, panel-pets, panel-assist, panel-corporate, panel-contact are missing). Confirmed via DOM scan: only ['panel-schedule','panel-schedule-toggle'] present on /course?mode=airport and /course?mode=pets.", "selector": "[data-testid='panel-flight'], [data-testid='panel-pets']", "priority": "CRITICAL"},
+      {"component": "UserHome.js taxi tiles", "issue": "Hardcoded taxiServices array has correct '/course?mode=X' paths, BUT the CMS-driven sectionFallback override loads admin-managed categories with testids 'service-hcat_XXXXX-btn' whose path is the LEGACY '/taxi?mode=standard'. Clicking 'VTC Réservation' on /home navigates to /taxi?mode=standard (legacy hub), NOT /course?mode=standard. Same for all 7 taxi tiles. Spec explicitly forbids this.", "selector": "[data-testid='service-hcat_c290befb06-btn']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passing_checks": [
+    "Login rider.qa@demo.sb / Rider123! → /home OK",
+    "/course?mode=standard renders ride-choose-page with mode chip 'Taxi VTC · Course standard'",
+    "GooglePlacesInput autocomplete works (.pac-item suggestions); selecting Tour Eiffel + Gare du Nord populates pickup+dropoff",
+    "choose-ride-section appears once both addresses set; renders 8 distinct choose-vehicle-<slug> cards (sb, confort, luxe, suv, premium, moto, etc.) each with live price-<slug> from /api/rides/estimate",
+    "ride-choose-whatsapp-btn (green) APPEARS above ride-choose-request-btn when bothSet (whatsapp_enabled=true, number=596696112233 loaded from /api/config/taxi-booking)",
+    "ride-choose-pay-cash selectable; request button label='Commander · 13.65 €' shows price; click triggers ride-choose-searching radar overlay; navigates to /ride/ride_<id> after ~1.6s",
+    "/course?mode=pool renders mode chip 'Pool' and ride-choose-page",
+    "/course?mode=book_later renders panel-schedule + panel-schedule-trigger",
+    "/course?mode=rental renders panel-rental with panel-rental-2h_20km etc. (single-price-card only when pickup set — geolocation required)",
+    "/course?mode=bidding renders panel-bidding + panel-bidding-input; CTA text becomes 'Proposer mon tarif'"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "[CRITICAL] Add 'taxi_booking' entry to serviceConfigs map in /app/frontend/src/pages/admin/AdminServiceConfig.js with: title 'Réservation Taxi & WhatsApp', settings = [unified_flow_enabled (toggle), whatsapp_enabled (toggle), whatsapp_number (text), whatsapp_message_template (textarea)]. Ensure AdminServiceConfig supports 'textarea' input type — test request lists this support as a file of reference but the schema map is empty for taxi_booking.",
+    "[CRITICAL] Fix ModePanel early-return in /app/frontend/src/pages/user/RideChoosePage.js line ~495. Currently the schedule branch swallows airport/pets/assist/corporate/book_for_someone/access modes. Rework: render the mode-specific panel for those modes FIRST, then ALSO render an optional 'Programmer plus tard' schedule toggle as a separate sibling card (not inside the if/else chain). Or check mode.panel/mode.id BEFORE the generic schedulingAllowed branch.",
+    "[CRITICAL] Update UserHome.js (or the CMS seed) so admin-managed taxi category items point to /course?mode=<id> instead of /taxi?mode=<id>. Either: (a) intercept the navigate() in ServiceIcon to rewrite legacy /taxi?mode paths to /course?mode, (b) update the seed/CMS data so each hcat_* taxi item has path '/course?mode=<modeId>', or (c) make /taxi?mode= redirect to /course?mode= when unified_flow_enabled. Currently tiles bypass the unified flow entirely.",
+    "[MINOR] /course?mode=airport, ?mode=pets etc. should still allow the schedule toggle — keep that capability but as a separate card, not exclusive of the mode-specific panel."
+  ],
+  "critical_code_review_comments": [
+    "ModePanel's branching is order-sensitive and silently shadows airport/pets/assist/corporate/book_for_someone branches under the schedule branch — refactor to render mode-specific + schedule as independent cards.",
+    "AdminServiceConfig serviceConfigs map relies on serviceKey lookup; missing entries fall through to a placeholder that silently hides the feature. Add a CI/lint check that every Route serviceKey=X has a matching serviceConfigs[X] entry to prevent this regression class.",
+    "CMS-driven home tiles override hardcoded paths without a migration — when the unified flow rolls out, the CMS data must be migrated in lockstep, or the rendering layer should rewrite legacy /taxi?mode= paths.",
+    "RideChoosePage.js is 622 lines and growing; the ModePanel component (130 lines) and ModePanel state setters (~25 useState hooks) would benefit from a dedicated hook (useRideChooseState) and a panels/ folder with per-mode components."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "60% (core /course flow + WhatsApp button OK; tile routing + airport/pets/assist/corporate panels + admin config page broken)"},
+  "test_credentials": "rider.qa@demo.sb / Rider123! (used); admin@superapp.com / SuperAdmin123! (used)",
+  "seed_data_creation": "Created 1 pending ride during test via the unified flow (ride_d0754c4a1d2c on /course?mode=standard with selected SB vehicle, payment=cash, fare=13.65 €).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Tile testids on /home are CMS-driven 'service-hcat_<hash>-btn' (e.g. service-hcat_c290befb06-btn for VTC Réservation). They currently route to /taxi?mode=X. The hardcoded fallback testids 'service-taxi-booking-btn' etc. are NEVER present at runtime. /course?mode=standard works fully via direct URL. Google Places autocomplete renders into .pac-item portal; click .pac-item.first to pick a suggestion (Tour Eiffel Paris / Gare du Nord Paris work). GooglePlacesInput puts data-testid on the INPUT itself, no nested input. WhatsApp number 596696112233 is loaded from /api/config/taxi-booking. The admin config page route exists but renders a 'Configuration bientôt disponible' placeholder because serviceConfigs['taxi_booking'] is undefined in AdminServiceConfig.js.",
+  "rca of the issue": "(1) ModePanel: original author wrote `if (mode.panel === 'datetime' || (!isRental && !isBuddy && !isBidding && schedulingAllowed))` as the FIRST branch in the if/else chain, which matches every mode that allows scheduling — so all subsequent `if (mode.id === 'airport')` etc. branches become unreachable. (2) AdminServiceConfig.js: schema entry for taxi_booking was never added to serviceConfigs map; the route was added in App.js but the page schema/UI is missing. (3) UserHome: CMS seed data for taxi categories still has legacy '/taxi?mode=X' paths that override the hardcoded '/course?mode=X' fallback."
+}

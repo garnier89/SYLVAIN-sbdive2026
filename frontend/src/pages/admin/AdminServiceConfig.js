@@ -6,7 +6,7 @@ import { Textarea } from '../../components/ui/textarea';
 import {
   MagicWand, Truck, Lightning, VideoCamera, Gavel, Storefront,
   FirstAid, UsersThree, MapPin, Path, CurrencyEur, Airplane,
-  Globe, Flag, XCircle, FileText, House, Slideshow, Tag, Translate, MagnifyingGlass
+  Globe, Flag, XCircle, FileText, House, Slideshow, Tag, Translate, MagnifyingGlass, WhatsappLogo
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -234,6 +234,8 @@ const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
               </button>
             ) : s.type === 'number' ? (
               <Input type="number" value={s.value} onChange={e => updateSetting(s.key, parseFloat(e.target.value) || 0)} />
+            ) : s.type === 'textarea' ? (
+              <Textarea value={s.value} onChange={e => updateSetting(s.key, e.target.value)} rows={6} data-testid={`config-${s.key}`} />
             ) : (
               <Input value={s.value} onChange={e => updateSetting(s.key, e.target.value)} />
             )}
