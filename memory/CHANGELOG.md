@@ -1,6 +1,25 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 — Chip de réservation piloté par le CMS (libellés/icônes par mode éditables) + retry géocodage
+
+### Demande utilisateur
+Pouvoir éditer SANS CODE les libellés/sous-titres/icônes de chaque mode taxi (le chip « Taxi VTC / Course standard » de `/course` ET les tuiles d'accueil), avec **upload d'icône personnalisée** (choix 1b) ; + retry/loader si le géocodage du départ est throttlé. (Refactor RideTrackingPage / loaders Maps laissé en backlog — choix 3b.)
+
+### Constat
+Les **tuiles d'accueil sont déjà 100% éditables** via la page admin existante **« Catégories accueil »** (`/admin/home-categories`) : libellé, sous-titre, **icône Phosphor OU image uploadée** (data-URL), visible/masqué, ordre. Seul le **chip** de `/course` venait des constantes `taxiHubConstants.MODES`.
+
+### Changed — `RideChoosePage.js`
+- Le **chip** lit désormais l'entrée CMS du mode (`homeCategoriesAPI.public('taxi')`, match par `target_route` contenant `mode=<id>`) → libellé/sous-titre + icône via **`DynamicIcon`** (gère `icon_name` Phosphor ET `image_url` uploadée). Fallback sur les constantes si pas d'entrée CMS. → tuile + chip partagent la même source éditable (upload inclus).
+- **reverseGeocode** : retry sur `OVER_QUERY_LIMIT` (2 tentatives espacées) avant le fallback « lat, lng » ; label « Départ · Localisation… » pendant la géoloc.
+
+### Tests
+- testing_agent **iteration_131 : 4/4** — édition admin live (« VTC Réservation » → « VTC Premium / Trajet rapide ») reflétée sur le **chip de /course** ET la **tuile d'accueil**, puis restaurée ; départ auto-rempli (adresse réelle quand non throttlé, sinon lat/lng) ; en-tête blanc OK. Lint clean.
+
+### Backlog (P2 — non fait, choix utilisateur)
+- Découpe `RideTrackingPage` en RideWaitingScreen/RideCancelledScreen/RideActiveScreen.
+- Consolidation des loaders Google Maps (GooglePlacesInput `<script>` brut vs `useJsApiLoader`).
+
 ## 2026-06-06 — Refonte UI réservation : en-tête blanc éditable, thème clair, géolocalisation auto, calendrier auto-ouvert
 
 ### Demandes utilisateur (capture annotée)
