@@ -231,12 +231,13 @@ const TaxiHubPage = () => {
           pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
           dropoff_lat: dest.lat, dropoff_lng: dest.lng, dropoff_address: dest.address,
           vehicle_type: mode.vehicle, payment_method: 'cash',
+          pool_enabled: mode.id === 'pool',
           stops: validStops.length ? validStops : undefined,
         }),
       });
       if (r.ok) setEstimate(await r.json());
     } catch (e) { console.warn('estimate:', e?.message || e); }
-  }, [pickup, dropoff, stops, mode.vehicle, needsDropoff]);
+  }, [pickup, dropoff, stops, mode.vehicle, mode.id, needsDropoff]);
 
   useEffect(() => {
     const t = setTimeout(fetchEstimate, 350);

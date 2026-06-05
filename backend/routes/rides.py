@@ -9,6 +9,10 @@ from typing import Optional
 # Bidirectional bidding: driver counter-offers expire after this many seconds
 OFFER_TTL_SECONDS = 30
 
+# Taxi Pool — discount applied to shared rides (matches the "-30%" Pool badge
+# and the existing /phase2/pool/enable toggle which uses original_fare * 0.7).
+POOL_DISCOUNT_RATE = 0.30
+
 from core.config import db
 from core.deps import get_current_user, calculate_distance, calculate_fare
 from models.schemas import RideRequest, RideResponse
@@ -81,6 +85,15 @@ async def estimate_ride(data: RideRequest):
     adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng, data.vehicle_type)
     fare = adj["fare"]
 
+    # ── Taxi Pool — shared-ride discount (only when Pool is selected) ──
+    pool_enabled = bool(getattr(data, "pool_enabled", False))
+    pool_original_fare = None
+    pool_reason = []
+    if pool_enabled:
+        pool_original_fare = round(fare, 2)
+        fare = round(fare * (1 - POOL_DISCOUNT_RATE), 2)
+        pool_reason = [f"Pool partagé −{int(POOL_DISCOUNT_RATE * 100)}%"]
+
     result = {
         "distance_km": round(distance, 2),
         "duration_mins": duration,
@@ -91,7 +104,9 @@ async def estimate_ride(data: RideRequest):
         "surge_multiplier": adj["surge_multiplier"],
         "weather_multiplier": adj["weather_multiplier"],
         "weather_condition": adj["weather_condition"],
-        "pricing_reasons": adj["reasons"],
+        "pricing_reasons": adj["reasons"] + pool_reason,
+        "pool_enabled": pool_enabled,
+        "original_fare": pool_original_fare,
     }
     if route_polyline:
         result["route_polyline"] = route_polyline
@@ -187,6 +202,13 @@ async def create_ride(data: RideRequest, request: Request):
     pricing_adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng, data.vehicle_type)
     fare = pricing_adj["fare"]
 
+    # ── Taxi Pool — shared-ride discount (only when Pool section is used) ──
+    pool_enabled = bool(getattr(data, "pool_enabled", False))
+    pool_original_fare = None
+    if pool_enabled:
+        pool_original_fare = round(fare, 2)
+        fare = round(fare * (1 - POOL_DISCOUNT_RATE), 2)
+
     # ===== Pack C — Corporate booking validation + discount =====
     corporate_id = None
     corporate_discount_pct = 0.0
@@ -248,6 +270,7 @@ async def create_ride(data: RideRequest, request: Request):
         "pets_size": getattr(data, 'pets_size', None),
         "assist_needs": getattr(data, 'assist_needs', None),
         "pool_enabled": getattr(data, 'pool_enabled', False),
+        "original_fare": pool_original_fare,
         "stops": getattr(data, 'stops', None),
         "ride_profile": getattr(data, 'ride_profile', None),
         "ride_profile_org_type": getattr(data, 'ride_profile_org_type', None),

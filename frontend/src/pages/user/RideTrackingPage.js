@@ -87,10 +87,15 @@ const RideTrackingPage = () => {
     setPoolLoading(false);
   }, [poolEnabled, poolLoading, rideId]);
 
+  const poolInitRef = useRef(false);
   const fetchRide = useCallback(async () => {
     try {
       const res = await rideAPI.get(rideId);
       setRide(res.data);
+      if (!poolInitRef.current) {
+        poolInitRef.current = true;
+        setPoolEnabled(!!res.data.pool_enabled);
+      }
       if (res.data.driver_lat && res.data.driver_lng) {
         setDriverPos({ lat: res.data.driver_lat, lng: res.data.driver_lng });
       }

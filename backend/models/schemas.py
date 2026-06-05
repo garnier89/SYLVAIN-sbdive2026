@@ -137,6 +137,8 @@ class RideResponse(BaseModel):
     status: str
     estimated_fare: float
     final_fare: Optional[float] = None
+    original_fare: Optional[float] = None
+    pool_enabled: bool = False
     distance_km: float
     duration_mins: int
     payment_method: str

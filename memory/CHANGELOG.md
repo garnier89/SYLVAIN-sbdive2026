@@ -610,3 +610,21 @@ Voir PRD.md section "NEW - Feb 2026"
 - `tsc --noEmit` : 0 erreur sur les fichiers modifiés.
 - Endpoints backend déjà validés (iter120, pytest 5/5).
 - ⚠️ Runtime mobile NON testé dans cet environnement (app native Expo — nécessite Expo Go / device). Logique réutilise des endpoints testés.
+
+## 2026-06-05 (suite) — Activation du Taxi Pool (partage de course −30%, section Pool uniquement)
+
+### Contexte
+Le mode « Pool » du TaxiHub envoyait `pool_enabled:true` mais aucune remise n'était appliquée (le « −30% » n'était qu'un badge). Un moteur Pool existait dans `phase2.py` (matching `/phase2/pool/matches` + remise `/phase2/pool/enable`) mais n'était pas câblé au flux de réservation.
+
+### Activated
+- Backend `rides.py` : constante `POOL_DISCOUNT_RATE=0.30`.
+  - `POST /api/rides/estimate` : si `pool_enabled` → applique −30%, renvoie `original_fare`, `pool_enabled` et raison « Pool partagé −30% ».
+  - `POST /api/rides` (création) : si `pool_enabled` → applique −30%, stocke `original_fare` + `estimated_fare` remisé. **Remise appliquée uniquement quand `pool_enabled=true` (donc uniquement via la section Pool).**
+- `models/schemas.py` : `RideResponse` expose désormais `original_fare` + `pool_enabled` (prix barré côté UI).
+- Frontend `TaxiHubPage.js` : `fetchEstimate` envoie `pool_enabled: mode.id === 'pool'` → le tarif affiché en section Pool reflète la remise.
+- `RideTrackingPage.js` : synchronise l'état du toggle Pool depuis `ride.pool_enabled` au chargement (cohérence UI, pas de double remise grâce à `original_fare`).
+- Le moteur de matching co-passagers `/phase2/pool/matches` reste disponible.
+
+### Tests
+- pytest `test_iter121_taxi_pool.py` **3/3 ✅** : estimate non-pool vs pool (−30% exact, original_fare, raison), création course Pool (remise + original_fare), remise jamais appliquée hors Pool.
+- curl e2e : estimate 5,00€ → 3,50€ ; création course Pool estimated_fare 3,50€ / original_fare 5,00€ / pool_enabled true. Données de test nettoyées.
