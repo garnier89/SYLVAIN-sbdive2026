@@ -12,7 +12,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sb-drive-vtc.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-40.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402

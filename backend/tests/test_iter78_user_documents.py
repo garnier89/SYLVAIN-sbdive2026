@@ -17,7 +17,7 @@ import pytest
 
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://sb-drive-vtc.preview.emergentagent.com",
+    "https://gojek-clone-40.preview.emergentagent.com",
 ).rstrip("/")
 from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 TINY_PNG_DATA_URL = (

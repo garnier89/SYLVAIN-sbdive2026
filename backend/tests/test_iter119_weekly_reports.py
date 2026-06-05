@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://sb-drive-vtc.preview.emergentagent.com")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-40.preview.emergentagent.com")
 API = f"{BASE}/api"
 
 

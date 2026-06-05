@@ -18,7 +18,7 @@ from _creds import ADMIN_EMAIL, ADMIN_PASSWORD
 
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL")
             or os.environ.get("TEST_API_URL")
-            or "https://sb-drive-vtc.preview.emergentagent.com").rstrip("/")
+            or "https://gojek-clone-40.preview.emergentagent.com").rstrip("/")
 
 
 # ---------- helpers / fixtures ----------

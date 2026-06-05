@@ -3,7 +3,7 @@ import os
 import time
 import requests
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://sb-drive-vtc.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://gojek-clone-40.preview.emergentagent.com').rstrip('/')
 
 RIDER = {"email": "rider.qa@demo.sb", "password": "Rider123!"}
 DRIVER = {"email": "jean.dupont@demo.sb", "password": "Driver123!"}

@@ -5,7 +5,7 @@ import os
 import httpx
 import websockets
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://sb-drive-vtc.preview.emergentagent.com")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-40.preview.emergentagent.com")
 WS = BASE.replace("https://", "wss://").replace("http://", "ws://")
 DRIVER_ID = "user_dcf7d4bc4de6"  # jean.dupont@demo.sb
 

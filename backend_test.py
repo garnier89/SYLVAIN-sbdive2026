@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 class SuperAppAPITester:
-    def __init__(self, base_url="https://sb-drive-vtc.preview.emergentagent.com"):
+    def __init__(self, base_url="https://gojek-clone-40.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.admin_token = None
