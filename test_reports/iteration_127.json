@@ -1,0 +1,82 @@
+{
+  "summary": "DIAGNOSTIC ONLY (no code modified) of the chauffeur-app runtime-error overlay on /chauffeur/home. Reproduced the red 'Uncaught runtime errors: Script error.' overlay after login as jean.dupont@demo.sb and toggling Online. Captured the REAL underlying error via page.on('pageerror') (the CRA overlay shows 'Script error.' only because the throw originates cross-origin from maps.googleapis.com and window.onerror sanitises it). The hypothesis 'Google Maps API loaded multiple times' is INFIRMED — only ONE main script (id=google-map-script, libraries=places,visualization) is present in the DOM, all other maps.googleapis.com entries are sub-modules loaded by the API itself. The TRUE root cause is an invalid SVG path string used as the car-marker icon in AdminGoogleMap.jsx — Google Maps' internal SVG parser (util.js) throws 'Expected number at position 63, found M' from marker.js.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminGoogleMap.jsx (used by DriverHome.js)",
+        "issue": "Invalid SVG path string passed to google.maps.Marker icon.path. Google Maps' util.js parser throws 'Expected number at position 63, found M' when parsing the arc-command run 'a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0M9.5...'. Position 63 is the literal 'M' starting the next subpath; the parser expected a 14th number to continue the implicit second arc (Google's parser does not handle the 0/1 arc-flag shorthand the same way native SVG does, so '013' is being read as one number instead of flag+flag+number, breaking the parameter count). This throw fires on every render of the chauffeur-position marker and is captured by react-scripts dev overlay as the generic cross-origin 'Script error.' (file: bundle.js:67582:58 in handleError).",
+        "selector": "/app/frontend/src/components/admin/AdminGoogleMap.jsx line 107 (carIcon.path)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "evidence": {
+    "cra_overlay_iframe_text": "Uncaught runtime errors:\n× ERROR\nScript error.\n    at handleError (https://gojek-clone-40.preview.emergentagent.com/static/js/bundle.js:67582:58)\n    at https://gojek-clone-40.preview.emergentagent.com/static/js/bundle.js:67601:7",
+    "real_pageerror_captured_by_playwright": {
+      "message": "Expected number at position 63, found M",
+      "stack": "Uncaught Error: Expected number at position 63, found M\n    at QCa (https://maps.googleapis.com/maps-api-v3/api/js/65/3b/util.js:173:330)\n    at II (https://maps.googleapis.com/maps-api-v3/api/js/65/3b/util.js:173:415)\n    at <anonymous> (https://maps.googleapis.com/maps-api-v3/api/js/65/3b/util.js:180:444)\n    at NSa (https://maps.googleapis.com/maps-api-v3/api/js/65/3b/marker.js:10:366)\n    at OSa (https://maps.googleapis.com/maps-api-v3/api/js/65/3b/marker.js:9:471)\n    at qh (https://maps.googleapis.com/maps-api-v3/api/js/65/3b/marker.js:60:302)\n    at execute (https://maps.googleapis.com/maps-api-v3/api/js/65/3b/common.js:210:539)",
+      "occurrences_in_run": 2
+    },
+    "console_errors_observed": [
+      "Failed to load resource: the server responded with a status of 401 () (x2) — unrelated, likely an auth ping",
+      "google.maps.Marker is deprecated warning (informational only, not the cause)"
+    ],
+    "gmaps_scripts_in_dom": {
+      "main_loader_count_with_id_google-map-script": 1,
+      "main_loader_src": "https://maps.googleapis.com/maps/api/js?libraries=places%2Cvisualization&key=AIzaSyDKXDtJt-PdI5dQIaiaIId12G7Mk86X4t8&v=weekly&map_ids=&language=en&region=US&auth_referrer_policy=origin&callback=google.maps.__ib__",
+      "sub_modules_loaded_by_api_internally": [
+        "maps-api-v3/api/js/65/3b/controls.js",
+        "maps-api-v3/api/js/65/3b/visualization.js",
+        "maps-api-v3/api/js/65/3b/places.js",
+        "maps-api-v3/api/js/65/3b/places_impl.js",
+        "maps-api-v3/api/js/65/3b/util.js",
+        "maps-api-v3/api/js/65/3b/common.js",
+        "maps-api-v3/api/js/65/3b/main.js",
+        "maps-api-v3/api/js/65/3b/map.js",
+        "maps-api-v3/api/js/65/3b/marker.js",
+        "maps-api-v3/api/js/65/3b/log.js",
+        "maps-api-v3/api/js/65/3b/onion.js",
+        "maps/vt?... (tile fetch)"
+      ],
+      "window_google_defined": true,
+      "window_google_maps_defined": true,
+      "window_google_maps_places_defined": true,
+      "window_google_maps_visualization_defined": true,
+      "multiple_loads_warning_present": false,
+      "conclusion": "GooglePlacesInput.js's raw <script> loader is NOT injected on /chauffeur/home (DriverHome.js does not mount it). No 'You have included the Google Maps JavaScript API multiple times on this page' warning was observed in console. The hypothesis is INFIRMED for this page. (It might still bite on pages that use BOTH GooglePlacesInput AND a useJsApiLoader component simultaneously — e.g. user ride-request flows — but that is NOT what causes the chauffeur-home overlay.)"
+    },
+    "offending_svg_path": "M5 11l1.5-4.5h11L19 11M17.5 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0M9.5 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0M3 11h18v5h-2a3 3 0 11-6 0H11a3 3 0 11-6 0H3v-5z",
+    "offending_path_index_63_char": "M (start of subpath 'M9.5 16…') — Google Maps' util.js (QCa parser) expected the 14th number of the implicit-arc run starting at position 30; the '0 013 0' fragment is mis-counted because GMaps' SVG parser does not split arc-flags 0/1 the way native SVG does."
+  },
+  "test_credentials_used": "jean.dupont@demo.sb / Driver123! (mobile flow: 'Ou choisir une autre option de connexion' → 'email & mot de passe')",
+  "reproduction_steps": [
+    "1) Mobile viewport 390x844, goto /login",
+    "2) Click 'Ou choisir une autre option de connexion' → click 'email & mot de passe'",
+    "3) Fill jean.dupont@demo.sb / Driver123! → submit (auto-redirect to /chauffeur/home)",
+    "4) data-testid='online-toggle' already at 'En ligne'; click it once to force re-render (kept Online for test)",
+    "5) Wait ~8s for Google Maps tiles + markers to render",
+    "6) Observe red CRA overlay 'Uncaught runtime errors: × ERROR Script error.' top of viewport",
+    "7) page.on('pageerror') reveals the real cross-origin throw from marker.js → util.js"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "FIX (main agent): Replace the invalid SVG path on /app/frontend/src/components/admin/AdminGoogleMap.jsx line 107 (carIcon.path). Recommended: use a simpler/valid SVG path or use google.maps.SymbolPath.BACKWARD_CLOSED_ARROW / FORWARD_CLOSED_ARROW, OR use icon.url with a PNG/SVG file, OR migrate to google.maps.marker.AdvancedMarkerElement. A safe minimal car-icon path that GMaps' parser accepts (no implicit-arc shorthand with packed flags): 'M -8 -4 L 8 -4 L 10 0 L 10 4 L 8 4 L 8 6 L 5 6 L 5 4 L -5 4 L -5 6 L -8 6 L -8 4 L -10 4 L -10 0 Z' (then scale=1, anchor=Point(0,0)).",
+    "OPTIONAL: Address the deprecated google.maps.Marker warning by migrating to AdvancedMarkerElement (low priority).",
+    "OPTIONAL HARDENING: Although NOT the cause here, GooglePlacesInput.js still injects a raw maps.googleapis.com script with libraries=places that is DIFFERENT from the useJsApiLoader (places,visualization) used by AdminGoogleMap/GoogleRideMap. On any page that mounts BOTH, the 'multiple times' warning will appear. Consolidate to a single loader (e.g. wrap GooglePlacesInput with @react-google-maps/api useJsApiLoader or share a common loader hook)."
+  ],
+  "critical_code_review_comments": [
+    "AdminGoogleMap.jsx L107: hand-written SVG path with implicit-arc shorthand and packed flag-digits ('0 11-3', '0 013 0') is fragile across SVG parsers. Prefer constant SymbolPath enums or icon.url to a static asset.",
+    "Multiple Google Maps loaders coexist in the codebase (useJsApiLoader in AdminGoogleMap with libs=places,visualization; useJsApiLoader in GoogleRideMap with different libs; raw <script> injection in GooglePlacesInput with libs=places). This is a latent bug that will fire 'You have included the Google Maps JavaScript API multiple times' on pages mounting both. Recommend consolidating.",
+    "CRA dev overlay's generic 'Script error.' is misleading. Consider adding a top-level window.onerror handler that filters maps.googleapis.com origins, or capturing pageerror in a Sentry-like sink to surface real cross-origin stacks during dev."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "diagnostic complete — root cause identified with high confidence"},
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After main agent replaces the carIcon.path in /app/frontend/src/components/admin/AdminGoogleMap.jsx L107, retest by: login jean.dupont@demo.sb/Driver123! → /chauffeur/home → ensure online → wait 8s → assert (a) iframe#webpack-dev-server-client-overlay either absent or its innerText does NOT contain 'Script error.', (b) page.on('pageerror') captures 0 'Expected number at position' errors, (c) the chauffeur car marker is still visibly rendered on the map. The mobile login flow requires the two-step 'Ou choisir une autre option de connexion' → 'email & mot de passe'.",
+  "rca of the issue": "Root cause: invalid SVG path in AdminGoogleMap.jsx carIcon. The path fragment 'a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0' is intended to encode two arc commands using SVG's implicit-repeat shorthand with packed arc flags (large-arc-flag, sweep-flag must be 0/1 single digits). Google Maps' internal SVG path parser (QCa in util.js) does NOT auto-split packed flag digits the way native browser SVG parsers do; it treats '013' as a single number, which throws off the parameter count of the implicit second arc and at position 63 it expects another number but encounters 'M' (the next subpath command). The thrown 'Error: Expected number at position 63, found M' propagates through marker.js → common.js to window. Because the throw originates from a cross-origin script (maps.googleapis.com) without proper crossorigin=anonymous + CORS on the API loader, window.onerror sees only the sanitised 'Script error.' message, which is what react-scripts' dev-server error overlay then displays (in an iframe id=webpack-dev-server-client-overlay). Mitigation: replace the icon path (preferred), or use google.maps.SymbolPath enums, or use icon.url. The dev overlay does NOT show in production builds; this is a dev-only visual nuisance — but it does indicate a real (silent) runtime error that may also prevent the marker from rendering correctly."
+}
