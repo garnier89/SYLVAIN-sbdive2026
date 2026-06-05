@@ -422,6 +422,7 @@ const AppRouter = () => {
         <Route path="seo" element={<AdminServiceConfig serviceKey="seo" />} />
         <Route path="maps-api" element={<AdminServiceConfig serviceKey="maps-api" />} />
         <Route path="pool-config" element={<AdminServiceConfig serviceKey="pool" />} />
+        <Route path="ride-search-config" element={<AdminServiceConfig serviceKey="ride_search" />} />
         <Route path="db-backup" element={<AdminDbBackup />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
         <Route path="featured-listings" element={<AdminFeaturedListings />} />

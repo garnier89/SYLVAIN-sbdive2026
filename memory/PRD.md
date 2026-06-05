@@ -1,4 +1,11 @@
-## NEW - Jun 2026 - Recherche chauffeur : après 3 relances → proposer « Proposer votre tarif » ou « Planifier » (DONE)
+## NEW - Jun 2026 - Relances recherche chauffeur : seuil & intervalle configurables par l'admin (DONE)
+- **Demande** : rendre le **nombre de relances** et l'**intervalle (20s)** pilotables par l'admin (sans redéploiement).
+- **Backend** : config publique `GET /api/config/ride-search` (service_configs clé `ride_search`) → `{enabled, relance_interval_seconds, max_relances}` avec bornes (intervalle 5–300s, relances 1–10). Édition via `PUT /api/admin/service-config/ride_search`.
+- **Admin** (`AdminServiceConfig`) : section « Recherche chauffeur (Relances) » (toggle activation, intervalle, nb relances) + route `/admin/ride-search-config` + entrée menu (`AdminLayout`).
+- **Frontend** (`RideTrackingPage`) : récupère la config au montage et l'utilise pour la cadence auto, le compteur `relance-count` (X/max) et le seuil de déclenchement du modal (fallback 20s/3 si indispo).
+- Vérifié curl : défauts 20/3 ; save 10/5 reflété ; clamping (2→5, 99→10) ; reset. Lint clean front+back. (Flux relance→modal déjà validé testing_agent 6/6.)
+
+
 - **Demande** : sur tout type de course taxi, après **3 relances** sans chauffeur, rediriger le client vers l'option « Proposer votre tarif » (enchères) ou « Planifier le trajet ».
 - **Relance** = cycle auto (~20s) **et** bouton manuel « Relancer la recherche » (même compteur). Au 3e → **modal** auto « Aucun chauffeur disponible » avec 2 boutons + « Continuer la recherche ». Exclut le mode Enchères lui-même.
 - **Backend** (`rides.py`) : `POST /{ride_id}/rebroadcast` (relance — re-broadcast `new_ride_request`), `POST /{ride_id}/convert-to-bidding` (passe `mode='bidding'`/`is_bidding`, `proposed_fare`=estimate, re-broadcast), réutilise `PUT /{ride_id}/reschedule`.

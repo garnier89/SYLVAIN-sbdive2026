@@ -137,6 +137,11 @@ const serviceConfigs = {
     { key: 'share_discount_max_percent', label: 'Réduction maximale (%) plafond', type: 'number', value: 60 },
     { key: 'share_discount_hours', label: 'Programmation (plages, ex: 07:00-10:00,17:00-20:00 — vide = toujours)', type: 'text', value: '' },
   ]},
+  ride_search: { title: 'Recherche chauffeur (Relances)', icon: MagnifyingGlass, color: '#3B82F6', desc: 'Cadence des relances et options proposées (Proposer votre tarif / Planifier) quand aucun chauffeur n\'accepte', settings: [
+    { key: 'enabled', label: 'Activer les options après 3 relances (modal Proposer/Planifier)', type: 'toggle', value: true },
+    { key: 'relance_interval_seconds', label: 'Intervalle entre relances (secondes, min 5)', type: 'number', value: 20 },
+    { key: 'max_relances', label: 'Nombre de relances avant de proposer les options', type: 'number', value: 3 },
+  ]},
 };
 
 const API = process.env.REACT_APP_BACKEND_URL;

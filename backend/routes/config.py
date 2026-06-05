@@ -45,6 +45,34 @@ async def get_scheduling():
     return await get_scheduling_config()
 
 
+# ── Ride search relances (no-driver alternatives) configuration ───────────
+# Stored in service_configs under service_key="ride_search".
+DEFAULT_RIDE_SEARCH = {
+    "enabled": True,           # show the no-driver alternatives flow
+    "relance_interval_seconds": 20,
+    "max_relances": 3,
+}
+
+
+@router.get("/ride-search")
+async def get_ride_search_config():
+    """Public config driving the auto-relance cadence and the 3-relances
+    'Proposer votre tarif / Planifier' alternatives on the searching screen."""
+    doc = await db.service_configs.find_one({"service_key": "ride_search"}, {"_id": 0})
+    settings = (doc or {}).get("settings") or {}
+    cfg = {**DEFAULT_RIDE_SEARCH, **settings}
+    cfg["enabled"] = bool(cfg.get("enabled", True))
+    try:
+        cfg["relance_interval_seconds"] = min(300, max(5, int(cfg.get("relance_interval_seconds", 20))))
+    except (TypeError, ValueError):
+        cfg["relance_interval_seconds"] = 20
+    try:
+        cfg["max_relances"] = min(10, max(1, int(cfg.get("max_relances", 3))))
+    except (TypeError, ValueError):
+        cfg["max_relances"] = 3
+    return cfg
+
+
 @router.get("/app")
 async def get_app_config():
     """Public app configuration (currency, company info, feature flags)."""

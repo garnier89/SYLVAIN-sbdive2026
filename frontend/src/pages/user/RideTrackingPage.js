@@ -73,8 +73,17 @@ const RideTrackingPage = () => {
   const [showNoDriver, setShowNoDriver] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [searchCfg, setSearchCfg] = useState({ enabled: true, relance_interval_seconds: RELANCE_INTERVAL_SEC, max_relances: MAX_RELANCES });
   const prevStatusRef = useRef(null);
   const relanceRef = useRef(0);
+
+  // Admin-configurable relance cadence & threshold
+  useEffect(() => {
+    fetch(`${API}/api/config/ride-search`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setSearchCfg(d); })
+      .catch(() => {});
+  }, []);
 
   const togglePool = useCallback(async () => {
     if (poolLoading) return;
@@ -110,29 +119,31 @@ const RideTrackingPage = () => {
     }
   }, [rideId]);
 
-  // Auto-relance: re-broadcast the request every cycle; after MAX_RELANCES, offer alternatives
+  // Auto-relance: re-broadcast the request every cycle; after max_relances, offer alternatives
   useEffect(() => {
-    if (ride?.status !== 'pending' || isBiddingMode || relanceRef.current >= MAX_RELANCES) return undefined;
+    const maxR = searchCfg.max_relances;
+    if (!searchCfg.enabled || ride?.status !== 'pending' || isBiddingMode || relanceRef.current >= maxR) return undefined;
     const id = setInterval(async () => {
       relanceRef.current += 1;
       setRelanceCount(relanceRef.current);
       await doRebroadcast();
-      if (relanceRef.current >= MAX_RELANCES) {
+      if (relanceRef.current >= maxR) {
         setShowNoDriver(true);
         clearInterval(id);
       }
-    }, RELANCE_INTERVAL_SEC * 1000);
+    }, Math.max(5, searchCfg.relance_interval_seconds) * 1000);
     return () => clearInterval(id);
-  }, [ride?.status, isBiddingMode, doRebroadcast]);
+  }, [ride?.status, isBiddingMode, doRebroadcast, searchCfg]);
 
   const handleManualRelance = useCallback(async () => {
-    if (relanceRef.current >= MAX_RELANCES) { setShowNoDriver(true); return; }
+    const maxR = searchCfg.max_relances;
+    if (relanceRef.current >= maxR) { if (searchCfg.enabled) setShowNoDriver(true); return; }
     relanceRef.current += 1;
     setRelanceCount(relanceRef.current);
     await doRebroadcast();
     toast.success('Recherche relancée');
-    if (relanceRef.current >= MAX_RELANCES) setShowNoDriver(true);
-  }, [doRebroadcast]);
+    if (searchCfg.enabled && relanceRef.current >= maxR) setShowNoDriver(true);
+  }, [doRebroadcast, searchCfg]);
 
   const handleProposeFare = useCallback(async () => {
     if (!ride) return;
@@ -505,9 +516,9 @@ const RideTrackingPage = () => {
             <SearchingRadar size={140} />
             <p className="font-semibold text-blue-800 mt-4">Recherche d'un chauffeur...</p>
             <p className="text-xs text-[#FF4500] mt-1">Veuillez patienter</p>
-            {!isBiddingMode && relanceCount > 0 && relanceCount < MAX_RELANCES && (
+            {!isBiddingMode && relanceCount > 0 && relanceCount < searchCfg.max_relances && (
               <p className="text-[11px] text-gray-500 mt-2" data-testid="relance-count">
-                Relance {relanceCount}/{MAX_RELANCES}…
+                Relance {relanceCount}/{searchCfg.max_relances}…
               </p>
             )}
             {!isBiddingMode && (
