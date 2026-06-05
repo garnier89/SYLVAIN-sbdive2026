@@ -142,6 +142,12 @@ const serviceConfigs = {
     { key: 'relance_interval_seconds', label: 'Intervalle entre relances (secondes, min 5)', type: 'number', value: 20 },
     { key: 'max_relances', label: 'Nombre de relances avant de proposer les options', type: 'number', value: 3 },
   ]},
+  taxi_booking: { title: 'Réservation Taxi & WhatsApp', icon: WhatsappLogo, color: '#25D366', desc: 'Flux unifié « Choisissez un voyage » sur toutes les courses + réservation via WhatsApp (numéro & message)', settings: [
+    { key: 'unified_flow_enabled', label: 'Activer le flux unifié « Choisissez un voyage » sur toutes les commandes taxi', type: 'toggle', value: true },
+    { key: 'whatsapp_enabled', label: 'Activer la réservation via WhatsApp', type: 'toggle', value: false },
+    { key: 'whatsapp_number', label: 'Numéro WhatsApp Business (format international sans +, ex: 596696XXXXXX)', type: 'text', value: '' },
+    { key: 'whatsapp_message_template', label: 'Modèle de message (placeholders : {mode} {pickup} {dropoff} {vehicle} {price} {when} {payment})', type: 'textarea', value: 'Bonjour SB Drive, je souhaite réserver une course.\n\nService : {mode}\nDépart : {pickup}\nDestination : {dropoff}\nVéhicule : {vehicle}\nPrix estimé : {price}\nQuand : {when}\nPaiement : {payment}' },
+  ]},
   no_driver_alerts: { title: 'Alertes pénurie chauffeurs', icon: MapPin, color: '#EF4444', desc: 'Alerter l\'admin quand une zone dépasse un seuil de courses sans chauffeur, et déclencher une prime chauffeur temporaire', settings: [
     { key: 'enabled', label: 'Activer les alertes de zone', type: 'toggle', value: true },
     { key: 'zone_threshold', label: 'Seuil (nb de courses sans chauffeur par zone)', type: 'number', value: 3 },

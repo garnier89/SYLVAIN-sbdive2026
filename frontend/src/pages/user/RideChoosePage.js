@@ -488,30 +488,45 @@ const RideChoosePage = () => {
 };
 
 // ── Mode-specific compact panels ────────────────────────────────────────
-const ModePanel = (p) => {
-  const { mode } = p;
-  const card = 'mt-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3';
+// Renders the mode-specific panel AND (independently) an optional schedule
+// card — the two are siblings so neither shadows the other.
+const ModePanel = (p) => (
+  <>
+    <ModeSpecificPanel {...p} />
+    <SchedulePanel {...p} />
+  </>
+);
 
-  if (mode.panel === 'datetime' || (!p.isRental && !p.isBuddy && !p.isBidding && p.schedulingAllowed)) {
-    return (
-      <div className={card} data-testid="panel-schedule">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2 text-sm font-bold text-[#0B1426]"><CalendarPlus size={18} className="text-[#FF5000]" /> {mode.panel === 'datetime' ? 'Date & heure' : 'Programmer plus tard'}</span>
-          {mode.panel !== 'datetime' && (
-            <button onClick={() => p.setScheduleLater(!p.scheduleLater)} className={`w-11 h-6 rounded-full relative transition-colors ${p.scheduleLater ? 'bg-[#FF5000]' : 'bg-gray-300'}`} data-testid="panel-schedule-toggle">
-              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${p.scheduleLater ? 'left-[22px]' : 'left-0.5'}`} />
-            </button>
-          )}
-        </div>
-        {(mode.panel === 'datetime' || p.scheduleLater) && (
-          <button onClick={() => p.setCalendarOpen(true)} className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#0B1426]" data-testid="panel-schedule-trigger">
-            <span className={p.scheduledAt ? 'text-[#0B1426] font-semibold' : 'text-gray-400'}>{formatScheduled(p.scheduledAt) || 'Choisir une date'}</span>
-            <CalendarPlus size={16} className="text-[#FF5000]" />
+const SchedulePanel = (p) => {
+  const { mode } = p;
+  const isDatetimeMode = mode.panel === 'datetime';
+  const canScheduleToggle = !p.isRental && !p.isBuddy && !p.isBidding && p.schedulingAllowed;
+  if (!isDatetimeMode && !canScheduleToggle) return null;
+  const showPicker = isDatetimeMode || p.scheduleLater;
+  return (
+    <div className="mt-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3" data-testid="panel-schedule">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-sm font-bold text-[#0B1426]"><CalendarPlus size={18} className="text-[#FF5000]" /> {isDatetimeMode ? 'Date & heure' : 'Programmer plus tard'}</span>
+        {!isDatetimeMode && (
+          <button onClick={() => p.setScheduleLater(!p.scheduleLater)} className={`w-11 h-6 rounded-full relative transition-colors ${p.scheduleLater ? 'bg-[#FF5000]' : 'bg-gray-300'}`} data-testid="panel-schedule-toggle">
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${p.scheduleLater ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
         )}
       </div>
-    );
-  }
+      {showPicker && (
+        <button onClick={() => p.setCalendarOpen(true)} className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#0B1426]" data-testid="panel-schedule-trigger">
+          <span className={p.scheduledAt ? 'text-[#0B1426] font-semibold' : 'text-gray-400'}>{formatScheduled(p.scheduledAt) || 'Choisir une date'}</span>
+          <CalendarPlus size={16} className="text-[#FF5000]" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+const ModeSpecificPanel = (p) => {
+  const { mode } = p;
+  const card = 'mt-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3';
+
   if (mode.id === 'airport') {
     return (
       <div className={card} data-testid="panel-flight">

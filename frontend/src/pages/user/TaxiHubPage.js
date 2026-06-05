@@ -28,6 +28,20 @@ const TaxiHubPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const cameFromGrid = !params.get('mode');
+  // Redirect legacy /taxi?mode=X entries (incl. CMS-driven home tiles) to the
+  // unified /course flow when the admin has it enabled.
+  const [unifiedRedirecting, setUnifiedRedirecting] = useState(!!params.get('mode'));
+  useEffect(() => {
+    const m = params.get('mode');
+    if (!m) { setUnifiedRedirecting(false); return; }
+    configAPI.getTaxiBooking()
+      .then((r) => {
+        if (r.data?.unified_flow_enabled !== false) navigate(`/course?mode=${m}`, { replace: true });
+        else setUnifiedRedirecting(false);
+      })
+      .catch(() => setUnifiedRedirecting(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [view, setView] = useState(params.get('mode') ? 'booking' : 'grid');
   const [modeId, setModeId] = useState(params.get('mode') || 'standard');
   const mode = useMemo(() => MODES.find((m) => m.id === modeId) || MODES[0], [modeId]);
@@ -386,6 +400,8 @@ const TaxiHubPage = () => {
   };
 
   const Icon = mode.icon;
+
+  if (unifiedRedirecting) return <div className="mobile-container min-h-screen bg-[#F8F9FA]" data-testid="taxi-hub-redirecting" />;
 
   return (
     <div className="mobile-container min-h-screen bg-[#F8F9FA] pb-40" data-testid="taxi-hub-page">

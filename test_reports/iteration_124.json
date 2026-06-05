@@ -1,0 +1,38 @@
+{
+  "summary": "RETEST of the 3 critical regressions from iteration_123. ALL THREE FIXES VERIFIED. (1) Admin /admin/taxi-booking-config now renders [data-testid=admin-service-taxi_booking] with 4 settings (unified_flow toggle, whatsapp_enabled toggle, whatsapp_number text input pre-filled with 596696112233, and config-whatsapp_message_template TEXTAREA). Save click produces success toast. Placeholder gone. (2) All mode-specific panels render correctly via direct URL: panel-flight, panel-pets, panel-assist, panel-corporate, panel-contact, panel-bidding — no more shadowing by panel-schedule. (3) Home tiles (CMS hcat_*) now land on ride-choose-page via /course?mode=X (verified VTC → /course?mode=intercity and Programmer → /course?mode=book_later). taxi-hub-page never visible after click. (Regression) /course?mode=standard end-to-end still works: Google Places autocomplete → choose-ride-section with live prices → ride-choose-whatsapp-btn visible (green WhatsApp) and ride-choose-request-btn shows '13.65 €'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passing_checks": [
+    "Admin login + /admin/taxi-booking-config renders admin-service-taxi_booking (no placeholder)",
+    "Settings: unified_flow_enabled (toggle ON), whatsapp_enabled (toggle ON), whatsapp_number input pre-filled '596696112233', whatsapp_message_template TEXTAREA (config-whatsapp_message_template testid present)",
+    "Save → success toast ('Parametres sauvegardes') displayed",
+    "rider login → /course?mode=airport renders panel-flight + panel-flight-input AND a separate panel-schedule (sibling, expected)",
+    "/course?mode=pets renders panel-pets, panel-pets-count, panel-pets-plus",
+    "/course?mode=assist renders panel-assist",
+    "/course?mode=corporate renders panel-corporate",
+    "/course?mode=book_for_someone renders panel-contact + panel-contact-name",
+    "/course?mode=bidding renders panel-bidding + panel-bidding-input",
+    "Home tile 'VTC' (service-hcat_3ecef8c9ce-btn) → final URL /course?mode=intercity (ride-choose-page), NOT /taxi",
+    "Home tile 'Programmer' (service-hcat_685550ae99-btn) → /course?mode=book_later",
+    "/course?mode=standard: Tour Eiffel + Gare du Nord autocompleted via .pac-item; choose-ride-section appears; ride-choose-whatsapp-btn visible; ride-choose-request-btn 'Commander · 13.65 €'"
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MINOR (testability): AdminServiceConfig.js applies data-testid='config-<key>' ONLY on the textarea branch (line 244). Toggle/number/text inputs don't get the testid. The spec requires it only for config-whatsapp_message_template, but adding data-testid to ALL setting inputs (toggle, number, text) would improve E2E test reliability and prevent future selector-by-label fragility.",
+    "MINOR: 'Sauvegarder' button has no data-testid; consider adding data-testid='admin-service-config-save' for testability.",
+    "RideChoosePage.js is now 660+ lines after the ModePanel split — recommend extracting panel components into /pages/user/ridechoose/panels/ folder and a useRideChooseState() hook in a follow-up refactor."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only test as requested)", "frontend": "100% (all 3 regressions fixed + main flow non-regression)"},
+  "test_credentials": "rider.qa@demo.sb / Rider123! (used); admin@superapp.com / SuperAdmin123! (used)",
+  "seed_data_creation": "None new; only edited & restored WhatsApp number to 596696112233 in admin config (idempotent).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 3 regressions from iteration_123 are resolved. Login flow on mobile viewport requires clicking 'Ou choisir une autre option de connexion' then the 'email & mot de passe' button before email/password inputs are shown — direct fill on /login times out otherwise. Admin /admin/taxi-booking-config now functional. Home tiles are CMS-driven (hcat_*) but TaxiHubPage redirect ensures the unified flow is always entered. Suggested follow-up (low priority): add data-testid to all AdminServiceConfig inputs and to the Save button.",
+  "rca of the issue": "Confirmed root causes from iteration_123 (already fixed by main agent): (1) AdminServiceConfig.js serviceConfigs map now contains taxi_booking entry with 4 settings including textarea type; (2) RideChoosePage.js ModePanel split into ModeSpecificPanel + SchedulePanel rendered as siblings, eliminating the early-return shadowing; (3) TaxiHubPage.js detects ?mode= and unified_flow_enabled then redirects to /course?mode=, transient guard taxi-hub-redirecting prevents flash."
+}
