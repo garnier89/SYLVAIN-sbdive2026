@@ -1,0 +1,64 @@
+{
+  "summary": "RETEST after AdminGoogleMap.jsx carIcon SVG path fix (Material directions_car, cubic-Bezier only). PRIMARY FIX CONFIRMED: original 'Expected number at position 63, found M' runtime error is fully gone — initial /chauffeur/home load shows 0 page errors, NO CRA overlay (iframe#webpack-dev-server-client-overlay absent), driver-home-page rendered, yellow taxi/car marker VISIBLE on the map, header 'En ligne', 'Gains d'aujourd'hui' (3236.80 EUR), 4 stats cards (426 / 5.0 / 0 / 0), Map/Satellite toggle, 'Heat View' button and 'Mode Destination' all present. However, a NEW (separate) runtime error appears when clicking 'Heat View' (heat-view-toggle): the @react-google-maps/api HeatmapLayer component throws because Google Maps JS API removed the Heatmap Layer in v3.65. This re-creates the red CRA 'Uncaught runtime errors: × ERROR Script error.' overlay — root cause is now totally different from the SVG path bug.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminGoogleMap.jsx HeatmapLayer (used by DriverHome 'Heat View' toggle)",
+        "issue": "Clicking 'Heat View' (data-testid='heat-view-toggle') triggers a new runtime error: 'The Heatmap Layer functionality in the Maps JavaScript API is no longer available in the Maps JavaScript API as of version 3.65. For more info, see https://developers.google.com/maps/deprecations.' The @react-google-maps/api HeatmapLayer wrapper throws on mount, which propagates to window.onerror and is caught by react-scripts dev overlay (shown again as the generic cross-origin 'Script error.'). The page-error message was captured by playwright page.on('pageerror').",
+        "selector": "/app/frontend/src/components/admin/AdminGoogleMap.jsx — HeatmapLayer JSX usage (~bottom of file, after line 130). Loader libraries include 'visualization' but the underlying API itself dropped Heatmap in v3.65.",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "evidence": {
+    "initial_load_after_fix": {
+      "page_errors_total": 0,
+      "expected_number_at_position_errors": 0,
+      "cra_overlay_iframe_count": 0,
+      "driver_home_page_testid_count": 1,
+      "online_toggle_text": "En ligne",
+      "en_ligne_visible": true,
+      "gains_visible": true,
+      "heat_view_toggle_present": true,
+      "destination_mode_toggle_present": true,
+      "stats_cards_visible": "426 (Voyages), 5.0 (Moy. Evaluation), 0 (Emplois a venir), 0 (Emplois en attente)",
+      "car_marker_visible_on_map": true
+    },
+    "after_heat_view_click": {
+      "new_page_errors": 1,
+      "new_page_error_message": "The Heatmap Layer functionality in the Maps JavaScript API is no longer available in the Maps JavaScript API as of version 3.65. For more info, see https://developers.google.com/maps/deprecations.",
+      "cra_overlay_iframe_count": 1,
+      "cra_overlay_text_preview": "Uncaught runtime errors:\n× ERROR\nScript error.\n    at handleError (.../bundle.js:67582:58)\n    at .../bundle.js:67601:7\n    at defaultOnUncaughtError ..."
+    }
+  },
+  "test_credentials_used": "jean.dupont@demo.sb / Driver123! (mobile flow: 'Ou choisir une autre option de connexion' → 'email & mot de passe')",
+  "reproduction_steps_for_new_bug": [
+    "1) Mobile viewport 390x844, goto /login",
+    "2) Click 'Ou choisir une autre option de connexion' → 'email & mot de passe'",
+    "3) Login jean.dupont@demo.sb / Driver123! → /chauffeur/home (driver online by default)",
+    "4) Wait 8s for map (no error — fix confirmed)",
+    "5) Click data-testid='heat-view-toggle' once → red CRA overlay appears with 'Script error.'",
+    "6) page.on('pageerror') reveals real message: Heatmap Layer removed in Google Maps JS API v3.65"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "FIX (main agent, HIGH): The Google Maps JS API removed the Heatmap Layer in v3.65 (current loader pins v=weekly which is now 3.65+). The 'Heat View' feature using HeatmapLayer from @react-google-maps/api will always throw. Options: (a) Pin the loader to v=3.64 or earlier (short-term workaround only, deprecation will fully break), (b) Migrate to the new google.maps.visualization-replacement or implement custom heatmap with deck.gl/Google Maps DataLayer, (c) Disable/hide the 'Heat View' button until a replacement is implemented. Recommended: hide the heat-view-toggle and remove HeatmapLayer JSX until a replacement is ready, OR wrap HeatmapLayer in an ErrorBoundary that catches the throw silently in dev.",
+    "OPTIONAL (low): Address deprecated google.maps.Marker warning by migrating to AdvancedMarkerElement.",
+    "OPTIONAL HARDENING: GooglePlacesInput.js still injects a raw <script> maps.googleapis.com loader different from useJsApiLoader. Consolidate to a single loader to avoid 'multiple times' warnings on pages mounting both."
+  ],
+  "critical_code_review_comments": [
+    "AdminGoogleMap.jsx — carIcon path is now using the Material directions_car path with cubic-Bezier only (good). The fix is correct and stable. Anchor at Point(12,12) and scale 1.3 render the yellow car marker properly on a 24x24 viewBox.",
+    "HeatmapLayer is dead code as of GMaps JS API v3.65. The 'visualization' library still loads but the HeatmapLayer constructor itself throws. This was masked previously by the earlier SVG-path crash that fired first; now that the SVG-path crash is fixed, the Heatmap deprecation surfaces.",
+    "react-scripts dev overlay continues to show generic 'Script error.' for cross-origin throws — consider adding a window.onerror filter for maps.googleapis.com to avoid noisy dev overlays for cross-origin GMaps issues."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "Primary bug (SVG path / Expected number at position) FIXED and verified. New blocker found on 'Heat View' click — Heatmap Layer removed in GMaps v3.65."},
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Primary SVG-path bug from iteration_127 is fully resolved (0 'Expected number at position' errors, no CRA overlay on initial /chauffeur/home, car marker visible). NEW HIGH-PRIORITY ISSUE: clicking data-testid='heat-view-toggle' throws 'The Heatmap Layer functionality in the Maps JavaScript API is no longer available in the Maps JavaScript API as of version 3.65.' The @react-google-maps/api HeatmapLayer must be removed or replaced. After main agent's next fix, retest by repeating the login → /chauffeur/home → click heat-view-toggle → assert no overlay and no 'Heatmap' page error.",
+  "rca of the issue": "PRIMARY FIX (SVG path) verified — root cause from iteration_127 was the implicit-arc shorthand with packed flag digits which Google Maps' util.js parser (QCa) could not split. Replacement uses Material 'directions_car' path that only uses M/L/C/c/s/h/v/z commands (no 'a' arc commands), so no parser ambiguity. NEW ISSUE root cause: Google Maps JavaScript API v3.65 (released late 2025) fully removed the Heatmap Layer (already deprecated since v3.62, May 2025). @react-google-maps/api's HeatmapLayer component still instantiates the now-missing constructor, which throws 'The Heatmap Layer functionality in the Maps JavaScript API is no longer available'. The throw bubbles to window.onerror; CRA dev overlay shows generic 'Script error.' because the throw is cross-origin from maps.googleapis.com without CORS attributes on the loader. Mitigation: remove HeatmapLayer JSX, hide the Heat View toggle, or implement a custom heatmap via canvas / deck.gl / DataLayer."
+}

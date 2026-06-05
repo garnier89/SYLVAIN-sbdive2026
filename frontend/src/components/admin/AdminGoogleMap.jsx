@@ -104,12 +104,14 @@ const AdminGoogleMap = ({
 
   const carIcon = window.google
     ? {
-        path: 'M5 11l1.5-4.5h11L19 11M17.5 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0M9.5 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0M3 11h18v5h-2a3 3 0 11-6 0H11a3 3 0 11-6 0H3v-5z',
+        // Material "directions_car" icon (cubic-bezier curves only — no SVG arc
+        // shorthand, which Google Maps' SVG parser mis-parses and throws on).
+        path: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z',
         fillColor: '#FBBF24',
         fillOpacity: 1,
         strokeColor: '#0B1426',
-        strokeWeight: 1.5,
-        scale: 1.4,
+        strokeWeight: 1.2,
+        scale: 1.3,
         anchor: new window.google.maps.Point(12, 12),
       }
     : null;
