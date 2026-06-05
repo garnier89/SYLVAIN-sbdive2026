@@ -250,10 +250,11 @@ async def create_ride(data: RideRequest, request: Request):
     pool_enabled = bool(getattr(data, "pool_enabled", False))
     pool_original_fare = None
     pool_seats = 1
+    pool_capacity = 1
     if pool_enabled:
         pool_cfg = await get_pool_config()
-        max_seats = max(1, pool_cfg["available_seats"])
-        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), max_seats))
+        pool_capacity = max(1, pool_cfg["available_seats"])
+        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), pool_capacity))
         pool_original_fare = round(fare, 2)
         fare = round(fare * pool_seat_multiplier(pool_seats, pool_cfg["pool_percentage"]), 2)
 
@@ -319,6 +320,9 @@ async def create_ride(data: RideRequest, request: Request):
         "assist_needs": getattr(data, 'assist_needs', None),
         "pool_enabled": getattr(data, 'pool_enabled', False),
         "seats_required": pool_seats,
+        "pool_capacity": pool_capacity,
+        "pool_seats_taken": pool_seats if pool_enabled else 0,
+        "pool_riders": [],
         "original_fare": pool_original_fare,
         "stops": getattr(data, 'stops', None),
         "ride_profile": getattr(data, 'ride_profile', None),
