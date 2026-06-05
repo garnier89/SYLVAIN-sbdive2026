@@ -34,6 +34,7 @@ import DriverRidesScreen from '@/screens/driver/DriverRidesScreen';
 import DriverEarningsScreen from '@/screens/driver/DriverEarningsScreen';
 import DriverActiveRideScreen from '@/screens/driver/DriverActiveRideScreen';
 import DriverDeliveryJobsScreen from '@/screens/driver/DriverDeliveryJobsScreen';
+import DriverWeeklyReportsScreen from '@/screens/driver/DriverWeeklyReportsScreen';
 import { DriverMissionsProvider, useDriverMissions } from '@/contexts/DriverMissionsContext';
 
 import MerchantHomeScreen from '@/screens/merchant/MerchantHomeScreen';
@@ -128,6 +129,7 @@ function DriverNavigator() {
       <DriverStack.Navigator screenOptions={{ headerShown: false }}>
         <DriverStack.Screen name="DriverTabs" component={DriverTabsNav} />
         <DriverStack.Screen name="ActiveRide" component={DriverActiveRideScreen} />
+        <DriverStack.Screen name="WeeklyReports" component={DriverWeeklyReportsScreen} />
       </DriverStack.Navigator>
     </DriverMissionsProvider>
   );

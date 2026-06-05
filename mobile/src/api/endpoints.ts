@@ -32,6 +32,8 @@ export const driverAPI = {
   getEarnings: () => api.get('/drivers/earnings'),
   getRideHistory: () => api.get('/drivers/ride-history'),
   myActivity: () => api.get('/drivers/my-activity'),
+  getWeeklyReport: () => api.get('/driver/weekly-reports/current'),
+  getWeeklyReportHistory: () => api.get('/driver/weekly-reports/history'),
 };
 
 export const merchantAPI = {

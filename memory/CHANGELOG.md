@@ -597,3 +597,16 @@ Voir PRD.md section "NEW - Feb 2026"
 - pytest `test_iter120_driver_reports.py` **5/5 ✅** (auth rôle driver, structure current, history, PDF avec activité = %PDF- / 200, 404 inconnu).
 - E2e manuel : ride temporaire semaine précédente → calcul correct (brut 42,50€ → net 36,12€ → virement 16,12€) + PDF 200 application/pdf ; données nettoyées.
 - Screenshot driver : page rend (état vide propre + bottom nav).
+
+## 2026-06-05 (suite) — Mobile Phase B : « Mes rapports hebdo » porté dans l'app Expo
+
+### Added (mobile / Expo SDK 52)
+- `DriverWeeklyReportsScreen.tsx` : rapport semaine précédente détaillé (courses, brut, espèces/CB/portefeuille, commission, net, virement) + historique, avec **téléchargement/partage PDF** via `expo-file-system` (downloadAsync + header Bearer) + `expo-sharing`.
+- Câblé dans `RootNavigator` (DriverStack → `WeeklyReports`) + bouton d'accès depuis `DriverEarningsScreen` (« Mes rapports hebdo »).
+- `endpoints.ts` : `driverAPI.getWeeklyReport` + `getWeeklyReportHistory`.
+- Dépendances : `expo-file-system@~18.0.12`, `expo-sharing@~13.0.1`.
+
+### Tests
+- `tsc --noEmit` : 0 erreur sur les fichiers modifiés.
+- Endpoints backend déjà validés (iter120, pytest 5/5).
+- ⚠️ Runtime mobile NON testé dans cet environnement (app native Expo — nécessite Expo Go / device). Logique réutilise des endpoints testés.

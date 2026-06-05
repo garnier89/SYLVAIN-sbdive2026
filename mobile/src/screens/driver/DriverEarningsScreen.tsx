@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { driverAPI } from '@/api/endpoints';
 
-export default function DriverEarningsScreen() {
+export default function DriverEarningsScreen({ navigation }: any) {
   const { t } = useTranslation();
   const [earnings, setEarnings] = useState<any>(null);
 
@@ -39,6 +39,15 @@ export default function DriverEarningsScreen() {
           </Text>
           <Ionicons name="trending-up" size={48} color="#fff" style={[styles.cardIcon, { opacity: 0.4 }]} />
         </View>
+        <TouchableOpacity
+          style={styles.reportsBtn}
+          onPress={() => navigation.navigate('WeeklyReports')}
+          testID="weekly-reports-link"
+        >
+          <Ionicons name="receipt" size={20} color={colors.primaryDark} />
+          <Text style={styles.reportsBtnText}>Mes rapports hebdo</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -57,4 +66,6 @@ const styles = StyleSheet.create({
   cardLabel: { color: '#94A3B8', fontSize: fontSizes.sm },
   cardValue: { color: colors.primary, fontSize: 40, fontWeight: '800', marginTop: 6 },
   cardIcon: { position: 'absolute', right: 16, top: 16, opacity: 0.3 },
+  reportsBtn: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingVertical: 16, paddingHorizontal: spacing.lg },
+  reportsBtnText: { flex: 1, color: colors.textPrimary, fontWeight: '700', fontSize: fontSizes.md },
 });
