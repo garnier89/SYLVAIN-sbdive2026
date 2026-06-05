@@ -564,6 +564,73 @@ const RideTrackingPage = () => {
     );
   }
 
+  // ── Cancelled / no-driver state — same full-screen dark style as the radar ──
+  if (isCancelled) {
+    const retrySearch = async () => {
+      try {
+        const res = await rideAPI.create({
+          pickup_lat: ride.pickup_lat, pickup_lng: ride.pickup_lng, pickup_address: ride.pickup_address,
+          dropoff_lat: ride.dropoff_lat, dropoff_lng: ride.dropoff_lng, dropoff_address: ride.dropoff_address,
+          vehicle_type: ride.vehicle_type, payment_method: ride.payment_method || 'cash', ride_type: 'instant',
+        });
+        toast.success('Nouvelle recherche lancée');
+        navigate(`/ride/${res.data.id}`, { replace: true });
+      } catch (e) { toast.error(e?.response?.data?.detail || 'Impossible de relancer la recherche'); }
+    };
+    const proposeFare = () => {
+      const q = new URLSearchParams({
+        pickup: ride.pickup_address, plat: ride.pickup_lat, plng: ride.pickup_lng,
+        dropoff: ride.dropoff_address, dlat: ride.dropoff_lat, dlng: ride.dropoff_lng,
+      });
+      navigate(`/taxi-bidding?${q.toString()}`);
+    };
+    return (
+      <div className="mobile-container min-h-screen bg-[#0B1426] flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0B1426' }} data-testid="ride-tracking-page">
+        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center" data-testid="ride-cancelled-back">
+          <ArrowLeft size={20} className="text-white" />
+        </button>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center" data-testid="ride-cancelled-banner">
+          <div className="w-20 h-20 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+            <X size={40} weight="bold" className="text-red-400" />
+          </div>
+          <h1 className="text-white font-black text-2xl mt-6">Course annulée</h1>
+          <p className="text-white/60 text-sm mt-2 max-w-xs">
+            {ride.cancel_reason || 'Aucun chauffeur disponible pour le moment.'}
+          </p>
+          {ride.cancellation_fee > 0 && (
+            <p className="text-red-300 text-xs font-bold mt-2">Frais d'annulation : {ride.cancellation_fee?.toFixed(2)} €</p>
+          )}
+
+          <div className="mt-8 w-full max-w-sm bg-white/5 border border-white/10 rounded-2xl p-3 text-left" data-testid="ride-cancelled-route">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shrink-0" />
+              <p className="text-sm text-white/90 truncate">{ride.pickup_address}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0" />
+              <p className="text-sm text-white/90 truncate">{ride.dropoff_address}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 pb-8 pt-2 space-y-2 relative z-10">
+          <button onClick={retrySearch} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2" style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="retry-search-btn">
+            <NavigationArrow size={20} weight="fill" /> Réessayer la recherche
+          </button>
+          <button onClick={proposeFare} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 bg-white/10 text-white" data-testid="propose-fare-cancelled-btn">
+            <Star size={20} weight="fill" /> Proposer votre tarif
+          </button>
+          <button onClick={() => navigate('/home')} className="w-full py-3 text-sm font-semibold text-white/60" data-testid="ride-done-btn">
+            Retour à l'accueil
+          </button>
+        </div>
+
+        <StatusDialog dialog={statusDialog} />
+      </div>
+    );
+  }
+
   return (
     <div className="mobile-container min-h-screen bg-white flex flex-col" data-testid="ride-tracking-page">
       <RideTrackingMap
@@ -603,19 +670,7 @@ const RideTrackingPage = () => {
           </div>
         )}
 
-        {/* Cancelled Banner */}
-        {isCancelled && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 text-center" data-testid="ride-cancelled-banner">
-            <X size={32} className="text-red-500 mx-auto mb-2" />
-            <p className="font-bold text-red-700">Course annulée</p>
-            {ride.cancel_reason && <p className="text-xs text-red-500 mt-1">{ride.cancel_reason}</p>}
-            {ride.cancellation_fee > 0 && (
-              <p className="text-xs text-red-600 mt-1 font-medium">
-                Frais d'annulation : {ride.cancellation_fee?.toFixed(2)} EUR
-              </p>
-            )}
-          </div>
-        )}
+        {/* Cancelled state handled by the full-screen dark early-return */}
 
         {/* Searching state is handled by the full-screen radar (pending early-return) */}
 

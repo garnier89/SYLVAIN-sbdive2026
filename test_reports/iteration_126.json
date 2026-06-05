@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only retest of RideTrackingPage after iteration_125 white-bg fix. RESULT: 5/5 acceptance criteria PASS. Both PENDING (radar waiting screen) and CANCELLED (auto-dispatch no-driver) states now render on the required navy #0B1426 full-screen background via inline style (override of .mobile-container white). No more old white screen / leaflet map intermediate state. Retry-search creates a new ride and re-shows the navy pending screen; Propose-fare navigates to /taxi-bidding with correct params; Retour à l'accueil button present.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passing_checks": [
+    "Login rider.qa@demo.sb / Rider123! OK (mobile flow: 'Ou choisir une autre option' → 'email & mot de passe')",
+    "[CANCELLED] /ride/ride_31c670ae7ed5 → getComputedStyle(ride-tracking-page).backgroundColor === 'rgb(11, 20, 38)' ✓ (was rgb(255,255,255) in iteration_125)",
+    "[CANCELLED] data-testid ride-cancelled-banner, ride-cancelled-route, retry-search-btn, propose-fare-cancelled-btn, ride-done-btn ALL visible",
+    "[CANCELLED] Title 'Course annulée' + reason 'Aucun chauffeur disponible (auto-dispatch)' rendered; X red icon visible; route card (Tour Eiffel → Gare du Nord) shown",
+    "[CANCELLED] NO leaflet map in DOM (querySelectorAll('.leaflet-container').length === 0) — old white map+card screen is gone",
+    "[PENDING] After retry-search-btn click → navigated to new ride /ride/ride_39899ed44bc5 (different ID), getComputedStyle background === 'rgb(11, 20, 38)' ✓",
+    "[PENDING] data-testid ride-searching, searching-radar, ride-searching-route, toggle-taxi-pool-btn, relancer-recherche-btn, cancel-ride-btn ALL visible",
+    "[PENDING] Title 'Recherche d'un chauffeur...' and subtitle 'Nous contactons les chauffeurs proches' rendered",
+    "[PENDING] NO leaflet map in DOM during pending state",
+    "[Propose-fare button] Click navigates to /taxi-bidding?pickup=Tour+Eiffel%2C+Paris&plat=48.8584&plng=2.2945&dropoff=Gare+du+Nord%2C+Paris&dlat=48.8809&dlng=2.3553 ✓",
+    "[Retry-search button] Click creates new ride and navigates to /ride/<new_id> in pending state with navy radar screen ✓",
+    "[Visual coherence] Both states share identical V3Cube dark-blue visual language (#0B1426). No intermediate white screen during pending→cancelled transition."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "RideTrackingPage.js still ~887 lines with the legacy non-pending/non-cancelled render block at L635+ (containing duplicated data-testids: ride-tracking-page, ride-done-btn). Now that pending AND cancelled both early-return, the only path that reaches L635 is for active rides (driver_assigned/in_progress/completed). Worth cleaning up: (a) delete dead legacy pending/cancelled JSX, (b) split into RideWaitingScreen.jsx + RideCancelledScreen.jsx + RideActiveScreen.jsx for maintainability.",
+    "Fix uses inline style={{backgroundColor:'#0B1426'}} which is the recommended approach. However, root cause (.mobile-container { background:#ffffff } in /app/frontend/src/index.css L173 silently winning over Tailwind utilities) still exists and will bite future devs. Recommend removing the global white background from .mobile-container and making it opt-in via a separate class .mobile-container-light."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% (5/5 acceptance criteria)"},
+  "test_credentials": "rider.qa@demo.sb / Rider123! used; stable cancelled ride ride_31c670ae7ed5 used",
+  "seed_data_creation": "Retry-search created ride_39899ed44bc5 (new pending ride); will be auto-cancelled by no-driver dispatcher shortly.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration_125 white-bg bug is FIXED. Both pending and cancelled states on RideTrackingPage now render on navy #0B1426 full-screen. The fix is inline style on the wrapper div (RideTrackingPage.js L463 pending, L588 cancelled). Stable cancelled ride for repro: ride_31c670ae7ed5. If future iterations re-test, login rider.qa@demo.sb/Rider123! on mobile viewport requires the two-step 'Ou choisir une autre option de connexion' → 'email & mot de passe' before email/password inputs are shown.",
+  "rca of the issue": "Not applicable — iteration_125 RCA confirmed fixed. Inline style backgroundColor:'#0B1426' (specificity 1,0,0,0) wins against .mobile-container { background:#ffffff } cascade. getComputedStyle returns rgb(11,20,38) on both pending and cancelled states."
+}
