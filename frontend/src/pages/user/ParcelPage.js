@@ -25,7 +25,8 @@ const LocationSelector = ({ onSelect }) => {
   return null;
 };
 
-const emptyStop = () => ({ lat: null, lng: null, recipient_name: '', recipient_phone: '' });
+let stopSeq = 0;
+const emptyStop = () => ({ _id: ++stopSeq, lat: null, lng: null, recipient_name: '', recipient_phone: '' });
 
 const ParcelPage = () => {
   const navigate = useNavigate();
@@ -153,7 +154,7 @@ const ParcelPage = () => {
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {selecting !== null && <LocationSelector onSelect={handleLocationSelect} />}
             {pickup.lat && <Marker position={[pickup.lat, pickup.lng]} icon={greenIcon} />}
-            {stops.map((s, i) => (s.lat ? <Marker key={i} position={[s.lat, s.lng]} icon={redIcon} /> : null))}
+            {stops.map((s) => (s.lat ? <Marker key={s._id} position={[s.lat, s.lng]} icon={redIcon} /> : null))}
           </MapContainer>
           {selecting !== null && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 text-white text-xs font-semibold px-3 py-1.5 rounded-full" data-testid="parcel-map-hint">
@@ -171,7 +172,7 @@ const ParcelPage = () => {
 
           {/* Drop-offs */}
           {stops.map((s, i) => (
-            <div key={i} className="border border-gray-200 rounded-xl p-3" data-testid={`parcel-stop-${i}`}>
+            <div key={s._id} className="border border-gray-200 rounded-xl p-3" data-testid={`parcel-stop-${i}`}>
               <div className="flex items-center justify-between mb-2">
                 <button className={`flex-1 flex items-center gap-2 ${selecting === i ? 'text-red-600 font-semibold' : 'text-gray-700'}`} onClick={() => setSelecting(i)} data-testid={`parcel-stop-place-${i}`}>
                   <FlagCheckered size={16} weight="fill" className="text-red-500" />

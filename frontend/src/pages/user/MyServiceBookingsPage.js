@@ -27,7 +27,7 @@ const MyServiceBookingsPage = () => {
     try {
       const { data } = await servicesAPI.getBookings();
       setBookings(Array.isArray(data) ? data : []);
-    } catch { /* ignore */ }
+    } catch (err) { console.warn('[bookings] load failed', err?.message); }
     finally { setLoading(false); }
   }, []);
 

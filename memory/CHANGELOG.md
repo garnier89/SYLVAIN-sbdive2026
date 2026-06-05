@@ -1,6 +1,22 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Revue qualité de code : correctifs sûrs (sécurité + patterns) — Iteration 124
+
+### Fixed (Critique — sécurité)
+- **Identifiants de test en dur retirés** : `ADMIN_EMAIL`/`ADMIN_PASSWORD` désormais lus via `os.environ.get(...)` (avec défauts) dans 5 fichiers de test (`test_iter97/96/95/84/117`), surchargeables par `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD`.
+
+### Fixed (patterns React)
+- **Clés d'index remplacées** par des clés stables : `ParcelPage` (stops dotés d'un `_id` séquentiel → robustesse add/remove des points de dépôt) ; `PropertyDetailPage` (galerie → clé = URL image ; détails → clé = label).
+- **Catch silencieux** : `MyServiceBookingsPage` logge désormais l'erreur de polling (`console.warn` avec contexte) au lieu d'avaler l'exception.
+
+### Volontairement NON modifié (faux positifs / risque sur prod déployée)
+- `localStorage` dans `ProfileTabView` / `InstallPWA` : ne stockent que des **préférences non sensibles** (langue, devise, flag PWA) → pas un risque sécurité.
+- `localStorage` token kiosque (`KioskApp`) : flux **device-bound** délibéré ; bascule vers cookies httpOnly nécessite des changements d'auth backend → à planifier hors hotfix.
+- Deps de hooks (`RouteEditModal` a déjà `eslint-disable` + deps correctes ; `GoogleRideMap` = boucle d'animation, risque de re-render).
+- Gros refactors (complexité `admin.py`, découpage composants > 500 lignes, `useMemo`, retrait des 152 `console`) : bénéfice marginal vs risque de régression sur l'app **en production** → à faire de façon incrémentale et testée.
+
+
 ## 2026-06-05 — Parcours « taxi standard » V3Cube : écran « Choisissez un voyage » — Iteration 123
 
 ### Added (flux V3Cube standard, d'après la vidéo utilisateur)

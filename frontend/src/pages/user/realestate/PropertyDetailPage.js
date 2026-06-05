@@ -71,14 +71,14 @@ const PropertyDetailPage = () => {
         )}
         {images.length > 1 && (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {images.map((_, i) => <span key={i} className={`w-2 h-2 rounded-full ${i === activeImg ? 'bg-white' : 'bg-white/50'}`} />)}
+            {images.map((img, i) => <span key={img} className={`w-2 h-2 rounded-full ${i === activeImg ? 'bg-white' : 'bg-white/50'}`} />)}
           </div>
         )}
       </div>
       {images.length > 1 && (
         <div className="flex gap-2 px-4 py-2 overflow-x-auto bg-white">
           {images.map((img, i) => (
-            <button key={i} onClick={() => setActiveImg(i)} className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 ${i === activeImg ? 'border-[#FF5000]' : 'border-transparent'}`}>
+            <button key={img} onClick={() => setActiveImg(i)} className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 ${i === activeImg ? 'border-[#FF5000]' : 'border-transparent'}`}>
               <img src={img} alt="" className="w-full h-full object-cover" />
             </button>
           ))}
@@ -96,7 +96,7 @@ const PropertyDetailPage = () => {
           {(p.address || p.city) && <p className="text-sm text-gray-500 flex items-center gap-1 mt-1"><MapPin size={15} /> {p.address || p.city}</p>}
           {details.length > 0 && (
             <div className="flex gap-4 mt-3 pt-3 border-t border-gray-100">
-              {details.map((d, i) => <span key={i} className="flex items-center gap-1.5 text-sm text-gray-700 font-medium"><d.icon size={18} weight="duotone" className="text-gray-400" /> {d.label}</span>)}
+              {details.map((d) => <span key={d.label} className="flex items-center gap-1.5 text-sm text-gray-700 font-medium"><d.icon size={18} weight="duotone" className="text-gray-400" /> {d.label}</span>)}
             </div>
           )}
         </div>

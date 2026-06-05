@@ -32,8 +32,8 @@ def _read_backend_url():
 
 BASE_URL = _read_backend_url()
 
-ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "admin@superapp.com")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
 DRIVER_EMAIL = "jean.dupont@demo.sb"
 DRIVER_PASSWORD = "Driver123!"
 
