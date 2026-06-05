@@ -619,6 +619,8 @@ ALLOWED_CRUD = [
     "banners", "wallet_requests", "news", "newsletter_subscribers", "promocodes",
     "beauty_salons", "pet_providers", "car_services", "towing_partners",
     "nearby_businesses", "ondemand_services", "carpool_trips", "marketplace_listings",
+    "weather_surcharge", "personal_driver", "auto_promotions", "vouchers",
+    "faqs", "help_articles", "donations",
 ]
 
 

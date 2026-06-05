@@ -133,7 +133,9 @@ import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganizatio
   AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancelReasons,
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
   AdminWithdrawRequests, AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications,
-  AdminPayoutsCrud, AdminSettlementsCrud, AdminDisputesCrud, AdminDocumentsCrud
+  AdminPayoutsCrud, AdminSettlementsCrud, AdminDisputesCrud, AdminDocumentsCrud,
+  AdminWeatherSurcharge, AdminPersonalDriver, AdminAutoPromotions, AdminVouchers,
+  AdminFaqs, AdminHelpArticles, AdminDonations
 } from './pages/admin/AdminCrudPages';
 import AdminServiceConfig from './pages/admin/AdminServiceConfig';
 import AdminRewards from './pages/admin/AdminRewards';
@@ -440,6 +442,14 @@ const AppRouter = () => {
         <Route path="email-templates" element={<AdminTemplates />} />
         <Route path="sms-templates" element={<AdminTemplates />} />
         <Route path="support" element={<AdminSupport />} />
+        {/* Parité V3Cube : nouvelles pages */}
+        <Route path="weather-surcharge" element={<AdminWeatherSurcharge />} />
+        <Route path="personal-driver" element={<AdminPersonalDriver />} />
+        <Route path="auto-promotions" element={<AdminAutoPromotions />} />
+        <Route path="vouchers" element={<AdminVouchers />} />
+        <Route path="faqs" element={<AdminFaqs />} />
+        <Route path="help-articles" element={<AdminHelpArticles />} />
+        <Route path="donations" element={<AdminDonations />} />
       </Route>
 
       {/* ======= DISPATCHER ======= */}

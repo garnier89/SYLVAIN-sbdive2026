@@ -57,6 +57,7 @@ const sidebarConfig = [
       { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
         { label: 'Gérer les catégories', path: '/admin/service-categories' },
         { label: 'Tarification dynamique', path: '/admin/dynamic-pricing' },
+        { label: 'Surcharge météo', path: '/admin/weather-surcharge' },
         { label: 'Forfaits de location', path: '/admin/rental-packages' },
         { label: 'Profils de course', path: '/admin/ride-profiles' },
         { label: 'Configurations Taxi', path: '/admin/taxi-configs' },
@@ -84,6 +85,7 @@ const sidebarConfig = [
       ]},
       { icon: Gavel, label: 'Services aux enchères', key: 'bid', children: [
         { label: 'Paramètres', path: '/admin/bids' },
+        { label: 'Chauffeur personnel', path: '/admin/personal-driver' },
       ]},
       { icon: Tag, label: 'Acheter, Vendre & Louer', key: 'marketplace', children: [
         { label: 'Immobilier — Annonces', path: '/admin/real-estate' },
@@ -150,6 +152,8 @@ const sidebarConfig = [
         { label: 'Rapport écart négociation', path: '/admin/reports/negotiation-gap' },
       ]},
       { icon: Ticket, label: 'Codes promo', path: '/admin/promocodes' },
+      { icon: Lightning, label: 'Auto-promotions IA', path: '/admin/auto-promotions' },
+      { icon: Ticket, label: 'Vouchers (Bons)', path: '/admin/vouchers' },
       { icon: Star, label: 'Mise en avant sponsorisée', path: '/admin/featured-listings' },
       { icon: Gift, label: 'Cartes cadeaux', key: 'giftcards', children: [
         { label: 'Toutes les cartes', path: '/admin/giftcards' },
@@ -179,6 +183,8 @@ const sidebarConfig = [
       { icon: EnvelopeOpen, label: 'Modèles email', path: '/admin/email-templates' },
       { icon: ChatCircleText, label: 'Modèles SMS', path: '/admin/sms-templates' },
       { icon: XCircle, label: "Motifs d'annulation", path: '/admin/cancel-reasons' },
+      { icon: ChatCircleText, label: 'FAQs', path: '/admin/faqs' },
+      { icon: FileText, label: "Centre d'aide (Help)", path: '/admin/help-articles' },
     ]
   },
   {
@@ -201,6 +207,7 @@ const sidebarConfig = [
       { icon: Car, label: 'Marques véhicules', path: '/admin/vehicle-makes' },
       { icon: Car, label: 'Modèles véhicules', path: '/admin/vehicle-models' },
       { icon: Translate, label: 'Langue', path: '/admin/language' },
+      { icon: HandCoins, label: 'Dons (Donation)', path: '/admin/donations' },
       { icon: FileText, label: 'Documents', path: '/admin/documents' },
       { icon: Shield, label: 'ACL — Rôles & Permissions', path: '/admin/acl' },
       { icon: FileText, label: 'Audit Logs', path: '/admin/audit-logs' },

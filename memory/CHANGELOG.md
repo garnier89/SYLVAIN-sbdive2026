@@ -491,3 +491,22 @@
 
 ## 2026-02-XX — Rewards & Driver Points System
 Voir PRD.md section "NEW - Feb 2026"
+
+## 2026-06-05 — Parité menu admin V3Cube : 7 entrées manquantes ajoutées
+
+### Added (pages admin fonctionnelles + persistantes)
+- **Surcharge météo** (`/admin/weather-surcharge`) sous Taxi/Transport — multiplicateur + supplément fixe par condition météo.
+- **Chauffeur personnel** (`/admin/personal-driver`) sous Services aux enchères.
+- **Auto-promotions IA** (`/admin/auto-promotions`) sous Croissance.
+- **Vouchers / Bons** (`/admin/vouchers`) sous Croissance.
+- **FAQs** (`/admin/faqs`) + **Centre d'aide (Help)** (`/admin/help-articles`) sous Contenu (CMS).
+- **Dons / Donation** (`/admin/donations`) sous Configuration.
+- Backend : collections ajoutées à `ALLOWED_CRUD` (admin.py) → CRUD persistant via `/api/admin/crud/{collection}`.
+- Sidebar `AdminLayout.js` + routes `App.js` câblées.
+
+### Tests
+- curl : POST/LIST/DELETE vouchers + weather_surcharge OK (persistance MongoDB confirmée).
+- Screenshot : login admin OK, page FAQs rend les seeds, sidebar affiche les nouvelles entrées.
+
+### Note
+- `/app/mobile/.env` EXPO_PUBLIC_BACKEND_URL == URL preview actuelle → aucun changement requis (faux positif du handoff).

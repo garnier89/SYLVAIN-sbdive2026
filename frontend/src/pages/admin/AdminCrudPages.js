@@ -243,6 +243,90 @@ const collectionConfigs = {
     defaults: [],
   },
 
+  // ===== Parité V3Cube : entrées de menu manquantes =====
+  weather_surcharge: { title: 'Surcharge Météo (Weather Surcharge)', icon: Warning, collection: 'weather_surcharge',
+    fields: [
+      { key: 'name', label: 'Condition météo', type: 'text' },
+      { key: 'multiplier', label: 'Multiplicateur tarif (x)', type: 'number' },
+      { key: 'flat_fee', label: 'Supplément fixe (EUR)', type: 'number' },
+      { key: 'status', label: 'Statut (active/inactive)', type: 'text' },
+    ],
+    defaults: [
+      { id: 'ws1', name: 'Pluie forte', multiplier: 1.2, flat_fee: 1, status: 'active' },
+      { id: 'ws2', name: 'Neige / Verglas', multiplier: 1.5, flat_fee: 2, status: 'active' },
+      { id: 'ws3', name: 'Tempête / Cyclone', multiplier: 1.8, flat_fee: 3, status: 'inactive' },
+    ],
+  },
+  personal_driver: { title: 'Personal Driver (Chauffeur personnel)', icon: Car, collection: 'personal_driver',
+    fields: [
+      { key: 'name', label: 'Forfait', type: 'text' },
+      { key: 'hourly_rate', label: 'Tarif horaire (EUR)', type: 'number' },
+      { key: 'min_hours', label: 'Heures minimum', type: 'number' },
+      { key: 'status', label: 'Statut (active/inactive)', type: 'text' },
+    ],
+    defaults: [
+      { id: 'pd1', name: 'Demi-journée', hourly_rate: 25, min_hours: 4, status: 'active' },
+      { id: 'pd2', name: 'Journée complète', hourly_rate: 22, min_hours: 8, status: 'active' },
+    ],
+  },
+  auto_promotions: { title: 'AI Based Auto Promotions', icon: Bell, collection: 'auto_promotions',
+    fields: [
+      { key: 'name', label: 'Nom de la promo', type: 'text' },
+      { key: 'trigger', label: 'Déclencheur (ex: inactivite_7j)', type: 'text' },
+      { key: 'discount', label: 'Réduction (%)', type: 'number' },
+      { key: 'status', label: 'Statut (active/inactive)', type: 'text' },
+    ],
+    defaults: [
+      { id: 'ap1', name: 'Réactivation client', trigger: 'inactivite_7j', discount: 15, status: 'active' },
+      { id: 'ap2', name: 'Premier achat boutique', trigger: 'first_store_order', discount: 10, status: 'active' },
+    ],
+  },
+  vouchers: { title: 'Vouchers (Bons)', icon: HandCoins, collection: 'vouchers',
+    fields: [
+      { key: 'name', label: 'Code du bon', type: 'text' },
+      { key: 'value', label: 'Valeur (EUR)', type: 'number' },
+      { key: 'expiry', label: "Date d'expiration", type: 'text' },
+      { key: 'status', label: 'Statut (active/used/expired)', type: 'text' },
+    ],
+    defaults: [
+      { id: 'vc1', name: 'WELCOME10', value: 10, expiry: '2026-12-31', status: 'active' },
+    ],
+  },
+  faqs: { title: 'FAQs', icon: ChatCircleText, collection: 'faqs',
+    fields: [
+      { key: 'name', label: 'Question', type: 'text' },
+      { key: 'answer', label: 'Réponse', type: 'text' },
+      { key: 'category', label: 'Catégorie', type: 'text' },
+      { key: 'order', label: 'Ordre', type: 'number' },
+    ],
+    defaults: [
+      { id: 'fq1', name: 'Comment réserver une course ?', answer: 'Ouvrez l\'app, choisissez votre destination et confirmez.', category: 'Courses', order: 1 },
+      { id: 'fq2', name: 'Comment recharger mon wallet ?', answer: 'Allez dans Wallet puis Recharger.', category: 'Paiement', order: 2 },
+    ],
+  },
+  help_articles: { title: 'Help (Centre d\'aide)', icon: FileText, collection: 'help_articles',
+    fields: [
+      { key: 'name', label: 'Titre', type: 'text' },
+      { key: 'content', label: 'Contenu', type: 'text' },
+      { key: 'category', label: 'Catégorie', type: 'text' },
+      { key: 'order', label: 'Ordre', type: 'number' },
+    ],
+    defaults: [
+      { id: 'hp1', name: 'Démarrer avec SB Drive VTC', content: 'Guide de prise en main.', category: 'Général', order: 1 },
+    ],
+  },
+  donations: { title: 'Donation (Dons)', icon: HandCoins, collection: 'donations',
+    fields: [
+      { key: 'name', label: 'Campagne', type: 'text' },
+      { key: 'goal', label: 'Objectif (EUR)', type: 'number' },
+      { key: 'collected', label: 'Collecté (EUR)', type: 'number' },
+      { key: 'status', label: 'Statut (active/closed)', type: 'text' },
+    ],
+    defaults: [
+      { id: 'dn1', name: 'Solidarité Martinique', goal: 5000, collected: 1250, status: 'active' },
+    ],
+  },
+
 };
 
 const AdminCrudPage = ({ pageKey = 'groups' }) => {
@@ -410,4 +494,11 @@ export const AdminPayoutsCrud = () => <AdminCrudPage pageKey="payouts" />;
 export const AdminSettlementsCrud = () => <AdminCrudPage pageKey="settlements" />;
 export const AdminDisputesCrud = () => <AdminCrudPage pageKey="disputes" />;
 export const AdminDocumentsCrud = () => <AdminCrudPage pageKey="documents" />;
+export const AdminWeatherSurcharge = () => <AdminCrudPage pageKey="weather_surcharge" />;
+export const AdminPersonalDriver = () => <AdminCrudPage pageKey="personal_driver" />;
+export const AdminAutoPromotions = () => <AdminCrudPage pageKey="auto_promotions" />;
+export const AdminVouchers = () => <AdminCrudPage pageKey="vouchers" />;
+export const AdminFaqs = () => <AdminCrudPage pageKey="faqs" />;
+export const AdminHelpArticles = () => <AdminCrudPage pageKey="help_articles" />;
+export const AdminDonations = () => <AdminCrudPage pageKey="donations" />;
 export default AdminCrudPage;
