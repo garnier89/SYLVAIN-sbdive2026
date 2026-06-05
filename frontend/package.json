@@ -66,7 +66,8 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test"
+    "test": "craco test",
+    "lint:audit": "eslint --config eslint.audit.config.mjs \"src/**/*.{js,jsx}\""
   },
   "browserslist": {
     "production": [

@@ -1,0 +1,9 @@
+[tool.bandit]
+# Security scanner config.  Run:  bandit -c pyproject.toml -r .
+# Tests are excluded (they legitimately use asserts and demo data).
+exclude_dirs = ["tests", "__pycache__", ".venv", "venv"]
+
+# B101: assert_used — fine outside tests.
+# (B311 pseudo-random is handled per-line with `# nosec B311` where the value
+#  is non-cryptographic demo data, so it stays visible if misused elsewhere.)
+skips = []

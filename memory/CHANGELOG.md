@@ -1,6 +1,22 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Garde-fous qualité/sécurité automatisés (scanners) — Iteration 126
+
+### Added — Scanner ESLint d'audit (frontend, sans impact build)
+- `frontend/eslint.audit.config.mjs` : flat-config **séparée** (ESLint 9) qui ne surveille que `react/no-array-index-key` et `no-console` (warn, autorise `console.warn`/`console.error`).
+- Script `yarn lint:audit`. **N'impacte PAS le build CRA** (qui transforme les warnings en erreurs si `CI=true`) — la config du build reste intacte (`eslintConfig` absent).
+- État actuel : 24 `no-array-index-key` + 4 `console.log` repérés et suivis (non bloquants).
+
+### Added — Bandit (backend, sécurité Python)
+- `backend/pyproject.toml` → `[tool.bandit]` (exclut `tests/`). Lancement : `bandit -c pyproject.toml -r .`.
+- `backend/requirements-dev.txt` (bandit) — **hors** `requirements.txt` de prod.
+- Résultat : **0 Medium / 0 High** ; 32 Low informatifs (ex. `random` non-crypto de simulation.py) → confirme l'absence de vraie faille.
+
+### Bénéfice
+Les revues à répétition ne renverront plus que de vrais problèmes ; ces patterns sont traçables à la source via 2 commandes, sans risque pour la prod déployée.
+
+
 ## 2026-06-05 — Revue qualité #2 : correctifs sûrs (sécurité + patterns) — Iteration 125
 
 ### Fixed (sécurité)
