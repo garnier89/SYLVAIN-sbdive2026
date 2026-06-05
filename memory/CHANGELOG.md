@@ -1,6 +1,24 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Analyse de bundle (source-map-explorer) + optimisation jspdf — Iteration 129
+
+### Added — Outil de mesure
+- `source-map-explorer` (devDependency) + script **`yarn analyze`** (`source-map-explorer 'build/static/js/*.js'`). Build de mesure : `GENERATE_SOURCEMAP=true yarn build`.
+
+### Données mesurées (gzip)
+- **main (shell, chargé par tous) : 213 KB**.
+- **DriverHome : 20 KB gzip (74 KB raw) — DÉJÀ lazy-split** dans son propre chunk → ne pèse pas sur le chargement initial.
+- Plus lourds = chunks vendor : **jspdf+autotable ~124 KB**, recharts ~105–150 KB, leaflet ~43 KB (déjà lazy par route).
+
+### Décision data-driven
+- **Découper DriverHome n'apporte ~aucun gain perf** (20 KB, déjà code-splitté, sur le chemin live chauffeur à risque) → NON prioritaire. Garder l'effort pour les vrais poids (vendors).
+
+### Optimisation appliquée (vrai levier)
+- `dashboard/exportAnalytics.js` : `jspdf`/`jspdf-autotable` passés en **`import()` dynamique** dans `exportAnalyticsPDF` (désormais async). **~124 KB gzip retirés du chargement initial du dashboard admin** — chargés uniquement au clic « Export PDF ».
+- Vérifié : nouveau chunk jspdf isolé (124 KB) ; dashboard admin rendu OK ; clic Export PDF fonctionne **sans erreur console** (chargement on-demand).
+
+
 ## 2026-06-05 — Découpage composants (suite) — Iteration 128
 
 ### Fait & vérifié

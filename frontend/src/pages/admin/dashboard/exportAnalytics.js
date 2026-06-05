@@ -1,6 +1,4 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
+// jspdf (+autotable) is ~150 KB — loaded lazily only when the user exports a PDF.
 const PERIOD_LABEL = {
   today: "Aujourd'hui",
   week: '7 derniers jours',
@@ -46,8 +44,10 @@ export const exportAnalyticsCSV = (breakdown, period) => {
   triggerDownload(blob, `sb-drive-analytics-${period}-${new Date().toISOString().slice(0, 10)}.csv`);
 };
 
-export const exportAnalyticsPDF = (breakdown, period) => {
+export const exportAnalyticsPDF = async (breakdown, period) => {
   if (!breakdown) return;
+  const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
   const services = breakdown.revenue_by_service || [];
   const zones = breakdown.top_zones || [];
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
