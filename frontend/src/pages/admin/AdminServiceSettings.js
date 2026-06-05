@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { serviceSettingsAPI } from '../../services/api';
 import {
   SlidersHorizontal, Check, ArrowSquareOut, Car, Bicycle, Package,
-  ForkKnife, Bag, FirstAid, Pill,
+  ForkKnife, Bag, FirstAid, Pill, MapPin, Trash, Plus,
 } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,15 +15,33 @@ const ServiceCard = ({ svc, onSaved }) => {
   const [active, setActive] = useState(svc.active);
   const [note, setNote] = useState(svc.info_note || '');
   const [fields, setFields] = useState(svc.fields || {});
+  const [zones, setZones] = useState(svc.zones || []);
+  const [zoneForm, setZoneForm] = useState({ type: 'radius', name: '', lat: '', lng: '', radius_km: '' });
   const [saving, setSaving] = useState(false);
   const Icon = ICONS[svc.icon] || SlidersHorizontal;
+
+  const addZone = () => {
+    if (!zoneForm.name) { toast.error('Nom de la zone requis'); return; }
+    if (zoneForm.type === 'radius' && (!zoneForm.lat || !zoneForm.lng || !zoneForm.radius_km)) {
+      toast.error('Latitude, longitude et rayon requis'); return;
+    }
+    setZones([...zones, { ...zoneForm }]);
+    setZoneForm({ type: 'radius', name: '', lat: '', lng: '', radius_km: '' });
+  };
+  const removeZone = (idx) => setZones(zones.filter((_, i) => i !== idx));
 
   const save = async () => {
     setSaving(true);
     try {
       const cleanFields = {};
       svc.fields_schema.forEach((f) => { cleanFields[f.key] = Number(fields[f.key]) || 0; });
-      await serviceSettingsAPI.adminUpdate(svc.service_key, { active, info_note: note, fields: cleanFields });
+      const cleanZones = zones.map((z) => ({
+        id: z.id, type: z.type, name: z.name,
+        lat: z.type === 'radius' ? Number(z.lat) : null,
+        lng: z.type === 'radius' ? Number(z.lng) : null,
+        radius_km: z.type === 'radius' ? Number(z.radius_km) : null,
+      }));
+      await serviceSettingsAPI.adminUpdate(svc.service_key, { active, info_note: note, fields: cleanFields, zones: cleanZones });
       toast.success(`${svc.label} enregistré`);
       onSaved?.();
     } catch { toast.error('Échec de l\'enregistrement'); }
@@ -79,6 +97,43 @@ const ServiceCard = ({ svc, onSaved }) => {
           ))}
         </div>
       )}
+
+      {/* Zones d'opération */}
+      <div className="mt-4 mb-3 border-t border-gray-100 pt-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <MapPin size={15} weight="duotone" className="text-gray-600" />
+          <span className="text-xs font-bold text-gray-700">Zones d'opération</span>
+          <span className="text-[10px] text-gray-400">(vide = partout)</span>
+        </div>
+        {zones.length > 0 && (
+          <div className="space-y-1.5 mb-2">
+            {zones.map((z, idx) => (
+              <div key={z.id || idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-2.5 py-1.5 text-xs" data-testid={`zone-${svc.service_key}-${idx}`}>
+                <span className="text-gray-700">
+                  {z.type === 'radius' ? '◯' : '🏙'} <strong>{z.name}</strong>
+                  {z.type === 'radius' ? ` — ${z.radius_km} km` : ' — ville'}
+                </span>
+                <button onClick={() => removeZone(idx)} className="text-red-400" data-testid={`zone-del-${svc.service_key}-${idx}`}><Trash size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <select value={zoneForm.type} onChange={(e) => setZoneForm({ ...zoneForm, type: e.target.value })} className="border rounded-lg px-2 py-1 text-xs" data-testid={`zone-type-${svc.service_key}`}>
+            <option value="radius">Rayon</option>
+            <option value="city">Ville</option>
+          </select>
+          <input value={zoneForm.name} onChange={(e) => setZoneForm({ ...zoneForm, name: e.target.value })} placeholder="Nom (ex: Paris)" className="border rounded-lg px-2 py-1 text-xs w-28" data-testid={`zone-name-${svc.service_key}`} />
+          {zoneForm.type === 'radius' && (
+            <>
+              <input value={zoneForm.lat} onChange={(e) => setZoneForm({ ...zoneForm, lat: e.target.value })} placeholder="lat" className="border rounded-lg px-2 py-1 text-xs w-16" data-testid={`zone-lat-${svc.service_key}`} />
+              <input value={zoneForm.lng} onChange={(e) => setZoneForm({ ...zoneForm, lng: e.target.value })} placeholder="lng" className="border rounded-lg px-2 py-1 text-xs w-16" data-testid={`zone-lng-${svc.service_key}`} />
+              <input value={zoneForm.radius_km} onChange={(e) => setZoneForm({ ...zoneForm, radius_km: e.target.value })} placeholder="km" className="border rounded-lg px-2 py-1 text-xs w-14" data-testid={`zone-radius-${svc.service_key}`} />
+            </>
+          )}
+          <button onClick={addZone} className="bg-gray-900 text-white rounded-lg px-2 py-1 text-xs flex items-center gap-1" data-testid={`zone-add-${svc.service_key}`}><Plus size={12} /> Ajouter</button>
+        </div>
+      </div>
 
       <Button size="sm" onClick={save} disabled={saving} data-testid={`save-${svc.service_key}`}>
         <Check size={15} className="mr-1" />{saving ? 'Enregistrement…' : 'Enregistrer'}

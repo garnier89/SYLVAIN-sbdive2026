@@ -1,3 +1,11 @@
+## UPDATE - Jun 2026 - Socle services : gestion des zones d'opération (rayon/villes) par service (DONE)
+- Chaque service gère désormais ses **zones d'opération** dans `/admin/services-settings` : zone **Rayon** (centre lat/lng + rayon km, géo-vérifiable) ou **Ville** (informative). Vide = service partout.
+- **Backend** (`service_settings.py`) : `ZoneModel`, persistance `zones[]` dans `service_settings` (id auto, nettoyage/validation), exposées par l'admin + l'endpoint public `/api/services/{key}/settings`. Helper réutilisable **`point_in_service_area(key, lat, lng)`** (haversine) prêt pour l'enforcement par service.
+- **Admin UI** (`AdminServiceSettings.js`) : sous chaque service, liste des zones + formulaire d'ajout (type/nom/lat/lng/rayon) + suppression, enregistré avec le reste.
+- Vérifié curl/python : sauvegarde rayon+ville (id auto), reflété au public, `point_in_service_area` → Paris(10km)=intérieur / Marseille=extérieur / moto sans zone=partout. Reset après test. Lint front+back clean.
+- ⚠️ Toujours un **socle** : zones non encore appliquées au matching/booking réel (étape « branchement service par service »).
+
+
 ## NEW - Jun 2026 - Socle réutilisable : panneau « Paramètres des services » unifié (DONE — iter116)
 - **Un seul endroit** dans l'admin (`/admin/services-settings`) pour piloter la config commune de TOUS les services : activation on/off, bannière/note client, tarification. Framework générique et extensible.
 - **Backend** `routes/service_settings.py` : `SERVICE_REGISTRY` déclare chaque service + ses champs éditables (l'UI rend les formulaires dynamiquement). Collection `service_settings` (clé `service_key`). Endpoints : `GET /api/admin/services/settings` (liste + schéma + valeurs), `GET/PUT /api/admin/services/settings/{key}` (whitelist des champs, coercition numérique), public `GET /api/services/{key}/settings` (consommé par les clients à venir). Gardes 404 (service inconnu) / 403 (non-admin).
