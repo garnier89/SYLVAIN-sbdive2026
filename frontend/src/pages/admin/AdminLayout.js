@@ -89,6 +89,7 @@ const sidebarConfig = [
         { label: 'Paramètres', path: '/admin/marketplace' },
       ]},
       { icon: FirstAid, label: 'Services médicaux', key: 'medical', children: [
+        { label: 'Pharmacie', path: '/admin/pharmacy' },
         { label: 'Paramètres', path: '/admin/medical' },
       ]},
       { icon: UsersThree, label: 'Covoiturage', key: 'rideshare', children: [

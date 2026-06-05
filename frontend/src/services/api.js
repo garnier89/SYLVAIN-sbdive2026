@@ -363,6 +363,36 @@ export const realEstateAPI = {
   sbpaygoSsoLink: () => api.post('/finance/sbpaygo/sso-link'),
 };
 
+export const pharmacyAPI = {
+  // public / customer
+  pharmacies: () => api.get('/pharmacy/pharmacies'),
+  categories: () => api.get('/pharmacy/categories'),
+  products: (params) => api.get('/pharmacy/products', { params }),
+  estimate: (data) => api.post('/pharmacy/orders/estimate', data),
+  createOrder: (data) => api.post('/pharmacy/orders', data),
+  myOrders: () => api.get('/pharmacy/orders'),
+  getOrder: (id) => api.get(`/pharmacy/orders/${id}`),
+  cancelOrder: (id) => api.post(`/pharmacy/orders/${id}/cancel`),
+  // driver
+  driverAvailable: () => api.get('/pharmacy/driver/available'),
+  driverActive: () => api.get('/pharmacy/driver/active'),
+  accept: (id) => api.post(`/pharmacy/orders/${id}/accept`),
+  updateStatus: (id, status) => api.post(`/pharmacy/orders/${id}/status`, { status }),
+  // admin
+  adminPharmacies: () => api.get('/admin/pharmacy/pharmacies'),
+  adminCreatePharmacy: (data) => api.post('/admin/pharmacy/pharmacies', data),
+  adminUpdatePharmacy: (id, data) => api.put(`/admin/pharmacy/pharmacies/${id}`, data),
+  adminDeletePharmacy: (id) => api.delete(`/admin/pharmacy/pharmacies/${id}`),
+  adminProducts: (category) => api.get('/admin/pharmacy/products', { params: category ? { category } : {} }),
+  adminCreateProduct: (data) => api.post('/admin/pharmacy/products', data),
+  adminUpdateProduct: (id, data) => api.put(`/admin/pharmacy/products/${id}`, data),
+  adminDeleteProduct: (id) => api.delete(`/admin/pharmacy/products/${id}`),
+  adminOrders: (status) => api.get('/admin/pharmacy/orders', { params: status ? { status } : {} }),
+  adminGetOrder: (id) => api.get(`/admin/pharmacy/orders/${id}`),
+  adminQuote: (id, medicationTotal) => api.post(`/admin/pharmacy/orders/${id}/quote`, { medication_total: medicationTotal }),
+  adminOrderStatus: (id, status) => api.post(`/admin/pharmacy/orders/${id}/status`, { status }),
+};
+
 export const placesAPI = {
   getSaved: () => api.get('/places/saved'),
   setSaved: (kind, place) => api.put(`/places/saved/${kind}`, place),

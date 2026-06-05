@@ -1,0 +1,30 @@
+{
+  "summary": "Full end-to-end validation of the new PHARMACY module (V3Cube 3rd medical tile). Backend: 16/16 pytest passing (catalog listings, filters, search, estimate, catalog+prescription create with 400 error edge cases, cancel, admin quote/status, admin pharmacy & product CRUD, driver/available). Frontend (passenger + admin): tile medical-pharmacy-btn → /pharmacy hub loads 3 partner pharmacies; /pharmacy/catalog renders 12 products with category filter & search, add/+/- cart, checkout sheet with pharmacy selector, address+map click, name/phone/payment, live total (10,38 €), confirm-order-btn → pharmacy-order-success; /pharmacy/prescription file upload + form + rx-submit-btn → prescription-success; /pharmacy/orders lists orders with status badges 'En attente de devis', 'Confirmée', 'En préparation', 'Annulée'. /admin/pharmacy shows 3 tabs (Commandes/Produits/Pharmacies) with 3 pharmacies, 12 products, orders with quote-btn (modal+quote-input+submit-quote-btn) and status-select per row — quote submitted → 'Devis envoyé' toast and order moves from pending to Confirmée with total = medication_total + delivery_fee (12,50 + 3,58 = 16,08 €) as expected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter114_pharmacy.py",
+    "/app/test_reports/pytest/iter114_pharmacy.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/pharmacy.py uses HTTPException 400 for validation correctly and seeds idempotently (count==0 guard). delivery_fee uses haversine via calculate_distance + DELIVERY_BASE/PER_KM/MIN — values verified end-to-end (3,58 € from pharm to delivery point).",
+    "Driver endpoint /pharmacy/driver/available is reachable by any authenticated user (no role gate). Acceptable for current MVP but consider restricting to role in {driver,admin} for parity with parcels module.",
+    "PharmacyOrdersPage exclude prescription_image from list (DB projection {prescription_image:0}) — good; full image only loaded via GET /orders/{id} for admin/owner.",
+    "Google Maps Places legacy deprecation warning appears in console (unrelated to pharmacy) — pre-existing, see migration notes."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter114_pharmacy.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% on all required passenger + admin pharmacy flows"},
+  "test_credentials": "rx.qa@demo.sb / RxQa123!  (passenger); admin@superapp.com / SuperAdmin123! (admin). Login route is /login/email (NOT /email-login).",
+  "seed_data_creation": "Multiple TEST_ prefixed orders created via UI + pytest (catalog, prescription, cancelled, quoted-to-confirmed). Admin CRUD created/deleted TEST_Pharma QA and TEST_Doliprane QA entities (cleaned up).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pharmacy module is fully working end-to-end. Backend tests live at /app/backend/tests/test_iter114_pharmacy.py — re-run with REACT_APP_BACKEND_URL exported. Frontend route is /pharmacy with sub-routes /pharmacy/catalog, /pharmacy/prescription, /pharmacy/orders. Admin route: /admin/pharmacy. Key data-testids: medical-pharmacy-btn, pharmacy-catalog-btn, pharmacy-prescription-btn, open-checkout-btn, checkout-pharmacy-select, checkout-total, confirm-order-btn, rx-file-input, rx-submit-btn, pharmacy-tab-{orders|products|pharmacies}, quote-btn-{id}, quote-input, submit-quote-btn, status-select-{id}. PharmacyMapPicker uses Leaflet — geoloc 'pharmacy-use-location-btn' may not work in headless, click on the map to set the point.",
+  "rca of the issue": "n/a — no bugs found in pharmacy module."
+}

@@ -19,7 +19,7 @@ import {
   Hammer, Buildings, Coffee, Wine,
   Stethoscope, Dog, UsersFour, Briefcase,
   CarSimple, ShoppingBag, BatteryFull, HandSoap,
-  Bicycle, Plug, Key, HairDryer, MaskHappy, Bag
+  Bicycle, Plug, Key, HairDryer, MaskHappy, Bag, Pill
 } from '@phosphor-icons/react';
 
 const UserHome = () => {
@@ -455,6 +455,21 @@ const UserHome = () => {
             </div>
           </button>
         </div>
+        {/* Pharmacy - full width */}
+        <button
+          onClick={() => navigate('/pharmacy')}
+          className="mt-3 w-full rounded-2xl bg-orange-50 border border-orange-100 p-4 flex items-center gap-4 text-left group"
+          data-testid="medical-pharmacy-btn"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center shrink-0">
+            <Pill size={30} weight="duotone" className="text-[#FF4500]" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-gray-900">Pharmacie</h4>
+            <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">Médicaments livrés — sur ordonnance ou parapharmacie.</p>
+          </div>
+          <CaretRight size={18} className="text-gray-400" />
+        </button>
       </div>
 
       {/* ===== PET SERVICES ===== */}
