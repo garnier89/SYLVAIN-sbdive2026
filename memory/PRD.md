@@ -1,4 +1,10 @@
-## NEW - Jun 2026 - Matching Taxi Pool réel branché sur le suivi passager (DONE — P0)
+## NEW - Jun 2026 - Taxi Pool : bouton « Rejoindre cette course Pool » (jumelage in-app réel) (DONE)
+- **Demande** : transformer l'affichage passif des courses Pool proches en **vrai jumelage in-app** (bouton « Rejoindre ») pour booster le taux de remplissage Pool.
+- **Backend** (`phase2.py`) : nouvel endpoint `POST /api/phase2/pool/join/{target_ride_id}` (body `{ride_id}`) — groupe la course Pool `pending` du user avec une course Pool cible proche (re-vérif haversine ≤2 km / ≤3 km), assigne un `pool_group_id` partagé sur les 2 courses, renvoie `members`. Push WS `pool_partner_joined` au propriétaire de la course cible. Gardes : 400 (propre course / cible indispo / trop loin / ride_id manquant), 403 (pas votre course), 404 (introuvable). `GET /pool/matches/{id}` enrichi : `your_group_id`, `group_members`, et `joined` par match (tri groupe d'abord).
+- **Frontend** (`RideTrackingPage.js`) : bouton `pool-join-btn-{i}` par match → toast succès + bascule en badge `pool-match-joined-{i}` « ✓ Rejoint ». Bannière `pool-group-banner` « Vous covoiturez · N passagers groupés » dès qu'un groupe existe.
+- Vérifié **pytest 2/2** (`test_pool_join.py` : jumelage 2 passagers → groupe/members=2/joined=True, + cas erreurs 400/404) + E2E curl. Lint clean front+back.
+
+
 - **Demande** : afficher au passager « X place(s) disponible(s) sur une course Pool proche » (vrai covoiturage temps réel) — branchement de l'UI sur l'endpoint existant `GET /api/phase2/pool/matches/{ride_id}`.
 - **Frontend** (`RideTrackingPage.js`) : quand Taxi Pool est activé et la course `pending`, polling 8s de `/pool/matches/{id}` → panneau `pool-matches-panel`. Si matches : compteur (`pool-matches-count`) + liste des courses Pool proches (`pool-match-{i}` : adresse ramassage/destination + distance km). Sinon : état « Recherche de passagers Pool à proximité… » (`pool-matches-empty`). Nettoyage auto quand pool désactivé ou course non-pending.
 - **Backend** : endpoint déjà présent (candidats `pending` + `pool_enabled` + même `vehicle_type`, ramassage ≤2 km & dépose ≤3 km via haversine, tri par proximité, top 10).

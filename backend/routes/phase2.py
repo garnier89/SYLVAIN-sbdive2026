@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, HTTPException
 
 from core.config import db
 from core.deps import get_current_user, require_role
+from core.websocket import manager
 
 router = APIRouter(prefix="/phase2", tags=["phase2"])
 
@@ -362,11 +363,14 @@ async def find_pool_matches(ride_id: str, request: Request):
         "vehicle_type": ride.get("vehicle_type"),
     }, {"_id": 0}).to_list(100)
 
+    my_group = ride.get("pool_group_id")
     matches = []
     for c in candidates:
         pickup_dist = _haversine_km(ride["pickup_lat"], ride["pickup_lng"], c["pickup_lat"], c["pickup_lng"])
         drop_dist = _haversine_km(ride["dropoff_lat"], ride["dropoff_lng"], c["dropoff_lat"], c["dropoff_lng"])
-        if pickup_dist <= 2 and drop_dist <= 3:
+        c_group = c.get("pool_group_id")
+        joined = bool(my_group and c_group and my_group == c_group)
+        if (pickup_dist <= 2 and drop_dist <= 3) or joined:
             matches.append({
                 "ride_id": c["id"],
                 "pickup_distance_km": round(pickup_dist, 2),
@@ -374,9 +378,64 @@ async def find_pool_matches(ride_id: str, request: Request):
                 "pickup_address": c.get("pickup_address"),
                 "dropoff_address": c.get("dropoff_address"),
                 "fare": c.get("estimated_fare"),
+                "joined": joined,
             })
-    matches.sort(key=lambda x: x["pickup_distance_km"] + x["dropoff_distance_km"])
-    return {"matches": matches[:10], "your_ride_id": ride_id}
+    matches.sort(key=lambda x: (not x["joined"], x["pickup_distance_km"] + x["dropoff_distance_km"]))
+    group_members = (await db.rides.count_documents({"pool_group_id": my_group})) if my_group else 0
+    return {"matches": matches[:10], "your_ride_id": ride_id, "your_group_id": my_group, "group_members": group_members}
+
+
+@router.post("/pool/join/{target_ride_id}")
+async def join_pool(target_ride_id: str, request: Request):
+    """Group the current user's pending pool ride with a nearby pending pool ride (real in-app matching)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    my_ride_id = body.get("ride_id")
+    if not my_ride_id:
+        raise HTTPException(status_code=400, detail="ride_id requis")
+    if my_ride_id == target_ride_id:
+        raise HTTPException(status_code=400, detail="Impossible de rejoindre sa propre course")
+
+    my_ride = await db.rides.find_one({"id": my_ride_id}, {"_id": 0})
+    if not my_ride:
+        raise HTTPException(status_code=404, detail="Course introuvable")
+    if my_ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Ce n'est pas votre course")
+    if my_ride.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Votre course n'est plus en attente")
+
+    target = await db.rides.find_one({"id": target_ride_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="Course cible introuvable")
+    if target.get("status") != "pending" or not target.get("pool_enabled"):
+        raise HTTPException(status_code=400, detail="Cette course Pool n'est plus disponible")
+
+    pickup_dist = _haversine_km(my_ride["pickup_lat"], my_ride["pickup_lng"], target["pickup_lat"], target["pickup_lng"])
+    drop_dist = _haversine_km(my_ride["dropoff_lat"], my_ride["dropoff_lng"], target["dropoff_lat"], target["dropoff_lng"])
+    if pickup_dist > 2 or drop_dist > 3:
+        raise HTTPException(status_code=400, detail="Cette course Pool est trop éloignée")
+
+    group_id = target.get("pool_group_id") or my_ride.get("pool_group_id") or f"poolgrp_{uuid.uuid4().hex[:10]}"
+    now = datetime.now(timezone.utc).isoformat()
+    for rid in (my_ride_id, target_ride_id):
+        await db.rides.update_one(
+            {"id": rid},
+            {"$set": {"pool_group_id": group_id, "pool_enabled": True, "pool_joined_at": now}},
+        )
+    member_count = await db.rides.count_documents({"pool_group_id": group_id})
+
+    try:
+        await manager.send_personal_message({
+            "type": "pool_partner_joined",
+            "group_id": group_id,
+            "ride_id": target_ride_id,
+            "members": member_count,
+            "partner_name": user.get("name") or "Un passager",
+        }, target["user_id"])
+    except Exception:
+        pass
+
+    return {"message": "joined", "pool_group_id": group_id, "members": member_count}
 
 
 @router.put("/pool/enable/{ride_id}")

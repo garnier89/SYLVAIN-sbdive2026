@@ -60,6 +60,8 @@ const RideTrackingPage = () => {
   const [poolEnabled, setPoolEnabled] = useState(false);
   const [poolLoading, setPoolLoading] = useState(false);
   const [poolMatches, setPoolMatches] = useState([]);
+  const [poolGroupMembers, setPoolGroupMembers] = useState(0);
+  const [joiningRideId, setJoiningRideId] = useState(null);
   const [statusDialog, setStatusDialog] = useState(null);
   const [showRouteEdit, setShowRouteEdit] = useState(false);
   const prevStatusRef = useRef(null);
@@ -92,6 +94,7 @@ const RideTrackingPage = () => {
   useEffect(() => {
     if (!poolEnabled || ride?.status !== 'pending') {
       setPoolMatches([]);
+      setPoolGroupMembers(0);
       return undefined;
     }
     let active = true;
@@ -101,6 +104,7 @@ const RideTrackingPage = () => {
         if (active && res.ok) {
           const d = await res.json();
           setPoolMatches(d.matches || []);
+          setPoolGroupMembers(d.group_members || 0);
         }
       } catch (err) {
         console.warn('[RideTracking] pool matches failed:', err?.message || err);
@@ -110,6 +114,30 @@ const RideTrackingPage = () => {
     const t = setInterval(fetchMatches, 8000);
     return () => { active = false; clearInterval(t); };
   }, [poolEnabled, ride?.status, rideId]);
+
+  const joinPool = useCallback(async (targetRideId) => {
+    if (joiningRideId) return;
+    setJoiningRideId(targetRideId);
+    try {
+      const res = await fetch(`${API}/api/phase2/pool/join/${targetRideId}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ride_id: rideId }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(`Course Pool rejointe · ${d.members || 2} passagers`);
+        setPoolMatches((ms) => ms.map((m) => (m.ride_id === targetRideId ? { ...m, joined: true } : m)));
+        setPoolGroupMembers(d.members || 0);
+      } else {
+        toast.error(d.detail || 'Impossible de rejoindre cette course Pool');
+      }
+    } catch (err) {
+      toast.error('Échec du jumelage Pool');
+    }
+    setJoiningRideId(null);
+  }, [joiningRideId, rideId]);
 
   const poolInitRef = useRef(false);
   const fetchRide = useCallback(async () => {
@@ -441,6 +469,11 @@ const RideTrackingPage = () => {
                     {poolMatches.length} place{poolMatches.length > 1 ? 's' : ''} disponible{poolMatches.length > 1 ? 's' : ''} sur une course Pool proche
                   </p>
                 </div>
+                {poolGroupMembers > 1 && (
+                  <div className="bg-emerald-600 text-white rounded-xl px-3 py-1.5 mb-2 text-[11px] font-semibold flex items-center gap-1.5" data-testid="pool-group-banner">
+                    <Check size={14} weight="bold" /> Vous covoiturez · {poolGroupMembers} passagers groupés
+                  </div>
+                )}
                 <div className="space-y-2">
                   {poolMatches.map((m, i) => (
                     <div
@@ -453,11 +486,22 @@ const RideTrackingPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gray-800 truncate">{m.pickup_address || 'Ramassage proche'}</p>
-                        <p className="text-[11px] text-gray-500 truncate">→ {m.dropoff_address || 'Destination proche'}</p>
+                        <p className="text-[11px] text-gray-500 truncate">→ {m.dropoff_address || 'Destination proche'} · à {m.pickup_distance_km} km</p>
                       </div>
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                        à {m.pickup_distance_km} km
-                      </span>
+                      {m.joined ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1" data-testid={`pool-match-joined-${i}`}>
+                          <Check size={12} weight="bold" /> Rejoint
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => joinPool(m.ride_id)}
+                          disabled={joiningRideId === m.ride_id}
+                          className="text-[10px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 px-3 py-1.5 rounded-full whitespace-nowrap transition-colors"
+                          data-testid={`pool-join-btn-${i}`}
+                        >
+                          {joiningRideId === m.ride_id ? '…' : 'Rejoindre'}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
