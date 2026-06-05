@@ -1,4 +1,10 @@
-## NEW - Jun 2026 - Pool : réduction covoiturage PROGRESSIVE (plus de passagers = plus d'économies) (DONE)
+## NEW - Jun 2026 - Pool : chauffeur notifié « +1 passager · trajet groupé » + itinéraire combiné optimisé (DONE)
+- **Demande** : prévenir le chauffeur Pool en temps réel quand un passager rejoint, avec l'ordre de ramassage optimisé du trajet partagé.
+- **Backend** (`phase2.py`) : `_build_pool_group_route(group_id, from_lat, from_lng)` = ordre **nearest-neighbour** (tous les ramassages puis toutes les déposes, depuis la position chauffeur) avec libellés passager + séquence. Nouvel endpoint `GET /phase2/pool/group/{ride_id}` (propriétaire d'un membre OU chauffeur assigné). `join_pool` : si le groupe a **déjà un chauffeur assigné**, la course du nouveau passager lui est **rattachée** (driver_id + status accepted) et un WS **`pool_passenger_added`** est envoyé au chauffeur (compteur + stops ordonnés) ; le passager reçoit `ride_accepted`. Cible `accepted` désormais acceptée au join. **Strictement limité aux courses `pool_group_id`** → zéro impact sur les courses solo.
+- **Frontend chauffeur** (`DriverHome.js`) : écoute `pool_passenger_added` → toast « +1 passager · trajet groupé (N au total) » + **panneau flottant `pool-route-panel`** listant l'ordre Prise/Dépose par passager.
+- Vérifié E2E curl : chauffeur accepte RA → P2 rejoint → `driver_notified=true`, RB rattachée (accepted + driver_id), route combinée = 2 prises puis 2 déposes ordonnées. La **programmation horaire** confirmée (fenêtre 07:00-08:00 → remise inactive hors plage). **pytest 2/2**. Lint clean front+back.
+
+
 - **Demande** : la réduction s'amplifie avec le nombre de passagers groupés (récompense les groupes pleins). Pilotable admin.
 - **Admin** (`AdminServiceConfig` clé `pool`) : `share_discount_percent` = base à 2 passagers (30%), `share_discount_step_percent` = bonus par passager supplémentaire (15%), `share_discount_max_percent` = plafond (60%). + toggle on/off et plages horaires (déjà en place).
 - **Backend** (`phase2.py`) : `_pool_effective_pct(cfg, members)` = `min(max, base + step·(members−2))`. À chaque `join_pool`, **toutes** les courses du groupe sont recalculées au taux effectif courant (rejoindre à 3 approfondit la remise des 2 premiers). `pool_discount_percent` stocké + renvoyé.

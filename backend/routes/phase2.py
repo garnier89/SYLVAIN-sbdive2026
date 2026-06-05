@@ -414,6 +414,59 @@ async def get_waybill(ride_id: str, request: Request):
 
 # ═══════════ TAXI POOL (shared ride) ═══════════
 
+async def _build_pool_group_route(group_id: str, from_lat=None, from_lng=None) -> dict:
+    """Combined optimized route for a Pool group: nearest-neighbour pickup order, then dropoffs."""
+    rides = await db.rides.find({"pool_group_id": group_id}, {"_id": 0}).to_list(50)
+    passengers, pickups, dropoffs = [], [], []
+    for idx, r in enumerate(rides):
+        u = await db.users.find_one({"id": r["user_id"]}, {"_id": 0, "name": 1}) or {}
+        name = u.get("name") or f"Passager {idx + 1}"
+        passengers.append({"ride_id": r["id"], "name": name, "fare": r.get("estimated_fare")})
+        pickups.append({"ride_id": r["id"], "name": name, "kind": "pickup", "lat": r["pickup_lat"], "lng": r["pickup_lng"], "address": r.get("pickup_address")})
+        dropoffs.append({"ride_id": r["id"], "name": name, "kind": "dropoff", "lat": r["dropoff_lat"], "lng": r["dropoff_lng"], "address": r.get("dropoff_address")})
+
+    def _nn(items, slat, slng):
+        order, remaining, clat, clng = [], items[:], slat, slng
+        while remaining:
+            if clat is None:
+                nxt = remaining.pop(0)
+            else:
+                nxt = min(remaining, key=lambda p: _haversine_km(clat, clng, p["lat"], p["lng"]))
+                remaining.remove(nxt)
+            order.append(nxt)
+            clat, clng = nxt["lat"], nxt["lng"]
+        return order, clat, clng
+
+    p_order, lat2, lng2 = _nn(pickups, from_lat, from_lng)
+    d_order, _, _ = _nn(dropoffs, lat2, lng2)
+    stops = p_order + d_order
+    for i, s in enumerate(stops):
+        s["seq"] = i + 1
+    return {"passenger_count": len(passengers), "passengers": passengers, "stops": stops}
+
+
+@router.get("/pool/group/{ride_id}")
+async def pool_group_route(ride_id: str, request: Request):
+    """Combined optimized pickup→dropoff route for a Pool group (owner of any member or assigned driver)."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Course introuvable")
+    group_id = ride.get("pool_group_id")
+    if not group_id:
+        return {"grouped": False, "passenger_count": 1, "passengers": [], "stops": []}
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    is_driver = bool(driver and ride.get("driver_id") == driver.get("id"))
+    is_member = await db.rides.find_one({"pool_group_id": group_id, "user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not is_driver and not is_member and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    flat = (driver or {}).get("current_lat")
+    flng = (driver or {}).get("current_lng")
+    route = await _build_pool_group_route(group_id, flat, flng)
+    return {**route, "grouped": True, "group_id": group_id}
+
+
+
 @router.get("/pool/matches/{ride_id}")
 async def find_pool_matches(ride_id: str, request: Request):
     """Find pending taxi-pool rides that overlap with the given ride."""
@@ -482,7 +535,7 @@ async def join_pool(target_ride_id: str, request: Request):
     target = await db.rides.find_one({"id": target_ride_id}, {"_id": 0})
     if not target:
         raise HTTPException(status_code=404, detail="Course cible introuvable")
-    if target.get("status") != "pending" or not target.get("pool_enabled"):
+    if target.get("status") not in ("pending", "accepted") or not target.get("pool_enabled"):
         raise HTTPException(status_code=400, detail="Cette course Pool n'est plus disponible")
 
     pickup_dist = _haversine_km(my_ride["pickup_lat"], my_ride["pickup_lng"], target["pickup_lat"], target["pickup_lng"])
@@ -534,7 +587,49 @@ async def join_pool(target_ride_id: str, request: Request):
     except Exception:
         pass
 
-    return {"message": "joined", "pool_group_id": group_id, "members": member_count, **shared}
+    # If the group already has an assigned driver, fold the new passenger into that driver's trip
+    # and notify the driver in real time with the combined optimized route. Strictly Pool-scoped.
+    driver_notified = False
+    assigned = await db.rides.find_one(
+        {"pool_group_id": group_id, "driver_id": {"$nin": [None, ""]}}, {"_id": 0}
+    )
+    if assigned and not my_ride.get("driver_id"):
+        drv_fields = {k: assigned.get(k) for k in (
+            "driver_id", "driver_name", "driver_phone", "driver_rating",
+            "driver_vehicle_model", "driver_vehicle_number",
+        )}
+        await db.rides.update_one(
+            {"id": my_ride_id},
+            {"$set": {**drv_fields, "status": "accepted", "accepted_at": now}},
+        )
+        driver_doc = await db.drivers.find_one({"id": assigned["driver_id"]}, {"_id": 0}) or {}
+        route = await _build_pool_group_route(group_id, driver_doc.get("current_lat"), driver_doc.get("current_lng"))
+        driver_uid = driver_doc.get("user_id")
+        if driver_uid:
+            try:
+                await manager.send_personal_message({
+                    "type": "pool_passenger_added",
+                    "group_id": group_id,
+                    "passenger_count": route["passenger_count"],
+                    "new_passenger": user.get("name") or "Un passager",
+                    "stops": route["stops"],
+                }, driver_uid)
+                driver_notified = True
+            except Exception:
+                pass
+        # Inform the joining passenger that a driver is already assigned
+        try:
+            await manager.send_personal_message({
+                "type": "ride_accepted",
+                "ride_id": my_ride_id,
+                "driver_id": assigned.get("driver_id"),
+                "driver_name": assigned.get("driver_name"),
+                "status": "accepted",
+            }, user["id"])
+        except Exception:
+            pass
+
+    return {"message": "joined", "pool_group_id": group_id, "members": member_count, "driver_notified": driver_notified, **shared}
 
 
 @router.put("/pool/enable/{ride_id}")

@@ -7,7 +7,7 @@ import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import {
   Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots, ChatCircle,
-  Gift, Plus, CalendarCheck, List
+  Gift, Plus, CalendarCheck, List, UsersThree
 } from '@phosphor-icons/react';
 import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
 import { decodePolyline } from '../../utils/polyline';
@@ -37,6 +37,7 @@ const DriverHome = () => {
   const [showDestModal, setShowDestModal] = useState(false);
   const [destMode, setDestMode] = useState(null); // { enabled, destination_lat, destination_lng, address, expires_at }
   const [destInput, setDestInput] = useState({ address: '', lat: '', lng: '' });
+  const [poolRoute, setPoolRoute] = useState(null); // { passenger_count, stops, newPassenger }
   const locationWatchId = useRef(null);
 
   const { isLoaded: gmapLoaded } = { isLoaded: true };
@@ -172,7 +173,11 @@ const DriverHome = () => {
         toast.info('Le passager a modifié l\'itinéraire');
       }
     });
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); };
+    const unsub5 = on('pool_passenger_added', (msg) => {
+      toast.success(`+1 passager · trajet groupé (${msg.passenger_count} au total)`, { duration: 6000 });
+      setPoolRoute({ passenger_count: msg.passenger_count, stops: msg.stops || [], newPassenger: msg.new_passenger });
+    });
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); };
   }, [on, currentRide, isOnline]);
 
   useEffect(() => {
@@ -296,6 +301,36 @@ const DriverHome = () => {
 
   return (
     <div className="mobile-container bg-white min-h-screen relative pb-20" data-testid="driver-home-page">
+      {/* Pool combined-route panel (trajet groupé multi-passagers) */}
+      {poolRoute && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[2500] w-[92%] max-w-md bg-white rounded-2xl shadow-2xl border border-emerald-200 p-3" data-testid="pool-route-panel">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
+                <UsersThree size={16} weight="duotone" className="text-white" />
+              </div>
+              <p className="text-sm font-extrabold text-gray-900">
+                Trajet groupé · {poolRoute.passenger_count} passagers
+              </p>
+            </div>
+            <button onClick={() => setPoolRoute(null)} className="text-gray-400" data-testid="pool-route-dismiss">
+              <X size={18} />
+            </button>
+          </div>
+          {poolRoute.newPassenger && (
+            <p className="text-[11px] text-emerald-700 font-semibold mb-2">+ {poolRoute.newPassenger} vient de rejoindre</p>
+          )}
+          <div className="space-y-1.5 max-h-44 overflow-y-auto">
+            {(poolRoute.stops || []).map((s) => (
+              <div key={`${s.ride_id}-${s.kind}`} className="flex items-center gap-2" data-testid={`pool-stop-${s.seq}`}>
+                <span className={`w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${s.kind === 'pickup' ? 'bg-emerald-500' : 'bg-gray-700'}`}>{s.seq}</span>
+                <span className={`text-[10px] font-bold uppercase ${s.kind === 'pickup' ? 'text-emerald-600' : 'text-gray-500'}`}>{s.kind === 'pickup' ? 'Prise' : 'Dépose'}</span>
+                <span className="text-[11px] text-gray-700 truncate flex-1">{s.name} · {s.address || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* GREEN HEADER */}
       <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: '#00B578' }}>
         <button onClick={() => setShowMenu(true)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="driver-menu-btn">
