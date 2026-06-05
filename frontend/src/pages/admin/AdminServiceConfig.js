@@ -142,7 +142,9 @@ const serviceConfigs = {
     { key: 'relance_interval_seconds', label: 'Intervalle entre relances (secondes, min 5)', type: 'number', value: 20 },
     { key: 'max_relances', label: 'Nombre de relances avant de proposer les options', type: 'number', value: 3 },
   ]},
-  taxi_booking: { title: 'Réservation Taxi & WhatsApp', icon: WhatsappLogo, color: '#25D366', desc: 'Flux unifié « Choisissez un voyage » sur toutes les courses + réservation via WhatsApp (numéro & message)', settings: [
+  taxi_booking: { title: 'Réservation Taxi & WhatsApp', icon: WhatsappLogo, color: '#25D366', desc: 'En-tête éditable, flux unifié « Choisissez un voyage » + réservation via WhatsApp', settings: [
+    { key: 'booking_header_title', label: 'En-tête — Titre (rectangle de réservation)', type: 'text', value: 'Planifiez votre trajet' },
+    { key: 'booking_header_eyebrow', label: 'En-tête — Sur-titre', type: 'text', value: 'SB Drive · Se déplacer' },
     { key: 'unified_flow_enabled', label: 'Activer le flux unifié « Choisissez un voyage » sur toutes les commandes taxi', type: 'toggle', value: true },
     { key: 'whatsapp_enabled', label: 'Activer la réservation via WhatsApp', type: 'toggle', value: false },
     { key: 'whatsapp_number', label: 'Numéro WhatsApp Business (format international sans +, ex: 596696XXXXXX)', type: 'text', value: '' },

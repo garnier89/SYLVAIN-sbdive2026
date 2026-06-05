@@ -81,6 +81,8 @@ DEFAULT_TAXI_BOOKING = {
     "unified_flow_enabled": True,
     "whatsapp_enabled": False,
     "whatsapp_number": "",
+    "booking_header_title": "Planifiez votre trajet",
+    "booking_header_eyebrow": "SB Drive · Se déplacer",
     "whatsapp_message_template": (
         "Bonjour SB Drive, je souhaite réserver une course.\n\n"
         "Service : {mode}\nDépart : {pickup}\nDestination : {dropoff}\n"
@@ -97,6 +99,8 @@ async def get_taxi_booking_config():
     cfg["unified_flow_enabled"] = bool(cfg.get("unified_flow_enabled", True))
     cfg["whatsapp_enabled"] = bool(cfg.get("whatsapp_enabled", False))
     cfg["whatsapp_number"] = str(cfg.get("whatsapp_number") or "").strip()
+    cfg["booking_header_title"] = str(cfg.get("booking_header_title") or "").strip() or DEFAULT_TAXI_BOOKING["booking_header_title"]
+    cfg["booking_header_eyebrow"] = str(cfg.get("booking_header_eyebrow") or "").strip() or DEFAULT_TAXI_BOOKING["booking_header_eyebrow"]
     cfg["whatsapp_message_template"] = (
         str(cfg.get("whatsapp_message_template") or "").strip()
         or DEFAULT_TAXI_BOOKING["whatsapp_message_template"]

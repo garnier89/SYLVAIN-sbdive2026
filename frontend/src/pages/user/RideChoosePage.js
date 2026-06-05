@@ -9,7 +9,7 @@
  * - Réservation via WhatsApp (numéro + message configurés par l'admin).
  * - Tout est piloté par l'admin via /admin/taxi-booking-config.
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -24,10 +24,6 @@ import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { configAPI, rideAPI, placesAPI, corporateAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 
-const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
-
-// Pseudo "service" vehicle slugs are modes by themselves → never shown as a
-// comparison card (their behaviour is layered as flags on a real vehicle).
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
 
 const PAYMENTS = [
@@ -134,14 +130,25 @@ const RideChoosePage = () => {
   // Auto-localize the departure on mount
   useEffect(() => { autoLocate(); /* eslint-disable-next-line */ }, []);
 
-  // Default scheduled date when scheduling becomes active
+  // Default scheduled date (= now + minimum advance) when scheduling activates
   useEffect(() => {
     if (scheduleLater && !scheduledAt) {
-      const d = new Date();
-      d.setHours(d.getHours() + 1, 0, 0, 0);
-      setScheduledAt(d.toISOString().slice(0, 16));
+      const pad = (n) => String(n).padStart(2, '0');
+      const d = new Date(Date.now() + (schedConfig.min_advance_minutes || 60) * 60000);
+      setScheduledAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
     }
-  }, [scheduleLater, scheduledAt]);
+  }, [scheduleLater, scheduledAt, schedConfig.min_advance_minutes]);
+
+  // For dedicated scheduling modes (Programmer Course / Intercity), open the
+  // calendar immediately on landing — pre-filled at now + minimum advance.
+  const calendarAutoOpened = useRef(false);
+  useEffect(() => {
+    if (cfgLoaded && mode.panel === 'datetime' && !calendarAutoOpened.current) {
+      calendarAutoOpened.current = true;
+      setScheduleLater(true);
+      setCalendarOpen(true);
+    }
+  }, [cfgLoaded, mode.panel]);
 
   // Load corporate accounts for corporate mode
   useEffect(() => {
@@ -153,16 +160,23 @@ const RideChoosePage = () => {
     }).catch((e) => console.warn('corp load:', e?.message || e));
   }, [mode.id, corpId]);
 
-  const reverseGeocode = async (lat, lng) => {
+  const reverseGeocode = (lat, lng) => new Promise((resolve) => {
+    // Prefer the already-loaded Google Maps JS Geocoder (no CORS/referrer issues
+    // unlike the REST endpoint, which often fails silently from the browser).
     try {
-      if (GMAP_KEY) {
-        const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GMAP_KEY}&language=fr`);
-        const d = await r.json();
-        if (d.results?.[0]) return d.results[0].formatted_address;
+      if (window.google?.maps?.Geocoder) {
+        new window.google.maps.Geocoder().geocode(
+          { location: { lat, lng } },
+          (results, status) => {
+            if (status === 'OK' && results?.[0]) resolve(results[0].formatted_address);
+            else resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+          },
+        );
+        return;
       }
-    } catch (e) { console.warn('[ride-choose] reverse geocode failed', e?.message); }
-    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-  };
+    } catch (e) { console.warn('[ride-choose] geocoder failed', e?.message); }
+    resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+  });
 
   function autoLocate(announce = false) {
     if (!navigator.geolocation) { if (announce) toast.error('Géolocalisation indisponible'); return; }
@@ -309,19 +323,21 @@ const RideChoosePage = () => {
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50 flex flex-col" data-testid="ride-choose-page">
-      {/* Header */}
-      <div className="relative h-44 bg-gradient-to-br from-[#0B1426] to-[#1b2b4d] overflow-hidden shrink-0">
-        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center" data-testid="ride-choose-back">
-          <ArrowLeft size={20} className="text-[#0B1426]" />
-        </button>
-        <div className="absolute bottom-4 left-4 right-4">
-          <span className="text-[10px] font-black uppercase tracking-wider text-[#FF5000]">SB Drive · Se déplacer</span>
-          <h1 className="text-2xl font-black text-white leading-tight">Planifiez votre trajet</h1>
-          <div className="mt-2 inline-flex items-center gap-2 bg-white/10 rounded-full px-3 py-1" data-testid="ride-choose-mode-chip">
-            <ModeIcon size={16} weight="duotone" className="text-[#FF5000]" />
-            <span className="text-xs font-bold text-white">{mode.label}</span>
-            <span className="text-[10px] text-white/60">{mode.sub}</span>
+      {/* Compact white header (admin-editable texts) */}
+      <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0" data-testid="ride-choose-back">
+            <ArrowLeft size={18} className="text-[#0B1426]" />
+          </button>
+          <div className="min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[#FF5000] block leading-none" data-testid="ride-choose-eyebrow">{cfg.booking_header_eyebrow || 'SB Drive · Se déplacer'}</span>
+            <h1 className="text-lg font-black text-[#0B1426] leading-tight truncate" data-testid="ride-choose-title">{cfg.booking_header_title || 'Planifiez votre trajet'}</h1>
           </div>
+        </div>
+        <div className="mt-2 inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1" data-testid="ride-choose-mode-chip">
+          <ModeIcon size={15} weight="duotone" className="text-[#FF5000]" />
+          <span className="text-xs font-bold text-[#0B1426]">{mode.label}</span>
+          <span className="text-[10px] text-gray-400">{mode.sub}</span>
         </div>
       </div>
 
@@ -508,7 +524,7 @@ const SchedulePanel = (p) => {
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-sm font-bold text-[#0B1426]"><CalendarPlus size={18} className="text-[#FF5000]" /> {isDatetimeMode ? 'Date & heure' : 'Programmer plus tard'}</span>
         {!isDatetimeMode && (
-          <button onClick={() => p.setScheduleLater(!p.scheduleLater)} className={`w-11 h-6 rounded-full relative transition-colors ${p.scheduleLater ? 'bg-[#FF5000]' : 'bg-gray-300'}`} data-testid="panel-schedule-toggle">
+          <button onClick={() => { const nv = !p.scheduleLater; p.setScheduleLater(nv); if (nv) p.setCalendarOpen(true); }} className={`w-11 h-6 rounded-full relative transition-colors ${p.scheduleLater ? 'bg-[#FF5000]' : 'bg-gray-300'}`} data-testid="panel-schedule-toggle">
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${p.scheduleLater ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
         )}
