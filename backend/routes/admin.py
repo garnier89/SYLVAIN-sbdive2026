@@ -8,6 +8,43 @@ from core.deps import require_role
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+# ===== VEHICLE TYPE — full configuration schema (V3Cube parity) =====
+VT_FIELDS = [
+    # identity & display
+    "name_fr", "name_en", "name_translations", "name_rental", "category",
+    "icon_type", "show_as", "info", "currency", "display_order",
+    # feature toggles
+    "allow_whatsapp_booking", "enable_pool", "assist_available", "pet_friendly",
+    "ask_otp_before_ride", "fare_model_strategy",
+    # base pricing
+    "price_per_km", "price_per_min", "min_fare", "base_fare", "commission_percent",
+    "zone_overrides",
+    # waiting & cancellation
+    "user_cancel_time_limit", "user_cancel_charges", "waiting_time_limit",
+    "waiting_charges", "intransit_waiting_fee_per_min", "cancellation_fare",
+    # capacity & surge
+    "person_capacity", "peak_slot1", "peak_slot2", "night_charges",
+    # images
+    "image_unselected", "image_selected",
+]
+
+VT_DEFAULTS = {
+    "name_fr": "", "name_en": "", "name_translations": {}, "name_rental": "",
+    "category": "ride", "icon_type": "Car", "show_as": "list", "info": "",
+    "currency": "EUR", "display_order": 99,
+    "allow_whatsapp_booking": False, "enable_pool": False, "assist_available": False,
+    "pet_friendly": False, "ask_otp_before_ride": False, "fare_model_strategy": "incremental",
+    "price_per_km": 1.5, "price_per_min": 0.3, "min_fare": 10.0, "base_fare": 5.0,
+    "commission_percent": 15.0, "zone_overrides": [],
+    "user_cancel_time_limit": 5, "user_cancel_charges": 4.0, "waiting_time_limit": 1,
+    "waiting_charges": 20.0, "intransit_waiting_fee_per_min": 0.3, "cancellation_fare": 5.0,
+    "person_capacity": 4,
+    "peak_slot1": {"enabled": False, "days": {}}, "peak_slot2": {"enabled": False, "days": {}},
+    "night_charges": {"enabled": False, "days": {}},
+    "image_unselected": None, "image_selected": None,
+}
+
+
 # ===== DEFAULT REWARDS / POINTS CONFIG =====
 DEFAULT_REWARDS_CONFIG = {
     "regard_vehicles": [
@@ -47,6 +84,13 @@ async def get_rewards_config():
     }
 
 
+@router.get("/vehicle-types")
+async def admin_list_vehicle_types(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    types = await db.vehicle_types.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    return types
+
+
 @router.post("/vehicle-types")
 async def create_vehicle_type(request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
@@ -57,21 +101,11 @@ async def create_vehicle_type(request: Request):
     existing = await db.vehicle_types.find_one({"slug": slug})
     if existing:
         raise HTTPException(status_code=409, detail="Vehicle type already exists")
-    doc = {
-        "slug": slug,
-        "name_fr": body.get("name_fr", slug),
-        "person_capacity": body.get("person_capacity", 4),
-        "min_fare": body.get("min_fare", 10),
-        "base_fare": body.get("base_fare", 5),
-        "price_per_km": body.get("price_per_km", 1.5),
-        "price_per_min": body.get("price_per_min", 0.3),
-        "commission_percent": body.get("commission_percent", 15),
-        "cancellation_fare": body.get("cancellation_fare", 5),
-        "icon_type": body.get("icon_type", "Car"),
-        "status": "active",
-        "display_order": body.get("display_order", 99),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
+    doc = {**VT_DEFAULTS, "slug": slug, "status": "active",
+           "created_at": datetime.now(timezone.utc).isoformat()}
+    for field in VT_FIELDS:
+        if field in body:
+            doc[field] = body[field]
     await db.vehicle_types.insert_one(doc)
     doc.pop("_id", None)
     return doc
@@ -82,7 +116,7 @@ async def update_vehicle_type(slug: str, request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     update = {}
-    for field in ["name_fr", "person_capacity", "min_fare", "base_fare", "price_per_km", "price_per_min", "commission_percent", "cancellation_fare", "icon_type", "status", "display_order"]:
+    for field in VT_FIELDS + ["status"]:
         if field in body:
             update[field] = body[field]
     if not update:
@@ -91,6 +125,44 @@ async def update_vehicle_type(slug: str, request: Request):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Vehicle type not found")
     return {"message": f"Vehicle type '{slug}' updated"}
+
+
+@router.post("/vehicle-types/translate")
+async def translate_vehicle_type_name(request: Request):
+    """Auto-translate a vehicle type name into all supported languages via LLM."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    import os
+    import json as _json
+    body = await request.json()
+    text = (body.get("text") or "").strip()
+    langs = body.get("langs") or []
+    if not text or not langs:
+        raise HTTPException(status_code=400, detail="text et langs requis")
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Service de traduction indisponible")
+    lang_list = ", ".join(langs)
+    prompt = (
+        "Translate the following vehicle category name into these languages "
+        f"(ISO codes): {lang_list}. Keep it short (1-3 words), natural for a ride-hailing app. "
+        'Reply ONLY with a JSON object mapping each ISO code to its translation, no markdown.\n'
+        f'Name: "{text}"'
+    )
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = (
+            LlmChat(api_key=api_key, session_id=f"vt-translate-{uuid.uuid4().hex[:8]}",
+                    system_message="You are a professional localization assistant. Output strict JSON only.")
+            .with_model("anthropic", "claude-sonnet-4-6")
+        )
+        raw = await chat.send_message(UserMessage(text=prompt))
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("```")[1].replace("json", "", 1).strip()
+        translations = _json.loads(cleaned)
+        return {"translations": {k: v for k, v in translations.items() if k in langs}}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Échec de la traduction: {e}")
 
 
 @router.delete("/vehicle-types/{slug}")
