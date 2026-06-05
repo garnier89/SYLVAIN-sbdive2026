@@ -542,3 +542,13 @@ Voir PRD.md section "NEW - Feb 2026"
 ### Tests
 - pytest `test_iter118_dashboard_breakdown.py` 4/4 ✅ (ajout test période cumulative today≤week≤month≤all).
 - Screenshot : clic Mois→291,46 € / Semaine→197,01 €, badge "7 jours", graphiques mis à jour.
+
+## 2026-06-05 (suite) — Export analytics CSV / PDF
+
+### Added
+- Dépendances : `jspdf` + `jspdf-autotable`.
+- `dashboard/exportAnalytics.js` : `exportAnalyticsCSV` (UTF-8 BOM, séparateur ;) + `exportAnalyticsPDF` (titre, période, total, 2 tableaux Revenus par service + Top zones via autoTable).
+- Dashboard : boutons **CSV** et **PDF** à côté du sélecteur de période ; export du rapport pour la période sélectionnée (Aujourd'hui/Semaine/Mois).
+
+### Tests
+- Screenshot Playwright : login admin → période Mois → clic CSV et PDF → téléchargements confirmés (sb-drive-analytics-month-*.csv / .pdf), aucune erreur console.

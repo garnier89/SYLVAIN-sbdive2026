@@ -6,12 +6,13 @@ import { Button } from '../../components/ui/button';
 import {
   Users, Car, Storefront, Taxi, Package, Wrench,
   CurrencyEur, Star, ChartLine, CalendarCheck, Clock, MapPin, Trophy,
-  Bell, CheckCircle, XCircle, Warning, Eye, Gear, UserCircle
+  Bell, CheckCircle, XCircle, Warning, Eye, Gear, UserCircle, FileCsv, FilePdf
 } from '@phosphor-icons/react';
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import LeafletMap from '../../components/LeafletMap';
 import { KPICard, EarningBox, ServiceMiniCard, BuySellRentCard } from './dashboard/DashboardCards';
+import { exportAnalyticsCSV, exportAnalyticsPDF } from './dashboard/exportAnalytics';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -132,6 +133,21 @@ const AdminDashboard = () => {
                 {p === 'today' ? "Aujourd'hui" : p === 'week' ? 'Semaine' : 'Mois'}
               </button>
             ))}
+          </div>
+          {/* Export analytics (CSV / PDF) */}
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" disabled={!breakdown}
+              className="h-9 text-xs gap-1.5 border-gray-200"
+              onClick={() => exportAnalyticsCSV(breakdown, period)}
+              data-testid="export-csv-btn">
+              <FileCsv size={16} className="text-green-600" /> CSV
+            </Button>
+            <Button size="sm" variant="outline" disabled={!breakdown}
+              className="h-9 text-xs gap-1.5 border-gray-200"
+              onClick={() => exportAnalyticsPDF(breakdown, period)}
+              data-testid="export-pdf-btn">
+              <FilePdf size={16} className="text-red-500" /> PDF
+            </Button>
           </div>
         </div>
       </div>
