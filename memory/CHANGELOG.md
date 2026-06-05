@@ -532,3 +532,13 @@ Voir PRD.md section "NEW - Feb 2026"
 ### Tests
 - pytest `tests/test_iter118_dashboard_breakdown.py` 3/3 ✅ (structure, tri/propreté zones, auth requise).
 - Screenshot dashboard : widgets rendus avec vraies données (694,61 € total ; Paris top zone).
+
+## 2026-06-05 (suite) — Widgets dashboard filtrables par période
+
+### Added
+- `GET /api/admin/analytics/breakdown?period=today|week|month|all` : filtre `created_at` (today=00h, week=7j, month=30j).
+- Dashboard : les widgets « Revenus par service » et « Top zones/villes » se rafraîchissent au clic sur le sélecteur Aujourd'hui/Semaine/Mois (déjà présent) ; badge de période affiché sur chaque widget.
+
+### Tests
+- pytest `test_iter118_dashboard_breakdown.py` 4/4 ✅ (ajout test période cumulative today≤week≤month≤all).
+- Screenshot : clic Mois→291,46 € / Semaine→197,01 €, badge "7 jours", graphiques mis à jour.

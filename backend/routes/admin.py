@@ -613,15 +613,28 @@ def _is_valid_city(city: str):
 
 
 @router.get("/analytics/breakdown")
-async def get_analytics_breakdown(request: Request):
-    """Revenue split by service + top cities/zones — fed by real data."""
+async def get_analytics_breakdown(request: Request, period: str = "all"):
+    """Revenue split by service + top cities/zones — fed by real data.
+    Optional period filter: today | week | month | all."""
     await require_role(request, ["admin"])
 
     completed_ride_statuses = ["completed", "delivered", "done"]
 
+    # ---- Period → created_at date filter (ISO strings sort lexicographically) ----
+    now = datetime.now(timezone.utc)
+    if period == "today":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        start = now - timedelta(days=7)
+    elif period == "month":
+        start = now - timedelta(days=30)
+    else:
+        start = None
+    date_match = {"created_at": {"$gte": start.isoformat()}} if start else {}
+
     # ---- Revenue by service ----
     async def _sum(col, fare_field, match=None):
-        m = match or {}
+        m = {**(match or {}), **date_match}
         pipeline = [{"$match": m}, {"$group": {"_id": None, "revenue": {"$sum": f"${fare_field}"}, "count": {"$sum": 1}}}]
         res = await db[col].aggregate(pipeline).to_list(1)
         if res:
@@ -642,7 +655,7 @@ async def get_analytics_breakdown(request: Request):
 
     # ---- Top zones / cities (from ride + parcel pickup addresses) ----
     zones = {}
-    async for r in db.rides.find({}, {"_id": 0, "pickup_address": 1, "final_fare": 1, "status": 1}):
+    async for r in db.rides.find(date_match, {"_id": 0, "pickup_address": 1, "final_fare": 1, "status": 1}):
         city = _extract_city(r.get("pickup_address"))
         if not _is_valid_city(city):
             continue
@@ -650,7 +663,7 @@ async def get_analytics_breakdown(request: Request):
         z["rides"] += 1
         if r.get("status") in completed_ride_statuses:
             z["revenue"] += r.get("final_fare") or 0
-    async for p in db.parcels.find({}, {"_id": 0, "pickup_address": 1, "fare": 1}):
+    async for p in db.parcels.find(date_match, {"_id": 0, "pickup_address": 1, "fare": 1}):
         city = _extract_city(p.get("pickup_address"))
         if not _is_valid_city(city):
             continue

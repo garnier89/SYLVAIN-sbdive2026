@@ -28,19 +28,30 @@ const AdminDashboard = () => {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, aRes, dRes, bRes] = await Promise.allSettled([
+      const [sRes, aRes, dRes] = await Promise.allSettled([
         fetch(`${API}/api/admin/stats`, { credentials: 'include' }),
         fetch(`${API}/api/admin/analytics`, { credentials: 'include' }),
         fetch(`${API}/api/admin/analytics/delivery-monthly`, { credentials: 'include' }),
-        fetch(`${API}/api/admin/analytics/breakdown`, { credentials: 'include' }),
       ]);
       if (sRes.status === 'fulfilled' && sRes.value.ok) setStats(await sRes.value.json());
       if (aRes.status === 'fulfilled' && aRes.value.ok) setAnalytics(await aRes.value.json());
       if (dRes.status === 'fulfilled' && dRes.value.ok) setDelivery(await dRes.value.json());
-      if (bRes.status === 'fulfilled' && bRes.value.ok) setBreakdown(await bRes.value.json());
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }, []);
+
+  // Breakdown (Revenus par service + Top zones) refetch on period change
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/admin/analytics/breakdown?period=${period}`, { credentials: 'include' });
+        if (active && res.ok) setBreakdown(await res.json());
+      } catch (err) { console.error(err); }
+    })();
+    return () => { active = false; };
+  }, [period]);
+
 
   useEffect(() => { load(); }, [load]);
 
@@ -406,7 +417,12 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="revenue-by-service-card">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-bold text-gray-800 text-base">Revenus par service</h3>
-            <CurrencyEur size={20} className="text-green-500" weight="duotone" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full" data-testid="revenue-period-badge">
+                {period === 'today' ? "Aujourd'hui" : period === 'week' ? '7 jours' : period === 'month' ? '30 jours' : 'Total'}
+              </span>
+              <CurrencyEur size={20} className="text-green-500" weight="duotone" />
+            </div>
           </div>
           <p className="text-3xl font-black text-gray-900 mb-3" data-testid="total-revenue">
             {(breakdown?.total_revenue ?? 0).toLocaleString('fr-FR')} €
@@ -434,7 +450,12 @@ const AdminDashboard = () => {
               <h3 className="font-bold text-gray-800 text-base">Top zones / villes</h3>
               <p className="text-xs text-gray-500">Classement par volume de courses</p>
             </div>
-            <MapPin size={20} className="text-[#3B82F6]" weight="duotone" />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full" data-testid="zones-period-badge">
+                {period === 'today' ? "Aujourd'hui" : period === 'week' ? '7 jours' : period === 'month' ? '30 jours' : 'Total'}
+              </span>
+              <MapPin size={20} className="text-[#3B82F6]" weight="duotone" />
+            </div>
           </div>
           <div className="space-y-2 max-h-[260px] overflow-y-auto">
             {(breakdown?.top_zones || []).length === 0 ? (

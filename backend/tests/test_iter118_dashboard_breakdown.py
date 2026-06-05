@@ -53,3 +53,14 @@ def test_top_zones_clean_and_sorted():
 def test_breakdown_requires_admin():
     r = requests.get(f"{API}/admin/analytics/breakdown", timeout=30)
     assert r.status_code in (401, 403)
+
+
+def test_breakdown_period_filter():
+    s = _admin_session()
+    totals = {}
+    for period in ["today", "week", "month", "all"]:
+        r = s.get(f"{API}/admin/analytics/breakdown?period={period}", timeout=30)
+        assert r.status_code == 200, r.text
+        totals[period] = r.json()["total_revenue"]
+    # Cumulative windows: today <= week <= month <= all
+    assert totals["today"] <= totals["week"] <= totals["month"] <= totals["all"]
