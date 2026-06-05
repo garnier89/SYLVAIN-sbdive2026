@@ -1,6 +1,18 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Découpage composants (suite) — Iteration 128
+
+### Fait & vérifié
+- **LandingPage.js : 429 → ~135 lignes** — sections statiques + données extraites dans `landing/LandingSections.jsx` (HowItWorks, PoolBusiness, Services, Why, Security, Phone, Register, Footer + StoreLinks/constantes). Navbar + hero (interactifs) gardés dans le parent. Rendu vérifié (toutes sections OK, 4 étapes, 6 boutons inscription).
+- **AdminUsers.js : 420 → ~320 lignes** — modales « Ajouter solde » et « Documents » extraites dans `admin/users/AdminUserModals.jsx` (état conservé dans le parent, passé en props). Vérifié : 208 lignes affichées, les 2 modales s'ouvrent correctement.
+- Imports orphelins nettoyés dans les deux cas (lint propre, build CRA intact).
+
+### Reporté volontairement (app en production — qualité avant tout)
+- **DriverHome.js (718)** : chemin live chauffeur (WebSocket, toggle online, acceptation course, OTP, mode destination, heatmap). Découpage à faire en session dédiée AVEC test du flux d'acceptation de course (simulation d'une course entrante) pour éviter toute régression sur le chemin de revenu.
+- **LoginPage.js (543)** : AUTH → à traiter via `integration_expert` avant restructuration (règle de sécurité).
+
+
 ## 2026-06-05 — Gros refactors (Option A), incrémental + testé — Iteration 127
 
 ### Phase 1 — Nettoyage console.log

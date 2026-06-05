@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
-import { MagnifyingGlass, ArrowsClockwise, X, Plus, Export, PencilSimple, Eye, Trash, ToggleLeft, ToggleRight, Wallet, CaretUp, CaretDown, PlusCircle, FileText, UploadSimple } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, X, Plus, Export, PencilSimple, Eye, Trash, ToggleLeft, ToggleRight, Wallet, CaretUp, CaretDown, PlusCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { CreditModal, DocumentsModal } from './users/AdminUserModals';
 
 const AdminUsers = () => {
   const navigate = useNavigate();
@@ -308,110 +309,24 @@ const AdminUsers = () => {
       </div>
 
       {/* Add Balance Modal */}
-      {creditTarget && (
-        <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4" onClick={() => setCreditTarget(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()} data-testid="credit-modal">
-            <div className="bg-gray-900 text-white px-5 py-4 flex items-center justify-between">
-              <h2 className="text-base font-bold">Ajouter solde</h2>
-              <button onClick={() => setCreditTarget(null)} className="bg-white text-gray-900 rounded-full w-7 h-7 flex items-center justify-center" data-testid="credit-close-x">
-                <X size={14} weight="bold" />
-              </button>
-            </div>
-            <div className="p-5">
-              <p className="text-sm text-gray-700 mb-4">
-                Le montant saisi sera <strong>directement ajouté</strong> au compte de <strong>{creditTarget.name || creditTarget.email}</strong>.
-                <br />
-                <span className="text-xs text-gray-500">Solde actuel : {(creditTarget.wallet_balance != null ? creditTarget.wallet_balance : 0).toFixed(2)} €</span>
-              </p>
-              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Montant (€)</label>
-              <input
-                type="number" step="0.01" autoFocus
-                value={creditAmount}
-                onChange={(e) => setCreditAmount(e.target.value)}
-                placeholder="ex: 10.00 (négatif pour débiter)"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-3" data-testid="credit-amount" />
-              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Note <span className="font-normal text-xs text-gray-400">(optionnel)</span></label>
-              <input
-                type="text" maxLength={200}
-                value={creditNote}
-                onChange={(e) => setCreditNote(e.target.value)}
-                placeholder="Raison du crédit"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" data-testid="credit-note" />
-            </div>
-            <div className="flex items-center justify-end gap-2 px-5 pb-5">
-              <button onClick={() => setCreditTarget(null)} className="px-5 py-2.5 rounded-full border border-gray-300 text-sm font-semibold text-gray-700" data-testid="credit-close-btn">
-                Fermer
-              </button>
-              <button onClick={saveCredit} disabled={creditSaving || !creditAmount}
-                className="px-6 py-2.5 rounded-full bg-gray-900 text-white text-sm font-semibold disabled:opacity-50" data-testid="credit-save-btn">
-                {creditSaving ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreditModal
+        target={creditTarget}
+        amount={creditAmount} setAmount={setCreditAmount}
+        note={creditNote} setNote={setCreditNote}
+        saving={creditSaving}
+        onClose={() => setCreditTarget(null)}
+        onSave={saveCredit}
+      />
 
       {/* Documents Modal */}
-      {docsTarget && (
-        <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4" onClick={() => setDocsTarget(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="docs-modal">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
-              <h2 className="text-lg font-bold text-gray-900" data-testid="docs-modal-title">
-                Documents de {docsTarget.name || docsTarget.email}
-              </h2>
-              <div className="flex items-center gap-2">
-                <label htmlFor="admin-upload-doc-input" className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold flex items-center gap-1.5 cursor-pointer" data-testid="upload-doc-btn">
-                  <UploadSimple size={14} weight="bold" /> Ajouter
-                </label>
-                <input id="admin-upload-doc-input" type="file" accept="image/*,application/pdf" className="hidden" onChange={onAdminUploadDoc} data-testid="upload-doc-input" />
-                <button onClick={() => setDocsTarget(null)} className="px-4 py-2 rounded-lg bg-cyan-500 text-white text-sm font-semibold" data-testid="docs-close-btn">
-                  Fermer
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {docsLoading && <div className="text-center text-gray-400 py-10">Chargement...</div>}
-              {!docsLoading && docsData && docsData.documents.length === 0 && (
-                <div className="text-center py-12 text-gray-500" data-testid="no-docs-msg">
-                  <FileText size={40} className="mx-auto text-gray-300 mb-2" />
-                  <p className="text-base font-semibold">Aucun document trouvé</p>
-                  <p className="text-xs mt-1">Cliquez sur « Ajouter » pour téléverser un document pour cet utilisateur.</p>
-                </div>
-              )}
-              {!docsLoading && docsData && docsData.documents.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {docsData.documents.map((d) => (
-                    <div key={d.id} className="border border-gray-200 rounded-xl overflow-hidden flex flex-col" data-testid={`doc-card-${d.id}`}>
-                      <div className="bg-gray-50 aspect-video flex items-center justify-center">
-                        {d.mime_type && d.mime_type.startsWith('image/') ? (
-                          <a href={d.file_url} target="_blank" rel="noreferrer">
-                            <img src={d.file_url} alt={d.label} className="max-h-full max-w-full object-contain" />
-                          </a>
-                        ) : (
-                          <a href={d.file_url} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 text-gray-500">
-                            <FileText size={32} /> <span className="text-xs">Ouvrir</span>
-                          </a>
-                        )}
-                      </div>
-                      <div className="p-3 flex items-center justify-between">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 truncate" title={d.label}>{d.label}</p>
-                          <p className="text-[11px] text-gray-400">{d.type}{d.status ? ` · ${d.status}` : ''}</p>
-                        </div>
-                        {!d.id.startsWith('profile_') && (
-                          <button onClick={() => removeDoc(d.id)} className="text-gray-400 hover:text-red-600" data-testid={`delete-doc-${d.id}`} title="Supprimer">
-                            <Trash size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <DocumentsModal
+        target={docsTarget}
+        data={docsData}
+        loading={docsLoading}
+        onClose={() => setDocsTarget(null)}
+        onUpload={onAdminUploadDoc}
+        onRemoveDoc={removeDoc}
+      />
     </div>
   );
 };
