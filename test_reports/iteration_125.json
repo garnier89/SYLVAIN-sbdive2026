@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend-only test of the new full-screen waiting screen for pending rides (RideTrackingPage). RESULT: 6/7 acceptance criteria PASS, 1 critical visual bug FAIL. All required data-testids are present and the entire waiting UX (title 'Recherche d'un chauffeur...', subtitle 'Nous contactons les chauffeurs proches', SearchingRadar size 220, ride-searching-route card with Tour Eiffel→Gare du Nord/11.27€, three action buttons) renders correctly. The old stepper + 'Veuillez patienter' card are GONE. Buttons all work: Relancer fires toast 'Recherche relancée' and shows 'Relance 1/3…'; Annuler opens the CancelRideModal with reasons list; Pool toggle button is present. /course→Demander correctly navigates to /ride/:id. CRITICAL VISUAL BUG: the page renders on WHITE background instead of the spec-required navy #0B1426 because the global rule .mobile-container { background: #ffffff } in /app/frontend/src/index.css L173 overrides the Tailwind arbitrary class bg-[#0B1426] (same CSS specificity, .mobile-container is loaded after Tailwind utilities). The visual V3Cube dark-blue full-screen radar experience is therefore NOT actually shown to the user — radar appears floating on white, white title text is invisible on white background.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RideTrackingPage (pending early-return)", "issue": "Background renders WHITE instead of navy #0B1426. Tailwind arbitrary utility bg-[#0B1426] is overridden by .mobile-container { background: #ffffff } in /app/frontend/src/index.css (L168-174). Same specificity, but index.css is loaded after the Tailwind layer so the white wins. Result: the full-screen 'dark-blue radar' V3Cube look is not delivered to users — title 'Recherche d'un chauffeur...' (text-white) becomes invisible on white background, and the visual identity required by the spec is missing.", "selector": "[data-testid=\"ride-tracking-page\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/ride/:id pending state", "issues": ["White-on-white text: title 'Recherche d'un chauffeur...' and subtitle are invisible due to white BG override (see ui_bugs above). Action buttons ('Activer Taxi Pool', 'Relancer la recherche', 'Annuler la course') still readable because they use colored/red text, but the overall waiting screen looks broken compared to the V3Cube reference."]}
+    ]
+  },
+  "passing_checks": [
+    "Login (rider.qa@demo.sb / Rider123!) successful via 'Ou choisir une autre option de connexion' → email/password",
+    "Direct nav /ride/ride_9cb7aa8ed289 (when still pending) renders ride-tracking-page with all expected testids and copy",
+    "Full flow /course?mode=standard → Tour Eiffel/Gare du Nord via Google Places → 'Commander · 11.27 €' → ride-choose-request-btn → navigate(/ride/ride_8914d09d55e7) with status 'pending'",
+    "Pending early-return UI present: data-testid ride-tracking-page, ride-searching, searching-radar (SearchingRadar size 220), ride-searching-route (DEPART/DESTINATION/prix)",
+    "Title text: 'Recherche d'un chauffeur...' present",
+    "Subtitle text: 'Nous contactons les chauffeurs proches' present",
+    "Three action buttons present: toggle-taxi-pool-btn ('Activer Taxi Pool (tarif partagé)'), relancer-recherche-btn ('Relancer la recherche'), cancel-ride-btn ('Annuler la course')",
+    "OLD stepper ride-status-stepper NOT rendered in pending state (confirmed absent)",
+    "OLD card 'Veuillez patienter' NOT rendered (document.body.innerText does not contain it)",
+    "Relancer-recherche-btn click → toast 'Recherche relancée' shown + relance-count badge updated to 'Relance 1/3…'",
+    "Cancel-ride-btn click → CancelRideModal opens with title 'Annuler la course' and reason list (Changement d'avis, Le chauffeur est en retard, Mauvaise adresse saisie, J'ai trouvé un autre trajet, Le prix est trop élevé, Autre raison)",
+    "Toggle-taxi-pool-btn is clickable and responds (button persists; pool polling logic appears to fire)",
+    "Page does not crash when ride is later auto-cancelled by dispatcher (no-driver path); falls back to the regular non-pending UI ('Course annulée — Aucun chauffeur disponible (auto-dispatch)')",
+    "className on ride-tracking-page IS 'mobile-container min-h-screen bg-[#0B1426] flex flex-col relative overflow-hidden' — JSX is correct, only CSS override is the problem"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "FIX the white-background override on the pending RideTrackingPage. Options (pick one, simplest first): (a) replace the className 'bg-[#0B1426]' with an inline style={{ backgroundColor: '#0B1426' }} on the pending-state root div (L463 of /app/frontend/src/pages/user/RideTrackingPage.js) so it beats .mobile-container, (b) use Tailwind important modifier '!bg-[#0B1426]', (c) remove the global `background: #ffffff` from `.mobile-container` in /app/frontend/src/index.css L173 and let each page set its own bg (risk: affects other mobile pages relying on default white). Recommended: option (a) — fully scoped, no side-effects."
+  ],
+  "critical_code_review_comments": [
+    "CSS architecture: .mobile-container hard-codes background: #ffffff in index.css L173. This silently wins against Tailwind utility classes (same specificity, later in cascade) — any page trying to set a custom bg via Tailwind on the mobile-container will fail. Consider removing the background from .mobile-container, or move it into a separate utility like .mobile-container-white that is opt-in, to prevent future regressions of the same kind.",
+    "RideTrackingPage.js is 887 lines and has TWO parallel rendering branches for pending state (the new full-screen early-return L461-565 AND the legacy block at L623+ which still references toggle-taxi-pool-btn/cancel-ride-btn). The legacy pending block at L623+ is now unreachable (early-return at L461 always wins) but its testids ARE DUPLICATED in the JSX source — this will not affect runtime queryselector results (DOM only contains the early-return tree) but it makes static analysis/grep noisy and confuses future maintainers. Recommend deleting the now-dead pending branch from the bottom block."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "86% (6/7 acceptance criteria; only the navy background visual fails)"},
+  "test_credentials": "rider.qa@demo.sb / Rider123! (used)",
+  "seed_data_creation": "Created a new pending ride ride_8914d09d55e7 via the /course?mode=standard flow (Tour Eiffel → Gare du Nord, Sb, 11.27€) because ride_9cb7aa8ed289 got auto-cancelled mid-test by the no-driver dispatcher.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The new full-screen pending UX is FUNCTIONALLY correct (all testids, copy, buttons, modals work). The single remaining issue is purely CSS: white background visible instead of #0B1426 due to .mobile-container { background:#ffffff } override. To re-test after fix: login rider.qa@demo.sb/Rider123!, create new ride via /course?mode=standard, then on /ride/:id assert that getComputedStyle(document.querySelector('[data-testid=\"ride-tracking-page\"]')).backgroundColor === 'rgb(11, 20, 38)'. Note: a ride created in production stays 'pending' only briefly (~1-2 min) before auto-dispatch cancels it — chain tests fast or create a fresh ride per assertion. Mobile-viewport login requires clicking 'Ou choisir une autre option de connexion' then 'email & mot de passe' before email/password inputs appear.",
+  "rca of the issue": "Root cause: CSS specificity tie + cascade order. Both .mobile-container and the Tailwind-generated .bg-\\[\\#0B1426\\] have specificity (0,1,0). When two rules tie, the later one in the stylesheet wins. Tailwind utility CSS is injected at the @tailwind utilities layer which is loaded before the custom CSS in index.css, so .mobile-container { background: #ffffff } (defined at /app/frontend/src/index.css L173) overrides the Tailwind utility. Repro: open /ride/<pending_id>, run getComputedStyle(document.querySelector('[data-testid=\"ride-tracking-page\"]')).backgroundColor → returns 'rgb(255, 255, 255)' even though className contains 'bg-[#0B1426]'. Mitigation: inline style={{backgroundColor:'#0B1426'}} (specificity 1,0,0,0 — always wins), OR use Tailwind important modifier '!bg-[#0B1426]', OR remove the background declaration from .mobile-container."
+}

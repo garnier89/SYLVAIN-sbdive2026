@@ -39,7 +39,9 @@ const TaxiHubPage = () => {
         if (r.data?.unified_flow_enabled !== false) navigate(`/course?mode=${m}`, { replace: true });
         else setUnifiedRedirecting(false);
       })
-      .catch(() => setUnifiedRedirecting(false));
+      // On a transient config error, default to the unified flow (it is the
+      // default-enabled state) so the old booking page never re-appears.
+      .catch(() => navigate(`/course?mode=${m}`, { replace: true }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [view, setView] = useState(params.get('mode') ? 'booking' : 'grid');

@@ -6,7 +6,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { rideAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
-  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, UsersThree,
+  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, UsersThree, ArrowLeft,
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
@@ -457,6 +457,113 @@ const RideTrackingPage = () => {
     );
   }
 
+  // ── V3Cube full-screen "Recherche d'un chauffeur" experience (pending) ──
+  if (ride.status === 'pending') {
+    return (
+      <div className="mobile-container min-h-screen bg-[#0B1426] flex flex-col relative overflow-hidden" data-testid="ride-tracking-page">
+        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center" data-testid="ride-searching-back">
+          <ArrowLeft size={20} className="text-white" />
+        </button>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center" data-testid="ride-searching">
+          <SearchingRadar size={220} />
+          <h1 className="text-white font-black text-2xl mt-10">Recherche d'un chauffeur...</h1>
+          <p className="text-white/60 text-sm mt-2">Nous contactons les chauffeurs proches</p>
+          {!isBiddingMode && relanceCount > 0 && relanceCount < searchCfg.max_relances && (
+            <p className="text-[#FF5000] text-xs font-bold mt-4" data-testid="relance-count">Relance {relanceCount}/{searchCfg.max_relances}…</p>
+          )}
+
+          <div className="mt-8 w-full max-w-sm bg-white/5 border border-white/10 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shrink-0" />
+              <p className="text-sm text-white/90 truncate">{ride.pickup_address}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0" />
+              <p className="text-sm text-white/90 truncate">{ride.dropoff_address}</p>
+            </div>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
+              <span className="text-[11px] text-white/50 capitalize">{ride.vehicle_type} · {ride.distance_km?.toFixed(1)} km</span>
+              <span className="text-sm font-black text-white">{(ride.final_fare || ride.estimated_fare)?.toFixed(2)} €</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Taxi Pool matches (kept functional) */}
+        {poolEnabled && poolMatches.length > 0 && (
+          <div className="px-4 mb-2" data-testid="pool-matches-panel">
+            <div className="bg-white/5 border border-emerald-500/30 rounded-2xl p-3">
+              <p className="text-sm font-bold text-emerald-300 mb-2" data-testid="pool-matches-count">
+                {poolMatches.length} place{poolMatches.length > 1 ? 's' : ''} sur une course Pool proche
+              </p>
+              {poolMatches.slice(0, 2).map((m, i) => (
+                <div key={m.ride_id} className="flex items-center gap-2 py-1" data-testid={`pool-match-${i}`}>
+                  <p className="flex-1 min-w-0 text-[11px] text-white/70 truncate">{m.pickup_address || 'Ramassage proche'} → {m.dropoff_address || 'Destination'}</p>
+                  {m.joined ? (
+                    <span className="text-[10px] font-bold text-emerald-300" data-testid={`pool-match-joined-${i}`}>Rejoint</span>
+                  ) : (
+                    <button onClick={() => joinPool(m.ride_id)} disabled={joiningRideId === m.ride_id} className="text-[10px] font-bold text-white bg-emerald-500 px-3 py-1 rounded-full disabled:opacity-60" data-testid={`pool-join-btn-${i}`}>
+                      {joiningRideId === m.ride_id ? '…' : 'Rejoindre'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom actions */}
+        <div className="px-4 pb-8 pt-2 space-y-2 relative z-10">
+          {!isBiddingMode && (
+            <button onClick={togglePool} disabled={poolLoading} className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-bold border border-white/15 bg-white/5 text-white/90" data-testid="toggle-taxi-pool-btn">
+              <UsersThree size={18} weight="duotone" className={poolEnabled ? 'text-emerald-400' : 'text-white/60'} />
+              {poolEnabled ? 'Taxi Pool activé · partagé' : 'Activer Taxi Pool (tarif partagé)'}
+            </button>
+          )}
+          {!isBiddingMode && (
+            <button onClick={handleManualRelance} className="w-full rounded-xl py-3 text-sm font-bold bg-white/10 text-white" data-testid="relancer-recherche-btn">
+              Relancer la recherche
+            </button>
+          )}
+          {canCancel && (
+            <button onClick={() => setShowCancel(true)} className="w-full rounded-xl py-3 text-sm font-bold text-red-300" data-testid="cancel-ride-btn">
+              Annuler la course
+            </button>
+          )}
+        </div>
+
+        <CancelRideModal open={showCancel} reasons={cancelReasons} onCancel={handleCancel} onClose={() => setShowCancel(false)} />
+        <StatusDialog dialog={statusDialog} />
+
+        {/* No-driver alternatives modal (after max relances) */}
+        {showNoDriver && (
+          <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-black/50" data-testid="no-driver-modal">
+            <div className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 pb-8">
+              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
+                <Clock size={26} weight="duotone" className="text-[#FF5000]" />
+              </div>
+              <h3 className="text-lg font-black text-gray-900 text-center mb-1">Aucun chauffeur disponible</h3>
+              <p className="text-sm text-gray-500 text-center mb-5">
+                Aucun chauffeur n'a accepté après plusieurs relances. Essayez l'une de ces options :
+              </p>
+              <button onClick={handleProposeFare} disabled={converting} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 mb-3 disabled:opacity-60" style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="propose-fare-btn">
+                <Star size={20} weight="fill" /> {converting ? 'Conversion…' : 'Proposer votre tarif'}
+              </button>
+              <button onClick={() => { setShowNoDriver(false); setShowSchedule(true); }} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 mb-3 bg-[#0B1426] text-white" data-testid="schedule-trip-btn">
+                <NavigationArrow size={20} weight="fill" /> Planifier le trajet
+              </button>
+              <button onClick={() => { relanceRef.current = 0; setRelanceCount(0); setShowNoDriver(false); }} className="w-full py-2.5 text-sm font-semibold text-gray-500" data-testid="continue-search-btn">
+                Continuer la recherche
+              </button>
+            </div>
+          </div>
+        )}
+
+        <ScheduleCalendarModal open={showSchedule} onClose={() => setShowSchedule(false)} onConfirm={handleReschedule} />
+      </div>
+    );
+  }
+
   return (
     <div className="mobile-container min-h-screen bg-white flex flex-col" data-testid="ride-tracking-page">
       <RideTrackingMap
@@ -510,28 +617,7 @@ const RideTrackingPage = () => {
           </div>
         )}
 
-        {/* Searching animation */}
-        {ride.status === 'pending' && (
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-4 flex flex-col items-center text-center" data-testid="ride-searching">
-            <SearchingRadar size={140} />
-            <p className="font-semibold text-blue-800 mt-4">Recherche d'un chauffeur...</p>
-            <p className="text-xs text-[#FF4500] mt-1">Veuillez patienter</p>
-            {!isBiddingMode && relanceCount > 0 && relanceCount < searchCfg.max_relances && (
-              <p className="text-[11px] text-gray-500 mt-2" data-testid="relance-count">
-                Relance {relanceCount}/{searchCfg.max_relances}…
-              </p>
-            )}
-            {!isBiddingMode && (
-              <button
-                onClick={handleManualRelance}
-                className="mt-3 px-4 py-2 rounded-full bg-white border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-50 transition-colors"
-                data-testid="relancer-recherche-btn"
-              >
-                Relancer la recherche
-              </button>
-            )}
-          </div>
-        )}
+        {/* Searching state is handled by the full-screen radar (pending early-return) */}
 
         {/* Taxi Pool toggle */}
         {ride.status === 'pending' && (
