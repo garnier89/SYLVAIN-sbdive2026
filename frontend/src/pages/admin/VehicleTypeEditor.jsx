@@ -111,7 +111,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
     slug: '', name_fr: '', name_en: '', name_translations: {}, name_rental: '', category: 'ride',
     icon_type: 'Car', show_as: 'list', info: '', currency: 'EUR', display_order: 99,
     allow_whatsapp_booking: false, enable_pool: false, assist_available: false, pet_friendly: false,
-    ask_otp_before_ride: false, fare_model_strategy: 'incremental',
+    ask_otp_before_ride: false, fare_model_strategy: 'incremental', pool_percentage: 90,
     price_per_km: 1.5, price_per_min: 0.3, min_fare: 10, base_fare: 5, commission_percent: 15,
     zone_overrides: [],
     user_cancel_time_limit: 5, user_cancel_charges: 4, waiting_time_limit: 1, waiting_charges: 20, intransit_waiting_fee_per_min: 0.3,
@@ -163,6 +163,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
       price_per_km: parseFloat(f.price_per_km) || 0, price_per_min: parseFloat(f.price_per_min) || 0,
       min_fare: parseFloat(f.min_fare) || 0, base_fare: parseFloat(f.base_fare) || 0,
       commission_percent: parseFloat(f.commission_percent) || 0,
+      pool_percentage: parseFloat(f.pool_percentage) || 0,
       user_cancel_time_limit: parseInt(f.user_cancel_time_limit) || 0, user_cancel_charges: parseFloat(f.user_cancel_charges) || 0,
       waiting_time_limit: parseInt(f.waiting_time_limit) || 0, waiting_charges: parseFloat(f.waiting_charges) || 0,
       intransit_waiting_fee_per_min: parseFloat(f.intransit_waiting_fee_per_min) || 0,
@@ -270,6 +271,16 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
           </select>
         </Field>
         {f.enable_pool && <p className="text-[11px] text-amber-600 mt-1">⚠️ Pool activé → seul le modèle « Fixe » s'applique.</p>}
+        {f.enable_pool && (
+          <div className="mt-4 border-t border-gray-100 pt-3" data-testid="vt-pool-pricing">
+            <Field label="Pourcentage Pool (%) *" hint="1ʳᵉ place = plein tarif. Chaque place suivante coûte ce % du tarif plein. Ex : tarif 10€ et Pool % = 80 → 2 places = 10€ + 8€ = 18€.">
+              <div className="relative max-w-[180px]">
+                <Input type="number" step="0.01" value={num(f.pool_percentage)} onChange={(e) => set('pool_percentage', e.target.value)} className="pr-8" data-testid="vt-pool-percentage" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+              </div>
+            </Field>
+          </div>
+        )}
       </Section>
 
       {/* Base pricing */}

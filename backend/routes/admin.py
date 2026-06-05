@@ -15,7 +15,7 @@ VT_FIELDS = [
     "icon_type", "show_as", "info", "currency", "display_order",
     # feature toggles
     "allow_whatsapp_booking", "enable_pool", "assist_available", "pet_friendly",
-    "ask_otp_before_ride", "fare_model_strategy",
+    "ask_otp_before_ride", "fare_model_strategy", "pool_percentage",
     # base pricing
     "price_per_km", "price_per_min", "min_fare", "base_fare", "commission_percent",
     "zone_overrides",
@@ -34,6 +34,7 @@ VT_DEFAULTS = {
     "currency": "EUR", "display_order": 99,
     "allow_whatsapp_booking": False, "enable_pool": False, "assist_available": False,
     "pet_friendly": False, "ask_otp_before_ride": False, "fare_model_strategy": "incremental",
+    "pool_percentage": 90.0,
     "price_per_km": 1.5, "price_per_min": 0.3, "min_fare": 10.0, "base_fare": 5.0,
     "commission_percent": 15.0, "zone_overrides": [],
     "user_cancel_time_limit": 5, "user_cancel_charges": 4.0, "waiting_time_limit": 1,

@@ -1,6 +1,19 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Taxi Pool : config Admin par Type de véhicule (parité V3Cube) — Iteration 122
+
+### Fixed / Added (Pool Percentage par Type de véhicule)
+- **Source de vérité corrigée** : `get_pool_config()` (`backend/routes/rides.py`) lit désormais `enable_pool` / `pool_percentage` / `person_capacity` directement depuis le document **vehicle_types** sélectionné (parité V3Cube), avec repli sur l'ancien `service_configs.pool` puis défauts. `estimate_ride` et `create_ride` passent `vtype_doc`.
+- **Éditeur Admin** (`VehicleTypeEditor.jsx`) : nouveau champ **« Pourcentage Pool (%) »** (`vt-pool-percentage`), affiché uniquement quand « Activer Pool » est ON, avec l'aide V3Cube : *1ʳᵉ place = plein tarif ; chaque place suivante coûte ce % du tarif plein (ex. 10€ + 8€ = 18€ à 80%)*.
+- **Schéma backend** : `pool_percentage` ajouté à `VT_FIELDS` / `VT_DEFAULTS` (défaut 90.0) dans `admin.py`.
+- Modèle de prix confirmé conforme : `total(n) = F × (1 + (n-1)×pct/100)`.
+
+### Tests
+- `tests/test_iter121_taxi_pool.py` : 5/5 passés.
+- E2E vérifié : Admin règle pool_percentage=50 sur le type « pool » → ratio 2 places = 1.5 ; remis à 90 → ratio 1.9. Champ Admin rendu (capture).
+
+
 ## 2026-06-03 — Enchère bidirectionnelle (inDrive) + itinéraire réel — Iteration 93
 
 ### Added (Enchère bidirectionnelle façon inDrive)

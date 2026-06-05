@@ -24,23 +24,39 @@ def pool_seat_multiplier(seats: int, pool_percentage: float) -> float:
     return round(1 + (n - 1) * (pool_percentage / 100.0), 6)
 
 
-async def get_pool_config():
-    """Admin-configurable Pool settings (service_configs key 'pool')."""
+def _pool_num(v, d):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return d
+
+
+def _pool_bool(v, d):
+    if isinstance(v, str):
+        return v.strip().lower() in ("true", "1", "yes", "oui", "on")
+    return bool(v) if v is not None else d
+
+
+async def get_pool_config(vtype_doc=None):
+    """Pool config sourced **per Vehicle Type** (V3Cube parity).
+
+    The Admin configures Enable Pool / Pool Percentage / Available Seats on each
+    Vehicle Type. We read those fields from the selected vehicle_types document.
+    Falls back to the legacy global service_configs 'pool' doc, then to defaults.
+    """
+    if vtype_doc and ("pool_percentage" in vtype_doc or "enable_pool" in vtype_doc):
+        return {
+            "enabled": _pool_bool(vtype_doc.get("enable_pool"), True),
+            "pool_percentage": _pool_num(vtype_doc.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
+            "available_seats": int(_pool_num(vtype_doc.get("person_capacity", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
+        }
+
     doc = await _db_pool_config()
     s = (doc or {}).get("settings", {}) or {}
-
-    def _num(v, d):
-        try:
-            return float(v)
-        except Exception:
-            return d
-    enabled = s.get("enable_pool", True)
-    if isinstance(enabled, str):
-        enabled = enabled.strip().lower() in ("true", "1", "yes", "oui", "on")
     return {
-        "enabled": bool(enabled),
-        "pool_percentage": _num(s.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
-        "available_seats": int(_num(s.get("available_seats", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
+        "enabled": _pool_bool(s.get("enable_pool", True), True),
+        "pool_percentage": _pool_num(s.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
+        "available_seats": int(_pool_num(s.get("available_seats", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
     }
 
 
@@ -128,7 +144,7 @@ async def estimate_ride(data: RideRequest):
     pool_seats = 1
     pool_cfg = None
     if pool_enabled:
-        pool_cfg = await get_pool_config()
+        pool_cfg = await get_pool_config(vtype_doc)
         max_seats = max(1, pool_cfg["available_seats"])
         pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), max_seats))
         pool_original_fare = round(fare, 2)  # 1st-seat (full) fare
@@ -252,7 +268,7 @@ async def create_ride(data: RideRequest, request: Request):
     pool_seats = 1
     pool_capacity = 1
     if pool_enabled:
-        pool_cfg = await get_pool_config()
+        pool_cfg = await get_pool_config(vtype_doc)
         pool_capacity = max(1, pool_cfg["available_seats"])
         pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), pool_capacity))
         pool_original_fare = round(fare, 2)
