@@ -54,6 +54,11 @@
 - **Backend** (`admin.py`) : schéma `VT_FIELDS`/`VT_DEFAULTS` ; `GET /admin/vehicle-types` (tous, inactifs inclus), `POST` create, `PUT /{slug}` update (whitelist), `POST /vehicle-types/translate` (LLM, JSON strict), `DELETE`.
 - Testé iter112 : **frontend 100%** (login→liste→créer→modifier→dupliquer→supprimer, toggles, zones, surcharges, **auto-translate LLM** Sedan/Sedán/Limousine/سيدان/轿车, save) + backend E2E httpx (persistance champs complexes, inactif visible). a11y toggle (`aria-pressed`/`data-state`) + testids créneaux ajoutés. Lint clean.
 
+## NEW - Jun 2026 - Passager : sélection de véhicule enrichie (reflet de la config admin)
+- `RideMapStep` affiche désormais, par type de véhicule : l'**image admin** (`image_selected`/`image_unselected`, qui change à la sélection) avec fallback icône Phosphor, la **description admin** (`info`), la **capacité**, et des **badges** : Pool, 🐾 Animaux, OTP, ♿ Assist, WhatsApp (depuis `enable_pool`/`pet_friendly`/`ask_otp_before_ride`/`assist_available`/`allow_whatsapp_booking`). Données via `GET /config/vehicle-types`.
+- **Correctif UX** (relevé par l'agent de test) : ajout d'un `useEffect` dans `RideBookingPage` pour **auto-avancer vers la sélection véhicule** dès que départ + arrivée sont posés via l'autocomplétion (auparavant seul un lieu récent/favori déclenchait l'étape — cul-de-sac).
+- Flags démo activés (pool/pets/accessible/moto/luxe/confort) pour donner vie à la config. Testé iter113 : **frontend 100%** (badges pool/pets/accessible/moto/luxe vérifiés, descriptions, capacité, surbrillance) + screenshot confirmant Pool sélectionné avec badge. Lint clean.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)

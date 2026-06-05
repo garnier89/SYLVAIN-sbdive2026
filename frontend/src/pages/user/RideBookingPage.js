@@ -227,6 +227,16 @@ const RideBookingPage = () => {
     }
   }, [pickup, dropoff, selectedVehicle]);
 
+  // Auto-advance to the vehicle selection (map step) once both pickup & dropoff
+  // are set via address autocomplete (parity with the "recent location" path).
+  useEffect(() => {
+    if (step === 'plan' && pickup.lat && dropoff.lat) {
+      getEstimate();
+      setStep('map');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickup.lat, pickup.lng, dropoff.lat, dropoff.lng]);
+
   // Airport geofence — check for surcharge once pickup + dropoff are set
   useEffect(() => {
     if (!pickup.lat || !dropoff.lat) { setAirportSurcharge(null); return; }
