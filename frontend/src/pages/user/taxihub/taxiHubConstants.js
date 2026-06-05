@@ -13,7 +13,7 @@ import {
 export const MODES = [
   // Everyday
   { id: 'standard', cat: 'everyday', label: 'Taxi VTC', sub: 'Course standard', icon: CarProfile, color: '#0B1426', vehicle: 'sb', ride_type: 'instant', panel: null, badge: null, cta: 'Commander' },
-  { id: 'pool', cat: 'everyday', label: 'Pool', sub: 'Partagé, -30%', icon: UsersThree, color: '#3B82F6', vehicle: 'pool', ride_type: 'instant', panel: null, badge: '-30%', cta: 'Commander Pool' },
+  { id: 'pool', cat: 'everyday', label: 'Pool', sub: 'Taxi partagé', icon: UsersThree, color: '#3B82F6', vehicle: 'pool', ride_type: 'instant', panel: null, badge: 'Partagé', cta: 'Commander Pool' },
   { id: 'electric', cat: 'everyday', label: 'Green', sub: '100% électrique', icon: Leaf, color: '#10B981', vehicle: 'electric', ride_type: 'instant', panel: null, badge: 'Eco', cta: 'Commander Green' },
   { id: 'moto', cat: 'everyday', label: 'Moto', sub: 'Rapide en ville', icon: Motorcycle, color: '#EF4444', vehicle: 'moto', ride_type: 'instant', panel: null, badge: 'Fast', cta: 'Commander Moto' },
   // Time & Distance

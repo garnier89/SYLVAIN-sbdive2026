@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, MapPin, FlagCheckered, Clock, MapTrifold, CalendarPlus,
   UserPlus, Briefcase, Lightning, Plus, Bell, UsersThree,
-  House, NavigationArrow, Pencil, CaretRight, X,
+  House, NavigationArrow, Pencil, CaretRight, X, Tag,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import MapLocationPicker from '../../components/MapLocationPicker';
@@ -678,6 +678,24 @@ const TaxiHubPage = () => {
                   );
                 })}
               </div>
+
+              {(() => {
+                const poolTotal = poolFullFare * poolMult(poolSeats);
+                const separateTotal = poolFullFare * poolSeats;
+                const savings = separateTotal - poolTotal;
+                if (poolSeats < 2 || savings < 0.01 || poolFullFare <= 0) return null;
+                return (
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-[#E9F9EF] border border-[#10B981]/30 p-3" data-testid="pool-savings-banner">
+                    <Tag size={18} weight="fill" className="text-[#0B8A4B] mt-0.5 shrink-0" />
+                    <p className="text-xs text-[#0B6B3A] leading-snug">
+                      <span className="font-black">Vous économisez {savings.toFixed(2)} €</span>{' '}
+                      en partageant&nbsp;: vous payez <span className="font-bold">{poolTotal.toFixed(2)} €</span>{' '}
+                      au lieu de <span className="line-through text-[#0B6B3A]/70">{separateTotal.toFixed(2)} €</span>{' '}
+                      ({poolSeats} places réservées séparément).
+                    </p>
+                  </div>
+                );
+              })()}
 
               <p className="text-[11px] text-gray-400 text-center mt-4">
                 Ceci est juste un tarif estimé. Le montant final peut varier pendant le voyage.

@@ -13,6 +13,10 @@
 - `tests/test_iter121_taxi_pool.py` : 5/5 passés.
 - E2E vérifié : Admin règle pool_percentage=50 sur le type « pool » → ratio 2 places = 1.5 ; remis à 90 → ratio 1.9. Champ Admin rendu (capture).
 
+### Added (UX — estimation d'économie côté client)
+- Écran Pool (`TaxiHubPage.js`) : bandeau **« Vous économisez X € en partageant »** (`pool-savings-banner`) affiché dès 2 places — compare le tarif Pool au coût des mêmes places réservées séparément (économie = F×(n-1)×(1-%/100)). Vérifié e2e (ex. 2 places : 9,50 € au lieu de 10,00 €, -0,50 €).
+- Libellé du mode Pool corrigé : « Partagé, -30% » (ancienne hypothèse erronée) → « Taxi partagé » / badge « Partagé ».
+
 
 ## 2026-06-03 — Enchère bidirectionnelle (inDrive) + itinéraire réel — Iteration 93
 
