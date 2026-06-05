@@ -1,0 +1,36 @@
+{
+  "summary": "End-to-end validation of the new PHARMACY admin configuration (iter115). Backend: 14/14 pytest passing — GET/PUT /api/admin/pharmacy/settings (admin auth gated, persisted), free_threshold + min connectivity reflected in /api/pharmacy/orders/estimate (subtotal<10 → fee=3, subtotal>=10 → fee=0), active=false blocks POST /api/pharmacy/orders with 400 'Le service Pharmacie est momentanément indisponible', active=true restores order creation, categories CRUD with unique-key 400 / not-found 404 / 400 when products use the category, and public GET /api/pharmacy/categories reflects DB. Frontend admin (/admin/pharmacy): 'Paramètres' tab toggles active, edits info_note + 4 delivery fields, save shows 'Enregistré' toast and values persist after reload. 'Catégories' tab CRUD (add/edit/delete) works, new category appears in both Products filter (product-cat-filter) and the product editor dropdown (prod-cat) — fully DYNAMIC, no hard-coded categories anymore. Client /pharmacy info banner displays the admin-configured note (verified visually 'TEST_INFO_BANNER_iter115'). Regression iter114: 16/16 pytest still passing.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter115_pharmacy_admin_config.py",
+    "/app/backend/tests/test_iter114_pharmacy.py",
+    "/app/test_reports/pytest/iter115.xml"
+  ],
+  "action_items": [
+    "Optional UX: in PharmacyPage, after backend toggles active=false the client banner currently relies on /api/pharmacy/settings being re-fetched on mount — consider a short polling or websocket to make the inactive state visible immediately to clients already on the page (low priority)."
+  ],
+  "critical_code_review_comments": [
+    "routes/pharmacy.py SettingsModel + admin_update_settings correctly upsert with id='default' and the same get_settings() is reused by public + private endpoints — clean.",
+    "DeliveryConfig uses Pydantic Field(ge=0) on all numeric fields → negative values are 422 rejected (good).",
+    "_delivery_fee applies free_threshold BEFORE pharmacy distance calc — correct precedence.",
+    "Category delete guard (count_documents on pharmacy_products) prevents orphaning products — good.",
+    "AdminPharmacy.js useCategories hook reuses the PUBLIC /pharmacy/categories endpoint (no auth) which is fine because the endpoint already returns DB list; this means both admin and client share the same source of truth.",
+    "SettingsTab UI: minor — when typing in numeric inputs, value is stored as a string; save() coerces with Number() — OK but a stray non-numeric input becomes 0 silently. Consider adding inline validation or min='0'.",
+    "PharmacyPage.js handles active=false correctly (disables both action buttons + red banner) but only re-reads settings on page mount — see action item above."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter115_pharmacy_admin_config.py"
+  ],
+  "success_rate": {"backend": "100% (14/14 new + 16/16 iter114 regression)", "frontend": "100% on settings persistence, categories CRUD dynamism, info banner; inactive banner UI render not visually re-verified in playwright (race) but backend behaviour confirmed"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; user rx.qa@demo.sb / RxQa123! (login via /login/email)",
+  "seed_data_creation": "Pytest auto-resets defaults at module teardown (active=true, info_note='Livraison à domicile sous ~45 min.', delivery base=2 per_km=0.7 min=2.5 free_threshold=0) and deletes any test_* categories. Frontend test also restored defaults at end. State at handoff = clean defaults.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter115 added pharmacy admin config (Settings + Categories) and connected fees/active toggle/banner end-to-end. Tests in /app/backend/tests/test_iter115_pharmacy_admin_config.py. Frontend data-testids: pharmacy-tab-settings|categories|products|pharmacies|orders, settings-active-toggle, settings-info-note, settings-base, settings-per-km, settings-min, settings-free-threshold, save-settings-btn, add-category-btn, cat-label, cat-key, cat-order, save-category-btn, edit-category-{key}, del-category-{key}, admin-category-{key}, product-cat-filter, prod-cat, pharmacy-info-banner, pharmacy-inactive-banner.",
+  "rca of the issue": "n/a — no bugs found."
+}

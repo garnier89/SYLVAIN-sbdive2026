@@ -366,6 +366,7 @@ export const realEstateAPI = {
 export const pharmacyAPI = {
   // public / customer
   pharmacies: () => api.get('/pharmacy/pharmacies'),
+  settings: () => api.get('/pharmacy/settings'),
   categories: () => api.get('/pharmacy/categories'),
   products: (params) => api.get('/pharmacy/products', { params }),
   estimate: (data) => api.post('/pharmacy/orders/estimate', data),
@@ -394,6 +395,13 @@ export const pharmacyAPI = {
   adminGetOrder: (id) => api.get(`/admin/pharmacy/orders/${id}`),
   adminQuote: (id, medicationTotal) => api.post(`/admin/pharmacy/orders/${id}/quote`, { medication_total: medicationTotal }),
   adminOrderStatus: (id, status) => api.post(`/admin/pharmacy/orders/${id}/status`, { status }),
+  // admin settings & categories
+  adminSettings: () => api.get('/admin/pharmacy/settings'),
+  adminUpdateSettings: (data) => api.put('/admin/pharmacy/settings', data),
+  adminCategories: () => api.get('/admin/pharmacy/categories'),
+  adminCreateCategory: (data) => api.post('/admin/pharmacy/categories', data),
+  adminUpdateCategory: (key, data) => api.put(`/admin/pharmacy/categories/${key}`, data),
+  adminDeleteCategory: (key) => api.delete(`/admin/pharmacy/categories/${key}`),
 };
 
 export const placesAPI = {

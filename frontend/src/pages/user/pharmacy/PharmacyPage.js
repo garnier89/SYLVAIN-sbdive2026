@@ -7,10 +7,15 @@ import { ArrowLeft, Pill, Prescription, ShoppingBag, ClockCounterClockwise, Star
 const PharmacyPage = () => {
   const navigate = useNavigate();
   const [pharmacies, setPharmacies] = useState([]);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     pharmacyAPI.pharmacies().then((r) => setPharmacies(r.data || [])).catch(() => {});
+    pharmacyAPI.settings().then((r) => setSettings(r.data)).catch(() => {});
   }, []);
+
+  const inactive = settings && settings.active === false;
+  const guard = (path) => { if (inactive) return; navigate(path); };
 
   return (
     <div className="mobile-container min-h-screen bg-white pb-10" data-testid="pharmacy-page">
@@ -28,9 +33,20 @@ const PharmacyPage = () => {
 
       {/* Two main actions */}
       <div className="px-4 -mt-4 grid grid-cols-1 gap-3">
+        {inactive && (
+          <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-xs text-red-700 text-center" data-testid="pharmacy-inactive-banner">
+            Le service Pharmacie est momentanément indisponible. Réessayez plus tard.
+          </div>
+        )}
+        {!inactive && settings?.info_note ? (
+          <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 text-xs text-orange-800 text-center" data-testid="pharmacy-info-banner">
+            {settings.info_note}
+          </div>
+        ) : null}
         <button
-          onClick={() => navigate('/pharmacy/prescription')}
-          className="rounded-2xl bg-white border border-gray-200 shadow-sm p-4 flex items-center gap-4 text-left active:scale-[0.99] transition-transform"
+          onClick={() => guard('/pharmacy/prescription')}
+          disabled={inactive}
+          className="rounded-2xl bg-white border border-gray-200 shadow-sm p-4 flex items-center gap-4 text-left active:scale-[0.99] transition-transform disabled:opacity-50"
           data-testid="pharmacy-prescription-btn"
         >
           <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center shrink-0">
@@ -43,8 +59,9 @@ const PharmacyPage = () => {
         </button>
 
         <button
-          onClick={() => navigate('/pharmacy/catalog')}
-          className="rounded-2xl bg-white border border-gray-200 shadow-sm p-4 flex items-center gap-4 text-left active:scale-[0.99] transition-transform"
+          onClick={() => guard('/pharmacy/catalog')}
+          disabled={inactive}
+          className="rounded-2xl bg-white border border-gray-200 shadow-sm p-4 flex items-center gap-4 text-left active:scale-[0.99] transition-transform disabled:opacity-50"
           data-testid="pharmacy-catalog-btn"
         >
           <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">

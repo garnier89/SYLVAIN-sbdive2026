@@ -23,7 +23,9 @@ admin_router = APIRouter(prefix="/admin/pharmacy", tags=["pharmacy-admin"])
 # Order lifecycle: pending(quote/payment) → confirmed → preparing → accepted(courier)
 #                  → picked_up → in_transit → delivered ; or cancelled
 PHARM_FLOW = ["pending", "confirmed", "preparing", "accepted", "picked_up", "in_transit", "delivered", "cancelled"]
-PRODUCT_CATEGORIES = [
+
+# Default product categories — seeded into db.pharmacy_categories (admin-managed thereafter)
+DEFAULT_CATEGORIES = [
     {"key": "pain", "label": "Antidouleurs & Fièvre"},
     {"key": "cold", "label": "Rhume & Toux"},
     {"key": "digestion", "label": "Digestion"},
@@ -34,9 +36,26 @@ PRODUCT_CATEGORIES = [
     {"key": "dermo", "label": "Dermo-cosmétique"},
 ]
 
-DELIVERY_BASE = 2.0
-DELIVERY_PER_KM = 0.7
-DELIVERY_MIN = 2.5
+# Default service settings — fully admin-configurable via /admin/pharmacy/settings
+DEFAULT_SETTINGS = {
+    "id": "default",
+    "active": True,
+    "info_note": "Livraison à domicile sous ~45 min.",
+    "delivery": {"base": 2.0, "per_km": 0.7, "min": 2.5, "free_threshold": 0.0},
+}
+
+
+async def get_settings() -> dict:
+    """Load (or lazily create) the singleton pharmacy settings document."""
+    s = await db.pharmacy_settings.find_one({"id": "default"}, {"_id": 0})
+    if not s:
+        s = {**DEFAULT_SETTINGS, "created_at": datetime.now(timezone.utc).isoformat()}
+        await db.pharmacy_settings.insert_one(dict(s))
+        s.pop("_id", None)
+    # ensure delivery keys exist (forward-compatible defaults)
+    d = {**DEFAULT_SETTINGS["delivery"], **(s.get("delivery") or {})}
+    s["delivery"] = d
+    return s
 
 
 async def _require_admin(request: Request):
@@ -93,14 +112,25 @@ async def _refund_user(user_id: str, amount: float, method: str, description: st
         )
 
 
-def _delivery_fee(pharmacy: Optional[dict], lat: Optional[float], lng: Optional[float]) -> float:
+def _delivery_fee(settings: dict, pharmacy: Optional[dict], lat: Optional[float], lng: Optional[float], subtotal: float = 0.0) -> float:
+    d = settings["delivery"]
+    threshold = float(d.get("free_threshold") or 0)
+    if threshold > 0 and subtotal >= threshold:
+        return 0.0
     if pharmacy and pharmacy.get("lat") is not None and lat is not None and lng is not None:
         km = calculate_distance(pharmacy["lat"], pharmacy["lng"], lat, lng)
-        return round(max(DELIVERY_MIN, DELIVERY_BASE + DELIVERY_PER_KM * km), 2)
-    return DELIVERY_MIN
+        return round(max(float(d["min"]), float(d["base"]) + float(d["per_km"]) * km), 2)
+    return round(float(d["min"]), 2)
 
 
-# ─────────────────────────── Public: pharmacies & catalog ───────────────────────────
+# ─────────────────────────── Public: settings, pharmacies & catalog ───────────────────────────
+@router.get("/settings")
+async def public_settings(request: Request):
+    await get_current_user(request)
+    s = await get_settings()
+    return {"active": s["active"], "info_note": s.get("info_note", ""), "delivery": s["delivery"]}
+
+
 @router.get("/pharmacies")
 async def list_pharmacies(request: Request):
     await get_current_user(request)
@@ -110,7 +140,10 @@ async def list_pharmacies(request: Request):
 
 @router.get("/categories")
 async def list_categories():
-    return {"categories": PRODUCT_CATEGORIES}
+    cats = await db.pharmacy_categories.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    if not cats:
+        cats = DEFAULT_CATEGORIES
+    return {"categories": [{"key": c["key"], "label": c["label"]} for c in cats]}
 
 
 @router.get("/products")
@@ -187,22 +220,25 @@ async def payment_methods(request: Request):
 @router.post("/orders/estimate")
 async def estimate_order(data: OrderEstimate, request: Request):
     await get_current_user(request)
+    settings = await get_settings()
     _, subtotal = await _resolve_items(data.items)
     pharmacy = await db.pharmacies.find_one({"id": data.pharmacy_id}, {"_id": 0}) if data.pharmacy_id else None
-    fee = _delivery_fee(pharmacy, data.delivery_lat, data.delivery_lng)
+    fee = _delivery_fee(settings, pharmacy, data.delivery_lat, data.delivery_lng, subtotal)
     return {"subtotal": subtotal, "delivery_fee": fee, "total": round(subtotal + fee, 2)}
 
 
 @router.post("/orders")
 async def create_order(data: OrderCreate, request: Request):
     user = await get_current_user(request)
+    settings = await get_settings()
+    if not settings.get("active", True):
+        raise HTTPException(status_code=400, detail="Le service Pharmacie est momentanément indisponible")
     if data.order_type not in ("catalog", "prescription"):
         raise HTTPException(status_code=400, detail="Type de commande invalide")
     if data.delivery_lat is None or data.delivery_lng is None:
         raise HTTPException(status_code=400, detail="Adresse de livraison requise")
 
     pharmacy = await db.pharmacies.find_one({"id": data.pharmacy_id}, {"_id": 0}) if data.pharmacy_id else None
-    fee = _delivery_fee(pharmacy, data.delivery_lat, data.delivery_lng)
 
     if data.order_type == "catalog":
         if not data.items:
@@ -216,6 +252,7 @@ async def create_order(data: OrderCreate, request: Request):
         items, medication_total = [], 0.0
         status = "pending"     # awaiting pharmacy price quote
 
+    fee = _delivery_fee(settings, pharmacy, data.delivery_lat, data.delivery_lng, medication_total)
     total = round(medication_total + fee, 2)
 
     # Catalog orders paid up-front by wallet / SB PayGo are debited atomically now.
@@ -477,6 +514,80 @@ async def admin_delete_product(product_id: str, request: Request):
     return {"ok": True}
 
 
+# ─────────────────────────── Admin: settings ───────────────────────────
+class DeliveryConfig(BaseModel):
+    base: float = Field(2.0, ge=0)
+    per_km: float = Field(0.7, ge=0)
+    min: float = Field(2.5, ge=0)
+    free_threshold: float = Field(0.0, ge=0)  # 0 = disabled
+
+
+class SettingsModel(BaseModel):
+    active: bool = True
+    info_note: str = ""
+    delivery: DeliveryConfig
+
+
+@admin_router.get("/settings")
+async def admin_get_settings(request: Request):
+    await _require_admin(request)
+    return await get_settings()
+
+
+@admin_router.put("/settings")
+async def admin_update_settings(data: SettingsModel, request: Request):
+    await _require_admin(request)
+    payload = {"active": data.active, "info_note": data.info_note, "delivery": data.delivery.model_dump(),
+               "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.pharmacy_settings.update_one({"id": "default"}, {"$set": payload}, upsert=True)
+    return {"id": "default", **payload}
+
+
+# ─────────────────────────── Admin: categories CRUD ───────────────────────────
+class CategoryModel(BaseModel):
+    key: str = Field(..., min_length=2, pattern=r"^[a-z0-9_]+$")
+    label: str = Field(..., min_length=2)
+    order: int = 0
+
+
+@admin_router.get("/categories")
+async def admin_list_categories(request: Request):
+    await _require_admin(request)
+    cats = await db.pharmacy_categories.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    return cats
+
+
+@admin_router.post("/categories")
+async def admin_create_category(data: CategoryModel, request: Request):
+    await _require_admin(request)
+    if await db.pharmacy_categories.find_one({"key": data.key}):
+        raise HTTPException(status_code=400, detail="Cette clé de catégorie existe déjà")
+    doc = {"id": f"cat_{uuid.uuid4().hex[:8]}", **data.model_dump()}
+    await db.pharmacy_categories.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@admin_router.put("/categories/{key}")
+async def admin_update_category(key: str, data: CategoryModel, request: Request):
+    await _require_admin(request)
+    r = await db.pharmacy_categories.update_one({"key": key}, {"$set": {"label": data.label, "order": data.order}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+    return {"key": key, "label": data.label, "order": data.order}
+
+
+@admin_router.delete("/categories/{key}")
+async def admin_delete_category(key: str, request: Request):
+    await _require_admin(request)
+    if await db.pharmacy_products.count_documents({"category": key}) > 0:
+        raise HTTPException(status_code=400, detail="Des produits utilisent cette catégorie")
+    await db.pharmacy_categories.delete_one({"key": key})
+    return {"ok": True}
+
+
+
+
 # ─────────────────────────── Admin: orders & price quote ───────────────────────────
 @admin_router.get("/orders")
 async def admin_list_orders(request: Request, status: Optional[str] = None):
@@ -582,3 +693,8 @@ async def seed_pharmacy():
     if await db.pharmacy_products.count_documents({}) == 0:
         docs = [{"id": f"prod_{uuid.uuid4().hex[:10]}", **p, "pharmacy_id": None, "in_stock": True, "created_at": datetime.now(timezone.utc).isoformat()} for p in SEED_PRODUCTS]
         await db.pharmacy_products.insert_many(docs)
+    if await db.pharmacy_categories.count_documents({}) == 0:
+        docs = [{"id": f"cat_{uuid.uuid4().hex[:8]}", "key": c["key"], "label": c["label"], "order": i} for i, c in enumerate(DEFAULT_CATEGORIES)]
+        await db.pharmacy_categories.insert_many(docs)
+    # ensure the settings singleton exists
+    await get_settings()

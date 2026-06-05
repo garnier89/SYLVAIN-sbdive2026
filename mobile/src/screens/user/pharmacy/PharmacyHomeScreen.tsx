@@ -9,10 +9,14 @@ import { pharmacyAPI } from '@/api/endpoints';
 export default function PharmacyHomeScreen() {
   const nav = useNavigation<any>();
   const [pharmacies, setPharmacies] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
     pharmacyAPI.pharmacies().then((r) => setPharmacies(r.data || [])).catch(() => {});
+    pharmacyAPI.settings().then((r) => setSettings(r.data)).catch(() => {});
   }, []);
+
+  const inactive = settings && settings.active === false;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -28,6 +32,12 @@ export default function PharmacyHomeScreen() {
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>Vos médicaments livrés à domicile — sur ordonnance ou en parapharmacie.</Text>
+
+        {inactive ? (
+          <View style={[styles.banner, { backgroundColor: '#FEE2E2' }]}><Text style={[styles.bannerTxt, { color: colors.danger }]}>Service Pharmacie momentanément indisponible.</Text></View>
+        ) : settings?.info_note ? (
+          <View style={[styles.banner, { backgroundColor: '#FFF7E6' }]}><Text style={[styles.bannerTxt, { color: colors.primaryDark }]}>{settings.info_note}</Text></View>
+        ) : null}
 
         <Pressable style={styles.actionCard} onPress={() => nav.navigate('PharmacyPrescription')} testID="pharmacy-prescription-btn">
           <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
@@ -73,6 +83,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, backgroundColor: colors.secondary },
   headerTitle: { color: colors.textInverse, fontSize: fontSizes.xl, fontWeight: '800' },
   intro: { color: colors.textSecondary, fontSize: fontSizes.sm, marginBottom: spacing.lg },
+  banner: { borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
+  bannerTxt: { fontSize: fontSizes.xs, fontWeight: '700', textAlign: 'center' },
   actionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md, ...shadow.sm },
   actionIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   actionTitle: { fontSize: fontSizes.md, fontWeight: '800', color: colors.textPrimary },

@@ -123,6 +123,7 @@ export const medicalAPI = {
 
 export const pharmacyAPI = {
   pharmacies: () => api.get('/pharmacy/pharmacies'),
+  settings: () => api.get('/pharmacy/settings'),
   categories: () => api.get('/pharmacy/categories'),
   products: (params?: any) => api.get('/pharmacy/products', { params }),
   estimate: (data: any) => api.post('/pharmacy/orders/estimate', data),

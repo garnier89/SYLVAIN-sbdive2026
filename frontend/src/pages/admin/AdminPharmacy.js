@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../components/ui/button';
-import { Pill, Storefront, Package, Receipt, Plus, PencilSimple, Trash, Check, X } from '@phosphor-icons/react';
+import { Pill, Storefront, Package, Receipt, Plus, PencilSimple, Trash, Check, X, Tag, Gear } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { pharmacyAPI } from '../../services/api';
 
 const fmt = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v || 0);
-const CATS = [
-  { key: 'pain', label: 'Antidouleurs & Fièvre' }, { key: 'cold', label: 'Rhume & Toux' },
-  { key: 'digestion', label: 'Digestion' }, { key: 'vitamins', label: 'Vitamines' },
-  { key: 'hygiene', label: 'Hygiène' }, { key: 'baby', label: 'Bébé & Maman' },
-  { key: 'firstaid', label: 'Premiers secours' }, { key: 'dermo', label: 'Dermo-cosmétique' },
-];
+
+// Categories are now admin-managed (DB-backed). This hook loads the live list.
+const useCategories = () => {
+  const [cats, setCats] = useState([]);
+  const reload = useCallback(() => { pharmacyAPI.categories().then((r) => setCats(r.data.categories || [])).catch(() => {}); }, []);
+  useEffect(() => { reload(); }, [reload]);
+  return [cats, reload];
+};
+
 const ORDER_STATUSES = ['confirmed', 'preparing', 'accepted', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 const ST_LABEL = { pending: 'En attente devis', confirmed: 'Confirmée', preparing: 'Préparation', accepted: 'Coursier', picked_up: 'Récupérée', in_transit: 'Livraison', delivered: 'Livrée', cancelled: 'Annulée' };
 
@@ -86,6 +89,7 @@ const PharmaciesTab = () => {
 // ───────── Products tab ─────────
 const emptyProduct = { name: '', category: 'pain', price: 0, description: '', image_url: '', pharmacy_id: null, in_stock: true };
 const ProductsTab = () => {
+  const [cats] = useCategories();
   const [items, setItems] = useState([]);
   const [filter, setFilter] = useState('all');
   const [editing, setEditing] = useState(null);
@@ -109,7 +113,7 @@ const ProductsTab = () => {
       <div className="flex items-center justify-between mb-3 gap-2">
         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="border rounded-lg px-3 py-2 text-sm" data-testid="product-cat-filter">
           <option value="all">Toutes catégories</option>
-          {CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          {cats.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
         </select>
         <Button onClick={() => setEditing({ ...emptyProduct })} data-testid="add-product-btn"><Plus size={16} className="mr-1" /> Nouveau produit</Button>
       </div>
@@ -120,7 +124,7 @@ const ProductsTab = () => {
             {items.map((p) => (
               <tr key={p.id} className="border-t border-gray-100" data-testid={`admin-product-${p.id}`}>
                 <td className="p-3 flex items-center gap-2">{p.image_url && <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover" />}{p.name}</td>
-                <td className="p-3 text-gray-500">{CATS.find((c) => c.key === p.category)?.label || p.category}</td>
+                <td className="p-3 text-gray-500">{cats.find((c) => c.key === p.category)?.label || p.category}</td>
                 <td className="p-3 font-semibold">{fmt(p.price)}</td>
                 <td className="p-3">{p.in_stock ? <span className="text-green-600 text-xs">En stock</span> : <span className="text-red-500 text-xs">Rupture</span>}</td>
                 <td className="p-3 text-right">
@@ -139,7 +143,7 @@ const ProductsTab = () => {
             <h3 className="font-bold text-lg mb-3">{editing.id ? 'Modifier' : 'Nouveau'} produit</h3>
             <div className="grid grid-cols-2 gap-2">
               <input className="col-span-2 border rounded-lg px-3 py-2 text-sm" placeholder="Nom" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} data-testid="prod-name" />
-              <select className="border rounded-lg px-3 py-2 text-sm" value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} data-testid="prod-cat">{CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select>
+              <select className="border rounded-lg px-3 py-2 text-sm" value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} data-testid="prod-cat">{cats.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select>
               <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Prix" value={editing.price} onChange={(e) => setEditing({ ...editing, price: e.target.value })} data-testid="prod-price" />
               <input className="col-span-2 border rounded-lg px-3 py-2 text-sm" placeholder="Description" value={editing.description || ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
               <input className="col-span-2 border rounded-lg px-3 py-2 text-sm" placeholder="URL image" value={editing.image_url || ''} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} />
@@ -224,10 +228,142 @@ const OrdersTab = () => {
   );
 };
 
+// ───────── Categories tab ─────────
+const emptyCategory = { key: '', label: '', order: 0 };
+const CategoriesTab = () => {
+  const [items, setItems] = useState([]);
+  const [editing, setEditing] = useState(null);
+
+  const load = useCallback(() => { pharmacyAPI.adminCategories().then((r) => setItems(r.data || [])).catch(() => toast.error('Erreur')); }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    if (!editing.label || !editing.key) return toast.error('Clé et libellé requis');
+    try {
+      if (editing.existing) await pharmacyAPI.adminUpdateCategory(editing.key, { key: editing.key, label: editing.label, order: Number(editing.order) || 0 });
+      else await pharmacyAPI.adminCreateCategory({ key: editing.key, label: editing.label, order: Number(editing.order) || 0 });
+      toast.success('Enregistré'); setEditing(null); load();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Échec'); }
+  };
+  const remove = async (key) => { if (!window.confirm('Supprimer cette catégorie ?')) return; try { await pharmacyAPI.adminDeleteCategory(key); load(); } catch (e) { toast.error(e.response?.data?.detail || 'Échec'); } };
+
+  return (
+    <>
+      <div className="flex justify-end mb-3">
+        <Button onClick={() => setEditing({ ...emptyCategory })} data-testid="add-category-btn"><Plus size={16} className="mr-1" /> Nouvelle catégorie</Button>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-500 text-xs uppercase"><tr><th className="text-left p-3">Ordre</th><th className="text-left p-3">Libellé</th><th className="text-left p-3">Clé</th><th className="text-right p-3">Actions</th></tr></thead>
+          <tbody>
+            {items.map((c) => (
+              <tr key={c.key} className="border-t border-gray-100" data-testid={`admin-category-${c.key}`}>
+                <td className="p-3 text-gray-400">{c.order}</td>
+                <td className="p-3 font-semibold">{c.label}</td>
+                <td className="p-3 text-gray-500 font-mono text-xs">{c.key}</td>
+                <td className="p-3 text-right">
+                  <button onClick={() => setEditing({ ...c, existing: true })} className="text-gray-500 mr-2" data-testid={`edit-category-${c.key}`}><PencilSimple size={16} /></button>
+                  <button onClick={() => remove(c.key)} className="text-red-400" data-testid={`del-category-${c.key}`}><Trash size={16} /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()} data-testid="category-editor">
+            <h3 className="font-bold text-lg mb-3">{editing.existing ? 'Modifier' : 'Nouvelle'} catégorie</h3>
+            <input className="w-full border rounded-lg px-3 py-2 text-sm mb-2" placeholder="Libellé (ex: Vitamines)" value={editing.label} onChange={(e) => setEditing({ ...editing, label: e.target.value })} data-testid="cat-label" />
+            <input className="w-full border rounded-lg px-3 py-2 text-sm mb-2 disabled:bg-gray-100" placeholder="Clé (ex: vitamins, sans espace)" value={editing.key} disabled={editing.existing} onChange={(e) => setEditing({ ...editing, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })} data-testid="cat-key" />
+            <input className="w-full border rounded-lg px-3 py-2 text-sm mb-3" placeholder="Ordre d'affichage" type="number" value={editing.order} onChange={(e) => setEditing({ ...editing, order: e.target.value })} data-testid="cat-order" />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditing(null)}><X size={16} className="mr-1" />Annuler</Button>
+              <Button onClick={save} data-testid="save-category-btn"><Check size={16} className="mr-1" />Enregistrer</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// ───────── Settings tab ─────────
+const SettingsTab = () => {
+  const [s, setS] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { pharmacyAPI.adminSettings().then((r) => setS(r.data)).catch(() => toast.error('Erreur')); }, []);
+  if (!s) return <p className="text-sm text-gray-400">Chargement…</p>;
+
+  const setD = (k, v) => setS({ ...s, delivery: { ...s.delivery, [k]: v } });
+  const save = async () => {
+    setSaving(true);
+    try {
+      await pharmacyAPI.adminUpdateSettings({
+        active: s.active, info_note: s.info_note || '',
+        delivery: {
+          base: Number(s.delivery.base) || 0, per_km: Number(s.delivery.per_km) || 0,
+          min: Number(s.delivery.min) || 0, free_threshold: Number(s.delivery.free_threshold) || 0,
+        },
+      });
+      toast.success('Paramètres enregistrés');
+    } catch { toast.error('Échec'); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="max-w-xl space-y-5">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between" data-testid="settings-active-row">
+        <div>
+          <h4 className="font-semibold text-gray-900">Service Pharmacie actif</h4>
+          <p className="text-xs text-gray-500">Désactivé : les clients ne peuvent plus commander.</p>
+        </div>
+        <button onClick={() => setS({ ...s, active: !s.active })} data-testid="settings-active-toggle"
+          className={`w-12 h-7 rounded-full transition-colors relative ${s.active ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full transition-all ${s.active ? 'left-[22px]' : 'left-0.5'}`} />
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <label className="text-sm font-semibold text-gray-900">Note / bannière client</label>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm mt-2" placeholder="Ex: Livraison sous 45 min" value={s.info_note || ''} onChange={(e) => setS({ ...s, info_note: e.target.value })} data-testid="settings-info-note" />
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <h4 className="font-semibold text-gray-900 mb-3">Frais de livraison</h4>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500">Frais de base (€)</label>
+            <input type="number" step="0.1" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={s.delivery.base} onChange={(e) => setD('base', e.target.value)} data-testid="settings-base" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Prix / km (€)</label>
+            <input type="number" step="0.1" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={s.delivery.per_km} onChange={(e) => setD('per_km', e.target.value)} data-testid="settings-per-km" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Frais minimum (€)</label>
+            <input type="number" step="0.1" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={s.delivery.min} onChange={(e) => setD('min', e.target.value)} data-testid="settings-min" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Livraison gratuite dès (€, 0 = off)</label>
+            <input type="number" step="1" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={s.delivery.free_threshold} onChange={(e) => setD('free_threshold', e.target.value)} data-testid="settings-free-threshold" />
+          </div>
+        </div>
+      </div>
+
+      <Button onClick={save} disabled={saving} data-testid="save-settings-btn"><Check size={16} className="mr-1" />{saving ? 'Enregistrement…' : 'Enregistrer les paramètres'}</Button>
+    </div>
+  );
+};
+
+
 const TABS = [
   { key: 'orders', label: 'Commandes', icon: Receipt, comp: OrdersTab },
   { key: 'products', label: 'Produits', icon: Package, comp: ProductsTab },
+  { key: 'categories', label: 'Catégories', icon: Tag, comp: CategoriesTab },
   { key: 'pharmacies', label: 'Pharmacies', icon: Storefront, comp: PharmaciesTab },
+  { key: 'settings', label: 'Paramètres', icon: Gear, comp: SettingsTab },
 ];
 
 const AdminPharmacy = () => {
