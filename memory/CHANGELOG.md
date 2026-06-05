@@ -628,3 +628,16 @@ Le mode « Pool » du TaxiHub envoyait `pool_enabled:true` mais aucune remise n'
 ### Tests
 - pytest `test_iter121_taxi_pool.py` **3/3 ✅** : estimate non-pool vs pool (−30% exact, original_fare, raison), création course Pool (remise + original_fare), remise jamais appliquée hors Pool.
 - curl e2e : estimate 5,00€ → 3,50€ ; création course Pool estimated_fare 3,50€ / original_fare 5,00€ / pool_enabled true. Données de test nettoyées.
+
+## 2026-06-05 (suite) — Processus Pool V3Cube : sélection des sièges + tarif par siège
+
+### Contexte
+Captures V3Cube fournies : après adresse + Pool → écran « De combien de places avez-vous besoin ? » (1 ou 2 sièges, prix qui s'ajuste : 1 = 4,30€, 2 = 8,17€, ratio 1,9) → « Confirmer les sièges » → « Recherche de pilotes ».
+
+### Added
+- Backend `rides.py` : tarification géométrique par siège `pool_fare_multiplier(n) = 0.70*(1-0.9^n)/(1-0.9)` (1 siège=×0.70, 2=×1.33). Appliquée dans estimate + création quand `pool_enabled`, bornée à POOL_MAX_SEATS=4. `models/schemas.py` : `seats_required` (RideRequest + RideResponse).
+- Frontend `TaxiHubPage.js` : CTA « Confirmer les détails » en mode Pool → feuille de sélection des sièges (`pool-seats-sheet`, options 1/2 avec prix par siège), « Confirmer les sièges » → réservation. `buildPayload` envoie `seats_required`. Prix live ajusté selon les sièges.
+
+### Tests
+- pytest `test_iter121_taxi_pool.py` **5/5 ✅** (remise pool, sièges géométriques, création 2 sièges, jamais hors Pool).
+- testing_agent frontend **100%** (iteration_121.json) : feuille sièges, ratio 1,97×, navigation vers /ride/<id> « Recherche d'un chauffeur ». Mode standard contourne la feuille. Rides de test nettoyés.
