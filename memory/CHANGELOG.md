@@ -1,6 +1,20 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 — Cohérence visuelle attente/annulation + écran annulé sombre (RideTrackingPage)
+
+### Problème (capture utilisateur, preview)
+Le parcours basculait entre **2 styles** : radar bleu nuit (attente) → ancien écran **blanc** « Course annulée » (map + carte rouge) quand l'auto-dispatch annule faute de chauffeur.
+
+### Changed — `RideTrackingPage.js`
+- Nouvel **early-return plein écran sombre** pour `isCancelled` : fond `#0B1426`, icône X rouge, « Course annulée » + raison, carte récap trajet, boutons **Réessayer la recherche** (recrée la course → /ride/:id), **Proposer votre tarif** (→ /taxi-bidding), **Retour à l'accueil**.
+- Fond navy forcé via `style` inline sur les états pending ET cancelled (corrige l'override `.mobile-container{background:#fff}`).
+- Anciens blocs blancs (bandeau « Course annulée », petite carte radar) retirés du rendu principal → plus de bascule de style.
+
+### Tests
+- testing_agent iteration_126 : **5/5** — `getComputedStyle().backgroundColor === rgb(11,20,38)` confirmé sur pending ET cancelled ; aucun `.leaflet-container` (plus d'écran blanc/map) ; Réessayer recrée une course pending navy ; Proposer tarif → /taxi-bidding. Lint clean.
+- Backlog (suggéré QA) : découper RideTrackingPage en RideWaitingScreen/RideCancelledScreen/RideActiveScreen + retirer `background:#fff` global de `.mobile-container`.
+
 ## 2026-06-06 — Écran d'attente course = radar V3Cube plein écran (RideTrackingPage)
 
 ### Demande utilisateur (2 captures : « ancien » vs « nouveau à utiliser »)
