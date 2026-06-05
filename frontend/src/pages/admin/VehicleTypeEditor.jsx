@@ -27,6 +27,7 @@ const Field = ({ label, children, hint }) => (
 
 const Toggle = ({ checked, onChange, label, testid }) => (
   <button type="button" onClick={() => onChange(!checked)} data-testid={testid}
+    aria-pressed={checked} data-state={checked ? 'on' : 'off'}
     className="flex items-center justify-between w-full py-2">
     <span className="text-sm text-gray-700">{label}</span>
     <span className={`w-11 h-6 rounded-full transition-colors relative ${checked ? 'bg-[#FF5000]' : 'bg-gray-300'}`}>
@@ -57,12 +58,15 @@ const WeekSchedule = ({ value, onChange, currency, testidPrefix }) => {
               {d.label}
             </button>
             <input type="time" disabled={!active} value={row.start || ''} onChange={(e) => setDay(d.id, { start: e.target.value })}
+              data-testid={`${testidPrefix}-${d.id}-start`}
               className="border border-gray-200 rounded-lg px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-300 flex-1" />
             <span className="text-gray-300">→</span>
             <input type="time" disabled={!active} value={row.end || ''} onChange={(e) => setDay(d.id, { end: e.target.value })}
+              data-testid={`${testidPrefix}-${d.id}-end`}
               className="border border-gray-200 rounded-lg px-2 py-1.5 disabled:bg-gray-50 disabled:text-gray-300 flex-1" />
             <div className="relative w-24">
               <input type="number" disabled={!active} placeholder="Prix" value={num(row.price)} onChange={(e) => setDay(d.id, { price: e.target.value })}
+                data-testid={`${testidPrefix}-${d.id}-price`}
                 className="border border-gray-200 rounded-lg pl-2 pr-6 py-1.5 disabled:bg-gray-50 disabled:text-gray-300 w-full" />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">{currencySymbol(currency)}</span>
             </div>

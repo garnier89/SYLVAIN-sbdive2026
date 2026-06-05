@@ -48,6 +48,12 @@
 - L'onglet **« Missions »** affiche une **pastille rouge** (`tabBarBadge`) = nombre de missions disponibles, mis à jour en temps réel par `new_parcel`/`new_transport`. Le chauffeur voit les nouvelles courses sans ouvrir l'écran.
 - `DriverDeliveryJobsScreen` refactorisé pour **consommer le contexte** (plus de WS/fetch locaux). `DriverNavigator` enveloppé par `DriverMissionsProvider`. Vérifié `tsc --noEmit` ✅.
 
+## NEW - Jun 2026 - Admin : Éditeur « Type de véhicule » complet & modernisé (parité V3Cube)
+- Refonte de `AdminVehicleTypes` (table basique → **liste de cartes modernes** + actions modifier/dupliquer/supprimer) + nouvel éditeur plein écran `VehicleTypeEditor.jsx` couvrant toutes les sections V3Cube.
+- **Sections** : Identité & Affichage (slug, nom FR/EN, nom location, catégorie, icône, liste/grille, **devise — EUR + 26 devises**, ordre, description) · **Traductions multilingues (34 langues)** avec **traduction auto LLM** (`claude-sonnet-4-6`) + « Copier partout » · Toggles (WhatsApp, Pool, Assist, Animaux) · Sécurité & stratégie tarifaire (OTP, Incrémental/Fixe + avertissement Pool→Fixe) · **Tarification de base + surcoûts par zone** (Martinique/Guadeloupe/Guyane…) · Frais d'attente & annulation · Capacité + **surcharges horaires hebdo** (Pointe 1/2 + Nuit, éditeur 7 jours start/end/prix) · 2 **images** (sélectionné/non) base64 · ordre & statut.
+- **Backend** (`admin.py`) : schéma `VT_FIELDS`/`VT_DEFAULTS` ; `GET /admin/vehicle-types` (tous, inactifs inclus), `POST` create, `PUT /{slug}` update (whitelist), `POST /vehicle-types/translate` (LLM, JSON strict), `DELETE`.
+- Testé iter112 : **frontend 100%** (login→liste→créer→modifier→dupliquer→supprimer, toggles, zones, surcharges, **auto-translate LLM** Sedan/Sedán/Limousine/سيدان/轿车, save) + backend E2E httpx (persistance champs complexes, inactif visible). a11y toggle (`aria-pressed`/`data-state`) + testids créneaux ajoutés. Lint clean.
+
 # SB Drive VTC - PRD
 
 ## NEW - Jun 2026 - Bouton « Appeler le client » côté chauffeur (DONE — iter 112)
