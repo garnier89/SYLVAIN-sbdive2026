@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useAuth } from '@/contexts/AuthContext';
 import { userAPI } from '@/api/endpoints';
+import { navigate } from '@/navigation/navigationRef';
 
 // Foreground notifications: show a banner + play sound.
 Notifications.setNotificationHandler({
@@ -65,4 +66,15 @@ export function usePushRegistration() {
       }
     })();
   }, [user?.id]);
+
+  // Open the relevant screen when the user taps a notification.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data: any = response.notification.request.content.data || {};
+      if (data.type === 'pharmacy_quote_ready') {
+        navigate('PharmacyOrders');
+      }
+    });
+    return () => sub.remove();
+  }, []);
 }

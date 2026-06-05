@@ -121,6 +121,21 @@ export const medicalAPI = {
     api.post(`/medical/transport/${id}/status`, { status }),
 };
 
+export const pharmacyAPI = {
+  pharmacies: () => api.get('/pharmacy/pharmacies'),
+  categories: () => api.get('/pharmacy/categories'),
+  products: (params?: any) => api.get('/pharmacy/products', { params }),
+  estimate: (data: any) => api.post('/pharmacy/orders/estimate', data),
+  paymentMethods: () => api.get('/pharmacy/payment-methods'),
+  createOrder: (data: any) => api.post('/pharmacy/orders', data),
+  myOrders: () => api.get('/pharmacy/orders'),
+  getOrder: (id: string) => api.get(`/pharmacy/orders/${id}`),
+  cancelOrder: (id: string) => api.post(`/pharmacy/orders/${id}/cancel`),
+  payOrder: (id: string, paymentMethod: string) =>
+    api.post(`/pharmacy/orders/${id}/pay`, { payment_method: paymentMethod }),
+  sbpaygoSsoLink: () => api.post('/finance/sbpaygo/sso-link'),
+};
+
 export const adminAPI = {
   dashboard: () => api.get('/admin/dashboard'),
 };

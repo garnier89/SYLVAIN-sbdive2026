@@ -23,6 +23,7 @@
     "expo-constants": "~17.0.5",
     "expo-device": "^56.0.4",
     "expo-font": "~13.0.3",
+    "expo-image-picker": "^56.0.15",
     "expo-linking": "~7.0.4",
     "expo-localization": "~16.0.0",
     "expo-location": "~18.0.5",

@@ -1,3 +1,13 @@
+## NEW - Jun 2026 - Phase B (mobile Expo) : module PHARMACIE porté end-to-end (DONE — code complet, tsc clean)
+- **Portage mobile complet du parcours Pharmacie** (réutilise le backend déjà testé iter114) :
+  - `PharmacyHomeScreen` (hub : 2 actions + pharmacies partenaires), `PharmacyCatalogScreen` (catégories, recherche, panier +/-, barre panier, checkout modal : pharmacie, adresse + **GPS expo-location**, destinataire, paiement, **prix live**, soldes Portefeuille/SB PayGo + recharge si insuffisant), `PharmacyPrescriptionScreen` (**upload photo via expo-image-picker** appareil photo/galerie en base64, note, GPS, destinataire), `PharmacyOrdersScreen` (liste + timeline + **« Payer maintenant »** modal wallet/SB PayGo + annulation, polling 8s).
+- **API mobile** : `pharmacyAPI` ajouté à `endpoints.ts` (pharmacies/categories/products/estimate/paymentMethods/createOrder/myOrders/cancel/pay/sbpaygoSsoLink).
+- **Navigation** : 4 écrans enregistrés dans `UserNavigator` (`RootNavigator.tsx`) + tuile **« Pharmacie »** (icône medkit) sur `UserHomeScreen`.
+- **Deep-link push** : tap sur la notif `pharmacy_quote_ready` → ouvre `PharmacyOrders` via `navigationRef` (`addNotificationResponseReceivedListener` dans `usePushRegistration`).
+- Deps ajoutées : `expo-image-picker`. `yarn tsc --noEmit` **clean** sur tout le mobile.
+- ⚠️ **Test e2e UI mobile non exécuté** (nécessite appareil/Expo Go) ; logique identique au web (testé iter114) et compilation TS validée. ⚠️ `mobile/.env` `EXPO_PUBLIC_BACKEND_URL` pointe encore sur un ancien preview (`sb-drive-vtc…`) — à repointer vers le backend cible avant test mobile réel.
+
+
 ## NEW - Jun 2026 - Push Expo : token utilisateur + alerte « Devis pharmacie prêt » (DONE)
 - **Push mobile temps réel** : à l'établissement du devis (`admin_quote_order`), en plus du WS, un **Expo push** est envoyé au client via `core.push.notify_user(user_id, …)` (« 💊 Devis pharmacie prêt — X € »). Alerte même app fermée → accélère paiement/livraison.
 - **Backend** : nouveau `POST /api/users/push-token` (auth.py `users_router`) — stocke le token Expo sur `db.users.push_token` (+ miroir `db.drivers` si chauffeur). Helper `notify_user` ajouté à `core/push.py`. 400 si token manquant.

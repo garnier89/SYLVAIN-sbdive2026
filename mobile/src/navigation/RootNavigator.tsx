@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import Loading from '@/components/Loading';
 import { colors } from '@/theme';
+import { navigationRef } from '@/navigation/navigationRef';
 
 import WelcomeScreen from '@/screens/auth/WelcomeScreen';
 import EmailLoginScreen from '@/screens/auth/EmailLoginScreen';
@@ -23,6 +24,10 @@ import WalletScreen from '@/screens/user/WalletScreen';
 import ProfileScreen from '@/screens/user/ProfileScreen';
 import CatalogScreen from '@/screens/user/CatalogScreen';
 import RideTrackingScreen from '@/screens/user/RideTrackingScreen';
+import PharmacyHomeScreen from '@/screens/user/pharmacy/PharmacyHomeScreen';
+import PharmacyCatalogScreen from '@/screens/user/pharmacy/PharmacyCatalogScreen';
+import PharmacyPrescriptionScreen from '@/screens/user/pharmacy/PharmacyPrescriptionScreen';
+import PharmacyOrdersScreen from '@/screens/user/pharmacy/PharmacyOrdersScreen';
 
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import DriverRidesScreen from '@/screens/driver/DriverRidesScreen';
@@ -95,6 +100,10 @@ function UserNavigator() {
       <UserStack.Screen name="Delivery" component={CatalogScreen} initialParams={{ service: 'delivery' }} />
       <UserStack.Screen name="Carpool" component={CatalogScreen} initialParams={{ service: 'carpool' }} />
       <UserStack.Screen name="Runner" component={CatalogScreen} initialParams={{ service: 'on_demand' }} />
+      <UserStack.Screen name="PharmacyHome" component={PharmacyHomeScreen} />
+      <UserStack.Screen name="PharmacyCatalog" component={PharmacyCatalogScreen} />
+      <UserStack.Screen name="PharmacyPrescription" component={PharmacyPrescriptionScreen} />
+      <UserStack.Screen name="PharmacyOrders" component={PharmacyOrdersScreen} />
     </UserStack.Navigator>
   );
 }
@@ -147,7 +156,7 @@ export default function RootNavigator() {
   if (loading) return <Loading />;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
           <RootStack.Screen name="Auth" component={AuthNavigator} />
