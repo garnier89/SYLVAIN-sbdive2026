@@ -1,4 +1,12 @@
-## NEW - Jun 2026 - Pool : chauffeur notifié « +1 passager · trajet groupé » + itinéraire combiné optimisé (DONE)
+## NEW - Jun 2026 - Recherche chauffeur : après 3 relances → proposer « Proposer votre tarif » ou « Planifier » (DONE)
+- **Demande** : sur tout type de course taxi, après **3 relances** sans chauffeur, rediriger le client vers l'option « Proposer votre tarif » (enchères) ou « Planifier le trajet ».
+- **Relance** = cycle auto (~20s) **et** bouton manuel « Relancer la recherche » (même compteur). Au 3e → **modal** auto « Aucun chauffeur disponible » avec 2 boutons + « Continuer la recherche ». Exclut le mode Enchères lui-même.
+- **Backend** (`rides.py`) : `POST /{ride_id}/rebroadcast` (relance — re-broadcast `new_ride_request`), `POST /{ride_id}/convert-to-bidding` (passe `mode='bidding'`/`is_bidding`, `proposed_fare`=estimate, re-broadcast), réutilise `PUT /{ride_id}/reschedule`.
+- **Frontend** (`RideTrackingPage.js`) : auto-relance toutes les 20s + bouton `relancer-recherche-btn` (compteur `relance-count` 1/3, 2/3) → `no-driver-modal` (`propose-fare-btn` → convert-to-bidding + navigation `/taxi-bidding?resume=<id>`; `schedule-trip-btn` → `ScheduleCalendarModal` → reschedule → `/scheduled-rides`; `continue-search-btn` → reset). `TaxiBiddingPage.js` gère `?resume=<rideId>` pour reprendre la course convertie.
+- Vérifié : **testing_agent frontend 6/6 (100%)** (relances → modal → propose/planifier/continuer, navigations OK) + curl backend (rebroadcast 200, convert mode=bidding, reschedule 200). Lint clean front+back.
+- Backlog : `RideTrackingPage.js` ~791 lignes → à découper (hooks pool/relance/status) ultérieurement.
+
+
 - **Demande** : prévenir le chauffeur Pool en temps réel quand un passager rejoint, avec l'ordre de ramassage optimisé du trajet partagé.
 - **Backend** (`phase2.py`) : `_build_pool_group_route(group_id, from_lat, from_lng)` = ordre **nearest-neighbour** (tous les ramassages puis toutes les déposes, depuis la position chauffeur) avec libellés passager + séquence. Nouvel endpoint `GET /phase2/pool/group/{ride_id}` (propriétaire d'un membre OU chauffeur assigné). `join_pool` : si le groupe a **déjà un chauffeur assigné**, la course du nouveau passager lui est **rattachée** (driver_id + status accepted) et un WS **`pool_passenger_added`** est envoyé au chauffeur (compteur + stops ordonnés) ; le passager reçoit `ride_accepted`. Cible `accepted` désormais acceptée au join. **Strictement limité aux courses `pool_group_id`** → zéro impact sur les courses solo.
 - **Frontend chauffeur** (`DriverHome.js`) : écoute `pool_passenger_added` → toast « +1 passager · trajet groupé (N au total) » + **panneau flottant `pool-route-panel`** listant l'ordre Prise/Dépose par passager.
