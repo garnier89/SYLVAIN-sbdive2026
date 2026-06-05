@@ -21,6 +21,22 @@ export const userAPI = {
   addAddress: (data: any) => api.post('/users/addresses', data),
   deleteAddress: (id: string) => api.delete(`/users/addresses/${id}`),
   registerPushToken: (token: string) => api.post('/users/push-token', { token }),
+  updateProfile: (data: { name?: string; phone?: string; avatar_url?: string }) =>
+    api.put('/users/profile', data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword }),
+};
+
+export const realEstateAPI = {
+  list: (params?: any) => api.get('/real-estate/listings', { params }),
+  get: (id: string) => api.get(`/real-estate/listings/${id}`),
+  myListings: () => api.get('/real-estate/my/listings'),
+  myInquiries: () => api.get('/real-estate/my/inquiries'),
+  createInquiry: (id: string, data: any) =>
+    api.post(`/real-estate/listings/${id}/inquiries`, data),
+  setStatus: (id: string, status: string) =>
+    api.post(`/real-estate/listings/${id}/status`, { status }),
+  remove: (id: string) => api.delete(`/real-estate/listings/${id}`),
 };
 
 export const driverAPI = {

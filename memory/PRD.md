@@ -1,4 +1,16 @@
-## NEW - Jun 2026 - Taxi Pool : bouton « Rejoindre cette course Pool » (jumelage in-app réel) (DONE)
+## NEW - Jun 2026 - Phase B mobile (Expo) : Immobilier + Profil/Édition + Réglages (DONE — code, tsc clean)
+- **Module Immobilier mobile porté** (réutilise le backend testé iter110/111) :
+  - `RealEstateListScreen` : toggle **Acheter/Louer**, **chips catégorie** (Tous/Résidentiel/Commercial/Terrain), **recherche debouncée**, grille 2 colonnes de cartes (thumbnail, prix, ville, specs 🛏🛁📐, badge ★ Sponsorisé), accès « Mes annonces ».
+  - `PropertyDetailScreen` : **carrousel d'images** (ScrollView paginé + dots), prix, badges (Vente/Location, catégorie, meublé), grille specs, description, équipements, **carte react-native-maps** (marqueur), barre contact : **Appeler** (`tel:`) + **« Faire une offre »/« Contacter »** (modal message + montant → `createInquiry`). Masque l'offre si propriétaire → « Gérer mon annonce ».
+  - `MyPropertiesScreen` : onglets **Mes biens** (statut, badge demandes non lues, marquer vendu/loué, supprimer) + **Mes demandes** envoyées.
+- **Profil & Réglages** :
+  - `ProfileScreen` recâblé (lignes navigables) : Modifier le profil, Mes annonces immobilières, Réglages.
+  - `EditProfileScreen` : édition **nom/téléphone** (email lecture seule) → `PUT /api/users/profile`.
+  - `SettingsScreen` : compte (édition profil, **changer mot de passe** via `/auth/change-password`), préférences (**langue FR/EN** i18n, toggle notifications), à propos (CGU/confidentialité/version), déconnexion.
+- **Backend** : nouvel endpoint `PUT /api/users/profile` (name/phone/avatar, exclut `password_hash`, 400 si vide). `userAPI` mobile enrichi (`updateProfile`, `changePassword`) + nouveau `realEstateAPI`. Écrans enregistrés dans `UserNavigator` + tuile **« Immobilier »** sur `UserHomeScreen`.
+- Vérifié : `yarn tsc --noEmit` **clean**, backend lint clean, curl E2E (`PUT /users/profile` OK + 400 vide, `GET /real-estate/listings` renvoie les annonces). ⚠️ **Test e2e UI mobile non exécuté** (nécessite Expo Go/appareil) — logique miroir du web déjà testé + compilation TS validée. `mobile/.env` pointe déjà sur le bon backend.
+
+
 - **Demande** : transformer l'affichage passif des courses Pool proches en **vrai jumelage in-app** (bouton « Rejoindre ») pour booster le taux de remplissage Pool.
 - **Backend** (`phase2.py`) : nouvel endpoint `POST /api/phase2/pool/join/{target_ride_id}` (body `{ride_id}`) — groupe la course Pool `pending` du user avec une course Pool cible proche (re-vérif haversine ≤2 km / ≤3 km), assigne un `pool_group_id` partagé sur les 2 courses, renvoie `members`. Push WS `pool_partner_joined` au propriétaire de la course cible. Gardes : 400 (propre course / cible indispo / trop loin / ride_id manquant), 403 (pas votre course), 404 (introuvable). `GET /pool/matches/{id}` enrichi : `your_group_id`, `group_members`, et `joined` par match (tri groupe d'abord).
 - **Frontend** (`RideTrackingPage.js`) : bouton `pool-join-btn-{i}` par match → toast succès + bascule en badge `pool-match-joined-{i}` « ✓ Rejoint ». Bannière `pool-group-banner` « Vous covoiturez · N passagers groupés » dès qu'un groupe existe.

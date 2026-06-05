@@ -28,6 +28,11 @@ import PharmacyHomeScreen from '@/screens/user/pharmacy/PharmacyHomeScreen';
 import PharmacyCatalogScreen from '@/screens/user/pharmacy/PharmacyCatalogScreen';
 import PharmacyPrescriptionScreen from '@/screens/user/pharmacy/PharmacyPrescriptionScreen';
 import PharmacyOrdersScreen from '@/screens/user/pharmacy/PharmacyOrdersScreen';
+import RealEstateListScreen from '@/screens/user/realestate/RealEstateListScreen';
+import PropertyDetailScreen from '@/screens/user/realestate/PropertyDetailScreen';
+import MyPropertiesScreen from '@/screens/user/realestate/MyPropertiesScreen';
+import EditProfileScreen from '@/screens/user/EditProfileScreen';
+import SettingsScreen from '@/screens/user/SettingsScreen';
 
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import DriverRidesScreen from '@/screens/driver/DriverRidesScreen';
@@ -105,6 +110,11 @@ function UserNavigator() {
       <UserStack.Screen name="PharmacyCatalog" component={PharmacyCatalogScreen} />
       <UserStack.Screen name="PharmacyPrescription" component={PharmacyPrescriptionScreen} />
       <UserStack.Screen name="PharmacyOrders" component={PharmacyOrdersScreen} />
+      <UserStack.Screen name="RealEstate" component={RealEstateListScreen} />
+      <UserStack.Screen name="PropertyDetail" component={PropertyDetailScreen} />
+      <UserStack.Screen name="MyProperties" component={MyPropertiesScreen} />
+      <UserStack.Screen name="EditProfile" component={EditProfileScreen} />
+      <UserStack.Screen name="Settings" component={SettingsScreen} />
     </UserStack.Navigator>
   );
 }

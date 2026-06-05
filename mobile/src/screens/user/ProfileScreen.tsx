@@ -2,8 +2,8 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import i18n from '@/locales/i18n';
 import Button from '@/components/Button';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,18 +11,15 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
+  const nav = useNavigation<any>();
 
   const rows = [
-    { key: 'addresses', icon: 'location-outline', label: 'Mes adresses' },
-    { key: 'payment', icon: 'card-outline', label: 'Moyens de paiement' },
-    { key: 'help', icon: 'help-circle-outline', label: t('profile.help') },
-    { key: 'about', icon: 'information-circle-outline', label: t('profile.about') },
+    { key: 'edit', icon: 'person-outline', label: 'Modifier le profil', screen: 'EditProfile' },
+    { key: 'properties', icon: 'home-outline', label: 'Mes annonces immobilières', screen: 'MyProperties' },
+    { key: 'addresses', icon: 'location-outline', label: 'Mes adresses', screen: null },
+    { key: 'settings', icon: 'settings-outline', label: 'Réglages', screen: 'Settings' },
+    { key: 'help', icon: 'help-circle-outline', label: t('profile.help'), screen: null },
   ];
-
-  const toggleLang = () => {
-    const next = i18n.language === 'fr' ? 'en' : 'fr';
-    i18n.changeLanguage(next);
-  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -42,19 +39,14 @@ export default function ProfileScreen() {
             <Pressable
               key={r.key}
               style={[styles.row, i < rows.length - 1 && styles.divider]}
+              onPress={() => r.screen && nav.navigate(r.screen)}
+              testID={`profile-row-${r.key}`}
             >
               <Ionicons name={r.icon as any} size={22} color={colors.textSecondary} />
               <Text style={styles.rowText}>{r.label}</Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>
           ))}
-          <Pressable style={styles.row} onPress={toggleLang}>
-            <Ionicons name="language-outline" size={22} color={colors.textSecondary} />
-            <Text style={styles.rowText}>
-              {t('profile.language')} — {i18n.language.toUpperCase()}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
         </View>
 
         <Button

@@ -34,6 +34,7 @@ export default function UserHomeScreen() {
       { key: 'towing', label: t('user_home.towing'), icon: 'car', color: '#6366F1', screen: 'Towing' },
       { key: 'marketplace', label: t('user_home.marketplace'), icon: 'storefront', color: '#14B8A6', screen: 'Marketplace' },
       { key: 'pharmacy', label: 'Pharmacie', icon: 'medkit', color: '#EF4444', screen: 'PharmacyHome' },
+      { key: 'real_estate', label: 'Immobilier', icon: 'home', color: '#0D9488', screen: 'RealEstate' },
       { key: 'nearby', label: t('user_home.nearby'), icon: 'location', color: '#84CC16', screen: 'Nearby' },
     ],
     [t]

@@ -375,6 +375,25 @@ async def register_user_push_token(request: Request):
     return {"ok": True}
 
 
+@users_router.put("/profile")
+async def update_user_profile(request: Request):
+    """Update the current user's editable profile fields (name, phone, avatar)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    updates = {}
+    if isinstance(body.get("name"), str) and body["name"].strip():
+        updates["name"] = body["name"].strip()
+    if "phone" in body:
+        updates["phone"] = (body.get("phone") or "").strip() or None
+    if isinstance(body.get("avatar_url"), str):
+        updates["avatar_url"] = body["avatar_url"]
+    if not updates:
+        raise HTTPException(status_code=400, detail="Aucune donnée à mettre à jour")
+    await db.users.update_one({"id": user["id"]}, {"$set": updates})
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return fresh
+
+
 @users_router.get("/addresses", response_model=List[Address])
 async def get_addresses(request: Request):
     user = await get_current_user(request)
