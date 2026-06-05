@@ -61,6 +61,7 @@ const RideTrackingPage = () => {
   const [poolLoading, setPoolLoading] = useState(false);
   const [poolMatches, setPoolMatches] = useState([]);
   const [poolGroupMembers, setPoolGroupMembers] = useState(0);
+  const [poolSavings, setPoolSavings] = useState(0);
   const [joiningRideId, setJoiningRideId] = useState(null);
   const [statusDialog, setStatusDialog] = useState(null);
   const [showRouteEdit, setShowRouteEdit] = useState(false);
@@ -95,6 +96,7 @@ const RideTrackingPage = () => {
     if (!poolEnabled || ride?.status !== 'pending') {
       setPoolMatches([]);
       setPoolGroupMembers(0);
+      setPoolSavings(0);
       return undefined;
     }
     let active = true;
@@ -105,6 +107,7 @@ const RideTrackingPage = () => {
           const d = await res.json();
           setPoolMatches(d.matches || []);
           setPoolGroupMembers(d.group_members || 0);
+          setPoolSavings(d.your_savings || 0);
         }
       } catch (err) {
         console.warn('[RideTracking] pool matches failed:', err?.message || err);
@@ -130,6 +133,8 @@ const RideTrackingPage = () => {
         toast.success(`Course Pool rejointe · ${d.members || 2} passagers`);
         setPoolMatches((ms) => ms.map((m) => (m.ride_id === targetRideId ? { ...m, joined: true } : m)));
         setPoolGroupMembers(d.members || 0);
+        if (d.pool_savings != null) setPoolSavings(d.pool_savings);
+        if (d.shared_fare != null) setRide((r) => (r ? { ...r, estimated_fare: d.shared_fare } : r));
       } else {
         toast.error(d.detail || 'Impossible de rejoindre cette course Pool');
       }
@@ -472,6 +477,14 @@ const RideTrackingPage = () => {
                 {poolGroupMembers > 1 && (
                   <div className="bg-emerald-600 text-white rounded-xl px-3 py-1.5 mb-2 text-[11px] font-semibold flex items-center gap-1.5" data-testid="pool-group-banner">
                     <Check size={14} weight="bold" /> Vous covoiturez · {poolGroupMembers} passagers groupés
+                  </div>
+                )}
+                {poolSavings > 0 && (
+                  <div className="bg-white border border-emerald-300 rounded-xl px-3 py-2 mb-2 flex items-center justify-between" data-testid="pool-savings-banner">
+                    <span className="text-[11px] font-semibold text-gray-700">Tarif partagé recalculé</span>
+                    <span className="text-sm font-extrabold text-emerald-600" data-testid="pool-savings-amount">
+                      −{poolSavings.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € grâce au covoiturage
+                    </span>
                   </div>
                 )}
                 <div className="space-y-2">

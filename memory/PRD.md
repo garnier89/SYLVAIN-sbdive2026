@@ -1,4 +1,11 @@
-## NEW - Jun 2026 - Phase B mobile (Expo) : Immobilier + Profil/Édition + Réglages (DONE — code, tsc clean)
+## NEW - Jun 2026 - Pool : tarif partagé recalculé en direct (« −X € grâce au covoiturage ») piloté par l'admin (DONE)
+- **Demande** : afficher au passager l'économie réelle dès qu'un partenaire rejoint le groupe Pool, **et** rendre la réduction pilotable par l'admin (manuel / automatique / programmé).
+- **Admin** (`AdminServiceConfig` clé `pool`) — 3 nouveaux réglages : `share_discount_enabled` (toggle **manuel** on/off), `share_discount_percent` (% appliqué **automatiquement** au jumelage, défaut 30), `share_discount_hours` (**programmation** par plages « 07:00-10:00,17:00-20:00 », vide = toujours). Persistés dans `service_configs`.
+- **Backend** (`phase2.py`) : helper `_pool_share_cfg()` (lit la config, gère le fuseau Europe/Paris via `_within_hours`). À l'`join_pool`, si la réduction est active, **recalcul du tarif de chaque course groupée** : `estimated_fare = original_fare × (1 − pct/100)`, stocke `pool_savings`/`pool_group_size`/`pool_discount_percent` ; renvoie `shared_fare`/`original_fare`/`pool_savings`/`discount_percent`. `enable_pool` utilise désormais aussi le % admin (au lieu de 0,7 en dur). `GET /pool/matches` expose `your_savings` + `discount_percent`.
+- **Frontend** (`RideTrackingPage`) : bannière `pool-savings-banner` « −X € grâce au covoiturage » (montant `pool-savings-amount`) sous le groupe, alimentée par le join + le polling matches.
+- Vérifié E2E curl + **pytest 2/2** : 30% → 12€→8,40€ (−3,60€) ; admin 50% → −6€ ; admin désactivé → aucune réduction ; reset défauts. Lint clean front+back.
+
+
 - **Module Immobilier mobile porté** (réutilise le backend testé iter110/111) :
   - `RealEstateListScreen` : toggle **Acheter/Louer**, **chips catégorie** (Tous/Résidentiel/Commercial/Terrain), **recherche debouncée**, grille 2 colonnes de cartes (thumbnail, prix, ville, specs 🛏🛁📐, badge ★ Sponsorisé), accès « Mes annonces ».
   - `PropertyDetailScreen` : **carrousel d'images** (ScrollView paginé + dots), prix, badges (Vente/Location, catégorie, meublé), grille specs, description, équipements, **carte react-native-maps** (marqueur), barre contact : **Appeler** (`tel:`) + **« Faire une offre »/« Contacter »** (modal message + montant → `createInquiry`). Masque l'offre si propriétaire → « Gérer mon annonce ».

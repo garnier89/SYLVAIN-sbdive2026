@@ -63,6 +63,12 @@ def test_pool_join_groups_two_riders():
     assert jd["members"] == 2
     assert jd["pool_group_id"]
 
+    # Live shared-fare savings (admin default discount = 30% enabled)
+    if jd.get("pool_savings") is not None:
+        assert jd["pool_savings"] >= 0
+        assert jd["shared_fare"] <= jd["original_fare"]
+        assert jd.get("discount_percent") is not None
+
     # After join: same group, members=2, match flagged joined
     m1 = s1.get(f"{API}/phase2/pool/matches/{ra}", timeout=20).json()
     assert m1["group_members"] == 2

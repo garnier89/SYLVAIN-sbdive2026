@@ -131,6 +131,9 @@ const serviceConfigs = {
     { key: 'pool_percentage', label: 'Pool Percentage (% du 1er siège facturé par siège suppl.)', type: 'number', value: 90 },
     { key: 'available_seats', label: 'Sièges disponibles (capacité, hors chauffeur)', type: 'number', value: 4 },
     { key: 'fare_model', label: 'Modèle tarifaire (Fixed si Pool actif)', type: 'text', value: 'Fixed' },
+    { key: 'share_discount_enabled', label: 'Réduction covoiturage active (manuel on/off)', type: 'toggle', value: true },
+    { key: 'share_discount_percent', label: 'Réduction covoiturage (%) appliquée au jumelage', type: 'number', value: 30 },
+    { key: 'share_discount_hours', label: 'Programmation (plages, ex: 07:00-10:00,17:00-20:00 — vide = toujours)', type: 'text', value: '' },
   ]},
 };
 

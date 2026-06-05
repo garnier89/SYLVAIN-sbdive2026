@@ -19,6 +19,57 @@ def _haversine_km(lat1, lng1, lat2, lng2):
     return 2 * R * math.asin(math.sqrt(a))
 
 
+def _within_hours(hours_str: str, tz: str = "Europe/Paris") -> bool:
+    """Return True if now (in tz) falls in one of the 'HH:MM-HH:MM,...' windows. Empty = always."""
+    if not hours_str or not hours_str.strip():
+        return True
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo(tz))
+    except Exception:
+        now = datetime.now()
+    cur = now.hour * 60 + now.minute
+    for win in hours_str.split(","):
+        win = win.strip()
+        if "-" not in win:
+            continue
+        a, b = win.split("-", 1)
+        try:
+            ah, am = (int(x) for x in a.strip().split(":"))
+            bh, bm = (int(x) for x in b.strip().split(":"))
+        except (ValueError, AttributeError):
+            continue
+        start, end = ah * 60 + am, bh * 60 + bm
+        if start <= end:
+            if start <= cur <= end:
+                return True
+        elif cur >= start or cur <= end:  # window crosses midnight
+            return True
+    return False
+
+
+async def _pool_share_cfg() -> dict:
+    """Admin-driven covoiturage (group-share) discount config.
+
+    Lives in service_configs 'pool'.settings — fully pilotable by the admin:
+    - share_discount_enabled (toggle, manual on/off)
+    - share_discount_percent (%, value applied automatically when riders are grouped)
+    - share_discount_hours   (optional 'HH:MM-HH:MM,...' schedule; empty = always)
+    """
+    doc = await db.service_configs.find_one({"service_key": "pool"}, {"_id": 0})
+    s = (doc or {}).get("settings", {}) or {}
+    enabled = s.get("share_discount_enabled", s.get("enable_pool", True))
+    if isinstance(enabled, str):
+        enabled = enabled.strip().lower() in ("true", "1", "yes", "oui", "on")
+    try:
+        pct = float(s.get("share_discount_percent", 30) or 30)
+    except (TypeError, ValueError):
+        pct = 30.0
+    pct = max(0.0, min(pct, 90.0))
+    hours = s.get("share_discount_hours", "") or ""
+    return {"enabled": bool(enabled), "percent": pct, "hours": hours, "active": bool(enabled) and _within_hours(hours)}
+
+
 # ═══════════ HEAT VIEW (driver demand density) ═══════════
 
 @router.get("/heatmap")
@@ -382,7 +433,14 @@ async def find_pool_matches(ride_id: str, request: Request):
             })
     matches.sort(key=lambda x: (not x["joined"], x["pickup_distance_km"] + x["dropoff_distance_km"]))
     group_members = (await db.rides.count_documents({"pool_group_id": my_group})) if my_group else 0
-    return {"matches": matches[:10], "your_ride_id": ride_id, "your_group_id": my_group, "group_members": group_members}
+    return {
+        "matches": matches[:10],
+        "your_ride_id": ride_id,
+        "your_group_id": my_group,
+        "group_members": group_members,
+        "your_savings": round(ride.get("pool_savings", 0) or 0, 2),
+        "discount_percent": ride.get("pool_discount_percent"),
+    }
 
 
 @router.post("/pool/join/{target_ride_id}")
@@ -424,6 +482,28 @@ async def join_pool(target_ride_id: str, request: Request):
         )
     member_count = await db.rides.count_documents({"pool_group_id": group_id})
 
+    # Live shared-fare recompute (admin-driven covoiturage discount) for every grouped ride
+    cfg = await _pool_share_cfg()
+    shared = {}
+    if cfg["active"]:
+        factor = 1 - cfg["percent"] / 100.0
+        members = await db.rides.find({"pool_group_id": group_id}, {"_id": 0, "id": 1, "original_fare": 1, "estimated_fare": 1}).to_list(50)
+        for md in members:
+            of = md.get("original_fare") or md.get("estimated_fare") or 0
+            nf = round(of * factor, 2)
+            await db.rides.update_one(
+                {"id": md["id"]},
+                {"$set": {"original_fare": of, "estimated_fare": nf, "pool_savings": round(of - nf, 2),
+                          "pool_group_size": member_count, "pool_discount_percent": cfg["percent"]}},
+            )
+        mine = await db.rides.find_one({"id": my_ride_id}, {"_id": 0})
+        shared = {
+            "shared_fare": mine.get("estimated_fare"),
+            "original_fare": mine.get("original_fare"),
+            "pool_savings": mine.get("pool_savings", 0),
+            "discount_percent": cfg["percent"],
+        }
+
     try:
         await manager.send_personal_message({
             "type": "pool_partner_joined",
@@ -431,11 +511,12 @@ async def join_pool(target_ride_id: str, request: Request):
             "ride_id": target_ride_id,
             "members": member_count,
             "partner_name": user.get("name") or "Un passager",
+            "discount_percent": cfg["percent"] if cfg["active"] else 0,
         }, target["user_id"])
     except Exception:
         pass
 
-    return {"message": "joined", "pool_group_id": group_id, "members": member_count}
+    return {"message": "joined", "pool_group_id": group_id, "members": member_count, **shared}
 
 
 @router.put("/pool/enable/{ride_id}")
@@ -450,7 +531,9 @@ async def enable_pool(ride_id: str, request: Request):
     enabled = bool(body.get("enabled", True))
     # Preserve the original (non-discounted) fare across toggles
     original_fare = ride.get("original_fare") or ride.get("estimated_fare", 0)
-    new_fare = original_fare * 0.7 if enabled else original_fare
+    cfg = await _pool_share_cfg()
+    factor = (1 - cfg["percent"] / 100.0) if (enabled and cfg["enabled"]) else 1.0
+    new_fare = round(original_fare * factor, 2)
     await db.rides.update_one(
         {"id": ride_id},
         {"$set": {"pool_enabled": enabled, "estimated_fare": new_fare, "original_fare": original_fare}},
