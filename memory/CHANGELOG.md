@@ -1,6 +1,23 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 — Fix erreur runtime app chauffeur (« Script error » / carte Google Maps)
+
+### Problème (capture utilisateur, preview)
+Overlay rouge bloquant « Uncaught runtime errors: Script error. » sur l'accueil chauffeur (`/chauffeur/home`).
+
+### Cause racine (diagnostic QA iteration_127)
+- **Chemin SVG invalide** pour l'icône voiture du chauffeur dans `AdminGoogleMap.jsx` : les arcs en notation compacte (`a1.5 1.5 0 11-3 0 … 013 0`) cassent le parseur SVG de Google Maps → throw cross-origin (`Expected number at position 63, found M`) remonté en « Script error » par l'overlay dev (visible en preview uniquement).
+- **2e bug** révélé au clic « Heat View » : Google Maps a **supprimé `visualization.HeatmapLayer` en v3.65** → le constructeur throwait.
+
+### Changed — `AdminGoogleMap.jsx`
+- `carIcon.path` remplacé par l'icône Material **directions_car** (courbes de Bézier uniquement, aucun arc) → parseur GMaps OK, marqueur voiture toujours affiché.
+- useEffect heatmap réécrit : essaie `HeatmapLayer` si disponible, sinon **fallback en `google.maps.Circle` pondérés** (jaune/orange/rouge selon l'intensité) avec try/catch → plus jamais d'erreur, feature « Heat View » conservée.
+
+### Tests
+- testing_agent iteration_128 (fix SVG confirmé) + **iteration_129 : 0 erreur runtime** au chargement, au clic Heat View ON/OFF (warning bénin uniquement) et à l'ouverture Mode Destination. Marqueur voiture visible. Lint clean.
+- Backlog (non bloquant, signalé QA) : consolider les loaders Google Maps (GooglePlacesInput injecte un `<script>` brut `libraries=places` ≠ `useJsApiLoader` `places,visualization`) — peut déclencher l'avertissement « multiple times » sur les pages utilisant les deux.
+
 ## 2026-06-06 — Cohérence visuelle attente/annulation + écran annulé sombre (RideTrackingPage)
 
 ### Problème (capture utilisateur, preview)
