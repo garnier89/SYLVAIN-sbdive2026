@@ -1,0 +1,85 @@
+{
+  "summary": "Frontend-only test of RideChoosePage white/compact header (admin-editable), geolocation auto-fill, white-bg pending+cancelled screens, auto-open calendar for book_later, and panel-schedule toggle. ALL 6 ASSERTIONS PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "evidence": {
+    "assertion_1_header_white_editable": {
+      "ride_choose_eyebrow_text": "SB Drive · Se déplacer",
+      "ride_choose_eyebrow_color": "rgb(255, 80, 0)",
+      "ride_choose_title_text_initial": "Planifiez votre trajet",
+      "ride_choose_title_color": "rgb(11, 20, 38)",
+      "ride_choose_mode_chip_text": "Taxi VTC · Course standard (contains 'Taxi VTC')",
+      "header_container_bg": "rgb(255, 255, 255) (DIV.bg-white border-b border-gray-100)",
+      "page_container_bg": "rgb(255, 255, 255)",
+      "admin_login_url_after_login": "https://.../admin",
+      "admin_taxi_booking_config_loaded": true,
+      "admin_save_toast_count": 1,
+      "title_after_admin_edit_relogin_user": "Réservez votre course",
+      "title_changed_correctly": true,
+      "title_restored_to_original": true
+    },
+    "assertion_2_geoloc_autofill": {
+      "geolocation_granted_lat_lng": "48.8584, 2.2945 (Eiffel Tower)",
+      "pickup_value_after_wait_run1": "48.85840, 2.29450 (lat/lng fallback)",
+      "pickup_value_after_admin_test_run": "Av. Gustave Eiffel, 75007 Paris, France (real address resolved by Google Geocoder)",
+      "auto_fill_works": "YES (input value is non-empty after page load)",
+      "note": "Reverse geocoding to a human-readable address is intermittent — sometimes only lat/lng fallback is shown. Field is always auto-populated (non-empty) which matches the assertion 'value non vide'."
+    },
+    "assertion_3_pending_white_bg": {
+      "url": "/ride/ride_0dfe552214a1 (real ride created via 'Commander · 13.65€')",
+      "ride_tracking_page_bg": "rgb(255, 255, 255)",
+      "ride_searching_present": true,
+      "searching_radar_present": true,
+      "ride_searching_route_present": true,
+      "ride_searching_route_bg": "rgb(249, 250, 251) (light gray)",
+      "title_text": "Recherche d'un chauffeur...",
+      "title_color": "rgb(10, 10, 10) (near-black)",
+      "pool_button": 1,
+      "relancer_button": 1,
+      "annuler_button": 1,
+      "blue_background_observed": false
+    },
+    "assertion_4_cancelled_white_bg": {
+      "url": "/ride/ride_8a36d4fb7f04",
+      "ride_tracking_page_bg": "rgb(255, 255, 255)",
+      "ride_cancelled_banner_present": true,
+      "retry_search_btn_present": true,
+      "retry_search_btn_bg": "rgb(255, 80, 0) (orange #FF5000)",
+      "propose_fare_cancelled_btn_present": true,
+      "ride_done_btn_present": true,
+      "blue_background_observed": false
+    },
+    "assertion_5_book_later_auto_calendar": {
+      "url": "/course?mode=book_later",
+      "schedule_calendar_modal_auto_opened": true,
+      "schedule_hour_select_value": "0 (consistent with now+1h, test ran at 23:34 UTC -> +1h = 00:34 -> hour=0)",
+      "after_confirm_modal_closed": true,
+      "still_on_course_page": true,
+      "ride_choose_dropoff_visible": true
+    },
+    "assertion_6_panel_schedule_toggle": {
+      "panel_schedule_toggle_found": true,
+      "calendar_modal_opened_on_toggle": true
+    },
+    "console_errors": "0 page errors; only 2 benign 401s from initial auth probe before login (expected)."
+  },
+  "test_credentials_used": "User: rider.qa@demo.sb / Rider123! (via /login/email). Admin: admin@superapp.com / SuperAdmin123!. Geoloc permission granted via context.grant_permissions + set_geolocation BEFORE navigating to /course.",
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Geocoder fallback: when window.google.maps.Geocoder reverse lookup fails or is throttled, the pickup field falls back to 'lat, lng' string. Functional (input is non-empty) but UX would benefit from a retry or a brief loader indicator; consider catching the failure and retrying after a 1s delay before showing raw coords.",
+    "Mode chip concatenates label + secondary description without a visible separator ('Taxi VTCCourse standard' in textContent). Visually fine in screenshots but a separator span between them would help screen-reader output.",
+    "Pending screen route summary still shows raw 'lat, lng' string (e.g. '48.85840, 2.29450') for the pickup address when geocoder fallback was used. Consider passing the resolved/intended address to the ride creation payload rather than the coord string."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% — 6/6 assertions pass"},
+  "seed_data_creation": "Created one live ride ride_0dfe552214a1 via standard 'Commander' flow as part of assertion 3 (pending screen). Title temporarily changed to 'Réservez votre course' then restored to 'Planifiez votre trajet'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 6 booking-flow UI changes verified end-to-end: white compact header with admin-editable title (booking_header_title / booking_header_eyebrow), geolocation auto-fill of pickup (Geocoder fallback to lat/lng if reverse lookup intermittent), pending search screen + cancelled screen both on white bg with orange accents (no more blue night), /course?mode=book_later auto-opens schedule calendar pre-set to now+1h, and panel-schedule-toggle opens the calendar directly. Mobile viewport 430x900. Login via /login/email direct route (skips mobile 2-step). Geolocation MUST be granted before navigation: context.grant_permissions(['geolocation'], origin=...) + context.set_geolocation({latitude, longitude}).",
+  "rca of the issue": "n/a — feature validation, no bugs to RCA."
+}

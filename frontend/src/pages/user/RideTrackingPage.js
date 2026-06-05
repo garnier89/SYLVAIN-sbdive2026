@@ -460,31 +460,31 @@ const RideTrackingPage = () => {
   // ── V3Cube full-screen "Recherche d'un chauffeur" experience (pending) ──
   if (ride.status === 'pending') {
     return (
-      <div className="mobile-container min-h-screen bg-[#0B1426] flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0B1426' }} data-testid="ride-tracking-page">
-        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center" data-testid="ride-searching-back">
-          <ArrowLeft size={20} className="text-white" />
+      <div className="mobile-container min-h-screen bg-white flex flex-col relative overflow-hidden" style={{ backgroundColor: '#ffffff' }} data-testid="ride-tracking-page">
+        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center" data-testid="ride-searching-back">
+          <ArrowLeft size={20} className="text-[#0B1426]" />
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center" data-testid="ride-searching">
           <SearchingRadar size={220} />
-          <h1 className="text-white font-black text-2xl mt-10">Recherche d'un chauffeur...</h1>
-          <p className="text-white/60 text-sm mt-2">Nous contactons les chauffeurs proches</p>
+          <h1 className="text-[#0B1426] font-black text-2xl mt-10">Recherche d'un chauffeur...</h1>
+          <p className="text-gray-500 text-sm mt-2">Nous contactons les chauffeurs proches</p>
           {!isBiddingMode && relanceCount > 0 && relanceCount < searchCfg.max_relances && (
             <p className="text-[#FF5000] text-xs font-bold mt-4" data-testid="relance-count">Relance {relanceCount}/{searchCfg.max_relances}…</p>
           )}
 
-          <div className="mt-8 w-full max-w-sm bg-white/5 border border-white/10 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
+          <div className="mt-8 w-full max-w-sm bg-gray-50 border border-gray-200 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shrink-0" />
-              <p className="text-sm text-white/90 truncate">{ride.pickup_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
+              <p className="text-sm text-[#0B1426] truncate">{ride.pickup_address}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0" />
-              <p className="text-sm text-white/90 truncate">{ride.dropoff_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+              <p className="text-sm text-[#0B1426] truncate">{ride.dropoff_address}</p>
             </div>
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
-              <span className="text-[11px] text-white/50 capitalize">{ride.vehicle_type} · {ride.distance_km?.toFixed(1)} km</span>
-              <span className="text-sm font-black text-white">{(ride.final_fare || ride.estimated_fare)?.toFixed(2)} €</span>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
+              <span className="text-[11px] text-gray-400 capitalize">{ride.vehicle_type} · {ride.distance_km?.toFixed(1)} km</span>
+              <span className="text-sm font-black text-[#0B1426]">{(ride.final_fare || ride.estimated_fare)?.toFixed(2)} €</span>
             </div>
           </div>
         </div>
@@ -492,15 +492,15 @@ const RideTrackingPage = () => {
         {/* Live Taxi Pool matches (kept functional) */}
         {poolEnabled && poolMatches.length > 0 && (
           <div className="px-4 mb-2" data-testid="pool-matches-panel">
-            <div className="bg-white/5 border border-emerald-500/30 rounded-2xl p-3">
-              <p className="text-sm font-bold text-emerald-300 mb-2" data-testid="pool-matches-count">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+              <p className="text-sm font-bold text-emerald-700 mb-2" data-testid="pool-matches-count">
                 {poolMatches.length} place{poolMatches.length > 1 ? 's' : ''} sur une course Pool proche
               </p>
               {poolMatches.slice(0, 2).map((m, i) => (
                 <div key={m.ride_id} className="flex items-center gap-2 py-1" data-testid={`pool-match-${i}`}>
-                  <p className="flex-1 min-w-0 text-[11px] text-white/70 truncate">{m.pickup_address || 'Ramassage proche'} → {m.dropoff_address || 'Destination'}</p>
+                  <p className="flex-1 min-w-0 text-[11px] text-gray-600 truncate">{m.pickup_address || 'Ramassage proche'} → {m.dropoff_address || 'Destination'}</p>
                   {m.joined ? (
-                    <span className="text-[10px] font-bold text-emerald-300" data-testid={`pool-match-joined-${i}`}>Rejoint</span>
+                    <span className="text-[10px] font-bold text-emerald-700" data-testid={`pool-match-joined-${i}`}>Rejoint</span>
                   ) : (
                     <button onClick={() => joinPool(m.ride_id)} disabled={joiningRideId === m.ride_id} className="text-[10px] font-bold text-white bg-emerald-500 px-3 py-1 rounded-full disabled:opacity-60" data-testid={`pool-join-btn-${i}`}>
                       {joiningRideId === m.ride_id ? '…' : 'Rejoindre'}
@@ -515,18 +515,18 @@ const RideTrackingPage = () => {
         {/* Bottom actions */}
         <div className="px-4 pb-8 pt-2 space-y-2 relative z-10">
           {!isBiddingMode && (
-            <button onClick={togglePool} disabled={poolLoading} className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-bold border border-white/15 bg-white/5 text-white/90" data-testid="toggle-taxi-pool-btn">
-              <UsersThree size={18} weight="duotone" className={poolEnabled ? 'text-emerald-400' : 'text-white/60'} />
+            <button onClick={togglePool} disabled={poolLoading} className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-bold border border-gray-200 bg-white text-[#0B1426]" data-testid="toggle-taxi-pool-btn">
+              <UsersThree size={18} weight="duotone" className={poolEnabled ? 'text-emerald-500' : 'text-gray-400'} />
               {poolEnabled ? 'Taxi Pool activé · partagé' : 'Activer Taxi Pool (tarif partagé)'}
             </button>
           )}
           {!isBiddingMode && (
-            <button onClick={handleManualRelance} className="w-full rounded-xl py-3 text-sm font-bold bg-white/10 text-white" data-testid="relancer-recherche-btn">
+            <button onClick={handleManualRelance} className="w-full rounded-xl py-3 text-sm font-bold bg-gray-100 text-[#0B1426]" data-testid="relancer-recherche-btn">
               Relancer la recherche
             </button>
           )}
           {canCancel && (
-            <button onClick={() => setShowCancel(true)} className="w-full rounded-xl py-3 text-sm font-bold text-red-300" data-testid="cancel-ride-btn">
+            <button onClick={() => setShowCancel(true)} className="w-full rounded-xl py-3 text-sm font-bold text-red-500" data-testid="cancel-ride-btn">
               Annuler la course
             </button>
           )}
@@ -585,31 +585,31 @@ const RideTrackingPage = () => {
       navigate(`/taxi-bidding?${q.toString()}`);
     };
     return (
-      <div className="mobile-container min-h-screen bg-[#0B1426] flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0B1426' }} data-testid="ride-tracking-page">
-        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center" data-testid="ride-cancelled-back">
-          <ArrowLeft size={20} className="text-white" />
+      <div className="mobile-container min-h-screen bg-white flex flex-col relative overflow-hidden" style={{ backgroundColor: '#ffffff' }} data-testid="ride-tracking-page">
+        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center" data-testid="ride-cancelled-back">
+          <ArrowLeft size={20} className="text-[#0B1426]" />
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center" data-testid="ride-cancelled-banner">
-          <div className="w-20 h-20 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
-            <X size={40} weight="bold" className="text-red-400" />
+          <div className="w-20 h-20 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
+            <X size={40} weight="bold" className="text-red-500" />
           </div>
-          <h1 className="text-white font-black text-2xl mt-6">Course annulée</h1>
-          <p className="text-white/60 text-sm mt-2 max-w-xs">
+          <h1 className="text-[#0B1426] font-black text-2xl mt-6">Course annulée</h1>
+          <p className="text-gray-500 text-sm mt-2 max-w-xs">
             {ride.cancel_reason || 'Aucun chauffeur disponible pour le moment.'}
           </p>
           {ride.cancellation_fee > 0 && (
-            <p className="text-red-300 text-xs font-bold mt-2">Frais d'annulation : {ride.cancellation_fee?.toFixed(2)} €</p>
+            <p className="text-red-500 text-xs font-bold mt-2">Frais d'annulation : {ride.cancellation_fee?.toFixed(2)} €</p>
           )}
 
-          <div className="mt-8 w-full max-w-sm bg-white/5 border border-white/10 rounded-2xl p-3 text-left" data-testid="ride-cancelled-route">
+          <div className="mt-8 w-full max-w-sm bg-gray-50 border border-gray-200 rounded-2xl p-3 text-left" data-testid="ride-cancelled-route">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shrink-0" />
-              <p className="text-sm text-white/90 truncate">{ride.pickup_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
+              <p className="text-sm text-[#0B1426] truncate">{ride.pickup_address}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0" />
-              <p className="text-sm text-white/90 truncate">{ride.dropoff_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+              <p className="text-sm text-[#0B1426] truncate">{ride.dropoff_address}</p>
             </div>
           </div>
         </div>
@@ -618,10 +618,10 @@ const RideTrackingPage = () => {
           <button onClick={retrySearch} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2" style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="retry-search-btn">
             <NavigationArrow size={20} weight="fill" /> Réessayer la recherche
           </button>
-          <button onClick={proposeFare} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 bg-white/10 text-white" data-testid="propose-fare-cancelled-btn">
+          <button onClick={proposeFare} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 bg-gray-100 text-[#0B1426]" data-testid="propose-fare-cancelled-btn">
             <Star size={20} weight="fill" /> Proposer votre tarif
           </button>
-          <button onClick={() => navigate('/home')} className="w-full py-3 text-sm font-semibold text-white/60" data-testid="ride-done-btn">
+          <button onClick={() => navigate('/home')} className="w-full py-3 text-sm font-semibold text-gray-500" data-testid="ride-done-btn">
             Retour à l'accueil
           </button>
         </div>

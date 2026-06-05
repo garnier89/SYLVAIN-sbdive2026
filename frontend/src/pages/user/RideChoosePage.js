@@ -483,10 +483,10 @@ const RideChoosePage = () => {
       {/* Searching overlay */}
       <AnimatePresence>
         {searching && (
-          <motion.div className="fixed inset-0 z-[80] bg-[#0B1426] flex flex-col items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} data-testid="ride-choose-searching">
+          <motion.div className="fixed inset-0 z-[80] bg-white flex flex-col items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} data-testid="ride-choose-searching">
             <SearchingRadar size={220} />
-            <p className="text-white font-black text-lg mt-8">Recherche d'un chauffeur…</p>
-            <p className="text-white/60 text-sm mt-1">Nous contactons les chauffeurs proches</p>
+            <p className="text-[#0B1426] font-black text-lg mt-8">Recherche d'un chauffeur…</p>
+            <p className="text-gray-500 text-sm mt-1">Nous contactons les chauffeurs proches</p>
           </motion.div>
         )}
       </AnimatePresence>
