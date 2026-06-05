@@ -6,7 +6,7 @@ import { Textarea } from '../../components/ui/textarea';
 import {
   MagicWand, Truck, Lightning, VideoCamera, Gavel, Storefront,
   FirstAid, UsersThree, MapPin, Path, CurrencyEur, Airplane,
-  Globe, Flag, XCircle, FileText, House, Slideshow, Tag
+  Globe, Flag, XCircle, FileText, House, Slideshow, Tag, Translate, MagnifyingGlass
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -98,6 +98,33 @@ const serviceConfigs = {
     { key: 'default_lang', label: 'Langue par defaut', type: 'text', value: 'fr' },
     { key: 'supported', label: 'Langues supportees', type: 'text', value: 'fr, en, es, de, pt, ar' },
     { key: 'rtl_support', label: 'Support RTL', type: 'toggle', value: true },
+  ]},
+  currency: { title: 'Devise (Currency)', icon: CurrencyEur, color: '#10B981', desc: 'Devise par defaut et taux de change de la plateforme', settings: [
+    { key: 'default_currency', label: 'Devise par defaut (code ISO)', type: 'text', value: 'EUR' },
+    { key: 'symbol', label: 'Symbole', type: 'text', value: '€' },
+    { key: 'position', label: 'Position symbole (before/after)', type: 'text', value: 'after' },
+    { key: 'exchange_rate', label: 'Taux de change (vs EUR)', type: 'number', value: 1 },
+    { key: 'supported', label: 'Devises supportees', type: 'text', value: 'EUR, USD, XOF, XAF' },
+  ]},
+  language: { title: 'Langue (Language)', icon: Translate, color: '#8B5CF6', desc: 'Langues disponibles dans les apps et le panneau', settings: [
+    { key: 'default_lang', label: 'Langue par defaut', type: 'text', value: 'fr' },
+    { key: 'supported', label: 'Langues actives', type: 'text', value: 'fr, en, es' },
+    { key: 'auto_detect', label: 'Detection auto (navigateur/appareil)', type: 'toggle', value: true },
+    { key: 'rtl_support', label: 'Support RTL', type: 'toggle', value: false },
+  ]},
+  seo: { title: 'Parametres SEO', icon: MagnifyingGlass, color: '#3B82F6', desc: 'Meta-donnees pour le referencement du site web', settings: [
+    { key: 'meta_title', label: 'Titre meta (Home)', type: 'text', value: 'SB Drive VTC — Reservez votre chauffeur' },
+    { key: 'meta_description', label: 'Description meta', type: 'text', value: 'Plateforme VTC, livraisons et services a la demande en Martinique, Guadeloupe et Guyane.' },
+    { key: 'meta_keywords', label: 'Mots-cles', type: 'text', value: 'VTC, taxi, livraison, Martinique, chauffeur' },
+    { key: 'og_image', label: 'Image Open Graph (URL)', type: 'text', value: '' },
+    { key: 'sitemap_enabled', label: 'Sitemap actif', type: 'toggle', value: true },
+  ]},
+  'maps-api': { title: 'Parametres Maps / Geo API', icon: MapPin, color: '#EF4444', desc: 'Configuration des services de cartographie et geolocalisation', settings: [
+    { key: 'provider', label: 'Fournisseur (google/leaflet)', type: 'text', value: 'google' },
+    { key: 'google_maps_key', label: 'Cle API Google Maps', type: 'text', value: '' },
+    { key: 'geocoding_enabled', label: 'Geocodage actif', type: 'toggle', value: true },
+    { key: 'directions_enabled', label: 'Itineraires (Directions) actifs', type: 'toggle', value: true },
+    { key: 'default_zoom', label: 'Zoom par defaut', type: 'number', value: 12 },
   ]},
 };
 

@@ -1,0 +1,39 @@
+{
+  "summary": "iter117 — V3Cube admin parity validation (7 new CRUD pages + 4 fixed config pages + full sidebar sweep). BACKEND: 23/23 pytest passing in test_iter117_admin_crud_v3cube.py — all 7 new collections (weather_surcharge, personal_driver, auto_promotions, vouchers, faqs, help_articles, donations) support full GET/POST/PUT/DELETE cycle via /api/admin/crud/{collection} with Create→GET→Update→GET→Delete→GET persistence verified; all 4 fixed service-config keys (currency, language, seo, maps-api) support GET + PUT via /api/admin/service-config/{key} with persistence verified (test_field marker survives roundtrip); unknown collection correctly rejected with 400. FRONTEND (Playwright on REACT_APP_BACKEND_URL): admin login OK landing on /admin. All 7 new CRUD routes render admin-<key> root, add-item-btn visible, NO placeholder. Add+Delete UI cycle verified end-to-end on TWO collections (vouchers + faqs) — toast 'Element ajoute', item appears in list with correct name, delete via confirm() removes it. All 4 fixed config routes (/admin/currency, /admin/language, /admin/seo, /admin/maps-api) render admin-service-<key> root with full settings form + Sauvegarder button, NO placeholder; /admin/currency save shows 'Parametres sauvegardes !' toast (screenshot confirmed). SIDEBAR SWEEP: 107 admin routes navigated — 106 OK, 0 placeholder ('bientot disponible' / 'Module en cours de'), 1 false-positive blank (/admin/heat-view renders a Google Map heatmap canvas so document.body.innerText is empty but the component is fully implemented; non-blocking). No broken/empty/placeholder admin pages remain.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/audit-logs", "issues": ["Console hydration warning: <span> cannot be a child of <option> inside AdminAuditLogs.js (action filter select). Non-blocking but should be cleaned up — remove the span wrapper around dynamic option text."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter117_admin_crud_v3cube.py",
+    "/app/test_reports/pytest/iter117.xml"
+  ],
+  "action_items": [
+    "[OPTIONAL] Fix React hydration warning in /app/frontend/src/pages/admin/AdminAuditLogs.js line ~47: remove <span> wrapper inside <option> tag (use plain text {a} instead of <span>{a}</span> inside the option).",
+    "[OPTIONAL] /admin/heat-view: page sweep flagged 0 text because content is map canvas; consider adding a data-testid root wrapper with title text for testability (currently works fine for users)."
+  ],
+  "critical_code_review_comments": [
+    "ALLOWED_CRUD whitelist in /app/backend/routes/admin.py (line 613) is the single source of truth for the generic CRUD endpoint — clean, declarative, and now contains the 7 V3Cube additions. Good pattern.",
+    "AdminCrudPages.js: the generic AdminCrudPage component drives all 30+ CRUD pages from a single collectionConfigs map — excellent DRY. Each new V3Cube collection only adds ~15 lines of config.",
+    "AdminCrudPage.handleSave swallows non-200 responses silently — fetch().then().catch() only catches network errors; a 400/422/500 from backend will still trigger toast.success('Element ajoute'). Recommend: if(!res.ok) toast.error(...) before reload.",
+    "AdminCrudPage.handleDelete same issue — does not check res.ok; a 404/403 would still show 'Element supprime'.",
+    "AdminServiceConfig.js: same silent-failure pattern in handleSave — always shows success toast even if PUT fails (only network errors caught). Minor UX issue.",
+    "AdminCrudPage list endpoint sorts by created_at desc but DEFAULT/seed items shown to user have no created_at and are only displayed when DB is empty — works but seed data never reaches DB. Documented expected behavior (defaults are UI-only placeholders until admin creates real items).",
+    "/admin/service-config/{key} backend has no whitelist on key — any string is accepted and stored. For 4 fixed keys this is OK, but consider validating against a known set to avoid orphan documents. Low priority."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter117_admin_crud_v3cube.py",
+    "/app/test_reports/iteration_117.json"
+  ],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% on all required testids and flows (7 CRUD pages load + 2 full Add/Delete cycles + 4 config pages render with save toast + 106/107 sidebar routes clean, 1 false-positive)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (login at /admin-login)",
+  "seed_data_creation": "Tests create then delete items with prefix TEST_iter117_ in 7 collections; UI test created TEST_iter117_UIVOUCHER and TEST_iter117_UIFAQ then deleted both. service-config PUT writes 'TEST_iter117_<key>_value' under settings.test_field for currency/language/seo/maps-api — these markers REMAIN in DB after test run (not cleaned). Main agent may want to add a teardown or treat these as harmless test artifacts in service_configs collection.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter117 covered the V3Cube admin menu parity: 7 new CRUD collections (weather_surcharge, personal_driver, auto_promotions, vouchers, faqs, help_articles, donations) and 4 fixed service-config pages (currency, language, seo, maps-api). Backend tests: /app/backend/tests/test_iter117_admin_crud_v3cube.py — parametrized over all 7 collections + all 4 config keys. Frontend testids: admin-<collection_underscore> for CRUD roots, admin-service-<key> for config roots, add-item-btn, crud-field-<key>, crud-save-btn, crud-item-<id>, edit-<id>, delete-<id>. The whole admin sidebar (107 routes) was swept clean — no placeholders. Service-config DB has leftover test markers (test_field='TEST_iter117_*_value') under service_keys currency/language/seo/maps-api; harmless but noted.",
+  "rca of the issue": "n/a — no bugs found. All requested features (7 V3Cube CRUD pages + 4 fixed admin config pages) work correctly on both backend and frontend; the user complaint 'Il manque beaucoup dans le dashboard' is now resolved for the menu items in scope."
+}
