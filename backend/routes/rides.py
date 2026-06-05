@@ -449,6 +449,10 @@ async def rebroadcast_ride(ride_id: str, request: Request):
         raise HTTPException(status_code=403, detail="Not authorized")
     if ride["status"] != "pending":
         raise HTTPException(status_code=400, detail="La course n'est plus en attente")
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$inc": {"relance_count": 1}, "$set": {"last_relance_at": datetime.now(timezone.utc).isoformat()}},
+    )
     await manager.broadcast_to_drivers({
         "type": "new_ride_request",
         "ride_id": ride["id"],
@@ -480,7 +484,8 @@ async def convert_ride_to_bidding(ride_id: str, request: Request):
     proposed = round(max(float(ride.get("proposed_fare") or 0), float(ride.get("estimated_fare") or 0)), 2)
     await db.rides.update_one(
         {"id": ride_id},
-        {"$set": {"mode": "bidding", "is_bidding": True, "proposed_fare": proposed}},
+        {"$set": {"mode": "bidding", "is_bidding": True, "proposed_fare": proposed,
+                  "no_driver_outcome": "bidding", "no_driver_at": datetime.now(timezone.utc).isoformat()}},
     )
     await manager.broadcast_to_drivers({
         "type": "new_ride_request",
@@ -1197,10 +1202,13 @@ async def reschedule_ride(ride_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Ride not found")
     if ride.get("status") not in ("pending", "accepted"):
         raise HTTPException(status_code=400, detail="Cannot reschedule a ride in this state")
-    await db.rides.update_one(
-        {"id": ride_id},
-        {"$set": {"scheduled_at": new_at, "rescheduled_at": datetime.now(timezone.utc).isoformat()}},
-    )
+    now_iso = datetime.now(timezone.utc).isoformat()
+    updates = {"scheduled_at": new_at, "rescheduled_at": now_iso}
+    # Mark as a "no driver found" outcome only when the ride had been re-broadcast (relances)
+    if int(ride.get("relance_count") or 0) > 0:
+        updates["no_driver_outcome"] = "scheduled"
+        updates["no_driver_at"] = now_iso
+    await db.rides.update_one({"id": ride_id}, {"$set": updates})
     return {"message": "Rescheduled", "ride_id": ride_id, "scheduled_at": new_at}
 
 

@@ -979,6 +979,71 @@ async def negotiation_gap_report(request: Request, days: int = 30):
     }
 
 
+def _time_slot(hour: int) -> str:
+    slots = [(0, 6, "Nuit (00-06)"), (6, 9, "Matin (06-09)"), (9, 12, "Matinée (09-12)"),
+             (12, 15, "Midi (12-15)"), (15, 18, "Après-midi (15-18)"), (18, 21, "Soir (18-21)"),
+             (21, 24, "Nuit (21-24)")]
+    for start, end, label in slots:
+        if start <= hour < end:
+            return label
+    return "Nuit (21-24)"
+
+
+@router.get("/reports/no-driver-stats")
+async def no_driver_stats(request: Request, days: int = 7):
+    """Rides with no driver after relances: how many were converted to bidding or
+    scheduled, broken down by pickup zone and time slot — to spot driver shortages."""
+    await require_role(request, ["admin"], permission="dashboard.view")
+    from datetime import timedelta
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    total_rides = await db.rides.count_documents({"created_at": {"$gte": since}})
+    rides = await db.rides.find(
+        {"created_at": {"$gte": since}, "no_driver_outcome": {"$in": ["bidding", "scheduled"]}},
+        {"_id": 0, "id": 1, "created_at": 1, "no_driver_outcome": 1, "no_driver_at": 1,
+         "pickup_address": 1, "vehicle_type": 1, "relance_count": 1},
+    ).to_list(5000)
+
+    by_zone, by_slot, by_vehicle = {}, {}, {}
+    bidding = scheduled = 0
+    for r in rides:
+        outcome = r.get("no_driver_outcome")
+        if outcome == "bidding":
+            bidding += 1
+        else:
+            scheduled += 1
+        zone = _infer_zone(r.get("pickup_address"))
+        z = by_zone.setdefault(zone, {"zone": zone, "total": 0, "bidding": 0, "scheduled": 0})
+        z["total"] += 1
+        z[outcome] += 1
+        ts = r.get("no_driver_at") or r.get("created_at") or ""
+        try:
+            hour = datetime.fromisoformat(str(ts).replace("Z", "+00:00")).hour
+        except (ValueError, TypeError):
+            hour = 0
+        slot = _time_slot(hour)
+        s = by_slot.setdefault(slot, {"slot": slot, "total": 0, "bidding": 0, "scheduled": 0})
+        s["total"] += 1
+        s[outcome] += 1
+        vt = r.get("vehicle_type") or "—"
+        v = by_vehicle.setdefault(vt, {"vehicle_type": vt, "total": 0})
+        v["total"] += 1
+
+    no_driver_total = len(rides)
+    return {
+        "period_days": days,
+        "total_rides": total_rides,
+        "no_driver_total": no_driver_total,
+        "converted_bidding": bidding,
+        "scheduled": scheduled,
+        "no_driver_rate": round((no_driver_total / total_rides * 100), 2) if total_rides else 0,
+        "zones": sorted(by_zone.values(), key=lambda x: -x["total"]),
+        "slots": sorted(by_slot.values(), key=lambda x: -x["total"]),
+        "vehicles": sorted(by_vehicle.values(), key=lambda x: -x["total"]),
+    }
+
+
+
 _ZONE_TOKENS = [
     ("martinique", "Martinique"), ("fort-de-france", "Martinique"),
     ("guadeloupe", "Guadeloupe"), ("pointe-a-pitre", "Guadeloupe"),

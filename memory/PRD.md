@@ -1,4 +1,10 @@
-## NEW - Jun 2026 - Relances recherche chauffeur : seuil & intervalle configurables par l'admin (DONE)
+## NEW - Jun 2026 - Tableau de bord admin « Courses sans chauffeur » (DONE)
+- **Demande** : voir le taux de courses passées en enchères/planifiées après relances, par zone et créneau, pour repérer les pénuries de chauffeurs.
+- **Backend** (`rides.py`) : `rebroadcast` incrémente `relance_count` ; `convert-to-bidding` marque `no_driver_outcome='bidding'` ; `reschedule` (si `relance_count>0`) marque `no_driver_outcome='scheduled'`. Nouvel endpoint `GET /api/admin/reports/no-driver-stats?days=N` (perm `dashboard.view`) → taux, totaux, répartition **par zone** (`_infer_zone`), **par créneau** (7 tranches horaires) et par véhicule.
+- **Frontend** (`AdminNoDriverStats.js`) : KPIs (taux, total, enchères, planifiées), barres empilées par créneau (recharts), tableau par zone. Route `/admin/reports/no-driver-stats` (2 blocs) + entrée menu « Courses sans chauffeur » (`AdminLayout`).
+- Vérifié curl : 2 sorties (1 enchères Martinique, 1 planifiée Guadeloupe), zones/créneaux/véhicules corrects, taux 0,62 % (2/321). Lint clean front+back, frontend 200.
+
+
 - **Demande** : rendre le **nombre de relances** et l'**intervalle (20s)** pilotables par l'admin (sans redéploiement).
 - **Backend** : config publique `GET /api/config/ride-search` (service_configs clé `ride_search`) → `{enabled, relance_interval_seconds, max_relances}` avec bornes (intervalle 5–300s, relances 1–10). Édition via `PUT /api/admin/service-config/ride_search`.
 - **Admin** (`AdminServiceConfig`) : section « Recherche chauffeur (Relances) » (toggle activation, intervalle, nb relances) + route `/admin/ride-search-config` + entrée menu (`AdminLayout`).

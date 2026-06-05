@@ -146,6 +146,7 @@ const AdminPriorityDrivers = lazy(() => import('./pages/admin/AdminPriorityDrive
 const AdminTopDriversSettings = lazy(() => import('./pages/admin/AdminTopDriversSettings'));
 const AdminDbBackup = lazy(() => import('./pages/admin/AdminDbBackup'));
 const AdminNegotiationGapReport = lazy(() => import('./pages/admin/AdminNegotiationGapReport'));
+const AdminNoDriverStats = lazy(() => import('./pages/admin/AdminNoDriverStats'));
 const AdminFeaturedListings = lazy(() => import('./pages/admin/AdminFeaturedListings'));
 const AdminRealEstate = lazy(() => import('./pages/admin/AdminRealEstate'));
 const AdminPharmacy = lazy(() => import('./pages/admin/AdminPharmacy'));
@@ -425,6 +426,7 @@ const AppRouter = () => {
         <Route path="ride-search-config" element={<AdminServiceConfig serviceKey="ride_search" />} />
         <Route path="db-backup" element={<AdminDbBackup />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
+        <Route path="reports/no-driver-stats" element={<AdminNoDriverStats />} />
         <Route path="featured-listings" element={<AdminFeaturedListings />} />
         <Route path="real-estate" element={<AdminRealEstate />} />
         <Route path="pharmacy" element={<AdminPharmacy />} />
@@ -497,6 +499,7 @@ const AppRouter = () => {
         <Route path="payment-methods" element={<AdminPaymentMethods />} />
         <Route path="currency" element={<AdminServiceConfig serviceKey="currency" />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
+        <Route path="reports/no-driver-stats" element={<AdminNoDriverStats />} />
       </Route>
       {/* SERVER (SysAdmin) */}
       <Route path="/server" element={<ProtectedRoute allowedRoles={['admin']}><PanelLayout panelKey="server" /></ProtectedRoute>}>

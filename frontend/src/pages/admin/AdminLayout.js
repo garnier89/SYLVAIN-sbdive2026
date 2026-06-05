@@ -153,6 +153,7 @@ const sidebarConfig = [
         { label: 'Chauffeurs prioritaires', path: '/admin/priority-drivers' },
         { label: 'Top Chauffeurs (public)', path: '/admin/top-drivers' },
         { label: 'Rapport écart négociation', path: '/admin/reports/negotiation-gap' },
+        { label: 'Courses sans chauffeur', path: '/admin/reports/no-driver-stats' },
       ]},
       { icon: Ticket, label: 'Codes promo', path: '/admin/promocodes' },
       { icon: Lightning, label: 'Auto-promotions IA', path: '/admin/auto-promotions' },
