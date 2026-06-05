@@ -1,6 +1,21 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 — Refonte UI réservation : en-tête blanc éditable, thème clair, géolocalisation auto, calendrier auto-ouvert
+
+### Demandes utilisateur (capture annotée)
+1. Textes de l'en-tête (rectangle) éditables par l'admin. 2. Départ auto-rempli par géolocalisation à l'arrivée. 3. En-tête trop grand → compact, fond blanc, texte noir, accent orange. 4. Thème CLAIR partout (choix « a ») : radar d'attente + écran annulé (bleu nuit) → fond blanc/noir/orange. 5. « Programmer Course » → calendrier auto-ouvert pré-réglé +1h, puis saisie destination. 6. Toggle « Programmer plus tard » → ouvre directement le calendrier (idem partout).
+
+### Changed
+- **`RideChoosePage.js`** : en-tête **blanc compact** (≈90px au lieu de 176px), titre/sur-titre **éditables admin** (`cfg.booking_header_title` / `booking_header_eyebrow`). Géocodage inverse via **`window.google.maps.Geocoder`** (fiable, sans CORS) → départ auto-rempli au chargement. **Auto-ouverture du calendrier** si `mode.panel==='datetime'` (book_later/intercity), pré-réglé à now+`min_advance`. Toggle « Programmer plus tard » → ouvre le calendrier. Overlay radar « Demander » → fond blanc.
+- **`RideTrackingPage.js`** : écrans **attente (pending)** et **annulé (cancelled)** passés en **fond blanc**, texte `#0B1426`, accents orange (style inline #ffffff).
+- **`SearchingRadar.jsx`** : recoloré **orange `#FF5000`** (anneaux/arc/disque) pour fond blanc.
+- **Backend `config.py`** + **`AdminServiceConfig.js`** : champs `booking_header_title` / `booking_header_eyebrow` (clé `taxi_booking`), éditables via `/admin/taxi-booking-config`.
+
+### Tests
+- testing_agent **iteration_130 : 6/6** — en-tête blanc + édition admin live (titre change puis restauré), départ auto-rempli (géoloc accordée), pending + cancelled `backgroundColor rgb(255,255,255)`, book_later auto-ouvre le calendrier pré-réglé, toggle ouvre le calendrier. 0 erreur console. Lint clean.
+- Note mineure : si le Geocoder est throttlé, le départ retombe sur « lat, lng » (champ jamais vide). Amélioration possible : retry/loader.
+
 ## 2026-06-06 — Fix erreur runtime app chauffeur (« Script error » / carte Google Maps)
 
 ### Problème (capture utilisateur, preview)
