@@ -1,3 +1,12 @@
+## NEW - Jun 2026 - Socle réutilisable : panneau « Paramètres des services » unifié (DONE — iter116)
+- **Un seul endroit** dans l'admin (`/admin/services-settings`) pour piloter la config commune de TOUS les services : activation on/off, bannière/note client, tarification. Framework générique et extensible.
+- **Backend** `routes/service_settings.py` : `SERVICE_REGISTRY` déclare chaque service + ses champs éditables (l'UI rend les formulaires dynamiquement). Collection `service_settings` (clé `service_key`). Endpoints : `GET /api/admin/services/settings` (liste + schéma + valeurs), `GET/PUT /api/admin/services/settings/{key}` (whitelist des champs, coercition numérique), public `GET /api/services/{key}/settings` (consommé par les clients à venir). Gardes 404 (service inconnu) / 403 (non-admin).
+- **7 services enregistrés** : taxi, moto, parcels, food, delivery, medical_transport (champs de tarif respectifs) + pharmacy (carte avec **lien « Configuration avancée »** vers son éditeur dédié, pas de doublon de source de vérité).
+- **Admin UI** `AdminServiceSettings.js` : 1 carte/service (toggle, note, champs dynamiques, Enregistrer). Entrée menu « Paramètres des services » (section SERVICES, en tête).
+- ⚠️ **Socle uniquement** : ces réglages ne sont **pas encore consommés** par les moteurs de tarification/réservation des services (sauf Pharmacie qui a sa propre config active). L'étape suivante = brancher service par service.
+- Testé iter116 : **backend 6/6** (liste 7 services, PUT taxi + whitelist + persistance, public reflète, 404/403) **+ 14/14 régression iter115** ; **frontend 100%** (7 cartes, toggle/note/champs/save, carte pharmacie→lien avancé, persistance, entrée menu). Lint front+back clean. Valeurs taxi remises par défaut après tests.
+
+
 ## NEW - Jun 2026 - Pharmacie : configuration 100% pilotée par le dashboard admin & connectée (DONE — iter115)
 - **Demande utilisateur** : « toutes les options/services/modifications doivent être administrés dans le dashboard, tout connecter ». Plus aucune valeur Pharmacie en dur.
 - **Onglet « Paramètres »** (`/admin/pharmacy` → SettingsTab) : interrupteur **service actif/inactif**, **note/bannière client**, **frais de livraison** configurables (base €, €/km, minimum €, **seuil de livraison gratuite**). Branché : `GET/PUT /api/admin/pharmacy/settings` (singleton `pharmacy_settings`).
