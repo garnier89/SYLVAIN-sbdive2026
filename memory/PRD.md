@@ -1,3 +1,11 @@
+## UPDATE - Jun 2026 - Pharmacie : paiement réel Portefeuille / SB PayGo dès la commande catalogue (DONE)
+- **Monétisation immédiate** : une commande **catalogue** payée par **Portefeuille** ou **SB PayGo** est **débitée atomiquement** à la création (`{balance: {$gte: total}}`), `payment_status='paid'`. Solde insuffisant → **HTTP 400** « Solde … insuffisant ». Espèces/Carte restent « payé à la livraison ».
+- **Remboursement automatique** : annuler une commande payée recrédite le portefeuille/SB PayGo (`payment_status='refunded'`, transaction de remboursement enregistrée).
+- **Backend** (`pharmacy.py`) : helpers `_debit_user` / `_refund_user`, endpoint `GET /pharmacy/payment-methods` (soldes wallet + sbpaygo). Débit branché dans `create_order` (catalog only), remboursement dans `cancel_order`.
+- **Checkout passager** (`PharmacyCatalogPage`) : soldes affichés sous Portefeuille/SB PayGo, bannière « Solde insuffisant » + recharge contextuelle (Portefeuille → `/wallet`, SB PayGo → SSO `finance/sbpaygo/sso-link`), bouton Confirmer désactivé si insuffisant.
+- Vérifié E2E curl : 0 € → 400 ; 100 € → payé (−5,90 € → 94,10) ; annulation → remboursé (→ 100). Lint clean (front + back).
+
+
 ## NEW - Jun 2026 - Module PHARMACIE complet (ordonnance + catalogue) — parité V3Cube (DONE — iter 114)
 - **3e tuile médicale V3Cube**. Deux parcours passager : (1) **Sur ordonnance** — photo d'ordonnance (base64) + adresse/carte + livraison ; la pharmacie établit un **devis** (prix médicaments) côté admin, puis livraison. (2) **Catalogue parapharmacie (OTC)** — 12 produits seedés sur 8 catégories, panier +/-, checkout (pharmacie, adresse Leaflet, paiement espèces/portefeuille/SB PayGo/carte), **prix live** (sous-total + livraison haversine), confirmation.
 - **Passager** : tuile accueil `medical-pharmacy-btn` → `/pharmacy` (hub : 2 actions + pharmacies partenaires). `/pharmacy/catalog` (`PharmacyCatalogPage`), `/pharmacy/prescription` (`PharmacyPrescriptionPage` — upload photo), `/pharmacy/orders` (`PharmacyOrdersPage` — statut + timeline + annulation, badge « En attente de devis »). Carte réutilisable `PharmacyMapPicker.jsx`.

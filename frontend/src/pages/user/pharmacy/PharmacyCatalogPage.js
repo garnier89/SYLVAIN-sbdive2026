@@ -25,6 +25,7 @@ const PharmacyCatalogPage = () => {
   const [form, setForm] = useState({ pharmacy_id: '', delivery_address: '', recipient_name: '', recipient_phone: '', payment_method: 'cash' });
   const [coords, setCoords] = useState(null);
   const [estimate, setEstimate] = useState(null);
+  const [balances, setBalances] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -43,6 +44,12 @@ const PharmacyCatalogPage = () => {
   const cartCount = cartItems.reduce((s, c) => s + c.qty, 0);
   const cartSubtotal = useMemo(() => cartItems.reduce((s, c) => s + c.product.price * c.qty, 0), [cartItems]);
 
+  const total = estimate?.total ?? null;
+  const isWalletPay = ['wallet', 'sbpaygo'].includes(form.payment_method);
+  const selBalance = balances[form.payment_method];
+  const insufficient = isWalletPay && total != null && (selBalance ?? 0) < total;
+  const fmtBal = (v) => (v == null ? '—' : fmt(v));
+
   const addToCart = (p) => setCart((c) => ({ ...c, [p.id]: { product: p, qty: (c[p.id]?.qty || 0) + 1 } }));
   const decFromCart = (p) => setCart((c) => {
     const qty = (c[p.id]?.qty || 0) - 1;
@@ -54,6 +61,16 @@ const PharmacyCatalogPage = () => {
   const openCheckout = () => {
     if (cartCount === 0) return toast.error('Votre panier est vide');
     setCheckout(true);
+    pharmacyAPI.paymentMethods().then((r) => {
+      const map = {};
+      (r.data.methods || []).forEach((m) => { map[m.id] = m.balance; });
+      setBalances(map);
+    }).catch(() => {});
+  };
+
+  const rechargeSbpaygo = async () => {
+    try { const r = await pharmacyAPI.sbpaygoSsoLink(); if (r.data?.url) window.location.href = r.data.url; }
+    catch { toast.error('Lien de recharge indisponible'); }
   };
 
   // live estimate when coords/cart change in checkout
@@ -178,14 +195,26 @@ const PharmacyCatalogPage = () => {
             </div>
 
             <label className="text-xs font-semibold text-gray-600">Paiement</label>
-            <div className="grid grid-cols-2 gap-2 mt-1 mb-3">
+            <div className="grid grid-cols-2 gap-2 mt-1 mb-2">
               {PAYMENTS.map((pm) => (
                 <button key={pm.id} onClick={() => setForm({ ...form, payment_method: pm.id })} data-testid={`pay-${pm.id}`}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border ${form.payment_method === pm.id ? 'bg-orange-50 border-[#FF4500] text-[#FF4500]' : 'bg-white border-gray-200 text-gray-600'}`}>
-                  {pm.label}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border text-left ${form.payment_method === pm.id ? 'bg-orange-50 border-[#FF4500] text-[#FF4500]' : 'bg-white border-gray-200 text-gray-600'}`}>
+                  <div>{pm.label}</div>
+                  {['wallet', 'sbpaygo'].includes(pm.id) && (
+                    <div className="text-[10px] font-normal text-gray-400 mt-0.5" data-testid={`balance-${pm.id}`}>Solde : {fmtBal(balances[pm.id])}</div>
+                  )}
                 </button>
               ))}
             </div>
+
+            {insufficient && (
+              <div className="rounded-xl bg-red-50 border border-red-100 p-3 mb-3 text-xs text-red-700 flex items-center justify-between gap-2" data-testid="insufficient-banner">
+                <span>Solde insuffisant ({fmtBal(selBalance)}).</span>
+                {form.payment_method === 'wallet'
+                  ? <button onClick={() => navigate('/wallet')} className="font-bold text-[#FF4500] whitespace-nowrap" data-testid="recharge-wallet-btn">Recharger →</button>
+                  : <button onClick={rechargeSbpaygo} className="font-bold text-[#FF4500] whitespace-nowrap" data-testid="recharge-sbpaygo-btn">Recharger SB PayGo →</button>}
+              </div>
+            )}
 
             <div className="rounded-xl bg-gray-50 p-3 text-sm space-y-1 mb-3" data-testid="checkout-summary">
               <div className="flex justify-between text-gray-600"><span>Sous-total</span><span>{fmt(estimate?.subtotal ?? cartSubtotal)}</span></div>
@@ -193,8 +222,8 @@ const PharmacyCatalogPage = () => {
               <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-200"><span>Total</span><span data-testid="checkout-total">{estimate ? fmt(estimate.total) : '—'}</span></div>
             </div>
 
-            <button onClick={submit} disabled={submitting} className="w-full bg-[#FF4500] text-white rounded-2xl py-3.5 font-bold disabled:opacity-60" data-testid="confirm-order-btn">
-              {submitting ? 'Envoi…' : 'Confirmer la commande'}
+            <button onClick={submit} disabled={submitting || insufficient} className="w-full bg-[#FF4500] text-white rounded-2xl py-3.5 font-bold disabled:opacity-60" data-testid="confirm-order-btn">
+              {submitting ? 'Envoi…' : insufficient ? 'Solde insuffisant' : 'Confirmer la commande'}
             </button>
           </div>
         </div>

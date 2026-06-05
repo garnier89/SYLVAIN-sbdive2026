@@ -46,6 +46,53 @@ async def _require_admin(request: Request):
     return user
 
 
+async def _debit_user(user_id: str, amount: float, method: str, description: str):
+    """Atomically debit the user's wallet or SB PayGo balance. Raises 400 if insufficient."""
+    ts = datetime.now(timezone.utc).isoformat()
+    if method == "wallet":
+        res = await db.wallets.update_one(
+            {"user_id": user_id, "balance": {"$gte": amount}},
+            {"$inc": {"balance": -amount}},
+        )
+        if res.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Solde portefeuille insuffisant")
+        w = await db.wallets.find_one({"user_id": user_id}, {"_id": 0})
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user_id, "type": "Booking",
+            "amount": -amount, "balance_after": round(w["balance"], 2),
+            "description": description, "status": "completed", "created_at": ts,
+        })
+    elif method == "sbpaygo":
+        res = await db.sbpaygo_wallets.update_one(
+            {"user_id": user_id, "balance": {"$gte": amount}},
+            {"$inc": {"balance": -amount},
+             "$push": {"transactions": {"id": f"tx_{uuid.uuid4().hex[:10]}", "type": "pharmacy", "amount": -amount, "description": description, "created_at": ts}}},
+        )
+        if res.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Solde SB PayGo insuffisant")
+
+
+async def _refund_user(user_id: str, amount: float, method: str, description: str):
+    """Credit back the user's wallet / SB PayGo balance (used on cancellation of a paid order)."""
+    if amount <= 0:
+        return
+    ts = datetime.now(timezone.utc).isoformat()
+    if method == "wallet":
+        await db.wallets.update_one({"user_id": user_id}, {"$inc": {"balance": amount}})
+        w = await db.wallets.find_one({"user_id": user_id}, {"_id": 0})
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user_id, "type": "Refund",
+            "amount": amount, "balance_after": round((w or {}).get("balance", 0), 2),
+            "description": description, "status": "completed", "created_at": ts,
+        })
+    elif method == "sbpaygo":
+        await db.sbpaygo_wallets.update_one(
+            {"user_id": user_id},
+            {"$inc": {"balance": amount},
+             "$push": {"transactions": {"id": f"tx_{uuid.uuid4().hex[:10]}", "type": "refund", "amount": amount, "description": description, "created_at": ts}}},
+        )
+
+
 def _delivery_fee(pharmacy: Optional[dict], lat: Optional[float], lng: Optional[float]) -> float:
     if pharmacy and pharmacy.get("lat") is not None and lat is not None and lng is not None:
         km = calculate_distance(pharmacy["lat"], pharmacy["lng"], lat, lng)
@@ -123,6 +170,20 @@ async def _resolve_items(items: List[OrderItem]):
     return resolved, round(subtotal, 2)
 
 
+@router.get("/payment-methods")
+async def payment_methods(request: Request):
+    """Return the user's available balances for catalog order payment (wallet + SB PayGo)."""
+    user = await get_current_user(request)
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    sb = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {
+        "methods": [
+            {"id": "wallet", "label": "Mon portefeuille", "balance": (w or {}).get("balance", 0.0), "currency": (w or {}).get("currency", "EUR")},
+            {"id": "sbpaygo", "label": "SB PayGo", "balance": (sb or {}).get("balance", 0.0), "currency": (sb or {}).get("currency", "EUR")},
+        ],
+    }
+
+
 @router.post("/orders/estimate")
 async def estimate_order(data: OrderEstimate, request: Request):
     await get_current_user(request)
@@ -156,6 +217,13 @@ async def create_order(data: OrderCreate, request: Request):
         status = "pending"     # awaiting pharmacy price quote
 
     total = round(medication_total + fee, 2)
+
+    # Catalog orders paid up-front by wallet / SB PayGo are debited atomically now.
+    payment_status = "pending"
+    if data.order_type == "catalog" and data.payment_method in ("wallet", "sbpaygo") and total > 0:
+        await _debit_user(user["id"], total, data.payment_method, f"Commande pharmacie — {len(items)} article(s)")
+        payment_status = "paid"
+
     order = {
         "id": f"rx_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
@@ -175,7 +243,7 @@ async def create_order(data: OrderCreate, request: Request):
         "delivery_fee": fee,
         "total": total,
         "payment_method": data.payment_method,
-        "payment_status": "pending",
+        "payment_status": payment_status,
         "status": status,
         "needs_quote": data.order_type == "prescription",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -230,7 +298,10 @@ async def cancel_order(order_id: str, request: Request):
         raise HTTPException(status_code=403, detail="Accès refusé")
     if order["status"] in ("in_transit", "delivered"):
         raise HTTPException(status_code=400, detail="Commande déjà en cours de livraison")
-    await db.pharmacy_orders.update_one({"id": order_id}, {"$set": {"status": "cancelled"}})
+    # Refund up-front payment (wallet / SB PayGo) when cancelling a paid order.
+    if order.get("payment_status") == "paid" and order.get("payment_method") in ("wallet", "sbpaygo"):
+        await _refund_user(order["user_id"], round(float(order.get("total", 0)), 2), order["payment_method"], f"Remboursement commande pharmacie {order_id}")
+    await db.pharmacy_orders.update_one({"id": order_id}, {"$set": {"status": "cancelled", "payment_status": "refunded" if order.get("payment_status") == "paid" else order.get("payment_status", "pending")}})
     return {"id": order_id, "status": "cancelled"}
 
 
