@@ -510,3 +510,15 @@ Voir PRD.md section "NEW - Feb 2026"
 
 ### Note
 - `/app/mobile/.env` EXPO_PUBLIC_BACKEND_URL == URL preview actuelle → aucun changement requis (faux positif du handoff).
+
+## 2026-06-05 (suite) — 4 pages admin réparées (placeholder) + robustesse CRUD
+
+### Fixed
+- **Currency, Language, SEO, Maps/Geo API** : affichaient le placeholder "🚧 Configuration bientôt disponible" (clés absentes de `serviceConfigs`). Ajout de schémas de réglages complets dans `AdminServiceConfig.js` → pages fonctionnelles + persistance via `/api/admin/service-config/{key}`.
+- `AdminCrudPage` & `AdminServiceConfig` : les toasts de succès s'affichaient même sur réponse non-200. Ajout de contrôles `res.ok` → toast d'erreur correct.
+
+### Tests (iteration_117.json)
+- Backend pytest 23/23 ✅ (7 collections CRUD + 4 clés service-config, cycle Create→Get→Update→Delete).
+- Frontend Playwright : login admin OK ; 7 pages CRUD + 4 pages config rendues sans placeholder ; cycles Ajout/Suppression vérifiés (vouchers, faqs) ; sauvegarde config OK.
+- **Balayage complet sidebar : 107 routes admin → 106 OK, 0 placeholder, 1 faux positif (heat-view = canvas carte).**
+- Marqueurs de test nettoyés de `service_configs` + collections CRUD.

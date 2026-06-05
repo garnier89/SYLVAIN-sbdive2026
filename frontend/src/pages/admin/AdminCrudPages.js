@@ -366,32 +366,36 @@ const AdminCrudPage = ({ pageKey = 'groups' }) => {
 
   const handleSave = async () => {
     try {
+      let res;
       if (editingId) {
-        await fetch(`${API}/api/admin/crud/${config.collection}/${editingId}`, {
+        res = await fetch(`${API}/api/admin/crud/${config.collection}/${editingId}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
           body: JSON.stringify(form),
         });
+        if (!res.ok) throw new Error('save failed');
         toast.success('Element modifie');
       } else {
-        await fetch(`${API}/api/admin/crud/${config.collection}`, {
+        res = await fetch(`${API}/api/admin/crud/${config.collection}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
           body: JSON.stringify(form),
         });
+        if (!res.ok) throw new Error('save failed');
         toast.success('Element ajoute');
       }
       setShowForm(false);
       resetForm();
       loadItems();
-    } catch (err) { console.error('Save error:', err); toast.error('Erreur'); }
+    } catch (err) { console.error('Save error:', err); toast.error('Erreur lors de l\'enregistrement'); }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Supprimer cet element ?')) return;
     try {
-      await fetch(`${API}/api/admin/crud/${config.collection}/${id}`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`${API}/api/admin/crud/${config.collection}/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) throw new Error('delete failed');
       toast.success('Element supprime');
       loadItems();
-    } catch (err) { console.error('Delete error:', err); }
+    } catch (err) { console.error('Delete error:', err); toast.error('Erreur lors de la suppression'); }
   };
 
   const startEdit = (item) => {

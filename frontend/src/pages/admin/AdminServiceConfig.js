@@ -178,10 +178,11 @@ const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
     try {
       const settingsObj = {};
       settings.forEach(s => { settingsObj[s.key] = s.value; });
-      await fetch(`${API}/api/admin/service-config/${serviceKey}`, {
+      const res = await fetch(`${API}/api/admin/service-config/${serviceKey}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ settings: settingsObj }),
       });
+      if (!res.ok) throw new Error('save failed');
       toast.success('Parametres sauvegardes !');
     } catch (err) { console.error('Save error:', err); toast.error('Erreur de sauvegarde'); }
     finally { setSaving(false); }
