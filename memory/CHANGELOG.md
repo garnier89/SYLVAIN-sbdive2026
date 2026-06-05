@@ -1,6 +1,30 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Flux taxi UNIFIÉ « Choisissez un voyage » sur toutes les commandes + Réservation WhatsApp (admin) — Iteration 124
+
+### Demande utilisateur (vidéo de référence)
+Intégrer le parcours V3Cube « Choisissez un voyage » (saisie départ/destination → comparaison multi-véhicules avec prix/ETA en direct → « Demander » → radar « Recherche d'un chauffeur ») sur **TOUTES** les commandes taxi, ajouter une option **Réservation via WhatsApp**, le tout **administrable dans le dashboard** (choix utilisateur : 1a + 2a + 3 oui).
+
+### Added — Flux unifié mode-aware (`RideChoosePage.js`, route `/course?mode=<id>`)
+- Point d'entrée unique pour toutes les commandes taxi. Lit `?mode=` et adapte l'écran : carte d'adresses (départ + destination + « ma position » + raccourcis Maison/Travail/récents), **comparaison multi-véhicules** avec prix live par véhicule (`/api/rides/estimate` en parallèle), paiement, CTA « Demander » + overlay radar → `/ride/:id`.
+- **Panneaux spécifiques par mode** (composants frères `ModeSpecificPanel` + `SchedulePanel`, plus de shadowing) : aéroport (n° vol), animaux (nb + taille), assistance, corporate (compte entreprise), pour un proche (nom/tél), enchères (proposez votre tarif → `/taxi-bidding`), location/chauffeur privé (forfait/durée + carte prix unique, sans destination), programmation (date & heure ou toggle « plus tard »). Pool → comparaison avec tarifs partagés.
+- **Bouton « Réserver via WhatsApp »** : ouvre `wa.me/<numéro>` avec un message pré-rempli (placeholders {mode} {pickup} {dropoff} {vehicle} {price} {when} {payment}) — visible uniquement si l'admin l'active.
+
+### Added — Administration (dashboard)
+- Backend public `GET /api/config/taxi-booking` (clé `service_configs.taxi_booking`, défauts sûrs). Édition via le `PUT /api/admin/service-config/taxi_booking` générique.
+- Page admin **« Réservation Taxi & WhatsApp »** (`/admin/taxi-booking-config`, sidebar SERVICES › Taxi) via `AdminServiceConfig` (schéma `taxi_booking`, support type `textarea` ajouté) : toggle flux unifié, toggle WhatsApp, numéro WhatsApp Business, modèle de message.
+
+### Routing
+- Tuiles taxi de l'accueil (`UserHome.js`) → `/course?mode=X`. Grille TaxiHub `selectMode` → `/course?mode=X`. **`TaxiHubPage` redirige `/taxi?mode=X` → `/course?mode=X`** quand le flux unifié est activé (couvre aussi les tuiles CMS legacy `hcat_*`). Si l'admin désactive le flux unifié → `/course` retombe sur le hub legacy `/taxi?mode=` (aucune boucle).
+
+### Tests
+- Backend curl : `GET /api/config/taxi-booking` (défauts + reflet après save admin), persistance WhatsApp OK.
+- **testing_agent frontend 100%** (iteration_124) : flux standard e2e (Google Places → comparaison prix live → WhatsApp → radar → /ride/:id), panneaux par mode (airport/pets/assist/corporate/contact/bidding), page admin (4 réglages + textarea + save), routing tuiles → /course. (iteration_123 avait relevé 3 régressions — toutes corrigées : schéma admin perdu par une race d'éditions parallèles → réajouté ; ModePanel early-return → scindé ; tuiles CMS → redirection TaxiHub.)
+- Config remise aux défauts après test (WhatsApp désactivé, numéro vide — l'admin saisit le sien).
+- ⚠️ Backlog : `RideChoosePage.js` ~660 lignes → extraire les panneaux (`ridechoose/panels/`) + hook `useRideChooseState` ultérieurement.
+
+
 ## 2026-06-05 — Analyse de bundle (source-map-explorer) + optimisation jspdf — Iteration 129
 
 ### Added — Outil de mesure
