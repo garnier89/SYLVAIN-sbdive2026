@@ -1,6 +1,20 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 — Écran d'attente course = radar V3Cube plein écran (RideTrackingPage)
+
+### Demande utilisateur (2 captures : « ancien » vs « nouveau à utiliser »)
+L'écran d'attente après « Demander » affichait l'ancienne carte (stepper Recherche/Acceptée/En route + carte blanche « Veuillez patienter » + petit radar). L'utilisateur veut le **radar plein écran moderne** « Recherche d'un chauffeur… / Nous contactons les chauffeurs proches » (fond bleu nuit) sur tout l'écran d'attente.
+
+### Changed — `RideTrackingPage.js`
+- Nouvel **early-return plein écran** pour `ride.status === 'pending'` : fond `#0B1426`, `SearchingRadar` 220, titre + sous-titre, carte récap trajet (`ride-searching-route`, départ/destination/prix), et actions en bas (Activer Taxi Pool, Relancer la recherche, Annuler la course). Modale no-driver (après max relances) conservée et fonctionnelle.
+- Supprimé du rendu principal les anciens blocs « pending » (petite carte radar, toggle Pool, matches Pool, modale no-driver) devenus inatteignables → plus de code mort ni de testids dupliqués.
+- **Fix CSS** : `.mobile-container { background:#ffffff }` (index.css) écrasait `bg-[#0B1426]` (spécificité égale, cascade). Corrigé via `style={{ backgroundColor: '#0B1426' }}` inline (spécificité supérieure → gagne toujours).
+
+### Tests
+- testing_agent iteration_125 : **6/7** — toute l'UX d'attente fonctionne (radar, copy, 3 boutons, toast « Recherche relancée » + compteur Relance 1/3, modale d'annulation avec motifs, navigation /course→Demander→/ride/:id). Seul échec = fond blanc (override CSS) → **corrigé** par le style inline.
+- Lint clean.
+
 ## 2026-06-05 — Flux taxi UNIFIÉ « Choisissez un voyage » sur toutes les commandes + Réservation WhatsApp (admin) — Iteration 124
 
 ### Demande utilisateur (vidéo de référence)

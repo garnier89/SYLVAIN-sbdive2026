@@ -460,7 +460,7 @@ const RideTrackingPage = () => {
   // ── V3Cube full-screen "Recherche d'un chauffeur" experience (pending) ──
   if (ride.status === 'pending') {
     return (
-      <div className="mobile-container min-h-screen bg-[#0B1426] flex flex-col relative overflow-hidden" data-testid="ride-tracking-page">
+      <div className="mobile-container min-h-screen bg-[#0B1426] flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0B1426' }} data-testid="ride-tracking-page">
         <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur flex items-center justify-center" data-testid="ride-searching-back">
           <ArrowLeft size={20} className="text-white" />
         </button>
@@ -619,108 +619,6 @@ const RideTrackingPage = () => {
 
         {/* Searching state is handled by the full-screen radar (pending early-return) */}
 
-        {/* Taxi Pool toggle */}
-        {ride.status === 'pending' && (
-          <button
-            onClick={togglePool}
-            disabled={poolLoading}
-            className={`w-full rounded-2xl p-3 mb-4 flex items-center gap-3 border ${
-              poolEnabled ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200'
-            }`}
-            data-testid="toggle-taxi-pool-btn"
-          >
-            <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                poolEnabled ? 'bg-emerald-500' : 'bg-gray-100'
-              }`}
-            >
-              <UsersThree size={20} weight="duotone" className={poolEnabled ? 'text-white' : 'text-gray-500'} />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-gray-900">
-                Taxi Pool <span className="text-xs font-semibold text-emerald-700">partagé</span>
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {poolEnabled ? 'Activé — vous partagez la course' : 'Partagez votre course pour optimiser le tarif'}
-              </p>
-            </div>
-            <div
-              className={`w-10 h-6 rounded-full relative transition-colors ${
-                poolEnabled ? 'bg-emerald-500' : 'bg-gray-300'
-              }`}
-            >
-              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${poolEnabled ? 'left-4' : 'left-0.5'}`} />
-            </div>
-          </button>
-        )}
-
-        {/* Live Taxi Pool matches — "X place(s) disponible(s) sur une course Pool proche" */}
-        {ride.status === 'pending' && poolEnabled && (
-          <div className="mb-4" data-testid="pool-matches-panel">
-            {poolMatches.length > 0 ? (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <UsersThree size={18} weight="duotone" className="text-emerald-600" />
-                  <p className="text-sm font-bold text-emerald-800" data-testid="pool-matches-count">
-                    {poolMatches.length} place{poolMatches.length > 1 ? 's' : ''} disponible{poolMatches.length > 1 ? 's' : ''} sur une course Pool proche
-                  </p>
-                </div>
-                {poolGroupMembers > 1 && (
-                  <div className="bg-emerald-600 text-white rounded-xl px-3 py-1.5 mb-2 text-[11px] font-semibold flex items-center gap-1.5" data-testid="pool-group-banner">
-                    <Check size={14} weight="bold" /> Vous covoiturez · {poolGroupMembers} passagers groupés
-                  </div>
-                )}
-                {poolSavings > 0 && (
-                  <div className="bg-white border border-emerald-300 rounded-xl px-3 py-2 mb-2 flex items-center justify-between" data-testid="pool-savings-banner">
-                    <span className="text-[11px] font-semibold text-gray-700">
-                      Tarif partagé{poolDiscountPct > 0 ? ` · −${Math.round(poolDiscountPct)}%` : ''}
-                    </span>
-                    <span className="text-sm font-extrabold text-emerald-600" data-testid="pool-savings-amount">
-                      −{poolSavings.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € grâce au covoiturage
-                    </span>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  {poolMatches.map((m, i) => (
-                    <div
-                      key={m.ride_id}
-                      className="bg-white rounded-xl p-2.5 border border-emerald-100 flex items-center gap-2"
-                      data-testid={`pool-match-${i}`}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                        <UsersThree size={16} weight="duotone" className="text-emerald-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{m.pickup_address || 'Ramassage proche'}</p>
-                        <p className="text-[11px] text-gray-500 truncate">→ {m.dropoff_address || 'Destination proche'} · à {m.pickup_distance_km} km</p>
-                      </div>
-                      {m.joined ? (
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full whitespace-nowrap flex items-center gap-1" data-testid={`pool-match-joined-${i}`}>
-                          <Check size={12} weight="bold" /> Rejoint
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => joinPool(m.ride_id)}
-                          disabled={joiningRideId === m.ride_id}
-                          className="text-[10px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 px-3 py-1.5 rounded-full whitespace-nowrap transition-colors"
-                          data-testid={`pool-join-btn-${i}`}
-                        >
-                          {joiningRideId === m.ride_id ? '…' : 'Rejoindre'}
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white border border-gray-200 rounded-2xl p-3 flex items-center gap-2" data-testid="pool-matches-empty">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <p className="text-[11px] text-gray-500">Recherche de passagers Pool à proximité…</p>
-              </div>
-            )}
-          </div>
-        )}
-
         <DriverInfoCard
           ride={!isCancelled ? ride : null}
           onCall={() => {}}
@@ -836,44 +734,6 @@ const RideTrackingPage = () => {
       />
 
       <StatusDialog dialog={statusDialog} />
-
-      {/* No-driver alternatives modal (shown after 3 relances) */}
-      {showNoDriver && ride.status === 'pending' && (
-        <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-black/50" data-testid="no-driver-modal">
-          <div className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 pb-8">
-            <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
-              <Clock size={26} weight="duotone" className="text-[#FF5000]" />
-            </div>
-            <h3 className="text-lg font-black text-gray-900 text-center mb-1">Aucun chauffeur disponible</h3>
-            <p className="text-sm text-gray-500 text-center mb-5">
-              Aucun chauffeur n'a accepté après plusieurs relances. Essayez l'une de ces options :
-            </p>
-            <button
-              onClick={handleProposeFare}
-              disabled={converting}
-              className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 mb-3 disabled:opacity-60"
-              style={{ backgroundColor: '#FF5000', color: '#0B1426' }}
-              data-testid="propose-fare-btn"
-            >
-              <Star size={20} weight="fill" /> {converting ? 'Conversion…' : 'Proposer votre tarif'}
-            </button>
-            <button
-              onClick={() => { setShowNoDriver(false); setShowSchedule(true); }}
-              className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 mb-3 bg-[#0B1426] text-white"
-              data-testid="schedule-trip-btn"
-            >
-              <NavigationArrow size={20} weight="fill" /> Planifier le trajet
-            </button>
-            <button
-              onClick={() => { relanceRef.current = 0; setRelanceCount(0); setShowNoDriver(false); }}
-              className="w-full py-2.5 text-sm font-semibold text-gray-500"
-              data-testid="continue-search-btn"
-            >
-              Continuer la recherche
-            </button>
-          </div>
-        </div>
-      )}
 
       <ScheduleCalendarModal
         open={showSchedule}
