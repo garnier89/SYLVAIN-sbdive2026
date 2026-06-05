@@ -9,18 +9,28 @@ import {
 
 const PM_ICON_MAP = { Money, CreditCard, Wallet, DeviceMobile, Waves, Bank };
 
-const VehicleIcon = ({ iconType, slug, selected }) => {
+const VehicleIcon = ({ vehicle, selected }) => {
+  // Prefer admin-uploaded images (switches selected/unselected); fallback to icons
+  const img = selected
+    ? (vehicle.image_selected || vehicle.image_unselected)
+    : (vehicle.image_unselected || vehicle.image_selected);
+  if (img) return <img src={img} alt={vehicle.name_fr || vehicle.slug} className="w-full h-full object-contain transition-transform duration-200" style={{ transform: selected ? 'scale(1.08)' : 'scale(1)' }} />;
   const cls = selected ? 'text-[#FF4500]' : 'text-gray-600';
   const size = 32;
-  if (iconType === 'Bike') return <Motorcycle size={size} weight="duotone" className={cls} />;
+  const { icon_type: iconType, slug } = vehicle;
+  if (iconType === 'Bike' || iconType === 'Moto') return <Motorcycle size={size} weight="duotone" className={cls} />;
   if (slug === 'suv') return <Jeep size={size} weight="duotone" className={cls} />;
   if (slug === 'electric') return <Lightning size={size} weight="duotone" className={cls} />;
-  if (slug === 'van') return <Van size={size} weight="duotone" className={cls} />;
+  if (slug === 'van' || iconType === 'Van') return <Van size={size} weight="duotone" className={cls} />;
   if (slug === 'accessible') return <Wheelchair size={size} weight="duotone" className={cls} />;
   if (slug === 'airport') return <AirplaneTilt size={size} weight="duotone" className={cls} />;
   if (slug === 'pool') return <Users size={size} weight="duotone" className={cls} />;
   return <Car size={size} weight="duotone" className={cls} />;
 };
+
+const VehicleBadge = ({ children, tone }) => (
+  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tone}`}>{children}</span>
+);
 
 /**
  * Step 2 of the ride booking flow: map view with vehicle selection bottom sheet.
@@ -150,6 +160,7 @@ export const RideMapStep = ({
                   : v.min_fare?.toFixed(2) || '--';
                 const isSelected = selectedVehicle === v.slug;
                 const meta = vehicleMeta[v.slug] || { label: v.name_fr, desc: v.description || 'Véhicule pour vos trajets' };
+                const desc = v.info || meta.desc;
                 return (
                   <button
                     key={v.slug}
@@ -158,16 +169,23 @@ export const RideMapStep = ({
                     data-testid={`vehicle-${v.slug}`}
                   >
                     <div className="w-16 h-14 flex items-center justify-center flex-shrink-0">
-                      <VehicleIcon iconType={v.icon_type} slug={v.slug} selected={isSelected} />
+                      <VehicleIcon vehicle={v} selected={isSelected} />
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <p className="font-bold text-slate-800 text-[15px]">{meta.label}</p>
                       <p className="text-[11px] text-gray-500 leading-tight mt-0.5 line-clamp-2">
-                        {meta.desc}
+                        {desc}
                       </p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <User size={12} className="text-gray-500" weight="fill" />
-                        <span className="text-xs text-gray-600">{v.person_capacity || 4}</span>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap" data-testid={`vehicle-badges-${v.slug}`}>
+                        <span className="flex items-center gap-0.5">
+                          <User size={12} className="text-gray-500" weight="fill" />
+                          <span className="text-xs text-gray-600">{v.person_capacity || 4}</span>
+                        </span>
+                        {v.enable_pool && <VehicleBadge tone="bg-blue-100 text-blue-700">Pool</VehicleBadge>}
+                        {v.pet_friendly && <VehicleBadge tone="bg-green-100 text-green-700">🐾 Animaux</VehicleBadge>}
+                        {v.ask_otp_before_ride && <VehicleBadge tone="bg-purple-100 text-purple-700">OTP</VehicleBadge>}
+                        {v.assist_available && <VehicleBadge tone="bg-amber-100 text-amber-700">♿ Assist</VehicleBadge>}
+                        {v.allow_whatsapp_booking && <VehicleBadge tone="bg-emerald-100 text-emerald-700">WhatsApp</VehicleBadge>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">

@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only test of the enriched passenger vehicle list on /ride. After login as rider.qa@demo.sb, set pickup via Google Places autocomplete (typed + ArrowDown+Enter) and dropoff via a recent location (auto-advance from plan → map only triggers via recent location or 'Choisir sur la carte' button; typing both addresses alone does NOT advance — see notes). All vehicle rows on the map step render correctly: name, description (admin info or fallback), person_capacity, and the expected admin-flag badges. Selection highlight (bg-blue-50 + border-l-4 border-l-blue-500) works. No crashes when admin images are absent — Phosphor icon fallback renders properly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Plan step → Map step transition",
+        "issue": "Typing pickup AND dropoff in Google Places autocomplete and selecting suggestions for both does NOT auto-advance to the map step (vehicle list). User must click a 'Lieux Récents' entry, the 'Choisir sur la carte' button, or a Domicile/Travail favorite to trigger setStep('map'). The review-request expectation 'flow should advance to the map step showing the VEHICLE LIST' after both addresses are set is therefore not satisfied through pure autocomplete. The agent-to-agent context note already acknowledged this; a continue/'Suivant' button or a useEffect watching pickup.lat && dropoff.lat should be wired in RideBookingPage.js / RidePlanStep.jsx.",
+        "affected_selectors": ["[data-testid=ride-pickup-input]", "[data-testid=ride-dropoff-input]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Wire an explicit continue (button or useEffect) in RidePlanStep/RideBookingPage so the flow auto-advances to step='map' once pickup.lat && dropoff.lat are both set (currently only handleDestinationFromRecent / handleSetOnMap call setStep('map'))."
+  ],
+  "critical_code_review_comments": [
+    "RideMapStep.jsx VehicleIcon: when admin images are missing for all seeded types, Phosphor fallback works as expected; consider also surfacing person_capacity from API (already done — confirmed v.person_capacity rendered) and a default `info` fallback at backend layer to avoid the 'Véhicule pour vos trajets' generic copy that appears for pool/pets/accessible types.",
+    "RidePlanStep does not provide a primary CTA to confirm both addresses → results in a dead-end flow if the user just types both inputs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% on the vehicle-list rendering/selection tests; 1 UX gap on auto-advance"},
+  "test_credentials": "rider.qa@demo.sb / Rider123!  (login worked via /login/email)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Vehicle list enrichment is verified end-to-end. Specific badges observed on /ride map step: pool→Pool (blue), pets→🐾 Animaux (green), accessible→♿ Assist (amber), moto→WhatsApp (emerald), luxe→OTP (purple). Descriptions observed: luxe='Berline haut de gamme, chauffeur en costume.', confort='Confort supérieur pour vos trajets quotidiens.', moto='Rapide aux heures de pointe.' Capacity numbers correct (4 for cars, 1 for moto). Selection highlight (bg-blue-50 + border-l-4) verified on pool & luxe rows. To reach the vehicle list reliably in a test: type pickup → ArrowDown+Enter, then click any [data-testid^=recent-location-] entry (this calls handleDestinationFromRecent which sets dropoff and forces setStep('map')).",
+  "rca of the issue": "Auto-advance gap RCA: RidePlanStep.jsx GooglePlacesInput onSelect for pickup/dropoff only updates state (setPickup/setDropoff). No useEffect in RideBookingPage.js watches (pickup.lat, dropoff.lat) to setStep('map'). The only paths that call setStep('map') are handleSetOnMap (Choisir sur la carte) and getEstimateForAddress (called by handleDestinationFromRecent). Mitigation: add useEffect(() => { if (step==='plan' && pickup.lat && dropoff.lat) setStep('map'); }, [pickup.lat, dropoff.lat, step]) OR a 'Continuer' button at the bottom of the plan step."
+}
