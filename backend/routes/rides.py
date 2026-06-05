@@ -438,6 +438,67 @@ async def update_proposed_fare(ride_id: str, request: Request):
     return {"message": "Tarif augmenté et renvoyé aux chauffeurs", "proposed_fare": new_fare}
 
 
+@router.post("/{ride_id}/rebroadcast")
+async def rebroadcast_ride(ride_id: str, request: Request):
+    """Re-emit a still-pending ride request to nearby drivers (a 'relance')."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if ride["status"] != "pending":
+        raise HTTPException(status_code=400, detail="La course n'est plus en attente")
+    await manager.broadcast_to_drivers({
+        "type": "new_ride_request",
+        "ride_id": ride["id"],
+        "pickup_lat": ride["pickup_lat"],
+        "pickup_lng": ride["pickup_lng"],
+        "pickup_address": ride["pickup_address"],
+        "dropoff_address": ride["dropoff_address"],
+        "vehicle_type": ride["vehicle_type"],
+        "estimated_fare": ride.get("estimated_fare"),
+        "proposed_fare": ride.get("proposed_fare"),
+        "distance_km": ride.get("distance_km"),
+        "duration_mins": ride.get("duration_mins"),
+    })
+    return {"message": "Recherche relancée", "ride_id": ride_id}
+
+
+@router.post("/{ride_id}/convert-to-bidding")
+async def convert_ride_to_bidding(ride_id: str, request: Request):
+    """Convert a pending standard ride into bidding mode (keep pickup/dropoff/vehicle),
+    seed the proposed fare from the estimate and re-broadcast so drivers can counter-offer."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if ride["status"] != "pending":
+        raise HTTPException(status_code=400, detail="La course n'est plus en attente")
+    proposed = round(max(float(ride.get("proposed_fare") or 0), float(ride.get("estimated_fare") or 0)), 2)
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$set": {"mode": "bidding", "is_bidding": True, "proposed_fare": proposed}},
+    )
+    await manager.broadcast_to_drivers({
+        "type": "new_ride_request",
+        "ride_id": ride["id"],
+        "pickup_lat": ride["pickup_lat"],
+        "pickup_lng": ride["pickup_lng"],
+        "pickup_address": ride["pickup_address"],
+        "dropoff_address": ride["dropoff_address"],
+        "vehicle_type": ride["vehicle_type"],
+        "estimated_fare": ride.get("estimated_fare"),
+        "proposed_fare": proposed,
+        "distance_km": ride.get("distance_km"),
+        "duration_mins": ride.get("duration_mins"),
+    })
+    return {"message": "Course convertie en enchères", "ride_id": ride_id, "proposed_fare": proposed}
+
+
+
 @router.post("/{ride_id}/update-route")
 async def update_ride_route(ride_id: str, request: Request):
     """In-ride modification: the passenger can change the departure/destination

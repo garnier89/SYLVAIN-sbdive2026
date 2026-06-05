@@ -100,6 +100,18 @@ const TaxiBiddingPage = () => {
       .catch((e) => console.warn('live-stats fetch failed:', e?.message || e));
   }, [pickup]);
 
+  // Resume an existing ride converted to bidding (from the "Proposer votre tarif" flow)
+  useEffect(() => {
+    const resume = searchParams.get('resume');
+    const v = searchParams.get('vehicle');
+    if (v) setVehicleType(v);
+    if (resume) {
+      setSearching(resume);
+      setSearchSeconds(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSubmit = async () => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }
     // Offer cannot be below the recommended (minimum) fare

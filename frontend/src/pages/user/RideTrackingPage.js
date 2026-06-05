@@ -14,9 +14,12 @@ import SearchingRadar from '../../components/SearchingRadar';
 import DriverInfoCard from './ride-tracking/DriverInfoCard';
 import DriverEnRouteView from './ride-tracking/DriverEnRouteView';
 import RouteEditModal from './ride-tracking/RouteEditModal';
+import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+const RELANCE_INTERVAL_SEC = 20;
+const MAX_RELANCES = 3;
 
 // V3Cube-style status notification dialog ("Le chauffeur est arrivé.", etc.)
 const StatusDialog = ({ dialog }) => {
@@ -66,7 +69,12 @@ const RideTrackingPage = () => {
   const [joiningRideId, setJoiningRideId] = useState(null);
   const [statusDialog, setStatusDialog] = useState(null);
   const [showRouteEdit, setShowRouteEdit] = useState(false);
+  const [relanceCount, setRelanceCount] = useState(0);
+  const [showNoDriver, setShowNoDriver] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [converting, setConverting] = useState(false);
   const prevStatusRef = useRef(null);
+  const relanceRef = useRef(0);
 
   const togglePool = useCallback(async () => {
     if (poolLoading) return;
@@ -91,6 +99,75 @@ const RideTrackingPage = () => {
     }
     setPoolLoading(false);
   }, [poolEnabled, poolLoading, rideId]);
+
+  const isBiddingMode = ride?.mode === 'bidding' || ride?.is_bidding;
+
+  const doRebroadcast = useCallback(async () => {
+    try {
+      await fetch(`${API}/api/rides/${rideId}/rebroadcast`, { method: 'POST', credentials: 'include' });
+    } catch (err) {
+      console.warn('[RideTracking] rebroadcast failed:', err?.message || err);
+    }
+  }, [rideId]);
+
+  // Auto-relance: re-broadcast the request every cycle; after MAX_RELANCES, offer alternatives
+  useEffect(() => {
+    if (ride?.status !== 'pending' || isBiddingMode || relanceRef.current >= MAX_RELANCES) return undefined;
+    const id = setInterval(async () => {
+      relanceRef.current += 1;
+      setRelanceCount(relanceRef.current);
+      await doRebroadcast();
+      if (relanceRef.current >= MAX_RELANCES) {
+        setShowNoDriver(true);
+        clearInterval(id);
+      }
+    }, RELANCE_INTERVAL_SEC * 1000);
+    return () => clearInterval(id);
+  }, [ride?.status, isBiddingMode, doRebroadcast]);
+
+  const handleManualRelance = useCallback(async () => {
+    if (relanceRef.current >= MAX_RELANCES) { setShowNoDriver(true); return; }
+    relanceRef.current += 1;
+    setRelanceCount(relanceRef.current);
+    await doRebroadcast();
+    toast.success('Recherche relancée');
+    if (relanceRef.current >= MAX_RELANCES) setShowNoDriver(true);
+  }, [doRebroadcast]);
+
+  const handleProposeFare = useCallback(async () => {
+    if (!ride) return;
+    setConverting(true);
+    try {
+      const res = await fetch(`${API}/api/rides/${rideId}/convert-to-bidding`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error('convert failed');
+      const params = new URLSearchParams({
+        resume: rideId,
+        pickup: ride.pickup_address || '', plat: String(ride.pickup_lat), plng: String(ride.pickup_lng),
+        dropoff: ride.dropoff_address || '', dlat: String(ride.dropoff_lat), dlng: String(ride.dropoff_lng),
+        vehicle: ride.vehicle_type || 'sb',
+      });
+      navigate(`/taxi-bidding?${params.toString()}`);
+    } catch (err) {
+      toast.error('Conversion en enchères impossible');
+    }
+    setConverting(false);
+  }, [ride, rideId, navigate]);
+
+  const handleReschedule = useCallback(async (scheduledAt) => {
+    try {
+      const res = await fetch(`${API}/api/rides/${rideId}/reschedule`, {
+        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduled_at: scheduledAt }),
+      });
+      if (!res.ok) throw new Error('reschedule failed');
+      toast.success('Course planifiée');
+      setShowSchedule(false);
+      setShowNoDriver(false);
+      navigate('/scheduled-rides');
+    } catch (err) {
+      toast.error('Planification impossible');
+    }
+  }, [rideId, navigate]);
 
   // Live Taxi Pool matching: poll nearby pending pool rides while pool is on & ride pending
   useEffect(() => {
@@ -428,6 +505,20 @@ const RideTrackingPage = () => {
             <SearchingRadar size={140} />
             <p className="font-semibold text-blue-800 mt-4">Recherche d'un chauffeur...</p>
             <p className="text-xs text-[#FF4500] mt-1">Veuillez patienter</p>
+            {!isBiddingMode && relanceCount > 0 && relanceCount < MAX_RELANCES && (
+              <p className="text-[11px] text-gray-500 mt-2" data-testid="relance-count">
+                Relance {relanceCount}/{MAX_RELANCES}…
+              </p>
+            )}
+            {!isBiddingMode && (
+              <button
+                onClick={handleManualRelance}
+                className="mt-3 px-4 py-2 rounded-full bg-white border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-50 transition-colors"
+                data-testid="relancer-recherche-btn"
+              >
+                Relancer la recherche
+              </button>
+            )}
           </div>
         )}
 
@@ -648,6 +739,50 @@ const RideTrackingPage = () => {
       />
 
       <StatusDialog dialog={statusDialog} />
+
+      {/* No-driver alternatives modal (shown after 3 relances) */}
+      {showNoDriver && ride.status === 'pending' && (
+        <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-black/50" data-testid="no-driver-modal">
+          <div className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 pb-8">
+            <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
+              <Clock size={26} weight="duotone" className="text-[#FF5000]" />
+            </div>
+            <h3 className="text-lg font-black text-gray-900 text-center mb-1">Aucun chauffeur disponible</h3>
+            <p className="text-sm text-gray-500 text-center mb-5">
+              Aucun chauffeur n'a accepté après plusieurs relances. Essayez l'une de ces options :
+            </p>
+            <button
+              onClick={handleProposeFare}
+              disabled={converting}
+              className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 mb-3 disabled:opacity-60"
+              style={{ backgroundColor: '#FF5000', color: '#0B1426' }}
+              data-testid="propose-fare-btn"
+            >
+              <Star size={20} weight="fill" /> {converting ? 'Conversion…' : 'Proposer votre tarif'}
+            </button>
+            <button
+              onClick={() => { setShowNoDriver(false); setShowSchedule(true); }}
+              className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 mb-3 bg-[#0B1426] text-white"
+              data-testid="schedule-trip-btn"
+            >
+              <NavigationArrow size={20} weight="fill" /> Planifier le trajet
+            </button>
+            <button
+              onClick={() => { relanceRef.current = 0; setRelanceCount(0); setShowNoDriver(false); }}
+              className="w-full py-2.5 text-sm font-semibold text-gray-500"
+              data-testid="continue-search-btn"
+            >
+              Continuer la recherche
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ScheduleCalendarModal
+        open={showSchedule}
+        onClose={() => setShowSchedule(false)}
+        onConfirm={handleReschedule}
+      />
     </div>
   );
 };
