@@ -49,3 +49,11 @@ async def notify_drivers(title: str, body: str, data: dict | None = None, online
     drivers = await db.drivers.find(query, {"_id": 0, "push_token": 1}).to_list(2000)
     tokens = [d["push_token"] for d in drivers if d.get("push_token")]
     await send_expo_push(tokens, title, body, data)
+
+
+async def notify_user(user_id: str, title: str, body: str, data: dict | None = None):
+    """Send a push to a single user via their registered Expo push token."""
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "push_token": 1})
+    token = (u or {}).get("push_token")
+    if token:
+        await send_expo_push([token], title, body, data)

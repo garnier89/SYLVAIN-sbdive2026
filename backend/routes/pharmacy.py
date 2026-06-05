@@ -521,6 +521,17 @@ async def admin_quote_order(order_id: str, request: Request):
         }, order["user_id"])
     except Exception:
         pass
+    # Remote push (Expo) — alerts the customer even if the app is closed.
+    try:
+        from core.push import notify_user
+        await notify_user(
+            order["user_id"],
+            title="💊 Devis pharmacie prêt",
+            body=f"Votre commande est prête à être payée : {total:.2f} €.",
+            data={"type": "pharmacy_quote_ready", "order_id": order_id, "total": total},
+        )
+    except Exception:
+        pass
     return {"id": order_id, "medication_total": medication_total, "total": total, "status": "confirmed"}
 
 

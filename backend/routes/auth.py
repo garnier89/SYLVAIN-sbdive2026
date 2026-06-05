@@ -361,6 +361,20 @@ async def change_password(request: Request):
 # === User Addresses ===
 users_router = APIRouter(prefix="/users", tags=["users"])
 
+@users_router.post("/push-token")
+async def register_user_push_token(request: Request):
+    """Store the Expo push token for the current user (and mirror to driver doc if any)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    token = body.get("token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Token requis")
+    ts = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"push_token": token, "push_token_updated_at": ts}})
+    await db.drivers.update_one({"user_id": user["id"]}, {"$set": {"push_token": token, "push_token_updated_at": ts}})
+    return {"ok": True}
+
+
 @users_router.get("/addresses", response_model=List[Address])
 async def get_addresses(request: Request):
     user = await get_current_user(request)

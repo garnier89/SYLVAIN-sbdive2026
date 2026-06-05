@@ -9,9 +9,11 @@ import '@/locales/i18n';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import RootNavigator from '@/navigation/RootNavigator';
 import VoiceAssistantFAB from '@/components/VoiceAssistantFAB';
+import { usePushRegistration } from '@/hooks/usePushRegistration';
 
 function AppShell() {
   const { user } = useAuth();
+  usePushRegistration();
   return (
     <View style={{ flex: 1 }}>
       <RootNavigator />

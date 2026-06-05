@@ -1,3 +1,10 @@
+## NEW - Jun 2026 - Push Expo : token utilisateur + alerte « Devis pharmacie prêt » (DONE)
+- **Push mobile temps réel** : à l'établissement du devis (`admin_quote_order`), en plus du WS, un **Expo push** est envoyé au client via `core.push.notify_user(user_id, …)` (« 💊 Devis pharmacie prêt — X € »). Alerte même app fermée → accélère paiement/livraison.
+- **Backend** : nouveau `POST /api/users/push-token` (auth.py `users_router`) — stocke le token Expo sur `db.users.push_token` (+ miroir `db.drivers` si chauffeur). Helper `notify_user` ajouté à `core/push.py`. 400 si token manquant.
+- **Mobile (Expo)** — *termine la tâche P1 en pause (enregistrement du token push)* : ajout `expo-notifications` + `expo-device` ; hook `usePushRegistration` (demande permission, récupère `getExpoPushTokenAsync`, POST `/users/push-token` à l'authentification, canal Android `missions`, handler foreground) ; monté dans `App.tsx` (`AppShell`). `userAPI.registerPushToken` ajouté à `endpoints.ts`.
+- Vérifié : enregistrement token stocké ✅, token vide → 400 ✅, devis déclenche `notify_user` sans crash ✅ (envoi Expo best-effort/fire-and-forget). `tsc --noEmit` mobile clean, lint backend clean. ⚠️ La **livraison push réelle** nécessite un appareil physique + token valide (test e2e via Expo Go, non automatisable ici).
+
+
 ## UPDATE - Jun 2026 - Pharmacie : « Payer maintenant » sur ordonnance après devis (notif WS + débit) (DONE)
 - **Boucle de monétisation du parcours ordonnance** : quand l'admin/pharmacie établit le **devis** (`POST /admin/pharmacy/orders/{id}/quote`), un **broadcast WS `pharmacy_quote_ready`** est envoyé au client → toast « 💶 Devis reçu : X € » + rechargement.
 - **Nouveau endpoint** `POST /pharmacy/orders/{id}/pay` {payment_method: wallet|sbpaygo} : débit atomique via `_debit_user`, `payment_status='paid'`. Gardes : 400 si pas encore de devis (`needs_quote`/status pending), si déjà payé, si annulée/livrée, si méthode invalide.

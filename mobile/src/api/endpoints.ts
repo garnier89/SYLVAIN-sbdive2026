@@ -20,6 +20,7 @@ export const userAPI = {
   getAddresses: () => api.get('/users/addresses'),
   addAddress: (data: any) => api.post('/users/addresses', data),
   deleteAddress: (id: string) => api.delete(`/users/addresses/${id}`),
+  registerPushToken: (token: string) => api.post('/users/push-token', { token }),
 };
 
 export const driverAPI = {
