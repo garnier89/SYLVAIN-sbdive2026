@@ -12,18 +12,22 @@ import {
   Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal
 } from '@phosphor-icons/react';
 
+// Dashboard organisé en grandes familles : Pilotage, Membres, Services,
+// Exploitation, Finance, Croissance, Contenu (CMS) et Configuration.
 const sidebarConfig = [
   {
-    title: 'ACCUEIL',
+    title: 'PILOTAGE',
     items: [
       { icon: SquaresFour, label: 'Tableau de bord', path: '/admin' },
       { icon: ChartLine, label: 'Monitoring serveur', path: '/admin/monitoring' },
       { icon: Path, label: 'Courses en direct', path: '/admin/live-rides' },
       { icon: Lightning, label: 'Auto-dispatch', path: '/admin/auto-dispatch' },
+      { icon: Binoculars, label: "Vue d'ensemble", path: '/admin/gods-view' },
+      { icon: Fire, label: 'Vue thermique', path: '/admin/heat-view' },
     ]
   },
   {
-    title: 'MEMBRES',
+    title: 'MEMBRES & PARTENAIRES',
     items: [
       { icon: UserCircle, label: 'Admin', key: 'admin', children: [
         { label: 'Administrateurs', path: '/admin/admins' },
@@ -35,10 +39,6 @@ const sidebarConfig = [
         { label: 'Gérer véhicules', path: '/admin/vehicles' },
         { label: 'Demandes de service', path: '/admin/requests' },
         { label: 'Vérification documents', path: '/admin/documents' },
-      ]},
-      { icon: Trophy, label: 'Gérer récompenses', key: 'rewards', children: [
-        { label: 'Rapports', path: '/admin/rewards-reports' },
-        { label: 'Paramètres', path: '/admin/rewards' },
       ]},
       { icon: Buildings, label: 'Entreprise / Flotte', path: '/admin/company' },
       { icon: Storefront, label: 'Boutiques', path: '/admin/stores' },
@@ -105,7 +105,7 @@ const sidebarConfig = [
     ]
   },
   {
-    title: 'RÉSERVATIONS & RAPPORTS',
+    title: 'EXPLOITATION',
     items: [
       { icon: CalendarCheck, label: 'Réservations / Commandes', key: 'bookings', children: [
         { label: 'Réservation manuelle', path: '/admin/manual-booking' },
@@ -116,65 +116,52 @@ const sidebarConfig = [
       { icon: Star, label: 'Avis', key: 'reviews', children: [
         { label: 'Avis courses/missions', path: '/admin/reviews' },
       ]},
+      { icon: Shield, label: 'Litiges', path: '/admin/disputes' },
+      { icon: Warning, label: 'Alertes SOS', path: '/admin/sos-requests' },
+      { icon: EnvelopeSimple, label: 'Demandes de contact', path: '/admin/contact-requests' },
+      { icon: FileText, label: 'Aide commandes', path: '/admin/order-help-requests' },
+      { icon: FileText, label: 'Aide courses', path: '/admin/trip-help-requests' },
+    ]
+  },
+  {
+    title: 'FINANCE',
+    items: [
+      { icon: Wallet, label: 'Demandes portefeuille', path: '/admin/wallet-requests' },
+      { icon: HandCoins, label: 'Demandes de retrait', path: '/admin/withdraw-requests' },
+      { icon: HandCoins, label: 'Versements', path: '/admin/settlements' },
       { icon: ChartBar, label: 'Rapports', key: 'reports', children: [
         { label: 'Rapport des revenus', path: '/admin/revenue' },
         { label: 'Rapport des versements', path: '/admin/payout' },
         { label: 'Versements', path: '/admin/settlements' },
       ]},
-      { icon: Shield, label: 'Litiges', path: '/admin/disputes' },
+      { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-methods' },
+      { icon: HandCoins, label: 'Zones SB PayGo', path: '/admin/sbpaygo-zones' },
+      { icon: SealCheck, label: 'Devise', path: '/admin/currency' },
     ]
   },
   {
-    title: 'PORTEFEUILLE & PAIEMENTS',
+    title: 'CROISSANCE',
     items: [
-      { icon: Wallet, label: 'Demandes portefeuille', path: '/admin/wallet-requests' },
-      { icon: HandCoins, label: 'Versements', path: '/admin/settlements' },
-    ]
-  },
-  {
-    title: 'RÉCOMPENSES & FIDÉLITÉ',
-    items: [
-      { icon: Trophy, label: 'Programme de récompenses', path: '/admin/rewards' },
-      { icon: Trophy, label: 'Chauffeurs prioritaires', path: '/admin/priority-drivers' },
-      { icon: Trophy, label: 'Top Chauffeurs (public)', path: '/admin/top-drivers' },
-      { icon: Trophy, label: 'Rapport écart négociation', path: '/admin/reports/negotiation-gap' },
-    ]
-  },
-  {
-    title: 'LOCALISATION',
-    items: [
-      { icon: MapPin, label: 'Gérer les zones', key: 'locations', children: [
-        { label: 'Geofencing', path: '/admin/geo-fence' },
-        { label: 'Zones restreintes', path: '/admin/restricted' },
-        { label: 'Tarification par zone', path: '/admin/location-fare' },
-        { label: 'Surcharge aéroport', path: '/admin/airport' },
-        { label: 'Pays', path: '/admin/country' },
-        { label: 'Régions', path: '/admin/state' },
+      { icon: Trophy, label: 'Récompenses & Fidélité', key: 'rewards', children: [
+        { label: 'Programme de récompenses', path: '/admin/rewards' },
+        { label: 'Rapports récompenses', path: '/admin/rewards-reports' },
+        { label: 'Chauffeurs prioritaires', path: '/admin/priority-drivers' },
+        { label: 'Top Chauffeurs (public)', path: '/admin/top-drivers' },
+        { label: 'Rapport écart négociation', path: '/admin/reports/negotiation-gap' },
       ]},
-      { icon: Binoculars, label: "Vue d'ensemble", path: '/admin/gods-view' },
-      { icon: Fire, label: 'Vue thermique', path: '/admin/heat-view' },
-    ]
-  },
-  {
-    title: 'PROMOTIONS & MARKETING',
-    items: [
       { icon: Ticket, label: 'Codes promo', path: '/admin/promocodes' },
       { icon: Star, label: 'Mise en avant sponsorisée', path: '/admin/featured-listings' },
-      { icon: Bed, label: 'ACL — Rôles & Permissions', path: '/admin/acl' },
-      { icon: Bed, label: 'Audit Logs', path: '/admin/audit-logs' },
-      { icon: Bed, label: 'Organisations (multi-tenant)', path: '/admin/organizations' },
-      { icon: Bed, label: 'Traductions i18n', path: '/admin/i18n' },
       { icon: Gift, label: 'Cartes cadeaux', key: 'giftcards', children: [
         { label: 'Toutes les cartes', path: '/admin/giftcards' },
       ]},
-      { icon: ShareNetwork, label: 'Paramètres parrainage MLM', path: '/admin/referral' },
+      { icon: ShareNetwork, label: 'Parrainage MLM', path: '/admin/referral' },
       { icon: Image, label: 'Bannières publicitaires', path: '/admin/banners' },
       { icon: Newspaper, label: 'Actualités', path: '/admin/news' },
       { icon: EnvelopeSimple, label: 'Newsletter', path: '/admin/newsletter' },
     ]
   },
   {
-    title: 'CMS',
+    title: 'CONTENU (CMS)',
     items: [
       { icon: Globe, label: 'Pages du site web', key: 'pages', children: [
         { label: 'Toutes les pages', path: '/admin/pages' },
@@ -183,7 +170,7 @@ const sidebarConfig = [
         { label: 'Configuration', path: '/admin/app-home' },
         { label: 'Catégories accueil', path: '/admin/home-categories' },
       ]},
-      { icon: Slideshow, label: 'Écrans d\'intro', key: 'intro', children: [
+      { icon: Slideshow, label: "Écrans d'intro", key: 'intro', children: [
         { label: 'Slides', path: '/admin/intro' },
       ]},
       { icon: Translate, label: 'Traductions', key: 'lang', children: [
@@ -191,45 +178,37 @@ const sidebarConfig = [
       ]},
       { icon: EnvelopeOpen, label: 'Modèles email', path: '/admin/email-templates' },
       { icon: ChatCircleText, label: 'Modèles SMS', path: '/admin/sms-templates' },
-      { icon: XCircle, label: 'Motifs d\'annulation', path: '/admin/cancel-reasons' },
+      { icon: XCircle, label: "Motifs d'annulation", path: '/admin/cancel-reasons' },
     ]
   },
   {
-    title: 'SUPPORT',
-    items: [
-      { icon: EnvelopeSimple, label: 'Demandes de contact', path: '/admin/contact-requests' },
-      { icon: Warning, label: 'Alertes SOS', path: '/admin/sos-requests' },
-      { icon: FileText, label: 'Aide commandes', path: '/admin/order-help-requests' },
-      { icon: HandCoins, label: 'Demandes de paiement', path: '/admin/wallet-requests' },
-      { icon: HandCoins, label: 'Demandes de retrait', path: '/admin/withdraw-requests' },
-      { icon: FileText, label: 'Aide courses', path: '/admin/trip-help-requests' },
-    ]
-  },
-  {
-    title: 'PARAMÈTRES & UTILITAIRES',
+    title: 'CONFIGURATION',
     items: [
       { icon: Gear, label: 'Paramètres généraux', path: '/admin/settings' },
       { icon: Clock, label: 'Planification des courses', path: '/admin/scheduling' },
-      { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-methods' },
-      { icon: HandCoins, label: 'Zones SB PayGo', path: '/admin/sbpaygo-zones' },
-      { icon: Wrench, label: 'Services principaux', path: '/admin/master-services' },
-      { icon: SealCheck, label: 'Devise', path: '/admin/currency' },
-      { icon: Translate, label: 'Langue', path: '/admin/language' },
-      { icon: MagnifyingGlass, label: 'Paramètres SEO', path: '/admin/seo' },
+      { icon: MapPin, label: 'Localisation & zones', key: 'locations', children: [
+        { label: 'Geofencing', path: '/admin/geo-fence' },
+        { label: 'Zones restreintes', path: '/admin/restricted' },
+        { label: 'Tarification par zone', path: '/admin/location-fare' },
+        { label: 'Surcharge aéroport', path: '/admin/airport' },
+        { label: 'Pays', path: '/admin/country' },
+        { label: 'Régions', path: '/admin/state' },
+      ]},
       { icon: MapPin, label: 'Paramètres Maps/Geo', path: '/admin/maps-api' },
+      { icon: MagnifyingGlass, label: 'Paramètres SEO', path: '/admin/seo' },
       { icon: EnvelopeOpen, label: 'Notifications push', path: '/admin/push-notifications' },
-      { icon: FileText, label: 'Documents', path: '/admin/documents' },
+      { icon: Wrench, label: 'Services principaux', path: '/admin/master-services' },
       { icon: Car, label: 'Marques véhicules', path: '/admin/vehicle-makes' },
       { icon: Car, label: 'Modèles véhicules', path: '/admin/vehicle-models' },
+      { icon: Translate, label: 'Langue', path: '/admin/language' },
+      { icon: FileText, label: 'Documents', path: '/admin/documents' },
+      { icon: Shield, label: 'ACL — Rôles & Permissions', path: '/admin/acl' },
+      { icon: FileText, label: 'Audit Logs', path: '/admin/audit-logs' },
+      { icon: Buildings, label: 'Organisations (multi-tenant)', path: '/admin/organizations' },
+      { icon: Translate, label: 'Traductions i18n', path: '/admin/i18n' },
       { icon: FileText, label: 'Sauvegarde BDD', path: '/admin/db-backup' },
     ]
   },
-  {
-    title: 'SYSTÈME',
-    items: [
-      { icon: Gear, label: 'Paramètres généraux', path: '/admin/settings' },
-    ]
-  }
 ];
 
 const AdminLayout = () => {
@@ -238,9 +217,11 @@ const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openMenus, setOpenMenus] = useState({});
+  const [sectionState, setSectionState] = useState({});
   const [searchSidebar, setSearchSidebar] = useState('');
 
   const toggleMenu = (key) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggleSection = (title, currentlyOpen) => setSectionState(prev => ({ ...prev, [title]: !currentlyOpen }));
 
   const isActive = (path) => {
     if (path === '/admin') return location.pathname === '/admin';
@@ -251,6 +232,8 @@ const AdminLayout = () => {
     if (item.children) return item.children.some(c => isActive(c.path));
     return isActive(item.path);
   };
+
+  const sectionHasActive = (section) => section.items.some(it => isParentActive(it));
 
   const handleLogout = async () => { await logout(); navigate('/login'); };
 
@@ -306,59 +289,72 @@ const AdminLayout = () => {
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2">
+        <div className="px-3 py-2 sticky top-0 bg-white z-10">
           <div className="relative">
             <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={searchSidebar} onChange={(e) => setSearchSidebar(e.target.value)}
-              placeholder="Search" className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded text-gray-700 outline-none focus:border-blue-400 placeholder:text-gray-400" data-testid="sidebar-search" />
+              placeholder="Rechercher dans le menu…" className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded text-gray-700 outline-none focus:border-blue-400 placeholder:text-gray-400" data-testid="sidebar-search" />
           </div>
         </div>
 
-        {/* Navigation Sections */}
+        {/* Navigation Sections (collapsible families) */}
         <nav className="px-2 pb-6">
-          {filteredSections.map((section) => (
-            <div key={section.title} className="mt-3">
-              <p className="px-3 text-[10px] font-bold text-gray-400 tracking-wider mb-1 uppercase">{section.title}</p>
-              {section.items.map((item) => (
-                <div key={item.key || item.path}>
-                  {item.children ? (
-                    <>
-                      <button onClick={() => toggleMenu(item.key)}
-                        className={`w-full flex items-center gap-2 px-3 py-[7px] rounded-md text-[13px] transition-all ${
-                          isParentActive(item) && !openMenus[item.key]
-                            ? 'bg-[#3b82f6] text-white font-medium'
-                            : 'text-gray-600 hover:bg-gray-50'}`}
-                        data-testid={`nav-${item.key}`}>
-                        <item.icon size={16} weight={isParentActive(item) ? 'fill' : 'regular'} />
-                        <span className="flex-1 text-left truncate leading-tight">{item.label}</span>
-                        {openMenus[item.key] ? <CaretUp size={12} /> : <CaretDown size={12} />}
-                      </button>
-                      {openMenus[item.key] && (
-                        <div className="ml-4 mt-0.5 space-y-0.5 pl-3">
-                          {item.children.map((child) => (
-                            <Link key={child.path} to={child.path}
-                              className={`flex items-center gap-2 py-1.5 px-2 rounded text-[12px] transition-all ${
-                                isActive(child.path) ? 'text-[#3b82f6] font-semibold bg-blue-50' : 'text-gray-500 hover:text-gray-700'}`}>
-                              <span className="w-1.5 h-1.5 rounded-full border border-current flex-shrink-0" />
-                              {child.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <Link to={item.path}
-                      className={`flex items-center gap-2 px-3 py-[7px] rounded-md text-[13px] transition-all ${
-                        isActive(item.path) ? 'bg-[#3b82f6] text-white font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-                      data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}>
-                      <item.icon size={16} weight={isActive(item.path) ? 'fill' : 'regular'} />
-                      <span className="truncate leading-tight">{item.label}</span>
-                    </Link>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
+          {filteredSections.map((section) => {
+            const hasActive = sectionHasActive(section);
+            const open = searchSidebar
+              ? true
+              : (section.title in sectionState ? sectionState[section.title] : (hasActive || section.title === 'PILOTAGE'));
+            const sectionId = section.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            return (
+              <div key={section.title} className="mt-3">
+                <button
+                  onClick={() => toggleSection(section.title, open)}
+                  className="w-full flex items-center px-3 mb-1 group"
+                  data-testid={`section-${sectionId}`}>
+                  <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase flex-1 text-left group-hover:text-gray-600 transition-colors">{section.title}</p>
+                  {open ? <CaretUp size={11} className="text-gray-400" /> : <CaretDown size={11} className="text-gray-400" />}
+                </button>
+                {open && section.items.map((item) => (
+                  <div key={item.key || item.path}>
+                    {item.children ? (
+                      <>
+                        <button onClick={() => toggleMenu(item.key)}
+                          className={`w-full flex items-center gap-2 px-3 py-[7px] rounded-md text-[13px] transition-all ${
+                            isParentActive(item) && !openMenus[item.key]
+                              ? 'bg-[#3b82f6] text-white font-medium'
+                              : 'text-gray-600 hover:bg-gray-50'}`}
+                          data-testid={`nav-${item.key}`}>
+                          <item.icon size={16} weight={isParentActive(item) ? 'fill' : 'regular'} />
+                          <span className="flex-1 text-left truncate leading-tight">{item.label}</span>
+                          {openMenus[item.key] ? <CaretUp size={12} /> : <CaretDown size={12} />}
+                        </button>
+                        {openMenus[item.key] && (
+                          <div className="ml-4 mt-0.5 space-y-0.5 pl-3">
+                            {item.children.map((child) => (
+                              <Link key={child.path} to={child.path}
+                                className={`flex items-center gap-2 py-1.5 px-2 rounded text-[12px] transition-all ${
+                                  isActive(child.path) ? 'text-[#3b82f6] font-semibold bg-blue-50' : 'text-gray-500 hover:text-gray-700'}`}>
+                                <span className="w-1.5 h-1.5 rounded-full border border-current flex-shrink-0" />
+                                {child.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <Link to={item.path}
+                        className={`flex items-center gap-2 px-3 py-[7px] rounded-md text-[13px] transition-all ${
+                          isActive(item.path) ? 'bg-[#3b82f6] text-white font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}>
+                        <item.icon size={16} weight={isActive(item.path) ? 'fill' : 'regular'} />
+                        <span className="truncate leading-tight">{item.label}</span>
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Footer */}

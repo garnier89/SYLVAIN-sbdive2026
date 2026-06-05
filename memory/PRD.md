@@ -1,3 +1,12 @@
+## NEW - Jun 2026 - Dashboard admin réorganisé en 8 familles claires + menu repliable (DONE)
+- **Demande utilisateur** : « Organiser le dashboard, classer par services / options / configuration ». Refonte de l'IA du menu admin (`AdminLayout.js`).
+- **8 familles** (sous-menus conservés, juste mieux rangés) : 🏠 PILOTAGE, 👥 MEMBRES & PARTENAIRES, 🚗 SERVICES, 📦 EXPLOITATION, 💳 FINANCE, 🎁 CROISSANCE, 📝 CONTENU (CMS), ⚙️ CONFIGURATION.
+- **Familles repliables** : chaque section a un en-tête cliquable (chevron) ; par défaut seules PILOTAGE + la famille de la page active sont ouvertes (réduit le défilement). En recherche, toutes les familles s'ouvrent automatiquement.
+- **Recherche** mise en avant (sticky, placeholder FR « Rechercher dans le menu… »).
+- Doublon supprimé (section SYSTÈME redondante avec Paramètres généraux). Toutes les routes/paths et `data-testid` conservés (aucune route cassée). `data-testid` ajoutés : `section-<slug>` par famille.
+- Lint clean, webpack compiled. ⚠️ Screenshot live non capturé (preview en veille « Wake up servers ») — vérifié via lint + compilation ; validation UI possible via testing agent au besoin.
+
+
 ## UPDATE - Jun 2026 - Socle services : gestion des zones d'opération (rayon/villes) par service (DONE)
 - Chaque service gère désormais ses **zones d'opération** dans `/admin/services-settings` : zone **Rayon** (centre lat/lng + rayon km, géo-vérifiable) ou **Ville** (informative). Vide = service partout.
 - **Backend** (`service_settings.py`) : `ZoneModel`, persistance `zones[]` dans `service_settings` (id auto, nettoyage/validation), exposées par l'admin + l'endpoint public `/api/services/{key}/settings`. Helper réutilisable **`point_in_service_area(key, lat, lng)`** (haversine) prêt pour l'enforcement par service.
