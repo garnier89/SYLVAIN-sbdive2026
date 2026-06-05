@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, MapPin, FlagCheckered, Clock, MapTrifold, CalendarPlus,
-  UserPlus, Briefcase, Lightning, Plus, Bell,
+  UserPlus, Briefcase, Lightning, Plus, Bell, UsersThree,
   House, NavigationArrow, Pencil, CaretRight, X,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
@@ -55,6 +55,8 @@ const TaxiHubPage = () => {
   const [promoApplied, setPromoApplied] = useState(false);
   const [estimate, setEstimate] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [poolSheetOpen, setPoolSheetOpen] = useState(false);
+  const [poolSeats, setPoolSeats] = useState(1);
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
   const [locating, setLocating] = useState(false);
   const [buddyHours, setBuddyHours] = useState(4);
@@ -251,13 +253,23 @@ const TaxiHubPage = () => {
     return acc ? acc.discount_pct : 0;
   }, [mode.id, corpAccounts, corpId]);
 
+  // Pool — geometric seat pricing (V3Cube parity): 1 seat = full*0.70, +0.9x per extra seat
+  const poolMult = (seats) => {
+    const base = 0.70, decay = 0.90;
+    const n = Math.max(1, Math.min(seats, 4));
+    return base * (1 - Math.pow(decay, n)) / (1 - decay);
+  };
+  const poolFullFare = estimate?.original_fare ?? estimate?.estimated_fare ?? 0;
+  const POOL_SEAT_OPTIONS = [1, 2];
+
   const displayPrice = useMemo(() => {
     if (!estimate?.estimated_fare) return null;
     let p = estimate.estimated_fare;
+    if (mode.id === 'pool' && estimate.original_fare) p = estimate.original_fare * poolMult(poolSeats);
     if (corpDiscount) p = p * (1 - corpDiscount / 100);
     if (promoDiscount) p = Math.max(0, p - promoDiscount);
     return p;
-  }, [estimate, corpDiscount, promoDiscount]);
+  }, [estimate, corpDiscount, promoDiscount, mode.id, poolSeats]);
 
   const applyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -311,7 +323,7 @@ const TaxiHubPage = () => {
     if (mode.id === 'pets') { base.pets_count = petsCount; base.pets_size = petsSize; }
     if (mode.id === 'assist') base.assist_needs = assistNeeds;
     if (mode.id === 'access') base.handicap_accessibility = true;
-    if (mode.id === 'pool') base.pool_enabled = true;
+    if (mode.id === 'pool') { base.pool_enabled = true; base.seats_required = poolSeats; }
     if (mode.id === 'book_for_someone') { base.book_for_name = bookForName; base.book_for_phone = bookForPhone; }
     // Top controls (apply to any mode)
     if (pickupTiming === 'later') {
@@ -623,12 +635,64 @@ const TaxiHubPage = () => {
 
       {/* Sticky adaptive CTA */}
       <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-[#E2E8F0] p-4">
-        <button onClick={onSubmit} disabled={submitting || modeDisabled} data-testid="cta-book-button"
+        <button
+          onClick={() => (mode.id === 'pool' && estimate?.estimated_fare ? setPoolSheetOpen(true) : onSubmit())}
+          disabled={submitting || modeDisabled} data-testid="cta-book-button"
           className="w-full py-4 font-black text-lg flex items-center justify-center gap-2 rounded-xl active:scale-[0.98] transition-transform disabled:opacity-60"
           style={{ backgroundColor: '#FF5000', color: '#0B1426' }}>
-          <Lightning size={20} weight="fill" /> {submitting ? 'Envoi…' : modeDisabled ? 'Indisponible' : ctaLabel}
+          <Lightning size={20} weight="fill" /> {submitting ? 'Envoi…' : modeDisabled ? 'Indisponible' : (mode.id === 'pool' ? 'Confirmer les détails' : ctaLabel)}
         </button>
       </div>
+
+      {/* Pool — seat selection sheet (V3Cube parity) */}
+      <AnimatePresence>
+        {poolSheetOpen && (
+          <motion.div
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setPoolSheetOpen(false)} data-testid="pool-seats-sheet">
+            <motion.div
+              className="w-full max-w-[430px] bg-white rounded-t-2xl p-5 pb-8"
+              initial={{ y: 320 }} animate={{ y: 0 }} exit={{ y: 320 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+              <h3 className="text-lg font-black text-[#0B1426] text-center">De combien de places avez-vous besoin ?</h3>
+              <p className="text-xs text-gray-500 text-center mt-1">Service de taxi partagé rentable</p>
+
+              <div className="flex gap-3 mt-5">
+                {POOL_SEAT_OPTIONS.map((s) => {
+                  const price = poolFullFare * poolMult(s);
+                  const active = poolSeats === s;
+                  return (
+                    <button key={s} onClick={() => setPoolSeats(s)} data-testid={`pool-seat-${s}`}
+                      className={`flex-1 rounded-xl border-2 p-4 text-center transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-200 bg-white'}`}>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <UsersThree size={20} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />
+                        <span className={`text-2xl font-black ${active ? 'text-[#FF5000]' : 'text-[#0B1426]'}`}>{s}</span>
+                      </div>
+                      <p className="text-sm font-bold text-[#0B1426] mt-2">{price.toFixed(2)} €</p>
+                      <p className="text-[10px] text-gray-400">{s === 1 ? 'place' : 'places'}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-[11px] text-gray-400 text-center mt-4">
+                Ceci est juste un tarif estimé. Le montant final peut varier pendant le voyage.
+              </p>
+
+              <button
+                onClick={() => { setPoolSheetOpen(false); onSubmit(); }}
+                disabled={submitting} data-testid="pool-confirm-seats-btn"
+                className="w-full mt-4 py-4 font-black text-lg rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
+                style={{ backgroundColor: '#FF5000', color: '#0B1426' }}>
+                {submitting ? 'Recherche…' : 'Confirmer les sièges'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       </>
       )}
 

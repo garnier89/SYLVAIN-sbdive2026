@@ -115,6 +115,7 @@ class RideRequest(BaseModel):
     pets_size: Optional[str] = None  # small | large
     assist_needs: Optional[str] = None  # wheelchair | elderly | luggage | medical
     pool_enabled: bool = False
+    seats_required: int = 1  # Pool — number of seats reserved (1..POOL_MAX_SEATS)
     stops: Optional[list] = None  # intermediate waypoints [{address,lat,lng}]
     # Ride profile (V3Cube) — Business / Personnel + business trip reason
     ride_profile: Optional[str] = None  # short_name (Business | Personnel)
@@ -139,6 +140,7 @@ class RideResponse(BaseModel):
     final_fare: Optional[float] = None
     original_fare: Optional[float] = None
     pool_enabled: bool = False
+    seats_required: int = 1
     distance_km: float
     duration_mins: int
     payment_method: str

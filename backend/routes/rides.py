@@ -12,6 +12,18 @@ OFFER_TTL_SECONDS = 30
 # Taxi Pool — discount applied to shared rides (matches the "-30%" Pool badge
 # and the existing /phase2/pool/enable toggle which uses original_fare * 0.7).
 POOL_DISCOUNT_RATE = 0.30
+# Each additional seat costs 0.9x the previous seat (V3Cube parity:
+# full fare F → 1 seat = F*0.70 ; 2 seats = F*0.70*(1+0.9) = F*1.33).
+POOL_SEAT_DECAY = 0.90
+POOL_MAX_SEATS = 4
+
+
+def pool_fare_multiplier(seats: int) -> float:
+    """Geometric pool multiplier: 0.70 * (1 - 0.9^n)/(1 - 0.9).
+    seats=1 -> 0.70, seats=2 -> 1.33, seats=3 -> 1.897, seats=4 -> 2.407."""
+    n = max(1, min(int(seats or 1), POOL_MAX_SEATS))
+    base = 1 - POOL_DISCOUNT_RATE
+    return round(base * (1 - POOL_SEAT_DECAY ** n) / (1 - POOL_SEAT_DECAY), 6)
 
 from core.config import db
 from core.deps import get_current_user, calculate_distance, calculate_fare
@@ -85,14 +97,16 @@ async def estimate_ride(data: RideRequest):
     adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng, data.vehicle_type)
     fare = adj["fare"]
 
-    # ── Taxi Pool — shared-ride discount (only when Pool is selected) ──
+    # ── Taxi Pool — shared-ride pricing (only when Pool is selected) ──
     pool_enabled = bool(getattr(data, "pool_enabled", False))
     pool_original_fare = None
     pool_reason = []
+    pool_seats = 1
     if pool_enabled:
+        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), POOL_MAX_SEATS))
         pool_original_fare = round(fare, 2)
-        fare = round(fare * (1 - POOL_DISCOUNT_RATE), 2)
-        pool_reason = [f"Pool partagé −{int(POOL_DISCOUNT_RATE * 100)}%"]
+        fare = round(fare * pool_fare_multiplier(pool_seats), 2)
+        pool_reason = [f"Pool partagé · {pool_seats} place(s)"]
 
     result = {
         "distance_km": round(distance, 2),
@@ -106,6 +120,7 @@ async def estimate_ride(data: RideRequest):
         "weather_condition": adj["weather_condition"],
         "pricing_reasons": adj["reasons"] + pool_reason,
         "pool_enabled": pool_enabled,
+        "seats_required": pool_seats,
         "original_fare": pool_original_fare,
     }
     if route_polyline:
@@ -202,12 +217,14 @@ async def create_ride(data: RideRequest, request: Request):
     pricing_adj = await compute_pricing_adjustment(fare, data.pickup_lat, data.pickup_lng, data.vehicle_type)
     fare = pricing_adj["fare"]
 
-    # ── Taxi Pool — shared-ride discount (only when Pool section is used) ──
+    # ── Taxi Pool — shared-ride pricing (only when Pool section is used) ──
     pool_enabled = bool(getattr(data, "pool_enabled", False))
     pool_original_fare = None
+    pool_seats = 1
     if pool_enabled:
+        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), POOL_MAX_SEATS))
         pool_original_fare = round(fare, 2)
-        fare = round(fare * (1 - POOL_DISCOUNT_RATE), 2)
+        fare = round(fare * pool_fare_multiplier(pool_seats), 2)
 
     # ===== Pack C — Corporate booking validation + discount =====
     corporate_id = None
@@ -270,6 +287,7 @@ async def create_ride(data: RideRequest, request: Request):
         "pets_size": getattr(data, 'pets_size', None),
         "assist_needs": getattr(data, 'assist_needs', None),
         "pool_enabled": getattr(data, 'pool_enabled', False),
+        "seats_required": pool_seats,
         "original_fare": pool_original_fare,
         "stops": getattr(data, 'stops', None),
         "ride_profile": getattr(data, 'ride_profile', None),

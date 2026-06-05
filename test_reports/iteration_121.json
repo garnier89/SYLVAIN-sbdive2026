@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend Pool (taxi partagé) booking flow tested end-to-end as a passenger user. Login → /taxi → select Pool → enter pickup/dropoff (Google Places autocomplete) → live price card appears → CTA reads 'Confirmer les détails' → tapping opens 'De combien de places avez-vous besoin ?' bottom sheet with seats 1 and 2 → seat-2 price ≈ 1.97× seat-1 (V3Cube geometric pricing) → 'Confirmer les sièges' creates the ride and navigates to /ride/<id> with 'Recherche d'un chauffeur…' state. Non-Pool (Standard) mode bypasses the sheet and books directly. All 7 review criteria PASS.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_121.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TaxiHubPage.js is ~730 lines — large but already partially modularized (TaxiModeGrid, TaxiModePanels, TaxiCheckoutSection, taxiHubConstants). Further extraction (e.g., a usePoolPricing hook and a PoolSeatSheet component) would help maintainability but is non-blocking.",
+    "Pool seat sheet uses POOL_SEAT_OPTIONS=[1,2] hard-coded; the poolMult() formula supports up to 4 — confirm with product whether 3/4 should be exposed in UI (V3Cube original supports more).",
+    "Geolocation prompt is auto-triggered on mount (detectCurrentLocation(false)); good fallback (manual input still works) confirmed in this test where suggestions were used.",
+    "Seat-price card inside sheet displays totals correctly (14.43 € for 1 seat, 28.42 € for 2 seats with original_fare base, ratio 1.970 — matches V3Cube formula 0.70*(1-0.9^n)/0.1)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only)", "frontend": "100%" },
+  "test_credentials": "Passenger: pooluser@demo.sb / Pool123! (verified working via /login → Email & mot de passe option)",
+  "seed_data_creation": "None. Two real rides were created during testing: 1 Pool ride (ride_b4029ec159fe, 2 seats) and 1 standard ride (ride_57a89682053b). Both end up in 'searching for driver' state on /ride/<id>.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login uses a 2-step flow: phone is default; click 'Ou choisir une autre option de connexion' then 'Email & mot de passe' (data-testid=email-input). Pool mode selector in grid is data-testid=mode-select-pool. Live price card data-testid=live-price-card / live-price-value. Pool seat sheet only opens for mode.id==='pool' AND when estimate.estimated_fare exists — CTA label is 'Confirmer les détails' instead of normal CTA. Seat options 1 and 2; ratio observed 1.970 (matches geometric pricing). On confirm, POST /api/rides returns and routes navigate to /ride/<id>.",
+  "rca of the issue": "n/a — feature works as specified."
+}
