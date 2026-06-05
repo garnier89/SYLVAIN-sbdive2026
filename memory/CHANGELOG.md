@@ -1,6 +1,31 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Gros refactors (Option A), incrémental + testé — Iteration 127
+
+### Phase 1 — Nettoyage console.log
+- 4 `console.log` (handlers WS/wallet) → `console.warn` contextuels. Scanner `yarn lint:audit` : **0 `no-console`** restant.
+
+### Phase 2 — Code-splitting (lazy-load) App.js
+- 157 pages de route converties en `React.lazy` + `<Suspense fallback={<PageLoader/>}>`. Imports « shell » (ProtectedRoute, AuthCallback, VoiceAssistant, barrel AdminCrudPages) gardés eager.
+- **Build CRA intact** (aucun `eslintConfig` ajouté). Vérifié e2e : routes user (home/course/food/real-estate/wallet) + admin (users/vehicle-types/weekly-reports/vouchers/audit-logs) chargent OK.
+- NB : App.js gagne en lignes (581) mais l'objectif réel (découpage du bundle, réduction du couplage des ~200 imports) est atteint.
+
+### Phase 3 — Complexité admin.py (refactor préservant le comportement)
+- `admin_create_user` / `admin_update_user` : helpers extraits `_compose_full_phone`, `_assert_email_available`, `_assert_phone_available`, `_collect_user_updates` (dédup création/édition, complexité réduite).
+- `get_analytics` : helpers `_ride_status_map`, `_earnings_summary` (60→~30 lignes, moins de locals).
+- Vérifié : **27 tests** (iter117 + iter118) ✓ + e2e curl (create/dup-email 400/update/delete/analytics) ✓.
+
+### Phase 4 — Découpage composant > 500 lignes (AdminDashboard)
+- `AdminDashboard.js` **593 → 389 lignes** : 3 sections présentationnelles extraites → `dashboard/DashboardDeliveryCharts.jsx`, `DashboardBreakdown.jsx`, `DashboardServerPanels.jsx`. Imports orphelins nettoyés.
+- Vérifié au rendu : delivery charts, Revenus par service (218,24 €), Top zones, Server/Notif/Contact panels, switch période — tous OK.
+
+### Reste à faire (recommandé en suivi dédié)
+- `DriverHome.js` (697) : état live complexe (WebSocket, toggle online) → découpage à tester avec un compte chauffeur.
+- `LoginPage.js` (543) : **auth** → passer par `integration_expert` avant restructuration.
+- `AdminUsers.js` (411), `LandingPage.js` (388) : < 500 lignes, priorité basse.
+
+
 ## 2026-06-05 — Garde-fous qualité/sécurité automatisés (scanners) — Iteration 126
 
 ### Added — Scanner ESLint d'audit (frontend, sans impact build)

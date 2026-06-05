@@ -70,7 +70,7 @@ const CheckoutPage = () => {
       const walletRes = await walletAPI.get();
       setWallet(walletRes.data);
     } catch (error) {
-      console.log('Wallet fetch error');
+      console.warn('[checkout] wallet fetch error', error?.message);
     }
   };
 

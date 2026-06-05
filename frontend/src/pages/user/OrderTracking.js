@@ -96,7 +96,7 @@ const OrderTracking = () => {
       wsRef.current = new WebSocket(`${wsUrl}/api/ws/${user.id}`);
       
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected for order tracking');
+        // connected
       };
       
       wsRef.current.onmessage = (event) => {
@@ -110,10 +110,10 @@ const OrderTracking = () => {
       };
       
       wsRef.current.onerror = (error) => {
-        console.log('WebSocket error:', error);
+        console.warn('[order-ws] error', error?.message);
       };
     } catch (error) {
-      console.log('WebSocket connection failed');
+      console.warn('[order-ws] connection failed', error?.message);
     }
   }, [user?.id, loadOrder]);
 

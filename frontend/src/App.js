@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LocaleProvider } from './contexts/LocaleContext';
@@ -8,130 +8,130 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AuthCallback from './components/AuthCallback';
 
 // Auth Pages
-import LoginPage from './pages/auth/LoginPage';
-import EmailLoginPage from './pages/auth/EmailLoginPage';
-import RegisterPage from './pages/auth/RegisterPage';
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const EmailLoginPage = lazy(() => import('./pages/auth/EmailLoginPage'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 
 // Landing Page
-import LandingPage from './pages/LandingPage';
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 import VoiceAssistant from './components/VoiceAssistant';
 
 // SB Drive Client Pages
-import ClientWelcome from './pages/client/ClientWelcome';
-import UserHome from './pages/user/UserHome';
-import RideBookingPage from './pages/user/RideBookingPage';
-import RideChoosePage from './pages/user/RideChoosePage';
-import RideTrackingPage from './pages/user/RideTrackingPage';
-import RideReceiptPage from './pages/user/RideReceiptPage';
-import FoodPage from './pages/user/FoodPage';
-import RestaurantDetail from './pages/user/RestaurantDetail';
-import CheckoutPage from './pages/user/CheckoutPage';
-import OrderTracking from './pages/user/OrderTracking';
-import WalletPage from './pages/user/WalletPage';
-import ProfilePage from './pages/user/ProfilePage';
-import HistoryPage from './pages/user/HistoryPage';
-import SupportPage from './pages/user/SupportPage';
-import ParcelPage from './pages/user/ParcelPage';
-import ReferralPage from './pages/user/ReferralPage';
-import DonationPage from './pages/user/DonationPage';
-import LiveChatPage from './pages/user/LiveChatPage';
-import ServicesPage from './pages/user/ServicesPage';
-import AllDeliveryPage from './pages/user/AllDeliveryPage';
-import AllServicesPage from './pages/user/AllServicesPage';
-import CarPoolPage from './pages/user/CarPoolPage';
-import MarketplacePage from './pages/user/MarketplacePage';
-import NearbyBusinessPage from './pages/user/NearbyBusinessPage';
-import BeautyServicesPage from './pages/user/BeautyServicesPage';
-import PetServicesPage from './pages/user/PetServicesPage';
-import CarCarePage from './pages/user/CarCarePage';
-import TowingServicesPage from './pages/user/TowingServicesPage';
-import MoreTaxiServicesPage from './pages/user/MoreTaxiServicesPage';
-import VideoConsultPage from './pages/user/VideoConsultPage';
-import MedicalAppointmentPage from './pages/user/MedicalAppointmentPage';
-import MedicalTransportPage from './pages/user/MedicalTransportPage';
-import DeliveryTrackingPage from './pages/user/DeliveryTrackingPage';
-import DeliveryJobsPage from './pages/driver/DeliveryJobsPage';
-import RealEstatePage from './pages/user/realestate/RealEstatePage';
-import PropertyDetailPage from './pages/user/realestate/PropertyDetailPage';
-import PostPropertyPage from './pages/user/realestate/PostPropertyPage';
-import MyPropertiesPage from './pages/user/realestate/MyPropertiesPage';
-import PharmacyPage from './pages/user/pharmacy/PharmacyPage';
-import PharmacyCatalogPage from './pages/user/pharmacy/PharmacyCatalogPage';
-import PharmacyPrescriptionPage from './pages/user/pharmacy/PharmacyPrescriptionPage';
-import PharmacyOrdersPage from './pages/user/pharmacy/PharmacyOrdersPage';
-import BiddingPage from './pages/user/BiddingPage';
-import TaxiBiddingPage from './pages/user/TaxiBiddingPage';
-import AdvancedTaxiBookingPage from './pages/user/AdvancedTaxiBookingPage';
-import CorporateAccountPage from './pages/user/CorporateAccountPage';
-import TaxiHubPage from './pages/user/TaxiHubPage';
-import ServicesHubPage from './pages/user/ServicesHubPage';
+const ClientWelcome = lazy(() => import('./pages/client/ClientWelcome'));
+const UserHome = lazy(() => import('./pages/user/UserHome'));
+const RideBookingPage = lazy(() => import('./pages/user/RideBookingPage'));
+const RideChoosePage = lazy(() => import('./pages/user/RideChoosePage'));
+const RideTrackingPage = lazy(() => import('./pages/user/RideTrackingPage'));
+const RideReceiptPage = lazy(() => import('./pages/user/RideReceiptPage'));
+const FoodPage = lazy(() => import('./pages/user/FoodPage'));
+const RestaurantDetail = lazy(() => import('./pages/user/RestaurantDetail'));
+const CheckoutPage = lazy(() => import('./pages/user/CheckoutPage'));
+const OrderTracking = lazy(() => import('./pages/user/OrderTracking'));
+const WalletPage = lazy(() => import('./pages/user/WalletPage'));
+const ProfilePage = lazy(() => import('./pages/user/ProfilePage'));
+const HistoryPage = lazy(() => import('./pages/user/HistoryPage'));
+const SupportPage = lazy(() => import('./pages/user/SupportPage'));
+const ParcelPage = lazy(() => import('./pages/user/ParcelPage'));
+const ReferralPage = lazy(() => import('./pages/user/ReferralPage'));
+const DonationPage = lazy(() => import('./pages/user/DonationPage'));
+const LiveChatPage = lazy(() => import('./pages/user/LiveChatPage'));
+const ServicesPage = lazy(() => import('./pages/user/ServicesPage'));
+const AllDeliveryPage = lazy(() => import('./pages/user/AllDeliveryPage'));
+const AllServicesPage = lazy(() => import('./pages/user/AllServicesPage'));
+const CarPoolPage = lazy(() => import('./pages/user/CarPoolPage'));
+const MarketplacePage = lazy(() => import('./pages/user/MarketplacePage'));
+const NearbyBusinessPage = lazy(() => import('./pages/user/NearbyBusinessPage'));
+const BeautyServicesPage = lazy(() => import('./pages/user/BeautyServicesPage'));
+const PetServicesPage = lazy(() => import('./pages/user/PetServicesPage'));
+const CarCarePage = lazy(() => import('./pages/user/CarCarePage'));
+const TowingServicesPage = lazy(() => import('./pages/user/TowingServicesPage'));
+const MoreTaxiServicesPage = lazy(() => import('./pages/user/MoreTaxiServicesPage'));
+const VideoConsultPage = lazy(() => import('./pages/user/VideoConsultPage'));
+const MedicalAppointmentPage = lazy(() => import('./pages/user/MedicalAppointmentPage'));
+const MedicalTransportPage = lazy(() => import('./pages/user/MedicalTransportPage'));
+const DeliveryTrackingPage = lazy(() => import('./pages/user/DeliveryTrackingPage'));
+const DeliveryJobsPage = lazy(() => import('./pages/driver/DeliveryJobsPage'));
+const RealEstatePage = lazy(() => import('./pages/user/realestate/RealEstatePage'));
+const PropertyDetailPage = lazy(() => import('./pages/user/realestate/PropertyDetailPage'));
+const PostPropertyPage = lazy(() => import('./pages/user/realestate/PostPropertyPage'));
+const MyPropertiesPage = lazy(() => import('./pages/user/realestate/MyPropertiesPage'));
+const PharmacyPage = lazy(() => import('./pages/user/pharmacy/PharmacyPage'));
+const PharmacyCatalogPage = lazy(() => import('./pages/user/pharmacy/PharmacyCatalogPage'));
+const PharmacyPrescriptionPage = lazy(() => import('./pages/user/pharmacy/PharmacyPrescriptionPage'));
+const PharmacyOrdersPage = lazy(() => import('./pages/user/pharmacy/PharmacyOrdersPage'));
+const BiddingPage = lazy(() => import('./pages/user/BiddingPage'));
+const TaxiBiddingPage = lazy(() => import('./pages/user/TaxiBiddingPage'));
+const AdvancedTaxiBookingPage = lazy(() => import('./pages/user/AdvancedTaxiBookingPage'));
+const CorporateAccountPage = lazy(() => import('./pages/user/CorporateAccountPage'));
+const TaxiHubPage = lazy(() => import('./pages/user/TaxiHubPage'));
+const ServicesHubPage = lazy(() => import('./pages/user/ServicesHubPage'));
 import ServiceBookingFlow from './components/ServiceBookingFlow';
-import MyServiceBookingsPage from './pages/user/MyServiceBookingsPage';
-import ScheduledRidesPage from './pages/user/ScheduledRidesPage';
-import RunnerPage from './pages/user/RunnerPage';
-import IntercityRidePage from './pages/user/IntercityRidePage';
-import ParkingPage from './pages/user/ParkingPage';
-import GiftCardsPage from './pages/user/GiftCardsPage';
-import TrackingServicePage from './pages/user/TrackingServicePage';
-import FinancePage from './pages/user/FinancePage';
-import WaybillPage from './pages/user/WaybillPage';
+const MyServiceBookingsPage = lazy(() => import('./pages/user/MyServiceBookingsPage'));
+const ScheduledRidesPage = lazy(() => import('./pages/user/ScheduledRidesPage'));
+const RunnerPage = lazy(() => import('./pages/user/RunnerPage'));
+const IntercityRidePage = lazy(() => import('./pages/user/IntercityRidePage'));
+const ParkingPage = lazy(() => import('./pages/user/ParkingPage'));
+const GiftCardsPage = lazy(() => import('./pages/user/GiftCardsPage'));
+const TrackingServicePage = lazy(() => import('./pages/user/TrackingServicePage'));
+const FinancePage = lazy(() => import('./pages/user/FinancePage'));
+const WaybillPage = lazy(() => import('./pages/user/WaybillPage'));
 
 // SB Drive Chauffeur Pages
-import ChauffeurWelcome from './pages/chauffeur/ChauffeurWelcome';
-import ChauffeurLogin from './pages/chauffeur/ChauffeurLogin';
-import ChauffeurRegister from './pages/chauffeur/ChauffeurRegister';
-import DriverHome from './pages/driver/DriverHome';
-import DriverRegisterPage from './pages/driver/DriverRegisterPage';
-import DriverEarningsPage from './pages/driver/DriverEarningsPage';
-import DriverWeeklyReportsPage from './pages/driver/DriverWeeklyReportsPage';
-import DriverHistoryPage from './pages/driver/DriverHistoryPage';
-import DriverProfilePage from './pages/driver/DriverProfilePage';
-import DriverSupportPage from './pages/driver/DriverSupportPage';
-import DriverRewardsPage from './pages/driver/DriverRewardsPage';
-import DriverScorePage from './pages/driver/DriverScorePage';
-import DriverWalletPage from './pages/driver/DriverWalletPage';
-import DriverDocumentsPage from './pages/driver/DriverDocumentsPage';
-import DriverNotificationsPage from './pages/driver/DriverNotificationsPage';
+const ChauffeurWelcome = lazy(() => import('./pages/chauffeur/ChauffeurWelcome'));
+const ChauffeurLogin = lazy(() => import('./pages/chauffeur/ChauffeurLogin'));
+const ChauffeurRegister = lazy(() => import('./pages/chauffeur/ChauffeurRegister'));
+const DriverHome = lazy(() => import('./pages/driver/DriverHome'));
+const DriverRegisterPage = lazy(() => import('./pages/driver/DriverRegisterPage'));
+const DriverEarningsPage = lazy(() => import('./pages/driver/DriverEarningsPage'));
+const DriverWeeklyReportsPage = lazy(() => import('./pages/driver/DriverWeeklyReportsPage'));
+const DriverHistoryPage = lazy(() => import('./pages/driver/DriverHistoryPage'));
+const DriverProfilePage = lazy(() => import('./pages/driver/DriverProfilePage'));
+const DriverSupportPage = lazy(() => import('./pages/driver/DriverSupportPage'));
+const DriverRewardsPage = lazy(() => import('./pages/driver/DriverRewardsPage'));
+const DriverScorePage = lazy(() => import('./pages/driver/DriverScorePage'));
+const DriverWalletPage = lazy(() => import('./pages/driver/DriverWalletPage'));
+const DriverDocumentsPage = lazy(() => import('./pages/driver/DriverDocumentsPage'));
+const DriverNotificationsPage = lazy(() => import('./pages/driver/DriverNotificationsPage'));
 
 // Merchant Pages
-import MerchantLayout from './pages/merchant/MerchantLayout';
-import MerchantDashboard from './pages/merchant/MerchantDashboard';
-import MerchantProducts from './pages/merchant/MerchantProducts';
-import MerchantOrders from './pages/merchant/MerchantOrders';
-import MerchantPromotions from './pages/merchant/MerchantPromotions';
-import MerchantAnalytics from './pages/merchant/MerchantAnalytics';
-import MerchantSettings from './pages/merchant/MerchantSettings';
-import MerchantChat from './pages/merchant/MerchantChat';
+const MerchantLayout = lazy(() => import('./pages/merchant/MerchantLayout'));
+const MerchantDashboard = lazy(() => import('./pages/merchant/MerchantDashboard'));
+const MerchantProducts = lazy(() => import('./pages/merchant/MerchantProducts'));
+const MerchantOrders = lazy(() => import('./pages/merchant/MerchantOrders'));
+const MerchantPromotions = lazy(() => import('./pages/merchant/MerchantPromotions'));
+const MerchantAnalytics = lazy(() => import('./pages/merchant/MerchantAnalytics'));
+const MerchantSettings = lazy(() => import('./pages/merchant/MerchantSettings'));
+const MerchantChat = lazy(() => import('./pages/merchant/MerchantChat'));
 
 // Admin Pages
-import AdminLayout from './pages/admin/AdminLayout';
-import AdminLoginPage from './pages/admin/AdminLoginPage';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminDrivers from './pages/admin/AdminDrivers';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminRides from './pages/admin/AdminRides';
-import AdminRevenue from './pages/admin/AdminRevenue';
-import AdminSupport from './pages/admin/AdminSupport';
-import AdminWeeklyReports from './pages/admin/AdminWeeklyReports';
-import AdminSettings from './pages/admin/AdminSettings';
-import AdminGodsView from './pages/admin/AdminGodsView';
-import AdminHeatView from './pages/admin/AdminHeatView';
-import AdminPromocodes from './pages/admin/AdminPromocodes';
-import AdminVehicleTypes from './pages/admin/AdminVehicleTypes';
-import AdminOrders from './pages/admin/AdminOrders';
-import AdminStores from './pages/admin/AdminStores';
-import AdminManualBooking from './pages/admin/AdminManualBooking';
-import AdminBanners from './pages/admin/AdminBanners';
-import AdminPayout from './pages/admin/AdminPayout';
-import AdminGeoFence from './pages/admin/AdminGeoFence';
-import AdminGiftCards from './pages/admin/AdminGiftCards';
-import AdminReferralSettings from './pages/admin/AdminReferralSettings';
-import AdminTemplates from './pages/admin/AdminTemplates';
-import AdminNewsletter from './pages/admin/AdminNewsletter';
-import AdminMonitoring from './pages/admin/AdminMonitoring';
-import AdminLiveRides from './pages/admin/AdminLiveRides';
-import AdminAutoDispatch from './pages/admin/AdminAutoDispatch';
-import AdminManageAdmins from './pages/admin/AdminManageAdmins';
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminDrivers = lazy(() => import('./pages/admin/AdminDrivers'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminRides = lazy(() => import('./pages/admin/AdminRides'));
+const AdminRevenue = lazy(() => import('./pages/admin/AdminRevenue'));
+const AdminSupport = lazy(() => import('./pages/admin/AdminSupport'));
+const AdminWeeklyReports = lazy(() => import('./pages/admin/AdminWeeklyReports'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminGodsView = lazy(() => import('./pages/admin/AdminGodsView'));
+const AdminHeatView = lazy(() => import('./pages/admin/AdminHeatView'));
+const AdminPromocodes = lazy(() => import('./pages/admin/AdminPromocodes'));
+const AdminVehicleTypes = lazy(() => import('./pages/admin/AdminVehicleTypes'));
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
+const AdminStores = lazy(() => import('./pages/admin/AdminStores'));
+const AdminManualBooking = lazy(() => import('./pages/admin/AdminManualBooking'));
+const AdminBanners = lazy(() => import('./pages/admin/AdminBanners'));
+const AdminPayout = lazy(() => import('./pages/admin/AdminPayout'));
+const AdminGeoFence = lazy(() => import('./pages/admin/AdminGeoFence'));
+const AdminGiftCards = lazy(() => import('./pages/admin/AdminGiftCards'));
+const AdminReferralSettings = lazy(() => import('./pages/admin/AdminReferralSettings'));
+const AdminTemplates = lazy(() => import('./pages/admin/AdminTemplates'));
+const AdminNewsletter = lazy(() => import('./pages/admin/AdminNewsletter'));
+const AdminMonitoring = lazy(() => import('./pages/admin/AdminMonitoring'));
+const AdminLiveRides = lazy(() => import('./pages/admin/AdminLiveRides'));
+const AdminAutoDispatch = lazy(() => import('./pages/admin/AdminAutoDispatch'));
+const AdminManageAdmins = lazy(() => import('./pages/admin/AdminManageAdmins'));
 import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganization, AdminRequests,
   AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancelReasons,
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
@@ -140,63 +140,69 @@ import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganizatio
   AdminWeatherSurcharge, AdminPersonalDriver, AdminAutoPromotions, AdminVouchers,
   AdminFaqs, AdminHelpArticles, AdminDonations
 } from './pages/admin/AdminCrudPages';
-import AdminServiceConfig from './pages/admin/AdminServiceConfig';
-import AdminRewards from './pages/admin/AdminRewards';
-import AdminPriorityDrivers from './pages/admin/AdminPriorityDrivers';
-import AdminTopDriversSettings from './pages/admin/AdminTopDriversSettings';
-import AdminDbBackup from './pages/admin/AdminDbBackup';
-import AdminNegotiationGapReport from './pages/admin/AdminNegotiationGapReport';
-import AdminFeaturedListings from './pages/admin/AdminFeaturedListings';
-import AdminRealEstate from './pages/admin/AdminRealEstate';
-import AdminPharmacy from './pages/admin/AdminPharmacy';
-import AdminServiceSettings from './pages/admin/AdminServiceSettings';
-import AdminPaymentMethods from './pages/admin/AdminPaymentMethods';
-import AdminSbPayGoZones from './pages/admin/AdminSbPayGoZones';
-import TopDriversPage from './pages/TopDriversPage';
-import RideChatPage from './pages/RideChatPage';
-import EmergencyContactsPage from './pages/user/EmergencyContactsPage';
-import FavoriteDriversPage from './pages/user/FavoriteDriversPage';
-import AdminDocuments from './pages/admin/AdminDocuments';
-import AdminDisputes from './pages/admin/AdminDisputes';
-import AdminWalletRequests from './pages/admin/AdminWalletRequests';
-import AdminSettlements from './pages/admin/AdminSettlements';
+const AdminServiceConfig = lazy(() => import('./pages/admin/AdminServiceConfig'));
+const AdminRewards = lazy(() => import('./pages/admin/AdminRewards'));
+const AdminPriorityDrivers = lazy(() => import('./pages/admin/AdminPriorityDrivers'));
+const AdminTopDriversSettings = lazy(() => import('./pages/admin/AdminTopDriversSettings'));
+const AdminDbBackup = lazy(() => import('./pages/admin/AdminDbBackup'));
+const AdminNegotiationGapReport = lazy(() => import('./pages/admin/AdminNegotiationGapReport'));
+const AdminFeaturedListings = lazy(() => import('./pages/admin/AdminFeaturedListings'));
+const AdminRealEstate = lazy(() => import('./pages/admin/AdminRealEstate'));
+const AdminPharmacy = lazy(() => import('./pages/admin/AdminPharmacy'));
+const AdminServiceSettings = lazy(() => import('./pages/admin/AdminServiceSettings'));
+const AdminPaymentMethods = lazy(() => import('./pages/admin/AdminPaymentMethods'));
+const AdminSbPayGoZones = lazy(() => import('./pages/admin/AdminSbPayGoZones'));
+const TopDriversPage = lazy(() => import('./pages/TopDriversPage'));
+const RideChatPage = lazy(() => import('./pages/RideChatPage'));
+const EmergencyContactsPage = lazy(() => import('./pages/user/EmergencyContactsPage'));
+const FavoriteDriversPage = lazy(() => import('./pages/user/FavoriteDriversPage'));
+const AdminDocuments = lazy(() => import('./pages/admin/AdminDocuments'));
+const AdminDisputes = lazy(() => import('./pages/admin/AdminDisputes'));
+const AdminWalletRequests = lazy(() => import('./pages/admin/AdminWalletRequests'));
+const AdminSettlements = lazy(() => import('./pages/admin/AdminSettlements'));
 
 // Dispatcher Pages
-import DispatcherPanel from './pages/dispatcher/DispatcherPanel';
+const DispatcherPanel = lazy(() => import('./pages/dispatcher/DispatcherPanel'));
 
 // SB Drive Tab (Kiosk)
-import KioskApp from './pages/kiosk/KioskApp';
-import AdminKiosks from './pages/admin/AdminKiosks';
+const KioskApp = lazy(() => import('./pages/kiosk/KioskApp'));
+const AdminKiosks = lazy(() => import('./pages/admin/AdminKiosks'));
 
 // Role-based Panels (Dispatch, Billing, Server, Users-Admin, Drivers-Admin, Merchants-Admin)
-import PanelLayout from './pages/panels/PanelLayout';
-import PanelHome from './pages/panels/PanelHome';
+const PanelLayout = lazy(() => import('./pages/panels/PanelLayout'));
+const PanelHome = lazy(() => import('./pages/panels/PanelHome'));
 
 // V3Cube enhancements (Iteration 74-75)
-import AdminACL from './pages/admin/AdminACL';
-import AdminAuditLogs from './pages/admin/AdminAuditLogs';
-import AdminOrganizations from './pages/admin/AdminOrganizations';
-import AdminCorporate from './pages/admin/AdminCorporate';
-import AdminHomeCategories from './pages/admin/AdminHomeCategories';
-import AdminI18n from './pages/admin/AdminI18n';
-import AdminGroupsPage from './pages/admin/AdminGroupsPage';
-import AdminUserEdit from './pages/admin/AdminUserEdit';
-import DriverSubscriptions from './pages/driver/DriverSubscriptions';
+const AdminACL = lazy(() => import('./pages/admin/AdminACL'));
+const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
+const AdminOrganizations = lazy(() => import('./pages/admin/AdminOrganizations'));
+const AdminCorporate = lazy(() => import('./pages/admin/AdminCorporate'));
+const AdminHomeCategories = lazy(() => import('./pages/admin/AdminHomeCategories'));
+const AdminI18n = lazy(() => import('./pages/admin/AdminI18n'));
+const AdminGroupsPage = lazy(() => import('./pages/admin/AdminGroupsPage'));
+const AdminUserEdit = lazy(() => import('./pages/admin/AdminUserEdit'));
+const DriverSubscriptions = lazy(() => import('./pages/driver/DriverSubscriptions'));
 
 // V3Cube Pack B — Driver Pro
-import ManageVehiclesPage from './pages/driver/ManageVehiclesPage';
-import BankDetailsPage from './pages/driver/BankDetailsPage';
-import DriverEarningsStatsPage from './pages/driver/DriverEarningsStatsPage';
-import DriverGalleryPage from './pages/driver/DriverGalleryPage';
-import AdminCancellationReasonsPage from './pages/admin/AdminCancellationReasonsPage';
-import AdminScheduling from './pages/admin/AdminScheduling';
-import AdminServiceCategories from './pages/admin/AdminServiceCategories';
-import AdminDynamicPricing from './pages/admin/AdminDynamicPricing';
-import AdminTaxiConfigs from './pages/admin/AdminTaxiConfigs';
-import AdminRentalPackages from './pages/admin/AdminRentalPackages';
-import AdminRideProfiles from './pages/admin/AdminRideProfiles';
+const ManageVehiclesPage = lazy(() => import('./pages/driver/ManageVehiclesPage'));
+const BankDetailsPage = lazy(() => import('./pages/driver/BankDetailsPage'));
+const DriverEarningsStatsPage = lazy(() => import('./pages/driver/DriverEarningsStatsPage'));
+const DriverGalleryPage = lazy(() => import('./pages/driver/DriverGalleryPage'));
+const AdminCancellationReasonsPage = lazy(() => import('./pages/admin/AdminCancellationReasonsPage'));
+const AdminScheduling = lazy(() => import('./pages/admin/AdminScheduling'));
+const AdminServiceCategories = lazy(() => import('./pages/admin/AdminServiceCategories'));
+const AdminDynamicPricing = lazy(() => import('./pages/admin/AdminDynamicPricing'));
+const AdminTaxiConfigs = lazy(() => import('./pages/admin/AdminTaxiConfigs'));
+const AdminRentalPackages = lazy(() => import('./pages/admin/AdminRentalPackages'));
+const AdminRideProfiles = lazy(() => import('./pages/admin/AdminRideProfiles'));
 
 import './index.css';
+
+const PageLoader = () => (
+  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="w-9 h-9 border-[3px] border-gray-200 border-t-[#FF5000] rounded-full animate-spin" />
+  </div>
+);
 
 const AppRouter = () => {
   const location = useLocation();
@@ -212,6 +218,7 @@ const AppRouter = () => {
   return (
     <>
       {showVoiceFab && <VoiceAssistant />}
+      <Suspense fallback={<PageLoader />}>
       <Routes>
       {/* ======= LANDING PAGE / WEBSITE ======= */}
       <Route path="/website" element={<LandingPage />} />
@@ -552,6 +559,7 @@ const AppRouter = () => {
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+      </Suspense>
     </>
   );
 };

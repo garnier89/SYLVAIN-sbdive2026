@@ -216,6 +216,33 @@ async def admin_get_user(user_id: str, request: Request):
     return user
 
 
+def _compose_full_phone(phone, phone_code):
+    """Normalize phone + country code into a single E.164-ish string."""
+    phone = (phone or "").strip().replace(" ", "")
+    code = (phone_code or "").strip()
+    if code and not phone.startswith("+"):
+        return f"{code}{phone}"
+    return phone
+
+
+async def _assert_email_available(email, exclude_id=None):
+    q = {"email": email}
+    if exclude_id:
+        q["id"] = {"$ne": exclude_id}
+    if await db.users.find_one(q):
+        raise HTTPException(400, "Email déjà utilisé")
+
+
+async def _assert_phone_available(full_phone, exclude_id=None):
+    if not full_phone:
+        return
+    q = {"phone": full_phone}
+    if exclude_id:
+        q["id"] = {"$ne": exclude_id}
+    if await db.users.find_one(q):
+        raise HTTPException(400, "Numéro déjà utilisé")
+
+
 @router.post("/users")
 async def admin_create_user(request: Request):
     await require_role(request, ["admin"], permission="users.create")
@@ -226,14 +253,11 @@ async def admin_create_user(request: Request):
     email = (body.get("email") or "").strip().lower()
     password = body.get("password") or ""
     phone_code = (body.get("phone_code") or "").strip()
-    phone = (body.get("phone") or "").strip().replace(" ", "")
     if not first_name or not email or not password:
         raise HTTPException(400, "first_name, email et password sont requis")
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(400, "Email déjà utilisé")
-    full_phone = f"{phone_code}{phone}" if phone_code and not phone.startswith("+") else phone
-    if full_phone and await db.users.find_one({"phone": full_phone}):
-        raise HTTPException(400, "Numéro déjà utilisé")
+    await _assert_email_available(email)
+    full_phone = _compose_full_phone(body.get("phone"), phone_code)
+    await _assert_phone_available(full_phone)
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     doc = {
         "id": user_id,
@@ -261,14 +285,9 @@ async def admin_create_user(request: Request):
     return doc
 
 
-@router.put("/users/{user_id}")
-async def admin_update_user(user_id: str, request: Request):
-    await require_role(request, ["admin"], permission="users.edit")
+def _collect_user_updates(body, user):
+    """Build the $set dict for a user update from the request body (sync part)."""
     from core.deps import hash_password
-    body = await request.json()
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(404, "User not found")
     updates = {}
     for field in ("first_name", "last_name", "gender", "country", "language", "currency", "avatar_url", "phone_code"):
         if body.get(field) is not None:
@@ -277,22 +296,29 @@ async def admin_update_user(user_id: str, request: Request):
         fn = body.get("first_name", user.get("first_name", ""))
         ln = body.get("last_name", user.get("last_name", ""))
         updates["name"] = f"{fn} {ln}".strip() or user.get("name") or user.get("email")
-    if body.get("email"):
-        email = body["email"].strip().lower()
-        if email != user.get("email") and await db.users.find_one({"email": email, "id": {"$ne": user_id}}):
-            raise HTTPException(400, "Email déjà utilisé")
-        updates["email"] = email
-    if body.get("phone") is not None:
-        phone = body["phone"].strip().replace(" ", "")
-        code = body.get("phone_code", user.get("phone_code", ""))
-        full = f"{code}{phone}" if code and not phone.startswith("+") else phone
-        if full and await db.users.find_one({"phone": full, "id": {"$ne": user_id}}):
-            raise HTTPException(400, "Numéro déjà utilisé")
-        updates["phone"] = full or None
     if body.get("password"):
         updates["password_hash"] = hash_password(body["password"])
     if body.get("is_active") is not None:
         updates["is_suspended"] = not bool(body["is_active"])
+    return updates
+
+
+@router.put("/users/{user_id}")
+async def admin_update_user(user_id: str, request: Request):
+    await require_role(request, ["admin"], permission="users.edit")
+    body = await request.json()
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(404, "User not found")
+    updates = _collect_user_updates(body, user)
+    if body.get("email"):
+        email = body["email"].strip().lower()
+        await _assert_email_available(email, exclude_id=user_id)
+        updates["email"] = email
+    if body.get("phone") is not None:
+        full = _compose_full_phone(body["phone"], body.get("phone_code", user.get("phone_code", "")))
+        await _assert_phone_available(full, exclude_id=user_id)
+        updates["phone"] = full or None
     if updates:
         await db.users.update_one({"id": user_id}, {"$set": updates})
     return {"updated": True}
@@ -517,57 +543,45 @@ async def get_delivery_monthly(request: Request):
     }
 
 
+async def _ride_status_map():
+    res = await db.rides.aggregate([{"$group": {"_id": "$status", "count": {"$sum": 1}}}]).to_list(20)
+    return {r["_id"]: r["count"] for r in res}
+
+
+async def _earnings_summary():
+    """Total completed-ride revenue and count."""
+    res = await db.rides.aggregate([
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": "$final_fare"}, "count": {"$sum": 1}}},
+    ]).to_list(1)
+    total = res[0]["total"] if res else 0
+    count = res[0]["count"] if res else 0
+    return total, count
+
+
 @router.get("/analytics")
 async def get_analytics(request: Request, period: str = "week"):
     await require_role(request, ["admin"])
 
-    # Ride status breakdown
-    pipeline_status = [
-        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
-    ]
-    status_results = await db.rides.aggregate(pipeline_status).to_list(20)
-    status_map = {r["_id"]: r["count"] for r in status_results}
-
-    # Recent rides
+    status_map = await _ride_status_map()
+    total_earning, completed_count = await _earnings_summary()
     recent_rides = await db.rides.find({}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
-
-    # Total earnings
-    earning_pipeline = [
-        {"$match": {"status": "completed"}},
-        {"$group": {"_id": None, "total": {"$sum": "$final_fare"}, "count": {"$sum": 1}}}
-    ]
-    earning_result = await db.rides.aggregate(earning_pipeline).to_list(1)
-    total_earning = earning_result[0]["total"] if earning_result else 0
-    completed_count = earning_result[0]["count"] if earning_result else 0
-
-    # Commission calculation (15% default)
-    commission_total = total_earning * 0.15
-
-    # Scheduled bookings
     scheduled = await db.rides.find(
         {"scheduled_at": {"$ne": None}}, {"_id": 0}
     ).sort("scheduled_at", -1).limit(5).to_list(5)
-
-    # Active drivers
     active_drivers = await db.drivers.count_documents({"is_online": True})
     total_drivers = await db.drivers.count_documents({})
 
-    # Rides in progress
-    in_progress = status_map.get("in_progress", 0) + status_map.get("arriving", 0)
-    completed = status_map.get("completed", 0)
-    cancelled = status_map.get("cancelled", 0)
-    pending = status_map.get("pending", 0)
-
     return {
         "ride_status": {
-            "in_progress": in_progress,
-            "completed": completed,
-            "cancelled": cancelled,
-            "pending": pending,
+            "in_progress": status_map.get("in_progress", 0) + status_map.get("arriving", 0),
+            "completed": status_map.get("completed", 0),
+            "cancelled": status_map.get("cancelled", 0),
+            "pending": status_map.get("pending", 0),
         },
         "earnings": {
             "total": round(total_earning, 2),
-            "commission": round(commission_total, 2),
+            "commission": round(total_earning * 0.15, 2),  # 15% default
             "outstanding": 0,
             "org_outstanding": 0,
         },

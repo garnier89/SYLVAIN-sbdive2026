@@ -5,14 +5,16 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import {
   Users, Car, Storefront, Taxi, Package, Wrench,
-  CurrencyEur, Star, ChartLine, CalendarCheck, Clock, MapPin, Trophy,
-  Bell, CheckCircle, XCircle, Warning, Eye, Gear, UserCircle, FileCsv, FilePdf
+  ChartLine, MapPin, CheckCircle, UserCircle, FileCsv, FilePdf
 } from '@phosphor-icons/react';
-import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
+import { AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import LeafletMap from '../../components/LeafletMap';
 import { KPICard, EarningBox, ServiceMiniCard, BuySellRentCard } from './dashboard/DashboardCards';
 import { exportAnalyticsCSV, exportAnalyticsPDF } from './dashboard/exportAnalytics';
+import DashboardDeliveryCharts from './dashboard/DashboardDeliveryCharts';
+import DashboardBreakdown from './dashboard/DashboardBreakdown';
+import DashboardServerPanels from './dashboard/DashboardServerPanels';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -80,24 +82,8 @@ const AdminDashboard = () => {
     { time: '4pm', earning: 55, outstanding: 4 }, { time: '5pm', earning: analytics?.earnings?.total || 66.8, outstanding: 3 },
   ];
 
-  const notifications = [
-    { user: 'felicia angliviel', action: 'PERMIS DE CONDUIRE VE...', time: '14 Hours ago' },
-    { user: 'felicia angliviel', action: "CARTE D'IDENTITE VERSO...", time: '14 Hours ago' },
-    { user: 'felicia angliviel', action: "CARTE D'IDENTITE RECT...", time: '14 Hours ago' },
-    { user: 'felicia angliviel', action: 'PHOTO AVANT PLAQUE V...', time: '14 Hours ago' },
-    { user: 'felicia angliviel', action: 'CARTE GRISE uploaded ...', time: '14 Hours ago' },
-  ];
-
   const [currentTime, setCurrentTime] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(t); }, []);
-
-  const contactRequests = [
-    { user: 'denver sv', message: 'Je risque de porter plai...', time: '1 Day ago' },
-    { user: 'denver sv', message: "L'application qui a un b...", time: '1 Day ago' },
-    { user: 'denver sv', message: "Vous vous etes trompe,...", time: '1 Day ago' },
-    { user: 'Remy Latouchent', message: 'Je voudai encaisser mo...', time: '1 Day ago' },
-    { user: 'Allan Narcissot', message: 'Je souhaite recuperer l...', time: '1 Day ago' },
-  ];
 
   if (loading) return (
     <div className="p-6"><div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -388,203 +374,14 @@ const AdminDashboard = () => {
       </div>
 
       {/* Delivery analytics — Store Deliveries + Delivery Genie / Runner */}
-      <div className="grid lg:grid-cols-2 gap-5" data-testid="delivery-analytics">
-        <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="store-deliveries-card">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-gray-800 text-base">Store Deliveries</h3>
-            <Storefront size={20} className="text-[#3B82F6]" weight="duotone" />
-          </div>
-          <p className="text-3xl font-black text-gray-900 mb-3" data-testid="store-deliveries-total">{delivery?.store_deliveries?.total ?? 0}</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={delivery?.store_deliveries?.monthly || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#9CA3AF' }} interval={1} />
-              <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} allowDecimals={false} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '11px' }} />
-              <Bar dataKey="count" name="Livraisons" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="delivery-genie-runner-card">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-gray-800 text-base">Delivery Genie / Runner</h3>
-            <Package size={20} className="text-[#F59E0B]" weight="duotone" />
-          </div>
-          <p className="text-3xl font-black text-gray-900 mb-3" data-testid="delivery-genie-runner-total">{delivery?.delivery_genie_runner?.total ?? 0}</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={delivery?.delivery_genie_runner?.monthly || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#9CA3AF' }} interval={1} />
-              <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} allowDecimals={false} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '11px' }} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Bar dataKey="runner" name="Runner" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="genie" name="Genie" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <DashboardDeliveryCharts delivery={delivery} />
 
 
       {/* Revenus par service + Top zones/villes — données réelles V3Cube pilotage */}
-      <div className="grid lg:grid-cols-2 gap-5" data-testid="analytics-breakdown">
-        {/* Revenus par service */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="revenue-by-service-card">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-gray-800 text-base">Revenus par service</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full" data-testid="revenue-period-badge">
-                {period === 'today' ? "Aujourd'hui" : period === 'week' ? '7 jours' : period === 'month' ? '30 jours' : 'Total'}
-              </span>
-              <CurrencyEur size={20} className="text-green-500" weight="duotone" />
-            </div>
-          </div>
-          <p className="text-3xl font-black text-gray-900 mb-3" data-testid="total-revenue">
-            {(breakdown?.total_revenue ?? 0).toLocaleString('fr-FR')} €
-          </p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={breakdown?.revenue_by_service || []} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-              <YAxis type="category" dataKey="service" tick={{ fontSize: 11, fill: '#6B7280' }} width={90} />
-              <Tooltip
-                contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '11px' }}
-                formatter={(value, name, p) => [`${Number(value).toLocaleString('fr-FR')} € (${p.payload.count} cmd)`, 'Revenu']}
-              />
-              <Bar dataKey="revenue" radius={[0, 4, 4, 0]} name="Revenu">
-                {(breakdown?.revenue_by_service || []).map((entry) => <Cell key={entry.service} fill={entry.color} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Top zones / villes */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="top-zones-card">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-bold text-gray-800 text-base">Top zones / villes</h3>
-              <p className="text-xs text-gray-500">Classement par volume de courses</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full" data-testid="zones-period-badge">
-                {period === 'today' ? "Aujourd'hui" : period === 'week' ? '7 jours' : period === 'month' ? '30 jours' : 'Total'}
-              </span>
-              <MapPin size={20} className="text-[#3B82F6]" weight="duotone" />
-            </div>
-          </div>
-          <div className="space-y-2 max-h-[260px] overflow-y-auto">
-            {(breakdown?.top_zones || []).length === 0 ? (
-              <p className="text-center text-gray-400 text-xs py-8">Aucune donnée de zone</p>
-            ) : (
-              (breakdown?.top_zones || []).map((z, i) => {
-                const max = breakdown.top_zones[0]?.rides || 1;
-                return (
-                  <div key={z.city} className="flex items-center gap-3" data-testid={`top-zone-${i}`}>
-                    <span className={`w-6 h-6 flex-shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold ${i < 3 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-medium text-gray-800 truncate">{z.city}</p>
-                        <p className="text-xs text-gray-500 whitespace-nowrap ml-2">{z.rides} courses · {Number(z.revenue).toLocaleString('fr-FR')} €</p>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-[#3B82F6] rounded-full" style={{ width: `${Math.max(6, (z.rides / max) * 100)}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
+      <DashboardBreakdown breakdown={breakdown} period={period} />
 
       {/* Server Statistics + Notification Alerts + Contact Requests */}
-      <div className="grid lg:grid-cols-3 gap-5">
-        {/* Server Statistics */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-gray-800 text-base">Server Statistics</h3>
-            <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => navigate('/admin/monitoring')}>View</Button>
-          </div>
-          <p className="text-xs text-gray-500 mb-4">Last Updated: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} AT {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <CheckCircle size={24} className="text-green-500" weight="fill" />
-                <span className="text-sm text-gray-700">Working</span>
-              </div>
-              <span className="text-lg font-bold text-green-600">8</span>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <XCircle size={24} className="text-red-500" weight="fill" />
-                <span className="text-sm text-gray-700">Errors</span>
-              </div>
-              <span className="text-lg font-bold text-red-600">2</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <Warning size={24} className="text-amber-500" weight="fill" />
-                <span className="text-sm text-gray-700">Alerts</span>
-              </div>
-              <span className="text-lg font-bold text-amber-600">0</span>
-            </div>
-          </div>
-          <div className="flex justify-center gap-6 mt-4 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-green-500" /><span className="text-[10px] text-gray-500">Working</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500" /><span className="text-[10px] text-gray-500">Errors</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /><span className="text-[10px] text-gray-500">Alerts</span></div>
-          </div>
-        </div>
-
-        {/* Notification Alerts Panel */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-gray-800 text-base">Notification Alerts Panel</h3>
-            <Button size="sm" className="bg-green-500 text-white text-[10px] h-7">View All</Button>
-          </div>
-          <div className="space-y-2 max-h-[280px] overflow-y-auto">
-            {notifications.map((n, i) => (
-              <div key={n.id || `${n.user}-${n.time}-${i}`} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
-                <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
-                  <Bell size={18} className="text-amber-500" weight="fill" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{n.user}</p>
-                  <p className="text-xs text-gray-500 truncate">{n.action}</p>
-                </div>
-                <span className="text-xs font-bold text-red-500 whitespace-nowrap flex-shrink-0">{n.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Contact Us Form Requests */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-bold text-gray-800 text-base">Contact Us Form</h3>
-              <p className="text-xs text-gray-500">Requests</p>
-            </div>
-            <Button size="sm" className="bg-green-500 text-white text-[10px] h-7" onClick={() => navigate('/admin/support')}>View All</Button>
-          </div>
-          <div className="space-y-2 max-h-[280px] overflow-y-auto">
-            {contactRequests.map((c, i) => (
-              <div key={c.id || `${c.user}-${c.time}-${i}`} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
-                <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
-                  <Bell size={18} className="text-amber-500" weight="fill" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{c.user}</p>
-                  <p className="text-xs text-gray-500 truncate">{c.message}</p>
-                </div>
-                <span className="text-xs font-bold text-red-500 whitespace-nowrap flex-shrink-0">{c.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <DashboardServerPanels navigate={navigate} />
     </div>
   );
 };
