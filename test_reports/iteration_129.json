@@ -1,0 +1,55 @@
+{
+  "summary": "RETEST iteration_128 fix for Heat View runtime crash. Both bugs from iteration_127/128 are now fully resolved. Initial /chauffeur/home load: 0 page errors, 0 CRA overlay iframe, driver-home-page rendered, yellow car marker visible, 'En ligne'. Heat View toggle ON: 0 new page errors, 0 CRA overlay, button transitions to red (rgb(239,68,68)) with text '🔥Heat View ON · 2'. The Heatmap deprecation message is now gracefully caught — console shows only a benign WARNING ('[map] HeatmapLayer unavailable, using circles fallback: ...') and the Circle fallback renders without throwing. Heat View toggle OFF: 0 new errors, 0 overlay, text reverts to '🔥Heat View'. Mode Destination toggle opens the modal successfully (title 'Mode Destination', address/lat/lng fields, 'Activer' button) with 0 errors and 0 overlay.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "evidence": {
+    "assertion_1_initial_load": {
+      "page_errors_total": 0,
+      "cra_overlay_iframe_count": 0,
+      "driver_home_page_testid_count": 1,
+      "online_toggle_text": "En ligne",
+      "car_marker_visible_on_map": true,
+      "heat_view_toggle_present": true,
+      "heat_view_text_before": "🔥Heat View"
+    },
+    "assertion_2_heat_view_on": {
+      "new_page_errors": 0,
+      "heatmap_related_errors": 0,
+      "cra_overlay_iframe_count": 0,
+      "heat_view_text_after_on": "🔥Heat View ON · 2",
+      "heat_view_background_color": "rgb(239, 68, 68)",
+      "console_warning_observed": "[map] HeatmapLayer unavailable, using circles fallback: The Heatmap Layer functionality in the Maps JavaScript API is no longer available in the Maps JavaScript API as of version 3.65. (caught + downgraded to warn, no runtime crash)"
+    },
+    "assertion_2b_heat_view_off": {
+      "new_page_errors": 0,
+      "cra_overlay_iframe_count": 0,
+      "heat_view_text_after_off": "🔥Heat View"
+    },
+    "assertion_3_destination_mode": {
+      "new_page_errors": 0,
+      "cra_overlay_iframe_count": 0,
+      "modal_opened": true,
+      "modal_fields_visible": ["Adresse (ex: 10 Rue de Rivoli, Paris)", "Latitude", "Longitude", "Activer"]
+    },
+    "final_total_page_errors": 0
+  },
+  "test_credentials_used": "jean.dupont@demo.sb / Driver123! (mobile flow: 'Ou choisir une autre option de connexion' → 'email & mot de passe')",
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminGoogleMap.jsx — useEffect heatmap rewrite is solid: try/catch around visualization.HeatmapLayer + fallback to weighted Circles. heatLayerRef and heatCirclesRef cleanup correctly via clear(). No crash, no overlay.",
+    "Console still emits the deprecated 'google.maps.Marker' warning. Non-blocking. Migrating to AdvancedMarkerElement is recommended but not urgent.",
+    "GooglePlacesInput.js still injects a raw <script> loader separate from useJsApiLoader (noted in iteration_128). Still recommended to consolidate, but does not impact this retest."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% — all 3 assertions pass"},
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Both runtime crashes are fixed and verified end-to-end. (1) SVG path 'Expected number at position 63, found M' — fixed by Material directions_car path (iteration_128). (2) Heat View 'Heatmap Layer no longer available' — fixed by try/catch + Circle fallback in AdminGoogleMap.jsx (iteration_129, this retest). Initial load, Heat View ON, Heat View OFF, and Mode Destination all confirmed with 0 page errors and 0 CRA overlay iframe.",
+  "rca of the issue": "RESOLVED. Root cause: Google Maps JS API v3.65 (late 2025) removed visualization.HeatmapLayer; the constructor throws 'The Heatmap Layer functionality... is no longer available'. Fix in AdminGoogleMap.jsx: wraps HeatmapLayer instantiation in try/catch and falls back to weighted google.maps.Circle overlays (color-graded by intensity FACC15→F59E0B→EF4444, radius 250 + intensity*550m), with proper cleanup of both heatLayerRef and heatCirclesRef. The throw is now caught and downgraded to a console.warn, preventing window.onerror → CRA dev overlay propagation."
+}

@@ -51,7 +51,8 @@ const AdminGoogleMap = ({
   });
 
   const mapRef = useRef(null);
-  const heatmapRef = useRef(null);
+  const heatLayerRef = useRef(null);
+  const heatCirclesRef = useRef([]);
   const [mapReady, setMapReady] = useState(false);
 
   const onLoad = useCallback((map) => {
@@ -63,28 +64,51 @@ const AdminGoogleMap = ({
     mapRef.current = null;
   }, []);
 
-  // Heatmap layer (visualization library)
+  // Demand "heat" overlay. Google Maps removed visualization.HeatmapLayer in
+  // v3.65, so we render translucent weighted Circles instead (robust, never throws).
   useEffect(() => {
-    if (!mapReady || !heatmapData || !window.google?.maps?.visualization) return;
-    if (heatmapRef.current) {
-      heatmapRef.current.setMap(null);
-      heatmapRef.current = null;
-    }
-    if (heatmapData.length === 0) return;
-    const points = heatmapData.map((p) =>
-      Array.isArray(p)
-        ? new window.google.maps.LatLng(p[0], p[1])
-        : new window.google.maps.LatLng(p.lat, p.lng)
-    );
-    heatmapRef.current = new window.google.maps.visualization.HeatmapLayer({
-      data: points,
-      radius: 30,
-      opacity: 0.65,
-    });
-    heatmapRef.current.setMap(mapRef.current);
-    return () => {
-      if (heatmapRef.current) heatmapRef.current.setMap(null);
+    const clear = () => {
+      if (heatLayerRef.current) { heatLayerRef.current.setMap(null); heatLayerRef.current = null; }
+      heatCirclesRef.current.forEach((c) => c.setMap(null));
+      heatCirclesRef.current = [];
     };
+    if (!mapReady || !heatmapData || !window.google?.maps || !mapRef.current) { clear(); return undefined; }
+    clear();
+    if (heatmapData.length === 0) return undefined;
+
+    const norm = heatmapData.map((p) => (Array.isArray(p)
+      ? { lat: p[0], lng: p[1], w: p[2] || 1 }
+      : { lat: p.lat, lng: p.lng, w: p.count || p.weight || 1 }));
+    const maxW = Math.max(1, ...norm.map((p) => p.w));
+
+    // Prefer the native heatmap when the running API version still ships it.
+    try {
+      if (window.google.maps.visualization?.HeatmapLayer) {
+        const points = norm.map((p) => new window.google.maps.LatLng(p.lat, p.lng));
+        const layer = new window.google.maps.visualization.HeatmapLayer({ data: points, radius: 30, opacity: 0.65 });
+        layer.setMap(mapRef.current);
+        heatLayerRef.current = layer;
+        return clear;
+      }
+    } catch (e) {
+      // HeatmapLayer removed (v3.65+) — fall through to Circle rendering.
+      console.warn('[map] HeatmapLayer unavailable, using circles fallback:', e?.message || e);
+    }
+
+    heatCirclesRef.current = norm.map((p) => {
+      const intensity = p.w / maxW; // 0..1
+      return new window.google.maps.Circle({
+        map: mapRef.current,
+        center: { lat: p.lat, lng: p.lng },
+        radius: 250 + intensity * 550,
+        fillColor: intensity > 0.66 ? '#EF4444' : intensity > 0.33 ? '#F59E0B' : '#FACC15',
+        fillOpacity: 0.28,
+        strokeWeight: 0,
+        clickable: false,
+        zIndex: 1,
+      });
+    });
+    return clear;
   }, [mapReady, heatmapData]);
 
   if (loadError) {
