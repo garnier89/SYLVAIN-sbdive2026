@@ -84,3 +84,44 @@ def test_previous_week_bounds_monday_to_sunday():
     # previous full week before 2026-06-10 is 2026-06-01 .. 2026-06-07
     assert start_local.strftime("%Y-%m-%d") == "2026-06-01"
     assert end_local.strftime("%Y-%m-%d") == "2026-06-07"
+
+
+def test_pdf_generation_valid():
+    from routes.weekly_reports import _driver_pdf_bytes, _global_pdf_bytes
+    row = {"name": "Test Driver", "completed": 3, "cancelled": 1, "refused": 0,
+           "gross": 100.0, "cash": 40.0, "card": 60.0, "wallet": 0.0, "bonus": 0.0,
+           "commission": 15.0, "net": 85.0, "amount_on_app": 45.0,
+           "non_withdrawable": 20.0, "transfer": 25.0, "driver_id": "d1"}
+    report = {"revenue_by_service": [{"service": "Taxi / VTC", "count": 3, "revenue": 100.0}],
+              "total_revenue": 100.0, "total_commission": 15.0, "total_transfers": 25.0,
+              "active_drivers": 1, "drivers": [row]}
+    p1 = _driver_pdf_bytes(row, "01/06/2026 - 07/06/2026", "SB Drive VTC")
+    p2 = _global_pdf_bytes(report, "01/06/2026 - 07/06/2026", "SB Drive VTC")
+    assert p1[:5] == b"%PDF-" and len(p1) > 800
+    assert p2[:5] == b"%PDF-" and len(p2) > 800
+
+
+def test_history_endpoint():
+    s = _admin()
+    # trigger an archived (failed, no key) send in test mode
+    s.post(f"{API}/admin/weekly-reports/send-now", json={"test_email": "qa@example.com"}, timeout=40)
+    r = s.get(f"{API}/admin/weekly-reports/history?limit=10", timeout=30)
+    assert r.status_code == 200, r.text
+    hist = r.json()
+    assert isinstance(hist, list) and len(hist) >= 1
+    h = hist[0]
+    for k in ["id", "week", "type", "recipient", "status", "created_at"]:
+        assert k in h
+    # snapshot must NOT leak in the list endpoint
+    assert "snapshot" not in h
+
+
+def test_history_requires_admin():
+    r = requests.get(f"{API}/admin/weekly-reports/history", timeout=30)
+    assert r.status_code in (401, 403)
+
+
+def test_resend_unknown_id_404():
+    s = _admin()
+    r = s.post(f"{API}/admin/weekly-reports/resend/does-not-exist", timeout=30)
+    assert r.status_code == 404

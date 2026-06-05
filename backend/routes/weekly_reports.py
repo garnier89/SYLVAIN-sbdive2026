@@ -3,14 +3,22 @@ Admin-configurable (recipients, timezone, commission, non-withdrawable floor, sc
 Sent via Resend. Week = Monday 00:00 -> Sunday 23:59:59 in the configured local timezone.
 """
 import os
+import io
 import asyncio
 import logging
+import uuid
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import resend
 from fastapi import APIRouter, Request, HTTPException
 from dotenv import load_dotenv
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 from core.config import db
 from core.deps import require_role
@@ -262,37 +270,167 @@ def _global_email_html(report, week_label, sender_name):
 """
 
 
-async def _send(api_key, sender, to_list, subject, html):
+# ---------------- PDF rendering ----------------
+def _pdf_styles():
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="H", fontSize=16, leading=20, textColor=colors.HexColor("#1f2937"), spaceAfter=4))
+    styles.add(ParagraphStyle(name="Sub", fontSize=10, leading=13, textColor=colors.HexColor("#6b7280"), spaceAfter=10))
+    styles.add(ParagraphStyle(name="Sec", fontSize=12, leading=15, textColor=colors.HexColor("#111827"), spaceBefore=8, spaceAfter=6))
+    return styles
+
+
+def _driver_pdf_bytes(row, week_label, sender_name):
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=18 * mm, bottomMargin=18 * mm)
+    st = _pdf_styles()
+    el = [
+        Paragraph(f"Rapport hebdomadaire — {sender_name}", st["H"]),
+        Paragraph(f"Chauffeur : {row['name']} &nbsp;·&nbsp; Semaine du {week_label}", st["Sub"]),
+    ]
+    data = [
+        ["Indicateur", "Valeur"],
+        ["Courses terminées", str(row["completed"])],
+        ["Courses annulées", str(row["cancelled"])],
+        ["Courses refusées", str(row["refused"])],
+        ["Chiffre d'affaires brut", _money(row["gross"])],
+        ["— dont espèces", _money(row["cash"])],
+        ["— dont carte (CB)", _money(row["card"])],
+        ["— dont portefeuille", _money(row["wallet"])],
+        ["Bonus", _money(row["bonus"])],
+        ["Commission plateforme", "- " + _money(row["commission"])],
+        ["Revenu net", _money(row["net"])],
+        ["Montant disponible sur l'app", _money(row["amount_on_app"])],
+        ["Montant non retirable", _money(row["non_withdrawable"])],
+        ["Virement à effectuer", _money(row["transfer"])],
+    ]
+    t = Table(data, colWidths=[95 * mm, 60 * mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3b82f6")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#e5e7eb")),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ecfdf5")),
+        ("TEXTCOLOR", (1, -1), (1, -1), colors.HexColor("#059669")),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+    ]))
+    el += [t, Spacer(1, 8 * mm),
+           Paragraph("Espèces déjà encaissées par vos soins. Le virement correspond au montant net disponible sur l'application, déduction faite du montant non retirable.", st["Sub"])]
+    doc.build(el)
+    return buf.getvalue()
+
+
+def _global_pdf_bytes(report, week_label, sender_name):
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=16 * mm, bottomMargin=16 * mm)
+    st = _pdf_styles()
+    el = [
+        Paragraph(f"Rapport global — {sender_name}", st["H"]),
+        Paragraph(f"Semaine du {week_label}", st["Sub"]),
+        Paragraph("Revenus par service", st["Sec"]),
+    ]
+    svc = [["Service", "Commandes", "Revenu"]] + [[s["service"], str(s["count"]), _money(s["revenue"])] for s in report["revenue_by_service"]]
+    svc.append(["Total", "", _money(report["total_revenue"])])
+    t1 = Table(svc, colWidths=[80 * mm, 45 * mm, 50 * mm])
+    t1.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6), ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7eb")),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#eff6ff")),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+    ]))
+    el += [t1, Spacer(1, 6 * mm), Paragraph("Synthèse", st["Sec"])]
+    summ = [
+        ["Chauffeurs/prestataires actifs", str(report["active_drivers"])],
+        ["Commissions encaissées", _money(report["total_commission"])],
+        ["Virements à effectuer (total)", _money(report["total_transfers"])],
+    ]
+    t2 = Table(summ, colWidths=[100 * mm, 55 * mm])
+    t2.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 10), ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6), ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#e5e7eb")),
+    ]))
+    el.append(t2)
+    if report.get("drivers"):
+        el += [Spacer(1, 6 * mm), Paragraph("Détail par chauffeur", st["Sec"])]
+        rows = [["Chauffeur", "Term.", "Brut", "Comm.", "Net", "Virement"]]
+        for d in report["drivers"]:
+            rows.append([d["name"], str(d["completed"]), _money(d["gross"]), _money(d["commission"]), _money(d["net"]), _money(d["transfer"])])
+        t3 = Table(rows, colWidths=[48 * mm, 16 * mm, 26 * mm, 26 * mm, 26 * mm, 28 * mm])
+        t3.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#10b981")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 8.5), ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4), ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+        ]))
+        el.append(t3)
+    doc.build(el)
+    return buf.getvalue()
+
+
+def _pdf_attachment(pdf_bytes, filename):
+    return {"filename": filename, "content": list(pdf_bytes), "content_type": "application/pdf"}
+
+
+async def _send(api_key, sender, to_list, subject, html, attachments=None):
     if not api_key:
         raise HTTPException(status_code=400, detail="Clé API Resend manquante. Configurez-la dans Rapports hebdomadaires.")
     resend.api_key = api_key
     params = {"from": sender, "to": to_list, "subject": subject, "html": html}
+    if attachments:
+        params["attachments"] = attachments
     return await asyncio.to_thread(resend.Emails.send, params)
 
 
+async def _archive(entry):
+    entry["id"] = f"rs_{uuid.uuid4().hex[:12]}"
+    entry["created_at"] = datetime.now(timezone.utc).isoformat()
+    await db.report_sends.insert_one({**entry})
+    return entry["id"]
+
+
 async def run_weekly_send(config: dict, test_email: str = None):
-    """Compute previous week and send all emails. Returns summary."""
+    """Compute previous week and send all emails (HTML + PDF attachment). Archives each send."""
     start_iso, end_iso, week_label = previous_week_bounds(config.get("timezone", "UTC"))
     report = await compute_report(start_iso, end_iso, config)
     api_key = config.get("resend_api_key") or os.environ.get("RESEND_API_KEY")
-    sender = f"{config.get('sender_name','SB Drive VTC')} <{config.get('sender_email')}>"
+    sender_name = config.get("sender_name", "SB Drive VTC")
+    sender = f"{sender_name} <{config.get('sender_email')}>"
+    is_test = bool(test_email)
 
     sent, failed = 0, 0
     errors = []
 
     # Global report -> admin + accountant (or test address)
-    global_to = ([test_email] if test_email else
+    global_to = ([test_email] if is_test else
                  list(config.get("admin_emails", [])) + list(config.get("accountant_emails", [])))
     global_to = [e for e in global_to if e]
     if global_to:
+        subject = f"Rapport global — semaine du {week_label}"
+        html = _global_email_html(report, week_label, sender_name)
+        status, email_id, err = "sent", None, None
         try:
-            await _send(api_key, sender, global_to,
-                        f"Rapport global — semaine du {week_label}",
-                        _global_email_html(report, week_label, config.get("sender_name", "SB Drive VTC")))
+            pdf = _global_pdf_bytes(report, week_label, sender_name)
+            res = await _send(api_key, sender, global_to, subject, html,
+                              [_pdf_attachment(pdf, f"rapport-global-{week_label.split(' ')[0].replace('/', '-')}.pdf")])
+            email_id = (res or {}).get("id")
             sent += 1
         except Exception as e:
+            status, err = "failed", str(e)
             failed += 1
             errors.append(f"global: {e}")
+        await _archive({"week": week_label, "week_start": start_iso, "week_end": end_iso,
+                        "type": "global", "recipient": ", ".join(global_to), "driver_id": None,
+                        "name": "Rapport global", "subject": subject, "status": status,
+                        "email_id": email_id, "error": err, "is_test": is_test,
+                        "snapshot": report})
 
     # Per-driver reports
     if config.get("send_to_drivers", True):
@@ -300,19 +438,49 @@ async def run_weekly_send(config: dict, test_email: str = None):
             to = test_email or row.get("email")
             if not to:
                 continue
+            subject = f"Votre rapport hebdo — semaine du {week_label}"
+            html = _driver_email_html(row, week_label, sender_name)
+            status, email_id, err = "sent", None, None
             try:
-                await _send(api_key, sender, [to],
-                            f"Votre rapport hebdo — semaine du {week_label}",
-                            _driver_email_html(row, week_label, config.get("sender_name", "SB Drive VTC")))
+                pdf = _driver_pdf_bytes(row, week_label, sender_name)
+                res = await _send(api_key, sender, [to], subject, html,
+                                  [_pdf_attachment(pdf, f"rapport-{row['name'].replace(' ', '_')}.pdf")])
+                email_id = (res or {}).get("id")
                 sent += 1
             except Exception as e:
+                status, err = "failed", str(e)
                 failed += 1
                 errors.append(f"{row['driver_id']}: {e}")
-            if test_email:
+            await _archive({"week": week_label, "week_start": start_iso, "week_end": end_iso,
+                            "type": "driver", "recipient": to, "driver_id": row["driver_id"],
+                            "name": row["name"], "subject": subject, "status": status,
+                            "email_id": email_id, "error": err, "is_test": is_test,
+                            "snapshot": row})
+            if is_test:
                 break  # in test mode only send one driver sample
 
     return {"week": week_label, "sent": sent, "failed": failed,
             "active_drivers": report["active_drivers"], "errors": errors[:10]}
+
+
+async def resend_archived(config: dict, entry: dict):
+    """Re-send a single archived report from its stored snapshot."""
+    api_key = config.get("resend_api_key") or os.environ.get("RESEND_API_KEY")
+    sender_name = config.get("sender_name", "SB Drive VTC")
+    sender = f"{sender_name} <{config.get('sender_email')}>"
+    week_label = entry["week"]
+    snap = entry.get("snapshot") or {}
+    if entry["type"] == "global":
+        html = _global_email_html(snap, week_label, sender_name)
+        pdf = _global_pdf_bytes(snap, week_label, sender_name)
+        fname = f"rapport-global-{week_label.split(' ')[0].replace('/', '-')}.pdf"
+    else:
+        html = _driver_email_html(snap, week_label, sender_name)
+        pdf = _driver_pdf_bytes(snap, week_label, sender_name)
+        fname = f"rapport-{snap.get('name', 'chauffeur').replace(' ', '_')}.pdf"
+    to = [e.strip() for e in str(entry["recipient"]).split(",") if e.strip()]
+    res = await _send(api_key, sender, to, entry["subject"], html, [_pdf_attachment(pdf, fname)])
+    return (res or {}).get("id")
 
 
 # ---------------- Endpoints ----------------
@@ -364,6 +532,31 @@ async def send_now(request: Request):
     cfg = await get_config()
     result = await run_weekly_send(cfg, test_email=body.get("test_email"))
     return result
+
+
+@router.get("/history")
+async def report_history(request: Request, limit: int = 50):
+    await require_role(request, ["admin"])
+    docs = await db.report_sends.find({}, {"_id": 0, "snapshot": 0}).sort("created_at", -1).limit(int(limit)).to_list(int(limit))
+    return docs
+
+
+@router.post("/resend/{send_id}")
+async def resend_one(send_id: str, request: Request):
+    await require_role(request, ["admin"])
+    entry = await db.report_sends.find_one({"id": send_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Envoi introuvable")
+    cfg = await get_config()
+    try:
+        email_id = await resend_archived(cfg, entry)
+        await db.report_sends.update_one({"id": send_id}, {"$set": {"status": "sent", "email_id": email_id, "error": None, "resent_at": datetime.now(timezone.utc).isoformat()}})
+        return {"ok": True, "email_id": email_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.report_sends.update_one({"id": send_id}, {"$set": {"status": "failed", "error": str(e)}})
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------- Scheduler ----------------

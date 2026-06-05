@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   EnvelopeSimple, FloppyDisk, PaperPlaneTilt, Eye, Clock, Gear, Spinner,
+  ArrowClockwise, ClockCounterClockwise, CheckCircle, XCircle,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -31,6 +32,15 @@ const AdminWeeklyReports = () => {
   const [previewing, setPreviewing] = useState(false);
   const [sending, setSending] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  const [history, setHistory] = useState([]);
+  const [resendingId, setResendingId] = useState(null);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/admin/weekly-reports/history?limit=50`, { credentials: 'include' });
+      if (res.ok) setHistory(await res.json());
+    } catch (e) { console.error(e); }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -47,7 +57,7 @@ const AdminWeeklyReports = () => {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadHistory(); }, [load, loadHistory]);
 
   const set = (k, v) => setCfg((c) => ({ ...c, [k]: v }));
 
@@ -98,9 +108,24 @@ const AdminWeeklyReports = () => {
       if (!res.ok) throw new Error(d.detail || 'send failed');
       toast.success(`Envoyé: ${d.sent} · Échecs: ${d.failed} (semaine ${d.week})`);
       if (d.errors?.length) console.warn('Erreurs envoi:', d.errors);
+      loadHistory();
     } catch (e) { toast.error(`Échec: ${e.message}`); }
     finally { setSending(false); }
   };
+
+  const resendOne = async (id) => {
+    setResendingId(id);
+    try {
+      const res = await fetch(`${API}/api/admin/weekly-reports/resend/${id}`, { method: 'POST', credentials: 'include' });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || 'resend failed');
+      toast.success('Rapport renvoyé');
+      loadHistory();
+    } catch (e) { toast.error(`Échec du renvoi: ${e.message}`); }
+    finally { setResendingId(null); }
+  };
+
+  const fmtDate = (iso) => { try { return new Date(iso).toLocaleString('fr-FR'); } catch { return iso; } };
 
   if (loading || !cfg) {
     return <div className="p-8 flex justify-center"><Spinner size={28} className="animate-spin text-blue-500" /></div>;
@@ -260,6 +285,57 @@ const AdminWeeklyReports = () => {
           )}
         </div>
       )}
+
+      {/* History / Archive */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4" data-testid="history-section">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2"><ClockCounterClockwise size={18} /> Historique des envois</h3>
+          <button onClick={loadHistory} className="text-xs text-blue-600 hover:underline flex items-center gap-1" data-testid="refresh-history-btn">
+            <ArrowClockwise size={14} /> Rafraîchir
+          </button>
+        </div>
+        {history.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">Aucun envoi enregistré pour le moment.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="py-2 pr-3">Date</th><th className="py-2 px-2">Semaine</th><th className="py-2 px-2">Type</th>
+                  <th className="py-2 px-2">Destinataire</th><th className="py-2 px-2">Statut</th><th className="py-2 pl-2 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-b last:border-0" data-testid={`history-row-${h.id}`}>
+                    <td className="py-2 pr-3 text-gray-600 whitespace-nowrap">{fmtDate(h.created_at)}</td>
+                    <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{h.week}</td>
+                    <td className="py-2 px-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${h.type === 'global' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-700'}`}>
+                        {h.type === 'global' ? 'Global' : h.name}
+                      </span>
+                      {h.is_test && <span className="ml-1 text-[10px] text-amber-600">(test)</span>}
+                    </td>
+                    <td className="py-2 px-2 text-gray-600 max-w-[200px] truncate">{h.recipient}</td>
+                    <td className="py-2 px-2">
+                      {h.status === 'sent'
+                        ? <span className="inline-flex items-center gap-1 text-green-600 text-xs"><CheckCircle size={14} weight="fill" /> Envoyé</span>
+                        : <span className="inline-flex items-center gap-1 text-red-600 text-xs" title={h.error}><XCircle size={14} weight="fill" /> Échec</span>}
+                    </td>
+                    <td className="py-2 pl-2 text-right">
+                      <button onClick={() => resendOne(h.id)} disabled={resendingId === h.id}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline disabled:opacity-50"
+                        data-testid={`resend-btn-${h.id}`}>
+                        {resendingId === h.id ? <Spinner size={12} className="animate-spin" /> : <PaperPlaneTilt size={12} />} Renvoyer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

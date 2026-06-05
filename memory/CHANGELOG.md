@@ -572,3 +572,16 @@ Voir PRD.md section "NEW - Feb 2026"
 
 ### À NOTER (gating)
 - **L'envoi réel d'emails nécessite que l'admin saisisse une clé API Resend + un expéditeur vérifié** dans la page. Sans clé, `send-now` renvoie un message clair (« Clé API Resend manquante »). En mode test Resend, seuls les emails vérifiés reçoivent.
+
+## 2026-06-05 (suite) — Rapports hebdo : pièce jointe PDF + archivage/historique + renvoi
+
+### Added
+- **PDF** généré côté serveur (reportlab) joint à chaque email : rapport individuel chauffeur + rapport global (tableaux mis en forme). Joint via `attachments` Resend (content=list[int]).
+- **Archivage** de chaque envoi dans `report_sends` (semaine, type global/driver, destinataire, statut sent/failed, email_id, erreur, snapshot pour renvoi).
+- Endpoints : GET `/api/admin/weekly-reports/history`, POST `/api/admin/weekly-reports/resend/{id}` (rejoue depuis le snapshot stocké).
+- Frontend : section **Historique des envois** (date, semaine, type, destinataire, statut ✅/❌, badge test) + bouton **Renvoyer** par ligne.
+- `reportlab==4.5.1` ajouté.
+
+### Tests
+- pytest `test_iter119_weekly_reports.py` **9/9 ✅** (ajout : PDF valide %PDF-, history endpoint sans fuite de snapshot, auth, resend 404).
+- Screenshot : section historique rend l'entrée archivée + bouton Renvoyer.
