@@ -10,6 +10,21 @@ from core.websocket import manager
 router = APIRouter(prefix="/drivers", tags=["drivers"])
 
 
+@router.post("/push-token")
+async def register_push_token(request: Request):
+    """Store the driver's Expo push token for remote mission alerts."""
+    user = await get_current_user(request)
+    body = await request.json()
+    token = body.get("token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Token requis")
+    await db.drivers.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"push_token": token, "push_token_updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True}
+
+
 @router.post("/register", response_model=DriverProfile)
 async def register_driver(data: DriverCreate, request: Request):
     user = await get_current_user(request)

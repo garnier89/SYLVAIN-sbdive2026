@@ -517,6 +517,18 @@ async def create_medical_transport(request: Request):
         })
     except Exception:
         pass
+    # Remote push for urgent/critical transports (alerts drivers even if app closed)
+    if transport["urgency"] and transport["urgency"] != "normal":
+        try:
+            from core.push import notify_drivers
+            urgent_label = "CRITIQUE" if transport["urgency"] == "critical" else "URGENT"
+            await notify_drivers(
+                title=f"🚑 Transport médical {urgent_label}",
+                body=f"{transport['ambulance_name']} · {fare:.2f} € — destination {transport.get('destination_name') or ''}".strip(),
+                data={"type": "new_transport", "transport_id": transport["id"], "urgency": transport["urgency"]},
+            )
+        except Exception:
+            pass
     return transport
 
 
