@@ -66,8 +66,25 @@ async def _pool_share_cfg() -> dict:
     except (TypeError, ValueError):
         pct = 30.0
     pct = max(0.0, min(pct, 90.0))
+    try:
+        step = float(s.get("share_discount_step_percent", 15) or 0)
+    except (TypeError, ValueError):
+        step = 15.0
+    step = max(0.0, min(step, 90.0))
+    try:
+        max_pct = float(s.get("share_discount_max_percent", 60) or 60)
+    except (TypeError, ValueError):
+        max_pct = 60.0
+    max_pct = max(pct, min(max_pct, 90.0))
     hours = s.get("share_discount_hours", "") or ""
-    return {"enabled": bool(enabled), "percent": pct, "hours": hours, "active": bool(enabled) and _within_hours(hours)}
+    return {"enabled": bool(enabled), "percent": pct, "step": step, "max_pct": max_pct,
+            "hours": hours, "active": bool(enabled) and _within_hours(hours)}
+
+
+def _pool_effective_pct(cfg: dict, members: int) -> float:
+    """Progressive covoiturage discount: base at 2 riders, +step per extra rider, capped."""
+    extra = max(0, int(members) - 2)
+    return round(min(cfg["max_pct"], cfg["percent"] + cfg["step"] * extra), 2)
 
 
 # ═══════════ HEAT VIEW (driver demand density) ═══════════
@@ -482,11 +499,12 @@ async def join_pool(target_ride_id: str, request: Request):
         )
     member_count = await db.rides.count_documents({"pool_group_id": group_id})
 
-    # Live shared-fare recompute (admin-driven covoiturage discount) for every grouped ride
+    # Live shared-fare recompute (admin-driven progressive covoiturage discount) for every grouped ride
     cfg = await _pool_share_cfg()
     shared = {}
     if cfg["active"]:
-        factor = 1 - cfg["percent"] / 100.0
+        eff_pct = _pool_effective_pct(cfg, member_count)
+        factor = 1 - eff_pct / 100.0
         members = await db.rides.find({"pool_group_id": group_id}, {"_id": 0, "id": 1, "original_fare": 1, "estimated_fare": 1}).to_list(50)
         for md in members:
             of = md.get("original_fare") or md.get("estimated_fare") or 0
@@ -494,14 +512,14 @@ async def join_pool(target_ride_id: str, request: Request):
             await db.rides.update_one(
                 {"id": md["id"]},
                 {"$set": {"original_fare": of, "estimated_fare": nf, "pool_savings": round(of - nf, 2),
-                          "pool_group_size": member_count, "pool_discount_percent": cfg["percent"]}},
+                          "pool_group_size": member_count, "pool_discount_percent": eff_pct}},
             )
         mine = await db.rides.find_one({"id": my_ride_id}, {"_id": 0})
         shared = {
             "shared_fare": mine.get("estimated_fare"),
             "original_fare": mine.get("original_fare"),
             "pool_savings": mine.get("pool_savings", 0),
-            "discount_percent": cfg["percent"],
+            "discount_percent": eff_pct,
         }
 
     try:
@@ -511,7 +529,7 @@ async def join_pool(target_ride_id: str, request: Request):
             "ride_id": target_ride_id,
             "members": member_count,
             "partner_name": user.get("name") or "Un passager",
-            "discount_percent": cfg["percent"] if cfg["active"] else 0,
+            "discount_percent": _pool_effective_pct(cfg, member_count) if cfg["active"] else 0,
         }, target["user_id"])
     except Exception:
         pass

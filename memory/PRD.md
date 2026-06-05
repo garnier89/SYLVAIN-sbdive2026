@@ -1,4 +1,11 @@
-## NEW - Jun 2026 - Pool : tarif partagé recalculé en direct (« −X € grâce au covoiturage ») piloté par l'admin (DONE)
+## NEW - Jun 2026 - Pool : réduction covoiturage PROGRESSIVE (plus de passagers = plus d'économies) (DONE)
+- **Demande** : la réduction s'amplifie avec le nombre de passagers groupés (récompense les groupes pleins). Pilotable admin.
+- **Admin** (`AdminServiceConfig` clé `pool`) : `share_discount_percent` = base à 2 passagers (30%), `share_discount_step_percent` = bonus par passager supplémentaire (15%), `share_discount_max_percent` = plafond (60%). + toggle on/off et plages horaires (déjà en place).
+- **Backend** (`phase2.py`) : `_pool_effective_pct(cfg, members)` = `min(max, base + step·(members−2))`. À chaque `join_pool`, **toutes** les courses du groupe sont recalculées au taux effectif courant (rejoindre à 3 approfondit la remise des 2 premiers). `pool_discount_percent` stocké + renvoyé.
+- **Frontend** (`RideTrackingPage`) : bannière `pool-savings-banner` affiche désormais « Tarif partagé · −X% » + « −Y € grâce au covoiturage » (montant & % via join + polling matches).
+- Vérifié E2E curl : 2 riders→30%/−3,60€, 3 riders→45%/−5,40€ (le 1er passager voit la remise approfondie), plafond 60%. **pytest 2/2**. Lint clean front+back.
+
+
 - **Demande** : afficher au passager l'économie réelle dès qu'un partenaire rejoint le groupe Pool, **et** rendre la réduction pilotable par l'admin (manuel / automatique / programmé).
 - **Admin** (`AdminServiceConfig` clé `pool`) — 3 nouveaux réglages : `share_discount_enabled` (toggle **manuel** on/off), `share_discount_percent` (% appliqué **automatiquement** au jumelage, défaut 30), `share_discount_hours` (**programmation** par plages « 07:00-10:00,17:00-20:00 », vide = toujours). Persistés dans `service_configs`.
 - **Backend** (`phase2.py`) : helper `_pool_share_cfg()` (lit la config, gère le fuseau Europe/Paris via `_within_hours`). À l'`join_pool`, si la réduction est active, **recalcul du tarif de chaque course groupée** : `estimated_fare = original_fare × (1 − pct/100)`, stocke `pool_savings`/`pool_group_size`/`pool_discount_percent` ; renvoie `shared_fare`/`original_fare`/`pool_savings`/`discount_percent`. `enable_pool` utilise désormais aussi le % admin (au lieu de 0,7 en dur). `GET /pool/matches` expose `your_savings` + `discount_percent`.
