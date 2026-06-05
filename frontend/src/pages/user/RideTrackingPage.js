@@ -390,10 +390,10 @@ const RideTrackingPage = () => {
             </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-bold text-gray-900">
-                Taxi Pool <span className="text-xs font-semibold text-emerald-700">−30%</span>
+                Taxi Pool <span className="text-xs font-semibold text-emerald-700">partagé</span>
               </p>
               <p className="text-[11px] text-gray-500">
-                {poolEnabled ? 'Activé — vous partagez la course' : 'Partagez votre course pour économiser'}
+                {poolEnabled ? 'Activé — vous partagez la course' : 'Partagez votre course pour optimiser le tarif'}
               </p>
             </div>
             <div

@@ -1,6 +1,22 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Parcours « taxi standard » V3Cube : écran « Choisissez un voyage » — Iteration 123
+
+### Added (flux V3Cube standard, d'après la vidéo utilisateur)
+- **Nouvelle page `RideChoosePage`** (route `/course`) : saisie départ + destination (Google Places + « Utiliser ma position »), aperçu carte (Static Maps avec itinéraire), puis écran **« Choisissez un voyage »** listant **tous les types de véhicules « ride » actifs** (SB, Confort, Luxe, Moto, SUV, Électrique, Van, TukTuk) avec **prix calculé en direct + ETA (durée·distance) par véhicule** via `/api/rides/estimate` en parallèle. Sélection → bouton **« Demander · X € »**.
+- **Animation V3Cube « Recherche d'un chauffeur »** : overlay plein écran (SearchingRadar, anneau pulsant) après « Demander », puis handoff vers le suivi live `/ride/:id`.
+- Le tile d'accueil **« VTC Réservation »** pointe désormais vers `/course` (parcours en parallèle ; les autres modes restent sur `/taxi`).
+- Spécialisés (pool, aéroport, animaux, assistance, accessible) exclus de la comparaison (gardent leurs flux dédiés).
+
+### Fixed
+- Libellé obsolète **« Taxi Pool −30% »** retiré de l'écran de suivi (`RideTrackingPage`) → « Taxi Pool partagé ».
+- Correction d'un bloc corrompu en fin de `App.js` (tail dupliqué + `Provider>` orphelin) qui cassait la compilation.
+
+### Tests
+- E2E vérifié à l'écran : prix live par véhicule (SB 11,70€ · Confort 17,76€ · Luxe 30,76€ · SUV 23,81€ · Van 26,45€), sélection, « Demander · X € », overlay « Recherche d'un chauffeur », handoff vers `/ride/:id`. Lint propre.
+
+
 ## 2026-06-05 — Taxi Pool : config Admin par Type de véhicule (parité V3Cube) — Iteration 122
 
 ### Fixed / Added (Pool Percentage par Type de véhicule)
