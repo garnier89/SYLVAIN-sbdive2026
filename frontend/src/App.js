@@ -110,6 +110,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminRides from './pages/admin/AdminRides';
 import AdminRevenue from './pages/admin/AdminRevenue';
 import AdminSupport from './pages/admin/AdminSupport';
+import AdminWeeklyReports from './pages/admin/AdminWeeklyReports';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminGodsView from './pages/admin/AdminGodsView';
 import AdminHeatView from './pages/admin/AdminHeatView';
@@ -450,6 +451,7 @@ const AppRouter = () => {
         <Route path="faqs" element={<AdminFaqs />} />
         <Route path="help-articles" element={<AdminHelpArticles />} />
         <Route path="donations" element={<AdminDonations />} />
+        <Route path="weekly-reports" element={<AdminWeeklyReports />} />
       </Route>
 
       {/* ======= DISPATCHER ======= */}

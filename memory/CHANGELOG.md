@@ -552,3 +552,23 @@ Voir PRD.md section "NEW - Feb 2026"
 
 ### Tests
 - Screenshot Playwright : login admin → période Mois → clic CSV et PDF → téléchargements confirmés (sb-drive-analytics-month-*.csv / .pdf), aucune erreur console.
+
+## 2026-06-05 (suite) — Rapports hebdomadaires automatiques par email (Resend)
+
+### Added
+- Backend `routes/weekly_reports.py` : moteur de calcul par chauffeur/prestataire/livreur sur la semaine précédente (lundi 00:00→dimanche 23:59 en heure locale via zoneinfo) + rapport global.
+  - Par chauffeur : courses terminées/annulées/refusées, brut, répartition espèces/CB/portefeuille, bonus, commission (taux configurable), revenu net, montant disponible sur l'app, montant non retirable (floor configurable), **virement à effectuer** = max(0, net − espèces encaissées − floor).
+  - Sources agrégées : rides (Taxi), parcels (Colis), runner_orders (Runner/Genie), orders (Boutiques delivery_fee).
+- Endpoints admin : GET/PUT `/api/admin/weekly-reports/config` (clé Resend masquée), GET `/preview`, POST `/send-now` (avec `test_email` optionnel).
+- Emails HTML inline (Resend SDK, `asyncio.to_thread`) : rapport individuel par chauffeur + rapport global (admin/comptable).
+- Planificateur : `weekly_report_loop` (lifespan) — envoie automatiquement le jour/heure configuré si `enabled`, anti-doublon via `last_sent_week`.
+- Frontend `AdminWeeklyReports.js` (`/admin/weekly-reports`, sidebar FINANCE) : config complète (clé API, expéditeur, destinataires, fuseau, jour/heure, commission, montant non retirable, toggles chauffeurs/prestataires/livreurs, activation), bouton Aperçu (tableau détaillé), Envoi manuel + email de test.
+- `.env` : `RESEND_API_KEY`, `SENDER_EMAIL` (fallback ; la clé admin en DB est prioritaire). `resend==2.30.1` ajouté.
+
+### Tests
+- pytest `test_iter119_weekly_reports.py` 5/5 ✅ (auth, config persist+masquage clé, structure preview + invariants virement, send-now gracieux sans clé, bornes semaine lundi→dimanche).
+- Engine validé sur fenêtre large : 10 chauffeurs, commissions/virements cohérents (Sophie brut 108,54€ CB → net 92,26€ → virement 72,26€ après floor 20€).
+- Screenshot : page rend, sauvegarde + aperçu OK.
+
+### À NOTER (gating)
+- **L'envoi réel d'emails nécessite que l'admin saisisse une clé API Resend + un expéditeur vérifié** dans la page. Sans clé, `send-now` renvoie un message clair (« Clé API Resend manquante »). En mode test Resend, seuls les emails vérifiés reçoivent.
