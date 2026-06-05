@@ -522,3 +522,13 @@ Voir PRD.md section "NEW - Feb 2026"
 - Frontend Playwright : login admin OK ; 7 pages CRUD + 4 pages config rendues sans placeholder ; cycles Ajout/Suppression vérifiés (vouchers, faqs) ; sauvegarde config OK.
 - **Balayage complet sidebar : 107 routes admin → 106 OK, 0 placeholder, 1 faux positif (heat-view = canvas carte).**
 - Marqueurs de test nettoyés de `service_configs` + collections CRUD.
+
+## 2026-06-05 (suite) — Dashboard pilotage : Revenus par service + Top zones/villes
+
+### Added (données réelles)
+- Backend `GET /api/admin/analytics/breakdown` : revenus agrégés par service (Taxi/VTC=rides.final_fare, Colis=parcels.fare, Boutiques=orders.total, Runner/Genie=runner_orders.estimated_fare) + total ; Top 8 zones/villes par volume de courses (parsing ville depuis pickup_address + filtre anti-bruit test/placeholder).
+- Frontend `AdminDashboard.js` : 2 nouveaux widgets — « Revenus par service » (bar chart horizontal coloré, total en €) et « Top zones / villes » (classement avec barres de progression, courses + revenu par ville).
+
+### Tests
+- pytest `tests/test_iter118_dashboard_breakdown.py` 3/3 ✅ (structure, tri/propreté zones, auth requise).
+- Screenshot dashboard : widgets rendus avec vraies données (694,61 € total ; Paris top zone).

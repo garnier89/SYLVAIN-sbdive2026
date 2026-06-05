@@ -580,6 +580,95 @@ async def get_analytics(request: Request, period: str = "week"):
     }
 
 
+def _extract_city(address: str):
+    """Extract a city name from a free-form address string.
+    e.g. 'Pl. Louis Armand, 75012 Paris, France' -> 'Paris'
+         'Fort-de-France, Martinique' -> 'Fort-de-France'"""
+    if not address or not isinstance(address, str):
+        return None
+    parts = [p.strip() for p in address.split(",") if p.strip()]
+    if not parts:
+        return None
+    # Drop a trailing country token if present
+    countries = {"france", "martinique", "guadeloupe", "guyane", "réunion", "reunion"}
+    if len(parts) >= 2 and parts[-1].lower() in countries:
+        candidate = parts[-2]
+    else:
+        candidate = parts[-1]
+    # Strip a leading postal code (4-5 digits)
+    import re as _re
+    candidate = _re.sub(r"^\d{4,5}\s*", "", candidate).strip()
+    return candidate or None
+
+
+def _is_valid_city(city: str):
+    if not city or len(city) < 3:
+        return False
+    low = city.lower()
+    if low.startswith("test") or "test " in low or " test" in low or "position" in low or "actuelle" in low:
+        return False
+    if low in {"a", "n/a", "null", "undefined", "adresse", "full flow test pickup"}:
+        return False
+    return True
+
+
+@router.get("/analytics/breakdown")
+async def get_analytics_breakdown(request: Request):
+    """Revenue split by service + top cities/zones — fed by real data."""
+    await require_role(request, ["admin"])
+
+    completed_ride_statuses = ["completed", "delivered", "done"]
+
+    # ---- Revenue by service ----
+    async def _sum(col, fare_field, match=None):
+        m = match or {}
+        pipeline = [{"$match": m}, {"$group": {"_id": None, "revenue": {"$sum": f"${fare_field}"}, "count": {"$sum": 1}}}]
+        res = await db[col].aggregate(pipeline).to_list(1)
+        if res:
+            return round(res[0].get("revenue", 0) or 0, 2), res[0].get("count", 0)
+        return 0, 0
+
+    taxi_rev, taxi_cnt = await _sum("rides", "final_fare", {"status": {"$in": completed_ride_statuses}})
+    parcel_rev, parcel_cnt = await _sum("parcels", "fare")
+    store_rev, store_cnt = await _sum("orders", "total")
+    runner_rev, runner_cnt = await _sum("runner_orders", "estimated_fare")
+
+    revenue_by_service = [
+        {"service": "Taxi / VTC", "revenue": taxi_rev, "count": taxi_cnt, "color": "#3B82F6"},
+        {"service": "Colis", "revenue": parcel_rev, "count": parcel_cnt, "color": "#8B5CF6"},
+        {"service": "Boutiques", "revenue": store_rev, "count": store_cnt, "color": "#EC4899"},
+        {"service": "Runner / Genie", "revenue": runner_rev, "count": runner_cnt, "color": "#F59E0B"},
+    ]
+
+    # ---- Top zones / cities (from ride + parcel pickup addresses) ----
+    zones = {}
+    async for r in db.rides.find({}, {"_id": 0, "pickup_address": 1, "final_fare": 1, "status": 1}):
+        city = _extract_city(r.get("pickup_address"))
+        if not _is_valid_city(city):
+            continue
+        z = zones.setdefault(city, {"city": city, "rides": 0, "revenue": 0.0})
+        z["rides"] += 1
+        if r.get("status") in completed_ride_statuses:
+            z["revenue"] += r.get("final_fare") or 0
+    async for p in db.parcels.find({}, {"_id": 0, "pickup_address": 1, "fare": 1}):
+        city = _extract_city(p.get("pickup_address"))
+        if not _is_valid_city(city):
+            continue
+        z = zones.setdefault(city, {"city": city, "rides": 0, "revenue": 0.0})
+        z["rides"] += 1
+        z["revenue"] += p.get("fare") or 0
+
+    top_zones = sorted(zones.values(), key=lambda x: x["rides"], reverse=True)[:8]
+    for z in top_zones:
+        z["revenue"] = round(z["revenue"], 2)
+
+    return {
+        "revenue_by_service": revenue_by_service,
+        "total_revenue": round(taxi_rev + parcel_rev + store_rev + runner_rev, 2),
+        "top_zones": top_zones,
+    }
+
+
 # ===== SERVICE CONFIGS =====
 
 @router.get("/service-config/{service_key}")
