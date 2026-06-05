@@ -142,6 +142,14 @@ const serviceConfigs = {
     { key: 'relance_interval_seconds', label: 'Intervalle entre relances (secondes, min 5)', type: 'number', value: 20 },
     { key: 'max_relances', label: 'Nombre de relances avant de proposer les options', type: 'number', value: 3 },
   ]},
+  no_driver_alerts: { title: 'Alertes pénurie chauffeurs', icon: MapPin, color: '#EF4444', desc: 'Alerter l\'admin quand une zone dépasse un seuil de courses sans chauffeur, et déclencher une prime chauffeur temporaire', settings: [
+    { key: 'enabled', label: 'Activer les alertes de zone', type: 'toggle', value: true },
+    { key: 'zone_threshold', label: 'Seuil (nb de courses sans chauffeur par zone)', type: 'number', value: 3 },
+    { key: 'window_minutes', label: 'Fenêtre d\'observation (minutes)', type: 'number', value: 60 },
+    { key: 'auto_bonus_enabled', label: 'Déclencher automatiquement une prime chauffeur', type: 'toggle', value: false },
+    { key: 'bonus_amount', label: 'Montant de la prime chauffeur (€)', type: 'number', value: 5 },
+    { key: 'bonus_duration_minutes', label: 'Durée de la prime (minutes)', type: 'number', value: 60 },
+  ]},
 };
 
 const API = process.env.REACT_APP_BACKEND_URL;

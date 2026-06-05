@@ -1043,6 +1043,69 @@ async def no_driver_stats(request: Request, days: int = 7):
     }
 
 
+@router.get("/zone-alerts")
+async def list_zone_alerts(request: Request):
+    """Active driver-shortage zone alerts (for the admin live banner)."""
+    await require_role(request, ["admin"], permission="dashboard.view")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    alerts = await db.zone_alerts.find({"status": "active"}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    for a in alerts:
+        a["bonus_active"] = bool(a.get("bonus_active_until") and a["bonus_active_until"] > now_iso)
+    return {"alerts": alerts}
+
+
+@router.post("/zone-alerts/{alert_id}/bonus")
+async def activate_zone_bonus(alert_id: str, request: Request):
+    """Declare a temporary driver bonus on the alert's zone (manual trigger)."""
+    await require_role(request, ["admin"], permission="dashboard.view")
+    from core.zone_alerts import get_alert_cfg
+    from core.websocket import manager
+    body = await request.json()
+    cfg = await get_alert_cfg()
+    try:
+        amount = float(body.get("bonus_amount") if body.get("bonus_amount") is not None else cfg["bonus_amount"])
+    except (TypeError, ValueError):
+        amount = float(cfg["bonus_amount"])
+    try:
+        duration = int(body.get("duration_minutes") if body.get("duration_minutes") is not None else cfg["bonus_duration_minutes"])
+    except (TypeError, ValueError):
+        duration = int(cfg["bonus_duration_minutes"])
+    amount = max(0.0, min(amount, 1000.0))
+    duration = max(5, min(duration, 1440))
+    until = (datetime.now(timezone.utc) + timedelta(minutes=duration)).isoformat()
+    alert = await db.zone_alerts.find_one({"id": alert_id}, {"_id": 0})
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerte introuvable")
+    await db.zone_alerts.update_one(
+        {"id": alert_id},
+        {"$set": {"bonus_amount": round(amount, 2), "bonus_active_until": until}},
+    )
+    try:
+        await manager.broadcast_to_drivers({
+            "type": "zone_bonus_active",
+            "zone": alert["zone"],
+            "bonus_amount": round(amount, 2),
+            "bonus_active_until": until,
+        })
+    except Exception:
+        pass
+    return {"message": "Prime activée", "zone": alert["zone"], "bonus_amount": round(amount, 2), "bonus_active_until": until}
+
+
+@router.post("/zone-alerts/{alert_id}/dismiss")
+async def dismiss_zone_alert(alert_id: str, request: Request):
+    """Dismiss a zone alert (and clear any active bonus)."""
+    await require_role(request, ["admin"], permission="dashboard.view")
+    res = await db.zone_alerts.update_one(
+        {"id": alert_id},
+        {"$set": {"status": "dismissed", "bonus_active_until": None, "dismissed_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alerte introuvable")
+    return {"message": "Alerte ignorée"}
+
+
+
 
 _ZONE_TOKENS = [
     ("martinique", "Martinique"), ("fort-de-france", "Martinique"),

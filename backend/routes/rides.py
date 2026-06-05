@@ -6,6 +6,8 @@ import requests
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+from core.zone_alerts import maybe_create_zone_alert
+
 # Bidirectional bidding: driver counter-offers expire after this many seconds
 OFFER_TTL_SECONDS = 30
 
@@ -500,6 +502,7 @@ async def convert_ride_to_bidding(ride_id: str, request: Request):
         "distance_km": ride.get("distance_km"),
         "duration_mins": ride.get("duration_mins"),
     })
+    await maybe_create_zone_alert(ride.get("pickup_address"), "bidding")
     return {"message": "Course convertie en enchères", "ride_id": ride_id, "proposed_fare": proposed}
 
 
@@ -590,6 +593,18 @@ async def update_ride_route(ride_id: str, request: Request):
 
     updated = await db.rides.find_one({"id": ride_id}, {"_id": 0})
     return updated
+
+
+@router.get("/active-zone-bonuses")
+async def active_zone_bonuses(request: Request):
+    """Drivers: list currently active temporary zone bonuses (driver-shortage incentives)."""
+    await get_current_user(request)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    alerts = await db.zone_alerts.find(
+        {"status": "active", "bonus_active_until": {"$gt": now_iso}},
+        {"_id": 0, "zone": 1, "bonus_amount": 1, "bonus_active_until": 1},
+    ).to_list(50)
+    return {"bonuses": [a for a in alerts if (a.get("bonus_amount") or 0) > 0]}
 
 
 @router.get("/{ride_id}")
@@ -1209,6 +1224,8 @@ async def reschedule_ride(ride_id: str, request: Request):
         updates["no_driver_outcome"] = "scheduled"
         updates["no_driver_at"] = now_iso
     await db.rides.update_one({"id": ride_id}, {"$set": updates})
+    if updates.get("no_driver_outcome") == "scheduled":
+        await maybe_create_zone_alert(ride.get("pickup_address"), "scheduled")
     return {"message": "Rescheduled", "ride_id": ride_id, "scheduled_at": new_at}
 
 

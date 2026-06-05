@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Users, MapPin, Clock, Gavel, CalendarBlank, Percent } from '@phosphor-icons/react';
+import { Users, MapPin, Clock, Gavel, CalendarBlank, Percent, Warning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -22,6 +22,7 @@ const AdminNoDriverStats = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(7);
+  const [alerts, setAlerts] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,13 +34,76 @@ const AdminNoDriverStats = () => {
     finally { setLoading(false); }
   }, [period]);
 
+  const loadAlerts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/admin/zone-alerts`, { credentials: 'include' });
+      if (res.ok) { const d = await res.json(); setAlerts(d.alerts || []); }
+    } catch { /* non-blocking */ }
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    loadAlerts();
+    const id = setInterval(loadAlerts, 15000);
+    return () => clearInterval(id);
+  }, [loadAlerts]);
+
+  const activateBonus = async (alertId) => {
+    try {
+      const res = await fetch(`${API}/api/admin/zone-alerts/${alertId}/bonus`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      toast.success(`Prime de ${d.bonus_amount} € activée sur ${d.zone}`);
+      loadAlerts();
+    } catch { toast.error('Activation de la prime impossible'); }
+  };
+
+  const dismissAlert = async (alertId) => {
+    try {
+      await fetch(`${API}/api/admin/zone-alerts/${alertId}/dismiss`, { method: 'POST', credentials: 'include' });
+      loadAlerts();
+    } catch { toast.error('Impossible d\'ignorer l\'alerte'); }
+  };
 
   if (loading) return <div className="p-8 text-center text-gray-500" data-testid="nodriver-loading">Chargement du rapport...</div>;
   if (!data) return <div className="p-8 text-center text-gray-500">Aucune donnée</div>;
 
   return (
     <div className="p-6" data-testid="admin-no-driver-stats">
+      {/* Live zone alerts banner */}
+      {alerts.length > 0 && (
+        <div className="mb-6 space-y-2" data-testid="zone-alerts-banner">
+          {alerts.map((a) => {
+            const bonusActive = a.bonus_active;
+            return (
+              <div key={a.id} className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3" data-testid={`zone-alert-${a.zone}`}>
+                <Warning size={22} weight="fill" className="text-red-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-red-800">
+                    Pénurie de chauffeurs · {a.zone} <span className="font-semibold text-red-500">({a.count} courses sans chauffeur)</span>
+                  </p>
+                  {bonusActive ? (
+                    <p className="text-[11px] text-emerald-700 font-semibold">Prime active : +{a.bonus_amount} € (jusqu'à {new Date(a.bonus_active_until).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})</p>
+                  ) : (
+                    <p className="text-[11px] text-red-500">Seuil dépassé ({a.threshold}) sur {a.window_minutes} min</p>
+                  )}
+                </div>
+                {!bonusActive && (
+                  <button onClick={() => activateBonus(a.id)} className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-bold whitespace-nowrap hover:bg-emerald-600" data-testid={`activate-bonus-${a.zone}`}>
+                    Activer une prime
+                  </button>
+                )}
+                <button onClick={() => dismissAlert(a.id)} className="px-2 py-1.5 rounded-lg text-gray-400 hover:text-gray-600 text-xs font-semibold" data-testid={`dismiss-alert-${a.zone}`}>
+                  Ignorer
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">

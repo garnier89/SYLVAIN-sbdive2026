@@ -1,4 +1,12 @@
-## NEW - Jun 2026 - Tableau de bord admin « Courses sans chauffeur » (DONE)
+## NEW - Jun 2026 - Alertes pénurie chauffeurs + prime chauffeur temporaire (DONE)
+- **Demande** : alerter l'admin quand une zone dépasse un seuil de courses sans chauffeur sur une fenêtre, et déclencher une prime chauffeur temporaire pour rééquilibrer l'offre.
+- **Backend** : module `core/zone_alerts.py` (`infer_zone`, `get_alert_cfg`, `maybe_create_zone_alert`). Détection appelée dans `convert-to-bidding` & `reschedule` : compte les courses sans chauffeur de la zone sur la fenêtre → crée une alerte `zone_alerts` (collection) + WS `zone_no_driver_alert` aux admins. Si `auto_bonus_enabled`, prime auto. Admin : `GET /admin/zone-alerts`, `POST /admin/zone-alerts/{id}/bonus` (manuel + WS `zone_bonus_active` aux chauffeurs), `POST /admin/zone-alerts/{id}/dismiss`. Chauffeur : `GET /api/rides/active-zone-bonuses` (⚠️ placé AVANT `/{ride_id}` pour éviter la capture de route).
+- **Config admin** (`no_driver_alerts`) : enabled, zone_threshold, window_minutes, auto_bonus_enabled, bonus_amount, bonus_duration_minutes. Route `/admin/no-driver-alerts-config` + menu.
+- **Frontend** : bandeau d'alertes live sur `AdminNoDriverStats` (bouton « Activer une prime » + « Ignorer », refresh 15s) ; bandeau chauffeur « Prime +X€ active à {zone} » sur `DriverHome` (fetch 30s + WS `zone_bonus_active`).
+- Vérifié curl E2E : seuil 2 → alerte créée (count), prime manuelle (7€/45min) et auto (8€/30min) visibles côté chauffeur, dismiss, reset. Lint clean front+back, frontend 200.
+- ⚠️ La prime est **déclarée + visible** (admin record + incitation chauffeur) ; l'**intégration au calcul de paie chauffeur** reste à brancher (à la complétion de course) — backlog.
+
+
 - **Demande** : voir le taux de courses passées en enchères/planifiées après relances, par zone et créneau, pour repérer les pénuries de chauffeurs.
 - **Backend** (`rides.py`) : `rebroadcast` incrémente `relance_count` ; `convert-to-bidding` marque `no_driver_outcome='bidding'` ; `reschedule` (si `relance_count>0`) marque `no_driver_outcome='scheduled'`. Nouvel endpoint `GET /api/admin/reports/no-driver-stats?days=N` (perm `dashboard.view`) → taux, totaux, répartition **par zone** (`_infer_zone`), **par créneau** (7 tranches horaires) et par véhicule.
 - **Frontend** (`AdminNoDriverStats.js`) : KPIs (taux, total, enchères, planifiées), barres empilées par créneau (recharts), tableau par zone. Route `/admin/reports/no-driver-stats` (2 blocs) + entrée menu « Courses sans chauffeur » (`AdminLayout`).

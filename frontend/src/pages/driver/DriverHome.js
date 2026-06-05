@@ -38,6 +38,7 @@ const DriverHome = () => {
   const [destMode, setDestMode] = useState(null); // { enabled, destination_lat, destination_lng, address, expires_at }
   const [destInput, setDestInput] = useState({ address: '', lat: '', lng: '' });
   const [poolRoute, setPoolRoute] = useState(null); // { passenger_count, stops, newPassenger }
+  const [zoneBonuses, setZoneBonuses] = useState([]);
   const locationWatchId = useRef(null);
 
   const { isLoaded: gmapLoaded } = { isLoaded: true };
@@ -177,8 +178,26 @@ const DriverHome = () => {
       toast.success(`+1 passager · trajet groupé (${msg.passenger_count} au total)`, { duration: 6000 });
       setPoolRoute({ passenger_count: msg.passenger_count, stops: msg.stops || [], newPassenger: msg.new_passenger });
     });
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); };
+    const unsub6 = on('zone_bonus_active', (msg) => {
+      toast.success(`Prime +${msg.bonus_amount} € active à ${msg.zone}`, { duration: 8000 });
+      setZoneBonuses((prev) => [{ zone: msg.zone, bonus_amount: msg.bonus_amount, bonus_active_until: msg.bonus_active_until }, ...prev.filter((b) => b.zone !== msg.zone)]);
+    });
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); };
   }, [on, currentRide, isOnline]);
+
+  // Active zone bonuses (driver-shortage incentives)
+  useEffect(() => {
+    let active = true;
+    const fetchBonuses = async () => {
+      try {
+        const res = await fetch(`${API}/api/rides/active-zone-bonuses`, { credentials: 'include' });
+        if (active && res.ok) { const d = await res.json(); setZoneBonuses(d.bonuses || []); }
+      } catch { /* non-blocking */ }
+    };
+    fetchBonuses();
+    const id = setInterval(fetchBonuses, 30000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
 
   useEffect(() => {
     if (isOnline && !currentRide) {
@@ -301,6 +320,20 @@ const DriverHome = () => {
 
   return (
     <div className="mobile-container bg-white min-h-screen relative pb-20" data-testid="driver-home-page">
+      {/* Active zone bonus banner (driver-shortage incentive) */}
+      {zoneBonuses.length > 0 && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2400] w-[92%] max-w-md" data-testid="zone-bonus-banner">
+          {zoneBonuses.slice(0, 1).map((b) => (
+            <div key={b.zone} className="flex items-center gap-2 bg-emerald-500 text-white rounded-2xl shadow-xl px-4 py-2.5" data-testid={`zone-bonus-${b.zone}`}>
+              <Gift size={20} weight="fill" className="flex-shrink-0" />
+              <p className="text-xs font-bold flex-1">
+                Prime +{b.bonus_amount} € active à {b.zone}
+                {b.bonus_active_until && <span className="font-semibold opacity-90"> · jusqu'à {new Date(b.bonus_active_until).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
       {/* Pool combined-route panel (trajet groupé multi-passagers) */}
       {poolRoute && (
         <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[2500] w-[92%] max-w-md bg-white rounded-2xl shadow-2xl border border-emerald-200 p-3" data-testid="pool-route-panel">
