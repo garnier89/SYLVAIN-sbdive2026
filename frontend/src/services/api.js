@@ -375,6 +375,7 @@ export const pharmacyAPI = {
   myOrders: () => api.get('/pharmacy/orders'),
   getOrder: (id) => api.get(`/pharmacy/orders/${id}`),
   cancelOrder: (id) => api.post(`/pharmacy/orders/${id}/cancel`),
+  payOrder: (id, paymentMethod) => api.post(`/pharmacy/orders/${id}/pay`, { payment_method: paymentMethod }),
   // driver
   driverAvailable: () => api.get('/pharmacy/driver/available'),
   driverActive: () => api.get('/pharmacy/driver/active'),

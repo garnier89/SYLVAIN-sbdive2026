@@ -305,6 +305,33 @@ async def cancel_order(order_id: str, request: Request):
     return {"id": order_id, "status": "cancelled"}
 
 
+@router.post("/orders/{order_id}/pay")
+async def pay_order(order_id: str, request: Request):
+    """Customer pays an unpaid order (e.g. a quoted prescription) via wallet / SB PayGo."""
+    user = await get_current_user(request)
+    body = await request.json()
+    method = body.get("payment_method")
+    if method not in ("wallet", "sbpaygo"):
+        raise HTTPException(status_code=400, detail="Méthode de paiement invalide")
+    order = await db.pharmacy_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    if order["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    if order.get("payment_status") == "paid":
+        raise HTTPException(status_code=400, detail="Commande déjà payée")
+    if order.get("needs_quote") or order.get("status") == "pending":
+        raise HTTPException(status_code=400, detail="En attente du devis de la pharmacie")
+    if order.get("status") in ("cancelled", "delivered"):
+        raise HTTPException(status_code=400, detail="Commande non payable")
+    amount = round(float(order.get("total", 0)), 2)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Montant invalide")
+    await _debit_user(user["id"], amount, method, f"Commande pharmacie {order_id}")
+    await db.pharmacy_orders.update_one({"id": order_id}, {"$set": {"payment_status": "paid", "payment_method": method}})
+    return {"id": order_id, "payment_status": "paid", "payment_method": method, "total": amount}
+
+
 # ─────────────────────────── Driver side ───────────────────────────
 @router.get("/driver/available")
 async def driver_available(request: Request):
@@ -484,6 +511,16 @@ async def admin_quote_order(order_id: str, request: Request):
         {"id": order_id},
         {"$set": {"medication_total": medication_total, "total": total, "needs_quote": False, "status": "confirmed"}},
     )
+    # Notify the customer that the quote is ready (real-time → "Payer maintenant")
+    try:
+        await manager.send_personal_message({
+            "type": "pharmacy_quote_ready",
+            "order_id": order_id,
+            "medication_total": medication_total,
+            "total": total,
+        }, order["user_id"])
+    except Exception:
+        pass
     return {"id": order_id, "medication_total": medication_total, "total": total, "status": "confirmed"}
 
 

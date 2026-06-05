@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { pharmacyAPI } from '../../../services/api';
-import { ArrowLeft, Pill, Prescription, ShoppingBag, Clock } from '@phosphor-icons/react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useWebSocket } from '../../../hooks/useWebSocket';
+import { ArrowLeft, Pill, Prescription, ShoppingBag, Clock, Wallet } from '@phosphor-icons/react';
 
 const fmt = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v || 0);
 const STATUS = {
@@ -19,18 +21,54 @@ const TIMELINE = ['confirmed', 'preparing', 'accepted', 'picked_up', 'in_transit
 
 const PharmacyOrdersPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { on } = useWebSocket(user?.id);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [payTarget, setPayTarget] = useState(null); // order awaiting payment
+  const [balances, setBalances] = useState({});
+  const [paying, setPaying] = useState(false);
 
   const load = useCallback(() => {
     pharmacyAPI.myOrders().then((r) => setOrders(r.data || [])).catch(() => {}).finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
 
+  // Real-time: pharmacy sent a price quote → prompt payment
+  useEffect(() => {
+    const unsub = on('pharmacy_quote_ready', (msg) => {
+      toast.success(`💶 Devis reçu : ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(msg.total || 0)} — vous pouvez payer.`);
+      load();
+    });
+    return unsub;
+  }, [on, load]);
+
   const cancel = async (id) => {
     if (!window.confirm('Annuler cette commande ?')) return;
     try { await pharmacyAPI.cancelOrder(id); toast.success('Commande annulée'); load(); }
     catch (e) { toast.error(e.response?.data?.detail || 'Annulation impossible'); }
+  };
+
+  const openPay = (order) => {
+    setPayTarget(order);
+    pharmacyAPI.paymentMethods().then((r) => {
+      const map = {}; (r.data.methods || []).forEach((m) => { map[m.id] = m.balance; }); setBalances(map);
+    }).catch(() => {});
+  };
+
+  const doPay = async (method) => {
+    if ((balances[method] ?? 0) < payTarget.total) {
+      if (method === 'wallet') return navigate('/wallet');
+      try { const r = await pharmacyAPI.sbpaygoSsoLink(); if (r.data?.url) window.location.href = r.data.url; } catch { toast.error('Recharge indisponible'); }
+      return;
+    }
+    setPaying(true);
+    try {
+      await pharmacyAPI.payOrder(payTarget.id, method);
+      toast.success('Paiement effectué ✅');
+      setPayTarget(null); load();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Paiement échoué'); }
+    finally { setPaying(false); }
   };
 
   return (
@@ -88,15 +126,51 @@ const PharmacyOrdersPage = () => {
                 <div className="text-sm">
                   <span className="text-gray-400 text-xs">Total </span>
                   <span className="font-bold text-gray-900">{o.needs_quote && o.status === 'pending' ? 'À confirmer' : fmt(o.total)}</span>
+                  {o.payment_status === 'paid' && <span className="ml-2 text-[11px] font-semibold text-green-600">· Payé ✓</span>}
                 </div>
-                {canCancel && (
-                  <button onClick={() => cancel(o.id)} className="text-xs font-semibold text-red-500" data-testid={`order-cancel-${o.id}`}>Annuler</button>
-                )}
+                <div className="flex items-center gap-3">
+                  {o.payment_status === 'pending' && o.total > 0 && !['pending', 'delivered', 'cancelled'].includes(o.status) && (
+                    <button onClick={() => openPay(o)} className="text-xs font-bold text-white bg-[#FF4500] rounded-full px-3 py-1.5 flex items-center gap-1" data-testid={`order-pay-${o.id}`}>
+                      <Wallet size={13} weight="fill" /> Payer maintenant
+                    </button>
+                  )}
+                  {canCancel && (
+                    <button onClick={() => cancel(o.id)} className="text-xs font-semibold text-red-500" data-testid={`order-cancel-${o.id}`}>Annuler</button>
+                  )}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Payment sheet */}
+      {payTarget && (
+        <div className="fixed inset-0 bg-black/40 z-40 flex items-end" onClick={() => setPayTarget(null)}>
+          <div className="bg-white w-full max-w-md mx-auto rounded-t-3xl p-4" onClick={(e) => e.stopPropagation()} data-testid="pay-sheet">
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
+            <h3 className="text-base font-bold text-gray-900 mb-1">Payer la commande</h3>
+            <p className="text-xs text-gray-500 mb-3">Total à régler : <span className="font-bold text-gray-900">{fmt(payTarget.total)}</span> (médicaments {fmt(payTarget.medication_total)} + livraison {fmt(payTarget.delivery_fee)}).</p>
+            <div className="space-y-2">
+              {[{ id: 'wallet', label: 'Mon portefeuille' }, { id: 'sbpaygo', label: 'SB PayGo' }].map((m) => {
+                const bal = balances[m.id];
+                const insufficient = (bal ?? 0) < payTarget.total;
+                return (
+                  <button key={m.id} onClick={() => doPay(m.id)} disabled={paying} data-testid={`pay-method-${m.id}`}
+                    className="w-full flex items-center justify-between border border-gray-200 rounded-xl px-4 py-3 text-left disabled:opacity-60">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{m.label}</div>
+                      <div className={`text-[11px] ${insufficient ? 'text-red-500' : 'text-gray-400'}`}>Solde : {bal == null ? '—' : fmt(bal)}{insufficient ? ' · insuffisant → recharger' : ''}</div>
+                    </div>
+                    <span className="text-xs font-bold text-[#FF4500]">{insufficient ? 'Recharger →' : 'Payer →'}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={() => setPayTarget(null)} className="w-full mt-3 text-sm text-gray-500 py-2" data-testid="pay-cancel-btn">Plus tard</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

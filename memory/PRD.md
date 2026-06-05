@@ -1,3 +1,10 @@
+## UPDATE - Jun 2026 - Pharmacie : « Payer maintenant » sur ordonnance après devis (notif WS + débit) (DONE)
+- **Boucle de monétisation du parcours ordonnance** : quand l'admin/pharmacie établit le **devis** (`POST /admin/pharmacy/orders/{id}/quote`), un **broadcast WS `pharmacy_quote_ready`** est envoyé au client → toast « 💶 Devis reçu : X € » + rechargement.
+- **Nouveau endpoint** `POST /pharmacy/orders/{id}/pay` {payment_method: wallet|sbpaygo} : débit atomique via `_debit_user`, `payment_status='paid'`. Gardes : 400 si pas encore de devis (`needs_quote`/status pending), si déjà payé, si annulée/livrée, si méthode invalide.
+- **UI** (`PharmacyOrdersPage`) : écoute WS (`useWebSocket`), bouton **« Payer maintenant »** sur les commandes non payées avec devis (`order-pay-{id}`), feuille de paiement (soldes Portefeuille/SB PayGo + recharge contextuelle si insuffisant), badge « Payé ✓ ».
+- Vérifié E2E curl : payer avant devis → 400 ; devis 20 € → total 22,50 ; paiement wallet → payé (solde 50→27,50) ; re-paiement → 400 « déjà payée ». Lint clean (front + back).
+
+
 ## UPDATE - Jun 2026 - Pharmacie : paiement réel Portefeuille / SB PayGo dès la commande catalogue (DONE)
 - **Monétisation immédiate** : une commande **catalogue** payée par **Portefeuille** ou **SB PayGo** est **débitée atomiquement** à la création (`{balance: {$gte: total}}`), `payment_status='paid'`. Solde insuffisant → **HTTP 400** « Solde … insuffisant ». Espèces/Carte restent « payé à la livraison ».
 - **Remboursement automatique** : annuler une commande payée recrédite le portefeuille/SB PayGo (`payment_status='refunded'`, transaction de remboursement enregistrée).
