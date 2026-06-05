@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal
 } from '@phosphor-icons/react';
 
 const sidebarConfig = [
@@ -53,6 +53,7 @@ const sidebarConfig = [
   {
     title: 'SERVICES',
     items: [
+      { icon: SlidersHorizontal, label: 'Paramètres des services', path: '/admin/services-settings' },
       { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
         { label: 'Gérer les catégories', path: '/admin/service-categories' },
         { label: 'Tarification dynamique', path: '/admin/dynamic-pricing' },

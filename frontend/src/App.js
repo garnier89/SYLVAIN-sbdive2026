@@ -144,6 +144,7 @@ import AdminNegotiationGapReport from './pages/admin/AdminNegotiationGapReport';
 import AdminFeaturedListings from './pages/admin/AdminFeaturedListings';
 import AdminRealEstate from './pages/admin/AdminRealEstate';
 import AdminPharmacy from './pages/admin/AdminPharmacy';
+import AdminServiceSettings from './pages/admin/AdminServiceSettings';
 import AdminPaymentMethods from './pages/admin/AdminPaymentMethods';
 import AdminSbPayGoZones from './pages/admin/AdminSbPayGoZones';
 import TopDriversPage from './pages/TopDriversPage';
@@ -411,6 +412,7 @@ const AppRouter = () => {
         <Route path="featured-listings" element={<AdminFeaturedListings />} />
         <Route path="real-estate" element={<AdminRealEstate />} />
         <Route path="pharmacy" element={<AdminPharmacy />} />
+        <Route path="services-settings" element={<AdminServiceSettings />} />
         <Route path="kiosks" element={<AdminKiosks />} />
         <Route path="acl" element={<AdminACL />} />
         <Route path="audit-logs" element={<AdminAuditLogs />} />

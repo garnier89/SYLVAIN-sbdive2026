@@ -1,0 +1,36 @@
+{
+  "summary": "iter116 — Unified 'Paramètres des services' admin panel: full backend + frontend validation. Backend 6/6 pytest passing (admin list returns the 7 expected services with label/icon/fields_schema/active/info_note/fields and advanced_link='/admin/pharmacy' only for pharmacy and empty fields_schema; PUT /admin/services/settings/taxi persists active/info_note/fields, ignores unknown fields via whitelist, coerces & rounds numeric values to 2 decimals; public GET /services/taxi/settings as authenticated user reflects admin changes; unknown service key returns 404 on both GET and PUT; non-admin user PUT returns 403). Frontend: /admin/services-settings renders admin-service-settings-page with all 7 service-card-* cards. Non-pharmacy cards expose toggle-<key>, note-<key>, save-<key> and dynamic field-<key>-<fieldkey> inputs. Pharmacy card shows NO field inputs and displays advanced-pharmacy link that navigates to /admin/pharmacy. Edit→Save→Reload persistence verified on taxi (info_note + base_fare). Sidebar entry 'Paramètres des services' under SERVICES section opens the page correctly. Regression: pharmacy admin tabs Paramètres/Catégories still functional (settings-active-toggle + add-category-btn visible); iter115 pytest still 14/14 passing. Taxi restored to defaults at end of run (verified via API).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/services-settings", "issues": ["Save button label appears slightly clipped in some cards on certain widths — purely visual, button is clickable and functional (verified end-to-end save+reload)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter116_service_settings.py",
+    "/app/test_reports/pytest/iter116.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/service_settings.py: clean separation — SERVICE_REGISTRY drives both schema (fields_schema returned to the admin UI) and the whitelist used in admin_update_settings; declarative/extensible.",
+    "_num helper centralizes field definition; default values and suffixes are consistent.",
+    "admin_update_settings uses round(float(v), 2) inside try/except — non-numeric inputs fall back to default rather than raising 422; acceptable but consider documenting (silent fallback).",
+    "_require_admin allows both admin and dispatcher roles — confirm desired (dispatcher can edit pricing). Matches spec since test_user_put_forbidden passed for normal user.",
+    "AdminServiceSettings.js ServiceCard: save() uses Number(fields[f.key]) || 0 — a stray empty/non-numeric field silently becomes 0; inline validation/min='0' would be safer.",
+    "AdminServiceSettings.js: toggle visual relies on local state only; if backend update fails the toast surfaces 'Échec' but state isn't rolled back — minor UX nit, not blocking.",
+    "Comment in spec confirms these settings are NOT yet consumed by pricing engines — current PR is a 'socle réutilisable' only; that matches code (no cross-wiring detected)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter116_service_settings.py",
+    "/app/test_reports/iteration_116.json"
+  ],
+  "success_rate": {"backend": "100% (6/6 new + 14/14 iter115 regression)", "frontend": "100% on all required testids and flows (admin-service-settings-page, 7 service-card-*, toggle/note/save/field-* on non-pharmacy, advanced-pharmacy nav, persistence after reload, nav entry)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; rx.qa@demo.sb / RxQa123! (login via /login/email)",
+  "seed_data_creation": "Test mutated taxi (active=false, note='TEST_iter116_note', base_fare=3.33, per_km=1.45) then restored defaults via final pytest step + UI step (verified via curl: active=true, info_note='', base_fare=2.5, per_km=1.2, per_min=0.3, min_fare=5, booking_fee=0, cancellation_fee=0). State at handoff = CLEAN defaults.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter116 introduced the unified Service Settings socle. Backend module: /app/backend/routes/service_settings.py (SERVICE_REGISTRY drives 7 services). Admin endpoints: GET /api/admin/services/settings, GET/PUT /api/admin/services/settings/{key}. Public endpoint: GET /api/services/{key}/settings (auth required). Frontend: /admin/services-settings → AdminServiceSettings.js with testids admin-service-settings-page, service-card-<key>, toggle-<key>, note-<key>, field-<key>-<fieldkey>, save-<key>, advanced-pharmacy. Note: per spec these settings are NOT yet consumed by actual pricing engines.",
+  "rca of the issue": "n/a — no bugs found."
+}

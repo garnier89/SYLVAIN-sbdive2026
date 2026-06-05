@@ -404,6 +404,13 @@ export const pharmacyAPI = {
   adminDeleteCategory: (key) => api.delete(`/admin/pharmacy/categories/${key}`),
 };
 
+export const serviceSettingsAPI = {
+  publicSettings: (key) => api.get(`/services/${key}/settings`),
+  adminList: () => api.get('/admin/services/settings'),
+  adminGet: (key) => api.get(`/admin/services/settings/${key}`),
+  adminUpdate: (key, data) => api.put(`/admin/services/settings/${key}`, data),
+};
+
 export const placesAPI = {
   getSaved: () => api.get('/places/saved'),
   setSaved: (kind, place) => api.put(`/places/saved/${kind}`, place),
