@@ -149,7 +149,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
     toast.success('Nom copié dans toutes les langues');
   };
 
-  const addZone = () => set('zone_overrides', [...f.zone_overrides, { zone: ZONES[0], price_per_km: f.price_per_km, price_per_min: f.price_per_min, base_fare: f.base_fare, min_fare: f.min_fare }]);
+  const addZone = () => set('zone_overrides', [...f.zone_overrides, { _id: crypto.randomUUID(), zone: ZONES[0], price_per_km: f.price_per_km, price_per_min: f.price_per_min, base_fare: f.base_fare, min_fare: f.min_fare }]);
   const updZone = (i, patch) => set('zone_overrides', f.zone_overrides.map((z, idx) => (idx === i ? { ...z, ...patch } : z)));
   const delZone = (i) => set('zone_overrides', f.zone_overrides.filter((_, idx) => idx !== i));
 
@@ -300,7 +300,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
           </div>
           {f.zone_overrides.length === 0 && <p className="text-xs text-gray-400">Aucun surcoût. Le tarif de base s'applique partout.</p>}
           {f.zone_overrides.map((z, i) => (
-            <div key={i} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end mb-2 bg-gray-50 rounded-lg p-2" data-testid={`vt-zone-${i}`}>
+            <div key={z._id ?? `zone-${i}`} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end mb-2 bg-gray-50 rounded-lg p-2" data-testid={`vt-zone-${i}`}>
               <Field label="Zone">
                 <select value={z.zone} onChange={(e) => updZone(i, { zone: e.target.value })} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm">
                   {ZONES.map((zn) => <option key={zn} value={zn}>{zn}</option>)}

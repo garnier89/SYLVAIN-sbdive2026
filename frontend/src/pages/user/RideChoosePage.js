@@ -103,7 +103,7 @@ const RideChoosePage = () => {
             const d = await r.json();
             if (d.results?.[0]) address = d.results[0].formatted_address;
           }
-        } catch { /* keep coords */ }
+        } catch (e) { console.warn('[ride-choose] reverse geocode failed', e?.message); }
         setPickup({ lat, lng, address });
         setLocating(false);
       },

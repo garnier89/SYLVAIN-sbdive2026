@@ -163,7 +163,7 @@ const PostPropertyPage = () => {
           <p className="text-sm font-semibold text-gray-700 mb-2">Photos ({f.images.length}/12)</p>
           <div className="grid grid-cols-3 gap-2">
             {f.images.map((img, i) => (
-              <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
+              <div key={img} className="relative aspect-square rounded-xl overflow-hidden">
                 <img src={img} alt="" className="w-full h-full object-cover" />
                 <button onClick={() => removeImage(i)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center" data-testid={`post-remove-img-${i}`}><X size={14} /></button>
               </div>

@@ -145,7 +145,7 @@ const TaxiBiddingPage = () => {
           if (ride.status === 'cancelled') { toast.info('Course annulée'); setSearching(null); }
           else { toast.success('Chauffeur trouvé !'); navigate(`/ride/${searching}`); }
         }
-      } catch (e) { /* keep polling */ }
+      } catch (e) { console.warn('[bidding] poll error', e?.message); }
     }, 2500);
     return () => { clearInterval(poll); clearInterval(tick); };
   }, [searching, navigate]);
@@ -191,7 +191,7 @@ const TaxiBiddingPage = () => {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
           body: JSON.stringify({ status: 'cancelled', cancel_reason: 'Annulé par le passager' }),
         });
-      } catch (e) { /* ignore */ }
+      } catch (e) { console.warn('[bidding] cancel failed', e?.message); }
     }
     setSearching(null);
   };

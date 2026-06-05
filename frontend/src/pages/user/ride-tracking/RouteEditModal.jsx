@@ -35,7 +35,7 @@ const RouteEditModal = ({ open, ride, onClose, onUpdated }) => {
       });
       const fare = r.data?.estimated_fare;
       if (typeof fare === 'number') setPreview({ fare, delta: fare - currentFare, distance: r.data?.distance_km });
-    } catch { /* ignore preview errors */ } finally { setEstimating(false); }
+    } catch (e) { console.warn('[route-edit] preview failed', e?.message); } finally { setEstimating(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ride, pickup, dropoff, stops, inProgress, currentFare]);
 

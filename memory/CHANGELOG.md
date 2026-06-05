@@ -1,6 +1,24 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-05 — Revue qualité #2 : correctifs sûrs (sécurité + patterns) — Iteration 125
+
+### Fixed (sécurité)
+- **Identifiants de test centralisés** : les 5 fichiers (`test_iter97/96/95/84/117`) importent désormais `ADMIN_EMAIL`/`ADMIN_PASSWORD` depuis `tests/_creds.py` (source unique, 100 % env via `os.environ.get`). Plus aucun littéral d'identifiant dispersé. 30 tests collectés OK.
+
+### Fixed (patterns React — clés stables)
+- Clés d'index → clés stables : `PostPropertyPage` (galerie → URL image), `DeliveryTrackingPage` (markers dépôt → `lat-lng`), `DriverSubscriptions` (perks → valeur), `VehicleTypeEditor` (zones → `_id` UUID stable à l'ajout/suppression).
+
+### Fixed (catch silencieux loggés)
+- `TaxiBiddingPage` (poll + cancel), `RouteEditModal` (preview tarif), `RideChoosePage` (reverse-geocode) : `console.warn` contextuel au lieu d'avaler l'erreur.
+
+### Faux positifs confirmés (non modifiés)
+- **`random` dans `simulation.py`** : génère uniquement des **données de démo** (noms chauffeurs, plaques fictives, notes) — aucun token/crypto → `secrets` inutile.
+- **`is` vs `==` (165 annoncés)** : audit réel = 3 occurrences, toutes dans des **commentaires** → rien à corriger.
+- **localStorage** ProfileTabView/InstallPWA (préférences) et KioskApp (token device-bound) : inchangés (cf. iteration 124).
+- **Gros refactors** (complexité admin.py, paramètres audit_logs, découpage composants, lazy-load App.js, retrait des ~153 console) : différés (risque de régression sur prod déployée).
+
+
 ## 2026-06-05 — Revue qualité de code : correctifs sûrs (sécurité + patterns) — Iteration 124
 
 ### Fixed (Critique — sécurité)

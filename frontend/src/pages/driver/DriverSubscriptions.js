@@ -120,8 +120,8 @@ export default function DriverSubscriptions() {
                     <span className="text-xs text-gray-500">commission</span>
                   </div>
                   <ul className="space-y-1.5 text-sm pt-2 border-t">
-                    {(plan.perks || []).map((perk, i) => (
-                      <li key={i} className="flex items-start gap-2 text-gray-700">
+                    {(plan.perks || []).map((perk) => (
+                      <li key={perk} className="flex items-start gap-2 text-gray-700">
                         <CheckCircle size={16} weight="fill" className="text-green-500 mt-0.5 flex-shrink-0" />
                         <span>{perk}</span>
                       </li>

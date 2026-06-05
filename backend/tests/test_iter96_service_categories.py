@@ -31,8 +31,7 @@ def _load_backend_url():
 
 
 BASE_URL = _load_backend_url()
-ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "admin@superapp.com")
-ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 
 EXPECTED_KEYS = {
     "standard", "pool", "electric", "moto", "rental", "intercity",

@@ -109,7 +109,7 @@ const DeliveryTrackingPage = () => {
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               {item.pickup_lat && <Marker position={[item.pickup_lat, item.pickup_lng]} icon={greenIcon}><Popup>Ramassage</Popup></Marker>}
               {type === 'transport' && item.dest_lat && <Marker position={[item.dest_lat, item.dest_lng]} icon={redIcon}><Popup>Destination</Popup></Marker>}
-              {type !== 'transport' && (item.stops || []).map((s, i) => (s.lat ? <Marker key={i} position={[s.lat, s.lng]} icon={redIcon}><Popup>Dépôt {i + 1}</Popup></Marker> : null))}
+              {type !== 'transport' && (item.stops || []).map((s, i) => (s.lat ? <Marker key={`${s.lat}-${s.lng}`} position={[s.lat, s.lng]} icon={redIcon}><Popup>Dépôt {i + 1}</Popup></Marker> : null))}
               {item.driver_location && <Marker position={[item.driver_location.lat, item.driver_location.lng]} icon={courierIcon}><Popup>Votre coursier</Popup></Marker>}
               {item.driver_location && <Recenter lat={item.driver_location.lat} lng={item.driver_location.lng} />}
             </MapContainer>
