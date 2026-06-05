@@ -641,3 +641,20 @@ Captures V3Cube fournies : après adresse + Pool → écran « De combien de pla
 ### Tests
 - pytest `test_iter121_taxi_pool.py` **5/5 ✅** (remise pool, sièges géométriques, création 2 sièges, jamais hors Pool).
 - testing_agent frontend **100%** (iteration_121.json) : feuille sièges, ratio 1,97×, navigation vers /ride/<id> « Recherche d'un chauffeur ». Mode standard contourne la feuille. Rides de test nettoyés.
+
+## 2026-06-05 (suite) — Correction modèle prix Pool = parité V3Cube exacte + config admin
+
+### Contexte (captures admin V3Cube fournies)
+Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentage = 90** (chaque siège suppl. = 90% du 1er siège), **Available Seats = 4** (capacité hors chauffeur), Fare Model = Fixed. Important : le **1er siège = tarif plein** (PAS de remise -30%).
+
+### Fixed / Changed
+- Backend `rides.py` : remplacé le modèle géométrique erroné (0.70×…) par le **modèle linéaire V3Cube** : `total(n) = F × (1 + (n-1)×pool_percentage/100)` où F = tarif plein du véhicule Pool. 1 siège = F (5,00€), 2 = ×1,9 (9,50€), 3 = ×2,8 (14,00€), 4 = ×3,7 (18,50€).
+- Config **admin-configurable** via `service_configs` clé `pool` : `get_pool_config()` lit `enable_pool`, `pool_percentage`, `available_seats`. Sièges demandés bornés à la capacité.
+- Admin : page **« Configuration Pool »** (`/admin/pool-config`, sidebar Taxi/Transport) avec toggle + Pool Percentage + Sièges disponibles + Modèle tarifaire.
+- Estimate renvoie `available_seats` + `pool_percentage` ; frontend `TaxiHubPage` : options de sièges dynamiques (1..capacité), prix par siège via le modèle linéaire piloté par la config.
+- Seed config par défaut (90 / 4 / Fixed).
+
+### Tests
+- pytest `test_iter121_taxi_pool.py` **5/5 ✅** (1er siège = plein, tarif linéaire par siège, clamp capacité, persistance création, non-pool intact).
+- curl e2e : P=90→2 sièges 9,50€ / 4 sièges 18,50€ ; changement admin P=80 → 9,00€ et capacité 2 → clamp ✓.
+- Screenshot : page admin Configuration Pool OK.

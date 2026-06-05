@@ -1,4 +1,5 @@
-"""Iteration 121 — Taxi Pool activation (shared-ride -30% discount, Pool section only)."""
+"""Iteration 121 — Taxi Pool (V3Cube model): 1st seat = full fare,
+each extra seat = pool_percentage% of 1st seat. Admin-configurable, capacity-clamped."""
 import os
 import time
 
@@ -25,71 +26,52 @@ def _user_session():
     return s
 
 
-def test_estimate_pool_discount():
-    # Non-pool baseline
-    r1 = requests.post(f"{API}/rides/estimate", json={**TRIP}, timeout=30)
-    assert r1.status_code == 200, r1.text
-    base = r1.json()
-    assert base["pool_enabled"] is False
-    assert base["original_fare"] is None
-
-    # Pool variant
-    r2 = requests.post(f"{API}/rides/estimate", json={**TRIP, "pool_enabled": True}, timeout=30)
-    assert r2.status_code == 200, r2.text
-    pool = r2.json()
-    assert pool["pool_enabled"] is True
-    assert pool["original_fare"] == base["estimated_fare"]
-    # 30% discount
-    assert abs(pool["estimated_fare"] - round(base["estimated_fare"] * 0.70, 2)) < 0.01
-    assert any("Pool" in reason for reason in pool["pricing_reasons"])
+def test_first_seat_is_full_fare_no_discount():
+    base = requests.post(f"{API}/rides/estimate", json={**TRIP}, timeout=30).json()
+    pool1 = requests.post(f"{API}/rides/estimate", json={**TRIP, "pool_enabled": True, "seats_required": 1}, timeout=30).json()
+    # 1st seat = full fare (NO discount on first seat, V3Cube model)
+    assert pool1["seats_required"] == 1
+    assert abs(pool1["estimated_fare"] - base["estimated_fare"]) < 0.01
+    assert pool1["original_fare"] == base["estimated_fare"]
+    assert pool1["available_seats"] is not None
+    assert pool1["pool_percentage"] is not None
 
 
-def test_create_pool_ride_applies_discount():
-    s = _user_session()
-    # baseline non-pool
-    rb = s.post(f"{API}/rides", json={**TRIP}, timeout=30)
-    assert rb.status_code in (200, 201), rb.text
-    base_fare = rb.json()["estimated_fare"]
-    assert rb.json().get("pool_enabled") is False
-    assert rb.json().get("original_fare") is None
-
-    # pool ride
-    rp = s.post(f"{API}/rides", json={**TRIP, "pool_enabled": True}, timeout=30)
-    assert rp.status_code in (200, 201), rp.text
-    pool = rp.json()
-    assert pool["pool_enabled"] is True
-    assert pool["original_fare"] == base_fare
-    assert abs(pool["estimated_fare"] - round(base_fare * 0.70, 2)) < 0.01
-
-
-def test_pool_discount_only_when_enabled():
-    """A normal (non-pool) booking must never receive the pool discount."""
-    s = _user_session()
-    r = s.post(f"{API}/rides", json={**TRIP}, timeout=30)
-    assert r.status_code in (200, 201)
-    d = r.json()
-    assert d["pool_enabled"] is False
-    assert d["original_fare"] is None
-
-
-def test_pool_seat_pricing_geometric():
-    """V3Cube parity: 1 seat = F*0.70, 2 seats = F*1.33 (ratio 1.9)."""
+def test_seat_pricing_linear_pool_percentage():
+    """V3Cube: total(n) = F * (1 + (n-1)*pct/100). Default pct=90 -> 2 seats ratio 1.9, 4 seats 3.7."""
     r1 = requests.post(f"{API}/rides/estimate", json={**TRIP, "pool_enabled": True, "seats_required": 1}, timeout=30).json()
     r2 = requests.post(f"{API}/rides/estimate", json={**TRIP, "pool_enabled": True, "seats_required": 2}, timeout=30).json()
-    full = r1["original_fare"]
-    assert r1["seats_required"] == 1 and r2["seats_required"] == 2
-    assert abs(r1["estimated_fare"] - round(full * 0.70, 2)) < 0.02
-    assert abs(r2["estimated_fare"] - round(full * 1.33, 2)) < 0.02
-    # 2-seat / 1-seat ratio ~ 1.9
-    assert abs(r2["estimated_fare"] / r1["estimated_fare"] - 1.9) < 0.05
+    F = r1["estimated_fare"]
+    pct = r1["pool_percentage"]
+    assert abs(r2["estimated_fare"] - round(F * (1 + (pct / 100.0)), 2)) < 0.02
+    # ratio = 1 + pct/100
+    assert abs(r2["estimated_fare"] / F - (1 + pct / 100.0)) < 0.02
 
 
-def test_create_pool_ride_with_2_seats():
+def test_seats_clamped_to_available():
+    r1 = requests.post(f"{API}/rides/estimate", json={**TRIP, "pool_enabled": True, "seats_required": 1}, timeout=30).json()
+    cap = r1["available_seats"]
+    over = requests.post(f"{API}/rides/estimate", json={**TRIP, "pool_enabled": True, "seats_required": cap + 5}, timeout=30).json()
+    assert over["seats_required"] == cap
+
+
+def test_create_pool_ride_persists_seats_and_fare():
     s = _user_session()
     base = s.post(f"{API}/rides", json={**TRIP}, timeout=30).json()["estimated_fare"]
+    est = requests.post(f"{API}/rides/estimate", json={**TRIP, "pool_enabled": True, "seats_required": 2}, timeout=30).json()
     rp = s.post(f"{API}/rides", json={**TRIP, "pool_enabled": True, "seats_required": 2}, timeout=30)
     assert rp.status_code in (200, 201), rp.text
     d = rp.json()
     assert d["seats_required"] == 2
     assert d["pool_enabled"] is True
-    assert abs(d["estimated_fare"] - round(base * 1.33, 2)) < 0.02
+    pct = est["pool_percentage"]
+    assert abs(d["estimated_fare"] - round(base * (1 + pct / 100.0), 2)) < 0.02
+
+
+def test_non_pool_unaffected():
+    s = _user_session()
+    r = s.post(f"{API}/rides", json={**TRIP}, timeout=30)
+    d = r.json()
+    assert d["pool_enabled"] is False
+    assert d["original_fare"] is None
+    assert d["seats_required"] == 1

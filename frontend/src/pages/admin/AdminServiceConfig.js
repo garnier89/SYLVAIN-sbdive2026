@@ -126,6 +126,12 @@ const serviceConfigs = {
     { key: 'directions_enabled', label: 'Itineraires (Directions) actifs', type: 'toggle', value: true },
     { key: 'default_zoom', label: 'Zoom par defaut', type: 'number', value: 12 },
   ]},
+  pool: { title: 'Configuration Pool (Course partagée)', icon: UsersThree, color: '#FF5000', desc: 'Paramètres du taxi partagé : activation, tarif par siège et capacité (parité V3Cube)', settings: [
+    { key: 'enable_pool', label: 'Activer le Pool (Shared Ride)', type: 'toggle', value: true },
+    { key: 'pool_percentage', label: 'Pool Percentage (% du 1er siège facturé par siège suppl.)', type: 'number', value: 90 },
+    { key: 'available_seats', label: 'Sièges disponibles (capacité, hors chauffeur)', type: 'number', value: 4 },
+    { key: 'fare_model', label: 'Modèle tarifaire (Fixed si Pool actif)', type: 'text', value: 'Fixed' },
+  ]},
 };
 
 const API = process.env.REACT_APP_BACKEND_URL;

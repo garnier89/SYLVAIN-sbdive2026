@@ -253,14 +253,15 @@ const TaxiHubPage = () => {
     return acc ? acc.discount_pct : 0;
   }, [mode.id, corpAccounts, corpId]);
 
-  // Pool — geometric seat pricing (V3Cube parity): 1 seat = full*0.70, +0.9x per extra seat
+  // Pool — V3Cube seat pricing: 1st seat = full fare, each extra seat = pool_percentage% of 1st
+  const poolPercentage = estimate?.pool_percentage ?? 90;
+  const poolMaxSeats = estimate?.available_seats ?? 4;
   const poolMult = (seats) => {
-    const base = 0.70, decay = 0.90;
-    const n = Math.max(1, Math.min(seats, 4));
-    return base * (1 - Math.pow(decay, n)) / (1 - decay);
+    const n = Math.max(1, seats);
+    return 1 + (n - 1) * (poolPercentage / 100);
   };
   const poolFullFare = estimate?.original_fare ?? estimate?.estimated_fare ?? 0;
-  const POOL_SEAT_OPTIONS = [1, 2];
+  const POOL_SEAT_OPTIONS = Array.from({ length: Math.max(1, Math.min(poolMaxSeats, 6)) }, (_, i) => i + 1);
 
   const displayPrice = useMemo(() => {
     if (!estimate?.estimated_fare) return null;
@@ -269,7 +270,7 @@ const TaxiHubPage = () => {
     if (corpDiscount) p = p * (1 - corpDiscount / 100);
     if (promoDiscount) p = Math.max(0, p - promoDiscount);
     return p;
-  }, [estimate, corpDiscount, promoDiscount, mode.id, poolSeats]);
+  }, [estimate, corpDiscount, promoDiscount, mode.id, poolSeats, poolPercentage]);
 
   const applyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -660,13 +661,13 @@ const TaxiHubPage = () => {
               <h3 className="text-lg font-black text-[#0B1426] text-center">De combien de places avez-vous besoin ?</h3>
               <p className="text-xs text-gray-500 text-center mt-1">Service de taxi partagé rentable</p>
 
-              <div className="flex gap-3 mt-5">
+              <div className="grid grid-cols-2 gap-3 mt-5">
                 {POOL_SEAT_OPTIONS.map((s) => {
                   const price = poolFullFare * poolMult(s);
                   const active = poolSeats === s;
                   return (
                     <button key={s} onClick={() => setPoolSeats(s)} data-testid={`pool-seat-${s}`}
-                      className={`flex-1 rounded-xl border-2 p-4 text-center transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-200 bg-white'}`}>
+                      className={`rounded-xl border-2 p-4 text-center transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-200 bg-white'}`}>
                       <div className="flex items-center justify-center gap-1.5">
                         <UsersThree size={20} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />
                         <span className={`text-2xl font-black ${active ? 'text-[#FF5000]' : 'text-[#0B1426]'}`}>{s}</span>
