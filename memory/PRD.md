@@ -1,3 +1,10 @@
+## NEW - Jun 2026 - Matching Taxi Pool réel branché sur le suivi passager (DONE — P0)
+- **Demande** : afficher au passager « X place(s) disponible(s) sur une course Pool proche » (vrai covoiturage temps réel) — branchement de l'UI sur l'endpoint existant `GET /api/phase2/pool/matches/{ride_id}`.
+- **Frontend** (`RideTrackingPage.js`) : quand Taxi Pool est activé et la course `pending`, polling 8s de `/pool/matches/{id}` → panneau `pool-matches-panel`. Si matches : compteur (`pool-matches-count`) + liste des courses Pool proches (`pool-match-{i}` : adresse ramassage/destination + distance km). Sinon : état « Recherche de passagers Pool à proximité… » (`pool-matches-empty`). Nettoyage auto quand pool désactivé ou course non-pending.
+- **Backend** : endpoint déjà présent (candidats `pending` + `pool_enabled` + même `vehicle_type`, ramassage ≤2 km & dépose ≤3 km via haversine, tri par proximité, top 10).
+- Vérifié E2E curl : 2 courses Pool superposées (FdF ↔ Schoelcher) → match retourné (pickup 0.16 km, dropoff 0.13 km). Lint clean, smoke OK. ⚠️ Flux UI live non testé via navigateur (nécessite création de course Pool live) — backend validé + rendu conditionnel sur patterns existants. **Refactor `AdminDashboard.js` (3 sous-composants) confirmé déjà intégré & fonctionnel.**
+
+
 ## NEW - Jun 2026 - Dashboard admin réorganisé en 8 familles claires + menu repliable (DONE)
 - **Demande utilisateur** : « Organiser le dashboard, classer par services / options / configuration ». Refonte de l'IA du menu admin (`AdminLayout.js`).
 - **8 familles** (sous-menus conservés, juste mieux rangés) : 🏠 PILOTAGE, 👥 MEMBRES & PARTENAIRES, 🚗 SERVICES, 📦 EXPLOITATION, 💳 FINANCE, 🎁 CROISSANCE, 📝 CONTENU (CMS), ⚙️ CONFIGURATION.

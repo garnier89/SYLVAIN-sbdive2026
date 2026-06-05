@@ -59,6 +59,7 @@ const RideTrackingPage = () => {
   const [cancelReasons, setCancelReasons] = useState([]);
   const [poolEnabled, setPoolEnabled] = useState(false);
   const [poolLoading, setPoolLoading] = useState(false);
+  const [poolMatches, setPoolMatches] = useState([]);
   const [statusDialog, setStatusDialog] = useState(null);
   const [showRouteEdit, setShowRouteEdit] = useState(false);
   const prevStatusRef = useRef(null);
@@ -86,6 +87,29 @@ const RideTrackingPage = () => {
     }
     setPoolLoading(false);
   }, [poolEnabled, poolLoading, rideId]);
+
+  // Live Taxi Pool matching: poll nearby pending pool rides while pool is on & ride pending
+  useEffect(() => {
+    if (!poolEnabled || ride?.status !== 'pending') {
+      setPoolMatches([]);
+      return undefined;
+    }
+    let active = true;
+    const fetchMatches = async () => {
+      try {
+        const res = await fetch(`${API}/api/phase2/pool/matches/${rideId}`, { credentials: 'include' });
+        if (active && res.ok) {
+          const d = await res.json();
+          setPoolMatches(d.matches || []);
+        }
+      } catch (err) {
+        console.warn('[RideTracking] pool matches failed:', err?.message || err);
+      }
+    };
+    fetchMatches();
+    const t = setInterval(fetchMatches, 8000);
+    return () => { active = false; clearInterval(t); };
+  }, [poolEnabled, ride?.status, rideId]);
 
   const poolInitRef = useRef(false);
   const fetchRide = useCallback(async () => {
@@ -404,6 +428,47 @@ const RideTrackingPage = () => {
               <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${poolEnabled ? 'left-4' : 'left-0.5'}`} />
             </div>
           </button>
+        )}
+
+        {/* Live Taxi Pool matches — "X place(s) disponible(s) sur une course Pool proche" */}
+        {ride.status === 'pending' && poolEnabled && (
+          <div className="mb-4" data-testid="pool-matches-panel">
+            {poolMatches.length > 0 ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <UsersThree size={18} weight="duotone" className="text-emerald-600" />
+                  <p className="text-sm font-bold text-emerald-800" data-testid="pool-matches-count">
+                    {poolMatches.length} place{poolMatches.length > 1 ? 's' : ''} disponible{poolMatches.length > 1 ? 's' : ''} sur une course Pool proche
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {poolMatches.map((m, i) => (
+                    <div
+                      key={m.ride_id}
+                      className="bg-white rounded-xl p-2.5 border border-emerald-100 flex items-center gap-2"
+                      data-testid={`pool-match-${i}`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                        <UsersThree size={16} weight="duotone" className="text-emerald-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 truncate">{m.pickup_address || 'Ramassage proche'}</p>
+                        <p className="text-[11px] text-gray-500 truncate">→ {m.dropoff_address || 'Destination proche'}</p>
+                      </div>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        à {m.pickup_distance_km} km
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-2xl p-3 flex items-center gap-2" data-testid="pool-matches-empty">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <p className="text-[11px] text-gray-500">Recherche de passagers Pool à proximité…</p>
+              </div>
+            )}
+          </div>
         )}
 
         <DriverInfoCard
