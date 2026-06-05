@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CurrencyEur, TrendUp, Car, Star, CalendarBlank, Clock, MapPin, ArrowRight } from '@phosphor-icons/react';
+import { CurrencyEur, TrendUp, Car, Star, CalendarBlank, Clock, MapPin, ArrowRight, Receipt } from '@phosphor-icons/react';
 import { driverAPI } from '../../services/api';
 
 const DriverEarningsPage = () => {
@@ -38,8 +38,13 @@ const DriverEarningsPage = () => {
   return (
     <div className="mobile-container min-h-screen bg-gray-950 flex flex-col pb-20" data-testid="driver-earnings-page">
       {/* Header */}
-      <div className="px-5 pt-6 pb-4">
+      <div className="px-5 pt-6 pb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white" data-testid="earnings-title">Mes gains</h1>
+        <button onClick={() => navigate('/chauffeur/reports')}
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-amber-400 text-xs font-semibold px-3 py-2 rounded-xl"
+          data-testid="weekly-reports-link">
+          <Receipt size={16} /> Rapports hebdo
+        </button>
       </div>
 
       {/* Earnings Card */}

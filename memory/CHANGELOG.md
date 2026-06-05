@@ -585,3 +585,15 @@ Voir PRD.md section "NEW - Feb 2026"
 ### Tests
 - pytest `test_iter119_weekly_reports.py` **9/9 ✅** (ajout : PDF valide %PDF-, history endpoint sans fuite de snapshot, auth, resend 404).
 - Screenshot : section historique rend l'entrée archivée + bouton Renvoyer.
+
+## 2026-06-05 (suite) — Espace chauffeur : Mes rapports hebdo + téléchargement PDF
+
+### Added
+- Backend `driver_router` (`/api/driver/weekly-reports/*`, rôle driver) : `GET /current` (rapport semaine précédente du chauffeur connecté), `GET /current/pdf` (PDF), `GET /history` (rapports archivés du chauffeur, hors tests), `GET /{send_id}/pdf` (PDF archivé, vérif appartenance).
+- Frontend `DriverWeeklyReportsPage.js` (`/chauffeur/reports`, thème sombre driver) : carte semaine précédente détaillée (courses, brut, espèces/CB/portefeuille, commission, net, virement) + bouton **Télécharger le PDF** + **Historique** avec téléchargement PDF par ligne.
+- Lien d'accès depuis `DriverEarningsPage` (bouton « Rapports hebdo »).
+
+### Tests
+- pytest `test_iter120_driver_reports.py` **5/5 ✅** (auth rôle driver, structure current, history, PDF avec activité = %PDF- / 200, 404 inconnu).
+- E2e manuel : ride temporaire semaine précédente → calcul correct (brut 42,50€ → net 36,12€ → virement 16,12€) + PDF 200 application/pdf ; données nettoyées.
+- Screenshot driver : page rend (état vide propre + bottom nav).

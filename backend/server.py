@@ -58,7 +58,7 @@ from routes.chat import router as chat_router
 from routes.real_estate import router as real_estate_router, admin_router as real_estate_admin_router, seed_real_estate_boost_plans
 from routes.pharmacy import router as pharmacy_router, admin_router as pharmacy_admin_router, seed_pharmacy
 from routes.service_settings import router as service_settings_router, admin_router as service_settings_admin_router
-from routes.weekly_reports import router as weekly_reports_router, weekly_report_loop
+from routes.weekly_reports import router as weekly_reports_router, driver_router as weekly_reports_driver_router, weekly_report_loop
 
 from core.seed_data import (
     VEHICLE_CATEGORIES, VEHICLE_TYPES, MASTER_SERVICE_CATEGORIES,
@@ -560,6 +560,7 @@ api_router.include_router(pharmacy_admin_router)
 api_router.include_router(service_settings_router)
 api_router.include_router(service_settings_admin_router)
 api_router.include_router(weekly_reports_router)
+api_router.include_router(weekly_reports_driver_router)
 
 app.include_router(api_router)
 

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import resend
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Response
 from dotenv import load_dotenv
 
 from reportlab.lib import colors
@@ -27,6 +27,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/weekly-reports", tags=["weekly-reports"])
+driver_router = APIRouter(prefix="/driver/weekly-reports", tags=["driver-reports"])
 
 CONFIG_ID = "default"
 
@@ -583,3 +584,68 @@ async def weekly_report_loop():
         except Exception as e:
             logger.error("weekly_report_loop error: %s", e)
         await asyncio.sleep(1800)
+
+
+
+# ---------------- Driver-facing endpoints ----------------
+async def _resolve_driver(user: dict):
+    drv = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not drv:
+        raise HTTPException(status_code=404, detail="Profil chauffeur introuvable")
+    return drv["id"], user.get("name", "Chauffeur")
+
+
+async def _driver_week_row(driver_id: str, config: dict):
+    """Compute the previous-week report row for a single driver."""
+    start_iso, end_iso, week_label = previous_week_bounds(config.get("timezone", "UTC"))
+    report = await compute_report(start_iso, end_iso, config)
+    row = next((r for r in report["drivers"] if r["driver_id"] == driver_id), None)
+    return week_label, row
+
+
+@driver_router.get("/current")
+async def driver_current_report(request: Request):
+    user = await require_role(request, ["driver"])
+    driver_id, _ = await _resolve_driver(user)
+    cfg = await get_config()
+    week_label, row = await _driver_week_row(driver_id, cfg)
+    return {"week": week_label, "has_activity": row is not None, "report": row}
+
+
+@driver_router.get("/current/pdf")
+async def driver_current_pdf(request: Request):
+    user = await require_role(request, ["driver"])
+    driver_id, _ = await _resolve_driver(user)
+    cfg = await get_config()
+    week_label, row = await _driver_week_row(driver_id, cfg)
+    if not row:
+        raise HTTPException(status_code=404, detail="Aucune activité sur la semaine précédente")
+    pdf = _driver_pdf_bytes(row, week_label, cfg.get("sender_name", "SB Drive VTC"))
+    fname = f"rapport-{week_label.split(' ')[0].replace('/', '-')}.pdf"
+    return Response(content=bytes(pdf), media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+@driver_router.get("/history")
+async def driver_report_history(request: Request, limit: int = 30):
+    user = await require_role(request, ["driver"])
+    driver_id, _ = await _resolve_driver(user)
+    docs = await db.report_sends.find(
+        {"driver_id": driver_id, "is_test": {"$ne": True}}, {"_id": 0, "snapshot": 0}
+    ).sort("created_at", -1).limit(int(limit)).to_list(int(limit))
+    return docs
+
+
+@driver_router.get("/{send_id}/pdf")
+async def driver_archived_pdf(send_id: str, request: Request):
+    user = await require_role(request, ["driver"])
+    driver_id, _ = await _resolve_driver(user)
+    entry = await db.report_sends.find_one({"id": send_id}, {"_id": 0})
+    if not entry or entry.get("driver_id") != driver_id:
+        raise HTTPException(status_code=404, detail="Rapport introuvable")
+    cfg = await get_config()
+    snap = entry.get("snapshot") or {}
+    pdf = _driver_pdf_bytes(snap, entry["week"], cfg.get("sender_name", "SB Drive VTC"))
+    fname = f"rapport-{entry['week'].split(' ')[0].replace('/', '-')}.pdf"
+    return Response(content=bytes(pdf), media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={fname}"})
