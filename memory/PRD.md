@@ -1,3 +1,13 @@
+## NEW - Jun 2026 - Pharmacie : configuration 100% pilotée par le dashboard admin & connectée (DONE — iter115)
+- **Demande utilisateur** : « toutes les options/services/modifications doivent être administrés dans le dashboard, tout connecter ». Plus aucune valeur Pharmacie en dur.
+- **Onglet « Paramètres »** (`/admin/pharmacy` → SettingsTab) : interrupteur **service actif/inactif**, **note/bannière client**, **frais de livraison** configurables (base €, €/km, minimum €, **seuil de livraison gratuite**). Branché : `GET/PUT /api/admin/pharmacy/settings` (singleton `pharmacy_settings`).
+- **Onglet « Catégories »** (CategoriesTab) : **CRUD complet** des catégories produits (`/api/admin/pharmacy/categories`, clé unique, suppression bloquée si produits liés). Le filtre + le menu déroulant de l'éditeur Produits chargent désormais les catégories **dynamiquement** (`useCategories` → `/pharmacy/categories` DB-backed). Fin des catégories en dur.
+- **Connectivité bout-en-bout** : `_delivery_fee(settings, …, subtotal)` applique base/km/min + livraison gratuite au-dessus du seuil ; `create_order` **bloque** (400) si service inactif. Client web (`PharmacyPage`) + mobile (`PharmacyHomeScreen`) affichent la bannière info et l'état indisponible (boutons désactivés). Catalogue mobile lit les catégories dynamiques.
+- Seed : `seed_pharmacy()` initialise catégories + settings par défaut (idempotent).
+- Testé iter115 : **backend 14/14** (settings get/put, free_threshold & min reflétés dans estimate, inactif→400, catégories CRUD + gardes) **+ 16/16 régression iter114** ; **frontend 100%** (persistance paramètres, CRUD catégories dynamiques visibles dans Produits, bannière info). Lint front + back clean, `tsc` mobile clean. Valeurs remises par défaut après tests.
+- Note (P2, basse priorité) : la bannière « inactif » côté client se met à jour au montage de page (pas de polling live) — amélioration possible.
+
+
 ## NEW - Jun 2026 - Phase B (mobile Expo) : module PHARMACIE porté end-to-end (DONE — code complet, tsc clean)
 - **Portage mobile complet du parcours Pharmacie** (réutilise le backend déjà testé iter114) :
   - `PharmacyHomeScreen` (hub : 2 actions + pharmacies partenaires), `PharmacyCatalogScreen` (catégories, recherche, panier +/-, barre panier, checkout modal : pharmacie, adresse + **GPS expo-location**, destinataire, paiement, **prix live**, soldes Portefeuille/SB PayGo + recharge si insuffisant), `PharmacyPrescriptionScreen` (**upload photo via expo-image-picker** appareil photo/galerie en base64, note, GPS, destinataire), `PharmacyOrdersScreen` (liste + timeline + **« Payer maintenant »** modal wallet/SB PayGo + annulation, polling 8s).
