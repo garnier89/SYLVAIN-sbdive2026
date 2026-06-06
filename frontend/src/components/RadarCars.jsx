@@ -37,14 +37,29 @@ const toPolar = (plat, plng, lat, lng) => {
   return { bearing, dist };
 };
 
-// Top-view (bird's-eye) car icon — white body with windshields
+// Top-view (bird's-eye) car icon — glossy white car with windshield & red taillights
 const TopCar = ({ size = 26 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" style={{ filter: 'drop-shadow(0 3px 4px rgba(11,20,38,0.45))' }}>
-    <rect x="6" y="2.5" width="12" height="19" rx="4.2" fill="#FFFFFF" stroke="#0B1426" strokeWidth="0.9" />
-    <path d="M8 6.2 C9 5.4 15 5.4 16 6.2 L15.2 9 C13 8.5 11 8.5 8.8 9 Z" fill="#2B3445" />
-    <path d="M8.8 15.4 C11 14.9 13 14.9 15.2 15.4 L16 18.4 C15 17.7 9 17.7 8 18.4 Z" fill="#39424F" />
-    <rect x="4.4" y="8.2" width="1.8" height="3" rx="0.9" fill="#0B1426" />
-    <rect x="17.8" y="8.2" width="1.8" height="3" rx="0.9" fill="#0B1426" />
+  <svg width={size * 0.72} height={size} viewBox="0 0 40 56" style={{ filter: 'drop-shadow(0 3px 5px rgba(11,20,38,0.5))' }}>
+    <defs>
+      <linearGradient id="radarCarBody" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#ffffff" />
+        <stop offset="1" stopColor="#e7ebf1" />
+      </linearGradient>
+    </defs>
+    {/* side mirrors */}
+    <rect x="2" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9" />
+    <rect x="33.5" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9" />
+    {/* body */}
+    <rect x="5" y="2" width="30" height="52" rx="12" fill="url(#radarCarBody)" stroke="#c5cbd4" strokeWidth="1" />
+    {/* windshield (front glass) */}
+    <path d="M9.5 18 C14 13 26 13 30.5 18 L28.5 25.5 C23 22.8 17 22.8 11.5 25.5 Z" fill="#1f2733" opacity="0.88" />
+    {/* roof */}
+    <rect x="11" y="27" width="18" height="11.5" rx="4" fill="#f4f6f9" />
+    {/* rear window */}
+    <path d="M11.5 40 C17 38 23 38 28.5 40 L30.5 46 C25.5 44 14.5 44 9.5 46 Z" fill="#2b3340" opacity="0.7" />
+    {/* taillights */}
+    <rect x="7" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030" />
+    <rect x="27" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030" />
   </svg>
 );
 
@@ -103,7 +118,7 @@ export const RadarCars = ({ pickupLat, pickupLng, realPositions = [], config = {
             }}
           >
             <div style={{ transform: `rotate(${c.rot}deg)` }}>
-              <CarIcon iconUrl={iconUrl} size={26} />
+              <CarIcon iconUrl={iconUrl} size={30} />
             </div>
           </div>
         );
