@@ -5,9 +5,9 @@ import React from 'react';
  * A rotating broken ring (4 orange arcs) + pulsing waves + a white location pin
  * in the center. Matches the V3Cube searching mockup.
  *
- * Props: size (px, default 240)
+ * Props: size (px, default 240), caption (optional text shown under the pin)
  */
-export const SearchRadar = ({ size = 240 }) => {
+export const SearchRadar = ({ size = 240, caption = null }) => {
   const pin = Math.round(size * 0.22);
   return (
     <div
@@ -63,6 +63,19 @@ export const SearchRadar = ({ size = 240 }) => {
         />
         <circle cx="22" cy="20.5" r="7" fill="none" stroke="#FF5000" strokeWidth="3.2" />
       </svg>
+
+      {/* Estimated wait time under the pin */}
+      {caption && (
+        <div
+          className="absolute left-1/2 top-1/2"
+          style={{ transform: 'translate(-50%, 16px)' }}
+          data-testid="radar-eta"
+        >
+          <span className="px-2.5 py-1 rounded-full bg-white shadow-md text-[11px] font-extrabold text-[#FF5000] whitespace-nowrap ring-1 ring-black/5">
+            {caption}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

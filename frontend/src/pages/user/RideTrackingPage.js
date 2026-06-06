@@ -533,6 +533,19 @@ const RideTrackingPage = () => {
         `&center=${ride.pickup_lat},${ride.pickup_lng}` +
         `&key=${GMAP_KEY}`
       : null;
+    // Estimated wait from the nearest notified driver (~25 km/h urban speed).
+    let etaCaption = null;
+    if (ride.pickup_lat && nearbyPositions.length) {
+      const toR = Math.PI / 180;
+      let best = Infinity;
+      for (const p of nearbyPositions) {
+        const dLat = (p.lat - ride.pickup_lat) * toR;
+        const dLng = (p.lng - ride.pickup_lng) * toR;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(ride.pickup_lat * toR) * Math.cos(p.lat * toR) * Math.sin(dLng / 2) ** 2;
+        best = Math.min(best, 2 * 6371 * Math.asin(Math.sqrt(a)));
+      }
+      if (isFinite(best)) etaCaption = `~${Math.min(15, Math.max(1, Math.round((best / 25) * 60)))} min`;
+    }
     return (
       <div className="mobile-container min-h-screen flex flex-col relative overflow-hidden bg-gray-100" data-testid="ride-tracking-page">
         {showPolicy && (
@@ -555,7 +568,7 @@ const RideTrackingPage = () => {
             ? <img src={radarMapUrl} alt="Carte" className="w-full h-full object-cover" />
             : <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-rose-50" />}
           <div className="absolute inset-0 bg-white/10" />
-          <SearchRadar size={244} />
+          <SearchRadar size={244} caption={etaCaption} />
           <RadarCars
             pickupLat={ride.pickup_lat}
             pickupLng={ride.pickup_lng}
