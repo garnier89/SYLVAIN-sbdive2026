@@ -75,6 +75,7 @@ const RideTrackingPage = () => {
   const [converting, setConverting] = useState(false);
   const [searchCfg, setSearchCfg] = useState({ enabled: true, relance_interval_seconds: RELANCE_INTERVAL_SEC, max_relances: MAX_RELANCES });
   const [nearbyDrivers, setNearbyDrivers] = useState(null);
+  const [isPoolRide, setIsPoolRide] = useState(false);
   const prevStatusRef = useRef(null);
   const relanceRef = useRef(0);
 
@@ -259,6 +260,8 @@ const RideTrackingPage = () => {
       if (!poolInitRef.current) {
         poolInitRef.current = true;
         setPoolEnabled(!!res.data.pool_enabled);
+        // Pool toggle is shown ONLY for rides booked from the Pool category.
+        setIsPoolRide(!!res.data.pool_enabled || res.data.mode_id === 'pool');
       }
       if (res.data.driver_lat && res.data.driver_lng) {
         setDriverPos({ lat: res.data.driver_lat, lng: res.data.driver_lng });
@@ -543,7 +546,7 @@ const RideTrackingPage = () => {
 
         {/* Bottom actions */}
         <div className="px-4 pb-8 pt-2 space-y-2 relative z-10">
-          {!isBiddingMode && (
+          {!isBiddingMode && isPoolRide && (
             <button onClick={togglePool} disabled={poolLoading} className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-bold bg-white text-[#0B1426]" data-testid="toggle-taxi-pool-btn">
               <UsersThree size={18} weight="duotone" className={poolEnabled ? 'text-emerald-500' : 'text-gray-400'} />
               {poolEnabled ? 'Taxi Pool activé · partagé' : 'Activer Taxi Pool (tarif partagé)'}

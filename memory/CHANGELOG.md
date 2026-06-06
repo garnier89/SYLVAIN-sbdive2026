@@ -920,3 +920,8 @@ Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentag
 
 ### Tests
 - Lint JS + Python clean. Frontend compile (warnings exhaustive-deps préexistants). Endpoint nearby-drivers : 401 sans auth, 404 course inexistante, 200 + count sur course réelle.
+
+## 2026-06-06 (suite) — Bouton "Activer Taxi Pool" limité à la catégorie Pool
+
+### Changed
+- `RideTrackingPage.js` (écran recherche/pending) : le bouton « Activer Taxi Pool (tarif partagé) » n'est plus affiché pour toutes les courses. Nouveau flag stable `isPoolRide` (défini au 1er chargement via `pool_enabled || mode_id==='pool'`). Le toggle Pool n'apparaît QUE pour les courses réservées depuis la catégorie Pool ; retiré de toutes les autres catégories. Lint clean.
