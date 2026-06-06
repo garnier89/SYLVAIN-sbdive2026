@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Info, Minus, Plus, Gavel, Users, TrendUp } from '@phosphor-icons/react';
+import { ArrowLeft, Info, Minus, Plus, Users, TrendUp } from '@phosphor-icons/react';
 import { toast } from 'sonner';
-import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { CountdownRing } from '../../components/CountdownRing';
 import SearchingRadar from '../../components/SearchingRadar';
 
@@ -111,6 +110,16 @@ const TaxiBiddingPage = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Addresses are collected on the unified /course?mode=bidding flow. If someone
+  // lands here without them (direct URL or after tapping "Modifier"), send them
+  // to the unified bidding entry — no duplicate address-entry screen.
+  useEffect(() => {
+    const hasResume = !!searchParams.get('resume');
+    if (!hasResume && !searching && (!pickup?.lat || !dropoff?.lat)) {
+      navigate('/course?mode=bidding', { replace: true });
+    }
+  }, [pickup, dropoff, searching, searchParams, navigate]);
 
   const handleSubmit = async () => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }
@@ -239,51 +248,7 @@ const TaxiBiddingPage = () => {
         <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center" data-testid="back-btn">
           <ArrowLeft size={20} />
         </button>
-        {!mapReady && (
-          <div className="ml-2 bg-white/90 backdrop-blur rounded-xl px-3 py-1.5 shadow flex items-center gap-2">
-            <Gavel size={16} className="text-blue-600" weight="duotone" />
-            <span className="text-sm font-bold text-blue-900">Enchères Taxi</span>
-          </div>
-        )}
       </div>
-
-      {/* Address inputs card (only visible when not both set) */}
-      {!mapReady && (
-        <div className="relative z-10 mx-4 mt-4 bg-white rounded-2xl shadow-lg p-4 space-y-3" data-testid="address-card">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Proposez votre propre tarif de course</p>
-          <GooglePlacesInput
-            placeholder="Adresse de départ"
-            value={pickup?.address || ''}
-            testId="pickup-input"
-            onSelect={(r) => setPickup({ address: r.address, lat: r.lat, lng: r.lng })}
-          />
-          <GooglePlacesInput
-            placeholder="Où allez-vous ?"
-            value={dropoff?.address || ''}
-            testId="dropoff-input"
-            iconColor="#ef4444"
-            onSelect={(r) => setDropoff({ address: r.address, lat: r.lat, lng: r.lng })}
-          />
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: 'sb', name: 'Standard' },
-              { id: 'confort', name: 'Confort' },
-              { id: 'luxe', name: 'Luxe' },
-            ].map(v => (
-              <button
-                key={v.id}
-                onClick={() => setVehicleType(v.id)}
-                data-testid={`vehicle-${v.id}`}
-                className={`py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
-                  vehicleType === v.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'
-                }`}
-              >
-                {v.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Route summary when map is visible */}
       {mapReady && (
@@ -418,7 +383,7 @@ const TaxiBiddingPage = () => {
           {/* Radar animation */}
           <div className="flex flex-col items-center pt-4 pb-2">
             <SearchingRadar size={150} />
-            <h2 className="text-lg font-bold text-gray-900 mt-3" data-testid="searching-title">Recherche d'un chauffeur…</h2>
+            <h2 className="text-lg font-bold text-gray-900 mt-3" data-testid="searching-title">Recherche d&apos;un chauffeur…</h2>
             <p className="text-sm text-gray-500">Votre offre : <span className="font-bold text-blue-600" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
             {liveStats?.online_drivers_nearby != null && (
               <p className="text-[11px] text-gray-400 mt-0.5">{liveStats.online_drivers_nearby} chauffeurs en ligne à proximité</p>
