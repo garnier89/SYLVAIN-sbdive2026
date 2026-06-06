@@ -1,6 +1,12 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 (fix) — Bug bloquant « WEBPACK_DEFAULT_EXPORT before initialization »
+- **Cause** : artefact transitoire du hot-reload (HMR) après éditions successives de `UserHome.js` (chargé en lazy) — overlay d'erreur plein écran bloquant toute l'app (d'où « beaucoup de bugs »).
+- **Fix** : redémarrage frontend → bundle propre. Chargement frais 100% sans erreur (vérifié par testing agent, `PAGE ERRORS: []`).
+- **Polish** : `UserHome` conteneur `pb-28` → `pb-36` pour que la dernière rangée de tuiles ne passe plus sous la barre de navigation flottante (clics interceptés).
+- **Validation** (testing agent, iter 133) : backend 100% (recherche + filtres store_type), frontend 95% — tous les flux livraison/recherche OK, aucun autre bug bloquant.
+
 ## 2026-06-06 (suite) — Recherche unifiée multi-magasins sur l'accueil
 
 ### Demande

@@ -582,7 +582,7 @@ const UserHome = () => {
   ];
 
   return (
-    <div className={`mobile-container min-h-screen pb-28 bg-white text-[#1F2430] ${BODY}`}>
+    <div className={`mobile-container min-h-screen pb-36 bg-white text-[#1F2430] ${BODY}`}>
       {/* ===== STICKY HEADER (V3Cube look) ===== */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-start justify-between">
