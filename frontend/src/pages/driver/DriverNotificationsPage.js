@@ -89,7 +89,7 @@ const DriverNotificationsPage = () => {
           const config = typeConfig[notif.type] || typeConfig.system;
           const Icon = config.icon;
           return (
-            <div key={notif.id} className={`bg-gray-900 border rounded-xl p-3 flex items-start gap-3 ${notif.read ? 'border-gray-800' : 'border-amber-500/30'}`} data-testid={`notif-${notif.id}`}>
+            <div key={notif.id} className={`bg-gray-900 border rounded-xl p-3 flex items-start gap-3 ${notif.read ? 'border-gray-800' : 'border-amber-500/30'}`} data-testid={`notif-item-${notif.id}`}>
               <div className={`w-10 h-10 rounded-full ${config.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
                 <Icon size={18} className={config.color} />
               </div>
