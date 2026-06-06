@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -91,6 +91,8 @@ const UserHome = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [cmsItems, setCmsItems] = useState([]);
   const [promoBanners, setPromoBanners] = useState([]);
+  const promoRef = useRef(null);
+  const promoIdx = useRef(0);
   const greeting = new Date().getHours() < 18 ? 'Bienvenue' : 'Bonsoir';
 
   // Load admin-configured home categories (CMS). Falls back to hardcoded arrays if empty.
@@ -102,6 +104,19 @@ const UserHome = () => {
       .then((r) => setPromoBanners(r.data.items || []))
       .catch((e) => console.warn('promo banners load:', e?.message || e));
   }, []);
+
+  // Auto-advance the promo carousel every 4s (loops back to start).
+  useEffect(() => {
+    if (promoBanners.length < 2) return undefined;
+    const id = setInterval(() => {
+      const el = promoRef.current;
+      if (!el || el.children.length < 2) return;
+      promoIdx.current = (promoIdx.current + 1) % el.children.length;
+      const target = el.children[promoIdx.current].offsetLeft - el.children[0].offsetLeft;
+      el.scrollTo({ left: target, behavior: 'smooth' });
+    }, 4000);
+    return () => clearInterval(id);
+  }, [promoBanners.length]);
 
   // ===== Taxi Services (8 items) =====
   const taxiServices = [
@@ -233,7 +248,7 @@ const UserHome = () => {
     promo: (
       promoBanners.length > 0 ? (
         <div key="promo" className="mt-5" data-testid="promo-banner-carousel">
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
+          <div ref={promoRef} className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
             {promoBanners.map((b) => {
               const dark = b.theme === 'dark';
               return (
