@@ -337,6 +337,15 @@ export const homeCategoriesAPI = {
   reorder: (orderedIds) => api.post('/home-categories/admin/reorder', { ordered_ids: orderedIds }),
 };
 
+export const promoBannersAPI = {
+  public: () => api.get('/promo-banners'),
+  adminList: () => api.get('/promo-banners/admin'),
+  create: (data) => api.post('/promo-banners/admin', data),
+  update: (id, data) => api.put(`/promo-banners/admin/${id}`, data),
+  remove: (id) => api.delete(`/promo-banners/admin/${id}`),
+  reorder: (orderedIds) => api.post('/promo-banners/admin/reorder', { ordered_ids: orderedIds }),
+};
+
 export const realEstateAPI = {
   list: (params) => api.get('/real-estate/listings', { params }),
   get: (id) => api.get(`/real-estate/listings/${id}`),

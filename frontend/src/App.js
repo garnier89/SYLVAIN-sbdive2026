@@ -179,6 +179,7 @@ const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
 const AdminOrganizations = lazy(() => import('./pages/admin/AdminOrganizations'));
 const AdminCorporate = lazy(() => import('./pages/admin/AdminCorporate'));
 const AdminHomeCategories = lazy(() => import('./pages/admin/AdminHomeCategories'));
+const AdminPromoBanners = lazy(() => import('./pages/admin/AdminPromoBanners'));
 const AdminI18n = lazy(() => import('./pages/admin/AdminI18n'));
 const AdminGroupsPage = lazy(() => import('./pages/admin/AdminGroupsPage'));
 const AdminUserEdit = lazy(() => import('./pages/admin/AdminUserEdit'));
@@ -440,6 +441,7 @@ const AppRouter = () => {
         <Route path="organizations" element={<AdminOrganizations />} />
         <Route path="corporate" element={<AdminCorporate />} />
         <Route path="home-categories" element={<AdminHomeCategories />} />
+        <Route path="promo-banners" element={<AdminPromoBanners />} />
         <Route path="i18n" element={<AdminI18n />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />

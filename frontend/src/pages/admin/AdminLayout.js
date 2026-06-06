@@ -180,6 +180,7 @@ const sidebarConfig = [
       { icon: DeviceMobile, label: 'Écran accueil app', key: 'app-home', children: [
         { label: 'Configuration', path: '/admin/app-home' },
         { label: 'Catégories accueil', path: '/admin/home-categories' },
+        { label: 'Bannières promo', path: '/admin/promo-banners' },
       ]},
       { icon: Slideshow, label: "Écrans d'intro", key: 'intro', children: [
         { label: 'Slides', path: '/admin/intro' },

@@ -8,7 +8,7 @@ import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
-import { homeCategoriesAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI } from '../../services/api';
 import {
   Car, Package, ForkKnife,
   House, MapPin, Wallet, User,
@@ -90,6 +90,7 @@ const UserHome = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [cmsItems, setCmsItems] = useState([]);
+  const [promoBanners, setPromoBanners] = useState([]);
   const greeting = new Date().getHours() < 18 ? 'Bienvenue' : 'Bonsoir';
 
   // Load admin-configured home categories (CMS). Falls back to hardcoded arrays if empty.
@@ -97,6 +98,9 @@ const UserHome = () => {
     homeCategoriesAPI.public()
       .then((r) => setCmsItems(r.data.items || []))
       .catch((e) => console.warn('home categories load:', e?.message || e));
+    promoBannersAPI.public()
+      .then((r) => setPromoBanners(r.data.items || []))
+      .catch((e) => console.warn('promo banners load:', e?.message || e));
   }, []);
 
   // ===== Taxi Services (8 items) =====
@@ -227,28 +231,38 @@ const UserHome = () => {
       </section>
     ),
     promo: (
-      <div key="promo" className="mt-5" data-testid="promo-banner-carousel">
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
-          <div className="snap-start shrink-0 w-[86%] rounded-[20px] overflow-hidden bg-white border border-slate-100 shadow-sm flex items-stretch h-[140px]" data-testid="promo-banner-1">
-            <div className="w-2/5 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=200&fit=crop')" }} />
-            <div className="flex-1 p-4 flex flex-col justify-center">
-              <p className={`font-bold text-[#0B1426] text-base leading-tight ${HEAD}`}>Courses fraîches livrées vite.</p>
-              <p className={`text-sm text-[#64748B] mt-1 ${BODY}`}>Commandez maintenant !</p>
-              <button className={`mt-2 self-start px-4 py-1.5 bg-[#0B1426] text-white text-xs font-semibold rounded-lg ${HEAD}`} onClick={() => navigate('/food')}>Commander</button>
-            </div>
-          </div>
-          <div className="snap-start shrink-0 w-[86%] rounded-[20px] overflow-hidden bg-[#FF5000] flex items-stretch h-[140px]" data-testid="promo-banner-2">
-            <div className="flex-1 p-4 flex flex-col justify-center">
-              <p className={`font-bold text-white text-base leading-tight ${HEAD}`}>Première course VTC</p>
-              <p className={`text-3xl font-extrabold text-white mt-1 ${HEAD}`}>-50%</p>
-              <p className={`text-xs text-white/80 mt-1 ${BODY}`}>Code : BIENVENUE</p>
-            </div>
-            <div className="w-2/5 flex items-center justify-center bg-white/10">
-              <Car size={64} weight="duotone" className="text-white" />
-            </div>
+      promoBanners.length > 0 ? (
+        <div key="promo" className="mt-5" data-testid="promo-banner-carousel">
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
+            {promoBanners.map((b) => {
+              const dark = b.theme === 'dark';
+              return (
+                <motion.button
+                  key={b.id}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => b.target_route && navigate(b.target_route)}
+                  data-testid={`promo-banner-${b.id}`}
+                  className="snap-start shrink-0 w-[86%] rounded-[20px] overflow-hidden border border-slate-100 shadow-sm flex items-stretch h-[140px] text-left"
+                  style={{ background: dark ? (b.bg_color || '#FF5000') : '#FFFFFF' }}
+                >
+                  {b.image_url && (
+                    <div className="w-2/5 bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${b.image_url}')` }} />
+                  )}
+                  <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
+                    <p className={`font-bold text-base leading-tight ${HEAD} ${dark ? 'text-white' : 'text-[#0B1426]'}`}>{b.title}</p>
+                    {b.highlight && <p className={`text-3xl font-extrabold mt-1 ${HEAD} ${dark ? 'text-white' : 'text-[#FF5000]'}`}>{b.highlight}</p>}
+                    {b.subtitle && <p className={`text-sm mt-1 ${BODY} ${dark ? 'text-white/80' : 'text-[#64748B]'}`}>{b.subtitle}</p>}
+                    {b.promo_code && <p className={`text-xs mt-1 ${BODY} ${dark ? 'text-white/80' : 'text-[#64748B]'}`}>Code : {b.promo_code}</p>}
+                    {b.cta_label && (
+                      <span className={`mt-2 self-start px-4 py-1.5 text-xs font-semibold rounded-lg ${HEAD} ${dark ? 'bg-white text-[#0B1426]' : 'bg-[#0B1426] text-white'}`}>{b.cta_label}</span>
+                    )}
+                  </div>
+                </motion.button>
+              );
+            })}
           </div>
         </div>
-      </div>
+      ) : null
     ),
     delivery: (
       <section key="delivery" className="px-4 mt-6">

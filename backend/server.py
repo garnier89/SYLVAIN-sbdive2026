@@ -49,6 +49,7 @@ from routes.i18n import router as i18n_router, seed_i18n
 from routes.voice import router as voice_router
 from routes.corporate import router as corporate_router
 from routes.home_categories import router as home_categories_router, seed_home_categories
+from routes.promo_banners import router as promo_banners_router, seed_promo_banners
 from routes.places import router as places_router
 from routes.service_categories import router as service_categories_router, admin_router as service_categories_admin_router, seed_service_categories
 from routes.pricing import router as pricing_router, public_router as pricing_public_router
@@ -475,6 +476,9 @@ async def lifespan(app: FastAPI):
     # Seed home categories CMS (Iter 87)
     await seed_home_categories()
 
+    # Seed promo banners CMS
+    await seed_promo_banners()
+
     # Seed taxi service categories (V3Cube Manage Service Category)
     await seed_service_categories()
 
@@ -543,6 +547,7 @@ api_router.include_router(i18n_router)
 api_router.include_router(voice_router)
 api_router.include_router(corporate_router)
 api_router.include_router(home_categories_router)
+api_router.include_router(promo_banners_router)
 api_router.include_router(places_router)
 api_router.include_router(service_categories_router)
 api_router.include_router(service_categories_admin_router)
