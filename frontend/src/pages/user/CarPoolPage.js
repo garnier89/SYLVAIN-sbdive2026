@@ -29,7 +29,7 @@ const CarPoolPage = () => {
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-8" data-testid="carpool-page">
-      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-4 flex items-center gap-3">
+      <div className="bg-gradient-to-r from-orange-500 to-orange-500 text-white px-4 py-4 flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" data-testid="back-btn">
           <ArrowLeft size={20} />
         </button>
@@ -66,7 +66,7 @@ const CarPoolPage = () => {
                 )}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-bold">{t.driver_name?.charAt(0)}</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white font-bold">{t.driver_name?.charAt(0)}</div>
                     <div>
                       <p className="text-sm font-bold text-gray-900">{t.driver_name}</p>
                       <p className="text-[11px] text-amber-500">★ {t.driver_rating?.toFixed(1)} · {t.vehicle}</p>

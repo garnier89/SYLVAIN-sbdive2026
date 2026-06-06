@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MapPin, CaretDown, Package, Gavel, ClipboardText } from '@phosphor-icons/react';
 import { rideAPI, parcelAPI } from '../../services/api';
@@ -50,8 +50,9 @@ const BookingCard = ({ ride, badge, badgeColor, children, testId }) => (
 
 const DriverBookingsPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState('rides'); // rides | orders | bids
-  const [filter, setFilter] = useState('pending'); // pending | upcoming
+  const [filter, setFilter] = useState(() => (searchParams.get('filter') === 'upcoming' ? 'upcoming' : 'pending')); // pending | upcoming
   const [showFilter, setShowFilter] = useState(false);
   const [data, setData] = useState({ upcoming: [], pending: [], bids: [] });
   const [orders, setOrders] = useState([]);

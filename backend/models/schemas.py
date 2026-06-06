@@ -192,6 +192,7 @@ class RideResponse(BaseModel):
     ride_profile: Optional[str] = None
     ride_profile_org_type: Optional[str] = None
     business_trip_reason: Optional[str] = None
+    carried_debt: Optional[dict] = None
 
 # Order Models
 class OrderItemCreate(BaseModel):

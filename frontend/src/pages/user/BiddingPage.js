@@ -58,7 +58,7 @@ const BiddingPage = () => {
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="bidding-page">
       {/* Header */}
-      <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 px-4 pt-4 pb-5">
+      <div className="bg-gradient-to-br from-orange-500 to-orange-600 px-4 pt-4 pb-5">
         <div className="flex items-center gap-3 mb-2">
           <button onClick={() => navigate('/home')} className="text-white" data-testid="back-btn"><ArrowLeft size={22} /></button>
           <h1 className="text-lg font-bold text-white">Enchères Services</h1>
@@ -69,10 +69,10 @@ const BiddingPage = () => {
       {/* Tabs */}
       <div className="px-4 py-3 flex gap-2">
         <button onClick={() => setActiveTab('create')}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'create' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'create' ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
           data-testid="tab-create">Nouvelle demande</button>
         <button onClick={() => setActiveTab('posts')}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'posts' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'posts' ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
           data-testid="tab-posts">Mes demandes ({myPosts.length})</button>
       </div>
 
@@ -139,7 +139,7 @@ const BiddingPage = () => {
               className="w-full border border-gray-200 rounded-xl p-3 text-sm" data-testid="bid-date" />
           </div>
           <button onClick={handleSubmit} disabled={loading || !selectedCategory || !form.title}
-            className="w-full bg-indigo-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-indigo-600 transition-colors disabled:opacity-50"
+            className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50"
             data-testid="submit-bid">
             {loading ? 'Publication...' : 'Publier ma demande'}
           </button>

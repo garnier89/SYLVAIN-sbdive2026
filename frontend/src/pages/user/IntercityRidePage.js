@@ -51,7 +51,7 @@ const IntercityRidePage = () => {
           Votre trajet {selectedRoute.from_city} → {selectedRoute.to_city} a été réservé.
           Vous recevrez les détails du chauffeur bientôt.
         </p>
-        <button onClick={() => navigate('/home')} className="bg-green-500 text-white px-6 py-3 rounded-xl font-semibold text-sm">
+        <button onClick={() => navigate('/home')} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-semibold text-sm">
           Retour à l'accueil
         </button>
       </div>
@@ -127,7 +127,7 @@ const IntercityRidePage = () => {
           </div>
 
           <button onClick={handleBook} disabled={!form.departure_date}
-            className="w-full bg-green-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
+            className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50"
             data-testid="confirm-intercity-booking">
             Réserver - {totalPrice}€
           </button>
@@ -138,7 +138,7 @@ const IntercityRidePage = () => {
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="intercity-page">
-      <div className="bg-gradient-to-br from-green-500 to-emerald-600 px-4 pt-4 pb-6">
+      <div className="bg-gradient-to-br from-orange-500 to-orange-600 px-4 pt-4 pb-6">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate('/home')} className="text-white" data-testid="back-btn"><ArrowLeft size={22} /></button>
           <h1 className="text-lg font-bold text-white">VTC Intercity</h1>

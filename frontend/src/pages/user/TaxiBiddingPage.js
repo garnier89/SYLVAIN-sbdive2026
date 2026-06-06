@@ -460,7 +460,7 @@ const TaxiBiddingPage = () => {
                         <p className="text-lg font-extrabold text-gray-900">{o.amount.toFixed(2)} €</p>
                       </div>
                       <button onClick={() => acceptOffer(o.id)} data-testid={`accept-offer-${o.id}`}
-                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm transition-transform">
+                        className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-sm transition-transform">
                         Choisir
                       </button>
                     </div>

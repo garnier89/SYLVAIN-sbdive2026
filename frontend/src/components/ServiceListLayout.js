@@ -81,7 +81,7 @@ const ServiceListLayout = ({
         <div className="px-4 pt-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
           <button
             onClick={() => setActiveCat(null)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${!activeCat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${!activeCat ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
             data-testid="cat-all"
           >
             Tout
@@ -90,7 +90,7 @@ const ServiceListLayout = ({
             <button
               key={c}
               onClick={() => setActiveCat(c)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${activeCat === c ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${activeCat === c ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
               data-testid={`cat-${c.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
             >
               {c}

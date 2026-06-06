@@ -24,7 +24,7 @@ const GooglePlacesInput = ({
   value = '',
   onChange,
   onSelect,
-  iconColor = '#22C55E',
+  iconColor = '#FF4500',
   className = '',
   inputClassName = '',
   testId = 'places-input',
@@ -72,7 +72,7 @@ const GooglePlacesInput = ({
 
   const base = darkMode
     ? 'w-full bg-white/10 border border-white/20 rounded-xl px-10 py-3 text-white placeholder-gray-400 text-sm focus:outline-none focus:border-orange-500/50'
-    : 'w-full bg-white border border-gray-200 rounded-xl px-10 py-3 text-gray-800 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+    : 'w-full bg-white border border-gray-200 rounded-xl px-10 py-3 text-gray-800 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400';
 
   return (
     <div className={`relative ${className}`}>

@@ -202,7 +202,7 @@ const OrderTracking = () => {
 
       <div className="p-4 space-y-4">
         {/* ETA Card */}
-        <Card className="bg-gradient-to-r from-emerald-500 to-green-400 text-white">
+        <Card className="bg-gradient-to-r from-orange-500 to-orange-400 text-white">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm opacity-90">Arrivée estimée</p>
@@ -221,7 +221,7 @@ const OrderTracking = () => {
                 <div key={step.key} className="flex items-start gap-3">
                   <div className={`
                     w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
-                    ${step.completed ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'}
+                    ${step.completed ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'}
                     ${step.active ? 'ring-4 ring-emerald-100' : ''}
                   `}>
                     <step.icon size={16} weight={step.completed ? 'fill' : 'regular'} />

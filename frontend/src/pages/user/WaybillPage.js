@@ -57,7 +57,7 @@ const WaybillPage = () => {
         <h1 className="flex-1 font-bold">Feuille de route</h1>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-600 text-white text-sm font-semibold"
           data-testid="waybill-print-btn"
         >
           <Printer size={14} weight="bold" /> Imprimer

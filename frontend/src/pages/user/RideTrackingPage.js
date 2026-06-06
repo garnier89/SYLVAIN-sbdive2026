@@ -639,7 +639,7 @@ const RideTrackingPage = () => {
                     {m.joined ? (
                       <span className="text-[10px] font-bold text-emerald-700" data-testid={`pool-match-joined-${i}`}>Rejoint</span>
                     ) : (
-                      <button onClick={() => joinPool(m.ride_id)} disabled={joiningRideId === m.ride_id} className="text-[10px] font-bold text-white bg-emerald-500 px-3 py-1 rounded-full disabled:opacity-60" data-testid={`pool-join-btn-${i}`}>
+                      <button onClick={() => joinPool(m.ride_id)} disabled={joiningRideId === m.ride_id} className="text-[10px] font-bold text-white bg-orange-500 px-3 py-1 rounded-full disabled:opacity-60" data-testid={`pool-join-btn-${i}`}>
                         {joiningRideId === m.ride_id ? '…' : 'Rejoindre'}
                       </button>
                     )}

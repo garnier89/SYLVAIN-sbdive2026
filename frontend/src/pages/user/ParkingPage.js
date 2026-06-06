@@ -47,7 +47,7 @@ const ParkingPage = () => {
         <p className="text-sm text-gray-500 text-center mb-6">
           Votre place au {selectedSpot.name} est confirmée pour {form.duration_hours}h.
         </p>
-        <button onClick={() => navigate('/home')} className="bg-blue-500 text-white px-6 py-3 rounded-xl font-semibold text-sm">
+        <button onClick={() => navigate('/home')} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-semibold text-sm">
           Retour à l&apos;accueil
         </button>
       </div>
@@ -90,7 +90,7 @@ const ParkingPage = () => {
             <div className="flex gap-2">
               {[1, 2, 4, 8, 24].map(h => (
                 <button key={h} onClick={() => setForm({ ...form, duration_hours: h })}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${form.duration_hours === h ? 'bg-blue-500 text-white border-blue-500' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${form.duration_hours === h ? 'bg-orange-500 text-white border-orange-500' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
                   data-testid={`duration-${h}`}>
                   {h}h
                 </button>
@@ -106,7 +106,7 @@ const ParkingPage = () => {
           </div>
 
           <button onClick={handleBook}
-            className="w-full bg-blue-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-blue-600 transition-colors"
+            className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors"
             data-testid="confirm-parking-booking">
             Réserver - {totalPrice}€
           </button>
@@ -117,7 +117,7 @@ const ParkingPage = () => {
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="parking-page">
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 pt-4 pb-6">
+      <div className="bg-gradient-to-br from-orange-500 to-orange-600 px-4 pt-4 pb-6">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate('/home')} className="text-white" data-testid="back-btn"><ArrowLeft size={22} /></button>
           <h1 className="text-lg font-bold text-white">Parking</h1>

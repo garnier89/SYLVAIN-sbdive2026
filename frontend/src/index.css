@@ -43,7 +43,7 @@ h1, h2, h3, h4, h5, h6 {
     --card-foreground: 0 0% 4%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 4%;
-    --primary: 152 100% 39%;
+    --primary: 16 100% 50%;
     --primary-foreground: 0 0% 100%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -95,6 +95,13 @@ h1, h2, h3, h4, h5, h6 {
     @apply bg-background text-foreground;
   }
 }
+
+/* Google Places autocomplete dropdown must float above modals/bottom-sheets
+   (some sheets use very high z-index, e.g. z-[2700]). */
+.pac-container {
+  z-index: 100000 !important;
+}
+
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {

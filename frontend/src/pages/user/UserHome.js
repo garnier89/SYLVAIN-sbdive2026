@@ -486,7 +486,7 @@ const UserHome = () => {
     ),
     video: (
       <div key="video" className="px-4 mt-6">
-        <div className="rounded-[20px] overflow-hidden bg-gradient-to-br from-teal-600 to-teal-700 p-5" data-testid="video-consulting-section">
+        <div className="rounded-[20px] overflow-hidden bg-gradient-to-br from-orange-600 to-orange-700 p-5" data-testid="video-consulting-section">
           <h3 className={`text-[20px] font-extrabold text-white ${HEAD}`}>Consultation Vidéo</h3>
           <p className={`text-[13px] text-white/80 mt-1 ${BODY}`}>Réservez une consultation vidéo avec des tuteurs, avocats, médecins et plus.</p>
           <div className="flex gap-2.5 mt-4 overflow-x-auto scrollbar-hide">

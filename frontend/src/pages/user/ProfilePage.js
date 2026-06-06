@@ -146,12 +146,12 @@ const ProfilePage = () => {
       <MenuCard>
         <MenuItem icon={User} label="Au propos de vous" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-red-800" iconColor="text-white" onClick={() => navigate('/profile?tab=about')} testId="settings-about-btn" />
         <MenuItem icon={ClipboardText} label="Mes réservations" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/history')} testId="settings-bookings-btn" />
-        <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-sky-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
+        <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
         <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
         <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
-        <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-green-500" iconColor="text-white" onClick={() => navigate('/safety')} testId="settings-emergency-btn" />
+        <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/safety')} testId="settings-emergency-btn" />
         <MenuItem icon={HandHeart} label="Faire un don" iconBg="bg-lime-600" iconColor="text-white" onClick={() => navigate('/donation')} testId="settings-donate-btn" />
       </MenuCard>
 
@@ -160,7 +160,7 @@ const ProfilePage = () => {
       <MenuCard>
         <MenuItem icon={ArrowsLeftRight} label="Votre liste générale d'articles" iconBg="bg-amber-600" iconColor="text-white" onClick={() => navigate('/marketplace/general')} testId="settings-items-btn" />
         <MenuItem icon={Buildings} label="Votre liste de propriétés" iconBg="bg-purple-700" iconColor="text-white" onClick={() => navigate('/marketplace/real-estate')} testId="settings-properties-btn" />
-        <MenuItem icon={CarSimple} label="Votre liste de voitures" iconBg="bg-green-500" iconColor="text-white" onClick={() => navigate('/marketplace/car-rental')} testId="settings-cars-btn" />
+        <MenuItem icon={CarSimple} label="Votre liste de voitures" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/marketplace/car-rental')} testId="settings-cars-btn" />
       </MenuCard>
 
       {/* ═══════════ PARAMÈTRE DU COMPTE ═══════════ */}
@@ -187,10 +187,10 @@ const ProfilePage = () => {
           }
         />
         <MenuItem icon={UserCircle} label="Gérer son compte" iconBg="bg-pink-600" iconColor="text-white" testId="settings-manage-account-btn" />
-        <MenuItem icon={FileText} label="Gérer les documents" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-cyan-500" iconColor="text-white" onClick={() => navigate('/profile?tab=documents')} testId="settings-documents-btn" />
+        <MenuItem icon={FileText} label="Gérer les documents" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=documents')} testId="settings-documents-btn" />
         <MenuItem icon={Key} label="Changer le mot de passe" iconBg="bg-gray-700" iconColor="text-white" onClick={() => navigate('/profile?tab=password')} testId="settings-password-btn" />
         <MenuItem icon={CurrencyCircleDollar} label="Changer de devise" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=currency')} testId="settings-currency-btn" />
-        <MenuItem icon={Globe} label="Changer de langue" iconBg="bg-indigo-800" iconColor="text-white" onClick={() => navigate('/profile?tab=language')} testId="settings-language-btn" />
+        <MenuItem icon={Globe} label="Changer de langue" iconBg="bg-orange-800" iconColor="text-white" onClick={() => navigate('/profile?tab=language')} testId="settings-language-btn" />
       </MenuCard>
 
       {/* ═══════════ PAIEMENT ═══════════ */}
@@ -206,7 +206,7 @@ const ProfilePage = () => {
       <SectionHeader title="Carte cadeau" />
       <MenuCard>
         <MenuItem icon={Gift} label="Envoyer une carte-cadeau" iconBg="bg-amber-700" iconColor="text-white" testId="settings-send-gift-btn" />
-        <MenuItem icon={Gift} label="Échanger une carte-cadeau" iconBg="bg-teal-600" iconColor="text-white" testId="settings-redeem-gift-btn" />
+        <MenuItem icon={Gift} label="Échanger une carte-cadeau" iconBg="bg-orange-600" iconColor="text-white" testId="settings-redeem-gift-btn" />
       </MenuCard>
 
       {/* ═══════════ LIEUX FAVORIS ═══════════ */}
@@ -223,7 +223,7 @@ const ProfilePage = () => {
         <MenuItem icon={ShieldCheck} label="Politique de confidentialité" iconBg="bg-gray-800" iconColor="text-white" testId="settings-privacy-btn" />
         <MenuItem icon={Lock} label="Termes et conditions" iconBg="bg-orange-400" iconColor="text-white" testId="settings-terms-btn" />
         <MenuItem icon={Question} label="FAQ" iconBg="bg-pink-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-faq-btn" />
-        <MenuItem icon={ChatCircleDots} label="Parler en direct" iconBg="bg-teal-500" iconColor="text-white" onClick={() => navigate('/livechat')} testId="settings-live-chat-btn" />
+        <MenuItem icon={ChatCircleDots} label="Parler en direct" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/livechat')} testId="settings-live-chat-btn" />
         <MenuItem icon={Envelope} label="Contactez nous" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-contact-btn" />
       </MenuCard>
 

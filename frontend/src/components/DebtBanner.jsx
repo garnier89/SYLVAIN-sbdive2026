@@ -60,8 +60,8 @@ export const DebtBanner = () => {
         <Warning size={20} weight="fill" className="text-red-600" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-red-700 leading-tight">Dette d'annulation : {Number(debt.total).toFixed(2)} €</p>
-        <p className="text-[11px] text-red-600/80 leading-snug">Réglez-la (ou rechargez votre portefeuille) pour commander une nouvelle course.</p>
+        <p className="text-[13px] font-bold text-red-700 leading-tight">Dette d&apos;annulation : {Number(debt.total).toFixed(2)} €</p>
+        <p className="text-[11px] text-red-600/80 leading-snug">Réglez-la maintenant, ou elle sera ajoutée au paiement de votre prochaine course.</p>
       </div>
       <button onClick={pay} disabled={paying} className="shrink-0 px-3 py-2 rounded-full bg-red-600 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-60" data-testid="debt-pay-btn">
         {paying && <CircleNotch size={14} className="animate-spin" />} Régler

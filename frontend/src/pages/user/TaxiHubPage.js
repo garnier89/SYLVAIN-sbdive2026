@@ -535,7 +535,7 @@ const TaxiHubPage = () => {
                 )}
               </div>
               {needsDropoff && (
-                <button onClick={addStop} className="mt-7 w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform" title="Ajouter un arrêt" data-testid="add-stop-btn">
+                <button onClick={addStop} className="mt-7 w-9 h-9 rounded-full bg-orange-500 text-white flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform" title="Ajouter un arrêt" data-testid="add-stop-btn">
                   <Plus size={18} weight="bold" />
                 </button>
               )}

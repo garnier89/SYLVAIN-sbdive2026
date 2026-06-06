@@ -60,7 +60,7 @@ const MarketplacePage = () => {
           <button
             key={key}
             onClick={() => navigate(`/marketplace/${key}`)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeCat === key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeCat === key ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
             data-testid={`cat-${key}`}
           >
             <c.icon size={14} weight="duotone" />{c.label}

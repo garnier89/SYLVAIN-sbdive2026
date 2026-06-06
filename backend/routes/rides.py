@@ -237,15 +237,6 @@ async def estimate_ride(data: RideRequest):
 async def create_ride(data: RideRequest, request: Request):
     user = await get_current_user(request)
 
-    # ── Block new bookings while an unpaid cancellation debt exists ──
-    from routes.debts import get_unpaid_debt_total
-    _debt = await get_unpaid_debt_total(user["id"])
-    if _debt > 0:
-        raise HTTPException(
-            status_code=402,
-            detail=f"Vous avez une dette d'annulation de {_debt:.2f} € à régler avant de commander une nouvelle course.",
-        )
-
     # ── Service availability (admin can disable a Taxi mode / set a schedule without redeploy) ──
     mode_id = getattr(data, "mode_id", None)
     if mode_id:
@@ -425,6 +416,15 @@ async def create_ride(data: RideRequest, request: Request):
         "cancelled_at": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+
+    # ── Carry forward any unpaid cancellation debt onto this ride ──
+    # (booking is no longer blocked; the penalty is settled when this ride
+    #  completes — cash → debited from the new driver to reimburse the previous
+    #  driver; wallet/card → charged with the ride.)
+    from routes.debts import carry_unpaid_debts_to_ride
+    carried = await carry_unpaid_debts_to_ride(user["id"], ride["id"])
+    ride["carried_debt"] = carried if carried.get("amount", 0) > 0 else None
+
     await db.rides.insert_one(ride)
 
     # Join WS ride room for the user
@@ -1093,6 +1093,12 @@ async def update_ride_status(ride_id: str, request: Request):
             from routes.corporate import record_corporate_charge
             await record_corporate_charge(ride["corporate_account_id"], ride, final_fare)
 
+        # ===== Carried cancellation debt: reimburse the previous driver =====
+        carried = ride.get("carried_debt")
+        if carried and float(carried.get("amount", 0) or 0) > 0:
+            from routes.debts import settle_carried_debts
+            await settle_carried_debts({**ride, "final_fare": final_fare}, carried)
+
     elif new_status == "cancelled":
         update_data["cancelled_at"] = now
         update_data["cancelled_by"] = "driver" if is_driver else "user" if is_passenger else "admin"
@@ -1106,7 +1112,12 @@ async def update_ride_status(ride_id: str, request: Request):
             if cancel_fee > 0:
                 update_data["cancellation_fee"] = cancel_fee
                 from routes.debts import settle_cancellation_fee
-                await settle_cancellation_fee(ride["user_id"], ride_id, cancel_fee)
+                # The wronged driver (if one was already assigned) is reimbursed.
+                await settle_cancellation_fee(ride["user_id"], ride_id, cancel_fee, ride.get("driver_id"))
+        # Release any cancellation debt that was carried by this (now cancelled)
+        # ride so it follows the passenger's next ride instead of being lost.
+        from routes.debts import release_carried_debts
+        await release_carried_debts(ride_id)
         # ===== POINTS: driver-initiated cancellation penalises the driver =====
         if is_driver and ride.get("driver_id"):
             from routes.drivers import _get_rewards_points_config, _recompute_rates
@@ -1175,7 +1186,11 @@ async def cancel_ride(ride_id: str, request: Request):
     settle = {"fee": cancel_fee, "debt_created": False, "paid_from_wallet": False}
     if cancel_fee > 0 and ride["user_id"] == user["id"]:
         from routes.debts import settle_cancellation_fee
-        settle = await settle_cancellation_fee(user["id"], ride_id, cancel_fee)
+        settle = await settle_cancellation_fee(user["id"], ride_id, cancel_fee, ride.get("driver_id"))
+
+    # Release any debt this ride was carrying so it follows the next ride.
+    from routes.debts import release_carried_debts
+    await release_carried_debts(ride_id)
 
     await db.rides.update_one({"id": ride_id}, {"$set": {
         "status": "cancelled",

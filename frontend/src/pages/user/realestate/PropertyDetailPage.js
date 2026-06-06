@@ -144,7 +144,7 @@ const PropertyDetailPage = () => {
         ) : (
           <>
             {p.owner_phone && (
-              <a href={`tel:${p.owner_phone}`} data-testid="property-call-btn" className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-2xl font-semibold">
+              <a href={`tel:${p.owner_phone}`} data-testid="property-call-btn" className="flex-1 flex items-center justify-center gap-2 bg-orange-600 text-white py-3 rounded-2xl font-semibold">
                 <Phone size={18} weight="fill" /> Appeler
               </a>
             )}

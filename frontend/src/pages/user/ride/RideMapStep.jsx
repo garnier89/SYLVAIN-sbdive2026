@@ -273,7 +273,7 @@ export const RideMapStep = ({
               </button>
 
               <button
-                className="w-full mt-3 h-14 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base disabled:opacity-60"
+                className="w-full mt-3 h-14 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-base disabled:opacity-60"
                 onClick={confirmRide}
                 disabled={loading}
                 data-testid="request-now-btn"

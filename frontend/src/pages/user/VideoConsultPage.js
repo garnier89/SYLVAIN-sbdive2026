@@ -87,7 +87,7 @@ const VideoConsultPage = () => {
           <span className="text-gray-500">Total</span>
           <span className="font-bold text-gray-900">{booked.total}€</span>
         </div>
-        <button onClick={() => setBooked(null)} className="w-full mt-5 bg-teal-500 text-white py-3.5 rounded-xl font-semibold text-sm" data-testid="video-success-back">
+        <button onClick={() => setBooked(null)} className="w-full mt-5 bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm" data-testid="video-success-back">
           Réserver une autre consultation
         </button>
         <button onClick={() => navigate('/home')} className="w-full mt-2 text-gray-500 py-2 text-sm font-medium" data-testid="video-success-home">
@@ -126,7 +126,7 @@ const VideoConsultPage = () => {
               <div className="flex gap-2">
                 {[15, 30, 45, 60].map(d => (
                   <button key={d} onClick={() => setBooking({ ...booking, duration: d })}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${booking.duration === d ? 'bg-teal-500 text-white border-teal-500' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${booking.duration === d ? 'bg-orange-500 text-white border-orange-500' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
                     data-testid={`duration-${d}`}>
                     {d} min
                   </button>
@@ -149,7 +149,7 @@ const VideoConsultPage = () => {
             </div>
 
             <button onClick={() => handleBook(p)} disabled={submitting}
-              className="w-full bg-teal-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-teal-600 transition-colors disabled:opacity-60"
+              className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-60"
               data-testid="confirm-video-booking">
               {submitting ? 'Réservation…' : `Confirmer la réservation - ${totalPrice}€`}
             </button>
@@ -162,7 +162,7 @@ const VideoConsultPage = () => {
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="video-consult-page">
       {/* Header */}
-      <div className="bg-gradient-to-br from-teal-500 to-teal-600 px-4 pt-4 pb-6">
+      <div className="bg-gradient-to-br from-orange-500 to-orange-600 px-4 pt-4 pb-6">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate('/home')} className="text-white" data-testid="back-btn"><ArrowLeft size={22} /></button>
           <h1 className="text-lg font-bold text-white">Consultation Vidéo</h1>
@@ -180,7 +180,7 @@ const VideoConsultPage = () => {
       <div className="px-4 py-3 flex gap-2 overflow-x-auto scrollbar-hide">
         {CATEGORIES.map(cat => (
           <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${activeCategory === cat.id ? 'bg-teal-500 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${activeCategory === cat.id ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
             data-testid={`cat-${cat.id}`}>
             {cat.label}
           </button>
@@ -227,7 +227,7 @@ const VideoConsultPage = () => {
                   <span className="text-sm font-bold text-teal-600">{provider.price_per_min}€/min</span>
                   <button onClick={() => provider.available && setSelectedProvider(provider)}
                     disabled={!provider.available}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${provider.available ? 'bg-teal-500 text-white hover:bg-teal-600' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${provider.available ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                     data-testid={`book-${provider.id}`}>
                     <VideoCamera size={14} />
                     Consulter

@@ -332,6 +332,12 @@ const RideChoosePage = () => {
     try {
       const res = await rideAPI.create(buildPayload());
       if (dropoff?.lat) placesAPI.addRecent({ address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }).catch(() => {});
+      const cd = res.data?.carried_debt;
+      if (cd && Number(cd.amount) > 0) {
+        toast.info(`Dette d'annulation de ${Number(cd.amount).toFixed(2)} € ajoutée à cette course.`, {
+          description: 'À régler avec le paiement de la course (espèces, carte ou portefeuille).',
+        });
+      }
       if (scheduled) { toast.success('Course programmée !'); navigate('/scheduled-rides'); }
       else navigate(`/ride/${res.data.id}`);
     } catch (e) {

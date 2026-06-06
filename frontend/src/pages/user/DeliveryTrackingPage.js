@@ -118,7 +118,7 @@ const DeliveryTrackingPage = () => {
             </div>
             {item.driver_phone && (
               <a href={`tel:${item.driver_phone}`} data-testid="tracking-call-courier"
-                className="w-11 h-11 rounded-full bg-teal-500 flex items-center justify-center text-white shrink-0">
+                className="w-11 h-11 rounded-full bg-orange-500 flex items-center justify-center text-white shrink-0">
                 <Phone size={20} weight="fill" />
               </a>
             )}

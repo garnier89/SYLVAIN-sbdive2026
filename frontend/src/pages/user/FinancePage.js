@@ -83,7 +83,7 @@ const FinancePage = () => {
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-12" data-testid="finance-page">
       {/* Header */}
-      <div className="bg-gradient-to-br from-indigo-600 to-purple-600 px-5 pt-5 pb-10 text-white">
+      <div className="bg-gradient-to-br from-orange-600 to-purple-600 px-5 pt-5 pb-10 text-white">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" data-testid="finance-back-btn">
             <ArrowLeft size={18} weight="bold" />
@@ -275,7 +275,7 @@ const TopUpModal = ({ onClose, onDone }) => {
         <button
           onClick={submit}
           disabled={loading || !finalAmount}
-          className="w-full h-12 rounded-xl bg-indigo-600 text-white font-bold disabled:opacity-60"
+          className="w-full h-12 rounded-xl bg-orange-600 text-white font-bold disabled:opacity-60"
           data-testid="topup-confirm-btn"
         >
           {loading ? 'Recharge…' : `Recharger ${finalAmount?.toFixed(2) || '0.00'} €`}

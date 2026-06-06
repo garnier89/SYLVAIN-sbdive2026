@@ -478,10 +478,10 @@ const DriverHome = () => {
           { value: driver.total_trips || 0, label: 'Voyages/ emplois\nd\'aujourd\'hui', color: '#D1E8E2' },
           { value: (driver.rating || 5.0).toFixed(1), label: 'Moy.\nEvaluation', color: '#F8D7DA' },
           { value: homeFeed.upcoming.length, label: 'Emplois a\nvenir', color: '#FFF3CD',
-            testId: 'stat-upcoming', onClick: () => navigate('/chauffeur/reservations'),
+            testId: 'stat-upcoming', onClick: () => navigate('/chauffeur/reservations?filter=upcoming'),
             blink: homeFeed.upcoming.length > 0 ? '#F59E0B' : null },
           { value: homeFeed.available_rides.length + homeFeed.available_deliveries.length, label: 'Emplois en\nattente', color: '#D4EDDA',
-            testId: 'stat-pending', onClick: () => navigate('/chauffeur/reservations'),
+            testId: 'stat-pending', onClick: () => navigate('/chauffeur/reservations?filter=pending'),
             dots: [
               ...(homeFeed.available_rides.length ? [{ c: '#F59E0B', t: 'pending-yellow-dot' }] : []),
               ...(homeFeed.available_deliveries.length ? [{ c: '#2F9BFF', t: 'pending-blue-dot' }] : []),
