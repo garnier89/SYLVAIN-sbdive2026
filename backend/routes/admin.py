@@ -300,6 +300,17 @@ async def admin_delete_driver_category(cid: str, request: Request):
     return {"message": f"Catégorie '{cid}' supprimée"}
 
 
+@router.post("/driver-categories/reorder")
+async def admin_reorder_driver_categories(request: Request):
+    """Body: {ordered_ids: [...]} — sets `order` by index (reflected at driver registration)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    ids = body.get("ordered_ids", [])
+    for i, cid in enumerate(ids):
+        await db.driver_categories.update_one({"id": cid}, {"$set": {"order": i + 1}})
+    return {"message": "reordered", "count": len(ids)}
+
+
 
 @router.post("/merchants/{merchant_id}/status")
 async def update_merchant_status(merchant_id: str, request: Request):

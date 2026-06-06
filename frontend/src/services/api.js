@@ -223,6 +223,7 @@ export const adminAPI = {
   createDriverCategory: (data) => api.post('/admin/driver-categories', data),
   updateDriverCategory: (id, data) => api.put(`/admin/driver-categories/${id}`, data),
   deleteDriverCategory: (id) => api.delete(`/admin/driver-categories/${id}`),
+  reorderDriverCategories: (orderedIds) => api.post('/admin/driver-categories/reorder', { ordered_ids: orderedIds }),
   getTripReasons: () => api.get('/admin/business-trip-reasons'),
   createTripReason: (data) => api.post('/admin/business-trip-reasons', data),
   updateTripReason: (id, data) => api.put(`/admin/business-trip-reasons/${id}`, data),

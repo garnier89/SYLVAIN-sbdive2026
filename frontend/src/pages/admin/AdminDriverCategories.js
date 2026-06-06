@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/input';
 import {
   Car, Motorcycle, Bicycle, Taxi, Package, PersonSimpleRun,
   Plus, PencilSimple, Trash, FileText, ArrowLeft, Eye, EyeSlash,
+  Copy, ArrowUp, ArrowDown, DotsSixVertical,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { adminAPI } from '../../services/api';
@@ -209,6 +210,50 @@ const AdminDriverCategories = () => {
     } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
   };
 
+  const [dragId, setDragId] = useState(null);
+
+  // Duplicate a category in one click → opens the editor pre-filled (new id auto-assigned on save).
+  const duplicate = (cat) => setEditing({
+    ...cat, id: '', label: `${cat.label} (copie)`,
+    documents: (cat.documents || []).map((d) => ({ ...d })),
+    _isExisting: false,
+  });
+
+  // Persist a new global order from the reordered items of one service group.
+  const persistOrder = async (service, newItems) => {
+    const orderedIds = ['taxi', 'courier', 'delivery'].flatMap((s) =>
+      (s === service ? newItems : cats.filter((c) => c.service === s)).map((c) => c.id),
+    );
+    setCats((prev) => orderedIds.map((id, i) => ({ ...prev.find((c) => c.id === id), order: i + 1 })));
+    try {
+      await adminAPI.reorderDriverCategories(orderedIds);
+    } catch { toast.error('Échec du classement'); load(); }
+  };
+
+  // Arrow ↑/↓ reorder within a service group.
+  const move = (service, idx, dir) => {
+    const items = cats.filter((c) => c.service === service);
+    const j = idx + dir;
+    if (j < 0 || j >= items.length) return;
+    const next = [...items];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    persistOrder(service, next);
+  };
+
+  // Drag & drop reorder within a service group (cross-group drops are ignored).
+  const onDrop = (service, targetId) => {
+    if (!dragId || dragId === targetId) { setDragId(null); return; }
+    const items = cats.filter((c) => c.service === service);
+    const from = items.findIndex((c) => c.id === dragId);
+    const to = items.findIndex((c) => c.id === targetId);
+    if (from < 0 || to < 0) { setDragId(null); return; }
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setDragId(null);
+    persistOrder(service, next);
+  };
+
   if (editing) {
     return <CategoryEditor item={editing} onSaved={() => { setEditing(null); load(); }} onCancel={() => setEditing(null)} />;
   }
@@ -236,13 +281,22 @@ const AdminDriverCategories = () => {
           <div key={service} className="mb-8" data-testid={`dc-group-${service}`}>
             <h2 className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wide mb-3 ${m.color}`}>
               <SI size={18} weight="fill" />{m.label} <span className="text-gray-400 font-normal normal-case">· {items.length}</span>
+              {items.length > 1 && <span className="text-gray-300 font-normal normal-case text-[11px] flex items-center gap-1"><DotsSixVertical size={13} /> glissez pour réordonner</span>}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {items.map((cat) => {
+              {items.map((cat, idx) => {
                 const vm = VEHICLE_META[cat.vehicle_class] || {};
                 const VI = vm.icon || Car;
                 return (
-                  <div key={cat.id} className={`bg-white border rounded-xl p-4 hover:shadow-md transition-shadow ${cat.active ? 'border-gray-200' : 'border-dashed border-gray-300 opacity-70'}`} data-testid={`dc-card-${cat.id}`}>
+                  <div key={cat.id}
+                    draggable
+                    onDragStart={() => setDragId(cat.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => onDrop(service, cat.id)}
+                    onDragEnd={() => setDragId(null)}
+                    style={{ opacity: dragId === cat.id ? 0.4 : undefined }}
+                    className={`bg-white border rounded-xl p-4 hover:shadow-md transition-shadow cursor-move ${dragId === cat.id ? 'ring-2 ring-[#FF5000]' : ''} ${cat.active ? 'border-gray-200' : 'border-dashed border-gray-300 opacity-70'}`}
+                    data-testid={`dc-card-${cat.id}`}>
                     <div className="flex items-start gap-3">
                       <div className={`w-11 h-11 rounded-xl ${m.bg} flex items-center justify-center shrink-0`}>
                         <VI size={22} weight="duotone" className={m.color} />
@@ -255,6 +309,13 @@ const AdminDriverCategories = () => {
                           {!cat.active && <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">Inactif</Badge>}
                         </div>
                         <Badge variant="outline" className="font-mono text-[10px] mt-1.5">{cat.id}</Badge>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5 shrink-0">
+                        <button onClick={() => move(service, idx, -1)} disabled={idx === 0} title="Monter" data-testid={`dc-up-${cat.id}`}
+                          className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center disabled:opacity-30"><ArrowUp size={12} weight="bold" /></button>
+                        <span className="text-[10px] font-bold text-gray-400">{idx + 1}</span>
+                        <button onClick={() => move(service, idx, 1)} disabled={idx === items.length - 1} title="Descendre" data-testid={`dc-down-${cat.id}`}
+                          className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center disabled:opacity-30"><ArrowDown size={12} weight="bold" /></button>
                       </div>
                     </div>
 
@@ -269,6 +330,7 @@ const AdminDriverCategories = () => {
 
                     <div className="flex gap-1 mt-3 pt-3 border-t border-gray-100">
                       <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditing({ ...cat, _isExisting: true })} data-testid={`dc-edit-${cat.id}`}><PencilSimple size={14} className="mr-1" />Modifier</Button>
+                      <Button size="sm" variant="ghost" onClick={() => duplicate(cat)} title="Dupliquer" data-testid={`dc-dup-${cat.id}`}><Copy size={15} /></Button>
                       <Button size="sm" variant="ghost" onClick={() => toggleActive(cat)} title={cat.active ? 'Désactiver' : 'Activer'} data-testid={`dc-toggle-${cat.id}`}>{cat.active ? <Eye size={16} /> : <EyeSlash size={16} className="text-amber-500" />}</Button>
                       <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(cat)} data-testid={`dc-delete-${cat.id}`}><Trash size={15} /></Button>
                     </div>
