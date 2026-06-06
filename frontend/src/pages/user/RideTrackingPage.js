@@ -6,7 +6,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { rideAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
-  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, UsersThree, ArrowLeft,
+  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, ArrowLeft,
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
@@ -61,7 +61,6 @@ const RideTrackingPage = () => {
   const [loading, setLoading] = useState(true);
   const [cancelReasons, setCancelReasons] = useState([]);
   const [poolEnabled, setPoolEnabled] = useState(false);
-  const [poolLoading, setPoolLoading] = useState(false);
   const [poolMatches, setPoolMatches] = useState([]);
   const [poolGroupMembers, setPoolGroupMembers] = useState(0);
   const [poolSavings, setPoolSavings] = useState(0);
@@ -75,7 +74,6 @@ const RideTrackingPage = () => {
   const [converting, setConverting] = useState(false);
   const [searchCfg, setSearchCfg] = useState({ enabled: true, relance_interval_seconds: RELANCE_INTERVAL_SEC, max_relances: MAX_RELANCES });
   const [nearbyDrivers, setNearbyDrivers] = useState(null);
-  const [isPoolRide, setIsPoolRide] = useState(false);
   const prevStatusRef = useRef(null);
   const relanceRef = useRef(0);
 
@@ -101,30 +99,6 @@ const RideTrackingPage = () => {
     const t = setInterval(fetchNearby, 6000);
     return () => { active = false; clearInterval(t); };
   }, [ride?.status, rideId]);
-
-  const togglePool = useCallback(async () => {
-    if (poolLoading) return;
-    setPoolLoading(true);
-    try {
-      const next = !poolEnabled;
-      const res = await fetch(`${API}/api/phase2/pool/enable/${rideId}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: next }),
-      });
-      if (res.ok) {
-        setPoolEnabled(next);
-        const d = await res.json();
-        if (d.new_fare != null) {
-          setRide((r) => (r ? { ...r, estimated_fare: d.new_fare, pool_enabled: next } : r));
-        }
-      }
-    } catch (err) {
-      console.warn('[RideTracking] pool toggle failed:', err?.message || err);
-    }
-    setPoolLoading(false);
-  }, [poolEnabled, poolLoading, rideId]);
 
   const isBiddingMode = ride?.mode === 'bidding' || ride?.is_bidding;
 
@@ -260,8 +234,6 @@ const RideTrackingPage = () => {
       if (!poolInitRef.current) {
         poolInitRef.current = true;
         setPoolEnabled(!!res.data.pool_enabled);
-        // Pool toggle is shown ONLY for rides booked from the Pool category.
-        setIsPoolRide(!!res.data.pool_enabled || res.data.mode_id === 'pool');
       }
       if (res.data.driver_lat && res.data.driver_lng) {
         setDriverPos({ lat: res.data.driver_lat, lng: res.data.driver_lng });
@@ -546,12 +518,6 @@ const RideTrackingPage = () => {
 
         {/* Bottom actions */}
         <div className="px-4 pb-8 pt-2 space-y-2 relative z-10">
-          {!isBiddingMode && isPoolRide && (
-            <button onClick={togglePool} disabled={poolLoading} className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-bold bg-white text-[#0B1426]" data-testid="toggle-taxi-pool-btn">
-              <UsersThree size={18} weight="duotone" className={poolEnabled ? 'text-emerald-500' : 'text-gray-400'} />
-              {poolEnabled ? 'Taxi Pool activé · partagé' : 'Activer Taxi Pool (tarif partagé)'}
-            </button>
-          )}
           {!isBiddingMode && (
             <button onClick={handleManualRelance} className="w-full rounded-xl py-3 text-sm font-bold bg-white/20 text-white border border-white/40" data-testid="relancer-recherche-btn">
               Relancer la recherche

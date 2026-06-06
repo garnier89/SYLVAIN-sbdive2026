@@ -980,3 +980,10 @@ Le champ « Départ » restait vide : la géolocalisation navigateur (`getCurren
 - **Frontend** `RideChoosePage.js` : `autoLocate()` garde le GPS prioritaire ; en cas d'échec/blocage/permission refusée → repli **`ipLocate()`** qui remplit le départ avec la position approximative (ville). Toast informatif sur action manuelle.
 - Résout l'« écran vide » sur preview (iframe) ET prod (GPS off). Précision GPS conservée si autorisé.
 - Lint clean, webpack compile OK.
+
+## 2026-06-06 (suite) — Retrait du bouton "Activer Taxi Pool" (sauf option Pool)
+
+### Changed
+- `RideTrackingPage.js` : suppression complète du bouton bascule « Activer Taxi Pool (tarif partagé) » de l'écran de recherche (apparaissait à tort sur des courses non-Pool, ex. Confort). Nettoyage : callback `togglePool`, états `poolLoading`/`isPoolRide`, import `UsersThree`.
+- Conservé : tuile « VTC Pooling » sur l'accueil + fonctionnement Pool des courses réservées en Pool (poolEnabled initialisé depuis la réservation, panneau de jumelage `pool-matches-panel` toujours actif).
+- Conforme à la demande « retirer Taxi Pool partout sauf sur le pool ». Lint clean, webpack OK.
