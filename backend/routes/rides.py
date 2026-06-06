@@ -496,12 +496,13 @@ async def nearby_drivers_count(ride_id: str, request: Request):
         raise HTTPException(status_code=403, detail="Not authorized")
     p_lat, p_lng = ride.get("pickup_lat"), ride.get("pickup_lng")
     if p_lat is None or p_lng is None:
-        return {"count": 0, "radius_km": NEARBY_DRIVERS_RADIUS_KM}
+        return {"count": 0, "radius_km": NEARBY_DRIVERS_RADIUS_KM, "positions": []}
     cursor = db.drivers.find(
         {"status": "approved", "is_online": True},
         {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1},
     )
     count = 0
+    positions = []
     async for d in cursor:
         loc = manager.get_driver_location(d["user_id"]) or {}
         lat = loc.get("lat", d.get("current_lat"))
@@ -510,7 +511,9 @@ async def nearby_drivers_count(ride_id: str, request: Request):
             continue
         if calculate_distance(p_lat, p_lng, lat, lng) <= NEARBY_DRIVERS_RADIUS_KM:
             count += 1
-    return {"count": count, "radius_km": NEARBY_DRIVERS_RADIUS_KM}
+            if len(positions) < 12:
+                positions.append({"lat": lat, "lng": lng})
+    return {"count": count, "radius_km": NEARBY_DRIVERS_RADIUS_KM, "positions": positions}
 
 
 VALID_PAYMENT_METHODS = {"cash", "card", "wallet", "sbpaygo"}

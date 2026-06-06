@@ -11,6 +11,7 @@ import {
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
+import RadarCars from '../../components/RadarCars';
 import DriverInfoCard from './ride-tracking/DriverInfoCard';
 import DriverEnRouteView from './ride-tracking/DriverEnRouteView';
 import RouteEditModal from './ride-tracking/RouteEditModal';
@@ -83,6 +84,7 @@ const RideTrackingPage = () => {
   const [converting, setConverting] = useState(false);
   const [searchCfg, setSearchCfg] = useState({ enabled: true, relance_interval_seconds: RELANCE_INTERVAL_SEC, max_relances: MAX_RELANCES });
   const [nearbyDrivers, setNearbyDrivers] = useState(null);
+  const [nearbyPositions, setNearbyPositions] = useState([]);
   const prevStatusRef = useRef(null);
   const relanceRef = useRef(0);
 
@@ -101,7 +103,7 @@ const RideTrackingPage = () => {
     const fetchNearby = async () => {
       try {
         const res = await fetch(`${API}/api/rides/${rideId}/nearby-drivers`, { credentials: 'include' });
-        if (active && res.ok) { const d = await res.json(); setNearbyDrivers(d.count ?? 0); }
+        if (active && res.ok) { const d = await res.json(); setNearbyDrivers(d.count ?? 0); setNearbyPositions(d.positions || []); }
       } catch (err) { console.warn('[RideTracking] nearby drivers failed:', err?.message || err); }
     };
     fetchNearby();
@@ -544,6 +546,18 @@ const RideTrackingPage = () => {
             <span className="absolute inset-0 m-auto w-24 h-24 rounded-full border-2 border-[#FF5000]/40" />
             <span className="absolute inset-0 m-auto w-5 h-5 rounded-full bg-[#FF5000] ring-4 ring-white shadow-lg" />
           </div>
+          <RadarCars
+            pickupLat={ride.pickup_lat}
+            pickupLng={ride.pickup_lng}
+            realPositions={nearbyPositions}
+            seed={rideId}
+            config={{
+              enabled: searchCfg.cars_enabled !== false,
+              icon_url: searchCfg.cars_icon_url || '',
+              count: searchCfg.cars_simulated_count ?? 5,
+              radius_m: searchCfg.cars_radius_m ?? 600,
+            }}
+          />
         </div>
 
         <button onClick={() => navigate('/home')} className="absolute top-12 left-4 z-20 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center" data-testid="ride-searching-back">

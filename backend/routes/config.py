@@ -51,6 +51,11 @@ DEFAULT_RIDE_SEARCH = {
     "enabled": True,           # show the no-driver alternatives flow
     "relance_interval_seconds": 20,
     "max_relances": 3,
+    # Radar "nearby cars" — admin-configurable little cars shown on the search map.
+    "cars_enabled": True,      # show the little cars on the searching radar
+    "cars_icon_url": "",       # custom car icon (data-URL or http URL); empty = default
+    "cars_simulated_count": 5, # cars to display (real positions first, padded with simulated)
+    "cars_radius_m": 600,      # dispersion radius around the pickup (meters)
 }
 
 
@@ -70,6 +75,16 @@ async def get_ride_search_config():
         cfg["max_relances"] = min(10, max(1, int(cfg.get("max_relances", 3))))
     except (TypeError, ValueError):
         cfg["max_relances"] = 3
+    cfg["cars_enabled"] = bool(cfg.get("cars_enabled", True))
+    cfg["cars_icon_url"] = str(cfg.get("cars_icon_url") or "")
+    try:
+        cfg["cars_simulated_count"] = min(12, max(0, int(cfg.get("cars_simulated_count", 5))))
+    except (TypeError, ValueError):
+        cfg["cars_simulated_count"] = 5
+    try:
+        cfg["cars_radius_m"] = min(5000, max(100, int(cfg.get("cars_radius_m", 600))))
+    except (TypeError, ValueError):
+        cfg["cars_radius_m"] = 600
     return cfg
 
 

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Info, Minus, Plus, Users, TrendUp } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CountdownRing } from '../../components/CountdownRing';
+import RadarCars from '../../components/RadarCars';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
@@ -49,6 +50,15 @@ const TaxiBiddingPage = () => {
   const [searchSeconds, setSearchSeconds] = useState(0);
   const [offers, setOffers] = useState([]);
   const [nowTs, setNowTs] = useState(Date.now());
+  const [carsCfg, setCarsCfg] = useState(null);
+
+  // Admin-configurable radar cars (enabled / icon / count / radius)
+  useEffect(() => {
+    fetch(`${API}/api/config/ride-search`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setCarsCfg(d); })
+      .catch(() => {});
+  }, []);
   const suggestedRef = useRef(false);
   const debounceRef = useRef(null);
 
@@ -268,6 +278,20 @@ const TaxiBiddingPage = () => {
             <span className="absolute inset-0 m-auto w-24 h-24 rounded-full border-2 border-[#FF5000]/40" />
             <span className="absolute inset-0 m-auto w-5 h-5 rounded-full bg-[#FF5000] ring-4 ring-white shadow-lg" />
           </div>
+          {carsCfg && pickup?.lat && (
+            <RadarCars
+              pickupLat={pickup.lat}
+              pickupLng={pickup.lng}
+              realPositions={[]}
+              seed={searching || 'bid'}
+              config={{
+                enabled: carsCfg.cars_enabled !== false,
+                icon_url: carsCfg.cars_icon_url || '',
+                count: carsCfg.cars_simulated_count ?? 5,
+                radius_m: carsCfg.cars_radius_m ?? 600,
+              }}
+            />
+          )}
         </div>
       )}
 

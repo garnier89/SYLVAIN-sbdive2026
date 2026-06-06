@@ -137,10 +137,14 @@ const serviceConfigs = {
     { key: 'share_discount_max_percent', label: 'Réduction maximale (%) plafond', type: 'number', value: 60 },
     { key: 'share_discount_hours', label: 'Programmation (plages, ex: 07:00-10:00,17:00-20:00 — vide = toujours)', type: 'text', value: '' },
   ]},
-  ride_search: { title: 'Recherche chauffeur (Relances)', icon: MagnifyingGlass, color: '#3B82F6', desc: 'Cadence des relances et options proposées (Proposer votre tarif / Planifier) quand aucun chauffeur n\'accepte', settings: [
+  ride_search: { title: 'Recherche chauffeur (Relances)', icon: MagnifyingGlass, color: '#3B82F6', desc: 'Cadence des relances, options proposées (Proposer votre tarif / Planifier) et petites voitures du radar de recherche', settings: [
     { key: 'enabled', label: 'Activer les options après 3 relances (modal Proposer/Planifier)', type: 'toggle', value: true },
     { key: 'relance_interval_seconds', label: 'Intervalle entre relances (secondes, min 5)', type: 'number', value: 20 },
     { key: 'max_relances', label: 'Nombre de relances avant de proposer les options', type: 'number', value: 3 },
+    { key: 'cars_enabled', label: 'Afficher les petites voitures sur le radar de recherche', type: 'toggle', value: true },
+    { key: 'cars_icon_url', label: 'Icône de la voiture (image — vide = icône par défaut)', type: 'image', value: '' },
+    { key: 'cars_simulated_count', label: 'Nombre de voitures affichées (réelles d\'abord, complétées en simulées) — max 12', type: 'number', value: 5 },
+    { key: 'cars_radius_m', label: 'Rayon de dispersion autour du départ (mètres, 100–5000)', type: 'number', value: 600 },
   ]},
   taxi_booking: { title: 'Réservation Taxi & WhatsApp', icon: WhatsappLogo, color: '#25D366', desc: 'En-tête éditable, flux unifié « Choisissez un voyage » + réservation via WhatsApp', settings: [
     { key: 'booking_header_title', label: 'En-tête — Titre (rectangle de réservation)', type: 'text', value: 'Planifiez votre trajet' },
@@ -254,6 +258,30 @@ const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
               <Input type="number" value={s.value} onChange={e => updateSetting(s.key, parseFloat(e.target.value) || 0)} />
             ) : s.type === 'textarea' ? (
               <Textarea value={s.value} onChange={e => updateSetting(s.key, e.target.value)} rows={6} data-testid={`config-${s.key}`} />
+            ) : s.type === 'image' ? (
+              <div className="flex items-center gap-3" data-testid={`config-image-${s.key}`}>
+                {s.value ? (
+                  <img src={s.value} alt="" className="w-12 h-12 rounded-lg object-contain bg-gray-50 border border-gray-200 p-1" />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-400">Aucune</div>
+                )}
+                <input
+                  type="file" accept="image/*"
+                  data-testid={`config-image-input-${s.key}`}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    if (f.size > 1024 * 1024) { toast.error('Image trop volumineuse (max 1 Mo)'); return; }
+                    const reader = new FileReader();
+                    reader.onload = () => updateSetting(s.key, reader.result);
+                    reader.readAsDataURL(f);
+                  }}
+                  className="text-xs"
+                />
+                {s.value && (
+                  <button onClick={() => updateSetting(s.key, '')} className="text-xs text-red-600 underline" data-testid={`config-image-clear-${s.key}`}>Retirer</button>
+                )}
+              </div>
             ) : (
               <Input value={s.value} onChange={e => updateSetting(s.key, e.target.value)} />
             )}
