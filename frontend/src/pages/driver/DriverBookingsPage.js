@@ -59,6 +59,7 @@ const DriverBookingsPage = () => {
   const [confirm, setConfirm] = useState(null); // { message, action }
   const [busy, setBusy] = useState(false);
   const [bidInputs, setBidInputs] = useState({});
+  const [dismissed, setDismissed] = useState([]); // locally declined pending rides
 
   useEffect(() => {
     let alive = true;
@@ -110,7 +111,7 @@ const DriverBookingsPage = () => {
     } catch { toast.error("Échec de l'envoi de l'offre."); }
   }, [bidInputs, reload]);
 
-  const rides = filter === 'pending' ? data.pending : data.upcoming;
+  const rides = (filter === 'pending' ? data.pending : data.upcoming).filter((r) => !dismissed.includes(r.id));
 
   return (
     <div className="mobile-container min-h-screen bg-[#F2F4F7] pb-24" data-testid="driver-bookings-page">
@@ -157,7 +158,7 @@ const DriverBookingsPage = () => {
             {filter === 'pending' ? (
               <div className="flex gap-3">
                 <button onClick={() => doAccept(ride)} className="flex-1 py-2.5 rounded-full text-white font-bold text-sm" style={{ background: GREEN }} data-testid={`accept-booking-${ride.id}`}>Acceptez</button>
-                <button className="px-6 py-2.5 rounded-full border border-gray-300 text-gray-500 font-bold text-sm" data-testid={`decline-booking-${ride.id}`}>Déclin</button>
+                <button onClick={() => { setDismissed((p) => [...p, ride.id]); toast('Trajet décliné.'); }} className="px-6 py-2.5 rounded-full border border-gray-300 text-gray-500 font-bold text-sm" data-testid={`decline-booking-${ride.id}`}>Déclin</button>
               </div>
             ) : (
               <button onClick={() => doStart(ride)} className="w-full py-2.5 rounded-full text-white font-bold text-sm" style={{ background: GREEN }} data-testid={`start-booking-${ride.id}`}>Départ voyage</button>

@@ -2,14 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  DotsThreeVertical, Phone, ChatCircleDots, NavigationArrow, Siren, Star, X,
-  VideoCamera, Microphone, ShareNetwork, FileText, UserCircle, Clock, MapPin,
+  DotsThreeVertical, Phone, ChatCircleDots, NavigationArrow, Siren, Star,
+  UserCircle, Clock, MapPin,
 } from '@phosphor-icons/react';
 import AdminGoogleMap from '../admin/AdminGoogleMap';
 import { decodePolyline } from '../../utils/polyline';
 import { rideAPI } from '../../services/api';
 import SlideToConfirm from './SlideToConfirm';
 import RideCompletionFlow from './RideCompletionFlow';
+import { RideFlowMenu, CallTypeSheet, NavChooserSheet, SafetySheet, OtpModal } from './RideFlowSheets';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const WAITING_RATE_PER_MIN = 0.5;
@@ -243,67 +244,51 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished }) => {
 
       {/* 3-dot menu */}
       {showMenu && (
-        <div className="fixed inset-0 z-[2600] bg-black/40 flex items-start justify-end p-3 pt-14" onClick={() => setShowMenu(false)} data-testid="ride-flow-menu">
-          <div className="bg-white rounded-2xl w-60 overflow-hidden shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => { setShowMenu(false); navigate(`/ride/${ride.id}/chat`); }} className="w-full text-left px-4 py-3.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 flex items-center gap-3" data-testid="menu-passenger-details"><UserCircle size={20} /> Voir les détails du passager</button>
-            <button onClick={() => { setShowMenu(false); toast.info('Lettre de voiture bientôt disponible.'); }} className="w-full text-left px-4 py-3.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100" data-testid="menu-waybill"><FileText size={20} /> Lettre de voiture</button>
-            <button onClick={() => { setShowMenu(false); cancelRide(); }} className="w-full text-left px-4 py-3.5 text-sm font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3 border-t border-gray-100" data-testid="menu-cancel-trip"><X size={20} /> Annuler le voyage</button>
-          </div>
-        </div>
+        <RideFlowMenu
+          onClose={() => setShowMenu(false)}
+          onPassengerDetails={() => { setShowMenu(false); navigate(`/ride/${ride.id}/chat`); }}
+          onWaybill={() => { setShowMenu(false); toast.info('Lettre de voiture bientôt disponible.'); }}
+          onCancel={() => { setShowMenu(false); cancelRide(); }}
+        />
       )}
 
       {/* Call type chooser */}
       {showCallType && (
-        <div className="fixed inset-0 z-[2600] bg-black/40 flex items-end" onClick={() => setShowCallType(false)} data-testid="call-type-sheet">
-          <div className="w-full bg-white rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
-            <p className="text-lg font-extrabold text-gray-900 mb-4 text-center">Choisissez le type d&apos;appel</p>
-            <button onClick={() => { setShowCallType(false); toast.info('Appel vidéo bientôt disponible.'); }} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 mb-3" data-testid="call-video-btn"><VideoCamera size={24} className="text-[#2F9BFF]" weight="fill" /> <span className="font-bold text-gray-800">Appel vidéo</span></button>
-            <button onClick={callPassenger} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50" data-testid="call-voice-btn"><Phone size={24} className="text-[#00B578]" weight="fill" /> <span className="font-bold text-gray-800">Appel vocal</span></button>
-          </div>
-        </div>
+        <CallTypeSheet
+          onClose={() => setShowCallType(false)}
+          onVideo={() => { setShowCallType(false); toast.info('Appel vidéo bientôt disponible.'); }}
+          onVoice={callPassenger}
+        />
       )}
 
       {/* Navigation chooser */}
-      {showNav && (
-        <div className="fixed inset-0 z-[2600] bg-black/40 flex items-end" onClick={() => setShowNav(false)} data-testid="nav-chooser-sheet">
-          <div className="w-full bg-white rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
-            <p className="text-lg font-extrabold text-gray-900 mb-4 text-center">Choisissez une option</p>
-            <button onClick={() => openNav('inapp')} className="w-full text-left px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="nav-inapp-btn">Navigation Google avancée dans l&apos;application <span className="text-[#00B578] text-xs">(recommandé)</span></button>
-            <button onClick={() => openNav('gmaps')} className="w-full text-left px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="nav-gmaps-btn">Navigation sur Google Map</button>
-            <button onClick={() => openNav('waze')} className="w-full text-left px-4 py-4 rounded-2xl bg-gray-50 font-bold text-gray-800" data-testid="nav-waze-btn">Navigation Waze</button>
-          </div>
-        </div>
-      )}
+      {showNav && <NavChooserSheet onClose={() => setShowNav(false)} onChoose={openNav} />}
 
       {/* Safety sheet */}
       {showSafety && (
-        <div className="fixed inset-0 z-[2600] bg-black/40 flex items-end" onClick={() => setShowSafety(false)} data-testid="safety-sheet">
-          <div className="w-full bg-white rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
-            <p className="text-lg font-extrabold text-gray-900 mb-4 text-center">Outils de sécurité</p>
-            <a href="tel:112" className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-red-50 mb-3 font-bold text-red-700" data-testid="safety-call-112"><Phone size={22} weight="fill" /> Appel 112</a>
-            <button onClick={() => { setShowSafety(false); toast.success('Message SOS envoyé à vos contacts et au support.'); }} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="safety-sos-message"><Siren size={22} weight="fill" className="text-red-600" /> Envoyer un message SOS</button>
-            <button onClick={() => { setShowSafety(false); toast.info('Enregistrement audio démarré.'); }} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="safety-audio"><Microphone size={22} weight="fill" /> Enregistrement audio</button>
-            <button onClick={() => { setShowSafety(false); const url = `${window.location.origin}/track/${ride.id}`; if (navigator.share) navigator.share({ title: 'Suivi de voyage', url }).catch(() => {}); else { navigator.clipboard?.writeText(url); toast.success('Lien de suivi copié.'); } }} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 font-bold text-gray-800" data-testid="safety-share"><ShareNetwork size={22} weight="fill" /> Partager le statut du voyage</button>
-          </div>
-        </div>
+        <SafetySheet
+          onClose={() => setShowSafety(false)}
+          onSosMessage={() => { setShowSafety(false); toast.success('Message SOS envoyé à vos contacts et au support.'); }}
+          onAudio={() => { setShowSafety(false); toast.info('Enregistrement audio démarré.'); }}
+          onShare={() => {
+            setShowSafety(false);
+            const url = `${window.location.origin}/track/${ride.id}`;
+            if (navigator.share) navigator.share({ title: 'Suivi de voyage', url }).catch(() => {});
+            else { navigator.clipboard?.writeText(url); toast.success('Lien de suivi copié.'); }
+          }}
+        />
       )}
 
       {/* OTP modal */}
       {showOtp && (
-        <div className="fixed inset-0 z-[2700] bg-black/60 flex items-center justify-center p-5" data-testid="ride-flow-otp-modal">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-lg font-bold text-gray-800 mb-1">Code de démarrage</h3>
-            <p className="text-xs text-gray-500 mb-4">Demandez au passager son code à 4 chiffres pour démarrer la course.</p>
-            <input type="text" inputMode="numeric" maxLength="4" value={otpInput} autoFocus
-              onChange={(e) => { setOtpInput(e.target.value.replace(/\D/g, '')); setOtpError(''); }}
-              placeholder="0000" className="w-full text-center text-3xl tracking-[0.5em] py-3 bg-gray-50 rounded-xl border border-gray-200 font-bold mb-2" data-testid="ride-flow-otp-input" />
-            {otpError && <p className="text-xs text-red-500 mb-2 text-center" data-testid="ride-flow-otp-error">{otpError}</p>}
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => { setShowOtp(false); setOtpInput(''); }} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-sm text-gray-600">Annuler</button>
-              <button onClick={verifyOtpAndStart} disabled={otpInput.length !== 4 || busy} className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#00B578' }} data-testid="ride-flow-otp-verify-btn">Démarrer</button>
-            </div>
-          </div>
-        </div>
+        <OtpModal
+          value={otpInput}
+          onChange={(v) => { setOtpInput(v); setOtpError(''); }}
+          onClose={() => { setShowOtp(false); setOtpInput(''); }}
+          onVerify={verifyOtpAndStart}
+          error={otpError}
+          busy={busy}
+        />
       )}
     </div>
   );
