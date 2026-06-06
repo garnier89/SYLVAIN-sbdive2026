@@ -471,6 +471,39 @@ async def rebroadcast_ride(ride_id: str, request: Request):
     return {"message": "Recherche relancée", "ride_id": ride_id}
 
 
+# Radius (km) within which online drivers are considered "notified / nearby".
+NEARBY_DRIVERS_RADIUS_KM = 12.0
+
+
+@router.get("/{ride_id}/nearby-drivers")
+async def nearby_drivers_count(ride_id: str, request: Request):
+    """Count approved, online drivers near the ride's pickup — used by the
+    'Recherche d'un chauffeur' radar to reassure the passenger in real time."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "user_id": 1, "pickup_lat": 1, "pickup_lng": 1})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    p_lat, p_lng = ride.get("pickup_lat"), ride.get("pickup_lng")
+    if p_lat is None or p_lng is None:
+        return {"count": 0, "radius_km": NEARBY_DRIVERS_RADIUS_KM}
+    cursor = db.drivers.find(
+        {"status": "approved", "is_online": True},
+        {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1},
+    )
+    count = 0
+    async for d in cursor:
+        loc = manager.get_driver_location(d["user_id"]) or {}
+        lat = loc.get("lat", d.get("current_lat"))
+        lng = loc.get("lng", d.get("current_lng"))
+        if lat is None or lng is None:
+            continue
+        if calculate_distance(p_lat, p_lng, lat, lng) <= NEARBY_DRIVERS_RADIUS_KM:
+            count += 1
+    return {"count": count, "radius_km": NEARBY_DRIVERS_RADIUS_KM}
+
+
 @router.post("/{ride_id}/convert-to-bidding")
 async def convert_ride_to_bidding(ride_id: str, request: Request):
     """Convert a pending standard ride into bidding mode (keep pickup/dropoff/vehicle),

@@ -74,6 +74,7 @@ const RideTrackingPage = () => {
   const [showSchedule, setShowSchedule] = useState(false);
   const [converting, setConverting] = useState(false);
   const [searchCfg, setSearchCfg] = useState({ enabled: true, relance_interval_seconds: RELANCE_INTERVAL_SEC, max_relances: MAX_RELANCES });
+  const [nearbyDrivers, setNearbyDrivers] = useState(null);
   const prevStatusRef = useRef(null);
   const relanceRef = useRef(0);
 
@@ -84,6 +85,21 @@ const RideTrackingPage = () => {
       .then((d) => { if (d) setSearchCfg(d); })
       .catch(() => {});
   }, []);
+
+  // Live count of nearby online drivers (reassures the passenger while searching)
+  useEffect(() => {
+    if (ride?.status !== 'pending') { setNearbyDrivers(null); return undefined; }
+    let active = true;
+    const fetchNearby = async () => {
+      try {
+        const res = await fetch(`${API}/api/rides/${rideId}/nearby-drivers`, { credentials: 'include' });
+        if (active && res.ok) { const d = await res.json(); setNearbyDrivers(d.count ?? 0); }
+      } catch (err) { console.warn('[RideTracking] nearby drivers failed:', err?.message || err); }
+    };
+    fetchNearby();
+    const t = setInterval(fetchNearby, 6000);
+    return () => { active = false; clearInterval(t); };
+  }, [ride?.status, rideId]);
 
   const togglePool = useCallback(async () => {
     if (poolLoading) return;
@@ -469,6 +485,19 @@ const RideTrackingPage = () => {
           <SearchingRadar size={220} variant="orange" />
           <h1 className="text-white font-black text-2xl mt-10">Recherche d'un chauffeur...</h1>
           <p className="text-white/80 text-sm mt-2">Nous contactons les chauffeurs proches</p>
+          {nearbyDrivers != null && (
+            <div className="mt-3 inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-4 py-1.5" data-testid="nearby-drivers-badge">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-300 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400" />
+              </span>
+              <span className="text-sm font-bold text-white" data-testid="nearby-drivers-count">
+                {nearbyDrivers > 0
+                  ? `${nearbyDrivers} chauffeur${nearbyDrivers > 1 ? 's' : ''} notifié${nearbyDrivers > 1 ? 's' : ''} à proximité`
+                  : 'Recherche de chauffeurs à proximité…'}
+              </span>
+            </div>
+          )}
           {!isBiddingMode && relanceCount > 0 && relanceCount < searchCfg.max_relances && (
             <p className="text-white text-xs font-bold mt-4" data-testid="relance-count">Relance {relanceCount}/{searchCfg.max_relances}…</p>
           )}

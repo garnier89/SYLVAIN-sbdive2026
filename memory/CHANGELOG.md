@@ -908,3 +908,15 @@ Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentag
 - `RideTrackingPage.js` (état `cancelled`) : écran « Course annulée » passé en **fond Orange / texte blanc** ; bouton primaire « Réessayer » blanc à texte orange ; secondaires blancs translucides.
 - Cohérence visuelle complète avec le nouvel en-tête réservation Orange/Blanc (choix utilisateur « a »).
 - Lint JS clean. Changement purement CSS (aucune logique modifiée).
+
+## 2026-06-06 (suite) — Compteur chauffeurs proches + retrait bouton WhatsApp
+
+### Added
+- Backend `rides.py` : `GET /api/rides/{ride_id}/nearby-drivers` → compte les chauffeurs **approuvés + en ligne** dans un rayon de 12 km du départ (haversine via `calculate_distance`, position live `manager.get_driver_location` avec fallback `current_lat/lng`). Réponse `{count, radius_km}`. Auth + propriété de course vérifiées. Testé e2e : course Paris → `{"count":15,"radius_km":12.0}`.
+- `RideTrackingPage.js` (état pending) : badge temps réel sous le sous-titre du radar — « N chauffeurs notifiés à proximité » (pastille verte pulsante), polling toutes les 6 s. `data-testid=nearby-drivers-badge / nearby-drivers-count`.
+
+### Removed
+- `RideChoosePage.js` : suppression du bouton **« Réserver via WhatsApp »** du CTA (tous véhicules/modes), + code mort associé (`buildWhatsAppText`, `onWhatsApp`, `showWhatsApp`, `selectedVehicle/Name`) et import `WhatsappLogo`. La config WhatsApp admin reste en base (réutilisable ailleurs) mais n'est plus exposée dans l'app.
+
+### Tests
+- Lint JS + Python clean. Frontend compile (warnings exhaustive-deps préexistants). Endpoint nearby-drivers : 401 sans auth, 404 course inexistante, 200 + count sur course réelle.

@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
-  Money, CreditCard, Wallet, CheckCircle, Lightning, WhatsappLogo,
+  Money, CreditCard, Wallet, CheckCircle, Lightning,
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
@@ -241,8 +241,6 @@ const RideChoosePage = () => {
   }, [rentalPkg, taxiOpts]);
   const buddyPrice = useMemo(() => buddyHours * (taxiOpts?.personal_driver?.hourly_rate || 20), [buddyHours, taxiOpts]);
 
-  const selectedVehicle = useMemo(() => vtypes.find((v) => v.slug === selected), [vtypes, selected]);
-  const selectedVehicleName = isRental || isBuddy ? mode.label : (selectedVehicle?.name_fr || selectedVehicle?.name || mode.vehicle);
   const selectedSlug = isRental || isBuddy ? mode.vehicle : selected;
 
   const displayPrice = useMemo(() => {
@@ -251,33 +249,6 @@ const RideChoosePage = () => {
     if (isBidding) return biddingFare ? parseFloat(biddingFare) : (selected && estimates[selected]?.fare) || null;
     return selected ? estimates[selected]?.fare ?? null : null;
   }, [isRental, isBuddy, isBidding, rentalPrice, buddyPrice, biddingFare, selected, estimates]);
-
-  // ── WhatsApp booking ─────────────────────────────────────────────────
-  const buildWhatsAppText = () => {
-    const tmpl = cfg.whatsapp_message_template || '';
-    const priceTxt = displayPrice != null ? `${Number(displayPrice).toFixed(2)} €` : '—';
-    const whenTxt = scheduleLater && scheduledAt ? formatScheduled(scheduledAt) : 'Maintenant';
-    const dropTxt = needsDropoff ? (dropoff?.address || '—')
-      : (isRental ? `Mise à disposition (${RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.label || ''})` : `Chauffeur privé ${buddyHours}h`);
-    const payLabel = PAYMENTS.find((p) => p.id === payment)?.label || payment;
-    return tmpl
-      .replaceAll('{mode}', mode.label)
-      .replaceAll('{pickup}', pickup?.address || '—')
-      .replaceAll('{dropoff}', dropTxt)
-      .replaceAll('{vehicle}', selectedVehicleName)
-      .replaceAll('{price}', priceTxt)
-      .replaceAll('{when}', whenTxt)
-      .replaceAll('{payment}', payLabel);
-  };
-
-  const onWhatsApp = () => {
-    if (!pickup?.lat) return toast.error('Renseignez le départ');
-    if (needsDropoff && !dropoff?.lat) return toast.error('Renseignez la destination');
-    const num = (cfg.whatsapp_number || '').replace(/[^0-9]/g, '');
-    if (!num) return toast.error('Numéro WhatsApp non configuré');
-    window.open(`https://wa.me/${num}?text=${encodeURIComponent(buildWhatsAppText())}`, '_blank', 'noopener');
-    toast.success('Ouverture de WhatsApp…');
-  };
 
   // ── Submit ───────────────────────────────────────────────────────────
   const buildPayload = () => {
@@ -333,7 +304,6 @@ const RideChoosePage = () => {
   };
 
   const ModeIcon = mode.icon || Car;
-  const showWhatsApp = cfg.whatsapp_enabled && (cfg.whatsapp_number || '').trim().length > 0;
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50 flex flex-col" data-testid="ride-choose-page">
@@ -486,11 +456,6 @@ const RideChoosePage = () => {
       {/* Sticky CTA */}
       {bothSet && (
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-20 space-y-2">
-          {showWhatsApp && (
-            <button onClick={onWhatsApp} className="w-full py-3 rounded-xl font-bold text-base flex items-center justify-center gap-2 bg-[#25D366] text-white active:scale-[0.98] transition-transform" data-testid="ride-choose-whatsapp-btn">
-              <WhatsappLogo size={20} weight="fill" /> Réserver via WhatsApp
-            </button>
-          )}
           <button onClick={onRequest} disabled={showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error)}
             className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
             style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
