@@ -952,3 +952,19 @@ Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentag
 - Sections non citées conservées à la suite (option a, non destructif) : Genie&Runner, Vidéo, Animaux, Parking, Cartes Cadeaux, Covoiturage, Suivi Famille, Commerces Proches.
 - **Supprimés** (confirmé « 2 oui ») : bloc héros **« Vos essentiels »** + bannière **« Tous les services »**.
 - Lint clean, webpack compile sans erreur.
+
+## 2026-06-06 (suite) — Accueil aligné sur les formats/grilles V3Cube (réf. utilisateur)
+
+### Changed (UserHome.js — d'après 4 captures de référence fournies)
+- **Tuiles de service agrandies** (style V3Cube) : grande tuile pastel carrée (aspect-square, rounded-2xl) avec icône centrée à l'intérieur + **label gras foncé en dessous** (2 lignes, police Outfit). Composant `ServiceTile`.
+- **Grilles 3 colonnes** (Animaux, Dépannage) : variante `inside` → label gras en haut + icône en dessous, tuiles gris clair (comme la réf).
+- **« More Services »** : pastille signature à **4 carrés colorés** (orange/rose/vert/orange) via `MoreSquares`, déclenchée quand l'id contient `more`.
+- **Bannière promo** : passage en **défilement horizontal** snap (aperçu de la bannière suivante), suppression de l'auto-rotation/dots.
+- **Titres de section** : gros, gras noir (extrabold), suppression de la barre d'accent orange et des liens « Tout voir » (navigation via la tuile More).
+- **Cartes** retravaillées au format réf : Genie&Runner (2 cartes), Médical (bento 1 grande + 2), Enchères (2×3 cartes blanches avec flèche), Acheter/Vendre/Louer (2 cartes + 1), Vidéo (chips blancs), Suivi famille (2 cartes centrées), Covoiturage/Parking/Cartes cadeaux (bannières).
+- **Barre du bas** : pill sombre flottante (#0B1426) avec « Accueil » en pastille orange + icônes Réservations/Portefeuille/Profil (icône `ClipboardText` pour réservations).
+- En-tête épuré fond blanc : « Bienvenue / Nom », avatar arrondi, localisation simple, recherche blanche ombrée.
+- CMS 100% préservé (icônes/couleurs/routes), ordre des sections inchangé (SECTION_ORDER).
+
+### Tests
+- Lint clean, webpack compile sans erreur (1 warning préexistant). Vérif visuelle en attente (preview en veille).
