@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { parcelAPI, medicalAPI } from '../../services/api';
-import { ArrowLeft, Package, FirstAid, CheckCircle, Circle, FlagCheckered } from '@phosphor-icons/react';
+import { ArrowLeft, Package, FirstAid, CheckCircle, Circle, FlagCheckered, Phone, Star } from '@phosphor-icons/react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -48,23 +48,24 @@ const DeliveryTrackingPage = () => {
   const arrivalNotified = useRef(false);
   const steps = ORDER[type] || PARCEL_STEPS;
 
-  const load = useCallback(async () => {
-    try {
-      const r = type === 'transport' ? await medicalAPI.transportGet(id) : await parcelAPI.get(id);
-      setItem(r.data);
-      // Notify once when the courier is about to arrive (ETA < 2 min)
-      if (r.data?.eta_minutes != null && r.data.eta_minutes <= 2 && r.data.status !== 'completed' && !arrivalNotified.current) {
-        arrivalNotified.current = true;
-        toast.success('🛵 Votre coursier arrive ! Préparez-vous.', { duration: 7000 });
-      }
-    } catch { /* ignore transient */ } finally { setLoading(false); }
-  }, [type, id]);
-
   useEffect(() => {
-    load();
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
-  }, [load]);
+    let active = true;
+    const fetchOnce = async () => {
+      try {
+        const r = type === 'transport' ? await medicalAPI.transportGet(id) : await parcelAPI.get(id);
+        if (!active) return;
+        setItem(r.data);
+        // Notify once when the courier is about to arrive (ETA < 2 min)
+        if (r.data?.eta_minutes != null && r.data.eta_minutes <= 2 && r.data.status !== 'completed' && !arrivalNotified.current) {
+          arrivalNotified.current = true;
+          toast.success('🛵 Votre coursier arrive ! Préparez-vous.', { duration: 7000 });
+        }
+      } catch { /* ignore transient */ } finally { if (active) setLoading(false); }
+    };
+    fetchOnce();
+    const t = setInterval(fetchOnce, 8000);
+    return () => { active = false; clearInterval(t); };
+  }, [type, id]);
 
   if (loading) return <div className="mobile-container min-h-screen bg-white flex items-center justify-center text-gray-400">Chargement...</div>;
   if (!item) return <div className="mobile-container min-h-screen bg-white flex items-center justify-center text-gray-400">Introuvable.</div>;
@@ -102,6 +103,28 @@ const DeliveryTrackingPage = () => {
           </div>
         )}
 
+        {/* Courier card */}
+        {item.driver_id && item.driver_name && item.status !== 'completed' && (
+          <div className="bg-white rounded-2xl p-4 flex items-center gap-3" data-testid="tracking-courier-card">
+            <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 font-bold text-lg">
+              {item.driver_name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-gray-900 truncate">{item.driver_name}</p>
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <Star size={12} weight="fill" className="text-amber-400" />{(item.driver_rating ?? 5).toFixed(1)}
+                {item.driver_vehicle ? ` · ${item.driver_vehicle}` : ''}
+              </p>
+            </div>
+            {item.driver_phone && (
+              <a href={`tel:${item.driver_phone}`} data-testid="tracking-call-courier"
+                className="w-11 h-11 rounded-full bg-teal-500 flex items-center justify-center text-white shrink-0">
+                <Phone size={20} weight="fill" />
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Live courier map */}
         {item.driver_id && (item.driver_location || item.pickup_lat) && (
           <div className="rounded-2xl overflow-hidden border border-gray-100 h-[220px]" data-testid="tracking-live-map">
@@ -133,7 +156,7 @@ const DeliveryTrackingPage = () => {
               </div>
             );
           })}
-          {!status && <p className="text-xs text-amber-600 mt-1">En attente d'un coursier disponible…</p>}
+          {!status && <p className="text-xs text-amber-600 mt-1">En attente d&apos;un coursier disponible…</p>}
         </div>
 
         {/* Per-drop status (parcels) */}

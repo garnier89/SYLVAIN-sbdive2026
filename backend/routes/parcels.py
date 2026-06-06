@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from core.config import db
 from core.deps import get_current_user, calculate_distance, calculate_fare
 from core.websocket import manager
+from core.push import notify_user
 
 router = APIRouter(prefix="/parcels", tags=["parcels"])
 
@@ -173,6 +174,42 @@ async def get_parcel(parcel_id: str, request: Request):
 
 # ── Driver side: accept & per-step status ─────────────────────────────────
 PARCEL_FLOW = ["pending", "accepted", "arrived_pickup", "picked_up", "in_transit", "completed"]
+PARCEL_STATUS_MSG = {
+    "arrived_pickup": "Le coursier est arrivé au point de ramassage.",
+    "picked_up": "Votre colis a été récupéré par le coursier.",
+    "in_transit": "Votre colis est en cours de livraison.",
+}
+
+
+async def _settle_parcel_on_completion(parcel: dict):
+    """Credit the courier's earnings and settle the payment when a parcel is fully
+    delivered. Idempotent (skips if already settled)."""
+    pid = parcel["id"]
+    if parcel.get("settled"):
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    update = {"completed_at": now, "settled": True}
+    # Settle cash / card payment collected on delivery
+    if parcel.get("payment_status") != "paid":
+        update["payment_status"] = "paid"
+        update["paid_at"] = now
+    # Credit courier earnings (fare minus commission). parcel.driver_id == driver user_id.
+    driver_user_id = parcel.get("driver_id")
+    if driver_user_id:
+        fare = float(parcel.get("fare", 0) or 0)
+        vt = await db.vehicle_types.find_one({"slug": parcel.get("vehicle_type")}, {"_id": 0, "commission_percent": 1})
+        commission = float((vt or {}).get("commission_percent", 15)) / 100
+        earnings = round(fare * (1 - commission), 2)
+        await db.drivers.update_one({"user_id": driver_user_id}, {"$inc": {"earnings": earnings, "total_trips": 1}})
+        update["driver_earnings"] = earnings
+        update["commission_percent"] = round(commission * 100, 2)
+    await db.parcels.update_one({"id": pid}, {"$set": update})
+    try:
+        await notify_user(parcel["user_id"], "Colis livré ✅",
+                          "Votre colis a bien été livré. Merci d'avoir utilisé SB Drive !",
+                          {"type": "parcel_completed", "parcel_id": pid})
+    except Exception:
+        pass
 
 
 @router.get("/driver/available")
@@ -202,8 +239,25 @@ async def accept_parcel(parcel_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Parcel not found")
     if parcel.get("driver_id"):
         raise HTTPException(status_code=400, detail="Colis déjà pris en charge")
-    await db.parcels.update_one({"id": parcel_id}, {"$set": {"driver_id": user["id"], "status": "accepted", "accepted_at": datetime.now(timezone.utc).isoformat()}})
-    return {**parcel, "driver_id": user["id"], "status": "accepted"}
+    # Denormalise courier info so the customer can see who is coming
+    drv = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+    driver_name = drv.get("name") or user.get("name") or "Coursier"
+    driver_phone = drv.get("phone") or user.get("phone")
+    now = datetime.now(timezone.utc).isoformat()
+    set_fields = {
+        "driver_id": user["id"], "status": "accepted", "accepted_at": now,
+        "driver_name": driver_name, "driver_phone": driver_phone,
+        "driver_rating": drv.get("rating", 5.0),
+        "driver_vehicle": drv.get("vehicle_type") or parcel.get("vehicle_type"),
+    }
+    await db.parcels.update_one({"id": parcel_id}, {"$set": set_fields})
+    try:
+        await notify_user(parcel["user_id"], "Coursier trouvé 🛵",
+                          f"{driver_name} a accepté votre colis et arrive bientôt.",
+                          {"type": "parcel_accepted", "parcel_id": parcel_id})
+    except Exception:
+        pass
+    return {**parcel, **set_fields}
 
 
 @router.post("/{parcel_id}/status")
@@ -218,7 +272,26 @@ async def update_parcel_status(parcel_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Parcel not found")
     if parcel.get("driver_id") != user["id"]:
         raise HTTPException(status_code=403, detail="Accès refusé")
-    await db.parcels.update_one({"id": parcel_id}, {"$set": {"status": new_status}})
+    # Prevent going backwards in the flow
+    cur = parcel.get("status", "pending")
+    if PARCEL_FLOW.index(new_status) < PARCEL_FLOW.index(cur):
+        raise HTTPException(status_code=400, detail="Transition de statut invalide")
+    set_fields = {"status": new_status}
+    if new_status == "completed":
+        legs = parcel.get("legs", [])
+        for lg in legs:
+            lg["status"] = "delivered"
+        set_fields["legs"] = legs
+    await db.parcels.update_one({"id": parcel_id}, {"$set": set_fields})
+    if new_status == "completed":
+        parcel.update(set_fields)
+        await _settle_parcel_on_completion(parcel)
+    elif new_status in PARCEL_STATUS_MSG:
+        try:
+            await notify_user(parcel["user_id"], "Mise à jour de votre colis",
+                              PARCEL_STATUS_MSG[new_status], {"type": "parcel_status", "parcel_id": parcel_id, "status": new_status})
+        except Exception:
+            pass
     return {"id": parcel_id, "status": new_status}
 
 
@@ -237,4 +310,8 @@ async def deliver_parcel_leg(parcel_id: str, index: int, request: Request):
     all_done = all(leg.get("status") == "delivered" for leg in legs)
     new_status = "completed" if all_done else "in_transit"
     await db.parcels.update_one({"id": parcel_id}, {"$set": {"legs": legs, "status": new_status}})
+    if all_done:
+        parcel["legs"] = legs
+        parcel["status"] = "completed"
+        await _settle_parcel_on_completion(parcel)
     return {"id": parcel_id, "legs": legs, "status": new_status, "all_delivered": all_done}
