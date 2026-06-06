@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import DebtBanner from '../../components/DebtBanner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { rideAPI } from '../../services/api';
@@ -59,6 +60,8 @@ const RideTrackingPage = () => {
   ]);
   const [showPayPicker, setShowPayPicker] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
+  const [cancelPolicy, setCancelPolicy] = useState({ fee: 5, free_min: 5 });
+  const [showPolicy, setShowPolicy] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [rating, setRating] = useState(5);
@@ -110,9 +113,23 @@ const RideTrackingPage = () => {
   useEffect(() => {
     fetch(`${API}/api/config/payment-methods`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (Array.isArray(d?.methods) && d.methods.length) setPayMethods(d.methods); })
+      .then((d) => {
+        if (Array.isArray(d?.methods) && d.methods.length) setPayMethods(d.methods);
+        if (d) setCancelPolicy({ fee: d.cancellation_fee_eur ?? 5, free_min: d.free_cancel_window_minutes ?? 5 });
+      })
       .catch(() => {});
   }, []);
+
+  // Cancellation-policy popup — shown once per ride right after booking
+  useEffect(() => {
+    if (ride?.status === 'pending' && rideId) {
+      const key = `policy_shown_${rideId}`;
+      if (!localStorage.getItem(key)) {
+        setShowPolicy(true);
+        localStorage.setItem(key, '1');
+      }
+    }
+  }, [ride?.status, rideId]);
 
   const payLabel = (id) => payMethods.find((m) => m.id === id)?.label || 'Espèces';
 
@@ -491,6 +508,19 @@ const RideTrackingPage = () => {
   if (ride.status === 'pending') {
     return (
       <div className="mobile-container min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#FF5000' }} data-testid="ride-tracking-page">
+        {showPolicy && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center" data-testid="cancel-policy-popup">
+            <div className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 pb-8">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
+              <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center mb-3"><Warning size={28} weight="fill" className="text-amber-600" /></div>
+              <h3 className="text-lg font-black text-[#0B1426]">Politique d'annulation</h3>
+              <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+                Si vous souhaitez annuler, il est préférable de le faire <b>maintenant</b> (gratuit). Passé <b>{cancelPolicy.free_min} min</b> après l'acceptation par un chauffeur, des <b>frais de {Number(cancelPolicy.fee).toFixed(2)} €</b> s'appliqueront.
+              </p>
+              <button onClick={() => setShowPolicy(false)} className="mt-5 w-full py-3.5 rounded-xl bg-[#0B1426] text-white font-bold" data-testid="cancel-policy-ok">J'ai compris</button>
+            </div>
+          </div>
+        )}
         <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="ride-searching-back">
           <ArrowLeft size={20} className="text-white" />
         </button>
@@ -678,6 +708,7 @@ const RideTrackingPage = () => {
       />
 
       <div className="flex-1 bg-white rounded-t-3xl -mt-6 relative z-10 px-4 pt-5 pb-24 overflow-y-auto">
+        <DebtBanner />
         {/* Status Progress Bar */}
         {!isCancelled && (
           <div className="flex items-center justify-between mb-5" data-testid="ride-status-bar">

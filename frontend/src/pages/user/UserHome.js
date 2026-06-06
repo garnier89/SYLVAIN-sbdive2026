@@ -7,6 +7,7 @@ import SearchOverlay from '../../components/SearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
 import DynamicIcon from '../../components/DynamicIcon';
+import DebtBanner from '../../components/DebtBanner';
 import { homeCategoriesAPI } from '../../services/api';
 import {
   Car, Package, ForkKnife,
@@ -540,6 +541,8 @@ const UserHome = () => {
       {showSearch && <SearchOverlay onClose={() => setShowSearch(false)} />}
       {/* Side menu drawer */}
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
+
+      <DebtBanner />
 
       <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-1">
         {SECTION_ORDER.map((key) => blocks[key])}

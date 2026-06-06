@@ -24,6 +24,7 @@ from routes.carpool import router as carpool_router
 from routes.services import router as services_router
 from routes.config import router as config_router
 from routes.wallet import router as wallet_router
+from routes.debts import router as debts_router
 from routes.coupons import router as coupons_router
 from routes.referral import router as referral_router
 from routes.payments import router as payments_router
@@ -534,6 +535,7 @@ api_router.include_router(kiosk_router)
 api_router.include_router(acl_router)
 api_router.include_router(subscriptions_router)
 api_router.include_router(geo_router)
+api_router.include_router(debts_router)
 api_router.include_router(audit_logs_router)
 api_router.include_router(driver_shifts_router)
 api_router.include_router(organizations_router)

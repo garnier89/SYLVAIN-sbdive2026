@@ -1003,3 +1003,27 @@ Roadmap validée : A Paiements → B Annulations/dette → D Favoris → F Popup
 
 ### BLOQUÉ / EN ATTENTE
 - **CB pré-autorisation (hold + capture + carte enregistrée)** : la lib Stripe Emergent (`sk_test_emergent`) ne fait que du Checkout hébergé (débit immédiat), PAS d'autorisation/hold. → nécessite les **clés Stripe RÉELLES de l'utilisateur** (test ou live) + SDK officiel. À brancher dès réception des clés.
+
+## 2026-06-06 (suite) — PHASE B (Annulations & dette) livrée & testée backend
+
+### Backend
+- `routes/debts.py` (nouveau, prefix `/debts`) : `GET /me` (dette impayée totale + items), `POST /pay` (règle depuis le portefeuille, 402 si insuffisant). Helpers `get_unpaid_debt_total`, `settle_cancellation_fee` (débite le portefeuille sinon crée une dette). Collection `cancellation_debts`. Enregistré dans server.py.
+- `routes/rides.py` :
+  - Helpers `_cancel_policy()` (lit `cancellation_fee_eur`/`free_cancel_window_minutes` admin) et `_compute_cancel_fee(ride, policy, now)` : GRATUIT tant que pending/non-accepté ; courses **directes** → fenêtre gratuite démarre à l'**acceptation** du chauffeur ; **réservations** → gratuit si annulation > fenêtre avant l'heure planifiée.
+  - Endpoint `/cancel` et bloc « cancelled » de l'update statut réécrits pour appliquer la politique + `settle_cancellation_fee` (portefeuille ou dette).
+  - **Blocage** : `POST /rides` renvoie **402** si dette d'annulation impayée.
+- `config.py` : la config publique payment-methods renvoie aussi `cancellation_fee_eur` + `free_cancel_window_minutes`.
+
+### Frontend
+- `components/DebtBanner.jsx` (nouveau) : bannière rouge persistante (montant + bouton **Régler** via portefeuille) + **rappel toast toutes les 2h** (throttle localStorage). Monté sur l'**accueil** et pendant la **course**.
+- `RideTrackingPage.js` : **popup « Politique d'annulation »** affiché 1×/course après réservation (gratuit maintenant / frais après X min) ; capte frais+fenêtre depuis la config.
+- `services/api.js` : `debtsAPI {me, pay}`.
+- Blocage 402 à la réservation : message de dette déjà affiché via le catch existant de `onRequest`.
+
+### Tests (curl e2e ✅)
+- Annulation pending → 0€. Annulation acceptée +10min → 5€ → dette créée (portefeuille 0). Nouvelle commande → 402 bloquée. Paiement dette portefeuille vide → 402. Recharge 10€ → paiement → dette soldée (solde 5€).
+- Lint clean, frontend compile.
+
+### Roadmap restante
+- Phase A reste : **CB pré-autorisation Stripe** (attend clés Stripe réelles user).
+- Suivantes : D (Favoris max 2) → F (Popup promo en course) → C (Permissions/docs) → E (Appels+enregistrement Twilio, clés à fournir).

@@ -427,6 +427,11 @@ export const geoAPI = {
   ipLocate: () => api.get('/geo/ip-locate'),
 };
 
+export const debtsAPI = {
+  me: () => api.get('/debts/me'),
+  pay: () => api.post('/debts/pay'),
+};
+
 export const simulationAPI = {
   start: () => api.post('/simulation/start'),
   stop: () => api.post('/simulation/stop'),

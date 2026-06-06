@@ -185,6 +185,15 @@ async def estimate_ride(data: RideRequest):
 async def create_ride(data: RideRequest, request: Request):
     user = await get_current_user(request)
 
+    # ── Block new bookings while an unpaid cancellation debt exists ──
+    from routes.debts import get_unpaid_debt_total
+    _debt = await get_unpaid_debt_total(user["id"])
+    if _debt > 0:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Vous avez une dette d'annulation de {_debt:.2f} € à régler avant de commander une nouvelle course.",
+        )
+
     # ── Service availability (admin can disable a Taxi mode / set a schedule without redeploy) ──
     mode_id = getattr(data, "mode_id", None)
     if mode_id:
@@ -505,6 +514,50 @@ async def nearby_drivers_count(ride_id: str, request: Request):
 
 
 VALID_PAYMENT_METHODS = {"cash", "card", "wallet", "sbpaygo"}
+
+
+async def _cancel_policy():
+    """Admin-configured cancellation fee (€) and free window (minutes)."""
+    doc = await db.service_configs.find_one({"service_key": "payment_methods"}, {"_id": 0})
+    s = (doc or {}).get("settings") or {}
+    return {
+        "fee": float(s.get("cancellation_fee_eur", 5.0) or 0),
+        "free_window_min": float(s.get("free_cancel_window_minutes", 5) or 0),
+    }
+
+
+def _compute_cancel_fee(ride: dict, policy: dict, now_dt: datetime) -> float:
+    """Cancellation fee rules:
+      - Still searching (pending / not accepted): FREE.
+      - Instant ride: free during the first `free_window_min` after the driver
+        accepted; fee applies afterwards.
+      - Scheduled ride: free if cancelled more than `free_window_min` before the
+        scheduled pickup; fee applies if too close.
+    """
+    status = ride.get("status")
+    if status == "pending":
+        return 0.0
+    free_min = policy["free_window_min"]
+    # Scheduled rides
+    if ride.get("scheduled_at"):
+        try:
+            sched = datetime.fromisoformat(str(ride["scheduled_at"]).replace("Z", "+00:00"))
+            if (sched - now_dt).total_seconds() / 60.0 > free_min:
+                return 0.0
+        except (ValueError, TypeError):
+            pass
+        return policy["fee"]
+    # Instant rides — window starts at driver acceptance
+    accepted_at = ride.get("accepted_at")
+    if not accepted_at:
+        return 0.0
+    try:
+        acc = datetime.fromisoformat(str(accepted_at).replace("Z", "+00:00"))
+        if (now_dt - acc).total_seconds() / 60.0 <= free_min:
+            return 0.0
+    except (ValueError, TypeError):
+        pass
+    return policy["fee"]
 
 
 async def _payment_feasibility(user_id: str, method: str, fare: float):
@@ -923,11 +976,14 @@ async def update_ride_status(ride_id: str, request: Request):
         cancel_reason = body.get("cancel_reason")
         if cancel_reason:
             update_data["cancel_reason"] = cancel_reason
-        # Apply cancellation fee if ride was already accepted
-        if current_status in ["accepted", "arriving"] and is_passenger:
-            vtype_doc = await db.vehicle_types.find_one({"slug": ride["vehicle_type"]}, {"_id": 0})
-            cancel_fee = vtype_doc.get("cancellation_fare", 5.0) if vtype_doc else 5.0
-            update_data["cancellation_fee"] = cancel_fee
+        # Apply cancellation fee per admin policy (free window after acceptance / before scheduled pickup)
+        if is_passenger:
+            policy = await _cancel_policy()
+            cancel_fee = _compute_cancel_fee({**ride, "status": current_status}, policy, datetime.now(timezone.utc))
+            if cancel_fee > 0:
+                update_data["cancellation_fee"] = cancel_fee
+                from routes.debts import settle_cancellation_fee
+                await settle_cancellation_fee(ride["user_id"], ride_id, cancel_fee)
         # ===== POINTS: driver-initiated cancellation penalises the driver =====
         if is_driver and ride.get("driver_id"):
             from routes.drivers import _get_rewards_points_config, _recompute_rates
@@ -988,11 +1044,14 @@ async def cancel_ride(ride_id: str, request: Request):
     if ride["status"] in ["completed", "cancelled"]:
         raise HTTPException(status_code=400, detail="Ride already finished")
 
-    now = datetime.now(timezone.utc).isoformat()
-    cancel_fee = 0.0
-    if ride["status"] in ["accepted", "arriving"]:
-        vtype_doc = await db.vehicle_types.find_one({"slug": ride["vehicle_type"]}, {"_id": 0})
-        cancel_fee = vtype_doc.get("cancellation_fare", 5.0) if vtype_doc else 5.0
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
+    policy = await _cancel_policy()
+    cancel_fee = _compute_cancel_fee(ride, policy, now_dt)
+    settle = {"fee": cancel_fee, "debt_created": False, "paid_from_wallet": False}
+    if cancel_fee > 0 and ride["user_id"] == user["id"]:
+        from routes.debts import settle_cancellation_fee
+        settle = await settle_cancellation_fee(user["id"], ride_id, cancel_fee)
 
     await db.rides.update_one({"id": ride_id}, {"$set": {
         "status": "cancelled",
@@ -1015,7 +1074,13 @@ async def cancel_ride(ride_id: str, request: Request):
     if ride_id in manager.ride_rooms:
         del manager.ride_rooms[ride_id]
 
-    return {"message": "Ride cancelled", "cancellation_fee": cancel_fee}
+    return {
+        "message": "Ride cancelled",
+        "cancellation_fee": cancel_fee,
+        "debt_created": settle.get("debt_created", False),
+        "paid_from_wallet": settle.get("paid_from_wallet", False),
+        "free_window_min": policy["free_window_min"],
+    }
 
 
 @router.get("")

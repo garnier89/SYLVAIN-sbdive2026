@@ -141,6 +141,8 @@ async def get_payment_methods_config():
         "methods": methods,
         "cb_margin_eur": float(settings.get("cb_margin_eur", 1.0) or 0),
         "wallet_shortfall_to_cash": bool(settings.get("wallet_shortfall_to_cash", True)),
+        "cancellation_fee_eur": float(settings.get("cancellation_fee_eur", 5.0) or 0),
+        "free_cancel_window_minutes": float(settings.get("free_cancel_window_minutes", 5) or 0),
     }
 
 
