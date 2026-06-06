@@ -1,6 +1,25 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06 — Cohérence « Gérer les catégories » ↔ app client (source unique = service_categories)
+
+### Signalement utilisateur (captures à l'appui)
+« Il n'y a pas cohérence / c'est pas pareil » : les catégories éditées dans l'admin **« Gérer les catégories »** (Taxi VTC, Plus Tard, Enchères, Mise à Dispo…) ne correspondaient PAS aux tuiles « Services Taxi » de l'app client (Programmer Course, Enchères VTC, VTC Intercity…). Choix utilisateur : **Solution A**.
+
+### Cause
+Deux collections séparées avec les **mêmes clés mais des libellés différents** : `service_categories` (admin « Gérer les catégories », aussi lue par /taxi) vs `home_categories` (lue par l'accueil client web ET mobile). Éditer l'admin n'avait aucun effet sur l'accueil.
+
+### Changed — source unique = service_categories pour le taxi
+- **Web `UserHome.js`** : la section « Services Taxi » lit désormais `configAPI.getServiceCategories()` (`/service-categories`). Tuiles = catégories **actives** triées par `display_order` (top 7 + « Tous les Taxis » → /taxi). Style (icône Phosphor + couleurs pastel) mappé par `key` via `TAXI_VISUAL`. Fallback hardcodé conservé si l'API échoue.
+- **Mobile `UserHomeScreen.tsx`** : section taxi reconstruite depuis `servicesAPI.getServiceCategories()` (remplace la section taxi du CMS). Mapping `taxiCatStyle(key)` ajouté dans `cmsMappings.ts`. Nav → Booking avec `mode=key`.
+- `endpoints.ts` (mobile) : `servicesAPI.getServiceCategories`.
+
+### Vérifié
+- Screenshot accueil client web : affiche exactement **Taxi VTC, Plus Tard, Enchères, Mise à Dispo, Pool, Corporate, PMR, Tous les Taxis** (= admin, même ordre). ✅
+- Web lint OK, mobile `tsc`+lint OK. ⚠️ Expo natif non capturable en preview.
+- `home_categories` (section taxi) n'est plus utilisé pour le taxi (autres sections inchangées). À configurer aussi en **production** (BDD séparée) + **Redéployer**.
+
+
 ## 2026-06 — Réordonnancement des véhicules (admin ↑/↓) + diagnostic propagation app client
 
 ### Demande / signalement utilisateur

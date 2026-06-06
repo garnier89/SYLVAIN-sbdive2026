@@ -14,8 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import ServiceTile from '@/components/ServiceTile';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { homeAPI } from '@/api/endpoints';
-import { phosphorToIonicon, tailwindToHex, routeToNav } from '@/utils/cmsMappings';
+import { homeAPI, servicesAPI } from '@/api/endpoints';
+import { phosphorToIonicon, tailwindToHex, routeToNav, taxiCatStyle } from '@/utils/cmsMappings';
 
 export default function UserHomeScreen() {
   const { t } = useTranslation();
@@ -25,6 +25,7 @@ export default function UserHomeScreen() {
   // Dashboard-managed services (CMS). Falls back to the static list below.
   const [cmsItems, setCmsItems] = useState<any[]>([]);
   const [cmsSections, setCmsSections] = useState<any[]>([]);
+  const [taxiCats, setTaxiCats] = useState<any[]>([]);
   const [loadingCms, setLoadingCms] = useState(true);
 
   useEffect(() => {
@@ -40,22 +41,60 @@ export default function UserHomeScreen() {
       .finally(() => {
         if (active) setLoadingCms(false);
       });
+    // Taxi services from "Gérer les catégories" (service_categories) → in sync with admin.
+    servicesAPI
+      .getServiceCategories()
+      .then((r) => {
+        if (active) setTaxiCats(Array.isArray(r.data) ? r.data : (r.data?.items || []));
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };
   }, []);
 
+  // Taxi tiles built from service_categories (shaped like CMS items for unified rendering).
+  const taxiSection = useMemo(() => {
+    if (!taxiCats.length) return null;
+    const items = taxiCats
+      .filter((c) => c.active !== false)
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+      .slice(0, 7)
+      .map((c) => {
+        const s = taxiCatStyle(c.key);
+        return {
+          id: `svccat-${c.key}`,
+          section: 'taxi',
+          key: c.key,
+          label_fr: c.name,
+          icon_name: s.icon,
+          icon_color_class: s.color,
+          image_url: null,
+          target_route: `/taxi?mode=${c.key}`,
+          visible_home: true,
+        };
+      });
+    return { key: 'taxi', title_fr: 'Services Taxi', items };
+  }, [taxiCats]);
+
   const sections = useMemo(() => {
-    if (!cmsItems.length) return [];
-    return cmsSections
-      .map((sec) => ({
-        ...sec,
-        items: cmsItems
-          .filter((i) => i.section === sec.key && i.visible_home)
-          .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
-      }))
-      .filter((s) => s.items.length);
-  }, [cmsItems, cmsSections]);
+    const base = cmsItems.length
+      ? cmsSections
+          .map((sec) => ({
+            ...sec,
+            items: cmsItems
+              .filter((i) => i.section === sec.key && i.visible_home)
+              .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
+          }))
+          .filter((s) => s.items.length)
+      : [];
+    if (taxiSection) {
+      // Replace any CMS taxi section with the admin-managed one (or prepend it).
+      const others = base.filter((s) => s.key !== 'taxi');
+      return [taxiSection, ...others];
+    }
+    return base;
+  }, [cmsItems, cmsSections, taxiSection]);
 
   const fallbackServices = useMemo(
     () => [

@@ -8,7 +8,7 @@ import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
-import { homeCategoriesAPI, promoBannersAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI, configAPI } from '../../services/api';
 import {
   Car, Package, ForkKnife,
   House, MapPin, Wallet, User,
@@ -22,10 +22,35 @@ import {
   Stethoscope, Dog, UsersFour, Briefcase,
   CarSimple, ShoppingBag, BatteryFull, HandSoap,
   Bicycle, Plug, Key, HairDryer, MaskHappy, Bag, Pill,
+  AirplaneTilt, Wheelchair,
 } from '@phosphor-icons/react';
 
 const HEAD = "font-['Outfit']";
 const BODY = "font-['Manrope']";
+
+// Visual style (icon + pastel colors) per taxi category KEY.
+// Names / order / active state come from "Gérer les catégories" (service_categories),
+// so the client Home stays in sync with the admin. This map only handles the look.
+const TAXI_DEFAULT = { icon: Car, bg: 'bg-gray-50', iconColor: 'text-gray-600' };
+const TAXI_VISUAL = {
+  standard: { icon: Car, bg: 'bg-amber-50', iconColor: 'text-amber-500' },
+  pool: { icon: UsersThree, bg: 'bg-teal-50', iconColor: 'text-teal-500' },
+  rental: { icon: Taxi, bg: 'bg-blue-50', iconColor: 'text-blue-500' },
+  buddy_driver: { icon: User, bg: 'bg-orange-50', iconColor: 'text-orange-700' },
+  bidding: { icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500' },
+  intercity: { icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600' },
+  book_later: { icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600' },
+  electric: { icon: Lightning, bg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+  moto: { icon: Bicycle, bg: 'bg-orange-50', iconColor: 'text-orange-500' },
+  moto_rental: { icon: Key, bg: 'bg-blue-50', iconColor: 'text-blue-500' },
+  airport: { icon: AirplaneTilt, bg: 'bg-sky-50', iconColor: 'text-sky-500' },
+  pets: { icon: PawPrint, bg: 'bg-amber-50', iconColor: 'text-amber-600' },
+  book_for_someone: { icon: UsersFour, bg: 'bg-purple-50', iconColor: 'text-purple-500' },
+  tuktuk: { icon: CarSimple, bg: 'bg-yellow-50', iconColor: 'text-yellow-600' },
+  assist: { icon: Heart, bg: 'bg-red-50', iconColor: 'text-red-500' },
+  corporate: { icon: Briefcase, bg: 'bg-slate-50', iconColor: 'text-slate-600' },
+  access: { icon: Wheelchair, bg: 'bg-sky-50', iconColor: 'text-sky-600' },
+};
 
 // ── Signature "More Services" 4-coloured-squares mark (V3Cube) ──
 const MoreSquares = () => (
@@ -90,6 +115,7 @@ const UserHome = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [cmsItems, setCmsItems] = useState([]);
+  const [taxiCats, setTaxiCats] = useState([]);
   const [promoBanners, setPromoBanners] = useState([]);
   const promoRef = useRef(null);
   const promoIdx = useRef(0);
@@ -100,6 +126,10 @@ const UserHome = () => {
     homeCategoriesAPI.public()
       .then((r) => setCmsItems(r.data.items || []))
       .catch((e) => console.warn('home categories load:', e?.message || e));
+    // Taxi services come from "Gérer les catégories" (service_categories) → single source of truth.
+    configAPI.getServiceCategories()
+      .then((r) => setTaxiCats(Array.isArray(r.data) ? r.data : (r.data.items || [])))
+      .catch((e) => console.warn('service categories load:', e?.message || e));
     promoBannersAPI.public()
       .then((r) => setPromoBanners(r.data.items || []))
       .catch((e) => console.warn('promo banners load:', e?.message || e));
@@ -235,13 +265,27 @@ const UserHome = () => {
     return visible;
   };
 
+  // Taxi Home tiles built from "Gérer les catégories" (admin) → names/order/active in sync.
+  const taxiTiles = (() => {
+    if (!taxiCats.length) return null;
+    const active = taxiCats
+      .filter((c) => c.active !== false)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    const tiles = active.slice(0, 7).map((c) => {
+      const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
+      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
+    });
+    tiles.push({ id: 'more-taxi', name: 'Tous les\nTaxis', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi' });
+    return tiles;
+  })();
+
   // ── Section render blocks (keyed) so we can order them declaratively ──
   const blocks = {
     taxi: (
       <section key="taxi" className="px-4 mt-6">
         <SectionHeader title="Services Taxi" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('taxi').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
+          {(taxiTiles || displayFor('taxi')).map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
       </section>
     ),

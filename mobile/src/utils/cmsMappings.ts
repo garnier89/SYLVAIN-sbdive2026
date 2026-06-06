@@ -129,3 +129,29 @@ export function routeToNav(section: string, targetRoute?: string) {
   }
   return { screen, params: { service: section, mode } };
 }
+
+// Visual style (Phosphor icon name + Tailwind color class) per taxi category KEY,
+// so taxi tiles built from service_categories render like the CMS tiles.
+const TAXI_CAT_STYLE: Record<string, { icon: string; color: string }> = {
+  standard: { icon: 'Car', color: 'text-amber-500' },
+  pool: { icon: 'UsersThree', color: 'text-teal-500' },
+  rental: { icon: 'Taxi', color: 'text-blue-500' },
+  buddy_driver: { icon: 'User', color: 'text-orange-700' },
+  bidding: { icon: 'Gavel', color: 'text-pink-500' },
+  intercity: { icon: 'Truck', color: 'text-green-600' },
+  book_later: { icon: 'Calendar', color: 'text-cyan-600' },
+  electric: { icon: 'Lightning', color: 'text-emerald-600' },
+  moto: { icon: 'Motorcycle', color: 'text-orange-500' },
+  moto_rental: { icon: 'Key', color: 'text-blue-500' },
+  airport: { icon: 'AirplaneTilt', color: 'text-sky-500' },
+  pets: { icon: 'PawPrint', color: 'text-amber-600' },
+  book_for_someone: { icon: 'UsersFour', color: 'text-purple-500' },
+  tuktuk: { icon: 'CarSimple', color: 'text-yellow-600' },
+  assist: { icon: 'HandHeart', color: 'text-red-500' },
+  corporate: { icon: 'Briefcase', color: 'text-slate-600' },
+  access: { icon: 'Wheelchair', color: 'text-sky-600' },
+};
+
+export function taxiCatStyle(key: string) {
+  return TAXI_CAT_STYLE[key] || { icon: 'Car', color: 'text-gray-600' };
+}

@@ -117,6 +117,8 @@ export const i18nAPI = {
 
 export const servicesAPI = {
   getCategories: () => api.get('/services/categories'),
+  // Taxi categories managed in the dashboard ("Gérer les catégories") — single source of truth.
+  getServiceCategories: () => api.get('/service-categories'),
   createBooking: (data: any) => api.post('/services/bookings', data),
   getNearby: (params?: any) => api.get('/services/nearby', { params }),
 };
