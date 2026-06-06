@@ -8,7 +8,7 @@ import {
   Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
   CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
   Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check, Car, Motorcycle,
-  Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple
+  Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple, House
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -450,25 +450,30 @@ const ProfileRow = ({ icon: Icon, color, label, onClick, toggle, onToggle }) => 
 export const DriverBottomNav = ({ active = 'home' }) => {
   const navigate = useNavigate();
   const tabs = [
-    { id: 'home', label: 'Accueil', icon: '🏠', path: '/chauffeur/home' },
-    { id: 'bookings', label: 'Les reservations', icon: '📋', path: '/chauffeur/earnings' },
-    { id: 'wallet', label: 'Portefeuille', icon: '💼', path: '/chauffeur/wallet' },
-    { id: 'profile', label: 'Profil', icon: '👤', path: '/chauffeur/profile' },
+    { id: 'home', label: 'Accueil', Icon: House, path: '/chauffeur/home' },
+    { id: 'bookings', label: 'Réservations', Icon: ClipboardText, path: '/chauffeur/reservations' },
+    { id: 'wallet', label: 'Portefeuille', Icon: Wallet, path: '/chauffeur/wallet' },
+    { id: 'profile', label: 'Profil', Icon: UserCircle, path: '/chauffeur/profile' },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gray-950 flex items-stretch z-50 max-w-[500px] mx-auto" data-testid="driver-bottom-nav" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      {tabs.map(tab => (
-        <button key={tab.id} onClick={() => navigate(tab.path)}
-          className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${active === tab.id ? 'text-white' : 'text-gray-500'}`}
-          style={active === tab.id ? { color: GREEN } : {}}
-          data-testid={`nav-${tab.id}`}
-        >
-          <span className="text-lg">{tab.icon}</span>
-          <span className="text-[10px] font-medium">{tab.label}</span>
-        </button>
-      ))}
-    </nav>
+    <div className="fixed bottom-0 left-0 right-0 z-50 max-w-[500px] mx-auto px-4 pb-3 pointer-events-none" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}>
+      <nav className="pointer-events-auto bg-gray-950/95 backdrop-blur rounded-full flex items-stretch shadow-2xl border border-white/5 px-2" data-testid="driver-bottom-nav">
+        {tabs.map(({ id, label, Icon, path }) => {
+          const isActive = active === id;
+          return (
+            <button key={id} onClick={() => navigate(path)}
+              className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5"
+              style={{ color: isActive ? GREEN : '#8A8F98' }}
+              data-testid={`nav-${id}`}
+            >
+              <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
+              <span className="text-[10px] font-semibold">{label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 };
 

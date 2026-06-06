@@ -1276,6 +1276,35 @@ async def get_active_ride(request: Request):
     return {"active_ride": None}
 
 
+@router.get("/driver/bookings")
+async def driver_bookings(request: Request):
+    """V3Cube 'Mes réservations' for a driver: available pending rides (to accept),
+    upcoming rides assigned to this driver (to start), and live bidding rides."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Driver profile required")
+    did = driver["id"]
+
+    upcoming = await db.rides.find(
+        {"driver_id": did, "status": {"$in": ["accepted", "arriving", "in_progress"]}},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(50)
+    pending = await db.rides.find(
+        {"status": "pending", "driver_id": None, "mode": {"$ne": "bidding"}},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(50)
+    bids = await db.rides.find(
+        {"status": "pending", "driver_id": None, "mode": "bidding"},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(50)
+
+    for r in [*upcoming, *pending, *bids]:
+        await enrich_passenger_info(r)
+    return {"upcoming": upcoming, "pending": pending, "bids": bids}
+
+
+
 @router.get("/pending/available")
 async def get_available_rides(request: Request):
     """Get pending rides available for drivers to accept."""

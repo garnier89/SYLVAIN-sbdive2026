@@ -114,6 +114,7 @@ export const rideAPI = {
   updateStatus: (id, status) => api.post(`/rides/${id}/status`, { status }),
   cancel: (id, reason) => api.post(`/rides/${id}/cancel`, { reason }),
   list: (params) => api.get('/rides', { params }),
+  driverBookings: () => api.get('/rides/driver/bookings'),
   rate: (id, data) => api.post(`/rides/${id}/rate`, data),
   ratePassenger: (id, data) => api.post(`/rides/${id}/rate-passenger`, data),
   complete: (id, extra_charges) => api.post(`/rides/${id}/status`, { status: 'completed', extra_charges }),

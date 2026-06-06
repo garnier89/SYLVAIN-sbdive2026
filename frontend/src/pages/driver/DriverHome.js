@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import {
-  MapPin, Bell, X, NavigationArrow, Gift, Plus, CalendarCheck, List, UsersThree
+  MapPin, Bell, X, NavigationArrow, Gift, Plus, CalendarCheck, List, UsersThree,
+  Sparkle, Taxi, Fire, ArrowUUpLeft, Car
 } from '@phosphor-icons/react';
 import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
 import { decodePolyline } from '../../utils/polyline';
@@ -37,6 +38,7 @@ const DriverHome = () => {
   const [destInput, setDestInput] = useState({ address: '', lat: '', lng: '' });
   const [poolRoute, setPoolRoute] = useState(null); // { passenger_count, stops, newPassenger }
   const [zoneBonuses, setZoneBonuses] = useState([]);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const { isLoaded: gmapLoaded } = { isLoaded: true };
 
@@ -445,16 +447,41 @@ const DriverHome = () => {
       </div>
 
       {/* FLOATING BUTTONS */}
-      <div className="absolute bottom-24 left-0 right-0 z-[1000] px-4 flex items-center justify-between">
+      <div className="absolute bottom-28 left-0 right-0 z-[1000] px-4 flex items-end justify-between pointer-events-none">
         {rewardsActive ? (
-          <button onClick={() => navigate('/chauffeur/rewards')} className="flex items-center gap-2 px-5 py-3 rounded-full shadow-lg animate-pulse-subtle" style={{ background: '#00B578' }} data-testid="rewards-floating-btn">
+          <button onClick={() => navigate('/chauffeur/rewards')} className="pointer-events-auto flex items-center gap-2 px-5 py-3 rounded-full shadow-lg animate-pulse-subtle" style={{ background: '#00B578' }} data-testid="rewards-floating-btn">
             <Gift size={18} className="text-white" />
             <span className="text-white text-sm font-bold">Recompenses</span>
           </button>
         ) : <div />}
-        <button className="w-12 h-12 rounded-full shadow-lg flex items-center justify-center" style={{ background: '#00B578' }}>
-          <Plus size={22} className="text-white" weight="bold" />
-        </button>
+
+        {/* Radial speed-dial FAB */}
+        <div className="pointer-events-auto flex flex-col items-end gap-2.5" data-testid="driver-fab">
+          {fabOpen && (
+            <div className="flex flex-col items-end gap-2.5 mb-1" data-testid="driver-fab-menu">
+              {[
+                { label: "Planificateur de demande basé sur l'IA", Icon: Sparkle, onClick: () => toast.info('Planificateur IA bientôt disponible.') },
+                { label: 'Appelez un taxi', Icon: Taxi, onClick: () => toast.info('Réserver pour un client — bientôt disponible.') },
+                { label: 'Chaleur', Icon: Fire, onClick: () => setShowHeatmap((v) => !v) },
+                { label: 'Revenir', Icon: ArrowUUpLeft, onClick: () => setShowDestModal(true) },
+                { label: 'Emplacements', Icon: MapPin, onClick: () => toast.info('Emplacements favoris — bientôt disponible.') },
+                { label: 'Informations sur le véhicule', Icon: Car, onClick: () => navigate('/chauffeur/vehicles') },
+              ].map(({ label, Icon, onClick }, i) => (
+                <button key={label} onClick={() => { setFabOpen(false); onClick(); }}
+                  className="flex items-center gap-2.5 animate-in slide-in-from-bottom-2 fade-in" style={{ animationDelay: `${i * 30}ms` }}
+                  data-testid={`fab-action-${i}`}>
+                  <span className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-md whitespace-nowrap">{label}</span>
+                  <span className="w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center flex-shrink-0">
+                    <Icon size={20} weight="fill" style={{ color: '#00B578' }} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button onClick={() => setFabOpen((v) => !v)} className="w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform" style={{ background: fabOpen ? '#0B0B0B' : '#00B578', transform: fabOpen ? 'rotate(135deg)' : 'none' }} data-testid="driver-fab-toggle">
+            <Plus size={26} className="text-white" weight="bold" />
+          </button>
+        </div>
       </div>
 
         {/* Active ride — full-screen V3Cube flow */}

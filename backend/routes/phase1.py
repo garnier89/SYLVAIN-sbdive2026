@@ -49,7 +49,10 @@ async def send_ride_message(ride_id: str, request: Request):
 
     body = await request.json()
     text = (body.get("text") or "").strip()
-    if not text:
+    image = body.get("image")  # optional data URL (camera attachment)
+    if isinstance(image, str) and len(image) > 1_500_000:
+        raise HTTPException(status_code=400, detail="Image trop volumineuse")
+    if not text and not image:
         raise HTTPException(status_code=400, detail="Message required")
 
     msg = {
@@ -59,6 +62,7 @@ async def send_ride_message(ride_id: str, request: Request):
         "sender_name": user.get("name", "User"),
         "sender_role": "driver" if is_driver else "passenger",
         "text": text[:1000],
+        "image": image if isinstance(image, str) else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.ride_messages.insert_one(msg)

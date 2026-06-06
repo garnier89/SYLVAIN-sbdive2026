@@ -81,6 +81,7 @@ const ChauffeurWelcome = lazy(() => import('./pages/chauffeur/ChauffeurWelcome')
 const ChauffeurLogin = lazy(() => import('./pages/chauffeur/ChauffeurLogin'));
 const ChauffeurRegister = lazy(() => import('./pages/chauffeur/ChauffeurRegister'));
 const DriverHome = lazy(() => import('./pages/driver/DriverHome'));
+const DriverBookingsPage = lazy(() => import('./pages/driver/DriverBookingsPage'));
 const DriverRegisterPage = lazy(() => import('./pages/driver/DriverRegisterPage'));
 const DriverEarningsPage = lazy(() => import('./pages/driver/DriverEarningsPage'));
 const DriverWeeklyReportsPage = lazy(() => import('./pages/driver/DriverWeeklyReportsPage'));
@@ -309,6 +310,7 @@ const AppRouter = () => {
       <Route path="/chauffeur/login" element={user ? <Navigate to="/chauffeur/home" replace /> : <ChauffeurLogin />} />
       <Route path="/chauffeur/register" element={user ? <Navigate to="/chauffeur/home" replace /> : <ChauffeurRegister />} />
       <Route path="/chauffeur/home" element={<ProtectedRoute allowedRoles={['driver']}><DriverHome /></ProtectedRoute>} />
+      <Route path="/chauffeur/reservations" element={<ProtectedRoute allowedRoles={['driver']}><DriverBookingsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/earnings" element={<ProtectedRoute allowedRoles={['driver']}><DriverEarningsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/reports" element={<ProtectedRoute allowedRoles={['driver']}><DriverWeeklyReportsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/history" element={<ProtectedRoute allowedRoles={['driver']}><DriverHistoryPage /></ProtectedRoute>} />
