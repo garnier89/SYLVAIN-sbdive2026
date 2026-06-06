@@ -90,6 +90,7 @@ export const driverAPI = {
 export const merchantAPI = {
   register: (data) => api.post('/merchants/register', data),
   list: (params) => api.get('/merchants', { params }),
+  searchDelivery: (q) => api.get('/search/delivery', { params: { q } }),
   get: (id) => api.get(`/merchants/${id}`),
   getProducts: (id) => api.get(`/merchants/${id}/products`),
   addProduct: (data) => api.post('/merchants/products', data),

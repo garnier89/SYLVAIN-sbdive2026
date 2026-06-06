@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
+import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
 import DynamicIcon from '../../components/DynamicIcon';
@@ -113,6 +114,7 @@ const UserHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showSearch, setShowSearch] = useState(false);
+  const [showDeliverySearch, setShowDeliverySearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [cmsItems, setCmsItems] = useState([]);
   const [taxiCats, setTaxiCats] = useState([]);
@@ -328,6 +330,14 @@ const UserHome = () => {
     delivery: (
       <section key="delivery" className="px-4 mt-6">
         <SectionHeader title="Services de Livraison" />
+        <button
+          onClick={() => setShowDeliverySearch(true)}
+          className="mb-3 w-full h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center px-4 gap-3 text-left active:scale-[0.99] transition-transform"
+          data-testid="delivery-search-bar"
+        >
+          <MagnifyingGlass size={20} className="text-[#FF5000]" />
+          <span className={`text-sm text-[#9A6A4F] ${BODY}`}>Que voulez-vous vous faire livrer ?</span>
+        </button>
         <div className="grid grid-cols-4 gap-3">
           {displayFor('delivery').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
@@ -610,6 +620,7 @@ const UserHome = () => {
 
       {/* Search Overlay */}
       {showSearch && <SearchOverlay onClose={() => setShowSearch(false)} />}
+      {showDeliverySearch && <DeliverySearchOverlay onClose={() => setShowDeliverySearch(false)} />}
       {/* Side menu drawer */}
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 

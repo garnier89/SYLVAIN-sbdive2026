@@ -51,6 +51,7 @@ from routes.corporate import router as corporate_router
 from routes.home_categories import router as home_categories_router, seed_home_categories
 from routes.promo_banners import router as promo_banners_router, seed_promo_banners
 from routes.places import router as places_router
+from routes.search import router as search_router
 from routes.service_categories import router as service_categories_router, admin_router as service_categories_admin_router, seed_service_categories
 from routes.pricing import router as pricing_router, public_router as pricing_public_router
 from routes.taxi_configs import router as taxi_configs_router, public_router as taxi_configs_public_router
@@ -599,6 +600,7 @@ api_router.include_router(corporate_router)
 api_router.include_router(home_categories_router)
 api_router.include_router(promo_banners_router)
 api_router.include_router(places_router)
+api_router.include_router(search_router)
 api_router.include_router(service_categories_router)
 api_router.include_router(service_categories_admin_router)
 api_router.include_router(pricing_router)

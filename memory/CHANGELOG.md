@@ -1,6 +1,19 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 (suite) — Recherche unifiée multi-magasins sur l'accueil
+
+### Demande
+Ajouter une barre « Que voulez-vous vous faire livrer ? » interrogeant TOUTES les verticales. Aucun flux mocké.
+
+### Added
+- **Backend `routes/search.py`** : `GET /api/search/delivery?q=` — recherche en direct les **marchands** (par nom, toutes verticales) ET leurs **produits** (par nom, jointés au magasin actif), avec label de type FR (`store_type_label`). Enregistré dans `server.py`.
+- **Frontend `DeliverySearchOverlay.js`** : overlay plein écran, input debouncé (250 ms), sections **Magasins**/**Produits** avec icône+couleur par verticale, prix €, suggestions, états chargement/vide. Clic → ouvre la fiche magasin (`/food/{id}`).
+- **`UserHome.js`** : barre orange « Que voulez-vous vous faire livrer ? » en tête de la section Livraison (`data-testid="delivery-search-bar"`). `merchantAPI.searchDelivery(q)` ajouté.
+
+### Testé
+e2e (client `coherence@demo.sb`) : « pizza » → Pizza Heaven + 3 produits ; « roses » → Le Jardin Fleuri (Fleuriste) ; clic produit → fiche magasin. Lint JS/Python OK.
+
 ## 2026-06-06 — Services de Livraison fonctionnels (verticales) + cohérence FR/€
 
 ### Demande utilisateur
