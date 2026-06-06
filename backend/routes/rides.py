@@ -82,6 +82,41 @@ VALID_TRANSITIONS = {
     "in_progress": ["completed", "cancelled"],
 }
 
+# ── Driver sub-category gating (Particulier / VTC / Taxi licence) ──────────
+# Each car "gamme" (vehicle_type) declares allowed_taxi_subs. A gamme is
+# "restricted" when it lists a strict subset of the 3 subs (e.g. ["vtc"]).
+# Open gammes (all 3 subs, empty, or missing) impose no restriction.
+ALL_TAXI_SUBS = {"particulier", "vtc", "taxi"}
+TAXI_SUB_LABELS = {"particulier": "Particulier", "vtc": "VTC", "taxi": "Taxi (licence)"}
+
+
+def gamme_restricted_subs(vtype_doc):
+    """Return the set of allowed taxi_subs if the gamme is restricted, else None (open)."""
+    subs = (vtype_doc or {}).get("allowed_taxi_subs")
+    if not subs:
+        return None
+    s = {str(x).strip().lower() for x in subs if x}
+    if not s or s >= ALL_TAXI_SUBS:
+        return None
+    return s
+
+
+def driver_sub_allowed(driver_sub, allowed_subs):
+    """True if a driver with taxi_sub can serve a gamme restricted to allowed_subs."""
+    if allowed_subs is None:
+        return True
+    return (driver_sub or "").strip().lower() in allowed_subs
+
+
+async def restricted_gammes_map():
+    """Map {gamme_slug: set(allowed_subs)} for restricted car gammes only."""
+    m = {}
+    async for vt in db.vehicle_types.find({}, {"_id": 0, "slug": 1, "allowed_taxi_subs": 1}):
+        r = gamme_restricted_subs(vt)
+        if r is not None:
+            m[vt["slug"]] = r
+    return m
+
 
 @router.post("/estimate")
 async def estimate_ride(data: RideRequest):
@@ -787,6 +822,18 @@ async def accept_ride(ride_id: str, request: Request):
     if not ride:
         raise HTTPException(status_code=404, detail="Ride not found or already taken")
 
+    # ── Driver sub-category gating: VTC/Taxi gammes are reserved ──
+    vtype_doc = await db.vehicle_types.find_one(
+        {"slug": ride.get("vehicle_type")}, {"_id": 0, "allowed_taxi_subs": 1}
+    )
+    allowed_subs = gamme_restricted_subs(vtype_doc)
+    if not driver_sub_allowed(driver.get("taxi_sub"), allowed_subs):
+        labels = " / ".join(TAXI_SUB_LABELS.get(s, s) for s in sorted(allowed_subs))
+        raise HTTPException(
+            status_code=403,
+            detail=f"Cette course est réservée aux chauffeurs {labels}. Votre profil ne correspond pas à cette gamme.",
+        )
+
     now = datetime.now(timezone.utc).isoformat()
     await db.rides.update_one({"id": ride_id}, {"$set": {
         "driver_id": driver["id"],
@@ -955,9 +1002,21 @@ async def update_ride_status(ride_id: str, request: Request):
         if ride.get("driver_id"):
             commission = ride.get("commission_percent", 10) / 100
             driver_earnings = final_fare * (1 - commission)
+            # ===== Sub-category bonus (Particulier / VTC / Taxi licence) =====
+            d_full = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "taxi_sub": 1})
+            sub = (d_full or {}).get("taxi_sub")
+            subcat_bonus = 0.0
+            if sub:
+                from routes.admin import get_rewards_config
+                scb = (await get_rewards_config()).get("sub_category_bonus") or {}
+                if scb.get("enabled"):
+                    subcat_bonus = round(float(scb.get(sub, 0) or 0), 2)
+            if subcat_bonus > 0:
+                update_data["subcategory_bonus"] = subcat_bonus
+                update_data["subcategory"] = sub
             await db.drivers.update_one(
                 {"id": ride["driver_id"]},
-                {"$inc": {"total_trips": 1, "earnings": round(driver_earnings, 2)}}
+                {"$inc": {"total_trips": 1, "earnings": round(driver_earnings + subcat_bonus, 2)}}
             )
             # ===== POINTS: award for completed ride =====
             from routes.drivers import _get_rewards_points_config
@@ -1090,11 +1149,15 @@ async def cancel_ride(ride_id: str, request: Request):
 async def list_rides(request: Request, status: Optional[str] = None, limit: int = 20):
     user = await get_current_user(request)
     query = {}
+    driver_sub = None
+    is_driver_feed = False
     if user["role"] == "user":
         query["user_id"] = user["id"]
     elif user["role"] == "driver":
         driver = await db.drivers.find_one({"user_id": user["id"]})
         if driver:
+            is_driver_feed = True
+            driver_sub = driver.get("taxi_sub")
             # Drivers see their own rides + ALL pending requests (consistent with the
             # WS broadcast_to_drivers model). Vehicle-type matching is not enforced so
             # approved drivers always receive incoming requests regardless of category.
@@ -1102,6 +1165,18 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
     if status:
         query["status"] = status
     rides = await db.rides.find(query, {"_id": 0}).sort("created_at", -1).limit(min(limit, 100)).to_list(min(limit, 100))
+    # Hide pending rides whose gamme is reserved for a sub-category the driver isn't in
+    # (keep the driver's own assigned rides regardless).
+    if is_driver_feed:
+        restricted = await restricted_gammes_map()
+        if restricted:
+            driver_doc_id = (await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1}) or {}).get("id")
+            rides = [
+                r for r in rides
+                if r.get("status") != "pending"
+                or r.get("driver_id") == driver_doc_id
+                or driver_sub_allowed(driver_sub, restricted.get(r.get("vehicle_type")))
+            ]
     return rides
 
 
@@ -1153,6 +1228,10 @@ async def get_available_rides(request: Request):
         {"status": "pending"},
         {"_id": 0}
     ).sort("created_at", -1).limit(10).to_list(10)
+    # Hide gammes reserved for a sub-category the driver isn't in (VTC/Taxi)
+    restricted = await restricted_gammes_map()
+    if restricted:
+        rides = [r for r in rides if driver_sub_allowed(driver.get("taxi_sub"), restricted.get(r.get("vehicle_type")))]
     return rides
 
 
@@ -1202,6 +1281,18 @@ async def driver_counter_offer(ride_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Ride not found")
     if ride.get("status") != "pending":
         raise HTTPException(status_code=400, detail="Ride is no longer pending")
+
+    # ── Driver sub-category gating (same rule as direct accept) ──
+    vtype_doc = await db.vehicle_types.find_one(
+        {"slug": ride.get("vehicle_type")}, {"_id": 0, "allowed_taxi_subs": 1}
+    )
+    allowed_subs = gamme_restricted_subs(vtype_doc)
+    if not driver_sub_allowed(driver.get("taxi_sub"), allowed_subs):
+        labels = " / ".join(TAXI_SUB_LABELS.get(s, s) for s in sorted(allowed_subs))
+        raise HTTPException(
+            status_code=403,
+            detail=f"Cette course est réservée aux chauffeurs {labels}.",
+        )
 
     body = await request.json()
     amount = float(body.get("amount", 0))

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -104,15 +104,15 @@ const GuaranteeCA = ({ guarantees, setGuarantees }) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-800">Garantie de Chiffre d'Affaires</h2>
-          <p className="text-xs text-gray-500">L'application complete la difference si le chauffeur n'atteint pas le CA minimum</p>
+          <h2 className="text-lg font-bold text-gray-800">Garantie de Chiffre d&apos;Affaires</h2>
+          <p className="text-xs text-gray-500">L&apos;application complete la difference si le chauffeur n&apos;atteint pas le CA minimum</p>
         </div>
         <Button variant="outline" onClick={addNew} data-testid="add-guarantee"><Plus size={14} className="mr-1" /> Ajouter</Button>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-2">
         <p className="text-sm text-amber-900 font-medium">Exemple : Garantie 59 EUR entre 12h-20h</p>
-        <p className="text-xs text-amber-700 mt-1">Si un chauffeur fait 30 EUR entre 12h et 20h, l'application complete les <b>29 EUR</b> manquants. Le chauffeur doit maintenir un taux d'acceptation &ge;80% et un taux d'annulation &le;10%.</p>
+        <p className="text-xs text-amber-700 mt-1">Si un chauffeur fait 30 EUR entre 12h et 20h, l&apos;application complete les <b>29 EUR</b> manquants. Le chauffeur doit maintenir un taux d&apos;acceptation &ge;80% et un taux d&apos;annulation &le;10%.</p>
       </div>
 
       {guarantees.map(g => {
@@ -179,7 +179,7 @@ const DriverPoints = ({ points, setPoints }) => {
     <div className="space-y-5">
       <div>
         <h2 className="text-lg font-bold text-gray-800">Systeme de Points Chauffeurs</h2>
-        <p className="text-xs text-gray-500">A l'inscription, chaque chauffeur recoit des points. Les refus et annulations font perdre des points et la priorite sur les courses.</p>
+        <p className="text-xs text-gray-500">A l&apos;inscription, chaque chauffeur recoit des points. Les refus et annulations font perdre des points et la priorite sur les courses.</p>
       </div>
 
       <Card>
@@ -235,6 +235,43 @@ const DriverPoints = ({ points, setPoints }) => {
   );
 };
 
+// ============= TAB 4: BONUS SOUS-CATEGORIES =============
+const SubCategoryBonus = ({ bonus, setBonus }) => {
+  const upd = (k, v) => setBonus((p) => ({ ...p, [k]: v }));
+  const rows = [
+    { id: 'particulier', label: 'Particulier', desc: 'Chauffeur voiture sans Carte VTC/Taxi' },
+    { id: 'vtc', label: 'VTC', desc: 'Chauffeur avec Carte VTC' },
+    { id: 'taxi', label: 'Taxi (licence)', desc: 'Chauffeur avec licence Taxi (ADS)' },
+  ];
+  return (
+    <div className="space-y-4" data-testid="subcat-bonus">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">Bonus par sous-categorie</h2>
+          <p className="text-xs text-gray-500">Prime fixe (EUR) creditee au chauffeur a la fin de chaque course, selon sa sous-categorie.</p>
+        </div>
+        <button onClick={() => upd('enabled', !bonus.enabled)} data-testid="subcat-bonus-toggle"
+          className={`w-14 h-8 rounded-full relative transition-colors ${bonus.enabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${bonus.enabled ? 'left-[26px]' : 'left-1'}`} />
+        </button>
+      </div>
+      <div className="grid md:grid-cols-3 gap-4">
+        {rows.map((r) => (
+          <div key={r.id} className="border border-gray-200 rounded-xl p-4" data-testid={`subcat-${r.id}`}>
+            <p className="font-bold text-gray-800">{r.label}</p>
+            <p className="text-[11px] text-gray-400 mb-3">{r.desc}</p>
+            <Field label="Bonus / course (EUR)" small>
+              <Input type="number" step="0.5" value={bonus[r.id] ?? 0}
+                onChange={(e) => upd(r.id, parseFloat(e.target.value) || 0)}
+                disabled={!bonus.enabled} className="h-9" data-testid={`subcat-input-${r.id}`} />
+            </Field>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Field = ({ label, icon: Icon, small, children }) => (
   <div>
     <label className={`${small ? 'text-[10px] text-gray-500' : 'text-xs font-bold text-gray-700'} block mb-1`}>
@@ -252,28 +289,32 @@ const AdminRewards = () => {
   const [regards, setRegards] = useState([]);
   const [guarantees, setGuarantees] = useState([]);
   const [points, setPoints] = useState({ initial_points: 100, points_per_ride_accepted: 2, points_per_ride_completed: 3, points_lost_per_refuse: 5, points_lost_per_cancel: 10, palettes: [] });
+  const [subCatBonus, setSubCatBonus] = useState({ enabled: false, particulier: 0, vtc: 0, taxi: 0 });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API}/api/admin/rewards/config`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed');
-      const data = await res.json();
-      setRegards(data.regard_vehicles || []);
-      setGuarantees(data.guarantees || []);
-      setPoints(data.points || {});
-    } catch (err) { toast.error('Erreur lors du chargement'); }
-    finally { setLoading(false); }
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/admin/rewards/config`, { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        if (!active) return;
+        setRegards(data.regard_vehicles || []);
+        setGuarantees(data.guarantees || []);
+        setPoints(data.points || {});
+        setSubCatBonus(data.sub_category_bonus || { enabled: false, particulier: 0, vtc: 0, taxi: 0 });
+      } catch (err) { toast.error('Erreur lors du chargement'); }
+      finally { if (active) setLoading(false); }
+    })();
+    return () => { active = false; };
   }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const res = await fetch(`${API}/api/admin/rewards/config`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ regard_vehicles: regards, guarantees, points }),
+        body: JSON.stringify({ regard_vehicles: regards, guarantees, points, sub_category_bonus: subCatBonus }),
       });
       if (!res.ok) throw new Error('Save failed');
       toast.success('Configuration sauvegardee !');
@@ -300,6 +341,7 @@ const AdminRewards = () => {
           { id: 'regard', label: 'Regard Vehicules', icon: Car, desc: 'Voiture / Moto / Velo' },
           { id: 'guarantee', label: 'Garantie CA', icon: CurrencyEur, desc: 'Chiffre minimum garanti' },
           { id: 'points', label: 'Points Chauffeurs', icon: Star, desc: 'Systeme de priorite' },
+          { id: 'subcat', label: 'Bonus Sous-categories', icon: CurrencyEur, desc: 'Particulier / VTC / Taxi' },
         ].map(t => {
           const Icon = t.icon;
           return (
@@ -320,6 +362,7 @@ const AdminRewards = () => {
       {tab === 'regard' && <RegardVehicles regards={regards} setRegards={setRegards} />}
       {tab === 'guarantee' && <GuaranteeCA guarantees={guarantees} setGuarantees={setGuarantees} />}
       {tab === 'points' && <DriverPoints points={points} setPoints={setPoints} />}
+      {tab === 'subcat' && <SubCategoryBonus bonus={subCatBonus} setBonus={setSubCatBonus} />}
     </div>
   );
 };

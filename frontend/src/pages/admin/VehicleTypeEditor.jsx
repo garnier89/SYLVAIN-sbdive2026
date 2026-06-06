@@ -117,6 +117,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
     user_cancel_time_limit: 5, user_cancel_charges: 4, waiting_time_limit: 1, waiting_charges: 20, intransit_waiting_fee_per_min: 0.3,
     person_capacity: 4,
     peak_slot1: { enabled: false, days: {} }, peak_slot2: { enabled: false, days: {} }, night_charges: { enabled: false, days: {} },
+    allowed_taxi_subs: ['particulier', 'vtc', 'taxi'],
     image_unselected: null, image_selected: null,
     ...item,
   });
@@ -194,7 +195,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
         <Button variant="ghost" size="icon" onClick={onCancel} data-testid="vt-editor-back"><ArrowLeft size={20} /></Button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-800">{editing ? `Modifier · ${f.name_fr || f.slug}` : 'Nouveau type de véhicule'}</h1>
-          <p className="text-xs text-gray-500">Configurez les informations techniques et d'affichage de cette catégorie.</p>
+          <p className="text-xs text-gray-500">Configurez les informations techniques et d&apos;affichage de cette catégorie.</p>
         </div>
         <Button onClick={save} disabled={saving} className="bg-[#FF5000] text-white" data-testid="vt-editor-save"><FloppyDisk size={16} className="mr-1.5" />{saving ? '...' : 'Enregistrer'}</Button>
       </div>
@@ -262,6 +263,32 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
         </div>
       </Section>
 
+      {/* Driver sub-category gating (Particulier / VTC / Taxi) */}
+      <Section title="Sous-catégories chauffeur autorisées"
+        desc="Quels chauffeurs peuvent recevoir/accepter cette gamme. SB reste ouvert à tous ; une gamme « VTC » ou « Taxi » se réserve à sa sous-catégorie.">
+        <div className="flex flex-wrap gap-2" data-testid="vt-allowed-subs">
+          {[
+            { id: 'particulier', label: 'Particulier' },
+            { id: 'vtc', label: 'VTC' },
+            { id: 'taxi', label: 'Taxi (licence)' },
+          ].map((s) => {
+            const subs = f.allowed_taxi_subs || [];
+            const on = subs.includes(s.id);
+            const toggle = () => set('allowed_taxi_subs', on ? subs.filter((x) => x !== s.id) : [...subs, s.id]);
+            return (
+              <button key={s.id} type="button" onClick={toggle} data-testid={`vt-sub-${s.id}`}
+                aria-pressed={on} data-state={on ? 'on' : 'off'}
+                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${on ? 'bg-[#FF5000] text-white border-[#FF5000]' : 'bg-white text-gray-600 border-gray-200'}`}>
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2">
+          Astuce : cocher les 3 (ou aucune) = gamme ouverte à tous (aucune restriction).
+        </p>
+      </Section>
+
       {/* Security & fare strategy */}
       <Section title="Sécurité & Stratégie tarifaire">
         <Toggle checked={f.ask_otp_before_ride} onChange={(v) => set('ask_otp_before_ride', v)} label="Demander un code OTP avant de démarrer la course" testid="vt-otp" />
@@ -270,7 +297,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
             {FARE_STRATEGIES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </Field>
-        {f.enable_pool && <p className="text-[11px] text-amber-600 mt-1">⚠️ Pool activé → seul le modèle « Fixe » s'applique.</p>}
+        {f.enable_pool && <p className="text-[11px] text-amber-600 mt-1">⚠️ Pool activé → seul le modèle « Fixe » s&apos;applique.</p>}
         {f.enable_pool && (
           <div className="mt-4 border-t border-gray-100 pt-3" data-testid="vt-pool-pricing">
             <Field label="Pourcentage Pool (%) *" hint="1ʳᵉ place = plein tarif. Chaque place suivante coûte ce % du tarif plein. Ex : tarif 10€ et Pool % = 80 → 2 places = 10€ + 8€ = 18€.">
@@ -298,7 +325,7 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
             <p className="text-sm font-semibold text-gray-700">Surcoûts par zone / localité</p>
             <Button type="button" variant="outline" size="sm" onClick={addZone} data-testid="vt-add-zone"><Plus size={14} className="mr-1" />Ajouter une zone</Button>
           </div>
-          {f.zone_overrides.length === 0 && <p className="text-xs text-gray-400">Aucun surcoût. Le tarif de base s'applique partout.</p>}
+          {f.zone_overrides.length === 0 && <p className="text-xs text-gray-400">Aucun surcoût. Le tarif de base s&apos;applique partout.</p>}
           {f.zone_overrides.map((z, i) => (
             <div key={z._id ?? `zone-${i}`} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end mb-2 bg-gray-50 rounded-lg p-2" data-testid={`vt-zone-${i}`}>
               <Field label="Zone">

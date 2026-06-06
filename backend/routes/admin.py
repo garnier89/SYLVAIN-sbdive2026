@@ -24,6 +24,8 @@ VT_FIELDS = [
     "waiting_charges", "intransit_waiting_fee_per_min", "cancellation_fare",
     # capacity & surge
     "person_capacity", "peak_slot1", "peak_slot2", "night_charges",
+    # driver sub-category gating (Particulier / VTC / Taxi)
+    "allowed_taxi_subs",
     # images
     "image_unselected", "image_selected",
 ]
@@ -42,6 +44,7 @@ VT_DEFAULTS = {
     "person_capacity": 4,
     "peak_slot1": {"enabled": False, "days": {}}, "peak_slot2": {"enabled": False, "days": {}},
     "night_charges": {"enabled": False, "days": {}},
+    "allowed_taxi_subs": ["particulier", "vtc", "taxi"],
     "image_unselected": None, "image_selected": None,
 }
 
@@ -69,6 +72,14 @@ DEFAULT_REWARDS_CONFIG = {
             {"id": "p4", "name": "Expert", "min_points": 81, "max_points": 100, "priority_access": True, "max_ride_amount": 999, "color": "#10B981"},
         ],
     },
+    # Fixed per-ride bonus credited to the driver at ride completion, based on
+    # their Taxi sub-category (Particulier / VTC / Taxi licence). €.
+    "sub_category_bonus": {
+        "enabled": False,
+        "particulier": 0.0,
+        "vtc": 0.0,
+        "taxi": 0.0,
+    },
 }
 
 
@@ -82,6 +93,7 @@ async def get_rewards_config():
         "regard_vehicles": s.get("regard_vehicles") or DEFAULT_REWARDS_CONFIG["regard_vehicles"],
         "guarantees": s.get("guarantees") or DEFAULT_REWARDS_CONFIG["guarantees"],
         "points": s.get("points") or DEFAULT_REWARDS_CONFIG["points"],
+        "sub_category_bonus": s.get("sub_category_bonus") or DEFAULT_REWARDS_CONFIG["sub_category_bonus"],
     }
 
 
@@ -817,6 +829,7 @@ async def save_admin_rewards_config(request: Request):
         "regard_vehicles": body.get("regard_vehicles", DEFAULT_REWARDS_CONFIG["regard_vehicles"]),
         "guarantees": body.get("guarantees", DEFAULT_REWARDS_CONFIG["guarantees"]),
         "points": body.get("points", DEFAULT_REWARDS_CONFIG["points"]),
+        "sub_category_bonus": body.get("sub_category_bonus", DEFAULT_REWARDS_CONFIG["sub_category_bonus"]),
     }
     await db.service_configs.update_one(
         {"service_key": "rewards"},

@@ -316,6 +316,12 @@ async def lifespan(app: FastAPI):
         if not await db.vehicle_types.find_one({"id": vt["id"]}):
             await db.vehicle_types.insert_one(vt)
     await db.vehicle_types.create_index("slug")
+    # Backfill: existing gammes default to "open to all driver sub-categories"
+    # (Particulier/VTC/Taxi) so dispatch stays unrestricted unless admin narrows it.
+    await db.vehicle_types.update_many(
+        {"allowed_taxi_subs": {"$exists": False}},
+        {"$set": {"allowed_taxi_subs": ["particulier", "vtc", "taxi"]}},
+    )
 
     for mc in MASTER_SERVICE_CATEGORIES:
         if not await db.master_service_categories.find_one({"id": mc["id"]}):
