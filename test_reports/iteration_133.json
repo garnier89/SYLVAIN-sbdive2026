@@ -1,0 +1,32 @@
+{
+  "summary": "Validated the two newly-added features (delivery vertical pages + unified delivery search bar on /home) AND the broader client journey. Backend: 100% pass on /api/search/delivery (pizza→Pizza Heaven+3 products, roses→Le Jardin Fleuri product, lait→Carrefour City product) and /api/merchants?store_type= (grocery=2, florist=1, wine=1, construction=1, stationery=1, restaurant=4). Frontend: /home loads clean with NO runtime overlay (the previous WEBPACK_DEFAULT_EXPORT artefact is gone after fresh load); delivery-search-bar opens delivery-search-overlay; typing pizza/roses/lait displays the correct stores/products; clicking a result navigates to /food/{merchant_id} which renders fully in French with € prices. The 3 home delivery tiles ('Livraison Repas', 'Livraison Courses', 'Coursier Express') are CMS-driven (hcat_* IDs override hardcoded deliveryServices) and DO navigate correctly to /food, /food?type=grocery, /runner once scrolled fully above the fixed bottom nav. /food?type=grocery shows ONLY Carrefour City + Franprix Express (no restaurant leak). /food default shows ONLY restaurants. /all-delivery routes Médicaments→/pharmacy (Pharmacie partner list), Fleurs→/food?type=florist (Le Jardin Fleuri only), Vin→/food?type=wine (Cave à Vins only), Matériaux→/food?type=construction (Brico Matériaux only). /parcel and /runner load without error. Add-to-cart on /food/merchant_carrefour_city updates the bar to 'Voir le panier · 1 article · 2,45 €' in French/€. No JS errors in console during the full traversal.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "UserHome.js delivery service tiles",
+        "issue": "On a 430x900 mobile viewport, the bottom row of CMS delivery tiles (Livraison Repas, Livraison Courses, Coursier Express, Plus de Services) initially renders at y≈775-900, which is partially covered by the fixed bottom navigation bar (y=760-848). Result: a tap at the visible-but-under-nav portion of the tile is intercepted by the bottom-nav (e.g., 'Coursier Express' tap lands on the wallet/portfolio tab → navigates to /wallet, 'Livraison Courses' lands on the bookings tab → /history). Once the user scrolls the page a further ~120-150px the tiles clear the bottom nav and tapping works correctly. Recommend adding pb-24/pb-28 (≥96px) bottom padding to the home scroll container so CMS tiles never sit under the fixed bottom navigation, OR raising the z-index priority of the tiles vs the bottom nav at the overlap zone.",
+        "selector": "[data-testid='service-hcat_4b5b51304b-btn'] / -btn variants in the delivery section",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "POLISH (medium): Add bottom padding (~96px / pb-24) to the home scroll container so the last row of CMS-driven service tiles (delivery / on-demand / beauty / nearby) never sits behind the fixed bottom navigation. This was the ONLY clickability issue observed across the entire client journey."
+  ],
+  "critical_code_review_comments": [
+    "UserHome.js: deliveryServices array (lines 166-171) is essentially dead code in production — the home-categories CMS endpoint always returns items, so displayFor('delivery') always uses the CMS list with hcat_* IDs. The hardcoded fallback is fine as a safety net but the dual source of truth means changes to the deliveryServices array won't show up unless the admin also updates /api/home-categories. Worth documenting in the file header.",
+    "UserHome.js: the bottom-fixed mobile nav consistently overlaps the last grid row of every section on a 900px viewport. A site-wide pb-24 on the main scroll container would fix several click-interception bugs at once."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (3/3 search queries, 6/6 store_type filters)", "frontend": "95% (1 medium overlap issue, all 11 requested scenarios pass functionally)" },
+  "test_credentials_used": "Client coherence@demo.sb / Client123!",
+  "seed_data_creation": "None. Did not create any persistent data — only opened the search overlay and viewed merchant lists. Add-to-cart only modifies local state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The home delivery section uses CMS items (testids are service-hcat_<id>-btn, NOT service-food-delivery-btn). To click them in Playwright on a 430x900 viewport you MUST scroll an extra ~150px past scroll_into_view_if_needed, otherwise the fixed bottom nav intercepts the click and sends the user to /history or /wallet. CMS mapping: hcat_6e3d1c4181=Livraison Repas→/food, hcat_4b5b51304b=Livraison Courses→/food?type=grocery, hcat_e374f2d763=Coursier Express→/runner. Search endpoint GET /api/search/delivery?q= is public (no auth) and works for stores+products. Verticals seed verified: grocery=2 stores, florist=1, wine=1, construction=1, stationery=1, restaurant=4. /pharmacy is its own dedicated page (not /food?type=…).",
+  "rca of the issue": "No blocking bug to RCA. The 'many bugs' the user reported are not reproducible after the HMR-artefact webpack overlay (WEBPACK_DEFAULT_EXPORT) was cleared by the frontend restart. All requested flows (delivery search bar opens overlay, typing pizza/roses/lait returns the right merchants & products, clicking a result navigates to /food/{merchant_id}, /food?type=grocery shows épiceries only, /food shows restaurants only, /runner & /parcel render, /all-delivery routes to the right verticals, add-to-cart updates the bar in FR/€) all pass. The only remaining issue is a click-interception caused by the fixed bottom navigation sitting on top of the last row of home tiles when the page is partially scrolled — a CSS bottom-padding fix on the home scroll container resolves it."
+}
