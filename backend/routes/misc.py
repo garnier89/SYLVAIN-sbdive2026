@@ -210,6 +210,37 @@ async def admin_set_driver_document_status(driver_id: str, doc_type: str, reques
         pass
     from routes.drivers import build_documents_view
     view = await build_documents_view({**d, "documents": docs})
+
+    # Notify the driver in real-time: in-app WS toast + mobile Expo push + persisted feed item.
+    matched = next((it for it in view["documents"] if it["key"] == doc_type), None)
+    label = (matched or {}).get("label") or doc_type
+    if status_value == "approved":
+        title, msg = "Document validé ✅", f"Votre document « {label} » a été approuvé."
+    elif status_value == "rejected":
+        title, msg = "Document refusé", f"Votre document « {label} » a été refusé." + (f" Motif : {reason}" if reason else "")
+    else:
+        title, msg = "Document en attente", f"Votre document « {label} » est de nouveau en attente de validation."
+    uid = d["user_id"]
+    ws_payload = {"type": "driver_document_reviewed", "doc_type": doc_type, "doc_label": label,
+                  "status": status_value, "reason": reason, "title": title, "body": msg}
+    try:
+        from core.websocket import manager
+        await manager.send_personal_message(ws_payload, uid)
+    except Exception:
+        pass
+    try:
+        from core.push import notify_user
+        await notify_user(uid, title, msg, {"type": "driver_document_reviewed", "doc_type": doc_type})
+    except Exception:
+        pass
+    try:
+        await db.notifications.insert_one({
+            "id": uuid.uuid4().hex, "user_id": uid, "type": "driver_document_reviewed",
+            "title": title, "body": msg, "data": {"doc_type": doc_type, "status": status_value},
+            "read": False, "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception:
+        pass
     return {"message": "Document mis à jour", **view}
 
 

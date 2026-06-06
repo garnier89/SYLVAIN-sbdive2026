@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { DriverBottomNav } from './DriverProfilePage';
 import { Button } from '../../components/ui/button';
 import { driverAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { FileText, Upload, CheckCircle, Clock, XCircle, CaretRight, ArrowLeft, ShieldCheck, Car, IdentificationCard } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -24,6 +26,8 @@ const iconFor = (key) => {
 
 const DriverDocumentsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { on } = useWebSocket(user?.id);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +47,17 @@ const DriverDocumentsPage = () => {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  // Real-time alert when an admin approves/rejects one of the driver's documents.
+  useEffect(() => {
+    const off = on('driver_document_reviewed', (msg) => {
+      if (msg?.status === 'approved') toast.success(msg.body || 'Document validé ✅', { duration: 6000 });
+      else if (msg?.status === 'rejected') toast.error(msg.body || 'Document refusé', { duration: 8000 });
+      else toast.info(msg?.body || 'Document mis à jour');
+      driverAPI.getMyDocuments().then((r) => setData(r.data)).catch(() => {});
+    });
+    return off;
+  }, [on]);
 
   const handleUpload = (docKey) => {
     const input = document.createElement('input');
