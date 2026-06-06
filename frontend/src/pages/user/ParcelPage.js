@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { parcelAPI } from '../../services/api';
+import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import {
   ArrowLeft, Package, Motorcycle, CaretRight, Plus, Trash, MapPin, FlagCheckered, CheckCircle
 } from '@phosphor-icons/react';
@@ -38,6 +39,7 @@ const ParcelPage = () => {
   const [selecting, setSelecting] = useState(null); // 'pickup' | number(index)
   const [estimation, setEstimation] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   const startDelivery = (mode, vehicle) => {
     setDeliveryMode(mode); setVehicleType(vehicle);
@@ -79,8 +81,11 @@ const ParcelPage = () => {
       const res = await parcelAPI.create({
         pickup_lat: pickup.lat, pickup_lng: pickup.lng,
         stops: stops.map((s) => ({ lat: s.lat, lng: s.lng, recipient_name: s.recipient_name, recipient_phone: s.recipient_phone })),
-        vehicle_type: vehicleType, payment_method: 'cash',
+        vehicle_type: vehicleType, payment_method: paymentMethod,
       });
+      if (res.data?.payment_fallback_to_cash) {
+        toast.info('Solde insuffisant — la course sera payée en espèces.');
+      }
       setStep('success');
       const pid = res.data?.id;
       setTimeout(() => navigate(pid ? `/track/parcel/${pid}` : '/history'), 2200);
@@ -105,7 +110,7 @@ const ParcelPage = () => {
 
         <div className="p-4">
           <h3 className="text-xl font-bold text-gray-900">Livraison Simple</h3>
-          <p className="text-sm text-gray-500 mt-1 mb-4">Envoyez un colis d'un point de ramassage vers une seule destination.</p>
+          <p className="text-sm text-gray-500 mt-1 mb-4">Envoyez un colis d&apos;un point de ramassage vers une seule destination.</p>
           <div className="space-y-3">
             <button onClick={() => startDelivery('single', 'box')} className="w-full flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all" data-testid="single-box-btn">
               <div className="w-14 h-14 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0"><Package size={28} weight="duotone" className="text-teal-500" /></div>
@@ -211,7 +216,7 @@ const ParcelPage = () => {
       <div className="mobile-container min-h-screen bg-white">
         <div className="bg-[#FF4500] px-4 py-3 flex items-center gap-3">
           <button onClick={() => setStep('map')} data-testid="parcel-confirm-back-btn"><ArrowLeft size={24} className="text-white" /></button>
-          <h1 className="text-white font-bold text-lg">Confirmer l'envoi</h1>
+          <h1 className="text-white font-bold text-lg">Confirmer l&apos;envoi</h1>
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-blue-50 rounded-2xl p-4 space-y-2">
@@ -234,6 +239,12 @@ const ParcelPage = () => {
             </div>
           )}
 
+          {/* Moyen de paiement */}
+          <div data-testid="parcel-payment-section">
+            <h3 className="text-sm font-bold text-gray-900 mb-2">Moyen de paiement</h3>
+            <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} total={estimation?.estimated_fare || 0} testidPrefix="parcel-pay" />
+          </div>
+
           <Button className="w-full rounded-2xl h-14 bg-[#FF4500] hover:bg-[#E03D00] text-white text-lg font-semibold" disabled={loading} onClick={confirm} data-testid="parcel-confirm-btn">
             {loading ? 'Envoi...' : `Confirmer · ${estimation?.estimated_fare?.toFixed(2)} €`}
           </Button>
@@ -247,7 +258,7 @@ const ParcelPage = () => {
     <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center" data-testid="parcel-success">
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6"><CheckCircle size={40} weight="fill" className="text-green-600" /></div>
       <h2 className="text-2xl font-bold mb-2">Colis confirmé !</h2>
-      <p className="text-gray-500">Un coursier va récupérer votre colis et livrer {stops.length > 1 ? `vos ${stops.length} points de dépôt` : 'votre destination'}. Suivez dans l'historique.</p>
+      <p className="text-gray-500">Un coursier va récupérer votre colis et livrer {stops.length > 1 ? `vos ${stops.length} points de dépôt` : 'votre destination'}. Suivez dans l&apos;historique.</p>
     </div>
   );
 };

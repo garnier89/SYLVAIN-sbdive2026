@@ -4,6 +4,7 @@ import { ArrowLeft, Package, Plus, Trash, Lightning, MapPin, Bag } from '@phosph
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { parcelAPI } from '../../services/api';
+import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 
 // Coursier Express runs on the tested "parcels" engine (live driver dispatch + tracking).
 const PKG_TO_VEHICLE = { document: 'moto', small: 'moto', food: 'moto', medium: 'box' };
@@ -36,6 +37,7 @@ const RunnerPage = () => {
   const [packageType, setPackageType] = useState('document');
   const [submitting, setSubmitting] = useState(false);
   const [estimatedFare, setEstimatedFare] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   // simple mode
   const [drop, setDrop] = useState(null);
@@ -95,9 +97,12 @@ const RunnerPage = () => {
         pickup_address: pickup.address,
         stops: st,
         vehicle_type: PKG_TO_VEHICLE[packageType] || 'moto',
-        payment_method: 'cash',
+        payment_method: paymentMethod,
       });
       const pid = res.data?.id;
+      if (res.data?.payment_fallback_to_cash) {
+        toast.info('Solde insuffisant — la course sera payée en espèces.');
+      }
       toast.success('Commande coursier créée ! Un coursier va la prendre en charge.');
       navigate(pid ? `/track/parcel/${pid}` : '/history');
     } catch (e) { console.error(e); toast.error("Impossible de créer la commande"); }
@@ -250,6 +255,12 @@ const RunnerPage = () => {
             <p className="text-2xl font-bold text-amber-900">{fare.toFixed(2)} EUR</p>
           </div>
           <Package size={36} className="text-amber-500" weight="duotone" />
+        </div>
+
+        {/* Moyen de paiement */}
+        <div data-testid="runner-payment-section">
+          <h3 className="text-sm font-bold text-gray-900 mb-2">Moyen de paiement</h3>
+          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} total={fare} testidPrefix="runner-pay" />
         </div>
 
         <button

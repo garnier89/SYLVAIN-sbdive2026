@@ -148,6 +148,12 @@ export const walletAPI = {
   refund: (amount, reason) => api.post('/wallet/refund', { amount, reason }),
 };
 
+// SB PayGo / finance APIs
+export const financeAPI = {
+  balance: () => api.get('/finance/balance'),
+  sbpaygoSsoLink: () => api.post('/finance/sbpaygo/sso-link'),
+};
+
 // Support APIs
 export const supportAPI = {
   createTicket: (data) => api.post('/support/tickets', data),

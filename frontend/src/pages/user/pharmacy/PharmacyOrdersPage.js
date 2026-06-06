@@ -57,15 +57,16 @@ const PharmacyOrdersPage = () => {
   };
 
   const doPay = async (method) => {
-    if ((balances[method] ?? 0) < payTarget.total) {
+    const isWallet = ['wallet', 'sbpaygo'].includes(method);
+    if (isWallet && (balances[method] ?? 0) < payTarget.total) {
       if (method === 'wallet') return navigate('/wallet');
-      try { const r = await pharmacyAPI.sbpaygoSsoLink(); if (r.data?.url) window.location.href = r.data.url; } catch { toast.error('Recharge indisponible'); }
+      try { const r = await pharmacyAPI.sbpaygoSsoLink(); if (r.data?.url) window.location.assign(r.data.url); } catch { toast.error('Recharge indisponible'); }
       return;
     }
     setPaying(true);
     try {
       await pharmacyAPI.payOrder(payTarget.id, method);
-      toast.success('Paiement effectué ✅');
+      toast.success(isWallet ? 'Paiement effectué ✅' : 'Paiement à la livraison confirmé ✅');
       setPayTarget(null); load();
     } catch (e) { toast.error(e.response?.data?.detail || 'Paiement échoué'); }
     finally { setPaying(false); }
@@ -127,6 +128,7 @@ const PharmacyOrdersPage = () => {
                   <span className="text-gray-400 text-xs">Total </span>
                   <span className="font-bold text-gray-900">{o.needs_quote && o.status === 'pending' ? 'À confirmer' : fmt(o.total)}</span>
                   {o.payment_status === 'paid' && <span className="ml-2 text-[11px] font-semibold text-green-600">· Payé ✓</span>}
+                  {o.payment_status === 'cod' && <span className="ml-2 text-[11px] font-semibold text-amber-600">· À régler à la livraison</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   {o.payment_status === 'pending' && o.total > 0 && !['pending', 'delivered', 'cancelled'].includes(o.status) && (
@@ -152,17 +154,25 @@ const PharmacyOrdersPage = () => {
             <h3 className="text-base font-bold text-gray-900 mb-1">Payer la commande</h3>
             <p className="text-xs text-gray-500 mb-3">Total à régler : <span className="font-bold text-gray-900">{fmt(payTarget.total)}</span> (médicaments {fmt(payTarget.medication_total)} + livraison {fmt(payTarget.delivery_fee)}).</p>
             <div className="space-y-2">
-              {[{ id: 'wallet', label: 'Mon portefeuille' }, { id: 'sbpaygo', label: 'SB PayGo' }].map((m) => {
+              {[
+                { id: 'cash', label: 'Espèces à la livraison' },
+                { id: 'card', label: 'Carte à la livraison' },
+                { id: 'wallet', label: 'Mon portefeuille' },
+                { id: 'sbpaygo', label: 'SB PayGo' },
+              ].map((m) => {
+                const isWallet = ['wallet', 'sbpaygo'].includes(m.id);
                 const bal = balances[m.id];
-                const insufficient = (bal ?? 0) < payTarget.total;
+                const insufficient = isWallet && (bal ?? 0) < payTarget.total;
                 return (
                   <button key={m.id} onClick={() => doPay(m.id)} disabled={paying} data-testid={`pay-method-${m.id}`}
                     className="w-full flex items-center justify-between border border-gray-200 rounded-xl px-4 py-3 text-left disabled:opacity-60">
                     <div>
                       <div className="text-sm font-semibold text-gray-900">{m.label}</div>
-                      <div className={`text-[11px] ${insufficient ? 'text-red-500' : 'text-gray-400'}`}>Solde : {bal == null ? '—' : fmt(bal)}{insufficient ? ' · insuffisant → recharger' : ''}</div>
+                      {isWallet
+                        ? <div className={`text-[11px] ${insufficient ? 'text-red-500' : 'text-gray-400'}`}>Solde : {bal == null ? '—' : fmt(bal)}{insufficient ? ' · insuffisant → recharger' : ''}</div>
+                        : <div className="text-[11px] text-gray-400">Réglé au coursier à la livraison</div>}
                     </div>
-                    <span className="text-xs font-bold text-[#FF4500]">{insufficient ? 'Recharger →' : 'Payer →'}</span>
+                    <span className="text-xs font-bold text-[#FF4500]">{isWallet ? (insufficient ? 'Recharger →' : 'Payer →') : 'Confirmer →'}</span>
                   </button>
                 );
               })}

@@ -130,7 +130,7 @@ async def list_bidding_posts(request: Request, status: Optional[str] = None):
 
 @bidding_router.get("/posts/{post_id}")
 async def get_bidding_post(post_id: str, request: Request):
-    user = await get_current_user(request)
+    await get_current_user(request)
     post = await db.bidding_posts.find_one({"id": post_id}, {"_id": 0})
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -481,6 +481,12 @@ async def create_medical_transport(request: Request):
         km = calculate_distance(body["pickup_lat"], body["pickup_lng"], body["dest_lat"], body["dest_lng"])
     km = round(km or 0, 2)
     fare = round(amb["base_fee"] + amb["per_km"] * km, 2)
+    if body.get("pickup_lat") is None or body.get("dest_lat") is None:
+        raise HTTPException(status_code=400, detail="Lieu de départ et destination requis")
+    # Debit wallet / SB PayGo up-front (before driver search). Cash fallback if short.
+    from core.payments import debit_with_fallback
+    pay = await debit_with_fallback(user["id"], fare, body.get("payment_method", "cash"),
+                                    f"Transport médical — {amb['name']}")
     transport = {
         "id": f"medtr_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
@@ -499,12 +505,12 @@ async def create_medical_transport(request: Request):
         "urgency": body.get("urgency", "normal"),  # normal | urgent | critical
         "distance_km": km,
         "fare": fare,
-        "payment_method": body.get("payment_method", "cash"),
+        "payment_method": pay["method"],
+        "payment_status": "paid" if pay["paid"] else "pending",
+        "payment_fallback_to_cash": pay["fallback_to_cash"],
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    if transport["pickup_lat"] is None or transport["dest_lat"] is None:
-        raise HTTPException(status_code=400, detail="Lieu de départ et destination requis")
     await db.medical_transport.insert_one(transport)
     transport.pop("_id", None)
     try:

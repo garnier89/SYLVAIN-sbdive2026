@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { medicalAPI } from '../../services/api';
+import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import {
   ArrowLeft, FirstAid, Wheelchair, Ambulance, MapPin, Hospital, CheckCircle, Warning, PhoneCall,
 } from '@phosphor-icons/react';
@@ -38,6 +39,7 @@ const MedicalTransportPage = () => {
   const [estimate, setEstimate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   useEffect(() => {
     medicalAPI.ambulanceTypes().then((r) => {
@@ -50,6 +52,7 @@ const MedicalTransportPage = () => {
     if (selecting === 'pickup') setPickup(coords);
     else if (selecting === 'dest') setDest(coords);
     setSelecting(null);
+    setEstimate(null);
   };
 
   const canEstimate = ambulanceType && pickup.lat && dest.lat;
@@ -63,8 +66,6 @@ const MedicalTransportPage = () => {
     } catch { toast.error('Échec du calcul'); } finally { setLoading(false); }
   };
 
-  useEffect(() => { setEstimate(null); }, [ambulanceType, pickup, dest]);
-
   const confirm = async () => {
     if (!form.patient_name) return toast.error('Nom du patient requis');
     setLoading(true);
@@ -73,8 +74,11 @@ const MedicalTransportPage = () => {
         ambulance_type: ambulanceType, pickup_lat: pickup.lat, pickup_lng: pickup.lng,
         dest_lat: dest.lat, dest_lng: dest.lng, destination_name: form.destination_name,
         patient_name: form.patient_name, patient_phone: form.patient_phone,
-        patient_condition: form.patient_condition, urgency: form.urgency, payment_method: 'cash',
+        patient_condition: form.patient_condition, urgency: form.urgency, payment_method: paymentMethod,
       });
+      if (r.data?.payment_fallback_to_cash) {
+        toast.info('Solde insuffisant — la course sera payée en espèces.');
+      }
       setDone(true);
       const tid = r.data?.id;
       setTimeout(() => navigate(tid ? `/track/transport/${tid}` : '/history'), 2400);
@@ -132,7 +136,7 @@ const MedicalTransportPage = () => {
               const Icon = AMB_ICONS[t.icon] || Ambulance;
               const active = ambulanceType === t.id;
               return (
-                <button key={t.id} onClick={() => setAmbulanceType(t.id)} data-testid={`amb-type-${t.id}`}
+                <button key={t.id} onClick={() => { setAmbulanceType(t.id); setEstimate(null); }} data-testid={`amb-type-${t.id}`}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${active ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}>
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${active ? 'bg-red-100' : 'bg-gray-100'}`}><Icon size={22} weight="duotone" className={active ? 'text-red-600' : 'text-gray-500'} /></div>
                   <div className="flex-1"><p className="font-bold text-sm text-gray-900">{t.name}</p><p className="text-[11px] text-gray-500">{t.desc}</p></div>
@@ -158,7 +162,7 @@ const MedicalTransportPage = () => {
 
         {/* Urgency */}
         <div>
-          <label className="text-sm font-semibold text-gray-700 block mb-2 flex items-center gap-1.5"><Warning size={15} /> Niveau d'urgence</label>
+          <label className="text-sm font-semibold text-gray-700 block mb-2 flex items-center gap-1.5"><Warning size={15} /> Niveau d&apos;urgence</label>
           <div className="grid grid-cols-3 gap-2">
             {URGENCY.map((u) => (
               <button key={u.k} onClick={() => setForm({ ...form, urgency: u.k })} data-testid={`urgency-${u.k}`}
@@ -179,6 +183,10 @@ const MedicalTransportPage = () => {
           <div className="bg-red-50 rounded-2xl p-4">
             <div className="flex justify-between text-sm mb-1"><span className="text-gray-600">{estimate.ambulance_name}</span><span className="text-gray-500">{estimate.distance_km} km</span></div>
             <div className="flex justify-between text-lg font-bold"><span className="text-gray-700">Prix estimé</span><span className="text-red-600" data-testid="transport-fare">{estimate.estimated_fare?.toFixed(2)} €</span></div>
+            <div className="mt-3" data-testid="transport-payment-section">
+              <h3 className="text-sm font-bold text-gray-900 mb-2">Moyen de paiement</h3>
+              <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} total={estimate.estimated_fare || 0} testidPrefix="transport-pay" />
+            </div>
             <button onClick={confirm} disabled={loading} className="w-full mt-3 bg-red-600 text-white py-3.5 rounded-2xl font-semibold disabled:opacity-60" data-testid="transport-confirm-btn">
               {loading ? 'Envoi...' : `Demander le transport · ${estimate.estimated_fare?.toFixed(2)} €`}
             </button>

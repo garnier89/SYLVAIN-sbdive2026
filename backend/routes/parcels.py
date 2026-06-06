@@ -83,6 +83,10 @@ async def create_parcel(data: ParcelCreateRequest, request: Request):
     legs, total_km, total_fare = _compute_legs(data.pickup_lat, data.pickup_lng, data.stops, data.vehicle_type)
     for leg in legs:
         leg["status"] = "pending"  # pending → delivered (per drop-off)
+    # Debit wallet / SB PayGo up-front (before driver search). Cash fallback if short.
+    from core.payments import debit_with_fallback
+    pay = await debit_with_fallback(user["id"], total_fare, data.payment_method,
+                                    f"Course coursier/colis — {len(data.stops)} arrêt(s)")
     parcel = {
         "id": f"parcel_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
@@ -99,8 +103,9 @@ async def create_parcel(data: ParcelCreateRequest, request: Request):
         "total_distance_km": total_km,
         "total_duration_mins": sum(leg["duration_mins"] for leg in legs),
         "fare": total_fare,
-        "payment_method": data.payment_method,
-        "payment_status": "pending",
+        "payment_method": pay["method"],
+        "payment_status": "paid" if pay["paid"] else "pending",
+        "payment_fallback_to_cash": pay["fallback_to_cash"],
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "estimated_delivery": (datetime.now(timezone.utc) + timedelta(minutes=20 + 10 * len(data.stops))).isoformat(),

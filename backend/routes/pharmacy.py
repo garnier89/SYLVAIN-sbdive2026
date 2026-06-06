@@ -211,6 +211,8 @@ async def payment_methods(request: Request):
     sb = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
     return {
         "methods": [
+            {"id": "cash", "label": "Espèces à la livraison", "balance": None},
+            {"id": "card", "label": "Carte à la livraison", "balance": None},
             {"id": "wallet", "label": "Mon portefeuille", "balance": (w or {}).get("balance", 0.0), "currency": (w or {}).get("currency", "EUR")},
             {"id": "sbpaygo", "label": "SB PayGo", "balance": (sb or {}).get("balance", 0.0), "currency": (sb or {}).get("currency", "EUR")},
         ],
@@ -344,11 +346,12 @@ async def cancel_order(order_id: str, request: Request):
 
 @router.post("/orders/{order_id}/pay")
 async def pay_order(order_id: str, request: Request):
-    """Customer pays an unpaid order (e.g. a quoted prescription) via wallet / SB PayGo."""
+    """Customer settles an unpaid order (e.g. a quoted prescription).
+    wallet / SB PayGo are debited now ; cash / card are settled at delivery (COD)."""
     user = await get_current_user(request)
     body = await request.json()
     method = body.get("payment_method")
-    if method not in ("wallet", "sbpaygo"):
+    if method not in ("wallet", "sbpaygo", "cash", "card"):
         raise HTTPException(status_code=400, detail="Méthode de paiement invalide")
     order = await db.pharmacy_orders.find_one({"id": order_id}, {"_id": 0})
     if not order:
@@ -364,6 +367,10 @@ async def pay_order(order_id: str, request: Request):
     amount = round(float(order.get("total", 0)), 2)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Montant invalide")
+    # Cash / card → paid at delivery, no debit now (COD = cash on delivery).
+    if method in ("cash", "card"):
+        await db.pharmacy_orders.update_one({"id": order_id}, {"$set": {"payment_method": method, "payment_status": "cod"}})
+        return {"id": order_id, "payment_status": "cod", "payment_method": method, "total": amount, "cash_on_delivery": True}
     await _debit_user(user["id"], amount, method, f"Commande pharmacie {order_id}")
     await db.pharmacy_orders.update_one({"id": order_id}, {"$set": {"payment_status": "paid", "payment_method": method}})
     return {"id": order_id, "payment_status": "paid", "payment_method": method, "total": amount}
