@@ -85,7 +85,7 @@ const DriverProfilePage = () => {
   }
 
   return (
-    <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-20" data-testid="driver-profile-page">
+    <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-28" data-testid="driver-profile-page">
       {/* ===== GREEN HEADER ===== */}
       <div className="px-5 pt-6 pb-5 relative" style={{ background: GREEN }}>
         <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={() => {}} data-testid="settings-gear">
