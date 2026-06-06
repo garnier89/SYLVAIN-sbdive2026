@@ -115,6 +115,58 @@ def _derive_from_categories(cats):
     return service_types, taxi_mode, taxi_sub, vehicle_class, docs
 
 
+async def _required_documents_for_driver(driver):
+    """Required documents derived from the driver's chosen categories. [{key,label}]"""
+    cat_ids = driver.get("categories") or []
+    if not cat_ids:
+        return []
+    cats = await _fetch_categories(cat_ids)
+    _, _, _, _, docs = _derive_from_categories(cats)
+    return docs
+
+
+async def build_documents_view(driver):
+    """Merge required documents (from the driver's categories) with what was actually
+    uploaded into db.drivers.documents. Most recent upload of each type wins.
+    Returns {documents, required_count, approved_count, pending_count, all_required_approved}."""
+    required = await _required_documents_for_driver(driver)
+    uploaded = driver.get("documents") or []
+    by_type = {}
+    for doc in uploaded:
+        by_type[doc.get("type")] = doc  # most recent of each type wins
+    items, seen = [], set()
+    for req in required:
+        seen.add(req["key"])
+        u = by_type.get(req["key"]) or {}
+        items.append({
+            "key": req["key"], "label": req["label"], "required": True,
+            "status": u.get("status", "not_uploaded"),
+            "uploaded_at": u.get("uploaded_at"), "filename": u.get("filename"),
+            "reason": u.get("reason"), "reviewed_at": u.get("reviewed_at"),
+        })
+    for doc in uploaded:  # extra uploaded docs not in the required list
+        t = doc.get("type")
+        if t not in seen:
+            seen.add(t)
+            items.append({
+                "key": t, "label": t, "required": False,
+                "status": doc.get("status", "pending"),
+                "uploaded_at": doc.get("uploaded_at"), "filename": doc.get("filename"),
+                "reason": doc.get("reason"), "reviewed_at": doc.get("reviewed_at"),
+            })
+    approved = sum(1 for i in items if i["status"] == "approved")
+    pending = sum(1 for i in items if i["status"] in ("pending", "pending_review"))
+    all_required_approved = bool(required) and all(
+        (by_type.get(r["key"]) or {}).get("status") == "approved" for r in required
+    )
+    return {
+        "documents": items, "required_count": len(required),
+        "approved_count": approved, "pending_count": pending,
+        "all_required_approved": all_required_approved,
+    }
+
+
+
 @router.get("/categories")
 async def list_driver_categories(request: Request):
     await get_current_user(request)
@@ -818,14 +870,8 @@ async def my_documents(request: Request):
     d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
     if not d:
         raise HTTPException(status_code=404, detail="Driver profile not found")
-    return {
-        "license_url": d.get("license_url"),
-        "insurance_url": d.get("insurance_url"),
-        "vehicle_registration_url": d.get("vehicle_registration_url"),
-        "identity_url": d.get("identity_url"),
-        "status": d.get("status"),
-        "documents_verified": d.get("status") == "approved",
-    }
+    view = await build_documents_view(d)
+    return {**view, "driver_status": d.get("status"), "rejection_reason": d.get("rejection_reason")}
 
 
 @router.get("/my-notifications")

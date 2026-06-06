@@ -87,6 +87,7 @@ export const driverAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  getMyDocuments: () => api.get('/drivers/my-documents'),
 };
 
 // Merchant APIs
@@ -176,6 +177,8 @@ export const adminAPI = {
   listDrivers: (params) => api.get('/admin/drivers', { params }),
   approveDriver: (id) => api.post(`/admin/drivers/${id}/approve`),
   rejectDriver: (id, reason) => api.post(`/admin/drivers/${id}/reject`, { reason }),
+  getDriverDocuments: (driverId) => api.get(`/admin/drivers/${driverId}/documents`),
+  setDriverDocumentStatus: (driverId, docType, status, reason) => api.put(`/admin/drivers/${driverId}/documents/${docType}/status`, { status, reason }),
   listRides: (params) => api.get('/admin/rides', { params }),
   listOrders: (params) => api.get('/admin/orders', { params }),
   suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),

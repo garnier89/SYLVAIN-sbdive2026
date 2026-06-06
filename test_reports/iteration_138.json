@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend E2E validation of Driver Document Validation flow (admin review + driver real statuses). All required testids and flows work end-to-end. Admin can open the docs modal for qa.docs.live, approve and reject (with reason) the uploaded Pièce d'identité; the Assurance RC tile shows 'Non envoyé' without approve/reject buttons as expected. Driver page reflects REAL backend statuses (approved/rejected/pending), shows the progress card (0/2 or 1/2 documents approuvés), the verification banner, and the rejection 'Motif : ...' when admin rejected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/admin/drivers?search=qa.docs.live", "issue": "The `search` query parameter is not applied server-side (returns all 32 drivers regardless of value). Admin UI filters client-side via SEARCH button, so it works, but the param is misleading."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tested_flows": [
+    "Admin login (/admin-login) → /admin/drivers with search 'qa.docs.live' → 1 row with status 'pending' + '1 à valider' orange badge (docs-badge-0)",
+    "Click docs-0 → driver-docs-modal opens; header shows '0/2 approuvés'; Pièce d'identité 'En attente' with Approuver/Refuser; Assurance RC 'Non envoyé' without action buttons",
+    "Approve PI → admin-doc-status-piece_identite becomes 'Approuvé'; success toast shown",
+    "Reject PI → admin-doc-reason-piece_identite input + admin-doc-confirm-reject-piece_identite button appear; confirm with reason → status becomes 'Refusé', 'Motif : ...' text rendered inside the doc card",
+    "Re-approve a rejected doc works (status flips back to 'Approuvé')",
+    "docs-all-approved-hint correctly NOT shown because Assurance RC is still missing (required not_uploaded)",
+    "Close modal (docs-modal-close) hides driver-docs-modal",
+    "Driver login (qa.docs.live@demo.sb / DocsQa123!) → /chauffeur/home → /chauffeur/documents shows driver-documents container",
+    "Driver banner: 'Compte en cours de vérification.' (pending account); progress card 'X/2 documents approuvés' (matches admin state); doc-status-piece_identite reflects current admin state (Approuvé / Refusé / En attente); doc-status-assurance_rc = 'Non envoyé'",
+    "After admin rejection with reason, driver page shows 'Motif : Photo floue — re-uploadez svp'",
+    "Clicking doc-piece_identite tile does NOT crash (file picker behaviour, file selection skipped in headless)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Optional/minor: implement server-side search filter in GET /api/admin/drivers?search=… (currently ignored) — UI workaround already in place"
+  ],
+  "critical_code_review_comments": [
+    "Backend endpoint GET /api/admin/drivers ignores the `search` query param. Either implement it or remove it from the contract to avoid confusion."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! ; Driver qa.docs.live@demo.sb / DocsQa123! (driver_id=driver_3575f54d5180)",
+  "seed_data_creation": "None. Modified qa.docs.live's piece_identite status during testing (approved → rejected with reason → re-approved → finally restored to 'pending' via PUT /api/admin/drivers/{id}/documents/piece_identite/status). Account preserved as required.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "qa.docs.live@demo.sb has documents.piece_identite=pending (uploaded cni.png) and assurance_rc not uploaded. Use driver_3575f54d5180 as driver_id for direct API calls. Admin search input filters client-side via the SEARCH button, not as-you-type. Counter in modal updates after each approve/reject without reopening (verified). docs-all-approved-hint only renders when ALL required documents are approved."
+}
