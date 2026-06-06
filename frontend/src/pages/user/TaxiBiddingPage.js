@@ -228,7 +228,7 @@ const TaxiBiddingPage = () => {
     ? `https://maps.googleapis.com/maps/api/staticmap?size=400x500&scale=2` +
       `&markers=color:green|label:A|${pickup.lat},${pickup.lng}` +
       `&markers=color:red|label:B|${dropoff.lat},${dropoff.lng}` +
-      `&path=color:0x3b82f6|weight:5|${pickup.lat},${pickup.lng}|${dropoff.lat},${dropoff.lng}` +
+      `&path=color:0xFF5000|weight:5|${pickup.lat},${pickup.lng}|${dropoff.lat},${dropoff.lng}` +
       `&key=${GMAP_KEY}`
     : null;
 
@@ -239,7 +239,7 @@ const TaxiBiddingPage = () => {
         {staticMapUrl ? (
           <img src={staticMapUrl} alt="Itinéraire" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-100 via-indigo-50 to-pink-50" />
+          <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-rose-50" />
         )}
       </div>
 
@@ -265,7 +265,7 @@ const TaxiBiddingPage = () => {
               <p className="text-sm font-medium text-gray-800 truncate">{pickup.address}</p>
               <p className="text-sm font-medium text-gray-800 truncate">{dropoff.address}</p>
             </div>
-            <span className="text-xs text-blue-600 font-semibold flex-shrink-0 mt-1">Modifier</span>
+            <span className="text-xs text-[#FF5000] font-semibold flex-shrink-0 mt-1">Modifier</span>
           </button>
           {/* Vehicle type strip */}
           <div className="border-t border-gray-100 px-3 py-2 flex items-center gap-2 overflow-x-auto">
@@ -279,7 +279,7 @@ const TaxiBiddingPage = () => {
                 onClick={() => setVehicleType(v.id)}
                 data-testid={`vehicle-${v.id}`}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  vehicleType === v.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                  vehicleType === v.id ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-600'
                 }`}
               >
                 {v.name}
@@ -299,7 +299,7 @@ const TaxiBiddingPage = () => {
 
           {/* Title */}
           <div className="px-6 pt-3 pb-1 text-center">
-            <h2 className="text-xl font-bold text-blue-600" data-testid="offer-fare-title">Offrez votre tarif</h2>
+            <h2 className="text-xl font-bold text-[#FF5000]" data-testid="offer-fare-title">Offrez votre tarif</h2>
           </div>
 
           {/* Live indicators strip */}
@@ -322,10 +322,10 @@ const TaxiBiddingPage = () => {
           )}
 
           {/* Average Price banner */}
-          <div className="mx-5 mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-center gap-3" data-testid="avg-price-banner">
-            <Info size={18} className="text-blue-500 flex-shrink-0" weight="fill" />
+          <div className="mx-5 mt-3 bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 flex items-center gap-3" data-testid="avg-price-banner">
+            <Info size={18} className="text-[#FF5000] flex-shrink-0" weight="fill" />
             <p className="text-sm text-gray-700">
-              Prix moyen : <span className="font-bold text-blue-600">
+              Prix moyen : <span className="font-bold text-[#FF5000]">
                 {loading ? '...' : (estimate?.estimated_fare || liveStats?.avg_accepted_fare || 0).toFixed(2)} EUR
               </span>
             </p>
@@ -335,7 +335,7 @@ const TaxiBiddingPage = () => {
           <div className="mx-5 mt-4 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4">
             <p className="text-center text-sm font-semibold text-gray-700 mb-3">Saisissez votre tarif</p>
             <div className="flex items-center gap-3">
-              <button onClick={() => adjustFare(-1)} className="w-12 h-12 rounded-xl bg-blue-500 hover:bg-blue-600 active:scale-95 text-white flex items-center justify-center shadow-md transition-transform" data-testid="fare-minus">
+              <button onClick={() => adjustFare(-1)} className="w-12 h-12 rounded-xl bg-[#FF5000] hover:bg-[#E04600] active:scale-95 text-white flex items-center justify-center shadow-md transition-transform" data-testid="fare-minus">
                 <Minus size={20} weight="bold" />
               </button>
               <div className="flex-1 bg-white border border-gray-200 rounded-xl py-2.5 text-center">
@@ -348,7 +348,7 @@ const TaxiBiddingPage = () => {
                 />
                 <p className="text-[11px] text-gray-400 -mt-0.5">EUR</p>
               </div>
-              <button onClick={() => adjustFare(1)} className="w-12 h-12 rounded-xl bg-blue-500 hover:bg-blue-600 active:scale-95 text-white flex items-center justify-center shadow-md transition-transform" data-testid="fare-plus">
+              <button onClick={() => adjustFare(1)} className="w-12 h-12 rounded-xl bg-[#FF5000] hover:bg-[#E04600] active:scale-95 text-white flex items-center justify-center shadow-md transition-transform" data-testid="fare-plus">
                 <Plus size={20} weight="bold" />
               </button>
             </div>
@@ -360,7 +360,7 @@ const TaxiBiddingPage = () => {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full h-14 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold text-base shadow-lg transition-colors"
+              className="w-full h-14 rounded-xl bg-[#FF5000] hover:bg-[#E04600] disabled:bg-gray-300 text-white font-bold text-base shadow-lg transition-colors"
               data-testid="find-driver-btn"
             >
               {submitting ? 'Publication...' : 'Trouver un chauffeur'}
@@ -384,7 +384,7 @@ const TaxiBiddingPage = () => {
           <div className="flex flex-col items-center pt-4 pb-2">
             <SearchingRadar size={150} />
             <h2 className="text-lg font-bold text-gray-900 mt-3" data-testid="searching-title">Recherche d&apos;un chauffeur…</h2>
-            <p className="text-sm text-gray-500">Votre offre : <span className="font-bold text-blue-600" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
+            <p className="text-sm text-gray-500">Votre offre : <span className="font-bold text-[#FF5000]" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
             {liveStats?.online_drivers_nearby != null && (
               <p className="text-[11px] text-gray-400 mt-0.5">{liveStats.online_drivers_nearby} chauffeurs en ligne à proximité</p>
             )}
@@ -409,8 +409,8 @@ const TaxiBiddingPage = () => {
                   const rem = remainingFor(o);
                   return (
                     <div key={o.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-3 shadow-sm" data-testid={`offer-${o.id}`}>
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <Users size={20} className="text-blue-600" />
+                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                        <Users size={20} className="text-[#FF5000]" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-900 text-sm truncate">{o.driver_name || 'Chauffeur'}</p>
@@ -441,7 +441,7 @@ const TaxiBiddingPage = () => {
             <div className="grid grid-cols-3 gap-2 mt-3">
               {[1, 2, 5].map((d) => (
                 <button key={d} onClick={() => raiseFare(d)} data-testid={`raise-fare-${d}`}
-                  className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold transition-transform">
+                  className="py-3 rounded-xl bg-[#FF5000] hover:bg-[#E04600] active:scale-95 text-white font-bold transition-transform">
                   +{d} €
                 </button>
               ))}
