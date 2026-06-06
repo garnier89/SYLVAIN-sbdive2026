@@ -1,138 +1,126 @@
 {
-  "theme_and_archetype": {
-    "archetype": "Archetype 4: Swiss & High-Contrast",
-    "theme": "Light",
-    "reasoning": "Mobility requires absolute clarity, fast decision-making, and trust. The contrast of deep navy against stark white, paired with the signal yellow, creates an authoritative, technical 'dispatch' feel rather than a generic tech app."
+  "project_context": {
+    "app_name": "SB Drive VTC",
+    "theme": "Light Theme",
+    "archetype": "4 (Swiss & High-Contrast utility mixed with organic touch targets)",
+    "tone": "Premium, Fast, Reliable, Clean",
+    "core_strategy": "Transform a chaotic 20-section vertical scroll into a scannable, hierarchical mobile super-app. Prioritize 'Daily Drivers' at the top, group secondary services into clean bento grids, and consolidate banners into horizontal discovery lanes."
   },
-  "brand_colors": {
-    "primary_yellow": "#FFC107",
-    "primary_yellow_hover": "#E5AD06",
-    "navy_base": "#0B1426",
-    "navy_surface": "#121F3A",
-    "background_light": "#F8F9FA",
-    "surface_white": "#FFFFFF",
-    "text_primary": "#0B1426",
-    "text_secondary": "#475569",
-    "border_subtle": "#E2E8F0",
-    "accent_eco": "#10B981",
-    "accent_alert": "#EF4444",
-    "accent_pool": "#3B82F6",
-    "accent_corporate": "#334155"
+  "colors": {
+    "primary": {
+      "base": "#FF5000",
+      "hover": "#E64800",
+      "light": "#FFF0E5",
+      "glass": "rgba(255, 80, 0, 0.1)"
+    },
+    "secondary": {
+      "base": "#0B1426",
+      "hover": "#16233B",
+      "light": "#E9EBEF"
+    },
+    "background": {
+      "app": "#F8FAFC",
+      "card": "#FFFFFF",
+      "glass": "rgba(255, 255, 255, 0.85)"
+    },
+    "text": {
+      "heading": "#0B1426",
+      "body": "#334155",
+      "muted": "#64748B",
+      "inverse": "#FFFFFF"
+    },
+    "borders": {
+      "light": "#F1F5F9",
+      "medium": "#E2E8F0"
+    }
   },
   "typography": {
-    "heading_font": "Cabinet Grotesk",
-    "body_font": "IBM Plex Sans",
-    "rules": {
-      "h1": "text-4xl tracking-tight font-black",
-      "h2": "text-2xl tracking-tight font-bold",
-      "h3": "text-xl tracking-tight font-semibold",
-      "body": "text-base leading-relaxed font-normal",
-      "labels": "text-xs tracking-[0.1em] uppercase font-bold text-text_secondary",
-      "price_display": "text-4xl font-black tracking-tighter"
+    "fonts": {
+      "heading": "Outfit, sans-serif",
+      "body": "Manrope, sans-serif"
+    },
+    "scale": {
+      "h1": "text-2xl font-bold tracking-tight text-[#0B1426]",
+      "h2": "text-xl font-semibold tracking-tight text-[#0B1426]",
+      "h3": "text-lg font-bold text-[#0B1426]",
+      "body": "text-sm font-normal text-[#334155]",
+      "label": "text-xs font-medium text-[#334155]",
+      "tiny": "text-[10px] font-bold uppercase tracking-[0.05em] text-[#64748B]"
     }
   },
-  "spacing_and_layout": {
-    "container": "max-w-[430px] mx-auto min-h-screen bg-background_light relative overflow-hidden shadow-2xl",
-    "padding_standard": "p-6",
-    "padding_dense": "p-4",
-    "gap_standard": "gap-4",
-    "radius_system": {
-      "bottom_sheet": "rounded-t-3xl",
-      "cards": "rounded-xl",
-      "buttons": "rounded-none",
-      "inputs": "rounded-none"
-    },
-    "alignment": "Optical alignment over perfect symmetry. Left-align text content, stretch actionable areas."
-  },
-  "components_strategy": {
-    "map_background": {
-      "style": "Full bleed absolute background. Use a desaturated or high-contrast silver map style to make the yellow/navy UI pop.",
-      "markers": "Custom HTML markers. Pickup is a solid black square, Dropoff is a yellow square with navy dot."
-    },
-    "bottom_sheet": {
-      "layout": "absolute bottom-0 w-full bg-surface_white rounded-t-3xl shadow-[0_-8px_32px_rgba(11,20,38,0.12)] border-t border-navy_base/5 z-50 transition-transform duration-300 flex flex-col max-h-[85vh]",
-      "dragger": "w-12 h-1.5 bg-border_subtle rounded-full mx-auto mt-3 mb-4"
-    },
-    "address_entry": {
-      "style": "Neumorphic-tactile hybrid. Instead of full boxes, use left-bordered segments.",
-      "pickup": "border-l-4 border-navy_base pl-3 py-2 mb-2",
-      "dropoff": "border-l-4 border-primary_yellow pl-3 py-2",
-      "input_classes": "w-full bg-transparent text-lg font-bold placeholder:font-normal placeholder:text-slate-400 focus:outline-none",
-      "icon": "Use Phosphor MapPin (pickup) and FlagCheckered (dropoff)"
-    },
-    "live_price_estimate": {
-      "style": "Floating high-contrast card appearing instantly after address entry.",
-      "classes": "bg-navy_base text-white p-4 rounded-xl flex items-center justify-between mb-6 shadow-xl relative overflow-hidden",
-      "layout": "Left: ETA + Mode name. Right: Giant price in Cabinet Grotesk. Add a subtle 10% opacity primary_yellow gradient beam tracing the top border."
-    },
-    "mode_hub": {
-      "layout_concept": "The Tactical Bento Grid. Do not use 16 identical pills. Categorize them for cognitive ease.",
-      "categories": [
-        {
-          "name": "Everyday",
-          "layout": "grid grid-cols-2 gap-3 mb-4",
-          "card_style": "aspect-square bg-background_light border border-border_subtle rounded-xl p-3 flex flex-col justify-between hover:border-navy_base data-[state=active]:bg-navy_base data-[state=active]:text-white transition-colors"
-        },
-        {
-          "name": "Time & Distance",
-          "layout": "flex overflow-x-auto gap-3 pb-4 snap-x hide-scrollbar",
-          "card_style": "min-w-[140px] bg-surface_white border border-border_subtle rounded-xl p-3 snap-start"
-        },
-        {
-          "name": "Specialty & Inclusive",
-          "layout": "flex flex-wrap gap-2",
-          "card_style": "px-4 py-2 bg-background_light text-sm rounded-full border border-transparent hover:border-border_subtle font-medium"
-        }
-      ]
-    },
-    "dynamic_panels": {
-      "style": "Slide-down or accordion sections just above the CTA.",
-      "datetime_picker": "Horizontal scroll of dates, vertical scroll of times. Minimalist black-and-white.",
-      "flight_number": "Input field with airplane icon, validates format.",
-      "rental_package": "Grid of 2h, 4h, 8h blocks.",
-      "pets": "Counter (+/-) and small/large toggle.",
-      "corporate": "Dropdown selecting billed entity."
-    },
-    "adaptive_cta": {
-      "style": "w-full bg-primary_yellow text-navy_base py-4 font-black text-lg flex items-center justify-center gap-2 hover:bg-primary_yellow_hover active:scale-[0.98] transition-all",
-      "layout": "Sticky to bottom of sheet with safe-area padding."
-    }
-  },
-  "modes_configuration": [
-    { "id": "standard", "category": "Everyday", "label": "Taxi VTC", "icon": "CarProfile", "badge": null, "panel": "none", "cta": "Commander Taxi" },
-    { "id": "pool", "category": "Everyday", "label": "Pool", "icon": "Users", "badge": "-30%", "panel": "none", "cta": "Commander Pool" },
-    { "id": "electric", "category": "Everyday", "label": "Green", "icon": "Leaf", "badge": "Eco", "panel": "none", "cta": "Commander Green" },
-    { "id": "moto", "category": "Everyday", "label": "Moto", "icon": "Motorcycle", "badge": "Fast", "panel": "none", "cta": "Commander Moto" },
-    { "id": "rental", "category": "Time & Distance", "label": "Mise à Dispo", "icon": "Clock", "badge": null, "panel": "rental_package", "cta": "Réserver [X]h" },
-    { "id": "intercity", "category": "Time & Distance", "label": "Intercity", "icon": "MapTrifold", "badge": null, "panel": "datetime_picker", "cta": "Planifier Voyage" },
-    { "id": "book_later", "category": "Time & Distance", "label": "Plus Tard", "icon": "CalendarPlus", "badge": null, "panel": "datetime_picker", "cta": "Planifier" },
-    { "id": "moto_rental", "category": "Time & Distance", "label": "Loc Moto", "icon": "Key", "badge": null, "panel": "rental_package", "cta": "Louer Moto [X]h" },
-    { "id": "bidding", "category": "Specialty & Inclusive", "label": "Enchères", "icon": "Gavel", "badge": null, "panel": "bidding_input", "cta": "Proposer Prix" },
-    { "id": "airport", "category": "Specialty & Inclusive", "label": "Aéroport", "icon": "AirplaneTilt", "badge": null, "panel": "flight_number", "cta": "Réserver Aéroport" },
-    { "id": "pets", "category": "Specialty & Inclusive", "label": "Animaux", "icon": "PawPrint", "badge": null, "panel": "pets", "cta": "Commander Taxi Animaux" },
-    { "id": "book_for_someone", "category": "Specialty & Inclusive", "label": "Pour un Proche", "icon": "UserPlus", "badge": null, "panel": "contact_details", "cta": "Commander pour [Nom]" },
-    { "id": "tuktuk", "category": "Specialty & Inclusive", "label": "TukTuk", "icon": "Van", "badge": null, "panel": "none", "cta": "Commander TukTuk" },
-    { "id": "assist", "category": "Specialty & Inclusive", "label": "Assistance", "icon": "HandHeart", "badge": null, "panel": "assist_options", "cta": "Demander Assistance" },
-    { "id": "corporate", "category": "Specialty & Inclusive", "label": "Corporate", "icon": "Briefcase", "badge": null, "panel": "corporate", "cta": "Commander Pro" },
-    { "id": "access", "category": "Specialty & Inclusive", "label": "PMR", "icon": "Wheelchair", "badge": null, "panel": "none", "cta": "Commander PMR" }
-  ],
-  "motion_and_interactions": {
-    "bottom_sheet": "transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
-    "price_reveal": "Animate price entering with a slight Y-axis slide (framer-motion initial={{y:10, opacity:0}} animate={{y:0, opacity:1}}).",
-    "bento_cards": "On click, active cards invert to navy background, white text, and icon slightly scales up (scale 1.05).",
-    "panel_slide": "Mode specific panels animate in height (AnimatePresence) so layout shift is smooth, not jarring."
-  },
-  "testing_attributes": {
-    "rules": "Every interactive element must have a data-testid attribute in kebab-case.",
-    "examples": [
-      "data-testid='pickup-address-input'",
-      "data-testid='mode-select-[mode_id]'",
-      "data-testid='cta-book-button'",
-      "data-testid='live-price-card'",
-      "data-testid='flight-number-input'"
+  "layout_strategy": {
+    "container": "max-w-[430px] mx-auto min-h-screen bg-[#F8FAFC] pb-24 overflow-x-hidden relative shadow-[0_0_40px_rgba(0,0,0,0.05)]",
+    "reorganization_plan": [
+      "1. STICKY HEADER: Glassmorphism top bar containing User Greeting, Address Pill, and a prominent Search Bar.",
+      "2. DAILY DRIVERS (HERO): A 2x2 grid of the 4 absolute most used services (VTC, Food Delivery, Courier, Pharmacy) using distinct, larger tiles.",
+      "3. PROMO CAROUSEL: Auto-rotating horizontal banners directly below the hero section for high-value conversions.",
+      "4. BENTO GRIDS (THE CORE): Group the remaining 15+ arrays into logical cards (e.g., 'Mobilité & Auto', 'Maison & Dépannage', 'Santé & Bien-être'). Each card contains a standard 4-column internal grid of small tiles.",
+      "5. DISCOVERY LANES: Consolidate standalone promotional banners (Real Estate, Parking, Carpool, Genie) into horizontal scrollable sections rather than stacking them vertically."
     ]
   },
-  "icons_library": {
-    "instruction": "Use @phosphor-icons/react. Use 'Duotone' weight for Everyday category to feel premium, 'Regular' weight for the rest."
-  }
+  "components": {
+    "Header": {
+      "classes": "sticky top-0 z-50 w-full bg-white/85 backdrop-blur-xl border-b border-slate-200/60 pt-4 pb-3 px-4 flex flex-col gap-3",
+      "structure": "Row 1: Flex-between (Left: Avatar + 'Bonjour, User', Right: Notifications). Row 2: Location pill and Search Input (bg-slate-100 rounded-2xl h-12 flex items-center px-4)."
+    },
+    "PrimaryHeroTile": {
+      "classes": "bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between aspect-square relative overflow-hidden group active:scale-95 transition-transform",
+      "icon_treatment": "Large 32px Phosphor Duotone icon in the top left. Icon color maps to the brand (Primary #FF5000 or Secondary #0B1426).",
+      "text_treatment": "Bottom left alignment, text-sm font-bold text-[#0B1426] leading-tight.",
+      "background_accent": "Subtle #FFF0E5 radial gradient in the bottom right corner to add depth without clutter."
+    },
+    "StandardServiceTile": {
+      "container": "flex flex-col items-center gap-2 w-full active:opacity-70 transition-opacity",
+      "icon_box": "w-[60px] h-[60px] rounded-[20px] flex items-center justify-center bg-slate-50 hover:bg-[#FFF0E5] transition-colors border border-slate-100 shadow-[0_2px_8px_rgba(11,20,38,0.02)]",
+      "icon": "28px Phosphor Duotone, default text-[#0B1426], hover/active text-[#FF5000]",
+      "label": "text-[11px] font-medium text-[#334155] text-center leading-[1.1] line-clamp-2 px-1 w-full"
+    },
+    "SectionCard": {
+      "wrapper": "bg-white rounded-[28px] p-5 mx-4 mb-5 shadow-[0_4px_20px_-4px_rgba(11,20,38,0.05)] border border-slate-100/80",
+      "header": "flex justify-between items-center mb-5",
+      "title": "text-lg font-bold text-[#0B1426] tracking-tight",
+      "action": "text-xs font-bold text-[#FF5000] uppercase tracking-wide",
+      "grid": "grid grid-cols-4 gap-y-6 gap-x-2"
+    },
+    "PromoBanner": {
+      "wrapper": "w-full overflow-x-auto snap-x snap-mandatory no-scrollbar flex gap-4 px-4 pb-2",
+      "card": "snap-center shrink-0 w-[85%] h-36 rounded-3xl p-5 relative overflow-hidden flex flex-col justify-end",
+      "bg_dark": "bg-[#0B1426] text-white",
+      "bg_primary": "bg-[#FF5000] text-white",
+      "overlay": "absolute inset-0 bg-gradient-to-t from-black/60 to-transparent",
+      "text": "relative z-10 text-lg font-bold leading-tight"
+    },
+    "BottomNav": {
+      "wrapper": "fixed bottom-0 z-[60] w-full max-w-[430px] left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-lg border-t border-slate-200/60 pb-safe-bottom h-[72px] flex justify-around items-center px-2",
+      "item": "flex flex-col items-center justify-center gap-1 w-16 h-full",
+      "icon_active": "text-[#FF5000] drop-shadow-[0_2px_8px_rgba(255,80,0,0.3)]",
+      "icon_inactive": "text-slate-400",
+      "label_active": "text-[10px] font-bold text-[#FF5000]",
+      "label_inactive": "text-[10px] font-medium text-slate-400"
+    }
+  },
+  "animations": {
+    "page_load": "Framer Motion: initial={{ opacity: 0, y: 20 }}, animate={{ opacity: 1, y: 0 }}, transition={{ staggerChildren: 0.05 }}",
+    "tap_state": "Framer Motion: whileTap={{ scale: 0.94 }} for tiles, buttons, and banners.",
+    "carousel": "Native CSS scroll-snap-type: x mandatory with no-scrollbar class."
+  },
+  "testing": {
+    "rules": "All interactive elements MUST have data-testid attributes formatted as kebab-case role-based strings.",
+    "examples": [
+      "data-testid='header-search-input'",
+      "data-testid='hero-tile-vtc'",
+      "data-testid='service-tile-massage'",
+      "data-testid='bottom-nav-profil'",
+      "data-testid='promo-banner-link'"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "1. PRESERVE CMS COMPATIBILITY: The StandardServiceTile MUST accept dynamic icon names (Phosphor string references) and labels as currently structured in the codebase.",
+    "2. RESTRUCTURE THE PAGE: Do not just style the vertical list. Wrap the categories into SectionCard components (e.g. group 'Entretien Auto' and 'Dépannage' into a single 'Auto & Mobilité' visual section).",
+    "3. MOBILE-FIRST CONSTRAINTS: Wrap the entire UserHome.js root in `max-w-[430px] mx-auto overflow-hidden`.",
+    "4. TYPOGRAPHY: Import and use Outfit for headings and Manrope for body text.",
+    "5. SCROLLING: Use standard Tailwind classes `overflow-x-auto snap-x snap-mandatory` for carousels. Hide scrollbars using custom CSS or tailwind plugin.",
+    "6. ICONS: Standardize on `@phosphor-icons/react` Duotone weight. Set base icon size to 28px in the tiles.",
+    "7. TEST IDS: Inject data-testid into every tile mapping loop (e.g., `data-testid={`service-tile-${item.label_fr.toLowerCase()}`}`)."
+  ]
 }
