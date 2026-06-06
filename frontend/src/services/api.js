@@ -110,6 +110,7 @@ export const rideAPI = {
   getActive: () => api.get('/rides/active/current'),
   getAvailable: () => api.get('/rides/pending/available'),
   updateRoute: (id, data) => api.post(`/rides/${id}/update-route`, data),
+  changePaymentMethod: (id, payment_method) => api.put(`/rides/${id}/payment-method`, { payment_method }),
 };
 
 // Order APIs
@@ -261,6 +262,7 @@ export const configAPI = {
   getRideProfiles: () => api.get('/config/ride-profiles'),
   getBusinessTripReasons: () => api.get('/config/business-trip-reasons'),
   getTaxiBooking: () => api.get('/config/taxi-booking'),
+  getPaymentMethods: () => api.get('/config/payment-methods'),
 };
 
 // Parcel delivery APIs (single & multi-drop)

@@ -53,6 +53,12 @@ const RideTrackingPage = () => {
   const [ride, setRide] = useState(null);
   const [driverPos, setDriverPos] = useState(null);
   const [showCancel, setShowCancel] = useState(false);
+  const [payMethods, setPayMethods] = useState([
+    { id: 'cash', label: 'Espèces' }, { id: 'card', label: 'CB' },
+    { id: 'wallet', label: 'Portefeuille' }, { id: 'sbpaygo', label: 'SB PayGo' },
+  ]);
+  const [showPayPicker, setShowPayPicker] = useState(false);
+  const [payBusy, setPayBusy] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [rating, setRating] = useState(5);
@@ -99,6 +105,39 @@ const RideTrackingPage = () => {
     const t = setInterval(fetchNearby, 6000);
     return () => { active = false; clearInterval(t); };
   }, [ride?.status, rideId]);
+
+  // Load admin-configured payment methods for the in-ride switcher
+  useEffect(() => {
+    fetch(`${API}/api/config/payment-methods`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (Array.isArray(d?.methods) && d.methods.length) setPayMethods(d.methods); })
+      .catch(() => {});
+  }, []);
+
+  const payLabel = (id) => payMethods.find((m) => m.id === id)?.label || 'Espèces';
+
+  const changePay = async (method) => {
+    if (payBusy) return;
+    setPayBusy(true);
+    try {
+      const res = await fetch(`${API}/api/rides/${rideId}/payment-method`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_method: method }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setRide((r) => (r ? { ...r, payment_method: method, payment_shortfall: d.shortfall, difference_in_cash: d.difference_in_cash } : r));
+        setShowPayPicker(false);
+        if (d.difference_in_cash) toast.warning(`Solde insuffisant — différence de ${Number(d.shortfall).toFixed(2)} € à régler en espèces.`);
+        else toast.success('Moyen de paiement mis à jour');
+      } else { toast.error('Échec du changement de paiement'); }
+    } catch (err) {
+      console.warn('[RideTracking] change pay failed:', err?.message || err);
+      toast.error('Erreur réseau');
+    }
+    setPayBusy(false);
+  };
 
   const isBiddingMode = ride?.mode === 'bidding' || ride?.is_bidding;
 
@@ -738,6 +777,37 @@ const RideTrackingPage = () => {
             </span>
           </div>
         </div>
+
+        {/* Payment method — changeable at any time during the ride */}
+        {!isCompleted && !isCancelled && (
+          <div className="bg-gray-50 rounded-2xl p-4 mb-4" data-testid="ride-payment-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase">Moyen de paiement</p>
+                <p className="text-sm font-semibold text-gray-900" data-testid="ride-payment-current">{payLabel(ride.payment_method)}</p>
+              </div>
+              <button onClick={() => setShowPayPicker((v) => !v)} className="px-3 py-1.5 rounded-full bg-[#0B1426] text-white text-xs font-bold" data-testid="change-payment-btn">
+                Changer
+              </button>
+            </div>
+            {ride.difference_in_cash && ride.payment_shortfall > 0 && (
+              <p className="mt-2 text-[12px] text-amber-700 font-medium" data-testid="ride-payment-shortfall">
+                Solde insuffisant — différence de {Number(ride.payment_shortfall).toFixed(2)} € à régler en espèces.
+              </p>
+            )}
+            {showPayPicker && (
+              <div className="mt-3 grid grid-cols-2 gap-2" data-testid="ride-payment-options">
+                {payMethods.map((m) => (
+                  <button key={m.id} disabled={payBusy} onClick={() => changePay(m.id)}
+                    className={`rounded-xl border-2 py-2.5 text-sm font-bold transition-colors disabled:opacity-50 ${ride.payment_method === m.id ? 'border-[#0B1426] bg-[#0B1426] text-white' : 'border-gray-200 bg-white text-gray-700'}`}
+                    data-testid={`ride-pay-opt-${m.id}`}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {canCancel && (
           <Button

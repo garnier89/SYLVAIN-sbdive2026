@@ -987,3 +987,19 @@ Le champ « Départ » restait vide : la géolocalisation navigateur (`getCurren
 - `RideTrackingPage.js` : suppression complète du bouton bascule « Activer Taxi Pool (tarif partagé) » de l'écran de recherche (apparaissait à tort sur des courses non-Pool, ex. Confort). Nettoyage : callback `togglePool`, états `poolLoading`/`isPoolRide`, import `UsersThree`.
 - Conservé : tuile « VTC Pooling » sur l'accueil + fonctionnement Pool des courses réservées en Pool (poolEnabled initialisé depuis la réservation, panneau de jumelage `pool-matches-panel` toujours actif).
 - Conforme à la demande « retirer Taxi Pool partout sauf sur le pool ». Lint clean, webpack OK.
+
+## 2026-06-06 (suite) — PHASE A (Paiements) — Étape 1 livrée & testée
+
+### Contexte (épisode multi-features demandé par l'utilisateur)
+Roadmap validée : A Paiements → B Annulations/dette → D Favoris → F Popup promo → C Permissions/docs → E Appels+enregistrement (Twilio). Valeurs par défaut : marge CB 1€, frais annulation 5€, fenêtre gratuite 5 min. SB PayGo ≠ Portefeuille (4 moyens). CB pré-auth = Stripe.
+
+### Livré (Phase A — Étape 1, sans hold Stripe)
+- **Backend** `config.py` : `GET /api/config/payment-methods` → moyens activés (Espèces, CB, Portefeuille, SB PayGo) + `cb_margin_eur` + `wallet_shortfall_to_cash`. Config stockée sous `service_configs.payment_methods` (flags admin).
+- **Backend** `rides.py` : `PUT /api/rides/{id}/payment-method` — change le moyen de paiement à tout moment avant fin de course ; pour Portefeuille insuffisant → `difference_in_cash` + `shortfall` (payable en espèces). Helper `_payment_feasibility`. Testé : wallet solde 0 → shortfall 7.38€ ✅, card OK, invalide→400.
+- **Frontend** `RideChoosePage` : 4 moyens chargés depuis la config (grille 2 cols) + solde portefeuille + avis « différence en espèces » / « suffisant ✓ ».
+- **Frontend** `RideTrackingPage` : carte « Moyen de paiement » avec bouton **Changer** (sélecteur 4 moyens) actif pendant toute la course + bandeau shortfall.
+- **Admin** : panneau « Moyens de paiement » (`/admin/payment-methods-config`) — activer/désactiver chaque moyen, marge CB, règle portefeuille→espèces, frais & fenêtre d'annulation (seed Phase B). Testé GET/PUT + reflet API publique ✅.
+- Lint clean, backend testé curl e2e, frontend compile.
+
+### BLOQUÉ / EN ATTENTE
+- **CB pré-autorisation (hold + capture + carte enregistrée)** : la lib Stripe Emergent (`sk_test_emergent`) ne fait que du Checkout hébergé (débit immédiat), PAS d'autorisation/hold. → nécessite les **clés Stripe RÉELLES de l'utilisateur** (test ou live) + SDK officiel. À brancher dès réception des clés.

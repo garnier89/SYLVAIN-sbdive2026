@@ -504,6 +504,51 @@ async def nearby_drivers_count(ride_id: str, request: Request):
     return {"count": count, "radius_km": NEARBY_DRIVERS_RADIUS_KM}
 
 
+VALID_PAYMENT_METHODS = {"cash", "card", "wallet", "sbpaygo"}
+
+
+async def _payment_feasibility(user_id: str, method: str, fare: float):
+    """For wallet, check the balance and compute the cash shortfall. Other
+    methods are considered feasible at this stage (CB hold handled separately)."""
+    if method == "wallet":
+        wallet = await db.wallets.find_one({"user_id": user_id})
+        bal = float((wallet or {}).get("balance", 0.0) or 0.0)
+        if bal < fare:
+            return {"sufficient": False, "balance": round(bal, 2), "shortfall": round(fare - bal, 2), "difference_in_cash": True}
+        return {"sufficient": True, "balance": round(bal, 2), "shortfall": 0.0, "difference_in_cash": False}
+    return {"sufficient": True, "balance": None, "shortfall": 0.0, "difference_in_cash": False}
+
+
+@router.put("/{ride_id}/payment-method")
+async def change_payment_method(ride_id: str, request: Request):
+    """Change a ride's payment method at any time before completion. For wallet
+    with an insufficient balance, the ride is kept and the shortfall is flagged
+    as payable in cash."""
+    user = await get_current_user(request)
+    body = await request.json()
+    method = (body.get("payment_method") or "").strip()
+    if method not in VALID_PAYMENT_METHODS:
+        raise HTTPException(status_code=400, detail="Moyen de paiement invalide")
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "user_id": 1, "status": 1, "final_fare": 1, "estimated_fare": 1})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if ride.get("status") in {"completed", "cancelled"}:
+        raise HTTPException(status_code=400, detail="Course terminée — paiement non modifiable")
+    fare = float(ride.get("final_fare") or ride.get("estimated_fare") or 0.0)
+    info = await _payment_feasibility(user["id"], method, fare)
+    await db.rides.update_one(
+        {"id": ride_id},
+        {"$set": {
+            "payment_method": method,
+            "payment_shortfall": info["shortfall"],
+            "difference_in_cash": info["difference_in_cash"],
+        }},
+    )
+    return {"message": "Moyen de paiement mis à jour", "payment_method": method, **info}
+
+
 @router.post("/{ride_id}/convert-to-bidding")
 async def convert_ride_to_bidding(ride_id: str, request: Request):
     """Convert a pending standard ride into bidding mode (keep pickup/dropoff/vehicle),

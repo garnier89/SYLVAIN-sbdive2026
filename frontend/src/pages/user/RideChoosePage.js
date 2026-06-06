@@ -22,15 +22,18 @@ import GooglePlacesInput from '../../components/GooglePlacesInput';
 import SearchingRadar from '../../components/SearchingRadar';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import DynamicIcon from '../../components/DynamicIcon';
-import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI } from '../../services/api';
+import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
 
-const PAYMENTS = [
-  { id: 'cash', label: 'Espèces', icon: Money },
-  { id: 'card', label: 'Carte', icon: CreditCard },
-  { id: 'sbpaygo', label: 'SB PayGo', icon: Wallet },
+const PAYMENT_ICONS = { Money, CreditCard, Wallet, Lightning };
+
+const DEFAULT_PAYMENTS = [
+  { id: 'cash', label: 'Espèces', icon: 'Money' },
+  { id: 'card', label: 'CB', icon: 'CreditCard' },
+  { id: 'wallet', label: 'Portefeuille', icon: 'Wallet' },
+  { id: 'sbpaygo', label: 'SB PayGo', icon: 'Lightning' },
 ];
 
 const ASSIST_OPTIONS = [
@@ -78,6 +81,8 @@ const RideChoosePage = () => {
   const [estimates, setEstimates] = useState({}); // slug -> { fare, duration, distance, loading, error }
   const [selected, setSelected] = useState(null);
   const [payment, setPayment] = useState('cash');
+  const [payments, setPayments] = useState(DEFAULT_PAYMENTS);
+  const [walletBalance, setWalletBalance] = useState(null);
   const [locating, setLocating] = useState(false);
   const [searching, setSearching] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
@@ -191,6 +196,16 @@ const RideChoosePage = () => {
     } catch (e) { console.warn('[ride-choose] geocoder failed', e?.message); }
     resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
   });
+
+  // Load enabled payment methods (admin-configurable) + wallet balance.
+  useEffect(() => {
+    configAPI.getPaymentMethods()
+      .then((r) => { if (Array.isArray(r.data?.methods) && r.data.methods.length) setPayments(r.data.methods); })
+      .catch((e) => console.warn('payment methods load:', e?.message || e));
+    walletAPI.get()
+      .then((r) => setWalletBalance(typeof r.data?.balance === 'number' ? r.data.balance : 0))
+      .catch((e) => console.warn('wallet load:', e?.message || e));
+  }, []);
 
   // IP-based approximate location — works even when the browser GPS is blocked
   // (e.g. inside the preview iframe, or when location permission is denied/off).
@@ -461,9 +476,9 @@ const RideChoosePage = () => {
         {bothSet && (
           <>
             <h3 className="text-xs font-bold uppercase text-gray-400 mt-5 mb-2">Moyen de paiement</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {PAYMENTS.map((p) => {
-                const Icon = p.icon; const active = payment === p.id;
+            <div className="grid grid-cols-2 gap-2">
+              {payments.map((p) => {
+                const Icon = PAYMENT_ICONS[p.icon] || Money; const active = payment === p.id;
                 return (
                   <button key={p.id} onClick={() => setPayment(p.id)} data-testid={`ride-choose-pay-${p.id}`}
                     className={`flex items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-sm font-bold transition-colors ${active ? 'border-[#0B1426] bg-[#0B1426] text-white' : 'border-gray-200 bg-white text-gray-600'}`}>
@@ -472,6 +487,17 @@ const RideChoosePage = () => {
                 );
               })}
             </div>
+            {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance < displayPrice && (
+              <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 flex items-start gap-2" data-testid="wallet-shortfall-notice">
+                <Wallet size={16} weight="duotone" className="text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-[12px] text-amber-800 leading-snug">
+                  Solde portefeuille : <b>{Number(walletBalance).toFixed(2)} €</b>. Insuffisant — la différence de <b>{(displayPrice - walletBalance).toFixed(2)} €</b> sera réglée en espèces.
+                </p>
+              </div>
+            )}
+            {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance >= displayPrice && (
+              <p className="mt-2 text-[12px] font-semibold text-emerald-700" data-testid="wallet-ok-notice">Solde portefeuille : {Number(walletBalance).toFixed(2)} € · suffisant ✓</p>
+            )}
           </>
         )}
       </div>

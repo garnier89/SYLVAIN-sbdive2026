@@ -6,7 +6,7 @@ import { Textarea } from '../../components/ui/textarea';
 import {
   MagicWand, Truck, Lightning, VideoCamera, Gavel, Storefront,
   FirstAid, UsersThree, MapPin, Path, CurrencyEur, Airplane,
-  Globe, Flag, XCircle, FileText, House, Slideshow, Tag, Translate, MagnifyingGlass, WhatsappLogo
+  Globe, Flag, XCircle, FileText, House, Slideshow, Tag, Translate, MagnifyingGlass, WhatsappLogo, Wallet
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -157,6 +157,16 @@ const serviceConfigs = {
     { key: 'auto_bonus_enabled', label: 'Déclencher automatiquement une prime chauffeur', type: 'toggle', value: false },
     { key: 'bonus_amount', label: 'Montant de la prime chauffeur (€)', type: 'number', value: 5 },
     { key: 'bonus_duration_minutes', label: 'Durée de la prime (minutes)', type: 'number', value: 60 },
+  ]},
+  payment_methods: { title: 'Moyens de paiement', icon: Wallet, color: '#FF5000', desc: 'Activer/désactiver les moyens de paiement, marge de pré-autorisation CB, règle « différence en espèces » du portefeuille et frais d\'annulation', settings: [
+    { key: 'pm_cash_enabled', label: 'Activer Espèces', type: 'toggle', value: true },
+    { key: 'pm_card_enabled', label: 'Activer CB (carte)', type: 'toggle', value: true },
+    { key: 'pm_wallet_enabled', label: 'Activer Portefeuille', type: 'toggle', value: true },
+    { key: 'pm_sbpaygo_enabled', label: 'Activer SB PayGo', type: 'toggle', value: true },
+    { key: 'cb_margin_eur', label: 'Marge de pré-autorisation CB (€) — bloquée en plus du tarif', type: 'number', value: 1 },
+    { key: 'wallet_shortfall_to_cash', label: 'Portefeuille insuffisant → payer la différence en espèces', type: 'toggle', value: true },
+    { key: 'cancellation_fee_eur', label: 'Frais d\'annulation après la fenêtre gratuite (€)', type: 'number', value: 5 },
+    { key: 'free_cancel_window_minutes', label: 'Fenêtre d\'annulation gratuite (minutes)', type: 'number', value: 5 },
   ]},
 };
 

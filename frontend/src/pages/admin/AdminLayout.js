@@ -57,6 +57,7 @@ const sidebarConfig = [
       { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
         { label: 'Gérer les catégories', path: '/admin/service-categories' },
         { label: 'Réservation & WhatsApp', path: '/admin/taxi-booking-config' },
+        { label: 'Moyens de paiement', path: '/admin/payment-methods-config' },
         { label: 'Tarification dynamique', path: '/admin/dynamic-pricing' },
         { label: 'Surcharge météo', path: '/admin/weather-surcharge' },
         { label: 'Configuration Pool', path: '/admin/pool-config' },

@@ -426,6 +426,7 @@ const AppRouter = () => {
         <Route path="ride-search-config" element={<AdminServiceConfig serviceKey="ride_search" />} />
         <Route path="taxi-booking-config" element={<AdminServiceConfig serviceKey="taxi_booking" />} />
         <Route path="no-driver-alerts-config" element={<AdminServiceConfig serviceKey="no_driver_alerts" />} />
+        <Route path="payment-methods-config" element={<AdminServiceConfig serviceKey="payment_methods" />} />
         <Route path="db-backup" element={<AdminDbBackup />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
         <Route path="reports/no-driver-stats" element={<AdminNoDriverStats />} />

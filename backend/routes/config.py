@@ -115,6 +115,41 @@ async def get_taxi_booking():
     return await get_taxi_booking_config()
 
 
+# ── Payment methods configuration ─────────────────────────────────────────
+# Stored in service_configs under service_key="payment_methods".
+# Admin can enable/disable each method and tune the CB pre-auth margin and the
+# "wallet shortfall paid in cash" rule.
+PAYMENT_METHODS_BASE = [
+    {"id": "cash", "label": "Espèces", "icon": "Money"},
+    {"id": "card", "label": "CB", "icon": "CreditCard"},
+    {"id": "wallet", "label": "Portefeuille", "icon": "Wallet"},
+    {"id": "sbpaygo", "label": "SB PayGo", "icon": "Lightning"},
+]
+
+
+async def get_payment_methods_config():
+    doc = await db.service_configs.find_one({"service_key": "payment_methods"}, {"_id": 0})
+    settings = (doc or {}).get("settings") or {}
+    enabled = {
+        "cash": settings.get("pm_cash_enabled", True),
+        "card": settings.get("pm_card_enabled", True),
+        "wallet": settings.get("pm_wallet_enabled", True),
+        "sbpaygo": settings.get("pm_sbpaygo_enabled", True),
+    }
+    methods = [m for m in PAYMENT_METHODS_BASE if bool(enabled.get(m["id"], True))]
+    return {
+        "methods": methods,
+        "cb_margin_eur": float(settings.get("cb_margin_eur", 1.0) or 0),
+        "wallet_shortfall_to_cash": bool(settings.get("wallet_shortfall_to_cash", True)),
+    }
+
+
+@router.get("/payment-methods")
+async def get_payment_methods():
+    """Public list of enabled payment methods + CB margin + wallet rule."""
+    return await get_payment_methods_config()
+
+
 @router.get("/app")
 async def get_app_config():
     """Public app configuration (currency, company info, feature flags)."""
