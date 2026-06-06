@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend validation of DRIVER HOME modernization (scheduled-reservations indicator, dynamic stat cards, FAB with 6 actions incl. Taxi Hall, Bonus/Recompenses, bottom nav). Logged in as +33644112233 / Chauffeur2026!. All requested data-testids render. Stat cards show live values from /api/rides/driver/home-feed (upcoming=12, pending=8 with BLUE delivery dot). FAB opens with all 6 actions, rotates to X. Taxi Hall modal opens with destination input, 15 vehicle gammes, start button and gets dismissable. FAB actions 0/4 toast 'bientôt disponible'; Chaleur toggles heat view ('Heat View ON · 1'); Revenir opens destination-mode-modal; Vehicle info nav -> /chauffeur/vehicles. Rewards floating button labelled 'Recompenses' (rewards active) and navigates to /chauffeur/rewards. DriverBottomNav rounded pill works (nav-home/nav-bookings/nav-wallet/nav-profile). Two gaps found: (1) scheduled_pending didn't include the test-passenger ride created (vehicle_type 'sb', scheduled_at +2h, Paris coords) — POST /api/rides returned 200 with id ride_6a0d29254d5b but home-feed kept scheduled_pending empty so the RED badge never appeared; likely a backend eligibility/matching filter, not a UI bug. (2) In Taxi Hall, Google Places dropdown shows 5 suggestions when typing 'Tour Eiffel' but clicking the .pac-item does NOT trigger setDest — the estimate panel (taxi-hall-estimate) never appears so the driver cannot complete the form via the UI. Backend taxi-hall endpoint itself is already verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/rides/driver/home-feed", "issue": "A passenger-created scheduled ride (vehicle_type 'sb', future scheduled_at) was not surfaced under scheduled_pending for driver +33644112233, so the RED scheduled-badge cannot be exercised end-to-end via UI. May be intentional filtering (vehicle gamme / service area) but blocks the visible RED indicator demo."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TaxiHallModal / GooglePlacesInput", "issue": "Selecting an autocomplete suggestion (.pac-item) does not fire onSelect → setDest is never called → taxi-hall-estimate stays hidden and 'Démarrer la course' creates no ride from real input. Driver can't complete Taxi Hall end-to-end through the UI.", "selector": "[data-testid='taxi-hall-dest'] / .pac-item", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "DriverHome", "issues": ["Two Google Maps JS API includes — console warning: 'You have included the Google Maps JavaScript API multiple times on this page.' Likely from AdminGoogleMap + GooglePlacesInput both loading the script."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate why a passenger-created scheduled ride (sb, +2h) is not returned by /api/rides/driver/home-feed scheduled_pending for the QA driver — without it the RED scheduled-badge cannot be visually demoed.",
+    "Fix GooglePlacesInput / TaxiHallModal: clicking an autocomplete suggestion must propagate selected place (lat/lng/address) to onSelect so the estimate appears and start-btn creates the ride.",
+    "Deduplicate Google Maps JS loader (one loader for both map + Places to remove console warning)."
+  ],
+  "critical_code_review_comments": [
+    "DriverHome.js line 488 renders dots with `right: i * 12` — when only the delivery dot is present (i=1 in array index after filtering out yellow), the dot still gets right:0 because the filter rebuilds the array; OK in this case. Just confirm dots don't overlap when both colors are shown.",
+    "Audio beep is created on every alert via `new AudioContext()` — could leak Audio contexts. Consider lazy-creating one and reusing.",
+    "TaxiHallModal start() depends solely on `dest` from GooglePlacesInput; provide a manual lat/lng fallback for environments where the Places dropdown is unreliable.",
+    "DriverHome.js is 689 lines; close to the recommended split threshold — consider extracting FAB, stat cards and destination-mode modal into sub-components."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped per request", "frontend": "Core: ~95% (RED badge not exercised due to home-feed gap; Taxi Hall completion blocked by Places onSelect bug)"},
+  "test_credentials": "Driver +33644112233 / Chauffeur2026!  |  QA passenger qa.rideflow@demo.sb / RideFlow123!",
+  "seed_data_creation": "Created passenger scheduled ride id=ride_6a0d29254d5b (POST /api/rides as QA passenger, scheduled_at +2h, vehicle_type sb, Paris coords). It did NOT appear in driver home-feed.scheduled_pending.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All non-Google-Places UI behaviours pass. Two open gaps for main agent: (1) home-feed scheduled_pending filter — make sure the QA-passenger scheduled ride is surfaced to the driver +33644112233 (verify eligibility logic, vehicle gamme match, status filter). (2) GooglePlacesInput→TaxiHallModal: selecting a .pac-item must call onSelect({address,lat,lng}). Backend taxi-hall + completion already verified.",
+  "rca of the issue": "Taxi Hall onSelect: GooglePlacesInput appears to render Google's native .pac-container dropdown but the place_changed listener (or equivalent) is not wiring the selected place back to the React state setter passed in via onSelect — symptom: after picking a suggestion, dest stays null so the estimate block (rendered only when `dest`) is hidden and the start button submits nothing meaningful. Likely fix: ensure GooglePlacesInput uses an Autocomplete instance bound to the input and calls onSelect on 'place_changed', not relying on text change."
+}

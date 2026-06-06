@@ -1304,6 +1304,108 @@ async def driver_bookings(request: Request):
     return {"upcoming": upcoming, "pending": pending, "bids": bids}
 
 
+@router.get("/driver/home-feed")
+async def driver_home_feed(request: Request):
+    """Live counts/lists powering the V3Cube driver home indicators:
+    RED = planned reservations awaiting acceptance, circle = upcoming assigned jobs,
+    YELLOW = immediate available service rides, BLUE = available courier/delivery jobs
+    (only if the driver enabled that option)."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1, "service_types": 1})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Driver profile required")
+    did = driver["id"]
+    svc = driver.get("service_types") or ["taxi", "delivery", "courier"]
+    now_iso = datetime.now(timezone.utc).isoformat()
+    has_taxi = "taxi" in svc
+    has_courier = ("courier" in svc) or ("delivery" in svc)
+
+    scheduled_pending = await db.rides.find(
+        {"status": "pending", "driver_id": None, "scheduled_at": {"$ne": None, "$gte": now_iso}},
+        {"_id": 0},
+    ).sort("scheduled_at", 1).to_list(30) if has_taxi else []
+
+    upcoming = await db.rides.find(
+        {"driver_id": did, "status": {"$in": ["accepted", "arriving"]}},
+        {"_id": 0},
+    ).sort("scheduled_at", 1).to_list(30)
+
+    available_rides = await db.rides.find(
+        {"status": "pending", "driver_id": None,
+         "$or": [{"scheduled_at": None}, {"scheduled_at": {"$exists": False}}]},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(30) if has_taxi else []
+
+    available_deliveries = await db.parcels.find(
+        {"status": "pending", "driver_id": None}, {"_id": 0},
+    ).sort("created_at", -1).to_list(30) if has_courier else []
+
+    for r in [*scheduled_pending, *upcoming, *available_rides]:
+        await enrich_passenger_info(r)
+
+    next_scheduled_at = next((r["scheduled_at"] for r in upcoming if r.get("scheduled_at")), None)
+
+    return {
+        "scheduled_pending": scheduled_pending,
+        "upcoming": upcoming,
+        "available_rides": available_rides,
+        "available_deliveries": available_deliveries,
+        "next_scheduled_at": next_scheduled_at,
+        "counts": {
+            "scheduled_pending": len(scheduled_pending),
+            "upcoming": len(upcoming),
+            "available_rides": len(available_rides),
+            "available_deliveries": len(available_deliveries),
+        },
+    }
+
+
+@router.post("/taxi-hall")
+async def create_taxi_hall(request: Request):
+    """V3Cube 'Taxi Hall': the driver picks up a street-hail client who doesn't use
+    the app — enters destination + vehicle gamme and starts an immediate in-progress
+    ride that behaves like a normal trip (metered, completed via the usual flow)."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Driver profile required")
+    body = await request.json()
+    now = datetime.now(timezone.utc).isoformat()
+    vt_slug = body.get("vehicle_type", "sb")
+    vtype = await db.vehicle_types.find_one({"slug": vt_slug}, {"_id": 0}) or {}
+    ride = {
+        "id": f"ride_{uuid.uuid4().hex[:12]}",
+        "booking_no": str(secrets.randbelow(90000000) + 10000000),
+        "user_id": None,
+        "driver_id": driver["id"],
+        "driver_name": driver.get("user_name", user.get("name", "Chauffeur")),
+        "status": "in_progress",
+        "mode": "taxi_hall",
+        "is_taxi_hall": True,
+        "vehicle_type": vt_slug,
+        "base_fare": vtype.get("base_fare", 0),
+        "price_per_km": vtype.get("price_per_km", 0),
+        "pickup_lat": body.get("pickup_lat"),
+        "pickup_lng": body.get("pickup_lng"),
+        "pickup_address": body.get("pickup_address") or "Position actuelle",
+        "dropoff_lat": body.get("dropoff_lat"),
+        "dropoff_lng": body.get("dropoff_lng"),
+        "dropoff_address": body.get("dropoff_address") or "Destination",
+        "distance_km": round(float(body.get("distance_km", 0) or 0), 2),
+        "duration_mins": int(body.get("duration_mins", 0) or 0),
+        "estimated_fare": round(float(body.get("estimated_fare", 0) or 0), 2),
+        "payment_method": body.get("payment_method", "cash"),
+        "passenger_name": "Client (hélé)",
+        "passenger_rating": 5.0,
+        "created_at": now,
+        "accepted_at": now,
+        "started_at": now,
+    }
+    await db.rides.insert_one(ride)
+    ride.pop("_id", None)
+    return ride
+
+
 
 @router.get("/pending/available")
 async def get_available_rides(request: Request):

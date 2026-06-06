@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -15,6 +15,8 @@ import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 import IncomingRequestSheet from '../../components/driver/IncomingRequestSheet';
 import DriverRideFlow from '../../components/driver/DriverRideFlow';
+import ScheduledReservationsSheet from '../../components/driver/ScheduledReservationsSheet';
+import TaxiHallModal from '../../components/driver/TaxiHallModal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -39,6 +41,11 @@ const DriverHome = () => {
   const [poolRoute, setPoolRoute] = useState(null); // { passenger_count, stops, newPassenger }
   const [zoneBonuses, setZoneBonuses] = useState([]);
   const [fabOpen, setFabOpen] = useState(false);
+  const [homeFeed, setHomeFeed] = useState({ scheduled_pending: [], upcoming: [], available_rides: [], available_deliveries: [], next_scheduled_at: null });
+  const [showScheduled, setShowScheduled] = useState(false);
+  const [showTaxiHall, setShowTaxiHall] = useState(false);
+  const seenScheduledRef = useRef(null); // Set of known scheduled ids (null = not yet primed)
+  const alerted40Ref = useRef(new Set());
 
   const { isLoaded: gmapLoaded } = { isLoaded: true };
 
@@ -57,6 +64,59 @@ const DriverHome = () => {
     const id = setInterval(load, 30000);
     return () => clearInterval(id);
   }, [showHeatmap]);
+
+  // V3Cube driver home feed: scheduled (RED) / upcoming circle / available (YELLOW)
+  // / deliveries (BLUE), with sound+vibration alerts on new reservations and T-40min.
+  useEffect(() => {
+    let alive = true;
+    const beep = () => {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new Ctx();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+        o.start(); o.stop(ctx.currentTime + 0.55);
+      } catch { /* audio blocked until first interaction */ }
+      if (navigator.vibrate) navigator.vibrate([200, 90, 200]);
+    };
+    const loadFeed = async () => {
+      try {
+        const res = await rideAPI.driverHomeFeed();
+        if (!alive) return;
+        const feed = res.data;
+        setHomeFeed(feed);
+        const ids = (feed.scheduled_pending || []).map((r) => r.id);
+        if (seenScheduledRef.current === null) {
+          seenScheduledRef.current = new Set(ids); // prime without alerting
+        } else {
+          const fresh = ids.filter((id) => !seenScheduledRef.current.has(id));
+          if (fresh.length) {
+            fresh.forEach((id) => seenScheduledRef.current.add(id));
+            beep();
+            toast.success(`Nouvelle réservation planifiée (${fresh.length})`, { description: 'En attente de votre acceptation.' });
+          }
+        }
+        (feed.upcoming || []).forEach((r) => {
+          if (!r.scheduled_at || alerted40Ref.current.has(r.id)) return;
+          const mins = (new Date(r.scheduled_at).getTime() - Date.now()) / 60000;
+          if (mins > 0 && mins <= 40) {
+            alerted40Ref.current.add(r.id);
+            beep();
+            toast.warning(`Course à venir dans ${Math.round(mins)} min`, { description: r.pickup_address });
+          }
+        });
+      } catch { /* ignore */ }
+    };
+    loadFeed();
+    const id = setInterval(loadFeed, 12000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
 
   // Load current destination mode on mount
   useEffect(() => {
@@ -290,6 +350,24 @@ const DriverHome = () => {
     loadDriverProfile();
   };
 
+  const acceptScheduled = useCallback(async (ride) => {
+    try {
+      await rideAPI.accept(ride.id);
+      toast.success('Réservation acceptée — ajoutée à « Emplois à venir ».');
+      setHomeFeed((f) => ({
+        ...f,
+        scheduled_pending: f.scheduled_pending.filter((r) => r.id !== ride.id),
+        upcoming: [...f.upcoming, ride],
+      }));
+      setShowScheduled(false);
+    } catch { toast.error('Cette réservation a déjà été prise.'); }
+  }, []);
+
+  const onTaxiHallStarted = useCallback((ride) => {
+    setShowTaxiHall(false);
+    setCurrentRide(ride);
+  }, []);
+
   if (loading) {
     return (
       <div className="mobile-container min-h-screen bg-white flex items-center justify-center">
@@ -361,8 +439,13 @@ const DriverHome = () => {
           <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
         </button>
         <div className="flex items-center gap-2">
-          <button className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" style={{ color: '#00B578' }}>
+          <button onClick={() => setShowScheduled(true)} className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
             <CalendarCheck size={20} className="text-white" />
+            {homeFeed.scheduled_pending.length > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center animate-pulse ring-2 ring-white" data-testid="scheduled-badge">
+                {homeFeed.scheduled_pending.length}
+              </span>
+            )}
           </button>
           <button onClick={() => navigate('/chauffeur/notifications')} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="notifications-btn">
             <Bell size={20} className="text-white" />
@@ -394,15 +477,28 @@ const DriverHome = () => {
         {[
           { value: driver.total_trips || 0, label: 'Voyages/ emplois\nd\'aujourd\'hui', color: '#D1E8E2' },
           { value: (driver.rating || 5.0).toFixed(1), label: 'Moy.\nEvaluation', color: '#F8D7DA' },
-          { value: 0, label: 'Emplois a\nvenir', color: '#FFF3CD' },
-          { value: 0, label: 'Emplois en\nattente', color: '#D4EDDA' },
+          { value: homeFeed.upcoming.length, label: 'Emplois a\nvenir', color: '#FFF3CD',
+            testId: 'stat-upcoming', onClick: () => navigate('/chauffeur/reservations'),
+            blink: homeFeed.upcoming.length > 0 ? '#F59E0B' : null },
+          { value: homeFeed.available_rides.length + homeFeed.available_deliveries.length, label: 'Emplois en\nattente', color: '#D4EDDA',
+            testId: 'stat-pending', onClick: () => navigate('/chauffeur/reservations'),
+            dots: [
+              ...(homeFeed.available_rides.length ? [{ c: '#F59E0B', t: 'pending-yellow-dot' }] : []),
+              ...(homeFeed.available_deliveries.length ? [{ c: '#2F9BFF', t: 'pending-blue-dot' }] : []),
+            ] },
         ].map((stat) => (
-          <div key={stat.label} className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-1" style={{ backgroundColor: stat.color }}>
-              <span className="text-lg font-bold text-gray-800">{stat.value}</span>
+          <button key={stat.label} type="button" onClick={stat.onClick} disabled={!stat.onClick}
+            className="flex flex-col items-center text-center disabled:cursor-default" data-testid={stat.testId}>
+            <div className="relative w-16 h-16 rounded-full flex items-center justify-center mb-1"
+              style={{ backgroundColor: stat.color, boxShadow: stat.blink ? `0 0 0 3px ${stat.blink}` : 'none' }}>
+              <span className={`text-lg font-bold text-gray-800 ${stat.blink ? 'animate-pulse' : ''}`}>{stat.value}</span>
+              {(stat.dots || []).map((d, i) => (
+                <span key={d.t} data-testid={d.t} className="absolute w-3 h-3 rounded-full ring-2 ring-white animate-pulse"
+                  style={{ background: d.c, top: 0, right: i * 12 }} />
+              ))}
             </div>
             <span className="text-[10px] text-gray-500 leading-tight whitespace-pre-line">{stat.label}</span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -453,7 +549,12 @@ const DriverHome = () => {
             <Gift size={18} className="text-white" />
             <span className="text-white text-sm font-bold">Recompenses</span>
           </button>
-        ) : <div />}
+        ) : (
+          <button onClick={() => navigate('/chauffeur/rewards')} className="pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-full shadow-lg bg-white border border-amber-300" data-testid="rewards-floating-btn">
+            <Gift size={18} style={{ color: '#F59E0B' }} weight="fill" />
+            <span className="text-amber-600 text-sm font-bold">Bonus</span>
+          </button>
+        )}
 
         {/* Radial speed-dial FAB */}
         <div className="pointer-events-auto flex flex-col items-end gap-2.5" data-testid="driver-fab">
@@ -461,7 +562,7 @@ const DriverHome = () => {
             <div className="flex flex-col items-end gap-2.5 mb-1" data-testid="driver-fab-menu">
               {[
                 { label: "Planificateur de demande basé sur l'IA", Icon: Sparkle, onClick: () => toast.info('Planificateur IA bientôt disponible.') },
-                { label: 'Appelez un taxi', Icon: Taxi, onClick: () => toast.info('Réserver pour un client — bientôt disponible.') },
+                { label: 'Appelez un taxi', Icon: Taxi, onClick: () => setShowTaxiHall(true) },
                 { label: 'Chaleur', Icon: Fire, onClick: () => setShowHeatmap((v) => !v) },
                 { label: 'Revenir', Icon: ArrowUUpLeft, onClick: () => setShowDestModal(true) },
                 { label: 'Emplacements', Icon: MapPin, onClick: () => toast.info('Emplacements favoris — bientôt disponible.') },
@@ -507,6 +608,23 @@ const DriverHome = () => {
           onCancelOffer={cancelOffer}
         />
       )}
+
+      {/* Scheduled reservations (RED indicator) */}
+      {showScheduled && (
+        <ScheduledReservationsSheet
+          rides={homeFeed.scheduled_pending}
+          onClose={() => setShowScheduled(false)}
+          onAccept={acceptScheduled}
+        />
+      )}
+
+      {/* Taxi Hall (street-hail client) */}
+      <TaxiHallModal
+        open={showTaxiHall}
+        onClose={() => setShowTaxiHall(false)}
+        origin={{ ...mapCenter, address: 'Position actuelle' }}
+        onStarted={onTaxiHallStarted}
+      />
 
       {/* Bottom Nav */}
       <DriverBottomNav active="home" />
