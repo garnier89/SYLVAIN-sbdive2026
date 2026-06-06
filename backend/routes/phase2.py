@@ -902,10 +902,26 @@ async def taxi_bidding_live_stats(request: Request, lat: float = None, lng: floa
     accepted = await db.rides.count_documents({"proposed_fare": {"$ne": None}, "status": "completed"})
     acceptance = round((accepted / negotiated) * 100) if negotiated > 0 else None
 
+    # Nearest online-driver ETA to the pickup (real, haversine-based) for the search radar.
+    nearest_eta = None
+    if lat is not None and lng is not None and online_drivers > 0:
+        from core.deps import calculate_distance
+        best = None
+        async for dr in db.drivers.find(query, {"_id": 0, "current_lat": 1, "current_lng": 1}).limit(50):
+            dl, dn = dr.get("current_lat"), dr.get("current_lng")
+            if dl is None or dn is None:
+                continue
+            dist = calculate_distance(lat, lng, dl, dn)
+            if best is None or dist < best:
+                best = dist
+        if best is not None:
+            nearest_eta = max(1, round(best / 22 * 60) + 1)  # ~22 km/h city speed + 1 min dispatch buffer
+
     return {
         "online_drivers_nearby": online_drivers,
         "avg_accepted_fare": avg_fare,
         "avg_fare_samples": len(fares),
         "acceptance_rate_percent": acceptance,
+        "nearest_driver_eta_min": nearest_eta,
         "radius_km": radius_km,
     }

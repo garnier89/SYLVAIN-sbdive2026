@@ -846,6 +846,18 @@ async def accept_ride(ride_id: str, request: Request):
         "driver_vehicle_number": driver.get("vehicle_number"),
     }})
 
+    # ===== Activity journal: new ride accepted =====
+    try:
+        from core.notifications import create_notification
+        dest = ride.get("dropoff_address") or "destination"
+        await create_notification(
+            user["id"], "ride", "Nouvelle course acceptée 🚗",
+            f"Course #{ride_id[:8].upper()} · vers {dest}", push=False,
+            data={"ride_id": ride_id, "kind": "ride_accepted"},
+        )
+    except Exception:
+        pass
+
     # ===== POINTS: award for accepted ride =====
     from routes.drivers import _get_rewards_points_config, _ensure_driver_stats, _recompute_rates
     points_cfg = await _get_rewards_points_config()
@@ -1003,7 +1015,7 @@ async def update_ride_status(ride_id: str, request: Request):
             commission = ride.get("commission_percent", 10) / 100
             driver_earnings = final_fare * (1 - commission)
             # ===== Sub-category bonus (Particulier / VTC / Taxi licence) =====
-            d_full = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "taxi_sub": 1})
+            d_full = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "taxi_sub": 1, "user_id": 1})
             sub = (d_full or {}).get("taxi_sub")
             subcat_bonus = 0.0
             if sub:
@@ -1014,10 +1026,19 @@ async def update_ride_status(ride_id: str, request: Request):
             if subcat_bonus > 0:
                 update_data["subcategory_bonus"] = subcat_bonus
                 update_data["subcategory"] = sub
+            total_credit = round(driver_earnings + subcat_bonus, 2)
             await db.drivers.update_one(
                 {"id": ride["driver_id"]},
-                {"$inc": {"total_trips": 1, "earnings": round(driver_earnings + subcat_bonus, 2)}}
+                {"$inc": {"total_trips": 1, "earnings": total_credit}}
             )
+            # ===== Activity journal: earnings notification =====
+            if (d_full or {}).get("user_id"):
+                from core.notifications import create_notification
+                await create_notification(
+                    d_full["user_id"], "earning", "Course terminée 💸",
+                    f"+{total_credit:.2f} € pour la course #{ride['id'][:8].upper()}",
+                    data={"ride_id": ride["id"], "amount": total_credit, "kind": "ride"},
+                )
             # ===== POINTS: award for completed ride =====
             from routes.drivers import _get_rewards_points_config
             points_cfg = await _get_rewards_points_config()

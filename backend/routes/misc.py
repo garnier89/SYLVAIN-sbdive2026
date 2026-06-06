@@ -211,7 +211,21 @@ async def admin_set_driver_document_status(driver_id: str, doc_type: str, reques
     from routes.drivers import build_documents_view
     view = await build_documents_view({**d, "documents": docs})
 
-    # Notify the driver in real-time: in-app WS toast + mobile Expo push + persisted feed item.
+    # ── Auto-update driver account status from document completeness ──
+    driver_status = d.get("status")
+    account_event = None  # ("approved" | "pending", title, body)
+    if view["all_required_approved"] and driver_status in ("pending", "rejected", None):
+        await db.drivers.update_one({"id": driver_id}, {"$set": {"status": "approved", "rejection_reason": None}})
+        driver_status = "approved"
+        account_event = ("approved", "Compte validé 🎉",
+                         "Tous vos documents sont approuvés. Vous pouvez recevoir des courses !")
+    elif status_value == "rejected" and (matched := next((it for it in view["documents"] if it["key"] == doc_type), None)) and matched.get("required") and driver_status == "approved":
+        await db.drivers.update_one({"id": driver_id}, {"$set": {"status": "pending"}})
+        driver_status = "pending"
+        account_event = ("pending", "Compte en vérification",
+                         "Un document requis a été refusé : votre compte repasse en vérification.")
+
+    # ── Notify the driver: in-app WS toast + mobile Expo push + persisted feed item ──
     matched = next((it for it in view["documents"] if it["key"] == doc_type), None)
     label = (matched or {}).get("label") or doc_type
     if status_value == "approved":
@@ -221,27 +235,17 @@ async def admin_set_driver_document_status(driver_id: str, doc_type: str, reques
     else:
         title, msg = "Document en attente", f"Votre document « {label} » est de nouveau en attente de validation."
     uid = d["user_id"]
-    ws_payload = {"type": "driver_document_reviewed", "doc_type": doc_type, "doc_label": label,
-                  "status": status_value, "reason": reason, "title": title, "body": msg}
-    try:
-        from core.websocket import manager
-        await manager.send_personal_message(ws_payload, uid)
-    except Exception:
-        pass
-    try:
-        from core.push import notify_user
-        await notify_user(uid, title, msg, {"type": "driver_document_reviewed", "doc_type": doc_type})
-    except Exception:
-        pass
-    try:
-        await db.notifications.insert_one({
-            "id": uuid.uuid4().hex, "user_id": uid, "type": "driver_document_reviewed",
-            "title": title, "body": msg, "data": {"doc_type": doc_type, "status": status_value},
-            "read": False, "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-    except Exception:
-        pass
-    return {"message": "Document mis à jour", **view}
+    from core.notifications import create_notification
+    await create_notification(
+        uid, "driver_document_reviewed", title, msg,
+        data={"doc_type": doc_type, "status": status_value, "reason": reason},
+        ws_payload={"type": "driver_document_reviewed", "doc_type": doc_type, "doc_label": label,
+                    "status": status_value, "reason": reason, "title": title, "body": msg},
+    )
+    if account_event:
+        await create_notification(uid, "account_status", account_event[1], account_event[2],
+                                  data={"status": account_event[0]})
+    return {"message": "Document mis à jour", "driver_status": driver_status, **view}
 
 
 @router.get("/admin/rides")

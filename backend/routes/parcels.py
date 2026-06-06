@@ -203,6 +203,15 @@ async def _settle_parcel_on_completion(parcel: dict):
         await db.drivers.update_one({"user_id": driver_user_id}, {"$inc": {"earnings": earnings, "total_trips": 1}})
         update["driver_earnings"] = earnings
         update["commission_percent"] = round(commission * 100, 2)
+        try:
+            from core.notifications import create_notification
+            await create_notification(
+                driver_user_id, "earning", "Livraison terminée 💸",
+                f"+{earnings:.2f} € pour le colis #{pid[:8].upper()}",
+                data={"parcel_id": pid, "amount": earnings, "kind": "parcel"},
+            )
+        except Exception:
+            pass
     await db.parcels.update_one({"id": pid}, {"$set": update})
     try:
         await notify_user(parcel["user_id"], "Colis livré ✅",

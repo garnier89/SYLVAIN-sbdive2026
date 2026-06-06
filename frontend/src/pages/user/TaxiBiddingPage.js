@@ -42,15 +42,14 @@ const TaxiBiddingPage = () => {
 
   const [estimate, setEstimate] = useState(null);
   const [fare, setFare] = useState(0);
-  const [vehicleType, setVehicleType] = useState('sb');
+  const [vehicleType, setVehicleType] = useState(() => searchParams.get('vehicle') || 'sb');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [showSheet, setShowSheet] = useState(false);
   const [liveStats, setLiveStats] = useState(null);
-  const [searching, setSearching] = useState(null); // rideId once submitted
+  const [searching, setSearching] = useState(() => searchParams.get('resume') || null); // rideId once submitted
   const [searchSeconds, setSearchSeconds] = useState(0);
   const [offers, setOffers] = useState([]);
-  const [nowTs, setNowTs] = useState(Date.now());
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
 
   // Admin-configurable radar cars (enabled / icon / count / radius)
@@ -97,29 +96,21 @@ const TaxiBiddingPage = () => {
     if (!pickup?.lat || !dropoff?.lat) return;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(fetchEstimate, 350);
-    setShowSheet(true);
   }, [pickup, dropoff, vehicleType, fetchEstimate]);
 
   // Fetch live indicator stats on mount and when pickup changes
   useEffect(() => {
+    let active = true;
     const qs = pickup?.lat ? `?lat=${pickup.lat}&lng=${pickup.lng}` : '';
     fetch(`${API}/api/phase2/taxi-bidding/live-stats${qs}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(setLiveStats)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (active) setLiveStats(d); })
       .catch((e) => console.warn('live-stats fetch failed:', e?.message || e));
+    return () => { active = false; };
   }, [pickup]);
 
-  // Resume an existing ride converted to bidding (from the "Proposer votre tarif" flow)
-  useEffect(() => {
-    const resume = searchParams.get('resume');
-    const v = searchParams.get('vehicle');
-    if (v) setVehicleType(v);
-    if (resume) {
-      setSearching(resume);
-      setSearchSeconds(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Resume + initial vehicle type are read directly from the URL via lazy useState
+  // initializers above (React-Compiler-safe: no setState-in-effect on mount).
 
   // Addresses are collected on the unified /course?mode=bidding flow. If someone
   // lands here without them (direct URL or after tapping "Modifier"), send them
@@ -267,7 +258,12 @@ const TaxiBiddingPage = () => {
             ? <img src={radarMapUrl} alt="Carte" className="w-full h-full object-cover" />
             : <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-rose-50" />}
           <div className="absolute inset-0 bg-white/10" />
-          <SearchRadar size={244} />
+          <SearchRadar
+            size={244}
+            caption={liveStats?.nearest_driver_eta_min
+              ? `Chauffeur à ~${liveStats.nearest_driver_eta_min} min`
+              : (estimate?.duration_mins ? `Trajet ~${estimate.duration_mins} min` : 'Recherche…')}
+          />
           {carsCfg && pickup?.lat && (
             <RadarCars
               pickupLat={pickup.lat}
@@ -295,7 +291,7 @@ const TaxiBiddingPage = () => {
       {/* Route summary when map is visible (hidden during driver search) */}
       {mapReady && !searching && (
         <div className="relative z-10 mx-4 mt-4 bg-white rounded-2xl shadow-lg overflow-hidden" data-testid="route-summary">
-          <button onClick={() => { setPickup(null); setDropoff(null); setShowSheet(false); setFare(0); }}
+          <button onClick={() => { setPickup(null); setDropoff(null); setFare(0); }}
             className="w-full p-3 flex items-start gap-3 text-left"
             data-testid="edit-route-btn">
             <div className="flex flex-col items-center pt-1">
@@ -332,7 +328,7 @@ const TaxiBiddingPage = () => {
       )}
 
       {/* Bottom sheet (Offer Your Fare) */}
-      {showSheet && mapReady && !searching && (
+      {mapReady && !searching && (
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl shadow-2xl animate-slide-up" data-testid="offer-fare-sheet">
           {/* Handle */}
           <div className="flex justify-center pt-3">
@@ -498,7 +494,7 @@ const TaxiBiddingPage = () => {
       )}
 
       {/* Fare picker always accessible for testid coverage (hidden when sheet open) */}
-      {!showSheet && (
+      {!mapReady && (
         <div className="hidden" data-testid="fare-picker-fallback">
           <input type="number" value={fare} onChange={(e) => setFare(parseFloat(e.target.value) || 0)} data-testid="fare-input" />
           <button onClick={() => adjustFare(-1)} data-testid="fare-minus">-</button>
