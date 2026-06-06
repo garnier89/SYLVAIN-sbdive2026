@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -24,7 +24,7 @@ const DriverHome = () => {
   const [currentRide, setCurrentRide] = useState(null);
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [myOffer, setMyOffer] = useState(null); // { rideId, amount, expires_at, ttl_seconds }
-  const [nowTs, setNowTs] = useState(Date.now());
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const [showOtpVerify, setShowOtpVerify] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [rewardsActive, setRewardsActive] = useState(false);
@@ -39,7 +39,6 @@ const DriverHome = () => {
   const [destInput, setDestInput] = useState({ address: '', lat: '', lng: '' });
   const [poolRoute, setPoolRoute] = useState(null); // { passenger_count, stops, newPassenger }
   const [zoneBonuses, setZoneBonuses] = useState([]);
-  const locationWatchId = useRef(null);
 
   const { isLoaded: gmapLoaded } = { isLoaded: true };
 
@@ -92,50 +91,45 @@ const DriverHome = () => {
 
   const { on, sendLocation, joinRide } = useWebSocket(user?.id);
 
-  const loadDriverProfile = useCallback(async (retries = 2) => {
-    try {
-      const res = await driverAPI.getProfile();
-      setDriver(res.data);
-      setIsOnline(res.data.is_online);
-      setLoading(false);
-    } catch (err) {
-      if (retries > 0) {
-        setTimeout(() => loadDriverProfile(retries - 1), 1500);
-        return;
+  const loadDriverProfile = useCallback(async () => {
+    const attempt = async (retries) => {
+      try {
+        const res = await driverAPI.getProfile();
+        setDriver(res.data);
+        setIsOnline(res.data.is_online);
+        setLoading(false);
+      } catch (err) {
+        if (retries > 0) {
+          setTimeout(() => attempt(retries - 1), 1500);
+          return;
+        }
+        console.error('Driver profile error:', err.response?.status);
+        setLoading(false);
       }
-      console.error('Driver profile error:', err.response?.status);
-      setLoading(false);
-    }
+    };
+    await attempt(2);
   }, []);
-
-  const setupLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      ({ coords: { latitude, longitude } }) => {
-        setMapCenter({ lat: latitude, lng: longitude });
-        driverAPI.updateLocation(latitude, longitude).catch(() => {});
-        sendLocation(latitude, longitude);
-      }, () => {}
-    );
-    locationWatchId.current = navigator.geolocation.watchPosition(
-      ({ coords: { latitude, longitude } }) => {
-        setMapCenter({ lat: latitude, lng: longitude });
-        sendLocation(latitude, longitude);
-      }, () => {}, { enableHighAccuracy: true }
-    );
-  }, [sendLocation]);
-
-  const loadPendingRides = useCallback(async () => {
-    if (!driver || driver.status !== 'approved') return;
-    try {
-      const res = await rideAPI.list({ status: 'pending' });
-      if (res.data.length > 0 && !currentRide && !incomingRequest) setIncomingRequest(res.data[0]);
-    } catch (err) { console.error('Failed to load pending rides:', err); }
-  }, [driver, currentRide, incomingRequest]);
 
   useEffect(() => {
     loadDriverProfile();
-    setupLocation();
+    // Geolocation: report current position + watch for updates. watchId is a const captured for cleanup.
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords: { latitude, longitude } }) => {
+          setMapCenter({ lat: latitude, lng: longitude });
+          driverAPI.updateLocation(latitude, longitude).catch(() => {});
+          sendLocation(latitude, longitude);
+        }, () => {}
+      );
+    }
+    const watchId = navigator.geolocation
+      ? navigator.geolocation.watchPosition(
+          ({ coords: { latitude, longitude } }) => {
+            setMapCenter({ lat: latitude, lng: longitude });
+            sendLocation(latitude, longitude);
+          }, () => {}, { enableHighAccuracy: true }
+        )
+      : null;
     // Poll active rewards every 60s
     const checkRewards = async () => {
       try {
@@ -148,8 +142,8 @@ const DriverHome = () => {
     };
     checkRewards();
     const rewardInterval = setInterval(checkRewards, 60000);
-    return () => { if (locationWatchId.current) navigator.geolocation.clearWatch(locationWatchId.current); clearInterval(rewardInterval); };
-  }, [loadDriverProfile, setupLocation]);
+    return () => { if (watchId != null) navigator.geolocation.clearWatch(watchId); clearInterval(rewardInterval); };
+  }, [loadDriverProfile, sendLocation]);
 
   useEffect(() => {
     const unsub1 = on('new_ride_request', (msg) => {
@@ -182,7 +176,12 @@ const DriverHome = () => {
       toast.success(`Prime +${msg.bonus_amount} € active à ${msg.zone}`, { duration: 8000 });
       setZoneBonuses((prev) => [{ zone: msg.zone, bonus_amount: msg.bonus_amount, bonus_active_until: msg.bonus_active_until }, ...prev.filter((b) => b.zone !== msg.zone)]);
     });
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); };
+    const unsub7 = on('driver_document_reviewed', (msg) => {
+      if (msg?.status === 'approved') toast.success(msg.body || 'Document validé ✅', { duration: 6000 });
+      else if (msg?.status === 'rejected') toast.error(msg.body || 'Document refusé', { duration: 8000 });
+      else toast.info(msg?.body || 'Document mis à jour');
+    });
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); };
   }, [on, currentRide, isOnline]);
 
   // Active zone bonuses (driver-shortage incentives)
@@ -200,11 +199,17 @@ const DriverHome = () => {
   }, []);
 
   useEffect(() => {
-    if (isOnline && !currentRide) {
-      const interval = setInterval(loadPendingRides, 8000);
-      return () => clearInterval(interval);
-    }
-  }, [isOnline, currentRide, loadPendingRides]);
+    if (!(isOnline && !currentRide)) return undefined;
+    const loadPending = async () => {
+      if (!driver || driver.status !== 'approved') return;
+      try {
+        const res = await rideAPI.list({ status: 'pending' });
+        if (res.data.length > 0 && !currentRide && !incomingRequest) setIncomingRequest(res.data[0]);
+      } catch (err) { console.error('Failed to load pending rides:', err); }
+    };
+    const interval = setInterval(loadPending, 8000);
+    return () => clearInterval(interval);
+  }, [isOnline, currentRide, driver, incomingRequest]);
 
   // While our counter-offer is pending: tick the countdown + poll the ride.
   // If the passenger picks us, transition straight into the active ride.
@@ -328,7 +333,7 @@ const DriverHome = () => {
               <Gift size={20} weight="fill" className="flex-shrink-0" />
               <p className="text-xs font-bold flex-1">
                 Prime +{b.bonus_amount} € active à {b.zone}
-                {b.bonus_active_until && <span className="font-semibold opacity-90"> · jusqu'à {new Date(b.bonus_active_until).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>}
+                {b.bonus_active_until && <span className="font-semibold opacity-90"> · jusqu&apos;à {new Date(b.bonus_active_until).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>}
               </p>
             </div>
           ))}
@@ -390,7 +395,7 @@ const DriverHome = () => {
 
       {/* GAINS D'AUJOURD'HUI */}
       <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-gray-100">
-        <span className="text-base font-bold text-gray-800">Gains d'aujourd'hui</span>
+        <span className="text-base font-bold text-gray-800">Gains d&apos;aujourd&apos;hui</span>
         <button
           type="button"
           onClick={() => setShowEarningsBreakdown(true)}

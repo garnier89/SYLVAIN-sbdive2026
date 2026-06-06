@@ -88,6 +88,9 @@ export const driverAPI = {
     });
   },
   getMyDocuments: () => api.get('/drivers/my-documents'),
+  getNotifications: () => api.get('/drivers/my-notifications'),
+  markAllNotificationsRead: () => api.post('/drivers/notifications/read-all'),
+  deleteNotification: (id) => api.delete(`/drivers/notifications/${id}`),
 };
 
 // Merchant APIs

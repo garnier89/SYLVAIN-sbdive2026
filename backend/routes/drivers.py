@@ -881,6 +881,23 @@ async def my_notifications(request: Request):
     return items
 
 
+@router.post("/notifications/read-all")
+async def mark_all_notifications_read(request: Request):
+    user = await get_current_user(request)
+    res = await db.notifications.update_many(
+        {"user_id": user["id"], "read": {"$ne": True}}, {"$set": {"read": True}})
+    return {"updated": res.modified_count}
+
+
+@router.delete("/notifications/{notif_id}")
+async def delete_notification(notif_id: str, request: Request):
+    user = await get_current_user(request)
+    res = await db.notifications.delete_one({"id": notif_id, "user_id": user["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Notification introuvable")
+    return {"message": "Notification supprimée"}
+
+
 @router.get("/incoming-requests")
 async def incoming_requests(request: Request):
     """Alias of /api/rides/pending/available for drivers."""
