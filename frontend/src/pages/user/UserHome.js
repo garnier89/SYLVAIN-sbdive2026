@@ -55,14 +55,6 @@ const UserHome = () => {
     return () => clearInterval(id);
   }, []);
 
-  // ===== « Vos essentiels » — hero quick actions (4 most-used services) =====
-  const heroServices = [
-    { id: 'vtc', name: 'VTC', sub: 'Réservez une course', icon: Car, color: '#FF5000', bg: '#FFF0E5', path: '/course?mode=standard' },
-    { id: 'food', name: 'Livraison Repas', sub: 'Faim ? Commandez', icon: ForkKnife, color: '#E11D48', bg: '#FFF1F2', path: '/food' },
-    { id: 'courier', name: 'Coursier', sub: 'Envoi express', icon: Lightning, color: '#D97706', bg: '#FFFBEB', path: '/runner' },
-    { id: 'pharmacy', name: 'Pharmacie', sub: 'Médicaments livrés', icon: Pill, color: '#059669', bg: '#ECFDF5', path: '/pharmacy' },
-  ];
-
   // ===== Taxi Services (8 items) =====
   const taxiServices = [
     { id: 'taxi-booking', name: 'VTC\nRéservation', icon: Car, bg: 'bg-amber-50', iconColor: 'text-amber-500', path: '/course?mode=standard' },
@@ -217,6 +209,343 @@ const UserHome = () => {
     return visible;
   };
 
+  // ── Section render blocks (keyed) so we can order them declaratively ──
+  const blocks = {
+    taxi: (
+      <section key="taxi" className="px-4 mt-6">
+        <SectionHeader title="Services Taxi" action="Tout voir" onAction={() => navigate('/taxi')} />
+        <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+          {displayFor('taxi').map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </section>
+    ),
+    promo: (
+      <div key="promo" className="px-4 mt-6" data-testid="promo-banner-carousel">
+        <div className="relative overflow-hidden rounded-[22px]">
+          <div className="flex transition-transform duration-700 ease-in-out" style={{ transform: `translateX(-${promoIndex * 100}%)` }}>
+            <div className="w-full flex-shrink-0 rounded-[22px] overflow-hidden bg-white border border-slate-100 shadow-sm flex items-stretch h-[140px]" data-testid="promo-banner-1">
+              <div className="w-2/5 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=200&fit=crop')" }} />
+              <div className="flex-1 p-4 flex flex-col justify-center">
+                <p className={`font-bold text-[#0B1426] text-base leading-tight ${HEAD}`}>Courses fraîches livrées vite.</p>
+                <p className={`text-sm text-[#64748B] mt-1 ${BODY}`}>Commandez maintenant !</p>
+                <button className={`mt-2 self-start px-4 py-1.5 bg-[#0B1426] text-white text-xs font-semibold rounded-lg ${HEAD}`} onClick={() => navigate('/food')}>
+                  Commander
+                </button>
+              </div>
+            </div>
+            <div className="w-full flex-shrink-0 rounded-[22px] overflow-hidden bg-[#FF5000] flex items-stretch h-[140px]" data-testid="promo-banner-2">
+              <div className="flex-1 p-4 flex flex-col justify-center">
+                <p className={`font-bold text-white text-base leading-tight ${HEAD}`}>Première course VTC</p>
+                <p className={`text-3xl font-extrabold text-white mt-1 ${HEAD}`}>-50%</p>
+                <p className={`text-xs text-white/80 mt-1 ${BODY}`}>Code : BIENVENUE</p>
+              </div>
+              <div className="w-2/5 flex items-center justify-center bg-white/10">
+                <Car size={64} weight="duotone" className="text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-1.5 mt-2.5" data-testid="promo-dots">
+          {Array.from({ length: PROMO_COUNT }).map((_, i) => (
+            <button
+              key={`promo-dot-${i}`}
+              onClick={() => setPromoIndex(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${promoIndex === i ? 'w-5 bg-[#FF5000]' : 'w-1.5 bg-slate-300'}`}
+              data-testid={`promo-dot-${i}`}
+              aria-label={`Aller au panneau ${i + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    ),
+    delivery: (
+      <section key="delivery" className="px-4 mt-6">
+        <SectionHeader title="Services de Livraison" action="Tout voir" onAction={() => navigate('/all-delivery')} />
+        <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+          {displayFor('delivery').map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </section>
+    ),
+    parcel: (
+      <div key="parcel" className="px-4 mt-6">
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          className="w-full rounded-[22px] overflow-hidden bg-white border border-slate-100 shadow-sm p-5 flex items-center gap-4 text-left"
+          onClick={() => navigate('/parcel')}
+          data-testid="parcel-delivery-section"
+        >
+          <div className="flex-1">
+            <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Livraison de Colis</h3>
+            <p className={`text-sm text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Envoyez un ou plusieurs colis n'importe où en ville. Choisissez le véhicule adapté.</p>
+          </div>
+          <div className="w-16 h-16 shrink-0 rounded-2xl bg-purple-50 flex items-center justify-center">
+            <Package size={36} weight="duotone" className="text-purple-500" />
+          </div>
+        </motion.button>
+      </div>
+    ),
+    marketplace: (
+      <section key="marketplace" className="px-4 mt-6">
+        <SectionHeader title="Acheter, Vendre & Louer" />
+        <div className="space-y-3">
+          <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/real-estate')} className="w-full rounded-[20px] overflow-hidden bg-gradient-to-r from-[#FF5000] to-[#E03D00] flex items-stretch h-[90px] text-left" data-testid="marketplace-realestate-btn">
+            <div className="flex-1 p-4 flex flex-col justify-center">
+              <p className={`text-[11px] font-bold text-white/80 uppercase tracking-wide ${HEAD}`}>Acheter, Vendre & Louer</p>
+              <p className={`text-base font-bold text-white mt-0.5 ${HEAD}`}>Immobilier</p>
+            </div>
+            <div className="w-1/3 flex items-center justify-center bg-white/10">
+              <Buildings size={40} weight="duotone" className="text-white/90" />
+            </div>
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/marketplace/cars')} className="w-full rounded-[20px] overflow-hidden bg-gradient-to-r from-amber-400 to-sky-400 flex items-stretch h-[90px] text-left" data-testid="marketplace-cars-btn">
+            <div className="flex-1 p-4 flex flex-col justify-center">
+              <p className={`text-sm font-bold text-white ${HEAD}`}>Acheter, Vendre &</p>
+              <p className={`text-base font-bold text-white ${HEAD}`}>Louer Véhicules</p>
+            </div>
+            <div className="w-1/3 flex items-center justify-center bg-white/10">
+              <Car size={40} weight="duotone" className="text-white" />
+            </div>
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/marketplace/items')} className="w-full rounded-[20px] overflow-hidden bg-white border border-slate-100 shadow-sm flex items-stretch h-[90px] text-left" data-testid="marketplace-items-btn">
+            <div className="flex-1 p-4 flex flex-col justify-center">
+              <p className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Acheter, Vendre &</p>
+              <p className={`text-base font-bold text-[#0B1426] ${HEAD}`}>Articles Divers</p>
+            </div>
+            <div className="w-1/3 flex items-center justify-center bg-slate-50">
+              <ShoppingBag size={40} weight="duotone" className="text-slate-500" />
+            </div>
+          </motion.button>
+        </div>
+      </section>
+    ),
+    beauty: (
+      <section key="beauty" className="px-4 mt-6">
+        <SectionHeader title="Services Beauté" action="Tout voir" onAction={() => navigate('/beauty')} />
+        <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+          {displayFor('beauty').map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </section>
+    ),
+    medical: (
+      <section key="medical" className="px-4 mt-6">
+        <SectionHeader title="Services Médicaux" />
+        <div className="grid grid-cols-2 gap-3" data-testid="medical-services-section">
+          <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/medical/appointment')} className="row-span-2 rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex flex-col text-left" data-testid="medical-appointment-btn">
+            <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Prendre Rendez-vous</h4>
+            <p className={`text-[11px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Prenez RDV avec un médecin ou un expert médical à leur cabinet ou à domicile.</p>
+            <div className="flex-1 flex items-end justify-center mt-3">
+              <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center">
+                <Stethoscope size={40} weight="duotone" className="text-[#FF5000]" />
+              </div>
+            </div>
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/video-consult')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-3 flex flex-col text-left" data-testid="medical-video-btn">
+            <h4 className={`text-xs font-bold text-[#0B1426] ${HEAD}`}>Vidéo Consultation</h4>
+            <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Consultez un médecin en visio.</p>
+            <div className="flex justify-end mt-2">
+              <VideoCamera size={28} weight="duotone" className="text-yellow-600" />
+            </div>
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/medical/transport')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-3 flex flex-col text-left" data-testid="medical-other-btn">
+            <h4 className={`text-xs font-bold text-[#0B1426] ${HEAD}`}>Transport Médical</h4>
+            <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Ambulance, transport sanitaire.</p>
+            <div className="flex justify-end mt-2">
+              <FirstAid size={28} weight="duotone" className="text-green-600" />
+            </div>
+          </motion.button>
+        </div>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/pharmacy')} className="mt-3 w-full rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex items-center gap-4 text-left" data-testid="medical-pharmacy-btn">
+          <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0">
+            <Pill size={30} weight="duotone" className="text-[#FF5000]" />
+          </div>
+          <div className="flex-1">
+            <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Pharmacie</h4>
+            <p className={`text-[11px] text-[#64748B] mt-0.5 leading-relaxed ${BODY}`}>Médicaments livrés — sur ordonnance ou parapharmacie.</p>
+          </div>
+          <CaretRight size={18} className="text-[#94A3B8]" />
+        </motion.button>
+      </section>
+    ),
+    ondemand: (
+      <section key="ondemand" className="px-4 mt-6">
+        <SectionHeader title="Services à la demande" action="Tout voir" onAction={() => navigate('/all-services')} />
+        <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+          {displayFor('ondemand').map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </section>
+    ),
+    bid: (
+      <div key="bid" className="px-4 mt-6">
+        <div className="rounded-[22px] bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 p-4" data-testid="bid-services-section">
+          <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Enchères Services</h3>
+          <p className={`text-xs text-[#64748B] mt-1 mb-4 leading-relaxed ${BODY}`}>Publiez votre besoin et laissez les prestataires enchérir en temps réel. Choisissez le meilleur !</p>
+          <div className="flex gap-3">
+            <div className="hidden sm:flex w-24 shrink-0 items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-[#FF5000] flex items-center justify-center">
+                <Wrench size={36} className="text-white" />
+              </div>
+            </div>
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              {bidServices.map((s) => (
+                <motion.button whileTap={{ scale: 0.95 }} key={s.id} onClick={() => navigate(s.path || '/services-bidding')} className="bg-white rounded-xl p-2.5 flex items-center gap-2 border border-slate-100 shadow-[0_2px_8px_-4px_rgba(11,20,38,0.08)]" data-testid={`bid-${s.id}-btn`}>
+                  <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
+                    <s.icon size={18} weight="duotone" className={s.iconColor} />
+                  </div>
+                  <span className={`text-[11px] font-semibold text-[#334155] leading-tight whitespace-pre-line ${BODY}`}>{s.name}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+    carcare: (
+      <section key="carcare" className="px-4 mt-6">
+        <SectionHeader title="Entretien Auto" action="Tout voir" onAction={() => navigate('/car-care')} />
+        <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+          {displayFor('carcare').map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </section>
+    ),
+    towing: (
+      <section key="towing" className="px-4 mt-6">
+        <SectionHeader title="Dépannage & Remorquage" sub="Assistance routière 24/7 — pneu crevé, démarrage, panne sèche et plus." />
+        <div className="grid grid-cols-3 gap-x-3 gap-y-5" data-testid="towing-grid">
+          {displayFor('towing').map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </section>
+    ),
+    genie: (
+      <section key="genie" className="px-4 mt-6">
+        <SectionHeader title="Livraison Genie & Runner" />
+        <div className="grid grid-cols-2 gap-3" data-testid="genie-runner-section">
+          <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/runner?mode=genie')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex flex-col text-left h-[200px]" data-testid="delivery-genie-btn">
+            <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Delivery Genie</h4>
+            <p className={`text-[11px] text-[#64748B] mt-1 leading-relaxed flex-1 ${BODY}`}>Engagez un Genie pour ACHETER des articles à votre place dans le magasin de votre choix.</p>
+            <div className="flex justify-center mt-2">
+              <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
+                <Bag size={32} weight="duotone" className="text-blue-600" />
+              </div>
+            </div>
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/runner')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex flex-col text-left h-[200px]" data-testid="delivery-runner-btn">
+            <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Delivery Runner</h4>
+            <p className={`text-[11px] text-[#64748B] mt-1 leading-relaxed flex-1 ${BODY}`}>Engagez des Coursiers pour récupérer et livrer de petits articles en ville.</p>
+            <div className="flex justify-center mt-2">
+              <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center">
+                <Lightning size={32} weight="duotone" className="text-rose-600" />
+              </div>
+            </div>
+          </motion.button>
+        </div>
+      </section>
+    ),
+    video: (
+      <div key="video" className="px-4 mt-6">
+        <div className="rounded-[22px] overflow-hidden bg-gradient-to-br from-teal-500 to-teal-600 p-5" data-testid="video-consulting-section">
+          <h3 className={`text-lg font-bold text-white ${HEAD}`}>Consultation Vidéo</h3>
+          <p className={`text-sm text-white/80 mt-1 ${BODY}`}>Réservez une consultation vidéo avec des tuteurs, avocats, médecins et plus.</p>
+          <div className="flex gap-3 mt-4 overflow-x-auto scrollbar-hide">
+            {videoCategories.map((cat) => (
+              <button key={cat.id} onClick={() => navigate('/video-consult')} className="flex-shrink-0 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3 flex items-center gap-2" data-testid={`video-${cat.id}-btn`}>
+                <VideoCamera size={18} className="text-white" />
+                <span className={`text-sm font-medium text-white ${BODY}`}>{cat.name}</span>
+              </button>
+            ))}
+            <button onClick={() => navigate('/video-consult')} className="flex-shrink-0 bg-white/10 rounded-xl px-4 py-3 flex items-center gap-2" data-testid="video-more-btn">
+              <span className={`text-sm font-medium text-white ${BODY}`}>Plus</span>
+              <ArrowRight size={16} className="text-white" />
+            </button>
+          </div>
+        </div>
+      </div>
+    ),
+    pet: (
+      <section key="pet" className="px-4 mt-6">
+        <SectionHeader title="Services Animaux" action="Tout voir" onAction={() => navigate('/pet-care')} />
+        <div className="grid grid-cols-3 gap-x-4 gap-y-5">
+          {displayFor('pet').map((s) => <ServiceIcon key={s.id} service={s} />)}
+        </div>
+      </section>
+    ),
+    parking: (
+      <div key="parking" className="px-4 mt-6">
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/parking')} className="w-full rounded-[22px] bg-white border border-slate-100 shadow-sm p-5 flex items-center gap-4 text-left" data-testid="parking-section-btn">
+          <div className="flex-1">
+            <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Parking</h3>
+            <p className={`text-xs text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Trouvez et réservez une place de parking à proximité. Paiement en ligne, accès facile.</p>
+          </div>
+          <div className="w-16 h-16 shrink-0 rounded-2xl bg-blue-50 flex items-center justify-center">
+            <MapPin size={32} weight="duotone" className="text-blue-600" />
+          </div>
+        </motion.button>
+      </div>
+    ),
+    giftcards: (
+      <div key="giftcards" className="px-4 mt-6">
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/giftcards')} className="w-full rounded-[22px] bg-gradient-to-r from-[#FFF0E5] to-white border border-orange-100 p-5 flex items-center gap-4 text-left" data-testid="giftcards-section-btn">
+          <div className="flex-1">
+            <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Cartes Cadeaux</h3>
+            <p className={`text-xs text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Offrez du crédit SB Drive VTC à vos proches. Disponible de 10€ à 200€.</p>
+          </div>
+          <div className="w-16 h-16 shrink-0 rounded-2xl bg-orange-100 flex items-center justify-center">
+            <Star size={32} weight="duotone" className="text-[#FF5000]" />
+          </div>
+        </motion.button>
+      </div>
+    ),
+    carpool: (
+      <div key="carpool" className="px-4 mt-6">
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/carpool')} className="w-full rounded-[22px] bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 p-5 flex items-center gap-4 text-left" data-testid="carpool-section-btn">
+          <div className="flex-1">
+            <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Covoiturage</h3>
+            <p className={`text-xs text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Voyagez ? Réservez un covoiturage à petit prix. Vous conduisez ? Publiez votre trajet et gagnez de l'argent.</p>
+          </div>
+          <div className="w-16 h-16 shrink-0 rounded-2xl bg-emerald-100 flex items-center justify-center">
+            <UsersThree size={36} weight="duotone" className="text-emerald-600" />
+          </div>
+        </motion.button>
+      </div>
+    ),
+    tracking: (
+      <section key="tracking" className="px-4 mt-6">
+        <SectionHeader title="Suivi Famille & Employés" />
+        <div className="grid grid-cols-2 gap-3" data-testid="tracking-section">
+          <motion.button whileTap={{ scale: 0.96 }} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 text-left" data-testid="track-family-btn" onClick={() => navigate('/tracking')}>
+            <div className="w-12 h-12 rounded-2xl bg-yellow-50 flex items-center justify-center mb-2">
+              <UsersFour size={28} weight="duotone" className="text-yellow-700" />
+            </div>
+            <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Famille</h4>
+            <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Voyez où se trouvent vos proches en temps réel pour leur sécurité.</p>
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.96 }} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 text-left" data-testid="track-employees-btn" onClick={() => navigate('/tracking')}>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-2">
+              <Briefcase size={28} weight="duotone" className="text-emerald-700" />
+            </div>
+            <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Employés</h4>
+            <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Suivez la localisation de vos employés en temps réel.</p>
+          </motion.button>
+        </div>
+      </section>
+    ),
+    nearby: (
+      <section key="nearby" className="px-4 mt-6 mb-4">
+        <SectionHeader title="Commerces Proches" action="Tout voir" onAction={() => navigate('/nearby')} />
+        <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+          {displayFor('nearby').map((s) => <ServiceIcon key={s.id} service={s} size="small" />)}
+        </div>
+      </section>
+    ),
+  };
+
+  // User-defined section order. First the 11 prioritised sections, then the
+  // remaining sections kept at the bottom (their original relative order).
+  const SECTION_ORDER = [
+    'taxi', 'promo', 'delivery', 'parcel', 'marketplace', 'beauty', 'medical',
+    'ondemand', 'bid', 'carcare', 'towing',
+    'genie', 'video', 'pet', 'parking', 'giftcards', 'carpool', 'tracking', 'nearby',
+  ];
+
   return (
     <div className={`mobile-container min-h-screen pb-24 bg-[#F8FAFC] text-[#0B1426] ${BODY}`}>
       {/* ===== STICKY GLASS HEADER ===== */}
@@ -261,378 +590,8 @@ const UserHome = () => {
       {/* Side menu drawer */}
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 
-      <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }}>
-        {/* ===== HERO — VOS ESSENTIELS (2x2) ===== */}
-        <section className="px-4 mt-4" data-testid="hero-essentials">
-          <h3 className={`text-[17px] font-bold text-[#0B1426] tracking-tight mb-3 flex items-center gap-2 ${HEAD}`}>
-            <span className="w-1 h-4 rounded-full bg-[#FF5000]" /> Vos essentiels
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {heroServices.map((s) => (
-              <motion.button
-                key={s.id}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => navigate(s.path)}
-                className="relative bg-white rounded-[22px] p-4 border border-slate-100 shadow-[0_8px_24px_-12px_rgba(11,20,38,0.15)] flex flex-col items-start gap-3 overflow-hidden text-left"
-                data-testid={`hero-tile-${s.id}`}
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center z-10" style={{ background: s.bg }}>
-                  <s.icon size={26} weight="duotone" style={{ color: s.color }} />
-                </div>
-                <div className="z-10">
-                  <p className={`text-sm font-bold text-[#0B1426] leading-tight ${HEAD}`}>{s.name}</p>
-                  <p className={`text-[11px] text-[#64748B] mt-0.5 ${BODY}`}>{s.sub}</p>
-                </div>
-                <div className="absolute -bottom-7 -right-7 w-24 h-24 rounded-full opacity-50" style={{ background: s.bg }} />
-              </motion.button>
-            ))}
-          </div>
-        </section>
-
-        {/* ===== PROMO BANNER (auto-rotating carousel) ===== */}
-        <div className="px-4 mt-6" data-testid="promo-banner-carousel">
-          <div className="relative overflow-hidden rounded-[22px]">
-            <div className="flex transition-transform duration-700 ease-in-out" style={{ transform: `translateX(-${promoIndex * 100}%)` }}>
-              <div className="w-full flex-shrink-0 rounded-[22px] overflow-hidden bg-white border border-slate-100 shadow-sm flex items-stretch h-[140px]" data-testid="promo-banner-1">
-                <div className="w-2/5 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=200&fit=crop')" }} />
-                <div className="flex-1 p-4 flex flex-col justify-center">
-                  <p className={`font-bold text-[#0B1426] text-base leading-tight ${HEAD}`}>Courses fraîches livrées vite.</p>
-                  <p className={`text-sm text-[#64748B] mt-1 ${BODY}`}>Commandez maintenant !</p>
-                  <button className={`mt-2 self-start px-4 py-1.5 bg-[#0B1426] text-white text-xs font-semibold rounded-lg ${HEAD}`} onClick={() => navigate('/food')}>
-                    Commander
-                  </button>
-                </div>
-              </div>
-              <div className="w-full flex-shrink-0 rounded-[22px] overflow-hidden bg-[#FF5000] flex items-stretch h-[140px]" data-testid="promo-banner-2">
-                <div className="flex-1 p-4 flex flex-col justify-center">
-                  <p className={`font-bold text-white text-base leading-tight ${HEAD}`}>Première course VTC</p>
-                  <p className={`text-3xl font-extrabold text-white mt-1 ${HEAD}`}>-50%</p>
-                  <p className={`text-xs text-white/80 mt-1 ${BODY}`}>Code : BIENVENUE</p>
-                </div>
-                <div className="w-2/5 flex items-center justify-center bg-white/10">
-                  <Car size={64} weight="duotone" className="text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 mt-2.5" data-testid="promo-dots">
-            {Array.from({ length: PROMO_COUNT }).map((_, i) => (
-              <button
-                key={`promo-dot-${i}`}
-                onClick={() => setPromoIndex(i)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${promoIndex === i ? 'w-5 bg-[#FF5000]' : 'w-1.5 bg-slate-300'}`}
-                data-testid={`promo-dot-${i}`}
-                aria-label={`Aller au panneau ${i + 1}`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ===== TAXI SERVICES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Services Taxi" action="Tout voir" onAction={() => navigate('/taxi')} />
-          <div className="grid grid-cols-4 gap-x-3 gap-y-5">
-            {displayFor('taxi').map((s) => <ServiceIcon key={s.id} service={s} />)}
-          </div>
-        </section>
-
-        {/* ===== ALL SERVICES HUB BANNER ===== */}
-        <div className="px-4 mt-6">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            className="w-full rounded-[22px] overflow-hidden bg-[#0B1426] text-white p-5 flex items-center gap-4 text-left relative"
-            onClick={() => navigate('/services-hub')}
-            data-testid="services-hub-banner"
-          >
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FF5000] to-transparent opacity-70" />
-            <div className="flex-1">
-              <h3 className={`text-lg font-black tracking-tight ${HEAD}`}>Tous les services</h3>
-              <p className={`text-sm text-white/60 mt-1 leading-relaxed ${BODY}`}>Beauté, auto, animaux, dépannage, maison… Réservez en quelques secondes.</p>
-              <span className={`inline-flex items-center gap-1 mt-2 text-xs font-bold text-[#FF5000] ${HEAD}`}>Explorer le hub →</span>
-            </div>
-            <div className="w-16 h-16 shrink-0 rounded-2xl bg-white/10 flex items-center justify-center">
-              <GridFour size={36} weight="duotone" className="text-[#FF5000]" />
-            </div>
-          </motion.button>
-        </div>
-
-        {/* ===== PARCEL DELIVERY BANNER ===== */}
-        <div className="px-4 mt-6">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            className="w-full rounded-[22px] overflow-hidden bg-white border border-slate-100 shadow-sm p-5 flex items-center gap-4 text-left"
-            onClick={() => navigate('/parcel')}
-            data-testid="parcel-delivery-section"
-          >
-            <div className="flex-1">
-              <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Livraison de Colis</h3>
-              <p className={`text-sm text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Envoyez un ou plusieurs colis n'importe où en ville. Choisissez le véhicule adapté.</p>
-            </div>
-            <div className="w-16 h-16 shrink-0 rounded-2xl bg-purple-50 flex items-center justify-center">
-              <Package size={36} weight="duotone" className="text-purple-500" />
-            </div>
-          </motion.button>
-        </div>
-
-        {/* ===== DELIVERY SERVICES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Services de Livraison" action="Tout voir" onAction={() => navigate('/all-delivery')} />
-          <div className="grid grid-cols-4 gap-x-3 gap-y-5">
-            {displayFor('delivery').map((s) => <ServiceIcon key={s.id} service={s} />)}
-          </div>
-        </section>
-
-        {/* ===== DELIVERY GENIE & RUNNER ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Livraison Genie & Runner" />
-          <div className="grid grid-cols-2 gap-3" data-testid="genie-runner-section">
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/runner?mode=genie')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex flex-col text-left h-[200px]" data-testid="delivery-genie-btn">
-              <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Delivery Genie</h4>
-              <p className={`text-[11px] text-[#64748B] mt-1 leading-relaxed flex-1 ${BODY}`}>Engagez un Genie pour ACHETER des articles à votre place dans le magasin de votre choix.</p>
-              <div className="flex justify-center mt-2">
-                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
-                  <Bag size={32} weight="duotone" className="text-blue-600" />
-                </div>
-              </div>
-            </motion.button>
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/runner')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex flex-col text-left h-[200px]" data-testid="delivery-runner-btn">
-              <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Delivery Runner</h4>
-              <p className={`text-[11px] text-[#64748B] mt-1 leading-relaxed flex-1 ${BODY}`}>Engagez des Coursiers pour récupérer et livrer de petits articles en ville.</p>
-              <div className="flex justify-center mt-2">
-                <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center">
-                  <Lightning size={32} weight="duotone" className="text-rose-600" />
-                </div>
-              </div>
-            </motion.button>
-          </div>
-        </section>
-
-        {/* ===== ONLINE VIDEO CONSULTING ===== */}
-        <div className="px-4 mt-6">
-          <div className="rounded-[22px] overflow-hidden bg-gradient-to-br from-teal-500 to-teal-600 p-5" data-testid="video-consulting-section">
-            <h3 className={`text-lg font-bold text-white ${HEAD}`}>Consultation Vidéo</h3>
-            <p className={`text-sm text-white/80 mt-1 ${BODY}`}>Réservez une consultation vidéo avec des tuteurs, avocats, médecins et plus.</p>
-            <div className="flex gap-3 mt-4 overflow-x-auto scrollbar-hide">
-              {videoCategories.map((cat) => (
-                <button key={cat.id} onClick={() => navigate('/video-consult')} className="flex-shrink-0 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3 flex items-center gap-2" data-testid={`video-${cat.id}-btn`}>
-                  <VideoCamera size={18} className="text-white" />
-                  <span className={`text-sm font-medium text-white ${BODY}`}>{cat.name}</span>
-                </button>
-              ))}
-              <button onClick={() => navigate('/video-consult')} className="flex-shrink-0 bg-white/10 rounded-xl px-4 py-3 flex items-center gap-2" data-testid="video-more-btn">
-                <span className={`text-sm font-medium text-white ${BODY}`}>Plus</span>
-                <ArrowRight size={16} className="text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ===== ON-DEMAND SERVICES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Services à la demande" action="Tout voir" onAction={() => navigate('/all-services')} />
-          <div className="grid grid-cols-4 gap-x-3 gap-y-5">
-            {displayFor('ondemand').map((s) => <ServiceIcon key={s.id} service={s} />)}
-          </div>
-        </section>
-
-        {/* ===== BEAUTY SERVICES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Services Beauté" action="Tout voir" onAction={() => navigate('/beauty')} />
-          <div className="grid grid-cols-4 gap-x-3 gap-y-5">
-            {displayFor('beauty').map((s) => <ServiceIcon key={s.id} service={s} />)}
-          </div>
-        </section>
-
-        {/* ===== MEDICAL SERVICES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Services Médicaux" />
-          <div className="grid grid-cols-2 gap-3" data-testid="medical-services-section">
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/medical/appointment')} className="row-span-2 rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex flex-col text-left" data-testid="medical-appointment-btn">
-              <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Prendre Rendez-vous</h4>
-              <p className={`text-[11px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Prenez RDV avec un médecin ou un expert médical à leur cabinet ou à domicile.</p>
-              <div className="flex-1 flex items-end justify-center mt-3">
-                <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center">
-                  <Stethoscope size={40} weight="duotone" className="text-[#FF5000]" />
-                </div>
-              </div>
-            </motion.button>
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/video-consult')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-3 flex flex-col text-left" data-testid="medical-video-btn">
-              <h4 className={`text-xs font-bold text-[#0B1426] ${HEAD}`}>Vidéo Consultation</h4>
-              <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Consultez un médecin en visio.</p>
-              <div className="flex justify-end mt-2">
-                <VideoCamera size={28} weight="duotone" className="text-yellow-600" />
-              </div>
-            </motion.button>
-            <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/medical/transport')} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-3 flex flex-col text-left" data-testid="medical-other-btn">
-              <h4 className={`text-xs font-bold text-[#0B1426] ${HEAD}`}>Transport Médical</h4>
-              <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Ambulance, transport sanitaire.</p>
-              <div className="flex justify-end mt-2">
-                <FirstAid size={28} weight="duotone" className="text-green-600" />
-              </div>
-            </motion.button>
-          </div>
-          <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/pharmacy')} className="mt-3 w-full rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 flex items-center gap-4 text-left" data-testid="medical-pharmacy-btn">
-            <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0">
-              <Pill size={30} weight="duotone" className="text-[#FF5000]" />
-            </div>
-            <div className="flex-1">
-              <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Pharmacie</h4>
-              <p className={`text-[11px] text-[#64748B] mt-0.5 leading-relaxed ${BODY}`}>Médicaments livrés — sur ordonnance ou parapharmacie.</p>
-            </div>
-            <CaretRight size={18} className="text-[#94A3B8]" />
-          </motion.button>
-        </section>
-
-        {/* ===== PET SERVICES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Services Animaux" action="Tout voir" onAction={() => navigate('/pet-care')} />
-          <div className="grid grid-cols-3 gap-x-4 gap-y-5">
-            {displayFor('pet').map((s) => <ServiceIcon key={s.id} service={s} />)}
-          </div>
-        </section>
-
-        {/* ===== BID FOR SERVICES ===== */}
-        <div className="px-4 mt-6">
-          <div className="rounded-[22px] bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 p-4" data-testid="bid-services-section">
-            <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Enchères Services</h3>
-            <p className={`text-xs text-[#64748B] mt-1 mb-4 leading-relaxed ${BODY}`}>Publiez votre besoin et laissez les prestataires enchérir en temps réel. Choisissez le meilleur !</p>
-            <div className="flex gap-3">
-              <div className="hidden sm:flex w-24 shrink-0 items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-[#FF5000] flex items-center justify-center">
-                  <Wrench size={36} className="text-white" />
-                </div>
-              </div>
-              <div className="flex-1 grid grid-cols-2 gap-2">
-                {bidServices.map((s) => (
-                  <motion.button whileTap={{ scale: 0.95 }} key={s.id} onClick={() => navigate(s.path || '/services-bidding')} className="bg-white rounded-xl p-2.5 flex items-center gap-2 border border-slate-100 shadow-[0_2px_8px_-4px_rgba(11,20,38,0.08)]" data-testid={`bid-${s.id}-btn`}>
-                    <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
-                      <s.icon size={18} weight="duotone" className={s.iconColor} />
-                    </div>
-                    <span className={`text-[11px] font-semibold text-[#334155] leading-tight whitespace-pre-line ${BODY}`}>{s.name}</span>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ===== CAR CARE SERVICES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Entretien Auto" action="Tout voir" onAction={() => navigate('/car-care')} />
-          <div className="grid grid-cols-4 gap-x-3 gap-y-5">
-            {displayFor('carcare').map((s) => <ServiceIcon key={s.id} service={s} />)}
-          </div>
-        </section>
-
-        {/* ===== TOWING / ROADSIDE ASSISTANCE ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Dépannage & Remorquage" sub="Assistance routière 24/7 — pneu crevé, démarrage, panne sèche et plus." />
-          <div className="grid grid-cols-3 gap-x-3 gap-y-5" data-testid="towing-grid">
-            {displayFor('towing').map((s) => <ServiceIcon key={s.id} service={s} />)}
-          </div>
-        </section>
-
-        {/* ===== BUY, SELL & RENT ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Acheter, Vendre & Louer" />
-          <div className="space-y-3">
-            <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/real-estate')} className="w-full rounded-[20px] overflow-hidden bg-gradient-to-r from-[#FF5000] to-[#E03D00] flex items-stretch h-[90px] text-left" data-testid="marketplace-realestate-btn">
-              <div className="flex-1 p-4 flex flex-col justify-center">
-                <p className={`text-[11px] font-bold text-white/80 uppercase tracking-wide ${HEAD}`}>Acheter, Vendre & Louer</p>
-                <p className={`text-base font-bold text-white mt-0.5 ${HEAD}`}>Immobilier</p>
-              </div>
-              <div className="w-1/3 flex items-center justify-center bg-white/10">
-                <Buildings size={40} weight="duotone" className="text-white/90" />
-              </div>
-            </motion.button>
-            <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/marketplace/cars')} className="w-full rounded-[20px] overflow-hidden bg-gradient-to-r from-amber-400 to-sky-400 flex items-stretch h-[90px] text-left" data-testid="marketplace-cars-btn">
-              <div className="flex-1 p-4 flex flex-col justify-center">
-                <p className={`text-sm font-bold text-white ${HEAD}`}>Acheter, Vendre &</p>
-                <p className={`text-base font-bold text-white ${HEAD}`}>Louer Véhicules</p>
-              </div>
-              <div className="w-1/3 flex items-center justify-center bg-white/10">
-                <Car size={40} weight="duotone" className="text-white" />
-              </div>
-            </motion.button>
-            <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/marketplace/items')} className="w-full rounded-[20px] overflow-hidden bg-white border border-slate-100 shadow-sm flex items-stretch h-[90px] text-left" data-testid="marketplace-items-btn">
-              <div className="flex-1 p-4 flex flex-col justify-center">
-                <p className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Acheter, Vendre &</p>
-                <p className={`text-base font-bold text-[#0B1426] ${HEAD}`}>Articles Divers</p>
-              </div>
-              <div className="w-1/3 flex items-center justify-center bg-slate-50">
-                <ShoppingBag size={40} weight="duotone" className="text-slate-500" />
-              </div>
-            </motion.button>
-          </div>
-        </section>
-
-        {/* ===== PARKING SERVICE ===== */}
-        <div className="px-4 mt-6">
-          <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/parking')} className="w-full rounded-[22px] bg-white border border-slate-100 shadow-sm p-5 flex items-center gap-4 text-left" data-testid="parking-section-btn">
-            <div className="flex-1">
-              <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Parking</h3>
-              <p className={`text-xs text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Trouvez et réservez une place de parking à proximité. Paiement en ligne, accès facile.</p>
-            </div>
-            <div className="w-16 h-16 shrink-0 rounded-2xl bg-blue-50 flex items-center justify-center">
-              <MapPin size={32} weight="duotone" className="text-blue-600" />
-            </div>
-          </motion.button>
-        </div>
-
-        {/* ===== GIFT CARDS ===== */}
-        <div className="px-4 mt-6">
-          <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/giftcards')} className="w-full rounded-[22px] bg-gradient-to-r from-[#FFF0E5] to-white border border-orange-100 p-5 flex items-center gap-4 text-left" data-testid="giftcards-section-btn">
-            <div className="flex-1">
-              <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Cartes Cadeaux</h3>
-              <p className={`text-xs text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Offrez du crédit SB Drive VTC à vos proches. Disponible de 10€ à 200€.</p>
-            </div>
-            <div className="w-16 h-16 shrink-0 rounded-2xl bg-orange-100 flex items-center justify-center">
-              <Star size={32} weight="duotone" className="text-[#FF5000]" />
-            </div>
-          </motion.button>
-        </div>
-
-        {/* ===== CAR POOL ===== */}
-        <div className="px-4 mt-6">
-          <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/carpool')} className="w-full rounded-[22px] bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 p-5 flex items-center gap-4 text-left" data-testid="carpool-section-btn">
-            <div className="flex-1">
-              <h3 className={`text-lg font-bold text-[#0B1426] ${HEAD}`}>Covoiturage</h3>
-              <p className={`text-xs text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Voyagez ? Réservez un covoiturage à petit prix. Vous conduisez ? Publiez votre trajet et gagnez de l'argent.</p>
-            </div>
-            <div className="w-16 h-16 shrink-0 rounded-2xl bg-emerald-100 flex items-center justify-center">
-              <UsersThree size={36} weight="duotone" className="text-emerald-600" />
-            </div>
-          </motion.button>
-        </div>
-
-        {/* ===== TRACK FAMILY & EMPLOYEES ===== */}
-        <section className="px-4 mt-6">
-          <SectionHeader title="Suivi Famille & Employés" />
-          <div className="grid grid-cols-2 gap-3" data-testid="tracking-section">
-            <motion.button whileTap={{ scale: 0.96 }} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 text-left" data-testid="track-family-btn" onClick={() => navigate('/tracking')}>
-              <div className="w-12 h-12 rounded-2xl bg-yellow-50 flex items-center justify-center mb-2">
-                <UsersFour size={28} weight="duotone" className="text-yellow-700" />
-              </div>
-              <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Famille</h4>
-              <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Voyez où se trouvent vos proches en temps réel pour leur sécurité.</p>
-            </motion.button>
-            <motion.button whileTap={{ scale: 0.96 }} className="rounded-[20px] bg-white border border-slate-100 shadow-sm p-4 text-left" data-testid="track-employees-btn" onClick={() => navigate('/tracking')}>
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-2">
-                <Briefcase size={28} weight="duotone" className="text-emerald-700" />
-              </div>
-              <h4 className={`text-sm font-bold text-[#0B1426] ${HEAD}`}>Employés</h4>
-              <p className={`text-[10px] text-[#64748B] mt-1 leading-relaxed ${BODY}`}>Suivez la localisation de vos employés en temps réel.</p>
-            </motion.button>
-          </div>
-        </section>
-
-        {/* ===== EXPLORE NEARBY BUSINESSES ===== */}
-        <section className="px-4 mt-6 mb-4">
-          <SectionHeader title="Commerces Proches" action="Tout voir" onAction={() => navigate('/nearby')} />
-          <div className="grid grid-cols-4 gap-x-3 gap-y-5">
-            {displayFor('nearby').map((s) => <ServiceIcon key={s.id} service={s} size="small" />)}
-          </div>
-        </section>
+      <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-2">
+        {SECTION_ORDER.map((key) => blocks[key])}
       </motion.main>
 
       {/* ===== BOTTOM NAVIGATION (glass) ===== */}

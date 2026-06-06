@@ -943,3 +943,12 @@ Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentag
 - Lint JS clean. Webpack compile sans erreur (1 warning exhaustive-deps préexistant, hors scope).
 - ⚠️ Vérification visuelle authentifiée en attente : preview en veille (gate "Wake up servers"). À valider à l'ouverture du preview.
 - Compte passager de test créé : marie.test@demo.sb / Passager2026!
+
+## 2026-06-06 (suite) — Réordonnancement des sections de l'accueil (choix utilisateur)
+
+### Changed
+- `UserHome.js` refactoré en rendu déclaratif : map `blocks` (chaque section keyée) + tableau `SECTION_ORDER` → l'ordre des sections se change désormais en éditant une seule liste.
+- **Nouvel ordre** (demande utilisateur) : 1.Services Taxi · 2.Bannière promo · 3.Services de Livraison · 4.Livraison de Colis · 5.Acheter/Vendre/Louer · 6.Beauté · 7.Médicaux · 8.À la demande · 9.Enchères Services · 10.Entretien Auto · 11.Dépannage & Remorquage.
+- Sections non citées conservées à la suite (option a, non destructif) : Genie&Runner, Vidéo, Animaux, Parking, Cartes Cadeaux, Covoiturage, Suivi Famille, Commerces Proches.
+- **Supprimés** (confirmé « 2 oui ») : bloc héros **« Vos essentiels »** + bannière **« Tous les services »**.
+- Lint clean, webpack compile sans erreur.
