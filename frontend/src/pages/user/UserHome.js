@@ -273,7 +273,9 @@ const UserHome = () => {
       .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     const tiles = active.slice(0, 7).map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
-      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
+      // A custom uploaded image (stored in `icon` as a data:/http URL) takes priority over the default icon.
+      const img = typeof c.icon === 'string' && (c.icon.startsWith('http') || c.icon.startsWith('data:')) ? c.icon : null;
+      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, bg: v.bg, iconColor: v.iconColor, imageUrl: img, path: `/course?mode=${c.key}` };
     });
     tiles.push({ id: 'more-taxi', name: 'Tous les\nTaxis', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi' });
     return tiles;

@@ -33,7 +33,6 @@ const AdminServiceCategories = () => {
   const [scheduling, setScheduling] = useState(null);
 
   const load = () => {
-    setLoading(true);
     adminAPI.listServiceCategories()
       .then((r) => setCats(r.data || []))
       .catch(() => toast.error('Erreur de chargement'))
@@ -89,7 +88,7 @@ const AdminServiceCategories = () => {
           <option value="active">Actif</option>
           <option value="inactive">Inactif</option>
         </select>
-        <button onClick={load} data-testid="svc-cat-refresh" className="p-2.5 rounded-lg bg-violet-100 text-violet-600"><ArrowsClockwise size={18} /></button>
+        <button onClick={() => { setLoading(true); load(); }} data-testid="svc-cat-refresh" className="p-2.5 rounded-lg bg-violet-100 text-violet-600"><ArrowsClockwise size={18} /></button>
       </div>
 
       {loading ? (
@@ -210,7 +209,7 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
             <input type="file" accept="image/png,image/jpeg" onChange={onFile} data-testid="svc-cat-edit-icon-file" className="text-xs" />
           </div>
         </div>
-        <p className="text-[11px] text-slate-400 mb-4">Emoji OU image PNG/JPG (512×512 px recommandé, max 512 Ko).</p>
+        <p className="text-[11px] text-slate-400 mb-4">Emoji OU image PNG/JPG (512×512 px recommandé, max 5 Mo). L&apos;image s&apos;affiche aussi sur l&apos;accueil de l&apos;app client.</p>
         <button onClick={save} disabled={saving || !name.trim()} data-testid="svc-cat-edit-save"
           className="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
           <Check size={18} /> {saving ? 'Enregistrement…' : 'Mettre à jour'}

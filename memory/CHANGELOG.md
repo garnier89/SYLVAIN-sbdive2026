@@ -1,6 +1,24 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06 — Images des catégories de service affichées sur l'app client (suite cohérence)
+
+### Signalement utilisateur
+« J'ai modifié les images sur catégories de services, sur l'écran il n'y a pas le changement. »
+
+### Cause
+La synchro précédente (accueil client ← `service_categories`) affichait une **icône Phosphor fixe par clé** et **ignorait l'image** uploadée (stockée dans le champ `icon` en data-URL). L'admin enregistrait bien l'image, mais le client ne la rendait pas.
+
+### Changed
+- **Web `UserHome.js`** : tuile taxi → `imageUrl = icon` si `icon` est une image (`data:`/`http`), sinon icône Phosphor par défaut. (`DynamicIcon` rend déjà l'image.)
+- **Mobile `UserHomeScreen.tsx`** : `image_url` rempli depuis `icon` si image, sinon icône par clé.
+- **Admin `AdminServiceCategories.js`** : texte d'aide corrigé « max 512 Ko » → **« max 5 Mo »** (+ mention que l'image s'affiche sur l'accueil client). Faux positif lint `set-state-in-effect` corrigé (`setLoading` retiré de l'effet).
+
+### Vérifié
+- Screenshot accueil client web : les catégories avec image custom affichent **l'image** (photos de voitures uploadées par l'utilisateur) ; les autres gardent l'icône par défaut. ✅ Web lint + mobile tsc OK.
+- ⚠️ À configurer aussi en **production** (BDD séparée) + **Redéployer**.
+
+
 ## 2026-06 — Cohérence « Gérer les catégories » ↔ app client (source unique = service_categories)
 
 ### Signalement utilisateur (captures à l'appui)

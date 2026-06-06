@@ -62,6 +62,8 @@ export default function UserHomeScreen() {
       .slice(0, 7)
       .map((c) => {
         const s = taxiCatStyle(c.key);
+        // Custom uploaded image (icon = data:/http URL) takes priority over the default icon.
+        const img = typeof c.icon === 'string' && (c.icon.startsWith('http') || c.icon.startsWith('data:')) ? c.icon : null;
         return {
           id: `svccat-${c.key}`,
           section: 'taxi',
@@ -69,7 +71,7 @@ export default function UserHomeScreen() {
           label_fr: c.name,
           icon_name: s.icon,
           icon_color_class: s.color,
-          image_url: null,
+          image_url: img,
           target_route: `/taxi?mode=${c.key}`,
           visible_home: true,
         };
