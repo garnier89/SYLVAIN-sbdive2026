@@ -1,0 +1,39 @@
+{
+  "summary": "Driver ride lifecycle UI E2E PASSED end-to-end. Created live taxi ride as qa.rideflow@demo.sb (Paris Châtelet → Arc de Triomphe, cash), logged in as the phone driver (+33 644112233 / Chauffeur2026!), toggled En ligne, received the incoming-request-modal within ~8s, then walked the full V3Cube lifecycle: accept → slide-arrive (Prendre le passager → EN ROUTE) → slide-start → OTP modal → OTP verify (start_otp captured via GET /api/rides/{id}) → COURSE EN COURS with timer/waiting-btn/slide-finish → waiting toggle (accrued 0.02€) → slide-finish → Frais supplémentaires (3+2 ext + 0.02 attente = 5.02€) → confirm dialog → Facture détaillée (fare 15.35€, total 15.35€, arrondir -0.35€, total net 15.00€ whole-euro) → COLLECTE DE PAIEMENT → noter le passager (5★ + commentaire) → Course terminé → D'accord merci → retour driver-home-page. All required data-testids render and trigger the correct state transitions. EUR currency and French labels verified throughout.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tested_flows": [
+    "Passenger setup: POST /api/auth/login (qa.rideflow), POST /api/rides (vehicle_type=sb, Paris), GET /api/rides/{id} → start_otp captured (e.g. 3712), POST /api/auth/logout",
+    "Driver login (2-step): /chauffeur/login phone 644112233 → submit-btn → password Chauffeur2026! → submit-btn → /chauffeur/home",
+    "online-toggle was already 'En ligne'; polling produced incoming-request-modal within ~8s",
+    "incoming-request-modal renders request-title, request-price=10.33€, request-passenger-name=QA RideFlow with stars, request-pickup=Châtelet Paris, request-dropoff=Arc de Triomphe Paris, request-pickup-estimate & request-trip-estimate boxes, reject-ride-btn and accept-ride-btn",
+    "Accept → driver-ride-flow with ride-flow-title='Prendre le passager' (green header), ride-flow-address=pickup, ride-flow-sos-btn, ride-flow-call-btn / ride-flow-chat-btn / ride-flow-nav-btn, ride-flow-passenger-card, slide-arrive",
+    "slide-arrive-thumb click → ride-flow-title='EN ROUTE', ride-flow-video-checkbox visible, slide-start visible",
+    "slide-start-thumb click → ride-flow-otp-modal opens; fill ride-flow-otp-input with start_otp; ride-flow-otp-verify-btn → ride-flow-title='COURSE EN COURS' (black header), ride-flow-timer counting, ride-flow-waiting-btn, slide-finish (RED)",
+    "ride-flow-waiting-btn toggles: label changes to 'Attente en cours · 00:00:02 (0.02 €)' then off",
+    "slide-finish-thumb click → extra-charges-screen (black header 'Frais supplémentaires'); extra-toll-input=3, extra-other-input=2; extra-total shows 5.02 € (includes 0.02€ attente)",
+    "extra-submit-btn → extra-confirm-dialog with Non/Oui; extra-confirm-yes → POST /api/rides/{id}/status completed, GET enriches → invoice-screen",
+    "invoice-screen (black 'Facture détaillée'): invoice-fare=15.35€, invoice-total=15.35€, invoice-rounding=-0.35€, invoice-net=15.00€ (whole euro rounding works), PAIEMENT EN ESPÈCES label, collect-payment-btn",
+    "collect-payment-btn → rate-passenger-screen with rate-passenger-name=QA RideFlow, rate-star-1..5; rate-star-5 clicked; rate-comment-input filled; rate-submit-btn → POST /api/rides/{id}/rate-passenger",
+    "ride-complete-success dialog 'Course terminé' with success-ok-btn → back to driver-home-page (count=1)"
+  ],
+  "test_report_links": ["/app/backend/tests/test_driver_ride_flow.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DriverRideFlow.jsx is ~313 lines and combines header, map, action buttons, slider, OTP modal, 3-dot menu, call-type sheet, nav chooser and safety sheet. Consider extracting the sub-sheets (RideMenu, CallTypeSheet, NavChooserSheet, SafetySheet, OtpModal) into separate files to keep each <120 lines and improve testability.",
+    "RideCompletionFlow.jsx invoice 'Total' row uses inline math `subtotal + (b.extra_total && b.subtotal == null ? b.extra_total : 0)`. When backend returns both subtotal and extra_total the 'Total' = subtotal which equals fare (extras are already inside subtotal via fare_breakdown). It would be clearer to bind invoice-total directly to b.total when present, otherwise (subtotal + extra_total). Current behaviour passed e2e (fare=total=15.35€) but the conditional is fragile.",
+    "SlideToConfirm tap-to-confirm depends on draggingRef being true at pointerup (works in WebKit/Chromium). Recommend a fallback `onClick` on the thumb button so screen readers and pure keyboard users can also activate (button already has role=button)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only run)", "frontend": "100%" },
+  "test_credentials": "Driver +33 644112233 / Chauffeur2026! ; QA Passenger qa.rideflow@demo.sb / RideFlow123! ; created live ride ride_d208524e0404 (completed), previous run also created ride_a0726b68a32e (left accepted; the driver is now back on home so harmless).",
+  "seed_data_creation": "Two taxi rides were created via API for the QA passenger during testing — first one (ride_a0726b68a32e) was accepted but the driver-login step failed initially (cookie cleanup gap, fixed in 2nd run); second (ride_d208524e0404) was driven to completion with extra_charges {toll:3,other:2,waiting:0.02} and rate-passenger 5★ comment 'Super passager'. No persistent seed data created beyond these rides.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Full driver ride lifecycle is wired and works as specified. Key gotchas for next agent: (1) /chauffeur/login is a 2-step flow phone-input → submit-btn → password-input → submit-btn (not a single form). (2) After logging the QA passenger in to create a ride, MUST POST /api/auth/logout AND clear cookies+localStorage+sessionStorage before driver login, otherwise the driver protected route redirects. (3) start_otp is on GET /api/rides/{id} response while the passenger is authenticated. (4) Slider activation is a single click on data-testid='{slide-id}-thumb' — no drag required. (5) After slide-finish the extra-charges screen auto-includes the accrued waiting charge in extra-total; submitting via extra-submit-btn opens extra-confirm-dialog (Non/Oui), and extra-confirm-yes triggers PUT status=completed. (6) The driver phone-login submit-btn is a 2-stage button, not a 'Connexion' text — selector is data-testid='submit-btn'.",
+  "rca of the issue": "No bug. First run failed only because cookies/localStorage from the passenger session were not cleared before opening /chauffeur/login (passenger user object cached → ChauffeurLogin route redirected). Resolved by adding localStorage.clear()+sessionStorage.clear()+context.clear_cookies() before navigating to /chauffeur/login."
+}

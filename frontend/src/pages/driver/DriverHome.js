@@ -6,14 +6,14 @@ import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import {
-  Car, MapPin, Star, Bell, Power, X, Check, NavigationArrow, User, ChatCircleDots, ChatCircle,
-  Gift, Plus, CalendarCheck, List, UsersThree
+  MapPin, Bell, X, NavigationArrow, Gift, Plus, CalendarCheck, List, UsersThree
 } from '@phosphor-icons/react';
 import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
 import { decodePolyline } from '../../utils/polyline';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
-import { CountdownRing } from '../../components/CountdownRing';
+import IncomingRequestSheet from '../../components/driver/IncomingRequestSheet';
+import DriverRideFlow from '../../components/driver/DriverRideFlow';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -25,8 +25,6 @@ const DriverHome = () => {
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [myOffer, setMyOffer] = useState(null); // { rideId, amount, expires_at, ttl_seconds }
   const [nowTs, setNowTs] = useState(() => Date.now());
-  const [showOtpVerify, setShowOtpVerify] = useState(false);
-  const [otpInput, setOtpInput] = useState('');
   const [rewardsActive, setRewardsActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
@@ -285,32 +283,9 @@ const DriverHome = () => {
     setIncomingRequest(null);
   };
 
-  const verifyStartOtp = async () => {
-    if (!otpInput || otpInput.length !== 4) return;
-    try {
-      const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/phase1/rides/${currentRide.id}/start-otp/verify`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ otp: otpInput }),
-      });
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
-        alert(e.detail || 'OTP invalide');
-        return;
-      }
-      setShowOtpVerify(false);
-      setOtpInput('');
-      const res = await rideAPI.get(currentRide.id);
-      setCurrentRide(res.data);
-    } catch (e) { console.warn('refresh ride after OTP failed:', e?.message || e); }
-  };
-
-  const updateRideStatus = async (status) => {
-    if (!currentRide) return;
-    try {
-      await rideAPI.updateStatus(currentRide.id, status);
-      if (status === 'completed' || status === 'cancelled') setCurrentRide(null);
-      else { const res = await rideAPI.get(currentRide.id); setCurrentRide(res.data); }
-    } catch (err) { console.error('Failed to update ride status:', err); }
+  const finishRide = () => {
+    setCurrentRide(null);
+    loadDriverProfile();
   };
 
   if (loading) {
@@ -482,250 +457,28 @@ const DriverHome = () => {
         </button>
       </div>
 
-        {/* Current Ride */}
+        {/* Active ride — full-screen V3Cube flow */}
         {currentRide && (
-          <div className="mx-4 mt-2 bg-white rounded-2xl p-4 shadow-lg border border-gray-100" data-testid="current-ride">
-            <div className="flex items-center justify-between mb-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                currentRide.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                currentRide.status === 'arriving' ? 'bg-amber-100 text-amber-700' :
-                'bg-green-100 text-green-700'}`}>
-                {currentRide.status === 'accepted' ? 'Acceptee' : currentRide.status === 'arriving' ? 'Arrivé' : 'En cours'}
-              </span>
-              <span className="font-bold text-lg" style={{ color: '#00B578' }}>{currentRide.estimated_fare?.toFixed(2)} EUR</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-start gap-2.5">
-                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mt-0.5 flex-shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                </div>
-                <div>
-                  <p className="text-gray-400 text-[10px] uppercase tracking-wider">Depart</p>
-                  <p className="text-gray-800 text-sm font-medium">{currentRide.pickup_address}</p>
-                </div>
-              </div>
-              {(currentRide.stops || []).filter((s) => s?.address).map((s, i) => (
-                <div key={`cr-stop-${i}`} className="flex items-start gap-2.5" data-testid={`current-ride-stop-${i}`}>
-                  <div className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center mt-0.5 flex-shrink-0 text-[10px] font-bold text-[#0B1426]">{i + 1}</div>
-                  <div>
-                    <p className="text-gray-400 text-[10px] uppercase tracking-wider">Arrêt {i + 1}</p>
-                    <p className="text-gray-800 text-sm font-medium">{s.address}</p>
-                  </div>
-                </div>
-              ))}
-              <div className="flex items-start gap-2.5">
-                <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center mt-0.5 flex-shrink-0">
-                  <MapPin size={10} className="text-red-500" />
-                </div>
-                <div>
-                  <p className="text-gray-400 text-[10px] uppercase tracking-wider">Arrivee</p>
-                  <p className="text-gray-800 text-sm font-medium">{currentRide.dropoff_address}</p>
-                </div>
-              </div>
-            </div>
-            {currentRide.status === 'in_progress' && currentRide.otp && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center mt-3">
-                <p className="text-gray-500 text-[10px] uppercase">Code OTP</p>
-                <p className="font-bold text-2xl tracking-widest text-blue-600">{currentRide.otp}</p>
-              </div>
-            )}
-            <div className="flex gap-2 mt-3">
-              {currentRide.status === 'accepted' && (
-                <button className="flex-1 text-white rounded-full py-3 text-sm font-bold flex items-center justify-center gap-1.5" style={{ background: '#00B578' }}
-                  onClick={() => updateRideStatus('arriving')} data-testid="arriving-btn">
-                  <NavigationArrow size={16} /> Je suis arrivé
-                </button>
-              )}
-              {currentRide.status === 'arriving' && (
-                <button className="flex-1 text-white rounded-full py-3 text-sm font-bold" style={{ background: '#00B578' }}
-                  onClick={() => setShowOtpVerify(true)} data-testid="start-trip-btn">
-                  Demarrer (OTP)
-                </button>
-              )}
-              {currentRide.status === 'in_progress' && (
-                <button className="flex-1 text-white rounded-full py-3 text-sm font-bold" style={{ background: '#00B578' }}
-                  onClick={() => updateRideStatus('completed')} data-testid="complete-trip-btn">
-                  Terminer la course
-                </button>
-              )}
-              <button className="px-4 border border-gray-300 text-gray-600 rounded-full py-3 text-sm font-medium"
-                onClick={() => updateRideStatus('cancelled')} data-testid="cancel-btn">
-                Annuler
-              </button>
-            </div>
-
-            {/* Chat button */}
-            <button onClick={() => navigate(`/ride/${currentRide.id}/chat`)}
-              className="w-full mt-3 bg-orange-50 text-[#FF4500] rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2" data-testid="open-chat-btn">
-              <ChatCircle size={16} weight="fill" /> Discuter avec le passager
-            </button>
-          </div>
+          <DriverRideFlow
+            ride={currentRide}
+            driverPos={mapCenter}
+            onFinished={finishRide}
+          />
         )}
 
-        {/* OTP Verify Modal */}
-        {showOtpVerify && currentRide && (
-          <div className="absolute inset-0 z-[2500] bg-black/60 flex items-center justify-center p-5" data-testid="otp-verify-modal">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-              <h3 className="text-lg font-bold text-gray-800 mb-1">Demander le code OTP</h3>
-              <p className="text-xs text-gray-500 mb-4">Demandez au passager son code a 4 chiffres pour demarrer la course</p>
-              <input type="text" inputMode="numeric" maxLength="4" value={otpInput}
-                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                placeholder="0000"
-                className="w-full text-center text-3xl tracking-[0.5em] py-3 bg-gray-50 rounded-xl border border-gray-200 font-bold mb-4"
-                data-testid="otp-input" autoFocus />
-              <div className="flex gap-2">
-                <button onClick={() => { setShowOtpVerify(false); setOtpInput(''); }} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-sm text-gray-600">Annuler</button>
-                <button onClick={verifyStartOtp} disabled={otpInput.length !== 4}
-                  className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#00B578' }}
-                  data-testid="verify-otp-btn">
-                  Verifier
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-      {/* Incoming Request Modal */}
+      {/* Incoming Request — V3Cube PARTNER APP sheet */}
       {incomingRequest && !currentRide && (
-        <div className="absolute inset-0 z-[2000] bg-black/50 flex items-end" data-testid="incoming-request-modal">
-          <div className="w-full bg-white rounded-t-3xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold text-gray-800">{incomingRequest.is_priority ? 'Course prioritaire' : 'Nouvelle course'}</h3>
-                {incomingRequest.is_priority && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 animate-pulse" data-testid="priority-badge">
-                    ⚡ TIER {incomingRequest.tier || 1}
-                  </span>
-                )}
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-gray-400 uppercase font-bold">Prix propose</p>
-                <span className="text-2xl font-bold" style={{ color: '#00B578' }}>
-                  {(incomingRequest.proposed_fare || incomingRequest.estimated_fare)?.toFixed(2)} EUR
-                </span>
-                {incomingRequest.proposed_fare && incomingRequest.estimated_fare && incomingRequest.proposed_fare !== incomingRequest.estimated_fare && (
-                  <p className="text-[10px] text-gray-500">Estime: {incomingRequest.estimated_fare.toFixed(2)} EUR</p>
-                )}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mt-0.5">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Depart</p>
-                  <p className="font-medium text-gray-800">{incomingRequest.pickup_address}</p>
-                </div>
-              </div>
-              {(incomingRequest.stops || []).filter((s) => s?.address).map((s, i) => (
-                <div key={`rq-stop-${i}`} className="flex items-start gap-3" data-testid={`request-stop-${i}`}>
-                  <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center mt-0.5 text-[11px] font-bold text-[#0B1426]">{i + 1}</div>
-                  <div>
-                    <p className="text-gray-400 text-xs">Arrêt {i + 1}</p>
-                    <p className="font-medium text-gray-800">{s.address}</p>
-                  </div>
-                </div>
-              ))}
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center mt-0.5">
-                  <MapPin size={12} className="text-red-500" />
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Arrivee</p>
-                  <p className="font-medium text-gray-800">{incomingRequest.dropoff_address}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-sm text-gray-500">
-              <span>{incomingRequest.distance_km?.toFixed(1)} km</span>
-              <span>{incomingRequest.duration_mins} min</span>
-              <span className="capitalize">{incomingRequest.vehicle_type}</span>
-            </div>
-
-            {/* Counter-offer: input (before sending) OR pending panel with countdown (after) */}
-            {myOffer && myOffer.rideId === incomingRequest.id ? (
-              (() => {
-                const rem = myOffer.expires_at
-                  ? Math.max(0, Math.ceil((new Date(myOffer.expires_at).getTime() - nowTs) / 1000))
-                  : null;
-                const expired = rem === 0;
-                return (
-                  <div className={`rounded-xl p-4 border ${expired ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`} data-testid="my-offer-panel">
-                    <div className="flex items-center gap-3">
-                      {rem !== null && !expired && <CountdownRing seconds={rem} total={myOffer.ttl_seconds || 30} size={44} />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Votre offre envoyée</p>
-                        <p className="text-2xl font-extrabold text-slate-900" data-testid="my-offer-amount">{myOffer.amount.toFixed(2)} EUR</p>
-                        <p className={`text-xs font-semibold ${expired ? 'text-red-600' : 'text-emerald-700'}`} data-testid="my-offer-status">
-                          {expired ? 'Offre expirée — renvoyez-la pour rester visible' : `Expire dans ${rem}s · en attente du client`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={cancelOffer}
-                        className="px-4 h-11 rounded-full border border-gray-300 text-gray-600 font-bold text-sm"
-                        data-testid="cancel-offer-btn"
-                      >
-                        Annuler
-                      </button>
-                      <button
-                        onClick={renewOffer}
-                        className={`flex-1 h-11 rounded-full text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg ${expired ? 'bg-red-500 animate-pulse' : 'bg-orange-500'}`}
-                        data-testid="renew-offer-btn"
-                      >
-                        <Plus size={18} /> Renouveler mon offre
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              <>
-                {/* Counter-offer input */}
-                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
-                  <p className="text-xs font-bold text-slate-700 mb-2">Proposer un autre prix (optionnel)</p>
-                  <div className="flex gap-2">
-                    <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-                      <span className="text-base">EUR</span>
-                      <input
-                        type="number"
-                        step="0.50"
-                        min="1"
-                        placeholder={(incomingRequest.proposed_fare || incomingRequest.estimated_fare)?.toFixed(2)}
-                        className="flex-1 outline-none text-base font-bold text-slate-800"
-                        data-testid="counter-offer-input"
-                        id={`counter-input-${incomingRequest.id}`}
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        const val = document.getElementById(`counter-input-${incomingRequest.id}`)?.value;
-                        if (val && parseFloat(val) > 0) sendCounterOffer(incomingRequest.id, val);
-                      }}
-                      className="px-4 rounded-lg bg-orange-500 text-white font-bold text-sm"
-                      data-testid="send-counter-offer-btn"
-                    >
-                      Envoyer
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button className="flex-1 border border-gray-300 text-gray-600 rounded-full h-14 font-bold flex items-center justify-center gap-2"
-                    onClick={() => setIncomingRequest(null)} data-testid="reject-ride-btn">
-                    <X size={20} /> Refuser
-                  </button>
-                  <button className="flex-1 text-white rounded-full h-14 font-bold flex items-center justify-center gap-2 shadow-lg" style={{ background: '#00B578' }}
-                    onClick={() => acceptRide(incomingRequest.id)} data-testid="accept-ride-btn">
-                    <Check size={20} /> Accepter prix
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <IncomingRequestSheet
+          request={incomingRequest}
+          driverPos={mapCenter}
+          onAccept={acceptRide}
+          onDecline={() => setIncomingRequest(null)}
+          myOffer={myOffer}
+          nowTs={nowTs}
+          onSendCounterOffer={sendCounterOffer}
+          onRenewOffer={renewOffer}
+          onCancelOffer={cancelOffer}
+        />
       )}
 
       {/* Bottom Nav */}

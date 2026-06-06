@@ -82,6 +82,23 @@ VALID_TRANSITIONS = {
     "in_progress": ["completed", "cancelled"],
 }
 
+
+async def enrich_passenger_info(ride: dict) -> dict:
+    """Attach passenger display info (name, rating, phone, avatar) so the driver
+    app can render the V3Cube request/ride cards. Safe no-op if ride is empty."""
+    if not ride or not ride.get("user_id"):
+        return ride
+    u = await db.users.find_one(
+        {"id": ride["user_id"]},
+        {"_id": 0, "name": 1, "phone": 1, "avatar": 1, "passenger_rating": 1},
+    )
+    ride["passenger_id"] = ride["user_id"]
+    ride["passenger_name"] = ride.get("book_for_name") or (u or {}).get("name") or "Passager"
+    ride["passenger_phone"] = ride.get("book_for_phone") or (u or {}).get("phone")
+    ride["passenger_avatar"] = (u or {}).get("avatar")
+    ride["passenger_rating"] = round(float((u or {}).get("passenger_rating", 5.0) or 5.0), 1)
+    return ride
+
 # ── Driver sub-category gating (Particulier / VTC / Taxi licence) ──────────
 # Each car "gamme" (vehicle_type) declares allowed_taxi_subs. A gamme is
 # "restricted" when it lists a strict subset of the 3 subs (e.g. ["vtc"]).
@@ -808,6 +825,10 @@ async def get_ride(ride_id: str, request: Request):
         ride.pop("start_otp", None)
         ride.pop("otp", None)
 
+    # The driver/admin view needs passenger display info (V3Cube ride card).
+    if is_assigned_driver or is_admin:
+        await enrich_passenger_info(ride)
+
     return ride
 
 
@@ -964,15 +985,26 @@ async def update_ride_status(ride_id: str, request: Request):
             except (ValueError, TypeError):
                 pass
         time_charge = round((elapsed_sec / 60) * per_min, 2)
-        subtotal = round(base + dist_charge + time_charge, 2)
+        # ===== Extra charges (V3Cube "Frais supplémentaires": péage + autres + attente) =====
+        extra = body.get("extra_charges") or {}
+        extra_toll = round(float(extra.get("toll", 0) or 0), 2)
+        extra_other = round(float(extra.get("other", 0) or 0), 2)
+        extra_waiting = round(float(extra.get("waiting", 0) or 0), 2)
+        extras_total = round(extra_toll + extra_other + extra_waiting, 2)
+        subtotal = round(base + dist_charge + time_charge + extras_total, 2)
         min_adj = round(max(0, min_fare - subtotal), 2)
         final_fare = round(subtotal + min_adj, 2)
-        # Safety floor: never bill below the originally estimated fare (covers
+        # Safety floor: never bill below the originally estimated fare + extras (covers
         # edge cases such as an unregistered vehicle slug → empty pricing doc).
-        est = round(ride.get("estimated_fare", 0) or 0, 2)
-        if final_fare < est:
-            min_adj = round(min_adj + (est - final_fare), 2)
-            final_fare = est
+        est_floor = round((ride.get("estimated_fare", 0) or 0) + extras_total, 2)
+        if final_fare < est_floor:
+            min_adj = round(min_adj + (est_floor - final_fare), 2)
+            final_fare = est_floor
+        # V3Cube "Arrondir": round the net total to the nearest whole euro.
+        total_net = float(round(final_fare))
+        rounding = round(total_net - final_fare, 2)
+        subtotal_before_round = final_fare
+        final_fare = total_net
         update_data["final_fare"] = final_fare
         update_data["fare_breakdown"] = {
             "vehicle_label": vtype.get("name", ride.get("vehicle_type", "")),
@@ -983,7 +1015,15 @@ async def update_ride_status(ride_id: str, request: Request):
             "time_charge": time_charge,
             "min_fare": min_fare,
             "min_adjustment": min_adj,
+            "extra_toll": extra_toll,
+            "extra_other": extra_other,
+            "extra_waiting": extra_waiting,
+            "extra_total": extras_total,
+            "extra_note": extra.get("note") or None,
+            "subtotal": subtotal_before_round,
+            "rounding": rounding,
             "total": final_fare,
+            "total_net": final_fare,
             "currency": "EUR",
         }
         pm = ride.get("payment_method")
@@ -1094,6 +1134,7 @@ async def update_ride_status(ride_id: str, request: Request):
         ws_message["otp"] = ride.get("otp")
     if new_status == "completed":
         ws_message["final_fare"] = update_data.get("final_fare")
+        ws_message["fare_breakdown"] = update_data.get("fare_breakdown")
     if new_status == "cancelled":
         ws_message["cancelled_by"] = update_data.get("cancelled_by")
         ws_message["cancel_reason"] = update_data.get("cancel_reason")
@@ -1198,6 +1239,8 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
                 or r.get("driver_id") == driver_doc_id
                 or driver_sub_allowed(driver_sub, restricted.get(r.get("vehicle_type")))
             ]
+        for r in rides:
+            await enrich_passenger_info(r)
     return rides
 
 
@@ -1215,6 +1258,7 @@ async def get_active_ride(request: Request):
                 {"_id": 0}
             )
             if ride:
+                await enrich_passenger_info(ride)
                 return ride
     else:
         ride = await db.rides.find_one(
@@ -1283,6 +1327,37 @@ async def rate_ride(ride_id: str, request: Request):
     avg = result[0]["avg"] if result else 5.0
     await db.drivers.update_one({"id": ride["driver_id"]}, {"$set": {"rating": round(avg, 2)}})
     return {"message": "Rating submitted"}
+
+
+@router.post("/{ride_id}/rate-passenger")
+async def rate_passenger(ride_id: str, request: Request):
+    """Driver rates the passenger after completing the trip (V3Cube 'Laisser un commentaire')."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "driver_id": 1, "user_id": 1})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if not driver or ride.get("driver_id") != driver["id"]:
+        raise HTTPException(status_code=403, detail="Only the assigned driver can rate the passenger")
+    body = await request.json()
+    pr = {
+        "id": f"prating_{uuid.uuid4().hex[:12]}",
+        "driver_id": driver["id"],
+        "user_id": ride["user_id"],
+        "ride_id": ride_id,
+        "rating": max(1, min(5, int(body.get("rating", 5)))),
+        "comment": body.get("comment"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.passenger_ratings.insert_one(pr)
+    pipeline = [
+        {"$match": {"user_id": ride["user_id"]}},
+        {"$group": {"_id": None, "avg": {"$avg": "$rating"}}},
+    ]
+    result = await db.passenger_ratings.aggregate(pipeline).to_list(1)
+    avg = result[0]["avg"] if result else 5.0
+    await db.users.update_one({"id": ride["user_id"]}, {"$set": {"passenger_rating": round(avg, 2)}})
+    return {"message": "Passenger rated"}
 
 
 # ===== NEGOTIATION / COUNTER-OFFERS =====
