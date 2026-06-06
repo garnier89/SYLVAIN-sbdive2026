@@ -109,6 +109,12 @@ export const homeAPI = {
     api.get('/home-categories', { params: section ? { section } : {} }),
 };
 
+export const i18nAPI = {
+  // Multilingual engine — languages + translation bundles managed in the dashboard.
+  getLanguages: () => api.get('/i18n/languages'),
+  getBundle: (lang: string) => api.get(`/i18n/bundle/${lang}`),
+};
+
 export const servicesAPI = {
   getCategories: () => api.get('/services/categories'),
   createBooking: (data: any) => api.post('/services/bookings', data),

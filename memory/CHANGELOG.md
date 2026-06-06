@@ -1,6 +1,28 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06 — Moteur multilingue : 30+ langues + traduction automatique LLM (Phase 1)
+
+### Demande utilisateur
+« Intégrer la traduction complète, ajouter au moins 30 langues, et donner la possibilité d'ajouter des langues avec une traduction automatique de tout le site et toutes les apps. » Choix : Phase 1 (moteur + mobile + admin) d'abord ; web en internationalisation progressive (Phase 2, option A) ; « langues populaires ».
+
+### Livré (Phase 1) — testé end-to-end
+- **Backend `routes/i18n.py` (réécrit)** : catalogue de **32 langues populaires** (drapeau + sens RTL), bundles de base FR/EN (source de vérité = 128 clés mobiles), collection `i18n_app_bundles`.
+  - Moteur **traduction automatique LLM** (Claude `claude-sonnet-4-6` via `EMERGENT_LLM_KEY`, batch de 64, placeholders `{{name}}` préservés). Endpoint `POST /i18n/admin/auto-translate {target_lang, overwrite}`.
+  - Endpoints : `GET /i18n/languages` (langues *prêtes* uniquement), `GET /i18n/bundle/{lang}`, `GET /i18n/admin/overview`, `POST /i18n/admin/languages/{code}/activate`, `GET /i18n/admin/bundle/{lang}`, `POST /i18n/admin/bundle-key`.
+  - Seed idempotent (`$setOnInsert` pour ne pas écraser les choix admin au reboot).
+- **Admin web `AdminI18n.js` (réécrit)** — page « Traductions i18n » : grille des 32 langues (drapeau, couverture %, toggle actif, badge RTL), bouton **« Traduire automatiquement »** par langue, éditeur clé par clé avec repérage des manquants. ✅ rendu vérifié par screenshot.
+- **Apps mobiles** : `i18n.ts` charge dynamiquement le bundle de la langue choisie (`/api/i18n/bundle/{lang}`), persiste le choix (SecureStore), gère le **RTL** (I18nManager). Sélecteur de langue complet dans `SettingsScreen` (liste depuis l'API). `endpoints.ts` : `i18nAPI`.
+
+### Vérifications
+- Traduction réelle LLM testée : **Allemand** (128/128, `Speichern`, `Anmelden`, placeholder `Hallo {{name}}` conservé) et **Arabe** (RTL=true, `تسجيل الدخول`). 
+- 32 langues / 128 clés via `/i18n/admin/overview`. `/languages` public filtré aux langues traduites (fr, en, de, ar). Lint web/python OK, `tsc` mobile OK.
+- ⚠️ App native Expo non capturable en preview → vérif code/type/API + endpoints prouvés par curl.
+
+### Phase 2 (backlog) — Internationalisation du SITE WEB (option A, progressif)
+react-i18next non installé côté web, textes FR en dur : à internationaliser page par page (accueil → réservation → …) puis brancher sur le même moteur.
+
+
 ## 2026-06 — Synchronisation des services Dashboard ↔ App mobile (Expo)
 
 ### Demande utilisateur

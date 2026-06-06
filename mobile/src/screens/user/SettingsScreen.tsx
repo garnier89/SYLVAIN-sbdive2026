@@ -1,19 +1,27 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import i18n from '@/locales/i18n';
+import { useTranslation } from 'react-i18next';
+import i18n, { applyLanguage } from '@/locales/i18n';
+import { i18nAPI } from '@/api/endpoints';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { userAPI } from '@/api/endpoints';
 
 const APP_VERSION = '1.0.0';
 
+type Lang = { code: string; name: string; flag?: string; is_rtl?: boolean };
+
 export default function SettingsScreen() {
   const nav = useNavigation<any>();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const [lang, setLang] = useState(i18n.language);
+  const [langs, setLangs] = useState<Lang[]>([]);
+  const [langOpen, setLangOpen] = useState(false);
+  const [rtlNotice, setRtlNotice] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [pwOpen, setPwOpen] = useState(false);
   const [current, setCurrent] = useState('');
@@ -22,10 +30,18 @@ export default function SettingsScreen() {
   const [pwErr, setPwErr] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const setLanguage = (code: string) => {
-    i18n.changeLanguage(code);
+  useEffect(() => {
+    i18nAPI.getLanguages().then((r) => setLangs(r.data?.items || [])).catch(() => {});
+  }, []);
+
+  const setLanguage = async (code: string) => {
+    const { rtlChanged } = await applyLanguage(code);
     setLang(code);
+    setLangOpen(false);
+    if (rtlChanged) setRtlNotice(true);
   };
+
+  const currentLang = langs.find((l) => l.code === lang);
 
   const changePassword = async () => {
     setPwErr('');
@@ -67,17 +83,12 @@ export default function SettingsScreen() {
         {/* Preferences */}
         <Text style={styles.section}>Préférences</Text>
         <View style={styles.group}>
-          <View style={styles.row}>
+          <Pressable style={styles.row} onPress={() => setLangOpen(true)} testID="settings-language">
             <Ionicons name="language-outline" size={22} color={colors.textSecondary} />
-            <Text style={styles.rowLabel}>Langue</Text>
-            <View style={styles.langToggle}>
-              {['fr', 'en'].map((c) => (
-                <Pressable key={c} style={[styles.langBtn, lang === c && styles.langBtnActive]} onPress={() => setLanguage(c)} testID={`lang-${c}`}>
-                  <Text style={[styles.langTxt, lang === c && styles.langTxtActive]}>{c.toUpperCase()}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
+            <Text style={styles.rowLabel}>{t('profile.language')}</Text>
+            <Text style={styles.langCurrent}>{currentLang ? `${currentLang.flag || ''} ${currentLang.name}` : lang.toUpperCase()}</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
           <Divider />
           <View style={styles.row}>
             <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
@@ -129,6 +140,31 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Language picker modal */}
+      <Modal visible={langOpen} transparent animationType="slide" onRequestClose={() => setLangOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={[styles.sheet, { maxHeight: '75%' }]}>
+            <View style={styles.handle} />
+            <Text style={styles.modalTitle}>{t('profile.language')}</Text>
+            {rtlNotice && (
+              <Text style={styles.rtlNotice}>↪︎ Redémarrez l'application pour appliquer la mise en page droite-à-gauche.</Text>
+            )}
+            <ScrollView style={{ alignSelf: 'stretch' }}>
+              {langs.map((l) => (
+                <Pressable key={l.code} style={styles.langRow} onPress={() => setLanguage(l.code)} testID={`lang-${l.code}`}>
+                  <Text style={{ fontSize: 22 }}>{l.flag || '🏳️'}</Text>
+                  <Text style={styles.langRowLabel}>{l.name}</Text>
+                  {l.is_rtl ? <Text style={styles.rtlTag}>RTL</Text> : null}
+                  {lang === l.code ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : <View style={{ width: 20 }} />}
+                </Pressable>
+              ))}
+              {langs.length === 0 && <Text style={styles.langEmpty}>Aucune langue active.</Text>}
+            </ScrollView>
+            <Pressable style={styles.cancel} onPress={() => setLangOpen(false)}><Text style={styles.cancelTxt}>{t('common.close')}</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -174,4 +210,10 @@ const styles = StyleSheet.create({
   primaryTxt: { color: colors.textInverse, fontSize: fontSizes.md, fontWeight: '800' },
   cancel: { alignItems: 'center', paddingVertical: spacing.md },
   cancelTxt: { color: colors.textMuted, fontSize: fontSizes.md, fontWeight: '600' },
+  langCurrent: { fontSize: fontSizes.sm, color: colors.textSecondary, fontWeight: '700' },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  langRowLabel: { flex: 1, fontSize: fontSizes.md, color: colors.textPrimary, fontWeight: '600' },
+  rtlTag: { fontSize: 9, fontWeight: '800', color: colors.primary, backgroundColor: colors.primary + '22', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  rtlNotice: { fontSize: fontSizes.xs, color: colors.primary, fontWeight: '600', marginBottom: spacing.sm },
+  langEmpty: { color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg },
 });
