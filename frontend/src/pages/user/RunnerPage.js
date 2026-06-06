@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Package, Plus, Trash, Phone, Lightning, MapPin, Bag } from '@phosphor-icons/react';
+import { ArrowLeft, Package, Plus, Trash, Lightning, MapPin, Bag } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import { parcelAPI } from '../../services/api';
 
-const API = process.env.REACT_APP_BACKEND_URL;
+// Coursier Express runs on the tested "parcels" engine (live driver dispatch + tracking).
+const PKG_TO_VEHICLE = { document: 'moto', small: 'moto', food: 'moto', medium: 'box' };
+
+const PACKAGE_TYPES = [
+  { id: 'document', label: 'Document' },
+  { id: 'small', label: 'Petit colis (<2kg)' },
+  { id: 'medium', label: 'Colis moyen (<10kg)' },
+  { id: 'food', label: 'Nourriture' },
+];
 
 /**
  * RunnerPage — "Coursier Express" / "Delivery Genie" service.
@@ -26,22 +35,16 @@ const RunnerPage = () => {
   const [pickupNote, setPickupNote] = useState('');
   const [packageType, setPackageType] = useState('document');
   const [submitting, setSubmitting] = useState(false);
+  const [estimatedFare, setEstimatedFare] = useState(0);
 
   // simple mode
   const [drop, setDrop] = useState(null);
   const [dropContact, setDropContact] = useState({ name: '', phone: '' });
 
   // multiple mode — each stop carries a stable _key for React reconciliation
-  const [stops, setStops] = useState([
+  const [stops, setStops] = useState(() => [
     { _key: `stop_${Date.now()}_0`, address: null, name: '', phone: '', note: '' },
   ]);
-
-  const packageTypes = [
-    { id: 'document', label: 'Document', baseFee: 5 },
-    { id: 'small', label: 'Petit colis (<2kg)', baseFee: 8 },
-    { id: 'medium', label: 'Colis moyen (<10kg)', baseFee: 12 },
-    { id: 'food', label: 'Nourriture', baseFee: 6 },
-  ];
 
   const addStop = () => {
     if (stops.length >= 5) { toast.error('Max 5 arrêts'); return; }
@@ -50,69 +53,58 @@ const RunnerPage = () => {
   const removeStop = (idx) => setStops(stops.filter((_, i) => i !== idx));
   const updateStop = (idx, field, value) => setStops(stops.map((s, i) => i === idx ? { ...s, [field]: value } : s));
 
-  const estimateFare = () => {
-    const pkg = packageTypes.find(p => p.id === packageType);
-    if (!pkg) return 0;
-    if (mode === 'simple') {
-      if (!pickup?.lat || !drop?.lat) return pkg.baseFee;
-      const dist = haversine(pickup.lat, pickup.lng, drop.lat, drop.lng);
-      return Math.round((pkg.baseFee + dist * 1.5) * 100) / 100;
-    }
-    // multiple mode
-    const validStops = stops.filter(s => s.address?.lat);
-    if (!pickup?.lat || validStops.length === 0) return pkg.baseFee;
-    let total = pkg.baseFee;
-    let prev = pickup;
-    validStops.forEach(s => {
-      total += haversine(prev.lat, prev.lng, s.address.lat, s.address.lng) * 1.5;
-      prev = s.address;
-    });
-    // +3 EUR per extra stop
-    total += Math.max(0, validStops.length - 1) * 3;
-    return Math.round(total * 100) / 100;
-  };
+  // Live fare via the parcels engine (authoritative — same value used at creation)
+  useEffect(() => {
+    let cancelled = false;
+    const computeFare = async () => {
+      const st = mode === 'simple'
+        ? (drop?.lat ? [{ lat: drop.lat, lng: drop.lng }] : [])
+        : stops.filter((s) => s.address?.lat).map((s) => ({ lat: s.address.lat, lng: s.address.lng }));
+      if (!pickup?.lat || st.length === 0) {
+        if (!cancelled) setEstimatedFare(0);
+        return;
+      }
+      try {
+        const res = await parcelAPI.estimate({ pickup_lat: pickup.lat, pickup_lng: pickup.lng, stops: st, vehicle_type: PKG_TO_VEHICLE[packageType] || 'moto' });
+        if (!cancelled) setEstimatedFare(res.data.estimated_fare || 0);
+      } catch { /* keep previous estimate */ }
+    };
+    computeFare();
+    return () => { cancelled = true; };
+  }, [pickup, drop, stops, mode, packageType]);
 
   const handleSubmit = async () => {
     if (!pickup) { toast.error('Lieu de ramassage requis'); return; }
+    let st;
     if (mode === 'simple') {
       if (!drop) { toast.error('Destination requise'); return; }
       if (!dropContact.phone.trim()) { toast.error('Téléphone du destinataire requis'); return; }
+      st = [{ address: drop.address, lat: drop.lat, lng: drop.lng, recipient_name: dropContact.name, recipient_phone: dropContact.phone, note: pickupNote }];
     } else {
-      const valid = stops.filter(s => s.address?.lat && s.phone.trim());
-      if (valid.length === 0) { toast.error('Ajoutez au moins un arrêt avec téléphone'); return; }
+      st = stops.filter((s) => s.address?.lat && s.phone.trim()).map((s) => ({
+        address: s.address.address, lat: s.address.lat, lng: s.address.lng,
+        recipient_name: s.name, recipient_phone: s.phone, note: s.note,
+      }));
+      if (st.length === 0) { toast.error('Ajoutez au moins un arrêt avec téléphone'); return; }
     }
     setSubmitting(true);
     try {
-      const payload = {
-        service_type: isGenie ? 'genie' : 'runner',
-        mode,
-        pickup_address: pickup.address,
+      const res = await parcelAPI.create({
         pickup_lat: pickup.lat,
         pickup_lng: pickup.lng,
-        pickup_note: pickupNote,
-        package_type: packageType,
-        estimated_fare: estimateFare(),
-        drops: mode === 'simple'
-          ? [{ address: drop.address, lat: drop.lat, lng: drop.lng, name: dropContact.name, phone: dropContact.phone }]
-          : stops.filter(s => s.address?.lat).map(s => ({
-              address: s.address.address, lat: s.address.lat, lng: s.address.lng,
-              name: s.name, phone: s.phone, note: s.note,
-            })),
-      };
-      const res = await fetch(`${API}/api/phase2/runner/book`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
+        pickup_address: pickup.address,
+        stops: st,
+        vehicle_type: PKG_TO_VEHICLE[packageType] || 'moto',
+        payment_method: 'cash',
       });
-      if (!res.ok) throw new Error('order failed');
-      toast.success('Commande coursier créée !');
-      navigate('/history');
+      const pid = res.data?.id;
+      toast.success('Commande coursier créée ! Un coursier va la prendre en charge.');
+      navigate(pid ? `/track/parcel/${pid}` : '/history');
     } catch (e) { console.error(e); toast.error("Impossible de créer la commande"); }
     finally { setSubmitting(false); }
   };
 
-  const fare = estimateFare();
+  const fare = estimatedFare;
 
   return (
     <div className="min-h-screen bg-white pb-8" data-testid="runner-page">
@@ -155,7 +147,7 @@ const RunnerPage = () => {
         <div>
           <label className="text-xs font-semibold text-gray-600 block mb-2">Type de colis</label>
           <div className="grid grid-cols-2 gap-2">
-            {packageTypes.map(p => (
+            {PACKAGE_TYPES.map(p => (
               <button
                 key={p.id}
                 onClick={() => setPackageType(p.id)}
@@ -272,13 +264,5 @@ const RunnerPage = () => {
     </div>
   );
 };
-
-function haversine(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dlat = (lat2 - lat1) * Math.PI / 180;
-  const dlng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dlat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dlng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
 
 export default RunnerPage;

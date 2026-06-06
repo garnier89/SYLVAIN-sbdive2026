@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { rideAPI, orderAPI } from '../../services/api';
+import { rideAPI, orderAPI, parcelAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
   ArrowLeft, Car, Package, Clock, CheckCircle,
-  X, Star, MapPin, CaretRight, Funnel
+  X, Star, MapPin, CaretRight, Funnel, Lightning
 } from '@phosphor-icons/react';
 
 const STATUS_COLORS = {
   pending: 'bg-yellow-100 text-yellow-700',
   accepted: 'bg-orange-100 text-orange-700',
   arriving: 'bg-orange-100 text-orange-700',
+  arrived_pickup: 'bg-orange-100 text-orange-700',
+  picked_up: 'bg-blue-100 text-blue-700',
+  in_transit: 'bg-purple-100 text-purple-700',
   in_progress: 'bg-purple-100 text-purple-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
@@ -23,6 +26,9 @@ const STATUS_LABELS = {
   pending: 'En attente',
   accepted: 'Acceptee',
   arriving: 'En approche',
+  arrived_pickup: 'Au ramassage',
+  picked_up: 'Colis recupere',
+  in_transit: 'En livraison',
   in_progress: 'En cours',
   completed: 'Terminee',
   cancelled: 'Annulee',
@@ -30,31 +36,38 @@ const STATUS_LABELS = {
   delivered: 'Livree',
 };
 
+const applyStatusFilter = (list, filter) => list.filter(x => filter === 'all' || x.status === filter);
+
 const HistoryPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('rides');
   const [rides, setRides] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const [storeOrders, setStoreOrders] = useState([]);
+  const [parcels, setParcels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [ridesRes, ordersRes, parcelsRes] = await Promise.all([
+          rideAPI.list(),
+          orderAPI.list().catch(() => ({ data: [] })),
+          parcelAPI.list().catch(() => ({ data: [] })),
+        ]);
+        setRides(ridesRes.data || []);
+        setStoreOrders(ordersRes.data || []);
+        setParcels(parcelsRes.data || []);
+      } catch (err) { console.error('Failed to load history:', err); } finally { setLoading(false); }
+    };
+    loadData();
+  }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [ridesRes, ordersRes] = await Promise.all([
-        rideAPI.list(),
-        orderAPI.list().catch(() => ({ data: [] })),
-      ]);
-      setRides(ridesRes.data || []);
-      setOrders(ordersRes.data || []);
-    } catch (err) { console.error('Failed to load history:', err); } finally { setLoading(false); }
-  };
-
-  const filteredRides = filter === 'all' ? rides : rides.filter(r => r.status === filter);
-  const filteredOrders = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+  const filteredRides = applyStatusFilter(rides, filter);
+  const filteredOrders = applyStatusFilter(storeOrders, filter);
+  const filteredParcels = applyStatusFilter(parcels, filter);
 
   return (
     <div className="mobile-container bg-gray-50 min-h-screen pb-20" data-testid="history-page">
@@ -71,6 +84,7 @@ const HistoryPage = () => {
           {[
             { key: 'rides', label: 'Courses', icon: Car },
             { key: 'orders', label: 'Commandes', icon: Package },
+            { key: 'parcels', label: 'Livraisons', icon: Lightning },
           ].map(tab => (
             <button
               key={tab.key}
@@ -161,7 +175,7 @@ const HistoryPage = () => {
               ))}
             </div>
           )
-        ) : (
+        ) : activeTab === 'orders' ? (
           filteredOrders.length === 0 ? (
             <div className="text-center py-12" data-testid="no-orders">
               <Package size={48} className="mx-auto mb-3 text-gray-300" />
@@ -170,9 +184,10 @@ const HistoryPage = () => {
           ) : (
             <div className="space-y-3">
               {filteredOrders.map((order, i) => (
-                <div
+                <button
                   key={order.id}
-                  className="bg-white rounded-2xl p-4"
+                  onClick={() => navigate(`/order/${order.id}`)}
+                  className="w-full bg-white rounded-2xl p-4 text-left hover:shadow-sm transition-shadow"
                   data-testid={`order-item-${i}`}
                 >
                   <div className="flex items-start gap-3">
@@ -195,8 +210,60 @@ const HistoryPage = () => {
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
+            </div>
+          )
+        ) : (
+          filteredParcels.length === 0 ? (
+            <div className="text-center py-12" data-testid="no-parcels">
+              <Lightning size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-gray-400">Aucune livraison</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredParcels.map((p, i) => {
+                const dropCount = (p.stops || p.legs || []).length;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => navigate(`/track/parcel/${p.id}`)}
+                    className="w-full bg-white rounded-2xl p-4 text-left hover:shadow-sm transition-shadow"
+                    data-testid={`parcel-item-${i}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                        <Lightning size={20} className="text-amber-600" weight="duotone" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-semibold text-gray-900 text-sm">Coursier · {dropCount} {dropCount > 1 ? 'dépôts' : 'dépôt'}</p>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-600'}`}>
+                            {STATUS_LABELS[p.status] || p.status}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                            <p className="text-xs text-gray-500 truncate">{p.pickup_address || 'Ramassage'}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                            <p className="text-xs text-gray-500 truncate">{(p.stops?.[0]?.address) || 'Destination'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-[10px] text-gray-400">
+                            {new Date(p.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p className="font-bold text-sm text-gray-900">{p.fare?.toFixed(2)} EUR</p>
+                        </div>
+                      </div>
+                      <CaretRight size={16} className="text-gray-400 mt-3 flex-shrink-0" />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )
         )}

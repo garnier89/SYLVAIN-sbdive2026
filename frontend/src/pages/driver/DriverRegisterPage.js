@@ -1,21 +1,27 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { driverAPI } from '../../services/api';
-import { Car, Motorcycle, Bicycle, ArrowRight, ArrowLeft, Upload, CheckCircle, Package, Taxi } from '@phosphor-icons/react';
+import { Car, Motorcycle, Bicycle, ArrowRight, ArrowLeft, Upload, CheckCircle, Package, Taxi, Lightning } from '@phosphor-icons/react';
 
 const DriverRegisterPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '', service_types: ['taxi', 'delivery'] });
+  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '', service_types: ['taxi', 'delivery', 'courier'] });
   const [documents, setDocuments] = useState({ license: null, registration: null, insurance: null });
 
   const serviceOptions = [
-    { value: ['taxi'], label: 'Taxi', desc: 'Courses uniquement', Icon: Taxi },
-    { value: ['delivery'], label: 'Livreur', desc: 'Livraisons uniquement', Icon: Package },
-    { value: ['taxi', 'delivery'], label: 'Les deux', desc: 'Taxi + livraisons', Icon: Car },
+    { value: 'taxi', label: 'Taxi', desc: 'Courses de personnes', Icon: Taxi },
+    { value: 'delivery', label: 'Livreur', desc: 'Commandes marchands', Icon: Package },
+    { value: 'courier', label: 'Coursier', desc: 'Colis & express', Icon: Lightning },
   ];
-  const isServiceSelected = (opt) => JSON.stringify([...formData.service_types].sort()) === JSON.stringify([...opt].sort());
+  const toggleService = (val) => {
+    setFormData((f) => {
+      const has = f.service_types.includes(val);
+      const next = has ? f.service_types.filter((s) => s !== val) : [...f.service_types, val];
+      return { ...f, service_types: next };
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,22 +88,26 @@ const DriverRegisterPage = () => {
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col px-5 mt-6">
         {step === 1 && (
           <div className="space-y-5 flex-1">
-            {/* Service Type — taxi, livreur or both */}
+            {/* Service Type — taxi (courses), livreur (marchands), coursier (colis) — multi-select */}
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 block">Je veux faire</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Je veux faire</label>
+              <p className="text-[10px] text-gray-500 mb-2">Sélectionnez un ou plusieurs services</p>
               <div className="grid grid-cols-3 gap-3">
-                {serviceOptions.map((opt) => (
-                  <button key={opt.label} type="button"
-                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
-                      isServiceSelected(opt.value)
-                        ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
-                    onClick={() => setFormData({ ...formData, service_types: opt.value })}
-                    data-testid={`service-type-${opt.label === 'Les deux' ? 'both' : opt.value[0]}`}>
-                    <opt.Icon size={30} weight="duotone" className={isServiceSelected(opt.value) ? 'text-amber-500' : 'text-gray-500'} />
-                    <span className={`text-xs font-semibold ${isServiceSelected(opt.value) ? 'text-amber-400' : 'text-gray-300'}`}>{opt.label}</span>
-                    <span className="text-[10px] text-gray-500 leading-tight text-center">{opt.desc}</span>
-                  </button>
-                ))}
+                {serviceOptions.map((opt) => {
+                  const sel = formData.service_types.includes(opt.value);
+                  return (
+                    <button key={opt.value} type="button"
+                      className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                        sel ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
+                      onClick={() => toggleService(opt.value)}
+                      aria-pressed={sel}
+                      data-testid={`service-type-${opt.value}`}>
+                      <opt.Icon size={30} weight="duotone" className={sel ? 'text-amber-500' : 'text-gray-500'} />
+                      <span className={`text-xs font-semibold ${sel ? 'text-amber-400' : 'text-gray-300'}`}>{opt.label}</span>
+                      <span className="text-[10px] text-gray-500 leading-tight text-center">{opt.desc}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -32,11 +32,11 @@ async def register_driver(data: DriverCreate, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Already registered as driver")
 
-    # Service types: taxi (courses), delivery (livreur), or both. Default both.
-    allowed = {"taxi", "delivery"}
+    # Service types: taxi (courses), delivery (livreur — marchands), courier (coursier — colis). Default all.
+    allowed = {"taxi", "delivery", "courier"}
     service_types = [s for s in (data.service_types or []) if s in allowed]
     if not service_types:
-        service_types = ["taxi", "delivery"]
+        service_types = ["taxi", "delivery", "courier"]
 
     driver = {
         "id": f"driver_{uuid.uuid4().hex[:12]}",
@@ -76,10 +76,10 @@ async def update_service_types(request: Request):
     """Driver chooses which services they handle: taxi, delivery, or both."""
     user = await get_current_user(request)
     body = await request.json()
-    allowed = {"taxi", "delivery"}
+    allowed = {"taxi", "delivery", "courier"}
     service_types = [s for s in (body.get("service_types") or []) if s in allowed]
     if not service_types:
-        raise HTTPException(status_code=400, detail="Sélectionnez au moins un service (taxi ou livraison)")
+        raise HTTPException(status_code=400, detail="Sélectionnez au moins un service (taxi, livreur ou coursier)")
     result = await db.drivers.update_one(
         {"user_id": user["id"]},
         {"$set": {"service_types": service_types}},

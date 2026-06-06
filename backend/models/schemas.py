@@ -50,7 +50,7 @@ class DriverCreate(BaseModel):
     vehicle_number: str
     vehicle_model: str
     license_number: str
-    service_types: Optional[List[str]] = None  # ["taxi"], ["delivery"] or both
+    service_types: Optional[List[str]] = None  # any of: "taxi", "delivery" (livreur), "courier" (coursier)
 
 class DriverProfile(BaseModel):
     id: str

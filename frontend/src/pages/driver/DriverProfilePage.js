@@ -7,7 +7,7 @@ import {
   Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
   Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
   CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
-  Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check, Car,
+  Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check,
   Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -25,18 +25,26 @@ const DriverProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [showServices, setShowServices] = useState(false);
   const [savingServices, setSavingServices] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState([]);
 
   const serviceOptions = [
-    { value: ['taxi'], label: 'Taxi', desc: 'Courses uniquement', Icon: Taxi },
-    { value: ['delivery'], label: 'Livreur', desc: 'Livraisons uniquement', Icon: Package },
-    { value: ['taxi', 'delivery'], label: 'Les deux', desc: 'Taxi + livraisons', Icon: Car },
+    { value: 'taxi', label: 'Taxi', desc: 'Courses de personnes', Icon: Taxi },
+    { value: 'delivery', label: 'Livreur', desc: 'Commandes marchands', Icon: Package },
+    { value: 'courier', label: 'Coursier', desc: 'Colis & express', Icon: Lightning },
   ];
-  const sameTypes = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
 
-  const saveServiceTypes = async (types) => {
+  const openServices = () => {
+    setSelectedTypes(driver?.service_types || []);
+    setShowServices(true);
+  };
+  const toggleType = (v) =>
+    setSelectedTypes((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
+
+  const saveServiceTypes = async () => {
+    if (selectedTypes.length === 0) { toast.error('Sélectionnez au moins un service'); return; }
     setSavingServices(true);
     try {
-      const res = await driverAPI.updateServiceTypes(types);
+      const res = await driverAPI.updateServiceTypes(selectedTypes);
       setDriver((prev) => ({ ...(prev || {}), service_types: res.data.service_types }));
       toast.success('Services mis à jour');
       setShowServices(false);
@@ -129,7 +137,7 @@ const DriverProfilePage = () => {
         <p className="px-5 text-base font-bold text-gray-800 mb-2">reglages generaux</p>
         <div className="bg-white">
           <ProfileRow icon={ClipboardText} color="#3B82F6" label="Mes reservations" onClick={() => navigate('/chauffeur/earnings')} />
-          <ProfileRow icon={Wrench} color="#F59E0B" label="Gerer les services" onClick={() => setShowServices(true)} />
+          <ProfileRow icon={Wrench} color="#F59E0B" label="Gerer les services" onClick={openServices} />
           <ProfileRow icon={FileText} color="#06B6D4" label="Gerer les documents" onClick={() => navigate('/chauffeur/documents')} />
           <ProfileRow icon={MapPin} color="#EF4444" label="Gerer le lieu de travail" onClick={() => {}} />
           <ProfileRow icon={Images} color="#8B5CF6" label="Gerer la galerie" onClick={() => {}} />
@@ -215,17 +223,19 @@ const DriverProfilePage = () => {
           <div className="w-full max-w-[500px] bg-white rounded-t-3xl p-5 pb-8 animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
             <h2 className="text-lg font-bold text-gray-900 mb-1">Gérer mes services</h2>
-            <p className="text-sm text-gray-500 mb-4">Choisissez les commandes que vous souhaitez recevoir. Les taxis ne reçoivent que des courses, les livreurs que des livraisons.</p>
+            <p className="text-sm text-gray-500 mb-4">Choisissez les commandes que vous souhaitez recevoir. Vous pouvez en cumuler plusieurs.</p>
             <div className="space-y-3">
               {serviceOptions.map((opt) => {
-                const selected = sameTypes(driver?.service_types, opt.value);
+                const selected = selectedTypes.includes(opt.value);
                 return (
                   <button
                     key={opt.label}
+                    type="button"
                     disabled={savingServices}
-                    onClick={() => saveServiceTypes(opt.value)}
+                    onClick={() => toggleType(opt.value)}
+                    aria-pressed={selected}
                     className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
-                    data-testid={`driver-service-${opt.label === 'Les deux' ? 'both' : opt.value[0]}`}
+                    data-testid={`driver-service-${opt.value}`}
                   >
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${selected ? 'bg-emerald-500' : 'bg-gray-100'}`}>
                       <opt.Icon size={24} weight="duotone" className={selected ? 'text-white' : 'text-gray-500'} />
@@ -239,6 +249,16 @@ const DriverProfilePage = () => {
                 );
               })}
             </div>
+            <button
+              type="button"
+              disabled={savingServices || selectedTypes.length === 0}
+              onClick={saveServiceTypes}
+              className="w-full mt-5 py-3.5 rounded-2xl font-bold text-white transition-colors disabled:opacity-50"
+              style={{ background: GREEN }}
+              data-testid="driver-services-save"
+            >
+              {savingServices ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
           </div>
         </div>
       )}
