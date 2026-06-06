@@ -1,6 +1,12 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 (suite) — Menus restaurants traduits en FR/€
+
+- Seed `server.py` : noms, descriptions et catégories des produits des 3 restaurants (Burger Palace, Pizza Heaven, Sushi Master) traduits en français ; descriptions des restaurants traduites. Catégories : Sides→Accompagnements, Drinks→Boissons, Rolls→Makis (Burgers/Pizzas/Desserts/Nigiri/Sashimi conservés).
+- Boucles de seed passées en **upsert** des champs traduisibles (`name`/`description`/`category` produits, `description` marchands) → met à jour les documents déjà en base sans toucher prix/disponibilité.
+- Vérifié via API + screenshot : fiche Burger Palace 100% FR/€ (Milkshake Vanille, Oignons Frits, Frites… prix en €, « Ajouter », aucun `$`).
+
 ## 2026-06-06 (fix) — Commande de repas cassée : 2 bugs bloquants + cohérence FR/€
 
 Demande : « Simuler une commande de repas jusqu'au bout ». Diagnostic & corrections :

@@ -139,9 +139,9 @@ async def lifespan(app: FastAPI):
 
     # Seed demo merchants
     demo_merchants = [
-        {"id": "merchant_burger_palace", "user_id": "system_burger", "store_name": "Burger Palace", "store_type": "restaurant", "address": "123 Main Street, Paris", "lat": 48.8566, "lng": 2.3522, "description": "Premium gourmet burgers and sides", "rating": 4.8, "total_orders": 1250, "is_active": True, "opening_hours": "09:00-22:00", "image_url": "https://images.unsplash.com/photo-1632898657999-ae6920976661?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "merchant_pizza_heaven", "user_id": "system_pizza", "store_name": "Pizza Heaven", "store_type": "restaurant", "address": "456 Oak Avenue, Paris", "lat": 48.8606, "lng": 2.3376, "description": "Authentic Italian pizza baked in wood-fired oven", "rating": 4.5, "total_orders": 890, "is_active": True, "opening_hours": "10:00-23:00", "image_url": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "merchant_sushi_master", "user_id": "system_sushi", "store_name": "Sushi Master", "store_type": "restaurant", "address": "789 Elm Road, Paris", "lat": 48.8530, "lng": 2.3499, "description": "Fresh Japanese sushi and sashimi", "rating": 4.9, "total_orders": 2100, "is_active": True, "opening_hours": "11:00-22:00", "image_url": "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "merchant_burger_palace", "user_id": "system_burger", "store_name": "Burger Palace", "store_type": "restaurant", "address": "123 Main Street, Paris", "lat": 48.8566, "lng": 2.3522, "description": "Burgers gourmets premium et accompagnements", "rating": 4.8, "total_orders": 1250, "is_active": True, "opening_hours": "09:00-22:00", "image_url": "https://images.unsplash.com/photo-1632898657999-ae6920976661?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "merchant_pizza_heaven", "user_id": "system_pizza", "store_name": "Pizza Heaven", "store_type": "restaurant", "address": "456 Oak Avenue, Paris", "lat": 48.8606, "lng": 2.3376, "description": "Pizzas italiennes authentiques cuites au feu de bois", "rating": 4.5, "total_orders": 890, "is_active": True, "opening_hours": "10:00-23:00", "image_url": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "merchant_sushi_master", "user_id": "system_sushi", "store_name": "Sushi Master", "store_type": "restaurant", "address": "789 Elm Road, Paris", "lat": 48.8530, "lng": 2.3499, "description": "Sushis et sashimis japonais frais", "rating": 4.9, "total_orders": 2100, "is_active": True, "opening_hours": "11:00-22:00", "image_url": "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
         # ---- Épicerie / Courses (store_type=grocery) ----
         {"id": "merchant_carrefour_city", "user_id": "system_carrefour", "store_name": "Carrefour City", "store_type": "grocery", "address": "12 Rue de Rivoli, Paris", "lat": 48.8559, "lng": 2.3601, "description": "Épicerie de quartier : produits frais et courses du quotidien", "rating": 4.6, "total_orders": 1840, "is_active": True, "opening_hours": "08:00-22:00", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
         {"id": "merchant_franprix", "user_id": "system_franprix", "store_name": "Franprix Express", "store_type": "grocery", "address": "45 Bd Voltaire, Paris", "lat": 48.8629, "lng": 2.3776, "description": "Supérette de proximité, livraison rapide", "rating": 4.4, "total_orders": 1320, "is_active": True, "opening_hours": "07:30-23:00", "image_url": "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
@@ -155,25 +155,25 @@ async def lifespan(app: FastAPI):
         {"id": "merchant_brico_materiaux", "user_id": "system_brico", "store_name": "Brico Matériaux", "store_type": "construction", "address": "78 Av. de la République, Paris", "lat": 48.8665, "lng": 2.3812, "description": "Matériaux de construction et outillage", "rating": 4.3, "total_orders": 295, "is_active": True, "opening_hours": "07:00-19:00", "image_url": "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
     ]
     demo_products = [
-        {"id": "prod_bp_classic", "merchant_id": "merchant_burger_palace", "name": "Classic Burger", "description": "Juicy beef patty with fresh lettuce, tomato, and special sauce", "price": 12.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_bp_cheese", "merchant_id": "merchant_burger_palace", "name": "Cheese Burger", "description": "Classic burger topped with melted cheddar cheese", "price": 14.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_bp_bacon", "merchant_id": "merchant_burger_palace", "name": "Bacon Burger", "description": "Loaded with crispy bacon strips and BBQ sauce", "price": 16.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_bp_veggie", "merchant_id": "merchant_burger_palace", "name": "Veggie Burger", "description": "Plant-based patty with avocado and sprouts", "price": 13.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_bp_fries", "merchant_id": "merchant_burger_palace", "name": "French Fries", "description": "Crispy golden fries with sea salt", "price": 4.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_bp_rings", "merchant_id": "merchant_burger_palace", "name": "Onion Rings", "description": "Beer-battered onion rings", "price": 5.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_bp_cola", "merchant_id": "merchant_burger_palace", "name": "Coca Cola", "description": "Ice cold refreshment", "price": 2.99, "category": "Drinks", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_bp_shake", "merchant_id": "merchant_burger_palace", "name": "Milkshake", "description": "Creamy vanilla milkshake", "price": 5.99, "category": "Drinks", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_ph_margherita", "merchant_id": "merchant_pizza_heaven", "name": "Margherita Pizza", "description": "Classic tomato sauce with mozzarella and fresh basil", "price": 14.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_ph_pepperoni", "merchant_id": "merchant_pizza_heaven", "name": "Pepperoni Pizza", "description": "Loaded with pepperoni slices and melted cheese", "price": 16.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_ph_four_cheese", "merchant_id": "merchant_pizza_heaven", "name": "Four Cheese Pizza", "description": "Mozzarella, gorgonzola, parmesan, and fontina", "price": 18.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_ph_garlic_bread", "merchant_id": "merchant_pizza_heaven", "name": "Garlic Bread", "description": "Crispy bread with garlic butter and herbs", "price": 5.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_ph_tiramisu", "merchant_id": "merchant_pizza_heaven", "name": "Tiramisu", "description": "Classic Italian coffee-flavored dessert", "price": 7.99, "category": "Desserts", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_sm_salmon", "merchant_id": "merchant_sushi_master", "name": "Salmon Nigiri (6pc)", "description": "Fresh salmon on seasoned rice", "price": 12.99, "category": "Nigiri", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_sm_tuna", "merchant_id": "merchant_sushi_master", "name": "Tuna Sashimi (8pc)", "description": "Premium bluefin tuna slices", "price": 16.99, "category": "Sashimi", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_sm_california", "merchant_id": "merchant_sushi_master", "name": "California Roll (8pc)", "description": "Crab, avocado, and cucumber roll", "price": 10.99, "category": "Rolls", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_sm_dragon", "merchant_id": "merchant_sushi_master", "name": "Dragon Roll (8pc)", "description": "Shrimp tempura, avocado, eel sauce", "price": 14.99, "category": "Rolls", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_sm_miso", "merchant_id": "merchant_sushi_master", "name": "Miso Soup", "description": "Traditional Japanese miso with tofu and seaweed", "price": 3.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
-        {"id": "prod_sm_edamame", "merchant_id": "merchant_sushi_master", "name": "Edamame", "description": "Steamed soybeans with sea salt", "price": 4.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_classic", "merchant_id": "merchant_burger_palace", "name": "Burger Classique", "description": "Steak de bœuf juteux, salade fraîche, tomate et sauce maison", "price": 12.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_cheese", "merchant_id": "merchant_burger_palace", "name": "Cheeseburger", "description": "Burger classique au cheddar fondu", "price": 14.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_bacon", "merchant_id": "merchant_burger_palace", "name": "Burger Bacon", "description": "Garni de bacon croustillant et sauce barbecue", "price": 16.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_veggie", "merchant_id": "merchant_burger_palace", "name": "Burger Végétarien", "description": "Galette végétale, avocat et pousses fraîches", "price": 13.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_fries", "merchant_id": "merchant_burger_palace", "name": "Frites", "description": "Frites dorées et croustillantes au sel de mer", "price": 4.99, "category": "Accompagnements", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_rings", "merchant_id": "merchant_burger_palace", "name": "Oignons Frits", "description": "Rondelles d'oignon en beignet croustillant", "price": 5.99, "category": "Accompagnements", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_cola", "merchant_id": "merchant_burger_palace", "name": "Coca-Cola", "description": "Boisson fraîche bien glacée", "price": 2.99, "category": "Boissons", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bp_shake", "merchant_id": "merchant_burger_palace", "name": "Milkshake Vanille", "description": "Milkshake crémeux à la vanille", "price": 5.99, "category": "Boissons", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_margherita", "merchant_id": "merchant_pizza_heaven", "name": "Pizza Margherita", "description": "Sauce tomate, mozzarella et basilic frais", "price": 14.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_pepperoni", "merchant_id": "merchant_pizza_heaven", "name": "Pizza Pepperoni", "description": "Généreusement garnie de pepperoni et fromage fondu", "price": 16.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_four_cheese", "merchant_id": "merchant_pizza_heaven", "name": "Pizza 4 Fromages", "description": "Mozzarella, gorgonzola, parmesan et fontina", "price": 18.99, "category": "Pizzas", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_garlic_bread", "merchant_id": "merchant_pizza_heaven", "name": "Pain à l'Ail", "description": "Pain croustillant au beurre d'ail et fines herbes", "price": 5.99, "category": "Accompagnements", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_ph_tiramisu", "merchant_id": "merchant_pizza_heaven", "name": "Tiramisu", "description": "Dessert italien classique au café", "price": 7.99, "category": "Desserts", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_salmon", "merchant_id": "merchant_sushi_master", "name": "Nigiri Saumon (6 pcs)", "description": "Saumon frais sur riz vinaigré", "price": 12.99, "category": "Nigiri", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_tuna", "merchant_id": "merchant_sushi_master", "name": "Sashimi Thon (8 pcs)", "description": "Tranches de thon rouge premium", "price": 16.99, "category": "Sashimi", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_california", "merchant_id": "merchant_sushi_master", "name": "California Roll (8 pcs)", "description": "Crabe, avocat et concombre", "price": 10.99, "category": "Makis", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_dragon", "merchant_id": "merchant_sushi_master", "name": "Dragon Roll (8 pcs)", "description": "Crevette tempura, avocat et sauce anguille", "price": 14.99, "category": "Makis", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_miso", "merchant_id": "merchant_sushi_master", "name": "Soupe Miso", "description": "Miso traditionnel, tofu et algues", "price": 3.99, "category": "Accompagnements", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_sm_edamame", "merchant_id": "merchant_sushi_master", "name": "Edamame", "description": "Fèves de soja vapeur au sel de mer", "price": 4.99, "category": "Accompagnements", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
         # ---- Épicerie / Courses ----
         {"id": "prod_cc_lait", "merchant_id": "merchant_carrefour_city", "name": "Lait demi-écrémé 1L", "description": "Bouteille de lait demi-écrémé UHT", "price": 1.15, "category": "Crèmerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
         {"id": "prod_cc_pain", "merchant_id": "merchant_carrefour_city", "name": "Pain de campagne", "description": "Pain de campagne tradition 400g", "price": 1.80, "category": "Boulangerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
@@ -206,12 +206,30 @@ async def lifespan(app: FastAPI):
     ]
 
     for merchant in demo_merchants:
-        if not await db.merchants.find_one({"id": merchant["id"]}):
+        existing = await db.merchants.find_one({"id": merchant["id"]})
+        if not existing:
             await db.merchants.insert_one(merchant)
             logger.info(f"Seeded merchant: {merchant['store_name']}")
+        else:
+            # Keep demo merchant descriptions in sync (FR)
+            await db.merchants.update_one(
+                {"id": merchant["id"]},
+                {"$set": {"description": merchant["description"]}},
+            )
     for product in demo_products:
-        if not await db.products.find_one({"id": product["id"]}):
+        existing = await db.products.find_one({"id": product["id"]})
+        if not existing:
             await db.products.insert_one(product)
+        else:
+            # Keep demo product name/description/category in sync (FR) without touching price/availability
+            await db.products.update_one(
+                {"id": product["id"]},
+                {"$set": {
+                    "name": product["name"],
+                    "description": product["description"],
+                    "category": product["category"],
+                }},
+            )
 
     # Seed test user
     test_email = os.environ.get("SEED_TEST_EMAIL", "test2@example.com")
