@@ -4,6 +4,7 @@ import { ArrowLeft, Info, Minus, Plus, Users, TrendUp } from '@phosphor-icons/re
 import { toast } from 'sonner';
 import { CountdownRing } from '../../components/CountdownRing';
 import RadarCars from '../../components/RadarCars';
+import SearchRadar from '../../components/SearchRadar';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
@@ -266,18 +267,7 @@ const TaxiBiddingPage = () => {
             ? <img src={radarMapUrl} alt="Carte" className="w-full h-full object-cover" />
             : <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-rose-50" />}
           <div className="absolute inset-0 bg-white/10" />
-          {/* Pulsing concentric waves centered on the pickup */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-44 pointer-events-none" data-testid="radar-pulse">
-            {[0, 0.7, 1.4].map((delay, i) => (
-              <span
-                key={i}
-                className="absolute inset-0 m-auto rounded-full bg-[#FF5000]/25 animate-ping"
-                style={{ width: '11rem', height: '11rem', animationDelay: `${delay}s`, animationDuration: '2.1s' }}
-              />
-            ))}
-            <span className="absolute inset-0 m-auto w-24 h-24 rounded-full border-2 border-[#FF5000]/40" />
-            <span className="absolute inset-0 m-auto w-5 h-5 rounded-full bg-[#FF5000] ring-4 ring-white shadow-lg" />
-          </div>
+          <SearchRadar size={244} />
           {carsCfg && pickup?.lat && (
             <RadarCars
               pickupLat={pickup.lat}
@@ -302,8 +292,8 @@ const TaxiBiddingPage = () => {
         </button>
       </div>
 
-      {/* Route summary when map is visible */}
-      {mapReady && (
+      {/* Route summary when map is visible (hidden during driver search) */}
+      {mapReady && !searching && (
         <div className="relative z-10 mx-4 mt-4 bg-white rounded-2xl shadow-lg overflow-hidden" data-testid="route-summary">
           <button onClick={() => { setPickup(null); setDropoff(null); setShowSheet(false); setFare(0); }}
             className="w-full p-3 flex items-start gap-3 text-left"
