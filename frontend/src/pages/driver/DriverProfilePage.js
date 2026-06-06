@@ -39,7 +39,7 @@ const DriverProfilePage = () => {
   const MOTO_VEHICLES = ['moto', 'motorcycle', 'motorbike', 'scooter', 'moped'];
   const isCarVehicle = (vt) => CAR_VEHICLES.includes((vt || '').toLowerCase());
   const isMotoVehicle = (vt) => MOTO_VEHICLES.includes((vt || '').toLowerCase());
-  const hasVtcDoc = (driver?.documents || []).some((d) => d?.type === 'vtc_card');
+  const hasVtcDoc = (driver?.documents || []).some((d) => ['vtc_card', 'carte_vtc', 'carte_pro_taxi'].includes(d?.type));
   const hasTaxiNow = (driver?.service_types || []).includes('taxi');
   // Eligibility per taxi mode (need the matching vehicle + Carte VTC)
   const carModeOk = isCarVehicle(driver?.vehicle_type) && hasVtcDoc;

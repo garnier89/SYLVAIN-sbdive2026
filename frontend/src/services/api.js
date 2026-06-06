@@ -72,6 +72,7 @@ export const driverAPI = {
   register: (data) => api.post('/drivers/register', data),
   updateServiceTypes: (service_types, taxi_mode) => api.put('/drivers/service-types', { service_types, taxi_mode }),
   getTaxiEligibility: () => api.get('/drivers/taxi-eligibility'),
+  getCategories: () => api.get('/drivers/categories'),
   getProfile: () => api.get('/drivers/profile'),
   toggleOnline: () => api.post('/drivers/toggle-online'),
   updateLocation: (lat, lng) => api.post('/drivers/location', { lat, lng }),

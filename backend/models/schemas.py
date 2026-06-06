@@ -46,22 +46,26 @@ class Address(AddressCreate):
 
 # Driver Models
 class DriverCreate(BaseModel):
-    vehicle_type: str
-    vehicle_number: str
-    vehicle_model: str
-    license_number: str
+    vehicle_type: str = ""
+    vehicle_number: str = ""
+    vehicle_model: str = ""
+    license_number: str = ""
     service_types: Optional[List[str]] = None  # any of: "taxi", "delivery" (livreur), "courier" (coursier)
     taxi_mode: Optional[str] = None  # when taxi selected: "car" (taxi voiture) or "moto" (moto-taxi)
+    categories: Optional[List[str]] = None  # V3Cube arborescence leaf ids (e.g. "taxi_car_vtc", "courier_velo")
 
 class DriverProfile(BaseModel):
     id: str
     user_id: str
     vehicle_type: Optional[str] = None
+    vehicle_class: Optional[str] = None  # car | moto | velo
     vehicle_number: Optional[str] = None
     vehicle_model: Optional[str] = None
     license_number: Optional[str] = None
     service_types: List[str] = []
+    categories: List[str] = []  # V3Cube category leaf ids the driver registered for
     taxi_mode: Optional[str] = None  # "car" or "moto" (None if driver doesn't do taxi)
+    taxi_sub: Optional[str] = None  # particulier | vtc | taxi (taxi-voiture only)
     status: str
     is_online: bool = False
     current_lat: Optional[float] = None

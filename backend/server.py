@@ -13,7 +13,7 @@ from core.deps import hash_password, verify_password, init_storage
 from core.websocket import manager
 
 from routes.auth import router as auth_router, users_router
-from routes.drivers import router as drivers_router
+from routes.drivers import router as drivers_router, seed_driver_categories
 from routes.driver_pro import router as driver_pro_router
 from routes.merchants import router as merchants_router
 from routes.rides import router as rides_router
@@ -537,6 +537,13 @@ async def lifespan(app: FastAPI):
 
     # Seed promo banners CMS
     await seed_promo_banners()
+
+    # Seed driver categories (V3Cube arborescence: taxi/coursier/livreur × véhicule × sous-catégorie)
+    try:
+        await seed_driver_categories()
+        logger.info("Driver categories seeded")
+    except Exception as e:
+        logger.error(f"Driver categories seed failed: {e}")
 
     # Migration: route "Courses"/grocery to the dedicated grocery store list (idempotent)
     await db.home_categories.update_many(

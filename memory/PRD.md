@@ -1,3 +1,15 @@
+## NEW - 2026-06-06 - Inscription chauffeur en ARBORESCENCE + documents par catégorie (Phase 1) (DONE)
+- **Demande user** : à l'inscription, le chauffeur choisit son activité ; chaque catégorie a SES documents + SA catégorie de véhicule. Structure validée :
+  - TAXI → Moto-taxi (moto) | Voiture → Particulier / VTC / Taxi(licence)
+  - COURSIER & LIVREUR → Vélo / Moto / Voiture
+  Décision : **2b** (documents par défaut codés maintenant), panneau Admin de config = **Phase 2** (à faire). « L'admin gère les documents, le but c'est séparer. »
+- **Backend `drivers.py`** : `DEFAULT_DRIVER_CATEGORIES` (10 feuilles : id, service, vehicle_class, taxi_sub, label, documents[]) seedé idempotemment dans la collection `driver_categories` (`$setOnInsert` → préserve futures éditions admin). `seed_driver_categories()` appelé au startup (`server.py`). `GET /api/drivers/categories` (auth). `register_driver` accepte `categories:[ids]`, valide (rejette véhicules mixtes → « Un seul type de véhicule par chauffeur »), dérive `service_types`/`taxi_mode`/`taxi_sub`/`vehicle_class`/`vehicle_type` (`VEHICLE_CLASS_TO_TYPE`: car→car, moto→motorcycle, velo→bicycle) ; stocke `categories`, `vehicle_class`, `taxi_sub`. Path legacy (service_types+taxi_mode) conservé. `_has_vtc_document` élargi (vtc_card | carte_vtc | carte_pro_taxi).
+- **Schemas** : `DriverCreate.categories`, `DriverProfile.{categories, vehicle_class, taxi_sub}`. Champs `DriverCreate` rendus optionnels (vélo n'a pas d'immatriculation).
+- **Frontend** : `api.js` `driverAPI.getCategories()`. **`DriverRegisterPage.js` réécrit** en flux guidé : Étape 1 (services multi-select → véhicule Vélo/Moto/Voiture, **Vélo désactivé si Taxi** → sous-catégorie Particulier/VTC/Taxi si Taxi+Voiture → infos véhicule si moto/voiture) ; Étape 2 (**documents dynamiques** = union dédupliquée des docs des catégories choisies, upload requis) ; Étape 3 succès. testids : `service-type-*`, `vehicle-class-*`, `taxi-sub-*`, `upload-{docKey}`, `next-step-btn`, `submit-btn`.
+- **Vérifié** : backend curl (register VTC+coursier+livreur voiture → dérive tout ; véhicules mixtes → 400) + screenshots (Étape 1 : Vélo grisé, sous-cat VTC ; Étape 2 : docs = Permis B/Carte VTC/Macaron VTC/Carte grise/Assurance) + **E2E complet frontend** (signup → Coursier/Vélo → upload 2 docs → Soumettre → écran succès ; record DB : `categories:['courier_velo']`, role=driver, status=pending, 2 docs). Lint front+back clean. Comptes de test supprimés.
+- **Phase 2 (à faire)** : panneau **Admin** pour gérer les catégories (CRUD documents requis + config véhicule) — la collection `driver_categories` est déjà prête. Validation/approbation admin des documents (statut pending→approved).
+
+
 ## NEW - 2026-06-06 - Séparation Taxi voiture / Moto-taxi (`taxi_mode`) (DONE)
 - **Demande user** : au clic sur « Taxi » (section « Je veux faire »), l'app demande **Voiture ou Moto** → un chauffeur moto peut faire du transport de personnes (moto-taxi). « L'admin gère les documents, le but c'est séparer. »
 - **Modèle** : nouveau champ chauffeur `taxi_mode` = `"car"` (taxi voiture) ou `"moto"` (moto-taxi), `None` sinon. Ajouté à `DriverCreate` + `DriverProfile`.

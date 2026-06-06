@@ -35,7 +35,8 @@ def _vehicle_matches_mode(vehicle_type, mode) -> bool:
 
 
 def _has_vtc_document(driver: dict) -> bool:
-    return any((d or {}).get("type") == "vtc_card" for d in (driver.get("documents") or []))
+    taxi_docs = {"vtc_card", "carte_vtc", "carte_pro_taxi"}
+    return any((d or {}).get("type") in taxi_docs for d in (driver.get("documents") or []))
 
 
 def _taxi_block_reason(driver: dict, mode):
@@ -49,6 +50,78 @@ def _taxi_block_reason(driver: dict, mode):
     if not _has_vtc_document(driver):
         return "Le service Taxi nécessite votre Carte VTC. Ajoutez-la dans « Mes documents »."
     return None
+
+
+# ── Driver categories (V3Cube arborescence) ───────────────────────────────
+# Phase 1: defaults seeded into `driver_categories` (editable later via Admin Phase 2).
+# vehicle_class: car | moto | velo  ;  taxi_sub: particulier | vtc | taxi (taxi-voiture only)
+DEFAULT_DRIVER_CATEGORIES = [
+    {"id": "taxi_moto", "service": "taxi", "vehicle_class": "moto", "taxi_sub": None, "label": "Moto-taxi", "order": 1,
+     "documents": [{"key": "permis_moto", "label": "Permis (A/AM)"}, {"key": "carte_grise", "label": "Carte grise moto"}, {"key": "assurance", "label": "Assurance"}]},
+    {"id": "taxi_car_particulier", "service": "taxi", "vehicle_class": "car", "taxi_sub": "particulier", "label": "Taxi · Particulier", "order": 2,
+     "documents": [{"key": "permis_b", "label": "Permis B"}, {"key": "carte_grise", "label": "Carte grise"}, {"key": "assurance", "label": "Assurance"}]},
+    {"id": "taxi_car_vtc", "service": "taxi", "vehicle_class": "car", "taxi_sub": "vtc", "label": "Taxi · VTC", "order": 3,
+     "documents": [{"key": "permis_b", "label": "Permis B"}, {"key": "carte_vtc", "label": "Carte VTC"}, {"key": "macaron_vtc", "label": "Macaron VTC"}, {"key": "carte_grise", "label": "Carte grise"}, {"key": "assurance", "label": "Assurance"}]},
+    {"id": "taxi_car_taxi", "service": "taxi", "vehicle_class": "car", "taxi_sub": "taxi", "label": "Taxi (licence)", "order": 4,
+     "documents": [{"key": "permis_b", "label": "Permis B"}, {"key": "carte_pro_taxi", "label": "Carte professionnelle Taxi (ADS)"}, {"key": "carte_grise", "label": "Carte grise"}, {"key": "assurance", "label": "Assurance"}]},
+    {"id": "courier_velo", "service": "courier", "vehicle_class": "velo", "taxi_sub": None, "label": "Coursier · Vélo", "order": 5,
+     "documents": [{"key": "piece_identite", "label": "Pièce d'identité"}, {"key": "assurance_rc", "label": "Assurance RC"}]},
+    {"id": "courier_moto", "service": "courier", "vehicle_class": "moto", "taxi_sub": None, "label": "Coursier · Moto", "order": 6,
+     "documents": [{"key": "permis_moto", "label": "Permis (A/AM)"}, {"key": "carte_grise", "label": "Carte grise"}, {"key": "assurance", "label": "Assurance"}]},
+    {"id": "courier_car", "service": "courier", "vehicle_class": "car", "taxi_sub": None, "label": "Coursier · Voiture", "order": 7,
+     "documents": [{"key": "permis_b", "label": "Permis B"}, {"key": "carte_grise", "label": "Carte grise"}, {"key": "assurance", "label": "Assurance"}]},
+    {"id": "delivery_velo", "service": "delivery", "vehicle_class": "velo", "taxi_sub": None, "label": "Livreur · Vélo", "order": 8,
+     "documents": [{"key": "piece_identite", "label": "Pièce d'identité"}, {"key": "assurance_rc", "label": "Assurance RC"}]},
+    {"id": "delivery_moto", "service": "delivery", "vehicle_class": "moto", "taxi_sub": None, "label": "Livreur · Moto", "order": 9,
+     "documents": [{"key": "permis_moto", "label": "Permis (A/AM)"}, {"key": "carte_grise", "label": "Carte grise"}, {"key": "assurance", "label": "Assurance"}]},
+    {"id": "delivery_car", "service": "delivery", "vehicle_class": "car", "taxi_sub": None, "label": "Livreur · Voiture", "order": 10,
+     "documents": [{"key": "permis_b", "label": "Permis B"}, {"key": "carte_grise", "label": "Carte grise"}, {"key": "assurance", "label": "Assurance"}]},
+]
+
+VEHICLE_CLASS_TO_TYPE = {"car": "car", "moto": "motorcycle", "velo": "bicycle"}
+
+
+async def seed_driver_categories():
+    """Idempotent seed; $setOnInsert preserves any admin edits (Phase 2)."""
+    for c in DEFAULT_DRIVER_CATEGORIES:
+        await db.driver_categories.update_one(
+            {"id": c["id"]},
+            {"$setOnInsert": {**c, "active": True}},
+            upsert=True,
+        )
+
+
+async def _fetch_categories(ids):
+    cats = []
+    async for c in db.driver_categories.find({"id": {"$in": list(ids)}, "active": True}, {"_id": 0}):
+        cats.append(c)
+    if not cats:  # fallback to defaults if collection empty
+        cats = [c for c in DEFAULT_DRIVER_CATEGORIES if c["id"] in set(ids)]
+    return cats
+
+
+def _derive_from_categories(cats):
+    service_types = sorted({c["service"] for c in cats})
+    taxi_cats = [c for c in cats if c["service"] == "taxi"]
+    taxi_mode = ("moto" if taxi_cats and taxi_cats[0]["vehicle_class"] == "moto" else ("car" if taxi_cats else None))
+    taxi_sub = taxi_cats[0].get("taxi_sub") if taxi_cats else None
+    vehicle_class = cats[0]["vehicle_class"] if cats else None
+    docs, seen = [], set()
+    for c in cats:
+        for d in c.get("documents", []):
+            if d["key"] not in seen:
+                seen.add(d["key"])
+                docs.append(d)
+    return service_types, taxi_mode, taxi_sub, vehicle_class, docs
+
+
+@router.get("/categories")
+async def list_driver_categories(request: Request):
+    await get_current_user(request)
+    cats = []
+    async for c in db.driver_categories.find({"active": True}, {"_id": 0}).sort("order", 1):
+        cats.append(c)
+    return cats or DEFAULT_DRIVER_CATEGORIES
 
 
 
@@ -74,35 +147,51 @@ async def register_driver(data: DriverCreate, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Already registered as driver")
 
-    # Service types: taxi (courses), delivery (livreur — marchands), courier (coursier — colis). Default all.
-    allowed = {"taxi", "delivery", "courier"}
-    service_types = [s for s in (data.service_types or []) if s in allowed]
-    if not service_types:
-        service_types = ["delivery", "courier"]
-    # Taxi = transport de personnes: choisir le mode "car" (taxi voiture) ou "moto" (moto-taxi).
-    # Le véhicule doit correspondre. Carte VTC uploadée juste après (front exige à l'étape 2).
-    taxi_mode = None
-    if "taxi" in service_types:
-        taxi_mode = data.taxi_mode
-        if taxi_mode not in {"car", "moto"}:
-            raise HTTPException(status_code=400, detail="Choisissez le mode Taxi : Voiture ou Moto.")
-        if not _vehicle_matches_mode(data.vehicle_type, taxi_mode):
-            raise HTTPException(
-                status_code=400,
-                detail=("Le Moto-taxi nécessite un véhicule moto."
-                        if taxi_mode == "moto"
-                        else "Le Taxi nécessite un véhicule adapté (voiture)."),
-            )
+    category_ids = data.categories or []
+    taxi_sub = None
+    vehicle_class = None
+    if category_ids:
+        # V3Cube arborescence: derive everything from the chosen category leaves
+        cats = await _fetch_categories(category_ids)
+        valid = {c["id"] for c in cats}
+        if not cats or any(cid not in valid for cid in category_ids):
+            raise HTTPException(status_code=400, detail="Catégorie(s) invalide(s)")
+        classes = {c["vehicle_class"] for c in cats}
+        if len(classes) > 1:
+            raise HTTPException(status_code=400, detail="Un seul type de véhicule par chauffeur")
+        service_types, taxi_mode, taxi_sub, vehicle_class, _docs = _derive_from_categories(cats)
+        vehicle_type = VEHICLE_CLASS_TO_TYPE.get(vehicle_class, data.vehicle_type)
+    else:
+        # Legacy path (service_types + taxi_mode)
+        allowed = {"taxi", "delivery", "courier"}
+        service_types = [s for s in (data.service_types or []) if s in allowed] or ["delivery", "courier"]
+        vehicle_type = data.vehicle_type
+        vehicle_class = ("car" if _is_car_vehicle(vehicle_type) else ("moto" if _is_moto_vehicle(vehicle_type) else "velo"))
+        taxi_mode = None
+        if "taxi" in service_types:
+            taxi_mode = data.taxi_mode
+            if taxi_mode not in {"car", "moto"}:
+                raise HTTPException(status_code=400, detail="Choisissez le mode Taxi : Voiture ou Moto.")
+            if not _vehicle_matches_mode(vehicle_type, taxi_mode):
+                raise HTTPException(
+                    status_code=400,
+                    detail=("Le Moto-taxi nécessite un véhicule moto."
+                            if taxi_mode == "moto"
+                            else "Le Taxi nécessite un véhicule adapté (voiture)."),
+                )
 
     driver = {
         "id": f"driver_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
-        "vehicle_type": data.vehicle_type,
+        "vehicle_type": vehicle_type,
+        "vehicle_class": vehicle_class,
         "vehicle_number": data.vehicle_number,
         "vehicle_model": data.vehicle_model,
         "license_number": data.license_number,
         "service_types": service_types,
+        "categories": category_ids,
         "taxi_mode": taxi_mode,
+        "taxi_sub": taxi_sub,
         "status": "pending",
         "is_online": False,
         "current_lat": None,
