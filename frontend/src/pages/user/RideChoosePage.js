@@ -337,25 +337,25 @@ const RideChoosePage = () => {
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50 flex flex-col" data-testid="ride-choose-page">
-      {/* Compact white header (admin-editable texts) */}
-      <div className="bg-white border-b border-gray-100 px-4 pt-4 pb-3 shrink-0">
+      {/* Compact orange header (admin-editable texts) */}
+      <div className="bg-[#FF5000] px-4 pt-4 pb-3 shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0" data-testid="ride-choose-back">
-            <ArrowLeft size={18} className="text-[#0B1426]" />
+          <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0" data-testid="ride-choose-back">
+            <ArrowLeft size={18} className="text-white" />
           </button>
           <div className="min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#FF5000] block leading-none" data-testid="ride-choose-eyebrow">{cfg.booking_header_eyebrow || 'SB Drive · Se déplacer'}</span>
-            <h1 className="text-lg font-black text-[#0B1426] leading-tight truncate" data-testid="ride-choose-title">{cfg.booking_header_title || 'Planifiez votre trajet'}</h1>
+            <span className="text-[10px] font-black uppercase tracking-wider text-white/90 block leading-none" data-testid="ride-choose-eyebrow">{cfg.booking_header_eyebrow || 'SB Drive · Se déplacer'}</span>
+            <h1 className="text-lg font-black text-white leading-tight truncate" data-testid="ride-choose-title">{cfg.booking_header_title || 'Planifiez votre trajet'}</h1>
           </div>
         </div>
-        <div className="mt-2 inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1" data-testid="ride-choose-mode-chip">
+        <div className="mt-2 inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-3 py-1" data-testid="ride-choose-mode-chip">
           {modeCms ? (
-            <DynamicIcon name={modeCms.icon_name} imageUrl={modeCms.image_url} size={15} weight="duotone" className="text-[#FF5000]" />
+            <DynamicIcon name={modeCms.icon_name} imageUrl={modeCms.image_url} size={15} weight="duotone" className="text-white" />
           ) : (
-            <ModeIcon size={15} weight="duotone" className="text-[#FF5000]" />
+            <ModeIcon size={15} weight="duotone" className="text-white" />
           )}
-          <span className="text-xs font-bold text-[#0B1426]">{modeCms?.label_fr ? modeCms.label_fr.replace(/\n/g, ' ') : mode.label}</span>
-          <span className="text-[10px] text-gray-400">{modeCms?.subtitle_fr || mode.sub}</span>
+          <span className="text-xs font-bold text-white">{modeCms?.label_fr ? modeCms.label_fr.replace(/\n/g, ' ') : mode.label}</span>
+          <span className="text-[10px] text-white/70">{modeCms?.subtitle_fr || mode.sub}</span>
         </div>
       </div>
 
