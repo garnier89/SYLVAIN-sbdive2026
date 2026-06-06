@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, VideoCamera, Star, MagnifyingGlass, Phone, Clock, Globe, FunnelSimple } from '@phosphor-icons/react';
+import { ArrowLeft, VideoCamera, Star, MagnifyingGlass, Clock, Globe, CheckCircle } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -21,6 +22,8 @@ const VideoConsultPage = () => {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [booking, setBooking] = useState({ duration: 30, notes: '' });
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [booked, setBooked] = useState(null);
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -41,7 +44,9 @@ const VideoConsultPage = () => {
   );
 
   const handleBook = async (provider) => {
+    setSubmitting(true);
     try {
+      const totalPrice = (provider.price_per_min * booking.duration).toFixed(2);
       const res = await fetch(`${API}/api/video-consult/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,16 +56,46 @@ const VideoConsultPage = () => {
           provider_name: provider.name,
           category: provider.category,
           duration_min: booking.duration,
-          total_price: (provider.price_per_min * booking.duration).toFixed(2),
+          total_price: totalPrice,
           notes: booking.notes
         })
       });
       if (res.ok) {
         setSelectedProvider(null);
-        alert('Consultation réservée avec succès !');
+        setBooked({ provider, duration: booking.duration, total: totalPrice });
+        toast.success('Consultation réservée avec succès !');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.detail || 'Échec de la réservation. Réessayez.');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      toast.error('Erreur réseau. Vérifiez votre connexion.');
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (booked) {
+    return (
+      <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center" data-testid="video-consult-success">
+        <div className="w-20 h-20 rounded-full bg-teal-50 flex items-center justify-center mb-5">
+          <CheckCircle size={48} weight="fill" className="text-teal-500" />
+        </div>
+        <h1 className="text-xl font-bold text-gray-900">Consultation réservée !</h1>
+        <p className="text-sm text-gray-500 mt-2">Votre consultation vidéo de {booked.duration} min avec <b>{booked.provider.name}</b> est confirmée. L&apos;expert vous contactera à l&apos;heure prévue.</p>
+        <div className="bg-gray-50 rounded-xl p-4 w-full mt-5 flex justify-between text-sm">
+          <span className="text-gray-500">Total</span>
+          <span className="font-bold text-gray-900">{booked.total}€</span>
+        </div>
+        <button onClick={() => setBooked(null)} className="w-full mt-5 bg-teal-500 text-white py-3.5 rounded-xl font-semibold text-sm" data-testid="video-success-back">
+          Réserver une autre consultation
+        </button>
+        <button onClick={() => navigate('/home')} className="w-full mt-2 text-gray-500 py-2 text-sm font-medium" data-testid="video-success-home">
+          Retour à l&apos;accueil
+        </button>
+      </div>
+    );
+  }
 
   if (selectedProvider) {
     const p = selectedProvider;
@@ -113,10 +148,10 @@ const VideoConsultPage = () => {
               </div>
             </div>
 
-            <button onClick={() => handleBook(p)}
-              className="w-full bg-teal-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-teal-600 transition-colors"
+            <button onClick={() => handleBook(p)} disabled={submitting}
+              className="w-full bg-teal-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-teal-600 transition-colors disabled:opacity-60"
               data-testid="confirm-video-booking">
-              Confirmer la réservation - {totalPrice}€
+              {submitting ? 'Réservation…' : `Confirmer la réservation - ${totalPrice}€`}
             </button>
           </div>
         </div>

@@ -18,6 +18,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const DriverProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const soon = () => toast.info('Bientôt disponible');
   const [driver, setDriver] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [activity, setActivity] = useState(null);
@@ -133,7 +134,7 @@ const DriverProfilePage = () => {
     <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-28" data-testid="driver-profile-page">
       {/* ===== GREEN HEADER ===== */}
       <div className="px-5 pt-6 pb-5 relative" style={{ background: GREEN }}>
-        <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={() => {}} data-testid="settings-gear">
+        <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={soon} data-testid="settings-gear">
           <Gear size={20} className="text-white" />
         </button>
         <div className="flex items-center gap-4 mt-2">
@@ -184,15 +185,15 @@ const DriverProfilePage = () => {
           <ProfileRow icon={ClipboardText} color="#3B82F6" label="Mes reservations" onClick={() => navigate('/chauffeur/earnings')} />
           <ProfileRow icon={Wrench} color="#F59E0B" label="Gerer les services" onClick={openServices} />
           <ProfileRow icon={FileText} color="#06B6D4" label="Gerer les documents" onClick={() => navigate('/chauffeur/documents')} />
-          <ProfileRow icon={MapPin} color="#EF4444" label="Gerer le lieu de travail" onClick={() => {}} />
-          <ProfileRow icon={Images} color="#8B5CF6" label="Gerer la galerie" onClick={() => {}} />
-          <ProfileRow icon={CalendarCheck} color="#A3A3A3" label="Ma disponibilite" onClick={() => {}} />
+          <ProfileRow icon={MapPin} color="#EF4444" label="Gerer le lieu de travail" onClick={soon} />
+          <ProfileRow icon={Images} color="#8B5CF6" label="Gerer la galerie" onClick={() => navigate('/chauffeur/gallery')} />
+          <ProfileRow icon={CalendarCheck} color="#A3A3A3" label="Ma disponibilite" onClick={soon} />
           <ProfileRow icon={ChartBar} color="#22C55E" label="Statistiques" onClick={() => navigate('/chauffeur/earnings')} />
-          <ProfileRow icon={ChatCircleText} color="#06B6D4" label="Les commentaires des utilisateurs" onClick={() => {}} />
-          <ProfileRow icon={Receipt} color="#78716C" label="Lettre de voiture" onClick={() => {}} />
+          <ProfileRow icon={ChatCircleText} color="#06B6D4" label="Les commentaires des utilisateurs" onClick={soon} />
+          <ProfileRow icon={Receipt} color="#78716C" label="Lettre de voiture" onClick={soon} />
           <ProfileRow icon={Bell} color="#F97316" label="Les notifications" onClick={() => navigate('/chauffeur/notifications')} />
           <ProfileRow icon={UsersThree} color="#EF4444" label="Inviter des amis" onClick={() => navigate('/referral')} />
-          <ProfileRow icon={PhoneCall} color="#84CC16" label="Contacts d'urgence" onClick={() => {}} />
+          <ProfileRow icon={PhoneCall} color="#84CC16" label="Contacts d'urgence" onClick={() => navigate('/safety')} />
         </div>
       </div>
 
@@ -201,10 +202,10 @@ const DriverProfilePage = () => {
         <p className="px-5 text-base font-bold text-gray-800 mb-2">Parametre du compte</p>
         <div className="bg-white">
           <ProfileRow icon={Fingerprint} color="#64748B" label="Activer Face ID/Touch ID" toggle />
-          <ProfileRow icon={UserCircle} color="#D946EF" label="Gerer son compte" onClick={() => {}} />
-          <ProfileRow icon={Key} color="#374151" label="Changer le mot de passe" onClick={() => {}} />
-          <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label="Changer de devise" onClick={() => {}} />
-          <ProfileRow icon={Globe} color="#0D9488" label="Changer de langue" onClick={() => {}} />
+          <ProfileRow icon={UserCircle} color="#D946EF" label="Gerer son compte" onClick={soon} />
+          <ProfileRow icon={Key} color="#374151" label="Changer le mot de passe" onClick={soon} />
+          <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label="Changer de devise" onClick={soon} />
+          <ProfileRow icon={Globe} color="#0D9488" label="Changer de langue" onClick={soon} />
           {rewardsActive && (
             <ProfileRow icon={Gift} color="#22C55E" label="Programme de recompense" onClick={() => navigate('/chauffeur/rewards')} />
           )}
@@ -216,11 +217,11 @@ const DriverProfilePage = () => {
       <div className="mt-5">
         <p className="px-5 text-base font-bold text-gray-800 mb-2">Paiement</p>
         <div className="bg-white">
-          <ProfileRow icon={CreditCard} color="#3B82F6" label="Mode de paiement" onClick={() => {}} />
-          <ProfileRow icon={Bank} color="#6366F1" label="Coordonnees bancaires" onClick={() => {}} />
+          <ProfileRow icon={CreditCard} color="#3B82F6" label="Mode de paiement" onClick={() => navigate('/chauffeur/bank')} />
+          <ProfileRow icon={Bank} color="#6366F1" label="Coordonnees bancaires" onClick={() => navigate('/chauffeur/bank')} />
           <ProfileRow icon={Wallet} color="#EF4444" label="Mon portefeuille" onClick={() => navigate('/chauffeur/wallet')} />
           <ProfileRow icon={Plus} color="#8B5CF6" label="Ajouter de l'argent" onClick={() => navigate('/chauffeur/wallet')} />
-          <ProfileRow icon={PaperPlaneTilt} color="#D946EF" label="Envoyer de l'argent" onClick={() => {}} />
+          <ProfileRow icon={PaperPlaneTilt} color="#D946EF" label="Envoyer de l'argent" onClick={() => navigate('/chauffeur/wallet')} />
         </div>
       </div>
 

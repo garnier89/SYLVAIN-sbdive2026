@@ -1,0 +1,46 @@
+{
+  "summary": "Smoke audit FR couvrant 38 routes client + corrections demandees (VideoConsult, Profil chauffeur). Resultats: 38/38 routes affichent un contenu (aucun ECRAN BLANC, aucun CRASH React, aucune erreur console rouge bloquante). 4 routes ont un 404 image asset mineur (cosmetique). VideoConsult: fix OK (aucun alert natif, ecran video-consult-success affiche, toast). Profil chauffeur: 19/20 lignes OK -> 5 NAV verifiees (Galerie/Mode de paiement/Coordonnees bancaires/Mon portefeuille/Contacts d'urgence/Notifications) + 9 NAV supplementaires (Statistiques/Recompenses/Score/Cartes cadeaux/Support FAQ/Chat/About) + 3 toasts 'Bientot disponible' (Ma disponibilite/Gerer son compte/Changer le mot de passe + lieu de travail/commentaires/lettre de voiture/devise/langue). 1 SEUL BOUTON MORT detecte: 'profile-row-activer-face-id/touch-id' (Face ID/Touch ID) - aucun toast, aucune navigation, click sans effet. Paiements: runner-pay-* (4 methodes) confirmes en DOM; parcel-pay-*, pay-* (pharmacie catalogue), payment-row-* (food checkout) necessitent une interaction prealable (adresse / panier) - deja valides en iteration_135.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DriverProfilePage / Face ID Touch ID row", "issue": "Bouton MORT: aucun toast 'Bientot disponible', aucune navigation. Seule ligne du profil sans handler. Doit etre cable a soon() comme les autres soft-features.", "selector": "[data-testid=\"profile-row-activer-face-id/touch-id\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/pet-care, /car-care, /nearby, /parking", "issues": ["Console: 'Failed to load resource: 404' (1-2 assets images). Pages s'affichent normalement, juste images manquantes/placeholders. Cosmetique."]}
+    ]
+  },
+  "smoke_results_per_route": {
+    "OK_no_console_errors": ["/home","/course?mode=standard","/course?mode=pool","/course?mode=rental","/course?mode=buddy_driver","/course?mode=bidding","/course?mode=intercity","/course?mode=book_later","/taxi","/food","/food?type=grocery","/runner","/all-delivery","/parcel","/services","/all-services","/beauty","/services-bidding?cat=bcat_electric","/services-bidding?cat=bcat_plumber","/towing","/real-estate","/marketplace/cars","/marketplace/items","/medical/appointment","/video-consult","/medical/transport","/pharmacy","/carpool","/intercity","/giftcards","/wallet","/history","/profile","/tracking"],
+    "OK_with_minor_404_image_assets": ["/pet-care","/car-care","/nearby","/parking"],
+    "BLANC": [],
+    "CRASH": []
+  },
+  "e2e_flow_results": {
+    "VideoConsult": "PASS — Consulter -> duration -> Confirmer la reservation -> data-testid 'video-consult-success' present. Aucun alert natif intercepte (correctif applique avec succes).",
+    "DriverProfile": "PASS sauf 1 bouton mort (Face ID/Touch ID). 19/20 lignes ont comportement correct (NAV ou toast).",
+    "Course_smoke": "Page charge OK pour les 8 modes (standard/pool/rental/buddy_driver/bidding/intercity/book_later) + /taxi. Selection de gamme (SB/Confort/Luxe/SUV/VTC/Taxi) + paiements 4-methodes necessitent saisie d'adresse + estimation (non testes en profondeur ici - deja couvert en iter_135).",
+    "Parcel": "Page charge OK. parcel-confirm-btn et parcel-pay-* apparaissent apres saisie pickup+destination (deja valide iter_135).",
+    "Runner": "PASS — runner-pay-cash, runner-pay-card, runner-pay-wallet, runner-pay-sbpaygo presents dans le DOM (4/4).",
+    "Food": "Page charge OK (deja valide iter_135 avec checkout 4-methodes)."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Cabler la ligne 'Activer Face ID/Touch ID' du profil chauffeur (DriverProfilePage.js) pour declencher soit un toast 'Bientot disponible' (soon()) soit une navigation reelle. Actuellement seule ligne du profil sans handler.",
+    "Optionnel (cosmetique): verifier les 404 images sur /pet-care, /car-care, /nearby, /parking (asset paths). Aucune incidence fonctionnelle."
+  ],
+  "critical_code_review_comments": [
+    "DriverProfilePage.js: la ligne testid 'profile-row-activer-face-id/touch-id' est rendue mais ne possede ni onClick navigation ni soon(). C'est la seule incoherence du fichier - toutes les autres lignes sont correctement cablees.",
+    "UserHome.js: ~58 tuiles avec path defini -> couvert par App.js routes. Aucune tuile ne mene a une route 404.",
+    "Backend non teste (skip backend requested).",
+    "Routes manquantes potentielles a surveiller: aucune detectee dans les 38 routes testees - tout est servi par le React Router (200 + composants montes)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "skipped", "frontend": "38/38 routes loadable (100% de pages affichees) ; 1 bouton mort sur 20 du profil chauffeur (95% boutons profil chauffeur OK) ; VideoConsult fix 100% OK ; Runner 4-paiements 100% OK." },
+  "test_credentials_used": "Client: test2@example.com / TestPass123!  |  Chauffeur (login email unifie): jean.dupont@demo.sb / Driver123!  (le route /chauffeur/login n'accepte que phone+OTP - login email standard /login/email fonctionne aussi pour les comptes driver).",
+  "seed_data_creation": "1 reservation video-consult creee lors du test (compte test2).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Pour login chauffeur en test, utiliser /login/email avec jean.dupont@demo.sb / Driver123! (le bouton 'Other login options' de /chauffeur/login n'expose PAS de champ email/password - uniquement social/biometric). Tous les boutons profil chauffeur ont des testids 'profile-row-<text-slug>'. Le seul bouton mort identifie est profile-row-activer-face-id/touch-id. Les flux de paiement profonds (Course/Parcel/Pharmacy) requierent une saisie d'adresse - couverts en iter_135. Smoke des 38 routes via direct URL navigation a confirme zero page blanche / zero crash React.",
+  "rca of the issue": "Bouton mort Face ID/Touch ID: handler manquant dans DriverProfilePage.js. Les autres 'soft features' (lieu de travail, ma disponibilite, lettre de voiture, gerer son compte, changer mot de passe, devise, langue, commentaires) utilisent toutes une callback soon() qui declenche toast.info('Bientot disponible'). La ligne Face ID a probablement ete oubliee lors du cablage. Reproduction: login chauffeur -> /chauffeur/profile -> scroll jusqu'a 'Activer Face ID/Touch ID' -> click -> rien ne se passe. Fix: ajouter onClick={() => soon()} sur cette ligne, identique aux autres lignes 'a venir'."
+}

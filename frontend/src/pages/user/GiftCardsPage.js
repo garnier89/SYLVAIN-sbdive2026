@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gift, CurrencyEur, Envelope, Heart, Star, ShoppingCart, Check, Copy } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -58,12 +59,12 @@ const GiftCardsPage = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message || 'Carte-cadeau créditée sur votre portefeuille ✅');
         setRedeemCode('');
       } else {
-        alert(data.detail || 'Code invalide');
+        toast.error(data.detail || 'Code invalide');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { toast.error('Erreur réseau. Réessayez.'); }
     finally { setLoading(false); }
   };
 
