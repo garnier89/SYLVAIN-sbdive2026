@@ -232,6 +232,13 @@ const TaxiBiddingPage = () => {
       `&key=${GMAP_KEY}`
     : null;
 
+  // Pickup-centered map for the "searching" radar (pulse rings sit on the pickup).
+  const radarMapUrl = pickup?.lat && GMAP_KEY
+    ? `https://maps.googleapis.com/maps/api/staticmap?size=400x340&scale=2&zoom=15` +
+      `&center=${pickup.lat},${pickup.lng}` +
+      `&key=${GMAP_KEY}`
+    : null;
+
   return (
     <div className="min-h-screen bg-gray-100 relative" data-testid="taxi-bidding-page">
       {/* Map background (or hero gradient when addresses not set) */}
@@ -242,6 +249,28 @@ const TaxiBiddingPage = () => {
           <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-rose-50" />
         )}
       </div>
+
+      {/* Searching radar — pickup-centered map with pulsing orange waves */}
+      {searching && (
+        <div className="absolute top-0 left-0 right-0 h-[58%] overflow-hidden z-[2]" data-testid="radar-map-layer">
+          {radarMapUrl
+            ? <img src={radarMapUrl} alt="Carte" className="w-full h-full object-cover" />
+            : <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-rose-50" />}
+          <div className="absolute inset-0 bg-white/10" />
+          {/* Pulsing concentric waves centered on the pickup */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-44 pointer-events-none" data-testid="radar-pulse">
+            {[0, 0.7, 1.4].map((delay, i) => (
+              <span
+                key={i}
+                className="absolute inset-0 m-auto rounded-full bg-[#FF5000]/25 animate-ping"
+                style={{ width: '11rem', height: '11rem', animationDelay: `${delay}s`, animationDuration: '2.1s' }}
+              />
+            ))}
+            <span className="absolute inset-0 m-auto w-24 h-24 rounded-full border-2 border-[#FF5000]/40" />
+            <span className="absolute inset-0 m-auto w-5 h-5 rounded-full bg-[#FF5000] ring-4 ring-white shadow-lg" />
+          </div>
+        </div>
+      )}
 
       {/* Top-left back + title */}
       <div className="relative z-10 pt-12 px-4 flex items-center gap-2">
