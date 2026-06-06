@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Info, Minus, Plus, Users, TrendUp } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CountdownRing } from '../../components/CountdownRing';
-import SearchingRadar from '../../components/SearchingRadar';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
@@ -409,11 +408,10 @@ const TaxiBiddingPage = () => {
       {searching && (
         <div className="fixed bottom-0 left-0 right-0 z-30 bg-white rounded-t-3xl shadow-2xl animate-slide-up" data-testid="searching-sheet">
           <div className="flex justify-center pt-3"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-          {/* Radar animation */}
+          {/* Title (the radar animation is shown on the map above) */}
           <div className="flex flex-col items-center pt-4 pb-2">
-            <SearchingRadar size={150} />
-            <h2 className="text-lg font-bold text-gray-900 mt-3" data-testid="searching-title">Recherche d&apos;un chauffeur…</h2>
-            <p className="text-sm text-gray-500">Votre offre : <span className="font-bold text-[#FF5000]" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
+            <h2 className="text-lg font-bold text-gray-900" data-testid="searching-title">Recherche d&apos;un chauffeur…</h2>
+            <p className="text-sm text-gray-500 mt-1">Votre offre : <span className="font-bold text-[#FF5000]" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
             {liveStats?.online_drivers_nearby != null && (
               <p className="text-[11px] text-gray-400 mt-0.5">{liveStats.online_drivers_nearby} chauffeurs en ligne à proximité</p>
             )}
