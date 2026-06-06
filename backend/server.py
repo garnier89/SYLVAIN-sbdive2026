@@ -548,6 +548,16 @@ async def lifespan(app: FastAPI):
         {"$set": {"target_route": "/food?type=grocery"}},
     )
 
+    # Migration: existing drivers without a service type default to both (taxi + delivery)
+    await db.drivers.update_many(
+        {"service_types": {"$exists": False}},
+        {"$set": {"service_types": ["taxi", "delivery"]}},
+    )
+    await db.drivers.update_many(
+        {"service_types": {"$in": [None, []]}},
+        {"$set": {"service_types": ["taxi", "delivery"]}},
+    )
+
     # Seed taxi service categories (V3Cube Manage Service Category)
     await seed_service_categories()
 

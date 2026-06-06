@@ -32,6 +32,12 @@ async def register_driver(data: DriverCreate, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Already registered as driver")
 
+    # Service types: taxi (courses), delivery (livreur), or both. Default both.
+    allowed = {"taxi", "delivery"}
+    service_types = [s for s in (data.service_types or []) if s in allowed]
+    if not service_types:
+        service_types = ["taxi", "delivery"]
+
     driver = {
         "id": f"driver_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
@@ -39,6 +45,7 @@ async def register_driver(data: DriverCreate, request: Request):
         "vehicle_number": data.vehicle_number,
         "vehicle_model": data.vehicle_model,
         "license_number": data.license_number,
+        "service_types": service_types,
         "status": "pending",
         "is_online": False,
         "current_lat": None,
@@ -62,6 +69,24 @@ async def get_driver_profile(request: Request):
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
     return DriverProfile(**driver)
+
+
+@router.put("/service-types")
+async def update_service_types(request: Request):
+    """Driver chooses which services they handle: taxi, delivery, or both."""
+    user = await get_current_user(request)
+    body = await request.json()
+    allowed = {"taxi", "delivery"}
+    service_types = [s for s in (body.get("service_types") or []) if s in allowed]
+    if not service_types:
+        raise HTTPException(status_code=400, detail="Sélectionnez au moins un service (taxi ou livraison)")
+    result = await db.drivers.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"service_types": service_types}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    return {"message": "Services mis à jour", "service_types": service_types}
 
 
 @router.post("/toggle-online")
@@ -628,6 +653,10 @@ async def incoming_requests(request: Request):
         raise HTTPException(status_code=403, detail="Driver only")
     d = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
     if not d or not d.get("is_online"):
+        return []
+    # Only "taxi" drivers receive taxi ride requests
+    svc = d.get("service_types") or ["taxi", "delivery"]
+    if "taxi" not in svc:
         return []
     # Optional destination-mode filtering
     target = d.get("destination_mode_target") if d.get("destination_mode_active") else None

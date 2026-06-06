@@ -72,6 +72,11 @@ async def available_deliveries(request: Request):
     user = await get_current_user(request)
     if user["role"] != "driver":
         raise HTTPException(status_code=403, detail="Drivers only")
+    # Only "delivery" (livreur) drivers receive delivery orders
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "service_types": 1})
+    svc = (driver or {}).get("service_types") or ["taxi", "delivery"]
+    if "delivery" not in svc:
+        return []
     orders = await db.orders.find({"status": "ready", "driver_id": None}, {"_id": 0}).sort("created_at", 1).limit(30).to_list(30)
     out = []
     for o in orders:

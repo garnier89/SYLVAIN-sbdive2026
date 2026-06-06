@@ -172,7 +172,12 @@ PARCEL_FLOW = ["pending", "accepted", "arrived_pickup", "picked_up", "in_transit
 
 @router.get("/driver/available")
 async def driver_available_parcels(request: Request):
-    await get_current_user(request)
+    user = await get_current_user(request)
+    # Only "delivery" (livreur) drivers receive parcel jobs
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "service_types": 1})
+    svc = (driver or {}).get("service_types") or ["taxi", "delivery"]
+    if "delivery" not in svc:
+        return []
     items = await db.parcels.find({"status": "pending", "driver_id": None}, {"_id": 0}).sort("created_at", -1).to_list(30)
     return items
 

@@ -50,6 +50,7 @@ class DriverCreate(BaseModel):
     vehicle_number: str
     vehicle_model: str
     license_number: str
+    service_types: Optional[List[str]] = None  # ["taxi"], ["delivery"] or both
 
 class DriverProfile(BaseModel):
     id: str
@@ -58,6 +59,7 @@ class DriverProfile(BaseModel):
     vehicle_number: Optional[str] = None
     vehicle_model: Optional[str] = None
     license_number: Optional[str] = None
+    service_types: List[str] = []
     status: str
     is_online: bool = False
     current_lat: Optional[float] = None

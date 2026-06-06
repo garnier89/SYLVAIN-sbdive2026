@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { driverAPI } from '../../services/api';
-import { Car, Motorcycle, Bicycle, ArrowRight, ArrowLeft, Upload, CheckCircle } from '@phosphor-icons/react';
+import { Car, Motorcycle, Bicycle, ArrowRight, ArrowLeft, Upload, CheckCircle, Package, Taxi } from '@phosphor-icons/react';
 
 const DriverRegisterPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '' });
+  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '', service_types: ['taxi', 'delivery'] });
   const [documents, setDocuments] = useState({ license: null, registration: null, insurance: null });
+
+  const serviceOptions = [
+    { value: ['taxi'], label: 'Taxi', desc: 'Courses uniquement', Icon: Taxi },
+    { value: ['delivery'], label: 'Livreur', desc: 'Livraisons uniquement', Icon: Package },
+    { value: ['taxi', 'delivery'], label: 'Les deux', desc: 'Taxi + livraisons', Icon: Car },
+  ];
+  const isServiceSelected = (opt) => JSON.stringify([...formData.service_types].sort()) === JSON.stringify([...opt].sort());
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -75,6 +82,25 @@ const DriverRegisterPage = () => {
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col px-5 mt-6">
         {step === 1 && (
           <div className="space-y-5 flex-1">
+            {/* Service Type — taxi, livreur or both */}
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 block">Je veux faire</label>
+              <div className="grid grid-cols-3 gap-3">
+                {serviceOptions.map((opt) => (
+                  <button key={opt.label} type="button"
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                      isServiceSelected(opt.value)
+                        ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
+                    onClick={() => setFormData({ ...formData, service_types: opt.value })}
+                    data-testid={`service-type-${opt.label === 'Les deux' ? 'both' : opt.value[0]}`}>
+                    <opt.Icon size={30} weight="duotone" className={isServiceSelected(opt.value) ? 'text-amber-500' : 'text-gray-500'} />
+                    <span className={`text-xs font-semibold ${isServiceSelected(opt.value) ? 'text-amber-400' : 'text-gray-300'}`}>{opt.label}</span>
+                    <span className="text-[10px] text-gray-500 leading-tight text-center">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Vehicle Type */}
             <div>
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 block">Type de v&eacute;hicule</label>
@@ -125,7 +151,7 @@ const DriverRegisterPage = () => {
 
             <div className="mt-auto pb-8 pt-4">
               <button type="button" onClick={() => setStep(2)}
-                disabled={!formData.vehicle_type || !formData.vehicle_number || !formData.vehicle_model || !formData.license_number}
+                disabled={!formData.vehicle_type || !formData.vehicle_number || !formData.vehicle_model || !formData.license_number || formData.service_types.length === 0}
                 className="w-full h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
                 data-testid="next-step-btn">
                 Continuer <ArrowRight size={20} />

@@ -1144,6 +1144,11 @@ async def get_available_rides(request: Request):
     if not driver or driver["status"] != "approved":
         raise HTTPException(status_code=403, detail="Not an approved driver")
 
+    # Only "taxi" drivers receive taxi ride requests
+    svc = driver.get("service_types") or ["taxi", "delivery"]
+    if "taxi" not in svc:
+        return []
+
     rides = await db.rides.find(
         {"status": "pending"},
         {"_id": 0}

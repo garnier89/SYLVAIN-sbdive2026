@@ -70,6 +70,7 @@ export const userAPI = {
 // Driver APIs
 export const driverAPI = {
   register: (data) => api.post('/drivers/register', data),
+  updateServiceTypes: (service_types) => api.put('/drivers/service-types', { service_types }),
   getProfile: () => api.get('/drivers/profile'),
   toggleOnline: () => api.post('/drivers/toggle-online'),
   updateLocation: (lat, lng) => api.post('/drivers/location', { lat, lng }),
