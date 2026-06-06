@@ -126,6 +126,8 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
     const subtotal = b.subtotal ?? b.total ?? ride.final_fare ?? ride.estimated_fare ?? 0;
     const net = b.total_net ?? b.total ?? subtotal;
     const rounding = b.rounding ?? 0;
+    const extra = b.extra_total || 0;
+    const fareOnly = subtotal - extra;
     return (
       <div className="fixed inset-0 z-[3000] bg-[#0B0B0B] flex flex-col" data-testid="invoice-screen">
         <div className="text-white text-center pt-4 pb-2 text-lg font-semibold">Facture détaillée</div>
@@ -148,9 +150,9 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
           <p className="text-lg font-extrabold text-gray-900 mb-2">DÉTAIL DE LA FACTURE</p>
           <div className="bg-white rounded-2xl px-4 py-2 shadow-sm">
             <p className="text-center text-xl font-extrabold text-gray-900 py-2">{b.vehicle_label || ride.vehicle_type || 'SB'}</p>
-            <Row label="Tarif" value={cur(subtotal)} testId="invoice-fare" />
-            {b.extra_total > 0 && <Row label="Frais supplémentaires" value={cur(b.extra_total)} testId="invoice-extra" />}
-            <Row label="Total" value={cur(subtotal + (b.extra_total && b.subtotal == null ? b.extra_total : 0))} testId="invoice-total" />
+            <Row label="Tarif" value={cur(fareOnly)} testId="invoice-fare" />
+            {extra > 0 && <Row label="Frais supplémentaires" value={cur(extra)} testId="invoice-extra" />}
+            <Row label="Total" value={cur(subtotal)} testId="invoice-total" />
             <Row label="Arrondir" value={cur(rounding)} testId="invoice-rounding" />
             <Row label="Total net" value={cur(net)} strong testId="invoice-net" />
           </div>
