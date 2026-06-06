@@ -171,6 +171,41 @@ async def get_payment_methods():
     return await get_payment_methods_config()
 
 
+@router.get("/cancel-policy/state")
+async def cancel_policy_state(request: Request):
+    """Per-user state driving the 'Politique d'annulation' popup.
+    Count is stored server-side so the N-shows limit holds across devices."""
+    cfg = await get_payment_methods_config()
+    count = 0
+    try:
+        user = await get_current_user(request)
+        doc = await db.user_flags.find_one({"user_id": user["id"]}, {"_id": 0, "cancel_popup_count": 1})
+        count = int((doc or {}).get("cancel_popup_count", 0) or 0)
+    except Exception:
+        count = 0
+    return {
+        "enabled": cfg["cancel_popup_enabled"],
+        "max_shows": cfg["cancel_popup_max_shows"],
+        "zone": cfg["cancel_popup_zone"],
+        "fee": cfg["cancellation_fee_eur"],
+        "free_min": cfg["free_cancel_window_minutes"],
+        "count": count,
+    }
+
+
+@router.post("/cancel-policy/seen")
+async def cancel_policy_seen(request: Request):
+    """Increment the current user's popup-shown counter (server-side)."""
+    user = await get_current_user(request)
+    await db.user_flags.update_one(
+        {"user_id": user["id"]},
+        {"$inc": {"cancel_popup_count": 1}},
+        upsert=True,
+    )
+    doc = await db.user_flags.find_one({"user_id": user["id"]}, {"_id": 0, "cancel_popup_count": 1})
+    return {"count": int((doc or {}).get("cancel_popup_count", 1) or 1)}
+
+
 @router.get("/app")
 async def get_app_config():
     """Public app configuration (currency, company info, feature flags)."""

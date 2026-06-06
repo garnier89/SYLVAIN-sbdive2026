@@ -62,7 +62,8 @@ const RideTrackingPage = () => {
   ]);
   const [showPayPicker, setShowPayPicker] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
-  const [cancelPolicy, setCancelPolicy] = useState({ fee: 5, free_min: 5, popup_enabled: true, popup_max_shows: 5, popup_zone: '', loaded: false });
+  const [cancelPolicy, setCancelPolicy] = useState({ fee: 5, free_min: 5, popup_enabled: true, popup_max_shows: 5, popup_zone: '', count: 0, loaded: false });
+  const policyHandledRef = useRef(false);
   const [showPolicy, setShowPolicy] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
@@ -116,34 +117,40 @@ const RideTrackingPage = () => {
   useEffect(() => {
     fetch(`${API}/api/config/payment-methods`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (Array.isArray(d?.methods) && d.methods.length) setPayMethods(d.methods); })
+      .catch(() => {});
+  }, []);
+
+  // Per-user cancellation-policy popup state (count stored server-side)
+  useEffect(() => {
+    fetch(`${API}/api/config/cancel-policy/state`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (Array.isArray(d?.methods) && d.methods.length) setPayMethods(d.methods);
         if (d) setCancelPolicy({
-          fee: d.cancellation_fee_eur ?? 5,
-          free_min: d.free_cancel_window_minutes ?? 5,
-          popup_enabled: d.cancel_popup_enabled !== false,
-          popup_max_shows: d.cancel_popup_max_shows ?? 5,
-          popup_zone: d.cancel_popup_zone || '',
+          fee: d.fee ?? 5,
+          free_min: d.free_min ?? 5,
+          popup_enabled: d.enabled !== false,
+          popup_max_shows: d.max_shows ?? 5,
+          popup_zone: d.zone || '',
+          count: d.count ?? 0,
           loaded: true,
         });
       })
       .catch(() => {});
   }, []);
 
-  // Cancellation-policy popup — shown for the first N rides per user (admin-set),
-  // and only when the pickup is inside the admin-configured zone (country/region).
+  // Cancellation-policy popup — shown for the first N rides per user (admin-set,
+  // counted server-side so the limit holds across devices), and only when the
+  // pickup is inside the admin-configured zone (country/region).
   useEffect(() => {
-    if (!cancelPolicy.loaded || ride?.status !== 'pending' || !rideId) return;
-    const rideKey = `policy_shown_${rideId}`;
-    if (localStorage.getItem(rideKey)) return; // already handled for this ride
+    if (!cancelPolicy.loaded || ride?.status !== 'pending' || !rideId || policyHandledRef.current) return;
     if (!cancelPolicy.popup_enabled) return;
     const zone = (cancelPolicy.popup_zone || '').trim().toLowerCase();
     if (zone && !((ride?.pickup_address || '').toLowerCase().includes(zone))) return;
-    const shown = parseInt(localStorage.getItem('policy_show_count') || '0', 10);
-    if (shown >= (cancelPolicy.popup_max_shows ?? 5)) return;
+    if ((cancelPolicy.count ?? 0) >= (cancelPolicy.popup_max_shows ?? 5)) return;
+    policyHandledRef.current = true;
     setShowPolicy(true);
-    localStorage.setItem(rideKey, '1');
-    localStorage.setItem('policy_show_count', String(shown + 1));
+    fetch(`${API}/api/config/cancel-policy/seen`, { method: 'POST', credentials: 'include' }).catch(() => {});
   }, [cancelPolicy, ride?.status, ride?.pickup_address, rideId]);
 
   const payLabel = (id) => payMethods.find((m) => m.id === id)?.label || 'Espèces';
