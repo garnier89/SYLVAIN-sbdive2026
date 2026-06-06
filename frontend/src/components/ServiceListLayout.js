@@ -31,12 +31,16 @@ const ServiceListLayout = ({
   const [activeCat, setActiveCat] = useState(null);
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`${API}/api/phase2/catalogs/${collection}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setItems(Array.isArray(d) ? d : []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
+    let active = true;
+    (async () => {
+      try {
+        const r = await fetch(`${API}/api/phase2/catalogs/${collection}`, { credentials: 'include' });
+        const d = r.ok ? await r.json() : [];
+        if (active) setItems(Array.isArray(d) ? d : []);
+      } catch { if (active) setItems([]); }
+      finally { if (active) setLoading(false); }
+    })();
+    return () => { active = false; };
   }, [collection]);
 
   const filtered = items.filter(it => {
@@ -130,7 +134,7 @@ export const ServiceCard = ({ item, badges = [], onClick }) => (
     )}
     {(item.image) && (
       <div className="w-28 h-28 flex-shrink-0 bg-gray-100">
-        <img src={item.image} alt={item.name || item.title} className="w-full h-full object-cover" loading="lazy" />
+        <img src={item.image} alt={item.name || item.title} className="w-full h-full object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       </div>
     )}
     <div className="flex-1 min-w-0 p-3">

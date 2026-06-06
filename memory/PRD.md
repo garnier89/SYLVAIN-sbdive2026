@@ -1,3 +1,16 @@
+## NEW - 2026-06-06 - Audit complet + finalisation (démo-ready) (DONE)
+- **Demande user** : auditer toute l'app, corriger liens morts/boutons sans action/erreurs UI, rendre chaque service cliquable & utilisable, démo-ready. (« Je te laisse faire ».)
+- **Audit (agent de test, iteration_136)** : **38/38 routes client s'affichent** — 0 écran blanc, 0 crash React, 0 erreur console bloquante. Tuiles home toutes câblées vers des routes valides. Flux principaux (VTC, Repas, Colis, Coursier, Pharmacie, Transport médical, Marketplace, Vidéo-consult) fonctionnels.
+- **Corrections livrées** :
+  - `DriverProfilePage` : **14 boutons morts** câblés → routes existantes (Galerie→/chauffeur/gallery, Mode de paiement & Coord. bancaires→/chauffeur/bank, Portefeuille/Ajouter/Envoyer→/chauffeur/wallet, Contacts d'urgence→/safety) ou feedback propre `toast.info('Bientôt disponible')` pour les soft-features sans backend. Toggle **Face ID/Touch ID** → toast de confirmation (plus de clic sans effet).
+  - `VideoConsultPage` : `alert()` natif → **toast + écran de succès** (`video-consult-success`) avec gestion d'erreur.
+  - `GiftCardsPage` : `alert()` → toasts.
+  - **Images 404 cosmétiques** : fallback gracieux global dans `ServiceCard` (`onError` → masque l'image cassée, fond gris) + dégradé de secours sur `ParkingPage`. Corrige pet-care/car-care/nearby/parking d'un coup.
+  - Refactor sûr de l'effet de fetch dans `ServiceListLayout` (inline async, conforme React Compiler).
+- **Décision** : `DriverHome` (786 l, critique) NON modifié — l'`alert` OTP conservé pour éviter d'hériter de la dette lint React Compiler pré-existante (`Date.now()` en init, `navigator`) sur ce fichier sensible.
+- **Vérifié** : lint front clean sur tous les fichiers touchés, webpack OK, screenshot login→/home→/pet-care OK (fallback image confirmé), console sans erreur applicative. Soft-placeholders honnêtes restants (feedback, non morts) : devise/langue/changer-mdp chauffeur, Finance, Covoiturage publier, Abonnements Stripe.
+
+
 ## NEW - 2026-06-06 - 4 moyens de paiement sur tous les services + vérif livraison repas (DONE)
 - **Demande user** : (1) vérifier la livraison de repas ; (2) activer les 4 moyens de paiement (Espèces · CB · Portefeuille · SB PayGo) pour TOUS les services, y compris la pharmacie. **Choix règlement** (Colis/Coursier/Transport médical) : débit Portefeuille/SB PayGo **AVANT la recherche chauffeur** (à la réservation) ; si solde insuffisant → **bascule automatique en espèces + message d'avertissement**. Espèces/CB = payé à la livraison.
 - **État avant** : Repas (CheckoutPage) + Taxi + Pharmacie catalogue affichaient déjà les 4 (config centrale `/api/config/payment-methods`). Colis/Coursier/Transport médical étaient figés sur « espèces » ; « Payer maintenant » pharmacie = Portefeuille/SB PayGo seulement.

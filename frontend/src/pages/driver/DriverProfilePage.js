@@ -201,7 +201,7 @@ const DriverProfilePage = () => {
       <div className="mt-5">
         <p className="px-5 text-base font-bold text-gray-800 mb-2">Parametre du compte</p>
         <div className="bg-white">
-          <ProfileRow icon={Fingerprint} color="#64748B" label="Activer Face ID/Touch ID" toggle />
+          <ProfileRow icon={Fingerprint} color="#64748B" label="Activer Face ID/Touch ID" toggle onToggle={(v) => toast.success(v ? 'Face ID / Touch ID activé' : 'Face ID / Touch ID désactivé')} />
           <ProfileRow icon={UserCircle} color="#D946EF" label="Gerer son compte" onClick={soon} />
           <ProfileRow icon={Key} color="#374151" label="Changer le mot de passe" onClick={soon} />
           <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label="Changer de devise" onClick={soon} />
@@ -424,11 +424,11 @@ const StatCell = ({ icon: Icon, color, label, value, subtle, border, testid }) =
   </div>
 );
 
-const ProfileRow = ({ icon: Icon, color, label, onClick, toggle }) => {
+const ProfileRow = ({ icon: Icon, color, label, onClick, toggle, onToggle }) => {
   const [enabled, setEnabled] = useState(true);
   return (
     <button
-      onClick={toggle ? () => setEnabled(!enabled) : onClick}
+      onClick={toggle ? () => { const v = !enabled; setEnabled(v); onToggle && onToggle(v); } : onClick}
       className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 last:border-0 active:bg-gray-50 transition-colors"
       data-testid={`profile-row-${label.toLowerCase().replace(/\s+/g, '-').slice(0, 25)}`}
     >

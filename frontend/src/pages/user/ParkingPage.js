@@ -48,7 +48,7 @@ const ParkingPage = () => {
           Votre place au {selectedSpot.name} est confirmée pour {form.duration_hours}h.
         </p>
         <button onClick={() => navigate('/home')} className="bg-blue-500 text-white px-6 py-3 rounded-xl font-semibold text-sm">
-          Retour à l'accueil
+          Retour à l&apos;accueil
         </button>
       </div>
     );
@@ -79,7 +79,7 @@ const ParkingPage = () => {
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1.5">Plaque d'immatriculation</label>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">Plaque d&apos;immatriculation</label>
             <input value={form.vehicle_plate} onChange={e => setForm({ ...form, vehicle_plate: e.target.value })}
               className="w-full border border-gray-200 rounded-xl p-3 text-sm uppercase"
               placeholder="AA-123-BB" data-testid="vehicle-plate" />
@@ -132,7 +132,7 @@ const ParkingPage = () => {
           <button key={spot.id} onClick={() => setSelectedSpot(spot)}
             className="w-full bg-white rounded-2xl overflow-hidden border border-gray-100 text-left"
             data-testid={`spot-${spot.id}`}>
-            <div className="h-28 bg-cover bg-center" style={{ backgroundImage: `url(${spot.image_url})` }} />
+            <div className="h-28 bg-cover bg-center bg-gradient-to-br from-slate-200 to-slate-300" style={{ backgroundImage: `url(${spot.image_url})` }} />
             <div className="p-3">
               <div className="flex items-start justify-between">
                 <div>
