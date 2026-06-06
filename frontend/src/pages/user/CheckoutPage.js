@@ -45,6 +45,20 @@ const CheckoutPage = () => {
   });
 
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        const merchantRes = await merchantAPI.get(merchantId);
+        setMerchant(merchantRes.data);
+      } catch (error) {
+        setMerchant({ id: merchantId, store_name: 'Restaurant' });
+      }
+      try {
+        const walletRes = await walletAPI.get();
+        setWallet(walletRes.data);
+      } catch (error) {
+        console.warn('[checkout] wallet fetch error', error?.message);
+      }
+    };
     loadData();
     // Try loading cart from backend for session persistence
     const syncCart = async () => {
@@ -58,22 +72,6 @@ const CheckoutPage = () => {
     };
     syncCart();
   }, [merchantId]);
-
-  const loadData = async () => {
-    try {
-      const merchantRes = await merchantAPI.get(merchantId);
-      setMerchant(merchantRes.data);
-    } catch (error) {
-      setMerchant({ id: merchantId, store_name: 'Restaurant' });
-    }
-
-    try {
-      const walletRes = await walletAPI.get();
-      setWallet(walletRes.data);
-    } catch (error) {
-      console.warn('[checkout] wallet fetch error', error?.message);
-    }
-  };
 
   const updateQuantity = (productId, delta) => {
     setCart(prev => {
@@ -151,10 +149,10 @@ const CheckoutPage = () => {
           <div className="w-24 h-24 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-6">
             <CheckCircle size={48} weight="fill" className="text-green-500" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed!</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Commande passée !</h1>
           <p className="text-gray-500 mb-6">
-            Your order #{orderId?.slice(-6)} has been confirmed.<br/>
-            Estimated delivery: 25-35 minutes
+            Votre commande #{orderId?.slice(-6)} est confirmée.<br/>
+            Livraison estimée : 25-35 minutes
           </p>
           <div className="space-y-3">
             <Button
@@ -163,7 +161,7 @@ const CheckoutPage = () => {
               onClick={() => navigate(`/order/${orderId}`)}
               data-testid="track-order-btn"
             >
-              Track Order
+              Suivre la commande
             </Button>
             <Button
               variant="outline"
@@ -171,7 +169,7 @@ const CheckoutPage = () => {
               onClick={() => navigate('/')}
               data-testid="back-home-btn"
             >
-              Back to Home
+              Retour à l&apos;accueil
             </Button>
           </div>
         </div>
@@ -356,7 +354,7 @@ const CheckoutPage = () => {
 
       {/* Place Order Button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
-        <div className="mobile-container">
+        <div className="max-w-[430px] mx-auto">
           <Button
             className="w-full h-14 rounded-full text-white text-lg"
             style={{ backgroundColor: '#FF4500' }}
@@ -364,7 +362,7 @@ const CheckoutPage = () => {
             disabled={loading}
             data-testid="place-order-btn"
           >
-            {loading ? 'Placing Order...' : `Place Order · $${total.toFixed(2)}`}
+            {loading ? 'Commande en cours…' : `Commander · ${total.toFixed(2).replace('.', ',')} €`}
           </Button>
         </div>
       </div>
@@ -373,4 +371,3 @@ const CheckoutPage = () => {
 };
 
 export default CheckoutPage;
-e;

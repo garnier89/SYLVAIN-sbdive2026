@@ -1,3 +1,8 @@
+## NEW - 2026-06-06 - Commande de repas réparée + suivi FR/€ (DONE)
+- 2 bugs bloquants corrigés dans le parcours commande : (1) `e;` parasite en fin de `CheckoutPage.js` (ReferenceError) ; (2) calque plein écran dû à `<div className="mobile-container">` (min-h:100vh + bg blanc) imbriqué dans la barre fixe du bouton — masquait tout et bloquait les clics. Remplacé par `max-w-[430px] mx-auto`.
+- `CheckoutPage` (confirmation) + `OrderTracking` (suivi) traduits FR + devise €. Lint React-Compiler corrigé (effets inlinés).
+- Testé e2e jusqu'à la page de suivi. Détails : CHANGELOG 2026-06-06.
+
 ## NEW - 2026-06-06 - Services de Livraison multi-verticales fonctionnels (DONE)
 - Demande : vérifier les 4 services de livraison + ajouter les verticales manquantes, tout doit fonctionner.
 - `FoodPage` devient une liste de magasins **générique verticale-aware** (`/food?type=grocery|florist|stationery|wine|construction`, défaut restaurant), en **FR + €**. `RestaurantDetail` traduit FR/€.

@@ -1,6 +1,27 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-06 (fix) — Commande de repas cassée : 2 bugs bloquants + cohérence FR/€
+
+Demande : « Simuler une commande de repas jusqu'au bout ». Diagnostic & corrections :
+
+### Bug bloquant #1 — `CheckoutPage.js` ligne 376 : `e;` parasite
+Un `e;` (résidu d'une édition corrompue) après `export default CheckoutPage;` levait `ReferenceError: e is not defined` à l'évaluation du module → la page de paiement ne se chargeait pas. **Supprimé.**
+
+### Bug bloquant #2 (cause racine) — calque plein écran `.mobile-container`
+La barre fixe du bouton « Commander » (`fixed bottom-0`) contenait un `<div className="mobile-container">`. Or `.mobile-container` impose `min-height:100vh` + `background:#fff` → ce div créait un **calque blanc plein écran** masquant tout le contenu et **interceptant tous les clics** (adresse, articles, bouton). D'où : écran « blanc », clics impossibles, aucun appel `/api/orders`. **Corrigé** en `max-w-[430px] mx-auto`. Vérifié : seule occurrence de cet anti-pattern.
+
+### Cohérence FR/€
+- `CheckoutPage` : écran de confirmation (« Commande passée ! », « Suivre la commande », « Retour à l'accueil ») + bouton « Commander · X,XX € ».
+- `OrderTracking` : page de suivi entièrement traduite FR + devise € (statuts : Commande passée/Confirmée/En préparation/Prête/En livraison/Livrée ; Détails, Sous-total, Livraison, Total, Adresse de livraison, Besoin d'aide ?).
+- Fix lint React-Compiler (`loadOrder`/`loadData` inlinés dans les effets, `useCallback` retiré).
+
+### Note — erreur `__WEBPACK_DEFAULT_EXPORT__ before initialization`
+Vérifié via `madge` : **aucun import circulaire**. C'était un artefact de session HMR figée (rechargement complet de la page le résout). Le code est sain.
+
+### Testé
+e2e complet (client `coherence@demo.sb`) : restaurant → panier (4 articles) → checkout → `POST /api/orders` 200 → « Commande passée ! » → page de suivi FR/€. Backend de création de commande validé par curl (`order_...`, total, articles, adresse).
+
 ## 2026-06-06 (fix) — Bug bloquant « WEBPACK_DEFAULT_EXPORT before initialization »
 - **Cause** : artefact transitoire du hot-reload (HMR) après éditions successives de `UserHome.js` (chargé en lazy) — overlay d'erreur plein écran bloquant toute l'app (d'où « beaucoup de bugs »).
 - **Fix** : redémarrage frontend → bundle propre. Chargement frais 100% sans erreur (vérifié par testing agent, `PAGE ERRORS: []`).

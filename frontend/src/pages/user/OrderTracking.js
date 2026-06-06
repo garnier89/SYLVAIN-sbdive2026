@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -44,87 +44,73 @@ const OrderTracking = () => {
   const [loading, setLoading] = useState(true);
   const wsRef = useRef(null);
 
-  const loadOrder = useCallback(async () => {
-    try {
-      const response = await orderAPI.get(orderId);
-      setOrder(response.data);
-    } catch (error) {
-      // Demo data
-      setOrder({
-        id: orderId,
-        status: 'preparing',
-        items: [
-          { name: 'Classic Burger', quantity: 2, price: 12.99 },
-          { name: 'French Fries', quantity: 1, price: 4.99 }
-        ],
-        subtotal: 30.97,
-        delivery_fee: 2.50,
-        total: 33.47,
-        delivery_address: '123 Main Street, NYC',
-        delivery_lat: 40.7128,
-        delivery_lng: -74.0060,
-        created_at: new Date().toISOString(),
-        estimated_delivery: new Date(Date.now() + 30 * 60000).toISOString()
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [orderId]);
-
-  const connectWebSocket = useCallback(() => {
-    if (!user?.id) return;
-    
-    const wsUrl = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
-    if (!wsUrl) return;
-
-    try {
-      wsRef.current = new WebSocket(`${wsUrl}/api/ws/${user.id}`);
-      
-      wsRef.current.onopen = () => {
-        // connected
-      };
-      
-      wsRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'order_status') {
-          loadOrder();
-        }
-        if (data.type === 'driver_location') {
-          setDriverLocation({ lat: data.lat, lng: data.lng });
-        }
-      };
-      
-      wsRef.current.onerror = (error) => {
-        console.warn('[order-ws] error', error?.message);
-      };
-    } catch (error) {
-      console.warn('[order-ws] connection failed', error?.message);
-    }
-  }, [user?.id, loadOrder]);
-
   useEffect(() => {
+    const loadOrder = async () => {
+      try {
+        const response = await orderAPI.get(orderId);
+        setOrder(response.data);
+      } catch (error) {
+        // Demo data fallback
+        setOrder({
+          id: orderId,
+          status: 'preparing',
+          items: [
+            { name: 'Classic Burger', quantity: 2, price: 12.99 },
+            { name: 'French Fries', quantity: 1, price: 4.99 }
+          ],
+          subtotal: 30.97,
+          delivery_fee: 2.50,
+          total: 33.47,
+          delivery_address: '123 Main Street, NYC',
+          delivery_lat: 40.7128,
+          delivery_lng: -74.0060,
+          created_at: new Date().toISOString(),
+          estimated_delivery: new Date(Date.now() + 30 * 60000).toISOString()
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const connectWebSocket = () => {
+      if (!user?.id) return;
+      const wsUrl = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
+      if (!wsUrl) return;
+      try {
+        const ws = new WebSocket(`${wsUrl}/api/ws/${user.id}`);
+        wsRef.current = ws;
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'order_status') loadOrder();
+          if (data.type === 'driver_location') setDriverLocation({ lat: data.lat, lng: data.lng });
+        };
+        ws.onerror = (error) => console.warn('[order-ws] error', error?.message);
+      } catch (error) {
+        console.warn('[order-ws] connection failed', error?.message);
+      }
+    };
+
     loadOrder();
     connectWebSocket();
-    
     // Poll for updates every 10 seconds
     const interval = setInterval(loadOrder, 10000);
-    
+
     return () => {
       clearInterval(interval);
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
-  }, [loadOrder, connectWebSocket]);
+  }, [orderId, user?.id]);
 
   const getStatusSteps = () => {
     const steps = [
-      { key: 'pending', label: 'Order Placed', icon: CheckCircle },
-      { key: 'accepted', label: 'Confirmed', icon: CheckCircle },
-      { key: 'preparing', label: 'Preparing', icon: Package },
-      { key: 'ready', label: 'Ready for Pickup', icon: Package },
-      { key: 'picked_up', label: 'Out for Delivery', icon: Truck },
-      { key: 'delivered', label: 'Delivered', icon: CheckCircle },
+      { key: 'pending', label: 'Commande passée', icon: CheckCircle },
+      { key: 'accepted', label: 'Confirmée', icon: CheckCircle },
+      { key: 'preparing', label: 'En préparation', icon: Package },
+      { key: 'ready', label: 'Prête', icon: Package },
+      { key: 'picked_up', label: 'En livraison', icon: Truck },
+      { key: 'delivered', label: 'Livrée', icon: CheckCircle },
     ];
 
     const statusOrder = ['pending', 'accepted', 'preparing', 'ready', 'picked_up', 'delivered'];
@@ -138,11 +124,11 @@ const OrderTracking = () => {
   };
 
   const getETA = () => {
-    if (!order?.estimated_delivery) return 'Calculating...';
+    if (!order?.estimated_delivery) return 'Calcul…';
     const eta = new Date(order.estimated_delivery);
     const now = new Date();
     const diff = Math.max(0, Math.round((eta - now) / 60000));
-    if (diff === 0) return 'Arriving now!';
+    if (diff === 0) return 'Arrive bientôt !';
     return `${diff} min`;
   };
 
@@ -151,7 +137,7 @@ const OrderTracking = () => {
       <div className="mobile-container min-h-screen bg-white flex items-center justify-center">
         <div className="animate-pulse text-center">
           <Package size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">Loading order...</p>
+          <p className="text-gray-500">Chargement de la commande…</p>
         </div>
       </div>
     );
@@ -160,9 +146,9 @@ const OrderTracking = () => {
   if (!order) {
     return (
       <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center p-6">
-        <p className="text-gray-500 mb-4">Order not found</p>
+        <p className="text-gray-500 mb-4">Commande introuvable</p>
         <Button variant="outline" onClick={() => navigate('/')}>
-          Go Home
+          Accueil
         </Button>
       </div>
     );
@@ -185,8 +171,8 @@ const OrderTracking = () => {
             <ArrowLeft size={20} />
           </Button>
           <div>
-            <h1 className="text-lg font-bold">Order #{order.id.slice(-6)}</h1>
-            <p className="text-sm text-gray-500">Track your order</p>
+            <h1 className="text-lg font-bold">Commande #{order.id.slice(-6)}</h1>
+            <p className="text-sm text-gray-500">Suivez votre commande</p>
           </div>
         </div>
       </div>
@@ -219,7 +205,7 @@ const OrderTracking = () => {
         <Card className="bg-gradient-to-r from-emerald-500 to-green-400 text-white">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-90">Estimated Arrival</p>
+              <p className="text-sm opacity-90">Arrivée estimée</p>
               <p className="text-3xl font-bold">{getETA()}</p>
             </div>
             <Clock size={48} weight="duotone" className="opacity-80" />
@@ -229,7 +215,7 @@ const OrderTracking = () => {
         {/* Status Timeline */}
         <Card>
           <CardContent className="p-4">
-            <h3 className="font-semibold text-gray-900 mb-4">Order Status</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Statut de la commande</h3>
             <div className="space-y-4">
               {getStatusSteps().map((step, index) => (
                 <div key={step.key} className="flex items-start gap-3">
@@ -245,7 +231,7 @@ const OrderTracking = () => {
                       {step.label}
                     </p>
                     {step.active && (
-                      <p className="text-sm text-emerald-600 animate-pulse">In progress...</p>
+                      <p className="text-sm text-emerald-600 animate-pulse">En cours…</p>
                     )}
                   </div>
                 </div>
@@ -257,26 +243,26 @@ const OrderTracking = () => {
         {/* Order Items */}
         <Card>
           <CardContent className="p-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Order Details</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">Détails de la commande</h3>
             <div className="space-y-2">
               {order.items?.map((item, idx) => (
                 <div key={idx} className="flex justify-between text-sm">
                   <span className="text-gray-700">{item.quantity}x {item.name}</span>
-                  <span className="text-gray-500">${(item.price * item.quantity).toFixed(2)}</span>
+                  <span className="text-gray-500">{(item.price * item.quantity).toFixed(2).replace('.', ',')} €</span>
                 </div>
               ))}
               <div className="border-t pt-2 mt-2 space-y-1">
                 <div className="flex justify-between text-sm text-gray-500">
-                  <span>Subtotal</span>
-                  <span>${order.subtotal?.toFixed(2)}</span>
+                  <span>Sous-total</span>
+                  <span>{order.subtotal?.toFixed(2).replace('.', ',')} €</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
-                  <span>Delivery</span>
-                  <span>${order.delivery_fee?.toFixed(2)}</span>
+                  <span>Livraison</span>
+                  <span>{order.delivery_fee?.toFixed(2).replace('.', ',')} €</span>
                 </div>
                 <div className="flex justify-between font-semibold text-gray-900">
                   <span>Total</span>
-                  <span>${order.total?.toFixed(2)}</span>
+                  <span>{order.total?.toFixed(2).replace('.', ',')} €</span>
                 </div>
               </div>
             </div>
@@ -288,7 +274,7 @@ const OrderTracking = () => {
           <CardContent className="p-4 flex items-start gap-3">
             <MapPin size={20} className="text-red-500 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Delivery Address</p>
+              <p className="font-medium text-gray-900">Adresse de livraison</p>
               <p className="text-sm text-gray-500">{order.delivery_address}</p>
             </div>
           </CardContent>
@@ -299,11 +285,11 @@ const OrderTracking = () => {
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 rounded-full" data-testid="call-driver-btn">
               <Phone size={18} className="mr-2" />
-              Call Driver
+              Appeler le chauffeur
             </Button>
             <Button variant="outline" className="flex-1 rounded-full" data-testid="chat-driver-btn">
               <Chat size={18} className="mr-2" />
-              Chat
+              Discuter
             </Button>
           </div>
         )}
@@ -315,7 +301,7 @@ const OrderTracking = () => {
           onClick={() => navigate('/support')}
           data-testid="help-btn"
         >
-          Need Help?
+          Besoin d&apos;aide ?
         </Button>
       </div>
     </div>
