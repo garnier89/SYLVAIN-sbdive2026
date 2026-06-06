@@ -118,6 +118,7 @@ const AdminGodsView = lazy(() => import('./pages/admin/AdminGodsView'));
 const AdminHeatView = lazy(() => import('./pages/admin/AdminHeatView'));
 const AdminPromocodes = lazy(() => import('./pages/admin/AdminPromocodes'));
 const AdminVehicleTypes = lazy(() => import('./pages/admin/AdminVehicleTypes'));
+const AdminDriverCategories = lazy(() => import('./pages/admin/AdminDriverCategories'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const AdminStores = lazy(() => import('./pages/admin/AdminStores'));
 const AdminManualBooking = lazy(() => import('./pages/admin/AdminManualBooking'));
@@ -366,6 +367,7 @@ const AppRouter = () => {
         <Route path="admins" element={<AdminManageAdmins />} />
         <Route path="groups" element={<AdminGroupsPage />} />
         <Route path="vehicles" element={<AdminVehicles />} />
+        <Route path="driver-categories" element={<AdminDriverCategories />} />
         <Route path="requests" element={<AdminRequests />} />
         <Route path="documents" element={<AdminDocumentsCrud />} />
         <Route path="company" element={<AdminCompany />} />

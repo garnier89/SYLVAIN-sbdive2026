@@ -198,6 +198,109 @@ async def reorder_vehicle_types(request: Request):
     return {"message": "reordered", "count": len(slugs)}
 
 
+# ===== DRIVER CATEGORIES (registration tree — documents & vehicle class) =====
+# Phase 2: admin CRUD over the `driver_categories` collection seeded in drivers.py.
+DC_SERVICES = {"taxi", "courier", "delivery"}
+DC_VEHICLE_CLASSES = {"car", "moto", "velo"}
+DC_TAXI_SUBS = {"particulier", "vtc", "taxi"}
+
+
+def _clean_driver_category(body, existing=None):
+    """Whitelist + validate a driver-category payload. Returns a doc dict (no _id)."""
+    base = dict(existing) if existing else {}
+    service = (body.get("service") or base.get("service") or "").strip().lower()
+    vehicle_class = (body.get("vehicle_class") or base.get("vehicle_class") or "").strip().lower()
+    if service not in DC_SERVICES:
+        raise HTTPException(status_code=400, detail="Service invalide (taxi, courier ou delivery)")
+    if vehicle_class not in DC_VEHICLE_CLASSES:
+        raise HTTPException(status_code=400, detail="Type de véhicule invalide (car, moto ou velo)")
+    taxi_sub = body.get("taxi_sub", base.get("taxi_sub"))
+    if taxi_sub in ("", "none", "null"):
+        taxi_sub = None
+    if taxi_sub is not None and taxi_sub not in DC_TAXI_SUBS:
+        raise HTTPException(status_code=400, detail="Sous-catégorie taxi invalide")
+    # taxi_sub is only meaningful for a taxi service on a car
+    if not (service == "taxi" and vehicle_class == "car"):
+        taxi_sub = None
+    label = (body.get("label") or base.get("label") or "").strip()
+    if not label:
+        raise HTTPException(status_code=400, detail="Le libellé est requis")
+    raw_docs = body.get("documents", base.get("documents") or [])
+    docs, seen = [], set()
+    for d in (raw_docs or []):
+        key = (d.get("key") or "").strip()
+        dlabel = (d.get("label") or "").strip()
+        if key and dlabel and key not in seen:
+            seen.add(key)
+            docs.append({"key": key, "label": dlabel})
+    if not docs:
+        raise HTTPException(status_code=400, detail="Ajoutez au moins un document requis")
+    try:
+        order = int(body.get("order", base.get("order", 99)))
+    except (TypeError, ValueError):
+        order = 99
+    active = body.get("active", base.get("active", True))
+    return {
+        "service": service, "vehicle_class": vehicle_class, "taxi_sub": taxi_sub,
+        "label": label, "documents": docs, "order": order, "active": bool(active),
+    }
+
+
+@router.get("/driver-categories")
+async def admin_list_driver_categories(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    cats = await db.driver_categories.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+    return cats
+
+
+@router.post("/driver-categories")
+async def admin_create_driver_category(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    clean = _clean_driver_category(body)
+    explicit_id = (body.get("id") or "").strip().lower().replace(" ", "_")
+    if explicit_id:
+        if await db.driver_categories.find_one({"id": explicit_id}):
+            raise HTTPException(status_code=409, detail="Une catégorie avec cet identifiant existe déjà")
+        cid = explicit_id
+    else:  # derive a stable id; auto-suffix on collision
+        parts = [clean["service"], clean["vehicle_class"]]
+        if clean["taxi_sub"]:
+            parts.append(clean["taxi_sub"])
+        base_id = "_".join(parts)
+        cid = base_id
+        n = 2
+        while await db.driver_categories.find_one({"id": cid}):
+            cid = f"{base_id}_{n}"
+            n += 1
+    doc = {"id": cid, **clean}
+    await db.driver_categories.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/driver-categories/{cid}")
+async def admin_update_driver_category(cid: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    existing = await db.driver_categories.find_one({"id": cid}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+    body = await request.json()
+    doc = _clean_driver_category(body, existing)
+    await db.driver_categories.update_one({"id": cid}, {"$set": doc})
+    return {"id": cid, **doc}
+
+
+@router.delete("/driver-categories/{cid}")
+async def admin_delete_driver_category(cid: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    result = await db.driver_categories.delete_one({"id": cid})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+    return {"message": f"Catégorie '{cid}' supprimée"}
+
+
+
 @router.post("/merchants/{merchant_id}/status")
 async def update_merchant_status(merchant_id: str, request: Request):
     await require_role(request, ["admin"], permission="merchants.activate")

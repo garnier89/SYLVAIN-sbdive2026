@@ -36,6 +36,7 @@ const sidebarConfig = [
       { icon: UsersThree, label: 'Utilisateurs', path: '/admin/users' },
       { icon: Car, label: 'Chauffeurs / Prestataires', key: 'drivers', children: [
         { label: 'Gérer chauffeurs', path: '/admin/drivers' },
+        { label: 'Catégories de chauffeurs', path: '/admin/driver-categories' },
         { label: 'Gérer véhicules', path: '/admin/vehicles' },
         { label: 'Demandes de service', path: '/admin/requests' },
         { label: 'Vérification documents', path: '/admin/documents' },
