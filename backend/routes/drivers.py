@@ -9,6 +9,32 @@ from core.websocket import manager
 
 router = APIRouter(prefix="/drivers", tags=["drivers"])
 
+# ── Taxi eligibility (V3Cube parity) ──────────────────────────────────────
+# Taxi is a gated service: a livreur/coursier can upgrade to taxi only after
+# adding an ADAPTED VEHICLE (a car) AND the required CARTE VTC document.
+CAR_VEHICLE_TYPES = {
+    "car", "voiture", "sedan", "berline", "suv", "van", "minivan",
+    "luxe", "luxury", "comfort", "confort", "prime", "premium", "xl",
+}
+
+
+def _is_car_vehicle(vehicle_type) -> bool:
+    return (vehicle_type or "").strip().lower() in CAR_VEHICLE_TYPES
+
+
+def _has_vtc_document(driver: dict) -> bool:
+    return any((d or {}).get("type") == "vtc_card" for d in (driver.get("documents") or []))
+
+
+def _taxi_block_reason(driver: dict):
+    """Return a French error string if the driver is NOT taxi-eligible, else None."""
+    if not _is_car_vehicle(driver.get("vehicle_type")):
+        return "Le service Taxi nécessite un véhicule adapté (voiture). Mettez à jour votre véhicule."
+    if not _has_vtc_document(driver):
+        return "Le service Taxi nécessite votre Carte VTC. Ajoutez-la dans « Mes documents »."
+    return None
+
+
 
 @router.post("/push-token")
 async def register_push_token(request: Request):
@@ -36,7 +62,14 @@ async def register_driver(data: DriverCreate, request: Request):
     allowed = {"taxi", "delivery", "courier"}
     service_types = [s for s in (data.service_types or []) if s in allowed]
     if not service_types:
-        service_types = ["taxi", "delivery", "courier"]
+        service_types = ["delivery", "courier"]
+    # Taxi requires an adapted vehicle (car). Documents (Carte VTC) are uploaded right after
+    # registration; the front-end requires them at step 2. The vehicle gate is enforced here.
+    if "taxi" in service_types and not _is_car_vehicle(data.vehicle_type):
+        raise HTTPException(
+            status_code=400,
+            detail="Le service Taxi nécessite un véhicule adapté (voiture).",
+        )
 
     driver = {
         "id": f"driver_{uuid.uuid4().hex[:12]}",
@@ -73,20 +106,51 @@ async def get_driver_profile(request: Request):
 
 @router.put("/service-types")
 async def update_service_types(request: Request):
-    """Driver chooses which services they handle: taxi, delivery, or both."""
+    """Driver chooses which services they handle: taxi, delivery (livreur), courier (coursier).
+    Taxi is gated: adding it requires an adapted vehicle (car) + a Carte VTC document."""
     user = await get_current_user(request)
     body = await request.json()
     allowed = {"taxi", "delivery", "courier"}
     service_types = [s for s in (body.get("service_types") or []) if s in allowed]
     if not service_types:
         raise HTTPException(status_code=400, detail="Sélectionnez au moins un service (taxi, livreur ou coursier)")
-    result = await db.drivers.update_one(
+    driver = await db.drivers.find_one(
+        {"user_id": user["id"]}, {"_id": 0, "service_types": 1, "vehicle_type": 1, "documents": 1}
+    )
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    # Only gate when the driver is ADDING taxi (keep it if they already had it)
+    adding_taxi = "taxi" in service_types and "taxi" not in (driver.get("service_types") or [])
+    if adding_taxi:
+        reason = _taxi_block_reason(driver)
+        if reason:
+            raise HTTPException(status_code=400, detail=reason)
+    await db.drivers.update_one(
         {"user_id": user["id"]},
         {"$set": {"service_types": service_types}},
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Driver profile not found")
     return {"message": "Services mis à jour", "service_types": service_types}
+
+
+@router.get("/taxi-eligibility")
+async def taxi_eligibility(request: Request):
+    """Tells the client whether the driver can enable Taxi, and what's missing."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one(
+        {"user_id": user["id"]}, {"_id": 0, "service_types": 1, "vehicle_type": 1, "documents": 1}
+    )
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    has_car = _is_car_vehicle(driver.get("vehicle_type"))
+    has_vtc = _has_vtc_document(driver)
+    has_taxi = "taxi" in (driver.get("service_types") or [])
+    return {
+        "eligible": has_taxi or (has_car and has_vtc),
+        "has_taxi": has_taxi,
+        "has_car": has_car,
+        "has_vtc": has_vtc,
+        "reason": None if (has_taxi or (has_car and has_vtc)) else _taxi_block_reason(driver),
+    }
 
 
 @router.post("/toggle-online")

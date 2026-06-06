@@ -7,20 +7,33 @@ const DriverRegisterPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '', service_types: ['taxi', 'delivery', 'courier'] });
-  const [documents, setDocuments] = useState({ license: null, registration: null, insurance: null });
+  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '', service_types: ['delivery', 'courier'] });
+  const [documents, setDocuments] = useState({ license: null, registration: null, insurance: null, vtc_card: null });
 
   const serviceOptions = [
     { value: 'taxi', label: 'Taxi', desc: 'Courses de personnes', Icon: Taxi },
     { value: 'delivery', label: 'Livreur', desc: 'Commandes marchands', Icon: Package },
     { value: 'courier', label: 'Coursier', desc: 'Colis & express', Icon: Lightning },
   ];
+  // Taxi requires an adapted vehicle (car) + a Carte VTC document (uploaded at step 2)
+  const taxiAllowed = formData.vehicle_type === 'car';
+  const taxiSelected = formData.service_types.includes('taxi');
+
   const toggleService = (val) => {
+    if (val === 'taxi' && !taxiAllowed) return; // locked until a car is chosen
     setFormData((f) => {
       const has = f.service_types.includes(val);
       const next = has ? f.service_types.filter((s) => s !== val) : [...f.service_types, val];
       return { ...f, service_types: next };
     });
+  };
+  const selectVehicle = (val) => {
+    setFormData((f) => ({
+      ...f,
+      vehicle_type: val,
+      // switching away from a car removes the taxi service (taxi needs an adapted vehicle)
+      service_types: val === 'car' ? f.service_types : f.service_types.filter((s) => s !== 'taxi'),
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -95,16 +108,18 @@ const DriverRegisterPage = () => {
               <div className="grid grid-cols-3 gap-3">
                 {serviceOptions.map((opt) => {
                   const sel = formData.service_types.includes(opt.value);
+                  const locked = opt.value === 'taxi' && !taxiAllowed;
                   return (
                     <button key={opt.value} type="button"
                       className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
-                        sel ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
+                        locked ? 'border-gray-800 bg-gray-900/50 opacity-60'
+                          : sel ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
                       onClick={() => toggleService(opt.value)}
                       aria-pressed={sel}
                       data-testid={`service-type-${opt.value}`}>
-                      <opt.Icon size={30} weight="duotone" className={sel ? 'text-amber-500' : 'text-gray-500'} />
-                      <span className={`text-xs font-semibold ${sel ? 'text-amber-400' : 'text-gray-300'}`}>{opt.label}</span>
-                      <span className="text-[10px] text-gray-500 leading-tight text-center">{opt.desc}</span>
+                      <opt.Icon size={30} weight="duotone" className={sel && !locked ? 'text-amber-500' : 'text-gray-500'} />
+                      <span className={`text-xs font-semibold ${sel && !locked ? 'text-amber-400' : 'text-gray-300'}`}>{opt.label}</span>
+                      <span className="text-[10px] text-gray-500 leading-tight text-center">{locked ? '🔒 Voiture requise' : opt.desc}</span>
                     </button>
                   );
                 })}
@@ -120,7 +135,7 @@ const DriverRegisterPage = () => {
                     className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
                       formData.vehicle_type === v.value
                         ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
-                    onClick={() => setFormData({ ...formData, vehicle_type: v.value })}
+                    onClick={() => selectVehicle(v.value)}
                     data-testid={`vehicle-type-${v.value}`}>
                     <v.Icon size={32} weight="duotone" className={formData.vehicle_type === v.value ? 'text-amber-500' : 'text-gray-500'} />
                     <span className={`text-xs font-medium ${formData.vehicle_type === v.value ? 'text-amber-400' : 'text-gray-400'}`}>{v.label}</span>
@@ -176,6 +191,7 @@ const DriverRegisterPage = () => {
               { key: 'license', label: 'Permis de conduire' },
               { key: 'registration', label: 'Carte grise' },
               { key: 'insurance', label: "Attestation d'assurance" },
+              ...(taxiSelected ? [{ key: 'vtc_card', label: 'Carte VTC — requise pour le Taxi' }] : []),
             ].map((doc) => (
               <div key={doc.key}>
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">{doc.label}</label>
@@ -208,7 +224,7 @@ const DriverRegisterPage = () => {
                 data-testid="back-step-btn">
                 Retour
               </button>
-              <button type="submit" disabled={loading}
+              <button type="submit" disabled={loading || (taxiSelected && !documents.vtc_card)}
                 className="flex-1 h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold transition-colors disabled:opacity-40"
                 data-testid="submit-btn">
                 {loading ? 'Envoi...' : 'Soumettre'}

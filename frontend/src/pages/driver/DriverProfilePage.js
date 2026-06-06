@@ -33,12 +33,28 @@ const DriverProfilePage = () => {
     { value: 'courier', label: 'Coursier', desc: 'Colis & express', Icon: Lightning },
   ];
 
+  const CAR_VEHICLES = ['car', 'voiture', 'sedan', 'berline', 'suv', 'van', 'minivan', 'luxe', 'luxury', 'comfort', 'confort', 'prime', 'premium', 'xl'];
+  const isCarVehicle = (vt) => CAR_VEHICLES.includes((vt || '').toLowerCase());
+  const hasVtcDoc = (driver?.documents || []).some((d) => d?.type === 'vtc_card');
+  const hasTaxiNow = (driver?.service_types || []).includes('taxi');
+  const taxiEligible = hasTaxiNow || (isCarVehicle(driver?.vehicle_type) && hasVtcDoc);
+  const taxiBlockReason = !isCarVehicle(driver?.vehicle_type)
+    ? 'Véhicule voiture requis'
+    : (!hasVtcDoc ? 'Carte VTC requise' : null);
+
   const openServices = () => {
     setSelectedTypes(driver?.service_types || []);
     setShowServices(true);
   };
-  const toggleType = (v) =>
+  const toggleType = (v) => {
+    if (v === 'taxi' && !taxiEligible) {
+      toast.error(taxiBlockReason === 'Véhicule voiture requis'
+        ? 'Le Taxi nécessite un véhicule adapté (voiture).'
+        : 'Le Taxi nécessite votre Carte VTC.');
+      return;
+    }
     setSelectedTypes((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
+  };
 
   const saveServiceTypes = async () => {
     if (selectedTypes.length === 0) { toast.error('Sélectionnez au moins un service'); return; }
@@ -227,25 +243,37 @@ const DriverProfilePage = () => {
             <div className="space-y-3">
               {serviceOptions.map((opt) => {
                 const selected = selectedTypes.includes(opt.value);
+                const locked = opt.value === 'taxi' && !taxiEligible;
                 return (
-                  <button
-                    key={opt.label}
-                    type="button"
-                    disabled={savingServices}
-                    onClick={() => toggleType(opt.value)}
-                    aria-pressed={selected}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
-                    data-testid={`driver-service-${opt.value}`}
-                  >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${selected ? 'bg-emerald-500' : 'bg-gray-100'}`}>
-                      <opt.Icon size={24} weight="duotone" className={selected ? 'text-white' : 'text-gray-500'} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={`font-semibold ${selected ? 'text-emerald-700' : 'text-gray-800'}`}>{opt.label}</p>
-                      <p className="text-xs text-gray-500">{opt.desc}</p>
-                    </div>
-                    {selected && <Check size={22} weight="bold" className="text-emerald-500" />}
-                  </button>
+                  <div key={opt.label}>
+                    <button
+                      type="button"
+                      disabled={savingServices}
+                      onClick={() => toggleType(opt.value)}
+                      aria-pressed={selected}
+                      className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${locked ? 'border-gray-200 bg-gray-50' : selected ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                      data-testid={`driver-service-${opt.value}`}
+                    >
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${selected && !locked ? 'bg-emerald-500' : 'bg-gray-100'}`}>
+                        <opt.Icon size={24} weight="duotone" className={selected && !locked ? 'text-white' : 'text-gray-500'} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-semibold ${selected && !locked ? 'text-emerald-700' : 'text-gray-800'}`}>{opt.label}</p>
+                        <p className="text-xs text-gray-500">{opt.desc}</p>
+                      </div>
+                      {locked ? <Lock size={20} weight="duotone" className="text-gray-400" />
+                        : (selected && <Check size={22} weight="bold" className="text-emerald-500" />)}
+                    </button>
+                    {locked && (
+                      <div className="mt-1.5 ml-1 text-[11px] text-amber-700 space-y-1" data-testid="taxi-locked-hint">
+                        <p>🔒 {taxiBlockReason} pour proposer le Taxi.</p>
+                        <div className="flex gap-4">
+                          <button type="button" onClick={() => navigate('/chauffeur/vehicles')} className="underline font-medium" data-testid="taxi-add-vehicle">Ajouter un véhicule</button>
+                          <button type="button" onClick={() => navigate('/chauffeur/documents')} className="underline font-medium" data-testid="taxi-add-documents">Ajouter ma Carte VTC</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
