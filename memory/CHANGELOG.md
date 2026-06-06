@@ -899,3 +899,12 @@ Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentag
 - pytest `test_iter121_taxi_pool.py` **5/5 ✅** (1er siège = plein, tarif linéaire par siège, clamp capacité, persistance création, non-pool intact).
 - curl e2e : P=90→2 sièges 9,50€ / 4 sièges 18,50€ ; changement admin P=80 → 9,00€ et capacité 2 → clamp ✓.
 - Screenshot : page admin Configuration Pool OK.
+
+## 2026-06-06 — Thème Orange écrans Radar + Course annulée
+
+### Changed
+- `SearchingRadar.jsx` : ajout prop `variant` ('light' | 'orange'). En `orange`, anneaux/arcs blancs + disque central blanc avec pin orange — lisible sur fond orange.
+- `RideTrackingPage.js` (état `pending`) : écran « Recherche d'un chauffeur » passé en **fond Orange (#FF5000) / texte blanc** ; radar en variant orange ; carte trajet en blanc translucide ; boutons (Pool blanc, Relancer/Annuler blanc translucide).
+- `RideTrackingPage.js` (état `cancelled`) : écran « Course annulée » passé en **fond Orange / texte blanc** ; bouton primaire « Réessayer » blanc à texte orange ; secondaires blancs translucides.
+- Cohérence visuelle complète avec le nouvel en-tête réservation Orange/Blanc (choix utilisateur « a »).
+- Lint JS clean. Changement purement CSS (aucune logique modifiée).

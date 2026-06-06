@@ -460,31 +460,31 @@ const RideTrackingPage = () => {
   // ── V3Cube full-screen "Recherche d'un chauffeur" experience (pending) ──
   if (ride.status === 'pending') {
     return (
-      <div className="mobile-container min-h-screen bg-white flex flex-col relative overflow-hidden" style={{ backgroundColor: '#ffffff' }} data-testid="ride-tracking-page">
-        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center" data-testid="ride-searching-back">
-          <ArrowLeft size={20} className="text-[#0B1426]" />
+      <div className="mobile-container min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#FF5000' }} data-testid="ride-tracking-page">
+        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="ride-searching-back">
+          <ArrowLeft size={20} className="text-white" />
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center" data-testid="ride-searching">
-          <SearchingRadar size={220} />
-          <h1 className="text-[#0B1426] font-black text-2xl mt-10">Recherche d'un chauffeur...</h1>
-          <p className="text-gray-500 text-sm mt-2">Nous contactons les chauffeurs proches</p>
+          <SearchingRadar size={220} variant="orange" />
+          <h1 className="text-white font-black text-2xl mt-10">Recherche d'un chauffeur...</h1>
+          <p className="text-white/80 text-sm mt-2">Nous contactons les chauffeurs proches</p>
           {!isBiddingMode && relanceCount > 0 && relanceCount < searchCfg.max_relances && (
-            <p className="text-[#FF5000] text-xs font-bold mt-4" data-testid="relance-count">Relance {relanceCount}/{searchCfg.max_relances}…</p>
+            <p className="text-white text-xs font-bold mt-4" data-testid="relance-count">Relance {relanceCount}/{searchCfg.max_relances}…</p>
           )}
 
-          <div className="mt-8 w-full max-w-sm bg-gray-50 border border-gray-200 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
+          <div className="mt-8 w-full max-w-sm bg-white/10 border border-white/25 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
-              <p className="text-sm text-[#0B1426] truncate">{ride.pickup_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shrink-0" />
+              <p className="text-sm text-white truncate">{ride.pickup_address}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
-              <p className="text-sm text-[#0B1426] truncate">{ride.dropoff_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-white shrink-0" />
+              <p className="text-sm text-white truncate">{ride.dropoff_address}</p>
             </div>
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-              <span className="text-[11px] text-gray-400 capitalize">{ride.vehicle_type} · {ride.distance_km?.toFixed(1)} km</span>
-              <span className="text-sm font-black text-[#0B1426]">{(ride.final_fare || ride.estimated_fare)?.toFixed(2)} €</span>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
+              <span className="text-[11px] text-white/70 capitalize">{ride.vehicle_type} · {ride.distance_km?.toFixed(1)} km</span>
+              <span className="text-sm font-black text-white">{(ride.final_fare || ride.estimated_fare)?.toFixed(2)} €</span>
             </div>
           </div>
         </div>
@@ -515,18 +515,18 @@ const RideTrackingPage = () => {
         {/* Bottom actions */}
         <div className="px-4 pb-8 pt-2 space-y-2 relative z-10">
           {!isBiddingMode && (
-            <button onClick={togglePool} disabled={poolLoading} className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-bold border border-gray-200 bg-white text-[#0B1426]" data-testid="toggle-taxi-pool-btn">
+            <button onClick={togglePool} disabled={poolLoading} className="w-full rounded-xl py-3 flex items-center justify-center gap-2 text-sm font-bold bg-white text-[#0B1426]" data-testid="toggle-taxi-pool-btn">
               <UsersThree size={18} weight="duotone" className={poolEnabled ? 'text-emerald-500' : 'text-gray-400'} />
               {poolEnabled ? 'Taxi Pool activé · partagé' : 'Activer Taxi Pool (tarif partagé)'}
             </button>
           )}
           {!isBiddingMode && (
-            <button onClick={handleManualRelance} className="w-full rounded-xl py-3 text-sm font-bold bg-gray-100 text-[#0B1426]" data-testid="relancer-recherche-btn">
+            <button onClick={handleManualRelance} className="w-full rounded-xl py-3 text-sm font-bold bg-white/20 text-white border border-white/40" data-testid="relancer-recherche-btn">
               Relancer la recherche
             </button>
           )}
           {canCancel && (
-            <button onClick={() => setShowCancel(true)} className="w-full rounded-xl py-3 text-sm font-bold text-red-500" data-testid="cancel-ride-btn">
+            <button onClick={() => setShowCancel(true)} className="w-full rounded-xl py-3 text-sm font-bold text-white/90" data-testid="cancel-ride-btn">
               Annuler la course
             </button>
           )}
@@ -585,43 +585,43 @@ const RideTrackingPage = () => {
       navigate(`/taxi-bidding?${q.toString()}`);
     };
     return (
-      <div className="mobile-container min-h-screen bg-white flex flex-col relative overflow-hidden" style={{ backgroundColor: '#ffffff' }} data-testid="ride-tracking-page">
-        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center" data-testid="ride-cancelled-back">
-          <ArrowLeft size={20} className="text-[#0B1426]" />
+      <div className="mobile-container min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#FF5000' }} data-testid="ride-tracking-page">
+        <button onClick={() => navigate('/home')} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="ride-cancelled-back">
+          <ArrowLeft size={20} className="text-white" />
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center" data-testid="ride-cancelled-banner">
-          <div className="w-20 h-20 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
-            <X size={40} weight="bold" className="text-red-500" />
+          <div className="w-20 h-20 rounded-full bg-white/15 border border-white/30 flex items-center justify-center">
+            <X size={40} weight="bold" className="text-white" />
           </div>
-          <h1 className="text-[#0B1426] font-black text-2xl mt-6">Course annulée</h1>
-          <p className="text-gray-500 text-sm mt-2 max-w-xs">
+          <h1 className="text-white font-black text-2xl mt-6">Course annulée</h1>
+          <p className="text-white/80 text-sm mt-2 max-w-xs">
             {ride.cancel_reason || 'Aucun chauffeur disponible pour le moment.'}
           </p>
           {ride.cancellation_fee > 0 && (
-            <p className="text-red-500 text-xs font-bold mt-2">Frais d'annulation : {ride.cancellation_fee?.toFixed(2)} €</p>
+            <p className="text-white text-xs font-bold mt-2">Frais d'annulation : {ride.cancellation_fee?.toFixed(2)} €</p>
           )}
 
-          <div className="mt-8 w-full max-w-sm bg-gray-50 border border-gray-200 rounded-2xl p-3 text-left" data-testid="ride-cancelled-route">
+          <div className="mt-8 w-full max-w-sm bg-white/10 border border-white/25 rounded-2xl p-3 text-left" data-testid="ride-cancelled-route">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
-              <p className="text-sm text-[#0B1426] truncate">{ride.pickup_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shrink-0" />
+              <p className="text-sm text-white truncate">{ride.pickup_address}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
-              <p className="text-sm text-[#0B1426] truncate">{ride.dropoff_address}</p>
+              <span className="w-2.5 h-2.5 rounded-full bg-white shrink-0" />
+              <p className="text-sm text-white truncate">{ride.dropoff_address}</p>
             </div>
           </div>
         </div>
 
         <div className="px-4 pb-8 pt-2 space-y-2 relative z-10">
-          <button onClick={retrySearch} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2" style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="retry-search-btn">
+          <button onClick={retrySearch} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 bg-white text-[#FF5000]" data-testid="retry-search-btn">
             <NavigationArrow size={20} weight="fill" /> Réessayer la recherche
           </button>
-          <button onClick={proposeFare} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 bg-gray-100 text-[#0B1426]" data-testid="propose-fare-cancelled-btn">
+          <button onClick={proposeFare} className="w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 bg-white/20 text-white border border-white/40" data-testid="propose-fare-cancelled-btn">
             <Star size={20} weight="fill" /> Proposer votre tarif
           </button>
-          <button onClick={() => navigate('/home')} className="w-full py-3 text-sm font-semibold text-gray-500" data-testid="ride-done-btn">
+          <button onClick={() => navigate('/home')} className="w-full py-3 text-sm font-semibold text-white/80" data-testid="ride-done-btn">
             Retour à l'accueil
           </button>
         </div>
