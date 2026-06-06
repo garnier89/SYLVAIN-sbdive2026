@@ -198,6 +198,21 @@ async def admin_list_service_categories(request: Request):
     return cats
 
 
+@admin_router.post("/reorder")
+async def admin_reorder_service_categories(request: Request):
+    """Body: {ordered_keys: [...]} — sets display_order by index so admins can
+    organise/feature taxi services in the order they want (reflected in /taxi)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    keys = body.get("ordered_keys", [])
+    for i, key in enumerate(keys):
+        await db.service_categories.update_one(
+            {"key": key},
+            {"$set": {"display_order": i, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+    return {"message": "reordered", "count": len(keys)}
+
+
 @admin_router.put("/{key}")
 async def admin_update_service_category(key: str, request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")

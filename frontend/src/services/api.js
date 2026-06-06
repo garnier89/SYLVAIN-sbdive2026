@@ -175,6 +175,7 @@ export const adminAPI = {
   listServiceCategories: () => api.get('/admin/service-categories'),
   updateServiceCategory: (key, data) => api.put(`/admin/service-categories/${key}`, data),
   toggleServiceCategory: (key) => api.post(`/admin/service-categories/${key}/toggle`),
+  reorderServiceCategories: (orderedKeys) => api.post('/admin/service-categories/reorder', { ordered_keys: orderedKeys }),
   getSurge: () => api.get('/admin/pricing/surge'),
   createSurgeRule: (data) => api.post('/admin/pricing/surge', data),
   updateSurgeRule: (id, data) => api.put(`/admin/pricing/surge/${id}`, data),

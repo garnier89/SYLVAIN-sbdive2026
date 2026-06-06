@@ -274,7 +274,7 @@ const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (!f) return;
-                    if (f.size > 1024 * 1024) { toast.error('Image trop volumineuse (max 1 Mo)'); return; }
+                    if (f.size > 5 * 1024 * 1024) { toast.error('Image trop volumineuse (max 5 Mo)'); return; }
                     const reader = new FileReader();
                     reader.onload = () => updateSetting(s.key, reader.result);
                     reader.readAsDataURL(f);

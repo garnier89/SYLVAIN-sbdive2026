@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, Clock, Plus, Trash } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, Clock, Plus, Trash, ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import { adminAPI } from '../../services/api';
 
 const GROUP_LABELS = { everyday: 'Au quotidien', time: 'Temps & Distance', special: 'Spécialisé & Inclusif' };
@@ -49,6 +49,18 @@ const AdminServiceCategories = () => {
     } catch { toast.error('Échec de la mise à jour'); }
   };
 
+  // Reorder a service to feature it where you want (reflected in the client /taxi hub).
+  const move = async (key, dir) => {
+    const idx = cats.findIndex((c) => c.key === key);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= cats.length) return;
+    const next = [...cats];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setCats(next);
+    try { await adminAPI.reorderServiceCategories(next.map((c) => c.key)); }
+    catch { toast.error('Échec du classement'); load(); }
+  };
+
   const filtered = useMemo(() => cats.filter((c) => {
     const q = search.trim().toLowerCase();
     const matchSearch = !q || c.name?.toLowerCase().includes(q) || c.name_en?.toLowerCase().includes(q);
@@ -56,10 +68,13 @@ const AdminServiceCategories = () => {
     return matchSearch && matchStatus;
   }), [cats, search, statusFilter]);
 
+  // Reordering only makes sense on the full, unfiltered list (visible order = saved order).
+  const canReorder = !search.trim() && !statusFilter;
+
   return (
     <div className="p-6" data-testid="admin-service-categories-page">
       <h1 className="text-2xl font-bold text-slate-900">Catégories de service (Taxi)</h1>
-      <p className="text-sm text-slate-500 mb-5">Activez/désactivez chaque mode de réservation et personnalisez son nom et son icône. Les catégories désactivées disparaissent de l'app client.</p>
+      <p className="text-sm text-slate-500 mb-5">Activez/désactivez chaque mode, personnalisez nom et icône, et <b>classez-les avec les flèches ↑/↓</b> pour choisir l&apos;ordre mis en avant dans l&apos;app client (sans filtre actif). Les catégories désactivées disparaissent de l&apos;app.</p>
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 flex flex-wrap items-center gap-3">
@@ -92,7 +107,7 @@ const AdminServiceCategories = () => {
                     {c.active ? 'Actif' : 'Inactif'}
                   </span>
                   <button onClick={() => toggle(c.key)} data-testid={`svc-cat-toggle-${c.key}`}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${c.active ? 'bg-[#0B1426]' : 'bg-slate-300'}`}>
+                    className={`relative w-11 h-6 rounded-full transition-colors ${c.active ? 'bg-emerald-500' : 'bg-slate-300'}`}>
                     <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${c.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
                   </button>
                 </div>
@@ -104,15 +119,29 @@ const AdminServiceCategories = () => {
                   <Clock size={11} weight="bold" /> {scheduleSummary(c)}
                 </span>
               </div>
-              <div className="flex items-center gap-4">
-                <button onClick={() => setEditing(c)} data-testid={`svc-cat-edit-${c.key}`}
-                  className="text-sm font-semibold text-violet-600 flex items-center gap-1">
-                  Modifier <PencilSimple size={14} />
-                </button>
-                <button onClick={() => setScheduling(c)} data-testid={`svc-cat-schedule-${c.key}`}
-                  className="text-sm font-semibold text-amber-600 flex items-center gap-1">
-                  Planning <Clock size={14} />
-                </button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setEditing(c)} data-testid={`svc-cat-edit-${c.key}`}
+                    className="text-sm font-semibold text-violet-600 flex items-center gap-1">
+                    Modifier <PencilSimple size={14} />
+                  </button>
+                  <button onClick={() => setScheduling(c)} data-testid={`svc-cat-schedule-${c.key}`}
+                    className="text-sm font-semibold text-amber-600 flex items-center gap-1">
+                    Planning <Clock size={14} />
+                  </button>
+                </div>
+                {canReorder && (
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => move(c.key, -1)} title="Monter" data-testid={`svc-cat-up-${c.key}`}
+                      className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">
+                      <ArrowUp size={14} weight="bold" />
+                    </button>
+                    <button onClick={() => move(c.key, 1)} title="Descendre" data-testid={`svc-cat-down-${c.key}`}
+                      className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">
+                      <ArrowDown size={14} weight="bold" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -142,7 +171,7 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
   const onFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 512 * 1024) { toast.error('Image trop lourde (max 512 Ko)'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image trop lourde (max 5 Mo)'); return; }
     const reader = new FileReader();
     reader.onload = () => setIcon(reader.result);
     reader.readAsDataURL(file);
@@ -225,12 +254,12 @@ const ScheduleModal = ({ cat, onClose, onSaved }) => {
           <h3 className="text-lg font-bold text-slate-900">Planning — {cat.name}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" data-testid="svc-cat-schedule-close"><X size={20} /></button>
         </div>
-        <p className="text-xs text-slate-500 mb-4">Définissez les heures d'ouverture de ce service (fuseau Europe/Paris). En dehors des plages, il devient indisponible à la réservation.</p>
+        <p className="text-xs text-slate-500 mb-4">Définissez les heures d&apos;ouverture de ce service (fuseau Europe/Paris). En dehors des plages, il devient indisponible à la réservation.</p>
 
         <label className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 mb-4 cursor-pointer">
           <span className="text-sm font-semibold text-slate-800">{enabled ? 'Planning horaire activé' : 'Disponible 24/7'}</span>
           <button onClick={() => setEnabled((v) => !v)} data-testid="svc-cat-schedule-enable-toggle"
-            className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-[#0B1426]' : 'bg-slate-300'}`}>
+            className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
             <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
           </button>
         </label>
