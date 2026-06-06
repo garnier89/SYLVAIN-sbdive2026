@@ -6,7 +6,9 @@ in registration / address forms.
 """
 import json
 import os
-from fastapi import APIRouter
+import ipaddress
+import httpx
+from fastapi import APIRouter, Request
 from typing import Optional
 
 from core.config import db
@@ -80,3 +82,51 @@ async def list_phone_codes():
     """Compact list for dropdown: country code + phone code + flag."""
     items = await db.countries.find({"is_active": True}, {"_id": 0, "code": 1, "name": 1, "phone_code": 1}).sort("name", 1).to_list(300)
     return {"items": items}
+
+
+
+def _first_public_ip(request: Request) -> Optional[str]:
+    """Extract the real client IP from the proxy chain (X-Forwarded-For)."""
+    candidates = []
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        candidates.extend([p.strip() for p in xff.split(",") if p.strip()])
+    real = request.headers.get("x-real-ip")
+    if real:
+        candidates.append(real.strip())
+    if request.client and request.client.host:
+        candidates.append(request.client.host)
+    for ip in candidates:
+        try:
+            addr = ipaddress.ip_address(ip)
+            if not (addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local):
+                return ip
+        except ValueError:
+            continue
+    return None
+
+
+@router.get("/ip-locate")
+async def ip_locate(request: Request):
+    """Approximate the caller's location from their IP — used as a fallback for
+    the ride 'departure' field when browser GPS is blocked (preview iframe) or
+    permission is denied. Uses ip-api.com (keyless, server-side HTTP call)."""
+    ip = _first_public_ip(request)
+    url = f"http://ip-api.com/json/{ip}" if ip else "http://ip-api.com/json/"
+    url += "?fields=status,country,regionName,city,lat,lon"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(url)
+        data = resp.json()
+    except Exception:
+        return {"ok": False}
+    if data.get("status") != "success" or data.get("lat") is None:
+        return {"ok": False}
+    address = ", ".join([p for p in [data.get("city"), data.get("regionName"), data.get("country")] if p])
+    return {
+        "ok": True,
+        "lat": data["lat"],
+        "lng": data["lon"],
+        "city": data.get("city"),
+        "address": address or f"{data['lat']:.5f}, {data['lon']:.5f}",
+    }

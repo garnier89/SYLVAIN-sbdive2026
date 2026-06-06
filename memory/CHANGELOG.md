@@ -968,3 +968,15 @@ Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentag
 
 ### Tests
 - Lint clean, webpack compile sans erreur (1 warning préexistant). Vérif visuelle en attente (preview en veille).
+
+## 2026-06-06 (suite) — Fix : adresse de départ non auto-localisée
+
+### Problème
+Le champ « Départ » restait vide : la géolocalisation navigateur (`getCurrentPosition`) est bloquée silencieusement dans l'iframe du preview et quand le GPS/permission est désactivé sur mobile — sans aucun repli, le champ restait vide (aucun feedback).
+
+### Fix
+- **Backend** `routes/geo.py` : nouvel endpoint `GET /api/geo/ip-locate` — lit l'IP réelle du client via `X-Forwarded-For`/`X-Real-IP` (helper `_first_public_ip`, ignore IP privées/loopback) et interroge **ip-api.com** (sans clé, HTTP côté serveur) pour renvoyer `{ok, lat, lng, city, address}`. Testé : XFF=92.184.96.1 → localisation France ✅.
+- **Frontend** `services/api.js` : ajout `geoAPI.ipLocate()`.
+- **Frontend** `RideChoosePage.js` : `autoLocate()` garde le GPS prioritaire ; en cas d'échec/blocage/permission refusée → repli **`ipLocate()`** qui remplit le départ avec la position approximative (ville). Toast informatif sur action manuelle.
+- Résout l'« écran vide » sur preview (iframe) ET prod (GPS off). Précision GPS conservée si autorisé.
+- Lint clean, webpack compile OK.

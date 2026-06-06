@@ -421,6 +421,10 @@ export const placesAPI = {
   addRecent: (place) => api.post('/places/recent', place),
 };
 
+export const geoAPI = {
+  ipLocate: () => api.get('/geo/ip-locate'),
+};
+
 export const simulationAPI = {
   start: () => api.post('/simulation/start'),
   stop: () => api.post('/simulation/stop'),

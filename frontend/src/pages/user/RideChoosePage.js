@@ -22,7 +22,7 @@ import GooglePlacesInput from '../../components/GooglePlacesInput';
 import SearchingRadar from '../../components/SearchingRadar';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import DynamicIcon from '../../components/DynamicIcon';
-import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI } from '../../services/api';
+import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
@@ -192,9 +192,32 @@ const RideChoosePage = () => {
     resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
   });
 
-  function autoLocate(announce = false) {
-    if (!navigator.geolocation) { if (announce) toast.error('Géolocalisation indisponible'); return; }
+  // IP-based approximate location — works even when the browser GPS is blocked
+  // (e.g. inside the preview iframe, or when location permission is denied/off).
+  // Resolved server-side (reads the real client IP) to avoid CORS / mixed-content.
+  const ipLocate = async () => {
+    try {
+      const { data: d } = await geoAPI.ipLocate();
+      if (d?.ok && d.lat != null && d.lng != null) {
+        return { lat: d.lat, lng: d.lng, address: d.address };
+      }
+    } catch (e) { console.warn('[ride-choose] ip locate failed', e?.message); }
+    return null;
+  };
+
+  async function autoLocate(announce = false) {
     setLocating(true);
+    const fallbackToIp = async (errMsg) => {
+      const ip = await ipLocate();
+      setLocating(false);
+      if (ip) {
+        setPickup(ip);
+        if (announce) toast.success('Position approximative définie (activez le GPS pour plus de précision)');
+      } else if (announce) {
+        toast.error(errMsg || 'Position introuvable');
+      }
+    };
+    if (!navigator.geolocation) { await fallbackToIp('Géolocalisation indisponible'); return; }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
@@ -203,7 +226,7 @@ const RideChoosePage = () => {
         setLocating(false);
         if (announce) toast.success('Position actuelle définie comme départ');
       },
-      () => { setLocating(false); if (announce) toast.error('Position introuvable'); },
+      () => { fallbackToIp('Position introuvable'); },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
     );
   }
