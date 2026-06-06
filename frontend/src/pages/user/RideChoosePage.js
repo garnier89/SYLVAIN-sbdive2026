@@ -11,7 +11,7 @@
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
@@ -19,7 +19,6 @@ import {
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
-import SearchingRadar from '../../components/SearchingRadar';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import DynamicIcon from '../../components/DynamicIcon';
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI } from '../../services/api';
@@ -329,12 +328,12 @@ const RideChoosePage = () => {
     if (mode.id === 'book_for_someone' && !bookForName) return toast.error('Indiquez le nom du passager');
 
     const scheduled = (mode.panel === 'datetime' || scheduleLater) && scheduledAt;
-    setSearching(!scheduled);
+    setSearching(true);
     try {
       const res = await rideAPI.create(buildPayload());
       if (dropoff?.lat) placesAPI.addRecent({ address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }).catch(() => {});
       if (scheduled) { toast.success('Course programmée !'); navigate('/scheduled-rides'); }
-      else setTimeout(() => navigate(`/ride/${res.data.id}`), 1600);
+      else navigate(`/ride/${res.data.id}`);
     } catch (e) {
       setSearching(false);
       toast.error(e?.response?.data?.detail || 'Échec de la demande');
@@ -505,25 +504,16 @@ const RideChoosePage = () => {
       {/* Sticky CTA */}
       {bothSet && (
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-20 space-y-2">
-          <button onClick={onRequest} disabled={showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error)}
+          <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error))}
             className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
             style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
             <Lightning size={20} weight="fill" />
-            {isBidding ? 'Proposer mon tarif' : mode.cta || 'Demander'}{displayPrice != null && !isBidding ? ` · ${Number(displayPrice).toFixed(2)} €` : ''}
+            {searching ? 'Recherche…' : `${isBidding ? 'Proposer mon tarif' : mode.cta || 'Demander'}${displayPrice != null && !isBidding ? ` · ${Number(displayPrice).toFixed(2)} €` : ''}`}
           </button>
         </div>
       )}
 
-      {/* Searching overlay */}
-      <AnimatePresence>
-        {searching && (
-          <motion.div className="fixed inset-0 z-[80] bg-white flex flex-col items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} data-testid="ride-choose-searching">
-            <SearchingRadar size={220} />
-            <p className="text-[#0B1426] font-black text-lg mt-8">Recherche d'un chauffeur…</p>
-            <p className="text-gray-500 text-sm mt-1">Nous contactons les chauffeurs proches</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Searching overlay removed: the orange tracking radar (/ride/:id) is shown directly. */}
 
       <ScheduleCalendarModal
         open={calendarOpen}
@@ -637,7 +627,7 @@ const ModeSpecificPanel = (p) => {
   if (mode.id === 'assist') {
     return (
       <div className={card} data-testid="panel-assist">
-        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-2"><HandHeart size={18} className="text-[#F43F5E]" /> Type d'assistance</label>
+        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-2"><HandHeart size={18} className="text-[#F43F5E]" /> Type d&apos;assistance</label>
         <div className="grid grid-cols-2 gap-2">
           {ASSIST_OPTIONS.map((a) => (
             <button key={a.k} onClick={() => p.setAssistNeeds(a.k)} data-testid={`panel-assist-${a.k}`}
@@ -677,7 +667,7 @@ const ModeSpecificPanel = (p) => {
       <div className={card} data-testid="panel-bidding">
         <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-1.5"><Gavel size={18} className="text-[#EC4899]" /> Proposez votre tarif (€)</label>
         <input type="number" value={p.biddingFare} onChange={(e) => p.setBiddingFare(e.target.value)} placeholder="ex: 15" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-bidding-input" />
-        <p className="text-[11px] text-gray-400 mt-1">Les chauffeurs proches verront votre offre et pourront l'accepter ou contre-proposer.</p>
+        <p className="text-[11px] text-gray-400 mt-1">Les chauffeurs proches verront votre offre et pourront l&apos;accepter ou contre-proposer.</p>
       </div>
     );
   }
