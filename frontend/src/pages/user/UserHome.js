@@ -27,23 +27,76 @@ import {
 const HEAD = "font-['Outfit']";
 const BODY = "font-['Manrope']";
 
+// ── Signature "More Services" 4-coloured-squares mark (V3Cube) ──
+const MoreSquares = () => (
+  <div className="grid grid-cols-2 gap-1">
+    {['#FF8A3D', '#F43F8E', '#84CC16', '#FB923C'].map((c) => (
+      <span key={c} className="w-3.5 h-3.5 rounded-[4px]" style={{ background: c }} />
+    ))}
+  </div>
+);
+
+const Visual = ({ service, size = 34 }) => {
+  if ((service.id || '').includes('more')) return <MoreSquares />;
+  if (service.iconName || service.imageUrl) {
+    return <DynamicIcon name={service.iconName} imageUrl={service.imageUrl} size={size} className={service.iconColor} />;
+  }
+  return <service.icon size={size} weight="duotone" className={service.iconColor} />;
+};
+
+// ── V3Cube-style service tile (CMS-driven icon / image / colors preserved) ──
+// variant 'below'  → big pastel square, icon inside, bold label below (4-col grids)
+// variant 'inside' → pastel tile with bold label on top + icon below (3-col grids)
+const ServiceTile = ({ service, variant = 'below', onSelect }) => {
+  if (variant === 'inside') {
+    return (
+      <motion.button
+        whileTap={{ scale: 0.94 }}
+        onClick={() => onSelect(service.path)}
+        data-testid={`service-${service.id}-btn`}
+        className={`rounded-2xl ${service.bg} px-2 py-3 flex flex-col items-center justify-center gap-2.5 min-h-[112px] border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}
+      >
+        <span className={`text-[12px] font-bold text-[#1F2430] text-center leading-[1.15] whitespace-pre-line ${HEAD}`}>{service.name}</span>
+        <Visual service={service} size={36} />
+      </motion.button>
+    );
+  }
+  return (
+    <motion.button
+      whileTap={{ scale: 0.92 }}
+      onClick={() => onSelect(service.path)}
+      data-testid={`service-${service.id}-btn`}
+      className="flex flex-col items-center group"
+    >
+      <div className={`w-full aspect-square rounded-2xl ${service.bg} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)] transition-transform group-hover:-translate-y-0.5`}>
+        <Visual service={service} size={34} />
+      </div>
+      <span className={`text-[11.5px] font-bold text-[#1F2430] text-center leading-[1.15] mt-2 whitespace-pre-line ${HEAD}`}>{service.name}</span>
+    </motion.button>
+  );
+};
+
+// ── Plain bold section title (V3Cube look) ──
+const SectionHeader = ({ title, sub }) => (
+  <div className="mb-3.5">
+    <h3 className={`text-[20px] font-extrabold text-[#1F2430] tracking-tight ${HEAD}`}>{title}</h3>
+    {sub && <p className={`text-xs text-[#64748B] mt-1 leading-snug ${BODY}`}>{sub}</p>}
+  </div>
+);
+
 const UserHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [greeting, setGreeting] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [cmsItems, setCmsItems] = useState([]);
+  const greeting = new Date().getHours() < 18 ? 'Bienvenue' : 'Bonsoir';
 
   // Load admin-configured home categories (CMS). Falls back to hardcoded arrays if empty.
   useEffect(() => {
     homeCategoriesAPI.public()
       .then((r) => setCmsItems(r.data.items || []))
       .catch((e) => console.warn('home categories load:', e?.message || e));
-  }, []);
-
-  useEffect(() => {
-    setGreeting(new Date().getHours() < 18 ? 'Bienvenue' : 'Bonsoir');
   }, []);
 
   // ===== Taxi Services (8 items) =====
@@ -140,63 +193,6 @@ const UserHome = () => {
     { id: 'more-nearby', name: 'Plus', icon: GridFour, bg: 'bg-sky-50', iconColor: 'text-indigo-500', path: '/nearby' },
   ];
 
-  // ── Signature "More Services" 4-coloured-squares mark (V3Cube) ──
-  const MoreSquares = () => (
-    <div className="grid grid-cols-2 gap-1">
-      {['#FF8A3D', '#F43F8E', '#84CC16', '#FB923C'].map((c) => (
-        <span key={c} className="w-3.5 h-3.5 rounded-[4px]" style={{ background: c }} />
-      ))}
-    </div>
-  );
-
-  const Visual = ({ service, size = 34 }) => {
-    if ((service.id || '').includes('more')) return <MoreSquares />;
-    if (service.iconName || service.imageUrl) {
-      return <DynamicIcon name={service.iconName} imageUrl={service.imageUrl} size={size} className={service.iconColor} />;
-    }
-    return <service.icon size={size} weight="duotone" className={service.iconColor} />;
-  };
-
-  // ── V3Cube-style service tile (CMS-driven icon / image / colors preserved) ──
-  // variant 'below'  → big pastel square, icon inside, bold label below (4-col grids)
-  // variant 'inside' → pastel tile with bold label on top + icon below (3-col grids)
-  const ServiceTile = ({ service, variant = 'below' }) => {
-    if (variant === 'inside') {
-      return (
-        <motion.button
-          whileTap={{ scale: 0.94 }}
-          onClick={() => navigate(service.path)}
-          data-testid={`service-${service.id}-btn`}
-          className={`rounded-2xl ${service.bg} px-2 py-3 flex flex-col items-center justify-center gap-2.5 min-h-[112px] border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}
-        >
-          <span className={`text-[12px] font-bold text-[#1F2430] text-center leading-[1.15] whitespace-pre-line ${HEAD}`}>{service.name}</span>
-          <Visual service={service} size={36} />
-        </motion.button>
-      );
-    }
-    return (
-      <motion.button
-        whileTap={{ scale: 0.92 }}
-        onClick={() => navigate(service.path)}
-        data-testid={`service-${service.id}-btn`}
-        className="flex flex-col items-center group"
-      >
-        <div className={`w-full aspect-square rounded-2xl ${service.bg} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)] transition-transform group-hover:-translate-y-0.5`}>
-          <Visual service={service} size={34} />
-        </div>
-        <span className={`text-[11.5px] font-bold text-[#1F2430] text-center leading-[1.15] mt-2 whitespace-pre-line ${HEAD}`}>{service.name}</span>
-      </motion.button>
-    );
-  };
-
-  // ── Plain bold section title (V3Cube look) ──
-  const SectionHeader = ({ title, sub }) => (
-    <div className="mb-3.5">
-      <h3 className={`text-[20px] font-extrabold text-[#1F2430] tracking-tight ${HEAD}`}>{title}</h3>
-      {sub && <p className={`text-xs text-[#64748B] mt-1 leading-snug ${BODY}`}>{sub}</p>}
-    </div>
-  );
-
   // CMS-driven sections: admin-configured categories override the hardcoded arrays.
   const sectionFallback = {
     taxi: taxiServices, delivery: deliveryServices, ondemand: onDemandServices,
@@ -226,7 +222,7 @@ const UserHome = () => {
       <section key="taxi" className="px-4 mt-6">
         <SectionHeader title="Services Taxi" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('taxi').map((s) => <ServiceTile key={s.id} service={s} />)}
+          {displayFor('taxi').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
       </section>
     ),
@@ -258,7 +254,7 @@ const UserHome = () => {
       <section key="delivery" className="px-4 mt-6">
         <SectionHeader title="Services de Livraison" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('delivery').map((s) => <ServiceTile key={s.id} service={s} />)}
+          {displayFor('delivery').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
       </section>
     ),
@@ -267,7 +263,7 @@ const UserHome = () => {
         <motion.button whileTap={{ scale: 0.98 }} className="w-full rounded-[20px] overflow-hidden bg-indigo-50/70 border border-indigo-100 p-5 flex items-center gap-4 text-left" onClick={() => navigate('/parcel')} data-testid="parcel-delivery-section">
           <div className="flex-1">
             <h3 className={`text-lg font-extrabold text-[#1F2430] ${HEAD}`}>Livraison de Colis</h3>
-            <p className={`text-[13px] text-[#475569] mt-1 leading-relaxed ${BODY}`}>Envoyez un ou plusieurs colis n'importe où en ville. Choisissez le véhicule adapté à la taille.</p>
+            <p className={`text-[13px] text-[#475569] mt-1 leading-relaxed ${BODY}`}>Envoyez un ou plusieurs colis n&apos;importe où en ville. Choisissez le véhicule adapté à la taille.</p>
           </div>
           <div className="w-16 h-16 shrink-0 rounded-2xl bg-white flex items-center justify-center shadow-sm">
             <Package size={36} weight="duotone" className="text-indigo-500" />
@@ -303,7 +299,7 @@ const UserHome = () => {
       <section key="beauty" className="px-4 mt-6">
         <SectionHeader title="Services Beauté" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('beauty').map((s) => <ServiceTile key={s.id} service={s} />)}
+          {displayFor('beauty').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
       </section>
     ),
@@ -347,7 +343,7 @@ const UserHome = () => {
       <section key="ondemand" className="px-4 mt-6">
         <SectionHeader title="Services à la demande" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('ondemand').map((s) => <ServiceTile key={s.id} service={s} />)}
+          {displayFor('ondemand').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
       </section>
     ),
@@ -374,7 +370,7 @@ const UserHome = () => {
       <section key="carcare" className="px-4 mt-6">
         <SectionHeader title="Entretien Auto" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('carcare').map((s) => <ServiceTile key={s.id} service={s} />)}
+          {displayFor('carcare').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
       </section>
     ),
@@ -382,7 +378,7 @@ const UserHome = () => {
       <section key="towing" className="px-4 mt-6">
         <SectionHeader title="Dépannage & Remorquage" sub="Assistance routière 24/7 — pneu crevé, démarrage, panne sèche et plus." />
         <div className="grid grid-cols-3 gap-3" data-testid="towing-grid">
-          {displayFor('towing').map((s) => <ServiceTile key={s.id} service={s} variant="inside" />)}
+          {displayFor('towing').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={navigate} />)}
         </div>
       </section>
     ),
@@ -428,7 +424,7 @@ const UserHome = () => {
       <section key="pet" className="px-4 mt-6">
         <SectionHeader title="Services Animaux" />
         <div className="grid grid-cols-3 gap-3">
-          {displayFor('pet').map((s) => <ServiceTile key={s.id} service={s} variant="inside" />)}
+          {displayFor('pet').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={navigate} />)}
         </div>
       </section>
     ),
@@ -459,7 +455,7 @@ const UserHome = () => {
         <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/carpool')} className="w-full rounded-[20px] bg-emerald-50/80 border border-emerald-100 p-5 flex items-center gap-4 text-left" data-testid="carpool-section-btn">
           <div className="flex-1">
             <h3 className={`text-[20px] font-extrabold text-[#1F2430] ${HEAD}`}>Covoiturage</h3>
-            <p className={`text-[12px] text-[#475569] mt-1 leading-relaxed ${BODY}`}>Voyagez ? Réservez un covoiturage à petit prix. Vous conduisez ? Publiez votre trajet et gagnez de l'argent.</p>
+            <p className={`text-[12px] text-[#475569] mt-1 leading-relaxed ${BODY}`}>Voyagez ? Réservez un covoiturage à petit prix. Vous conduisez ? Publiez votre trajet et gagnez de l&apos;argent.</p>
           </div>
           <div className="w-16 h-16 shrink-0 rounded-2xl bg-white flex items-center justify-center shadow-sm"><UsersThree size={36} weight="duotone" className="text-emerald-600" /></div>
         </motion.button>
@@ -486,7 +482,7 @@ const UserHome = () => {
       <section key="nearby" className="px-4 mt-6 mb-4">
         <SectionHeader title="Commerces Proches" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('nearby').map((s) => <ServiceTile key={s.id} service={s} />)}
+          {displayFor('nearby').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
         </div>
       </section>
     ),
