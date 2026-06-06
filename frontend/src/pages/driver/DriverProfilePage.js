@@ -7,7 +7,7 @@ import {
   Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
   Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
   CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
-  Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check,
+  Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check, Car, Motorcycle,
   Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -26,42 +26,71 @@ const DriverProfilePage = () => {
   const [showServices, setShowServices] = useState(false);
   const [savingServices, setSavingServices] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState([]);
+  const [selectedTaxiMode, setSelectedTaxiMode] = useState(null);
+  const [taxiPicker, setTaxiPicker] = useState(false);
 
   const serviceOptions = [
-    { value: 'taxi', label: 'Taxi', desc: 'Courses de personnes', Icon: Taxi },
+    { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
     { value: 'delivery', label: 'Livreur', desc: 'Commandes marchands', Icon: Package },
     { value: 'courier', label: 'Coursier', desc: 'Colis & express', Icon: Lightning },
   ];
 
   const CAR_VEHICLES = ['car', 'voiture', 'sedan', 'berline', 'suv', 'van', 'minivan', 'luxe', 'luxury', 'comfort', 'confort', 'prime', 'premium', 'xl'];
+  const MOTO_VEHICLES = ['moto', 'motorcycle', 'motorbike', 'scooter', 'moped'];
   const isCarVehicle = (vt) => CAR_VEHICLES.includes((vt || '').toLowerCase());
+  const isMotoVehicle = (vt) => MOTO_VEHICLES.includes((vt || '').toLowerCase());
   const hasVtcDoc = (driver?.documents || []).some((d) => d?.type === 'vtc_card');
   const hasTaxiNow = (driver?.service_types || []).includes('taxi');
-  const taxiEligible = hasTaxiNow || (isCarVehicle(driver?.vehicle_type) && hasVtcDoc);
-  const taxiBlockReason = !isCarVehicle(driver?.vehicle_type)
-    ? 'Véhicule voiture requis'
-    : (!hasVtcDoc ? 'Carte VTC requise' : null);
+  // Eligibility per taxi mode (need the matching vehicle + Carte VTC)
+  const carModeOk = isCarVehicle(driver?.vehicle_type) && hasVtcDoc;
+  const motoModeOk = isMotoVehicle(driver?.vehicle_type) && hasVtcDoc;
+  const taxiEligible = hasTaxiNow || carModeOk || motoModeOk;
+  const taxiLockReason = !hasVtcDoc
+    ? 'Carte VTC requise'
+    : (!isCarVehicle(driver?.vehicle_type) && !isMotoVehicle(driver?.vehicle_type) ? 'Véhicule voiture ou moto requis' : null);
 
   const openServices = () => {
     setSelectedTypes(driver?.service_types || []);
+    setSelectedTaxiMode(driver?.taxi_mode || null);
+    setTaxiPicker(false);
     setShowServices(true);
   };
   const toggleType = (v) => {
-    if (v === 'taxi' && !taxiEligible) {
-      toast.error(taxiBlockReason === 'Véhicule voiture requis'
-        ? 'Le Taxi nécessite un véhicule adapté (voiture).'
-        : 'Le Taxi nécessite votre Carte VTC.');
+    if (v === 'taxi') {
+      if (selectedTypes.includes('taxi')) {
+        setTaxiPicker(false);
+        setSelectedTaxiMode(null);
+        setSelectedTypes((p) => p.filter((x) => x !== 'taxi'));
+      } else if (!taxiEligible) {
+        toast.error(taxiLockReason === 'Carte VTC requise'
+          ? 'Le Taxi nécessite votre Carte VTC.'
+          : 'Le Taxi nécessite un véhicule voiture ou moto.');
+      } else {
+        setTaxiPicker(true); // ask Voiture / Moto
+      }
       return;
     }
     setSelectedTypes((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
+  };
+  const selectTaxiMode = (mode) => {
+    const ok = mode === 'moto' ? motoModeOk : carModeOk;
+    if (!ok) {
+      toast.error(mode === 'moto'
+        ? (isMotoVehicle(driver?.vehicle_type) ? 'Le Moto-taxi nécessite votre Carte VTC.' : 'Le Moto-taxi nécessite un véhicule moto.')
+        : (isCarVehicle(driver?.vehicle_type) ? 'Le Taxi nécessite votre Carte VTC.' : 'Le Taxi voiture nécessite un véhicule voiture.'));
+      return;
+    }
+    setSelectedTaxiMode(mode);
+    setSelectedTypes((p) => (p.includes('taxi') ? p : [...p, 'taxi']));
+    setTaxiPicker(false);
   };
 
   const saveServiceTypes = async () => {
     if (selectedTypes.length === 0) { toast.error('Sélectionnez au moins un service'); return; }
     setSavingServices(true);
     try {
-      const res = await driverAPI.updateServiceTypes(selectedTypes);
-      setDriver((prev) => ({ ...(prev || {}), service_types: res.data.service_types }));
+      const res = await driverAPI.updateServiceTypes(selectedTypes, selectedTaxiMode);
+      setDriver((prev) => ({ ...(prev || {}), service_types: res.data.service_types, taxi_mode: res.data.taxi_mode }));
       toast.success('Services mis à jour');
       setShowServices(false);
     } catch (err) {
@@ -243,7 +272,10 @@ const DriverProfilePage = () => {
             <div className="space-y-3">
               {serviceOptions.map((opt) => {
                 const selected = selectedTypes.includes(opt.value);
-                const locked = opt.value === 'taxi' && !taxiEligible;
+                const locked = opt.value === 'taxi' && !selected && !taxiEligible;
+                const taxiDesc = opt.value === 'taxi' && selected
+                  ? (selectedTaxiMode === 'moto' ? 'Moto-taxi' : 'Taxi voiture')
+                  : opt.desc;
                 return (
                   <div key={opt.label}>
                     <button
@@ -259,14 +291,35 @@ const DriverProfilePage = () => {
                       </div>
                       <div className="flex-1">
                         <p className={`font-semibold ${selected && !locked ? 'text-emerald-700' : 'text-gray-800'}`}>{opt.label}</p>
-                        <p className="text-xs text-gray-500">{opt.desc}</p>
+                        <p className="text-xs text-gray-500">{taxiDesc}</p>
                       </div>
                       {locked ? <Lock size={20} weight="duotone" className="text-gray-400" />
                         : (selected && <Check size={22} weight="bold" className="text-emerald-500" />)}
                     </button>
+
+                    {opt.value === 'taxi' && taxiPicker && !selected && (
+                      <div className="mt-2 p-3 rounded-2xl border border-emerald-200 bg-emerald-50/50" data-testid="taxi-mode-picker">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Vous faites du Taxi en…</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button type="button" onClick={() => selectTaxiMode('car')} disabled={!carModeOk} data-testid="taxi-mode-car"
+                            className={`p-3 rounded-xl border-2 flex flex-col items-center gap-1 ${carModeOk ? 'border-gray-200 bg-white hover:border-emerald-400' : 'border-gray-200 bg-gray-100 opacity-60'}`}>
+                            <Car size={24} weight="duotone" className={carModeOk ? 'text-emerald-600' : 'text-gray-400'} />
+                            <span className="text-xs font-semibold text-gray-800">Voiture</span>
+                            <span className="text-[10px] text-gray-500">Taxi voiture</span>
+                          </button>
+                          <button type="button" onClick={() => selectTaxiMode('moto')} disabled={!motoModeOk} data-testid="taxi-mode-moto"
+                            className={`p-3 rounded-xl border-2 flex flex-col items-center gap-1 ${motoModeOk ? 'border-gray-200 bg-white hover:border-emerald-400' : 'border-gray-200 bg-gray-100 opacity-60'}`}>
+                            <Motorcycle size={24} weight="duotone" className={motoModeOk ? 'text-emerald-600' : 'text-gray-400'} />
+                            <span className="text-xs font-semibold text-gray-800">Moto</span>
+                            <span className="text-[10px] text-gray-500">Moto-taxi</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {locked && (
                       <div className="mt-1.5 ml-1 text-[11px] text-amber-700 space-y-1" data-testid="taxi-locked-hint">
-                        <p>🔒 {taxiBlockReason} pour proposer le Taxi.</p>
+                        <p>🔒 {taxiLockReason} pour proposer le Taxi.</p>
                         <div className="flex gap-4">
                           <button type="button" onClick={() => navigate('/chauffeur/vehicles')} className="underline font-medium" data-testid="taxi-add-vehicle">Ajouter un véhicule</button>
                           <button type="button" onClick={() => navigate('/chauffeur/documents')} className="underline font-medium" data-testid="taxi-add-documents">Ajouter ma Carte VTC</button>

@@ -70,7 +70,7 @@ export const userAPI = {
 // Driver APIs
 export const driverAPI = {
   register: (data) => api.post('/drivers/register', data),
-  updateServiceTypes: (service_types) => api.put('/drivers/service-types', { service_types }),
+  updateServiceTypes: (service_types, taxi_mode) => api.put('/drivers/service-types', { service_types, taxi_mode }),
   getTaxiEligibility: () => api.get('/drivers/taxi-eligibility'),
   getProfile: () => api.get('/drivers/profile'),
   toggleOnline: () => api.post('/drivers/toggle-online'),

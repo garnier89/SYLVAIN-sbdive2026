@@ -51,6 +51,7 @@ class DriverCreate(BaseModel):
     vehicle_model: str
     license_number: str
     service_types: Optional[List[str]] = None  # any of: "taxi", "delivery" (livreur), "courier" (coursier)
+    taxi_mode: Optional[str] = None  # when taxi selected: "car" (taxi voiture) or "moto" (moto-taxi)
 
 class DriverProfile(BaseModel):
     id: str
@@ -60,6 +61,7 @@ class DriverProfile(BaseModel):
     vehicle_model: Optional[str] = None
     license_number: Optional[str] = None
     service_types: List[str] = []
+    taxi_mode: Optional[str] = None  # "car" or "moto" (None if driver doesn't do taxi)
     status: str
     is_online: bool = False
     current_lat: Optional[float] = None

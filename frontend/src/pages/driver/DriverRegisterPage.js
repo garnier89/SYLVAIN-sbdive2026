@@ -7,33 +7,53 @@ const DriverRegisterPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '', service_types: ['delivery', 'courier'] });
+  const [formData, setFormData] = useState({ vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '', service_types: ['delivery', 'courier'], taxi_mode: null });
   const [documents, setDocuments] = useState({ license: null, registration: null, insurance: null, vtc_card: null });
+  const [showTaxiPicker, setShowTaxiPicker] = useState(false);
 
   const serviceOptions = [
-    { value: 'taxi', label: 'Taxi', desc: 'Courses de personnes', Icon: Taxi },
+    { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
     { value: 'delivery', label: 'Livreur', desc: 'Commandes marchands', Icon: Package },
     { value: 'courier', label: 'Coursier', desc: 'Colis & express', Icon: Lightning },
   ];
-  // Taxi requires an adapted vehicle (car) + a Carte VTC document (uploaded at step 2)
-  const taxiAllowed = formData.vehicle_type === 'car';
+  // Taxi = transport de personnes: mode "car" (taxi voiture) ou "moto" (moto-taxi). Le véhicule suit le mode.
+  const TAXI_MODE_VEHICLE = { car: 'car', moto: 'motorcycle' };
+  const vehicleMatchesMode = (vt, mode) => (mode === 'moto' ? vt === 'motorcycle' : vt === 'car');
   const taxiSelected = formData.service_types.includes('taxi');
 
   const toggleService = (val) => {
-    if (val === 'taxi' && !taxiAllowed) return; // locked until a car is chosen
+    if (val === 'taxi') {
+      if (taxiSelected) {
+        setShowTaxiPicker(false);
+        setFormData((f) => ({ ...f, service_types: f.service_types.filter((s) => s !== 'taxi'), taxi_mode: null }));
+      } else {
+        setShowTaxiPicker(true); // ask Voiture / Moto
+      }
+      return;
+    }
     setFormData((f) => {
       const has = f.service_types.includes(val);
       const next = has ? f.service_types.filter((s) => s !== val) : [...f.service_types, val];
       return { ...f, service_types: next };
     });
   };
-  const selectVehicle = (val) => {
+  const selectTaxiMode = (mode) => {
     setFormData((f) => ({
       ...f,
-      vehicle_type: val,
-      // switching away from a car removes the taxi service (taxi needs an adapted vehicle)
-      service_types: val === 'car' ? f.service_types : f.service_types.filter((s) => s !== 'taxi'),
+      taxi_mode: mode,
+      vehicle_type: TAXI_MODE_VEHICLE[mode],
+      service_types: f.service_types.includes('taxi') ? f.service_types : [...f.service_types, 'taxi'],
     }));
+    setShowTaxiPicker(false);
+  };
+  const selectVehicle = (val) => {
+    setFormData((f) => {
+      // a vehicle that no longer matches the chosen taxi mode drops the taxi service
+      if (f.service_types.includes('taxi') && !vehicleMatchesMode(val, f.taxi_mode)) {
+        return { ...f, vehicle_type: val, service_types: f.service_types.filter((s) => s !== 'taxi'), taxi_mode: null };
+      }
+      return { ...f, vehicle_type: val };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -108,22 +128,42 @@ const DriverRegisterPage = () => {
               <div className="grid grid-cols-3 gap-3">
                 {serviceOptions.map((opt) => {
                   const sel = formData.service_types.includes(opt.value);
-                  const locked = opt.value === 'taxi' && !taxiAllowed;
+                  const desc = opt.value === 'taxi' && sel
+                    ? (formData.taxi_mode === 'moto' ? 'Moto-taxi' : 'Taxi voiture')
+                    : (opt.value === 'taxi' ? 'Voiture ou moto' : opt.desc);
                   return (
                     <button key={opt.value} type="button"
                       className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
-                        locked ? 'border-gray-800 bg-gray-900/50 opacity-60'
-                          : sel ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
+                        sel ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
                       onClick={() => toggleService(opt.value)}
                       aria-pressed={sel}
                       data-testid={`service-type-${opt.value}`}>
-                      <opt.Icon size={30} weight="duotone" className={sel && !locked ? 'text-amber-500' : 'text-gray-500'} />
-                      <span className={`text-xs font-semibold ${sel && !locked ? 'text-amber-400' : 'text-gray-300'}`}>{opt.label}</span>
-                      <span className="text-[10px] text-gray-500 leading-tight text-center">{locked ? '🔒 Voiture requise' : opt.desc}</span>
+                      <opt.Icon size={30} weight="duotone" className={sel ? 'text-amber-500' : 'text-gray-500'} />
+                      <span className={`text-xs font-semibold ${sel ? 'text-amber-400' : 'text-gray-300'}`}>{opt.label}</span>
+                      <span className="text-[10px] text-gray-500 leading-tight text-center">{desc}</span>
                     </button>
                   );
                 })}
               </div>
+              {showTaxiPicker && !taxiSelected && (
+                <div className="mt-3 p-3 rounded-xl border border-amber-500/40 bg-amber-500/5" data-testid="taxi-mode-picker">
+                  <p className="text-xs font-semibold text-amber-300 mb-2">Vous faites du Taxi en…</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => selectTaxiMode('car')} data-testid="taxi-mode-car"
+                      className="p-3 rounded-lg border-2 border-gray-700 bg-gray-900 hover:border-amber-500 flex flex-col items-center gap-1">
+                      <Car size={26} weight="duotone" className="text-amber-500" />
+                      <span className="text-xs font-semibold text-gray-200">Voiture</span>
+                      <span className="text-[10px] text-gray-500">Taxi voiture</span>
+                    </button>
+                    <button type="button" onClick={() => selectTaxiMode('moto')} data-testid="taxi-mode-moto"
+                      className="p-3 rounded-lg border-2 border-gray-700 bg-gray-900 hover:border-amber-500 flex flex-col items-center gap-1">
+                      <Motorcycle size={26} weight="duotone" className="text-amber-500" />
+                      <span className="text-xs font-semibold text-gray-200">Moto</span>
+                      <span className="text-[10px] text-gray-500">Moto-taxi</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Vehicle Type */}

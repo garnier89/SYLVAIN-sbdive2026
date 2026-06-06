@@ -16,20 +16,36 @@ CAR_VEHICLE_TYPES = {
     "car", "voiture", "sedan", "berline", "suv", "van", "minivan",
     "luxe", "luxury", "comfort", "confort", "prime", "premium", "xl",
 }
+MOTO_VEHICLE_TYPES = {"moto", "motorcycle", "motorbike", "scooter", "moped"}
 
 
 def _is_car_vehicle(vehicle_type) -> bool:
     return (vehicle_type or "").strip().lower() in CAR_VEHICLE_TYPES
 
 
+def _is_moto_vehicle(vehicle_type) -> bool:
+    return (vehicle_type or "").strip().lower() in MOTO_VEHICLE_TYPES
+
+
+def _vehicle_matches_mode(vehicle_type, mode) -> bool:
+    """taxi_mode 'car' needs a car, 'moto' (moto-taxi) needs a moto."""
+    if mode == "moto":
+        return _is_moto_vehicle(vehicle_type)
+    return _is_car_vehicle(vehicle_type)
+
+
 def _has_vtc_document(driver: dict) -> bool:
     return any((d or {}).get("type") == "vtc_card" for d in (driver.get("documents") or []))
 
 
-def _taxi_block_reason(driver: dict):
-    """Return a French error string if the driver is NOT taxi-eligible, else None."""
-    if not _is_car_vehicle(driver.get("vehicle_type")):
-        return "Le service Taxi nécessite un véhicule adapté (voiture). Mettez à jour votre véhicule."
+def _taxi_block_reason(driver: dict, mode):
+    """Return a French error string if the driver is NOT eligible for the chosen taxi mode, else None."""
+    if mode not in {"car", "moto"}:
+        return "Choisissez le mode Taxi : Voiture ou Moto."
+    if not _vehicle_matches_mode(driver.get("vehicle_type"), mode):
+        return ("Le Moto-taxi nécessite un véhicule moto. Mettez à jour votre véhicule."
+                if mode == "moto"
+                else "Le Taxi nécessite un véhicule adapté (voiture). Mettez à jour votre véhicule.")
     if not _has_vtc_document(driver):
         return "Le service Taxi nécessite votre Carte VTC. Ajoutez-la dans « Mes documents »."
     return None
@@ -63,13 +79,20 @@ async def register_driver(data: DriverCreate, request: Request):
     service_types = [s for s in (data.service_types or []) if s in allowed]
     if not service_types:
         service_types = ["delivery", "courier"]
-    # Taxi requires an adapted vehicle (car). Documents (Carte VTC) are uploaded right after
-    # registration; the front-end requires them at step 2. The vehicle gate is enforced here.
-    if "taxi" in service_types and not _is_car_vehicle(data.vehicle_type):
-        raise HTTPException(
-            status_code=400,
-            detail="Le service Taxi nécessite un véhicule adapté (voiture).",
-        )
+    # Taxi = transport de personnes: choisir le mode "car" (taxi voiture) ou "moto" (moto-taxi).
+    # Le véhicule doit correspondre. Carte VTC uploadée juste après (front exige à l'étape 2).
+    taxi_mode = None
+    if "taxi" in service_types:
+        taxi_mode = data.taxi_mode
+        if taxi_mode not in {"car", "moto"}:
+            raise HTTPException(status_code=400, detail="Choisissez le mode Taxi : Voiture ou Moto.")
+        if not _vehicle_matches_mode(data.vehicle_type, taxi_mode):
+            raise HTTPException(
+                status_code=400,
+                detail=("Le Moto-taxi nécessite un véhicule moto."
+                        if taxi_mode == "moto"
+                        else "Le Taxi nécessite un véhicule adapté (voiture)."),
+            )
 
     driver = {
         "id": f"driver_{uuid.uuid4().hex[:12]}",
@@ -79,6 +102,7 @@ async def register_driver(data: DriverCreate, request: Request):
         "vehicle_model": data.vehicle_model,
         "license_number": data.license_number,
         "service_types": service_types,
+        "taxi_mode": taxi_mode,
         "status": "pending",
         "is_online": False,
         "current_lat": None,
@@ -107,7 +131,8 @@ async def get_driver_profile(request: Request):
 @router.put("/service-types")
 async def update_service_types(request: Request):
     """Driver chooses which services they handle: taxi, delivery (livreur), courier (coursier).
-    Taxi is gated: adding it requires an adapted vehicle (car) + a Carte VTC document."""
+    Taxi (transport de personnes) needs a mode: 'car' (taxi voiture) or 'moto' (moto-taxi),
+    with a matching vehicle + a Carte VTC document."""
     user = await get_current_user(request)
     body = await request.json()
     allowed = {"taxi", "delivery", "courier"}
@@ -115,41 +140,53 @@ async def update_service_types(request: Request):
     if not service_types:
         raise HTTPException(status_code=400, detail="Sélectionnez au moins un service (taxi, livreur ou coursier)")
     driver = await db.drivers.find_one(
-        {"user_id": user["id"]}, {"_id": 0, "service_types": 1, "vehicle_type": 1, "documents": 1}
+        {"user_id": user["id"]}, {"_id": 0, "service_types": 1, "vehicle_type": 1, "documents": 1, "taxi_mode": 1}
     )
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
-    # Only gate when the driver is ADDING taxi (keep it if they already had it)
-    adding_taxi = "taxi" in service_types and "taxi" not in (driver.get("service_types") or [])
-    if adding_taxi:
-        reason = _taxi_block_reason(driver)
-        if reason:
-            raise HTTPException(status_code=400, detail=reason)
+
+    taxi_mode = driver.get("taxi_mode")
+    if "taxi" in service_types:
+        requested_mode = body.get("taxi_mode") or driver.get("taxi_mode")
+        had_taxi = "taxi" in (driver.get("service_types") or [])
+        adding_taxi = not had_taxi
+        mode_changed = had_taxi and body.get("taxi_mode") and body.get("taxi_mode") != driver.get("taxi_mode")
+        # Gate only when adding taxi or switching its mode (keep an existing taxi as-is)
+        if adding_taxi or mode_changed:
+            reason = _taxi_block_reason(driver, requested_mode)
+            if reason:
+                raise HTTPException(status_code=400, detail=reason)
+        taxi_mode = requested_mode
+    else:
+        taxi_mode = None  # dropped taxi -> clear the mode
+
     await db.drivers.update_one(
         {"user_id": user["id"]},
-        {"$set": {"service_types": service_types}},
+        {"$set": {"service_types": service_types, "taxi_mode": taxi_mode}},
     )
-    return {"message": "Services mis à jour", "service_types": service_types}
+    return {"message": "Services mis à jour", "service_types": service_types, "taxi_mode": taxi_mode}
 
 
 @router.get("/taxi-eligibility")
 async def taxi_eligibility(request: Request):
-    """Tells the client whether the driver can enable Taxi, and what's missing."""
+    """Tells the client which taxi modes the driver can enable, and what's missing."""
     user = await get_current_user(request)
     driver = await db.drivers.find_one(
-        {"user_id": user["id"]}, {"_id": 0, "service_types": 1, "vehicle_type": 1, "documents": 1}
+        {"user_id": user["id"]}, {"_id": 0, "service_types": 1, "vehicle_type": 1, "documents": 1, "taxi_mode": 1}
     )
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
-    has_car = _is_car_vehicle(driver.get("vehicle_type"))
     has_vtc = _has_vtc_document(driver)
     has_taxi = "taxi" in (driver.get("service_types") or [])
     return {
-        "eligible": has_taxi or (has_car and has_vtc),
         "has_taxi": has_taxi,
-        "has_car": has_car,
+        "taxi_mode": driver.get("taxi_mode"),
+        "vehicle_type": driver.get("vehicle_type"),
         "has_vtc": has_vtc,
-        "reason": None if (has_taxi or (has_car and has_vtc)) else _taxi_block_reason(driver),
+        "can_car": _is_car_vehicle(driver.get("vehicle_type")) and has_vtc,
+        "can_moto": _is_moto_vehicle(driver.get("vehicle_type")) and has_vtc,
+        "is_car": _is_car_vehicle(driver.get("vehicle_type")),
+        "is_moto": _is_moto_vehicle(driver.get("vehicle_type")),
     }
 
 
