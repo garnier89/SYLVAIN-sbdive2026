@@ -171,6 +171,9 @@ const serviceConfigs = {
     { key: 'wallet_shortfall_to_cash', label: 'Portefeuille insuffisant → payer la différence en espèces', type: 'toggle', value: true },
     { key: 'cancellation_fee_eur', label: 'Frais d\'annulation après la fenêtre gratuite (€)', type: 'number', value: 5 },
     { key: 'free_cancel_window_minutes', label: 'Fenêtre d\'annulation gratuite (minutes)', type: 'number', value: 5 },
+    { key: 'cancel_popup_enabled', label: 'Afficher l\'alerte « Politique d\'annulation » pendant la recherche', type: 'toggle', value: true },
+    { key: 'cancel_popup_max_shows', label: 'Nombre d\'affichages de l\'alerte par utilisateur (ex. 5, puis ne s\'affiche plus)', type: 'number', value: 5 },
+    { key: 'cancel_popup_zone', label: 'Zone d\'affichage — pays ou région (ex. « France », « Île-de-France »). Vide = partout', type: 'text', value: '' },
   ]},
 };
 

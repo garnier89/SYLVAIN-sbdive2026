@@ -158,6 +158,10 @@ async def get_payment_methods_config():
         "wallet_shortfall_to_cash": bool(settings.get("wallet_shortfall_to_cash", True)),
         "cancellation_fee_eur": float(settings.get("cancellation_fee_eur", 5.0) or 0),
         "free_cancel_window_minutes": float(settings.get("free_cancel_window_minutes", 5) or 0),
+        # Cancellation-policy popup display rules (admin-controlled)
+        "cancel_popup_enabled": bool(settings.get("cancel_popup_enabled", True)),
+        "cancel_popup_max_shows": max(0, min(50, int(settings.get("cancel_popup_max_shows", 5) or 0))),
+        "cancel_popup_zone": str(settings.get("cancel_popup_zone", "") or ""),
     }
 
 
