@@ -4,6 +4,8 @@ import { driverAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import { Car, MapPin, Clock, CheckCircle, XCircle, ArrowRight } from '@phosphor-icons/react';
 
+const ACTIVE_STATUSES = ['accepted', 'arriving', 'in_progress'];
+
 const statusLabels = {
   completed: { label: 'Termin\u00e9e', color: 'text-emerald-400', bg: 'bg-emerald-500/10', Icon: CheckCircle },
   cancelled: { label: 'Annul\u00e9e', color: 'text-red-400', bg: 'bg-red-500/10', Icon: XCircle },
@@ -29,7 +31,11 @@ const DriverHistoryPage = () => {
     finally { setLoading(false); }
   };
 
-  const filtered = filter === 'all' ? rides : rides.filter(r => r.status === filter);
+  const filtered = rides.filter((r) => {
+    if (filter === 'all') return true;
+    if (filter === 'in_progress') return ACTIVE_STATUSES.includes(r.status);
+    return r.status === filter;
+  });
 
   if (loading) {
     return (
@@ -68,8 +74,12 @@ const DriverHistoryPage = () => {
         ) : (
           filtered.map((ride, i) => {
             const s = statusLabels[ride.status] || statusLabels.pending;
+            const isActive = ACTIVE_STATUSES.includes(ride.status);
             return (
-              <div key={ride.id || i} className="bg-gray-900 border border-gray-800 rounded-xl p-4" data-testid={`ride-card-${i}`}>
+              <div key={ride.id || i}
+                onClick={isActive ? () => navigate('/chauffeur/home') : undefined}
+                className={`bg-gray-900 border border-gray-800 rounded-xl p-4 ${isActive ? 'cursor-pointer ring-1 ring-amber-500/40 active:scale-[0.99] transition-transform' : ''}`}
+                data-testid={`ride-card-${i}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${s.bg}`}>
                     <s.Icon size={12} weight="fill" className={s.color} />

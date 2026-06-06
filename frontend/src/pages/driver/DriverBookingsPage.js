@@ -117,8 +117,11 @@ const DriverBookingsPage = () => {
   return (
     <div className="mobile-container min-h-screen bg-[#F2F4F7] pb-24" data-testid="driver-bookings-page">
       {/* Header */}
-      <div className="bg-[#0B0B0B] text-white px-4 pt-5 pb-3">
+      <div className="bg-[#0B0B0B] text-white px-4 pt-5 pb-3 flex items-center justify-between">
         <h1 className="text-xl font-extrabold">Mes réservations</h1>
+        <button onClick={() => navigate('/chauffeur/history')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-xs font-bold" data-testid="bookings-history-btn">
+          <ClipboardText size={15} weight="fill" /> Tous les statuts
+        </button>
       </div>
 
       {/* Tabs */}

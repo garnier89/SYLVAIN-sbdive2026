@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   DotsThreeVertical, Phone, ChatCircleDots, NavigationArrow, Siren, Star,
-  UserCircle, Clock, MapPin,
+  UserCircle, Clock, MapPin, CaretLeft,
 } from '@phosphor-icons/react';
 import AdminGoogleMap from '../admin/AdminGoogleMap';
 import { decodePolyline } from '../../utils/polyline';
@@ -35,7 +35,7 @@ const fmtClock = (s) => {
  * accepted → arriving → in_progress lifecycle, then hands off to the post-trip
  * completion flow (frais supplémentaires → facture → notation).
  */
-const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished }) => {
+const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinimize }) => {
   const navigate = useNavigate();
   const [status, setStatus] = useState(() => ride.status);
   const [busy, setBusy] = useState(false);
@@ -154,7 +154,13 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished }) => {
     <div className="fixed inset-0 z-[1500] bg-white flex flex-col" data-testid="driver-ride-flow">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: headerBg }}>
-        <div className="w-9" />
+        {onMinimize ? (
+          <button onClick={onMinimize} className="w-9 h-9 flex items-center justify-center text-white" data-testid="ride-flow-minimize-btn" aria-label="Retour à l'accueil">
+            <CaretLeft size={26} weight="bold" />
+          </button>
+        ) : (
+          <div className="w-9" />
+        )}
         <h1 className="text-lg font-extrabold tracking-wide" style={{ color: inProgress ? '#fff' : '#fff' }} data-testid="ride-flow-title">{headerLabel}</h1>
         <button onClick={() => setShowMenu(true)} className="w-9 h-9 flex items-center justify-center text-white" data-testid="ride-flow-menu-btn">
           <DotsThreeVertical size={26} weight="bold" />

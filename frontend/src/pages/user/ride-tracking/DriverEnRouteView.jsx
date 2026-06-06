@@ -38,7 +38,7 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
   return (
     <div className="w-full max-w-[480px] mx-auto h-screen overflow-hidden bg-white flex flex-col" data-testid="driver-enroute-view">
       {/* Header */}
-      <div className="bg-[#4361EE] text-white pt-9 pb-14 px-4 relative z-10">
+      <div className="bg-[#FF4500] text-white pt-9 pb-14 px-4 relative z-10">
         <div className="flex items-center">
           <button onClick={onBack} className="w-9 h-9 flex items-center justify-center" data-testid="enroute-back-btn">
             <List size={26} weight="bold" />
@@ -95,7 +95,7 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000]">
             {otp ? (
               <div className="bg-[#0B1426] text-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2" data-testid="enroute-otp">
-                <span className="text-[10px] uppercase tracking-wide text-white/60">Code départ</span>
+                <span className="text-[10px] uppercase tracking-wide text-white/60">Code OTP</span>
                 <span className="text-base font-extrabold tracking-[0.3em]">{otp}</span>
               </div>
             ) : (
@@ -107,8 +107,8 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
         )}
       </div>
 
-      {/* Action buttons */}
-      <div className="flex justify-center gap-4 px-6 -mt-7 relative z-20">
+      {/* Action buttons — aligned to the right, just above the driver's stars */}
+      <div className="flex justify-end gap-3 px-5 -mt-7 relative z-20">
         <ActionBtn Icon={Phone} bg="#2F9BFF" onClick={onCall} testId="enroute-call-btn" label="Appeler" />
         <ActionBtn Icon={ChatCircleDots} bg="#F5A623" onClick={onChat} testId="enroute-chat-btn" label="Message" />
         <ActionBtn Icon={ShareNetwork} bg="#8B5CF6" onClick={onShare} testId="enroute-share-btn" label="Partager" />
@@ -117,7 +117,7 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
 
       {/* Driver card */}
       <div className="bg-white px-5 pt-5 pb-7 flex items-center gap-4" data-testid="enroute-driver-card">
-        <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-[#4361EE] flex items-center justify-center flex-shrink-0 overflow-hidden">
+        <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-[#FF4500] flex items-center justify-center flex-shrink-0 overflow-hidden">
           <User size={34} weight="fill" className="text-gray-400" />
         </div>
         <div className="flex-1 min-w-0">

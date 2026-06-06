@@ -432,9 +432,9 @@ async def get_driver_ride_history(request: Request):
         raise HTTPException(status_code=404, detail="Driver profile not found")
 
     rides = await db.rides.find(
-        {"driver_id": user["id"]},
-        {"_id": 0}
-    ).sort("created_at", -1).limit(20).to_list(20)
+        {"driver_id": driver["id"]},
+        {"_id": 0, "otp": 0, "start_otp": 0},
+    ).sort("created_at", -1).limit(50).to_list(50)
 
     return {"rides": rides}
 

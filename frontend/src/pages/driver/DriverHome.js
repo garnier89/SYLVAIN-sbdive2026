@@ -25,6 +25,7 @@ const DriverHome = () => {
   const [driver, setDriver] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
   const [currentRide, setCurrentRide] = useState(null);
+  const activeRestoredRef = useRef(false);
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [myOffer, setMyOffer] = useState(null); // { rideId, amount, expires_at, ttl_seconds }
   const [nowTs, setNowTs] = useState(() => Date.now());
@@ -257,6 +258,26 @@ const DriverHome = () => {
     const id = setInterval(fetchBonuses, 30000);
     return () => { active = false; clearInterval(id); };
   }, []);
+
+  // Restore an in-progress ride after a reload/navigation so the driver never
+  // "loses" the course they are currently on (and can still start/finish it).
+  useEffect(() => {
+    if (activeRestoredRef.current) return undefined;
+    let alive = true;
+    const restore = async () => {
+      try {
+        const res = await rideAPI.getActive();
+        const ride = res.data;
+        if (alive && ride && ride.id && ['accepted', 'arriving', 'in_progress'].includes(ride.status)) {
+          activeRestoredRef.current = true;
+          setCurrentRide(ride);
+          joinRide(ride.id);
+        }
+      } catch { /* ignore */ }
+    };
+    restore();
+    return () => { alive = false; };
+  }, [joinRide]);
 
   useEffect(() => {
     if (!(isOnline && !currentRide)) return undefined;
@@ -591,6 +612,7 @@ const DriverHome = () => {
             ride={currentRide}
             driverPos={mapCenter}
             onFinished={finishRide}
+            onMinimize={() => setCurrentRide(null)}
           />
         )}
 
