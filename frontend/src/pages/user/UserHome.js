@@ -163,7 +163,7 @@ const UserHome = () => {
   // ===== Delivery Services (4 items) =====
   const deliveryServices = [
     { id: 'food-delivery', name: 'Livraison\nRepas', icon: ForkKnife, bg: 'bg-rose-50', iconColor: 'text-rose-500', path: '/food' },
-    { id: 'grocery-delivery', name: 'Livraison\nCourses', icon: Storefront, bg: 'bg-emerald-50', iconColor: 'text-emerald-500', path: '/food' },
+    { id: 'grocery-delivery', name: 'Livraison\nCourses', icon: Storefront, bg: 'bg-emerald-50', iconColor: 'text-emerald-500', path: '/food?type=grocery' },
     { id: 'runner-courier', name: 'Coursier\nExpress', icon: Lightning, bg: 'bg-amber-50', iconColor: 'text-amber-500', path: '/runner' },
     { id: 'more-delivery', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/all-delivery' },
   ];

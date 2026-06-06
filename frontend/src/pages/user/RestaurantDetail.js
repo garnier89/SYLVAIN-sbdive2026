@@ -20,6 +20,19 @@ const RestaurantDetail = () => {
   const [showCart, setShowCart] = useState(false);
 
   useEffect(() => {
+    const loadMerchant = async () => {
+      try {
+        const merchantRes = await merchantAPI.get(merchantId);
+        setMerchant(merchantRes.data);
+        const productsRes = await merchantAPI.getProducts(merchantId);
+        setProducts(productsRes.data);
+      } catch (error) {
+        console.error('Load merchant error:', error);
+        navigate('/food');
+      } finally {
+        setLoading(false);
+      }
+    };
     loadMerchant();
     // Load cart: try backend first, then localStorage fallback
     const loadCart = async () => {
@@ -39,7 +52,7 @@ const RestaurantDetail = () => {
       }
     };
     loadCart();
-  }, [merchantId]);
+  }, [merchantId, navigate]);
 
   useEffect(() => {
     // Save cart to localStorage + backend
@@ -49,46 +62,29 @@ const RestaurantDetail = () => {
     }
   }, [cart, merchantId]);
 
-  const loadMerchant = async () => {
-    try {
-      const merchantRes = await merchantAPI.get(merchantId);
-      setMerchant(merchantRes.data);
-      const productsRes = await merchantAPI.getProducts(merchantId);
-      setProducts(productsRes.data);
-    } catch (error) {
-      console.error('Load merchant error:', error);
-      navigate('/food');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const addToCart = (product) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
+    const exists = cart.some((item) => item.id === product.id);
+    const next = exists
+      ? cart.map((item) =>
+          (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item))
+      : [...cart, {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          description: product.description,
+          category: product.category,
+          image_url: product.image_url,
+          quantity: 1,
+        }];
+    setCart(next);
   };
 
   const removeFromCart = (productId) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === productId);
-      if (existing && existing.quantity > 1) {
-        return prev.map(item =>
-          item.id === productId
-            ? { ...item, quantity: item.quantity - 1 }
-            : item
-        );
-      }
-      return prev.filter(item => item.id !== productId);
-    });
+    const next = cart
+      .map((item) =>
+        (item.id === productId ? { ...item, quantity: item.quantity - 1 } : item))
+      .filter((item) => item.quantity > 0);
+    setCart(next);
   };
 
   const getCartQuantity = (productId) => {
@@ -145,11 +141,11 @@ const RestaurantDetail = () => {
               <div className="flex items-center gap-1">
                 <Star size={16} weight="fill" className="text-amber-500" />
                 <span className="font-medium text-gray-900">{merchant?.rating}</span>
-                <span>({merchant?.total_orders}+ orders)</span>
+                <span>({merchant?.total_orders}+ commandes)</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock size={16} />
-                <span>25-35 min</span>
+                <span>{merchant?.eta_min || 30} min</span>
               </div>
             </div>
             <div className="flex items-center gap-1 mt-2 text-sm text-gray-500">
@@ -176,7 +172,7 @@ const RestaurantDetail = () => {
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900">{product.name}</h3>
                           <p className="text-sm text-gray-500 line-clamp-2">{product.description}</p>
-                          <p className="text-lg font-bold text-emerald-600 mt-2">${product.price.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-emerald-600 mt-2">{product.price.toFixed(2).replace('.', ',')} €</p>
                         </div>
                         <div className="flex flex-col items-center justify-center">
                           {quantity > 0 ? (
@@ -210,7 +206,7 @@ const RestaurantDetail = () => {
                               data-testid={`add-${product.id}`}
                             >
                               <Plus size={16} className="mr-1" />
-                              Add
+                              Ajouter
                             </Button>
                           )}
                         </div>
@@ -234,7 +230,7 @@ const RestaurantDetail = () => {
               data-testid="view-cart-btn"
             >
               <ShoppingCart size={20} className="mr-2" />
-              View Cart · {cartCount} items · ${cartTotal.toFixed(2)}
+              Voir le panier · {cartCount} article{cartCount > 1 ? 's' : ''} · {cartTotal.toFixed(2).replace('.', ',')} €
             </Button>
           </div>
         </div>

@@ -1,3 +1,9 @@
+## NEW - 2026-06-06 - Services de Livraison multi-verticales fonctionnels (DONE)
+- Demande : vérifier les 4 services de livraison + ajouter les verticales manquantes, tout doit fonctionner.
+- `FoodPage` devient une liste de magasins **générique verticale-aware** (`/food?type=grocery|florist|stationery|wine|construction`, défaut restaurant), en **FR + €**. `RestaurantDetail` traduit FR/€.
+- Marchands démo seedés par `store_type` (grocery, florist, stationery, wine, construction) + produits. Routes corrigées : « Courses » → grocery, « Médicaments » → `/pharmacy`, etc. (CMS + `AllDeliveryPage`).
+- Testé e2e (client `coherence@demo.sb`). Détails dans CHANGELOG 2026-06-06.
+
 ## NEW - Jun 2026 - Flux taxi UNIFIÉ « Choisissez un voyage » sur toutes les commandes + Réservation WhatsApp (DONE — iter 124)
 - **Demande** (vidéo de réf.) : appliquer le parcours V3Cube « Choisissez un voyage » (départ/destination → comparaison multi-véhicules avec prix/ETA en direct → « Demander » → radar) à **toutes** les commandes taxi, ajouter une **réservation via WhatsApp**, le tout **piloté par l'admin** (choix : 1a flux unifié partout + 2a WhatsApp wa.me + 3 admin).
 - **Frontend** : `RideChoosePage.js` (`/course?mode=<id>`) devient l'entrée unique mode-aware : adresses + raccourcis, comparaison véhicules (prix live `/api/rides/estimate`), panneaux par mode (`ModeSpecificPanel`/`SchedulePanel` frères) — aéroport/animaux/assistance/corporate/proche/enchères/location/chauffeur privé/programmation/pool. **Bouton « Réserver via WhatsApp »** (wa.me + message pré-rempli, visible si activé admin). Tuiles accueil + grille TaxiHub → `/course?mode=` ; `TaxiHubPage` redirige `/taxi?mode=` → `/course?mode=` quand unifié activé (couvre tuiles CMS) ; sinon retombe sur le hub legacy.

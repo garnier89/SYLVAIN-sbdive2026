@@ -141,6 +141,17 @@ async def lifespan(app: FastAPI):
         {"id": "merchant_burger_palace", "user_id": "system_burger", "store_name": "Burger Palace", "store_type": "restaurant", "address": "123 Main Street, Paris", "lat": 48.8566, "lng": 2.3522, "description": "Premium gourmet burgers and sides", "rating": 4.8, "total_orders": 1250, "is_active": True, "opening_hours": "09:00-22:00", "image_url": "https://images.unsplash.com/photo-1632898657999-ae6920976661?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
         {"id": "merchant_pizza_heaven", "user_id": "system_pizza", "store_name": "Pizza Heaven", "store_type": "restaurant", "address": "456 Oak Avenue, Paris", "lat": 48.8606, "lng": 2.3376, "description": "Authentic Italian pizza baked in wood-fired oven", "rating": 4.5, "total_orders": 890, "is_active": True, "opening_hours": "10:00-23:00", "image_url": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
         {"id": "merchant_sushi_master", "user_id": "system_sushi", "store_name": "Sushi Master", "store_type": "restaurant", "address": "789 Elm Road, Paris", "lat": 48.8530, "lng": 2.3499, "description": "Fresh Japanese sushi and sashimi", "rating": 4.9, "total_orders": 2100, "is_active": True, "opening_hours": "11:00-22:00", "image_url": "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Épicerie / Courses (store_type=grocery) ----
+        {"id": "merchant_carrefour_city", "user_id": "system_carrefour", "store_name": "Carrefour City", "store_type": "grocery", "address": "12 Rue de Rivoli, Paris", "lat": 48.8559, "lng": 2.3601, "description": "Épicerie de quartier : produits frais et courses du quotidien", "rating": 4.6, "total_orders": 1840, "is_active": True, "opening_hours": "08:00-22:00", "image_url": "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "merchant_franprix", "user_id": "system_franprix", "store_name": "Franprix Express", "store_type": "grocery", "address": "45 Bd Voltaire, Paris", "lat": 48.8629, "lng": 2.3776, "description": "Supérette de proximité, livraison rapide", "rating": 4.4, "total_orders": 1320, "is_active": True, "opening_hours": "07:30-23:00", "image_url": "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Fleuriste (store_type=florist) ----
+        {"id": "merchant_jardin_fleuri", "user_id": "system_fleuriste", "store_name": "Le Jardin Fleuri", "store_type": "florist", "address": "8 Rue des Lilas, Paris", "lat": 48.8702, "lng": 2.3458, "description": "Fleuriste artisanal, bouquets frais livrés", "rating": 4.9, "total_orders": 540, "is_active": True, "opening_hours": "09:00-20:00", "image_url": "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Papeterie (store_type=stationery) ----
+        {"id": "merchant_papeterie", "user_id": "system_papeterie", "store_name": "Papeterie du Coin", "store_type": "stationery", "address": "23 Rue Saint-Antoine, Paris", "lat": 48.8541, "lng": 2.3653, "description": "Fournitures de bureau et scolaires", "rating": 4.5, "total_orders": 410, "is_active": True, "opening_hours": "09:00-19:00", "image_url": "https://images.unsplash.com/photo-1568205612837-017257d2310a?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Cave à vins (store_type=wine) ----
+        {"id": "merchant_cave_vins", "user_id": "system_cave", "store_name": "La Cave à Vins", "store_type": "wine", "address": "5 Rue du Cherche-Midi, Paris", "lat": 48.8512, "lng": 2.3275, "description": "Vins fins et spiritueux sélectionnés", "rating": 4.8, "total_orders": 760, "is_active": True, "opening_hours": "10:00-21:00", "image_url": "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Matériaux & Construction (store_type=construction) ----
+        {"id": "merchant_brico_materiaux", "user_id": "system_brico", "store_name": "Brico Matériaux", "store_type": "construction", "address": "78 Av. de la République, Paris", "lat": 48.8665, "lng": 2.3812, "description": "Matériaux de construction et outillage", "rating": 4.3, "total_orders": 295, "is_active": True, "opening_hours": "07:00-19:00", "image_url": "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400", "created_at": datetime.now(timezone.utc).isoformat()},
     ]
     demo_products = [
         {"id": "prod_bp_classic", "merchant_id": "merchant_burger_palace", "name": "Classic Burger", "description": "Juicy beef patty with fresh lettuce, tomato, and special sauce", "price": 12.99, "category": "Burgers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
@@ -162,6 +173,35 @@ async def lifespan(app: FastAPI):
         {"id": "prod_sm_dragon", "merchant_id": "merchant_sushi_master", "name": "Dragon Roll (8pc)", "description": "Shrimp tempura, avocado, eel sauce", "price": 14.99, "category": "Rolls", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
         {"id": "prod_sm_miso", "merchant_id": "merchant_sushi_master", "name": "Miso Soup", "description": "Traditional Japanese miso with tofu and seaweed", "price": 3.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
         {"id": "prod_sm_edamame", "merchant_id": "merchant_sushi_master", "name": "Edamame", "description": "Steamed soybeans with sea salt", "price": 4.99, "category": "Sides", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Épicerie / Courses ----
+        {"id": "prod_cc_lait", "merchant_id": "merchant_carrefour_city", "name": "Lait demi-écrémé 1L", "description": "Bouteille de lait demi-écrémé UHT", "price": 1.15, "category": "Crèmerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_cc_pain", "merchant_id": "merchant_carrefour_city", "name": "Pain de campagne", "description": "Pain de campagne tradition 400g", "price": 1.80, "category": "Boulangerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_cc_bananes", "merchant_id": "merchant_carrefour_city", "name": "Bananes (1 kg)", "description": "Bananes fraîches au kilo", "price": 1.99, "category": "Fruits & Légumes", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_cc_oeufs", "merchant_id": "merchant_carrefour_city", "name": "Œufs frais x6", "description": "Boîte de 6 œufs frais de poules élevées au sol", "price": 2.45, "category": "Crèmerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_fp_eau", "merchant_id": "merchant_franprix", "name": "Eau minérale 6x1,5L", "description": "Pack de 6 bouteilles d'eau minérale", "price": 3.20, "category": "Boissons", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_fp_pates", "merchant_id": "merchant_franprix", "name": "Pâtes Penne 500g", "description": "Pâtes penne de qualité supérieure", "price": 1.10, "category": "Épicerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_fp_tomates", "merchant_id": "merchant_franprix", "name": "Tomates (1 kg)", "description": "Tomates rondes fraîches", "price": 2.50, "category": "Fruits & Légumes", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_fp_yaourt", "merchant_id": "merchant_franprix", "name": "Yaourt nature x8", "description": "Pack de 8 yaourts nature", "price": 2.30, "category": "Crèmerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Fleuriste ----
+        {"id": "prod_jf_roses", "merchant_id": "merchant_jardin_fleuri", "name": "Bouquet de roses rouges", "description": "Bouquet de 12 roses rouges fraîches", "price": 24.90, "category": "Bouquets", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_jf_champetre", "merchant_id": "merchant_jardin_fleuri", "name": "Bouquet champêtre", "description": "Composition champêtre de fleurs de saison", "price": 19.90, "category": "Bouquets", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_jf_orchidee", "merchant_id": "merchant_jardin_fleuri", "name": "Orchidée en pot", "description": "Orchidée Phalaenopsis en pot décoratif", "price": 22.00, "category": "Plantes", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_jf_tulipes", "merchant_id": "merchant_jardin_fleuri", "name": "Tulipes (x10)", "description": "Botte de 10 tulipes colorées", "price": 14.50, "category": "Bouquets", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Papeterie ----
+        {"id": "prod_pa_cahier", "merchant_id": "merchant_papeterie", "name": "Cahier A4 96 pages", "description": "Cahier grands carreaux 96 pages", "price": 2.50, "category": "Cahiers", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_pa_stylos", "merchant_id": "merchant_papeterie", "name": "Stylos bille (x4)", "description": "Lot de 4 stylos bille couleurs assorties", "price": 3.20, "category": "Écriture", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_pa_ramette", "merchant_id": "merchant_papeterie", "name": "Ramette papier A4 500f", "description": "Ramette de 500 feuilles A4 80g", "price": 5.90, "category": "Papier", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_pa_surligneurs", "merchant_id": "merchant_papeterie", "name": "Surligneurs (x5)", "description": "Lot de 5 surligneurs fluo", "price": 4.10, "category": "Écriture", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Cave à vins ----
+        {"id": "prod_cv_bordeaux", "merchant_id": "merchant_cave_vins", "name": "Bordeaux Rouge AOC", "description": "Vin rouge de Bordeaux AOC 75cl", "price": 12.50, "category": "Vins Rouges", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_cv_chablis", "merchant_id": "merchant_cave_vins", "name": "Chablis Blanc", "description": "Vin blanc sec Chablis 75cl", "price": 16.90, "category": "Vins Blancs", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_cv_champagne", "merchant_id": "merchant_cave_vins", "name": "Champagne Brut", "description": "Champagne brut premier cru 75cl", "price": 29.90, "category": "Champagnes", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_cv_rose", "merchant_id": "merchant_cave_vins", "name": "Rosé de Provence", "description": "Vin rosé de Provence 75cl", "price": 9.90, "category": "Vins Rosés", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        # ---- Matériaux & Construction ----
+        {"id": "prod_bm_ciment", "merchant_id": "merchant_brico_materiaux", "name": "Sac de ciment 25 kg", "description": "Sac de ciment gris multi-usage 25kg", "price": 8.90, "category": "Gros œuvre", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bm_peinture", "merchant_id": "merchant_brico_materiaux", "name": "Peinture blanche 2,5L", "description": "Peinture murale mate blanche 2,5L", "price": 19.90, "category": "Peinture", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bm_vis", "merchant_id": "merchant_brico_materiaux", "name": "Lot de vis (200 pièces)", "description": "Assortiment de 200 vis à bois", "price": 6.50, "category": "Quincaillerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
+        {"id": "prod_bm_ruban", "merchant_id": "merchant_brico_materiaux", "name": "Ruban adhésif pro", "description": "Ruban adhésif toilé renforcé 50m", "price": 3.20, "category": "Quincaillerie", "is_available": True, "image_url": None, "created_at": datetime.now(timezone.utc).isoformat()},
     ]
 
     for merchant in demo_merchants:
@@ -478,6 +518,16 @@ async def lifespan(app: FastAPI):
 
     # Seed promo banners CMS
     await seed_promo_banners()
+
+    # Migration: route "Courses"/grocery to the dedicated grocery store list (idempotent)
+    await db.home_categories.update_many(
+        {"key": "grocery-delivery", "target_route": "/food"},
+        {"$set": {"target_route": "/food?type=grocery"}},
+    )
+    await db.promo_banners.update_many(
+        {"target_route": "/food"},
+        {"$set": {"target_route": "/food?type=grocery"}},
+    )
 
     # Seed taxi service categories (V3Cube Manage Service Category)
     await seed_service_categories()

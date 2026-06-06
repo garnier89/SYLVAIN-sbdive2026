@@ -8,14 +8,14 @@ import {
 
 const deliveryCategories = [
   { id: 'food', name: 'Livraison\nRepas', icon: ForkKnife, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/food' },
-  { id: 'grocery', name: 'Livraison\nCourses', icon: Storefront, bg: 'bg-purple-50', iconColor: 'text-purple-500', path: '/food' },
-  { id: 'medicine', name: 'Livraison\nMédicaments', icon: FirstAid, bg: 'bg-red-50', iconColor: 'text-red-500', path: '/food' },
-  { id: 'flowers', name: 'Livraison\nFleurs', icon: Flower, bg: 'bg-green-50', iconColor: 'text-green-500', path: '/food' },
-  { id: 'stationery', name: 'Livraison\nPapeterie', icon: PencilLine, bg: 'bg-cyan-50', iconColor: 'text-cyan-500', path: '/food' },
-  { id: 'wine', name: 'Livraison\nVin', icon: Wine, bg: 'bg-amber-50', iconColor: 'text-amber-700', path: '/food' },
-  { id: 'water', name: 'Eau en\nbouteille', icon: Drop, bg: 'bg-pink-50', iconColor: 'text-pink-600', path: '/food' },
-  { id: 'supermarket', name: 'Super-\nmarché', icon: Buildings, bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/food' },
-  { id: 'construction', name: 'Matériaux\nConstruction', icon: HardHat, bg: 'bg-teal-50', iconColor: 'text-teal-600', path: '/food' },
+  { id: 'grocery', name: 'Livraison\nCourses', icon: Storefront, bg: 'bg-purple-50', iconColor: 'text-purple-500', path: '/food?type=grocery' },
+  { id: 'medicine', name: 'Livraison\nMédicaments', icon: FirstAid, bg: 'bg-red-50', iconColor: 'text-red-500', path: '/pharmacy' },
+  { id: 'flowers', name: 'Livraison\nFleurs', icon: Flower, bg: 'bg-green-50', iconColor: 'text-green-500', path: '/food?type=florist' },
+  { id: 'stationery', name: 'Livraison\nPapeterie', icon: PencilLine, bg: 'bg-cyan-50', iconColor: 'text-cyan-500', path: '/food?type=stationery' },
+  { id: 'wine', name: 'Livraison\nVin', icon: Wine, bg: 'bg-amber-50', iconColor: 'text-amber-700', path: '/food?type=wine' },
+  { id: 'water', name: 'Eau en\nbouteille', icon: Drop, bg: 'bg-pink-50', iconColor: 'text-pink-600', path: '/food?type=grocery' },
+  { id: 'supermarket', name: 'Super-\nmarché', icon: Buildings, bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/food?type=grocery' },
+  { id: 'construction', name: 'Matériaux\nConstruction', icon: HardHat, bg: 'bg-teal-50', iconColor: 'text-teal-600', path: '/food?type=construction' },
 ];
 
 const AllDeliveryPage = () => {

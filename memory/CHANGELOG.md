@@ -1,7 +1,28 @@
 # CHANGELOG
 # CHANGELOG
 
-## 2026-06 — Images des catégories de service affichées sur l'app client (suite cohérence)
+## 2026-06-06 — Services de Livraison fonctionnels (verticales) + cohérence FR/€
+
+### Demande utilisateur
+« Vérifie si les 4 services de livraison fonctionnent + ajouter les services manquants, s'assurer que tout fonctionne bien. »
+
+### État avant
+Les 4 cartes (Repas, Courses, Express, Colis) s'affichaient mais : **« Livraison Courses » → /food affichait les RESTAURANTS** (aucune épicerie en base) ; **FoodPage en anglais/$** ; dans `AllDeliveryPage` les 9 catégories pointaient TOUTES vers /food.
+
+### Added (backend `server.py` seed)
+- Marchands démo par verticale : **grocery** (Carrefour City, Franprix Express), **florist** (Le Jardin Fleuri), **stationery** (Papeterie du Coin), **wine** (La Cave à Vins), **construction** (Brico Matériaux) + 4 produits FR/€ chacun.
+- Migration idempotente : `home_categories` clé `grocery-delivery` et bannière promo « Courses fraîches » → `/food?type=grocery`.
+- Seeds par défaut mis à jour (`home_categories.py`, `promo_banners.py`).
+
+### Changed (frontend)
+- **`FoodPage.js`** : page générique **verticale-aware** (`?type=grocery|florist|stationery|wine|construction`, défaut restaurant) — filtre par `store_type`, **textes FR + devise €**, titre/placeholder/empty par verticale.
+- **`RestaurantDetail.js`** : FR/€ (« commandes », ETA dynamique, prix `x,xx €`, « Ajouter », « Voir le panier · N article(s) · x,xx € »). Effet `loadMerchant` déplacé **dans** le useEffect (fix règle React-Compiler `react-hooks/immutability` du linter sans casser CRA).
+- **`AllDeliveryPage.js`** : routage corrigé par catégorie — Courses/Eau/Supermarché → grocery, Médicaments → `/pharmacy`, Fleurs → florist, Papeterie → stationery, Vin → wine, Matériaux → construction.
+
+### Testé
+e2e screenshot (compte client `coherence@demo.sb`) : Courses→épiceries, détail magasin FR/€ + ajout panier, Fleurs→fleuriste, Médicaments→/pharmacy. Lint JS sans erreur bloquante.
+
+
 
 ### Signalement utilisateur
 « J'ai modifié les images sur catégories de services, sur l'écran il n'y a pas le changement. »

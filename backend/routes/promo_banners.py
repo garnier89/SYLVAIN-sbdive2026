@@ -27,7 +27,7 @@ router = APIRouter(prefix="/promo-banners", tags=["promo-banners"])
 _SEED = [
     (
         "Courses fraîches livrées vite.", "Commandez maintenant !", "", "",
-        "Commander", "/food",
+        "Commander", "/food?type=grocery",
         "https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=200&fit=crop",
         "light", "#FFFFFF",
     ),

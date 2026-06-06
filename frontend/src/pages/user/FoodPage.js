@@ -1,60 +1,87 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { merchantAPI } from '../../services/api';
-import { 
-  MagnifyingGlass, MapPin, Star, Clock, 
-  ArrowLeft, Funnel, CaretRight
+import {
+  MagnifyingGlass, MapPin, Star, Clock, ArrowLeft, Funnel,
 } from '@phosphor-icons/react';
+
+// Verticales de livraison — chaque type filtre les marchands par `store_type`.
+// La page est réutilisée par : Repas, Courses, Fleurs, Papeterie, Vin, Matériaux.
+const VERTICALS = {
+  restaurant: {
+    storeType: 'restaurant', title: 'Livraison Repas',
+    placeholder: 'Rechercher un restaurant…', emptyTitle: 'Aucun restaurant trouvé',
+    fallback: 'https://images.unsplash.com/photo-1632898657999-ae6920976661?w=400',
+  },
+  grocery: {
+    storeType: 'grocery', title: 'Livraison Courses',
+    placeholder: 'Rechercher une épicerie…', emptyTitle: 'Aucune épicerie trouvée',
+    fallback: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400',
+  },
+  florist: {
+    storeType: 'florist', title: 'Livraison Fleurs',
+    placeholder: 'Rechercher un fleuriste…', emptyTitle: 'Aucun fleuriste trouvé',
+    fallback: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=400',
+  },
+  stationery: {
+    storeType: 'stationery', title: 'Livraison Papeterie',
+    placeholder: 'Rechercher une papeterie…', emptyTitle: 'Aucune papeterie trouvée',
+    fallback: 'https://images.unsplash.com/photo-1568205612837-017257d2310a?w=400',
+  },
+  wine: {
+    storeType: 'wine', title: 'Vin & Spiritueux',
+    placeholder: 'Rechercher une cave…', emptyTitle: 'Aucune cave trouvée',
+    fallback: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400',
+  },
+  construction: {
+    storeType: 'construction', title: 'Matériaux & Construction',
+    placeholder: 'Rechercher un magasin…', emptyTitle: 'Aucun magasin trouvé',
+    fallback: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400',
+  },
+};
 
 const FoodPage = () => {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const vertical = VERTICALS[params.get('type')] || VERTICALS.restaurant;
+
   const [merchants, setMerchants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    loadMerchants();
-  }, []);
+    let active = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const response = await merchantAPI.list({ store_type: vertical.storeType });
+        if (active) setMerchants(response.data || []);
+      } catch (error) {
+        console.error('Load merchants error:', error);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, [vertical.storeType]);
 
-  const loadMerchants = async () => {
-    try {
-      const response = await merchantAPI.list({ store_type: 'restaurant' });
-      setMerchants(response.data);
-    } catch (error) {
-      console.error('Load merchants error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const categories = [
-    { id: 'all', name: 'All' },
-    { id: 'fast-food', name: 'Fast Food' },
-    { id: 'pizza', name: 'Pizza' },
-    { id: 'asian', name: 'Asian' },
-    { id: 'healthy', name: 'Healthy' },
-  ];
-
-  const filteredMerchants = merchants.filter(m => 
-    m.store_name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const displayMerchants = filteredMerchants;
+  const displayMerchants = merchants.filter((m) =>
+    m.store_name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="mobile-container bg-background min-h-screen pb-20">
+    <div className="mobile-container bg-background min-h-screen pb-20" data-testid="store-list-page">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background border-b">
         <div className="p-4 space-y-4">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="rounded-full"
               onClick={() => navigate(-1)}
               data-testid="back-btn"
@@ -62,10 +89,10 @@ const FoodPage = () => {
               <ArrowLeft size={20} />
             </Button>
             <div className="flex-1">
-              <h1 className="text-xl font-bold">Food Delivery</h1>
+              <h1 className="text-xl font-bold" data-testid="store-list-title">{vertical.title}</h1>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <MapPin size={14} />
-                <span>Delivering to current location</span>
+                <span>Livraison à votre position actuelle</span>
               </div>
             </div>
           </div>
@@ -74,33 +101,17 @@ const FoodPage = () => {
           <div className="relative">
             <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
             <Input
-              placeholder="Search restaurants..."
+              placeholder={vertical.placeholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 rounded-full"
               data-testid="search-input"
             />
           </div>
-
-          {/* Categories */}
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {categories.map((cat) => (
-              <Button
-                key={cat.id}
-                variant={filter === cat.id ? 'default' : 'outline'}
-                size="sm"
-                className={`rounded-full whitespace-nowrap ${filter === cat.id ? 'bg-primary text-white' : ''}`}
-                onClick={() => setFilter(cat.id)}
-                data-testid={`category-${cat.id}`}
-              >
-                {cat.name}
-              </Button>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* Restaurant List */}
+      {/* Store List */}
       <div className="p-4 space-y-4">
         {loading ? (
           <div className="space-y-4">
@@ -117,15 +128,15 @@ const FoodPage = () => {
             ))}
           </div>
         ) : displayMerchants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="store-list-empty">
             <Funnel size={48} className="text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground">No restaurants found</p>
-            <p className="text-sm text-muted-foreground/70">Try a different search or category</p>
+            <p className="text-muted-foreground">{vertical.emptyTitle}</p>
+            <p className="text-sm text-muted-foreground/70">Essayez une autre recherche</p>
           </div>
         ) : (
           <div className="space-y-4">
             {displayMerchants.map((merchant) => (
-              <Card 
+              <Card
                 key={merchant.id}
                 className="overflow-hidden cursor-pointer service-card"
                 onClick={() => navigate(`/food/${merchant.id}`)}
@@ -134,13 +145,13 @@ const FoodPage = () => {
                 <CardContent className="p-0">
                   <div className="relative h-40">
                     <img
-                      src={merchant.image_url || 'https://images.unsplash.com/photo-1632898657999-ae6920976661?w=400'}
+                      src={merchant.image_url || vertical.fallback}
                       alt={merchant.store_name}
                       className="w-full h-full object-cover"
                     />
                     <Badge className="absolute top-3 right-3 bg-white text-foreground">
                       <Clock size={14} className="mr-1" />
-                      25-35 min
+                      {merchant.eta_min || 30} min
                     </Badge>
                   </div>
                   <div className="p-4">
@@ -156,10 +167,10 @@ const FoodPage = () => {
                     </div>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge variant="secondary" className="rounded-full">
-                        $2.50 delivery
+                        Livraison {(merchant.delivery_fee ?? 2.5).toFixed(2).replace('.', ',')} €
                       </Badge>
                       <Badge variant="secondary" className="rounded-full">
-                        $15 min
+                        Ouvert
                       </Badge>
                     </div>
                   </div>
