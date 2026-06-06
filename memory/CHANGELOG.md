@@ -925,3 +925,21 @@ Config V3Cube du type de véhicule Pool : Enable Pool (toggle), **Pool Percentag
 
 ### Changed
 - `RideTrackingPage.js` (écran recherche/pending) : le bouton « Activer Taxi Pool (tarif partagé) » n'est plus affiché pour toutes les courses. Nouveau flag stable `isPoolRide` (défini au 1er chargement via `pool_enabled || mode_id==='pool'`). Le toggle Pool n'apparaît QUE pour les courses réservées depuis la catégorie Pool ; retiré de toutes les autres catégories. Lint clean.
+
+## 2026-06-06 (suite) — Refonte moderne de l'écran d'accueil User (UserHome.js)
+
+### Changed (design — choix utilisateur « B » : sections conservées séparées)
+- Réécriture complète de `UserHome.js` selon `design_guidelines.json` (archetype Swiss/high-contrast premium).
+- **Header sticky en verre dépoli** (bg-white/85 backdrop-blur) : menu, salutation+nom, sélecteur de langue, avatar, pastille d'adresse, barre de recherche toujours visible.
+- **Nouveau bloc héros « Vos essentiels »** (grille 2×2) : VTC · Livraison Repas · Coursier · Pharmacie (grandes tuiles blanches, icône colorée, accent radial).
+- **Toutes les sections existantes conservées séparément** (Taxi, Livraison, Genie&Runner, Vidéo, À la demande, Beauté, Médical, Animaux, Enchères, Auto, Dépannage, Marketplace, Parking, Cartes cadeaux, Covoiturage, Suivi, Commerces) — uniquement modernisées : en-têtes avec barre d'accent orange + lien « Tout voir », fond app #F8FAFC, cartes rounded-[20-22px] blanches/bordées, ombres douces.
+- **Polices** Outfit (titres) + Manrope (texte) ajoutées dans `public/index.html`, appliquées via classes Tailwind arbitraires.
+- **Tuiles de service** modernisées (rounded-[20px], ombre douce, hover -translate-y) — **CMS 100% préservé** (icônes dynamiques, bg/couleurs configurables, routes intactes).
+- **Micro-animations** framer-motion : apparition en fondu/montée du contenu + `whileTap` (scale) sur toutes les tuiles/cartes.
+- **Bottom-nav** refaite en verre dépoli (bg-white/90 backdrop-blur), onglet actif orange lumineux.
+- Aucune route ni `data-testid` supprimé ; ajout testids `hero-tile-*`, `section-action-*`.
+
+### Tests
+- Lint JS clean. Webpack compile sans erreur (1 warning exhaustive-deps préexistant, hors scope).
+- ⚠️ Vérification visuelle authentifiée en attente : preview en veille (gate "Wake up servers"). À valider à l'ouverture du preview.
+- Compte passager de test créé : marie.test@demo.sb / Passager2026!
