@@ -103,6 +103,12 @@ export const configAPI = {
   getParcelTypes: () => api.get('/config/parcel-types'),
 };
 
+export const homeAPI = {
+  // Dashboard-managed home categories (CMS) — keeps mobile in sync with admin.
+  getHomeCategories: (section?: string) =>
+    api.get('/home-categories', { params: section ? { section } : {} }),
+};
+
 export const servicesAPI = {
   getCategories: () => api.get('/services/categories'),
   createBooking: (data: any) => api.post('/services/bookings', data),

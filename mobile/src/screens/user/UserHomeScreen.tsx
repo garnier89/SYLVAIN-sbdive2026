@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Image,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,13 +14,50 @@ import { Ionicons } from '@expo/vector-icons';
 import ServiceTile from '@/components/ServiceTile';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { homeAPI } from '@/api/endpoints';
+import { phosphorToIonicon, tailwindToHex, routeToNav } from '@/utils/cmsMappings';
 
 export default function UserHomeScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const nav = useNavigation<any>();
 
-  const services = useMemo(
+  // Dashboard-managed services (CMS). Falls back to the static list below.
+  const [cmsItems, setCmsItems] = useState<any[]>([]);
+  const [cmsSections, setCmsSections] = useState<any[]>([]);
+  const [loadingCms, setLoadingCms] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    homeAPI
+      .getHomeCategories()
+      .then((r) => {
+        if (!active) return;
+        setCmsItems(r.data?.items || []);
+        setCmsSections(r.data?.sections || []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoadingCms(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const sections = useMemo(() => {
+    if (!cmsItems.length) return [];
+    return cmsSections
+      .map((sec) => ({
+        ...sec,
+        items: cmsItems
+          .filter((i) => i.section === sec.key && i.visible_home)
+          .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
+      }))
+      .filter((s) => s.items.length);
+  }, [cmsItems, cmsSections]);
+
+  const fallbackServices = useMemo(
     () => [
       { key: 'taxi', label: t('user_home.taxi'), icon: 'car-sport', color: '#F59E0B', screen: 'Booking' },
       { key: 'moto', label: t('user_home.moto'), icon: 'bicycle', color: '#EF4444', screen: 'Booking' },
@@ -81,20 +118,50 @@ export default function UserHomeScreen() {
           </View>
         </View>
 
-        {/* Services grid */}
-        <Text style={styles.sectionTitle}>{t('user_home.categories')}</Text>
-        <View style={styles.grid}>
-          {services.map((s) => (
-            <ServiceTile
-              key={s.key}
-              testID={`tile-${s.key}`}
-              label={s.label}
-              iconName={s.icon as any}
-              color={s.color}
-              onPress={() => nav.navigate(s.screen, { service: s.key })}
-            />
-          ))}
-        </View>
+        {/* Services grid — synced with the dashboard (CMS) */}
+        {loadingCms ? (
+          <View style={styles.cmsLoading}>
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : sections.length > 0 ? (
+          sections.map((sec) => (
+            <View key={sec.key}>
+              <Text style={styles.sectionTitle}>{sec.title_fr || sec.key}</Text>
+              <View style={styles.grid}>
+                {sec.items.map((item: any) => {
+                  const target = routeToNav(sec.key, item.target_route);
+                  return (
+                    <ServiceTile
+                      key={item.id}
+                      testID={`tile-${item.section}-${item.key}`}
+                      label={(item.label_fr || '').replace(/\n/g, ' ')}
+                      iconName={phosphorToIonicon(item.icon_name)}
+                      imageUrl={item.image_url}
+                      color={tailwindToHex(item.icon_color_class)}
+                      onPress={() => nav.navigate(target.screen, target.params)}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+          ))
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>{t('user_home.categories')}</Text>
+            <View style={styles.grid}>
+              {fallbackServices.map((s) => (
+                <ServiceTile
+                  key={s.key}
+                  testID={`tile-${s.key}`}
+                  label={s.label}
+                  iconName={s.icon as any}
+                  color={s.color}
+                  onPress={() => nav.navigate(s.screen, { service: s.key })}
+                />
+              ))}
+            </View>
+          </>
+        )}
 
         <Text style={styles.sectionTitle}>{t('user_home.recent')}</Text>
         <View style={styles.recentEmpty}>
@@ -189,6 +256,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: spacing.sm,
+  },
+  cmsLoading: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
   },
   recentEmpty: {
     alignItems: 'center',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSizes, radius, shadow, spacing } from '@/theme';
 
@@ -7,6 +7,7 @@ type Props = {
   label: string;
   iconName: keyof typeof Ionicons.glyphMap;
   color?: string;
+  imageUrl?: string | null;
   onPress?: () => void;
   badge?: string;
   testID?: string;
@@ -16,6 +17,7 @@ export default function ServiceTile({
   label,
   iconName,
   color = colors.primary,
+  imageUrl,
   onPress,
   badge,
   testID,
@@ -27,7 +29,11 @@ export default function ServiceTile({
       style={({ pressed }) => [styles.wrap, { opacity: pressed ? 0.85 : 1 }]}
     >
       <View style={[styles.iconCircle, { backgroundColor: color + '22' }]}>
-        <Ionicons name={iconName} size={24} color={color} />
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="contain" />
+        ) : (
+          <Ionicons name={iconName} size={24} color={color} />
+        )}
         {badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge}</Text>
@@ -53,8 +59,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     ...shadow.sm,
   },
+  image: { width: 40, height: 40 },
   label: {
     marginTop: 8,
     fontSize: fontSizes.xs,

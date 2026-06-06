@@ -1,6 +1,30 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06 — Synchronisation des services Dashboard ↔ App mobile (Expo)
+
+### Demande utilisateur
+« Synchroniser les services entre le dashboard et les applications. » (Périmètre confirmé : services de la page d'accueil + catégories Taxi + Types de véhicule.)
+
+### Constat
+- App **web** : déjà pilotée par le CMS admin (`/api/home-categories`) et `/api/config/vehicle-types`.
+- App **mobile (Expo)** : liste de services **codée en dur** dans `UserHomeScreen.tsx` → aucune synchro avec l'admin.
+- **Bug de désynchro véhicules** : `BookingScreen` appelait `getVehicleTypes('taxi')` (= `category_slug=taxi`) → **0 véhicule** (les docs ont `category='ride'`, pas `category_slug`). Le web appelle `getVehicleTypes()` sans filtre → 13 véhicules. De plus, le chip affichait `v.name` (inexistant) au lieu de `v.name_fr`.
+
+### Changed (mobile)
+- `mobile/src/screens/user/UserHomeScreen.tsx` : accueil **dynamique** — fetch `/api/home-categories`, rendu par section (taxi, delivery, ondemand, beauty, pet, carcare, towing, nearby) avec items `visible_home` triés par `display_order`. Fallback sur la liste statique si l'API échoue/vide.
+- `mobile/src/utils/cmsMappings.ts` (nouveau) : mapping icônes **Phosphor → Ionicons**, couleurs **Tailwind → hex**, et `section/target_route → écran + params` de navigation.
+- `mobile/src/components/ServiceTile.tsx` : support `imageUrl` (icône image uploadée depuis l'admin).
+- `mobile/src/api/endpoints.ts` : ajout `homeAPI.getHomeCategories()`.
+- `mobile/src/screens/user/BookingScreen.tsx` : `getVehicleTypes()` sans filtre (13 véhicules synchronisés) + libellé `name_fr || name || name_en || slug`.
+
+### Vérification
+- `tsc --noEmit` OK, lint OK.
+- API confirmées : `/api/home-categories` (8 sections, 17 items taxi), `/api/config/vehicle-types` (13 véhicules).
+- ⚠️ App native Expo non testable via screenshot dans le preview — vérif au niveau code/type/API. L'utilisateur doit recharger l'app Expo pour voir les changements.
+
+
+
 ## 2026-06-06 — Chip de réservation piloté par le CMS (libellés/icônes par mode éditables) + retry géocodage
 
 ### Demande utilisateur

@@ -25,8 +25,11 @@ import { PARIS, regionFromCoords } from '@/utils/geo';
 type Coords = { lat: number; lng: number };
 type VehicleType = {
   slug: string;
-  name: string;
+  name?: string;
+  name_fr?: string;
+  name_en?: string;
   icon?: string;
+  image_selected?: string | null;
   base_fare?: number;
 };
 type Picking = 'pickup' | 'dropoff' | null;
@@ -69,7 +72,7 @@ export default function BookingScreen() {
         }
       } catch {}
       try {
-        const res = await configAPI.getVehicleTypes('taxi');
+        const res = await configAPI.getVehicleTypes();
         const list: VehicleType[] = res.data?.items ?? res.data ?? [];
         if (list.length) {
           setVehicleTypes(list);
@@ -287,7 +290,7 @@ export default function BookingScreen() {
                     selected === v.slug && { color: colors.secondary, fontWeight: '800' },
                   ]}
                 >
-                  {v.name}
+                  {v.name_fr || v.name || v.name_en || v.slug}
                 </Text>
               </Pressable>
             ))}
