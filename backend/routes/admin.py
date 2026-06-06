@@ -175,6 +175,17 @@ async def delete_vehicle_type(slug: str, request: Request):
     return {"message": f"Vehicle type '{slug}' deleted"}
 
 
+@router.post("/vehicle-types/reorder")
+async def reorder_vehicle_types(request: Request):
+    """Body: {ordered_slugs: [...]} — sets display_order by index (reflected in the client app)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    slugs = body.get("ordered_slugs", [])
+    for i, slug in enumerate(slugs):
+        await db.vehicle_types.update_one({"slug": slug}, {"$set": {"display_order": i + 1}})
+    return {"message": "reordered", "count": len(slugs)}
+
+
 @router.post("/merchants/{merchant_id}/status")
 async def update_merchant_status(merchant_id: str, request: Request):
     await require_role(request, ["admin"], permission="merchants.activate")

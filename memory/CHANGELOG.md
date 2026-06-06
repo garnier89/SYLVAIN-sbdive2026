@@ -1,6 +1,23 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06 — Réordonnancement des véhicules (admin ↑/↓) + diagnostic propagation app client
+
+### Demande / signalement utilisateur
+« J'ai reclassé les véhicules dans le dashboard, ça n'a pas réagi sur l'écran de l'app client. »
+
+### Diagnostic
+Le code de tri était déjà correct : `/api/config/vehicle-types` trie par `display_order` (serveur) et tous les écrans client (`RideChoosePage`, `RideBookingPage`, `RideMapStep`) affichent cet ordre. Vérifié en direct : changer `display_order` via l'admin remonte immédiatement dans l'API.
+→ Cause probable du « non-réagi » : bases **preview/production séparées** (changement fait dans un env, testé dans l'autre) ou écran client non rechargé. + il manquait une **UI de réordonnancement** intuitive (seul le champ numérique « Ordre d'affichage » existait).
+
+### Changed
+- **Backend `admin.py`** : nouvel endpoint `POST /api/admin/vehicle-types/reorder` ({ordered_slugs}) → réécrit `display_order` par index. Testé (luxe/moto remontés puis restaurés ; `/config/vehicle-types` reflète immédiatement).
+- **Admin `AdminVehicleTypes.js`** : flèches **↑/↓** + numéro d'ordre sur chaque carte véhicule (optimiste + persistance), texte d'aide « ordre repris dans l'app client ». ✅ rendu vérifié par screenshot. Lint OK.
+
+### Note
+Le réordonnancement est une donnée (BDD) : un changement fait sur la **preview** n'apparaît PAS en **production** (et inversement). Reclasser dans le dashboard **production** pour impacter l'app de production.
+
+
 ## 2026-06 — Moteur multilingue : 30+ langues + traduction automatique LLM (Phase 1)
 
 ### Demande utilisateur

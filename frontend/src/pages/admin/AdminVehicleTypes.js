@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { Car, Plus, PencilSimple, Trash, Copy } from '@phosphor-icons/react';
+import { Car, Plus, PencilSimple, Trash, Copy, ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import VehicleTypeEditor from './VehicleTypeEditor';
 import { currencySymbol } from './vehicleTypeConstants';
@@ -13,14 +13,14 @@ const AdminVehicleTypes = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // editor item or null
 
-  const loadTypes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API}/api/admin/vehicle-types`, { credentials: 'include' });
-      setTypes(await res.json());
-    } catch { toast.error('Erreur de chargement'); } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { loadTypes(); }, [loadTypes]);
+  const loadTypes = () => {
+    fetch(`${API}/api/admin/vehicle-types`, { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => setTypes(data))
+      .catch(() => toast.error('Erreur de chargement'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { loadTypes(); }, []);
 
   const handleDelete = async (slug) => {
     if (!window.confirm('Supprimer ce type de véhicule ?')) return;
@@ -28,6 +28,22 @@ const AdminVehicleTypes = () => {
       await fetch(`${API}/api/admin/vehicle-types/${slug}`, { method: 'DELETE', credentials: 'include' });
       toast.success('Supprimé'); loadTypes();
     } catch { toast.error('Échec'); }
+  };
+
+  // Reorder a vehicle (↑/↓) — order is reflected in the client app (sorted by display_order).
+  const move = async (slug, dir) => {
+    const idx = types.findIndex((t) => t.slug === slug);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= types.length) return;
+    const next = [...types];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setTypes(next);
+    try {
+      await fetch(`${API}/api/admin/vehicle-types/reorder`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ ordered_slugs: next.map((t) => t.slug) }),
+      });
+    } catch { toast.error('Échec du classement'); loadTypes(); }
   };
 
   const openNew = () => setEditing({ _isExisting: false });
@@ -49,7 +65,7 @@ const AdminVehicleTypes = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Car size={26} weight="duotone" /> Types de véhicule</h1>
-          <p className="text-sm text-gray-500 mt-1">{types.length} type(s) configuré(s)</p>
+          <p className="text-sm text-gray-500 mt-1">{types.length} type(s) configuré(s) · classez-les avec les flèches ↑/↓ (ordre repris dans l&apos;app client)</p>
         </div>
         <Button onClick={openNew} className="bg-[#FF5000] text-white" data-testid="vt-add-new"><Plus size={16} className="mr-1.5" />Nouveau type</Button>
       </div>
@@ -57,7 +73,7 @@ const AdminVehicleTypes = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {loading && <p className="col-span-full text-center text-gray-400 py-10">Chargement...</p>}
         {!loading && types.length === 0 && <p className="col-span-full text-center text-gray-400 py-10">Aucun type de véhicule. Créez-en un.</p>}
-        {!loading && types.map((vt) => {
+        {!loading && types.map((vt, idx) => {
           const sym = currencySymbol(vt.currency || 'EUR');
           return (
             <div key={vt.slug} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow" data-testid={`vt-card-${vt.slug}`}>
@@ -79,6 +95,13 @@ const AdminVehicleTypes = () => {
                     {vt.ask_otp_before_ride && <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded">OTP</span>}
                     {vt.allow_whatsapp_booking && <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded">WA</span>}
                   </div>
+                </div>
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <button onClick={() => move(vt.slug, -1)} disabled={idx === 0} title="Monter" data-testid={`vt-up-${vt.slug}`}
+                    className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center disabled:opacity-30"><ArrowUp size={13} weight="bold" /></button>
+                  <span className="text-[10px] font-bold text-gray-400">{idx + 1}</span>
+                  <button onClick={() => move(vt.slug, 1)} disabled={idx === types.length - 1} title="Descendre" data-testid={`vt-down-${vt.slug}`}
+                    className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center disabled:opacity-30"><ArrowDown size={13} weight="bold" /></button>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-3 text-center">
