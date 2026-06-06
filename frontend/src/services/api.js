@@ -121,6 +121,11 @@ export const orderAPI = {
   assignDriver: (id, driverId) => api.post(`/orders/${id}/assign-driver`, { driver_id: driverId }),
   list: (params) => api.get('/orders', { params }),
   rate: (id, data) => api.post(`/orders/${id}/rate`, data),
+  // Food delivery — driver jobs + live tracking
+  availableDeliveries: () => api.get('/orders/available-deliveries'),
+  driverActiveOrders: () => api.get('/orders/driver/active'),
+  claim: (id) => api.post(`/orders/${id}/claim`),
+  track: (id) => api.get(`/orders/${id}/track`),
 };
 
 // Cart APIs

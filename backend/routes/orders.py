@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from core.config import db
-from core.deps import get_current_user
+from core.deps import get_current_user, require_role
 from models.schemas import OrderCreate, OrderResponse
 from core.websocket import manager
 
@@ -28,12 +28,22 @@ async def create_order(data: OrderCreate, request: Request):
         subtotal += item_total
         items_with_details.append({"product_id": item.product_id, "name": product["name"], "price": product["price"], "quantity": item.quantity, "total": item_total})
 
-    delivery_fee = 2.50
+    settings = await db.app_config.find_one({"key": "delivery"}, {"_id": 0}) or {}
+    commission_percent = float(settings.get("commission_percent", 15.0))
+    default_fee = float(settings.get("default_delivery_fee", 2.5))
+    delivery_fee = merchant.get("delivery_fee")
+    if delivery_fee is None:
+        delivery_fee = default_fee
+    delivery_fee = float(delivery_fee)
+    commission = round(subtotal * commission_percent / 100, 2)
+    merchant_payout = round(subtotal - commission, 2)
     total = subtotal + delivery_fee
     order = {
         "id": f"order_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "merchant_id": data.merchant_id,
         "driver_id": None, "items": items_with_details, "subtotal": round(subtotal, 2),
-        "delivery_fee": delivery_fee, "total": round(total, 2), "order_type": data.order_type,
+        "delivery_fee": round(delivery_fee, 2), "commission_percent": commission_percent,
+        "commission": commission, "merchant_payout": merchant_payout,
+        "total": round(total, 2), "order_type": data.order_type or "food",
         "status": "pending", "delivery_address": data.delivery_address,
         "delivery_lat": data.delivery_lat, "delivery_lng": data.delivery_lng,
         "payment_method": data.payment_method, "payment_status": "pending",
@@ -42,10 +52,119 @@ async def create_order(data: OrderCreate, request: Request):
         "estimated_delivery": (datetime.now(timezone.utc) + timedelta(minutes=45)).isoformat()
     }
     await db.orders.insert_one(order)
+    # Notify the merchant of the incoming order (live dashboard)
+    if merchant.get("user_id"):
+        await manager.send_personal_message(
+            {"type": "new_order", "order_id": order["id"], "total": order["total"]},
+            merchant["user_id"],
+        )
     order.pop("_id", None)
     order["created_at"] = datetime.fromisoformat(order["created_at"])
     order["estimated_delivery"] = datetime.fromisoformat(order["estimated_delivery"])
     return OrderResponse(**order)
+
+
+# ── Driver food-delivery jobs + live tracking + admin settings ──
+# (defined before "/{order_id}" so the static paths are not captured by the dynamic route)
+
+@router.get("/available-deliveries")
+async def available_deliveries(request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "driver":
+        raise HTTPException(status_code=403, detail="Drivers only")
+    orders = await db.orders.find({"status": "ready", "driver_id": None}, {"_id": 0}).sort("created_at", 1).limit(30).to_list(30)
+    out = []
+    for o in orders:
+        m = await db.merchants.find_one({"id": o["merchant_id"]}, {"_id": 0, "store_name": 1, "address": 1, "lat": 1, "lng": 1})
+        out.append({
+            "id": o["id"],
+            "merchant": {"name": (m or {}).get("store_name"), "address": (m or {}).get("address"), "lat": (m or {}).get("lat"), "lng": (m or {}).get("lng")},
+            "delivery_address": o.get("delivery_address"), "delivery_lat": o.get("delivery_lat"), "delivery_lng": o.get("delivery_lng"),
+            "items_count": sum(int(i.get("quantity", 1)) for i in o.get("items", [])),
+            "total": o.get("total"), "earning": o.get("delivery_fee"),
+            "created_at": o.get("created_at"),
+        })
+    return out
+
+
+@router.get("/driver/active")
+async def driver_active_orders(request: Request):
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]})
+    if not driver:
+        return []
+    orders = await db.orders.find(
+        {"driver_id": driver["id"], "status": {"$in": ["ready", "picked_up"]}},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(30)
+    for o in orders:
+        m = await db.merchants.find_one({"id": o["merchant_id"]}, {"_id": 0, "store_name": 1, "address": 1})
+        o["merchant_name"] = (m or {}).get("store_name")
+        o["merchant_address"] = (m or {}).get("address")
+    return orders
+
+
+@router.get("/admin/delivery-settings")
+async def get_delivery_settings(request: Request):
+    await require_role(request, ["admin", "dispatcher"], permission="server.settings.edit")
+    doc = await db.app_config.find_one({"key": "delivery"}, {"_id": 0}) or {}
+    return {"commission_percent": float(doc.get("commission_percent", 15.0)), "default_delivery_fee": float(doc.get("default_delivery_fee", 2.5))}
+
+
+@router.put("/admin/delivery-settings")
+async def set_delivery_settings(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    update = {"key": "delivery"}
+    if "commission_percent" in body:
+        update["commission_percent"] = float(body["commission_percent"])
+    if "default_delivery_fee" in body:
+        update["default_delivery_fee"] = float(body["default_delivery_fee"])
+    await db.app_config.update_one({"key": "delivery"}, {"$set": update}, upsert=True)
+    doc = await db.app_config.find_one({"key": "delivery"}, {"_id": 0}) or {}
+    return {"commission_percent": float(doc.get("commission_percent", 15.0)), "default_delivery_fee": float(doc.get("default_delivery_fee", 2.5))}
+
+
+@router.post("/{order_id}/claim")
+async def claim_order(order_id: str, request: Request):
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Not a driver")
+    res = await db.orders.update_one(
+        {"id": order_id, "driver_id": None, "status": "ready"},
+        {"$set": {"driver_id": driver["id"]}},
+    )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=409, detail="Commande déjà prise ou non disponible")
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    await manager.send_personal_message({"type": "order_driver_assigned", "order_id": order_id}, order["user_id"])
+    return {"message": "claimed", "order_id": order_id}
+
+
+@router.get("/{order_id}/track")
+async def track_order(order_id: str, request: Request):
+    await get_current_user(request)
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    merchant = await db.merchants.find_one({"id": order["merchant_id"]}, {"_id": 0})
+    driver_info = None
+    if order.get("driver_id"):
+        drv = await db.drivers.find_one({"id": order["driver_id"]}, {"_id": 0})
+        if drv:
+            loc = manager.get_driver_location(drv["user_id"]) or {}
+            lat = loc.get("lat", drv.get("current_lat"))
+            lng = loc.get("lng", drv.get("current_lng"))
+            du = await db.users.find_one({"id": drv["user_id"]}, {"_id": 0, "name": 1, "phone": 1})
+            driver_info = {"name": (du or {}).get("name"), "phone": (du or {}).get("phone"), "lat": lat, "lng": lng}
+    return {
+        "order_id": order_id, "status": order["status"],
+        "merchant": {"name": (merchant or {}).get("store_name"), "lat": (merchant or {}).get("lat"), "lng": (merchant or {}).get("lng"), "address": (merchant or {}).get("address")},
+        "delivery": {"address": order.get("delivery_address"), "lat": order.get("delivery_lat"), "lng": order.get("delivery_lng")},
+        "driver": driver_info,
+        "estimated_delivery": order.get("estimated_delivery"),
+    }
 
 
 @router.get("/{order_id}")

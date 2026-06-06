@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { parcelAPI, medicalAPI, driverAPI } from '../../services/api';
+import { parcelAPI, medicalAPI, driverAPI, orderAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import {
-  ArrowLeft, Package, FirstAid, MapPin, FlagCheckered, CheckCircle, CaretRight, ArrowsClockwise, Phone,
+  ArrowLeft, Package, FirstAid, MapPin, FlagCheckered, CheckCircle, CaretRight, ArrowsClockwise, Phone, ForkKnife,
 } from '@phosphor-icons/react';
+
+const FOOD_NEXT = { ready: 'picked_up', picked_up: 'delivered' };
+const FOOD_LABEL = { ready: 'À récupérer', picked_up: 'En livraison' };
+const FOOD_NEXT_LABEL = { ready: 'Commande récupérée', picked_up: 'Marquer livré' };
 
 const PARCEL_NEXT = { accepted: 'arrived_pickup', arrived_pickup: 'picked_up', picked_up: 'in_transit' };
 const PARCEL_LABEL = { pending: 'En attente', accepted: 'Acceptée', arrived_pickup: 'Arrivé au ramassage', picked_up: 'Colis récupéré', in_transit: 'En livraison', completed: 'Terminée' };
@@ -27,19 +31,23 @@ const DeliveryJobsPage = () => {
   const [tab, setTab] = useState('available');
   const [availParcels, setAvailParcels] = useState([]);
   const [availTransports, setAvailTransports] = useState([]);
+  const [availFood, setAvailFood] = useState([]);
   const [activeParcels, setActiveParcels] = useState([]);
   const [activeTransports, setActiveTransports] = useState([]);
+  const [activeFood, setActiveFood] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     try {
-      const [ap, at, mp, mt] = await Promise.all([
+      const [ap, at, mp, mt, af, actf] = await Promise.all([
         parcelAPI.driverAvailable(), medicalAPI.transportDriverAvailable(),
         parcelAPI.driverActive(), medicalAPI.transportDriverActive(),
+        orderAPI.availableDeliveries().catch(() => ({ data: [] })),
+        orderAPI.driverActiveOrders().catch(() => ({ data: [] })),
       ]);
       setAvailParcels(ap.data || []); setAvailTransports(at.data || []);
       setActiveParcels(mp.data || []); setActiveTransports(mt.data || []);
+      setAvailFood(af.data || []); setActiveFood(actf.data || []);
     } catch { toast.error('Erreur de chargement'); } finally { setLoading(false); }
   }, []);
 
@@ -56,10 +64,14 @@ const DeliveryJobsPage = () => {
       toast[urgent ? 'error' : 'success'](`🚑 Nouveau transport médical${urgent ? ' (URGENT)' : ''} · ${msg.fare?.toFixed?.(2) ?? msg.fare} €`, { duration: 7000 });
       refresh();
     });
-    return () => { unsubP(); unsubT(); };
+    const unsubF = on('new_order', (msg) => {
+      toast.success(`🍔 Nouvelle commande à livrer · ${msg.total?.toFixed?.(2) ?? msg.total} €`, { duration: 6000 });
+      refresh();
+    });
+    return () => { unsubP(); unsubT(); unsubF(); };
   }, [on, refresh]);
 
-  const activeCount = activeParcels.length + activeTransports.length;
+  const activeCount = activeParcels.length + activeTransports.length + activeFood.length;
 
   // Broadcast live position while the driver has active deliveries (passenger live map)
   useEffect(() => {
@@ -74,12 +86,14 @@ const DeliveryJobsPage = () => {
   }, [activeCount]);
 
   const acceptParcel = async (id) => { try { await parcelAPI.accept(id); toast.success('Colis accepté'); setTab('active'); refresh(); } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } };
+  const claimFood = async (id) => { try { await orderAPI.claim(id); toast.success('Commande acceptée'); setTab('active'); refresh(); } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } };
+  const advanceFood = async (id, next) => { try { await orderAPI.updateStatus(id, next); if (next === 'delivered') toast.success('Commande livrée'); refresh(); } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } };
   const acceptTransport = async (id) => { try { await medicalAPI.acceptTransport(id); toast.success('Transport accepté'); setTab('active'); refresh(); } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } };
   const advanceParcel = async (id, next) => { try { await parcelAPI.updateStatus(id, next); refresh(); } catch { toast.error('Échec'); } };
   const deliverLeg = async (id, index) => { try { const r = await parcelAPI.deliverLeg(id, index); if (r.data.all_delivered) toast.success('Toutes les livraisons effectuées !'); refresh(); } catch { toast.error('Échec'); } };
   const advanceTransport = async (id, next) => { try { await medicalAPI.updateTransportStatus(id, next); if (next === 'completed') toast.success('Course terminée'); refresh(); } catch { toast.error('Échec'); } };
 
-  const availableCount = availParcels.length + availTransports.length;
+  const availableCount = availParcels.length + availTransports.length + availFood.length;
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="delivery-jobs-page">
@@ -133,10 +147,21 @@ const DeliveryJobsPage = () => {
                 <button onClick={() => acceptTransport(t.id)} data-testid={`accept-transport-${t.id}`} className="w-full mt-3 bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold">Accepter le transport</button>
               </div>
             ))}
+            {availFood.map((o) => (
+              <div key={o.id} className="bg-white rounded-2xl p-4 border border-gray-100" data-testid={`avail-food-${o.id}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <ForkKnife size={18} weight="duotone" className="text-orange-500" />
+                  <span className="font-bold text-sm truncate">{o.merchant?.name || 'Restaurant'}</span>
+                  <span className="ml-auto font-bold text-[#FF5000]">{o.earning?.toFixed?.(2) ?? o.earning} €</span>
+                </div>
+                <p className="text-xs text-gray-500 truncate"><MapPin size={11} className="inline text-green-500" /> {o.merchant?.address || 'Restaurant'}</p>
+                <p className="text-xs text-gray-500 truncate"><FlagCheckered size={11} className="inline text-red-500" /> {o.delivery_address}</p>
+                <p className="text-xs text-gray-400">{o.items_count} article(s) · Total {o.total?.toFixed?.(2) ?? o.total} €</p>
+                <button onClick={() => claimFood(o.id)} data-testid={`accept-food-${o.id}`} className="w-full mt-3 bg-[#FF5000] text-white py-2.5 rounded-xl text-sm font-semibold">Accepter la livraison</button>
+              </div>
+            ))}
           </>
         )}
-
-        {/* ===== ACTIVE ===== */}
         {!loading && tab === 'active' && (
           <>
             {activeCount === 0 && <p className="text-center text-gray-400 py-10" data-testid="no-active">Aucune mission en cours.</p>}
@@ -196,6 +221,23 @@ const DeliveryJobsPage = () => {
                   <button onClick={() => advanceTransport(t.id, MEDTR_NEXT[t.status])} data-testid={`transport-advance-${t.id}`}
                     className="w-full bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5">
                     {MEDTR_NEXT_LABEL[t.status]} <CaretRight size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+            {activeFood.map((o) => (
+              <div key={o.id} className="bg-white rounded-2xl p-4 border border-gray-100" data-testid={`active-food-${o.id}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <ForkKnife size={18} weight="duotone" className="text-orange-500" />
+                  <span className="font-bold text-sm truncate">{o.merchant_name || 'Restaurant'}</span>
+                  <span className="ml-auto"><StatusBadge label={FOOD_LABEL[o.status] || o.status} /></span>
+                </div>
+                <p className="text-xs text-gray-500 truncate"><MapPin size={11} className="inline text-green-500" /> {o.merchant_address || 'Restaurant'}</p>
+                <p className="text-xs text-gray-500 mb-3 truncate"><FlagCheckered size={11} className="inline text-red-500" /> {o.delivery_address}</p>
+                {FOOD_NEXT[o.status] && (
+                  <button onClick={() => advanceFood(o.id, FOOD_NEXT[o.status])} data-testid={`food-advance-${o.id}`}
+                    className="w-full bg-[#0B1426] text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5">
+                    {FOOD_NEXT_LABEL[o.status]} <CaretRight size={15} />
                   </button>
                 )}
               </div>

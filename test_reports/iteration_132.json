@@ -1,0 +1,92 @@
+{
+  "summary": "Frontend-only e2e validation of Food (Livraison Repas) across 4 actors. Two CRITICAL frontend bugs were blocking the flow; both fixed by me. After fixes, the FULL end-to-end completed: client placed order (POST /api/orders → 200, order_4add3c88774e, total 12.40€), merchant Accept → Start Preparing → Mark Ready, driver Accept livraison → Commande récupérée → Marquer livré, client /order/{id} tracking page rendered with full status timeline including 'Delivered', and admin /admin/store-orders lists the order (id 3c88774e, type food).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CheckoutPage (/checkout/:merchantId)",
+        "issue": "Cash payment radio not persisted to state. Clicking [data-testid=\"payment-cash\"] (RadioGroupItem) leaves formData.payment_method='card' (the initial default). The POST /api/orders body sent payment_method='card' even though Cash was selected. Likely onValueChange on the RadioGroup is not firing for cash, or the value attribute mismatch. Repro: open checkout, click 'Espèces', click Place Order — network payload shows payment_method:'card'.",
+        "selector": "[data-testid=\"payment-cash\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "CheckoutPage Place Order button",
+        "issue": "Playwright page.click('[data-testid=\"place-order-btn\"]', force=True) is silently ignored (no POST, no state change). A direct JS .click() on the same element works. Suggests a pointer-event interception (likely the fixed bottom bar/sticky header overlay with mobile-container max-width centering). End-users on actual mobile should still be able to tap, but the hit-test is brittle. Worth verifying button isn't covered by an invisible sibling.",
+        "selector": "[data-testid=\"place-order-btn\"]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "CheckoutPage / FoodPage / RestaurantDetail",
+        "issue": "Currency symbol is $ instead of € across cart, summary, badges. French context but USD signs. Also deliveryFee hard-coded to 2.50 in CheckoutPage instead of using merchant.delivery_fee from /api/merchants/{id}. Customer sees correct figure here by coincidence (backend also returns 2.50).",
+        "selector": "—",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "FoodPage",
+        "issue": "Badges hard-coded ('$2.50 delivery', '$15 min', '25-35 min', 'Delivering to current location' English placeholder). Should be merchant-driven and FR-localized.",
+        "selector": "—",
+        "priority": "LOW"
+      },
+      {
+        "component": "MerchantLayout logout button",
+        "issue": "[data-testid=\"logout-btn\"] is outside the viewport on a 430x900 mobile viewport (sits inside a sidebar nav that isn't scrolled into view). Not blocking but Playwright tests must scroll or use scroll-into-view first.",
+        "selector": "[data-testid=\"logout-btn\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      { "screen": "Checkout & Food list", "issues": ["USD '$' symbols on FR app", "English copy mixed with French (Delivery Address, Order Items, Special Instructions, Order Summary, Subtotal, Delivery Fee, Total, Place Order)"] }
+    ]
+  },
+  "fixes_applied_by_testing_agent": [
+    {
+      "file": "/app/frontend/src/pages/driver/DeliveryJobsPage.js",
+      "bug": "Compile error: Definition for rule 'react-hooks/set-state-in-effect' was not found. // eslint-disable-next-line referenced a non-existent ESLint rule, the webpack-dev-server error overlay covered the ENTIRE site (all routes — login, /food, everything blocked).",
+      "fix": "Removed the bogus // eslint-disable-next-line comment above the useEffect on line 54.",
+      "severity": "CRITICAL — blocks entire frontend"
+    },
+    {
+      "file": "/app/frontend/src/pages/user/OrderTracking.js",
+      "bug": "ReferenceError: Cannot access 'loadOrder' before initialization. useEffect at line 47 referenced const loadOrder and const connectWebSocket declared via useCallback below it (lines 62 and 89). Temporal Dead Zone crash on EVERY /order/:orderId page load. Client could never track an order.",
+      "fix": "Moved the useEffect to AFTER both useCallback declarations (after line 118).",
+      "severity": "CRITICAL — blocks client order tracking, which is the user-facing endpoint of the entire delivery feature"
+    }
+  ],
+  "e2e_evidence": {
+    "order_id": "order_4add3c88774e",
+    "merchant": "Resto Demo SB (merchant_d3cc002c7d87)",
+    "product": "Menu Test 9.90 €",
+    "totals": { "subtotal": 9.90, "delivery_fee": 2.50, "total": 12.40 },
+    "client_place_order_response": "POST /api/orders → 200, status=pending, payment_method='card' (BUG: should be 'cash')",
+    "merchant_flow": "Accept (accept-order_4add3c88774e) → Start Preparing (prepare-order_4add3c88774e) → Mark Ready (ready-order_4add3c88774e) — final status 'ready / Waiting for pickup' ✅",
+    "driver_flow": "avail-food-{id} visible in Disponibles tab → accept-food-{id} → tab-active → food-advance-{id} (ready→picked_up) → food-advance-{id} (picked_up→delivered) — toast 'Commande livrée' ✅",
+    "client_tracking_after_fix": "/order/order_4add3c88774e renders WITHOUT runtime error, shows full status pipeline (Order Placed → Confirmed → Preparing → Ready for Pickup → Out for Delivery → Delivered) and order details (1x Menu Test, totals, delivery address) ✅",
+    "admin_orders": "/admin/store-orders lists the order (short id 3c88774e, type=food) in the '12 commandes' list ✅"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX HIGH: CheckoutPage Cash radio doesn't update formData.payment_method — clicking [data-testid=\"payment-cash\"] still POSTs with 'card'. Audit usePaymentMethods + RadioGroup integration.",
+    "VERIFY: place-order-btn hit-testing on mobile — confirm no overlay sibling intercepts pointer events.",
+    "POLISH: i18n + currency — switch $ to € and translate Checkout/Food/RestaurantDetail copy to French; use merchant.delivery_fee instead of hard-coded 2.50.",
+    "Consider re-running pre-commit lint to catch unknown-eslint-rule references before they reach this preview."
+  ],
+  "critical_code_review_comments": [
+    "OrderTracking.js useEffect-before-useCallback was caught by React 18 strict-mode TDZ at runtime, not by lint. Add an eslint rule (no-use-before-define on hooks) and/or move all useCallback declarations above the useEffect that depends on them as a project convention.",
+    "DeliveryJobsPage.js: eslint-disable comments must reference rules that actually exist in the project's eslint config — otherwise webpack-dev-server's overlay treats them as fatal compile errors and the entire app becomes unreachable.",
+    "CheckoutPage.js places the order via 'demo' fallback even on backend error (sets a fake order_demo_<ts> id). This silently masks server errors and would have masked the cash-radio bug if backend rejected 'card'. Consider showing the real error to the user.",
+    "CheckoutPage.js hardcodes deliveryFee=2.50 (constant) — backend authoritative value should be displayed via merchant.delivery_fee or computed quote endpoint, otherwise UI and DB can drift.",
+    "OrderTracking.js demo-data fallback inside loadOrder() catch will mask real 401/403/404 from /api/orders/{id}/track and falsely show 'preparing' status to the user."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/driver/DeliveryJobsPage.js",
+    "/app/frontend/src/pages/user/OrderTracking.js"
+  ],
+  "success_rate": { "backend": "n/a (frontend-only per request)", "frontend": "85% — full 4-actor e2e completes after two critical fixes; cash-radio + currency/i18n bugs remain" },
+  "test_credentials_used": "Client coherence@demo.sb/Client123! · Merchant merchant@example.com/Merchant123! · Driver jean.dupont@demo.sb/Driver123! · Admin admin@superapp.com/SuperAdmin123!",
+  "seed_data_creation": "None. Reused merchant_d3cc002c7d87 (Resto Demo SB) and its Menu Test product. Created live order order_4add3c88774e during the test — it was carried all the way through to 'delivered' by the driver. (Cleanup not performed; safe to leave or main agent can purge.)",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Two critical compile/runtime bugs (DeliveryJobsPage bogus eslint-disable, OrderTracking TDZ) are now fixed in code. The two remaining bugs to retest after main-agent fixes: (1) Cash payment radio on CheckoutPage must persist 'cash' to the POST /api/orders payload (currently sends 'card'); (2) place-order-btn pointer-event interception — re-test with a stock playwright click on a mobile viewport (430x900). Test merchant uses sticky sidebar; logout-btn requires scroll. Driver delivery URL is /chauffeur/livraisons. Admin orders is /admin/store-orders. Currency should be € in FR.",
+  "rca of the issue": "Bug A (frontend dead): DeliveryJobsPage.js line 54 had `// eslint-disable-next-line react-hooks/set-state-in-effect` referencing an ESLint rule that is not registered in /app/frontend (no such plugin/rule installed). webpack-dev-server treats unknown-rule-in-comment as a compile error and renders a full-screen overlay that intercepts every click — root cause of the iframe 'webpack-dev-server-client-overlay' intercepting login submit. Mitigation: removed the comment. Bug B (client tracking dead): OrderTracking.js used a `useEffect(() => { loadOrder(); connectWebSocket(); ... }, [loadOrder, connectWebSocket])` placed ABOVE the `const loadOrder = useCallback(...)` and `const connectWebSocket = useCallback(...)` declarations. React 18 evaluates the component body top-to-bottom; useEffect's dependency-array references hit the TDZ on first render → ReferenceError → component crashes before mounting. Mitigation: moved the useEffect after both useCallback declarations so the consts are initialized first."
+}

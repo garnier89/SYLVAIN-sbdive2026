@@ -32,12 +32,25 @@ async def register_merchant(data: MerchantCreate, request: Request):
     return merchant
 
 
+def _enrich_merchant(m: dict) -> dict:
+    """Add client-facing defaults used by the apps (non-breaking)."""
+    if m.get("delivery_fee") is None:
+        m["delivery_fee"] = 2.5
+    if "is_open" not in m:
+        m["is_open"] = bool(m.get("is_active", True))
+    if "eta_min" not in m:
+        m["eta_min"] = 30
+    return m
+
+
 @router.get("")
 async def list_merchants(store_type: Optional[str] = None, lat: Optional[float] = None, lng: Optional[float] = None):
     query = {"is_active": True}
     if store_type:
         query["store_type"] = store_type
     merchants = await db.merchants.find(query, {"_id": 0}).to_list(100)
+    for m in merchants:
+        _enrich_merchant(m)
     if lat and lng:
         for m in merchants:
             m["distance"] = calculate_distance(lat, lng, m["lat"], m["lng"])
@@ -50,7 +63,7 @@ async def get_merchant(merchant_id: str):
     merchant = await db.merchants.find_one({"id": merchant_id}, {"_id": 0})
     if not merchant:
         raise HTTPException(status_code=404, detail="Merchant not found")
-    return merchant
+    return _enrich_merchant(merchant)
 
 
 @router.get("/{merchant_id}/products")

@@ -44,21 +44,6 @@ const OrderTracking = () => {
   const [loading, setLoading] = useState(true);
   const wsRef = useRef(null);
 
-  useEffect(() => {
-    loadOrder();
-    connectWebSocket();
-    
-    // Poll for updates every 10 seconds
-    const interval = setInterval(loadOrder, 10000);
-    
-    return () => {
-      clearInterval(interval);
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [loadOrder, connectWebSocket]);
-
   const loadOrder = useCallback(async () => {
     try {
       const response = await orderAPI.get(orderId);
@@ -116,6 +101,21 @@ const OrderTracking = () => {
       console.warn('[order-ws] connection failed', error?.message);
     }
   }, [user?.id, loadOrder]);
+
+  useEffect(() => {
+    loadOrder();
+    connectWebSocket();
+    
+    // Poll for updates every 10 seconds
+    const interval = setInterval(loadOrder, 10000);
+    
+    return () => {
+      clearInterval(interval);
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [loadOrder, connectWebSocket]);
 
   const getStatusSteps = () => {
     const steps = [

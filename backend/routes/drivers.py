@@ -84,6 +84,14 @@ async def update_driver_location(request: Request):
     lat, lng = body.get("lat"), body.get("lng")
     await db.drivers.update_one({"user_id": user["id"]}, {"$set": {"current_lat": lat, "current_lng": lng}})
     manager.update_driver_location(user["id"], lat, lng)
+    # Push live position to customers of this driver's active food deliveries
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    if driver:
+        async for o in db.orders.find(
+            {"driver_id": driver["id"], "status": {"$in": ["ready", "picked_up"]}},
+            {"_id": 0, "user_id": 1},
+        ):
+            await manager.send_personal_message({"type": "driver_location", "lat": lat, "lng": lng}, o["user_id"])
     return {"message": "Location updated"}
 
 
