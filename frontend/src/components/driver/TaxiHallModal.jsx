@@ -20,6 +20,7 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
   const [types, setTypes] = useState([]);
   const [gamme, setGamme] = useState(null);
   const [dest, setDest] = useState(null); // { address, lat, lng }
+  const [typedAddr, setTypedAddr] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -45,16 +46,32 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
   const estimate = dest ? Math.max(vt.min_fare || 0, (vt.base_fare || 0) + distKm * (vt.price_per_km || 0)) : 0;
 
   const start = async () => {
-    if (!dest || !gamme || busy) { if (!dest) toast.error('Saisissez la destination.'); return; }
+    if (busy) return;
+    if (!gamme) { toast.error('Choisissez une gamme.'); return; }
+    // Resolve the destination: prefer a picked Places result, else geocode the typed text.
+    let target = dest;
+    if (!target && typedAddr.trim() && window.google?.maps) {
+      try {
+        const geocoder = new window.google.maps.Geocoder();
+        const { results } = await geocoder.geocode({ address: typedAddr });
+        if (results && results[0]) {
+          const loc = results[0].geometry.location;
+          target = { address: results[0].formatted_address, lat: loc.lat(), lng: loc.lng() };
+        }
+      } catch { /* fall through */ }
+    }
+    if (!target) { toast.error('Saisissez et sélectionnez une destination.'); return; }
+    const dKm = haversineKm(origin, target);
+    const est = Math.max(vt.min_fare || 0, (vt.base_fare || 0) + dKm * (vt.price_per_km || 0));
     setBusy(true);
     try {
       const res = await rideAPI.taxiHall({
         pickup_lat: origin?.lat, pickup_lng: origin?.lng, pickup_address: origin?.address || 'Position actuelle',
-        dropoff_lat: dest.lat, dropoff_lng: dest.lng, dropoff_address: dest.address,
+        dropoff_lat: target.lat, dropoff_lng: target.lng, dropoff_address: target.address,
         vehicle_type: gamme,
-        distance_km: Number(distKm.toFixed(2)),
-        duration_mins: Math.max(1, Math.round((distKm / 28) * 60)),
-        estimated_fare: Number(estimate.toFixed(2)),
+        distance_km: Number(dKm.toFixed(2)),
+        duration_mins: Math.max(1, Math.round((dKm / 28) * 60)),
+        estimated_fare: Number(est.toFixed(2)),
         payment_method: 'cash',
       });
       toast.success('Course Taxi Hall démarrée.');
@@ -73,7 +90,7 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
 
         <label className="text-sm font-bold text-gray-700">Destination</label>
         <div className="mt-1 mb-4">
-          <GooglePlacesInput placeholder="Adresse de destination" onSelect={(p) => setDest(p)} testId="taxi-hall-dest" />
+          <GooglePlacesInput placeholder="Adresse de destination" onChange={setTypedAddr} onSelect={(p) => { setDest(p); setTypedAddr(p.address); }} testId="taxi-hall-dest" />
         </div>
 
         <label className="text-sm font-bold text-gray-700">Gamme du véhicule</label>
