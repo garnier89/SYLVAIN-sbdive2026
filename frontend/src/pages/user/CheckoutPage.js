@@ -12,6 +12,7 @@ import {
   Plus, Minus, Trash, CheckCircle
 } from '@phosphor-icons/react';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
+import { toast } from 'sonner';
 
 const ICON_MAP = { CreditCard, Money, Wallet, DeviceMobile, Waves, Bank };
 
@@ -39,7 +40,7 @@ const CheckoutPage = () => {
     delivery_address: '',
     delivery_lat: 48.8566,
     delivery_lng: 2.3522,
-    payment_method: 'card',
+    payment_method: 'cash',
     special_instructions: ''
   });
 
@@ -101,12 +102,16 @@ const CheckoutPage = () => {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const deliveryFee = 2.50;
+  const deliveryFee = merchant?.delivery_fee != null ? Number(merchant.delivery_fee) : 2.50;
   const total = subtotal + deliveryFee;
 
   const placeOrder = async () => {
     if (!formData.delivery_address) {
-      alert('Please enter a delivery address');
+      toast.error('Veuillez saisir une adresse de livraison');
+      return;
+    }
+    if (!formData.payment_method) {
+      toast.error('Veuillez choisir un mode de paiement');
       return;
     }
 
@@ -129,17 +134,11 @@ const CheckoutPage = () => {
       const response = await orderAPI.create(orderData);
       setOrderId(response.data.id);
       setOrderPlaced(true);
-      
-      // Clear cart (both localStorage and backend)
       localStorage.removeItem(`cart_${merchantId}`);
       cartAPI.clear().catch(() => {});
     } catch (error) {
       console.error('Place order error:', error);
-      // For demo, simulate success
-      setOrderId('order_demo_' + Date.now());
-      setOrderPlaced(true);
-      localStorage.removeItem(`cart_${merchantId}`);
-      cartAPI.clear().catch(() => {});
+      toast.error(error?.response?.data?.detail || "Échec de la commande, réessayez.");
     } finally {
       setLoading(false);
     }
@@ -209,7 +208,7 @@ const CheckoutPage = () => {
           >
             <ArrowLeft size={20} />
           </Button>
-          <h1 className="text-xl font-bold">Checkout</h1>
+          <h1 className="text-xl font-bold">Commande</h1>
         </div>
       </div>
 
@@ -219,12 +218,12 @@ const CheckoutPage = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <MapPin size={20} className="text-red-500" />
-              Delivery Address
+              Adresse de livraison
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Input
-              placeholder="Enter your delivery address"
+              placeholder="Saisissez votre adresse de livraison"
               value={formData.delivery_address}
               onChange={(e) => setFormData({ ...formData, delivery_address: e.target.value })}
               data-testid="address-input"
@@ -235,14 +234,14 @@ const CheckoutPage = () => {
         {/* Order Items */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Order Items</CardTitle>
+            <CardTitle className="text-lg">Articles</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {cart.map(item => (
               <div key={item.id} className="flex items-center gap-3" data-testid={`cart-item-${item.id}`}>
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">{item.name}</p>
-                  <p className="text-sm text-gray-500">${item.price.toFixed(2)} each</p>
+                  <p className="text-sm text-gray-500">{item.price.toFixed(2)} € / unité</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -282,11 +281,11 @@ const CheckoutPage = () => {
         {/* Special Instructions */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Special Instructions</CardTitle>
+            <CardTitle className="text-lg">Instructions spéciales</CardTitle>
           </CardHeader>
           <CardContent>
             <Textarea
-              placeholder="Any special requests? (e.g., no onions, extra sauce)"
+              placeholder="Une demande particulière ? (ex : sans oignon, sauce en plus)"
               value={formData.special_instructions}
               onChange={(e) => setFormData({ ...formData, special_instructions: e.target.value })}
               data-testid="instructions-input"
@@ -297,7 +296,7 @@ const CheckoutPage = () => {
         {/* Payment Method */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Payment Method</CardTitle>
+            <CardTitle className="text-lg">Mode de paiement</CardTitle>
           </CardHeader>
           <CardContent>
             <RadioGroup
@@ -308,8 +307,14 @@ const CheckoutPage = () => {
             >
               {paymentMethods.map((m) => {
                 const Icon = ICON_MAP[m.icon] || CreditCard;
+                const selected = formData.payment_method === m.id;
                 return (
-                  <div key={m.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                  <div
+                    key={m.id}
+                    onClick={() => setFormData({ ...formData, payment_method: m.id })}
+                    className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${selected ? 'border-[#FF4500] bg-orange-50' : 'border-gray-200'}`}
+                    data-testid={`payment-row-${m.id}`}
+                  >
                     <RadioGroupItem value={m.id} id={`pm-${m.id}`} data-testid={`payment-${m.id}`} />
                     <Label htmlFor={`pm-${m.id}`} className="flex items-center justify-between cursor-pointer flex-1">
                       <div className="flex items-center gap-2">
@@ -330,20 +335,20 @@ const CheckoutPage = () => {
         {/* Order Summary */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Order Summary</CardTitle>
+            <CardTitle className="text-lg">Récapitulatif</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex justify-between text-gray-600">
-              <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>Sous-total</span>
+              <span>{subtotal.toFixed(2)} €</span>
             </div>
             <div className="flex justify-between text-gray-600">
-              <span>Delivery Fee</span>
-              <span>${deliveryFee.toFixed(2)}</span>
+              <span>Frais de livraison</span>
+              <span>{deliveryFee.toFixed(2)} €</span>
             </div>
             <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{total.toFixed(2)} €</span>
             </div>
           </CardContent>
         </Card>
@@ -368,3 +373,4 @@ const CheckoutPage = () => {
 };
 
 export default CheckoutPage;
+e;
