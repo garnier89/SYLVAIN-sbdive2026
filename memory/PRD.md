@@ -1,3 +1,12 @@
+## NEW - 2026-06-07 (20) - Badge promo rider : double tarif (barré + réduit) (DONE)
+- **Demande user** : rendre la remise auto visible AVANT paiement — le client voit **2 tarifs** : le tarif normal **barré** + le tarif **réduit** non barré.
+- **Frontend** : `RideBookingPage.js` récupère la meilleure promo via `rideAPI.getBestAutoPromo(estimate.estimated_fare)` (endpoint authentifié `GET /api/auto-promotions/best`) dès que le tarif estimé change, et passe `autoPromo` à `RideMapStep` + `RideNegotiationStep`.
+  - `RideMapStep.jsx` : pour le véhicule **sélectionné**, affiche `vehicle-fare-original-{slug}` (barré, gris) + `vehicle-fare-discounted-{slug}` (vert, = tarif − remise) ; bannière `auto-promo-banner` (« Promo auto « titre » appliquée : -X € ») au-dessus du CTA « Demander maintenant ».
+  - `RideNegotiationStep.jsx` : « Votre offre » reflète désormais le tarif **réduit** (correctif cohérence post-test).
+- **Cohérence** : le backend ré-applique la même remise à la création (déjà branché en (19)), donc l'affichage = montant réellement facturé.
+- **Validé** : **testing_agent iteration_148.json 100% frontend** (véhicule sélectionné : 10 € barré + 5 € vert, bannière « Offre Bienvenue », réservation → course à 5 €). Lint clean. Promo de test supprimée (DB propre).
+
+
 ## NEW - 2026-06-07 (19) - AI Based Auto Promotions (créé + branché end-to-end) (DONE)
 - **Demande user** : « Activer brancher connecter toute la plateforme » → option (a) **AI Based Auto Promotions** (parité V3Cube « Add Auto Promotion »). Remises **auto-appliquées** au tarif rider selon le profil, **sans code**.
 - **Backend `routes/auto_promotions.py`** (collection `auto_promotions`) :
