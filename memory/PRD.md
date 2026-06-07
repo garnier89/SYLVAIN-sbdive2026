@@ -1,3 +1,10 @@
+## NEW - 2026-06-07 (13) - Utilitaire logger + neutralisation centralisée des console.* en prod (DONE)
+- **Objectif** : neutraliser les ~165 `console.*` de production **sans toucher 165 fichiers**, et fournir un logger propre pour le code futur.
+- **`src/lib/logger.js`** (nouveau) : `logger` (log/debug/info = no-op en prod, warn/error conservés) + `silenceConsole()` qui remplace `console.log/debug/info` par des no-ops en production uniquement (`NODE_ENV==='production'`). `console.warn`/`error` **préservés** pour le diagnostic.
+- **`src/index.js`** : `silenceConsole()` appelé une fois au démarrage, avant le render.
+- **Impact** : aucun changement en preview (mode dev → no-op) ; effet **uniquement sur le build production** (au prochain redéploiement). Vérifié : app se charge normalement (landing OK), lint propre, logique prod validée.
+
+
 ## NEW - 2026-06-07 (12) - Revue de code : correctifs critiques appliqués (DONE)
 - **Secrets en dur (4 fichiers de test) — CORRIGÉ** : `test_iter97/95/84/75` re-codaient des mots de passe de test en dur alors que `tests/_creds.py` centralise déjà les creds (env-overridable). Désormais ils **importent depuis `_creds`** (ajout de `DRIVER_EMAIL`) ; `test_iter75` génère un mot de passe jetable via `secrets.token_hex`. Vérifié : 43 tests se collectent, lint propre, plus aucun littéral de mot de passe.
 - **Variables non définies (« 9 possibly undefined ») — FAUX POSITIF** : `ruff F821/F841/F811` + `pyflakes` + `pylint E0602/E0606/used-before-assignment` = **0** sur `routes/` et `core/`. Aucun bug runtime de variable indéfinie dans le code de production.
