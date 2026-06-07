@@ -1,3 +1,13 @@
+## NEW - 2026-06-07 (3) - Verrouillage du flux pendant une course EN COURS (DONE)
+- **Demande** : « Quand une course est en cours elle ne peut pas sortir de l'application ».
+- **Implémenté** dans `DriverRideFlow` : quand la course est `in_progress` (voyage démarré, passager à bord) →
+  - le bouton **réduire** (retour accueil) est **masqué** (`onMinimize && !inProgress`) ;
+  - **retour navigateur bloqué** (guard `popstate` qui re-pousse l'état + toast « Course en cours — terminez le voyage avant de quitter. ») ;
+  - **avertissement avant fermeture/rafraîchissement** de l'onglet (`beforeunload`).
+  - Pour `accepted`/`arriving` (trajet vers le passager), le bouton réduire reste disponible (pas de blocage).
+- *Vérifié screenshot : en `in_progress` → header « COURSE EN COURS » + minuterie, bouton réduire absent, `history.back()` reste sur le flux + toast affiché.* Lint clean.
+
+
 ## NEW - 2026-06-07 (2) - Modal OTP (renommage + fallback téléphone) + carte figée (DONE)
 - **Modal de démarrage** : titre « Code de démarrage » → **« Code OTP »** ; sous-titre reformulé (« …son code OTP à 4 chiffres… »). Composant `OtpModal` (RideFlowSheets) accepte un prop `mode` ('otp' | 'phone').
 - **Fallback après 2 échecs** : `DriverRideFlow` compte les tentatives ; après **2 codes OTP refusés** (passager injoignable / téléphone éteint), le modal bascule en **« Vérification par téléphone »** et demande les **4 derniers chiffres du numéro enregistré** du passager. Backend `verify_start_otp` (phase1.py) accepte désormais `phone_last4` en alternative à `otp` (compare aux 4 derniers chiffres du téléphone passager). *Vérifié : UI bascule OK + logique backend (`+33767532661`→`2661` accepté, `0000` refusé).*

@@ -72,6 +72,24 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
     return () => { alive = false; };
   }, []);
 
+  // While a trip is IN PROGRESS the driver must not leave the ride screen / app:
+  // block browser back navigation and warn before closing/refreshing the tab.
+  useEffect(() => {
+    if (status !== 'in_progress') return undefined;
+    const onPop = () => {
+      window.history.pushState(null, '', window.location.href);
+      toast.info('Course en cours — terminez le voyage avant de quitter.');
+    };
+    const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', onPop);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [status]);
+
   // Trip timer (counts up while in progress)
   useEffect(() => {
     if (status !== 'in_progress') return undefined;
@@ -199,7 +217,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
     <div className="fixed inset-0 z-[1500] bg-white flex flex-col" data-testid="driver-ride-flow">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: headerBg }}>
-        {onMinimize ? (
+        {onMinimize && !inProgress ? (
           <button onClick={onMinimize} className="w-9 h-9 flex items-center justify-center text-white" data-testid="ride-flow-minimize-btn" aria-label="Retour à l'accueil">
             <CaretLeft size={26} weight="bold" />
           </button>
