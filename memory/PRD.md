@@ -1,3 +1,12 @@
+## NEW - 2026-06-07 (44) - i18n App Chauffeur (DriverHome) + sélecteur langue (DONE)
+- **Demande user** : étendre l'i18n à l'app chauffeur (statut en ligne/hors ligne, gains, courses) + persistance par compte (déjà OK car cross-device pour tout user connecté).
+- **Bundle `driver`** enrichi de 7 clés (FR/EN + frontend) : `trips_today`, `avg_rating`, `jobs_upcoming`, `jobs_pending`, `ride_in_progress`, `ride_active`, `resume`. **BASE_TOTAL 252 → 259**. 25 langues re-traduites à 259/259.
+- **Piège évité** : les `\n` dans les valeurs (labels 2 lignes) faisaient échouer aléatoirement la traduction LLM (JSON invalid escape sur ln/wo/ht/rcf). Corrigé en retirant les `\n` (le `whitespace-pre-line` enveloppe naturellement dans les cartes étroites) → 0 échec.
+- **Composants câblés `t()`** : `DriverHomeHeader` (online/offline + **`LocaleSelector variant=dark`** ajouté, `data-testid="driver-locale-selector"`), `DriverStatsRow` (gains du jour + 4 cartes stats), `DriverBottomNav` (Accueil/Réservations/Portefeuille/Profil via tabs.*+menu.the_bookings), `DriverHome` bannière reprise (course en cours/active/reprendre).
+- **Validé e2e (screenshots)** : login chauffeur → FR (« Hors ligne », « Gains du jour », « Emplois en attente », nav « Accueil… ») → switch EN via header → « Offline », « Today's earnings », « Pending jobs », nav « Home/Bookings/Wallet/Profile ». La langue persiste par compte (suit le chauffeur sur tout appareil). Lint clean (4 fichiers). Comptes test remis en `fr`.
+- **RESTE app chauffeur** : sous-écrans non traduits (DriverRideFlow, IncomingRequestSheet, DriverEarningsPage détaillée, DriverProfilePage menu, modals) — même approche (clés `driver.*` + câblage).
+
+
 ## NEW - 2026-06-07 (43) - Langue persistée par compte (cross-device) (DONE)
 - **Demande user** : mémoriser la langue (et devise) côté compte plutôt qu'en localStorage, pour qu'elle suive l'utilisateur sur tous ses appareils.
 - **Backend** : `UserResponse` (`models/schemas.py`) gagne `language`/`currency` (Optional). Nouvel endpoint **`PUT /api/users/language`** (`routes/auth.py`, `users_router`) : persiste `language` (1-10 car.) et `currency` (1-6 car.) sur le doc user. `/api/auth/me` les renvoie.

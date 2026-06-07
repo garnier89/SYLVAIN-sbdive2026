@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocale } from '../../../contexts/LocaleContext';
 
 /** Today's earnings header + the 4 round stat cards (trips, rating, upcoming, pending). */
 export const DriverStatsRow = ({
@@ -12,16 +13,17 @@ export const DriverStatsRow = ({
   onUpcoming,
   onPending,
 }) => {
+  const { t } = useLocale();
   const stats = [
-    { value: totalTrips || 0, label: 'Voyages/ emplois\nd\'aujourd\'hui', color: '#D1E8E2' },
-    { value: (rating || 5.0).toFixed(1), label: 'Moy.\nEvaluation', color: '#F8D7DA' },
+    { value: totalTrips || 0, label: t('driver.trips_today'), color: '#D1E8E2' },
+    { value: (rating || 5.0).toFixed(1), label: t('driver.avg_rating'), color: '#F8D7DA' },
     {
-      value: upcomingCount, label: 'Emplois a\nvenir', color: '#FFF3CD',
+      value: upcomingCount, label: t('driver.jobs_upcoming'), color: '#FFF3CD',
       testId: 'stat-upcoming', onClick: onUpcoming,
       blink: upcomingCount > 0 ? '#F59E0B' : null,
     },
     {
-      value: availableRidesCount + availableDeliveriesCount, label: 'Emplois en\nattente', color: '#D4EDDA',
+      value: availableRidesCount + availableDeliveriesCount, label: t('driver.jobs_pending'), color: '#D4EDDA',
       testId: 'stat-pending', onClick: onPending,
       dots: [
         ...(availableRidesCount ? [{ c: '#F59E0B', t: 'pending-yellow-dot' }] : []),
@@ -33,7 +35,7 @@ export const DriverStatsRow = ({
   return (
     <>
       <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-gray-100">
-        <span className="text-base font-bold text-gray-800">Gains d&apos;aujourd&apos;hui</span>
+        <span className="text-base font-bold text-gray-800">{t('driver.earnings_today')}</span>
         <button
           type="button"
           onClick={onEarningsBreakdown}

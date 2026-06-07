@@ -1,5 +1,7 @@
 import React from 'react';
 import { List, CalendarCheck, Bell } from '@phosphor-icons/react';
+import { useLocale } from '../../../contexts/LocaleContext';
+import LocaleSelector from '../../LocaleSelector';
 
 /** Green top bar: side-menu, online toggle, scheduled-reservations (with badge), notifications. */
 export const DriverHomeHeader = ({
@@ -9,7 +11,9 @@ export const DriverHomeHeader = ({
   scheduledCount,
   onScheduled,
   onNotifications,
-}) => (
+}) => {
+  const { t } = useLocale();
+  return (
   <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: '#00B578' }}>
     <button onClick={onMenu} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="driver-menu-btn">
       <List size={20} className="text-white" />
@@ -20,11 +24,12 @@ export const DriverHomeHeader = ({
       data-testid="online-toggle"
     >
       <span className={`text-sm font-bold ${isOnline ? 'text-green-700' : 'text-white'}`}>
-        {isOnline ? 'En ligne' : 'Hors ligne'}
+        {isOnline ? t('driver.online') : t('driver.offline')}
       </span>
       <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
     </button>
     <div className="flex items-center gap-2">
+      <div data-testid="driver-locale-selector"><LocaleSelector variant="dark" /></div>
       <button onClick={onScheduled} className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
         <CalendarCheck size={20} className="text-white" />
         {scheduledCount > 0 && (
@@ -38,6 +43,7 @@ export const DriverHomeHeader = ({
       </button>
     </div>
   </div>
-);
+  );
+};
 
 export default DriverHomeHeader;

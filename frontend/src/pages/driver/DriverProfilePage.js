@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocale } from '../../contexts/LocaleContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { driverAPI, walletAPI, configAPI, newsAPI } from '../../services/api';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
@@ -567,11 +568,12 @@ const ProfileRow = ({ icon: Icon, color, label, onClick, toggle, onToggle, badge
 
 export const DriverBottomNav = ({ active = 'home' }) => {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const tabs = [
-    { id: 'home', label: 'Accueil', Icon: House, path: '/chauffeur/home' },
-    { id: 'bookings', label: 'Réservations', Icon: ClipboardText, path: '/chauffeur/reservations' },
-    { id: 'wallet', label: 'Portefeuille', Icon: Wallet, path: '/chauffeur/wallet' },
-    { id: 'profile', label: 'Profil', Icon: UserCircle, path: '/chauffeur/profile' },
+    { id: 'home', label: t('tabs.home'), Icon: House, path: '/chauffeur/home' },
+    { id: 'bookings', label: t('menu.the_bookings'), Icon: ClipboardText, path: '/chauffeur/reservations' },
+    { id: 'wallet', label: t('tabs.wallet'), Icon: Wallet, path: '/chauffeur/wallet' },
+    { id: 'profile', label: t('tabs.profile'), Icon: UserCircle, path: '/chauffeur/profile' },
   ];
 
   return (

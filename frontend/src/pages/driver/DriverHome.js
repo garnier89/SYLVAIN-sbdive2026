@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocale } from '../../contexts/LocaleContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLocale();
   const { settings: appSettings } = useAppSettings();
   const [driver, setDriver] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
@@ -540,9 +542,9 @@ const DriverHome = () => {
             </span>
             <span className="text-left leading-tight">
               <span className="block text-[11px] font-semibold opacity-90">
-                {currentRide.status === 'in_progress' ? 'Course en cours' : 'Course active'}
+                {currentRide.status === 'in_progress' ? t('driver.ride_in_progress') : t('driver.ride_active')}
               </span>
-              <span className="block text-sm font-extrabold">Reprendre →</span>
+              <span className="block text-sm font-extrabold">{t('driver.resume')} →</span>
             </span>
           </button>
         )}
