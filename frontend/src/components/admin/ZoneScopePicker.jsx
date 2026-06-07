@@ -42,7 +42,8 @@ export const ZoneScopePicker = ({ value, onChange }) => {
   }, []);
 
   const onCountry = async (country) => {
-    onChange({ country, state: '', city: '' });
+    const country_name = (countries.find((c) => c.code === country) || {}).name || country;
+    onChange({ country, country_name, state: '', city: '' });
     if (!country) { setStates([]); setCities([]); return; }
     try {
       const [s, ci] = await Promise.all([geoAPI.getStates(country), geoAPI.getCities(country)]);

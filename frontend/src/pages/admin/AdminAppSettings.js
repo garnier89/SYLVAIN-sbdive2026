@@ -325,7 +325,7 @@ const AdminAppSettings = () => {
         // (global save only; zone overrides are resolved server-side per request).
         if (!zone?.country) refreshAppSettings();
       }
-      toast.success(zone?.country ? `Paramètres enregistrés pour ${zone.city || zone.state || zone.country}` : 'Paramètres enregistrés');
+      toast.success(zone?.country ? `Paramètres enregistrés pour ${zone.city || zone.state || zone.country_name || zone.country}` : 'Paramètres enregistrés');
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Échec de l\u2019enregistrement');
     } finally {
@@ -387,7 +387,7 @@ const AdminAppSettings = () => {
             <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
               <h2 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide">Portée des réglages</h2>
               {zone?.country
-                ? <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1" data-testid="app-settings-zone-label">Zone : {[zone.city, zone.state, zone.country].filter(Boolean).join(' · ')}</span>
+                ? <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1" data-testid="app-settings-zone-label">Zone : {[zone.city, zone.state, zone.country_name || zone.country].filter(Boolean).join(' · ')}</span>
                 : <span className="text-xs font-bold text-gray-500 bg-gray-100 rounded-full px-3 py-1" data-testid="app-settings-zone-label">Réglages globaux (par défaut)</span>}
             </div>
             <p className="text-xs text-gray-500 mb-3">Choisis une zone pour éditer un <strong>jeu complet de réglages</strong> propre à ce pays/région/ville. Laisse vide pour les réglages globaux.</p>
