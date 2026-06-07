@@ -1,3 +1,14 @@
+## NEW - 2026-06-07 (35) - Chantier qualité Phase 1 : type hints core/ (DONE)
+- **Découverte (console)** : le « 170 console statements » du rapport est **déjà résolu** — `lib/logger.js` expose `silenceConsole()` appelé à `index.js:8`, qui neutralise `console.log/debug/info` en **production** (warn/error préservés) **en un seul endroit**. Migrer les 175 appels vers `logger.*` serait du churn sans bénéfice → **non fait** (volontaire). `logger` reste dispo pour le code neuf.
+- **Backend a 0 `print()`** dans le code applicatif → pas de nettoyage logging backend nécessaire.
+- **Type hints `core/`** (couverture flaggée 0% / incomplète) :
+  - `core/notifications.py` (était 0%) : signature complète `create_notification(user_id: Optional[str], ntype: str, title: str, body: str, data: Optional[dict]=None, push: bool=True, ws_payload: Optional[dict]=None) -> None`.
+  - `core/geo_scope.py` : retours complétés (`list_states -> List[str]`, `list_cities -> List[str]`, `_best_zone_override -> Optional[dict]`, `apply_vehicle_zone_pricing -> Tuple[Optional[dict], Optional[str]]`).
+- **Zéro changement de comportement** (annotations seules). **Validé** : import + signature OK, pytest 9/9, lint core/ clean, backend healthy.
+- **Suite proposée (incrémental)** : type hints sur `core/push.py`, `core/websocket.py`, `core/deps.py`, `core/config.py`, fichier par fichier avec tests.
+
+
+
 ## NEW - 2026-06-07 (34) - Revue de code : correctifs critiques sûrs appliqués (DONE)
 - **Approche** : application ciblée des correctifs **critiques à faible risque** + valeur réelle ; refactors massifs (360 hook deps, split de composants, 173 fonctions complexes, type hints, 170 console, is/== tests) **délibérément différés** (risque de casser une app fonctionnelle, faible valeur immédiate, déjà en backlog P2).
 - 🔴 **BUG CRITIQUE corrigé** : `rides.py:1196` utilisait `resolve_zone_from_text` **sans l'importer** (introduit au Lot 1.c bonus sous-catégorie) → **crash à la fin de course** si `sub_category_bonus` activé. Import local ajouté. Confirmé par pyflakes F821 (désormais **0 nom indéfini** dans tout le code applicatif — les « 9 instances » du rapport étaient des faux positifs).

@@ -12,7 +12,7 @@ so we keep a curated region/city dataset for the territories this app operates i
 (France + DOM-TOM). It is intentionally extensible — add countries/states/cities
 here and both the admin dropdowns and the resolver pick them up automatically.
 """
-from typing import Optional
+from typing import Optional, List, Tuple
 
 # country_code -> { name, states: { state_name: [cities...] } }
 CURATED = {
@@ -54,7 +54,7 @@ def list_states(country_code: str):
     return sorted(c["states"].keys())
 
 
-def list_cities(country_code: str, state: Optional[str] = None):
+def list_cities(country_code: str, state: Optional[str] = None) -> List[str]:
     c = CURATED.get((country_code or "").upper())
     if not c:
         return []
@@ -178,7 +178,7 @@ def _zone_override_rank(override_zone: str, city: str, state: str, country_name:
     return 0
 
 
-def _best_zone_override(overrides, zone):
+def _best_zone_override(overrides: List[dict], zone: dict) -> Optional[dict]:
     """Return the most specific zone override matching `zone`, or None."""
     city = _norm_zone_name(zone.get("city"))
     state = _norm_zone_name(zone.get("state"))
@@ -192,7 +192,7 @@ def _best_zone_override(overrides, zone):
     return best
 
 
-def apply_vehicle_zone_pricing(vtype_doc, pickup_address):
+def apply_vehicle_zone_pricing(vtype_doc: Optional[dict], pickup_address: Optional[str]) -> Tuple[Optional[dict], Optional[str]]:
     """Return (doc, applied_zone_label).
 
     If the vehicle type has `zone_overrides` and the ride pickup resolves to a

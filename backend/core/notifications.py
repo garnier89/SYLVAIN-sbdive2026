@@ -5,13 +5,22 @@ Used to build the driver activity journal (document reviews, earnings, new rides
 """
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from core.config import db
 from core.push import notify_user
 from core.websocket import manager
 
 
-async def create_notification(user_id, ntype, title, body, data=None, push=True, ws_payload=None):
+async def create_notification(
+    user_id: Optional[str],
+    ntype: str,
+    title: str,
+    body: str,
+    data: Optional[dict] = None,
+    push: bool = True,
+    ws_payload: Optional[dict] = None,
+) -> None:
     """Persist a notification, emit a WebSocket message and (optionally) an Expo push."""
     if not user_id:
         return
