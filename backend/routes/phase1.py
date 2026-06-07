@@ -115,7 +115,11 @@ async def verify_start_otp(ride_id: str, request: Request):
         if otp != ride.get("start_otp"):
             raise HTTPException(status_code=400, detail="Code OTP invalide")
     else:
-        raise HTTPException(status_code=400, detail="Code requis")
+        # No code supplied: only allowed when the admin disabled the start-OTP
+        # requirement in App Settings (ask_otp_before_start=false).
+        from routes.config import get_app_settings_config
+        if (await get_app_settings_config()).get("ask_otp_before_start", True):
+            raise HTTPException(status_code=400, detail="Code requis")
     if ride.get("status") not in ("accepted", "arriving"):
         raise HTTPException(status_code=400, detail="Ride not ready")
 

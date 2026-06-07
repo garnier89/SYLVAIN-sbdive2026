@@ -1513,6 +1513,9 @@ async def create_taxi_hall(request: Request):
     driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
     if not driver:
         raise HTTPException(status_code=403, detail="Driver profile required")
+    from routes.config import get_app_settings_config
+    if not (await get_app_settings_config()).get("taxi_hail_option", True):
+        raise HTTPException(status_code=403, detail="Taxi Hall désactivé par l'administrateur")
     body = await request.json()
     now = datetime.now(timezone.utc).isoformat()
     vt_slug = body.get("vehicle_type", "sb")

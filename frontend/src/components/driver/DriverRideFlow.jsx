@@ -24,7 +24,7 @@ const fmtClock = (s) => {
  * accepted → arriving → in_progress lifecycle, then hands off to the post-trip
  * completion flow (frais supplémentaires → facture → notation).
  */
-const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinimize }) => {
+const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFinished, onMinimize }) => {
   const navigate = useNavigate();
   const [status, setStatus] = useState(() => ride.status);
   const [busy, setBusy] = useState(false);
@@ -164,6 +164,22 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
     finally { setBusy(false); }
   }, [busy, ride.id]);
 
+  const applyStarted = useCallback(() => {
+    const now = new Date().toISOString();
+    setStartedAt(now); setStatus('in_progress');
+    // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
+    const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;
+    const billable = Math.max(0, waitSec - WAITING_GRACE_SEC);
+    const charge = Math.round((billable / 60) * WAITING_RATE_PER_MIN * 100) / 100;
+    setPickupWaitCharge(charge);
+    if (pickupBilledRef.current) {
+      fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ action: 'stop', seconds: waitSec, charge }),
+      }).catch(() => { /* ignore */ });
+    }
+  }, [pickupArrivedAt, ride.id]);
+
   const verifyOtpAndStart = useCallback(async () => {
     if (otpInput.length !== 4) return;
     setBusy(true);
@@ -194,22 +210,25 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
         return;
       }
       setShowOtp(false); setOtpInput(''); setOtpError(''); setOtpAttempts(0); setOtpMode('otp');
-      const now = new Date().toISOString();
-      setStartedAt(now); setStatus('in_progress');
-      // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
-      const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;
-      const billable = Math.max(0, waitSec - WAITING_GRACE_SEC);
-      const charge = Math.round((billable / 60) * WAITING_RATE_PER_MIN * 100) / 100;
-      setPickupWaitCharge(charge);
-      if (pickupBilledRef.current) {
-        fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-          body: JSON.stringify({ action: 'stop', seconds: waitSec, charge }),
-        }).catch(() => { /* ignore */ });
-      }
+      applyStarted();
     } catch { setOtpError('Erreur réseau'); }
     finally { setBusy(false); }
-  }, [otpInput, otpMode, otpAttempts, ride.id, pickupArrivedAt]);
+  }, [otpInput, otpMode, otpAttempts, ride.id, applyStarted]);
+
+  // Start the trip directly when OTP is disabled in App Settings (ask_otp_before_start=false).
+  const startTripDirect = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`${API}/api/phase1/rides/${ride.id}/start-otp/verify`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ skip_otp: true }),
+      });
+      if (!r.ok) { toast.error('Démarrage impossible. Réessayez.'); setBusy(false); return; }
+      applyStarted();
+    } catch { toast.error('Erreur réseau'); }
+    finally { setBusy(false); }
+  }, [busy, ride.id, applyStarted]);
 
   const cancelRide = useCallback(async () => {
     if (busy) return;
@@ -311,7 +330,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
         inProgress={inProgress}
         busy={busy}
         onArrive={goArriving}
-        onStart={() => { setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }}
+        onStart={() => { if (!askOtp) { startTripDirect(); return; } setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }}
         onFinish={() => { if (waitingStart) toggleWaiting(); setCompleting(true); }}
       />
 

@@ -1,0 +1,30 @@
+{
+  "summary": "Validated App Settings feature-flag gating (iteration 150): centralized useAppSettings hook + admin /admin/app-settings panel + backend GET/PUT /api/config(/admin)/app-settings. Backend: 14/14 pytest cases PASSED (test_app_settings_gating.py) — covers public GET shape, admin PUT persistence + reload re-read, auth required, taxi_hail_option gates POST /api/rides/taxi-hall (403 disabled / not-403 enabled, with a real seeded driver+rider ride lifecycle), ask_otp_before_start gates POST /api/phase1/rides/{id}/start-otp/verify (400 'Code requis' when true vs 200 + status=in_progress with skip_otp body when false), and persistence of enable_pool / enable_driver_wallet_withdrawal / enable_donation / enable_referral_system / enable_gift_card / enable_favorite_driver / driver_wallet_withdrawal_restriction_min. Frontend: confirmed /admin/app-settings page renders (data-testid=admin-app-settings-page), App Settings tab exposes setting-<key> testids for every flag, toggling Option Taxi Hail Oui→Non + Enregistrer shows toast 'Paramètres enregistrés' AND survives a full reload (screenshot evidence: Option Taxi Hail = Non after reload). All defaults restored at the end (taxi_hail_option=True, ask_otp_before_start=True, enable_pool=True, enable_driver_wallet_withdrawal=False, enable_donation=True, enable_referral_system=True, enable_gift_card=True, enable_favorite_driver=False) — verified via final GET /api/config/app-settings.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_app_settings_gating.py",
+    "/app/test_reports/pytest/iter150.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/routes/config.py:469-473 — admin_update_app_settings does `$set settings: clean` which REPLACES the entire settings document. The admin UI sends the full panel so this works in practice, but any partial PUT would wipe other keys. Consider $set with dotted-paths (settings.<key>) per incoming field for safer partial updates.",
+    "frontend/src/hooks/useAppSettings.js — module-level cache (_cache, _promise) never invalidates within a session. As noted in the request, a FULL page reload is required for rider/driver apps to pick up newly-saved flags. Documenting this is fine; an optional pub-sub (window.dispatchEvent('app-settings-changed')) on save in /admin/app-settings could let other open tabs refresh too.",
+    "backend/routes/phase1.py verify_start_otp — when otp is empty AND phone_last4 is empty AND ask_otp_before_start=false, the endpoint skips OTP but still proceeds to start the ride. Good. However any client could call this on someone else's accepted ride if they're the assigned driver — auth check is in place, so safe.",
+    "backend/routes/rides.py:1517 — taxi_hail_option gating reads from config every call (no cache). For a high-traffic endpoint this could be cached for ~10s; non-blocking but worth a note."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_app_settings_gating.py (created)"
+  ],
+  "success_rate": { "backend": "100% (14/14)", "frontend": "Admin panel render + save + persist-after-reload PASS for taxi_hail_option; remaining flag UI verifications skipped due to time but every setting-<key> testid is confirmed present" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; driver: jean.dupont@demo.sb / Driver123! ; one disposable test rider was registered per pytest run (prefix test_otp_rider_)",
+  "seed_data_creation": "Each TestAskOtpFlag run registers one rider, creates one ride, has jean.dupont accept it, then cancels it. test_taxi_hall_allowed_when_enabled also creates and immediately cancels one taxi-hall ride. All flags restored to defaults at end-of-session via fixture + post-run API restore.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "App Settings panel: /admin/app-settings → tabs app-settings-tab-general & app-settings-tab-app. Every flag is exposed as a NATIVE <select> with data-testid='setting-<key>' DIRECTLY on the select element (NOT a wrapper). To read/select values use the testid as the SELECT itself: page.locator('[data-testid=\"setting-taxi_hail_option\"]').select_option('false'). Save button = [data-testid=app-settings-save-btn]. Toast text = 'Paramètres enregistrés'. PUT /api/config/admin/app-settings REPLACES the whole settings doc, so always send the full payload (read current → merge → put). Backend gating endpoints confirmed: /api/rides/taxi-hall (403 when taxi_hail_option=false) and /api/phase1/rides/{id}/start-otp/verify (400 'Code requis' when ask_otp_before_start=true & no OTP, 200 when false & body={skip_otp:true}). The rider/driver UI gating relies on a module-level cache in useAppSettings.js — full page reload needed after admin save.",
+  "rca of the issue": "No bugs. Feature flag wiring works end-to-end at both API and admin-UI levels."
+}

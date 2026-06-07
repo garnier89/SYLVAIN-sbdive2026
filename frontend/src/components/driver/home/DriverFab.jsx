@@ -11,15 +11,16 @@ export const DriverFab = ({
   onDest,
   onLocations,
   onVehicleInfo,
+  taxiHailEnabled = true,
 }) => {
   const actions = [
     { label: "Planificateur de demande basé sur l'IA", Icon: Sparkle, onClick: onAiPlanner },
-    { label: 'Appelez un taxi', Icon: Taxi, onClick: onTaxiHall },
+    taxiHailEnabled && { label: 'Appelez un taxi', Icon: Taxi, onClick: onTaxiHall },
     { label: 'Chaleur', Icon: Fire, onClick: onHeatmap },
     { label: 'Revenir', Icon: ArrowUUpLeft, onClick: onDest },
     { label: 'Emplacements', Icon: MapPin, onClick: onLocations },
     { label: 'Informations sur le véhicule', Icon: Car, onClick: onVehicleInfo },
-  ];
+  ].filter(Boolean);
 
   return (
     <div className="absolute bottom-28 left-0 right-0 z-[1000] px-4 flex items-end justify-end pointer-events-none">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
@@ -22,6 +23,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { settings: appSettings } = useAppSettings();
   const [driver, setDriver] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
   const [currentRide, setCurrentRide] = useState(null);
@@ -474,7 +476,7 @@ const DriverHome = () => {
         currentRide={currentRide}
         showHeatmap={showHeatmap}
         heatPoints={heatPoints}
-        rewardsActive={rewardsActive}
+        rewardsActive={rewardsActive && appSettings.enable_driver_reward_program !== false}
         rewardsCount={rewardsCount}
         onRewards={() => navigate('/chauffeur/rewards')}
       />
@@ -483,6 +485,7 @@ const DriverHome = () => {
       <DriverFab
         open={fabOpen}
         setOpen={setFabOpen}
+        taxiHailEnabled={appSettings.taxi_hail_option !== false}
         onAiPlanner={() => toast.info('Planificateur IA bientôt disponible.')}
         onTaxiHall={() => setShowTaxiHall(true)}
         onHeatmap={() => setShowHeatmap((v) => !v)}
@@ -496,6 +499,7 @@ const DriverHome = () => {
           <DriverRideFlow
             ride={currentRide}
             driverPos={mapCenter}
+            askOtp={appSettings.ask_otp_before_start !== false}
             onFinished={finishRide}
             onMinimize={() => setCurrentRide(null)}
           />
@@ -506,6 +510,7 @@ const DriverHome = () => {
         <IncomingRequestSheet
           request={incomingRequest}
           driverPos={mapCenter}
+          windowSeconds={Math.max(10, appSettings.driver_timeout || 35)}
           onAccept={acceptRide}
           onDecline={() => setIncomingRequest(null)}
           myOffer={myOffer}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { driverAPI, walletAPI } from '../../services/api';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import { DriverBottomNav } from './DriverProfilePage';
 import { Button } from '../../components/ui/button';
 import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur } from '@phosphor-icons/react';
@@ -10,6 +11,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 
 const DriverWalletPage = () => {
   const navigate = useNavigate();
+  const { settings } = useAppSettings();
   const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
   const [loading, setLoading] = useState(true);
 
@@ -23,8 +25,11 @@ const DriverWalletPage = () => {
 
   useEffect(() => { loadWallet(); }, [loadWallet]);
 
+  const withdrawalEnabled = settings.enable_driver_wallet_withdrawal === true;
+  const minWithdrawal = Number(settings.driver_wallet_withdrawal_restriction_min || 0);
+
   const requestPayout = async () => {
-    if (wallet.balance < 10) { toast.error('Solde minimum 10EUR pour un retrait'); return; }
+    if (wallet.balance < minWithdrawal) { toast.error(`Solde minimum ${minWithdrawal} EUR pour un retrait`); return; }
     toast.success('Demande de retrait envoyee !');
   };
 
@@ -38,13 +43,18 @@ const DriverWalletPage = () => {
         <p className="text-amber-100 text-sm font-medium">Solde disponible</p>
         <p className="text-4xl font-bold text-white mt-1" data-testid="wallet-balance">{(wallet.balance || 0).toFixed(2)} EUR</p>
         <div className="flex gap-2 mt-4">
-          <Button onClick={requestPayout} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="payout-btn">
-            <ArrowUp size={16} className="mr-1" /> Retrait
-          </Button>
+          {withdrawalEnabled && (
+            <Button onClick={requestPayout} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="payout-btn">
+              <ArrowUp size={16} className="mr-1" /> Retrait
+            </Button>
+          )}
           <Button onClick={() => navigate('/wallet')} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl">
             <Plus size={16} className="mr-1" /> Recharger
           </Button>
         </div>
+        {withdrawalEnabled && (
+          <p className="text-amber-100/80 text-[11px] mt-2" data-testid="withdrawal-min-hint">Retrait à partir de {minWithdrawal} EUR.</p>
+        )}
       </div>
 
       <div className="px-5">

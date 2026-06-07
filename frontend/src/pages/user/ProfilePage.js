@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import ProfileTabView from './profile/ProfileTabView';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Switch } from '../../components/ui/switch';
@@ -55,6 +56,7 @@ const MenuCard = ({ children }) => (
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { settings } = useAppSettings();
   const [search] = useSearchParams();
   const [walletBalance, setWalletBalance] = useState(0);
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
@@ -83,8 +85,10 @@ const ProfilePage = () => {
     { id: 'bookings', icon: ClipboardText, label: 'Les réservations', color: '#FF4500', bg: 'bg-indigo-50', path: '/history' },
     { id: 'wallet', icon: Wallet, label: 'Portefeuille', color: '#E91E63', bg: 'bg-pink-50', path: '/wallet' },
     { id: 'topup', icon: CreditCard, label: 'Recharger', color: '#7C4DFF', bg: 'bg-purple-50', path: '/wallet' },
-    { id: 'invite', icon: EnvelopeSimple, label: 'Inviter', color: '#FF9800', bg: 'bg-orange-50', path: '/referral' },
-  ];
+    settings.enable_referral_system !== false
+      ? { id: 'invite', icon: EnvelopeSimple, label: 'Inviter', color: '#FF9800', bg: 'bg-orange-50', path: '/referral' }
+      : null,
+  ].filter(Boolean);
 
   return (
     <div className="mobile-container min-h-screen pb-24 bg-[#F2F2F7]">
@@ -149,10 +153,16 @@ const ProfilePage = () => {
         <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
-        <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
-        <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
+        {settings.enable_favorite_driver === true && (
+          <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
+        )}
+        {settings.enable_referral_system !== false && (
+          <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
+        )}
         <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/safety')} testId="settings-emergency-btn" />
-        <MenuItem icon={HandHeart} label="Faire un don" iconBg="bg-lime-600" iconColor="text-white" onClick={() => navigate('/donation')} testId="settings-donate-btn" />
+        {settings.enable_donation !== false && (
+          <MenuItem icon={HandHeart} label="Faire un don" iconBg="bg-lime-600" iconColor="text-white" onClick={() => navigate('/donation')} testId="settings-donate-btn" />
+        )}
       </MenuCard>
 
       {/* ═══════════ ACHETER, VENDRE ET LOUER ═══════════ */}
@@ -203,11 +213,15 @@ const ProfilePage = () => {
       </MenuCard>
 
       {/* ═══════════ CARTE CADEAU ═══════════ */}
-      <SectionHeader title="Carte cadeau" />
-      <MenuCard>
-        <MenuItem icon={Gift} label="Envoyer une carte-cadeau" iconBg="bg-amber-700" iconColor="text-white" testId="settings-send-gift-btn" />
-        <MenuItem icon={Gift} label="Échanger une carte-cadeau" iconBg="bg-orange-600" iconColor="text-white" testId="settings-redeem-gift-btn" />
-      </MenuCard>
+      {settings.enable_gift_card !== false && (
+        <>
+          <SectionHeader title="Carte cadeau" />
+          <MenuCard>
+            <MenuItem icon={Gift} label="Envoyer une carte-cadeau" iconBg="bg-amber-700" iconColor="text-white" onClick={() => navigate('/giftcards')} testId="settings-send-gift-btn" />
+            <MenuItem icon={Gift} label="Échanger une carte-cadeau" iconBg="bg-orange-600" iconColor="text-white" onClick={() => navigate('/giftcards')} testId="settings-redeem-gift-btn" />
+          </MenuCard>
+        </>
+      )}
 
       {/* ═══════════ LIEUX FAVORIS ═══════════ */}
       <SectionHeader title="Lieux favoris" />

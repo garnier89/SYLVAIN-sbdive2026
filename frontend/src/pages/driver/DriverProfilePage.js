@@ -36,6 +36,7 @@ const DriverProfilePage = () => {
   const [savingInfo, setSavingInfo] = useState(false);
   const [infoForm, setInfoForm] = useState({ company_name: '', license_number: '' });
   const [allowEditProfile, setAllowEditProfile] = useState(true);
+  const [appSettings, setAppSettings] = useState({});
 
   const serviceOptions = [
     { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
@@ -157,7 +158,7 @@ const DriverProfilePage = () => {
         if (wRes.status === 'fulfilled') setWalletBalance(wRes.value.data.balance || 0);
         if (aRes.status === 'fulfilled' && aRes.value) setActivity(aRes.value);
         if (rRes.status === 'fulfilled' && rRes.value) setRewardsActive(!!rRes.value.any_active);
-        if (cRes.status === 'fulfilled') setAllowEditProfile(cRes.value.data.allow_driver_edit_profile !== false);
+        if (cRes.status === 'fulfilled') { setAllowEditProfile(cRes.value.data.allow_driver_edit_profile !== false); setAppSettings(cRes.value.data || {}); }
       } catch (err) { console.error('Failed to load:', err); }
       finally { setLoading(false); }
     };
@@ -253,7 +254,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={Key} color="#374151" label="Changer le mot de passe" onClick={soon} />
           <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label="Changer de devise" onClick={soon} />
           <ProfileRow icon={Globe} color="#0D9488" label="Changer de langue" onClick={soon} />
-          {rewardsActive && (
+          {rewardsActive && appSettings.enable_driver_reward_program !== false && (
             <ProfileRow icon={Gift} color="#22C55E" label="Programme de recompense" onClick={() => navigate('/chauffeur/rewards')} />
           )}
           <ProfileRow icon={Trophy} color="#F59E0B" label="Mon score" onClick={() => navigate('/chauffeur/score')} />
@@ -273,6 +274,7 @@ const DriverProfilePage = () => {
       </div>
 
       {/* ===== CARTE CADEAU ===== */}
+      {appSettings.enable_gift_card !== false && (
       <div className="mt-5 mb-5">
         <p className="px-5 text-base font-bold text-gray-800 mb-2">Carte cadeau</p>
         <div className="bg-white">
@@ -280,6 +282,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={Gift} color="#0E7490" label="Echanger une carte-cadeau" onClick={() => navigate('/giftcards')} />
         </div>
       </div>
+      )}
 
       {/* ===== SUPPORT ===== */}
       <div className="mt-5">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppSettings } from '../../../hooks/useAppSettings';
 import LeafletMap from '../../../components/LeafletMap';
 import {
   ArrowLeft, Car, CreditCard, CaretRight, Motorcycle,
@@ -50,6 +51,7 @@ export const RideMapStep = ({
   setStep,
 }) => {
   const navigate = useNavigate();
+  const { settings: appSettings } = useAppSettings();
   const gmapCenter = pickup.lat && dropoff.lat
     ? { lat: (pickup.lat + dropoff.lat) / 2, lng: (pickup.lng + dropoff.lng) / 2 }
     : pickup.lat ? { lat: pickup.lat, lng: pickup.lng } : mapCenter;
@@ -228,6 +230,7 @@ export const RideMapStep = ({
               )}
 
               {/* Taxi Pool toggle */}
+              {appSettings.enable_pool !== false && (
               <label className="flex items-center gap-3 py-2 mb-2 cursor-pointer" data-testid="pool-toggle-label">
                 <input
                   type="checkbox"
@@ -243,6 +246,7 @@ export const RideMapStep = ({
                 </div>
                 <Users size={20} className="text-emerald-600" weight="duotone" />
               </label>
+              )}
               <button
                 onClick={() => {
                   const q = new URLSearchParams();
