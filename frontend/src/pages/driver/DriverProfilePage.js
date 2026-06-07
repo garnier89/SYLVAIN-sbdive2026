@@ -22,6 +22,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const DriverProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { t } = useLocale();
   const { on } = useWebSocket(user?.id);
   const soon = () => toast.info('Bientôt disponible');
   const [driver, setDriver] = useState(null);
@@ -42,9 +43,9 @@ const DriverProfilePage = () => {
   const [newsUnread, setNewsUnread] = useState(0);
 
   const serviceOptions = [
-    { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
-    { value: 'delivery', label: 'Livreur', desc: 'Commandes marchands', Icon: Package },
-    { value: 'courier', label: 'Coursier', desc: 'Colis & express', Icon: Lightning },
+    { value: 'taxi', label: t('driver.role_taxi'), desc: t('driver.role_taxi_desc'), Icon: Taxi },
+    { value: 'delivery', label: t('driver.role_delivery'), desc: t('driver.role_delivery_desc'), Icon: Package },
+    { value: 'courier', label: t('driver.role_courier'), desc: t('driver.role_courier_desc'), Icon: Lightning },
   ];
 
   const CAR_VEHICLES = ['car', 'voiture', 'sedan', 'berline', 'suv', 'van', 'minivan', 'luxe', 'luxury', 'comfort', 'confort', 'prime', 'premium', 'xl'];
@@ -241,88 +242,88 @@ const DriverProfilePage = () => {
 
       {/* ===== REGLAGES GENERAUX ===== */}
       <div className="mt-5">
-        <p className="px-5 text-base font-bold text-gray-800 mb-2">reglages generaux</p>
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.general_settings')}</p>
         <div className="bg-white">
-          <ProfileRow icon={ClipboardText} color="#3B82F6" label="Mes reservations" onClick={() => navigate('/chauffeur/earnings')} />
-          <ProfileRow icon={Wrench} color="#F59E0B" label="Gerer les services" onClick={openServices} />
-          <ProfileRow icon={FileText} color="#06B6D4" label="Gerer les documents" onClick={() => navigate('/chauffeur/documents')} />
+          <ProfileRow icon={ClipboardText} color="#3B82F6" label={t('menu.my_bookings')} onClick={() => navigate('/chauffeur/earnings')} />
+          <ProfileRow icon={Wrench} color="#F59E0B" label={t('driver.manage_services')} onClick={openServices} />
+          <ProfileRow icon={FileText} color="#06B6D4" label={t('menu.manage_documents')} onClick={() => navigate('/chauffeur/documents')} />
           {allowEditProfile && (
-            <ProfileRow icon={IdentificationCard} color="#0EA5E9" label="Mes informations (societe, licence)" onClick={openInfoEdit} />
+            <ProfileRow icon={IdentificationCard} color="#0EA5E9" label={t('driver.my_info')} onClick={openInfoEdit} />
           )}
-          <ProfileRow icon={MapPin} color="#EF4444" label="Gerer le lieu de travail" onClick={soon} />
-          <ProfileRow icon={Images} color="#8B5CF6" label="Gerer la galerie" onClick={() => navigate('/chauffeur/gallery')} />
-          <ProfileRow icon={CalendarCheck} color="#A3A3A3" label="Ma disponibilite" onClick={soon} />
-          <ProfileRow icon={ChartBar} color="#22C55E" label="Statistiques" onClick={() => navigate('/chauffeur/earnings')} />
-          <ProfileRow icon={ChatCircleText} color="#06B6D4" label="Les commentaires des utilisateurs" onClick={soon} />
-          <ProfileRow icon={Receipt} color="#78716C" label="Lettre de voiture" onClick={soon} />
-          <ProfileRow icon={Bell} color="#F97316" label="Les notifications" onClick={() => navigate('/chauffeur/notifications')} />
-          <ProfileRow icon={Newspaper} color="#FF4500" label="Actualités" onClick={() => navigate('/chauffeur/actualites')} badge={newsUnread} />
-          <ProfileRow icon={UsersThree} color="#EF4444" label="Inviter des amis" onClick={() => navigate('/referral')} />
-          <ProfileRow icon={PhoneCall} color="#84CC16" label="Contacts d'urgence" onClick={() => navigate('/safety')} />
+          <ProfileRow icon={MapPin} color="#EF4444" label={t('driver.manage_workplace')} onClick={soon} />
+          <ProfileRow icon={Images} color="#8B5CF6" label={t('driver.manage_gallery')} onClick={() => navigate('/chauffeur/gallery')} />
+          <ProfileRow icon={CalendarCheck} color="#A3A3A3" label={t('driver.my_availability')} onClick={soon} />
+          <ProfileRow icon={ChartBar} color="#22C55E" label={t('driver.statistics')} onClick={() => navigate('/chauffeur/earnings')} />
+          <ProfileRow icon={ChatCircleText} color="#06B6D4" label={t('driver.user_comments')} onClick={soon} />
+          <ProfileRow icon={Receipt} color="#78716C" label={t('driver.waybill')} onClick={soon} />
+          <ProfileRow icon={Bell} color="#F97316" label={t('menu.notifications')} onClick={() => navigate('/chauffeur/notifications')} />
+          <ProfileRow icon={Newspaper} color="#FF4500" label={t('menu.news')} onClick={() => navigate('/chauffeur/actualites')} badge={newsUnread} />
+          <ProfileRow icon={UsersThree} color="#EF4444" label={t('menu.invite_friends')} onClick={() => navigate('/referral')} />
+          <ProfileRow icon={PhoneCall} color="#84CC16" label={t('menu.emergency_contacts')} onClick={() => navigate('/safety')} />
         </div>
       </div>
 
       {/* ===== PARAMETRE DU COMPTE ===== */}
       <div className="mt-5">
-        <p className="px-5 text-base font-bold text-gray-800 mb-2">Parametre du compte</p>
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.account_settings')}</p>
         <div className="bg-white">
-          <ProfileRow icon={Fingerprint} color="#64748B" label="Activer Face ID/Touch ID" toggle onToggle={(v) => toast.success(v ? 'Face ID / Touch ID activé' : 'Face ID / Touch ID désactivé')} />
-          <ProfileRow icon={UserCircle} color="#D946EF" label="Gerer son compte" onClick={soon} />
-          <ProfileRow icon={Key} color="#374151" label="Changer le mot de passe" onClick={soon} />
-          <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label="Changer de devise" onClick={soon} />
-          <ProfileRow icon={Globe} color="#0D9488" label="Changer de langue" onClick={soon} />
+          <ProfileRow icon={Fingerprint} color="#64748B" label={t('menu.enable_faceid')} toggle onToggle={(v) => toast.success(v ? 'Face ID / Touch ID activé' : 'Face ID / Touch ID désactivé')} />
+          <ProfileRow icon={UserCircle} color="#D946EF" label={t('menu.manage_account')} onClick={soon} />
+          <ProfileRow icon={Key} color="#374151" label={t('menu.change_password')} onClick={soon} />
+          <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label={t('menu.change_currency')} onClick={soon} />
+          <ProfileRow icon={Globe} color="#0D9488" label={t('menu.change_language')} onClick={soon} />
           {rewardsActive && appSettings.enable_driver_reward_program !== false && (
-            <ProfileRow icon={Gift} color="#22C55E" label="Programme de recompense" onClick={() => navigate('/chauffeur/rewards')} />
+            <ProfileRow icon={Gift} color="#22C55E" label={t('driver.reward_program')} onClick={() => navigate('/chauffeur/rewards')} />
           )}
-          <ProfileRow icon={Trophy} color="#F59E0B" label="Mon score" onClick={() => navigate('/chauffeur/score')} />
+          <ProfileRow icon={Trophy} color="#F59E0B" label={t('driver.my_score')} onClick={() => navigate('/chauffeur/score')} />
         </div>
       </div>
 
       {/* ===== PAIEMENT ===== */}
       <div className="mt-5">
-        <p className="px-5 text-base font-bold text-gray-800 mb-2">Paiement</p>
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.payment')}</p>
         <div className="bg-white">
-          <ProfileRow icon={CreditCard} color="#3B82F6" label="Mode de paiement" onClick={() => navigate('/chauffeur/bank')} />
-          <ProfileRow icon={Bank} color="#6366F1" label="Coordonnees bancaires" onClick={() => navigate('/chauffeur/bank')} />
-          <ProfileRow icon={Wallet} color="#EF4444" label="Mon portefeuille" onClick={() => navigate('/chauffeur/wallet')} />
-          <ProfileRow icon={Plus} color="#8B5CF6" label="Ajouter de l'argent" onClick={() => navigate('/chauffeur/wallet')} />
-          <ProfileRow icon={PaperPlaneTilt} color="#D946EF" label="Envoyer de l'argent" onClick={() => navigate('/chauffeur/wallet')} />
+          <ProfileRow icon={CreditCard} color="#3B82F6" label={t('menu.payment_method')} onClick={() => navigate('/chauffeur/bank')} />
+          <ProfileRow icon={Bank} color="#6366F1" label={t('driver.bank_details')} onClick={() => navigate('/chauffeur/bank')} />
+          <ProfileRow icon={Wallet} color="#EF4444" label={t('menu.my_wallet')} onClick={() => navigate('/chauffeur/wallet')} />
+          <ProfileRow icon={Plus} color="#8B5CF6" label={t('menu.add_money')} onClick={() => navigate('/chauffeur/wallet')} />
+          <ProfileRow icon={PaperPlaneTilt} color="#D946EF" label={t('menu.send_money')} onClick={() => navigate('/chauffeur/wallet')} />
         </div>
       </div>
 
       {/* ===== CARTE CADEAU ===== */}
       {appSettings.enable_gift_card !== false && (
       <div className="mt-5 mb-5">
-        <p className="px-5 text-base font-bold text-gray-800 mb-2">Carte cadeau</p>
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.gift_card')}</p>
         <div className="bg-white">
-          <ProfileRow icon={Gift} color="#92400E" label="Envoyer une carte-cadeau" onClick={() => navigate('/giftcards')} />
-          <ProfileRow icon={Gift} color="#0E7490" label="Echanger une carte-cadeau" onClick={() => navigate('/giftcards')} />
+          <ProfileRow icon={Gift} color="#92400E" label={t('menu.send_gift')} onClick={() => navigate('/giftcards')} />
+          <ProfileRow icon={Gift} color="#0E7490" label={t('menu.redeem_gift')} onClick={() => navigate('/giftcards')} />
         </div>
       </div>
       )}
 
       {/* ===== SUPPORT ===== */}
       <div className="mt-5">
-        <p className="px-5 text-base font-bold text-gray-800 mb-2">Support</p>
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.support')}</p>
         <div className="bg-white">
-          <ProfileRow icon={Info} color="#F59E0B" label="A propos de nous" onClick={() => navigate('/chauffeur/support/about')} />
-          <ProfileRow icon={ShieldCheck} color="#374151" label="Politique de confidentialite" onClick={() => navigate('/chauffeur/support/privacy')} />
-          <ProfileRow icon={Lock} color="#F87171" label="Termes et conditions" onClick={() => navigate('/chauffeur/support/terms')} />
-          <ProfileRow icon={Question} color="#EC4899" label="FAQ" onClick={() => navigate('/chauffeur/support/faq')} />
-          <ProfileRow icon={ChatsCircle} color="#10B981" label="Parler en direct" onClick={() => navigate('/chauffeur/support/chat')} />
-          <ProfileRow icon={EnvelopeSimple} color="#F97316" label="Contactez nous" onClick={() => navigate('/chauffeur/support/contact')} />
+          <ProfileRow icon={Info} color="#F59E0B" label={t('menu.about_us')} onClick={() => navigate('/chauffeur/support/about')} />
+          <ProfileRow icon={ShieldCheck} color="#374151" label={t('menu.privacy')} onClick={() => navigate('/chauffeur/support/privacy')} />
+          <ProfileRow icon={Lock} color="#F87171" label={t('menu.terms')} onClick={() => navigate('/chauffeur/support/terms')} />
+          <ProfileRow icon={Question} color="#EC4899" label={t('menu.faq')} onClick={() => navigate('/chauffeur/support/faq')} />
+          <ProfileRow icon={ChatsCircle} color="#10B981" label={t('menu.live_chat')} onClick={() => navigate('/chauffeur/support/chat')} />
+          <ProfileRow icon={EnvelopeSimple} color="#F97316" label={t('menu.contact_us')} onClick={() => navigate('/chauffeur/support/contact')} />
         </div>
       </div>
 
       {/* ===== AUTRE / DECONNEXION ===== */}
       <div className="mt-5 mb-8">
-        <p className="px-5 text-base font-bold text-gray-800 mb-2">Autre</p>
+        <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.other')}</p>
         <div className="bg-white">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 last:border-0 active:bg-gray-50 transition-colors" data-testid="logout-btn">
             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#6366F118' }}>
               <SignOut size={20} weight="duotone" style={{ color: '#6366F1' }} />
             </div>
-            <span className="text-sm text-gray-800 flex-1 text-left">Se deconnecter</span>
+            <span className="text-sm text-gray-800 flex-1 text-left">{t('menu.logout')}</span>
             <CaretRight size={16} className="text-gray-400 flex-shrink-0" />
           </button>
         </div>
@@ -463,6 +464,7 @@ const DriverProfilePage = () => {
 };
 
 const ActivityCard = ({ activity }) => {
+  const { t } = useLocale();
   const { points, palette, acceptance_rate, cancellation_rate, activity_score, total_trips, today_completed, offered_count, refused_count, manual_priority, rules } = activity;
   const maxPts = palette?.max_points || 100;
   const minPts = palette?.min_points || 0;
@@ -473,7 +475,7 @@ const ActivityCard = ({ activity }) => {
       <div className="flex items-center justify-between mb-2">
         <p className="text-base font-bold text-gray-800 flex items-center gap-2">
           <Lightning size={18} weight="fill" style={{ color: GREEN }} />
-          Mon Activite
+          {t('driver.my_activity')}
         </p>
         {(manual_priority || palette?.priority_access) && (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white" style={{ background: manual_priority ? '#F59E0B' : GREEN }}>
@@ -493,7 +495,7 @@ const ActivityCard = ({ activity }) => {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-gray-500">Points</p>
+            <p className="text-[10px] text-gray-500">{t('driver.points')}</p>
             <p className="font-bold text-xl" style={{ color: palette?.color }} data-testid="activity-points">{points}</p>
           </div>
         </div>
@@ -510,14 +512,14 @@ const ActivityCard = ({ activity }) => {
 
         {/* Stats grid */}
         <div className="grid grid-cols-3 gap-0 border-t border-gray-100 mt-3">
-          <StatCell icon={TrendUp} color="#22C55E" label="Acceptation" value={`${acceptance_rate}%`} testid="stat-acceptance" />
-          <StatCell icon={TrendDown} color="#EF4444" label="Annulation" value={`${cancellation_rate}%`} testid="stat-cancellation" border />
-          <StatCell icon={Star} color="#F59E0B" label="Score" value={activity_score} testid="stat-score" />
+          <StatCell icon={TrendUp} color="#22C55E" label={t('driver.acceptance')} value={`${acceptance_rate}%`} testid="stat-acceptance" />
+          <StatCell icon={TrendDown} color="#EF4444" label={t('driver.cancellation')} value={`${cancellation_rate}%`} testid="stat-cancellation" border />
+          <StatCell icon={Star} color="#F59E0B" label={t('driver.score_short')} value={activity_score} testid="stat-score" />
         </div>
         <div className="grid grid-cols-3 gap-0 border-t border-gray-100">
-          <StatCell label="Aujourd'hui" value={today_completed} subtle testid="stat-today" />
-          <StatCell label="Total courses" value={total_trips} subtle border testid="stat-trips" />
-          <StatCell label="Refus" value={refused_count || 0} subtle testid="stat-refused" />
+          <StatCell label={t('driver.today')} value={today_completed} subtle testid="stat-today" />
+          <StatCell label={t('driver.total_trips_label')} value={total_trips} subtle border testid="stat-trips" />
+          <StatCell label={t('driver.refused')} value={refused_count || 0} subtle testid="stat-refused" />
         </div>
 
         {/* Rules info */}

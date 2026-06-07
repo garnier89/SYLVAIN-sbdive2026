@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Star, MapPin, ArrowRight, X, Plus } from '@phosphor-icons/react';
 import { CountdownRing } from '../CountdownRing';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const RatingStars = ({ value = 5, size = 18 }) => {
   const full = Math.round(value);
@@ -31,6 +32,7 @@ const IncomingRequestSheet = ({
   onAccept, onDecline,
   myOffer, nowTs, onSendCounterOffer, onRenewOffer, onCancelOffer,
 }) => {
+  const { t } = useLocale();
   const offerPending = myOffer && myOffer.rideId === request.id;
   const [remaining, setRemaining] = useState(windowSeconds);
   const [showCounter, setShowCounter] = useState(false);
@@ -52,8 +54,8 @@ const IncomingRequestSheet = ({
   const pickupEta = pickupDist != null ? Math.max(1, Math.round((pickupDist / 22) * 60) + 1) : null;
   const seats = request.seats_required || 1;
   const title = request.pool_enabled
-    ? `Demande Pool (${seats} pers.)`
-    : `Demande · ${(request.vehicle_type || 'Basic').toString().replace(/^./, (c) => c.toUpperCase())}`;
+    ? t('driver.pool_request', { seats })
+    : `${t('driver.demande')} · ${(request.vehicle_type || 'Basic').toString().replace(/^./, (c) => c.toUpperCase())}`;
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/40 flex items-end" data-testid="incoming-request-modal">
@@ -72,27 +74,27 @@ const IncomingRequestSheet = ({
 
         {/* Prix estimé (yellow) */}
         <div className="rounded-2xl bg-amber-100 py-3 text-center mb-3" data-testid="request-price-box">
-          <p className="text-sm font-bold text-amber-900">Prix estimé</p>
+          <p className="text-sm font-bold text-amber-900">{t('driver.est_price')}</p>
           <p className="text-2xl font-extrabold text-amber-900" data-testid="request-price">{price} €</p>
         </div>
 
         {/* Estimations: ramassage (pink) + voyage (cyan) */}
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="rounded-2xl bg-rose-100 p-3" data-testid="request-pickup-estimate">
-            <p className="text-sm font-bold text-rose-900 leading-tight">Estimation du ramassage</p>
+            <p className="text-sm font-bold text-rose-900 leading-tight">{t('driver.pickup_estimate')}</p>
             <p className="text-sm text-rose-800 mt-1">
-              {pickupDist != null ? `${pickupDist.toFixed(2)} km | ${pickupEta} minute(s)` : '— de distance'}
+              {pickupDist != null ? `${pickupDist.toFixed(2)} km | ${pickupEta} ${t('driver.minutes')}` : t('driver.no_distance')}
             </p>
           </div>
           <div className="rounded-2xl bg-cyan-100 p-3" data-testid="request-trip-estimate">
-            <p className="text-sm font-bold text-cyan-900 leading-tight">Estimation du voyage</p>
-            <p className="text-sm text-cyan-800 mt-1">{(request.distance_km || 0).toFixed(2)} km | {request.duration_mins || 0} minute(s)</p>
+            <p className="text-sm font-bold text-cyan-900 leading-tight">{t('driver.trip_estimate')}</p>
+            <p className="text-sm text-cyan-800 mt-1">{(request.distance_km || 0).toFixed(2)} km | {request.duration_mins || 0} {t('driver.minutes')}</p>
           </div>
         </div>
 
         {/* Passenger */}
         <div className="flex items-center justify-between mb-3">
-          <p className="text-lg font-extrabold text-gray-900" data-testid="request-passenger-name">{request.passenger_name || 'Passager'}</p>
+          <p className="text-lg font-extrabold text-gray-900" data-testid="request-passenger-name">{request.passenger_name || t('driver.passenger')}</p>
           <RatingStars value={request.passenger_rating || 5} />
         </div>
 
@@ -101,20 +103,20 @@ const IncomingRequestSheet = ({
           <div className="flex items-start gap-3">
             <MapPin size={22} weight="fill" className="text-green-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Lieu de ramassage</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">{t('driver.pickup_location')}</p>
               <p className="text-sm font-semibold text-gray-800" data-testid="request-pickup">{request.pickup_address}</p>
             </div>
           </div>
           {(request.stops || []).filter((s) => s?.address).map((s, i) => (
             <div key={`rq-stop-${i}`} className="flex items-start gap-3" data-testid={`request-stop-${i}`}>
               <span className="w-5 h-5 rounded-full bg-amber-400 text-[11px] font-bold text-gray-900 flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
-              <div><p className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Arrêt {i + 1}</p><p className="text-sm font-semibold text-gray-800">{s.address}</p></div>
+              <div><p className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">{t('ride.stop', { n: i + 1 })}</p><p className="text-sm font-semibold text-gray-800">{s.address}</p></div>
             </div>
           ))}
           <div className="flex items-start gap-3">
             <span className="w-4 h-4 rounded-full bg-red-500 flex-shrink-0 mt-1" />
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">Adresse de destination</p>
+              <p className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">{t('driver.destination_address')}</p>
               <p className="text-sm font-semibold text-gray-800" data-testid="request-dropoff">{request.dropoff_address}</p>
             </div>
           </div>
@@ -128,17 +130,17 @@ const IncomingRequestSheet = ({
               <div className="flex items-center gap-3">
                 {rem !== null && !expired && <CountdownRing seconds={rem} total={myOffer.ttl_seconds || 30} size={44} />}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-600 uppercase">Votre offre envoyée</p>
+                  <p className="text-xs font-bold text-slate-600 uppercase">{t('driver.your_offer_sent')}</p>
                   <p className="text-2xl font-extrabold text-slate-900" data-testid="my-offer-amount">{myOffer.amount.toFixed(2)} €</p>
                   <p className={`text-xs font-semibold ${expired ? 'text-red-600' : 'text-emerald-700'}`} data-testid="my-offer-status">
-                    {expired ? 'Offre expirée — renvoyez-la' : `Expire dans ${rem}s · en attente du client`}
+                    {expired ? t('driver.offer_expired') : t('driver.offer_expires_in', { s: rem })}
                   </p>
                 </div>
               </div>
               <div className="flex gap-2 mt-3">
-                <button onClick={onCancelOffer} className="px-4 h-11 rounded-full border border-gray-300 text-gray-600 font-bold text-sm" data-testid="cancel-offer-btn">Annuler</button>
+                <button onClick={onCancelOffer} className="px-4 h-11 rounded-full border border-gray-300 text-gray-600 font-bold text-sm" data-testid="cancel-offer-btn">{t('ride.cancel')}</button>
                 <button onClick={onRenewOffer} className={`flex-1 h-11 rounded-full text-white font-bold text-sm flex items-center justify-center gap-2 ${expired ? 'bg-red-500 animate-pulse' : 'bg-orange-500'}`} data-testid="renew-offer-btn">
-                  <Plus size={18} /> Renouveler mon offre
+                  <Plus size={18} /> {t('driver.renew_offer')}
                 </button>
               </div>
             </div>
@@ -147,7 +149,7 @@ const IncomingRequestSheet = ({
           <>
             {showCounter && (
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-3">
-                <p className="text-xs font-bold text-slate-700 mb-2">Proposer un autre prix</p>
+                <p className="text-xs font-bold text-slate-700 mb-2">{t('driver.propose_other_price')}</p>
                 <div className="flex gap-2">
                   <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
                     <span className="text-base">€</span>
@@ -155,19 +157,19 @@ const IncomingRequestSheet = ({
                       placeholder={price} className="flex-1 outline-none text-base font-bold text-slate-800" data-testid="counter-offer-input" />
                   </div>
                   <button onClick={() => { if (counterVal && parseFloat(counterVal) > 0) onSendCounterOffer?.(request.id, counterVal); }}
-                    className="px-4 rounded-lg bg-orange-500 text-white font-bold text-sm" data-testid="send-counter-offer-btn">Envoyer</button>
+                    className="px-4 rounded-lg bg-orange-500 text-white font-bold text-sm" data-testid="send-counter-offer-btn">{t('driver.send')}</button>
                 </div>
               </div>
             )}
             {!showCounter && onSendCounterOffer && (
               <button onClick={() => setShowCounter(true)} className="w-full text-center text-sm font-bold text-orange-600 mb-3" data-testid="toggle-counter-offer-btn">
-                Proposer un autre prix
+                {t('driver.propose_other_price')}
               </button>
             )}
             <div className="flex items-center gap-4">
-              <button onClick={onDecline} className="px-6 py-4 text-lg font-bold text-gray-500" data-testid="reject-ride-btn">Déclin</button>
+              <button onClick={onDecline} className="px-6 py-4 text-lg font-bold text-gray-500" data-testid="reject-ride-btn">{t('driver.decline')}</button>
               <button onClick={() => onAccept?.(request.id)} className="flex-1 h-14 rounded-2xl text-white text-lg font-extrabold flex items-center justify-center gap-2 shadow-lg" style={{ background: '#00B578' }} data-testid="accept-ride-btn">
-                Acceptez <ArrowRight size={22} weight="bold" />
+                {t('driver.accept')} <ArrowRight size={22} weight="bold" />
               </button>
             </div>
           </>

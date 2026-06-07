@@ -7,6 +7,7 @@ import RideCompletionFlow from './RideCompletionFlow';
 import { RideFlowMenu, CallTypeSheet, SafetySheet, OtpModal } from './RideFlowSheets';
 import { RideFlowHeader, RideFlowAddressCard, RideFlowMap, RideFlowFooter } from './RideFlowViews';
 import InAppNav from './InAppNav';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const WAITING_RATE_PER_MIN = 0.5;
@@ -37,6 +38,7 @@ const NEAR_DESTINATION_M = 200;
  */
 const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFinished, onMinimize }) => {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const [status, setStatus] = useState(() => ride.status);
   const [busy, setBusy] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -259,7 +261,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const isPickupPhase = status === 'accepted';
   const isArrived = status === 'arriving';
   const inProgress = status === 'in_progress';
-  const headerLabel = inProgress ? 'COURSE EN COURS' : isArrived ? 'EN ROUTE' : 'Prendre le passager';
+  const headerLabel = inProgress ? t('driver.header_in_progress') : isArrived ? t('driver.header_enroute') : t('driver.header_pickup');
   const headerBg = inProgress ? '#0B0B0B' : '#00B578';
 
   // Distance from the driver to the drop-off — drives the "near destination"
@@ -287,7 +289,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
       ];
 
   const topAddress = isPickupPhase ? ride.pickup_address : ride.dropoff_address;
-  const topLabel = isPickupPhase ? 'Lieu de ramassage' : 'Destination';
+  const topLabel = isPickupPhase ? t('driver.pickup_location') : t('driver.destination');
 
   // Stable map center (mid-point of the trip) so the map never drifts while the
   // driver's GPS updates — the car marker moves, the viewport stays put.
@@ -328,7 +330,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         pickupBillable={pickupWaitSec >= WAITING_GRACE_SEC}
         pickupWaitChargeLabel={pickupWaitChargeLive.toFixed(2)}
         waitingActive={!!waitingStart}
-        waitingLabel={waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : 'Attente'}
+        waitingLabel={waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : t('driver.waiting')}
         onToggleWaiting={toggleWaiting}
       />
 
@@ -418,9 +420,9 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
       {showFinishConfirm && (
         <div className="fixed inset-0 z-[1700] bg-black/50 flex items-center justify-center p-6" data-testid="finish-confirm-overlay">
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-extrabold text-gray-900 mb-1">Terminer la course ?</h3>
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">{t('driver.finish_trip_q')}</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Vous êtes encore à <strong>{distToDropoff != null ? `${(distToDropoff / 1000).toFixed(1)} km` : 'distance'}</strong> de la destination. Êtes-vous sûr de vouloir terminer le voyage maintenant&nbsp;?
+              {t('driver.finish_far_warn', { dist: distToDropoff != null ? `${(distToDropoff / 1000).toFixed(1)} km` : t('driver.no_distance') })}
             </p>
             <div className="flex gap-3">
               <button
@@ -428,14 +430,14 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
                 className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm"
                 data-testid="finish-confirm-cancel"
               >
-                Annuler
+                {t('ride.cancel')}
               </button>
               <button
                 onClick={() => { setShowFinishConfirm(false); setCompleting(true); }}
                 className="flex-1 py-2.5 rounded-xl bg-[#E11900] text-white font-bold text-sm"
                 data-testid="finish-confirm-ok"
               >
-                Oui, terminer
+                {t('driver.yes_finish')}
               </button>
             </div>
           </div>

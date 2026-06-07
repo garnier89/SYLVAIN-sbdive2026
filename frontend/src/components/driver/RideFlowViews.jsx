@@ -5,6 +5,7 @@ import {
 } from '@phosphor-icons/react';
 import AdminGoogleMap from '../admin/AdminGoogleMap';
 import SlideToConfirm from './SlideToConfirm';
+import { useLocale } from '../../contexts/LocaleContext';
 
 /**
  * Presentational sub-views extracted from DriverRideFlow for readability.
@@ -55,7 +56,9 @@ export const RideFlowMap = ({
   inProgress,
   isArrived, pickupArrivedAt, pickupWaitLabel, pickupBillable, pickupWaitChargeLabel,
   waitingActive, waitingLabel, onToggleWaiting,
-}) => (
+}) => {
+  const { t } = useLocale();
+  return (
   <div className="flex-1 relative">
     <AdminGoogleMap
       center={mapCenter}
@@ -68,13 +71,11 @@ export const RideFlowMap = ({
       routePath={routePath}
     />
     <div className={`absolute top-9 right-3 z-[600] px-2 py-1 rounded-full text-[10px] font-semibold ${connected ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-      {connected ? 'En direct' : 'Reconnexion…'}
+      {connected ? t('driver.live') : t('driver.reconnecting')}
     </div>
     <button onClick={onSos} className="absolute top-9 left-3 z-[600] w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shadow-lg animate-pulse" data-testid="ride-flow-sos-btn" aria-label="Sécurité / SOS">
       <Siren size={24} weight="fill" className="text-white" />
     </button>
-    {/* BLACK pickup waiting timer — auto, EN ROUTE (driver arrived, waits for the
-        passenger). It stops and DISAPPEARS the moment the trip starts (in_progress). */}
     {isArrived && pickupArrivedAt && (
       <div
         className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-3 py-1 text-xs font-bold tabular-nums shadow-md flex items-center gap-1.5"
@@ -83,12 +84,10 @@ export const RideFlowMap = ({
         <Clock size={13} weight="bold" />
         {pickupWaitLabel}
         {pickupBillable && (
-          <span className="text-amber-400" data-testid="ride-flow-pickup-wait-billed">· facturé · {pickupWaitChargeLabel} €</span>
+          <span className="text-amber-400" data-testid="ride-flow-pickup-wait-billed">· {t('driver.billed')} · {pickupWaitChargeLabel} €</span>
         )}
       </div>
     )}
-    {/* GREY in-trip waiting toggle — APPEARS when the trip starts (in_progress).
-        Lets the driver bill waiting time during the trip (passenger stop, etc.). */}
     {inProgress && (
       <button
         onClick={onToggleWaiting}
@@ -100,7 +99,8 @@ export const RideFlowMap = ({
       </button>
     )}
   </div>
-);
+  );
+};
 
 export const RideFlowFooter = ({
   onCall, onChat, onNav,
@@ -109,7 +109,9 @@ export const RideFlowFooter = ({
   isArrived, recordVideo, onToggleVideo,
   isPickupPhase, inProgress, busy,
   onArrive, onStart, onFinish, nearDestination = false,
-}) => (
+}) => {
+  const { t } = useLocale();
+  return (
   <>
     {/* Action buttons — aligned right, just above the km */}
     <div className="flex justify-end gap-4 px-5 py-3 bg-white">
@@ -124,12 +126,12 @@ export const RideFlowFooter = ({
         {passengerAvatar ? <img src={passengerAvatar} alt="" className="w-full h-full object-cover" /> : <UserCircle size={40} className="text-gray-300" weight="fill" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-base font-extrabold text-gray-900 truncate">{passengerName || 'Passager'}</p>
+        <p className="text-base font-extrabold text-gray-900 truncate">{passengerName || t('driver.passenger')}</p>
         <RatingStars value={passengerRating || 5} />
       </div>
       <div className="text-right">
         <p className="text-sm font-bold text-gray-900">{(distanceKm || 0).toFixed(2)} km</p>
-        <p className="text-xs text-gray-500">{durationMins || 0} minutes</p>
+        <p className="text-xs text-gray-500">{durationMins || 0} {t('driver.minutes_full')}</p>
       </div>
     </div>
 
@@ -137,15 +139,16 @@ export const RideFlowFooter = ({
     {isArrived && (
       <label className="px-5 pb-2 flex items-center gap-2 text-sm text-gray-600" data-testid="ride-flow-video-row">
         <input type="checkbox" checked={recordVideo} onChange={onToggleVideo} className="w-4 h-4 accent-[#00B578]" data-testid="ride-flow-video-checkbox" />
-        Enregistrer une vidéo à l&apos;intérieur d&apos;un taxi
+        {t('driver.record_video')}
       </label>
     )}
 
     {/* Slider */}
     <div className="px-5 pb-6 pt-1">
-      {isPickupPhase && <SlideToConfirm label="GLISSEZ POUR ARRIVER" color="#00B578" onConfirm={onArrive} testId="slide-arrive" disabled={busy} />}
-      {isArrived && <SlideToConfirm label="GLISSEZ POUR COMMENCER LE VOYAGE" color="#00B578" onConfirm={onStart} testId="slide-start" disabled={busy} />}
-      {inProgress && <SlideToConfirm label="GLISSER POUR TERMINER LE VOYAGE" color="#E11900" onConfirm={onFinish} testId="slide-finish" disabled={busy} nudge={nearDestination} />}
+      {isPickupPhase && <SlideToConfirm label={t('driver.slide_arrive')} color="#00B578" onConfirm={onArrive} testId="slide-arrive" disabled={busy} />}
+      {isArrived && <SlideToConfirm label={t('driver.slide_start')} color="#00B578" onConfirm={onStart} testId="slide-start" disabled={busy} />}
+      {inProgress && <SlideToConfirm label={t('driver.slide_finish')} color="#E11900" onConfirm={onFinish} testId="slide-finish" disabled={busy} nudge={nearDestination} />}
     </div>
   </>
-);
+  );
+};
