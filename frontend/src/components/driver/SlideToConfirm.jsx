@@ -1,10 +1,13 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { CaretDoubleRight } from '@phosphor-icons/react';
 
 /**
  * SlideToConfirm — V3Cube "GLISSEZ POUR …" action slider.
- * Drag the white thumb fully to the right to confirm. A direct click/tap on the
- * thumb also confirms (keyboard/accessibility + reliable e2e activation).
+ * Drag the white thumb to the right to confirm. The action fires once the thumb
+ * passes ~70% of the track (flexible — no need to reach the very end). A direct
+ * click/tap on the thumb also confirms (accessibility + reliable e2e activation).
+ * When `nudge` is true the thumb gently animates forward to hint the driver they
+ * can already slide (e.g. once within 200 m of the destination).
  */
 export const SlideToConfirm = ({
   label,
@@ -13,6 +16,7 @@ export const SlideToConfirm = ({
   onConfirm,
   testId = 'slide-to-confirm',
   disabled = false,
+  nudge = false,
 }) => {
   const trackRef = useRef(null);
   const draggingRef = useRef(false);
@@ -36,6 +40,18 @@ export const SlideToConfirm = ({
     window.setTimeout(() => { lockedRef.current = false; setX(0); }, 700);
   }, [disabled, maxX, onConfirm]);
 
+  // Gentle forward "nudge" hint when allowed (e.g. near the destination).
+  useEffect(() => {
+    if (!nudge || disabled) return undefined;
+    let forward = false;
+    const id = setInterval(() => {
+      if (draggingRef.current || lockedRef.current) return;
+      forward = !forward;
+      setX(forward ? Math.min(44, maxX()) : 0);
+    }, 750);
+    return () => { clearInterval(id); if (!lockedRef.current) setX(0); };
+  }, [nudge, disabled, maxX]);
+
   const onMove = useCallback((clientX) => {
     if (!draggingRef.current || lockedRef.current) return;
     movedRef.current = true;
@@ -43,7 +59,8 @@ export const SlideToConfirm = ({
     if (!rect) return;
     const px = Math.min(maxX(), Math.max(0, clientX - rect.left - THUMB / 2));
     setX(px);
-    if (px >= maxX() - 6) {
+    // Flexible activation: fire once past ~70% of the track instead of the end.
+    if (px >= maxX() * 0.7) {
       draggingRef.current = false;
       fire();
     }

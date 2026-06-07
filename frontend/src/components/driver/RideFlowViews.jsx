@@ -54,7 +54,6 @@ export const RideFlowMap = ({
   connected, onSos,
   inProgress, elapsedLabel,
   isArrived, pickupArrivedAt, pickupWaitLabel, pickupBillable, pickupWaitChargeLabel,
-  waitingActive, waitingLabel, onToggleWaiting,
 }) => (
   <div className="flex-1 relative">
     <AdminGoogleMap
@@ -78,7 +77,8 @@ export const RideFlowMap = ({
         <Clock size={12} weight="bold" />{elapsedLabel}
       </div>
     )}
-    {/* Pickup waiting timer — auto, EN ROUTE (driver arrived, waits for passenger) */}
+    {/* Pickup waiting timer — auto, EN ROUTE (driver arrived, waits for passenger).
+        It stops and disappears automatically once the trip starts (in_progress). */}
     {isArrived && pickupArrivedAt && (
       <div
         className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-3 py-1 text-xs font-bold tabular-nums shadow-md flex items-center gap-1.5"
@@ -91,17 +91,6 @@ export const RideFlowMap = ({
         )}
       </div>
     )}
-    {/* Compact waiting toggle — top of the map, near the trip timer */}
-    {inProgress && (
-      <button
-        onClick={onToggleWaiting}
-        className={`absolute top-8 left-1/2 -translate-x-1/2 z-[600] rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 ${waitingActive ? 'bg-amber-500 text-white' : 'bg-white text-gray-800'}`}
-        data-testid="ride-flow-waiting-btn"
-      >
-        <Clock size={13} weight="fill" />
-        {waitingLabel}
-      </button>
-    )}
   </div>
 );
 
@@ -111,7 +100,7 @@ export const RideFlowFooter = ({
   distanceKm, durationMins,
   isArrived, recordVideo, onToggleVideo,
   isPickupPhase, inProgress, busy,
-  onArrive, onStart, onFinish,
+  onArrive, onStart, onFinish, nearDestination = false,
 }) => (
   <>
     {/* Action buttons — aligned right, just above the km */}
@@ -148,7 +137,7 @@ export const RideFlowFooter = ({
     <div className="px-5 pb-6 pt-1">
       {isPickupPhase && <SlideToConfirm label="GLISSEZ POUR ARRIVER" color="#00B578" onConfirm={onArrive} testId="slide-arrive" disabled={busy} />}
       {isArrived && <SlideToConfirm label="GLISSEZ POUR COMMENCER LE VOYAGE" color="#00B578" onConfirm={onStart} testId="slide-start" disabled={busy} />}
-      {inProgress && <SlideToConfirm label="GLISSER POUR TERMINER LE VOYAGE" color="#E11900" onConfirm={onFinish} testId="slide-finish" disabled={busy} />}
+      {inProgress && <SlideToConfirm label="GLISSER POUR TERMINER LE VOYAGE" color="#E11900" onConfirm={onFinish} testId="slide-finish" disabled={busy} nudge={nearDestination} />}
     </div>
   </>
 );

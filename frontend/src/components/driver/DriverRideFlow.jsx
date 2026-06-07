@@ -19,6 +19,17 @@ const fmtClock = (s) => {
   return `${h}:${m}:${sec}`;
 };
 
+// Distance in metres between two lat/lng points (haversine).
+const distanceMeters = (a, b) => {
+  if (!a || !b || a.lat == null || b.lat == null) return null;
+  const R = 6371000;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+};
+const NEAR_DESTINATION_M = 200;
+
 /**
  * DriverRideFlow — full-screen V3Cube driver ride experience covering the
  * accepted → arriving → in_progress lifecycle, then hands off to the post-trip
@@ -50,6 +61,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const pickupBilledRef = useRef(false);
   const [completing, setCompleting] = useState(false);
   const [carIconUrl, setCarIconUrl] = useState('');
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
   // Load the admin-configured car icon (same as the client's radar cars).
   useEffect(() => {
@@ -259,6 +271,22 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const headerLabel = inProgress ? 'COURSE EN COURS' : isArrived ? 'EN ROUTE' : 'Prendre le passager';
   const headerBg = inProgress ? '#0B0B0B' : '#00B578';
 
+  // Distance from the driver to the drop-off — drives the "near destination"
+  // finish hint (auto-nudge ≤ 200 m) and the "finish far away" confirmation.
+  const distToDropoff = distanceMeters(driverPos, { lat: ride.dropoff_lat, lng: ride.dropoff_lng });
+  const nearDestination = distToDropoff != null && distToDropoff <= NEAR_DESTINATION_M;
+
+  // Slide-to-finish: complete directly when near the destination, otherwise ask
+  // the driver to confirm finishing while still far away.
+  const handleFinish = useCallback(() => {
+    if (waitingStart) toggleWaiting();
+    if (distToDropoff == null || distToDropoff <= NEAR_DESTINATION_M) {
+      setCompleting(true);
+    } else {
+      setShowFinishConfirm(true);
+    }
+  }, [waitingStart, toggleWaiting, distToDropoff]);
+
   const routePath = decodePolyline(ride.route_polyline).length
     ? decodePolyline(ride.route_polyline)
     : [
@@ -286,7 +314,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
       <RideFlowHeader
         headerBg={headerBg}
         headerLabel={headerLabel}
-        showMinimize={!!onMinimize && !inProgress}
+        showMinimize={!!onMinimize}
         onMinimize={onMinimize}
         onMenu={() => setShowMenu(true)}
       />
@@ -309,9 +337,6 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         pickupWaitLabel={fmtClock(pickupWaitSec)}
         pickupBillable={pickupWaitSec >= WAITING_GRACE_SEC}
         pickupWaitChargeLabel={pickupWaitChargeLive.toFixed(2)}
-        waitingActive={!!waitingStart}
-        waitingLabel={waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : 'Attente'}
-        onToggleWaiting={toggleWaiting}
       />
 
       <RideFlowFooter
@@ -329,9 +354,10 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         isPickupPhase={isPickupPhase}
         inProgress={inProgress}
         busy={busy}
+        nearDestination={nearDestination}
         onArrive={goArriving}
         onStart={() => { if (!askOtp) { startTripDirect(); return; } setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }}
-        onFinish={() => { if (waitingStart) toggleWaiting(); setCompleting(true); }}
+        onFinish={handleFinish}
       />
 
       {/* 3-dot menu */}
@@ -393,6 +419,34 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
           error={otpError}
           busy={busy}
         />
+      )}
+
+      {/* Finish-far-from-destination confirmation */}
+      {showFinishConfirm && (
+        <div className="fixed inset-0 z-[1700] bg-black/50 flex items-center justify-center p-6" data-testid="finish-confirm-overlay">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">Terminer la course ?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Vous êtes encore à <strong>{distToDropoff != null ? `${(distToDropoff / 1000).toFixed(1)} km` : 'distance'}</strong> de la destination. Êtes-vous sûr de vouloir terminer le voyage maintenant&nbsp;?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowFinishConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm"
+                data-testid="finish-confirm-cancel"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => { setShowFinishConfirm(false); setCompleting(true); }}
+                className="flex-1 py-2.5 rounded-xl bg-[#E11900] text-white font-bold text-sm"
+                data-testid="finish-confirm-ok"
+              >
+                Oui, terminer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

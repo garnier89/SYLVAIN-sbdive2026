@@ -6,7 +6,7 @@ import { useAppSettings } from '../../hooks/useAppSettings';
 import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
-import { X, Gift, UsersThree } from '@phosphor-icons/react';
+import { X, Gift, UsersThree, Car } from '@phosphor-icons/react';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 import IncomingRequestSheet from '../../components/driver/IncomingRequestSheet';
@@ -48,6 +48,7 @@ const DriverHome = () => {
   const [homeFeed, setHomeFeed] = useState({ scheduled_pending: [], upcoming: [], available_rides: [], available_deliveries: [], next_scheduled_at: null });
   const [showScheduled, setShowScheduled] = useState(false);
   const [showTaxiHall, setShowTaxiHall] = useState(false);
+  const [rideMinimized, setRideMinimized] = useState(false);
   const [taxiHallElig, setTaxiHallElig] = useState({ eligible: true, require_competition: false, reason: null });
 
   useEffect(() => {
@@ -387,6 +388,7 @@ const DriverHome = () => {
 
   const finishRide = () => {
     setCurrentRide(null);
+    setRideMinimized(false);
     loadDriverProfile();
   };
 
@@ -512,14 +514,33 @@ const DriverHome = () => {
       />
 
         {/* Active ride — full-screen V3Cube flow */}
-        {currentRide && (
+        {currentRide && !rideMinimized && (
           <DriverRideFlow
             ride={currentRide}
             driverPos={mapCenter}
             askOtp={appSettings.ask_otp_before_start !== false}
             onFinished={finishRide}
-            onMinimize={() => setCurrentRide(null)}
+            onMinimize={() => setRideMinimized(true)}
           />
+        )}
+
+        {/* Minimized active ride — resume banner so the driver can re-open the flow */}
+        {currentRide && rideMinimized && (
+          <button
+            onClick={() => setRideMinimized(false)}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1400] bg-[#00B578] text-white rounded-full pl-4 pr-5 py-3 shadow-2xl flex items-center gap-3 active:scale-95 transition-transform"
+            data-testid="resume-ride-banner"
+          >
+            <span className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+              <Car size={20} weight="fill" />
+            </span>
+            <span className="text-left leading-tight">
+              <span className="block text-[11px] font-semibold opacity-90">
+                {currentRide.status === 'in_progress' ? 'Course en cours' : 'Course active'}
+              </span>
+              <span className="block text-sm font-extrabold">Reprendre →</span>
+            </span>
+          </button>
         )}
 
       {/* Incoming Request — V3Cube PARTNER APP sheet */}
