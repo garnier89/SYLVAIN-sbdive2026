@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -15,6 +15,7 @@ import InAppNav from './InAppNav';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const WAITING_RATE_PER_MIN = 0.5;
+const WAITING_GRACE_SEC = 300; // 5 min d'attente offerts au ramassage avant facturation
 
 const RatingStars = ({ value = 5 }) => (
   <div className="flex items-center gap-0.5">
@@ -55,6 +56,11 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
   const [waitingStart, setWaitingStart] = useState(null);
   const [waitingAccum, setWaitingAccum] = useState(0);
   const [waitingNow, setWaitingNow] = useState(0);
+  // Pickup waiting (auto): runs while the driver has ARRIVED and waits for the passenger.
+  const [pickupArrivedAt, setPickupArrivedAt] = useState(() => (ride.arrived_at ? new Date(ride.arrived_at).getTime() : null));
+  const [pickupWaitSec, setPickupWaitSec] = useState(0);
+  const [pickupWaitCharge, setPickupWaitCharge] = useState(0);
+  const pickupBilledRef = useRef(false);
   const [completing, setCompleting] = useState(false);
   const [carIconUrl, setCarIconUrl] = useState('');
 
@@ -106,6 +112,30 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
     return () => clearInterval(id);
   }, [waitingStart]);
 
+  // Pickup waiting timer — auto-runs while the driver has ARRIVED (status
+  // "arriving") and waits for the passenger. Starts on "Arrivé", stops at start.
+  useEffect(() => {
+    if (status !== 'arriving' || !pickupArrivedAt) return undefined;
+    const tick = () => setPickupWaitSec(Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [status, pickupArrivedAt]);
+
+  // Past the 5-min grace period the wait becomes billable → notify passenger once.
+  useEffect(() => {
+    if (status !== 'arriving' || pickupWaitSec < WAITING_GRACE_SEC || pickupBilledRef.current) return;
+    pickupBilledRef.current = true;
+    toast.warning("Temps d'attente facturé — le passager a été informé.");
+    fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ action: 'start', seconds: pickupWaitSec, charge: 0 }),
+    }).catch(() => { /* ignore */ });
+  }, [status, pickupWaitSec, ride.id]);
+
+  const pickupBillableSec = Math.max(0, pickupWaitSec - WAITING_GRACE_SEC);
+  const pickupWaitChargeLive = Math.round((pickupBillableSec / 60) * WAITING_RATE_PER_MIN * 100) / 100;
+
   const waitingSecs = waitingAccum + waitingNow;
   const waitingCharge = Math.round((waitingSecs / 60) * WAITING_RATE_PER_MIN * 100) / 100;
 
@@ -138,7 +168,11 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
   const goArriving = useCallback(async () => {
     if (busy) return;
     setBusy(true);
-    try { await rideAPI.updateStatus(ride.id, 'arriving'); setStatus('arriving'); }
+    try {
+      await rideAPI.updateStatus(ride.id, 'arriving');
+      setStatus('arriving');
+      setPickupArrivedAt(Date.now()); // start the pickup waiting timer
+    }
     catch { toast.error('Action impossible. Réessayez.'); }
     finally { setBusy(false); }
   }, [busy, ride.id]);
@@ -175,9 +209,20 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
       setShowOtp(false); setOtpInput(''); setOtpError(''); setOtpAttempts(0); setOtpMode('otp');
       const now = new Date().toISOString();
       setStartedAt(now); setStatus('in_progress');
+      // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
+      const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;
+      const billable = Math.max(0, waitSec - WAITING_GRACE_SEC);
+      const charge = Math.round((billable / 60) * WAITING_RATE_PER_MIN * 100) / 100;
+      setPickupWaitCharge(charge);
+      if (pickupBilledRef.current) {
+        fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ action: 'stop', seconds: waitSec, charge }),
+        }).catch(() => { /* ignore */ });
+      }
     } catch { setOtpError('Erreur réseau'); }
     finally { setBusy(false); }
-  }, [otpInput, otpMode, otpAttempts, ride.id]);
+  }, [otpInput, otpMode, otpAttempts, ride.id, pickupArrivedAt]);
 
   const cancelRide = useCallback(async () => {
     if (busy) return;
@@ -227,7 +272,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
   }), [ride.pickup_lat, ride.pickup_lng, ride.dropoff_lat, ride.dropoff_lng]);
 
   if (completing) {
-    return <RideCompletionFlow ride={{ ...ride, status: 'in_progress' }} waitingCharge={waitingCharge} onDone={onFinished} />;
+    return <RideCompletionFlow ride={{ ...ride, status: 'in_progress' }} waitingCharge={waitingCharge + pickupWaitCharge} onDone={onFinished} />;
   }
 
   return (
@@ -279,6 +324,19 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
         {inProgress && (
           <div className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-md flex items-center gap-1" data-testid="ride-flow-timer">
             <Clock size={12} weight="bold" />{fmtClock(elapsed)}
+          </div>
+        )}
+        {/* Pickup waiting timer — auto, EN ROUTE (driver arrived, waits for passenger) */}
+        {isArrived && pickupArrivedAt && (
+          <div
+            className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-3 py-1 text-xs font-bold tabular-nums shadow-md flex items-center gap-1.5"
+            data-testid="ride-flow-pickup-wait"
+          >
+            <Clock size={13} weight="bold" />
+            {fmtClock(pickupWaitSec)}
+            {pickupWaitSec >= WAITING_GRACE_SEC && (
+              <span className="text-amber-400" data-testid="ride-flow-pickup-wait-billed">· facturé · {pickupWaitChargeLive.toFixed(2)} €</span>
+            )}
           </div>
         )}
         {/* Compact waiting toggle — top of the map, near the trip timer */}

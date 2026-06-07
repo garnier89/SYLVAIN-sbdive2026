@@ -51,6 +51,7 @@ const AdminGoogleMap = ({
   onMapClick,
   heatmapData,
   staticView = false,
+  mapTypeControl = true,
 }) => {
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -169,7 +170,7 @@ const AdminGoogleMap = ({
         gestureHandling: 'none', // map stays stable — no drag / zoom gestures
         disableDefaultUI: true,
       }
-    : { ...DEFAULT_OPTIONS, mapTypeId: mapType };
+    : { ...DEFAULT_OPTIONS, mapTypeId: mapType, mapTypeControl };
 
   return (
     <GoogleMap

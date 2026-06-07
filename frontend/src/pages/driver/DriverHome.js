@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import {
-  MapPin, Bell, X, NavigationArrow, Gift, Plus, CalendarCheck, List, UsersThree,
+  MapPin, Bell, X, Gift, Plus, CalendarCheck, List, UsersThree,
   Sparkle, Taxi, Fire, ArrowUUpLeft, Car
 } from '@phosphor-icons/react';
 import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
@@ -542,25 +542,8 @@ const DriverHome = () => {
               ]
           ) : []}
           heatmapData={showHeatmap ? heatPoints.map((p) => [p.lat, p.lng, p.count || 1]) : undefined}
+          mapTypeControl={false}
         />
-        {/* Heat View toggle button */}
-        <button
-          onClick={() => setShowHeatmap(v => !v)}
-          className={`absolute top-4 right-4 z-[500] px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 text-xs font-bold ${showHeatmap ? 'bg-red-500 text-white' : 'bg-white text-gray-800'}`}
-          data-testid="heat-view-toggle"
-        >
-          <span className="text-base">🔥</span>
-          {showHeatmap ? `Heat View ON · ${heatPoints.length}` : 'Heat View'}
-        </button>
-        {/* Destination Mode toggle button */}
-        <button
-          onClick={() => setShowDestModal(true)}
-          className={`absolute top-16 right-4 z-[500] px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 text-xs font-bold ${destMode?.active ? 'bg-emerald-600 text-white' : 'bg-white text-gray-800'}`}
-          data-testid="destination-mode-toggle"
-        >
-          <NavigationArrow size={14} weight="fill" />
-          {destMode?.active ? 'Destination ON' : 'Mode Destination'}
-        </button>
       </div>
 
       {/* FLOATING BUTTONS */}
