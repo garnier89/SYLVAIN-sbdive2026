@@ -76,6 +76,7 @@ class DriverProfile(BaseModel):
     total_trips: int = 0
     earnings: float = 0.0
     documents: List[Dict] = []
+    pending_info: Optional[Dict] = None  # pending company/license change awaiting admin validation
 
 # Merchant Models
 class MerchantCreate(BaseModel):

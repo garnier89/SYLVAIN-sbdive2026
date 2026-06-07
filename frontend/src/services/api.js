@@ -88,6 +88,7 @@ export const driverAPI = {
     });
   },
   getMyDocuments: () => api.get('/drivers/my-documents'),
+  requestInfoChange: (data) => api.put('/drivers/profile/info', data),
   getNotifications: () => api.get('/drivers/my-notifications'),
   markAllNotificationsRead: () => api.post('/drivers/notifications/read-all'),
   deleteNotification: (id) => api.delete(`/drivers/notifications/${id}`),
@@ -188,6 +189,7 @@ export const adminAPI = {
   rejectDriver: (id, reason) => api.post(`/admin/drivers/${id}/reject`, { reason }),
   getDriverDocuments: (driverId) => api.get(`/admin/drivers/${driverId}/documents`),
   setDriverDocumentStatus: (driverId, docType, status, reason) => api.put(`/admin/drivers/${driverId}/documents/${docType}/status`, { status, reason }),
+  setDriverInfoChangeStatus: (driverId, status, reason) => api.put(`/admin/drivers/${driverId}/info-change/status`, { status, reason }),
   listRides: (params) => api.get('/admin/rides', { params }),
   listOrders: (params) => api.get('/admin/orders', { params }),
   suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),

@@ -174,6 +174,65 @@ async def admin_get_driver_documents(driver_id: str, request: Request):
         "rejection_reason": d.get("rejection_reason"),
         "driver_name": user.get("name"), "driver_email": user.get("email"),
         "vehicle_type": d.get("vehicle_type"), "categories": d.get("categories") or [],
+        "company_name": d.get("company_name"), "license_number": d.get("license_number"),
+        "vehicle_number": d.get("vehicle_number"), "vehicle_model": d.get("vehicle_model"),
+        "pending_info": d.get("pending_info"),
+    }
+
+
+@router.put("/admin/drivers/{driver_id}/info-change/status")
+async def admin_set_driver_info_change_status(driver_id: str, request: Request):
+    """Approve / reject a driver's pending professional-info change (company name / license number)."""
+    actor = await require_role(request, ["admin"], permission="drivers.approve")
+    body = await request.json()
+    status_value = body.get("status")
+    if status_value not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="status doit être approved ou rejected")
+    reason = (body.get("reason") or "").strip()
+    d = await db.drivers.find_one({"id": driver_id}, {"_id": 0})
+    if not d:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    pending = d.get("pending_info")
+    if not pending or pending.get("status") != "pending":
+        raise HTTPException(status_code=404, detail="Aucune demande de modification en attente")
+
+    now = datetime.now(timezone.utc).isoformat()
+    updates = {}
+    if status_value == "approved":
+        if pending.get("company_name"):
+            updates["company_name"] = pending["company_name"]
+        if pending.get("license_number"):
+            updates["license_number"] = pending["license_number"]
+        title, msg = ("Informations validées ✅",
+                      "Vos informations professionnelles (société / licence) ont été approuvées.")
+    else:
+        title, msg = ("Modification refusée",
+                      "Votre demande de modification d'informations a été refusée."
+                      + (f" Motif : {reason}" if reason else ""))
+    updates["pending_info"] = {**pending, "status": status_value, "reason": reason or None, "reviewed_at": now}
+    await db.drivers.update_one({"id": driver_id}, {"$set": updates})
+
+    try:
+        from routes.audit_logs import log_action
+        await log_action(actor_id=actor["id"], actor_role=actor["role"],
+                         action=f"driver.info_change.{status_value}", target_type="driver",
+                         target_id=driver_id, reason=reason,
+                         ip_address=request.client.host if request.client else None)
+    except Exception:
+        pass
+
+    from core.notifications import create_notification
+    await create_notification(
+        d["user_id"], "driver_info_reviewed", title, msg,
+        data={"status": status_value, "reason": reason},
+        ws_payload={"type": "driver_info_reviewed", "status": status_value, "reason": reason,
+                    "title": title, "body": msg},
+    )
+    return {
+        "message": "Demande traitée", "status": status_value,
+        "company_name": updates.get("company_name", d.get("company_name")),
+        "license_number": updates.get("license_number", d.get("license_number")),
+        "pending_info": updates["pending_info"],
     }
 
 

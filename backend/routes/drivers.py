@@ -309,6 +309,37 @@ async def update_service_types(request: Request):
     return {"message": "Services mis à jour", "service_types": service_types, "taxi_mode": taxi_mode}
 
 
+@router.put("/profile/info")
+async def request_profile_info_change(request: Request):
+    """Driver requests a change to their professional info (company name / license number).
+    The change is NOT applied live — it is queued in `pending_info` for admin validation."""
+    user = await get_current_user(request)
+    body = await request.json()
+    company_name = (body.get("company_name") or "").strip()
+    license_number = (body.get("license_number") or "").strip()
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    if not company_name and not license_number:
+        raise HTTPException(status_code=400, detail="Renseignez au moins un champ (société ou licence).")
+    same_company = company_name == (driver.get("company_name") or "")
+    same_license = license_number == (driver.get("license_number") or "")
+    if same_company and same_license:
+        raise HTTPException(status_code=400, detail="Aucune modification détectée.")
+    pending = {
+        "company_name": company_name,
+        "license_number": license_number,
+        "previous_company_name": driver.get("company_name") or "",
+        "previous_license_number": driver.get("license_number") or "",
+        "status": "pending",
+        "reason": None,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_at": None,
+    }
+    await db.drivers.update_one({"user_id": user["id"]}, {"$set": {"pending_info": pending}})
+    return {"message": "Demande envoyée — en attente de validation de l'administrateur.", "pending_info": pending}
+
+
 @router.get("/taxi-eligibility")
 async def taxi_eligibility(request: Request):
     """Tells the client which taxi modes the driver can enable, and what's missing."""

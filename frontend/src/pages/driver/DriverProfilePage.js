@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { driverAPI, walletAPI } from '../../services/api';
 import {
   User, CaretRight, Gear, SignOut, ClipboardText, Wallet, Plus, EnvelopeOpen,
@@ -8,7 +9,8 @@ import {
   Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
   CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
   Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check, Car, Motorcycle,
-  Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple, House
+  Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple, House,
+  IdentificationCard, Clock, XCircle
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -18,6 +20,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const DriverProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { on } = useWebSocket(user?.id);
   const soon = () => toast.info('Bientôt disponible');
   const [driver, setDriver] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -29,6 +32,9 @@ const DriverProfilePage = () => {
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedTaxiMode, setSelectedTaxiMode] = useState(null);
   const [taxiPicker, setTaxiPicker] = useState(false);
+  const [showInfoEdit, setShowInfoEdit] = useState(false);
+  const [savingInfo, setSavingInfo] = useState(false);
+  const [infoForm, setInfoForm] = useState({ company_name: '', license_number: '' });
 
   const serviceOptions = [
     { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
@@ -100,6 +106,41 @@ const DriverProfilePage = () => {
       setSavingServices(false);
     }
   };
+
+  const openInfoEdit = () => {
+    setInfoForm({
+      company_name: driver?.company_name || '',
+      license_number: driver?.license_number || '',
+    });
+    setShowInfoEdit(true);
+  };
+
+  const submitInfoChange = async () => {
+    const company_name = (infoForm.company_name || '').trim();
+    const license_number = (infoForm.license_number || '').trim();
+    if (!company_name && !license_number) { toast.error('Renseignez au moins un champ'); return; }
+    setSavingInfo(true);
+    try {
+      const res = await driverAPI.requestInfoChange({ company_name, license_number });
+      setDriver((prev) => ({ ...(prev || {}), pending_info: res.data.pending_info }));
+      toast.success('Demande envoyée — en attente de validation.');
+      setShowInfoEdit(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Échec de la demande');
+    } finally {
+      setSavingInfo(false);
+    }
+  };
+
+  // Real-time alert when an admin approves/rejects the driver's info change.
+  useEffect(() => {
+    const off = on('driver_info_reviewed', (msg) => {
+      if (msg?.status === 'approved') toast.success(msg.body || 'Informations validées ✅', { duration: 6000 });
+      else toast.error(msg?.body || 'Modification refusée', { duration: 8000 });
+      driverAPI.getProfile().then((r) => setDriver(r.data)).catch(() => {});
+    });
+    return off;
+  }, [on]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -185,6 +226,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={ClipboardText} color="#3B82F6" label="Mes reservations" onClick={() => navigate('/chauffeur/earnings')} />
           <ProfileRow icon={Wrench} color="#F59E0B" label="Gerer les services" onClick={openServices} />
           <ProfileRow icon={FileText} color="#06B6D4" label="Gerer les documents" onClick={() => navigate('/chauffeur/documents')} />
+          <ProfileRow icon={IdentificationCard} color="#0EA5E9" label="Mes informations (societe, licence)" onClick={openInfoEdit} />
           <ProfileRow icon={MapPin} color="#EF4444" label="Gerer le lieu de travail" onClick={soon} />
           <ProfileRow icon={Images} color="#8B5CF6" label="Gerer la galerie" onClick={() => navigate('/chauffeur/gallery')} />
           <ProfileRow icon={CalendarCheck} color="#A3A3A3" label="Ma disponibilite" onClick={soon} />
@@ -340,6 +382,53 @@ const DriverProfilePage = () => {
               data-testid="driver-services-save"
             >
               {savingServices ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== INFO EDIT SHEET (société / licence) ===== */}
+      {showInfoEdit && (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50" onClick={() => !savingInfo && setShowInfoEdit(false)} data-testid="driver-info-modal">
+          <div className="w-full max-w-[500px] bg-white rounded-t-3xl p-5 pb-8 animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Mes informations professionnelles</h2>
+            <p className="text-sm text-gray-500 mb-4">Modifiez votre raison sociale et votre numéro de licence. Les changements seront appliqués après validation par l&apos;administrateur.</p>
+
+            {driver?.pending_info?.status === 'pending' && (
+              <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-center gap-2" data-testid="info-pending-banner">
+                <Clock size={18} weight="fill" className="text-amber-500" />
+                <p className="text-amber-700 text-xs font-medium">Demande en attente de validation par l&apos;administrateur.</p>
+              </div>
+            )}
+            {driver?.pending_info?.status === 'rejected' && (
+              <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-3" data-testid="info-rejected-banner">
+                <div className="flex items-center gap-2"><XCircle size={18} weight="fill" className="text-red-500" /><p className="text-red-700 text-xs font-medium">Dernière demande refusée</p></div>
+                {driver.pending_info.reason && <p className="text-red-500 text-xs mt-1">Motif : {driver.pending_info.reason}</p>}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Nom de la société</label>
+                <input value={infoForm.company_name} onChange={(e) => setInfoForm((p) => ({ ...p, company_name: e.target.value }))}
+                  placeholder="Ex. SB Drive VTC" disabled={savingInfo}
+                  className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400"
+                  data-testid="info-company-input" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600">Numéro de licence</label>
+                <input value={infoForm.license_number} onChange={(e) => setInfoForm((p) => ({ ...p, license_number: e.target.value }))}
+                  placeholder="Ex. VTC-123456" disabled={savingInfo}
+                  className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400"
+                  data-testid="info-license-input" />
+              </div>
+            </div>
+
+            <button type="button" disabled={savingInfo} onClick={submitInfoChange}
+              className="w-full mt-5 py-3.5 rounded-2xl font-bold text-white transition-colors disabled:opacity-50"
+              style={{ background: GREEN }} data-testid="info-submit-btn">
+              {savingInfo ? 'Envoi…' : 'Soumettre pour validation'}
             </button>
           </div>
         </div>

@@ -16,6 +16,8 @@ const DriverDocsModal = ({ driver, onClose, onChanged }) => {
   const [loading, setLoading] = useState(true);
   const [rejecting, setRejecting] = useState(null);
   const [reason, setReason] = useState('');
+  const [rejectingInfo, setRejectingInfo] = useState(false);
+  const [infoReason, setInfoReason] = useState('');
 
   const load = () => {
     adminAPI.getDriverDocuments(driver.id)
@@ -44,6 +46,18 @@ const DriverDocsModal = ({ driver, onClose, onChanged }) => {
     }
   };
 
+  const setInfoStatus = async (status, rsn = '') => {
+    try {
+      const r = await adminAPI.setDriverInfoChangeStatus(driver.id, status, rsn);
+      setData((prev) => ({ ...prev, pending_info: r.data.pending_info, company_name: r.data.company_name, license_number: r.data.license_number }));
+      setRejectingInfo(false); setInfoReason('');
+      toast.success(status === 'approved' ? 'Modification approuvée' : 'Modification refusée');
+      if (onChanged) onChanged();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec');
+    }
+  };
+
   const docs = data?.documents || [];
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" data-testid="driver-docs-modal" onClick={onClose}>
@@ -56,6 +70,39 @@ const DriverDocsModal = ({ driver, onClose, onChanged }) => {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0" data-testid="docs-modal-close"><X size={20} /></button>
         </div>
         <div className="p-5 space-y-3">
+          {data?.pending_info?.status === 'pending' && (
+            <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-3" data-testid="admin-info-change">
+              <p className="font-bold text-amber-800 text-sm flex items-center gap-1.5"><Clock size={14} weight="fill" />Modification d&apos;informations à valider</p>
+              <div className="mt-2 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-500">Société</span>
+                  <span className="text-gray-800 font-medium text-right">
+                    <span className="line-through text-gray-400 mr-1">{data.pending_info.previous_company_name || '—'}</span>
+                    → <span className="text-amber-700 font-semibold" data-testid="admin-info-new-company">{data.pending_info.company_name || '—'}</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-500">N° de licence</span>
+                  <span className="text-gray-800 font-medium text-right">
+                    <span className="line-through text-gray-400 mr-1">{data.pending_info.previous_license_number || '—'}</span>
+                    → <span className="text-amber-700 font-semibold" data-testid="admin-info-new-license">{data.pending_info.license_number || '—'}</span>
+                  </span>
+                </div>
+              </div>
+              {rejectingInfo ? (
+                <div className="mt-2 flex items-center gap-2">
+                  <input value={infoReason} onChange={(e) => setInfoReason(e.target.value)} placeholder="Motif du refus" className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm outline-none focus:border-red-300" data-testid="admin-info-reason" />
+                  <button onClick={() => setInfoStatus('rejected', infoReason)} className="text-xs font-bold bg-red-600 text-white px-2.5 py-1.5 rounded" data-testid="admin-info-confirm-reject">Confirmer</button>
+                  <button onClick={() => { setRejectingInfo(false); setInfoReason(''); }} className="text-xs text-gray-500 px-1">Annuler</button>
+                </div>
+              ) : (
+                <div className="mt-2 flex items-center gap-2">
+                  <button onClick={() => setInfoStatus('approved')} className="text-xs font-bold bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700" data-testid="admin-info-approve">Approuver</button>
+                  <button onClick={() => setRejectingInfo(true)} className="text-xs font-bold text-red-600 border border-red-200 px-3 py-1.5 rounded hover:bg-red-50" data-testid="admin-info-reject">Refuser</button>
+                </div>
+              )}
+            </div>
+          )}
           {loading && <p className="text-center text-gray-400 py-6">Chargement…</p>}
           {!loading && docs.length === 0 && <p className="text-center text-gray-400 py-6">Aucun document requis / fourni.</p>}
           {!loading && docs.map((doc) => {
@@ -230,6 +277,9 @@ const AdminDrivers = () => {
                       }`}>{d.status}</span>
                       {pendingDocs > 0 && (
                         <button onClick={() => setDocDriver(d)} className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 hover:bg-orange-200" data-testid={`docs-badge-${i}`} title="Documents à valider">{pendingDocs} à valider</button>
+                      )}
+                      {d.pending_info?.status === 'pending' && (
+                        <button onClick={() => setDocDriver(d)} className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200" data-testid={`info-badge-${i}`} title="Modification d'infos à valider">Infos à valider</button>
                       )}
                     </td>
                     <td className="py-3 px-3">
