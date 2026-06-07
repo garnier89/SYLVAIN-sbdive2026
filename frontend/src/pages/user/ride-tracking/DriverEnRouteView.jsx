@@ -31,7 +31,7 @@ const ActionBtn = ({ Icon, bg, onClick, testId, label }) => (
  * shown to the passenger once a driver is assigned (accepted/arriving/in_progress).
  * Map is rendered with Google Maps via GoogleRideMap.
  */
-const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat, onShare, onCancel, onEditDest, otp, onRequestOtp, onSos }) => {
+const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat, onShare, onCancel, onEditDest, otp, onRequestOtp, onSos, canCancel = true }) => {
   const inProgress = ride.status === 'in_progress';
   const title = inProgress ? 'EN ROUTE' : 'EN ARRIVANT';
 
@@ -121,12 +121,16 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
         )}
       </div>
 
-      {/* Action buttons — aligned to the right, just above the driver's stars */}
+      {/* Action buttons — aligned to the right, just above the driver's stars.
+          The cancel button is hidden once the trip starts (can't cancel an
+          in-progress ride). */}
       <div className="flex justify-end gap-3 px-5 -mt-7 relative z-20">
         <ActionBtn Icon={Phone} bg="#2F9BFF" onClick={onCall} testId="enroute-call-btn" label="Appeler" />
         <ActionBtn Icon={ChatCircleDots} bg="#F5A623" onClick={onChat} testId="enroute-chat-btn" label="Message" />
         <ActionBtn Icon={ShareNetwork} bg="#8B5CF6" onClick={onShare} testId="enroute-share-btn" label="Partager" />
-        <ActionBtn Icon={X} bg="#94A3B8" onClick={onCancel} testId="enroute-cancel-btn" label="Annuler" />
+        {canCancel && (
+          <ActionBtn Icon={X} bg="#94A3B8" onClick={onCancel} testId="enroute-cancel-btn" label="Annuler" />
+        )}
       </div>
 
       {/* Driver card */}

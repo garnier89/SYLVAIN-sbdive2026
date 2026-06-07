@@ -513,7 +513,8 @@ const RideTrackingPage = () => {
           onChat={() => navigate(`/ride/${rideId}/chat`)}
           onShare={handleShare}
           onSos={() => { toast.error("Alerte d'urgence envoyée au support et à vos contacts."); navigate('/safety'); }}
-          onCancel={() => (canCancel ? setShowCancel(true) : toast.info('La course est déjà en cours'))}
+          canCancel={canCancel}
+          onCancel={() => setShowCancel(true)}
           onEditDest={() => setShowRouteEdit(true)}
         />
         <RouteEditModal
