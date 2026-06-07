@@ -102,7 +102,7 @@ const LeafletMap = ({
         const color = intensity > 0.66 ? '#dc2626' : intensity > 0.33 ? '#f59e0b' : '#3b82f6';
         return (
           <Circle
-            key={i}
+            key={`${p.lat},${p.lng},${i}`}
             center={[p.lat, p.lng]}
             radius={radius}
             pathOptions={{ color, fillColor: color, fillOpacity: 0.25, opacity: 0.6, weight: 1 }}

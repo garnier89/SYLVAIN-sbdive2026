@@ -47,7 +47,7 @@ def admin_h(admin_token):
 def rider():
     """Register a fresh test rider for the session and return (token, user_id, email)."""
     email = f"TEST_zone_rider_{uuid.uuid4().hex[:8]}@example.com"
-    password = "Rider123!"
+    password = os.environ.get("TEST_NEW_USER_PASSWORD", "Rider123!")
     r = requests.post(f"{BASE}/auth/register", json={
         "email": email, "password": password, "name": "TEST Zone Rider",
         "phone": f"+3360000{uuid.uuid4().hex[:4]}", "role": "user",

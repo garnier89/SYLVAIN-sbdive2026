@@ -1,3 +1,14 @@
+## NEW - 2026-06-07 (34) - Revue de code : correctifs critiques sûrs appliqués (DONE)
+- **Approche** : application ciblée des correctifs **critiques à faible risque** + valeur réelle ; refactors massifs (360 hook deps, split de composants, 173 fonctions complexes, type hints, 170 console, is/== tests) **délibérément différés** (risque de casser une app fonctionnelle, faible valeur immédiate, déjà en backlog P2).
+- 🔴 **BUG CRITIQUE corrigé** : `rides.py:1196` utilisait `resolve_zone_from_text` **sans l'importer** (introduit au Lot 1.c bonus sous-catégorie) → **crash à la fin de course** si `sub_category_bonus` activé. Import local ajouté. Confirmé par pyflakes F821 (désormais **0 nom indéfini** dans tout le code applicatif — les « 9 instances » du rapport étaient des faux positifs).
+- 🟠 **Complexité réduite** (mon code récent) : `apply_vehicle_zone_pricing()` (complexité 26) découpé en `_zone_override_rank()` + `_best_zone_override()` (single responsibility). Comportement identique (tests 25/25 OK).
+- 🟢 **Quick win** : clé React stable dans `LeafletMap.js` (Circles : `${lat},${lng},${i}`).
+- 🔒 **Test** : mot de passe throwaway de `test_geo_scoped_configs.py` lu depuis `TEST_NEW_USER_PASSWORD` (env) au lieu d'être en dur.
+- **Non appliqué à dessein** : clés-index de `DriverScorePage`/`AdminWeeklyReports` (l'index y est correct — édition in-place / liste statique ; et toucher ces fichiers réveillait des erreurs compiler **pré-existantes** immutability/set-state-in-effect) ; `AdminServiceCategories` windows (clé-index correcte pour édition in-place, sinon perte de focus input).
+- **Validé** : pytest **25/25** (zone_pricing, rewards_scope, news_scope, store_categories, promo_banners_scope) + lint front/back clean sur les fichiers modifiés. Net : 4 fichiers (`rides.py`, `geo_scope.py`, `test_geo_scoped_configs.py`, `LeafletMap.js`).
+
+
+
 ## NEW - 2026-06-07 (33) - Catégories de livraison par zone (Lot 3) (DONE)
 - **Demande user** : règle de zone sur les catégories de livraison (ex. Vin = métropole only, Médicaments = partout). Pattern « Bannières » exact, réutilise tout le socle.
 - **Backend `store_categories.py`** : import `clean_scope/scope_matches/resolve_zone_from_text`. Seed ajoute `scope {country,state,city}` vide. `GET /store-categories?location=` filtre par zone (`scope_matches` ; scope global = toujours ; sans location = tout, le client filtre `active`). Admin `PUT /{key}` accepte `scope` (clean_scope). Rétrocompatible : catégories existantes sans scope = globales.

@@ -164,6 +164,34 @@ def _norm_zone_name(s) -> str:
     return (s or "").strip().lower()
 
 
+def _zone_override_rank(override_zone: str, city: str, state: str, country_name: str) -> int:
+    """Specificity of a zone-override name vs a resolved zone: 3=city, 2=state, 1=country, 0=none."""
+    z = _norm_zone_name(override_zone)
+    if not z:
+        return 0
+    if city and (z == city or z in city or city in z):
+        return 3
+    if state and (z == state or z in state or state in z):
+        return 2
+    if country_name and (z == country_name or z in country_name or country_name in z):
+        return 1
+    return 0
+
+
+def _best_zone_override(overrides, zone):
+    """Return the most specific zone override matching `zone`, or None."""
+    city = _norm_zone_name(zone.get("city"))
+    state = _norm_zone_name(zone.get("state"))
+    cc = (zone.get("country") or "").upper()
+    country_name = _norm_zone_name(CURATED.get(cc, {}).get("name"))
+    best, best_rank = None, 0
+    for ov in overrides:
+        rank = _zone_override_rank(ov.get("zone"), city, state, country_name)
+        if rank > best_rank:
+            best, best_rank = ov, rank
+    return best
+
+
 def apply_vehicle_zone_pricing(vtype_doc, pickup_address):
     """Return (doc, applied_zone_label).
 
@@ -171,37 +199,14 @@ def apply_vehicle_zone_pricing(vtype_doc, pickup_address):
     matching zone, return a COPY of `vtype_doc` with that zone's pricing fields
     applied. Most-specific match wins (city > state > country). Otherwise the doc
     is returned unchanged with applied_zone_label = None."""
-    if not vtype_doc:
-        return vtype_doc, None
-    overrides = vtype_doc.get("zone_overrides") or []
-    if not overrides:
+    if not vtype_doc or not (vtype_doc.get("zone_overrides") or []):
         return vtype_doc, None
     zone = resolve_zone_from_text(pickup_address)
     if not zone:
         return vtype_doc, None
-    city = _norm_zone_name(zone.get("city"))
-    state = _norm_zone_name(zone.get("state"))
-    cc = (zone.get("country") or "").upper()
-    country_name = _norm_zone_name(CURATED.get(cc, {}).get("name"))
-
-    best = None
-    best_rank = 0
-    for ov in overrides:
-        z = _norm_zone_name(ov.get("zone"))
-        if not z:
-            continue
-        rank = 0
-        if city and (z == city or z in city or city in z):
-            rank = 3
-        elif state and (z == state or z in state or state in z):
-            rank = 2
-        elif country_name and (z == country_name or z in country_name or country_name in z):
-            rank = 1
-        if rank > best_rank:
-            best, best_rank = ov, rank
+    best = _best_zone_override(vtype_doc["zone_overrides"], zone)
     if not best:
         return vtype_doc, None
-
     merged = dict(vtype_doc)
     for f in _PRICING_OVERRIDE_FIELDS:
         if f in best and best[f] not in (None, ""):

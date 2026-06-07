@@ -1193,6 +1193,7 @@ async def update_ride_status(ride_id: str, request: Request):
             subcat_bonus = 0.0
             if sub:
                 from routes.admin import get_rewards_config
+                from core.geo_scope import resolve_zone_from_text
                 ride_zone = resolve_zone_from_text(ride.get("pickup_address") or "")
                 scb = (await get_rewards_config(ride_zone)).get("sub_category_bonus") or {}
                 if scb.get("enabled"):
