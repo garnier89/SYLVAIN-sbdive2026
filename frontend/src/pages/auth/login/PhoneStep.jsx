@@ -1,19 +1,22 @@
 import React from 'react';
 import { ArrowRight, CaretDown, CaretRight } from '@phosphor-icons/react';
 import { COUNTRIES, Fab, BackBtn } from './loginConstants';
+import { useLocale } from '../../../contexts/LocaleContext';
 
 /** Step 1 — phone number entry. Auth logic (onSubmit) lives in the parent. */
 export const PhoneStep = ({
   phone, setPhone, countryCode, setCountryCode,
   showCountryPicker, setShowCountryPicker, error, loading,
   onSubmit, onBack, onOtherOptions,
-}) => (
+}) => {
+  const { t } = useLocale();
+  return (
   <div className="mobile-container min-h-screen bg-[#1a1a2e] flex flex-col relative" data-testid="login-page">
     <BackBtn onClick={onBack} />
 
     <div className="px-6 mt-6">
-      <h1 className="text-2xl font-bold text-white leading-tight" data-testid="login-title">Entrez votre numéro{'\n'}de mobile</h1>
-      <p className="text-sm text-gray-400 mt-1">Mobile</p>
+      <h1 className="text-2xl font-bold text-white leading-tight" data-testid="login-title">{t('login.phone_title')}</h1>
+      <p className="text-sm text-gray-400 mt-1">{t('login.mobile')}</p>
     </div>
 
     <div className="px-6 mt-4">
@@ -43,7 +46,7 @@ export const PhoneStep = ({
       )}
 
       <button onClick={onOtherOptions} className="flex items-center gap-1.5 mt-5" data-testid="other-login-options-btn">
-        <span className="text-[#4a9eff] font-bold text-sm">Ou choisir une autre option de connexion</span>
+        <span className="text-[#4a9eff] font-bold text-sm">{t('login.other_options')}</span>
         <CaretRight size={14} className="text-[#4a9eff]" weight="bold" />
       </button>
 
@@ -51,13 +54,14 @@ export const PhoneStep = ({
     </div>
 
     <div className="px-6 mt-auto mb-4">
-      <p className="text-xs text-gray-500 leading-relaxed">En continuant, j'accepte les <span className="text-[#4a9eff] underline">Conditions Générales</span></p>
+      <p className="text-xs text-gray-500 leading-relaxed">{t('login.terms_agree')} <span className="text-[#4a9eff] underline">{t('login.terms_link')}</span></p>
     </div>
 
     <div className="px-6 pb-8 flex justify-end">
       <Fab onClick={onSubmit} loading={loading} Icon={ArrowRight} />
     </div>
   </div>
-);
+  );
+};
 
 export default PhoneStep;

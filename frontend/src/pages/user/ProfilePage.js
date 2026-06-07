@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocale } from '../../contexts/LocaleContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import ProfileTabView from './profile/ProfileTabView';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
@@ -62,6 +63,7 @@ const MenuCard = ({ children }) => (
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { t } = useLocale();
   const { settings } = useAppSettings();
   const [search] = useSearchParams();
   const [walletBalance, setWalletBalance] = useState(0);
@@ -102,11 +104,11 @@ const ProfilePage = () => {
 
   /* ── quick‑action buttons under wallet card ── */
   const quickActions = [
-    { id: 'bookings', icon: ClipboardText, label: 'Les réservations', color: '#FF4500', bg: 'bg-indigo-50', path: '/history' },
-    { id: 'wallet', icon: Wallet, label: 'Portefeuille', color: '#E91E63', bg: 'bg-pink-50', path: '/wallet' },
-    { id: 'topup', icon: CreditCard, label: 'Recharger', color: '#7C4DFF', bg: 'bg-purple-50', path: '/wallet' },
+    { id: 'bookings', icon: ClipboardText, label: t('menu.the_bookings'), color: '#FF4500', bg: 'bg-indigo-50', path: '/history' },
+    { id: 'wallet', icon: Wallet, label: t('tabs.wallet'), color: '#E91E63', bg: 'bg-pink-50', path: '/wallet' },
+    { id: 'topup', icon: CreditCard, label: t('menu.topup'), color: '#7C4DFF', bg: 'bg-purple-50', path: '/wallet' },
     settings.enable_referral_system !== false
-      ? { id: 'invite', icon: EnvelopeSimple, label: 'Inviter', color: '#FF9800', bg: 'bg-orange-50', path: '/referral' }
+      ? { id: 'invite', icon: EnvelopeSimple, label: t('menu.invite'), color: '#FF9800', bg: 'bg-orange-50', path: '/referral' }
       : null,
   ].filter(Boolean);
 
@@ -140,7 +142,7 @@ const ProfilePage = () => {
       <div className="px-4 -mt-14 relative z-10">
         <div className="bg-white rounded-2xl shadow-lg p-4">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[14px] font-bold text-gray-900">Balance de portefeuille</p>
+            <p className="text-[14px] font-bold text-gray-900">{t('menu.wallet_balance')}</p>
             <p className="text-lg font-bold text-[#FF4500]" data-testid="wallet-balance-display">
               {walletBalance.toFixed(2)} &euro;
             </p>
@@ -166,40 +168,40 @@ const ProfilePage = () => {
       </div>
 
       {/* ═══════════ RÉGLAGES GÉNÉRAUX ═══════════ */}
-      <SectionHeader title="réglages généraux" />
+      <SectionHeader title={t('menu.general_settings')} />
       <MenuCard>
-        <MenuItem icon={User} label="Au propos de vous" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-red-800" iconColor="text-white" onClick={() => navigate('/profile?tab=about')} testId="settings-about-btn" />
-        <MenuItem icon={ClipboardText} label="Mes réservations" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/history')} testId="settings-bookings-btn" />
-        <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
-        <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
-        <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
-        <MenuItem icon={Newspaper} label="Actualités" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/actualites')} testId="settings-news-btn" badge={newsUnread} />
+        <MenuItem icon={User} label={t('menu.about_you')} subtitle={t('menu.carpool_only')} iconBg="bg-red-800" iconColor="text-white" onClick={() => navigate('/profile?tab=about')} testId="settings-about-btn" />
+        <MenuItem icon={ClipboardText} label={t('menu.my_bookings')} iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/history')} testId="settings-bookings-btn" />
+        <MenuItem icon={Briefcase} label={t('menu.company_profile')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
+        <MenuItem icon={ShoppingCart} label={t('menu.my_cart')} iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
+        <MenuItem icon={Bell} label={t('menu.notifications')} iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
+        <MenuItem icon={Newspaper} label={t('menu.news')} iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/actualites')} testId="settings-news-btn" badge={newsUnread} />
         {settings.enable_favorite_driver === true && (
-          <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
+          <MenuItem icon={Heart} label={t('menu.favorite_drivers')} iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
         )}
         {settings.enable_referral_system !== false && (
-          <MenuItem icon={EnvelopeSimple} label="Inviter des amis" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
+          <MenuItem icon={EnvelopeSimple} label={t('menu.invite_friends')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/referral')} testId="settings-invite-btn" />
         )}
-        <MenuItem icon={Phone} label="Contacts d'urgence" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/safety')} testId="settings-emergency-btn" />
+        <MenuItem icon={Phone} label={t('menu.emergency_contacts')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/safety')} testId="settings-emergency-btn" />
         {settings.enable_donation !== false && (
-          <MenuItem icon={HandHeart} label="Faire un don" iconBg="bg-lime-600" iconColor="text-white" onClick={() => navigate('/donation')} testId="settings-donate-btn" />
+          <MenuItem icon={HandHeart} label={t('menu.make_donation')} iconBg="bg-lime-600" iconColor="text-white" onClick={() => navigate('/donation')} testId="settings-donate-btn" />
         )}
       </MenuCard>
 
       {/* ═══════════ ACHETER, VENDRE ET LOUER ═══════════ */}
-      <SectionHeader title="Acheter, vendre et louer" />
+      <SectionHeader title={t('menu.buy_sell_rent')} />
       <MenuCard>
-        <MenuItem icon={ArrowsLeftRight} label="Votre liste générale d'articles" iconBg="bg-amber-600" iconColor="text-white" onClick={() => navigate('/marketplace/general')} testId="settings-items-btn" />
-        <MenuItem icon={Buildings} label="Votre liste de propriétés" iconBg="bg-purple-700" iconColor="text-white" onClick={() => navigate('/marketplace/real-estate')} testId="settings-properties-btn" />
-        <MenuItem icon={CarSimple} label="Votre liste de voitures" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/marketplace/car-rental')} testId="settings-cars-btn" />
+        <MenuItem icon={ArrowsLeftRight} label={t('menu.items_list')} iconBg="bg-amber-600" iconColor="text-white" onClick={() => navigate('/marketplace/general')} testId="settings-items-btn" />
+        <MenuItem icon={Buildings} label={t('menu.properties_list')} iconBg="bg-purple-700" iconColor="text-white" onClick={() => navigate('/marketplace/real-estate')} testId="settings-properties-btn" />
+        <MenuItem icon={CarSimple} label={t('menu.cars_list')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/marketplace/car-rental')} testId="settings-cars-btn" />
       </MenuCard>
 
       {/* ═══════════ PARAMÈTRE DU COMPTE ═══════════ */}
-      <SectionHeader title="Paramètre du compte" />
+      <SectionHeader title={t('menu.account_settings')} />
       <MenuCard>
         <MenuItem
           icon={Fingerprint}
-          label="Activer Face ID/Touch ID"
+          label={t('menu.enable_faceid')}
           iconBg="bg-[#FF4500]"
           iconColor="text-white"
           testId="settings-faceid-btn"
@@ -217,57 +219,57 @@ const ProfilePage = () => {
             </div>
           }
         />
-        <MenuItem icon={UserCircle} label="Gérer son compte" iconBg="bg-pink-600" iconColor="text-white" testId="settings-manage-account-btn" />
-        <MenuItem icon={FileText} label="Gérer les documents" subtitle="Requis uniquement pour le covoiturage" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=documents')} testId="settings-documents-btn" />
-        <MenuItem icon={Key} label="Changer le mot de passe" iconBg="bg-gray-700" iconColor="text-white" onClick={() => navigate('/profile?tab=password')} testId="settings-password-btn" />
-        <MenuItem icon={CurrencyCircleDollar} label="Changer de devise" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=currency')} testId="settings-currency-btn" />
-        <MenuItem icon={Globe} label="Changer de langue" iconBg="bg-orange-800" iconColor="text-white" onClick={() => navigate('/profile?tab=language')} testId="settings-language-btn" />
+        <MenuItem icon={UserCircle} label={t('menu.manage_account')} iconBg="bg-pink-600" iconColor="text-white" testId="settings-manage-account-btn" />
+        <MenuItem icon={FileText} label={t('menu.manage_documents')} subtitle={t('menu.carpool_only')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=documents')} testId="settings-documents-btn" />
+        <MenuItem icon={Key} label={t('menu.change_password')} iconBg="bg-gray-700" iconColor="text-white" onClick={() => navigate('/profile?tab=password')} testId="settings-password-btn" />
+        <MenuItem icon={CurrencyCircleDollar} label={t('menu.change_currency')} iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=currency')} testId="settings-currency-btn" />
+        <MenuItem icon={Globe} label={t('menu.change_language')} iconBg="bg-orange-800" iconColor="text-white" onClick={() => navigate('/profile?tab=language')} testId="settings-language-btn" />
       </MenuCard>
 
       {/* ═══════════ PAIEMENT ═══════════ */}
-      <SectionHeader title="Paiement" />
+      <SectionHeader title={t('menu.payment')} />
       <MenuCard>
-        <MenuItem icon={CreditCard} label="Mode de paiement" iconBg="bg-purple-700" iconColor="text-white" testId="settings-payment-method-btn" />
-        <MenuItem icon={Wallet} label="Mon portefeuille" iconBg="bg-pink-600" iconColor="text-white" onClick={() => navigate('/wallet')} testId="settings-wallet-btn" />
-        <MenuItem icon={CreditCard} label="Ajouter de l'argent" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/wallet')} testId="settings-add-money-btn" />
-        <MenuItem icon={PaperPlaneTilt} label="Envoyer de l'argent" iconBg="bg-red-900" iconColor="text-white" testId="settings-send-money-btn" />
+        <MenuItem icon={CreditCard} label={t('menu.payment_method')} iconBg="bg-purple-700" iconColor="text-white" testId="settings-payment-method-btn" />
+        <MenuItem icon={Wallet} label={t('menu.my_wallet')} iconBg="bg-pink-600" iconColor="text-white" onClick={() => navigate('/wallet')} testId="settings-wallet-btn" />
+        <MenuItem icon={CreditCard} label={t('menu.add_money')} iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/wallet')} testId="settings-add-money-btn" />
+        <MenuItem icon={PaperPlaneTilt} label={t('menu.send_money')} iconBg="bg-red-900" iconColor="text-white" testId="settings-send-money-btn" />
       </MenuCard>
 
       {/* ═══════════ CARTE CADEAU ═══════════ */}
       {settings.enable_gift_card !== false && (
         <>
-          <SectionHeader title="Carte cadeau" />
+          <SectionHeader title={t('menu.gift_card')} />
           <MenuCard>
-            <MenuItem icon={Gift} label="Envoyer une carte-cadeau" iconBg="bg-amber-700" iconColor="text-white" onClick={() => navigate('/giftcards')} testId="settings-send-gift-btn" />
-            <MenuItem icon={Gift} label="Échanger une carte-cadeau" iconBg="bg-orange-600" iconColor="text-white" onClick={() => navigate('/giftcards')} testId="settings-redeem-gift-btn" />
+            <MenuItem icon={Gift} label={t('menu.send_gift')} iconBg="bg-amber-700" iconColor="text-white" onClick={() => navigate('/giftcards')} testId="settings-send-gift-btn" />
+            <MenuItem icon={Gift} label={t('menu.redeem_gift')} iconBg="bg-orange-600" iconColor="text-white" onClick={() => navigate('/giftcards')} testId="settings-redeem-gift-btn" />
           </MenuCard>
         </>
       )}
 
       {/* ═══════════ LIEUX FAVORIS ═══════════ */}
-      <SectionHeader title="Lieux favoris" />
+      <SectionHeader title={t('menu.favorite_places')} />
       <MenuCard>
-        <MenuItem icon={MapPin} label="Ajouter une maison" iconBg="bg-orange-600" iconColor="text-white" testId="settings-add-home-btn" />
-        <MenuItem icon={Briefcase} label="Ajouter du travail" iconBg="bg-purple-900" iconColor="text-white" testId="settings-add-work-btn" />
+        <MenuItem icon={MapPin} label={t('menu.add_home')} iconBg="bg-orange-600" iconColor="text-white" testId="settings-add-home-btn" />
+        <MenuItem icon={Briefcase} label={t('menu.add_work')} iconBg="bg-purple-900" iconColor="text-white" testId="settings-add-work-btn" />
       </MenuCard>
 
       {/* ═══════════ SOUTIEN ═══════════ */}
-      <SectionHeader title="Soutien" />
+      <SectionHeader title={t('menu.support')} />
       <MenuCard>
-        <MenuItem icon={Info} label="À propos de nous" iconBg="bg-yellow-500" iconColor="text-white" testId="settings-about-us-btn" />
-        <MenuItem icon={ShieldCheck} label="Politique de confidentialité" iconBg="bg-gray-800" iconColor="text-white" testId="settings-privacy-btn" />
-        <MenuItem icon={Lock} label="Termes et conditions" iconBg="bg-orange-400" iconColor="text-white" testId="settings-terms-btn" />
-        <MenuItem icon={Question} label="FAQ" iconBg="bg-pink-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-faq-btn" />
-        <MenuItem icon={ChatCircleDots} label="Parler en direct" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/livechat')} testId="settings-live-chat-btn" />
-        <MenuItem icon={Envelope} label="Contactez nous" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-contact-btn" />
+        <MenuItem icon={Info} label={t('menu.about_us')} iconBg="bg-yellow-500" iconColor="text-white" testId="settings-about-us-btn" />
+        <MenuItem icon={ShieldCheck} label={t('menu.privacy')} iconBg="bg-gray-800" iconColor="text-white" testId="settings-privacy-btn" />
+        <MenuItem icon={Lock} label={t('menu.terms')} iconBg="bg-orange-400" iconColor="text-white" testId="settings-terms-btn" />
+        <MenuItem icon={Question} label={t('menu.faq')} iconBg="bg-pink-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-faq-btn" />
+        <MenuItem icon={ChatCircleDots} label={t('menu.live_chat')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/livechat')} testId="settings-live-chat-btn" />
+        <MenuItem icon={Envelope} label={t('menu.contact_us')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/support')} testId="settings-contact-btn" />
       </MenuCard>
 
       {/* ═══════════ AUTRE ═══════════ */}
-      <SectionHeader title="Autre" />
+      <SectionHeader title={t('menu.other')} />
       <MenuCard>
         <MenuItem
           icon={Power}
-          label="Connectez - Out"
+          label={t('menu.logout')}
           iconBg="bg-[#FF4500]"
           iconColor="text-white"
           onClick={handleLogout}
@@ -282,19 +284,19 @@ const ProfilePage = () => {
         <div className="max-w-[430px] mx-auto bg-black rounded-t-3xl px-2 py-2 flex items-center justify-around">
           <button className="flex flex-col items-center gap-0.5 py-2 min-w-[60px]" onClick={() => navigate('/home')} data-testid="nav-home">
             <House size={22} weight="regular" className="text-gray-400" />
-            <span className="text-[10px] text-gray-400">Accueil</span>
+            <span className="text-[10px] text-gray-400">{t('tabs.home')}</span>
           </button>
           <button className="flex flex-col items-center gap-0.5 py-2 min-w-[60px]" onClick={() => navigate('/history')} data-testid="nav-bookings">
             <ClipboardText size={22} weight="regular" className="text-gray-400" />
-            <span className="text-[10px] text-gray-400">Les réservations</span>
+            <span className="text-[10px] text-gray-400">{t('menu.the_bookings')}</span>
           </button>
           <button className="flex flex-col items-center gap-0.5 py-2 min-w-[60px]" onClick={() => navigate('/wallet')} data-testid="nav-wallet">
             <Wallet size={22} weight="regular" className="text-gray-400" />
-            <span className="text-[10px] text-gray-400">Portefeuille</span>
+            <span className="text-[10px] text-gray-400">{t('tabs.wallet')}</span>
           </button>
           <button className="flex flex-col items-center gap-0.5 py-2 min-w-[60px]" data-testid="nav-profile">
             <User size={22} weight="fill" className="text-[#FF4500]" />
-            <span className="text-[10px] text-[#FF4500] font-semibold">Profil</span>
+            <span className="text-[10px] text-[#FF4500] font-semibold">{t('tabs.profile')}</span>
           </button>
         </div>
       </div>

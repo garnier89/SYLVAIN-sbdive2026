@@ -36,3 +36,37 @@ export function getBrowserLocationLabel() {
     );
   });
 }
+
+/**
+ * Resolve the ISO country code (short_name, e.g. "MQ", "SN", "FR") of the user's
+ * current position via Geolocation + Google reverse geocoding. Used to suggest a
+ * locally-relevant UI language on first launch. Returns '' on any failure.
+ */
+export function getBrowserCountryCode() {
+  return new Promise((resolve) => {
+    if (!GKEY || typeof navigator === 'undefined' || !navigator.geolocation) {
+      resolve('');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&language=fr&key=${GKEY}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          let cc = '';
+          for (const r of (data?.results || [])) {
+            const comp = (r.address_components || []).find((c) => (c.types || []).includes('country'));
+            if (comp?.short_name) { cc = comp.short_name; break; }
+          }
+          resolve((cc || '').toUpperCase());
+        } catch {
+          resolve('');
+        }
+      },
+      () => resolve(''),
+      { timeout: 6000, maximumAge: 600000 },
+    );
+  });
+}

@@ -1,9 +1,25 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { BASE_FLAT_FR, flatten, interpolate } from '../lib/i18nBase';
+import { getBrowserCountryCode } from '../lib/browserZone';
 
 // Module-level cache of fetched (flattened) bundles, keyed by lang code.
 const _bundleCache = { fr: BASE_FLAT_FR };
+
+// Country (ISO) → locally-relevant UI language to SUGGEST on first launch.
+// Covers DOM-TOM creoles + key African markets.
+const ZONE_LANG = {
+  MQ: 'gcf-mq', // Martinique → créole martiniquais
+  GP: 'gcf',    // Guadeloupe → créole guadeloupéen
+  GF: 'gcr',    // Guyane → créole guyanais
+  RE: 'rcf',    // Réunion → créole réunionnais
+  HT: 'ht',     // Haïti → créole haïtien
+  SN: 'wo',     // Sénégal → wolof
+  CI: 'dyu',    // Côte d'Ivoire → dioula
+  CD: 'ln',     // RD Congo → lingala
+  CG: 'ln',     // Congo → lingala
+  NG: 'ha',     // Nigeria → haoussa
+};
 
 const CURRENCIES = [
   { code: 'EUR', symbol: '\u20AC', name: 'Euro', flag: '\uD83C\uDDEA\uD83C\uDDFA' },
@@ -68,6 +84,46 @@ const LANGUAGES = [
 
 const LocaleContext = createContext();
 
+// Non-intrusive first-launch banner suggesting the locally-relevant language.
+const LanguageSuggestionBanner = () => {
+  const ctx = useContext(LocaleContext);
+  const suggestion = ctx?.suggestion;
+  if (!suggestion) return null;
+  return (
+    <div
+      className="fixed top-3 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-1.5rem)] max-w-[406px] rounded-2xl bg-white shadow-[0_12px_40px_-8px_rgba(11,20,38,0.35)] border border-slate-200 p-3.5 animate-in slide-in-from-top"
+      data-testid="lang-suggestion-banner"
+    >
+      <div className="flex items-start gap-3">
+        <span className="text-2xl leading-none mt-0.5">{suggestion.flag}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-[#1F2430]">Bonjour ! 👋</p>
+          <p className="text-[13px] text-slate-600 mt-0.5">
+            Cette langue est disponible près de chez vous : <b>{suggestion.name}</b>. Souhaitez-vous l&apos;utiliser ?
+          </p>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={ctx.acceptSuggestion}
+              data-testid="lang-suggestion-accept"
+              className="flex-1 py-2 rounded-xl bg-[#FF5000] text-white text-sm font-semibold"
+            >
+              Oui, passer en {suggestion.name}
+            </button>
+            <button
+              onClick={ctx.dismissSuggestion}
+              data-testid="lang-suggestion-dismiss"
+              className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-medium"
+            >
+              Rester en français
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 export const LocaleProvider = ({ children }) => {
   const [currency, setCurrency] = useState(() => {
     const saved = localStorage.getItem('sb_currency');
@@ -91,6 +147,38 @@ export const LocaleProvider = ({ children }) => {
       })
       .catch(() => {});
     return () => { cancelled = true; };
+  }, []);
+
+  // ── First-launch language SUGGESTION by zone (non-intrusive banner) ──
+  const [suggestedCode, setSuggestedCode] = useState('');
+  useEffect(() => {
+    const savedRaw = localStorage.getItem('sb_language');
+    const savedCode = savedRaw ? (JSON.parse(savedRaw)?.code || 'fr') : 'fr';
+    const asked = localStorage.getItem('sb_lang_suggested');
+    // Only suggest when the user is still on the French default and was never asked.
+    if (asked || savedCode !== 'fr') return;
+    let cancelled = false;
+    getBrowserCountryCode()
+      .then((cc) => {
+        const lang = ZONE_LANG[cc];
+        if (lang && lang !== 'fr' && !cancelled) setSuggestedCode(lang);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Derived suggestion object (needs the loaded languages for name/flag).
+  const suggestion = suggestedCode ? (languages.find((l) => l.code === suggestedCode) || null) : null;
+
+  const acceptSuggestion = useCallback(() => {
+    if (suggestion) setLanguage(suggestion);
+    localStorage.setItem('sb_lang_suggested', '1');
+    setSuggestedCode('');
+  }, [suggestion]);
+
+  const dismissSuggestion = useCallback(() => {
+    localStorage.setItem('sb_lang_suggested', '1');
+    setSuggestedCode('');
   }, []);
   // Flattened label bundles by lang code (FR base always present as fallback).
   const [bundles, setBundles] = useState(() => ({ ..._bundleCache }));
@@ -133,8 +221,9 @@ export const LocaleProvider = ({ children }) => {
   };
 
   return (
-    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages }}>
+    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages, suggestion, acceptSuggestion, dismissSuggestion }}>
       {children}
+      <LanguageSuggestionBanner />
     </LocaleContext.Provider>
   );
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, CaretRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { useLocale } from '../../../contexts/LocaleContext';
 
 const Row = ({ onClick, testId, icon, label }) => (
   <button onClick={onClick} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid={testId}>
@@ -11,19 +12,21 @@ const Row = ({ onClick, testId, icon, label }) => (
 );
 
 /** "Choose an account" bottom-sheet. Social auth (onGoogle) handled by the parent. */
-export const AccountOptionsModal = ({ onClose, onEmail, onGoogle }) => (
+export const AccountOptionsModal = ({ onClose, onEmail, onGoogle }) => {
+  const { t } = useLocale();
+  return (
   <div className="fixed inset-0 z-50 flex items-end justify-center" data-testid="account-modal">
     <div className="absolute inset-0 bg-black/60" onClick={onClose} />
     <div className="relative w-full max-w-[430px] bg-white rounded-t-3xl pb-8 animate-slide-up">
       <div className="flex items-center justify-between px-6 pt-6 pb-4">
-        <h3 className="text-lg font-bold text-gray-900">Choisir un compte</h3>
+        <h3 className="text-lg font-bold text-gray-900">{t('login.choose_account')}</h3>
         <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="close-modal-btn">
           <X size={16} className="text-gray-600" />
         </button>
       </div>
 
       <div className="px-2">
-        <Row onClick={onEmail} testId="login-email-btn" label="Email & mot de passe"
+        <Row onClick={onEmail} testId="login-email-btn" label={t('login.email_password')}
           icon={<div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg></div>} />
 
         <Row onClick={() => toast.info('Apple Sign-In bientot disponible')} testId="login-apple-btn" label="Apple"
@@ -40,6 +43,7 @@ export const AccountOptionsModal = ({ onClose, onEmail, onGoogle }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default AccountOptionsModal;
