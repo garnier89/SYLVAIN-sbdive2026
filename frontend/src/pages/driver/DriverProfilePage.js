@@ -4,12 +4,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { driverAPI, walletAPI, configAPI, newsAPI } from '../../services/api';
+import LocaleSelector from '../../components/LocaleSelector';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 import {
   User, CaretRight, Gear, SignOut, ClipboardText, Wallet, Plus, EnvelopeOpen,
   Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
   Receipt, Bell, UsersThree, PhoneCall, Fingerprint, UserCircle, Key,
-  CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
+  Gift, CreditCard, Bank, PaperPlaneTilt, Star,
   Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check, Car, Motorcycle,
   Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple, House,
   IdentificationCard, Clock, XCircle, Newspaper
@@ -196,6 +197,10 @@ const DriverProfilePage = () => {
     <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-28" data-testid="driver-profile-page">
       {/* ===== GREEN HEADER ===== */}
       <div className="px-5 pt-6 pb-5 relative" style={{ background: GREEN }}>
+        {/* Langue & Devise — pastille latérale (identique à l'accueil chauffeur) */}
+        <div className="absolute top-5 right-16" data-testid="driver-profile-locale-chip">
+          <LocaleSelector variant="dark" />
+        </div>
         <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={soon} data-testid="settings-gear">
           <Gear size={20} className="text-white" />
         </button>
@@ -270,8 +275,6 @@ const DriverProfilePage = () => {
           <ProfileRow icon={Fingerprint} color="#64748B" label={t('menu.enable_faceid')} toggle onToggle={(v) => toast.success(v ? 'Face ID / Touch ID activé' : 'Face ID / Touch ID désactivé')} />
           <ProfileRow icon={UserCircle} color="#D946EF" label={t('menu.manage_account')} onClick={soon} />
           <ProfileRow icon={Key} color="#374151" label={t('menu.change_password')} onClick={soon} />
-          <ProfileRow icon={CurrencyCircleDollar} color="#EC4899" label={t('menu.change_currency')} onClick={soon} />
-          <ProfileRow icon={Globe} color="#0D9488" label={t('menu.change_language')} onClick={soon} />
           {rewardsActive && appSettings.enable_driver_reward_program !== false && (
             <ProfileRow icon={Gift} color="#22C55E" label={t('driver.reward_program')} onClick={() => navigate('/chauffeur/rewards')} />
           )}

@@ -1,3 +1,12 @@
+## NEW - 2026-06-07 (51) - Devise + Langue : pastille latérale « FR | € » (client + chauffeur), suppression des items redondants (DONE)
+- **Demande user** : « La devise et la langue, leur place c'est sur le côté latéral — application chauffeur ET clients » (réf. captures : la pastille « FR | € » de l'en-tête chauffeur = la bonne place ; les 2 items dans le Profil = à retirer).
+- **Composant** : `LocaleSelector` (pastille « FR | € » + modale langues/devises) déjà présent dans l'en-tête de l'accueil client et de l'accueil chauffeur.
+- **Client (`ProfilePage.js`)** : ajout de `<LocaleSelector variant="dark" />` dans l'en-tête (à gauche de l'engrenage, `data-testid=profile-locale-chip`) ; **suppression** des items « Changer de devise » (`settings-currency-btn`) et « Changer de langue » (`settings-language-btn`). Imports `Globe`/`CurrencyCircleDollar` nettoyés. **Vérifié (Playwright)** : pastille présente, 2 items absents.
+- **Chauffeur (`DriverProfilePage.js`)** : ajout de `<LocaleSelector variant="dark" />` dans l'en-tête vert (`data-testid=driver-profile-locale-chip`) ; **suppression** des 2 lignes placeholder `change_currency`/`change_language` (qui étaient `onClick={soon}`). Imports `Globe`/`CurrencyCircleDollar` nettoyés. Vérifié par symétrie + lint clean + webpack OK (connexion chauffeur de test non aboutie à l'écran).
+- ⚠️ PREVIEW → redéploiement requis pour la production.
+
+
+
 ## NEW - 2026-06-07 (50) - Pool : limite « places max par réservation » = 2 (configurable) (DONE)
 - **Demande user** : « J'ai commandé le Pool, normalement c'est maxi 2 places » (le sélecteur affichait 4).
 - **Logique** : un Pool est un trajet PARTAGÉ → un passager ne doit réserver qu'un nombre limité de places pour laisser de la place aux autres. La capacité totale du véhicule (`pool_capacity`=4) reste utilisée pour le badge « places restantes », mais la **réservation par passager est plafonnée à 2** (`max_seats_per_booking`, défaut 2, surchargeable par véhicule via `pool_max_seats_per_booking` ou la config Pool globale `max_seats_per_booking`).

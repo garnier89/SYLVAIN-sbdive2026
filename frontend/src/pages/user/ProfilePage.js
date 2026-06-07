@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import ProfileTabView from './profile/ProfileTabView';
+import LocaleSelector from '../../components/LocaleSelector';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Switch } from '../../components/ui/switch';
 import { walletAPI, newsAPI } from '../../services/api';
@@ -12,7 +13,7 @@ import {
   ClipboardText, Wallet, CreditCard, EnvelopeSimple, CaretRight,
   User, Bell, ShoppingCart, Heart, Phone, Briefcase, SignOut,
   House, Car, GearSix, Fingerprint, UserCircle, FileText,
-  Key, CurrencyCircleDollar, Globe, ArrowsLeftRight, Buildings,
+  Key, ArrowsLeftRight, Buildings,
   CarSimple, Gift, MapPin, Info, ShieldCheck, Lock, Question,
   PaperPlaneTilt, Power, Envelope, HandHeart, ChatCircleDots, Newspaper
 } from '@phosphor-icons/react';
@@ -136,6 +137,10 @@ const ProfilePage = () => {
             <GearSix size={22} weight="fill" className="text-white/80" />
           </button>
         </div>
+        {/* Langue & Devise — pastille latérale (identique à l'accueil / app chauffeur) */}
+        <div className="absolute right-16 top-8" data-testid="profile-locale-chip">
+          <LocaleSelector variant="dark" />
+        </div>
       </div>
 
       {/* ═══════════ WALLET CARD — floating ═══════════ */}
@@ -222,8 +227,6 @@ const ProfilePage = () => {
         <MenuItem icon={UserCircle} label={t('menu.manage_account')} iconBg="bg-pink-600" iconColor="text-white" testId="settings-manage-account-btn" />
         <MenuItem icon={FileText} label={t('menu.manage_documents')} subtitle={t('menu.carpool_only')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=documents')} testId="settings-documents-btn" />
         <MenuItem icon={Key} label={t('menu.change_password')} iconBg="bg-gray-700" iconColor="text-white" onClick={() => navigate('/profile?tab=password')} testId="settings-password-btn" />
-        <MenuItem icon={CurrencyCircleDollar} label={t('menu.change_currency')} iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=currency')} testId="settings-currency-btn" />
-        <MenuItem icon={Globe} label={t('menu.change_language')} iconBg="bg-orange-800" iconColor="text-white" onClick={() => navigate('/profile?tab=language')} testId="settings-language-btn" />
       </MenuCard>
 
       {/* ═══════════ PAIEMENT ═══════════ */}
