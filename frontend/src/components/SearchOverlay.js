@@ -4,19 +4,19 @@ import { MagnifyingGlass, X, ArrowLeft } from '@phosphor-icons/react';
 
 const ALL_SERVICES = [
   // Taxi Services
-  { name: 'VTC Réservation', category: 'Taxi', path: '/ride', keywords: 'vtc taxi course réservation voiture chauffeur' },
-  { name: 'VTC Pooling', category: 'Taxi', path: '/ride?type=pool', keywords: 'vtc pooling covoiturage partagé' },
-  { name: 'VTC Location', category: 'Taxi', path: '/ride?type=rental', keywords: 'location voiture vtc' },
-  { name: 'Chauffeur Privé', category: 'Taxi', path: '/ride?type=private', keywords: 'chauffeur privé personnel' },
-  { name: 'Enchères VTC', category: 'Taxi', path: '/ride?type=bid', keywords: 'enchères bid taxi vtc prix' },
-  { name: 'VTC Intercity', category: 'Taxi', path: '/ride?type=intercity', keywords: 'intercity longue distance ville' },
-  { name: 'Programmer Course', category: 'Taxi', path: '/ride?type=schedule', keywords: 'programmer planifier réserver avance' },
-  { name: 'Aéroport', category: 'Taxi', path: '/ride', keywords: 'aéroport avion vol transfert airport' },
-  { name: 'Moto Réservation', category: 'Taxi', path: '/ride', keywords: 'moto deux roues scooter' },
-  { name: 'Location Moto', category: 'Taxi', path: '/ride', keywords: 'location moto scooter louer' },
-  { name: 'Tuktuk', category: 'Taxi', path: '/ride', keywords: 'tuktuk rickshaw trois roues' },
-  { name: 'Corporate', category: 'Taxi', path: '/ride', keywords: 'corporate entreprise business professionnel' },
-  { name: 'Accessibilité', category: 'Taxi', path: '/ride', keywords: 'accessibilité handicap fauteuil pmr' },
+  { name: 'VTC Réservation', category: 'Taxi', path: '/course?mode=standard', keywords: 'vtc taxi course réservation voiture chauffeur' },
+  { name: 'VTC Pooling', category: 'Taxi', path: '/course?mode=pool', keywords: 'vtc pooling covoiturage partagé' },
+  { name: 'VTC Location', category: 'Taxi', path: '/course?mode=rental', keywords: 'location voiture vtc' },
+  { name: 'Chauffeur Privé', category: 'Taxi', path: '/course?mode=buddy_driver', keywords: 'chauffeur privé personnel' },
+  { name: 'Enchères VTC', category: 'Taxi', path: '/course?mode=bidding', keywords: 'enchères bid taxi vtc prix' },
+  { name: 'VTC Intercity', category: 'Taxi', path: '/course?mode=intercity', keywords: 'intercity longue distance ville' },
+  { name: 'Programmer Course', category: 'Taxi', path: '/course?mode=book_later', keywords: 'programmer planifier réserver avance' },
+  { name: 'Aéroport', category: 'Taxi', path: '/course?mode=airport', keywords: 'aéroport avion vol transfert airport' },
+  { name: 'Moto Réservation', category: 'Taxi', path: '/course?mode=moto', keywords: 'moto deux roues scooter' },
+  { name: 'Location Moto', category: 'Taxi', path: '/course?mode=moto_rental', keywords: 'location moto scooter louer' },
+  { name: 'Tuktuk', category: 'Taxi', path: '/course?mode=tuktuk', keywords: 'tuktuk rickshaw trois roues' },
+  { name: 'Corporate', category: 'Taxi', path: '/course?mode=corporate', keywords: 'corporate entreprise business professionnel' },
+  { name: 'Accessibilité', category: 'Taxi', path: '/course?mode=access', keywords: 'accessibilité handicap fauteuil pmr' },
 
   // Delivery Services
   { name: 'Livraison Repas', category: 'Livraison', path: '/food', keywords: 'repas nourriture restaurant manger food' },

@@ -53,9 +53,14 @@ const IncomingRequestSheet = ({
   const pickupDist = haversineKm(driverPos, { lat: request.pickup_lat, lng: request.pickup_lng });
   const pickupEta = pickupDist != null ? Math.max(1, Math.round((pickupDist / 22) * 60) + 1) : null;
   const seats = request.seats_required || 1;
-  const title = request.pool_enabled
-    ? t('driver.pool_request', { seats })
-    : `${t('driver.demande')} · ${(request.vehicle_type || 'Basic').toString().replace(/^./, (c) => c.toUpperCase())}`;
+  const isBidding = request.is_bidding === true || request.mode === 'bidding' || request.ride_type === 'bidding';
+  const vehicleLabel = (request.vehicle_type || 'Basic').toString().replace(/^./, (c) => c.toUpperCase());
+  const title = isBidding
+    ? `${t('driver.bidding_request')} · ${vehicleLabel}`
+    : request.pool_enabled
+      ? t('driver.pool_request', { seats })
+      : `${t('driver.demande')} · ${vehicleLabel}`;
+  const priceLabel = isBidding ? t('driver.passenger_offer') : t('driver.est_price');
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/40 flex items-end" data-testid="incoming-request-modal">
@@ -72,10 +77,10 @@ const IncomingRequestSheet = ({
           )}
         </div>
 
-        {/* Prix estimé (yellow) */}
-        <div className="rounded-2xl bg-amber-100 py-3 text-center mb-3" data-testid="request-price-box">
-          <p className="text-sm font-bold text-amber-900">{t('driver.est_price')}</p>
-          <p className="text-2xl font-extrabold text-amber-900" data-testid="request-price">{price} €</p>
+        {/* Prix estimé (yellow) — "offre du passager" for bidding rides */}
+        <div className={`rounded-2xl py-3 text-center mb-3 ${isBidding ? 'bg-pink-100' : 'bg-amber-100'}`} data-testid="request-price-box">
+          <p className={`text-sm font-bold ${isBidding ? 'text-pink-900' : 'text-amber-900'}`}>{priceLabel}</p>
+          <p className={`text-2xl font-extrabold ${isBidding ? 'text-pink-900' : 'text-amber-900'}`} data-testid="request-price">{price} €</p>
         </div>
 
         {/* Estimations: ramassage (pink) + voyage (cyan) */}

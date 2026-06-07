@@ -364,6 +364,22 @@ async def create_ride(data: RideRequest, request: Request):
         fare = round(max(fare - auto_promo_discount, 0), 2)
 
     # ===== Voucher (code saisi par le rider) — appliqué après la promo auto =====
+    # ── Canonical ride mode (so each order type keeps its own identity) ──
+    # bidding  → passenger proposes a fare, drivers may counter-offer.
+    # pool     → shared ride with seat restrictions.
+    # scheduled→ future pickup (kept in the driver agenda, not an instant pop-up).
+    # otherwise→ the TaxiHub mode_id (standard/airport/pets/…) or "instant".
+    incoming_ride_type = getattr(data, "ride_type", "instant") or "instant"
+    is_bidding = incoming_ride_type == "bidding" or (mode_id == "bidding")
+    if is_bidding:
+        ride_mode = "bidding"
+    elif pool_enabled:
+        ride_mode = "pool"
+    elif getattr(data, "scheduled_at", None):
+        ride_mode = "scheduled"
+    else:
+        ride_mode = mode_id or incoming_ride_type or "instant"
+
     voucher_code = (data.voucher_code or "").strip().upper() if data.voucher_code else None
     voucher_id = None
     voucher_discount = 0.0
@@ -410,7 +426,9 @@ async def create_ride(data: RideRequest, request: Request):
         "proposed_fare": float(data.proposed_fare) if data.proposed_fare else fare,
         "counter_offers": [],  # list of {driver_id, driver_name, amount, created_at, status}
         # Pack A — Taxi Avance V3Cube
-        "ride_type": getattr(data, 'ride_type', 'instant'),
+        "ride_type": incoming_ride_type,
+        "mode": ride_mode,
+        "is_bidding": is_bidding,
         "flight_number": getattr(data, 'flight_number', None),
         "rental_hours": getattr(data, 'rental_hours', None),
         "rental_package": getattr(data, 'rental_package', None),
@@ -493,6 +511,11 @@ async def create_ride(data: RideRequest, request: Request):
             "proposed_fare": ride["proposed_fare"],
             "distance_km": ride["distance_km"],
             "duration_mins": ride["duration_mins"],
+            "mode": ride_mode,
+            "ride_type": incoming_ride_type,
+            "is_bidding": is_bidding,
+            "pool_enabled": ride["pool_enabled"],
+            "seats_required": ride["seats_required"],
         })
 
     # Also broadcast to admins watching the live-rides cockpit
@@ -547,6 +570,11 @@ async def update_proposed_fare(ride_id: str, request: Request):
         "proposed_fare": new_fare,
         "distance_km": ride.get("distance_km"),
         "duration_mins": ride.get("duration_mins"),
+        "mode": ride.get("mode") or "bidding",
+        "ride_type": ride.get("ride_type", "instant"),
+        "is_bidding": True,
+        "pool_enabled": ride.get("pool_enabled", False),
+        "seats_required": ride.get("seats_required", 1),
     })
     return {"message": "Tarif augmenté et renvoyé aux chauffeurs", "proposed_fare": new_fare}
 
@@ -578,6 +606,11 @@ async def rebroadcast_ride(ride_id: str, request: Request):
         "proposed_fare": ride.get("proposed_fare"),
         "distance_km": ride.get("distance_km"),
         "duration_mins": ride.get("duration_mins"),
+        "mode": ride.get("mode"),
+        "ride_type": ride.get("ride_type", "instant"),
+        "is_bidding": ride.get("is_bidding", False),
+        "pool_enabled": ride.get("pool_enabled", False),
+        "seats_required": ride.get("seats_required", 1),
     })
     return {"message": "Recherche relancée", "ride_id": ride_id}
 
@@ -737,6 +770,11 @@ async def convert_ride_to_bidding(ride_id: str, request: Request):
         "proposed_fare": proposed,
         "distance_km": ride.get("distance_km"),
         "duration_mins": ride.get("duration_mins"),
+        "mode": "bidding",
+        "ride_type": ride.get("ride_type", "instant"),
+        "is_bidding": True,
+        "pool_enabled": ride.get("pool_enabled", False),
+        "seats_required": ride.get("seats_required", 1),
     })
     await maybe_create_zone_alert(ride.get("pickup_address"), "bidding")
     return {"message": "Course convertie en enchères", "ride_id": ride_id, "proposed_fare": proposed}

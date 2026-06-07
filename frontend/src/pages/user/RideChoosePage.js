@@ -10,7 +10,7 @@
  * - Tout est piloté par l'admin via /admin/taxi-booking-config.
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -61,6 +61,7 @@ const formatScheduled = (iso) => {
 const RideChoosePage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const routerLocation = useLocation();
   const modeId = params.get('mode') || 'standard';
   const mode = useMemo(() => MODES.find((m) => m.id === modeId) || MODES[0], [modeId]);
 
@@ -102,6 +103,7 @@ const RideChoosePage = () => {
   const [bookForName, setBookForName] = useState('');
   const [bookForPhone, setBookForPhone] = useState('');
   const [biddingFare, setBiddingFare] = useState('');
+  const [poolSeats, setPoolSeats] = useState(1);
   const [scheduleLater, setScheduleLater] = useState(mode.panel === 'datetime');
 
   const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(isBidding ? 'bidding' : mode.id);
@@ -143,6 +145,43 @@ const RideChoosePage = () => {
 
   // Auto-localize the departure on mount
   useEffect(() => { autoLocate(); /* eslint-disable-next-line */ }, []);
+
+  // Voice-assistant prefill (forwarded from the legacy /ride redirect): geocode
+  // the spoken destination (and pickup) so the booking is ready to confirm.
+  const voicePrefillRef = useRef(false);
+  const applyVoicePrefill = (prefill) => {
+    const vehicleMap = { 'vtc-taxi': 'sb', premium: 'luxe', van: 'van', 'moto-taxi': 'moto' };
+    if (prefill.vehicle_type && vehicleMap[prefill.vehicle_type]) setSelected(vehicleMap[prefill.vehicle_type]);
+    const geocode = (addr) => new Promise((resolve) => {
+      if (!addr || addr === 'current_location' || !window.google?.maps?.Geocoder) return resolve(null);
+      new window.google.maps.Geocoder().geocode({ address: `${addr}, France` }, (res, status) => {
+        if (status === 'OK' && res?.[0]) {
+          const loc = res[0].geometry.location;
+          resolve({ lat: loc.lat(), lng: loc.lng(), address: res[0].formatted_address || addr });
+        } else resolve(null);
+      });
+    });
+    const waitMaps = (cb, tries = 0) => {
+      if (window.google?.maps?.Geocoder) return cb();
+      if (tries > 30) return undefined;
+      return setTimeout(() => waitMaps(cb, tries + 1), 200);
+    };
+    waitMaps(async () => {
+      if (prefill.pickup && prefill.pickup !== 'current_location') {
+        const p = await geocode(prefill.pickup); if (p) setPickup(p);
+      }
+      if (prefill.dropoff) { const d = await geocode(prefill.dropoff); if (d) setDropoff(d); }
+    });
+  };
+  useEffect(() => {
+    const prefill = routerLocation.state?.prefill;
+    if (prefill && routerLocation.state?.source === 'voice' && !voicePrefillRef.current) {
+      voicePrefillRef.current = true;
+      // Defer to a microtask so no setState runs synchronously inside the effect
+      // (React-Compiler `set-state-in-effect` safe — same pattern as LocaleContext).
+      Promise.resolve().then(() => applyVoicePrefill(prefill));
+    }
+  }, [routerLocation.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Default scheduled date (= now + minimum advance) when scheduling activates
   useEffect(() => {
@@ -306,7 +345,7 @@ const RideChoosePage = () => {
     if (mode.id === 'pets') { base.pets_count = petsCount; base.pets_size = petsSize; }
     if (mode.id === 'assist') base.assist_needs = assistNeeds;
     if (mode.id === 'access') base.handicap_accessibility = true;
-    if (mode.id === 'pool') base.pool_enabled = true;
+    if (mode.id === 'pool') { base.pool_enabled = true; base.seats_required = poolSeats; }
     if (mode.id === 'book_for_someone') { base.book_for_name = bookForName; base.book_for_phone = bookForPhone; }
     return base;
   };
@@ -426,6 +465,7 @@ const RideChoosePage = () => {
           corpAccounts={corpAccounts} corpId={corpId} setCorpId={setCorpId}
           bookForName={bookForName} setBookForName={setBookForName} bookForPhone={bookForPhone} setBookForPhone={setBookForPhone}
           biddingFare={biddingFare} setBiddingFare={setBiddingFare}
+          poolSeats={poolSeats} setPoolSeats={setPoolSeats}
         />
 
         {/* Choose a ride (comparison) */}
@@ -665,6 +705,24 @@ const ModeSpecificPanel = (p) => {
           <input value={p.bookForName} onChange={(e) => p.setBookForName(e.target.value)} placeholder="Nom" className="border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-contact-name" />
           <input value={p.bookForPhone} onChange={(e) => p.setBookForPhone(e.target.value)} placeholder="Téléphone" className="border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-contact-phone" />
         </div>
+      </div>
+    );
+  }
+  if (mode.id === 'pool') {
+    const seats = p.poolSeats || 1;
+    return (
+      <div className={card} data-testid="panel-pool">
+        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-1"><UsersThree size={18} className="text-[#3B82F6]" /> Taxi partagé (Pool)</label>
+        <p className="text-[11px] text-gray-500 mb-2.5">Vous partagez le trajet avec d&apos;autres passagers allant dans la même direction. Le tarif est réduit mais le temps de trajet peut être un peu plus long.</p>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">Places à réserver</span>
+          <div className="flex items-center gap-3">
+            <button onClick={() => p.setPoolSeats(Math.max(1, seats - 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-40" disabled={seats <= 1} data-testid="panel-pool-minus"><Minus size={14} /></button>
+            <span className="font-black text-lg w-6 text-center" data-testid="panel-pool-seats">{seats}</span>
+            <button onClick={() => p.setPoolSeats(Math.min(4, seats + 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-40" disabled={seats >= 4} data-testid="panel-pool-plus"><Plus size={14} /></button>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-1.5">Maximum 4 places par réservation Pool.</p>
       </div>
     );
   }

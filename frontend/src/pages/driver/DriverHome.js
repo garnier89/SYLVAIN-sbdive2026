@@ -549,21 +549,28 @@ const DriverHome = () => {
           </button>
         )}
 
-      {/* Incoming Request — V3Cube PARTNER APP sheet */}
-      {incomingRequest && !currentRide && (
-        <IncomingRequestSheet
-          request={incomingRequest}
-          driverPos={mapCenter}
-          windowSeconds={Math.max(10, appSettings.driver_timeout || 35)}
-          onAccept={acceptRide}
-          onDecline={() => setIncomingRequest(null)}
-          myOffer={myOffer}
-          nowTs={nowTs}
-          onSendCounterOffer={sendCounterOffer}
-          onRenewOffer={renewOffer}
-          onCancelOffer={cancelOffer}
-        />
-      )}
+      {/* Incoming Request — V3Cube PARTNER APP sheet.
+          Counter-offer (bidding) is ONLY available for bidding rides; instant,
+          pool and scheduled requests are fixed-price → Accept / Decline only. */}
+      {incomingRequest && !currentRide && (() => {
+        const isBiddingReq = incomingRequest.is_bidding === true
+          || incomingRequest.mode === 'bidding'
+          || incomingRequest.ride_type === 'bidding';
+        return (
+          <IncomingRequestSheet
+            request={incomingRequest}
+            driverPos={mapCenter}
+            windowSeconds={Math.max(10, appSettings.driver_timeout || 35)}
+            onAccept={acceptRide}
+            onDecline={() => setIncomingRequest(null)}
+            myOffer={myOffer}
+            nowTs={nowTs}
+            onSendCounterOffer={isBiddingReq ? sendCounterOffer : null}
+            onRenewOffer={renewOffer}
+            onCancelOffer={cancelOffer}
+          />
+        );
+      })()}
 
       {/* Scheduled reservations (RED indicator) */}
       {showScheduled && (

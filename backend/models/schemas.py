@@ -181,6 +181,8 @@ class RideResponse(BaseModel):
     stopovers: Optional[List[dict]] = None
     # Pack A
     ride_type: str = "instant"
+    mode: Optional[str] = None
+    is_bidding: bool = False
     flight_number: Optional[str] = None
     rental_hours: Optional[int] = None
     rental_package: Optional[str] = None

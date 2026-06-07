@@ -137,6 +137,7 @@ const TaxiBiddingPage = () => {
           pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
           dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
           vehicle_type: vehicleType, payment_method: 'cash', proposed_fare: finalFare,
+          ride_type: 'bidding', mode_id: 'bidding',
         }),
       });
       if (!res.ok) { const t = await res.text(); throw new Error(`ride ${res.status}: ${t}`); }

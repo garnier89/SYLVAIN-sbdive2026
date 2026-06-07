@@ -1,0 +1,50 @@
+{
+  "summary": "Frontend e2e validation of the refactored taxi order-type separation (SB Drive VTC). Rider flows on /course?mode=<id> and driver reception differentiation all validated on the preview URL with credentials rider.i18n@demo.sb and jean.dupont@demo.sb. Standard, Pool, Scheduled, Bidding and legacy /ride redirects all behave per spec; driver Incoming Request Sheet correctly differentiates Standard / Pool / Bidding (counter-offer toggle appears ONLY for bidding rides).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/rides/{id}/accept", "issue": "Accept call returned 404 on the 4th sequential ride created/rejected/created loop. May be a transient/race condition with the pending-ride poller + multiple rejections from the same rider. Reproduced once out of one attempt during the end-to-end Accept test."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Driver Accept end-to-end (standard)", "issue": "Tapping Accepter on a freshly created standard ride after several consecutive reject cycles surfaced a console 'Failed to accept ride: AxiosError' (HTTP 404) and the driver remained on /chauffeur/home (no active-ride view). Standard sheet UI itself rendered correctly.", "affected_selectors": ["[data-testid=accept-ride-btn]"]}
+    ],
+    "design_issues": [
+      {"screen": "IncomingRequestSheet (standard)", "issues": ["The price-box label is rendered as 'Prix estime' (missing accent) instead of 'Prix estimé'. Likely missing/incorrect i18n key driver.est_price."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate POST /api/rides/{id}/accept returning 404 right after a fresh create — likely needs a tiny propagation delay after broadcast_to_drivers, or accept handler should fetch from a shared pool/cache. Confirm whether a rider can have multiple pending rides (the test created 4 rides back-to-back; rejected ones may have lingered).",
+    "Fix the missing accent on 'Prix estime' (translations.driver.est_price → 'Prix estimé')."
+  ],
+  "critical_code_review_comments": [
+    "RideChoosePage.js is 742 lines — getting large; consider extracting the mode-specific panels (Pool/Schedule/Bidding/Pets/…) into separate components for maintainability.",
+    "IncomingRequestSheet.jsx correctly gates counter-offer on the presence of onSendCounterOffer prop AND the isBidding flag — this is the right pattern; DriverHome.js line 552 only passes onSendCounterOffer when is_bidding/mode==='bidding'/ride_type==='bidding', which matches the request.",
+    "buildPayload in RideChoosePage sends ride_type, mode_id and is_bidding flags consistently. Backend already persists these. Good separation."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "n/a (skipped per request)",
+    "frontend": "95% — 6/7 review-request items fully validated; only the driver Accept end-to-end stopped at a 404 (issue may be intermittent / multi-ride test setup)"
+  },
+  "test_credentials": "rider.i18n@demo.sb / Rider123!  |  jean.dupont@demo.sb / Driver123!",
+  "seed_data_creation": "Created 4 demo rides via POST /api/rides as rider.i18n@demo.sb (ride_50e4..., ride_067a..., ride_60ca..., ride_a38a...). 3 were rejected by the driver, 1 attempted-accept failed with 404.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login: click 'Ou choisir une autre option de connexion' then 'Email & mot de passe'. Rider home tile id 'taxi-booking' → /course?mode=standard. Pool seats: panel-pool-minus / panel-pool-plus / panel-pool-seats — min 1 max 4, buttons disabled at boundaries. Driver online toggle is a text button labelled 'Hors ligne' (top header chip) — clicking it flips to 'En ligne'. Driver polls pending rides every ~8s — wait ~10-11s after creating a rider ride for the incoming-request-modal to appear. To create rides server-side use the /api/auth/login + /api/rides JS calls inside page.evaluate (same-origin via the preview URL). The scheduled flow opens the calendar modal automatically on /course?mode=book_later — confirm it via [data-testid=schedule-calendar-modal] > button:has-text('Confirmer').",
+  "results": {
+    "RIDER_standard": "PASS — /course?mode=standard renders ride-choose-page; panel-pool=0, panel-bidding=0; vehicle list (10 vehicles) shown with prices; tap Commander → /ride/ride_d9bcbd85bd7e (radar).",
+    "RIDER_pool": "PASS — panel-pool present with explanation 'Vous partagez le trajet…'; seat selector 1→2→…→4 (plus disabled at 4, minus disabled at 1); ordering navigates to /ride/ride_cb6a80e6eece.",
+    "RIDER_scheduled": "PASS — panel-schedule present, panel-schedule-trigger auto-filled (e.g. 'dim. 07 juin · 18:45'); button label flipped to 'Planifier · 9362.52 €'; tap → toast 'Course programmée !' and /scheduled-rides.",
+    "RIDER_bidding": "PASS — panel-bidding + panel-bidding-input present; button label 'Proposer mon tarif'; tap → /taxi-bidding with taxi-bidding-page, offer-fare-title, fare-input and find-driver-btn all rendered.",
+    "RIDER_legacy_redirect": "PASS — /ride → /course?mode=standard (mode chip 'VTC Réservation · Course standard'); /ride?type=pool → /course?mode=pool (panel-pool present).",
+    "DRIVER_reception_standard": "PASS — title 'Demande · Sb'; accept-ride-btn=1, reject-ride-btn=1, toggle-counter-offer-btn=0; price box label 'Prix estime 10.00 €'.",
+    "DRIVER_reception_bidding": "PASS — title 'Enchère · Sb'; toggle-counter-offer-btn=1; price box 'Tarif proposé par le passager 22.00 €'.",
+    "DRIVER_reception_pool": "PASS — title 'Demande Pool (3 pers.)'; toggle-counter-offer-btn=0.",
+    "DRIVER_accept_standard": "FAIL — accept-ride-btn click triggered 'Failed to accept ride: AxiosError' (HTTP 404); driver remained on /chauffeur/home. May be a race after multiple rejection cycles or the previous rejected rides still hold the rider's active-ride slot."
+  },
+  "rca of the issue": "Driver Accept end-to-end failure: after creating + rejecting 3 rides in quick succession from the same rider and then creating a 4th, the accept POST returned 404 (ride not found). Most likely the pending-ride poller saw a stale broadcast; or the rider's previous (cancelled) rides interfered. Suggest verifying that rider.i18n@demo.sb has no lingering 'pending' ride before each accept test, and adding a small server-side guard in the accept handler that returns a clearer error when the ride was just removed from the broadcast pool."
+}
