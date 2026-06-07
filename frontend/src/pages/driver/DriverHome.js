@@ -5,18 +5,18 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
-import {
-  MapPin, Bell, X, Gift, Plus, CalendarCheck, List, UsersThree,
-  Sparkle, Taxi, Fire, ArrowUUpLeft, Car
-} from '@phosphor-icons/react';
-import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
-import { decodePolyline } from '../../utils/polyline';
+import { X, Gift, UsersThree } from '@phosphor-icons/react';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 import IncomingRequestSheet from '../../components/driver/IncomingRequestSheet';
 import DriverRideFlow from '../../components/driver/DriverRideFlow';
 import ScheduledReservationsSheet from '../../components/driver/ScheduledReservationsSheet';
 import TaxiHallModal from '../../components/driver/TaxiHallModal';
+import DriverHomeHeader from '../../components/driver/home/DriverHomeHeader';
+import DriverStatsRow from '../../components/driver/home/DriverStatsRow';
+import DriverHomeMap from '../../components/driver/home/DriverHomeMap';
+import DriverFab from '../../components/driver/home/DriverFab';
+import DestinationModeModal from '../../components/driver/home/DestinationModeModal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -448,158 +448,50 @@ const DriverHome = () => {
         </div>
       )}
       {/* GREEN HEADER */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: '#00B578' }}>
-        <button onClick={() => setShowMenu(true)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="driver-menu-btn">
-          <List size={20} className="text-white" />
-        </button>
-        <button onClick={toggleOnline}
-          className={`flex items-center gap-2 px-5 py-2 rounded-full border-2 ${
-            isOnline ? 'bg-white border-white' : 'bg-white/20 border-white/40'
-          }`} data-testid="online-toggle">
-          <span className={`text-sm font-bold ${isOnline ? 'text-green-700' : 'text-white'}`}>
-            {isOnline ? 'En ligne' : 'Hors ligne'}
-          </span>
-          <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-        </button>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowScheduled(true)} className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
-            <CalendarCheck size={20} className="text-white" />
-            {homeFeed.scheduled_pending.length > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center animate-pulse ring-2 ring-white" data-testid="scheduled-badge">
-                {homeFeed.scheduled_pending.length}
-              </span>
-            )}
-          </button>
-          <button onClick={() => navigate('/chauffeur/notifications')} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="notifications-btn">
-            <Bell size={20} className="text-white" />
-          </button>
-        </div>
-      </div>
+      <DriverHomeHeader
+        isOnline={isOnline}
+        onToggleOnline={toggleOnline}
+        onMenu={() => setShowMenu(true)}
+        scheduledCount={homeFeed.scheduled_pending.length}
+        onScheduled={() => setShowScheduled(true)}
+        onNotifications={() => navigate('/chauffeur/notifications')}
+      />
 
-      {/* GAINS D'AUJOURD'HUI */}
-      <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-gray-100">
-        <span className="text-base font-bold text-gray-800">Gains d&apos;aujourd&apos;hui</span>
-        <button
-          type="button"
-          onClick={() => setShowEarningsBreakdown(true)}
-          className="flex items-center gap-1.5 group"
-          data-testid="open-earnings-breakdown-btn"
-          aria-label="Voir le détail des revenus"
-        >
-          <span className="text-base font-bold text-gray-800 group-hover:text-[#FF4500] transition-colors">
-            {(driver.earnings || 0).toFixed(2)} EUR
-          </span>
-          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[11px] font-bold group-hover:bg-blue-200">
-            i
-          </span>
-        </button>
-      </div>
-
-      {/* 4 STAT CARDS */}
-      <div className="grid grid-cols-4 gap-3 px-4 py-3 bg-white">
-        {[
-          { value: driver.total_trips || 0, label: 'Voyages/ emplois\nd\'aujourd\'hui', color: '#D1E8E2' },
-          { value: (driver.rating || 5.0).toFixed(1), label: 'Moy.\nEvaluation', color: '#F8D7DA' },
-          { value: homeFeed.upcoming.length, label: 'Emplois a\nvenir', color: '#FFF3CD',
-            testId: 'stat-upcoming', onClick: () => navigate('/chauffeur/reservations?filter=upcoming'),
-            blink: homeFeed.upcoming.length > 0 ? '#F59E0B' : null },
-          { value: homeFeed.available_rides.length + homeFeed.available_deliveries.length, label: 'Emplois en\nattente', color: '#D4EDDA',
-            testId: 'stat-pending', onClick: () => navigate('/chauffeur/reservations?filter=pending'),
-            dots: [
-              ...(homeFeed.available_rides.length ? [{ c: '#F59E0B', t: 'pending-yellow-dot' }] : []),
-              ...(homeFeed.available_deliveries.length ? [{ c: '#2F9BFF', t: 'pending-blue-dot' }] : []),
-            ] },
-        ].map((stat) => (
-          <button key={stat.label} type="button" onClick={stat.onClick} disabled={!stat.onClick}
-            className="flex flex-col items-center text-center disabled:cursor-default" data-testid={stat.testId}>
-            <div className="relative w-16 h-16 rounded-full flex items-center justify-center mb-1"
-              style={{ backgroundColor: stat.color, boxShadow: stat.blink ? `0 0 0 3px ${stat.blink}` : 'none' }}>
-              <span className={`text-lg font-bold text-gray-800 ${stat.blink ? 'animate-pulse' : ''}`}>{stat.value}</span>
-              {(stat.dots || []).map((d, i) => (
-                <span key={d.t} data-testid={d.t} className="absolute w-3 h-3 rounded-full ring-2 ring-white animate-pulse"
-                  style={{ background: d.c, top: 0, right: i * 12 }} />
-              ))}
-            </div>
-            <span className="text-[10px] text-gray-500 leading-tight whitespace-pre-line">{stat.label}</span>
-          </button>
-        ))}
-      </div>
+      {/* GAINS + 4 STAT CARDS */}
+      <DriverStatsRow
+        earnings={driver.earnings}
+        totalTrips={driver.total_trips}
+        rating={driver.rating}
+        upcomingCount={homeFeed.upcoming.length}
+        availableRidesCount={homeFeed.available_rides.length}
+        availableDeliveriesCount={homeFeed.available_deliveries.length}
+        onEarningsBreakdown={() => setShowEarningsBreakdown(true)}
+        onUpcoming={() => navigate('/chauffeur/reservations?filter=upcoming')}
+        onPending={() => navigate('/chauffeur/reservations?filter=pending')}
+      />
 
       {/* MAP */}
-      <div className="flex-1 relative" style={{ height: '45vh' }}>
-        <AdminGoogleMap
-          center={mapCenter}
-          zoom={15}
-          driver={mapCenter}
-          pickup={currentRide ? { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng } : undefined}
-          dropoff={currentRide ? { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng } : undefined}
-          markers={(currentRide?.stops || []).filter((s) => s?.lat).map((s, i) => ({ id: `wp-${i}`, lat: s.lat, lng: s.lng, label: String(i + 1), color: '#64748B' }))}
-          routePath={currentRide ? (
-            decodePolyline(currentRide.route_polyline).length
-              ? decodePolyline(currentRide.route_polyline)
-              : [
-                { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng },
-                ...(currentRide.stops || []).filter((s) => s?.lat).map((s) => ({ lat: s.lat, lng: s.lng })),
-                { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng },
-              ]
-          ) : []}
-          heatmapData={showHeatmap ? heatPoints.map((p) => [p.lat, p.lng, p.count || 1]) : undefined}
-          mapTypeControl={false}
-        />
-        {/* Récompenses — petite rondelle clignotante (en haut à gauche de la carte) */}
-        <button
-          onClick={() => navigate('/chauffeur/rewards')}
-          className="absolute top-4 left-4 z-[500] w-12 h-12 rounded-full flex items-center justify-center animate-pulse"
-          style={{
-            background: rewardsActive ? '#00B578' : '#F59E0B',
-            boxShadow: '0 0 0 4px rgba(255,255,255,0.7), 0 4px 12px rgba(0,0,0,0.28)',
-          }}
-          data-testid="rewards-floating-btn"
-          aria-label="Récompenses"
-          title="Récompenses"
-        >
-          <Gift size={22} weight="fill" className="text-white" />
-          {rewardsCount > 0 && (
-            <span
-              className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-extrabold flex items-center justify-center ring-2 ring-white"
-              data-testid="rewards-badge-count"
-            >
-              {rewardsCount > 9 ? '9+' : rewardsCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <DriverHomeMap
+        mapCenter={mapCenter}
+        currentRide={currentRide}
+        showHeatmap={showHeatmap}
+        heatPoints={heatPoints}
+        rewardsActive={rewardsActive}
+        rewardsCount={rewardsCount}
+        onRewards={() => navigate('/chauffeur/rewards')}
+      />
 
-      {/* FLOATING BUTTONS */}
-      <div className="absolute bottom-28 left-0 right-0 z-[1000] px-4 flex items-end justify-end pointer-events-none">
-        {/* Radial speed-dial FAB */}
-        <div className="pointer-events-auto flex flex-col items-end gap-2.5" data-testid="driver-fab">
-          {fabOpen && (
-            <div className="flex flex-col items-end gap-2.5 mb-1" data-testid="driver-fab-menu">
-              {[
-                { label: "Planificateur de demande basé sur l'IA", Icon: Sparkle, onClick: () => toast.info('Planificateur IA bientôt disponible.') },
-                { label: 'Appelez un taxi', Icon: Taxi, onClick: () => setShowTaxiHall(true) },
-                { label: 'Chaleur', Icon: Fire, onClick: () => setShowHeatmap((v) => !v) },
-                { label: 'Revenir', Icon: ArrowUUpLeft, onClick: () => setShowDestModal(true) },
-                { label: 'Emplacements', Icon: MapPin, onClick: () => toast.info('Emplacements favoris — bientôt disponible.') },
-                { label: 'Informations sur le véhicule', Icon: Car, onClick: () => navigate('/chauffeur/vehicles') },
-              ].map(({ label, Icon, onClick }, i) => (
-                <button key={label} onClick={() => { setFabOpen(false); onClick(); }}
-                  className="flex items-center gap-2.5 animate-in slide-in-from-bottom-2 fade-in" style={{ animationDelay: `${i * 30}ms` }}
-                  data-testid={`fab-action-${i}`}>
-                  <span className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-md whitespace-nowrap">{label}</span>
-                  <span className="w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center flex-shrink-0">
-                    <Icon size={20} weight="fill" style={{ color: '#00B578' }} />
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-          <button onClick={() => setFabOpen((v) => !v)} className="w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform" style={{ background: fabOpen ? '#0B0B0B' : '#00B578', transform: fabOpen ? 'rotate(135deg)' : 'none' }} data-testid="driver-fab-toggle">
-            <Plus size={26} className="text-white" weight="bold" />
-          </button>
-        </div>
-      </div>
+      {/* FLOATING BUTTONS — radial speed-dial FAB */}
+      <DriverFab
+        open={fabOpen}
+        setOpen={setFabOpen}
+        onAiPlanner={() => toast.info('Planificateur IA bientôt disponible.')}
+        onTaxiHall={() => setShowTaxiHall(true)}
+        onHeatmap={() => setShowHeatmap((v) => !v)}
+        onDest={() => setShowDestModal(true)}
+        onLocations={() => toast.info('Emplacements favoris — bientôt disponible.')}
+        onVehicleInfo={() => navigate('/chauffeur/vehicles')}
+      />
 
         {/* Active ride — full-screen V3Cube flow */}
         {currentRide && (
@@ -653,51 +545,14 @@ const DriverHome = () => {
       />
 
       {/* Destination Mode Modal */}
-      {showDestModal && (
-        <div className="fixed inset-0 z-[10000] bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowDestModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()} data-testid="destination-mode-modal">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Mode Destination</h2>
-              <button onClick={() => setShowDestModal(false)} className="text-gray-400"><X size={20} /></button>
-            </div>
-            <p className="text-xs text-gray-500 mb-4">Définissez votre destination pour ne recevoir que les courses qui vont dans cette direction (rentrer à la maison, fin de service, etc.).</p>
-            {destMode?.active ? (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 mb-3">
-                <div className="text-xs text-emerald-700 font-semibold">ACTIF</div>
-                <div className="text-sm text-gray-900 mt-1">{destMode.target?.address || `${destMode.target?.lat?.toFixed(4)}, ${destMode.target?.lng?.toFixed(4)}`}</div>
-              </div>
-            ) : (
-              <div className="space-y-2 mb-3">
-                <input type="text" placeholder="Adresse (ex: 10 Rue de Rivoli, Paris)" value={destInput.address}
-                  onChange={(e) => setDestInput({ ...destInput, address: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-address-input" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="number" step="0.0001" placeholder="Latitude" value={destInput.lat}
-                    onChange={(e) => setDestInput({ ...destInput, lat: e.target.value })}
-                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-lat-input" />
-                  <input type="number" step="0.0001" placeholder="Longitude" value={destInput.lng}
-                    onChange={(e) => setDestInput({ ...destInput, lng: e.target.value })}
-                    className="border border-gray-300 rounded-xl px-3 py-2.5 text-sm" data-testid="dest-lng-input" />
-                </div>
-              </div>
-            )}
-            <div className="flex gap-2">
-              {destMode?.active ? (
-                <button onClick={() => saveDestinationMode(false)}
-                  className="flex-1 bg-red-500 text-white rounded-full h-11 font-bold text-sm" data-testid="dest-disable-btn">
-                  Désactiver
-                </button>
-              ) : (
-                <button onClick={() => saveDestinationMode(true)}
-                  disabled={!destInput.lat || !destInput.lng}
-                  className="flex-1 bg-emerald-600 text-white rounded-full h-11 font-bold text-sm disabled:opacity-50" data-testid="dest-enable-btn">
-                  Activer
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <DestinationModeModal
+        open={showDestModal}
+        onClose={() => setShowDestModal(false)}
+        destMode={destMode}
+        destInput={destInput}
+        setDestInput={setDestInput}
+        onSave={saveDestinationMode}
+      />
     </div>
   );
 };
