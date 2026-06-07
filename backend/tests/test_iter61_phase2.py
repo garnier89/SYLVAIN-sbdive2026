@@ -109,4 +109,14 @@ def test_waybill_shape(user_session):
     # Verify nested ride object (backend returns ride.* not flat)
     assert "ride" in data
     assert "passenger" in data
+    # Business rule: a freshly-created (pending, not yet started) ride must NOT
+    # reveal the fare amount nor the payment method on the waybill.
+    assert data.get("started") is False
+    assert data["ride"].get("fare") is None
+    assert data["ride"].get("payment_method") is None
+    # Tarification components are always exposed (base / per-min / per-km).
+    assert "base_fare" in data["ride"]
+    assert "price_per_min" in data["ride"]
+    assert "price_per_km" in data["ride"]
+    assert "course_number" in data
     return data

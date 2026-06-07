@@ -50,6 +50,7 @@ class DriverCreate(BaseModel):
     vehicle_number: str = ""
     vehicle_model: str = ""
     license_number: str = ""
+    company_name: str = ""  # raison sociale (affichée sur le bon de commande)
     service_types: Optional[List[str]] = None  # any of: "taxi", "delivery" (livreur), "courier" (coursier)
     taxi_mode: Optional[str] = None  # when taxi selected: "car" (taxi voiture) or "moto" (moto-taxi)
     categories: Optional[List[str]] = None  # V3Cube arborescence leaf ids (e.g. "taxi_car_vtc", "courier_velo")
@@ -62,6 +63,7 @@ class DriverProfile(BaseModel):
     vehicle_number: Optional[str] = None
     vehicle_model: Optional[str] = None
     license_number: Optional[str] = None
+    company_name: Optional[str] = None  # raison sociale du chauffeur (bon de commande)
     service_types: List[str] = []
     categories: List[str] = []  # V3Cube category leaf ids the driver registered for
     taxi_mode: Optional[str] = None  # "car" or "moto" (None if driver doesn't do taxi)

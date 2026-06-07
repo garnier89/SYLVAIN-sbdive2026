@@ -240,6 +240,7 @@ async def register_driver(data: DriverCreate, request: Request):
         "vehicle_number": data.vehicle_number,
         "vehicle_model": data.vehicle_model,
         "license_number": data.license_number,
+        "company_name": data.company_name,
         "service_types": service_types,
         "categories": category_ids,
         "taxi_mode": taxi_mode,

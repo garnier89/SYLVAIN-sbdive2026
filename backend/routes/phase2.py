@@ -375,11 +375,24 @@ async def get_waybill(ride_id: str, request: Request):
         driver_doc = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0}) or {}
         driver_user = await db.users.find_one({"id": driver_doc.get("user_id")}, {"_id": 0, "name": 1, "phone": 1}) or {}
 
+    # Pricing / capacity come from the vehicle gamme (price_per_min, seats).
+    vtype = await db.vehicle_types.find_one({"slug": ride.get("vehicle_type")}, {"_id": 0}) or {}
+
+    # Business rule: the waybill is generated at acceptance, but the *fare amount*
+    # and the *payment method* must only be revealed once the trip has STARTED.
+    started = bool(ride.get("started_at")) or ride.get("status") in ("in_progress", "completed")
+    fare_amount = ride.get("final_fare") if ride.get("final_fare") is not None else ride.get("estimated_fare")
+
+    company_name = (driver_doc.get("company_name") or "").strip() or "SB Drive VTC"
+
     return {
         "waybill_number": f"SBD-{ride['id'][-8:].upper()}",
+        "course_number": ride.get("booking_no") or ride["id"][-8:].upper(),
         "issued_at": datetime.now(timezone.utc).isoformat(),
+        "started": started,
         "ride": {
             "id": ride["id"],
+            "booking_no": ride.get("booking_no"),
             "status": ride.get("status"),
             "created_at": ride.get("created_at"),
             "accepted_at": ride.get("accepted_at"),
@@ -390,7 +403,13 @@ async def get_waybill(ride_id: str, request: Request):
             "distance_km": ride.get("distance_km"),
             "duration_mins": ride.get("duration_mins"),
             "vehicle_type": ride.get("vehicle_type"),
-            "payment_method": ride.get("payment_method"),
+            "base_fare": ride.get("base_fare", vtype.get("base_fare", 0)),
+            "price_per_km": ride.get("price_per_km", vtype.get("price_per_km", 0)),
+            "price_per_min": vtype.get("price_per_min", 0),
+            "person_capacity": vtype.get("person_capacity"),
+            # Amount + payment only when the trip has started (rule above).
+            "fare": fare_amount if started else None,
+            "payment_method": ride.get("payment_method") if started else None,
             "estimated_fare": ride.get("estimated_fare"),
             "final_fare": ride.get("final_fare"),
             "tip_amount": ride.get("tip_amount", 0),
@@ -406,6 +425,9 @@ async def get_waybill(ride_id: str, request: Request):
             "phone": driver_user.get("phone"),
             "vehicle_model": driver_doc.get("vehicle_model"),
             "vehicle_number": driver_doc.get("vehicle_number"),
+            "company_name": company_name,
+            "license_number": driver_doc.get("license_number"),
+            "seats": vtype.get("person_capacity"),
             "rating": driver_doc.get("rating"),
         } if driver_doc else None,
         "company": {"name": "SB Drive VTC", "website": "sbdrivevtc.com", "support_email": "support@sbdrivevtc.com"},

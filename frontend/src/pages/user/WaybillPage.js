@@ -1,14 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Printer, MapPin, Car, User, Receipt, Clock } from '@phosphor-icons/react';
+import { ArrowLeft, Printer } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
+const PAY_LABELS = { cash: 'Espèces', card: 'CB', wallet: 'Portefeuille', sbpaygo: 'SB PayGo' };
+
+const fmtDateTime = (raw) => {
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '—';
+  const date = d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return `${date} à ${time}`;
+};
+
+const eur = (n) => `${Number(n || 0).toFixed(2)} €`;
+
 /**
- * WaybillPage — Printable trip receipt / waybill.
- * Route: /ride/:rideId/waybill
- * Reads GET /api/phase2/rides/{rideId}/waybill (response shape: {ride, passenger, driver, company, waybill_number}).
+ * WaybillPage — "Bon de commande" (V3Cube layout).
+ * Route: /ride/:rideId/waybill — reads GET /api/phase2/rides/{rideId}/waybill.
+ * Generated at acceptance; the trip AMOUNT and PAYMENT METHOD are only revealed
+ * once the driver has started the course (backend `started` flag).
  */
 const WaybillPage = () => {
   const { rideId } = useParams();
@@ -21,112 +35,92 @@ const WaybillPage = () => {
       try {
         const res = await fetch(`${API}/api/phase2/rides/${rideId}/waybill`, { credentials: 'include' });
         if (!res.ok) throw new Error('failed');
-        const json = await res.json();
-        setData(json);
+        setData(await res.json());
       } catch {
-        toast.error('Impossible de charger la feuille de route');
+        toast.error('Impossible de charger le bon de commande');
       } finally { setLoading(false); }
     };
     load();
   }, [rideId]);
 
   if (loading) return <div className="p-8 text-sm text-gray-500">Chargement…</div>;
-  if (!data) return <div className="p-8 text-sm text-red-500">Feuille de route introuvable.</div>;
+  if (!data) return <div className="p-8 text-sm text-red-500">Bon de commande introuvable.</div>;
 
-  // Map backend nested shape to local view-model
   const ride = data.ride || {};
   const passenger = data.passenger || {};
   const driver = data.driver || {};
+  const started = !!data.started;
 
-  const dateRaw = ride.completed_at || ride.created_at || '';
-  const dateLabel = dateRaw ? new Date(dateRaw).toLocaleString('fr-FR') : '—';
-  const baseFare = Number(ride.final_fare ?? ride.estimated_fare ?? 0);
-  const tipAmount = Number(ride.tip_amount || 0);
-  const surcharge = Number(ride.surcharge_amount || 0);
-  const total = baseFare + tipAmount;
-  const distanceKm = Number(ride.distance_km || 0);
-
-  const vehicleSub = [driver.vehicle_model, driver.vehicle_number || driver.vehicle_plate]
-    .filter(Boolean).join(' · ');
+  const tarification = `${eur(ride.base_fare)} Prix de base + ${eur(ride.price_per_min)} par minute + ${eur(ride.price_per_km)} km`;
+  const payLabel = PAY_LABELS[ride.payment_method] || 'Espèces';
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50" data-testid="waybill-page">
       {/* Top bar (hidden on print) */}
-      <div className="print:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} data-testid="waybill-back-btn"><ArrowLeft size={22} /></button>
-        <h1 className="flex-1 font-bold">Feuille de route</h1>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-600 text-white text-sm font-semibold"
-          data-testid="waybill-print-btn"
-        >
-          <Printer size={14} weight="bold" /> Imprimer
-        </button>
+      <div className="print:hidden bg-[#0B1426] text-white px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
+        <button onClick={() => navigate(-1)} data-testid="waybill-back-btn" aria-label="Retour"><ArrowLeft size={24} weight="bold" /></button>
+        <h1 className="flex-1 text-xl font-bold text-center pr-7">Bon de commande</h1>
       </div>
 
-      {/* Printable area */}
-      <div className="p-5 max-w-xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm p-6 print:shadow-none print:rounded-none">
-          {/* Header */}
-          <div className="flex items-start justify-between border-b border-gray-200 pb-4 mb-4">
-            <div>
-              <h2 className="text-2xl font-black text-[#FF4500]">SB Drive VTC</h2>
-              <p className="text-xs text-gray-500 mt-1">sbdrivevtc.com</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase font-semibold">N° Feuille</p>
-              <p className="font-bold text-gray-900" data-testid="waybill-number">{data.waybill_number || '—'}</p>
-            </div>
+      <div className="p-4 max-w-xl mx-auto space-y-6">
+        {/* ── Détails du bon de commande ── */}
+        <section>
+          <h2 className="text-xl font-extrabold text-[#1f2d3d] mb-3">Détails du bon de commande</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+            <KV label="Course n°" value={data.course_number} testId="waybill-course-no" />
+            <KV label="Tarification" value={tarification} />
+            <KV label="Nom du client" value={passenger.name} />
+            <KV label="via" value={data.company?.name} />
+            <KV label="Départ" value={ride.pickup_address} />
+            <KV label="Arrivée" value={ride.dropoff_address} />
+            <KV label="Heure" value={fmtDateTime(ride.accepted_at || ride.created_at)} />
+            {started && <KV label="Montant de la course" value={eur(ride.fare)} testId="waybill-amount" highlight />}
+            {started && <KV label="Mode de paiement" value={payLabel} testId="waybill-payment" />}
           </div>
+          {!started && (
+            <p className="text-xs text-gray-400 mt-2 px-1" data-testid="waybill-amount-hint">
+              Le montant et le mode de paiement s&apos;afficheront une fois la course démarrée.
+            </p>
+          )}
+        </section>
 
-          {/* Trip block */}
-          <div className="space-y-4 mb-5">
-            <Row icon={Clock} label="Date et heure" value={dateLabel} />
-            <Row icon={User} label="Passager" value={passenger.name || '—'} subValue={passenger.phone} />
-            <Row icon={Car} label="Chauffeur" value={driver.name || '—'} subValue={vehicleSub || null} />
-            <Row icon={MapPin} label="Départ" value={ride.pickup_address} iconColor="text-emerald-600" />
-            <Row icon={MapPin} label="Arrivée" value={ride.dropoff_address} iconColor="text-rose-600" />
+        {/* ── Chauffeur ── */}
+        <section>
+          <h2 className="text-xl font-extrabold text-[#1f2d3d] mb-3">Chauffeur</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+            <KV label="Nom prénom" value={driver.name} />
+            <KV label="Plaque d'immat" value={driver.vehicle_number} />
+            <KV label="NB de places" value={driver.seats != null ? String(driver.seats) : null} />
+            <KV label="Nom de la société" value={driver.company_name} testId="waybill-company" />
+            <KV label="Numéro de licence" value={driver.license_number} testId="waybill-license" />
           </div>
+        </section>
 
-          {/* Fare breakdown */}
-          <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-xs uppercase font-bold text-gray-500 mb-3 flex items-center gap-1.5">
-              <Receipt size={14} /> Détail tarif
-            </h3>
-            <div className="space-y-1.5 text-sm">
-              <Line label={`Distance (${distanceKm.toFixed(1)} km)`} value={`${baseFare.toFixed(2)} €`} />
-              {!!surcharge && <Line label="Suppléments" value={`${surcharge.toFixed(2)} €`} />}
-              {!!tipAmount && <Line label="Pourboire" value={`${tipAmount.toFixed(2)} €`} />}
-              <div className="border-t border-gray-100 my-2" />
-              <div className="flex items-center justify-between font-bold text-base">
-                <span>Total</span>
-                <span className="text-[#FF4500]" data-testid="waybill-total">{total.toFixed(2)} €</span>
-              </div>
-            </div>
-          </div>
+        <button
+          onClick={() => window.print()}
+          className="print:hidden w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FF4500] text-white text-sm font-bold shadow-sm active:scale-[0.99] transition-transform"
+          data-testid="waybill-print-btn"
+        >
+          <Printer size={18} weight="bold" /> Imprimer le bon de commande
+        </button>
 
-          <p className="text-[10px] text-gray-400 text-center mt-6">
-            Merci d'avoir voyagé avec SB Drive VTC — Feuille de route générée le {new Date().toLocaleString('fr-FR')}
-          </p>
-        </div>
+        <p className="text-[10px] text-gray-400 text-center pb-4">
+          N° {data.waybill_number} · Bon de commande SB Drive VTC
+        </p>
       </div>
     </div>
   );
 };
 
-const Row = ({ icon: Icon, label, value, subValue, iconColor = 'text-gray-500' }) => (
-  <div className="flex items-start gap-3">
-    <Icon size={20} weight="duotone" className={`flex-shrink-0 mt-0.5 ${iconColor}`} />
-    <div className="flex-1 min-w-0">
-      <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wide">{label}</p>
-      <p className="text-sm font-semibold text-gray-900 break-words">{value || '—'}</p>
-      {subValue && <p className="text-[11px] text-gray-500">{subValue}</p>}
-    </div>
-  </div>
-);
-const Line = ({ label, value }) => (
-  <div className="flex items-center justify-between text-gray-700">
-    <span>{label}</span><span className="font-medium">{value}</span>
+const KV = ({ label, value, testId, highlight = false }) => (
+  <div className="flex items-start px-4 py-3.5 gap-4">
+    <span className="w-28 flex-shrink-0 text-[15px] text-[#5b6b7b] leading-snug">{label}</span>
+    <span
+      className={`flex-1 text-[15px] font-semibold leading-snug break-words ${highlight ? 'text-[#FF4500]' : 'text-[#1f2d3d]'}`}
+      data-testid={testId}
+    >
+      {value || '—'}
+    </span>
   </div>
 );
 
