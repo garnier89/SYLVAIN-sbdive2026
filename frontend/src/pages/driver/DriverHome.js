@@ -544,22 +544,24 @@ const DriverHome = () => {
           heatmapData={showHeatmap ? heatPoints.map((p) => [p.lat, p.lng, p.count || 1]) : undefined}
           mapTypeControl={false}
         />
+        {/* Récompenses — petite rondelle clignotante (en haut à gauche de la carte) */}
+        <button
+          onClick={() => navigate('/chauffeur/rewards')}
+          className="absolute top-4 left-4 z-[500] w-12 h-12 rounded-full flex items-center justify-center animate-pulse"
+          style={{
+            background: rewardsActive ? '#00B578' : '#F59E0B',
+            boxShadow: '0 0 0 4px rgba(255,255,255,0.7), 0 4px 12px rgba(0,0,0,0.28)',
+          }}
+          data-testid="rewards-floating-btn"
+          aria-label="Récompenses"
+          title="Récompenses"
+        >
+          <Gift size={22} weight="fill" className="text-white" />
+        </button>
       </div>
 
       {/* FLOATING BUTTONS */}
-      <div className="absolute bottom-28 left-0 right-0 z-[1000] px-4 flex items-end justify-between pointer-events-none">
-        {rewardsActive ? (
-          <button onClick={() => navigate('/chauffeur/rewards')} className="pointer-events-auto flex items-center gap-2 px-5 py-3 rounded-full shadow-lg animate-pulse-subtle" style={{ background: '#00B578' }} data-testid="rewards-floating-btn">
-            <Gift size={18} className="text-white" />
-            <span className="text-white text-sm font-bold">Recompenses</span>
-          </button>
-        ) : (
-          <button onClick={() => navigate('/chauffeur/rewards')} className="pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-full shadow-lg bg-white border border-amber-300" data-testid="rewards-floating-btn">
-            <Gift size={18} style={{ color: '#F59E0B' }} weight="fill" />
-            <span className="text-amber-600 text-sm font-bold">Bonus</span>
-          </button>
-        )}
-
+      <div className="absolute bottom-28 left-0 right-0 z-[1000] px-4 flex items-end justify-end pointer-events-none">
         {/* Radial speed-dial FAB */}
         <div className="pointer-events-auto flex flex-col items-end gap-2.5" data-testid="driver-fab">
           {fabOpen && (

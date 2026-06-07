@@ -1,3 +1,9 @@
+## NEW - 2026-06-07 (9) - Bouton Récompenses → petite rondelle clignotante (DONE)
+- **Demande user** : repositionner le bouton Récompenses et le transformer en **petite rondelle clignotante**.
+- **`DriverHome.js`** : l'ancien bouton pilule « Recompenses/Bonus » (rangée flottante du bas) est remplacé par une **rondelle ronde 48px** (icône Gift, `animate-pulse` + halo blanc) positionnée **en haut à gauche de la carte** (`absolute top-4 left-4`). Couleur **verte** si une récompense est active (`rewardsActive`), **ambre** sinon. La rangée du bas ne contient plus que le FAB « + » (`justify-end`). testid conservé : `rewards-floating-btn`.
+- **Vérifié** : screenshot (rondelle ambre clignotante 48×48 en haut-gauche de la carte ; bas = uniquement le FAB). Lint clean.
+
+
 ## NEW - 2026-06-07 (8) - Annulation chauffeur d'une réservation (fenêtre 20 min) (DONE)
 - **Demande user** : le montant de la réservation est affiché à côté ; quand le chauffeur **accepte**, un bouton **« Annuler »** apparaît et il peut annuler **tout de suite** ; **passé 20 min**, le bouton « Annuler » **disparaît**, il ne reste que **« Démarrer »** (Départ voyage).
 - **Backend `routes/rides.py`** : nouvel endpoint `POST /rides/{id}/driver-cancel-booking` — autorisé **uniquement** si la course est encore `accepted` ET dans les **`DRIVER_CANCEL_WINDOW_MIN = 20`** min suivant `accepted_at` (sinon **HTTP 400** « Délai d'annulation dépassé (20 min). »). L'annulation **relâche** la course dans le pool (`status=pending`, `driver_id=None`, `accepted_at=None`, champs driver_* nettoyés) ; notifie le passager (notif + WS `ride_driver_released`) ; **re-broadcast** immédiat si course instantanée, sinon retour dans l'agenda (course planifiée).
