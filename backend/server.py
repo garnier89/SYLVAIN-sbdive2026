@@ -17,7 +17,7 @@ from routes.drivers import router as drivers_router, seed_driver_categories
 from routes.driver_pro import router as driver_pro_router
 from routes.merchants import router as merchants_router
 from routes.rides import router as rides_router
-from routes.orders import router as orders_router
+from routes.orders import router as orders_router, order_auto_progress_loop
 from routes.misc import router as misc_router
 from routes.marketplace import router as marketplace_router
 from routes.carpool import router as carpool_router
@@ -597,11 +597,16 @@ async def lifespan(app: FastAPI):
     # Start weekly report scheduler
     weekly_task = _asyncio.create_task(weekly_report_loop())
 
+    # Start food-order auto-progress simulation (tracking → delivered)
+    order_task = _asyncio.create_task(order_auto_progress_loop())
+
     yield
     if dispatch_task:
         dispatch_task.cancel()
     if weekly_task:
         weekly_task.cancel()
+    if order_task:
+        order_task.cancel()
     client.close()
 
 

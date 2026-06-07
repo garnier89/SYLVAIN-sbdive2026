@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
+import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -9,6 +10,60 @@ from models.schemas import OrderCreate, OrderResponse
 from core.websocket import manager
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+# ── Food order lifecycle simulation ──
+# Stages a meal order moves through, with the elapsed-time (seconds since the
+# order was placed) at which it auto-advances. This lets the customer's tracking
+# screen progress all the way to delivery even when no live merchant/driver is
+# processing the order (MVP/demo). Tune these to change the perceived pace.
+ORDER_STAGES = ["pending", "accepted", "preparing", "ready", "picked_up", "delivered"]
+_STAGE_INDEX = {s: i for i, s in enumerate(ORDER_STAGES)}
+DEMO_ORDER_SCHEDULE = [
+    ("accepted", 20),     # Confirmée — 20 s
+    ("preparing", 50),    # En préparation — 50 s
+    ("ready", 110),       # Prête — ~2 min
+    ("picked_up", 180),   # En livraison — 3 min
+    ("delivered", 300),   # Livrée — 5 min
+]
+ORDER_DELIVERED_SEC = DEMO_ORDER_SCHEDULE[-1][1]
+
+
+async def order_auto_progress_loop():
+    """Demo/MVP simulation: advance active food orders through their lifecycle
+    (Confirmée → En préparation → Prête → En livraison → Livrée) based on elapsed
+    time, so the customer's order tracking reaches delivery without a live
+    merchant/driver. Only moves FORWARD and never past what a real actor already set."""
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            cursor = db.orders.find(
+                {"status": {"$in": ["pending", "accepted", "preparing", "ready", "picked_up"]}},
+                {"_id": 0, "id": 1, "status": 1, "created_at": 1, "user_id": 1, "payment_method": 1},
+            )
+            async for o in cursor:
+                try:
+                    created = datetime.fromisoformat(str(o.get("created_at")).replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    continue
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                elapsed = (now - created).total_seconds()
+                target = o["status"]
+                for status, threshold in DEMO_ORDER_SCHEDULE:
+                    if elapsed >= threshold:
+                        target = status
+                if _STAGE_INDEX.get(target, 0) > _STAGE_INDEX.get(o["status"], 0):
+                    update = {"status": target}
+                    if target == "delivered":
+                        update["payment_status"] = "completed" if o.get("payment_method") != "cash" else "pending"
+                    res = await db.orders.update_one({"id": o["id"], "status": o["status"]}, {"$set": update})
+                    if res.modified_count:
+                        await manager.send_personal_message(
+                            {"type": "order_status", "order_id": o["id"], "status": target}, o["user_id"]
+                        )
+        except Exception:
+            pass
+        await asyncio.sleep(10)
 
 
 @router.post("", response_model=OrderResponse)
@@ -49,7 +104,7 @@ async def create_order(data: OrderCreate, request: Request):
         "payment_method": data.payment_method, "payment_status": "pending",
         "special_instructions": data.special_instructions,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "estimated_delivery": (datetime.now(timezone.utc) + timedelta(minutes=45)).isoformat()
+        "estimated_delivery": (datetime.now(timezone.utc) + timedelta(seconds=ORDER_DELIVERED_SEC)).isoformat()
     }
     await db.orders.insert_one(order)
     # Notify the merchant of the incoming order (live dashboard)
