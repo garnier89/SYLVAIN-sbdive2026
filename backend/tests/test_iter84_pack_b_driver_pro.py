@@ -15,9 +15,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-40.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
-from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
-DRIVER_EMAIL = "jean.dupont@demo.sb"
-DRIVER_PASSWORD = "Driver123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD, DRIVER_EMAIL, DRIVER_PASSWORD  # noqa: E402,F401
 
 
 def _login(session: requests.Session, email: str, password: str) -> int:

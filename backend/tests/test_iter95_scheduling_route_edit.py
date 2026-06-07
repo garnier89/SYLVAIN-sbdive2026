@@ -32,9 +32,7 @@ def _read_backend_url():
 
 BASE_URL = _read_backend_url()
 
-from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
-DRIVER_EMAIL = "jean.dupont@demo.sb"
-DRIVER_PASSWORD = "Driver123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD, DRIVER_EMAIL, DRIVER_PASSWORD  # noqa: E402,F401
 
 # Paris pickup/dropoff
 PICKUP = {"pickup_lat": 48.8566, "pickup_lng": 2.3522, "pickup_address": "Châtelet, Paris"}

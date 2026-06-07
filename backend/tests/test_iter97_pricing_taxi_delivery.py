@@ -8,9 +8,9 @@ import pytest
 import requests
 
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
-from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
-PASSENGER_EMAIL = "test2@example.com"
-PASSENGER_PASSWORD = "TestPass123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD, TEST_USER_EMAIL, TEST_USER_PASSWORD  # noqa: E402
+PASSENGER_EMAIL = TEST_USER_EMAIL
+PASSENGER_PASSWORD = TEST_USER_PASSWORD
 
 PARIS_PICKUP = {"pickup_lat": 48.8566, "pickup_lng": 2.3522, "pickup_address": "Hôtel de Ville, Paris"}
 PARIS_DROP = {"dropoff_lat": 48.8738, "dropoff_lng": 2.2950, "dropoff_address": "Arc de Triomphe, Paris"}

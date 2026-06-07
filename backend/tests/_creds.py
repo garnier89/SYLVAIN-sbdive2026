@@ -14,6 +14,7 @@ TEST_USER_EMAIL = os.environ.get("TEST_USER_EMAIL", "test2@example.com")
 TEST_USER_PASSWORD = os.environ.get("TEST_USER_PASSWORD", "TestPass123!")
 
 # Driver
+DRIVER_EMAIL = os.environ.get("TEST_DRIVER_EMAIL", "jean.dupont@demo.sb")
 DRIVER_PASSWORD = os.environ.get("TEST_DRIVER_PASSWORD", "Driver123!")
 DRIVER_PASSWORD_ALT = os.environ.get("TEST_DRIVER_PASSWORD_ALT", "Driver1234!")
 DRIVER_PASSWORD_FR = os.environ.get("TEST_DRIVER_PASSWORD_FR", "Chauffeur2026!")

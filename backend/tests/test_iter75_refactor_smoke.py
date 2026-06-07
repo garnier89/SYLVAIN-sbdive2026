@@ -106,7 +106,7 @@ def test_update_admin_all_4_helpers(admin_session, first_role_id):
 
     try:
         new_email = f"TEST_iter75_renamed_{suffix}@example.com"
-        new_password = "Updated456!"
+        new_password = f"Upd{_s.token_hex(5)}A1!"  # generated, no hardcoded secret
         u = admin_session.put(f"{BASE_URL}/api/acl/admins/{admin_id}", json={
             "first_name": "Iter75Renamed",
             "last_name": "Updated",
