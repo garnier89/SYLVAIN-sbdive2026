@@ -59,6 +59,20 @@ LANGUAGE_CATALOG = [
     {"code": "ha", "name": "Hausa", "flag": "🇳🇬", "is_rtl": False},
     {"code": "yo", "name": "Yorùbá", "flag": "🇳🇬", "is_rtl": False},
     {"code": "am", "name": "አማርኛ", "flag": "🇪🇹", "is_rtl": False},
+    # Suédois, Grec (déjà el), Slovène
+    {"code": "sv", "name": "Svenska", "flag": "🇸🇪", "is_rtl": False},
+    {"code": "sl", "name": "Slovenščina", "flag": "🇸🇮", "is_rtl": False},
+    # Créoles à base française (DOM-TOM + Haïti)
+    {"code": "gcf", "name": "Kréyòl Gwadloupéyen", "flag": "🇬🇵", "is_rtl": False},
+    {"code": "gcf-mq", "name": "Kréyòl Matinik", "flag": "🇲🇶", "is_rtl": False},
+    {"code": "ht", "name": "Kreyòl Ayisyen", "flag": "🇭🇹", "is_rtl": False},
+    {"code": "rcf", "name": "Kréol Rénioné", "flag": "🇷🇪", "is_rtl": False},
+    {"code": "gcr", "name": "Kriyòl Giyanè", "flag": "🇬🇫", "is_rtl": False},
+    # Langues africaines
+    {"code": "ln", "name": "Lingála", "flag": "🇨🇩", "is_rtl": False},
+    {"code": "wo", "name": "Wolof", "flag": "🇸🇳", "is_rtl": False},
+    {"code": "bci", "name": "Baoulé", "flag": "🇨🇮", "is_rtl": False},
+    {"code": "dyu", "name": "Dioula", "flag": "🇨🇮", "is_rtl": False},
 ]
 
 # Langues actives par défaut (les autres : activables par l'admin)

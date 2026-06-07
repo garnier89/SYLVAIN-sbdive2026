@@ -77,6 +77,21 @@ export const LocaleProvider = ({ children }) => {
     const saved = localStorage.getItem('sb_language');
     return saved ? JSON.parse(saved) : LANGUAGES[0];
   });
+  // Languages shown in the selector — loaded from the backend (ready bundles),
+  // falling back to the static list for an instant first render.
+  const [languages, setLanguages] = useState(LANGUAGES);
+
+  // Fetch the ready languages (active + translated) once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/i18n/languages')
+      .then((r) => {
+        const items = (r.data?.items || []).map((l) => ({ code: l.code, name: l.name, flag: l.flag, is_rtl: l.is_rtl }));
+        if (!cancelled && items.length) setLanguages(items);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   // Flattened label bundles by lang code (FR base always present as fallback).
   const [bundles, setBundles] = useState(() => ({ ..._bundleCache }));
 
@@ -118,7 +133,7 @@ export const LocaleProvider = ({ children }) => {
   };
 
   return (
-    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages: LANGUAGES }}>
+    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages }}>
       {children}
     </LocaleContext.Provider>
   );
