@@ -53,6 +53,22 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
   const [waitingAccum, setWaitingAccum] = useState(0);
   const [waitingNow, setWaitingNow] = useState(0);
   const [completing, setCompleting] = useState(false);
+  const [carIconUrl, setCarIconUrl] = useState('');
+
+  // Load the admin-configured car icon (same as the client's radar cars).
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch(`${API}/api/config/ride-search`);
+        if (!r.ok) return;
+        const d = await r.json();
+        if (alive && d && d.cars_icon_url) setCarIconUrl(d.cars_icon_url);
+      } catch { /* ignore */ }
+    };
+    load();
+    return () => { alive = false; };
+  }, []);
 
   // Trip timer (counts up while in progress)
   useEffect(() => {
@@ -184,6 +200,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
           center={driverPos || { lat: ride.pickup_lat, lng: ride.pickup_lng }}
           zoom={14}
           driver={driverPos}
+          driverIconUrl={carIconUrl}
           pickup={{ lat: ride.pickup_lat, lng: ride.pickup_lng }}
           dropoff={{ lat: ride.dropoff_lat, lng: ride.dropoff_lng }}
           routePath={routePath}
@@ -201,8 +218,8 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
         )}
       </div>
 
-      {/* Action buttons */}
-      <div className="flex justify-center gap-5 py-3 bg-white">
+      {/* Action buttons — aligned right, just above the km */}
+      <div className="flex justify-end gap-4 px-5 py-3 bg-white">
         <button onClick={() => setShowCallType(true)} className="w-12 h-12 rounded-full bg-[#2F9BFF] flex items-center justify-center shadow-md" data-testid="ride-flow-call-btn" aria-label="Appeler"><Phone size={22} weight="fill" className="text-white" /></button>
         <button onClick={() => navigate(`/ride/${ride.id}/chat`)} className="w-12 h-12 rounded-full bg-[#F5A623] flex items-center justify-center shadow-md" data-testid="ride-flow-chat-btn" aria-label="Discuter"><ChatCircleDots size={22} weight="fill" className="text-white" /></button>
         <button onClick={() => setShowNav(true)} className="w-12 h-12 rounded-full bg-[#FF6A00] flex items-center justify-center shadow-md" data-testid="ride-flow-nav-btn" aria-label="Navigation"><NavigationArrow size={22} weight="fill" className="text-white" /></button>
@@ -253,7 +270,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
         <RideFlowMenu
           onClose={() => setShowMenu(false)}
           onPassengerDetails={() => { setShowMenu(false); navigate(`/ride/${ride.id}/chat`); }}
-          onWaybill={() => { setShowMenu(false); toast.info('Lettre de voiture bientôt disponible.'); }}
+          onWaybill={() => { setShowMenu(false); navigate(`/ride/${ride.id}/waybill`); }}
           onCancel={() => { setShowMenu(false); cancelRide(); }}
         />
       )}

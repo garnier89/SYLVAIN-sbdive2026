@@ -31,12 +31,19 @@ const DEFAULT_OPTIONS = {
   styles: [],
 };
 
+// Top-view car marker (matches the client app's "radar cars") rendered as a
+// data-URL so the driver/admin Google Maps show the same little car as the
+// client search radar instead of a flat material icon.
+const CAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="56" viewBox="0 0 40 56"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e7ebf1"/></linearGradient></defs><rect x="2" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9"/><rect x="33.5" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9"/><rect x="5" y="2" width="30" height="52" rx="12" fill="url(#b)" stroke="#c5cbd4" stroke-width="1"/><path d="M9.5 18 C14 13 26 13 30.5 18 L28.5 25.5 C23 22.8 17 22.8 11.5 25.5 Z" fill="#1f2733" opacity="0.88"/><rect x="11" y="27" width="18" height="11.5" rx="4" fill="#f4f6f9"/><path d="M11.5 40 C17 38 23 38 28.5 40 L30.5 46 C25.5 44 14.5 44 9.5 46 Z" fill="#2b3340" opacity="0.7"/><rect x="7" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030"/><rect x="27" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030"/></svg>';
+const DEFAULT_CAR_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(CAR_SVG)}`;
+
 const AdminGoogleMap = ({
   center = { lat: 48.8566, lng: 2.3522 },
   zoom = 11,
   pickup,
   dropoff,
   driver,
+  driverIconUrl = '',
   routePath,
   mapType = 'roadmap',
   showTraffic = false,
@@ -128,15 +135,10 @@ const AdminGoogleMap = ({
 
   const carIcon = window.google
     ? {
-        // Material "directions_car" icon (cubic-bezier curves only — no SVG arc
-        // shorthand, which Google Maps' SVG parser mis-parses and throws on).
-        path: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z',
-        fillColor: '#FBBF24',
-        fillOpacity: 1,
-        strokeColor: '#0B1426',
-        strokeWeight: 1.2,
-        scale: 1.3,
-        anchor: new window.google.maps.Point(12, 12),
+        // Top-view car marker matching the client app's radar cars.
+        url: driverIconUrl || DEFAULT_CAR_URL,
+        scaledSize: new window.google.maps.Size(30, 42),
+        anchor: new window.google.maps.Point(15, 21),
       }
     : null;
 

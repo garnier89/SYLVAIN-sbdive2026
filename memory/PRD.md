@@ -1,3 +1,10 @@
+## NEW - 2026-06-07 - Flux course chauffeur : voiture client + 3 boutons + Lettre de voiture (DONE)
+- **Marqueur voiture carte** : `AdminGoogleMap` remplace l'icône Material jaune (`directions_car`) par la **petite voiture vue de dessus** (SVG `TopCar`, identique aux « radar cars » du client) en data-URL ; nouveau prop `driverIconUrl`. `DriverRideFlow` récupère `cars_icon_url` via `/config/ride-search` et le passe à la carte → réutilise exactement la voiture configurée côté client (admin). Bénéficie aussi aux cartes client/admin.
+- **3 boutons d'action** (appel/chat/navigation) de `DriverRideFlow` passés de `justify-center` à **`justify-end`** (à droite, au-dessus du km).
+- **« Lettre de voiture » (bon de commande)** : le menu 3-points appelait un `toast('bientôt disponible')`. Branché sur `navigate('/ride/{id}/waybill')` → page `WaybillPage` (« Feuille de route ») déjà existante, lit `GET /api/phase2/rides/{id}/waybill` (N° feuille, passager, chauffeur+véhicule, départ/arrivée, détail tarif, Imprimer). *Vérifié screenshot.*
+- Lint clean sur fichiers modifiés ; build compile.
+
+
 ## NEW - 2026-06-06 (2) - Bugs flux course chauffeur + retouches client (DONE)
 - **Retours user** : « je suis en course je ne vois plus la course », « les courses en cours on ne voit rien », « pas le bouton pour voir tous les statuts », « encore du bleu sur l'app client », « remplace Code départ par Code OTP », « les 4 boutons à droite au-dessus des étoiles », « j'accepte une course je n'arrive pas à démarrer ».
 - **BUG #1 (P0) — Course active perdue au rechargement → CORRIGÉ.** `DriverHome` ne restaurait jamais la course active : ajout d'un effet au montage qui appelle `rideAPI.getActive()` et restaure `currentRide` (+`joinRide`) si statut accepted/arriving/in_progress. Le chauffeur ne « perd » plus sa course et peut reprendre/démarrer. Bouton **réduire** (`onMinimize`/CaretLeft) ajouté à `DriverRideFlow` pour revenir à l'accueil malgré une course active. *Vérifié screenshot : flux restauré après login, minimize OK.*
