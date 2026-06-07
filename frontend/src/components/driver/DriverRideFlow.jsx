@@ -281,6 +281,17 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
             <Clock size={12} weight="bold" />{fmtClock(elapsed)}
           </div>
         )}
+        {/* Compact waiting toggle — top of the map, near the trip timer */}
+        {inProgress && (
+          <button
+            onClick={toggleWaiting}
+            className={`absolute top-8 left-1/2 -translate-x-1/2 z-[600] rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 ${waitingStart ? 'bg-amber-500 text-white' : 'bg-white text-gray-800'}`}
+            data-testid="ride-flow-waiting-btn"
+          >
+            <Clock size={13} weight="fill" />
+            {waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : 'Attente'}
+          </button>
+        )}
       </div>
 
       {/* Action buttons — aligned right, just above the km */}
@@ -311,16 +322,6 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
           <input type="checkbox" checked={recordVideo} onChange={(e) => setRecordVideo(e.target.checked)} className="w-4 h-4 accent-[#00B578]" data-testid="ride-flow-video-checkbox" />
           Enregistrer une vidéo à l&apos;intérieur d&apos;un taxi
         </label>
-      )}
-
-      {/* Waiting timer (in progress) */}
-      {inProgress && (
-        <div className="px-5 pb-1">
-          <button onClick={toggleWaiting} className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 ${waitingStart ? 'bg-amber-500 text-white' : 'bg-gray-900 text-white'}`} data-testid="ride-flow-waiting-btn">
-            <Clock size={18} weight="fill" />
-            {waitingStart ? `Attente en cours · ${fmtClock(waitingSecs)} (${waitingCharge.toFixed(2)} €)` : 'Démarrer la minuterie d\'attente'}
-          </button>
-        </div>
       )}
 
       {/* Slider */}
