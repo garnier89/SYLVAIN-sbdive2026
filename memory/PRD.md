@@ -1,3 +1,16 @@
+## NEW - 2026-06-08 (54) - Recherche unifiée Livraison branchée dans l'app mobile Expo (DONE)
+- **Demande user** : intégrer l'endpoint `GET /api/search/delivery` (recherche unifiée magasins + produits, toutes verticales) dans l'app mobile Expo (parité avec le web `DeliverySearchOverlay`).
+- **Mobile `api/endpoints.ts`** : ajout `merchantAPI.searchDelivery(q)` → `GET /search/delivery?q=`.
+- **Nouvel écran `screens/user/DeliverySearchScreen.tsx`** : champ de recherche auto-focus, debounce 300ms, suggestions (Pizza/Courses/Roses…), états loading/vide, 2 groupes « Magasins » + « Produits » via `FlatList` combinée, icônes par `store_type` (restaurant/grocery/florist/wine/construction/pharmacy), prix produit formaté €. Tap sur un résultat → écran `Food` (catalogue, pas d'écran détail boutique en mobile pour le MVP).
+- **Navigation `RootNavigator.tsx`** : écran `DeliverySearch` enregistré dans `UserStack`.
+- **Point d'entrée `UserHomeScreen.tsx`** : barre « Que voulez-vous vous faire livrer ? » (`home-delivery-search`) sous la bannière promo → ouvre `DeliverySearch`.
+- **i18n** : 7 clés `user_home.delivery_search_*` ajoutées à `fr.json` + `en.json`.
+- **Vérifié** : `GET /api/search/delivery?q=pi` renvoie 1 magasin (Pizza Heaven) + 5 produits réels ; `tsc --noEmit` mobile = 0 erreur ; lint JS clean. (App RN/Expo → pas de screenshot web possible.)
+- ⚠️ Changement **mobile uniquement** — n'affecte pas le web déployé.
+
+
+
+
 ## NEW - 2026-06-07 (53) - Accueil « Services Taxi » : icônes au lieu des photos uploadées (DONE)
 - **Demande user** : sur l'accueil, la section « Services Taxi » affichait des PHOTOS de voitures (mauvaise version) ; la bonne version utilise des ICÔNES → retirer les photos.
 - **Cause** : `UserHome.taxiTiles` mettait `imageUrl = c.icon` (image data:/http uploadée par l'admin pour chaque `service_category`), prioritaire sur l'icône dans `Visual`/`DynamicIcon`.

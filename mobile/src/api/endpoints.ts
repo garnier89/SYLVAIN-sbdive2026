@@ -61,6 +61,8 @@ export const merchantAPI = {
   updateProduct: (id: string, data: any) =>
     api.put(`/merchants/products/${id}`, data),
   deleteProduct: (id: string) => api.delete(`/merchants/products/${id}`),
+  // Unified delivery search — matches stores + products across every vertical.
+  searchDelivery: (q: string) => api.get('/search/delivery', { params: { q } }),
 };
 
 export const rideAPI = {

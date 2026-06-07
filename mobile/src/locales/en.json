@@ -73,7 +73,14 @@
     "towing": "Towing",
     "marketplace": "Marketplace",
     "nearby": "Nearby",
-    "on_demand": "Services"
+    "on_demand": "Services",
+    "delivery_search_bar": "What would you like delivered?",
+    "delivery_search_placeholder": "Meals, groceries, flowers, wine, medicine...",
+    "delivery_search_ideas": "Search ideas",
+    "delivery_search_stores": "Stores",
+    "delivery_search_products": "Products",
+    "delivery_search_empty": "No results",
+    "delivery_search_empty_hint": "Try \"pizza\", \"groceries\" or \"flowers\""
   },
   "booking": {
     "title": "Book a taxi",

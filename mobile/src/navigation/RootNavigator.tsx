@@ -33,6 +33,7 @@ import PropertyDetailScreen from '@/screens/user/realestate/PropertyDetailScreen
 import MyPropertiesScreen from '@/screens/user/realestate/MyPropertiesScreen';
 import EditProfileScreen from '@/screens/user/EditProfileScreen';
 import SettingsScreen from '@/screens/user/SettingsScreen';
+import DeliverySearchScreen from '@/screens/user/DeliverySearchScreen';
 
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import DriverRidesScreen from '@/screens/driver/DriverRidesScreen';
@@ -103,6 +104,7 @@ function UserNavigator() {
       <UserStack.Screen name="Nearby" component={CatalogScreen} initialParams={{ service: 'nearby' }} />
       <UserStack.Screen name="Marketplace" component={CatalogScreen} initialParams={{ service: 'marketplace' }} />
       <UserStack.Screen name="Food" component={CatalogScreen} initialParams={{ service: 'food' }} />
+      <UserStack.Screen name="DeliverySearch" component={DeliverySearchScreen} />
       <UserStack.Screen name="Delivery" component={CatalogScreen} initialParams={{ service: 'delivery' }} />
       <UserStack.Screen name="Carpool" component={CatalogScreen} initialParams={{ service: 'carpool' }} />
       <UserStack.Screen name="Runner" component={CatalogScreen} initialParams={{ service: 'on_demand' }} />

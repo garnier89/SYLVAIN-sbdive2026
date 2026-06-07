@@ -159,6 +159,18 @@ export default function UserHomeScreen() {
           </View>
         </View>
 
+        {/* Unified delivery search */}
+        <Pressable
+          testID="home-delivery-search"
+          onPress={() => nav.navigate('DeliverySearch')}
+          style={styles.deliverySearch}
+        >
+          <Ionicons name="search" size={18} color={colors.primaryDark} />
+          <Text style={styles.deliverySearchText} numberOfLines={1}>
+            {t('user_home.delivery_search_bar')}
+          </Text>
+        </Pressable>
+
         {/* Services grid — synced with the dashboard (CMS) */}
         {loadingCms ? (
           <View style={styles.cmsLoading}>
@@ -285,6 +297,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  deliverySearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#FFF7E6',
+    borderWidth: 1,
+    borderColor: '#FCE7B8',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    height: 46,
+    borderRadius: radius.lg,
+  },
+  deliverySearchText: { flex: 1, color: '#B45309', fontSize: fontSizes.sm, fontWeight: '600' },
   sectionTitle: {
     fontSize: fontSizes.lg,
     fontWeight: '800',

@@ -73,7 +73,14 @@
     "towing": "Depannage",
     "marketplace": "Marketplace",
     "nearby": "Pres de moi",
-    "on_demand": "Services"
+    "on_demand": "Services",
+    "delivery_search_bar": "Que voulez-vous vous faire livrer ?",
+    "delivery_search_placeholder": "Repas, courses, fleurs, vin, medicaments...",
+    "delivery_search_ideas": "Idees de recherche",
+    "delivery_search_stores": "Magasins",
+    "delivery_search_products": "Produits",
+    "delivery_search_empty": "Aucun resultat",
+    "delivery_search_empty_hint": "Essayez \"pizza\", \"courses\" ou \"fleurs\""
   },
   "booking": {
     "title": "Reserver un taxi",
