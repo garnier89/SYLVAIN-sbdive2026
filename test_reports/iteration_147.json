@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend-only validation of the new Admin 'AI Based Auto Promotions' module (/admin/auto-promotions). All requested scenarios passed end-to-end: render & empty state, conditional fields (trip_count→threshold, inactive_user→inactive-days, percentage→max with proper teardown on switch back to flat), create, edit (prefill + update), toggle (Actif↔Inactif), and delete (window.confirm accepted, 'Supprimée' toast, returns to empty state). DB left clean with zero auto promotions.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/src/pages/admin/AdminAutoPromotions.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminAutoPromotions.js has a duplicated initial load: the useCallback `load` and the useEffect both call adminAPI.listAutoPromotions() independently. Not a bug but redundant — the useEffect could simply call `load()` (would still need an `alive` guard or be the body of useEffect using load via dep array).",
+    "remove() uses window.confirm — works but native dialog is less testable/uniform with the rest of the app (most modules use a styled confirm). Consider replacing with a UI confirm later for consistency.",
+    "On toggle/edit/delete, the code awaits load() but doesn't show optimistic feedback; UX is acceptable but a small toast on toggle success would be a nice addition.",
+    "discount_amount is parsed with parseFloat without min validation in the UI (only >0 check on save). Backend should be the source of truth — confirmed not in scope for this iteration."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created 1 auto_promotion ('QA Auto Promo' → 'QA Auto Promo v2'), then DELETED at end. Verified empty state restored — DB has zero auto_promotions, live bookings unaffected.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Auto-promotions admin CRUD UI is fully functional and wired to /api/auto-promotions/admin. Backend was pre-validated via curl by main agent (rider /best returns promo, ride creation reduces estimated_fare and increments usage_count). Next testing agents working on rider-side fare display should expect auto_promo_id/auto_promo_title/auto_promo_discount fields on ride documents when an active eligible promo exists. UI selects use raw enum values (criteria: first_ride|trip_count|inactive_user|every_trip; discount_type: flat|percentage; status: active|inactive).",
+  "rca of the issue": "No issues found."
+}

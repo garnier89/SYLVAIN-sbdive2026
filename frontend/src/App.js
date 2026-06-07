@@ -118,6 +118,7 @@ const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminGodsView = lazy(() => import('./pages/admin/AdminGodsView'));
 const AdminHeatView = lazy(() => import('./pages/admin/AdminHeatView'));
 const AdminPromocodes = lazy(() => import('./pages/admin/AdminPromocodes'));
+const AdminAutoPromotions = lazy(() => import('./pages/admin/AdminAutoPromotions'));
 const AdminVehicleTypes = lazy(() => import('./pages/admin/AdminVehicleTypes'));
 const AdminDriverCategories = lazy(() => import('./pages/admin/AdminDriverCategories'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
@@ -139,7 +140,7 @@ import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganizatio
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
   AdminWithdrawRequests, AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications,
   AdminPayoutsCrud, AdminSettlementsCrud, AdminDisputesCrud, AdminDocumentsCrud,
-  AdminWeatherSurcharge, AdminPersonalDriver, AdminAutoPromotions, AdminVouchers,
+  AdminWeatherSurcharge, AdminPersonalDriver, AdminVouchers,
   AdminFaqs, AdminHelpArticles, AdminDonations
 } from './pages/admin/AdminCrudPages';
 const AdminServiceConfig = lazy(() => import('./pages/admin/AdminServiceConfig'));

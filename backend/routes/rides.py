@@ -343,6 +343,15 @@ async def create_ride(data: RideRequest, request: Request):
         if corporate_discount_pct > 0:
             fare = round(fare * (1 - corporate_discount_pct / 100), 2)
 
+    # ===== AI Based Auto Promotions — discount auto-appliqué au tarif rider =====
+    from routes.auto_promotions import evaluate_best_auto_promo
+    auto_promo = await evaluate_best_auto_promo(user["id"], fare, service_type="ride")
+    auto_promo_id = auto_promo["id"] if auto_promo else None
+    auto_promo_title = auto_promo["title"] if auto_promo else None
+    auto_promo_discount = auto_promo["discount_amount"] if auto_promo else 0.0
+    if auto_promo_discount > 0:
+        fare = round(max(fare - auto_promo_discount, 0), 2)
+
     ride = {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
         "booking_no": str(secrets.randbelow(90000000) + 10000000),
@@ -384,6 +393,9 @@ async def create_ride(data: RideRequest, request: Request):
         "corporate_account_id": corporate_id,
         "corporate_name": corporate_name,
         "corporate_discount_pct": corporate_discount_pct,
+        "auto_promo_id": auto_promo_id,
+        "auto_promo_title": auto_promo_title,
+        "auto_promo_discount": auto_promo_discount,
         "buddy_hours": getattr(data, 'buddy_hours', None),
         "pets_count": getattr(data, 'pets_count', None),
         "pets_size": getattr(data, 'pets_size', None),
@@ -426,6 +438,10 @@ async def create_ride(data: RideRequest, request: Request):
     ride["carried_debt"] = carried if carried.get("amount", 0) > 0 else None
 
     await db.rides.insert_one(ride)
+
+    # Track auto-promotion usage once the booking is persisted
+    if auto_promo_id:
+        await db.auto_promotions.update_one({"id": auto_promo_id}, {"$inc": {"usage_count": 1}})
 
     # Join WS ride room for the user
     manager.join_ride_room(ride["id"], user["id"])

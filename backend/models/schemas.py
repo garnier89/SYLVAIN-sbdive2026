@@ -196,6 +196,9 @@ class RideResponse(BaseModel):
     ride_profile_org_type: Optional[str] = None
     business_trip_reason: Optional[str] = None
     carried_debt: Optional[dict] = None
+    auto_promo_id: Optional[str] = None
+    auto_promo_title: Optional[str] = None
+    auto_promo_discount: float = 0.0
 
 # Order Models
 class OrderItemCreate(BaseModel):
