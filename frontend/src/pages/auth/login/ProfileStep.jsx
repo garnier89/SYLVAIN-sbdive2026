@@ -8,7 +8,7 @@ const Field = ({ label, hint, ...props }) => (
     <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">
       {label} {hint && <span className="text-gray-500 font-normal lowercase">{hint}</span>}
     </label>
-    <input className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-[#4a9eff] transition-colors placeholder:text-gray-500" {...props} />
+    <input className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-[#FF5000] transition-colors placeholder:text-gray-500" {...props} />
   </div>
 );
 
@@ -38,7 +38,7 @@ export const ProfileStep = ({
     <div className="px-6 pb-8">
       <button
         onClick={onSubmit} disabled={loading}
-        className="w-full h-14 rounded-xl bg-[#4a9eff] hover:bg-[#3a8eef] text-white text-base font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-60"
+        className="w-full h-14 rounded-xl bg-[#FF5000] hover:bg-[#E54800] text-white text-base font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-60"
         data-testid="submit-btn"
       >
         {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>{t('login.create_account')}<ArrowRight size={20} className="ml-1" /></>}

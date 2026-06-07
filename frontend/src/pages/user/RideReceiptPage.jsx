@@ -37,7 +37,7 @@ const RideReceiptPage = () => {
   useEffect(() => { load(); }, [load]);
 
   if (!ride) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-200 border-t-[#4361EE] rounded-full animate-spin" /></div>;
+    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-200 border-t-[#FF5000] rounded-full animate-spin" /></div>;
   }
 
   const fb = ride.fare_breakdown || {};
@@ -61,10 +61,10 @@ const RideReceiptPage = () => {
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-8" data-testid="ride-receipt-page">
       {/* Header with total */}
-      <div className="bg-[#4361EE] text-white px-5 pt-10 pb-8 text-center relative">
+      <div className="bg-[#0B1426] text-white px-5 pt-10 pb-8 text-center relative">
         <h1 className="text-base font-bold tracking-wide">Résumé de paiement</h1>
         <p className="text-5xl font-black mt-4 tracking-tight" data-testid="receipt-total">{cur(total)}</p>
-        <p className="text-sm text-white/70 mt-2">Merci d'utiliser notre service</p>
+        <p className="text-sm text-white/70 mt-2">Merci d&apos;utiliser notre service</p>
         {ride.booking_no && <p className="text-xs text-white/50 mt-1">Balade #{ride.booking_no}</p>}
       </div>
 
@@ -93,7 +93,7 @@ const RideReceiptPage = () => {
         {/* Charges */}
         <div className="bg-white rounded-2xl shadow-sm p-4" data-testid="receipt-charges">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Des charges</p>
-          <p className="text-sm font-bold text-[#4361EE] capitalize mb-1">{fb.vehicle_label || ride.vehicle_type}</p>
+          <p className="text-sm font-bold text-[#FF5000] capitalize mb-1">{fb.vehicle_label || ride.vehicle_type}</p>
           <Line label="Tarif de base" value={cur(fb.base_fare)} />
           <Line label="Distance" sub={`${(fb.distance_km || 0).toFixed(2)} km`} value={cur(fb.distance_charge)} />
           <Line label="Temps" sub={`${fb.time_seconds || 0} secondes`} value={cur(fb.time_charge)} />
@@ -135,7 +135,7 @@ const RideReceiptPage = () => {
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none" data-testid="rating-comment" />
           <div className="flex gap-3 mt-4">
             <button onClick={() => submit(true)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-bold" data-testid="skip-rating-btn">Sauter</button>
-            <button onClick={() => submit(false)} disabled={submitting} className="flex-1 py-3 rounded-xl bg-[#4361EE] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60" data-testid="submit-rating-btn">
+            <button onClick={() => submit(false)} disabled={submitting} className="flex-1 py-3 rounded-xl bg-[#FF5000] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60" data-testid="submit-rating-btn">
               <CheckCircle size={18} weight="fill" /> {submitting ? 'Envoi…' : 'Soumettre'}
             </button>
           </div>

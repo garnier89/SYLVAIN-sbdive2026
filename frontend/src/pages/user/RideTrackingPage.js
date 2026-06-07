@@ -62,7 +62,7 @@ const StatusDialog = ({ dialog }) => {
     <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/40 px-8" data-testid="status-dialog">
       <div className="bg-white rounded-2xl w-full max-w-xs p-6 text-center shadow-2xl">
         <p className="text-base font-bold text-gray-900 mb-5" data-testid="status-dialog-text">{dialog.title}</p>
-        <button onClick={dialog.onOk} className="text-[#4361EE] font-extrabold text-sm uppercase tracking-wide" data-testid="status-dialog-ok">
+        <button onClick={dialog.onOk} className="text-[#FF5000] font-extrabold text-sm uppercase tracking-wide" data-testid="status-dialog-ok">
           D'accord
         </button>
       </div>

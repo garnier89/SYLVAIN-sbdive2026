@@ -9,6 +9,7 @@ import SideMenuDrawer from '../../components/SideMenuDrawer';
 import { useLocale } from '../../contexts/LocaleContext';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
+import { MODES } from './taxihub/taxiHubConstants';
 import { homeCategoriesAPI, promoBannersAPI, configAPI } from '../../services/api';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 import {
@@ -53,6 +54,13 @@ const TAXI_VISUAL = {
   corporate: { icon: Briefcase, bg: 'bg-slate-50', iconColor: 'text-slate-600' },
   access: { icon: Wheelchair, bg: 'bg-sky-50', iconColor: 'text-sky-600' },
 };
+
+// Keep the Home "Services Taxi" order IN SYNC with the "/taxi" hub: the hub
+// groups modes into sections (everyday → time → special), then sorts by the
+// admin display_order within each group. We mirror that exact sequence here so
+// the tiles never "jump" between the two screens.
+const TAXI_CAT_RANK = { everyday: 0, time: 1, special: 2 };
+const TAXI_MODE_CAT = MODES.reduce((acc, m) => { acc[m.id] = m.cat; return acc; }, {});
 
 // ── Signature "More Services" 4-coloured-squares mark (V3Cube) ──
 const MoreSquares = () => (
@@ -284,7 +292,14 @@ const UserHome = () => {
     if (!taxiCats.length) return null;
     const active = taxiCats
       .filter((c) => c.active !== false)
-      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      .sort((a, b) => {
+        // 1) group order (everyday → time → special), unknown keys last
+        const ra = TAXI_CAT_RANK[TAXI_MODE_CAT[a.key]] ?? 3;
+        const rb = TAXI_CAT_RANK[TAXI_MODE_CAT[b.key]] ?? 3;
+        if (ra !== rb) return ra - rb;
+        // 2) admin display_order within the group
+        return (a.display_order || 0) - (b.display_order || 0);
+      });
     const tiles = active.slice(0, 7).map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
       // Home taxi tiles always use the clean Phosphor icon (not the uploaded photo)

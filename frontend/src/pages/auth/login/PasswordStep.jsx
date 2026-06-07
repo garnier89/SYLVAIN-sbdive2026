@@ -24,7 +24,7 @@ export const PasswordStep = ({
       <div className="space-y-4">
         <div>
           <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">{t('auth.password')}</label>
-          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden focus-within:border-[#4a9eff] transition-colors">
+          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden focus-within:border-[#FF5000] transition-colors">
             <input
               type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
               className="flex-1 bg-transparent px-4 py-4 text-white text-base outline-none placeholder:text-gray-500"
@@ -39,7 +39,7 @@ export const PasswordStep = ({
         {isNewUser && (
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">{t('login.confirm_password')}</label>
-            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden focus-within:border-[#4a9eff] transition-colors">
+            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden focus-within:border-[#FF5000] transition-colors">
               <input
                 type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••"
                 className="flex-1 bg-transparent px-4 py-4 text-white text-base outline-none placeholder:text-gray-500"

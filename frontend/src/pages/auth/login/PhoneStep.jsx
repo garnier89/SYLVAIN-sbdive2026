@@ -50,15 +50,15 @@ export const PhoneStep = ({
       )}
 
       <button onClick={onOtherOptions} className="flex items-center gap-1.5 mt-5" data-testid="other-login-options-btn">
-        <span className="text-[#4a9eff] font-bold text-sm">{t('login.other_options')}</span>
-        <CaretRight size={14} className="text-[#4a9eff]" weight="bold" />
+        <span className="text-[#FF5000] font-bold text-sm">{t('login.other_options')}</span>
+        <CaretRight size={14} className="text-[#FF5000]" weight="bold" />
       </button>
 
       {error && <p className="text-red-400 text-sm mt-3" data-testid="error-message">{error}</p>}
     </div>
 
     <div className="px-6 mt-auto mb-4">
-      <p className="text-xs text-gray-500 leading-relaxed">{t('login.terms_agree')} <span className="text-[#4a9eff] underline">{t('login.terms_link')}</span></p>
+      <p className="text-xs text-gray-500 leading-relaxed">{t('login.terms_agree')} <span className="text-[#FF5000] underline">{t('login.terms_link')}</span></p>
     </div>
 
     <div className="px-6 pb-8 flex justify-end">

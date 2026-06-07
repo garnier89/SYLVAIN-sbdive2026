@@ -27,7 +27,7 @@ export const Fab = ({ onClick, loading, Icon }) => (
   <button
     onClick={onClick}
     disabled={loading}
-    className="w-14 h-14 rounded-full bg-[#4a9eff] hover:bg-[#3a8eef] flex items-center justify-center shadow-lg shadow-blue-500/30 transition-all disabled:opacity-60"
+    className="w-14 h-14 rounded-full bg-[#FF5000] hover:bg-[#E54800] flex items-center justify-center shadow-lg shadow-orange-500/30 transition-all disabled:opacity-60"
     data-testid="submit-btn"
   >
     {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Icon size={22} className="text-white" weight="bold" />}

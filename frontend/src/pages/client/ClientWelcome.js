@@ -6,7 +6,7 @@ import { ArrowRight, Car, Package, Wrench, Wallet, ShieldCheck } from '@phosphor
 const slides = [
   {
     icon: ShieldCheck,
-    iconColor: 'text-[#4a9eff]',
+    iconColor: 'text-[#FF5000]',
     iconBg: 'bg-blue-100',
     title: 'Connexion intelligente. Rapide & sécurisée',
     desc: 'Vous pouvez vous connecter à l\'app de la même manière que vous déverrouillez votre appareil.',
@@ -81,7 +81,7 @@ const ClientWelcome = () => {
         </div>
         {/* Loading dots */}
         <div className="absolute bottom-24 flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#4a9eff] animate-pulse" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#FF5000] animate-pulse" />
           <div className="w-2 h-2 rounded-full bg-gray-300" />
           <div className="w-2 h-2 rounded-full bg-gray-300" />
         </div>
@@ -107,11 +107,11 @@ const ClientWelcome = () => {
           <span className="text-[#FF4500]">CLIENT</span>
         </p>
         <div className="flex gap-2">
-          <div className="flex items-center gap-1 bg-[#4a9eff] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm" data-testid="lang-selector">
+          <div className="flex items-center gap-1 bg-[#FF5000] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm" data-testid="lang-selector">
             FR
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
           </div>
-          <div className="flex items-center gap-1 bg-[#4a9eff] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm" data-testid="currency-selector">
+          <div className="flex items-center gap-1 bg-[#FF5000] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm" data-testid="currency-selector">
             EUR
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -140,14 +140,14 @@ const ClientWelcome = () => {
             <div
               key={s.title}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === currentSlide ? 'w-8 bg-[#4a9eff]' : 'w-4 bg-gray-300'
+                i === currentSlide ? 'w-8 bg-[#FF5000]' : 'w-4 bg-gray-300'
               }`}
             />
           ))}
         </div>
         <button
           onClick={nextSlide}
-          className="w-14 h-14 rounded-xl bg-[#4a9eff] flex items-center justify-center shadow-lg shadow-blue-400/30 hover:bg-[#3a8eef] transition-colors"
+          className="w-14 h-14 rounded-xl bg-[#FF5000] flex items-center justify-center shadow-lg shadow-orange-500/30 hover:bg-[#E54800] transition-colors"
           data-testid="welcome-next-btn"
         >
           <ArrowRight size={24} className="text-white" weight="bold" />

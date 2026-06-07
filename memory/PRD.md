@@ -1,3 +1,17 @@
+## NEW - 2026-06-08 (57) - Harmonie ordre taxis (Accueil↔Hub) + charte couleur orange/noir (DONE)
+- **Bug user (« doublure »/changement de place)** : l'ordre des tuiles « Services Taxi » de l'accueil différait de celui de « Tous les Taxis » (`/taxi`). Cause : l'accueil triait **à plat** par `display_order`, alors que le hub **regroupe** les modes en sections fixes (everyday→time→special) puis trie par `display_order` dans chaque groupe.
+- **Fix (option b user)** : `UserHome.taxiTiles` suit désormais la **même séquence groupée** que le hub — import de `MODES`, maps `TAXI_CAT_RANK`{everyday:0,time:1,special:2} + `TAXI_MODE_CAT` (key→cat), tri par `(catRank, display_order)`. Les sections du hub sont conservées. Les 7 premières tuiles de l'accueil = début de la séquence du hub → plus de « saut » de position. Clés inconnues (catégories custom) en dernier.
+- **Couleur parasite (3e couleur bleue)** : charte confirmée **orange `#FF5000` + noir nuit `#0B1426`** (option b : accents d'icônes par mode conservés). Remplacés :
+  - `RideReceiptPage` : carte « Résumé de paiement » `#4361EE`→`#0B1426`, spinner/label/bouton notation `#4361EE`→`#FF5000` (+ apostrophe échappée).
+  - `RideTrackingPage` : bouton dialog `#4361EE`→`#FF5000`.
+  - `ClientWelcome` : pastilles FR/EUR, points pagination, dot splash, bouton suivant, icône slide 1 `#4a9eff`→`#FF5000` (hover `#3a8eef`→`#E54800`).
+  - Login (`PhoneStep`/`PasswordStep`/`ProfileStep`/`loginConstants`) : accents `#4a9eff`/`#3a8eef`→orange, `shadow-blue-*`→`shadow-orange-*`.
+- **Vérifié** : `grep` = 0 bleu parasite (`4361EE`/`4a9eff`/`3a8eef`) restant ; lint UserHome/ClientWelcome clean ; webpack compile (1 warning pré-existant). Landing `/welcome` orange+nuit OK. ⚠️ 1 flag lint `set-state-in-effect` sur `RideReceiptPage:40` = **pré-existant** (pattern `useEffect(load)` legacy, non introduit ; `eslint-disable` de cette règle casserait le build CRA).
+- ⚠️ PREVIEW → redéploiement requis pour la production.
+
+
+
+
 ## NEW - 2026-06-08 (56) - Refactor P2 (lot 1) : réduction complexité `_clean_driver_category` + tests (DONE)
 - **Demande user** : attaquer les refactors P2 différés par petits lots avec tests.
 - **Approche** : tests de caractérisation D'ABORD (capturer le comportement exact), puis refactor, puis re-test → iso-comportement prouvé.
