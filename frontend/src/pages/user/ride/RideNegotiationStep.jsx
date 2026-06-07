@@ -5,12 +5,11 @@ import { ArrowLeft, Car, Info } from '@phosphor-icons/react';
  * Step 2.5 — Negotiation: shows pending counter-offers from drivers.
  */
 export const RideNegotiationStep = ({
-  proposedFare, estimate, autoPromo,
+  proposedFare, estimate,
   counterOffers, loading,
   acceptOffer, cancelNegotiation,
 }) => {
-  const base = parseFloat(proposedFare) || (estimate?.estimated_fare || 0);
-  const mine = autoPromo?.discount_amount > 0 ? Math.max(base - autoPromo.discount_amount, 0) : base;
+  const mine = parseFloat(proposedFare) || (estimate?.estimated_fare || 0);
   const pending = counterOffers.filter(o => o.status === 'pending');
 
   return (

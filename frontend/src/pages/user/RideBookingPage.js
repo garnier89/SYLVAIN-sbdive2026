@@ -392,7 +392,7 @@ const RideBookingPage = () => {
   if (step === 'negotiation') {
     return (
       <RideNegotiationStep
-        proposedFare={proposedFare} estimate={estimate} autoPromo={autoPromo}
+        proposedFare={proposedFare} estimate={estimate}
         counterOffers={counterOffers} loading={loading}
         acceptOffer={acceptOffer} cancelNegotiation={cancelNegotiation}
       />
