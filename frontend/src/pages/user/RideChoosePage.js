@@ -88,6 +88,7 @@ const RideChoosePage = () => {
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
   const [taxiOpts, setTaxiOpts] = useState(null);
   const [modeCms, setModeCms] = useState(null); // admin CMS override for label/sub/icon
+  const [catName, setCatName] = useState(null); // « Catégories » (service_categories) — single source of truth
 
   // Mode-specific state
   const [scheduledAt, setScheduledAt] = useState('');
@@ -120,6 +121,23 @@ const RideChoosePage = () => {
         const items = r.data?.items || [];
         const match = items.find((it) => (it.target_route || '').includes(`mode=${mode.id}`));
         if (match) setModeCms(match);
+      })
+      .catch(() => {});
+    // « Catégories de service » (service_categories) = SINGLE SOURCE OF TRUTH for the
+    // mode name, shared with the home tiles and the /taxi hub. Keeps everything in sync
+    // when the admin renames/disables a category. A disabled category is not bookable.
+    configAPI.getServiceCategories()
+      .then((r) => {
+        const cats = Array.isArray(r.data) ? r.data : (r.data?.items || []);
+        const cat = cats.find((c) => c.key === mode.id);
+        if (cat) {
+          if (cat.active === false) {
+            toast.error('Ce service est actuellement indisponible');
+            navigate('/taxi', { replace: true });
+            return;
+          }
+          if (cat.name) setCatName(String(cat.name).trim());
+        }
       })
       .catch(() => {});
     configAPI.getVehicleTypes()
@@ -406,7 +424,7 @@ const RideChoosePage = () => {
           ) : (
             <ModeIcon size={15} weight="duotone" className="text-white" />
           )}
-          <span className="text-xs font-bold text-white">{modeCms?.label_fr ? modeCms.label_fr.replace(/\n/g, ' ') : mode.label}</span>
+          <span className="text-xs font-bold text-white">{catName || (modeCms?.label_fr ? modeCms.label_fr.replace(/\n/g, ' ') : mode.label)}</span>
           <span className="text-[10px] text-white/70">{modeCms?.subtitle_fr || mode.sub}</span>
         </div>
       </div>
@@ -510,7 +528,7 @@ const RideChoosePage = () => {
         {(isRental || isBuddy) && pickup?.lat && (
           <div className="mt-5 bg-[#0B1426] text-white p-4 rounded-2xl flex items-center justify-between" data-testid="single-price-card">
             <div>
-              <p className="text-[10px] tracking-wider uppercase text-[#FF5000] font-bold">{mode.label}</p>
+              <p className="text-[10px] tracking-wider uppercase text-[#FF5000] font-bold">{catName || mode.label}</p>
               <p className="text-xs text-white/60 mt-0.5">{isRental ? `Forfait ${RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.label}` : `${buddyHours}h de chauffeur dédié`}</p>
             </div>
             <p className="text-3xl font-black" data-testid="single-price-value">{Number(displayPrice).toFixed(0)} <span className="text-base">€</span></p>

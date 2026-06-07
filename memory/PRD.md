@@ -1,3 +1,15 @@
+## NEW - 2026-06-07 (48) - Harmonie config admin ↔ app client : noms de catégories taxi (DONE)
+- **Symptôme user** : « je configure une voiture ça n'apparaît pas », « les taxis affichés sont différents entre l'accueil et "Tous les taxis" », « pas d'harmonie app client ↔ admin ».
+- **Cause racine identifiée (preuve DB)** : l'admin a **renommé** des catégories dans `service_categories` (source de vérité : ex. `book_later`→« Planifiez votre trajet », `bidding`→« Proposez votre tarif », `electric`→« Électric », `access`→« Handicapé »), mais les libellés **statiques** de `taxiHubConstants.js MODES` n'avaient pas suivi. L'accueil (`UserHome.taxiTiles`) et le hub `/taxi` (`TaxiModeGrid`) utilisent déjà `c.name`/`cfg.name` (noms admin), **mais `/course` (`RideChoosePage`) utilisait `mode.label` statique** → désharmonie (ex. tuile « Planifiez votre trajet » qui ouvrait un écran titré « Plus Tard »).
+- **Correctif** : `RideChoosePage` récupère désormais `service_categories`, retrouve la catégorie par `key === mode.id` et utilise `cat.name` comme **titre/source de vérité** (header + section comparaison), avec repli `mode.label`. Une catégorie **désactivée** côté admin n'est plus réservable (toast + redirection `/taxi`). **Vérifié (Playwright)** : `/course?mode=book_later` → « Planifiez votre trajet » (plus « Plus Tard ») ; `electric` → « Électric » (plus « Green »).
+- **Clarification des 2 systèmes de config admin** (à communiquer) :
+  - **« Catégories de service »** → pilote les **MODES taxi** (Taxi VTC, Pool, Planifier, Enchères…) : nom, ordre, actif/inactif, icône → reflétés sur l'accueil + `/taxi` + `/course`.
+  - **« Types de véhicule »** → pilote les **voitures** (SB, Confort, Luxe, Moto, SUV…) + tarifs, affichées dans « Choisissez un voyage » après le choix du mode.
+- **Vérifié** : l'endpoint public `/config/vehicle-types` renvoie bien les **15** types actifs (10 visibles après exclusion de pool/airport/pets/assist/accessible, qui sont liés à des modes dédiés). Les véhicules apparaissent donc en **preview** ; les captures user (5 véhicules) proviennent vraisemblablement de la **PRODUCTION non redéployée**.
+- **Reste possible (follow-up)** : aligner aussi l'**ordre** du hub `/taxi` sur le `display_order` admin (actuellement groupé statiquement everyday/time/special) ; envisager de piloter `sub`/`cta` par l'admin également.
+
+
+
 ## NEW - 2026-06-07 (47) - Revue qualité de code : corrections sûres + faux positifs confirmés (DONE)
 - **Demande user** : appliquer les recommandations d'un rapport de revue de code.
 - **Faux positifs confirmés (aucune action requise)** :
