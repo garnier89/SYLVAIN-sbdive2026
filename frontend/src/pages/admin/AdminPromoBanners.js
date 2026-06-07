@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, MapPin } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, MapPin, Globe } from '@phosphor-icons/react';
 import { promoBannersAPI } from '../../services/api';
 import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 
@@ -51,6 +51,22 @@ export default function AdminPromoBanners() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewZone, setPreviewZone] = useState({ country: '', state: '', city: '' });
+  const [previewItems, setPreviewItems] = useState(null);
+
+  const loadPreview = async (zone) => {
+    setPreviewZone(zone);
+    try {
+      const r = await promoBannersAPI.preview(zone);
+      setPreviewItems(r.data.items || []);
+    } catch { setPreviewItems([]); }
+  };
+  const togglePreview = () => {
+    const next = !showPreview;
+    setShowPreview(next);
+    if (next && previewItems === null) loadPreview(previewZone);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -131,6 +147,34 @@ export default function AdminPromoBanners() {
         <button onClick={openCreate} className="bg-[#0B1426] text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2" data-testid="add-banner-btn">
           <Plus size={18} weight="bold" /> Nouvelle bannière
         </button>
+      </div>
+
+      {/* Zone preview — see exactly what a client in a given zone sees */}
+      <div className="bg-white rounded-xl border border-slate-200 mb-6" data-testid="zone-preview-card">
+        <button onClick={togglePreview} className="w-full flex items-center justify-between px-4 py-3" data-testid="preview-toggle-btn">
+          <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <Globe size={18} weight="duotone" className="text-emerald-600" /> Aperçu par zone
+            <span className="text-xs font-normal text-slate-400">— ce que voit un client de cette zone</span>
+          </span>
+          {showPreview ? <EyeSlash size={16} className="text-slate-400" /> : <Eye size={16} className="text-slate-400" />}
+        </button>
+        {showPreview && (
+          <div className="px-4 pb-4 border-t border-slate-100 pt-4">
+            <ZoneScopePicker value={previewZone} onChange={loadPreview} />
+            <p className="text-xs text-slate-400 mt-2">Astuce : choisissez le pays <b>et la région/ville</b> pour un aperçu précis (ex. Martinique → Martinique). Vide = aperçu global.</p>
+            <p className="text-sm font-semibold text-slate-700 mt-4" data-testid="preview-result-count">
+              {previewItems === null ? 'Chargement…' : `${previewItems.length} bannière${previewItems.length > 1 ? 's' : ''} visible${previewItems.length > 1 ? 's' : ''} pour cette zone`}
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
+              {(previewItems || []).map((b) => (
+                <div key={b.id} data-testid={`preview-banner-${b.id}`}><BannerPreview b={b} /></div>
+              ))}
+              {previewItems !== null && previewItems.length === 0 && (
+                <p className="text-sm text-slate-400">Aucune bannière visible dans cette zone.</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {loading ? <p>Chargement…</p> : (

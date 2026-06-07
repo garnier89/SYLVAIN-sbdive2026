@@ -1,4 +1,10 @@
-## NEW - 2026-06-07 (27) - Scope géographique des Bannières/Pubs (Lot 1.a) (DONE)
+## NEW - 2026-06-07 (28) - Admin « Aperçu par zone » des bannières (DONE)
+- **Demande user** : pouvoir prévisualiser, depuis l'admin, ce qu'un client d'une zone donnée (Martinique vs Paris) verra comme bannières, sans changer de compte ni de localisation.
+- **Frontend `AdminPromoBanners.js`** : carte dépliable **« Aperçu par zone »** (`zone-preview-card`, `preview-toggle-btn`) en haut de la page. Contient un `ZoneScopePicker` (Pays/Région/Ville) ; à chaque changement → appel de l'**endpoint public réel** `promoBannersAPI.preview(zone)` (`GET /api/promo-banners?country=&state=&city=`) → rend les `BannerPreview` exactement comme l'app client, avec un compteur (`preview-result-count`). `api.js` : nouvelle méthode `promoBannersAPI.preview(zone)`.
+- **Validé** : screenshots admin — **FR/Île-de-France → 2 bannières** (la bannière scopée MQ masquée) ; **MQ/Martinique → 3 bannières** (inclut la campagne Martinique). Données de test nettoyées (2 bannières par défaut). Lint clean.
+
+
+
 - **Demande user** : étendre le scope géo (P1) — **Lot 1 : Bannières d'abord**. Choix validés : (a) pattern Vouchers (champ `scope {country,state,city}` + filtrage client), (a) **détection zone client par géolocalisation navigateur**.
 - **Backend `routes/promo_banners.py`** : import `clean_scope/scope_matches/resolve_zone_from_text`. `admin_create` stocke `scope=clean_scope(body.scope)` ; `admin_update` accepte `scope`. `GET /api/promo-banners?country=&state=&city=&location=` : résout la zone (params explicites OU texte `location` reverse-géocodé) et filtre via `scope_matches` (bannière sans scope = globale = toujours visible). **Sans aucun paramètre de zone → renvoie toutes les bannières actives** (fallback sûr : géoloc refusée/en attente). Les bannières seedées (sans scope) restent globales.
 - **Frontend client** : `lib/browserZone.js` (`getBrowserLocationLabel()` — `navigator.geolocation` + reverse-geocode Google REST `language=fr`, renvoie '' en cas d'échec). `UserHome.js` charge les bannières (toutes au départ), puis dès que la géoloc résout un libellé d'adresse → **refetch zone-aware** (`promoBannersAPI.public(label)`). `promoBannersAPI.public(location)` passe `?location=`.

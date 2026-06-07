@@ -397,6 +397,11 @@ export const homeCategoriesAPI = {
 
 export const promoBannersAPI = {
   public: (location) => api.get('/promo-banners', { params: location ? { location } : {} }),
+  preview: (zone) => api.get('/promo-banners', { params: {
+    ...(zone?.country ? { country: zone.country } : {}),
+    ...(zone?.state ? { state: zone.state } : {}),
+    ...(zone?.city ? { city: zone.city } : {}),
+  } }),
   adminList: () => api.get('/promo-banners/admin'),
   create: (data) => api.post('/promo-banners/admin', data),
   update: (id, data) => api.put(`/promo-banners/admin/${id}`, data),
