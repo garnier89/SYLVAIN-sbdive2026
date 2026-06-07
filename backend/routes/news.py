@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from core.config import db
 from core.deps import get_current_user, require_role
 from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
+from core.notifications import create_notification
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -41,6 +42,68 @@ async def news_feed(request: Request, location: str = ""):
         items = [n for n in items if scope_matches(n.get("scope"), zone)]
     items.sort(key=lambda n: (n.get("pinned", False), n.get("published_at") or n.get("created_at") or ""), reverse=True)
     return items
+
+
+@router.get("/unread-count")
+async def news_unread_count(request: Request, location: str = ""):
+    """Number of published articles (audience + zone matched) newer than the user's
+    last read timestamp. Also refreshes the user's last_zone (for zone-targeted push)."""
+    user = await get_current_user(request)
+    audience = "driver" if user.get("role") == "driver" else "rider"
+    last_read = user.get("news_last_read_at") or ""
+    items = await db.news.find(
+        {"status": "published", "audience": {"$in": ["all", audience]}}, {"_id": 0}
+    ).to_list(500)
+    zone = None
+    if location:
+        zone = resolve_zone_from_text(location)
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"last_zone": clean_scope(zone) if zone else {"country": "", "state": "", "city": ""}}},
+        )
+    count = 0
+    for n in items:
+        if location and not scope_matches(n.get("scope"), zone):
+            continue
+        pub = n.get("published_at") or n.get("created_at") or ""
+        if pub > last_read:
+            count += 1
+    return {"unread": count}
+
+
+@router.post("/mark-read")
+async def mark_news_read(request: Request):
+    """Mark the feed as read for the current user (clears the unread badge)."""
+    user = await get_current_user(request)
+    await db.users.update_one({"id": user["id"]}, {"$set": {"news_last_read_at": _now()}})
+    return {"ok": True}
+
+
+def _eligible_roles(audience: str):
+    if audience == "rider":
+        return ["user"]
+    if audience == "driver":
+        return ["driver"]
+    return ["user", "driver"]
+
+
+async def _notify_article_published(article: dict):
+    """Push a notification to eligible users when an article is published.
+
+    Zone-scoped articles only reach users whose last known zone matches; global
+    articles reach all users of the matching audience. Best-effort, capped."""
+    scope = article.get("scope")
+    is_global = not (scope and scope.get("country"))
+    roles = _eligible_roles(article.get("audience", "all"))
+    users = await db.users.find({"role": {"$in": roles}}, {"_id": 0, "id": 1, "last_zone": 1}).to_list(5000)
+    body = article.get("title", "Nouvelle actualité")
+    for u in users:
+        if not is_global and not scope_matches(scope, u.get("last_zone")):
+            continue
+        await create_notification(
+            u["id"], "news", "Nouvelle actualité", body,
+            data={"news_id": article.get("id")}, push=True,
+        )
 
 
 # ───────────────────────── Admin CRUD ─────────────────────────
@@ -74,6 +137,8 @@ async def create_news(request: Request):
         "published_at": now if payload["status"] == "published" else None,
     }
     await db.news.insert_one(article)
+    if article["status"] == "published":
+        await _notify_article_published(article)
     return _serialize(article)
 
 
@@ -110,7 +175,11 @@ async def update_news(news_id: str, request: Request):
     if payload["status"] == "published" and not existing.get("published_at"):
         payload["published_at"] = _now()
     await db.news.update_one({"id": news_id}, {"$set": payload})
-    return await db.news.find_one({"id": news_id}, {"_id": 0})
+    updated = await db.news.find_one({"id": news_id}, {"_id": 0})
+    # Push only when an article transitions from non-published to published.
+    if payload["status"] == "published" and existing.get("status") != "published":
+        await _notify_article_published(updated)
+    return updated
 
 
 @router.put("/admin/{news_id}/toggle")
@@ -124,6 +193,9 @@ async def toggle_news(news_id: str, request: Request):
     if new_status == "published" and not n.get("published_at"):
         updates["published_at"] = _now()
     await db.news.update_one({"id": news_id}, {"$set": updates})
+    if new_status == "published":
+        article = await db.news.find_one({"id": news_id}, {"_id": 0})
+        await _notify_article_published(article)
     return {"id": news_id, "status": new_status}
 
 

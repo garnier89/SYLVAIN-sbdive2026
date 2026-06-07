@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { driverAPI, walletAPI, configAPI } from '../../services/api';
+import { driverAPI, walletAPI, configAPI, newsAPI } from '../../services/api';
+import { getBrowserLocationLabel } from '../../lib/browserZone';
 import {
   User, CaretRight, Gear, SignOut, ClipboardText, Wallet, Plus, EnvelopeOpen,
   Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
@@ -37,6 +38,7 @@ const DriverProfilePage = () => {
   const [infoForm, setInfoForm] = useState({ company_name: '', license_number: '' });
   const [allowEditProfile, setAllowEditProfile] = useState(true);
   const [appSettings, setAppSettings] = useState({});
+  const [newsUnread, setNewsUnread] = useState(0);
 
   const serviceOptions = [
     { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
@@ -145,6 +147,19 @@ const DriverProfilePage = () => {
   }, [on]);
 
   useEffect(() => {
+    let alive = true;
+    const loadUnread = async (location) => {
+      try {
+        const r = await newsAPI.unreadCount(location);
+        if (alive) setNewsUnread(r.data?.unread || 0);
+      } catch { /* ignore */ }
+    };
+    loadUnread();
+    getBrowserLocationLabel().then((label) => { if (label && alive) loadUnread(label); });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
     const loadData = async () => {
       try {
         const [dRes, wRes, aRes, rRes, cRes] = await Promise.allSettled([
@@ -240,7 +255,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={ChatCircleText} color="#06B6D4" label="Les commentaires des utilisateurs" onClick={soon} />
           <ProfileRow icon={Receipt} color="#78716C" label="Lettre de voiture" onClick={soon} />
           <ProfileRow icon={Bell} color="#F97316" label="Les notifications" onClick={() => navigate('/chauffeur/notifications')} />
-          <ProfileRow icon={Newspaper} color="#FF4500" label="Actualités" onClick={() => navigate('/chauffeur/actualites')} />
+          <ProfileRow icon={Newspaper} color="#FF4500" label="Actualités" onClick={() => navigate('/chauffeur/actualites')} badge={newsUnread} />
           <ProfileRow icon={UsersThree} color="#EF4444" label="Inviter des amis" onClick={() => navigate('/referral')} />
           <ProfileRow icon={PhoneCall} color="#84CC16" label="Contacts d'urgence" onClick={() => navigate('/safety')} />
         </div>
@@ -522,7 +537,7 @@ const StatCell = ({ icon: Icon, color, label, value, subtle, border, testid }) =
   </div>
 );
 
-const ProfileRow = ({ icon: Icon, color, label, onClick, toggle, onToggle }) => {
+const ProfileRow = ({ icon: Icon, color, label, onClick, toggle, onToggle, badge }) => {
   const [enabled, setEnabled] = useState(true);
   return (
     <button
@@ -534,6 +549,11 @@ const ProfileRow = ({ icon: Icon, color, label, onClick, toggle, onToggle }) => 
         <Icon size={20} weight="duotone" style={{ color }} />
       </div>
       <span className="text-sm text-gray-800 flex-1 text-left">{label}</span>
+      {badge ? (
+        <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0 mr-1" data-testid="driver-news-badge">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      ) : null}
       {toggle ? (
         <div className={`w-12 h-7 rounded-full relative transition-colors ${enabled ? 'bg-green-500' : 'bg-gray-300'}`}>
           <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'left-[22px]' : 'left-0.5'}`} />

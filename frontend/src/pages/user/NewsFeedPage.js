@@ -24,6 +24,7 @@ const NewsFeedPage = () => {
       try {
         const r = await newsAPI.feed(location);
         if (alive) setItems(r.data || []);
+        newsAPI.markRead().catch(() => {});
       } catch { if (alive) setItems([]); }
     };
     load();

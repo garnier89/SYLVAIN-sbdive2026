@@ -5,7 +5,8 @@ import { useAppSettings } from '../../hooks/useAppSettings';
 import ProfileTabView from './profile/ProfileTabView';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Switch } from '../../components/ui/switch';
-import { walletAPI } from '../../services/api';
+import { walletAPI, newsAPI } from '../../services/api';
+import { getBrowserLocationLabel } from '../../lib/browserZone';
 import {
   ClipboardText, Wallet, CreditCard, EnvelopeSimple, CaretRight,
   User, Bell, ShoppingCart, Heart, Phone, Briefcase, SignOut,
@@ -25,7 +26,7 @@ const SectionHeader = ({ title }) => (
 );
 
 /* ── reusable menu row ── */
-const MenuItem = ({ icon: Icon, label, subtitle, iconBg, iconColor, onClick, trailing, testId }) => {
+const MenuItem = ({ icon: Icon, label, subtitle, iconBg, iconColor, onClick, trailing, testId, badge }) => {
   // If trailing contains an interactive element (Switch), render as div to avoid button-in-button
   const Comp = trailing ? 'div' : 'button';
   return (
@@ -41,6 +42,11 @@ const MenuItem = ({ icon: Icon, label, subtitle, iconBg, iconColor, onClick, tra
         <p className="text-[14px] font-medium text-gray-900 leading-tight">{label}</p>
         {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
       </div>
+      {badge ? (
+        <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0 mr-1" data-testid={`${testId}-badge`}>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      ) : null}
       {trailing || <CaretRight size={16} className="text-gray-300 flex-shrink-0" />}
     </Comp>
   );
@@ -60,9 +66,23 @@ const ProfilePage = () => {
   const [search] = useSearchParams();
   const [walletBalance, setWalletBalance] = useState(0);
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
+  const [newsUnread, setNewsUnread] = useState(0);
 
   useEffect(() => {
     loadWallet();
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const loadUnread = async (location) => {
+      try {
+        const r = await newsAPI.unreadCount(location);
+        if (alive) setNewsUnread(r.data?.unread || 0);
+      } catch { /* ignore */ }
+    };
+    loadUnread();
+    getBrowserLocationLabel().then((label) => { if (label && alive) loadUnread(label); });
+    return () => { alive = false; };
   }, []);
 
   const loadWallet = async () => {
@@ -153,7 +173,7 @@ const ProfilePage = () => {
         <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
-        <MenuItem icon={Newspaper} label="Actualités" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/actualites')} testId="settings-news-btn" />
+        <MenuItem icon={Newspaper} label="Actualités" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/actualites')} testId="settings-news-btn" badge={newsUnread} />
         {settings.enable_favorite_driver === true && (
           <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
         )}

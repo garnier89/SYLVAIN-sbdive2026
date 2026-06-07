@@ -411,6 +411,8 @@ export const promoBannersAPI = {
 
 export const newsAPI = {
   feed: (location) => api.get('/news/feed', { params: location ? { location } : {} }),
+  unreadCount: (location) => api.get('/news/unread-count', { params: location ? { location } : {} }),
+  markRead: () => api.post('/news/mark-read'),
   adminList: () => api.get('/news/admin'),
   adminPreview: (zone, audience) => api.get('/news/admin/preview', { params: {
     ...(zone?.country ? { country: zone.country } : {}),

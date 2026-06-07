@@ -90,3 +90,28 @@ def test_preview_driver_audience_excludes_rider_article(admin_session, mq_articl
 def test_feed_requires_auth():
     r = requests.get(f"{BASE_URL}/api/news/feed")
     assert r.status_code in (401, 403)
+
+
+def test_unread_count_and_mark_read():
+    """A fresh rider sees seeded articles as unread; mark-read clears the badge."""
+    import time
+    s = requests.Session()
+    s.headers.update({"Content-Type": "application/json"})
+    email = f"newsqa_{int(time.time())}@demo.sb"
+    reg = s.post(f"{BASE_URL}/api/auth/register", json={
+        "name": "News QA", "email": email, "password": "NewsQa123!",
+        "phone": f"+33700{int(time.time()) % 1000000:06d}", "role": "user",
+    })
+    assert reg.status_code in (200, 201), f"register failed: {reg.status_code} {reg.text}"
+    token = reg.json().get("access_token") or reg.json().get("token")
+    if token:
+        s.headers.update({"Authorization": f"Bearer {token}"})
+    try:
+        before = s.get(f"{BASE_URL}/api/news/unread-count").json()["unread"]
+        assert before >= 1
+        assert s.post(f"{BASE_URL}/api/news/mark-read").json()["ok"] is True
+        after = s.get(f"{BASE_URL}/api/news/unread-count").json()["unread"]
+        assert after == 0
+    finally:
+        # best-effort cleanup of the temp account
+        s.delete(f"{BASE_URL}/api/auth/me")
