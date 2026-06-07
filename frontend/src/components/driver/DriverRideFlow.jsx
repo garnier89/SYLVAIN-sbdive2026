@@ -96,14 +96,6 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     };
   }, [status]);
 
-  // Trip timer (counts up while in progress)
-  useEffect(() => {
-    if (status !== 'in_progress') return undefined;
-    const base = startedAt ? new Date(startedAt).getTime() : Date.now();
-    const id = setInterval(() => setElapsed(Math.max(0, Math.floor((Date.now() - base) / 1000))), 1000);
-    return () => clearInterval(id);
-  }, [status, startedAt]);
-
   // Waiting timer (driver toggles "Démarrer la minuterie d'attente")
   useEffect(() => {
     if (!waitingStart) return undefined;

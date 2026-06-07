@@ -52,8 +52,9 @@ export const RideFlowAddressCard = ({ label, address, isPickupPhase }) => (
 export const RideFlowMap = ({
   mapCenter, driver, driverIconUrl, pickup, dropoff, routePath,
   connected, onSos,
-  inProgress, elapsedLabel,
+  inProgress,
   isArrived, pickupArrivedAt, pickupWaitLabel, pickupBillable, pickupWaitChargeLabel,
+  waitingActive, waitingLabel, onToggleWaiting,
 }) => (
   <div className="flex-1 relative">
     <AdminGoogleMap
@@ -72,13 +73,8 @@ export const RideFlowMap = ({
     <button onClick={onSos} className="absolute top-9 left-3 z-[600] w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shadow-lg animate-pulse" data-testid="ride-flow-sos-btn" aria-label="Sécurité / SOS">
       <Siren size={24} weight="fill" className="text-white" />
     </button>
-    {inProgress && (
-      <div className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-md flex items-center gap-1" data-testid="ride-flow-timer">
-        <Clock size={12} weight="bold" />{elapsedLabel}
-      </div>
-    )}
-    {/* Pickup waiting timer — auto, EN ROUTE (driver arrived, waits for passenger).
-        It stops and disappears automatically once the trip starts (in_progress). */}
+    {/* BLACK pickup waiting timer — auto, EN ROUTE (driver arrived, waits for the
+        passenger). It stops and DISAPPEARS the moment the trip starts (in_progress). */}
     {isArrived && pickupArrivedAt && (
       <div
         className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-3 py-1 text-xs font-bold tabular-nums shadow-md flex items-center gap-1.5"
@@ -90,6 +86,18 @@ export const RideFlowMap = ({
           <span className="text-amber-400" data-testid="ride-flow-pickup-wait-billed">· facturé · {pickupWaitChargeLabel} €</span>
         )}
       </div>
+    )}
+    {/* GREY in-trip waiting toggle — APPEARS when the trip starts (in_progress).
+        Lets the driver bill waiting time during the trip (passenger stop, etc.). */}
+    {inProgress && (
+      <button
+        onClick={onToggleWaiting}
+        className={`absolute top-1 left-1/2 -translate-x-1/2 z-[600] rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 ${waitingActive ? 'bg-amber-500 text-white' : 'bg-white text-gray-800'}`}
+        data-testid="ride-flow-waiting-btn"
+      >
+        <Clock size={13} weight="fill" />
+        {waitingLabel}
+      </button>
     )}
   </div>
 );
