@@ -321,11 +321,12 @@ export default function VehicleTypeEditor({ item, onSaved, onCancel }) {
         </div>
         {/* Zone overrides */}
         <div className="mt-4 border-t border-gray-100 pt-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-gray-700">Surcoûts par zone / localité</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-semibold text-gray-700">Tarifs par zone / localité</p>
             <Button type="button" variant="outline" size="sm" onClick={addZone} data-testid="vt-add-zone"><Plus size={14} className="mr-1" />Ajouter une zone</Button>
           </div>
-          {f.zone_overrides.length === 0 && <p className="text-xs text-gray-400">Aucun surcoût. Le tarif de base s&apos;applique partout.</p>}
+          <p className="text-xs text-gray-400 mb-2">Le prix d&apos;une course est calculé avec le barème de la zone de <b>prise en charge</b>. Si aucune zone ne correspond, le tarif de base ci-dessus s&apos;applique.</p>
+          {f.zone_overrides.length === 0 && <p className="text-xs text-gray-400">Aucun tarif spécifique. Le tarif de base s&apos;applique partout.</p>}
           {f.zone_overrides.map((z, i) => (
             <div key={z._id ?? `zone-${i}`} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end mb-2 bg-gray-50 rounded-lg p-2" data-testid={`vt-zone-${i}`}>
               <Field label="Zone">

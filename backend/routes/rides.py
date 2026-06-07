@@ -184,6 +184,8 @@ async def estimate_ride(data: RideRequest):
         duration = int(distance * 3)
 
     vtype_doc = await db.vehicle_types.find_one({"slug": data.vehicle_type, "status": "active"}, {"_id": 0})
+    from core.geo_scope import apply_vehicle_zone_pricing
+    vtype_doc, zone_tariff = apply_vehicle_zone_pricing(vtype_doc, getattr(data, "pickup_address", "") or "")
     fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
 
     # Dynamic pricing (AI Surge + Weather Surcharge)
@@ -224,6 +226,9 @@ async def estimate_ride(data: RideRequest):
     }
     if route_polyline:
         result["route_polyline"] = route_polyline
+    if zone_tariff:
+        result["zone_tariff"] = zone_tariff
+        result["pricing_reasons"] = [f"Tarif local : {zone_tariff}"] + result["pricing_reasons"]
     if vtype_doc:
         result["fare_type"] = vtype_doc.get("fare_type", "Regular")
         result["base_fare"] = vtype_doc.get("base_fare", 0)
@@ -285,6 +290,8 @@ async def create_ride(data: RideRequest, request: Request):
     )
     duration = int(distance * 3)
     vtype_doc = await db.vehicle_types.find_one({"slug": data.vehicle_type, "status": "active"}, {"_id": 0})
+    from core.geo_scope import apply_vehicle_zone_pricing
+    vtype_doc, _zone_tariff = apply_vehicle_zone_pricing(vtype_doc, getattr(data, "pickup_address", "") or "")
     fare = calculate_fare(distance, data.vehicle_type, duration, vtype_doc)
     otp = str(secrets.randbelow(10000)).zfill(4)
 
@@ -777,6 +784,8 @@ async def update_ride_route(ride_id: str, request: Request):
     )
     duration = int(distance * 3)
     vtype_doc = await db.vehicle_types.find_one({"slug": ride["vehicle_type"], "status": "active"}, {"_id": 0})
+    from core.geo_scope import apply_vehicle_zone_pricing
+    vtype_doc, _zone_tariff = apply_vehicle_zone_pricing(vtype_doc, ride.get("pickup_address") or pickup_address or "")
     fare = calculate_fare(distance, ride["vehicle_type"], duration, vtype_doc)
 
     route_polyline = ride.get("route_polyline")

@@ -146,3 +146,67 @@ def scope_matches(scope, zone: Optional[dict]) -> bool:
     if s_city and s_city != (zone.get("city") or "").strip().lower():
         return False
     return True
+
+
+# ── Per-vehicle-type ZONE PRICING overrides (V3Cube "Tarifs par zone") ─────
+# Vehicle type docs carry `zone_overrides`: [{zone, price_per_km, price_per_min,
+# base_fare, min_fare, ...}] where `zone` is a free-text zone name (e.g.
+# "Martinique", "Paris"). At fare time we resolve the ride pickup to a zone and
+# apply the MOST SPECIFIC matching override (city > state > country) on top of the
+# vehicle type's base pricing.
+_PRICING_OVERRIDE_FIELDS = (
+    "price_per_km", "price_per_min", "base_fare", "min_fare",
+    "price_per_hour", "fixed_fare", "pickup_price",
+)
+
+
+def _norm_zone_name(s) -> str:
+    return (s or "").strip().lower()
+
+
+def apply_vehicle_zone_pricing(vtype_doc, pickup_address):
+    """Return (doc, applied_zone_label).
+
+    If the vehicle type has `zone_overrides` and the ride pickup resolves to a
+    matching zone, return a COPY of `vtype_doc` with that zone's pricing fields
+    applied. Most-specific match wins (city > state > country). Otherwise the doc
+    is returned unchanged with applied_zone_label = None."""
+    if not vtype_doc:
+        return vtype_doc, None
+    overrides = vtype_doc.get("zone_overrides") or []
+    if not overrides:
+        return vtype_doc, None
+    zone = resolve_zone_from_text(pickup_address)
+    if not zone:
+        return vtype_doc, None
+    city = _norm_zone_name(zone.get("city"))
+    state = _norm_zone_name(zone.get("state"))
+    cc = (zone.get("country") or "").upper()
+    country_name = _norm_zone_name(CURATED.get(cc, {}).get("name"))
+
+    best = None
+    best_rank = 0
+    for ov in overrides:
+        z = _norm_zone_name(ov.get("zone"))
+        if not z:
+            continue
+        rank = 0
+        if city and (z == city or z in city or city in z):
+            rank = 3
+        elif state and (z == state or z in state or state in z):
+            rank = 2
+        elif country_name and (z == country_name or z in country_name or country_name in z):
+            rank = 1
+        if rank > best_rank:
+            best, best_rank = ov, rank
+    if not best:
+        return vtype_doc, None
+
+    merged = dict(vtype_doc)
+    for f in _PRICING_OVERRIDE_FIELDS:
+        if f in best and best[f] not in (None, ""):
+            try:
+                merged[f] = float(best[f])
+            except (TypeError, ValueError):
+                pass
+    return merged, best.get("zone")
