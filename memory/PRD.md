@@ -1,3 +1,18 @@
+## NEW - 2026-06-08 (59) - Revue de code : refactor complexité WebSocket + faux positifs reconfirmés (DONE)
+- **Demande user** : appliquer un rapport de revue de code.
+- **Correction RÉELLE (mon code récent)** : `core/ws_endpoint.py` (`websocket_endpoint` complexité 16, profondeur d'imbrication 8) refactoré avec un **pattern de dispatch** : handlers async dédiés par type de message (`_handle_location_update`, `_handle_join_ride`, `_handle_leave_ride`, `_handle_eta_update`, `_handle_ping`) + table `_HANDLERS`, et early-returns. Imbrication réduite à ~3. La boucle se contente de dispatcher.
+- **Vérifié comportementalement** : test client WS réel → `ping`→`pong`, `join_ride`→`joined_ride`, message inconnu ignoré sans crash (connexion maintenue). Backend redémarre proprement, lint clean, `tests/test_server_wiring.py` 4/4.
+- **FAUX POSITIFS / intentionnels reconfirmés (aucune action)** :
+  - i18nBase.js:7,16,17 « secrets » → libellés de traduction (`password`/`Mot de passe`).
+  - localStorage Profile/Kiosk/InstallPWA → données non sensibles.
+  - Clés-index AdminServiceCategories/AdminDynamicPricing/AdminDriverCategories → **rangées éditables in-place par index** (changer la clé casse le focus input) — pattern correct.
+  - 168 console → neutralisés en prod via `silenceConsole()`.
+  - 266 `is`/`==` dans les tests → assertions **booléennes strictes** (`is True/False/None`) voulues ; passer en `==` déclencherait l'anti-pattern inverse E712.
+- **DÉFÉRÉ (backlog P2)** : ~365 hook deps (forcer casse le build CRA), complexité admin (`get_rewards_config` cc21, `get_analytics_breakdown`…), type hints, découpage gros composants frontend.
+
+
+
+
 ## NEW - 2026-06-08 (58) - Refactorisation complète de server.py (776 → 32 lignes) (DONE)
 - **Demande user** : refactorisation complète de `server.py`.
 - **Découpage en modules à responsabilité unique** (aucun changement de comportement) :
