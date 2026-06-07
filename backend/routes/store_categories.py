@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from core.config import db
 from core.deps import require_role
+from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 
 router = APIRouter(prefix="/store-categories", tags=["store-categories"])
 
@@ -52,9 +53,15 @@ async def seed_store_categories():
 
 
 @router.get("")
-async def list_active_store_categories():
-    """Public: delivery verticals + active flags so the client app can filter the delivery hub."""
+async def list_active_store_categories(location: str = ""):
+    """Public: delivery verticals + active flags so the client app can filter the
+    delivery hub. When `location` (browser-resolved) is supplied, categories whose
+    geographic `scope` doesn't match the zone are dropped (global scope = always).
+    No location → all categories (the client filters `active` itself)."""
     cats = await db.store_categories.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    if location:
+        zone = resolve_zone_from_text(location)
+        cats = [c for c in cats if scope_matches(c.get("scope"), zone)]
     return cats
 
 
@@ -100,6 +107,8 @@ async def admin_update_store_category(key: str, request: Request):
     for f in _EDITABLE:
         if f in body:
             allowed[f] = body[f]
+    if "scope" in body:
+        allowed["scope"] = clean_scope(body["scope"])
     if "age_restriction" in allowed:
         try:
             allowed["age_restriction"] = int(allowed["age_restriction"])

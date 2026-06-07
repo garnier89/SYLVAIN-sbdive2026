@@ -7,8 +7,11 @@
  */
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, ArrowUp, ArrowDown, Warning, Truck } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, ArrowUp, ArrowDown, Warning, Truck, MapPin } from '@phosphor-icons/react';
 import { adminAPI } from '../../services/api';
+import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
+
+const scopeLabel = (s) => (!s || !s.country ? '' : [s.city, s.state, s.country_name || s.country].filter(Boolean).join(', '));
 
 const GROUP_LABELS = { food: 'Restauration', essentials: 'Essentiels', specialty: 'Spécialisé' };
 const VEHICLE_LABELS = { any: 'Tous véhicules', moto: 'Moto / Scooter', car: 'Voiture / Fourgon' };
@@ -116,6 +119,11 @@ const AdminStoreCategories = () => {
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-slate-100 text-slate-600" data-testid={`store-cat-vehicle-badge-${c.key}`}>
                   <Truck size={11} weight="bold" /> {VEHICLE_LABELS[c.delivery_vehicle] || 'Tous véhicules'}
                 </span>
+                {c.scope?.country && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-emerald-100 text-emerald-700" data-testid={`store-cat-zone-badge-${c.key}`}>
+                    <MapPin size={11} weight="fill" /> {scopeLabel(c.scope)}
+                  </span>
+                )}
               </div>
               <div className="flex items-center justify-between gap-2">
                 <button onClick={() => setEditing(c)} data-testid={`store-cat-edit-${c.key}`}
@@ -155,6 +163,7 @@ const EditStoreCategoryModal = ({ cat, onClose, onSaved }) => {
   const [icon, setIcon] = useState(cat.icon || '');
   const [age, setAge] = useState(cat.age_restriction || 0);
   const [vehicle, setVehicle] = useState(cat.delivery_vehicle || 'any');
+  const [scope, setScope] = useState(cat.scope || { country: '', state: '', city: '' });
   const [saving, setSaving] = useState(false);
 
   const onFile = (e) => {
@@ -170,7 +179,7 @@ const EditStoreCategoryModal = ({ cat, onClose, onSaved }) => {
     setSaving(true);
     try {
       const r = await adminAPI.updateStoreCategory(cat.key, {
-        name, name_en: nameEn, icon, age_restriction: Number(age), delivery_vehicle: vehicle,
+        name, name_en: nameEn, icon, age_restriction: Number(age), delivery_vehicle: vehicle, scope,
       });
       toast.success('Catégorie mise à jour');
       onSaved(r.data);
@@ -220,6 +229,10 @@ const EditStoreCategoryModal = ({ cat, onClose, onSaved }) => {
           </div>
         </div>
         <p className="text-[11px] text-slate-400 mb-4">Emoji OU image PNG/JPG (512×512 px recommandé, max 5 Mo).</p>
+        <div className="mb-4">
+          <ZoneScopePicker value={scope} onChange={setScope} />
+          <p className="text-[11px] text-slate-400 mt-1">Vide = disponible partout. Choisissez une zone pour limiter cette catégorie (ex. Vin = métropole uniquement).</p>
+        </div>
         <button onClick={save} disabled={saving || !name.trim()} data-testid="store-cat-edit-save"
           className="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
           <Check size={18} /> {saving ? 'Enregistrement…' : 'Mettre à jour'}

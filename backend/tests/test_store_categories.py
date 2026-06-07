@@ -128,3 +128,27 @@ class TestAdminStoreCategories:
     def test_requires_admin(self):
         r = requests.get(f"{BASE_URL}/api/admin/store-categories")
         assert r.status_code in (401, 403)
+
+
+class TestStoreCategoryZoneScope:
+    """Lot 3: a category scoped to a zone is hidden in non-matching zones."""
+
+    def test_scope_filters_by_location(self, admin_session):
+        try:
+            r = admin_session.put(f"{BASE_URL}/api/admin/store-categories/wine",
+                                  json={"scope": {"country": "FR", "state": "", "city": ""}})
+            assert r.status_code == 200 and r.json()["scope"]["country"] == "FR"
+            # no location → present (client filters itself)
+            allcats = requests.get(f"{BASE_URL}/api/store-categories").json()
+            assert any(c["key"] == "wine" for c in allcats)
+            # Paris (FR) → present
+            paris = requests.get(f"{BASE_URL}/api/store-categories", params={"location": "Paris, France"}).json()
+            assert any(c["key"] == "wine" for c in paris)
+            # Martinique → hidden
+            mq = requests.get(f"{BASE_URL}/api/store-categories", params={"location": "Fort-de-France, Martinique"}).json()
+            assert not any(c["key"] == "wine" for c in mq)
+            # global categories still present in MQ
+            assert any(c["key"] == "food" for c in mq)
+        finally:
+            admin_session.put(f"{BASE_URL}/api/admin/store-categories/wine",
+                              json={"scope": {"country": "", "state": "", "city": ""}})

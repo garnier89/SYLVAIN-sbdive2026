@@ -1,3 +1,14 @@
+## NEW - 2026-06-07 (33) - Catégories de livraison par zone (Lot 3) (DONE)
+- **Demande user** : règle de zone sur les catégories de livraison (ex. Vin = métropole only, Médicaments = partout). Pattern « Bannières » exact, réutilise tout le socle.
+- **Backend `store_categories.py`** : import `clean_scope/scope_matches/resolve_zone_from_text`. Seed ajoute `scope {country,state,city}` vide. `GET /store-categories?location=` filtre par zone (`scope_matches` ; scope global = toujours ; sans location = tout, le client filtre `active`). Admin `PUT /{key}` accepte `scope` (clean_scope). Rétrocompatible : catégories existantes sans scope = globales.
+- **Frontend admin `AdminStoreCategories.js`** : `ZoneScopePicker` (« Portée géographique ») dans le modal d'édition + **badge zone vert** sur la carte. Texte d'aide « Vide = partout, ex. Vin = métropole uniquement ».
+- **Frontend client `AllDeliveryPage.js`** : passe la localisation navigateur (`getBrowserLocationLabel`) à `configAPI.getStoreCategories(location)` → masque les verticales restreintes à d'autres régions.
+- **Validé** : **pytest `tests/test_store_categories.py` 8/8** (+ scope wine→FR : présent no-location/Paris, masqué Martinique, globales toujours présentes) + curl E2E (wine FR : 9→8 en Martinique) + **screenshot** modal (picker + texte d'aide). Données restaurées (wine global). Lint front+back clean.
+- **Lot 1+2+3 COMPLETS** ✅ — Socle géo : Promos, Vouchers, App Settings, Bannières, News, Récompenses, Tarifs, **Catégories de livraison**.
+- **Reste** : Recherche unifiée mobile `/api/search/delivery` (app Expo), i18n web. ⏳ Twilio/Firebase/WhatsApp en attente des clés API.
+
+
+
 ## NEW - 2026-06-07 (32) - Tarifs véhicules par zone (Lot 2) - branchement au calcul du prix (DONE)
 - **Demande user** : Lot 2 — tarifs/véhicules par zone (impacte le calcul de course). **Découverte** : les `zone_overrides` (prix/km, prix/min, base, min par zone) existaient déjà sur les docs `vehicle_types` **avec une UI admin complète** (`VehicleTypeEditor`), mais **n'étaient JAMAIS utilisés** dans le calcul du prix. Lot 2 = **brancher l'existant**.
 - **Backend `core/geo_scope.py`** : nouveau `apply_vehicle_zone_pricing(vtype_doc, pickup_address)` → résout la zone de la **prise en charge** (`resolve_zone_from_text`), trouve l'override le plus spécifique (city>state>country, matching souple par nom : « Réunion »⊂« La Réunion », etc.), applique ses champs de prix (`price_per_km, price_per_min, base_fare, min_fare, ...`) sur une COPIE du doc, retourne `(doc, zone_label)`.

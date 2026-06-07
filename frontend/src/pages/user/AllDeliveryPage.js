@@ -5,6 +5,7 @@ import {
   PencilLine, Wine, Drop, Buildings, HardHat, Package
 } from '@phosphor-icons/react';
 import { configAPI } from '../../services/api';
+import { getBrowserLocationLabel } from '../../lib/browserZone';
 
 // Static visual identity per delivery vertical (key matches backend store_categories).
 // Admin controls active/name/age; this map only supplies the icon + colors.
@@ -26,10 +27,17 @@ const AllDeliveryPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    configAPI.getStoreCategories()
-      .then((r) => setCategories((r.data || []).filter((c) => c.active)))
-      .catch(() => setCategories([]))
-      .finally(() => setLoading(false));
+    let alive = true;
+    const load = (location) => {
+      configAPI.getStoreCategories(location)
+        .then((r) => { if (alive) setCategories((r.data || []).filter((c) => c.active)); })
+        .catch(() => { if (alive) setCategories([]); })
+        .finally(() => { if (alive) setLoading(false); });
+    };
+    load();
+    // Zone-aware refresh: hide verticals restricted to other regions (e.g. Wine = metro only)
+    getBrowserLocationLabel().then((label) => { if (label && alive) load(label); });
+    return () => { alive = false; };
   }, []);
 
   return (
