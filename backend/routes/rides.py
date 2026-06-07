@@ -928,6 +928,87 @@ async def accept_ride(ride_id: str, request: Request):
     return {"message": "Ride accepted", "status": "accepted"}
 
 
+DRIVER_CANCEL_WINDOW_MIN = 20
+
+
+@router.post("/{ride_id}/driver-cancel-booking")
+async def driver_cancel_booking(ride_id: str, request: Request):
+    """A driver releases a booking they accepted. Allowed ONLY while the ride is
+    still 'accepted' and within DRIVER_CANCEL_WINDOW_MIN of acceptance; afterwards
+    the cancel option is gone (only 'Démarrer' remains). The ride returns to the
+    available pool — scheduled rides reappear in the agenda, instant rides are
+    re-broadcast immediately."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Driver profile required")
+
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride.get("driver_id") != driver["id"]:
+        raise HTTPException(status_code=403, detail="Not your booking")
+    if ride.get("status") != "accepted":
+        raise HTTPException(status_code=400, detail="Cette course ne peut plus être annulée.")
+
+    accepted_at = ride.get("accepted_at")
+    if accepted_at:
+        acc = datetime.fromisoformat(str(accepted_at).replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) - acc > timedelta(minutes=DRIVER_CANCEL_WINDOW_MIN):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Délai d'annulation dépassé ({DRIVER_CANCEL_WINDOW_MIN} min).",
+            )
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.rides.update_one({"id": ride_id}, {"$set": {
+        "status": "pending",
+        "driver_id": None,
+        "accepted_at": None,
+        "driver_name": None,
+        "driver_phone": None,
+        "driver_rating": None,
+        "driver_vehicle_model": None,
+        "driver_vehicle_number": None,
+        "released_at": now,
+    }})
+
+    # Notify the passenger their driver stepped back.
+    try:
+        from core.notifications import create_notification
+        await create_notification(
+            ride["user_id"], "ride", "Recherche d'un nouveau chauffeur",
+            "Votre chauffeur n'est plus disponible. Nous recherchons un autre chauffeur pour votre réservation.",
+            push=True, data={"ride_id": ride_id, "kind": "driver_released"},
+        )
+    except Exception:
+        pass
+    await manager.send_personal_message(
+        {"type": "ride_driver_released", "ride_id": ride_id, "status": "pending"},
+        ride["user_id"],
+    )
+
+    # Re-enter the pool: instant rides re-broadcast, scheduled rides return to the
+    # agenda (no immediate pop-up).
+    if not ride.get("scheduled_at"):
+        await manager.broadcast_to_drivers({
+            "type": "new_ride_request",
+            "ride_id": ride_id,
+            "pickup_lat": ride.get("pickup_lat"),
+            "pickup_lng": ride.get("pickup_lng"),
+            "pickup_address": ride.get("pickup_address"),
+            "dropoff_address": ride.get("dropoff_address"),
+            "vehicle_type": ride.get("vehicle_type"),
+            "estimated_fare": ride.get("estimated_fare"),
+            "proposed_fare": ride.get("proposed_fare"),
+            "distance_km": ride.get("distance_km"),
+            "duration_mins": ride.get("duration_mins"),
+        })
+
+    return {"message": "Booking released", "status": "pending", "cancel_window_min": DRIVER_CANCEL_WINDOW_MIN}
+
+
+
 @router.post("/{ride_id}/status")
 async def update_ride_status(ride_id: str, request: Request):
     user = await get_current_user(request)

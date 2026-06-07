@@ -61,6 +61,12 @@ const DriverBookingsPage = () => {
   const [busy, setBusy] = useState(false);
   const [bidInputs, setBidInputs] = useState({});
   const [dismissed, setDismissed] = useState([]); // locally declined pending rides
+  const [nowTs, setNowTs] = useState(() => Date.now()); // ticks so the 20-min cancel window closes live
+
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 10000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -97,6 +103,22 @@ const DriverBookingsPage = () => {
       action: () => { setConfirm(null); navigate('/chauffeur/home'); },
     });
   }, [navigate]);
+
+  const doCancelBooking = useCallback((ride) => {
+    setConfirm({
+      message: 'Annuler cette réservation ? Elle sera proposée à un autre chauffeur.',
+      action: async () => {
+        setBusy(true);
+        try {
+          await rideAPI.driverCancelBooking(ride.id);
+          toast.success('Réservation annulée.');
+          reload();
+        } catch (e) {
+          toast.error(e?.response?.data?.detail || "Annulation impossible.");
+        } finally { setBusy(false); setConfirm(null); }
+      },
+    });
+  }, [reload]);
 
   const sendBid = useCallback(async (ride) => {
     const amount = parseFloat(bidInputs[ride.id]);
@@ -157,18 +179,28 @@ const DriverBookingsPage = () => {
       <div className="px-4">
         {/* RIDES */}
         {tab === 'rides' && rides.length === 0 && <p className="text-center text-gray-400 text-sm py-10" data-testid="bookings-empty">Aucune réservation.</p>}
-        {tab === 'rides' && rides.map((ride) => (
-          <BookingCard key={ride.id} ride={ride} badge="Réservation de taxi" badgeColor="#E11900" testId={`booking-${ride.id}`}>
-            {filter === 'pending' ? (
-              <div className="flex gap-3">
-                <button onClick={() => doAccept(ride)} className="flex-1 py-2.5 rounded-full text-white font-bold text-sm" style={{ background: GREEN }} data-testid={`accept-booking-${ride.id}`}>Acceptez</button>
-                <button onClick={() => { setDismissed((p) => [...p, ride.id]); toast('Trajet décliné.'); }} className="px-6 py-2.5 rounded-full border border-gray-300 text-gray-500 font-bold text-sm" data-testid={`decline-booking-${ride.id}`}>Déclin</button>
-              </div>
-            ) : (
-              <button onClick={() => doStart(ride)} className="w-full py-2.5 rounded-full text-white font-bold text-sm" style={{ background: GREEN }} data-testid={`start-booking-${ride.id}`}>Départ voyage</button>
-            )}
-          </BookingCard>
-        ))}
+        {tab === 'rides' && rides.map((ride) => {
+          const acceptedMs = ride.accepted_at ? new Date(ride.accepted_at).getTime() : 0;
+          const canCancel = filter === 'upcoming' && ride.status === 'accepted' && acceptedMs
+            && (nowTs - acceptedMs < 20 * 60 * 1000);
+          return (
+            <BookingCard key={ride.id} ride={ride} badge="Réservation de taxi" badgeColor="#E11900" testId={`booking-${ride.id}`}>
+              {filter === 'pending' ? (
+                <div className="flex gap-3">
+                  <button onClick={() => doAccept(ride)} className="flex-1 py-2.5 rounded-full text-white font-bold text-sm" style={{ background: GREEN }} data-testid={`accept-booking-${ride.id}`}>Acceptez</button>
+                  <button onClick={() => { setDismissed((p) => [...p, ride.id]); toast('Trajet décliné.'); }} className="px-6 py-2.5 rounded-full border border-gray-300 text-gray-500 font-bold text-sm" data-testid={`decline-booking-${ride.id}`}>Déclin</button>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  {canCancel && (
+                    <button onClick={() => doCancelBooking(ride)} className="px-6 py-2.5 rounded-full border border-red-300 text-red-600 font-bold text-sm" data-testid={`cancel-booking-${ride.id}`}>Annuler</button>
+                  )}
+                  <button onClick={() => doStart(ride)} className="flex-1 py-2.5 rounded-full text-white font-bold text-sm" style={{ background: GREEN }} data-testid={`start-booking-${ride.id}`}>Départ voyage</button>
+                </div>
+              )}
+            </BookingCard>
+          );
+        })}
 
         {/* ORDERS */}
         {tab === 'orders' && (orders.length === 0
