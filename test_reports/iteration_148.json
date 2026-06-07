@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only verification of the rider double-price UI on /ride. Registered a fresh rider via /api/auth/register (role=user), logged in, opened ride booking, picked Gare du Nord recent location to trigger an estimate, then confirmed (a) the selected vehicle shows struck-through original fare and green discounted fare, (b) the auto-promo banner displays 'Offre Bienvenue', and (c) clicking 'Demander maintenant' creates a ride with the discounted fare and moves to negotiation step without crash. All assertions passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "RideNegotiationStep", "issues": ["After confirming the ride, the 'Votre offre' value still shows the ORIGINAL fare (10.00 €) instead of the discounted (5.00 €) — the backend stores estimated_fare=5.0 so the negotiation screen is mis-displaying. Minor / out of scope for this test, but worth fixing for consistency."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(optional) Update RideNegotiationStep to display the discounted estimated_fare (or autoPromo-adjusted amount) rather than estimate.estimated_fare so the rider sees the same 5.00 € they were promised on the map step."
+  ],
+  "critical_code_review_comments": [
+    "RideMapStep.jsx: double-price block (lines 192-199) and auto-promo-banner (line 282-287) are implemented exactly as spec; selectors vehicle-fare-original-{slug}, vehicle-fare-discounted-{slug}, auto-promo-banner all present and visually correct (line-through gray + bold emerald-600).",
+    "RideBookingPage.js: getBestAutoPromo is re-fetched on every estimate.estimated_fare change — good. AbortController not used for that fetch but it's idempotent and inexpensive. Acceptable.",
+    "Negotiation screen does not pass autoPromo, so the 'Votre offre' shown there is the pre-discount fare. Recommend propagating the effective (post-promo) fare for consistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100% on the targeted double-price + banner + booking flow"},
+  "test_credentials": "Created test rider: rider_test_1780824707@test.sb / Rider2026! (role=user). Registration endpoint expects field 'name' (not 'full_name').",
+  "seed_data_creation": "1 test user registered via API. Active auto-promo 'Offre Bienvenue' (every_trip, flat 5€) was pre-configured by main agent — verified via GET /api/auto-promotions/best?amount=20&service=ride which returned the promo.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rider double-price feature is fully working on the frontend. Selected vehicle (default slug 'sb') shows struck-through 10.00 € and green 5.00 €. auto-promo-banner reads 'Promo auto « Offre Bienvenue » appliquée : -5.00 €' above the request-now-btn. After clicking Demander maintenant, POST /api/rides returns estimated_fare=5.0 and the UI navigates to negotiation step. One cosmetic miss: NegotiationStep still shows the un-discounted 10.00 € as 'Votre offre'.",
+  "rca of the issue": "No bug found in the in-scope flow. Cosmetic mismatch on negotiation screen: RideBookingPage passes estimate (and proposed_fare=estimate.estimated_fare) to RideNegotiationStep, but does not subtract autoPromo.discount_amount when rendering 'Votre offre'. Fix: pass autoPromo to RideNegotiationStep or use the ride.estimated_fare returned by the create call (which is already 5.0)."
+}

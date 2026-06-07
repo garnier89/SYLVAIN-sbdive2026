@@ -55,6 +55,7 @@ const RideBookingPage = () => {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('08:00');
   const [estimate, setEstimate] = useState(null);
+  const [autoPromo, setAutoPromo] = useState(null);
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(false);
   const [proposedFare] = useState('');
@@ -65,6 +66,18 @@ const RideBookingPage = () => {
   const [routePath, setRoutePath] = useState([]);
   const [vehicleTypes, setVehicleTypes] = useState([]);
   const { methods: paymentMethods } = usePaymentMethods();
+
+  // Fetch the best auto-applied promotion for the current fare (double-price preview)
+  useEffect(() => {
+    const amt = estimate?.estimated_fare;
+    if (!amt || amt <= 0) return undefined;
+    let alive = true;
+    rideAPI.getBestAutoPromo(amt)
+      .then((r) => { if (alive) setAutoPromo(r.data?.promo || null); })
+      .catch(() => { if (alive) setAutoPromo(null); });
+    return () => { alive = false; };
+  }, [estimate?.estimated_fare]);
+
   const [recentLocations] = useState([
     { address: 'Gare du Nord, 18 Rue de Dunkerque, 75010 Paris' },
     { address: 'Tour Eiffel, Champ de Mars, 75007 Paris' },
@@ -355,7 +368,7 @@ const RideBookingPage = () => {
     return (
       <RideMapStep
         pickup={pickup} dropoff={dropoff} mapCenter={mapCenter}
-        routePath={routePath} estimate={estimate}
+        routePath={routePath} estimate={estimate} autoPromo={autoPromo}
         vehicleTypes={vehicleTypes} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle}
         paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
         paymentMethods={paymentMethods}

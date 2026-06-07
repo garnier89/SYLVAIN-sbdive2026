@@ -109,6 +109,7 @@ export const merchantAPI = {
 // Ride APIs
 export const rideAPI = {
   estimate: (data) => api.post('/rides/estimate', data),
+  getBestAutoPromo: (amount, service = 'ride') => api.get('/auto-promotions/best', { params: { amount, service } }),
   create: (data) => api.post('/rides', data),
   get: (id) => api.get(`/rides/${id}`),
   accept: (id) => api.post(`/rides/${id}/accept`),

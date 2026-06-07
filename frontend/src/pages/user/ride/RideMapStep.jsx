@@ -36,7 +36,7 @@ const VehicleBadge = ({ children, tone }) => (
  * Step 2 of the ride booking flow: map view with vehicle selection bottom sheet.
  */
 export const RideMapStep = ({
-  pickup, dropoff, mapCenter, routePath, estimate,
+  pickup, dropoff, mapCenter, routePath, estimate, autoPromo,
   vehicleTypes, selectedVehicle, setSelectedVehicle,
   paymentMethod, setPaymentMethod,
   paymentMethods = [],
@@ -189,7 +189,14 @@ export const RideMapStep = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <span className="font-bold text-lg text-blue-600">{fare} &euro;</span>
+                      {isSelected && autoPromo?.discount_amount > 0 ? (
+                        <div className="flex flex-col items-end leading-none" data-testid={`vehicle-fare-promo-${v.slug}`}>
+                          <span className="text-xs text-gray-400 line-through" data-testid={`vehicle-fare-original-${v.slug}`}>{fare} &euro;</span>
+                          <span className="font-bold text-lg text-emerald-600" data-testid={`vehicle-fare-discounted-${v.slug}`}>{Math.max(parseFloat(fare) - autoPromo.discount_amount, 0).toFixed(2)} &euro;</span>
+                        </div>
+                      ) : (
+                        <span className="font-bold text-lg text-blue-600">{fare} &euro;</span>
+                      )}
                       <Info size={14} className="text-blue-600" />
                     </div>
                   </button>
@@ -228,7 +235,7 @@ export const RideMapStep = ({
                 <div className="relative w-10 h-5 bg-gray-300 peer-checked:bg-emerald-500 rounded-full transition-all after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-gray-800">Partager la course (Taxi Pool)</p>
-                  <p className="text-[11px] text-gray-500">Jusqu'à -30% si un autre passager part dans la même direction</p>
+                  <p className="text-[11px] text-gray-500">Jusqu&apos;à -30% si un autre passager part dans la même direction</p>
                 </div>
                 <Users size={20} className="text-emerald-600" weight="duotone" />
               </label>
@@ -272,6 +279,12 @@ export const RideMapStep = ({
                 <CaretRight size={18} className="text-gray-400" />
               </button>
 
+              {autoPromo?.discount_amount > 0 && (
+                <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2" data-testid="auto-promo-banner">
+                  <span className="text-base">🎁</span>
+                  <span>Promo auto «&nbsp;<b>{autoPromo.title}</b>&nbsp;» appliquée : <b>-{autoPromo.discount_amount.toFixed(2)} &euro;</b></span>
+                </div>
+              )}
               <button
                 className="w-full mt-3 h-14 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-base disabled:opacity-60"
                 onClick={confirmRide}
