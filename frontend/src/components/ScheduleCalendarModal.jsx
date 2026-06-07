@@ -16,7 +16,11 @@ const toLocalISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.g
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 const ScheduleCalendarModal = ({ open, onClose, onConfirm, minAdvanceMinutes = 60, maxAdvanceDays = 30, initialValue }) => {
+  // `open` is intentional: recompute the now-relative min/max each time the
+  // modal opens (Date.now() isn't a reactive dependency).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const minDate = useMemo(() => new Date(Date.now() + minAdvanceMinutes * 60000), [minAdvanceMinutes, open]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const maxDate = useMemo(() => new Date(Date.now() + maxAdvanceDays * 86400000), [maxAdvanceDays, open]);
 
   const init = useMemo(() => {

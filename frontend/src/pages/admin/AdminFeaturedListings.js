@@ -25,7 +25,9 @@ const AdminFeaturedListings = () => {
   const [search, setSearch] = useState('');
   const [featureDialog, setFeatureDialog] = useState(null);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeCollection]);
+  // Reload only when the active collection changes (search filters client-side).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [activeCollection]);
 
   const load = async () => {
     setLoading(true);

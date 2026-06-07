@@ -1,3 +1,13 @@
+## NEW - 2026-06-07 (42) - Sélecteur langue sur login + correctif fond + Chantier 3 (1er lot) (DONE)
+- **Sélecteur de langue sur l'écran de connexion** : `LocaleSelector` reçoit une prop `variant` (`dark`/`light`). Ajouté en haut à droite de `PhoneStep` (`data-testid="login-locale-selector"`). L'utilisateur peut choisir sa langue AVANT login (gain conversion DOM-TOM/Afrique). ✅ Testé e2e : bascule en wolof → login traduit (« Bind sa numéro bu mobil », « Walla tann yeneen mbëggël yu jëfe »).
+- **Bug pré-existant corrigé** : `.mobile-container { background:#fff }` (index.css) écrasait le `bg-[#1a1a2e]` des 3 écrans login (même spécificité → fond blanc, titre `text-white` invisible). Correctif : `!bg-[#1a1a2e]` sur PhoneStep/PasswordStep/ProfileStep (force le fond sombre voulu par le design). ✅ Vérifié : `getComputedStyle = rgb(26,26,46)`, titre visible.
+- **Chantier 3 — 1er lot prudent (3 fichiers, exhaustive-deps)** : récupéré les vrais warnings via les logs de compilation CRA. Corrigés en PRÉSERVANT le comportement (l'analyse montre que la correction « naïve » casserait la logique) :
+  - `ScheduleCalendarModal.jsx` : `open` dans deps de useMemo `minDate/maxDate` est INTENTIONNEL (recalcul now-relatif à l'ouverture) → `eslint-disable` documenté au lieu de supprimer.
+  - `AdminAuditLogs.js` + `AdminFeaturedListings.js` : `eslint-disable-next-line react-hooks/exhaustive-deps` MAL PLACÉ (après `load()`, visait la ligne suivante) → repositionné correctement avant le `useEffect` (montage-seul / reload sur changement de collection préservés).
+  - App compile sans erreur ; warning `ScheduleCalendarModal` résolu. Approche validée pour la suite : analyser l'intention de chaque hook avant de « corriger ».
+- **RESTE Chantier 3** : ~357 instances exhaustive-deps restantes → continuer par lots de 3-5 fichiers, en distinguant (a) deps réellement manquantes à ajouter, (b) effets montage-seul intentionnels (disable documenté), (c) fonctions à envelopper dans useCallback.
+
+
 ## NEW - 2026-06-07 (41) - i18n Chantier 2 COMPLET : RideBooking traduit (DONE)
 - **Namespace `ride` ajouté** (58 clés) au bundle FR/EN (`routes/i18n.py`) + frontend (`lib/i18nBase.js`). **BASE_TOTAL 194 → 252**.
 - **4 étapes du flux de réservation câblées en `t()`** : `RidePlanStep` (titre, now/for-me, placeholders, favoris, promo, quick-actions, modal « book for someone else »), `RideMapStep` (location taxi, ETA, touch-map, choisir gamme, paiements cash/card/wallet, supplément aéroport, taxi pool, enchères, voucher apply/remove, promo auto, CTA demander/programmer), `RideNegotiationStep` (négociation, offres, attente, accepter), `RideSearchingStep` (recherche chauffeur, OTP, annuler).

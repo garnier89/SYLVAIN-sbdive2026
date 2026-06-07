@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocale } from '../contexts/LocaleContext';
 import { Globe, CurrencyEur, X, MagnifyingGlass, Check } from '@phosphor-icons/react';
 
-const LocaleSelector = () => {
+const LocaleSelector = ({ variant = 'light' }) => {
   const { currency, setCurrency, language, setLanguage, currencies, languages, t } = useLocale();
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState('lang');
@@ -15,11 +15,15 @@ const LocaleSelector = () => {
     l.name.toLowerCase().includes(search.toLowerCase()) || l.code.toLowerCase().includes(search.toLowerCase())
   );
 
+  const triggerClass = variant === 'dark'
+    ? 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors backdrop-blur-sm'
+    : 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition-colors';
+
   return (
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium transition-colors"
+        className={triggerClass}
         data-testid="locale-selector-btn"
       >
         <Globe size={14} />

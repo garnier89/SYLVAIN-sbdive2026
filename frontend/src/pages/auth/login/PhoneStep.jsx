@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, CaretDown, CaretRight } from '@phosphor-icons/react';
 import { COUNTRIES, Fab, BackBtn } from './loginConstants';
 import { useLocale } from '../../../contexts/LocaleContext';
+import LocaleSelector from '../../../components/LocaleSelector';
 
 /** Step 1 — phone number entry. Auth logic (onSubmit) lives in the parent. */
 export const PhoneStep = ({
@@ -11,8 +12,11 @@ export const PhoneStep = ({
 }) => {
   const { t } = useLocale();
   return (
-  <div className="mobile-container min-h-screen bg-[#1a1a2e] flex flex-col relative" data-testid="login-page">
+  <div className="mobile-container min-h-screen !bg-[#1a1a2e] flex flex-col relative" data-testid="login-page">
     <BackBtn onClick={onBack} />
+    <div className="absolute top-5 right-5 z-20" data-testid="login-locale-selector">
+      <LocaleSelector variant="dark" />
+    </div>
 
     <div className="px-6 mt-6">
       <h1 className="text-2xl font-bold text-white leading-tight" data-testid="login-title">{t('login.phone_title')}</h1>

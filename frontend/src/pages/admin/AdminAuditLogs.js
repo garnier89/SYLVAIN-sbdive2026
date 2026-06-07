@@ -29,7 +29,9 @@ export default function AdminAuditLogs() {
       toast.error(e.response?.data?.detail || 'Erreur');
     } finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // load() reads `filters` but must run on mount only; manual reload via the filter button.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);
 
   return (
     <div className="p-6" data-testid="admin-audit-logs-page">

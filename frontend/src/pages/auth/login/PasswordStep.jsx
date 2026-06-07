@@ -10,7 +10,7 @@ export const PasswordStep = ({
 }) => {
   const { t } = useLocale();
   return (
-  <div className="mobile-container min-h-screen bg-[#1a1a2e] flex flex-col" data-testid="login-page">
+  <div className="mobile-container min-h-screen !bg-[#1a1a2e] flex flex-col" data-testid="login-page">
     <BackBtn onClick={onBack} />
 
     <div className="px-6 mt-6">
