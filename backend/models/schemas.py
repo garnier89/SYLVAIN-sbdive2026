@@ -25,6 +25,8 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     is_verified: bool = False
     panel_preference: Optional[str] = None
+    language: Optional[str] = None
+    currency: Optional[str] = None
     created_at: datetime
 
 class TokenResponse(BaseModel):

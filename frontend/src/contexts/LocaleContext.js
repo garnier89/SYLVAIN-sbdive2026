@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
+import { useAuth } from './AuthContext';
 import { BASE_FLAT_FR, flatten, interpolate } from '../lib/i18nBase';
 import { getBrowserCountryCode } from '../lib/browserZone';
 
@@ -125,17 +126,52 @@ const LanguageSuggestionBanner = () => {
 
 
 export const LocaleProvider = ({ children }) => {
-  const [currency, setCurrency] = useState(() => {
+  const { user } = useAuth();
+  const [currency, setCurrencyState] = useState(() => {
     const saved = localStorage.getItem('sb_currency');
     return saved ? JSON.parse(saved) : CURRENCIES[0];
   });
-  const [language, setLanguage] = useState(() => {
+  const [language, setLanguageState] = useState(() => {
     const saved = localStorage.getItem('sb_language');
     return saved ? JSON.parse(saved) : LANGUAGES[0];
   });
   // Languages shown in the selector — loaded from the backend (ready bundles),
   // falling back to the static list for an instant first render.
   const [languages, setLanguages] = useState(LANGUAGES);
+
+  // Persist the language/currency preference to the user account (cross-device)
+  // when authenticated. localStorage already mirrors it for guests.
+  const persistPrefs = useCallback((langCode, currCode) => {
+    if (user) api.put('/users/language', { language: langCode, currency: currCode }).catch(() => {});
+  }, [user]);
+
+  const setLanguage = useCallback((lang) => {
+    setLanguageState(lang);
+    persistPrefs(lang.code, currency.code);
+  }, [persistPrefs, currency]);
+
+  const setCurrency = useCallback((curr) => {
+    setCurrencyState(curr);
+    persistPrefs(language.code, curr.code);
+  }, [persistPrefs, language]);
+
+  // On login, apply the language/currency saved on the user account (so a
+  // creole/wolof speaker keeps their language on any new device). Applied once;
+  // re-runs if the backend language list arrives after the user (creole codes).
+  const prefAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!user) { prefAppliedRef.current = false; return; }
+    if (prefAppliedRef.current) return;
+    const lang = user.language ? languages.find((l) => l.code === user.language) : null;
+    const curr = user.currency ? CURRENCIES.find((c) => c.code === user.currency) : null;
+    if (!lang && !curr) return;
+    // Apply on the next tick (async) so it isn't a synchronous set-state-in-effect.
+    Promise.resolve().then(() => {
+      if (lang) setLanguageState(lang);
+      if (curr) setCurrencyState(curr);
+    });
+    if (lang || (user.currency && !user.language)) prefAppliedRef.current = true;
+  }, [user, languages]);
 
   // Fetch the ready languages (active + translated) once on mount.
   useEffect(() => {

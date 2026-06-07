@@ -394,6 +394,25 @@ async def update_user_profile(request: Request):
     return fresh
 
 
+@users_router.put("/language")
+async def update_user_language(request: Request):
+    """Persist the current user's UI language (and optional currency) preference,
+    so it follows them across devices."""
+    user = await get_current_user(request)
+    body = await request.json()
+    updates = {}
+    lang = body.get("language")
+    if isinstance(lang, str) and 1 <= len(lang.strip()) <= 10:
+        updates["language"] = lang.strip()
+    curr = body.get("currency")
+    if isinstance(curr, str) and 1 <= len(curr.strip()) <= 6:
+        updates["currency"] = curr.strip()
+    if not updates:
+        raise HTTPException(status_code=400, detail="Aucune préférence à mettre à jour")
+    await db.users.update_one({"id": user["id"]}, {"$set": updates})
+    return {"ok": True, **updates}
+
+
 @users_router.get("/addresses", response_model=List[Address])
 async def get_addresses(request: Request):
     user = await get_current_user(request)
