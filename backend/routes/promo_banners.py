@@ -20,6 +20,7 @@ import uuid
 
 from core.config import db
 from core.permissions import require_permission
+from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 
 router = APIRouter(prefix="/promo-banners", tags=["promo-banners"])
 
@@ -73,10 +74,23 @@ def _clean(doc):
 # ============================================================
 
 @router.get("")
-async def list_public():
-    """Active banners for the user home carousel."""
+async def list_public(country: str = "", state: str = "", city: str = "", location: str = ""):
+    """Active banners for the user home carousel, filtered by the request zone.
+
+    Zone is taken from explicit scope params (country/state/city) or resolved from a
+    free-text `location` (browser reverse-geocoded address). When NO zone info is
+    provided at all, every active banner is returned (safe fallback, e.g. geolocation
+    denied/pending). Banners with an empty/global scope always match.
+    """
     items = await db.promo_banners.find({"status": "active"}, {"_id": 0}).sort("display_order", 1).to_list(100)
-    return {"items": items}
+    if not (country or location):
+        return {"items": items}
+    if country:
+        zone = {"country": country.upper(), "state": state, "city": city}
+    else:
+        zone = resolve_zone_from_text(location)
+    filtered = [b for b in items if scope_matches(b.get("scope"), zone)]
+    return {"items": filtered}
 
 
 # ============================================================
@@ -111,6 +125,7 @@ async def admin_create(request: Request, current_user: dict = Depends(require_pe
         "bg_color": body.get("bg_color") or "#FFFFFF",
         "display_order": body.get("display_order", count),
         "status": body.get("status", "active"),
+        "scope": clean_scope(body.get("scope")),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.promo_banners.insert_one(doc)
@@ -127,6 +142,8 @@ async def admin_update(banner_id: str, request: Request, current_user: dict = De
         updates["theme"] = body["theme"]
     if "display_order" in body:
         updates["display_order"] = int(body["display_order"])
+    if "scope" in body:
+        updates["scope"] = clean_scope(body["scope"])
     if isinstance(updates.get("image_url"), str) and len(updates["image_url"]) > 11_000_000:
         raise HTTPException(413, "Image trop volumineuse (max 8 Mo)")
     res = await db.promo_banners.update_one({"id": banner_id}, {"$set": updates})

@@ -10,6 +10,7 @@ import LocaleSelector from '../../components/LocaleSelector';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
 import { homeCategoriesAPI, promoBannersAPI, configAPI } from '../../services/api';
+import { getBrowserLocationLabel } from '../../lib/browserZone';
 import {
   Car, Package, ForkKnife,
   House, MapPin, Wallet, User,
@@ -135,6 +136,16 @@ const UserHome = () => {
     promoBannersAPI.public()
       .then((r) => setPromoBanners(r.data.items || []))
       .catch((e) => console.warn('promo banners load:', e?.message || e));
+    // Zone-aware refresh: once the browser resolves the user's location, refetch
+    // banners filtered by their geographic scope (e.g. a Martinique-only campaign).
+    let aliveBanners = true;
+    getBrowserLocationLabel().then((label) => {
+      if (!label || !aliveBanners) return;
+      promoBannersAPI.public(label)
+        .then((r) => { if (aliveBanners) setPromoBanners(r.data.items || []); })
+        .catch(() => { /* keep global banners on failure */ });
+    });
+    return () => { aliveBanners = false; };
   }, []);
 
   // Auto-advance the promo carousel every 4s (loops back to start).

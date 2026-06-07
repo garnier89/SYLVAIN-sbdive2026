@@ -396,7 +396,7 @@ export const homeCategoriesAPI = {
 };
 
 export const promoBannersAPI = {
-  public: () => api.get('/promo-banners'),
+  public: (location) => api.get('/promo-banners', { params: location ? { location } : {} }),
   adminList: () => api.get('/promo-banners/admin'),
   create: (data) => api.post('/promo-banners/admin', data),
   update: (id, data) => api.put(`/promo-banners/admin/${id}`, data),

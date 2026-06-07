@@ -6,12 +6,19 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, MapPin } from '@phosphor-icons/react';
 import { promoBannersAPI } from '../../services/api';
+import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 
 const emptyForm = {
   title: '', subtitle: '', highlight: '', promo_code: '', cta_label: '',
   target_route: '/food', image_url: null, theme: 'light', bg_color: '#FFFFFF', status: 'active',
+  scope: { country: '', state: '', city: '' },
+};
+
+const scopeLabel = (scope) => {
+  if (!scope || !scope.country) return '';
+  return [scope.city, scope.state, scope.country_name || scope.country].filter(Boolean).join(', ');
 };
 
 function BannerPreview({ b }) {
@@ -69,6 +76,7 @@ export default function AdminPromoBanners() {
       promo_code: it.promo_code || '', cta_label: it.cta_label || '',
       target_route: it.target_route || '/', image_url: it.image_url || null,
       theme: it.theme || 'light', bg_color: it.bg_color || '#FFFFFF', status: it.status || 'active',
+      scope: it.scope || { country: '', state: '', city: '' },
     });
     setShowForm(true);
   };
@@ -134,6 +142,11 @@ export default function AdminPromoBanners() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate">{it.title}</p>
                 <p className="text-xs text-gray-400 truncate">{it.target_route}{it.promo_code ? ` · Code ${it.promo_code}` : ''}</p>
+                {it.scope?.country && (
+                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full" data-testid={`banner-zone-badge-${it.id}`}>
+                    <MapPin size={10} weight="fill" /> {scopeLabel(it.scope)}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => move(idx, -1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500" title="Monter"><ArrowUp size={15} /></button>
@@ -209,6 +222,11 @@ export default function AdminPromoBanners() {
                   <button onClick={() => setForm({ ...form, image_url: null })} className="text-xs text-red-600 underline">retirer</button>
                 </div>
               )}
+            </div>
+
+            {/* Geographic scope */}
+            <div className="mt-4">
+              <ZoneScopePicker value={form.scope} onChange={(scope) => setForm((f) => ({ ...f, scope }))} />
             </div>
 
             {/* Live preview */}
