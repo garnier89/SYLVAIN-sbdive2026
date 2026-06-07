@@ -1508,6 +1508,48 @@ async def driver_home_feed(request: Request):
     }
 
 
+async def _taxi_hall_eligibility(driver: dict, zone=None) -> dict:
+    """Taxi Hall 'zone de compétition' gate: a driver may only street-hail when
+    their acceptance rate ≥ admin min AND cancellation rate ≤ admin max (per zone).
+    A newly-registered driver defaults to 100% acceptance / 0% cancellation, so
+    they pass by default."""
+    from routes.config import get_app_settings_config
+    cfg = await get_app_settings_config(zone)
+    require = bool(cfg.get("taxi_hall_require_competition"))
+    min_acc = float(cfg.get("taxi_hall_min_acceptance_rate", 0) or 0)
+    max_can = float(cfg.get("taxi_hall_max_cancellation_rate", 100) or 100)
+    acc = driver.get("acceptance_rate")
+    acc = float(acc) if acc is not None else 100.0
+    can = float(driver.get("cancellation_rate", 0) or 0)
+    eligible, reason = True, None
+    if require:
+        if acc < min_acc:
+            eligible, reason = False, f"Taux d'acceptation insuffisant ({acc:.0f}% < {min_acc:.0f}% requis)."
+        elif can > max_can:
+            eligible, reason = False, f"Taux d'annulation trop élevé ({can:.0f}% > {max_can:.0f}% autorisé)."
+    return {
+        "eligible": eligible, "require_competition": require, "reason": reason,
+        "acceptance_rate": acc, "cancellation_rate": can,
+        "min_acceptance_rate": min_acc, "max_cancellation_rate": max_can,
+    }
+
+
+@router.get("/taxi-hall/eligibility")
+async def taxi_hall_eligibility(request: Request, pickup: str = ""):
+    """Driver-facing: can I use Taxi Hall right now? (zone competition gate)."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Driver profile required")
+    from core.geo_scope import resolve_zone_from_text
+    from routes.config import get_app_settings_config
+    zone = resolve_zone_from_text(pickup) if pickup else None
+    enabled = bool((await get_app_settings_config(zone)).get("taxi_hail_option", True))
+    elig = await _taxi_hall_eligibility(driver, zone)
+    elig["enabled"] = enabled
+    return elig
+
+
 @router.post("/taxi-hall")
 async def create_taxi_hall(request: Request):
     """V3Cube 'Taxi Hall': the driver picks up a street-hail client who doesn't use
@@ -1521,6 +1563,12 @@ async def create_taxi_hall(request: Request):
     if not (await get_app_settings_config()).get("taxi_hail_option", True):
         raise HTTPException(status_code=403, detail="Taxi Hall désactivé par l'administrateur")
     body = await request.json()
+    # Zone-aware competition gate (acceptance/cancellation thresholds per zone).
+    from core.geo_scope import resolve_zone_from_text
+    th_zone = resolve_zone_from_text(body.get("dropoff_address") or body.get("pickup_address") or "")
+    elig = await _taxi_hall_eligibility(driver, th_zone)
+    if not elig["eligible"]:
+        raise HTTPException(status_code=403, detail=elig["reason"] or "Accès Taxi Hall refusé (zone de compétition).")
     now = datetime.now(timezone.utc).isoformat()
     vt_slug = body.get("vehicle_type", "sb")
     vtype = await db.vehicle_types.find_one({"slug": vt_slug}, {"_id": 0}) or {}

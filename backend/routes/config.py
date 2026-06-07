@@ -345,6 +345,10 @@ DEFAULT_APP_SETTINGS = {
     "enable_driver_reward_program": True,
     "enable_driver_wallet_withdrawal": False,
     "driver_wallet_withdrawal_restriction_min": 50,
+    # — Taxi Hall (zone de compétition) —
+    "taxi_hall_require_competition": False,
+    "taxi_hall_min_acceptance_rate": 80,
+    "taxi_hall_max_cancellation_rate": 30,
     # — Accessibilité / options de course —
     "enable_handicap": True,
     "enable_child_seat": False,
@@ -425,10 +429,33 @@ _APP_SETTINGS_INT = {k for k, v in DEFAULT_APP_SETTINGS.items()
                      if isinstance(v, int) and not isinstance(v, bool)}
 
 
-async def get_app_settings_config():
-    """Merge persisted admin App Settings over the V3Cube-parity defaults."""
-    doc = await db.service_configs.find_one({"service_key": "app_settings"}, {"_id": 0})
-    settings = (doc or {}).get("settings") or {}
+async def get_app_settings_config(zone=None):
+    """Merge persisted admin App Settings over the V3Cube-parity defaults.
+
+    `zone` is a resolved {country,state,city} dict (e.g. from the ride pickup) or
+    None for the global config. When a zone is supplied, the MOST SPECIFIC stored
+    zone override (city > state > country) is returned as a FULL settings set
+    (still merged over defaults so every key is present). Falls back to global."""
+    settings = {}
+    if zone and (zone.get("country") or "").strip():
+        c = (zone["country"] or "").strip().upper()
+        s = (zone.get("state") or "").strip()
+        city = (zone.get("city") or "").strip()
+        candidates = []
+        if s and city:
+            candidates.append("|".join([c, s, city]))
+        if s:
+            candidates.append("|".join([c, s]))
+        candidates.append(c)
+        for zk in candidates:
+            doc = await db.service_configs.find_one({"service_key": "app_settings", "zone_key": zk}, {"_id": 0})
+            if doc and doc.get("settings"):
+                settings = doc["settings"]
+                break
+    if not settings:
+        doc = (await db.service_configs.find_one({"service_key": "app_settings", "zone_key": {"$exists": False}}, {"_id": 0})
+               or await db.service_configs.find_one({"service_key": "app_settings", "zone_key": ""}, {"_id": 0}))
+        settings = (doc or {}).get("settings") or {}
     cfg = {**DEFAULT_APP_SETTINGS, **{k: v for k, v in settings.items() if k in DEFAULT_APP_SETTINGS}}
     for k in _APP_SETTINGS_BOOL:
         cfg[k] = bool(cfg.get(k))
@@ -440,18 +467,42 @@ async def get_app_settings_config():
     return cfg
 
 
+def _app_zone_key(scope) -> str:
+    """Build a stable storage key for a zone scope. '' = global."""
+    scope = scope or {}
+    c = (scope.get("country") or "").strip().upper()
+    if not c:
+        return ""
+    parts = [c]
+    s = (scope.get("state") or "").strip()
+    city = (scope.get("city") or "").strip()
+    if s:
+        parts.append(s)
+    if city:
+        parts.append(city)
+    return "|".join(parts)
+
+
 @router.get("/app-settings")
-async def get_app_settings():
-    """Public app settings — feature flags & limits consumed by rider/driver apps."""
-    return await get_app_settings_config()
+async def get_app_settings(country: str = "", state: str = "", city: str = ""):
+    """Public app settings — feature flags & limits consumed by rider/driver apps.
+    Optional country/state/city resolve a zone-specific override (full set)."""
+    zone = {"country": country, "state": state, "city": city} if country else None
+    return await get_app_settings_config(zone)
 
 
 @router.put("/admin/app-settings")
 async def admin_update_app_settings(request: Request):
-    """Persist the full App Settings panel (admin only)."""
+    """Persist the full App Settings panel (admin only). An optional `_zone`
+    {country,state,city} in the body stores a per-zone override (full set);
+    without it (or empty country) the GLOBAL config is updated."""
+    from core.geo_scope import clean_scope
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
-    incoming = body if isinstance(body, dict) else {}
+    incoming = dict(body) if isinstance(body, dict) else {}
+    zone_raw = incoming.pop("_zone", None)
+    scope = clean_scope(zone_raw) if zone_raw else {"country": "", "state": "", "city": ""}
+    zk = _app_zone_key(scope)
     clean = {}
     for k, default in DEFAULT_APP_SETTINGS.items():
         if k not in incoming:
@@ -466,12 +517,30 @@ async def admin_update_app_settings(request: Request):
                 clean[k] = default
         else:
             clean[k] = str(v) if v is not None else ""
+    if zk:
+        await db.service_configs.update_one(
+            {"service_key": "app_settings", "zone_key": zk},
+            {"$set": {"service_key": "app_settings", "zone_key": zk, "scope": scope, "settings": clean}},
+            upsert=True,
+        )
+        return await get_app_settings_config(scope)
     await db.service_configs.update_one(
-        {"service_key": "app_settings"},
+        {"service_key": "app_settings", "zone_key": {"$exists": False}},
         {"$set": {"service_key": "app_settings", "settings": clean}},
         upsert=True,
     )
     return await get_app_settings_config()
+
+
+@router.get("/admin/app-settings/zones")
+async def list_app_settings_zones(request: Request):
+    """List zones that have a per-zone App Settings override (admin selector)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    docs = await db.service_configs.find(
+        {"service_key": "app_settings", "zone_key": {"$exists": True, "$nin": ["", None]}},
+        {"_id": 0, "zone_key": 1, "scope": 1},
+    ).to_list(300)
+    return {"zones": [{"zone_key": d["zone_key"], "scope": d.get("scope", {})} for d in docs]}
 
 
 # ── General Settings (parité V3Cube "General Settings → General") ──────────

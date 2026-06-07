@@ -121,6 +121,7 @@ export const rideAPI = {
   driverBookings: () => api.get('/rides/driver/bookings'),
   driverHomeFeed: () => api.get('/rides/driver/home-feed'),
   taxiHall: (data) => api.post('/rides/taxi-hall', data),
+  taxiHallEligibility: () => api.get('/rides/taxi-hall/eligibility'),
   rate: (id, data) => api.post(`/rides/${id}/rate`, data),
   ratePassenger: (id, data) => api.post(`/rides/${id}/rate-passenger`, data),
   complete: (id, extra_charges) => api.post(`/rides/${id}/status`, { status: 'completed', extra_charges }),
@@ -193,6 +194,7 @@ export const adminAPI = {
   setDriverDocumentStatus: (driverId, docType, status, reason) => api.put(`/admin/drivers/${driverId}/documents/${docType}/status`, { status, reason }),
   setDriverInfoChangeStatus: (driverId, status, reason) => api.put(`/admin/drivers/${driverId}/info-change/status`, { status, reason }),
   updateAppSettings: (data) => api.put('/config/admin/app-settings', data),
+  getAppSettingsZones: () => api.get('/config/admin/app-settings/zones'),
   updateGeneralSettings: (data) => api.put('/config/admin/general-settings', data),
   listAutoPromotions: () => api.get('/auto-promotions/admin'),
   createAutoPromotion: (data) => api.post('/auto-promotions/admin', data),
@@ -312,7 +314,7 @@ export const configAPI = {
   getBusinessTripReasons: () => api.get('/config/business-trip-reasons'),
   getTaxiBooking: () => api.get('/config/taxi-booking'),
   getPaymentMethods: () => api.get('/config/payment-methods'),
-  getAppSettings: () => api.get('/config/app-settings'),
+  getAppSettings: (params) => api.get('/config/app-settings', { params }),
   getGeneralSettings: () => api.get('/config/general-settings'),
 };
 

@@ -48,6 +48,23 @@ const DriverHome = () => {
   const [homeFeed, setHomeFeed] = useState({ scheduled_pending: [], upcoming: [], available_rides: [], available_deliveries: [], next_scheduled_at: null });
   const [showScheduled, setShowScheduled] = useState(false);
   const [showTaxiHall, setShowTaxiHall] = useState(false);
+  const [taxiHallElig, setTaxiHallElig] = useState({ eligible: true, require_competition: false, reason: null });
+
+  useEffect(() => {
+    let alive = true;
+    rideAPI.taxiHallEligibility()
+      .then((r) => { if (alive) setTaxiHallElig(r.data || { eligible: true }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const openTaxiHall = useCallback(() => {
+    if (taxiHallElig.require_competition && !taxiHallElig.eligible) {
+      toast.error(taxiHallElig.reason || 'Accès Taxi Hall refusé (zone de compétition).');
+      return;
+    }
+    setShowTaxiHall(true);
+  }, [taxiHallElig]);
   const seenScheduledRef = useRef(null); // Set of known scheduled ids (null = not yet primed)
   const alerted40Ref = useRef(new Set());
 
@@ -487,7 +504,7 @@ const DriverHome = () => {
         setOpen={setFabOpen}
         taxiHailEnabled={appSettings.taxi_hail_option !== false}
         onAiPlanner={() => toast.info('Planificateur IA bientôt disponible.')}
-        onTaxiHall={() => setShowTaxiHall(true)}
+        onTaxiHall={openTaxiHall}
         onHeatmap={() => setShowHeatmap((v) => !v)}
         onDest={() => setShowDestModal(true)}
         onLocations={() => toast.info('Emplacements favoris — bientôt disponible.')}

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { FloppyDisk, SlidersHorizontal, Gear, MagnifyingGlass } from '@phosphor-icons/react';
 import { configAPI, adminAPI } from '../../services/api';
 import { refreshAppSettings } from '../../hooks/useAppSettings';
+import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 
 // Yes/No + select option maps (parité V3Cube)
 const YESNO = [{ v: true, l: 'Oui' }, { v: false, l: 'Non' }];
@@ -120,6 +121,13 @@ const APP_GROUPS = [
       F('enable_driver_reward_program', 'Programme de récompenses chauffeur'),
       F('enable_driver_wallet_withdrawal', 'Demande de retrait portefeuille chauffeur'),
       F('driver_wallet_withdrawal_restriction_min', 'Retrait min portefeuille chauffeur', 'int'),
+    ],
+  },
+  {
+    title: 'Taxi Hall — zone de compétition', fields: [
+      F('taxi_hall_require_competition', 'Exiger un taux minimum pour accéder au Taxi Hall'),
+      F('taxi_hall_min_acceptance_rate', "Taux d\u2019acceptation minimum requis (%)", 'int'),
+      F('taxi_hall_max_cancellation_rate', "Taux d\u2019annulation maximum autorisé (%)", 'int'),
     ],
   },
   {
@@ -257,6 +265,24 @@ const AdminAppSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
+  const [zone, setZone] = useState({ country: '', state: '', city: '' });
+  const [zoneLoading, setZoneLoading] = useState(false);
+
+  // Load the App Settings for the selected zone (or global when no country).
+  const loadAppForZone = async (z) => {
+    setZoneLoading(true);
+    try {
+      const params = z?.country ? { country: z.country, state: z.state || undefined, city: z.city || undefined } : undefined;
+      const a = await configAPI.getAppSettings(params);
+      setApp(a.data);
+    } catch {
+      toast.error('Échec du chargement de la zone');
+    } finally {
+      setZoneLoading(false);
+    }
+  };
+
+  const onZoneChange = (z) => { setZone(z); loadAppForZone(z); };
 
   useEffect(() => {
     let alive = true;
@@ -290,12 +316,16 @@ const AdminAppSettings = () => {
         const r = await adminAPI.updateGeneralSettings(general);
         setGeneral(r.data);
       } else {
-        const r = await adminAPI.updateAppSettings(app);
+        const payload = zone?.country
+          ? { ...app, _zone: { country: zone.country, state: zone.state, city: zone.city } }
+          : app;
+        const r = await adminAPI.updateAppSettings(payload);
         setApp(r.data);
-        // Broadcast so open rider/driver apps refresh feature gates instantly.
-        refreshAppSettings();
+        // Broadcast so open rider/driver apps refresh feature gates instantly
+        // (global save only; zone overrides are resolved server-side per request).
+        if (!zone?.country) refreshAppSettings();
       }
-      toast.success('Paramètres enregistrés');
+      toast.success(zone?.country ? `Paramètres enregistrés pour ${zone.city || zone.state || zone.country}` : 'Paramètres enregistrés');
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Échec de l\u2019enregistrement');
     } finally {
@@ -352,6 +382,19 @@ const AdminAppSettings = () => {
       </div>
 
       <div className="space-y-6">
+        {!isGeneral && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" data-testid="app-settings-zone-bar">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+              <h2 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide">Portée des réglages</h2>
+              {zone?.country
+                ? <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1" data-testid="app-settings-zone-label">Zone : {[zone.city, zone.state, zone.country].filter(Boolean).join(' · ')}</span>
+                : <span className="text-xs font-bold text-gray-500 bg-gray-100 rounded-full px-3 py-1" data-testid="app-settings-zone-label">Réglages globaux (par défaut)</span>}
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Choisis une zone pour éditer un <strong>jeu complet de réglages</strong> propre à ce pays/région/ville. Laisse vide pour les réglages globaux.</p>
+            <ZoneScopePicker value={zone} onChange={onZoneChange} />
+            {zoneLoading && <p className="text-xs text-gray-400 mt-2" data-testid="app-settings-zone-loading">Chargement de la zone…</p>}
+          </div>
+        )}
         {groups.map((g) => (
           <div key={g.title} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" data-testid={`settings-group-${g.title}`}>
             <h2 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide mb-4">{g.title}</h2>

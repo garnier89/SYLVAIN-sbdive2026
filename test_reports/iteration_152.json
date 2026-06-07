@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 152 (zone-scoped App Settings + Taxi Hall competition gate): backend = 7/7 pytest passed (incl. cleanup), UI verified for AdminAppSettings (tab, zone bar, ZoneScopePicker selecting MQ, new Taxi Hall group fields, save+persist for the MQ override). Eligibility API + 403 gate on POST /api/rides/taxi-hall confirmed end-to-end with global threshold=101. One minor UX gap detected in the admin UI: ZoneScopePicker stores the country CODE in zone.country, so the zone label and save toast read 'Zone : MQ' / 'Paramètres enregistrés pour MQ' instead of 'Martinique' (spec wording mismatch — not a functional defect).",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminAppSettings + ZoneScopePicker",
+        "issue": "Zone label and save toast display the country CODE ('MQ') instead of the country NAME ('Martinique'). Spec expected: 'Paramètres enregistrés pour Martinique' and 'Zone : Martinique'. Cause: ZoneScopePicker sets zone.country to the option value (ISO code) and AdminAppSettings.js renders [zone.city, zone.state, zone.country].filter(Boolean).join(' · ') / interpolates ${zone.country} directly.",
+        "selector": "[data-testid='app-settings-zone-label'] / handleSave toast",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "test_report_links": [
+    "/app/backend/tests/test_iteration_152_zone_app_settings.py",
+    "/app/test_reports/pytest/iteration_152.xml"
+  ],
+
+  "action_items": [
+    "Map country code -> country name when rendering app-settings-zone-label and the success toast (e.g. lookup against the country list provided by ZoneScopePicker, or have the picker emit {code,name} so AdminAppSettings can display the human name). Backend is unaffected — only the UI string."
+  ],
+
+  "critical_code_review_comments": [
+    "config.py get_app_settings_config(): most-specific zone resolution (city > state > country) implemented cleanly. _APP_SETTINGS_INT correctly excludes bools.",
+    "PUT /admin/app-settings sanitizes payload against DEFAULT_APP_SETTINGS keys (good — prevents arbitrary fields).",
+    "Cleanup-friendly: zone overrides are tagged with non-empty zone_key, making bulk cleanup straightforward.",
+    "Frontend AdminAppSettings.js handleSave: toast uses raw zone.country (ISO). Consider resolving the country name for human-readable feedback (minor UX)."
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_iteration_152_zone_app_settings.py (new)"
+  ],
+
+  "success_rate": {
+    "backend": "100% (7/7 pytest)",
+    "frontend": "~90% (all critical flows OK, 1 cosmetic label mismatch)"
+  },
+
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!  |  Driver: jean.dupont@demo.sb / Driver123!",
+  "seed_data_creation": "Tests create MQ-country and MQ|Martinique|Fort-de-France overrides; the TestCleanup.test_zzz_cleanup step deletes every per-zone app_settings doc (zone_key not in ['',null]) and restores global taxi_hall_require_competition=false, taxi_hall_min_acceptance_rate=80, taxi_hall_max_cancellation_rate=30, radius_show_online_drivers_km=35. Verified zones list is [] post-cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend file backend/tests/test_iteration_152_zone_app_settings.py is idempotent and re-runnable. Login token field is 'access_token'. Country picker stores ISO code (e.g. 'MQ') — frontend label shows 'Zone : MQ'; backend resolves correctly. To re-test the driver Taxi Hall UI gate, login as jean.dupont@demo.sb, force global taxi_hall_require_competition=true with taxi_hall_min_acceptance_rate=101 via admin PUT, navigate to /chauffeur/home, open driver-fab-toggle, click the Taxi Hail action — the modal must NOT open and an error toast should show; then restore the global setting.",
+  "rca of the issue": "UI cosmetic mismatch (toast/label showing 'MQ' instead of 'Martinique'): ZoneScopePicker emits {country: ISO_CODE, state, city} and AdminAppSettings.js interpolates that value directly. Backend (config.py) intentionally normalises country.upper() and uses it as part of zone_key — that contract is correct. Fix should live in the FRONTEND only: either (a) ZoneScopePicker emits a parallel country_name, or (b) AdminAppSettings keeps a code->name map and resolves it when composing the label/toast. No backend change required."
+}

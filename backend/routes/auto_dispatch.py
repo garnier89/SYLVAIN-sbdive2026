@@ -258,17 +258,30 @@ async def _process_pending_ride(ride: dict, now, cfg, points_cfg):
     age_seconds = (now - created_at).total_seconds()
     current_tier = ride.get("auto_dispatch_tier", 0)
 
+    # Zone-aware search radius: low-supply zones can be widened (e.g. 50 km) and
+    # dense zones tightened (e.g. 2 km) via the per-zone App Settings.
+    radius_km = cfg["radius_km"]
+    try:
+        from core.geo_scope import resolve_zone_from_text
+        from routes.config import get_app_settings_config
+        zone = resolve_zone_from_text(ride.get("pickup_address") or "")
+        zr = int((await get_app_settings_config(zone)).get("radius_show_online_drivers_km", 0) or 0)
+        if zr > 0:
+            radius_km = zr
+    except Exception:
+        pass
+
     if age_seconds >= cfg["auto_cancel_after_seconds"] and current_tier != -1:
         await _auto_cancel_ride(ride)
     elif age_seconds >= cfg["second_escalation_seconds"] and current_tier < 2:
         if current_tier < 1:
-            await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+            await _escalate_ride(ride, 1, cfg["first_palettes"], radius_km, points_cfg)
         fresh_ride = await db.rides.find_one({"id": ride["id"]}, {"_id": 0})
         if fresh_ride:
             await _penalize_non_responders(fresh_ride, cfg)
-        await _escalate_ride(ride, 2, cfg["second_palettes"], cfg["radius_km"] * 2, points_cfg)
+        await _escalate_ride(ride, 2, cfg["second_palettes"], radius_km * 2, points_cfg)
     elif age_seconds >= cfg["first_escalation_seconds"] and current_tier < 1:
-        await _escalate_ride(ride, 1, cfg["first_palettes"], cfg["radius_km"], points_cfg)
+        await _escalate_ride(ride, 1, cfg["first_palettes"], radius_km, points_cfg)
 
 
 async def _run_dispatch_cycle():
