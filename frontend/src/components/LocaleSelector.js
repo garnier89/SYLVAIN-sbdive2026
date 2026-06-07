@@ -3,7 +3,7 @@ import { useLocale } from '../contexts/LocaleContext';
 import { Globe, CurrencyEur, X, MagnifyingGlass, Check } from '@phosphor-icons/react';
 
 const LocaleSelector = () => {
-  const { currency, setCurrency, language, setLanguage, currencies, languages } = useLocale();
+  const { currency, setCurrency, language, setLanguage, currencies, languages, t } = useLocale();
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState('lang');
   const [search, setSearch] = useState('');
@@ -34,7 +34,7 @@ const LocaleSelector = () => {
             {/* Header */}
             <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-100">
               <h2 className="text-base font-bold text-gray-900">
-                {activeTab === 'lang' ? 'Langue' : 'Devise'}
+                {activeTab === 'lang' ? t('profile.language') : t('wallet.amount')}
               </h2>
               <button onClick={() => { setShowModal(false); setSearch(''); }} data-testid="locale-close-btn">
                 <X size={22} className="text-gray-500" />

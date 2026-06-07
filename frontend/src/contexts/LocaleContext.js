@@ -1,4 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api from '../services/api';
+import { BASE_FLAT_FR, flatten, interpolate } from '../lib/i18nBase';
+
+// Module-level cache of fetched (flattened) bundles, keyed by lang code.
+const _bundleCache = { fr: BASE_FLAT_FR };
 
 const CURRENCIES = [
   { code: 'EUR', symbol: '\u20AC', name: 'Euro', flag: '\uD83C\uDDEA\uD83C\uDDFA' },
@@ -72,9 +77,40 @@ export const LocaleProvider = ({ children }) => {
     const saved = localStorage.getItem('sb_language');
     return saved ? JSON.parse(saved) : LANGUAGES[0];
   });
+  // Flattened label bundles by lang code (FR base always present as fallback).
+  const [bundles, setBundles] = useState(() => ({ ..._bundleCache }));
 
   useEffect(() => { localStorage.setItem('sb_currency', JSON.stringify(currency)); }, [currency]);
   useEffect(() => { localStorage.setItem('sb_language', JSON.stringify(language)); }, [language]);
+
+  // Active bundle is DERIVED during render (no set-state-in-effect).
+  const bundle = bundles[language.code] || BASE_FLAT_FR;
+
+  // Apply text direction + lazily fetch the bundle for the active language.
+  useEffect(() => {
+    const code = language.code;
+    const rtl = ['ar', 'fa', 'ur', 'he'].includes(code);
+    document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = code;
+    if (code === 'fr' || _bundleCache[code]) return; // already available
+    let cancelled = false;
+    api.get(`/i18n/bundle/${code}`)
+      .then((r) => {
+        // Merge over the FR base so any untranslated key still resolves (in FR).
+        const flat = { ...BASE_FLAT_FR, ...flatten(r.data?.bundle || {}) };
+        _bundleCache[code] = flat;
+        if (!cancelled) setBundles((prev) => ({ ...prev, [code]: flat }));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [language]);
+
+  // Translate a flat key (e.g. "auth.login") with optional {{var}} interpolation.
+  // Falls back to the FR base, then to the key itself.
+  const t = useCallback((key, vars) => {
+    const val = bundle[key] != null ? bundle[key] : (BASE_FLAT_FR[key] != null ? BASE_FLAT_FR[key] : key);
+    return interpolate(val, vars);
+  }, [bundle]);
 
   const formatPrice = (amount) => {
     if (currency.code === 'EUR') return `${amount.toFixed(2)} ${currency.symbol}`;
@@ -82,7 +118,7 @@ export const LocaleProvider = ({ children }) => {
   };
 
   return (
-    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, currencies: CURRENCIES, languages: LANGUAGES }}>
+    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages: LANGUAGES }}>
       {children}
     </LocaleContext.Provider>
   );

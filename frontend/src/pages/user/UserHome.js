@@ -7,6 +7,7 @@ import SearchOverlay from '../../components/SearchOverlay';
 import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import LocaleSelector from '../../components/LocaleSelector';
+import { useLocale } from '../../contexts/LocaleContext';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
 import { homeCategoriesAPI, promoBannersAPI, configAPI } from '../../services/api';
@@ -113,6 +114,7 @@ const SectionHeader = ({ title, sub }) => (
 
 const UserHome = () => {
   const { user } = useAuth();
+  const { t } = useLocale();
   const navigate = useNavigate();
   const [showSearch, setShowSearch] = useState(false);
   const [showDeliverySearch, setShowDeliverySearch] = useState(false);
@@ -625,7 +627,7 @@ const UserHome = () => {
         {/* Search */}
         <button className="mt-3 w-full h-12 rounded-2xl bg-white border border-slate-200 shadow-[0_4px_14px_-8px_rgba(11,20,38,0.18)] flex items-center px-4 gap-3" onClick={() => setShowSearch(true)} data-testid="search-services-bar">
           <MagnifyingGlass size={20} className="text-[#94A3B8]" />
-          <span className={`text-sm text-[#94A3B8] ${BODY}`}>Rechercher un service…</span>
+          <span className={`text-sm text-[#94A3B8] ${BODY}`}>{t('user_home.where_to')}</span>
         </button>
       </header>
 
@@ -646,19 +648,19 @@ const UserHome = () => {
         <div className="bg-[#0B1426] rounded-full px-2.5 py-2 flex items-center justify-between shadow-[0_10px_30px_rgba(11,20,38,0.35)] pointer-events-auto">
           <button className="flex items-center gap-2 bg-[#FF5000] text-white pl-3.5 pr-4 py-2.5 rounded-full" data-testid="nav-home">
             <House size={20} weight="fill" />
-            <span className={`text-xs font-bold ${HEAD}`}>Accueil</span>
+            <span className={`text-xs font-bold ${HEAD}`}>{t('tabs.home')}</span>
           </button>
           <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/history')} data-testid="nav-bookings">
             <ClipboardText size={22} weight="regular" />
-            <span className="text-[10px] font-medium">Réservations</span>
+            <span className="text-[10px] font-medium">{t('tabs.orders')}</span>
           </button>
           <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/wallet')} data-testid="nav-wallet">
             <Wallet size={22} weight="regular" />
-            <span className="text-[10px] font-medium">Portefeuille</span>
+            <span className="text-[10px] font-medium">{t('tabs.wallet')}</span>
           </button>
           <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/profile')} data-testid="nav-profile">
             <User size={22} weight="regular" />
-            <span className="text-[10px] font-medium">Profil</span>
+            <span className="text-[10px] font-medium">{t('tabs.profile')}</span>
           </button>
         </div>
       </div>

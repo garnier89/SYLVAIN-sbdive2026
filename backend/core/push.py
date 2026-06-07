@@ -4,6 +4,8 @@ Sends remote push to drivers' Expo push tokens via the Expo Push API
 (no credentials required for Expo-managed delivery). Used to alert drivers
 of high-value/urgent missions even when the app is closed.
 """
+from typing import Optional
+
 import httpx
 from core.config import db
 
@@ -14,7 +16,7 @@ def _is_expo_token(token: str) -> bool:
     return isinstance(token, str) and token.startswith(("ExponentPushToken[", "ExpoPushToken["))
 
 
-async def send_expo_push(tokens: list[str], title: str, body: str, data: dict | None = None):
+async def send_expo_push(tokens: list[str], title: str, body: str, data: Optional[dict] = None) -> None:
     """Fire-and-forget Expo push to a list of tokens. Best-effort, never raises."""
     messages = [
         {
@@ -41,7 +43,7 @@ async def send_expo_push(tokens: list[str], title: str, body: str, data: dict | 
         pass
 
 
-async def notify_drivers(title: str, body: str, data: dict | None = None, online_only: bool = False):
+async def notify_drivers(title: str, body: str, data: Optional[dict] = None, online_only: bool = False) -> None:
     """Send a push to all drivers that registered an Expo push token."""
     query: dict = {"push_token": {"$exists": True, "$ne": None}}
     if online_only:
@@ -51,7 +53,7 @@ async def notify_drivers(title: str, body: str, data: dict | None = None, online
     await send_expo_push(tokens, title, body, data)
 
 
-async def notify_user(user_id: str, title: str, body: str, data: dict | None = None):
+async def notify_user(user_id: str, title: str, body: str, data: Optional[dict] = None) -> None:
     """Send a push to a single user via their registered Expo push token."""
     u = await db.users.find_one({"id": user_id}, {"_id": 0, "push_token": 1})
     token = (u or {}).get("push_token")

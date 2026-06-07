@@ -3,7 +3,7 @@ import jwt
 import requests
 from fastapi import HTTPException, Request
 from datetime import datetime, timezone, timedelta
-from typing import List
+from typing import List, Optional, Tuple
 from math import radians, sin, cos, sqrt, atan2
 
 from core.config import (
@@ -67,7 +67,7 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-async def require_role(request: Request, roles: List[str], permission: str = None) -> dict:
+async def require_role(request: Request, roles: List[str], permission: Optional[str] = None) -> dict:
     """Backwards-compatible role check + optional permission enforcement.
 
     If `permission` is provided, user must hold this specific permission via ACL roles
@@ -103,7 +103,7 @@ def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
     return R * c
 
 
-def calculate_fare(distance_km: float, vehicle_type: str, duration_mins: int = 0, vtype_doc: dict = None) -> float:
+def calculate_fare(distance_km: float, vehicle_type: str, duration_mins: int = 0, vtype_doc: Optional[dict] = None) -> float:
     """
     V3Cube fare calculation logic supporting Regular/Fixed/Hourly fare types.
     If vtype_doc is provided (from DB), use its pricing. Otherwise fallback.
@@ -137,7 +137,7 @@ def calculate_fare(distance_km: float, vehicle_type: str, duration_mins: int = 0
     return round(base + (distance_km * rate), 2)
 
 
-def init_storage():
+def init_storage() -> Optional[str]:
     if config.storage_key:
         return config.storage_key
     if not EMERGENT_LLM_KEY:
@@ -166,7 +166,7 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
     return resp.json()
 
 
-def get_object(path: str) -> tuple:
+def get_object(path: str) -> Tuple[bytes, str]:
     key = init_storage()
     if not key:
         raise HTTPException(status_code=500, detail="Storage not available")
