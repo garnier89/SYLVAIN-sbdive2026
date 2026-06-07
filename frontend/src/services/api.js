@@ -109,8 +109,8 @@ export const merchantAPI = {
 // Ride APIs
 export const rideAPI = {
   estimate: (data) => api.post('/rides/estimate', data),
-  getBestAutoPromo: (amount, service = 'ride') => api.get('/auto-promotions/best', { params: { amount, service } }),
-  validateVoucher: (code, amount) => api.post('/vouchers/validate', { code, amount }),
+  getBestAutoPromo: (amount, service = 'ride', pickup = '') => api.get('/auto-promotions/best', { params: { amount, service, pickup } }),
+  validateVoucher: (code, amount, pickup_address = '') => api.post('/vouchers/validate', { code, amount, pickup_address }),
   create: (data) => api.post('/rides', data),
   get: (id) => api.get(`/rides/${id}`),
   accept: (id) => api.post(`/rides/${id}/accept`),
@@ -485,6 +485,9 @@ export const placesAPI = {
 
 export const geoAPI = {
   ipLocate: () => api.get('/geo/ip-locate'),
+  getCountries: () => api.get('/geo/countries'),
+  getStates: (country) => api.get('/geo/states', { params: { country } }),
+  getCities: (country, state) => api.get('/geo/cities', { params: { country, state } }),
 };
 
 export const debtsAPI = {

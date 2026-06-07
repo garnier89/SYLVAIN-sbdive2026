@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Ticket, Plus, PencilSimple, Trash, Power, X } from '@phosphor-icons/react';
 import { adminAPI } from '../../services/api';
+import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 
 const EMPTY = {
   code: '', title: '', discount_type: 'fixed', value: 10, max_discount: 0,
   min_order_amount: 0, total_quota: 0, per_user_limit: 1,
-  valid_from: '', valid_until: '', status: 'active',
+  valid_from: '', valid_until: '', status: 'active', scope: { country: '', state: '', city: '' },
 };
 
 const VoucherModal = ({ initial, onClose, onSaved }) => {
@@ -98,6 +99,9 @@ const VoucherModal = ({ initial, onClose, onSaved }) => {
               <option value="inactive">Inactif</option>
             </select>
           </div>
+        </div>
+        <div className="mt-3">
+          <ZoneScopePicker value={form.scope} onChange={(scope) => set('scope', scope)} />
         </div>
         <button onClick={save} disabled={saving} className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 disabled:opacity-50 transition-colors" data-testid="voucher-save">
           {saving ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Créer le voucher')}

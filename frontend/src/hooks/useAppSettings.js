@@ -43,10 +43,24 @@ export const fetchAppSettings = () => {
   return _promise;
 };
 
+// Invalidate the cache and re-fetch. Called after an admin saves App Settings so
+// open rider/driver apps refresh their feature gates WITHOUT a manual reload.
+export const refreshAppSettings = () => {
+  _cache = null;
+  _promise = null;
+  return fetchAppSettings().then((s) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('app-settings-updated', { detail: s }));
+    }
+    return s;
+  });
+};
+
 /**
  * useAppSettings — reads the public App Settings (118-key V3Cube panel) once and
  * exposes them to feature gates. `settings` starts with safe defaults so the UI
- * never flickers a disabled feature on first paint.
+ * never flickers a disabled feature on first paint. Listens for live updates
+ * broadcast after an admin save (instant activation/désactivation).
  */
 export const useAppSettings = () => {
   const [settings, setSettings] = useState(_cache || DEFAULTS);
@@ -55,7 +69,9 @@ export const useAppSettings = () => {
   useEffect(() => {
     let alive = true;
     fetchAppSettings().then((s) => { if (alive) { setSettings(s); setLoading(false); } });
-    return () => { alive = false; };
+    const onUpdated = (e) => { if (alive) setSettings(e.detail || _cache || DEFAULTS); };
+    window.addEventListener('app-settings-updated', onUpdated);
+    return () => { alive = false; window.removeEventListener('app-settings-updated', onUpdated); };
   }, []);
 
   return { settings, loading };

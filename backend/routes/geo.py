@@ -84,6 +84,20 @@ async def list_phone_codes():
     return {"items": items}
 
 
+@router.get("/states")
+async def list_states_endpoint(country: str):
+    """Curated regions/states for a country (cascading admin zone selectors)."""
+    from core.geo_scope import list_states
+    return {"items": list_states(country)}
+
+
+@router.get("/cities")
+async def list_cities_endpoint(country: str, state: Optional[str] = None):
+    """Curated cities for a country (optionally narrowed to a state)."""
+    from core.geo_scope import list_cities
+    return {"items": list_cities(country, state)}
+
+
 
 def _first_public_ip(request: Request) -> Optional[str]:
     """Extract the real client IP from the proxy chain (X-Forwarded-For)."""

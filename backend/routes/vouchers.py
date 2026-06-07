@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from core.config import db
 from core.deps import get_current_user, require_role
+from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 
 router = APIRouter(prefix="/vouchers", tags=["vouchers"])
 
@@ -48,7 +49,7 @@ def _compute_discount(v: dict, amount: float) -> float:
     return round(min(val, amount), 2)
 
 
-async def validate_voucher(code: str, user_id: str, amount: float):
+async def validate_voucher(code: str, user_id: str, amount: float, zone=None):
     """Return (voucher, discount, error). error is a user-facing string or None."""
     code = (code or "").strip().upper()
     if not code:
@@ -58,6 +59,8 @@ async def validate_voucher(code: str, user_id: str, amount: float):
         return None, 0.0, "Code voucher invalide"
     if v.get("status") != "active":
         return None, 0.0, "Ce voucher n'est plus actif"
+    if not scope_matches(v.get("scope"), zone):
+        return None, 0.0, "Ce voucher n'est pas disponible dans votre zone"
     now = _now()
     vf, vu = _parse_dt(v.get("valid_from")), _parse_dt(v.get("valid_until"))
     if vf and now < vf:
@@ -97,7 +100,8 @@ async def validate_voucher_endpoint(request: Request):
     body = await request.json()
     code = body.get("code", "")
     amount = float(body.get("amount", 0) or 0)
-    v, discount, error = await validate_voucher(code, user["id"], amount)
+    zone = resolve_zone_from_text(body.get("pickup_address") or "")
+    v, discount, error = await validate_voucher(code, user["id"], amount, zone=zone)
     if error:
         return {"valid": False, "message": error}
     return {"valid": True, "voucher_id": v["id"], "code": v["code"], "title": v.get("title", v["code"]),
@@ -129,6 +133,7 @@ def _clean_payload(body: dict) -> dict:
         "per_user_limit": int(body.get("per_user_limit", 1) or 0),
         "valid_from": (body.get("valid_from") or "") or None,
         "valid_until": (body.get("valid_until") or "") or None,
+        "scope": clean_scope(body.get("scope")),
         "status": "active" if body.get("status", "active") == "active" else "inactive",
     }
 

@@ -75,11 +75,11 @@ const RideBookingPage = () => {
     const amt = estimate?.estimated_fare;
     if (!amt || amt <= 0) return undefined;
     let alive = true;
-    rideAPI.getBestAutoPromo(amt)
+    rideAPI.getBestAutoPromo(amt, 'ride', pickup?.address || '')
       .then((r) => { if (alive) setAutoPromo(r.data?.promo || null); })
       .catch(() => { if (alive) setAutoPromo(null); });
     return () => { alive = false; };
-  }, [estimate?.estimated_fare]);
+  }, [estimate?.estimated_fare, pickup?.address]);
 
   const applyVoucher = async () => {
     const code = (voucherCode || '').trim();
@@ -88,7 +88,7 @@ const RideBookingPage = () => {
     const amt = Math.max((estimate?.estimated_fare || 0) - autoDisc, 0);
     setApplyingVoucher(true);
     try {
-      const r = await rideAPI.validateVoucher(code, amt);
+      const r = await rideAPI.validateVoucher(code, amt, pickup?.address || '');
       if (r.data?.valid) {
         setVoucher({ code: r.data.code, discount: r.data.discount, title: r.data.title });
         toast.success(`Voucher ${r.data.code} appliqué : -${r.data.discount.toFixed(2)} €`);

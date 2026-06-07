@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 151 — Geo-scoped admin configs (auto-promotions + vouchers) and instant App Settings flag sync (window 'app-settings-updated'). Backend: 17/17 pytest cases PASSED in /app/backend/tests/test_geo_scoped_configs.py — covers GET /api/geo/countries (250 items incl. MQ Martinique), GET /api/geo/states?country=MQ → ['Martinique'], GET /api/geo/cities?country=MQ → Fort-de-France/Le Lamentin/etc., GET /api/geo/cities?country=ZZ → [], GET /api/geo/states?country=FR includes 'Île-de-France'. Auto-promo scope: scoped MQ promo created with scope={country:'MQ'} persists; GET /api/auto-promotions/best?amount=20&pickup=Paris → returns the GLOBAL promo (3€) not the MQ promo (5€); pickup=Le Lamentin, Martinique → returns the MQ promo (5€) winning over the global; pickup absent → only global matches. Voucher scope: scoped MQ voucher persists; POST /api/vouchers/validate with pickup=Paris returns valid:false 'Ce voucher n'est pas disponible dans votre zone'; pickup=Le Lamentin, Martinique returns valid:true discount=5; pickup absent → valid:false. Regression: unscoped (global) voucher validates true in Paris, Martinique and with no pickup. App Settings PUT /api/config/admin/app-settings + GET /api/config/app-settings re-read confirms the donation flag flips Oui→Non→Oui (restore done). Frontend smoke: logged in as admin, /admin/auto-promotions opens 'Nouvelle promotion' modal exposing data-testid zone-scope-picker / zone-country / zone-state / zone-city as native <select> elements; selecting country MQ populates state with 'Martinique' and city with 'Fort-de-France' AND 'Le Lamentin'; /admin/vouchers 'Nouveau voucher' modal exposes the same ZoneScopePicker. All created TEST_ promos and vouchers were cleaned up by fixture teardown.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_geo_scoped_configs.py",
+    "/app/test_reports/pytest/iter151.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/core/geo_scope.py — _CITY_INDEX is built at import time from CURATED only. Adding a country there requires a process restart; not a bug but worth noting if scopes are ever made dynamic (e.g. admin-editable in DB).",
+    "backend/core/geo_scope.py resolve_zone_from_text — purely substring-based. A pickup address containing the token 'France' will resolve to country=FR even if the city is unrecognized; this is intended fallback behaviour but means an address like 'France Avenue, Fort-de-France' could still be ambiguous (the country detection picks the LONGEST country name match first, so 'Martinique' wins over 'France' here — verified). Document the rule.",
+    "backend/routes/vouchers.py validate_voucher — scope check happens BEFORE quota/per-user checks. Means a rider in the wrong zone never burns a per-user attempt; correct semantics, just confirming.",
+    "backend/routes/auto_promotions.py evaluate_best_auto_promo — when zone is None and a non-global promo exists, scope_matches returns False, so the rider only sees global promos. That matches the requirement ('zone unknown → only global'). OK.",
+    "frontend ZoneScopePicker uses native <select> elements (not shadcn Select) — good for Playwright stability; the cascading reset (changing country resets state+city) was implicitly verified since lists are repopulated on country change."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_geo_scoped_configs.py (created)"
+  ],
+  "success_rate": { "backend": "100% (17/17)", "frontend": "ZoneScopePicker render + cascade MQ→Martinique→Fort-de-France/Le Lamentin verified in BOTH /admin/auto-promotions and /admin/vouchers create modals" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!  ;  one disposable TEST_zone_rider_<hex>@example.com rider registered per pytest run",
+  "seed_data_creation": "Per-run: 1 admin auto-promo scoped to MQ + 1 global auto-promo + 1 MQ voucher + 1 global voucher + 1 throwaway rider account. All promos and vouchers are deleted by pytest fixture teardown. The rider account is left in DB (no admin DELETE /api/auth/users endpoint used) but is namespaced with TEST_ prefix for easy cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file /app/backend/tests/test_geo_scoped_configs.py is reusable as a regression suite — run with `python -m pytest backend/tests/test_geo_scoped_configs.py -v`. KEY GOTCHAS that bit me: (1) /api/auth/login returns 'access_token' not 'token' — the helper handles both. (2) /api/config/admin/app-settings expects the settings dict DIRECTLY as the JSON body (NOT wrapped in {settings: ...}); GET /api/config/app-settings returns the settings dict flat. (3) ZoneScopePicker uses NATIVE <select> elements, so use page.locator('[data-testid=\"zone-country\"]').select_option(value='MQ') — not shadcn click+option. (4) Country code for Martinique is 'MQ'. To trigger an MQ zone via text resolution, the pickup address must contain 'Martinique' OR one of the curated MQ cities (Fort-de-France, Le Lamentin, Schoelcher, …). 'France' alone triggers FR. The longest country name wins, so 'Fort-de-France, Martinique' correctly resolves to MQ (not FR despite containing 'France'). (5) The window 'app-settings-updated' broadcast is a same-browser-context mechanism (tabs in the same browser); it cannot be validated cross-context. Acceptable verification: admin PUT → SPA-navigate to /profile in the same tab → donation row hidden (backend re-read confirmed in this iteration's test_save_app_settings_then_get_returns_new_value).",
+  "rca of the issue": "No bugs found. Feature wiring (backend scope resolution + ZoneScopePicker UI + GET /best & /vouchers/validate accepting pickup) all works end-to-end. The two minor test-side gotchas (auth token key name + PUT body shape) were resolved in the test file itself."
+}

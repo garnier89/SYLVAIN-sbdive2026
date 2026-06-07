@@ -15,6 +15,7 @@ from datetime import datetime, timezone, timedelta
 
 from core.config import db
 from core.deps import get_current_user, require_role
+from core.geo_scope import clean_scope
 
 router = APIRouter(prefix="/auto-promotions", tags=["auto-promotions"])
 
@@ -77,16 +78,20 @@ async def _is_eligible(promo: dict, user_id: str) -> bool:
     return False
 
 
-async def evaluate_best_auto_promo(user_id: str, amount: float, service_type: str = "ride"):
+async def evaluate_best_auto_promo(user_id: str, amount: float, service_type: str = "ride", zone=None):
     """Return the best eligible active auto-promo for this user, or None.
-    Side-effect free (does NOT increment usage)."""
+    Side-effect free (does NOT increment usage). Honors the promo geo-scope:
+    a scoped promo only applies when `zone` matches it; an unscoped promo is global."""
     if amount <= 0:
         return None
+    from core.geo_scope import scope_matches
     promos = await db.auto_promotions.find({"status": "active"}, {"_id": 0}).to_list(200)
     best = None
     for p in promos:
         svc = p.get("service_type", "all")
         if svc not in ("all", service_type):
+            continue
+        if not scope_matches(p.get("scope"), zone):
             continue
         if not await _is_eligible(p, user_id):
             continue
@@ -104,10 +109,13 @@ async def evaluate_best_auto_promo(user_id: str, amount: float, service_type: st
 
 
 @router.get("/best")
-async def best_auto_promo(request: Request, amount: float = 0, service: str = "ride"):
-    """Rider-facing: best auto-promo applicable to the given fare amount."""
+async def best_auto_promo(request: Request, amount: float = 0, service: str = "ride", pickup: str = ""):
+    """Rider-facing: best auto-promo applicable to the given fare amount (zone-aware
+    when a pickup address is supplied)."""
     user = await get_current_user(request)
-    promo = await evaluate_best_auto_promo(user["id"], float(amount or 0), service)
+    from core.geo_scope import resolve_zone_from_text
+    zone = resolve_zone_from_text(pickup) if pickup else None
+    promo = await evaluate_best_auto_promo(user["id"], float(amount or 0), service, zone=zone)
     return {"promo": promo}
 
 
@@ -134,6 +142,7 @@ def _clean_payload(body: dict) -> dict:
         "discount_amount": amount,
         "max_discount": float(body.get("max_discount", 0) or 0),
         "service_type": body.get("service_type", "all") or "all",
+        "scope": clean_scope(body.get("scope")),
         "status": "active" if body.get("status", "active") == "active" else "inactive",
     }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Sparkle, Plus, PencilSimple, Trash, Power, X } from '@phosphor-icons/react';
 import { adminAPI } from '../../services/api';
+import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 
 const CRITERIA = [
   { v: 'first_ride', l: 'Première course' },
@@ -14,7 +15,7 @@ const CRIT_LABEL = Object.fromEntries(CRITERIA.map((c) => [c.v, c.l]));
 const EMPTY = {
   title: '', eligibility_criteria: 'first_ride', trip_count_threshold: 5,
   inactive_days: 30, discount_type: 'flat', discount_amount: 5, max_discount: 0,
-  service_type: 'all', status: 'active',
+  service_type: 'all', status: 'active', scope: { country: '', state: '', city: '' },
 };
 
 const PromoModal = ({ initial, onClose, onSaved }) => {
@@ -103,6 +104,7 @@ const PromoModal = ({ initial, onClose, onSaved }) => {
               </select>
             </div>
           </div>
+          <ZoneScopePicker value={form.scope} onChange={(scope) => set('scope', scope)} />
         </div>
         <button onClick={save} disabled={saving} className="w-full mt-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 disabled:opacity-50 transition-colors" data-testid="auto-promo-save">
           {saving ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Créer la promotion')}
@@ -186,7 +188,14 @@ const AdminAutoPromotions = () => {
             <tbody className="divide-y divide-gray-100">
               {promos.map((p, i) => (
                 <tr key={p.id} className="hover:bg-gray-50" data-testid={`auto-promo-row-${i}`}>
-                  <td className="px-4 py-3 font-semibold text-gray-900">{p.title}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-900">
+                    {p.title}
+                    {p.scope?.country && (
+                      <span className="ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200" data-testid={`auto-promo-zone-${i}`}>
+                        📍 {[p.scope.city, p.scope.state, p.scope.country].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-600">
                     {CRIT_LABEL[p.eligibility_criteria] || p.eligibility_criteria}
                     {p.eligibility_criteria === 'trip_count' && ` (≥ ${p.trip_count_threshold})`}

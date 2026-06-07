@@ -344,8 +344,12 @@ async def create_ride(data: RideRequest, request: Request):
             fare = round(fare * (1 - corporate_discount_pct / 100), 2)
 
     # ===== AI Based Auto Promotions — discount auto-appliqué au tarif rider =====
+    # Resolve the request zone from the pickup so geo-scoped promos/vouchers only
+    # apply where the admin targeted them (e.g. a promo visible only in Martinique).
+    from core.geo_scope import resolve_zone_from_text
+    ride_zone = resolve_zone_from_text(data.pickup_address or "")
     from routes.auto_promotions import evaluate_best_auto_promo
-    auto_promo = await evaluate_best_auto_promo(user["id"], fare, service_type="ride")
+    auto_promo = await evaluate_best_auto_promo(user["id"], fare, service_type="ride", zone=ride_zone)
     auto_promo_id = auto_promo["id"] if auto_promo else None
     auto_promo_title = auto_promo["title"] if auto_promo else None
     auto_promo_discount = auto_promo["discount_amount"] if auto_promo else 0.0
@@ -358,7 +362,7 @@ async def create_ride(data: RideRequest, request: Request):
     voucher_discount = 0.0
     if voucher_code:
         from routes.vouchers import validate_voucher
-        v_doc, v_disc, v_err = await validate_voucher(voucher_code, user["id"], fare)
+        v_doc, v_disc, v_err = await validate_voucher(voucher_code, user["id"], fare, zone=ride_zone)
         if v_err:
             raise HTTPException(status_code=400, detail=v_err)
         voucher_id = v_doc["id"]

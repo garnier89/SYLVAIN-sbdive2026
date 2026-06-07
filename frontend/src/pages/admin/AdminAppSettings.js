@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { FloppyDisk, SlidersHorizontal, Gear, MagnifyingGlass } from '@phosphor-icons/react';
 import { configAPI, adminAPI } from '../../services/api';
+import { refreshAppSettings } from '../../hooks/useAppSettings';
 
 // Yes/No + select option maps (parité V3Cube)
 const YESNO = [{ v: true, l: 'Oui' }, { v: false, l: 'Non' }];
@@ -291,6 +292,8 @@ const AdminAppSettings = () => {
       } else {
         const r = await adminAPI.updateAppSettings(app);
         setApp(r.data);
+        // Broadcast so open rider/driver apps refresh feature gates instantly.
+        refreshAppSettings();
       }
       toast.success('Paramètres enregistrés');
     } catch (e) {
