@@ -30,6 +30,7 @@ const DriverHome = () => {
   const [myOffer, setMyOffer] = useState(null); // { rideId, amount, expires_at, ttl_seconds }
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [rewardsActive, setRewardsActive] = useState(false);
+  const [rewardsCount, setRewardsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const [showMenu, setShowMenu] = useState(false);
@@ -198,6 +199,7 @@ const DriverHome = () => {
         if (r.ok) {
           const d = await r.json();
           setRewardsActive(!!d.any_active);
+          setRewardsCount((d.vehicle_rewards?.length || 0) + (d.guarantees?.length || 0));
         }
       } catch (e) { console.warn('rewards check failed:', e?.message || e); }
     };
@@ -557,6 +559,14 @@ const DriverHome = () => {
           title="Récompenses"
         >
           <Gift size={22} weight="fill" className="text-white" />
+          {rewardsCount > 0 && (
+            <span
+              className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-extrabold flex items-center justify-center ring-2 ring-white"
+              data-testid="rewards-badge-count"
+            >
+              {rewardsCount > 9 ? '9+' : rewardsCount}
+            </span>
+          )}
         </button>
       </div>
 

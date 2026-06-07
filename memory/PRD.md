@@ -1,3 +1,8 @@
+## NEW - 2026-06-07 (10) - Badge chiffré sur la rondelle Récompenses (DONE)
+- **Demande user** : afficher un petit badge chiffré sur la rondelle (nb de récompenses/bonus disponibles) pour booster l'engagement.
+- **`DriverHome.js`** : nouvel état `rewardsCount` alimenté par le poll `/api/drivers/my-active-rewards` (`vehicle_rewards.length + guarantees.length`). Badge rouge (`rewards-badge-count`, ring blanc, « 9+ » au-delà de 9) en coin sup-droit de la rondelle, affiché si count > 0. Aucun changement backend (l'endpoint renvoyait déjà les listes).
+- **Vérifié** : API (jean=1, amadou=2, sophie=1) + screenshot (disc vert + badge rouge « 2 » chez amadou). Lint clean.
+
 ## NEW - 2026-06-07 (9) - Bouton Récompenses → petite rondelle clignotante (DONE)
 - **Demande user** : repositionner le bouton Récompenses et le transformer en **petite rondelle clignotante**.
 - **`DriverHome.js`** : l'ancien bouton pilule « Recompenses/Bonus » (rangée flottante du bas) est remplacé par une **rondelle ronde 48px** (icône Gift, `animate-pulse` + halo blanc) positionnée **en haut à gauche de la carte** (`absolute top-4 left-4`). Couleur **verte** si une récompense est active (`rewardsActive`), **ambre** sinon. La rangée du bas ne contient plus que le FAB « + » (`justify-end`). testid conservé : `rewards-floating-btn`.
