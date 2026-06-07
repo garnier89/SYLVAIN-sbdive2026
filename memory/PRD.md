@@ -1,3 +1,17 @@
+## NEW - 2026-06-08 (58) - Refactorisation complète de server.py (776 → 32 lignes) (DONE)
+- **Demande user** : refactorisation complète de `server.py`.
+- **Découpage en modules à responsabilité unique** (aucun changement de comportement) :
+  - `core/demo_seed.py` (243 l) : tous les jeux de données démo (merchants, produits, coupons, admin demo, catégories beauty/pet/car/towing/nearby/ondemand/carpool/marketplace, drivers, panel demos, template credentials).
+  - `core/startup.py` (356 l) : la fonction `lifespan` (~540 l) découpée en helpers ciblés (`_create_indexes`, `_seed_admin_and_credentials`, `_seed_demo_merchants_products`, `_seed_panel_demos`, `_seed_external_referentials`, `_seed_v3cube_reference`, `_seed_demo_drivers`, `_seed_corporate`, `_run_route_migrations`…) + orchestrateur `run_all_seeds()`. **Ordre d'exécution strictement préservé** (ACL après panel demos, corporate après test user, migrations après seeds).
+  - `core/api_router.py` (85 l) : `register_routers()` + liste ordonnée `_ROUTERS` (65 routers).
+  - `core/ws_endpoint.py` (85 l) : `register_websocket()` (handler `/api/ws/{client_id}`).
+  - `server.py` (32 l) : câblage fin uniquement (app + lifespan + routers + ws + CORS).
+- **Vérifié** : import OK (601 routes), backend redémarre proprement (« Application startup complete », tous les seeds loggés sans erreur), endpoints e2e OK (`/api/auth/login` admin, `/api/search/delivery`, `/api/service-categories` = 200), lint clean sur tous les nouveaux modules.
+- **Tests** : nouveau `tests/test_server_wiring.py` (4 tests : app construit, routers montés sous /api, ws monté, orchestrateur seed exposé). **25/25 verts** (+ clean_driver_category + geo_scope).
+
+
+
+
 ## NEW - 2026-06-08 (57) - Harmonie ordre taxis (Accueil↔Hub) + charte couleur orange/noir (DONE)
 - **Bug user (« doublure »/changement de place)** : l'ordre des tuiles « Services Taxi » de l'accueil différait de celui de « Tous les Taxis » (`/taxi`). Cause : l'accueil triait **à plat** par `display_order`, alors que le hub **regroupe** les modes en sections fixes (everyday→time→special) puis trie par `display_order` dans chaque groupe.
 - **Fix (option b user)** : `UserHome.taxiTiles` suit désormais la **même séquence groupée** que le hub — import de `MODES`, maps `TAXI_CAT_RANK`{everyday:0,time:1,special:2} + `TAXI_MODE_CAT` (key→cat), tri par `(catRank, display_order)`. Les sections du hub sont conservées. Les 7 premières tuiles de l'accueil = début de la séquence du hub → plus de « saut » de position. Clés inconnues (catégories custom) en dernier.
