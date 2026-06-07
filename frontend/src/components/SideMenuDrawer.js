@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSbPayGoAvailability } from '../hooks/useSbPayGoAvailability';
+import { LocaleModal } from './LocaleSelector';
 import {
   X, House, Car, Wallet, User, Gift, ShareNetwork, Heart, Question,
   SignOut, Bank, Star, MapPin, ListChecks, CreditCard, PaperPlaneTilt,
@@ -24,6 +25,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
   const { available: sbpaygoAvailable } = useSbPayGoAvailability(user?.country);
 
   const [walletBalance, setWalletBalance] = useState(null);
+  const [localeTab, setLocaleTab] = useState(null); // 'lang' | 'currency' → opens LocaleModal
   const [biometricsOn, setBiometricsOn] = useState(() => {
     return localStorage.getItem('sbdrive_biometrics') === 'true';
   });
@@ -80,8 +82,8 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
         { icon: EnvelopeOpen, label: 'Vérifiez votre e-mail',  path: '/profile?tab=verify-email', color: 'bg-orange-100 text-orange-600' },
         { icon: User,         label: 'Gérer son compte',       path: '/profile',                  color: 'bg-fuchsia-100 text-fuchsia-600' },
         { icon: Key,          label: 'Changer le mot de passe',path: '/profile?tab=password',     color: 'bg-slate-200 text-slate-700' },
-        { icon: Coins,        label: 'Changer la devise',      path: '/profile?tab=currency',     color: 'bg-purple-100 text-purple-700' },
-        { icon: Globe,        label: 'Changer la langue',      path: '/profile?tab=language',     color: 'bg-blue-100 text-blue-700' },
+        { type: 'locale', localeTab: 'currency', icon: Coins, label: 'Changer la devise',  color: 'bg-purple-100 text-purple-700' },
+        { type: 'locale', localeTab: 'lang',     icon: Globe, label: 'Changer la langue',  color: 'bg-blue-100 text-blue-700' },
         { icon: FileText,     label: 'Gérer les documents',    path: '/profile?tab=documents',    color: 'bg-sky-100 text-sky-600' },
       ],
     },
@@ -142,7 +144,8 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
         { icon: FileText, label: 'Mes documents',  path: '/chauffeur/documents', color: 'bg-sky-100 text-sky-600' },
         { icon: Image,    label: 'Ma galerie',     path: '/chauffeur/gallery',   color: 'bg-pink-100 text-pink-600' },
         { icon: Key,      label: 'Changer le mot de passe', path: '/chauffeur/profile?tab=password', color: 'bg-slate-200 text-slate-700' },
-        { icon: Globe,    label: 'Changer la langue', path: '/chauffeur/profile?tab=language', color: 'bg-blue-100 text-blue-700' },
+        { type: 'locale', localeTab: 'lang',     icon: Globe, label: 'Changer la langue', color: 'bg-blue-100 text-blue-700' },
+        { type: 'locale', localeTab: 'currency', icon: Coins, label: 'Changer la devise', color: 'bg-purple-100 text-purple-700' },
       ],
     },
     {
@@ -251,7 +254,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
                 ) : (
                   <button
                     key={it.label}
-                    onClick={() => go(it.path)}
+                    onClick={() => (it.type === 'locale' ? setLocaleTab(it.localeTab) : go(it.path))}
                     className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50"
                     data-testid={`side-menu-${it.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-btn`}
                   >
@@ -289,6 +292,8 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
           }
         `}</style>
       </aside>
+
+      <LocaleModal key={localeTab || 'closed'} open={!!localeTab} initialTab={localeTab || 'lang'} onClose={() => setLocaleTab(null)} />
     </div>
   );
 };

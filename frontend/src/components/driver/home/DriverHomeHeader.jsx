@@ -1,7 +1,6 @@
 import React from 'react';
 import { List, CalendarCheck, Bell } from '@phosphor-icons/react';
 import { useLocale } from '../../../contexts/LocaleContext';
-import LocaleSelector from '../../LocaleSelector';
 
 /** Green top bar: side-menu, online toggle, scheduled-reservations (with badge), notifications. */
 export const DriverHomeHeader = ({
@@ -29,7 +28,6 @@ export const DriverHomeHeader = ({
       <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
     </button>
     <div className="flex items-center gap-2">
-      <div data-testid="driver-locale-selector"><LocaleSelector variant="dark" /></div>
       <button onClick={onScheduled} className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
         <CalendarCheck size={20} className="text-white" />
         {scheduledCount > 0 && (

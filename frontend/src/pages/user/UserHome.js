@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import SearchOverlay from '../../components/SearchOverlay';
 import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
-import LocaleSelector from '../../components/LocaleSelector';
 import { useLocale } from '../../contexts/LocaleContext';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
@@ -609,7 +608,6 @@ const UserHome = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <LocaleSelector />
             <Avatar className="h-10 w-10 rounded-2xl border border-slate-200 cursor-pointer" onClick={() => navigate('/profile')}>
               <AvatarImage src={user?.avatar_url} />
               <AvatarFallback className="rounded-2xl bg-[#FFF0E5] text-[#FF5000] font-bold text-sm">{user?.name?.charAt(0) || 'U'}</AvatarFallback>

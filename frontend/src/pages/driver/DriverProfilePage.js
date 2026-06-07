@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { driverAPI, walletAPI, configAPI, newsAPI } from '../../services/api';
-import LocaleSelector from '../../components/LocaleSelector';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 import {
   User, CaretRight, Gear, SignOut, ClipboardText, Wallet, Plus, EnvelopeOpen,
@@ -197,10 +196,6 @@ const DriverProfilePage = () => {
     <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-28" data-testid="driver-profile-page">
       {/* ===== GREEN HEADER ===== */}
       <div className="px-5 pt-6 pb-5 relative" style={{ background: GREEN }}>
-        {/* Langue & Devise — pastille latérale (identique à l'accueil chauffeur) */}
-        <div className="absolute top-5 right-16" data-testid="driver-profile-locale-chip">
-          <LocaleSelector variant="dark" />
-        </div>
         <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={soon} data-testid="settings-gear">
           <Gear size={20} className="text-white" />
         </button>

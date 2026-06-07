@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import ProfileTabView from './profile/ProfileTabView';
-import LocaleSelector from '../../components/LocaleSelector';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Switch } from '../../components/ui/switch';
 import { walletAPI, newsAPI } from '../../services/api';
@@ -136,10 +135,6 @@ const ProfilePage = () => {
           >
             <GearSix size={22} weight="fill" className="text-white/80" />
           </button>
-        </div>
-        {/* Langue & Devise — pastille latérale (identique à l'accueil / app chauffeur) */}
-        <div className="absolute right-16 top-8" data-testid="profile-locale-chip">
-          <LocaleSelector variant="dark" />
         </div>
       </div>
 

@@ -1,3 +1,13 @@
+## NEW - 2026-06-07 (52) - Langue & Devise déplacées de l'en-tête vers le MENU LATÉRAL (≡), client + chauffeur (DONE)
+- **Demande user (clarifiée)** : retirer la pastille « FR | € » de l'en-tête et mettre « Changer la langue » + « Changer la devise » dans le **menu latéral** (tiroir ≡), pour le client ET le chauffeur. (Annule l'ajout de pastille au Profil du tour 51.)
+- **Refactor `LocaleSelector.js`** : extraction d'un composant réutilisable `export const LocaleModal({ open, onClose, initialTab })` (bottom-sheet langues/devises). Pas d'effet (set-state-in-effect évité) — les parents le remontent via `key` pour ouvrir sur le bon onglet. `LocaleSelector` (pastille) le réutilise.
+- **`SideMenuDrawer.js`** (partagé user+driver) : les items « Changer la devise »/« Changer la langue » ouvrent désormais `LocaleModal` (type `locale` + `localeTab`) au lieu de naviguer vers `/profile?tab=...` (qui ne marchait pas côté chauffeur). Ajout de « Changer la devise » à la section chauffeur (il n'avait que la langue). `<LocaleModal>` monté dans le tiroir.
+- **Pastille retirée** des 4 en-têtes : `UserHome` (accueil client), `DriverHomeHeader` (accueil chauffeur), `ProfilePage` (profil client), `DriverProfilePage` (profil chauffeur). Imports `LocaleSelector` nettoyés partout.
+- **Vérifié (Playwright, client)** : `locale-selector-btn` absent du header ; menu ≡ contient « Changer la langue » + « Changer la devise » ; clic « Changer la langue » → `locale-modal` ouvert sur l'onglet Langues. Chauffeur couvert par le même `SideMenuDrawer`. Lint propre, webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la production.
+
+
+
 ## NEW - 2026-06-07 (51) - Devise + Langue : pastille latérale « FR | € » (client + chauffeur), suppression des items redondants (DONE)
 - **Demande user** : « La devise et la langue, leur place c'est sur le côté latéral — application chauffeur ET clients » (réf. captures : la pastille « FR | € » de l'en-tête chauffeur = la bonne place ; les 2 items dans le Profil = à retirer).
 - **Composant** : `LocaleSelector` (pastille « FR | € » + modale langues/devises) déjà présent dans l'en-tête de l'accueil client et de l'accueil chauffeur.
