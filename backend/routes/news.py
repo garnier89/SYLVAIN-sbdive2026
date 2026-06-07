@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from core.config import db
 from core.deps import get_current_user, require_role
+from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -27,13 +28,17 @@ def _serialize(n: dict) -> dict:
 
 
 @router.get("/feed")
-async def news_feed(request: Request):
-    """In-app feed for the current user (audience derived from role)."""
+async def news_feed(request: Request, location: str = ""):
+    """In-app feed for the current user (audience derived from role), filtered by
+    the request zone resolved from the browser-geocoded `location` (empty = all)."""
     user = await get_current_user(request)
     audience = "driver" if user.get("role") == "driver" else "rider"
     items = await db.news.find(
         {"status": "published", "audience": {"$in": ["all", audience]}}, {"_id": 0}
     ).to_list(500)
+    if location:
+        zone = resolve_zone_from_text(location)
+        items = [n for n in items if scope_matches(n.get("scope"), zone)]
     items.sort(key=lambda n: (n.get("pinned", False), n.get("published_at") or n.get("created_at") or ""), reverse=True)
     return items
 
@@ -52,6 +57,7 @@ def _clean_payload(body: dict) -> dict:
         "image_url": (body.get("image_url") or "").strip(),
         "audience": audience,
         "pinned": bool(body.get("pinned", False)),
+        "scope": clean_scope(body.get("scope")),
         "status": "published" if body.get("status", "published") == "published" else "draft",
     }
 
@@ -75,6 +81,22 @@ async def create_news(request: Request):
 async def list_news(request: Request):
     await require_role(request, ["admin"], permission=_WRITE_PERM)
     return await db.news.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@router.get("/admin/preview")
+async def admin_preview_news(request: Request, country: str = "", state: str = "", city: str = "", audience: str = "rider"):
+    """Admin 'Aperçu par zone': published articles a client of the given zone +
+    audience would see in their feed (reuses the same scope_matches logic)."""
+    await require_role(request, ["admin"], permission=_WRITE_PERM)
+    aud = audience if audience in ("rider", "driver") else "rider"
+    items = await db.news.find(
+        {"status": "published", "audience": {"$in": ["all", aud]}}, {"_id": 0}
+    ).to_list(500)
+    if country:
+        zone = {"country": country.upper(), "state": state, "city": city}
+        items = [n for n in items if scope_matches(n.get("scope"), zone)]
+    items.sort(key=lambda n: (n.get("pinned", False), n.get("published_at") or n.get("created_at") or ""), reverse=True)
+    return items
 
 
 @router.put("/admin/{news_id}")
@@ -112,3 +134,24 @@ async def delete_news(news_id: str, request: Request):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Article introuvable")
     return {"deleted": True, "id": news_id}
+
+
+_SEED_NEWS = [
+    {"title": "Bienvenue sur SB Drive VTC", "body": "Découvrez nos services de transport et de livraison, disponibles près de chez vous. Profitez de courses fiables et de livraisons rapides.", "audience": "all", "pinned": True},
+    {"title": "Nouveau : suivez vos courses en temps réel", "body": "Suivez votre chauffeur en direct sur la carte, recevez l'ETA et partagez votre trajet avec vos proches en un tap.", "audience": "rider", "pinned": False},
+]
+
+
+async def seed_news():
+    """Seed a couple of global published articles once (idempotent)."""
+    if await db.news.count_documents({}) > 0:
+        return
+    now = _now()
+    docs = [{
+        "id": f"news_{uuid.uuid4().hex[:12]}",
+        "title": a["title"], "body": a["body"], "image_url": "",
+        "audience": a["audience"], "pinned": a["pinned"],
+        "scope": {"country": "", "state": "", "city": ""},
+        "status": "published", "views": 0, "created_at": now, "published_at": now,
+    } for a in _SEED_NEWS]
+    await db.news.insert_many(docs)

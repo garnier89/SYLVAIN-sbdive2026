@@ -170,7 +170,7 @@ const sidebarConfig = [
       ]},
       { icon: ShareNetwork, label: 'Parrainage MLM', path: '/admin/referral' },
       { icon: Image, label: 'Bannières publicitaires', path: '/admin/banners' },
-      { icon: Newspaper, label: 'Actualités', path: '/admin/news' },
+      { icon: Newspaper, label: 'Actualités', path: '/admin/actualites' },
       { icon: EnvelopeSimple, label: 'Newsletter', path: '/admin/newsletter' },
     ]
   },

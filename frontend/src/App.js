@@ -185,6 +185,8 @@ const AdminOrganizations = lazy(() => import('./pages/admin/AdminOrganizations')
 const AdminCorporate = lazy(() => import('./pages/admin/AdminCorporate'));
 const AdminHomeCategories = lazy(() => import('./pages/admin/AdminHomeCategories'));
 const AdminPromoBanners = lazy(() => import('./pages/admin/AdminPromoBanners'));
+const AdminNews = lazy(() => import('./pages/admin/AdminNews'));
+const NewsFeedPage = lazy(() => import('./pages/user/NewsFeedPage'));
 const AdminI18n = lazy(() => import('./pages/admin/AdminI18n'));
 const AdminGroupsPage = lazy(() => import('./pages/admin/AdminGroupsPage'));
 const AdminUserEdit = lazy(() => import('./pages/admin/AdminUserEdit'));
@@ -261,6 +263,7 @@ const AppRouter = () => {
       <Route path="/service/:serviceKey" element={<ProtectedRoute allowedRoles={['user']}><ServiceBookingFlow /></ProtectedRoute>} />
       <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={['user']}><MyServiceBookingsPage /></ProtectedRoute>} />
       <Route path="/all-delivery" element={<ProtectedRoute allowedRoles={['user']}><AllDeliveryPage /></ProtectedRoute>} />
+      <Route path="/actualites" element={<ProtectedRoute allowedRoles={['user']}><NewsFeedPage /></ProtectedRoute>} />
       <Route path="/all-services" element={<ProtectedRoute allowedRoles={['user']}><AllServicesPage /></ProtectedRoute>} />
       <Route path="/carpool" element={<ProtectedRoute allowedRoles={['user']}><CarPoolPage /></ProtectedRoute>} />
       <Route path="/marketplace" element={<ProtectedRoute allowedRoles={['user']}><MarketplacePage /></ProtectedRoute>} />
@@ -326,6 +329,7 @@ const AppRouter = () => {
       <Route path="/chauffeur/wallet" element={<ProtectedRoute allowedRoles={['driver']}><DriverWalletPage /></ProtectedRoute>} />
       <Route path="/chauffeur/documents" element={<ProtectedRoute allowedRoles={['driver']}><DriverDocumentsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/notifications" element={<ProtectedRoute allowedRoles={['driver']}><DriverNotificationsPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/actualites" element={<ProtectedRoute allowedRoles={['driver']}><NewsFeedPage /></ProtectedRoute>} />
       <Route path="/chauffeur/livechat" element={<ProtectedRoute allowedRoles={['driver']}><LiveChatPage /></ProtectedRoute>} />
       {/* Pack B — Driver Pro */}
       <Route path="/chauffeur/vehicles" element={<ProtectedRoute allowedRoles={['driver']}><ManageVehiclesPage /></ProtectedRoute>} />
@@ -452,6 +456,7 @@ const AppRouter = () => {
         <Route path="corporate" element={<AdminCorporate />} />
         <Route path="home-categories" element={<AdminHomeCategories />} />
         <Route path="promo-banners" element={<AdminPromoBanners />} />
+        <Route path="actualites" element={<AdminNews />} />
         <Route path="i18n" element={<AdminI18n />} />
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="geo-fence" element={<AdminGeoFence />} />

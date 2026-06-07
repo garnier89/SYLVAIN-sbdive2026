@@ -12,7 +12,7 @@ import {
   House, Car, GearSix, Fingerprint, UserCircle, FileText,
   Key, CurrencyCircleDollar, Globe, ArrowsLeftRight, Buildings,
   CarSimple, Gift, MapPin, Info, ShieldCheck, Lock, Question,
-  PaperPlaneTilt, Power, Envelope, HandHeart, ChatCircleDots
+  PaperPlaneTilt, Power, Envelope, HandHeart, ChatCircleDots, Newspaper
 } from '@phosphor-icons/react';
 
 /* ── reusable section header ── */
@@ -153,6 +153,7 @@ const ProfilePage = () => {
         <MenuItem icon={Briefcase} label="Profil de l'entreprise" iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/profile?tab=company')} testId="settings-business-btn" />
         <MenuItem icon={ShoppingCart} label="Mon panier" iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label="Les notifications" iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
+        <MenuItem icon={Newspaper} label="Actualités" iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/actualites')} testId="settings-news-btn" />
         {settings.enable_favorite_driver === true && (
           <MenuItem icon={Heart} label="Chauffeurs favoris" iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
         )}

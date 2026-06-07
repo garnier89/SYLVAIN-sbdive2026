@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend testing of News/Actualites module (zone-aware). Admin CRUD + Apercu par zone + zone/audience filtering + driver feed all verified end-to-end via Playwright. Rider feed entry verified via code review (settings-news-btn present in ProfilePage.js, same NewsFeedPage component as driver path). Cleanup OK (only 2 seeded articles remain).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": {
+    "admin_news_page_loads_2_seeded": "PASS (seeded rows=2)",
+    "admin_create_with_country_MQ_audience_rider": "PASS (3 rows; zone badge shows 'MQ'; audience select=rider)",
+    "apercu_par_zone_default": "PASS ('3 articles visibles')",
+    "apercu_MQ_rider_includes_QA": "PASS (QA article visible)",
+    "apercu_FR_excludes_QA": "PASS ('2 articles', QA hidden — only 2 global seeds shown)",
+    "apercu_MQ_driver_excludes_rider_QA": "PASS ('1 article' — only 'all' audience seed; rider-scoped QA hidden)",
+    "admin_edit_title": "PASS (row reflects '(edit)')",
+    "admin_toggle_publish": "PASS (opacity-50 applied on draft)",
+    "admin_delete_with_confirm": "PASS (row removed; final rows=2 = seeded only)",
+    "driver_chauffeur_actualites_route": "PASS (news-feed-page rendered)",
+    "driver_feed_filters_rider_only_out": "PASS (only 'Bienvenue sur SB Drive VTC' audience=all shown; rider-only seeded 'Nouveau: suivez vos courses' NOT shown)",
+    "driver_profile_entry_point": "PASS (profile-row-actualites navigates to /chauffeur/actualites)",
+    "rider_profile_entry_point_settings_news_btn": "VERIFIED IN CODE (ProfilePage.js line 156 → navigate('/actualites'))"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Public register page only exposes phone-OTP flow at /register (single 'tel' input). Could not auto-register an email/password rider in automation; non-blocking for this feature since driver path uses the same NewsFeedPage component and confirms the feed endpoint + UI.",
+    "DriverProfilePage uses /chauffeur/profile (not /chauffeur/profil as stated in the request); App.js routing should be consistent. data-testid='profile-row-actualités' uses a non-ASCII character ('é') — works but consider ASCII slug for robustness across tooling."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped per request)", "frontend": "100%" },
+  "test_credentials": "admin@superapp.com/SuperAdmin123!, jean.dupont@demo.sb/Driver123!",
+  "seed_data_creation": "Created QA article (audience=rider, country=MQ) then deleted it. Final state restored to 2 seeded articles.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "News module fully validated. ZoneScopePicker exposes data-testids zone-country/zone-state/zone-city. Country codes use ISO-2 (MQ, FR). Admin login = 'Ou choisir une autre option de connexion' → 'Email & mot de passe' → button label is 'Se connecter'. Browser geolocation cannot be granted in automation — rider/driver feed falls back to no-location filter which still correctly respects audience scope (verified on driver: rider-only article correctly excluded).",
+  "rca of the issue": "No issues found."
+}

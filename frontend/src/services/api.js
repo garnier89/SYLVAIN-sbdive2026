@@ -409,6 +409,21 @@ export const promoBannersAPI = {
   reorder: (orderedIds) => api.post('/promo-banners/admin/reorder', { ordered_ids: orderedIds }),
 };
 
+export const newsAPI = {
+  feed: (location) => api.get('/news/feed', { params: location ? { location } : {} }),
+  adminList: () => api.get('/news/admin'),
+  adminPreview: (zone, audience) => api.get('/news/admin/preview', { params: {
+    ...(zone?.country ? { country: zone.country } : {}),
+    ...(zone?.state ? { state: zone.state } : {}),
+    ...(zone?.city ? { city: zone.city } : {}),
+    audience: audience || 'rider',
+  } }),
+  create: (data) => api.post('/news/admin', data),
+  update: (id, data) => api.put(`/news/admin/${id}`, data),
+  toggle: (id) => api.put(`/news/admin/${id}/toggle`),
+  remove: (id) => api.delete(`/news/admin/${id}`),
+};
+
 export const realEstateAPI = {
   list: (params) => api.get('/real-estate/listings', { params }),
   get: (id) => api.get(`/real-estate/listings/${id}`),

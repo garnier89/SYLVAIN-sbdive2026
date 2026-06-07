@@ -56,6 +56,7 @@ from routes.places import router as places_router
 from routes.search import router as search_router
 from routes.service_categories import router as service_categories_router, admin_router as service_categories_admin_router, seed_service_categories
 from routes.store_categories import router as store_categories_router, admin_router as store_categories_admin_router, seed_store_categories
+from routes.news import router as news_router, seed_news
 from routes.pricing import router as pricing_router, public_router as pricing_public_router
 from routes.taxi_configs import router as taxi_configs_router, public_router as taxi_configs_public_router
 from routes.taxi_extra import admin_router as taxi_extra_admin_router, public_router as taxi_extra_public_router, seed_taxi_extra
@@ -585,6 +586,9 @@ async def lifespan(app: FastAPI):
     # Seed store delivery categories (V3Cube Services → Store Delivery)
     await seed_store_categories()
 
+    # Seed news/actualités feed (zone-aware)
+    await seed_news()
+
     # Seed taxi extra (ride profiles + business trip reasons)
     await seed_taxi_extra()
 
@@ -664,6 +668,7 @@ api_router.include_router(service_categories_router)
 api_router.include_router(service_categories_admin_router)
 api_router.include_router(store_categories_router)
 api_router.include_router(store_categories_admin_router)
+api_router.include_router(news_router)
 api_router.include_router(pricing_router)
 api_router.include_router(pricing_public_router)
 api_router.include_router(taxi_configs_router)

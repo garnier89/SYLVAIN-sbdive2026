@@ -10,7 +10,7 @@ import {
   CurrencyCircleDollar, Globe, Gift, CreditCard, Bank, PaperPlaneTilt, Star,
   Crown, Trophy, Lightning, TrendUp, TrendDown, Taxi, Package, Check, Car, Motorcycle,
   Info, Lock, ShieldCheck, Question, ChatsCircle, EnvelopeSimple, House,
-  IdentificationCard, Clock, XCircle
+  IdentificationCard, Clock, XCircle, Newspaper
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -240,6 +240,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={ChatCircleText} color="#06B6D4" label="Les commentaires des utilisateurs" onClick={soon} />
           <ProfileRow icon={Receipt} color="#78716C" label="Lettre de voiture" onClick={soon} />
           <ProfileRow icon={Bell} color="#F97316" label="Les notifications" onClick={() => navigate('/chauffeur/notifications')} />
+          <ProfileRow icon={Newspaper} color="#FF4500" label="Actualités" onClick={() => navigate('/chauffeur/actualites')} />
           <ProfileRow icon={UsersThree} color="#EF4444" label="Inviter des amis" onClick={() => navigate('/referral')} />
           <ProfileRow icon={PhoneCall} color="#84CC16" label="Contacts d'urgence" onClick={() => navigate('/safety')} />
         </div>
