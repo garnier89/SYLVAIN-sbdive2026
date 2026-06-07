@@ -358,7 +358,16 @@ const DriverHome = () => {
       setCurrentRide(res.data);
       setIncomingRequest(null);
       joinRide(rideId);
-    } catch (err) { console.error('Failed to accept ride:', err); setIncomingRequest(null); }
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 404 || status === 400) {
+        toast.info('Cette course n\'est plus disponible (déjà prise ou annulée).');
+      } else {
+        toast.error('Impossible d\'accepter la course. Réessayez.');
+        console.error('Failed to accept ride:', err);
+      }
+      setIncomingRequest(null);
+    }
   };
 
   const sendCounterOffer = async (rideId, amount) => {
