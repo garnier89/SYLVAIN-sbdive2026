@@ -1,3 +1,20 @@
+## NEW - 2026-06-07 (23) - App Settings « brancher tout » : feature-gating réel des flags (DONE)
+- **Demande user** : « A complet — remplissez tout, activer tout » → brancher les flags du panneau Admin App Settings (118 clés) à la **vraie logique** des apps rider + chauffeur (activer/désactiver des fonctionnalités dynamiquement).
+- **Hook central `frontend/src/hooks/useAppSettings.js`** : fetch unique mis en cache (module-level) de `GET /api/config/app-settings` + défauts sûrs ; expose `{ settings, loading }`. ⚠️ Cache non invalidé en session → **un reload complet** est requis côté rider/chauffeur après une sauvegarde admin.
+- **Flags branchés (gating UI + enforcement backend)** :
+  - `taxi_hail_option` → DriverFab masque « Appelez un taxi » ; backend `POST /api/rides/taxi-hall` renvoie **403** si désactivé.
+  - `ask_otp_before_start` → DriverRideFlow : le slider COMMENCER démarre **directement** (sans modale OTP) si false ; backend `verify_start_otp` accepte un démarrage **sans OTP** (`{skip_otp:true}`) uniquement quand le flag est false (sinon 400 « Code requis »).
+  - `driver_timeout` → fenêtre du compte à rebours `IncomingRequestSheet`.
+  - `enable_pool` → RideMapStep masque le toggle « Partager la course (Taxi Pool) ».
+  - `enable_driver_wallet_withdrawal` (+ `driver_wallet_withdrawal_restriction_min`) → DriverWalletPage masque le bouton **Retrait** + hint montant min.
+  - `enable_driver_reward_program` → masque la rondelle/ligne Récompenses (chauffeur).
+  - `enable_gift_card` → masque la section Carte cadeau (rider + chauffeur).
+  - `enable_donation` / `enable_favorite_driver` / `enable_referral_system` → masquent « Faire un don » / « Chauffeurs favoris » / « Inviter » (rider profile + quick-action).
+- **Validé** : **testing_agent iteration_150.json — backend 14/14 pytest** (`test_app_settings_gating.py` : GET public, PUT admin + persistance/reload, auth requise, taxi-hall 403, ask_otp 400/200, persistance des 7 flags) + **admin UI** (render, save, persistance après reload pour `taxi_hail_option`). Tous les flags remis aux **défauts** en fin de run. Lint front+back clean (les 2 erreurs React Compiler immutability/set-state-in-effect de ProfilePage/DriverWalletPage sont **pré-existantes**, tolérées par le build). Webpack compile.
+- **Reste (backlog flags)** : les ~100 autres clés sont des **limites/valeurs** déjà exposées par l'API publique (consommables tel-quel) ; brancher d'autres comportements (handicap/siège enfant/genre, surge, pourboire, parrainage multi-niveaux…) au cas par cas selon besoin user.
+
+
+
 ## NEW - 2026-06-07 (22) - Vouchers (bons à code, distincts des Promocodes) — créé + branché (DONE)
 - **Demande user** : « Abc » → un système Voucher **flexible** couvrant (a) code saisi au paiement réduisant le tarif, (b) bon à montant fixe à usage unique, (c) code type promo avec **fenêtre de validité + quota**.
 - **Backend `routes/vouchers.py`** (collections `vouchers` + `voucher_redemptions`) :
