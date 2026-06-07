@@ -477,10 +477,10 @@ async def get_driver_ride_history(request: Request):
 
 # ===== DRIVER ACTIVITY / POINTS =====
 
-async def _get_rewards_points_config():
-    """Read points config from service_configs (or defaults)."""
+async def _get_rewards_points_config(zone=None):
+    """Read points config from service_configs (or defaults), zone-aware."""
     from routes.admin import get_rewards_config
-    cfg = await get_rewards_config()
+    cfg = await get_rewards_config(zone)
     return cfg["points"]
 
 
@@ -535,14 +535,17 @@ async def _recompute_rates(driver_id: str):
 
 
 @router.get("/my-activity")
-async def get_my_activity(request: Request):
-    """Return the driver's activity dashboard: points, palette, acceptance rate, score."""
+async def get_my_activity(request: Request, location: str = ""):
+    """Return the driver's activity dashboard: points, palette, acceptance rate, score.
+    `location` (browser-resolved) selects a zone-specific points/palette config."""
+    from core.geo_scope import resolve_zone_from_text
     user = await get_current_user(request)
     driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
 
-    points_cfg = await _get_rewards_points_config()
+    zone = resolve_zone_from_text(location) if location else None
+    points_cfg = await _get_rewards_points_config(zone)
     driver = await _ensure_driver_stats(driver, points_cfg)
     palette = _resolve_palette(driver.get("points", 0), points_cfg["palettes"])
 
@@ -797,15 +800,18 @@ def _in_time_window(start_time: str, end_time: str, now_hm: str) -> bool:
 
 
 @router.get("/my-active-rewards")
-async def get_my_active_rewards(request: Request):
-    """Returns only the rewards currently active for the caller driver."""
+async def get_my_active_rewards(request: Request, location: str = ""):
+    """Returns only the rewards currently active for the caller driver.
+    `location` (browser-resolved) selects a zone-specific rewards config."""
     from routes.admin import get_rewards_config
+    from core.geo_scope import resolve_zone_from_text
     user = await get_current_user(request)
     driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
 
-    cfg = await get_rewards_config()
+    zone = resolve_zone_from_text(location) if location else None
+    cfg = await get_rewards_config(zone)
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
     now_hm = now.strftime("%H:%M")

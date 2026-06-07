@@ -5,9 +5,10 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
   Trophy, Star, Plus, Trash, CaretDown, CaretUp,
-  Car, Motorcycle, Bicycle, CurrencyEur, Clock, MapPin, Power, CalendarCheck
+  Car, Motorcycle, Bicycle, CurrencyEur, Clock, MapPin, Power, CalendarCheck, Globe
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -282,6 +283,16 @@ const Field = ({ label, icon: Icon, small, children }) => (
 );
 
 // ============= MAIN COMPONENT =============
+const EMPTY_ZONE = { country: '', state: '', city: '' };
+const zoneKeyOf = (z) => {
+  if (!z?.country) return '';
+  const p = [z.country];
+  if (z.state) p.push(z.state);
+  if (z.city) p.push(z.city);
+  return p.join('|');
+};
+const zoneLabel = (z) => (!z?.country ? 'Global (toutes zones)' : [z.city, z.state, z.country].filter(Boolean).join(', '));
+
 const AdminRewards = () => {
   const [tab, setTab] = useState('regard');
   const [loading, setLoading] = useState(true);
@@ -290,36 +301,77 @@ const AdminRewards = () => {
   const [guarantees, setGuarantees] = useState([]);
   const [points, setPoints] = useState({ initial_points: 100, points_per_ride_accepted: 2, points_per_ride_completed: 3, points_lost_per_refuse: 5, points_lost_per_cancel: 10, palettes: [] });
   const [subCatBonus, setSubCatBonus] = useState({ enabled: false, particulier: 0, vtc: 0, taxi: 0 });
+  const [zone, setZone] = useState(EMPTY_ZONE);
+  const [zones, setZones] = useState([]);
+
+  const applyConfig = (data) => {
+    setRegards(data.regard_vehicles || []);
+    setGuarantees(data.guarantees || []);
+    setPoints(data.points || {});
+    setSubCatBonus(data.sub_category_bonus || { enabled: false, particulier: 0, vtc: 0, taxi: 0 });
+  };
+
+  const loadConfig = async (z) => {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (z?.country) { qs.set('country', z.country); if (z.state) qs.set('state', z.state); if (z.city) qs.set('city', z.city); }
+      const res = await fetch(`${API}/api/admin/rewards/config${qs.toString() ? '?' + qs.toString() : ''}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed');
+      applyConfig(await res.json());
+    } catch (err) { toast.error('Erreur lors du chargement'); }
+    finally { setLoading(false); }
+  };
+
+  const loadZones = async () => {
+    try {
+      const res = await fetch(`${API}/api/admin/rewards/config/zones`, { credentials: 'include' });
+      if (res.ok) { const d = await res.json(); setZones(d.zones || []); }
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     let active = true;
     (async () => {
-      try {
-        const res = await fetch(`${API}/api/admin/rewards/config`, { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed');
-        const data = await res.json();
-        if (!active) return;
-        setRegards(data.regard_vehicles || []);
-        setGuarantees(data.guarantees || []);
-        setPoints(data.points || {});
-        setSubCatBonus(data.sub_category_bonus || { enabled: false, particulier: 0, vtc: 0, taxi: 0 });
-      } catch (err) { toast.error('Erreur lors du chargement'); }
-      finally { if (active) setLoading(false); }
+      await loadConfig(EMPTY_ZONE);
+      if (active) loadZones();
     })();
     return () => { active = false; };
   }, []);
 
+  const onZoneChange = (z) => { setZone(z); loadConfig(z); };
+
+  const currentZk = zoneKeyOf(zone);
+  const hasOverride = !!currentZk && zones.some((zz) => zz.zone_key === currentZk);
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      const payload = { regard_vehicles: regards, guarantees, points, sub_category_bonus: subCatBonus };
+      if (zone.country) payload._zone = zone;
       const res = await fetch(`${API}/api/admin/rewards/config`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ regard_vehicles: regards, guarantees, points, sub_category_bonus: subCatBonus }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Save failed');
-      toast.success('Configuration sauvegardee !');
+      toast.success(zone.country ? `Barème enregistré pour ${zoneLabel(zone)}` : 'Configuration globale sauvegardée !');
+      loadZones();
     } catch (err) { toast.error('Erreur de sauvegarde'); }
     finally { setSaving(false); }
+  };
+
+  const deleteOverride = async () => {
+    if (!window.confirm(`Supprimer le barème spécifique de ${zoneLabel(zone)} ? La zone reviendra à la config globale.`)) return;
+    try {
+      const res = await fetch(`${API}/api/admin/rewards/config/zone`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ _zone: zone }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Override supprimé');
+      await loadConfig(zone);
+      loadZones();
+    } catch { toast.error('Erreur'); }
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500" data-testid="rewards-loading">Chargement...</div>;
@@ -332,8 +384,37 @@ const AdminRewards = () => {
           <h1 className="text-2xl font-bold text-gray-800">Manage Rewards</h1>
         </div>
         <Button onClick={handleSave} disabled={saving} className="bg-[#3b82f6] text-white" data-testid="save-rewards">
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          {saving ? 'Sauvegarde...' : (zone.country ? 'Sauvegarder cette zone' : 'Sauvegarder')}
         </Button>
+      </div>
+
+      {/* Zone selector — global config or per-zone override (V3Cube geo-scoping) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6" data-testid="rewards-zone-bar">
+        <div className="flex items-center gap-2 mb-3">
+          <Globe size={18} weight="duotone" className="text-emerald-600" />
+          <span className="text-sm font-semibold text-slate-800">Configuration par zone</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600" data-testid="rewards-current-zone">{zoneLabel(zone)}</span>
+          {hasOverride && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">BARÈME SPÉCIFIQUE</span>}
+          {zone.country && !hasOverride && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">HÉRITE DU GLOBAL</span>}
+        </div>
+        <ZoneScopePicker value={zone} onChange={onZoneChange} />
+        <p className="text-xs text-slate-400 mt-2">Vide = barème global (toutes zones). Choisissez une zone pour créer/éditer un barème spécifique (ex. garantie 80€ en Martinique). Un chauffeur reçoit automatiquement le barème de sa zone, sinon le global.</p>
+        {zone.country && hasOverride && (
+          <button onClick={deleteOverride} className="text-xs font-semibold text-red-600 mt-2 inline-flex items-center gap-1" data-testid="rewards-delete-override">
+            <Trash size={13} /> Supprimer l&apos;override de cette zone
+          </button>
+        )}
+        {zones.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+            <span className="text-[11px] text-slate-400">Zones personnalisées :</span>
+            {zones.map((zz) => (
+              <button key={zz.zone_key} onClick={() => onZoneChange(zz.scope)} data-testid={`rewards-zone-chip-${zz.zone_key}`}
+                className={`text-[11px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1 ${currentZk === zz.zone_key ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700'}`}>
+                <MapPin size={11} weight="fill" /> {zoneLabel(zz.scope)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2 mb-6 flex-wrap">

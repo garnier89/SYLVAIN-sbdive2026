@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gift, CurrencyEur, Clock, MapPin, CalendarCheck, Car, Motorcycle, Bicycle, CheckCircle, XCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { getBrowserLocationLabel } from '../../lib/browserZone';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GREEN = '#00B578';
@@ -12,11 +13,20 @@ const DriverRewardsPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/api/drivers/my-active-rewards`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(setData)
-      .catch(() => toast.error('Erreur de chargement'))
-      .finally(() => setLoading(false));
+    let alive = true;
+    const load = async (location) => {
+      try {
+        const qs = location ? `?location=${encodeURIComponent(location)}` : '';
+        const r = await fetch(`${API}/api/drivers/my-active-rewards${qs}`, { credentials: 'include' });
+        if (!r.ok) throw new Error();
+        const d = await r.json();
+        if (alive) setData(d);
+      } catch { if (alive) toast.error('Erreur de chargement'); }
+      finally { if (alive) setLoading(false); }
+    };
+    load();
+    getBrowserLocationLabel().then((label) => { if (label && alive) load(label); });
+    return () => { alive = false; };
   }, []);
 
   const iconForType = (type) => {
@@ -44,7 +54,7 @@ const DriverRewardsPage = () => {
         <div className="mx-5 mt-6 bg-white rounded-2xl p-8 text-center" data-testid="no-rewards">
           <Gift size={40} className="mx-auto mb-3 text-gray-300" weight="duotone" />
           <p className="text-sm font-bold text-gray-600">Aucune recompense active</p>
-          <p className="text-[11px] text-gray-400 mt-1">Revenez plus tard ou verifiez les conditions d'eligibilite</p>
+          <p className="text-[11px] text-gray-400 mt-1">Revenez plus tard ou verifiez les conditions d&apos;eligibilite</p>
         </div>
       ) : (
         <div className="px-5 mt-5 space-y-5">
@@ -84,7 +94,7 @@ const DriverRewardsPage = () => {
 
           {data.guarantees.length > 0 && (
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Garantie de chiffre d'affaires</p>
+              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Garantie de chiffre d&apos;affaires</p>
               <div className="space-y-2">
                 {data.guarantees.map((g) => (
                   <div key={g.id} className="bg-white rounded-2xl p-4 shadow-sm" data-testid={`guarantee-${g.id}`}>

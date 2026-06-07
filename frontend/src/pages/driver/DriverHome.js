@@ -18,6 +18,7 @@ import DriverStatsRow from '../../components/driver/home/DriverStatsRow';
 import DriverHomeMap from '../../components/driver/home/DriverHomeMap';
 import DriverFab from '../../components/driver/home/DriverFab';
 import DestinationModeModal from '../../components/driver/home/DestinationModeModal';
+import { getBrowserLocationLabel } from '../../lib/browserZone';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -210,10 +211,13 @@ const DriverHome = () => {
           }, () => {}, { enableHighAccuracy: true }
         )
       : null;
-    // Poll active rewards every 60s
+    // Poll active rewards every 60s (zone-aware via browser location)
+    let rewardsLocation = '';
+    getBrowserLocationLabel().then((l) => { rewardsLocation = l || ''; });
     const checkRewards = async () => {
       try {
-        const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/drivers/my-active-rewards`, { credentials: 'include' });
+        const qs = rewardsLocation ? `?location=${encodeURIComponent(rewardsLocation)}` : '';
+        const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/drivers/my-active-rewards${qs}`, { credentials: 'include' });
         if (r.ok) {
           const d = await r.json();
           setRewardsActive(!!d.any_active);
