@@ -2,17 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../components/ui/button';
 import SearchingRadar from '../../../components/SearchingRadar';
+import { useLocale } from '../../../contexts/LocaleContext';
 
 /**
  * Step 3 — Searching for a driver (fallback / fast booking path).
  */
 export const RideSearchingStep = ({ pickup, dropoff, ride }) => {
   const navigate = useNavigate();
+  const { t } = useLocale();
   return (
     <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center px-6">
       <SearchingRadar size={190} />
-      <h3 className="text-xl font-bold text-gray-900 mb-2 mt-6">Recherche d'un chauffeur</h3>
-      <p className="text-sm text-gray-500 mb-4">Cela peut prendre un moment...</p>
+      <h3 className="text-xl font-bold text-gray-900 mb-2 mt-6">{t('ride.searching_driver')}</h3>
+      <p className="text-sm text-gray-500 mb-4">{t('ride.searching_hint')}</p>
 
       <div className="w-full bg-gray-50 rounded-2xl p-4 space-y-3 mb-6">
         <div className="flex items-center gap-3">
@@ -27,7 +29,7 @@ export const RideSearchingStep = ({ pickup, dropoff, ride }) => {
 
       {ride?.otp && (
         <div className="bg-[#303F9F]/5 rounded-xl px-6 py-3 mb-6">
-          <p className="text-sm text-gray-500 text-center">Code OTP</p>
+          <p className="text-sm text-gray-500 text-center">{t('ride.otp_code')}</p>
           <p className="text-3xl font-bold text-[#303F9F] text-center tracking-widest">{ride.otp}</p>
         </div>
       )}
@@ -38,7 +40,7 @@ export const RideSearchingStep = ({ pickup, dropoff, ride }) => {
         onClick={() => navigate('/home')}
         data-testid="cancel-ride-btn"
       >
-        Annuler la course
+        {t('ride.cancel_ride')}
       </Button>
     </div>
   );

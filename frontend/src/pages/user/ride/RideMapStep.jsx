@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSettings } from '../../../hooks/useAppSettings';
 import LeafletMap from '../../../components/LeafletMap';
+import { useLocale } from '../../../contexts/LocaleContext';
 import {
   ArrowLeft, Car, CreditCard, CaretRight, Motorcycle,
   Jeep, Lightning, Van, Wheelchair, AirplaneTilt,
@@ -52,15 +53,16 @@ export const RideMapStep = ({
 }) => {
   const navigate = useNavigate();
   const { settings: appSettings } = useAppSettings();
+  const { t } = useLocale();
   const gmapCenter = pickup.lat && dropoff.lat
     ? { lat: (pickup.lat + dropoff.lat) / 2, lng: (pickup.lng + dropoff.lng) / 2 }
     : pickup.lat ? { lat: pickup.lat, lng: pickup.lng } : mapCenter;
 
   // Compose dynamic payment methods (fallback to cash/card/wallet if API list empty)
   const pmList = paymentMethods.length > 0 ? paymentMethods : [
-    { id: 'cash', label: 'Espèces', icon: 'Money' },
-    { id: 'card', label: 'Carte bancaire', icon: 'CreditCard' },
-    { id: 'wallet', label: 'Portefeuille SB', icon: 'Wallet' },
+    { id: 'cash', label: t('ride.cash_payment'), icon: 'Money' },
+    { id: 'card', label: t('ride.card_payment'), icon: 'CreditCard' },
+    { id: 'wallet', label: t('ride.wallet_payment'), icon: 'Wallet' },
   ];
   const currentPm = pmList.find((m) => m.id === paymentMethod) || pmList[0];
   const CurrentPmIcon = PM_ICON_MAP[currentPm?.icon] || CreditCard;
@@ -111,7 +113,7 @@ export const RideMapStep = ({
           data-testid="rent-a-taxi-btn"
         >
           <Car size={18} className="text-blue-600" weight="duotone" />
-          <span className="text-sm font-bold text-gray-800">Location Taxi</span>
+          <span className="text-sm font-bold text-gray-800">{t('ride.location_taxi')}</span>
         </button>
 
         {/* ETA bubble */}
@@ -119,10 +121,10 @@ export const RideMapStep = ({
           <div className="absolute top-6 right-4 z-[500] flex items-stretch gap-0 rounded-lg shadow-lg overflow-hidden">
             <div className="bg-slate-800 text-white px-3 py-2 flex flex-col items-center justify-center">
               <span className="text-lg font-bold leading-none">{Math.round(estimate.duration_mins)}</span>
-              <span className="text-[9px] font-semibold">min(s)</span>
+              <span className="text-[9px] font-semibold">{t('ride.min_s')}</span>
             </div>
             <div className="bg-white px-3 py-2 max-w-[180px]">
-              <p className="text-[11px] text-gray-500 leading-tight truncate">@Pour</p>
+              <p className="text-[11px] text-gray-500 leading-tight truncate">{t('ride.eta_for')}</p>
               <p className="text-[11px] font-semibold text-blue-600 leading-tight truncate">{dropoff.address}</p>
             </div>
           </div>
@@ -131,7 +133,7 @@ export const RideMapStep = ({
         {selectingLocation && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md">
             <p className="text-xs font-medium text-gray-700">
-              Touchez la carte pour {selectingLocation === 'pickup' ? 'le départ' : 'la destination'}
+              {t('ride.touch_map_for', { target: selectingLocation === 'pickup' ? t('ride.target_pickup') : t('ride.target_dropoff') })}
             </p>
           </div>
         )}
@@ -143,7 +145,7 @@ export const RideMapStep = ({
 
         {!estimate && selectingLocation && (
           <div className="p-5 text-center">
-            <p className="text-sm text-gray-500">Selectionnez un point sur la carte</p>
+            <p className="text-sm text-gray-500">{t('ride.select_point')}</p>
           </div>
         )}
 
@@ -151,7 +153,7 @@ export const RideMapStep = ({
           <>
             <div className="px-5 pt-3 pb-3">
               <p className="text-center text-base font-semibold text-slate-800">
-                Choisir une gamme ou faites glisser vers le haut
+                {t('ride.choose_range')}
               </p>
             </div>
 
@@ -225,7 +227,7 @@ export const RideMapStep = ({
               {airportSurcharge?.surcharge > 0 && (
                 <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center gap-2" data-testid="airport-surcharge-banner">
                   <span className="text-base">✈️</span>
-                  <span><b>{airportSurcharge.zone}</b> · Supplément aéroport +{airportSurcharge.surcharge.toFixed(2)} €</span>
+                  <span><b>{airportSurcharge.zone}</b> · {t('ride.airport_surcharge')} +{airportSurcharge.surcharge.toFixed(2)} €</span>
                 </div>
               )}
 
@@ -241,8 +243,8 @@ export const RideMapStep = ({
                 />
                 <div className="relative w-10 h-5 bg-gray-300 peer-checked:bg-emerald-500 rounded-full transition-all after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-800">Partager la course (Taxi Pool)</p>
-                  <p className="text-[11px] text-gray-500">Jusqu&apos;à -30% si un autre passager part dans la même direction</p>
+                  <p className="text-sm font-semibold text-gray-800">{t('ride.share_ride')}</p>
+                  <p className="text-[11px] text-gray-500">{t('ride.pool_hint')}</p>
                 </div>
                 <Users size={20} className="text-emerald-600" weight="duotone" />
               </label>
@@ -262,8 +264,8 @@ export const RideMapStep = ({
                 data-testid="open-taxi-bidding-btn"
               >
                 <Gavel size={16} weight="duotone" />
-                Proposer un prix différent
-                <span className="text-[10px] text-pink-500 font-normal">(Enchères Taxi)</span>
+                {t('ride.propose_price')}
+                <span className="text-[10px] text-pink-500 font-normal">{t('ride.taxi_auction')}</span>
               </button>
 
               <button
@@ -282,7 +284,7 @@ export const RideMapStep = ({
                   <CreditCard size={32} className="text-purple-500" weight="fill" />
                 )}
                 <span className="flex-1 text-base font-medium text-slate-800 text-left">
-                  {paymentMethod === 'cash' ? 'Paiement en especes' : paymentMethod === 'card' ? 'Carte bancaire' : 'Portefeuille SB'}
+                  {paymentMethod === 'cash' ? t('ride.cash_payment') : paymentMethod === 'card' ? t('ride.card_payment') : t('ride.wallet_payment')}
                 </span>
                 <CaretRight size={18} className="text-gray-400" />
               </button>
@@ -290,7 +292,7 @@ export const RideMapStep = ({
               {autoPromo?.discount_amount > 0 && (
                 <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2" data-testid="auto-promo-banner">
                   <span className="text-base">🎁</span>
-                  <span>Promo auto «&nbsp;<b>{autoPromo.title}</b>&nbsp;» appliquée : <b>-{autoPromo.discount_amount.toFixed(2)} &euro;</b></span>
+                  <span>{t('ride.auto_promo')} «&nbsp;<b>{autoPromo.title}</b>&nbsp;» {t('ride.applied')} : <b>-{autoPromo.discount_amount.toFixed(2)} &euro;</b></span>
                 </div>
               )}
 
@@ -299,15 +301,15 @@ export const RideMapStep = ({
                 {voucher ? (
                   <div className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs flex items-center justify-between" data-testid="voucher-applied">
                     <span>🎟️ Voucher <b>{voucher.code}</b> : -{voucher.discount.toFixed(2)} &euro;</span>
-                    <button onClick={onRemoveVoucher} className="underline font-semibold" data-testid="voucher-remove">Retirer</button>
+                    <button onClick={onRemoveVoucher} className="underline font-semibold" data-testid="voucher-remove">{t('ride.remove')}</button>
                   </div>
                 ) : (
                   <div className="flex gap-2">
-                    <input value={voucherCode} onChange={(e) => setVoucherCode(e.target.value.toUpperCase())} placeholder="Code voucher"
+                    <input value={voucherCode} onChange={(e) => setVoucherCode(e.target.value.toUpperCase())} placeholder={t('ride.voucher_placeholder')}
                       className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm uppercase outline-none focus:border-emerald-400" data-testid="voucher-input" />
                     <button onClick={onApplyVoucher} disabled={applyingVoucher || !voucherCode?.trim()}
                       className="px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-bold disabled:opacity-50" data-testid="voucher-apply-btn">
-                      {applyingVoucher ? '…' : 'Appliquer'}
+                      {applyingVoucher ? '…' : t('ride.apply')}
                     </button>
                   </div>
                 )}
@@ -318,7 +320,7 @@ export const RideMapStep = ({
                 disabled={loading}
                 data-testid="request-now-btn"
               >
-                {loading ? 'Reservation en cours...' : scheduleMode ? 'Programmer la course' : 'Demander maintenant'}
+                {loading ? t('ride.booking_in_progress') : scheduleMode ? t('ride.schedule_ride') : t('ride.request_now')}
               </button>
             </div>
           </>

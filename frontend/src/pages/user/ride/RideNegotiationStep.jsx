@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft, Car, Info } from '@phosphor-icons/react';
+import { useLocale } from '../../../contexts/LocaleContext';
 
 /**
  * Step 2.5 — Negotiation: shows pending counter-offers from drivers.
@@ -9,6 +10,7 @@ export const RideNegotiationStep = ({
   counterOffers, loading,
   acceptOffer, cancelNegotiation,
 }) => {
+  const { t } = useLocale();
   const mine = parseFloat(proposedFare) || (estimate?.estimated_fare || 0);
   const pending = counterOffers.filter(o => o.status === 'pending');
 
@@ -19,22 +21,22 @@ export const RideNegotiationStep = ({
           <button onClick={cancelNegotiation} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" data-testid="cancel-negotiation-btn">
             <ArrowLeft size={18} className="text-white" weight="bold" />
           </button>
-          <h1 className="text-lg font-bold">Negociation en cours</h1>
+          <h1 className="text-lg font-bold">{t('ride.negotiation_title')}</h1>
         </div>
         <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4">
-          <p className="text-xs text-white/80 mb-1">Votre offre</p>
+          <p className="text-xs text-white/80 mb-1">{t('ride.your_offer')}</p>
           <p className="text-4xl font-black">{mine.toFixed(2)} &euro;</p>
           <p className="text-xs text-white/80 mt-2 flex items-center gap-1.5">
             <span className="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
-            Envoyee aux chauffeurs a proximite
+            {t('ride.sent_to_drivers')}
           </p>
         </div>
       </div>
 
       <div className="flex-1 px-5 py-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-slate-800">Propositions recues</h2>
-          <span className="text-xs text-gray-500" data-testid="offers-count">{pending.length} proposition(s)</span>
+          <h2 className="font-bold text-slate-800">{t('ride.offers_received')}</h2>
+          <span className="text-xs text-gray-500" data-testid="offers-count">{t('ride.proposals_count', { count: pending.length })}</span>
         </div>
 
         {pending.length === 0 && (
@@ -42,8 +44,8 @@ export const RideNegotiationStep = ({
             <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-orange-100 flex items-center justify-center animate-pulse">
               <Car size={28} className="text-[#FF4500]" weight="duotone" />
             </div>
-            <p className="font-semibold text-slate-800 mb-1">En attente des chauffeurs...</p>
-            <p className="text-xs text-gray-500">Les chauffeurs vont accepter ou contre-proposer dans quelques secondes</p>
+            <p className="font-semibold text-slate-800 mb-1">{t('ride.waiting_drivers')}</p>
+            <p className="text-xs text-gray-500">{t('ride.waiting_drivers_hint')}</p>
           </div>
         )}
 
@@ -68,7 +70,7 @@ export const RideNegotiationStep = ({
                     <p className="text-2xl font-black text-slate-800">{o.amount.toFixed(2)} &euro;</p>
                     {diff !== 0 && (
                       <p className={`text-[10px] font-bold ${isHigher ? 'text-red-500' : 'text-green-600'}`}>
-                        {isHigher ? '+' : ''}{diff.toFixed(2)} &euro; vs votre offre
+                        {isHigher ? '+' : ''}{diff.toFixed(2)} &euro; {t('ride.vs_your_offer')}
                       </p>
                     )}
                   </div>
@@ -79,7 +81,7 @@ export const RideNegotiationStep = ({
                   className="w-full h-11 rounded-xl bg-[#FF4500] hover:bg-[#E53E00] text-white font-bold text-sm disabled:opacity-60"
                   data-testid={`accept-offer-${o.id}`}
                 >
-                  Accepter cette offre
+                  {t('ride.accept_offer')}
                 </button>
               </div>
             );

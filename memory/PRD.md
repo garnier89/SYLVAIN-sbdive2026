@@ -1,3 +1,13 @@
+## NEW - 2026-06-07 (41) - i18n Chantier 2 COMPLET : RideBooking traduit (DONE)
+- **Namespace `ride` ajouté** (58 clés) au bundle FR/EN (`routes/i18n.py`) + frontend (`lib/i18nBase.js`). **BASE_TOTAL 194 → 252**.
+- **4 étapes du flux de réservation câblées en `t()`** : `RidePlanStep` (titre, now/for-me, placeholders, favoris, promo, quick-actions, modal « book for someone else »), `RideMapStep` (location taxi, ETA, touch-map, choisir gamme, paiements cash/card/wallet, supplément aéroport, taxi pool, enchères, voucher apply/remove, promo auto, CTA demander/programmer), `RideNegotiationStep` (négociation, offres, attente, accepter), `RideSearchingStep` (recherche chauffeur, OTP, annuler).
+- **Re-traduction** : 25 langues à **252/252** (gcr 251/252, 1 clé en fallback FR — négligeable).
+- **Validé e2e (screenshot)** : `/ride` en anglais → « Plan your ride », « Where to? », « Favorite places / Home / Work », « -20% on your first ride », « Choose on map / Enter destination later / Recent places ». Lint clean sur les 4 composants.
+- **Chantier 2 (LoginPage + ProfilePage + RideBooking) = COMPLET.** Reste à traduire : libellés issus de la DB (noms/desc de véhicules, catégories, bannières CMS) = contenu, hors bundle statique.
+- **DÉPLOIEMENT** : l'app est déployée en prod (https://gojek-mvp-1.emergent.host). Ces changements sont en PREVIEW → nécessitent un redéploiement pour atteindre la production.
+- **RESTE** : Chantier 3 — 360 hook deps (refactoring lent/risqué, par petits lots avec tests).
+
+
 ## NEW - 2026-06-07 (40) - i18n Chantier 2 : couverture étendue Login + Profil (DONE, RideBooking RESTE)
 - **Demande user** : remplacer les textes en dur par `t()` sur LoginPage, ProfilePage, RideBooking + enrichir le bundle + re-traduire.
 - **Bundle de base enrichi** (`routes/i18n.py` FR+EN & `lib/i18nBase.js` FR) : +2 namespaces **`login`** (19 clés : phone_title, mobile, other_options, terms_agree/link, create/enter_password, confirm_password, complete_profile, lastname/firstname/optional/referral_code, create_account, choose_account, email_password…) et **`menu`** (47 clés : tous les libellés ProfilePage — sections + items + nav). **BASE_TOTAL 128 → 194**.
