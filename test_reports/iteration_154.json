@@ -1,0 +1,80 @@
+{
+  "summary": "Frontend E2E testing of new Admin 'Catégories de livraison (Boutiques)' module + client /all-delivery branching. All flows pass.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": [
+    {
+      "name": "Admin login via email/password",
+      "steps": "Click 'Ou choisir une autre option de connexion' on phone login -> sheet 'Choisir un compte' -> click 'Email & mot de passe' -> fill admin@superapp.com / SuperAdmin123! -> Se connecter -> lands on /admin",
+      "result": "PASS"
+    },
+    {
+      "name": "/admin/store-categories page renders 9 verticals in correct default order",
+      "result": "PASS — 9 cards: food, grocery, medicine, flowers, stationery, wine, water, supermarket, construction. data-testid=admin-store-categories-page present."
+    },
+    {
+      "name": "Age badges (18+) on Médicaments & Vin admin cards",
+      "result": "PASS — store-cat-age-badge-medicine and store-cat-age-badge-wine both rendered with '18+'."
+    },
+    {
+      "name": "Vehicle badges present on all 9 cards",
+      "result": "PASS — store-cat-vehicle-badge-{key} = 9/9 (Construction shows 'Voiture / Fourgon', others 'Tous véhicules' by default)."
+    },
+    {
+      "name": "Toggle category Active/Inactive (Papeterie/stationery)",
+      "steps": "click store-cat-toggle-stationery -> pill flips to 'Inactif', toggle visual switches.",
+      "result": "PASS — pill state changed Actif -> Inactif and back."
+    },
+    {
+      "name": "Edit modal flow (grocery)",
+      "steps": "Open store-cat-edit-grocery modal (store-cat-edit-modal visible) -> change store-cat-edit-name to 'Livraison Courses TEST' -> age/vehicle selects render -> save via store-cat-edit-save -> card name updated.",
+      "result": "PASS"
+    },
+    {
+      "name": "Reorder via up/down arrows",
+      "steps": "store-cat-down-grocery moves grocery from index 1 to 2 -> order now [food, medicine, grocery,...]; store-cat-up-grocery restores order.",
+      "result": "PASS"
+    },
+    {
+      "name": "Client /all-delivery hides inactive categories",
+      "steps": "Logged in as a fresh regular user (registered via /api/auth/register testuser@test.sb). With stationery disabled, /all-delivery showed 8 tiles (stationery hidden). Re-enabled stationery and reload showed all 9 tiles.",
+      "result": "PASS"
+    },
+    {
+      "name": "Client age badges (delivery-age-medicine, delivery-age-wine)",
+      "result": "PASS — both show '18+' badge on tile."
+    },
+    {
+      "name": "Tile navigation",
+      "steps": "Click delivery-food -> navigates to /food (cat.path resolved).",
+      "result": "PASS"
+    },
+    {
+      "name": "Cleanup / restore default state",
+      "result": "DONE — stationery re-enabled, grocery name restored to 'Livraison Courses', default order [food,grocery,medicine,flowers,stationery,wine,water,supermarket,construction] confirmed."
+    }
+  ],
+  "observations": [
+    "Admin users are redirected away from /all-delivery (page.goto('/all-delivery') while logged in as admin lands on /admin). This is expected since /all-delivery is a client (mobile) route. Tested correctly using a regular user account.",
+    "Unauthenticated visit to /all-delivery redirects to the marketing homepage '/'. So the route requires auth (user role) — confirm this matches PRD; the brief did say 'When logged in as a regular user'.",
+    "Default delivery_vehicle for Construction is 'car' (Voiture / Fourgon); others default to 'any' (Tous véhicules). Age=18+ is pre-seeded on Médicaments and Vin."
+  ],
+  "critical_code_review_comments": [
+    "AdminStoreCategories.js — pill status DOM is the first <span> in the header row; tests must select '[data-testid=store-cat-card-{key}] span:has-text(\"Actif\"|\"Inactif\")' to avoid grabbing the emoji icon. Consider adding data-testid='store-cat-status-{key}' to the pill for robust automation.",
+    "AllDeliveryPage.js — no auth guard inside the component itself, but the route is protected at the router level. Confirm the route guard intent (regular user only).",
+    "EditStoreCategoryModal closes when clicking the dark overlay (onClick={onClose}) — this is OK because the inner div stopPropagation, but a misclick on the backdrop loses unsaved edits silently. Consider a confirm-on-dirty."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100%" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (email path via 'Ou choisir une autre option de connexion'); user used: dynamically registered testuser{ts}@test.sb / TestPass123!",
+  "seed_data_creation": "Registered a throwaway regular user (testuser{ts}@test.sb) to exercise /all-delivery as a 'user' role. No category data changes left behind.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login flow for admin: click 'Ou choisir une autre option de connexion' on /login -> bottom sheet -> 'Email & mot de passe' -> fill -> submit. /all-delivery requires a 'user' role; admins get redirected to /admin and anons to '/'. Categories REST API: GET /api/store-categories (public), admin under /api/admin/store-categories (toggle, reorder, update). All 9 keys: food, grocery, medicine, flowers, stationery, wine, water, supermarket, construction."
+}

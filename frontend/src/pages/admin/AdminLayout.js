@@ -74,6 +74,7 @@ const sidebarConfig = [
         { label: 'Tous les colis', path: '/admin/parcels' },
       ]},
       { icon: ShoppingCart, label: 'Livraisons boutiques', key: 'store-delivery', children: [
+        { label: 'Catégories de livraison', path: '/admin/store-categories' },
         { label: 'Toutes les livraisons', path: '/admin/store-delivery' },
         { label: 'Commandes boutiques', path: '/admin/store-orders' },
       ]},

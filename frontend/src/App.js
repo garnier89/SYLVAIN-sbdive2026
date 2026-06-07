@@ -198,6 +198,7 @@ const DriverGalleryPage = lazy(() => import('./pages/driver/DriverGalleryPage'))
 const AdminCancellationReasonsPage = lazy(() => import('./pages/admin/AdminCancellationReasonsPage'));
 const AdminScheduling = lazy(() => import('./pages/admin/AdminScheduling'));
 const AdminServiceCategories = lazy(() => import('./pages/admin/AdminServiceCategories'));
+const AdminStoreCategories = lazy(() => import('./pages/admin/AdminStoreCategories'));
 const AdminDynamicPricing = lazy(() => import('./pages/admin/AdminDynamicPricing'));
 const AdminTaxiConfigs = lazy(() => import('./pages/admin/AdminTaxiConfigs'));
 const AdminRentalPackages = lazy(() => import('./pages/admin/AdminRentalPackages'));
@@ -410,6 +411,7 @@ const AppRouter = () => {
         <Route path="cancel-reasons-legacy" element={<AdminCancelReasons />} />
         <Route path="scheduling" element={<AdminScheduling />} />
         <Route path="service-categories" element={<AdminServiceCategories />} />
+        <Route path="store-categories" element={<AdminStoreCategories />} />
         <Route path="dynamic-pricing" element={<AdminDynamicPricing />} />
         <Route path="taxi-configs" element={<AdminTaxiConfigs />} />
         <Route path="rental-packages" element={<AdminRentalPackages />} />
