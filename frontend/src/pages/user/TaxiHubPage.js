@@ -137,7 +137,7 @@ const TaxiHubPage = () => {
     configAPI.getScheduling().then((r) => r.data && setSchedConfig(r.data)).catch(() => {});
     configAPI.getServiceCategories().then((r) => {
       const map = {};
-      (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, available: c.available_now !== false, hint: c.availability_hint || '', name: c.name }; });
+      (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, available: c.available_now !== false, hint: c.availability_hint || '', name: c.name, order: c.display_order ?? 99 }; });
       setCatConfig(map);
     }).catch(() => {});
     configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});

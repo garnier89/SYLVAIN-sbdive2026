@@ -27,7 +27,10 @@ export const TaxiModeGrid = ({ catConfig, onSelect, remindedKeys = new Set(), on
       <div key={cat.key} className="mb-5">
         <p className="text-[11px] tracking-[0.12em] uppercase font-bold text-slate-500 mb-2">{cat.title}</p>
         <div className={cat.key === 'everyday' ? 'grid grid-cols-2 gap-3' : cat.key === 'time' ? 'flex overflow-x-auto gap-3 pb-2 hide-scrollbar' : 'flex flex-wrap gap-2'}>
-          {MODES.filter((m) => m.cat === cat.key && (catConfig[m.id]?.active !== false)).map((m) => {
+          {MODES
+            .filter((m) => m.cat === cat.key && (catConfig[m.id]?.active !== false))
+            .sort((a, b) => (catConfig[a.id]?.order ?? 99) - (catConfig[b.id]?.order ?? 99))
+            .map((m) => {
             const MIcon = m.icon;
             const cfg = catConfig[m.id];
             const unavailable = cfg?.available === false;

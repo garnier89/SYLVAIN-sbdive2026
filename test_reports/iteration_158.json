@@ -1,0 +1,54 @@
+{
+  "summary": "Frontend e2e validation of NAME HARMONY (service_categories → home tiles, /taxi hub, /course header) + full client→driver standard ride. Tested on the preview URL with rider.i18n@demo.sb and jean.dupont@demo.sb. 5/7 review items PASS. Two critical bugs found: (1) /course page main title (H1) is hard-coded to 'Planifiez votre trajet' for every mode (mode chip below the title is correct, but the big page header is not, breaking NAME HARMONY for standard/pool/bidding/electric/access); (2) /course?mode=bidding does NOT redirect to /taxi-bidding — it still renders the inline bidding panel.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RideChoosePage header", "issue": "Main page H1/H2 title is always 'Planifiez votre trajet' regardless of mode. mode=standard shows 'Planifiez votre trajet' (should be 'Taxi VTC'); mode=pool shows 'Planifiez votre trajet' (should be 'Pool- partage'); mode=electric shows 'Planifiez votre trajet' (should be 'Électric'); mode=access shows 'Planifiez votre trajet' (should be 'Handicapé'); mode=bidding shows 'Planifiez votre trajet' (should be 'Proposez votre tarif'). Only mode=book_later coincidentally matches. Mode chip [data-testid=ride-choose-mode-chip] is correct in all cases — the bug is in the page-title binding only.", "selector": "[data-testid=ride-choose-page] h1/h2", "priority": "HIGH"},
+      {"component": "IncomingRequestSheet (standard) price label", "issue": "'Prix estime' (missing accent) — should be 'Prix estimé'. Same bug as iteration_157, still not fixed.", "selector": ".price-box label", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Bidding mode redirect", "issue": "/course?mode=bidding does NOT redirect to /taxi-bidding. The page stays on /course?mode=bidding and renders panel-bidding inline. Spec (review request) explicitly requires: '/course?mode=bidding (now titled Proposez votre tarif) must redirect to the dedicated /taxi-bidding page'. taxi-bidding-page testid not found after hard-reload.", "affected_selectors": ["[data-testid=taxi-bidding-page]", "[data-testid=panel-bidding]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix RideChoosePage header binding: the H1/H2 must use catName (from service_categories matched by mode.id) — not a hardcoded string. Verify with mode=standard → 'Taxi VTC', mode=pool → 'Pool- partage', mode=electric → 'Électric', mode=access → 'Handicapé', mode=bidding → 'Proposez votre tarif'.",
+    "Add a top-level effect/guard in RideChoosePage (or router) that redirects /course?mode=bidding → /taxi-bidding so the inline bidding panel is no longer shown.",
+    "Fix 'Prix estime' → 'Prix estimé' in driver IncomingRequestSheet (translations.driver.est_price)."
+  ],
+  "critical_code_review_comments": [
+    "RideChoosePage.js: the header title appears to be statically rendered (always 'Planifiez votre trajet') while the mode chip is dynamic. Suggest reading cat?.name||mode.label once at the page level and binding it to BOTH the main page-title AND the chip — currently only the chip is bound.",
+    "Bidding separation: keeping the bidding panel inside RideChoosePage means future changes risk re-introducing the 'Enchères' UX inside /course. A small useEffect(() => { if (mode==='bidding') navigate('/taxi-bidding'+location.search) },[mode]) would cleanly enforce the separation.",
+    "service_categories shape returned correctly with admin renames: book_later='Planifiez votre trajet', electric='Électric', bidding='Proposez votre tarif', access='Handicapé', rental='Mise à Dispo', etc. — backend contract is good."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "n/a (skipped per request)",
+    "frontend": "71% — 5/7 items PASS: home name harmony, /taxi hub names, mode-chip names, standard E2E (rider → driver accept), pool seat panel. 2/7 FAIL: /course page-title is hardcoded for non-book_later modes; /course?mode=bidding does not redirect."
+  },
+  "test_credentials": "rider.i18n@demo.sb / Rider123! | jean.dupont@demo.sb / Driver123!",
+  "seed_data_creation": "Created 2 standard rides via UI + POST /api/rides as rider.i18n@demo.sb (ride_df504376eb8a — used in the UI flow; ride_688995e3da1d — used to verify the driver-side incoming sheet within 7s and successful accept).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Use UI flow: click 'Ou choisir une autre option de connexion' → 'Email' → fill email/password. Rider auto-redirects /login→/home if already authed: clear cookies+storage (context.clear_cookies + localStorage.clear) before switching to driver. Driver demo (jean.dupont@demo.sb) starts already 'En ligne' — no need to toggle. Pending-ride poll fires in ~7-8s after rider POST /api/rides. service_categories endpoint /api/service-categories returns the admin-renamed labels. RideChoosePage page-title vs mode-chip are bound to DIFFERENT data sources — the chip uses cat.name, the title appears hardcoded to 'Planifiez votre trajet'. Bidding redirect: only the 'Proposer mon tarif' button (inside panel-bidding) navigates to /taxi-bidding — there is NO automatic redirect on entering /course?mode=bidding.",
+  "results": {
+    "service_categories": "PASS — /api/service-categories returns 17 active categories with admin names matching spec (book_later='Planifiez votre trajet', bidding='Proposez votre tarif', electric='Électric', access='Handicapé', rental='Mise à Dispo', pool='Pool- partage', etc.).",
+    "HOME_tiles_name_harmony": "PASS — /home Services Taxi tiles show: 'Taxi VTC','Planifiez votre trajet','Proposez votre tarif','Mise à Dispo','Pool- partage','Moto Taxi','Handicapé','Tous les Taxis'. No 'Plus Tard'/'Green'/'Enchères'/'PMR' present.",
+    "HOME_tile_click_book_later": "PASS — Clicking 'Planifiez votre trajet' tile navigates to /course?mode=book_later and the page-title correctly reads 'Planifiez votre trajet' (this is the only mode for which the title happens to be correct).",
+    "TAXI_hub_names_and_order": "PASS — /taxi 'Tous les Taxis' grid shows admin names: Taxi VTC, Pool- partage, Moto Taxi, Électric, Planifiez votre trajet, Mise à Dispo, Intercité, Loc Moto, Chauffeur Privé, Proposez votre tarif, Handicapé, Réservation entreprise, Assistance, Aéroport, Accompagné animal, Pour un proche, TukTuk. No old names (Plus Tard/Green/Enchères/PMR) found. Grid renders without errors.",
+    "COURSE_page_title_harmony": "FAIL — /course header H1 is statically 'Planifiez votre trajet' for ALL modes. Verified across mode=standard, pool, bidding, access, electric. Only book_later renders the correct title by accident. Mode chip ([data-testid=ride-choose-mode-chip]) is correct in every case.",
+    "BIDDING_SEPARATION": "FAIL — /course?mode=bidding does not redirect to /taxi-bidding. The page stays on /course?mode=bidding with [data-testid=panel-bidding] visible and [data-testid=taxi-bidding-page] absent.",
+    "POOL_PANEL": "PASS — /course?mode=pool renders [data-testid=panel-pool] with seat selector starting at 1, 'Maximum 4 places par réservation Pool' info text, and panel-pool-minus/plus controls.",
+    "E2E_STANDARD_ride_request": "PASS — From /course?mode=standard with pickup 'Tour Eiffel' and dropoff 'Gare du Nord', 10 vehicle buttons rendered (choose-vehicle-sb/confort/luxe/moto/suv/electric/van/tuktuk and 2 more), request button label 'Commander · 13.65 €'. Click → /ride/ride_df504376eb8a with 'Recherche d'un chauffeur...' radar, '14 chauffeurs notifiés à proximité'. NOT a negotiation screen.",
+    "E2E_DRIVER_accept_standard": "PASS — After creating ride_688995e3da1d via API, switching to driver jean.dupont@demo.sb (already En ligne), [data-testid=incoming-request-modal] appeared in ~7s. Title: 'Demande · Sb'; hasAccept=true, hasReject=true, hasCounterToggle=FALSE (correct for standard). Click [data-testid=accept-ride-btn] → driver navigates to active-ride view 'Prendre le passager' with map, customer info 'Test Rider', '6.37 km · 27 minutes', and 'GLISSEZ POUR ARRIVER' bottom CTA. The iteration_157 404 issue did NOT reproduce.",
+    "DRIVER_price_label_typo": "FAIL (minor, carried over) — IncomingRequestSheet still renders 'Prix estime' (missing accent) instead of 'Prix estimé'."
+  },
+  "rca of the issue": {
+    "course_header_hardcoded": "The page-title element on /course is rendering a fixed string 'Planifiez votre trajet' instead of catName||mode.label. The mode chip is dynamic so the header binding is the only mismatch. Likely RideChoosePage.js renders a static heading separately from where the chip is computed. The fix is to read cat?.name||mode.label from service_categories at the page-title level too.",
+    "bidding_no_redirect": "RideChoosePage currently renders the bidding panel for mode=bidding instead of redirecting to /taxi-bidding. The 'Proposer mon tarif' button inside the panel does navigate, but the spec requires an automatic redirect on entering /course?mode=bidding. Add: useEffect(()=>{ if(mode==='bidding'){ navigate('/taxi-bidding'+location.search, {replace:true}) } },[mode])."
+  }
+}
