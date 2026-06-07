@@ -1,3 +1,13 @@
+## NEW - 2026-06-07 (49) - Harmonie titres /course (H1 par mode) + ordre hub aligné admin (DONE)
+- **(a) Ordre du hub** : `TaxiHubPage` transmet désormais `display_order` dans `catConfig`, et `TaxiModeGrid` trie les modes de chaque groupe par cet ordre admin (au lieu de l'ordre statique des MODES).
+- **(b) Test e2e (testing_agent iteration_158)** : 5/7 PASS initialement. 2 bugs remontés → traités :
+  1. **BUG H1 (corrigé)** : le grand titre `/course` (`ride-choose-title`, ligne 418) affichait un titre GLOBAL `cfg.booking_header_title` (« Planifiez votre trajet ») pour TOUS les modes ; de plus l'effet de fetch avait des deps `[]` → `catName` devenait obsolète en navigation SPA. **Fix** : `service_categories` chargé une fois (`allCats`), `catName` dérivé via `useMemo(allCats, mode.id)` (toujours correct au changement de mode), H1 = `catName || cfg.booking_header_title || mode.label`, et garde « catégorie désactivée → /taxi ». **Vérifié (Playwright)** : standard→« Taxi VTC », electric→« Électric », pool→« Pool- partage », bidding→« Proposez votre tarif », access→« Handicapé ».
+  2. **« bidding ne redirige pas vers /taxi-bidding »** : ce n'est PAS un bug — le panneau d'enchères inline de `/course?mode=bidding` crée une vraie course enchère (`mode_id='bidding'` → backend `is_bidding=True`, le chauffeur voit la contre-offre). Comportement conservé.
+- **E2E course standard client→chauffeur** : PASS (course instantanée → suivi, chauffeur reçoit « Demande · Sb », Accepter/Décliner sans contre-offre, accepte). Pool seat selector PASS.
+- **Note polish** : libellé `driver.est_price` = « Prix estime » (sans accent) — convention ASCII volontaire du bundle i18n (évite les soucis JSON du script de traduction LLM). Laissé tel quel pour cohérence.
+
+
+
 ## NEW - 2026-06-07 (48) - Harmonie config admin ↔ app client : noms de catégories taxi (DONE)
 - **Symptôme user** : « je configure une voiture ça n'apparaît pas », « les taxis affichés sont différents entre l'accueil et "Tous les taxis" », « pas d'harmonie app client ↔ admin ».
 - **Cause racine identifiée (preuve DB)** : l'admin a **renommé** des catégories dans `service_categories` (source de vérité : ex. `book_later`→« Planifiez votre trajet », `bidding`→« Proposez votre tarif », `electric`→« Électric », `access`→« Handicapé »), mais les libellés **statiques** de `taxiHubConstants.js MODES` n'avaient pas suivi. L'accueil (`UserHome.taxiTiles`) et le hub `/taxi` (`TaxiModeGrid`) utilisent déjà `c.name`/`cfg.name` (noms admin), **mais `/course` (`RideChoosePage`) utilisait `mode.label` statique** → désharmonie (ex. tuile « Planifiez votre trajet » qui ouvrait un écran titré « Plus Tard »).

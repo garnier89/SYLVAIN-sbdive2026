@@ -88,7 +88,7 @@ const RideChoosePage = () => {
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
   const [taxiOpts, setTaxiOpts] = useState(null);
   const [modeCms, setModeCms] = useState(null); // admin CMS override for label/sub/icon
-  const [catName, setCatName] = useState(null); // « Catégories » (service_categories) — single source of truth
+  const [allCats, setAllCats] = useState([]); // « Catégories » (service_categories) — single source of truth
 
   // Mode-specific state
   const [scheduledAt, setScheduledAt] = useState('');
@@ -124,21 +124,10 @@ const RideChoosePage = () => {
       })
       .catch(() => {});
     // « Catégories de service » (service_categories) = SINGLE SOURCE OF TRUTH for the
-    // mode name, shared with the home tiles and the /taxi hub. Keeps everything in sync
-    // when the admin renames/disables a category. A disabled category is not bookable.
+    // mode name, shared with the home tiles and the /taxi hub. Fetched once; the active
+    // category + its name are derived per-mode below (so SPA mode switches stay correct).
     configAPI.getServiceCategories()
-      .then((r) => {
-        const cats = Array.isArray(r.data) ? r.data : (r.data?.items || []);
-        const cat = cats.find((c) => c.key === mode.id);
-        if (cat) {
-          if (cat.active === false) {
-            toast.error('Ce service est actuellement indisponible');
-            navigate('/taxi', { replace: true });
-            return;
-          }
-          if (cat.name) setCatName(String(cat.name).trim());
-        }
-      })
+      .then((r) => setAllCats(Array.isArray(r.data) ? r.data : (r.data?.items || [])))
       .catch(() => {});
     configAPI.getVehicleTypes()
       .then((res) => {
@@ -160,6 +149,17 @@ const RideChoosePage = () => {
       navigate(`/taxi?mode=${mode.id}`, { replace: true });
     }
   }, [cfgLoaded, cfg.unified_flow_enabled, mode.id, navigate]);
+
+  // Per-mode category (service_categories) — authoritative name, recomputed on mode switch.
+  const activeCat = useMemo(() => allCats.find((c) => c.key === mode.id) || null, [allCats, mode.id]);
+  const catName = activeCat?.name ? String(activeCat.name).trim() : null;
+  // A category disabled by the admin is not bookable in the unified flow.
+  useEffect(() => {
+    if (activeCat && activeCat.active === false) {
+      toast.error('Ce service est actuellement indisponible');
+      navigate('/taxi', { replace: true });
+    }
+  }, [activeCat, navigate]);
 
   // Auto-localize the departure on mount
   useEffect(() => { autoLocate(); /* eslint-disable-next-line */ }, []);
@@ -415,7 +415,7 @@ const RideChoosePage = () => {
           </button>
           <div className="min-w-0">
             <span className="text-[10px] font-black uppercase tracking-wider text-white/90 block leading-none" data-testid="ride-choose-eyebrow">{cfg.booking_header_eyebrow || 'SB Drive · Se déplacer'}</span>
-            <h1 className="text-lg font-black text-white leading-tight truncate" data-testid="ride-choose-title">{cfg.booking_header_title || 'Planifiez votre trajet'}</h1>
+            <h1 className="text-lg font-black text-white leading-tight truncate" data-testid="ride-choose-title">{catName || cfg.booking_header_title || mode.label}</h1>
           </div>
         </div>
         <div className="mt-2 inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-3 py-1" data-testid="ride-choose-mode-chip">
