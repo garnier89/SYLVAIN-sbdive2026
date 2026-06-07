@@ -239,7 +239,7 @@ const DriverHome = () => {
     });
     const unsub2 = on('ride_status_update', (msg) => {
       if (currentRide && msg.ride_id === currentRide.id) {
-        if (msg.status === 'cancelled') setCurrentRide(null);
+        if (msg.status === 'cancelled') { setCurrentRide(null); setRideMinimized(false); }
         else setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
       }
     });
