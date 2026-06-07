@@ -10,7 +10,8 @@ import { decodePolyline } from '../../utils/polyline';
 import { rideAPI } from '../../services/api';
 import SlideToConfirm from './SlideToConfirm';
 import RideCompletionFlow from './RideCompletionFlow';
-import { RideFlowMenu, CallTypeSheet, NavChooserSheet, SafetySheet, OtpModal } from './RideFlowSheets';
+import { RideFlowMenu, CallTypeSheet, SafetySheet, OtpModal } from './RideFlowSheets';
+import InAppNav from './InAppNav';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const WAITING_RATE_PER_MIN = 0.5;
@@ -108,15 +109,31 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
   const waitingSecs = waitingAccum + waitingNow;
   const waitingCharge = Math.round((waitingSecs / 60) * WAITING_RATE_PER_MIN * 100) / 100;
 
-  const toggleWaiting = useCallback(() => {
+  const toggleWaiting = useCallback(async () => {
     if (waitingStart) {
-      setWaitingAccum((a) => a + Math.floor((Date.now() - waitingStart) / 1000));
+      const total = waitingAccum + Math.floor((Date.now() - waitingStart) / 1000);
+      const charge = Math.round((total / 60) * WAITING_RATE_PER_MIN * 100) / 100;
+      setWaitingAccum(total);
       setWaitingStart(null);
       setWaitingNow(0);
+      try {
+        await fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ action: 'stop', seconds: total, charge }),
+        });
+        toast.info('Attente arrêtée — le passager a été informé.');
+      } catch { /* ignore */ }
     } else {
       setWaitingStart(Date.now());
+      try {
+        await fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ action: 'start', seconds: waitingAccum, charge: waitingCharge }),
+        });
+        toast.success("Temps d'attente activé — le passager est informé (facturé).");
+      } catch { /* ignore */ }
     }
-  }, [waitingStart]);
+  }, [waitingStart, waitingAccum, waitingCharge, ride.id]);
 
   const goArriving = useCallback(async () => {
     if (busy) return;
@@ -260,8 +277,8 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
           <Siren size={24} weight="fill" className="text-white" />
         </button>
         {inProgress && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B] text-white rounded-full px-4 py-1.5 font-extrabold tabular-nums shadow-lg" data-testid="ride-flow-timer">
-            {fmtClock(elapsed)}
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-md flex items-center gap-1" data-testid="ride-flow-timer">
+            <Clock size={12} weight="bold" />{fmtClock(elapsed)}
           </div>
         )}
       </div>
@@ -333,7 +350,18 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
       )}
 
       {/* Navigation chooser */}
-      {showNav && <NavChooserSheet onClose={() => setShowNav(false)} onChoose={openNav} />}
+      {showNav && (
+        <InAppNav
+          origin={{ lat: ride.pickup_lat, lng: ride.pickup_lng }}
+          destination={inProgress
+            ? { lat: ride.dropoff_lat, lng: ride.dropoff_lng }
+            : { lat: ride.pickup_lat, lng: ride.pickup_lng }}
+          driverPos={driverPos}
+          label={inProgress ? ride.dropoff_address : ride.pickup_address}
+          onClose={() => setShowNav(false)}
+          onWaze={() => openNav('waze')}
+        />
+      )}
 
       {/* Safety sheet */}
       {showSafety && (

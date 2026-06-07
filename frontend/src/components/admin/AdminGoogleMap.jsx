@@ -56,6 +56,8 @@ const AdminGoogleMap = ({
     id: 'google-map-script',
     googleMapsApiKey: GMAP_KEY || '',
     libraries: LIBRARIES,
+    language: 'fr',
+    region: 'FR',
   });
 
   const mapRef = useRef(null);

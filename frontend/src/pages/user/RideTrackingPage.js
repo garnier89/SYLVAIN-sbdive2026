@@ -375,6 +375,12 @@ const RideTrackingPage = () => {
       if (msg.ride_id !== rideId) return;
       setRide((prev) => (prev ? { ...prev, status: 'in_progress', started_at: msg.started_at } : prev));
     });
+    const unsubWaiting = on('waiting_update', (msg) => {
+      if (msg.ride_id !== rideId) return;
+      setRide((prev) => (prev ? { ...prev, waiting_active: msg.active, waiting_charge: msg.charge } : prev));
+      if (msg.active) toast.info("Le chauffeur a activé le temps d'attente — cette attente est facturée.");
+      else toast.success(`Attente terminée — ${Number(msg.charge || 0).toFixed(2)} € ajoutés à la course.`);
+    });
     const unsub2 = on('ride_accepted', (msg) => {
       if (msg.ride_id !== rideId) return;
       setRide((prev) =>
@@ -407,6 +413,7 @@ const RideTrackingPage = () => {
     return () => {
       unsub1();
       unsubStarted();
+      unsubWaiting();
       unsub2();
       unsub3();
       unsub4();

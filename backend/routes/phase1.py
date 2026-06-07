@@ -129,6 +129,41 @@ async def verify_start_otp(ride_id: str, request: Request):
     return {"message": "Ride started", "ride_id": ride_id}
 
 
+@router.post("/rides/{ride_id}/waiting")
+async def toggle_ride_waiting(ride_id: str, request: Request):
+    """Driver toggles the on-trip waiting timer (passenger stops to run an
+    errand). The passenger is notified that the wait is active & billed, and
+    again when it stops."""
+    from core.notifications import create_notification
+    user = await get_current_user(request)
+    if user.get("role") != "driver":
+        raise HTTPException(status_code=403, detail="Driver only")
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "id": 1, "user_id": 1})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    body = await request.json()
+    active = (body.get("action") or "").strip() == "start"
+    seconds = int(body.get("seconds") or 0)
+    charge = round(float(body.get("charge") or 0), 2)
+    await db.rides.update_one({"id": ride_id}, {"$set": {
+        "waiting_active": active, "waiting_seconds": seconds, "waiting_charge": charge,
+    }})
+    ws = {"type": "waiting_update", "ride_id": ride_id, "active": active, "charge": charge}
+    if active:
+        await create_notification(
+            ride["user_id"], "ride", "Temps d'attente activé ⏱️",
+            "Le chauffeur a démarré le temps d'attente. Cette attente vous est facturée.",
+            ws_payload=ws,
+        )
+    else:
+        await create_notification(
+            ride["user_id"], "ride", "Temps d'attente arrêté ✅",
+            f"L'attente est terminée — {charge:.2f} € ajoutés à votre course.",
+            ws_payload=ws,
+        )
+    return {"ok": True, "waiting_active": active, "waiting_charge": charge}
+
+
 # ═══════════ FAVORITE DRIVERS ═══════════
 
 @router.get("/favorite-drivers")

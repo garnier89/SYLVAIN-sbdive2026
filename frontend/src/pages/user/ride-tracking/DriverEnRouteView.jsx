@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   List, PencilSimple, Phone, ChatCircleDots, ShareNetwork, X,
-  Star, StarHalf, User, NavigationArrow, Siren,
+  Star, StarHalf, User, NavigationArrow, Siren, Clock,
 } from '@phosphor-icons/react';
 import GoogleRideMap from './GoogleRideMap';
 
@@ -75,6 +75,20 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
         </div>
       </div>
 
+      {/* Waiting timer banner — the driver is waiting at the passenger's request */}
+      {ride.waiting_active && (
+        <div className="px-4 mt-3 relative z-20" data-testid="enroute-waiting-banner">
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0">
+              <Clock size={18} weight="bold" className="text-white" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[12px] font-extrabold text-amber-800">Temps d&apos;attente en cours</p>
+              <p className="text-[11px] text-amber-700 leading-snug">Le chauffeur patiente à votre demande — cette attente est facturée{ride.waiting_charge ? ` (${Number(ride.waiting_charge).toFixed(2)} €)` : ''}.</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Map */}
       <div className="flex-1 relative -mt-3">
         <GoogleRideMap ride={ride} driverPos={driverPos} />

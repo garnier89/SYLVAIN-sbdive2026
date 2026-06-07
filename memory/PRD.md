@@ -1,3 +1,10 @@
+## NEW - 2026-06-07 (4) - Chrono compact + temps d'attente notifié au client + navigation Google avancée in-app (DONE)
+- **Chrono de course** : réduit (text-xs + icône horloge) et **remonté en haut** de la carte (`top-1`, `ride-flow-timer`).
+- **Temps d'attente facturé + notifié au client** : `toggleWaiting` (DriverRideFlow) appelle désormais `POST /api/phase1/rides/{id}/waiting` (start/stop, secondes, montant). Nouveau backend (phase1.py) : met à jour `waiting_active/seconds/charge` sur la course et **notifie le passager** au **démarrage** (« Temps d'attente activé ⏱️ — facturé ») et à l'**arrêt** (« Temps d'attente arrêté ✅ — X € ajoutés ») via `create_notification` (+ push WS `waiting_update`). Côté passager : bannière ambre **« Temps d'attente en cours »** dans `DriverEnRouteView` (quand `ride.waiting_active`, via polling) + toast WS dans `RideTrackingPage`. *Vérifié : toast driver, notification passager créée en DB.*
+- **Navigation Google avancée in-app (par défaut, type Uber) + Waze** : nouveau composant `InAppNav` (plein écran, carte qui suit le chauffeur, **manœuvre suivante** + distance via `DirectionsService`, **ETA + distance restante**, tracé d'itinéraire) ouvert directement au tap sur le bouton navigation. Bouton **Waze** intégré (option) + Quitter. Ancien chooser `NavChooserSheet` retiré. Instructions en **français** (`useJsApiLoader language:'fr', region:'FR'`). *Vérifié : instruction « Head/Continuez… », ETA 20 min, route, Waze présent.*
+- Lint clean (erreurs restantes RideTrackingPage = préexistantes) ; build compile.
+
+
 ## NEW - 2026-06-07 (3) - Verrouillage du flux pendant une course EN COURS (DONE)
 - **Demande** : « Quand une course est en cours elle ne peut pas sortir de l'application ».
 - **Implémenté** dans `DriverRideFlow` : quand la course est `in_progress` (voyage démarré, passager à bord) →
