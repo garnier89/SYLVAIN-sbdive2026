@@ -430,20 +430,23 @@ async def create_ride(data: RideRequest, request: Request):
     # Join WS ride room for the user
     manager.join_ride_room(ride["id"], user["id"])
 
-    # Broadcast to all connected drivers
-    await manager.broadcast_to_drivers({
-        "type": "new_ride_request",
-        "ride_id": ride["id"],
-        "pickup_lat": ride["pickup_lat"],
-        "pickup_lng": ride["pickup_lng"],
-        "pickup_address": ride["pickup_address"],
-        "dropoff_address": ride["dropoff_address"],
-        "vehicle_type": ride["vehicle_type"],
-        "estimated_fare": fare,
-        "proposed_fare": ride["proposed_fare"],
-        "distance_km": ride["distance_km"],
-        "duration_mins": ride["duration_mins"],
-    })
+    # Broadcast to all connected drivers — EXCEPT scheduled rides, which must
+    # wait in the driver's agenda (home-feed `scheduled_pending`) instead of
+    # popping up as an immediate request.
+    if not ride.get("scheduled_at"):
+        await manager.broadcast_to_drivers({
+            "type": "new_ride_request",
+            "ride_id": ride["id"],
+            "pickup_lat": ride["pickup_lat"],
+            "pickup_lng": ride["pickup_lng"],
+            "pickup_address": ride["pickup_address"],
+            "dropoff_address": ride["dropoff_address"],
+            "vehicle_type": ride["vehicle_type"],
+            "estimated_fare": fare,
+            "proposed_fare": ride["proposed_fare"],
+            "distance_km": ride["distance_km"],
+            "duration_mins": ride["duration_mins"],
+        })
 
     # Also broadcast to admins watching the live-rides cockpit
     await manager.broadcast_to_admins({
@@ -1242,12 +1245,21 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
     if status:
         query["status"] = status
     rides = await db.rides.find(query, {"_id": 0}).sort("created_at", -1).limit(min(limit, 100)).to_list(min(limit, 100))
-    # Hide pending rides whose gamme is reserved for a sub-category the driver isn't in
-    # (keep the driver's own assigned rides regardless).
     if is_driver_feed:
+        driver_doc_id = (await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1}) or {}).get("id")
+        # Scheduled rides (future pickups) belong in the driver's agenda
+        # (home-feed `scheduled_pending`), never in the immediate request feed —
+        # they must not surface as a live "Demande" pop-up.
+        rides = [
+            r for r in rides
+            if r.get("status") != "pending"
+            or r.get("driver_id") == driver_doc_id
+            or not r.get("scheduled_at")
+        ]
+        # Hide pending rides whose gamme is reserved for a sub-category the driver
+        # isn't in (keep the driver's own assigned rides regardless).
         restricted = await restricted_gammes_map()
         if restricted:
-            driver_doc_id = (await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1}) or {}).get("id")
             rides = [
                 r for r in rides
                 if r.get("status") != "pending"
