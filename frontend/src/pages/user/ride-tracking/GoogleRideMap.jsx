@@ -7,10 +7,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { GoogleMap, Polyline, OverlayView, useJsApiLoader } from '@react-google-maps/api';
 import { decodePolyline } from '../../../utils/polyline';
+import { GMAPS_LOADER_OPTIONS } from '../../../lib/googleMaps';
 
-const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
-// Must stay identical to every other useJsApiLoader call in the app
-const LIBRARIES = ['places', 'visualization'];
 const CONTAINER = { width: '100%', height: '100%' };
 
 const MAP_OPTIONS = {
@@ -85,11 +83,7 @@ const AnimatedCarOverlay = ({ lat, lng }) => {
 };
 
 const GoogleRideMap = ({ ride, driverPos }) => {
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: GMAP_KEY || '',
-    libraries: LIBRARIES,
-  });
+  const { isLoaded, loadError } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
   const mapRef = useRef(null);
 
   const inProgress = ride.status === 'in_progress';

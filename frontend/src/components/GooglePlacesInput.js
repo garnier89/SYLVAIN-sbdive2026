@@ -1,23 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MapPin } from '@phosphor-icons/react';
-
-const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
-
-let scriptLoaded = false;
-let scriptLoading = false;
-const loadCallbacks = [];
-
-const loadGooglePlaces = (callback) => {
-  if (scriptLoaded && window.google?.maps?.places) { callback(); return; }
-  loadCallbacks.push(callback);
-  if (scriptLoading) return;
-  scriptLoading = true;
-  const script = document.createElement('script');
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAP_KEY}&libraries=places`;
-  script.async = true;
-  script.onload = () => { scriptLoaded = true; loadCallbacks.forEach(cb => cb()); loadCallbacks.length = 0; };
-  document.head.appendChild(script);
-};
+import { useJsApiLoader } from '@react-google-maps/api';
+import { GMAPS_LOADER_OPTIONS } from '../lib/googleMaps';
 
 const GooglePlacesInput = ({
   placeholder = "Saisissez une adresse",
@@ -33,18 +17,13 @@ const GooglePlacesInput = ({
 }) => {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
-  const [ready, setReady] = useState(false);
+  const { isLoaded } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
   const [localValue, setLocalValue] = useState(value);
 
   useEffect(() => { setLocalValue(value); }, [value]);
 
   useEffect(() => {
-    if (!GMAP_KEY) return;
-    loadGooglePlaces(() => setReady(true));
-  }, []);
-
-  useEffect(() => {
-    if (!ready || !inputRef.current || autocompleteRef.current) return;
+    if (!isLoaded || !inputRef.current || autocompleteRef.current) return;
     const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
       types: ['geocode', 'establishment'],
       componentRestrictions: { country: ['fr', 'mq', 'gp', 'gf', 're'] },
@@ -63,7 +42,7 @@ const GooglePlacesInput = ({
       if (onSelect) onSelect(result);
     });
     autocompleteRef.current = ac;
-  }, [ready, onChange, onSelect]);
+  }, [isLoaded, onChange, onSelect]);
 
   const handleChange = (e) => {
     setLocalValue(e.target.value);

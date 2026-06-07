@@ -16,9 +16,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, Marker, Polyline, TrafficLayer, useJsApiLoader } from '@react-google-maps/api';
-
-const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
-const LIBRARIES = ['places', 'visualization'];
+import { GMAPS_LOADER_OPTIONS } from '../../lib/googleMaps';
 
 const CONTAINER_STYLE = { width: '100%', height: '100%' };
 
@@ -53,13 +51,7 @@ const AdminGoogleMap = ({
   staticView = false,
   mapTypeControl = true,
 }) => {
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: GMAP_KEY || '',
-    libraries: LIBRARIES,
-    language: 'fr',
-    region: 'FR',
-  });
+  const { isLoaded, loadError } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
 
   const mapRef = useRef(null);
   const heatLayerRef = useRef(null);

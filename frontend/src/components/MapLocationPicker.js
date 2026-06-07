@@ -5,12 +5,15 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, X, NavigationArrow } from '@phosphor-icons/react';
+import { useJsApiLoader } from '@react-google-maps/api';
+import { GMAPS_LOADER_OPTIONS } from '../lib/googleMaps';
 
 const DEFAULT_CENTER = { lat: 48.8566, lng: 2.3522 }; // Paris
 
 const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClose }) => {
   const mapRef = useRef(null);
   const mapObj = useRef(null);
+  const { isLoaded } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
   const [address, setAddress] = useState('');
   const [pickTarget, setPickTarget] = useState(target);
   const [ready, setReady] = useState(false);
@@ -18,37 +21,24 @@ const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClo
   useEffect(() => { setPickTarget(target); }, [target, open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isLoaded || !mapRef.current) return undefined;
     let cancelled = false;
-    const init = () => {
-      if (cancelled || !window.google?.maps || !mapRef.current) return;
-      const center = initial?.lat ? { lat: initial.lat, lng: initial.lng } : DEFAULT_CENTER;
-      mapObj.current = new window.google.maps.Map(mapRef.current, {
-        center, zoom: 15, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy',
+    const center = initial?.lat ? { lat: initial.lat, lng: initial.lng } : DEFAULT_CENTER;
+    mapObj.current = new window.google.maps.Map(mapRef.current, {
+      center, zoom: 15, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy',
+    });
+    setReady(true);
+    const geocoder = new window.google.maps.Geocoder();
+    const update = () => {
+      const c = mapObj.current.getCenter();
+      geocoder.geocode({ location: { lat: c.lat(), lng: c.lng() } }, (results, status) => {
+        if (!cancelled && status === 'OK' && results?.[0]) setAddress(results[0].formatted_address);
       });
-      setReady(true);
-      const geocoder = new window.google.maps.Geocoder();
-      const update = () => {
-        const c = mapObj.current.getCenter();
-        geocoder.geocode({ location: { lat: c.lat(), lng: c.lng() } }, (results, status) => {
-          if (status === 'OK' && results?.[0]) setAddress(results[0].formatted_address);
-        });
-      };
-      mapObj.current.addListener('idle', update);
-      update();
     };
-    if (window.google?.maps) init();
-    else {
-      let tries = 0;
-      const iv = setInterval(() => {
-        tries += 1;
-        if (window.google?.maps) { clearInterval(iv); init(); }
-        else if (tries > 30) clearInterval(iv);
-      }, 300);
-      return () => { cancelled = true; clearInterval(iv); };
-    }
+    mapObj.current.addListener('idle', update);
+    update();
     return () => { cancelled = true; };
-  }, [open, initial]);
+  }, [open, initial, isLoaded]);
 
   const confirm = () => {
     if (!mapObj.current) return;
