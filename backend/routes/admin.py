@@ -83,32 +83,29 @@ DEFAULT_REWARDS_CONFIG = {
 }
 
 
-async def get_rewards_config(zone=None):
-    """Return the rewards config merged with defaults.
+def _rewards_zone_candidates(zone) -> list:
+    """Ordered, most-specific-first zone_keys to try (city > state > country).
 
-    When `zone` ({country,state,city}) is supplied, the MOST SPECIFIC stored zone
-    override (city > state > country) is returned, falling back to the GLOBAL config.
-    `zone=None` (default) → global config (backward compatible)."""
-    settings = None
-    if zone and (zone.get("country") or "").strip():
-        c = (zone["country"] or "").strip().upper()
-        s = (zone.get("state") or "").strip()
-        city = (zone.get("city") or "").strip()
-        candidates = []
-        if s and city:
-            candidates.append("|".join([c, s, city]))
-        if s:
-            candidates.append("|".join([c, s]))
-        candidates.append(c)
-        for zk in candidates:
-            doc = await db.service_configs.find_one({"service_key": "rewards", "zone_key": zk}, {"_id": 0})
-            if doc and doc.get("settings"):
-                settings = doc["settings"]
-                break
-    if settings is None:
-        doc = (await db.service_configs.find_one({"service_key": "rewards", "zone_key": {"$exists": False}}, {"_id": 0})
-               or await db.service_configs.find_one({"service_key": "rewards", "zone_key": ""}, {"_id": 0}))
-        settings = (doc or {}).get("settings")
+    Returns [] when no country is supplied (→ caller uses the global config)."""
+    c = (zone or {}).get("country") if zone else None
+    c = (c or "").strip().upper()
+    if not c:
+        return []
+    s = (zone.get("state") or "").strip()
+    city = (zone.get("city") or "").strip()
+    candidates = []
+    if s and city:
+        candidates.append("|".join([c, s, city]))
+    if s:
+        candidates.append("|".join([c, s]))
+    candidates.append(c)
+    return candidates
+
+
+def _merge_rewards_settings(settings) -> dict:
+    """Merge stored settings over the defaults; falsy fields fall back to defaults.
+
+    `settings` falsy (None/empty) → the full DEFAULT_REWARDS_CONFIG is returned."""
     if not settings:
         return DEFAULT_REWARDS_CONFIG
     return {
@@ -117,6 +114,25 @@ async def get_rewards_config(zone=None):
         "points": settings.get("points") or DEFAULT_REWARDS_CONFIG["points"],
         "sub_category_bonus": settings.get("sub_category_bonus") or DEFAULT_REWARDS_CONFIG["sub_category_bonus"],
     }
+
+
+async def get_rewards_config(zone=None):
+    """Return the rewards config merged with defaults.
+
+    When `zone` ({country,state,city}) is supplied, the MOST SPECIFIC stored zone
+    override (city > state > country) is returned, falling back to the GLOBAL config.
+    `zone=None` (default) → global config (backward compatible)."""
+    settings = None
+    for zk in _rewards_zone_candidates(zone):
+        doc = await db.service_configs.find_one({"service_key": "rewards", "zone_key": zk}, {"_id": 0})
+        if doc and doc.get("settings"):
+            settings = doc["settings"]
+            break
+    if settings is None:
+        doc = (await db.service_configs.find_one({"service_key": "rewards", "zone_key": {"$exists": False}}, {"_id": 0})
+               or await db.service_configs.find_one({"service_key": "rewards", "zone_key": ""}, {"_id": 0}))
+        settings = (doc or {}).get("settings")
+    return _merge_rewards_settings(settings)
 
 
 def _rewards_zone_key(scope) -> str:

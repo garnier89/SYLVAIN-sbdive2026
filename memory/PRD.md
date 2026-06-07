@@ -1,3 +1,14 @@
+## NEW - 2026-06-08 (60) - Refactor P2 (lots 2-3) : complexité backend `get_rewards_config` + `_process_pending_ride` (DONE)
+- **Méthode** : extraction de helpers PURS (testables sans DB) + orchestrateur async fin ; comportement strictement préservé.
+- **Lot 2 — `routes/admin.py` `get_rewards_config` (cc 21)** : extrait `_rewards_zone_candidates(zone)` (zone_keys ordonnés city>state>country, [] si pas de pays) et `_merge_rewards_settings(settings)` (merge sur DEFAULT, fallback champs falsy). La fonction async se réduit à : boucle sur candidats → fallback global → merge.
+- **Lot 3 — `routes/auto_dispatch.py` `_process_pending_ride` (cc 15)** : extrait `_dispatch_action(age, tier, cfg)` (décision pure → 'cancel'|'escalate_2'|'escalate_1'|'none', priorité elif identique) et `_resolve_radius_km(ride, cfg)` (rayon zone-aware, fallback cfg). Imbrication réduite, early-return quand action='none'.
+- **Tests** : nouveau `tests/test_rewards_dispatch_helpers.py` — 13 tests (candidats de zone none/pays/état/ville, merge defaults/partiel/falsy, décision dispatch young/1st/2nd/cancel/tier-1). 
+- **Vérifié** : 38/38 tests unitaires verts (rewards_dispatch + clean_driver_category + geo_scope + server_wiring), backend redémarre OK (601 routes), endpoint e2e `GET /api/admin/rewards/config` renvoie les 4 clés, lint clean.
+- **Reste P2** : découpage gros composants frontend (`App.js` routing, `DriverHome.js`, `DriverProfilePage.js`), hook deps prudents — à faire par lots avec testing_agent (risque UI/build CRA).
+
+
+
+
 ## NEW - 2026-06-08 (59) - Revue de code : refactor complexité WebSocket + faux positifs reconfirmés (DONE)
 - **Demande user** : appliquer un rapport de revue de code.
 - **Correction RÉELLE (mon code récent)** : `core/ws_endpoint.py` (`websocket_endpoint` complexité 16, profondeur d'imbrication 8) refactoré avec un **pattern de dispatch** : handlers async dédiés par type de message (`_handle_location_update`, `_handle_join_ride`, `_handle_leave_ride`, `_handle_eta_update`, `_handle_ping`) + table `_HANDLERS`, et early-returns. Imbrication réduite à ~3. La boucle se contente de dispatcher.
