@@ -243,27 +243,31 @@ DC_VEHICLE_CLASSES = {"car", "moto", "velo"}
 DC_TAXI_SUBS = {"particulier", "vtc", "taxi"}
 
 
-def _clean_driver_category(body, existing=None):
-    """Whitelist + validate a driver-category payload. Returns a doc dict (no _id)."""
-    base = dict(existing) if existing else {}
+def _dc_validate_service_class(body, base):
+    """Validate + normalise the service and vehicle_class. Raises 400 on bad input."""
     service = (body.get("service") or base.get("service") or "").strip().lower()
     vehicle_class = (body.get("vehicle_class") or base.get("vehicle_class") or "").strip().lower()
     if service not in DC_SERVICES:
         raise HTTPException(status_code=400, detail="Service invalide (taxi, courier ou delivery)")
     if vehicle_class not in DC_VEHICLE_CLASSES:
         raise HTTPException(status_code=400, detail="Type de véhicule invalide (car, moto ou velo)")
+    return service, vehicle_class
+
+
+def _dc_resolve_taxi_sub(body, base, service, vehicle_class):
+    """taxi_sub is only meaningful for a taxi service on a car; else forced None."""
     taxi_sub = body.get("taxi_sub", base.get("taxi_sub"))
     if taxi_sub in ("", "none", "null"):
         taxi_sub = None
     if taxi_sub is not None and taxi_sub not in DC_TAXI_SUBS:
         raise HTTPException(status_code=400, detail="Sous-catégorie taxi invalide")
-    # taxi_sub is only meaningful for a taxi service on a car
     if not (service == "taxi" and vehicle_class == "car"):
         taxi_sub = None
-    label = (body.get("label") or base.get("label") or "").strip()
-    if not label:
-        raise HTTPException(status_code=400, detail="Le libellé est requis")
-    raw_docs = body.get("documents", base.get("documents") or [])
+    return taxi_sub
+
+
+def _dc_clean_documents(raw_docs):
+    """Whitelist required documents: strip, dedup by key, drop incomplete rows."""
     docs, seen = [], set()
     for d in (raw_docs or []):
         key = (d.get("key") or "").strip()
@@ -273,10 +277,26 @@ def _clean_driver_category(body, existing=None):
             docs.append({"key": key, "label": dlabel})
     if not docs:
         raise HTTPException(status_code=400, detail="Ajoutez au moins un document requis")
+    return docs
+
+
+def _dc_parse_order(body, base):
     try:
-        order = int(body.get("order", base.get("order", 99)))
+        return int(body.get("order", base.get("order", 99)))
     except (TypeError, ValueError):
-        order = 99
+        return 99
+
+
+def _clean_driver_category(body, existing=None):
+    """Whitelist + validate a driver-category payload. Returns a doc dict (no _id)."""
+    base = dict(existing) if existing else {}
+    service, vehicle_class = _dc_validate_service_class(body, base)
+    taxi_sub = _dc_resolve_taxi_sub(body, base, service, vehicle_class)
+    label = (body.get("label") or base.get("label") or "").strip()
+    if not label:
+        raise HTTPException(status_code=400, detail="Le libellé est requis")
+    docs = _dc_clean_documents(body.get("documents", base.get("documents") or []))
+    order = _dc_parse_order(body, base)
     active = body.get("active", base.get("active", True))
     return {
         "service": service, "vehicle_class": vehicle_class, "taxi_sub": taxi_sub,

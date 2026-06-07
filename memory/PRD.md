@@ -1,3 +1,15 @@
+## NEW - 2026-06-08 (56) - Refactor P2 (lot 1) : réduction complexité `_clean_driver_category` + tests (DONE)
+- **Demande user** : attaquer les refactors P2 différés par petits lots avec tests.
+- **Approche** : tests de caractérisation D'ABORD (capturer le comportement exact), puis refactor, puis re-test → iso-comportement prouvé.
+- **`routes/admin.py`** : `_clean_driver_category()` (complexité 26, fonction pure) découpée en 4 helpers à responsabilité unique : `_dc_validate_service_class`, `_dc_resolve_taxi_sub`, `_dc_clean_documents`, `_dc_parse_order` + un orchestrateur fin. Comportement strictement identique.
+- **Nouveau `tests/test_clean_driver_category.py`** : 14 tests (service/classe valides+invalides, taxi_sub effacé hors taxi/car, sentinelles ""/none/null, label requis, dédup+strip documents, 0 doc→400, order fallback 99, active→bool, merge `existing` partiel).
+- **`core/geo_scope.py`** : `scope_matches`/`_zone_override_rank` (signalés cc 14) **laissés tels quels** — déjà des guard-clauses propres et bien testés (`test_geo_scope.py`) ; les transformer en lookup tables serait du churn à valeur négative.
+- **Vérifié** : `pytest test_clean_driver_category.py test_geo_scope.py` = **21/21**, import `routes.admin` OK, lint Python clean.
+- **Reste (prochains lots P2)** : `get_rewards_config` (cc 21, async+DB), `_process_pending_ride` (auto_dispatch, cc 15), `get_analytics_breakdown`/`_aggregate_negotiation_rides` (admin), découpage composants volumineux, hook deps (risqué).
+
+
+
+
 ## NEW - 2026-06-08 (55) - Revue qualité de code : corrections sûres + faux positifs reconfirmés (DONE)
 - **Demande user** : appliquer les recommandations d'un rapport de revue de code.
 - **Corrections RÉELLES appliquées (clés-index → clés stables, listes statiques)** :
