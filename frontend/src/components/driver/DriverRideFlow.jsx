@@ -50,7 +50,6 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const [otpMode, setOtpMode] = useState('otp'); // 'otp' | 'phone'
   const [recordVideo, setRecordVideo] = useState(false);
   const [startedAt, setStartedAt] = useState(() => ride.started_at || null);
-  const [elapsed, setElapsed] = useState(() => (ride.started_at ? Math.max(0, Math.floor((Date.now() - new Date(ride.started_at).getTime()) / 1000)) : 0));
   const [waitingStart, setWaitingStart] = useState(null);
   const [waitingAccum, setWaitingAccum] = useState(0);
   const [waitingNow, setWaitingNow] = useState(0);
@@ -323,12 +322,14 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         connected={connected}
         onSos={() => setShowSafety(true)}
         inProgress={inProgress}
-        elapsedLabel={fmtClock(elapsed)}
         isArrived={isArrived}
         pickupArrivedAt={pickupArrivedAt}
         pickupWaitLabel={fmtClock(pickupWaitSec)}
         pickupBillable={pickupWaitSec >= WAITING_GRACE_SEC}
         pickupWaitChargeLabel={pickupWaitChargeLive.toFixed(2)}
+        waitingActive={!!waitingStart}
+        waitingLabel={waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : 'Attente'}
+        onToggleWaiting={toggleWaiting}
       />
 
       <RideFlowFooter
