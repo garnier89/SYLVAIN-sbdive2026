@@ -1,3 +1,16 @@
+## NEW - 2026-06-07 (22) - Vouchers (bons à code, distincts des Promocodes) — créé + branché (DONE)
+- **Demande user** : « Abc » → un système Voucher **flexible** couvrant (a) code saisi au paiement réduisant le tarif, (b) bon à montant fixe à usage unique, (c) code type promo avec **fenêtre de validité + quota**.
+- **Backend `routes/vouchers.py`** (collections `vouchers` + `voucher_redemptions`) :
+  - Modèle : `code` (unique, MAJ), `title`, `discount_type` (fixed €/percentage % avec `max_discount`), `min_order_amount`, `total_quota` (0=∞), `per_user_limit` (défaut 1), `valid_from`/`valid_until`, `status`, `used_count`.
+  - `validate_voucher(code, user, amount)` → contrôle existence/actif/fenêtre de validité/quota global/limite par utilisateur (via `voucher_redemptions`)/montant min ; calcule la remise. `redeem_voucher()` insère la rédemption + incrémente `used_count`.
+  - CRUD admin `POST/GET/PUT/DELETE /api/vouchers/admin` + `toggle` (perm `billing.promocodes.create`, code unique). Rider `POST /api/vouchers/validate`.
+- **Branchement (rides.py)** : à la création, après la promo auto, si `voucher_code` fourni → `validate_voucher` (400 si invalide), réduit `fare`, stocke `voucher_code`/`voucher_discount` (ajoutés à `RideRequest`/`RideResponse`), enregistre la rédemption après insertion. Routeur enregistré dans `server.py`.
+- **Frontend admin `AdminVouchers.js`** : tableau (code, remise, min, quota used/total, validité, statut) + modale (code, titre, type, valeur, max %, min, quota, limite/client, dates, statut) + toggle/suppression. Remplace le placeholder du barrel ; route `/admin/vouchers`, menu « Vouchers ». `adminAPI.list/create/update/toggle/deleteVoucher`.
+- **Frontend rider** : `RideMapStep` — section `voucher-section` (input + « Appliquer ») → `rideAPI.validateVoucher` → chip `voucher-applied` (« Voucher CODE : -X € ») ; le **double tarif** du véhicule sélectionné combine **promo auto + voucher** (original barré + final vert). `voucher_code` envoyé à la création.
+- **Validé** : curl E2E (10,33 €→2,33 € avec bon 8€, limite/client, quota, expiration) + **testing_agent iteration_149.json 100% frontend** (6 scénarios : CRUD admin, champ % conditionnel, édition/toggle, application rider 10 €→1 €, réservation, suppression). DB laissée propre. Build compile (les 5 erreurs strict-lint de `RideBookingPage` sont **pré-existantes** — effets voice-assistant/airport, backlog des 339).
+- **Note UX (conforme consigne user)** : l'écran de **négociation/enchères** affiche le tarif **non réduit** (10 € = 10 €) — la réduction ne s'y applique pas (seule catégorie sans remise).
+
+
 ## NEW - 2026-06-07 (20) - Badge promo rider : double tarif (barré + réduit) (DONE)
 - **Demande user** : rendre la remise auto visible AVANT paiement — le client voit **2 tarifs** : le tarif normal **barré** + le tarif **réduit** non barré.
 - **Frontend** : `RideBookingPage.js` récupère la meilleure promo via `rideAPI.getBestAutoPromo(estimate.estimated_fare)` (endpoint authentifié `GET /api/auto-promotions/best`) dès que le tarif estimé change, et passe `autoPromo` à `RideMapStep` + `RideNegotiationStep`.
