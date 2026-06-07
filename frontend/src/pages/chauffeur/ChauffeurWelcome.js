@@ -75,8 +75,8 @@ const ChauffeurWelcome = () => {
       </div>
       <div className="flex items-center justify-between px-6 pb-8">
         <div className="flex gap-2">
-          {slides.map((_, i) => (
-            <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-amber-500' : 'w-4 bg-gray-700'}`} />
+          {slides.map((s, i) => (
+            <div key={s.title} className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-amber-500' : 'w-4 bg-gray-700'}`} />
           ))}
         </div>
         <button onClick={nextSlide}

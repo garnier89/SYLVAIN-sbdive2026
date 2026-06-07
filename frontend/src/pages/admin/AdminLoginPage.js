@@ -115,8 +115,8 @@ const AdminLoginPage = () => {
 
       {/* Bottom Navigation Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 w-full max-w-3xl" data-testid="bottom-nav-cards">
-        {bottomLinks.map((link, i) => (
-          <button key={i} onClick={() => navigate(link.path)}
+        {bottomLinks.map((link) => (
+          <button key={link.path} onClick={() => navigate(link.path)}
             className="flex flex-col items-center justify-center py-6 px-4 rounded-xl border border-gray-200 bg-white hover:shadow-md hover:border-gray-300 transition-all group"
             data-testid={`nav-card-${link.label.toLowerCase().replace(/\s+/g, '-')}`}>
             <link.icon size={28} className="text-blue-500 mb-3 group-hover:text-blue-600 transition-colors" weight="regular" />

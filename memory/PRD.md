@@ -1,3 +1,21 @@
+## NEW - 2026-06-08 (55) - Revue qualité de code : corrections sûres + faux positifs reconfirmés (DONE)
+- **Demande user** : appliquer les recommandations d'un rapport de revue de code.
+- **Corrections RÉELLES appliquées (clés-index → clés stables, listes statiques)** :
+  - `ClientWelcome.js:139` & `ChauffeurWelcome.js:79` (points de pagination) → `key={s.title}`.
+  - `AdminLoginPage.js:118` (cartes de navigation) → `key={link.path}`.
+- **Clés-index CONSERVÉES à dessein (édition in-place par index)** : `AdminServiceCategories` (windows :269), `AdminDynamicPricing` (ranges :207), `AdminDriverCategories` (documents :154) — rangées éditables sans ID stable, `setRange(i,…)`/`setDoc(i,…)` ; changer la clé provoque une **perte de focus** des inputs pendant la saisie. Index = pattern correct ici.
+- **FAUX POSITIFS reconfirmés (aucune action)** :
+  - « 9 variables non définies » → `ruff F821` = *All checks passed* + pyflakes = 0.
+  - « Secrets en dur » `i18nBase.js:7,16,17` → libellés de traduction (`password:'Mot de passe'`, `create_password`, `change_password`), pas des secrets.
+  - « random non sécurisé » `simulation.py` → `_sim_random = secrets.SystemRandom()` (déjà sûr).
+  - localStorage `ProfileTabView`/`KioskApp`/`InstallPWA` → données non sensibles (préf. d'onglet, jeton de session kiosque dédié, timestamp de rejet PWA).
+  - « 168 console statements » → déjà neutralisés en production via `silenceConsole()` (`index.js:8`).
+- **DÉFÉRÉ (risque/refactors lourds, backlog P2)** : ~365 `exhaustive-deps` (le handoff déconseille de forcer — casse le build CRA), réduction de complexité backend (`admin.py`, `auto_dispatch.py`), type hints, découpage des composants volumineux.
+- **Vérifié** : lint clean (3 fichiers modifiés), webpack compile (1 warning pré-existant toléré).
+
+
+
+
 ## NEW - 2026-06-08 (54) - Recherche unifiée Livraison branchée dans l'app mobile Expo (DONE)
 - **Demande user** : intégrer l'endpoint `GET /api/search/delivery` (recherche unifiée magasins + produits, toutes verticales) dans l'app mobile Expo (parité avec le web `DeliverySearchOverlay`).
 - **Mobile `api/endpoints.ts`** : ajout `merchantAPI.searchDelivery(q)` → `GET /search/delivery?q=`.
