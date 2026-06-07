@@ -60,7 +60,7 @@ const AdminTaxiConfigs = () => {
             <>
               <p className="font-semibold text-slate-900">Forfaits de location (durée · km · prix)</p>
               {(cur.packages || []).map((p, i) => (
-                <div key={i} className="grid grid-cols-4 gap-2 items-center" data-testid={`rental-pkg-${i}`}>
+                <div key={p.slug || `pkg-${i}`} className="grid grid-cols-4 gap-2 items-center" data-testid={`rental-pkg-${i}`}>
                   <input value={p.label} onChange={(e) => setCfg((c) => ({ ...c, rental_packages: { ...cur, packages: cur.packages.map((x, idx) => idx === i ? { ...x, label: e.target.value } : x) } }))} placeholder="Label" className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
                   <input type="number" value={p.hours} onChange={(e) => setCfg((c) => ({ ...c, rental_packages: { ...cur, packages: cur.packages.map((x, idx) => idx === i ? { ...x, hours: parseFloat(e.target.value) || 0 } : x) } }))} placeholder="Heures" className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
                   <input type="number" value={p.km} onChange={(e) => setCfg((c) => ({ ...c, rental_packages: { ...cur, packages: cur.packages.map((x, idx) => idx === i ? { ...x, km: parseFloat(e.target.value) || 0 } : x) } }))} placeholder="Km" className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />

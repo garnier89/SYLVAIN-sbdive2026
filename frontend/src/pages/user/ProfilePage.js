@@ -80,7 +80,7 @@ const ProfilePage = () => {
       try {
         const r = await newsAPI.unreadCount(location);
         if (alive) setNewsUnread(r.data?.unread || 0);
-      } catch { /* ignore */ }
+      } catch (e) { console.debug('[Profile] news unread failed:', e?.message || e); }
     };
     loadUnread();
     getBrowserLocationLabel().then((label) => { if (label && alive) loadUnread(label); });

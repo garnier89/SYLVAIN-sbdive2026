@@ -69,7 +69,7 @@ const RunnerPage = () => {
       try {
         const res = await parcelAPI.estimate({ pickup_lat: pickup.lat, pickup_lng: pickup.lng, stops: st, vehicle_type: PKG_TO_VEHICLE[packageType] || 'moto' });
         if (!cancelled) setEstimatedFare(res.data.estimated_fare || 0);
-      } catch { /* keep previous estimate */ }
+      } catch (e) { console.debug('[Runner] fare estimate failed:', e?.message || e); /* keep previous estimate */ }
     };
     computeFare();
     return () => { cancelled = true; };

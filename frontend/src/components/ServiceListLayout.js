@@ -163,7 +163,7 @@ export const ServiceCard = ({ item, badges = [], onClick }) => (
       )}
       <div className="flex flex-wrap gap-1.5 mt-1.5">
         {badges.map((b, i) => (
-          <span key={i} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${b.colorClass || 'bg-gray-100 text-gray-700'}`}>{b.label}</span>
+          <span key={b.label || `badge-${i}`} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${b.colorClass || 'bg-gray-100 text-gray-700'}`}>{b.label}</span>
         ))}
       </div>
     </div>

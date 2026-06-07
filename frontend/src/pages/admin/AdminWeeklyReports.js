@@ -158,7 +158,7 @@ const AdminWeeklyReports = () => {
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label="Jour d'envoi">
             <select className={inputCls} value={cfg.send_day} onChange={(e) => set('send_day', e.target.value)} data-testid="field-send_day">
-              {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
             </select>
           </Field>
           <Field label="Heure locale" hint="0–23">

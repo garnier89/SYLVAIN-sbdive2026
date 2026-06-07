@@ -16,9 +16,9 @@ export const SearchRadar = ({ size = 240, caption = null }) => {
       data-testid="radar-pulse"
     >
       {/* Pulsing soft waves */}
-      {[0, 0.8, 1.6].map((delay, i) => (
+      {[0, 0.8, 1.6].map((delay) => (
         <span
-          key={i}
+          key={delay}
           className="absolute inset-0 m-auto rounded-full bg-[#FF5000]/15 animate-ping"
           style={{ width: size * 0.85, height: size * 0.85, animationDelay: `${delay}s`, animationDuration: '2.4s' }}
         />

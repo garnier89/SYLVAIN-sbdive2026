@@ -1,3 +1,18 @@
+## NEW - 2026-06-07 (47) - Revue qualité de code : corrections sûres + faux positifs confirmés (DONE)
+- **Demande user** : appliquer les recommandations d'un rapport de revue de code.
+- **Faux positifs confirmés (aucune action requise)** :
+  - Backend « 9 variables non définies » → `ruff F821` + `pyflakes` + `pylint E0606` = **0** variable non définie.
+  - Frontend « secrets en dur » `i18nBase.js:7,16,17` → ce sont des **libellés de traduction** contenant le mot *password* (« Mot de passe », `create_password`, `change_password`), pas des secrets.
+  - Backend « random non sécurisé » `simulation.py` → utilise déjà `secrets.SystemRandom()` (cryptographiquement sûr) — déjà corrigé.
+  - localStorage `ProfileTabView`/`InstallPWA` → données **non sensibles** (préférences d'onglet/notifs, timestamp de rejet PWA). `KioskApp` stocke un jeton de session **kiosque** (terminal dédié, distinct de l'auth user en cookie httpOnly) — conception délibérée, non touché.
+- **Corrections appliquées (sûres)** :
+  - Clés `index` → clés stables sur 5 listes : `AdminTaxiConfigs` (forfaits location éditables — **vrai correctif** `p.slug`), `SearchRadar`, `DriverScorePage`, `AdminWeeklyReports`, `ServiceListLayout`.
+  - Blocs `catch` silencieux → ajout de `console.debug` (`RunnerPage`, `ProfilePage`).
+- **Vérifié** : webpack compile (1 warning pré-existant toléré), services up. Lint « blocking » restant = uniquement issues **pré-existantes** (apostrophes non échappées dans le JSX FR, `react-hooks/immutability` sur `handleLogout`, `set-state-in-effect` legacy) tolérées par le build CRA.
+- **DÉFÉRÉ (refactors lourds, risque de régression — à faire de façon incrémentale)** : découpage des composants volumineux (`DriverHome`, `App.js`, `AdminDashboard`…), réduction de complexité backend (`admin.py _clean_driver_category`, `geo_scope`, `auto_dispatch`), et les ~363 `react-hooks/exhaustive-deps` (le handoff déconseille de forcer ces correctifs — ils introduisent souvent des erreurs bloquantes).
+
+
+
 ## NEW - 2026-06-07 (46) - Séparation des types de commande taxi (instant / pool / programmée / enchères) + i18n chauffeur finalisé (DONE)
 - **Demande user** : « commander un taxi est confus, ça envoie la réservation, tout est confondu ; chaque option (taxi standard, pool, proposition de tarif, planification) doit respecter son origine ; le pool a des restrictions, on ne peut pas le commander comme un taxi de base. » + finaliser l'i18n des sous-écrans chauffeur.
 - **Diagnostic** : 2 flux parallèles existaient. Le **moderne `/course`** (`RideChoosePage`, utilisé par les tuiles de l'accueil) gère correctement chaque mode (`ride_type`/`mode_id`/`scheduled_at`/`pool_enabled`, redirige enchères→`/taxi-bidding`, programmée→`/scheduled-rides`, instant→suivi). Le **legacy `/ride`** (`RideBookingPage`, atteint via recherche/voix) était buggé : envoyait TOUJOURS `proposed_fare` et routait TOUJOURS vers l'écran « négociation/offres », et n'envoyait JAMAIS `scheduled_at`. De plus, le backend ne **persistait aucun `mode`** → enchères et courses instantanées stockées à l'identique → réception chauffeur identique pour tout (bouton contre-offre partout).

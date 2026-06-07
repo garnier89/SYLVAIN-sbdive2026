@@ -135,7 +135,7 @@ const DriverScorePage = () => {
                 const colorIcon = positive ? '#10B981' : '#EF4444';
                 const dateStr = e.at ? new Date(e.at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
                 return (
-                  <div key={i} className="px-4 py-3 flex items-center gap-3" data-testid={`history-entry-${i}`}>
+                  <div key={`${e.at || 'h'}-${e.ride_id || i}`} className="px-4 py-3 flex items-center gap-3" data-testid={`history-entry-${i}`}>
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center ${colorBg}`}>
                       <Icon size={16} weight="fill" style={{ color: colorIcon }} />
                     </div>
