@@ -117,7 +117,7 @@ const DriverRewardsPage = () => {
                         : <><XCircle size={14} className="text-red-500" weight="fill" /><span className="text-[11px] text-red-600 font-bold">Conditions non remplies</span></>}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <InfoChip icon={Clock} label={`${g.start_hour} - ${g.end_hour}`} />
+                      <InfoChip icon={Clock} label={`${g.start_hour || '00:00'} - ${g.end_hour || '23:59'}`} />
                       <InfoChip icon={MapPin} label={g.zone || 'Toutes'} />
                       <InfoChip icon={CheckCircle} label={`Acceptation >= ${g.acceptance_rate ?? 0}%`} highlight={data.driver_acceptance_rate >= (g.acceptance_rate ?? 0)} />
                       <InfoChip icon={XCircle} label={`Annulation <= ${g.max_cancellation ?? 100}%`} highlight={data.driver_cancellation_rate <= (g.max_cancellation ?? 100)} />
