@@ -1,3 +1,11 @@
+## NEW - 2026-06-07 (11) - BUGFIX : dette d'annulation « collée » qui ne se solde jamais (DONE)
+- **Bug user** : « La dette n'est pas partie malgré que j'ai commandé plusieurs taxis. »
+- **Cause racine** (reproduite en base) : `carry_unpaid_debts_to_ride` n'attachait la dette qu'aux courses dont `carried_ride_id` était vide → la dette se « collait » à la **1re** course créée après l'impayé. Si cette course ne se terminait jamais (ex. course **in_progress** ou abandonnée), les commandes suivantes ne la portaient pas et **les 7 courses terminées de l'utilisateur ne la soldaient pas**. (Cas réel trouvé : dette 5€ de `user_8f657a870` collée sur une course `in_progress`.)
+- **Fix** (`routes/debts.py`) : `carry_unpaid_debts_to_ride` re-rattache **TOUTES** les dettes impayées sur **chaque nouvelle course** (re-pointe `carried_ride_id` vers la dernière commande). Ainsi, terminer **n'importe quelle** course solde la dette. Reste **cash-safe** (la pénalité est toujours affichée sur la commande courante → le passager paie course+dette) et **idempotent** (`settle_carried_debts` relit le flag `paid` → débit unique).
+- **Vérifié** : pytest `tests/test_debt_carry_resettle.py` (re-report sur la dernière course + règlement une seule fois, débit portefeuille = -5€ exactement) + smoke API (2 courses créées → dette re-pointée sur la 2e, montant porté affiché). Lint clean.
+- ⚠️ La dette réelle déjà « collée » se règlera dès qu'une course de cet utilisateur se terminera (la logique la re-porte sur sa prochaine commande). **Fix dans le code (preview) → nécessite un redéploiement pour la production.**
+
+
 ## NEW - 2026-06-07 (10) - Badge chiffré sur la rondelle Récompenses (DONE)
 - **Demande user** : afficher un petit badge chiffré sur la rondelle (nb de récompenses/bonus disponibles) pour booster l'engagement.
 - **`DriverHome.js`** : nouvel état `rewardsCount` alimenté par le poll `/api/drivers/my-active-rewards` (`vehicle_rewards.length + guarantees.length`). Badge rouge (`rewards-badge-count`, ring blanc, « 9+ » au-delà de 9) en coin sup-droit de la rondelle, affiché si count > 0. Aucun changement backend (l'endpoint renvoyait déjà les listes).

@@ -117,11 +117,18 @@ async def settle_cancellation_fee(user_id, ride_id, fee, owed_to_driver_id=None)
 
 
 async def carry_unpaid_debts_to_ride(user_id, ride_id):
-    """Attach all not-yet-carried unpaid debts to a freshly created ride.
-    Returns {amount, debt_ids, owed:[{driver_id, amount}]} (amount 0 if none)."""
+    """Attach ALL the passenger's unpaid debts to a freshly created ride and
+    re-point them to that ride. Returns {amount, debt_ids, owed:[...]} (amount 0
+    if none).
+
+    Why re-point every time: a debt must NOT get *stuck* on an earlier ride that
+    never completes (e.g. an abandoned / still-in-progress / re-pooled ride). By
+    re-carrying onto the latest order, completing ANY ride settles the debt. This
+    stays cash-safe (the penalty is always shown on the current order so the
+    passenger pays fare+debt) and idempotent (settlement re-reads the `paid`
+    flag, so the debt is charged exactly once)."""
     items = await db.cancellation_debts.find(
-        {"user_id": user_id, "paid": False,
-         "$or": [{"carried_ride_id": None}, {"carried_ride_id": {"$exists": False}}]},
+        {"user_id": user_id, "paid": False},
         {"_id": 0},
     ).to_list(200)
     if not items:
