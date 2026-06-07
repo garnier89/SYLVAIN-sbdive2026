@@ -143,6 +143,7 @@ import { AdminGroups, AdminVehicles, AdminCompany, AdminHotels, AdminOrganizatio
   AdminFaqs, AdminHelpArticles, AdminDonations
 } from './pages/admin/AdminCrudPages';
 const AdminServiceConfig = lazy(() => import('./pages/admin/AdminServiceConfig'));
+const AdminAppSettings = lazy(() => import('./pages/admin/AdminAppSettings'));
 const AdminRewards = lazy(() => import('./pages/admin/AdminRewards'));
 const AdminPriorityDrivers = lazy(() => import('./pages/admin/AdminPriorityDrivers'));
 const AdminTopDriversSettings = lazy(() => import('./pages/admin/AdminTopDriversSettings'));
@@ -439,6 +440,7 @@ const AppRouter = () => {
         <Route path="real-estate" element={<AdminRealEstate />} />
         <Route path="pharmacy" element={<AdminPharmacy />} />
         <Route path="services-settings" element={<AdminServiceSettings />} />
+        <Route path="app-settings" element={<AdminAppSettings />} />
         <Route path="kiosks" element={<AdminKiosks />} />
         <Route path="acl" element={<AdminACL />} />
         <Route path="audit-logs" element={<AdminAuditLogs />} />

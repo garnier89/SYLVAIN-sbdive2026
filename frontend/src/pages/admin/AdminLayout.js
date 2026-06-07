@@ -55,6 +55,7 @@ const sidebarConfig = [
     title: 'SERVICES',
     items: [
       { icon: SlidersHorizontal, label: 'Paramètres des services', path: '/admin/services-settings' },
+      { icon: SlidersHorizontal, label: 'Paramètres généraux (App Settings)', path: '/admin/app-settings' },
       { icon: Taxi, label: 'Taxi / Transport', key: 'taxi', children: [
         { label: 'Gérer les catégories', path: '/admin/service-categories' },
         { label: 'Réservation & WhatsApp', path: '/admin/taxi-booking-config' },

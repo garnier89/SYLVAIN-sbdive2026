@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { driverAPI, walletAPI } from '../../services/api';
+import { driverAPI, walletAPI, configAPI } from '../../services/api';
 import {
   User, CaretRight, Gear, SignOut, ClipboardText, Wallet, Plus, EnvelopeOpen,
   Wrench, FileText, MapPin, Images, CalendarCheck, ChartBar, ChatCircleText,
@@ -35,6 +35,7 @@ const DriverProfilePage = () => {
   const [showInfoEdit, setShowInfoEdit] = useState(false);
   const [savingInfo, setSavingInfo] = useState(false);
   const [infoForm, setInfoForm] = useState({ company_name: '', license_number: '' });
+  const [allowEditProfile, setAllowEditProfile] = useState(true);
 
   const serviceOptions = [
     { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
@@ -145,16 +146,18 @@ const DriverProfilePage = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [dRes, wRes, aRes, rRes] = await Promise.allSettled([
+        const [dRes, wRes, aRes, rRes, cRes] = await Promise.allSettled([
           driverAPI.getProfile(),
           walletAPI.get(),
           fetch(`${API}/api/drivers/my-activity`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
           fetch(`${API}/api/drivers/my-active-rewards`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+          configAPI.getAppSettings(),
         ]);
         if (dRes.status === 'fulfilled') setDriver(dRes.value.data);
         if (wRes.status === 'fulfilled') setWalletBalance(wRes.value.data.balance || 0);
         if (aRes.status === 'fulfilled' && aRes.value) setActivity(aRes.value);
         if (rRes.status === 'fulfilled' && rRes.value) setRewardsActive(!!rRes.value.any_active);
+        if (cRes.status === 'fulfilled') setAllowEditProfile(cRes.value.data.allow_driver_edit_profile !== false);
       } catch (err) { console.error('Failed to load:', err); }
       finally { setLoading(false); }
     };
@@ -226,7 +229,9 @@ const DriverProfilePage = () => {
           <ProfileRow icon={ClipboardText} color="#3B82F6" label="Mes reservations" onClick={() => navigate('/chauffeur/earnings')} />
           <ProfileRow icon={Wrench} color="#F59E0B" label="Gerer les services" onClick={openServices} />
           <ProfileRow icon={FileText} color="#06B6D4" label="Gerer les documents" onClick={() => navigate('/chauffeur/documents')} />
-          <ProfileRow icon={IdentificationCard} color="#0EA5E9" label="Mes informations (societe, licence)" onClick={openInfoEdit} />
+          {allowEditProfile && (
+            <ProfileRow icon={IdentificationCard} color="#0EA5E9" label="Mes informations (societe, licence)" onClick={openInfoEdit} />
+          )}
           <ProfileRow icon={MapPin} color="#EF4444" label="Gerer le lieu de travail" onClick={soon} />
           <ProfileRow icon={Images} color="#8B5CF6" label="Gerer la galerie" onClick={() => navigate('/chauffeur/gallery')} />
           <ProfileRow icon={CalendarCheck} color="#A3A3A3" label="Ma disponibilite" onClick={soon} />

@@ -320,6 +320,9 @@ async def request_profile_info_change(request: Request):
     driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
+    from routes.config import get_app_settings_config
+    if not (await get_app_settings_config()).get("allow_driver_edit_profile", True):
+        raise HTTPException(status_code=403, detail="La modification du profil est désactivée par l'administrateur.")
     if not company_name and not license_number:
         raise HTTPException(status_code=400, detail="Renseignez au moins un champ (société ou licence).")
     same_company = company_name == (driver.get("company_name") or "")
