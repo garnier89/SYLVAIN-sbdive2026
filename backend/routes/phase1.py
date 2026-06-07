@@ -101,8 +101,21 @@ async def verify_start_otp(ride_id: str, request: Request):
 
     body = await request.json()
     otp = (body.get("otp") or "").strip()
-    if not otp or otp != ride.get("start_otp"):
-        raise HTTPException(status_code=400, detail="Invalid OTP")
+    phone_last4 = (body.get("phone_last4") or "").strip()
+
+    if phone_last4:
+        # Fallback: driver verifies via the last 4 digits of the passenger's
+        # registered phone number (used when the passenger can't share the OTP,
+        # e.g. their phone is off).
+        pax = await db.users.find_one({"id": ride["user_id"]}, {"_id": 0, "phone": 1})
+        digits = "".join(c for c in ((pax or {}).get("phone") or "") if c.isdigit())
+        if len(phone_last4) != 4 or not digits.endswith(phone_last4):
+            raise HTTPException(status_code=400, detail="4 derniers chiffres incorrects")
+    elif otp:
+        if otp != ride.get("start_otp"):
+            raise HTTPException(status_code=400, detail="Code OTP invalide")
+    else:
+        raise HTTPException(status_code=400, detail="Code requis")
     if ride.get("status") not in ("accepted", "arriving"):
         raise HTTPException(status_code=400, detail="Ride not ready")
 

@@ -1,3 +1,10 @@
+## NEW - 2026-06-07 (2) - Modal OTP (renommage + fallback téléphone) + carte figée (DONE)
+- **Modal de démarrage** : titre « Code de démarrage » → **« Code OTP »** ; sous-titre reformulé (« …son code OTP à 4 chiffres… »). Composant `OtpModal` (RideFlowSheets) accepte un prop `mode` ('otp' | 'phone').
+- **Fallback après 2 échecs** : `DriverRideFlow` compte les tentatives ; après **2 codes OTP refusés** (passager injoignable / téléphone éteint), le modal bascule en **« Vérification par téléphone »** et demande les **4 derniers chiffres du numéro enregistré** du passager. Backend `verify_start_otp` (phase1.py) accepte désormais `phone_last4` en alternative à `otp` (compare aux 4 derniers chiffres du téléphone passager). *Vérifié : UI bascule OK + logique backend (`+33767532661`→`2661` accepté, `0000` refusé).*
+- **Carte du flux course figée** : `AdminGoogleMap` nouveau prop `staticView` → retire le sélecteur **Plan/Satellite** (`mapTypeControl:false`), désactive zoom/fullscreen/streetview et **les gestes** (`gestureHandling:'none'`), et **cadre une seule fois** tout le trajet (`fitBounds` au `onLoad`). `DriverRideFlow` passe `staticView` + un **centre figé** (mémoïsé, milieu pickup/dropoff) pour que la carte ne bouge plus quand le GPS du chauffeur change (seul le marqueur voiture bouge). *Vérifié screenshot : carte cadrée sur tout le trajet, plus de Plan/Satellite.*
+- Lint clean ; build compile.
+
+
 ## NEW - 2026-06-07 - Flux course chauffeur : voiture client + 3 boutons + Lettre de voiture (DONE)
 - **Marqueur voiture carte** : `AdminGoogleMap` remplace l'icône Material jaune (`directions_car`) par la **petite voiture vue de dessus** (SVG `TopCar`, identique aux « radar cars » du client) en data-URL ; nouveau prop `driverIconUrl`. `DriverRideFlow` récupère `cars_icon_url` via `/config/ride-search` et le passe à la carte → réutilise exactement la voiture configurée côté client (admin). Bénéficie aussi aux cartes client/admin.
 - **3 boutons d'action** (appel/chat/navigation) de `DriverRideFlow` passés de `justify-center` à **`justify-end`** (à droite, au-dessus du km).

@@ -48,19 +48,26 @@ export const SafetySheet = ({ onClose, onSosMessage, onAudio, onShare }) => (
   </div>
 );
 
-export const OtpModal = ({ value, onChange, onClose, onVerify, error, busy }) => (
-  <div className="fixed inset-0 z-[2700] bg-black/60 flex items-center justify-center p-5" data-testid="ride-flow-otp-modal">
-    <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-      <h3 className="text-lg font-bold text-gray-800 mb-1">Code de démarrage</h3>
-      <p className="text-xs text-gray-500 mb-4">Demandez au passager son code à 4 chiffres pour démarrer la course.</p>
-      <input type="text" inputMode="numeric" maxLength="4" value={value} autoFocus
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
-        placeholder="0000" className="w-full text-center text-3xl tracking-[0.5em] py-3 bg-gray-50 rounded-xl border border-gray-200 font-bold mb-2" data-testid="ride-flow-otp-input" />
-      {error && <p className="text-xs text-red-500 mb-2 text-center" data-testid="ride-flow-otp-error">{error}</p>}
-      <div className="flex gap-2 mt-2">
-        <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-sm text-gray-600">Annuler</button>
-        <button onClick={onVerify} disabled={value.length !== 4 || busy} className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#00B578' }} data-testid="ride-flow-otp-verify-btn">Démarrer</button>
+export const OtpModal = ({ value, onChange, onClose, onVerify, error, busy, mode = 'otp' }) => {
+  const phone = mode === 'phone';
+  return (
+    <div className="fixed inset-0 z-[2700] bg-black/60 flex items-center justify-center p-5" data-testid="ride-flow-otp-modal">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+        <h3 className="text-lg font-bold text-gray-800 mb-1">{phone ? 'Vérification par téléphone' : 'Code OTP'}</h3>
+        <p className="text-xs text-gray-500 mb-4" data-testid="ride-flow-otp-subtitle">
+          {phone
+            ? 'Le passager ne peut pas donner le code (téléphone éteint ?). Saisissez les 4 derniers chiffres de son numéro de téléphone enregistré.'
+            : 'Demandez au passager son code OTP à 4 chiffres pour démarrer la course.'}
+        </p>
+        <input type="text" inputMode="numeric" maxLength="4" value={value} autoFocus
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
+          placeholder={phone ? '••••' : '0000'} className="w-full text-center text-3xl tracking-[0.5em] py-3 bg-gray-50 rounded-xl border border-gray-200 font-bold mb-2" data-testid="ride-flow-otp-input" />
+        {error && <p className="text-xs text-red-500 mb-2 text-center" data-testid="ride-flow-otp-error">{error}</p>}
+        <div className="flex gap-2 mt-2">
+          <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-sm text-gray-600">Annuler</button>
+          <button onClick={onVerify} disabled={value.length !== 4 || busy} className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#00B578' }} data-testid="ride-flow-otp-verify-btn">{phone ? 'Vérifier & démarrer' : 'Démarrer'}</button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};

@@ -50,6 +50,7 @@ const AdminGoogleMap = ({
   markers = [],
   onMapClick,
   heatmapData,
+  staticView = false,
 }) => {
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -65,7 +66,19 @@ const AdminGoogleMap = ({
   const onLoad = useCallback((map) => {
     mapRef.current = map;
     setMapReady(true);
-  }, []);
+    // Static (locked) maps: frame the whole trip once, then never move again.
+    if (staticView && window.google?.maps) {
+      const pts = [];
+      if (pickup?.lat) pts.push({ lat: pickup.lat, lng: pickup.lng });
+      if (dropoff?.lat) pts.push({ lat: dropoff.lat, lng: dropoff.lng });
+      (routePath || []).forEach((p) => { if (p?.lat) pts.push({ lat: p.lat, lng: p.lng }); });
+      if (pts.length >= 2) {
+        const b = new window.google.maps.LatLngBounds();
+        pts.forEach((p) => b.extend(p));
+        map.fitBounds(b, 56);
+      }
+    }
+  }, [staticView]);
 
   const onUnmount = useCallback(() => {
     mapRef.current = null;
@@ -142,12 +155,26 @@ const AdminGoogleMap = ({
       }
     : null;
 
+  const mapOptions = staticView
+    ? {
+        ...DEFAULT_OPTIONS,
+        mapTypeId: mapType,
+        mapTypeControl: false,   // remove Plan / Satellite switch
+        zoomControl: false,
+        fullscreenControl: false,
+        streetViewControl: false,
+        keyboardShortcuts: false,
+        gestureHandling: 'none', // map stays stable — no drag / zoom gestures
+        disableDefaultUI: true,
+      }
+    : { ...DEFAULT_OPTIONS, mapTypeId: mapType };
+
   return (
     <GoogleMap
       mapContainerStyle={CONTAINER_STYLE}
       center={center}
       zoom={zoom}
-      options={{ ...DEFAULT_OPTIONS, mapTypeId: mapType }}
+      options={mapOptions}
       onLoad={onLoad}
       onUnmount={onUnmount}
       onClick={(e) => onMapClick?.(e.latLng.lat(), e.latLng.lng())}

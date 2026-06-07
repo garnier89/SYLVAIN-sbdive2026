@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -46,6 +46,8 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
   const [showOtp, setShowOtp] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState('');
+  const [otpAttempts, setOtpAttempts] = useState(0);
+  const [otpMode, setOtpMode] = useState('otp'); // 'otp' | 'phone'
   const [recordVideo, setRecordVideo] = useState(false);
   const [startedAt, setStartedAt] = useState(() => ride.started_at || null);
   const [elapsed, setElapsed] = useState(() => (ride.started_at ? Math.max(0, Math.floor((Date.now() - new Date(ride.started_at).getTime()) / 1000)) : 0));
@@ -110,17 +112,37 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
     if (otpInput.length !== 4) return;
     setBusy(true);
     try {
+      const payload = otpMode === 'phone' ? { phone_last4: otpInput } : { otp: otpInput };
       const r = await fetch(`${API}/api/phase1/rides/${ride.id}/start-otp/verify`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ otp: otpInput }),
+        body: JSON.stringify(payload),
       });
-      if (!r.ok) { const e = await r.json().catch(() => ({})); setOtpError(e.detail || 'Code OTP invalide'); setBusy(false); return; }
-      setShowOtp(false); setOtpInput(''); setOtpError('');
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        if (otpMode === 'phone') {
+          setOtpError(e.detail || '4 derniers chiffres incorrects.');
+        } else {
+          const next = otpAttempts + 1;
+          setOtpAttempts(next);
+          if (next >= 2) {
+            // Fallback after 2 failed OTP attempts (e.g. passenger's phone is off):
+            // verify via the last 4 digits of the registered phone number.
+            setOtpMode('phone');
+            setOtpInput('');
+            setOtpError('Code refusé 2 fois. Saisissez les 4 derniers chiffres du numéro du passager.');
+          } else {
+            setOtpError(e.detail || 'Code OTP invalide');
+          }
+        }
+        setBusy(false);
+        return;
+      }
+      setShowOtp(false); setOtpInput(''); setOtpError(''); setOtpAttempts(0); setOtpMode('otp');
       const now = new Date().toISOString();
       setStartedAt(now); setStatus('in_progress');
     } catch { setOtpError('Erreur réseau'); }
     finally { setBusy(false); }
-  }, [otpInput, ride.id]);
+  }, [otpInput, otpMode, otpAttempts, ride.id]);
 
   const cancelRide = useCallback(async () => {
     if (busy) return;
@@ -162,6 +184,13 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
   const topAddress = isPickupPhase ? ride.pickup_address : ride.dropoff_address;
   const topLabel = isPickupPhase ? 'Lieu de ramassage' : 'Destination';
 
+  // Stable map center (mid-point of the trip) so the map never drifts while the
+  // driver's GPS updates — the car marker moves, the viewport stays put.
+  const stableCenter = useMemo(() => ({
+    lat: ((ride.pickup_lat || 0) + (ride.dropoff_lat || 0)) / 2,
+    lng: ((ride.pickup_lng || 0) + (ride.dropoff_lng || 0)) / 2,
+  }), [ride.pickup_lat, ride.pickup_lng, ride.dropoff_lat, ride.dropoff_lng]);
+
   if (completing) {
     return <RideCompletionFlow ride={{ ...ride, status: 'in_progress' }} waitingCharge={waitingCharge} onDone={onFinished} />;
   }
@@ -197,10 +226,11 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
       {/* Map */}
       <div className="flex-1 relative">
         <AdminGoogleMap
-          center={driverPos || { lat: ride.pickup_lat, lng: ride.pickup_lng }}
-          zoom={14}
+          center={stableCenter}
+          zoom={13}
           driver={driverPos}
           driverIconUrl={carIconUrl}
+          staticView
           pickup={{ lat: ride.pickup_lat, lng: ride.pickup_lng }}
           dropoff={{ lat: ride.dropoff_lat, lng: ride.dropoff_lng }}
           routePath={routePath}
@@ -261,7 +291,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
       {/* Slider */}
       <div className="px-5 pb-6 pt-1">
         {isPickupPhase && <SlideToConfirm label="GLISSEZ POUR ARRIVER" color="#00B578" onConfirm={goArriving} testId="slide-arrive" disabled={busy} />}
-        {isArrived && <SlideToConfirm label="GLISSEZ POUR COMMENCER LE VOYAGE" color="#00B578" onConfirm={() => { setOtpError(''); setShowOtp(true); }} testId="slide-start" disabled={busy} />}
+        {isArrived && <SlideToConfirm label="GLISSEZ POUR COMMENCER LE VOYAGE" color="#00B578" onConfirm={() => { setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }} testId="slide-start" disabled={busy} />}
         {inProgress && <SlideToConfirm label="GLISSER POUR TERMINER LE VOYAGE" color="#E11900" onConfirm={() => { if (waitingStart) toggleWaiting(); setCompleting(true); }} testId="slide-finish" disabled={busy} />}
       </div>
 
@@ -306,8 +336,9 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
       {showOtp && (
         <OtpModal
           value={otpInput}
+          mode={otpMode}
           onChange={(v) => { setOtpInput(v); setOtpError(''); }}
-          onClose={() => { setShowOtp(false); setOtpInput(''); }}
+          onClose={() => { setShowOtp(false); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); }}
           onVerify={verifyOtpAndStart}
           error={otpError}
           busy={busy}
