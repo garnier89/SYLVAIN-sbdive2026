@@ -574,6 +574,18 @@ async def join_pool(target_ride_id: str, request: Request):
         )
     member_count = await db.rides.count_documents({"pool_group_id": group_id})
 
+    # Keep pool seat accounting accurate across the whole group so the rider's
+    # tracking screen can show real-time "remaining seats" (capacity − taken).
+    group_seat_rows = await db.rides.find(
+        {"pool_group_id": group_id}, {"_id": 0, "seats_required": 1, "pool_capacity": 1}
+    ).to_list(50)
+    seats_taken = sum(int(r.get("seats_required") or 1) for r in group_seat_rows)
+    capacity = max([int(r.get("pool_capacity") or 1) for r in group_seat_rows] + [seats_taken])
+    await db.rides.update_many(
+        {"pool_group_id": group_id},
+        {"$set": {"pool_seats_taken": seats_taken, "pool_capacity": capacity}},
+    )
+
     # Live shared-fare recompute (admin-driven progressive covoiturage discount) for every grouped ride
     cfg = await _pool_share_cfg()
     shared = {}
@@ -603,6 +615,8 @@ async def join_pool(target_ride_id: str, request: Request):
             "group_id": group_id,
             "ride_id": target_ride_id,
             "members": member_count,
+            "seats_taken": seats_taken,
+            "capacity": capacity,
             "partner_name": user.get("name") or "Un passager",
             "discount_percent": _pool_effective_pct(cfg, member_count) if cfg["active"] else 0,
         }, target["user_id"])

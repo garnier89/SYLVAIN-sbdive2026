@@ -7,7 +7,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { rideAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
-  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, ArrowLeft,
+  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, ArrowLeft, UsersThree,
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
@@ -23,6 +23,37 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 const RELANCE_INTERVAL_SEC = 20;
 const MAX_RELANCES = 3;
+
+// Shared-ride badge — shows "Pool partagé" + live remaining seats on the
+// passenger's tracking screen (updated in real time as co-riders join).
+const PoolBadge = ({ ride, floating = false }) => {
+  if (!ride?.pool_enabled) return null;
+  const capacity = Number(ride.pool_capacity || 0);
+  const taken = Number(ride.pool_seats_taken || ride.seats_required || 1);
+  const remaining = Math.max(0, capacity - taken);
+  const members = Number(ride.pool_group_size || 1);
+  const full = capacity > 0 && remaining === 0;
+  return (
+    <div
+      className={`inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 ${floating ? 'shadow-md backdrop-blur' : ''}`}
+      data-testid="pool-shared-badge"
+    >
+      <UsersThree size={16} weight="fill" className="text-emerald-600 shrink-0" />
+      <span className="text-[13px] font-extrabold text-emerald-700">Pool partagé</span>
+      <span className="h-3 w-px bg-emerald-200" />
+      {capacity > 0 ? (
+        <span className="text-[13px] font-bold text-emerald-700" data-testid="pool-remaining-seats">
+          {full ? 'Complet' : `${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}`}
+        </span>
+      ) : (
+        <span className="text-[13px] font-bold text-emerald-700">Trajet partagé</span>
+      )}
+      {members > 1 && (
+        <span className="text-[11px] font-semibold text-emerald-600" data-testid="pool-members-count">· {members} pers.</span>
+      )}
+    </div>
+  );
+};
 
 // V3Cube-style status notification dialog ("Le chauffeur est arrivé.", etc.)
 const StatusDialog = ({ dialog }) => {
@@ -410,6 +441,21 @@ const RideTrackingPage = () => {
       setRide((prev) => (prev ? { ...prev, status: 'cancelled', cancel_reason: msg.reason } : prev));
       setTimeout(() => navigate('/home'), 4000);
     });
+    // A co-rider joined this Pool ride → update live seat count + fare and notify
+    const unsubPool = on('pool_partner_joined', (msg) => {
+      if (msg.ride_id && msg.ride_id !== rideId && msg.group_id == null) return;
+      setRide((prev) => (prev ? {
+        ...prev,
+        pool_seats_taken: msg.seats_taken ?? prev.pool_seats_taken,
+        pool_capacity: msg.capacity ?? prev.pool_capacity,
+        pool_group_size: msg.members ?? prev.pool_group_size,
+        pool_discount_percent: msg.discount_percent ?? prev.pool_discount_percent,
+      } : prev));
+      toast.success(`${msg.partner_name || 'Un passager'} a rejoint votre Pool`, {
+        description: msg.capacity ? `Il reste ${Math.max(0, msg.capacity - (msg.seats_taken || 0))} place(s).` : undefined,
+      });
+      fetchRide();
+    });
     return () => {
       unsub1();
       unsubStarted();
@@ -417,8 +463,9 @@ const RideTrackingPage = () => {
       unsub2();
       unsub3();
       unsub4();
+      unsubPool();
     };
-  }, [on, rideId, navigate]);
+  }, [on, rideId, navigate, fetchRide]);
 
   const handleCancel = async (reason) => {
     try {
@@ -502,6 +549,11 @@ const RideTrackingPage = () => {
   if (isAssigned) {
     return (
       <div data-testid="ride-tracking-page">
+        {ride.pool_enabled && (
+          <div className="fixed top-[68px] left-1/2 -translate-x-1/2 z-30">
+            <PoolBadge ride={ride} floating />
+          </div>
+        )}
         <DriverEnRouteView
           ride={ride}
           driverPos={driverPos}
@@ -617,6 +669,10 @@ const RideTrackingPage = () => {
           )}
           {!isBiddingMode && relanceCount > 0 && relanceCount < searchCfg.max_relances && (
             <p className="text-[#FF5000] text-xs font-bold mt-3 text-center" data-testid="relance-count">Relance {relanceCount}/{searchCfg.max_relances}…</p>
+          )}
+
+          {ride.pool_enabled && (
+            <div className="mt-3 flex justify-center"><PoolBadge ride={ride} /></div>
           )}
 
           <div className="mt-4 w-full bg-gray-50 border border-gray-100 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
@@ -812,6 +868,10 @@ const RideTrackingPage = () => {
         )}
 
         {/* Cancelled state handled by the full-screen dark early-return */}
+
+        {ride.pool_enabled && (
+          <div className="mb-4" data-testid="pool-badge-active"><PoolBadge ride={ride} /></div>
+        )}
 
         {/* Searching state is handled by the full-screen radar (pending early-return) */}
 
