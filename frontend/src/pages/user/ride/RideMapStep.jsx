@@ -37,6 +37,7 @@ const VehicleBadge = ({ children, tone }) => (
  */
 export const RideMapStep = ({
   pickup, dropoff, mapCenter, routePath, estimate, autoPromo,
+  voucherCode, setVoucherCode, voucher, onApplyVoucher, onRemoveVoucher, applyingVoucher,
   vehicleTypes, selectedVehicle, setSelectedVehicle,
   paymentMethod, setPaymentMethod,
   paymentMethods = [],
@@ -189,14 +190,17 @@ export const RideMapStep = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      {isSelected && autoPromo?.discount_amount > 0 ? (
-                        <div className="flex flex-col items-end leading-none" data-testid={`vehicle-fare-promo-${v.slug}`}>
-                          <span className="text-xs text-gray-400 line-through" data-testid={`vehicle-fare-original-${v.slug}`}>{fare} &euro;</span>
-                          <span className="font-bold text-lg text-emerald-600" data-testid={`vehicle-fare-discounted-${v.slug}`}>{Math.max(parseFloat(fare) - autoPromo.discount_amount, 0).toFixed(2)} &euro;</span>
-                        </div>
-                      ) : (
-                        <span className="font-bold text-lg text-blue-600">{fare} &euro;</span>
-                      )}
+                      {(() => {
+                        const disc = isSelected ? ((autoPromo?.discount_amount || 0) + (voucher?.discount || 0)) : 0;
+                        return disc > 0 ? (
+                          <div className="flex flex-col items-end leading-none" data-testid={`vehicle-fare-promo-${v.slug}`}>
+                            <span className="text-xs text-gray-400 line-through" data-testid={`vehicle-fare-original-${v.slug}`}>{fare} &euro;</span>
+                            <span className="font-bold text-lg text-emerald-600" data-testid={`vehicle-fare-discounted-${v.slug}`}>{Math.max(parseFloat(fare) - disc, 0).toFixed(2)} &euro;</span>
+                          </div>
+                        ) : (
+                          <span className="font-bold text-lg text-blue-600">{fare} &euro;</span>
+                        );
+                      })()}
                       <Info size={14} className="text-blue-600" />
                     </div>
                   </button>
@@ -285,6 +289,25 @@ export const RideMapStep = ({
                   <span>Promo auto «&nbsp;<b>{autoPromo.title}</b>&nbsp;» appliquée : <b>-{autoPromo.discount_amount.toFixed(2)} &euro;</b></span>
                 </div>
               )}
+
+              {/* Voucher code */}
+              <div className="mt-1 mb-1" data-testid="voucher-section">
+                {voucher ? (
+                  <div className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs flex items-center justify-between" data-testid="voucher-applied">
+                    <span>🎟️ Voucher <b>{voucher.code}</b> : -{voucher.discount.toFixed(2)} &euro;</span>
+                    <button onClick={onRemoveVoucher} className="underline font-semibold" data-testid="voucher-remove">Retirer</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input value={voucherCode} onChange={(e) => setVoucherCode(e.target.value.toUpperCase())} placeholder="Code voucher"
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm uppercase outline-none focus:border-emerald-400" data-testid="voucher-input" />
+                    <button onClick={onApplyVoucher} disabled={applyingVoucher || !voucherCode?.trim()}
+                      className="px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-bold disabled:opacity-50" data-testid="voucher-apply-btn">
+                      {applyingVoucher ? '…' : 'Appliquer'}
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 className="w-full mt-3 h-14 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-base disabled:opacity-60"
                 onClick={confirmRide}

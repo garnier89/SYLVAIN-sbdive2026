@@ -107,6 +107,7 @@ class RideRequest(BaseModel):
     payment_method: str
     scheduled_at: Optional[str] = None
     coupon_code: Optional[str] = None
+    voucher_code: Optional[str] = None
     book_for_name: Optional[str] = None
     book_for_phone: Optional[str] = None
     auto_assign: bool = True
@@ -199,6 +200,8 @@ class RideResponse(BaseModel):
     auto_promo_id: Optional[str] = None
     auto_promo_title: Optional[str] = None
     auto_promo_discount: float = 0.0
+    voucher_code: Optional[str] = None
+    voucher_discount: float = 0.0
 
 # Order Models
 class OrderItemCreate(BaseModel):

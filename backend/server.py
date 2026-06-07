@@ -27,6 +27,7 @@ from routes.wallet import router as wallet_router
 from routes.debts import router as debts_router
 from routes.coupons import router as coupons_router
 from routes.auto_promotions import router as auto_promotions_router
+from routes.vouchers import router as vouchers_router
 from routes.referral import router as referral_router
 from routes.payments import router as payments_router
 from routes.webhooks import router as webhooks_router
@@ -622,6 +623,7 @@ api_router.include_router(config_router)
 api_router.include_router(wallet_router)
 api_router.include_router(coupons_router)
 api_router.include_router(auto_promotions_router)
+api_router.include_router(vouchers_router)
 api_router.include_router(referral_router)
 api_router.include_router(payments_router)
 api_router.include_router(webhooks_router)

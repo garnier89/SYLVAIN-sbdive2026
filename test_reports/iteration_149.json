@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only validation of the new Vouchers feature: (1) Admin CRUD UI at /admin/vouchers and (2) Rider apply-voucher / double-price flow on /ride. All requested scenarios passed end-to-end. Voucher QAVOUCH (fixed, 7€ -> edited to 9€, status Actif) created, conditional voucher-max field shown only for percentage, edit prefilled+saved, toggle flipped twice ending on Actif, rider applied the code at booking with chip 'Voucher QAVOUCH : -9.00 €', vehicle-sb showed struck-through 10.00 € and bold 1.00 € discounted, request-now-btn created the ride (no crash) and routed to negotiation step, then the voucher was deleted (window.confirm accepted) → 'Supprimé' toast + empty state restored.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "RideNegotiationStep", "issues": ["Pre-existing (from iteration_148) — 'Votre offre' still displays the ORIGINAL fare (10.00 €) instead of the discounted (1.00 € with voucher). Out of scope for this iteration but worth fixing for consistency."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/frontend/src/pages/admin/AdminVouchers.js",
+    "/app/frontend/src/pages/user/ride/RideMapStep.jsx",
+    "/app/frontend/src/pages/user/RideBookingPage.js"
+  ],
+  "action_items": [
+    "(optional) Propagate the effective post-voucher fare to RideNegotiationStep so 'Votre offre' matches what was shown on the map step."
+  ],
+  "critical_code_review_comments": [
+    "AdminVouchers.js (line 124-131): the initial useEffect re-implements the same fetch logic as the useCallback `load` (line 115-122). Same minor duplication as AdminAutoPromotions; could simply call load() with an alive guard.",
+    "AdminVouchers.js uses native window.confirm for delete — works and was accepted via page.on('dialog', ...) but a styled confirm would be more uniform with the rest of the app.",
+    "VoucherModal.save (line 18-30) does not validate min_order_amount >= 0, valid_from <= valid_until, or percentage <= 100. Backend should enforce, but a tiny UI guard would prevent obviously-bad submissions.",
+    "RideMapStep.jsx line 194: discount is combined as autoPromo.discount_amount + voucher.discount only when isSelected — good. No issue observed (verified visually).",
+    "Currency display is hard-coded to € both in AdminVouchers and RideMapStep — consistent with rest of app; not a defect."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only run)", "frontend": "100% on all 6 requested scenarios (admin empty state, create, conditional max, edit, toggle, rider apply double-price, book, delete cleanup)" },
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. Rider created via /api/auth/register: rider_qa_voucher_1780826170@test.sb / Rider2026! (role=user).",
+  "seed_data_creation": "1 test voucher 'QAVOUCH' was created and DELETED at the end. 1 test rider was registered (left in DB, prefix rider_qa_voucher_). Verified empty state restored — admin/vouchers shows 'Aucun voucher.' Empty selector data-testid='voucher-empty' visible.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Voucher feature is fully working end-to-end on the frontend. Confirmed: voucher-section/voucher-input/voucher-apply-btn/voucher-applied/voucher-remove all present on RideMapStep; admin-vouchers-page/voucher-add-btn/voucher-empty/voucher-modal/voucher-row-{i}/voucher-status-{i}/voucher-toggle-{i}/voucher-edit-{i}/voucher-delete-{i} all present on AdminVouchers. Conditional voucher-max appears only when discount_type='percentage'. The /ride route is the actual rider booking screen (NOT /ride-booking which redirects to /home). With no active auto-promo, the rider double-price reflects the voucher discount only (10.00 € → 1.00 € for a 9 € voucher). Negotiation screen mis-display of un-discounted fare persists from iteration_148.",
+  "rca of the issue": "No bugs found in the in-scope flow. Only the carried-over RideNegotiationStep cosmetic mismatch (un-discounted 'Votre offre') is still present, same root cause documented in iteration_148: RideBookingPage passes estimate.estimated_fare without subtracting voucher.discount or autoPromo.discount_amount."
+}

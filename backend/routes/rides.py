@@ -352,6 +352,19 @@ async def create_ride(data: RideRequest, request: Request):
     if auto_promo_discount > 0:
         fare = round(max(fare - auto_promo_discount, 0), 2)
 
+    # ===== Voucher (code saisi par le rider) — appliqué après la promo auto =====
+    voucher_code = (data.voucher_code or "").strip().upper() if data.voucher_code else None
+    voucher_id = None
+    voucher_discount = 0.0
+    if voucher_code:
+        from routes.vouchers import validate_voucher
+        v_doc, v_disc, v_err = await validate_voucher(voucher_code, user["id"], fare)
+        if v_err:
+            raise HTTPException(status_code=400, detail=v_err)
+        voucher_id = v_doc["id"]
+        voucher_discount = v_disc
+        fare = round(max(fare - voucher_discount, 0), 2)
+
     ride = {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
         "booking_no": str(secrets.randbelow(90000000) + 10000000),
@@ -396,6 +409,8 @@ async def create_ride(data: RideRequest, request: Request):
         "auto_promo_id": auto_promo_id,
         "auto_promo_title": auto_promo_title,
         "auto_promo_discount": auto_promo_discount,
+        "voucher_code": voucher_code,
+        "voucher_discount": voucher_discount,
         "buddy_hours": getattr(data, 'buddy_hours', None),
         "pets_count": getattr(data, 'pets_count', None),
         "pets_size": getattr(data, 'pets_size', None),
@@ -442,6 +457,11 @@ async def create_ride(data: RideRequest, request: Request):
     # Track auto-promotion usage once the booking is persisted
     if auto_promo_id:
         await db.auto_promotions.update_one({"id": auto_promo_id}, {"$inc": {"usage_count": 1}})
+
+    # Record voucher redemption (per-user + global quota tracking)
+    if voucher_id:
+        from routes.vouchers import redeem_voucher
+        await redeem_voucher(voucher_id, user["id"], ride["id"], voucher_discount)
 
     # Join WS ride room for the user
     manager.join_ride_room(ride["id"], user["id"])

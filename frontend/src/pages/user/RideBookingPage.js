@@ -56,6 +56,9 @@ const RideBookingPage = () => {
   const [scheduleTime, setScheduleTime] = useState('08:00');
   const [estimate, setEstimate] = useState(null);
   const [autoPromo, setAutoPromo] = useState(null);
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucher, setVoucher] = useState(null);
+  const [applyingVoucher, setApplyingVoucher] = useState(false);
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(false);
   const [proposedFare] = useState('');
@@ -77,6 +80,30 @@ const RideBookingPage = () => {
       .catch(() => { if (alive) setAutoPromo(null); });
     return () => { alive = false; };
   }, [estimate?.estimated_fare]);
+
+  const applyVoucher = async () => {
+    const code = (voucherCode || '').trim();
+    if (!code) return;
+    const autoDisc = autoPromo?.discount_amount || 0;
+    const amt = Math.max((estimate?.estimated_fare || 0) - autoDisc, 0);
+    setApplyingVoucher(true);
+    try {
+      const r = await rideAPI.validateVoucher(code, amt);
+      if (r.data?.valid) {
+        setVoucher({ code: r.data.code, discount: r.data.discount, title: r.data.title });
+        toast.success(`Voucher ${r.data.code} appliqué : -${r.data.discount.toFixed(2)} €`);
+      } else {
+        setVoucher(null);
+        toast.error(r.data?.message || 'Voucher invalide');
+      }
+    } catch (e) {
+      setVoucher(null);
+      toast.error(e?.response?.data?.detail || 'Voucher invalide');
+    } finally {
+      setApplyingVoucher(false);
+    }
+  };
+  const removeVoucher = () => { setVoucher(null); setVoucherCode(''); };
 
   const [recentLocations] = useState([
     { address: 'Gare du Nord, 18 Rue de Dunkerque, 75010 Paris' },
@@ -281,6 +308,7 @@ const RideBookingPage = () => {
         dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
         vehicle_type: selectedVehicle, payment_method: paymentMethod,
         proposed_fare: offerAmount > 0 ? offerAmount : (estimate?.estimated_fare || null),
+        voucher_code: voucher?.code || null,
         book_for_name: bookFor.name || null,
         book_for_phone: bookFor.phone || null,
         pool_enabled: poolEnabled,
@@ -369,6 +397,8 @@ const RideBookingPage = () => {
       <RideMapStep
         pickup={pickup} dropoff={dropoff} mapCenter={mapCenter}
         routePath={routePath} estimate={estimate} autoPromo={autoPromo}
+        voucherCode={voucherCode} setVoucherCode={setVoucherCode} voucher={voucher}
+        onApplyVoucher={applyVoucher} onRemoveVoucher={removeVoucher} applyingVoucher={applyingVoucher}
         vehicleTypes={vehicleTypes} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle}
         paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
         paymentMethods={paymentMethods}
