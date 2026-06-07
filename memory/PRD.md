@@ -1,3 +1,12 @@
+## NEW - 2026-06-07 (53) - Accueil « Services Taxi » : icônes au lieu des photos uploadées (DONE)
+- **Demande user** : sur l'accueil, la section « Services Taxi » affichait des PHOTOS de voitures (mauvaise version) ; la bonne version utilise des ICÔNES → retirer les photos.
+- **Cause** : `UserHome.taxiTiles` mettait `imageUrl = c.icon` (image data:/http uploadée par l'admin pour chaque `service_category`), prioritaire sur l'icône dans `Visual`/`DynamicIcon`.
+- **Fix** : `taxiTiles` n'utilise plus l'image uploadée — toujours l'icône Phosphor de `TAXI_VISUAL[c.key]` (fallback `TAXI_DEFAULT`). Variable `img` supprimée. Rendu désormais cohérent avec les autres sections (Livraison, etc.).
+- **Vérifié (Playwright)** : section taxi = 0 `<img>` photo, 7 icônes SVG. Build OK.
+- ⚠️ PREVIEW → redéploiement requis.
+
+
+
 ## NEW - 2026-06-07 (52) - Langue & Devise déplacées de l'en-tête vers le MENU LATÉRAL (≡), client + chauffeur (DONE)
 - **Demande user (clarifiée)** : retirer la pastille « FR | € » de l'en-tête et mettre « Changer la langue » + « Changer la devise » dans le **menu latéral** (tiroir ≡), pour le client ET le chauffeur. (Annule l'ajout de pastille au Profil du tour 51.)
 - **Refactor `LocaleSelector.js`** : extraction d'un composant réutilisable `export const LocaleModal({ open, onClose, initialTab })` (bottom-sheet langues/devises). Pas d'effet (set-state-in-effect évité) — les parents le remontent via `key` pour ouvrir sur le bon onglet. `LocaleSelector` (pastille) le réutilise.
