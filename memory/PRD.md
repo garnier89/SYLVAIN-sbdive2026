@@ -1,3 +1,11 @@
+## NEW - 2026-06-07 (14) - Refactor maintenabilité : découpage de DriverHome.js (DONE)
+- **Objectif** : réduire la taille/complexité du composant `DriverHome.js` (706 l.) sans changer le comportement.
+- **5 sous-composants présentationnels extraits** dans `src/components/driver/home/` : `DriverHomeHeader.jsx` (barre verte : menu, toggle en ligne, agenda+badge, notifs), `DriverStatsRow.jsx` (gains du jour + 4 cartes stats), `DriverHomeMap.jsx` (carte Google + route course active + rondelle Récompenses+badge), `DriverFab.jsx` (FAB radial 6 actions), `DestinationModeModal.jsx` (modale Mode Destination). Tous **purs/présentationnels**, props nommées, **tous les `data-testid` préservés à l'identique**. État, effets et handlers restent dans `DriverHome.js`.
+- **Résultat** : `DriverHome.js` **706 → ~559 lignes**. Constante morte `gmapLoaded` supprimée.
+- **Validé** : agent de test frontend **100% (iteration_143.json), aucune régression** — 12 critères OK (toggle en ligne, navigation cartes stats, modale revenus, feuille agenda+badge, rondelle récompenses+badge, FAB 6 actions, modale destination, overlay DriverRideFlow sur course active). Lint propre sur les 6 fichiers.
+- ℹ️ Points pré-existants relevés (hors périmètre) : Google Maps JS chargé plusieurs fois (warning console), deprecation `google.maps.Marker`.
+
+
 ## NEW - 2026-06-07 (13) - Utilitaire logger + neutralisation centralisée des console.* en prod (DONE)
 - **Objectif** : neutraliser les ~165 `console.*` de production **sans toucher 165 fichiers**, et fournir un logger propre pour le code futur.
 - **`src/lib/logger.js`** (nouveau) : `logger` (log/debug/info = no-op en prod, warn/error conservés) + `silenceConsole()` qui remplace `console.log/debug/info` par des no-ops en production uniquement (`NODE_ENV==='production'`). `console.warn`/`error` **préservés** pour le diagnostic.

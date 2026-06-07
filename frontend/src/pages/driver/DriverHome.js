@@ -49,8 +49,6 @@ const DriverHome = () => {
   const seenScheduledRef = useRef(null); // Set of known scheduled ids (null = not yet primed)
   const alerted40Ref = useRef(new Set());
 
-  const { isLoaded: gmapLoaded } = { isLoaded: true };
-
   // Load heat map demand cells when toggled
   useEffect(() => {
     if (!showHeatmap) return;
