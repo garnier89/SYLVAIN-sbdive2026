@@ -92,7 +92,7 @@ export const RideFlowMap = ({
     {inProgress && (
       <button
         onClick={onToggleWaiting}
-        className={`absolute top-1 left-1/2 -translate-x-1/2 z-[600] rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 ${waitingActive ? 'bg-amber-500 text-white' : 'bg-white text-gray-800'}`}
+        className={`absolute top-1 left-1/2 -translate-x-1/2 z-[600] rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 ${waitingActive ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'}`}
         data-testid="ride-flow-waiting-btn"
       >
         <Clock size={13} weight="fill" />
