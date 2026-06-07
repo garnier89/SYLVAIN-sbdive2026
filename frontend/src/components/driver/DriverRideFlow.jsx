@@ -1,29 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import {
-  DotsThreeVertical, Phone, ChatCircleDots, NavigationArrow, Siren, Star,
-  UserCircle, Clock, MapPin, CaretLeft,
-} from '@phosphor-icons/react';
-import AdminGoogleMap from '../admin/AdminGoogleMap';
 import { decodePolyline } from '../../utils/polyline';
 import { rideAPI } from '../../services/api';
-import SlideToConfirm from './SlideToConfirm';
 import RideCompletionFlow from './RideCompletionFlow';
 import { RideFlowMenu, CallTypeSheet, SafetySheet, OtpModal } from './RideFlowSheets';
+import { RideFlowHeader, RideFlowAddressCard, RideFlowMap, RideFlowFooter } from './RideFlowViews';
 import InAppNav from './InAppNav';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const WAITING_RATE_PER_MIN = 0.5;
 const WAITING_GRACE_SEC = 300; // 5 min d'attente offerts au ramassage avant facturation
-
-const RatingStars = ({ value = 5 }) => (
-  <div className="flex items-center gap-0.5">
-    {[0, 1, 2, 3, 4].map((i) => (
-      <Star key={i} size={16} weight={i < Math.round(value) ? 'fill' : 'regular'} className={i < Math.round(value) ? 'text-amber-400' : 'text-gray-300'} />
-    ))}
-  </div>
-);
 
 const fmtClock = (s) => {
   const h = String(Math.floor(s / 3600)).padStart(2, '0');
@@ -277,117 +264,56 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, onFinished, onMinim
 
   return (
     <div className="fixed inset-0 z-[1500] bg-white flex flex-col" data-testid="driver-ride-flow">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: headerBg }}>
-        {onMinimize && !inProgress ? (
-          <button onClick={onMinimize} className="w-9 h-9 flex items-center justify-center text-white" data-testid="ride-flow-minimize-btn" aria-label="Retour à l'accueil">
-            <CaretLeft size={26} weight="bold" />
-          </button>
-        ) : (
-          <div className="w-9" />
-        )}
-        <h1 className="text-lg font-extrabold tracking-wide" style={{ color: inProgress ? '#fff' : '#fff' }} data-testid="ride-flow-title">{headerLabel}</h1>
-        <button onClick={() => setShowMenu(true)} className="w-9 h-9 flex items-center justify-center text-white" data-testid="ride-flow-menu-btn">
-          <DotsThreeVertical size={26} weight="bold" />
-        </button>
-      </div>
+      <RideFlowHeader
+        headerBg={headerBg}
+        headerLabel={headerLabel}
+        showMinimize={!!onMinimize && !inProgress}
+        onMinimize={onMinimize}
+        onMenu={() => setShowMenu(true)}
+      />
 
-      {/* Top address card */}
-      <div className="px-4 -mb-6 relative z-20 -mt-1">
-        <div className="bg-white rounded-2xl shadow-lg p-3.5 flex items-center gap-3 mt-3 border border-gray-100">
-          <MapPin size={22} weight="fill" className={isPickupPhase ? 'text-green-600' : 'text-red-500'} />
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-wide text-gray-400 font-bold">{topLabel}</p>
-            <p className="text-sm font-bold text-gray-900 truncate" data-testid="ride-flow-address">{topAddress}</p>
-          </div>
-        </div>
-      </div>
+      <RideFlowAddressCard label={topLabel} address={topAddress} isPickupPhase={isPickupPhase} />
 
-      {/* Map */}
-      <div className="flex-1 relative">
-        <AdminGoogleMap
-          center={stableCenter}
-          zoom={13}
-          driver={driverPos}
-          driverIconUrl={carIconUrl}
-          staticView
-          pickup={{ lat: ride.pickup_lat, lng: ride.pickup_lng }}
-          dropoff={{ lat: ride.dropoff_lat, lng: ride.dropoff_lng }}
-          routePath={routePath}
-        />
-        <div className={`absolute top-9 right-3 z-[600] px-2 py-1 rounded-full text-[10px] font-semibold ${connected ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-          {connected ? 'En direct' : 'Reconnexion…'}
-        </div>
-        <button onClick={() => setShowSafety(true)} className="absolute top-9 left-3 z-[600] w-12 h-12 rounded-full bg-red-600 flex items-center justify-center shadow-lg animate-pulse" data-testid="ride-flow-sos-btn" aria-label="Sécurité / SOS">
-          <Siren size={24} weight="fill" className="text-white" />
-        </button>
-        {inProgress && (
-          <div className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-md flex items-center gap-1" data-testid="ride-flow-timer">
-            <Clock size={12} weight="bold" />{fmtClock(elapsed)}
-          </div>
-        )}
-        {/* Pickup waiting timer — auto, EN ROUTE (driver arrived, waits for passenger) */}
-        {isArrived && pickupArrivedAt && (
-          <div
-            className="absolute top-1 left-1/2 -translate-x-1/2 z-[600] bg-[#0B0B0B]/95 text-white rounded-full px-3 py-1 text-xs font-bold tabular-nums shadow-md flex items-center gap-1.5"
-            data-testid="ride-flow-pickup-wait"
-          >
-            <Clock size={13} weight="bold" />
-            {fmtClock(pickupWaitSec)}
-            {pickupWaitSec >= WAITING_GRACE_SEC && (
-              <span className="text-amber-400" data-testid="ride-flow-pickup-wait-billed">· facturé · {pickupWaitChargeLive.toFixed(2)} €</span>
-            )}
-          </div>
-        )}
-        {/* Compact waiting toggle — top of the map, near the trip timer */}
-        {inProgress && (
-          <button
-            onClick={toggleWaiting}
-            className={`absolute top-8 left-1/2 -translate-x-1/2 z-[600] rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1.5 ${waitingStart ? 'bg-amber-500 text-white' : 'bg-white text-gray-800'}`}
-            data-testid="ride-flow-waiting-btn"
-          >
-            <Clock size={13} weight="fill" />
-            {waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : 'Attente'}
-          </button>
-        )}
-      </div>
+      <RideFlowMap
+        mapCenter={stableCenter}
+        driver={driverPos}
+        driverIconUrl={carIconUrl}
+        pickup={{ lat: ride.pickup_lat, lng: ride.pickup_lng }}
+        dropoff={{ lat: ride.dropoff_lat, lng: ride.dropoff_lng }}
+        routePath={routePath}
+        connected={connected}
+        onSos={() => setShowSafety(true)}
+        inProgress={inProgress}
+        elapsedLabel={fmtClock(elapsed)}
+        isArrived={isArrived}
+        pickupArrivedAt={pickupArrivedAt}
+        pickupWaitLabel={fmtClock(pickupWaitSec)}
+        pickupBillable={pickupWaitSec >= WAITING_GRACE_SEC}
+        pickupWaitChargeLabel={pickupWaitChargeLive.toFixed(2)}
+        waitingActive={!!waitingStart}
+        waitingLabel={waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : 'Attente'}
+        onToggleWaiting={toggleWaiting}
+      />
 
-      {/* Action buttons — aligned right, just above the km */}
-      <div className="flex justify-end gap-4 px-5 py-3 bg-white">
-        <button onClick={() => setShowCallType(true)} className="w-12 h-12 rounded-full bg-[#2F9BFF] flex items-center justify-center shadow-md" data-testid="ride-flow-call-btn" aria-label="Appeler"><Phone size={22} weight="fill" className="text-white" /></button>
-        <button onClick={() => navigate(`/ride/${ride.id}/chat`)} className="w-12 h-12 rounded-full bg-[#F5A623] flex items-center justify-center shadow-md" data-testid="ride-flow-chat-btn" aria-label="Discuter"><ChatCircleDots size={22} weight="fill" className="text-white" /></button>
-        <button onClick={() => setShowNav(true)} className="w-12 h-12 rounded-full bg-[#FF6A00] flex items-center justify-center shadow-md" data-testid="ride-flow-nav-btn" aria-label="Navigation"><NavigationArrow size={22} weight="fill" className="text-white" /></button>
-      </div>
-
-      {/* Passenger card */}
-      <div className="px-5 pb-2 flex items-center gap-3" data-testid="ride-flow-passenger-card">
-        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-          {ride.passenger_avatar ? <img src={ride.passenger_avatar} alt="" className="w-full h-full object-cover" /> : <UserCircle size={40} className="text-gray-300" weight="fill" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-extrabold text-gray-900 truncate">{ride.passenger_name || 'Passager'}</p>
-          <RatingStars value={ride.passenger_rating || 5} />
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-bold text-gray-900">{(ride.distance_km || 0).toFixed(2)} km</p>
-          <p className="text-xs text-gray-500">{ride.duration_mins || 0} minutes</p>
-        </div>
-      </div>
-
-      {/* Video record checkbox (arrived, before start) */}
-      {isArrived && (
-        <label className="px-5 pb-2 flex items-center gap-2 text-sm text-gray-600" data-testid="ride-flow-video-row">
-          <input type="checkbox" checked={recordVideo} onChange={(e) => setRecordVideo(e.target.checked)} className="w-4 h-4 accent-[#00B578]" data-testid="ride-flow-video-checkbox" />
-          Enregistrer une vidéo à l&apos;intérieur d&apos;un taxi
-        </label>
-      )}
-
-      {/* Slider */}
-      <div className="px-5 pb-6 pt-1">
-        {isPickupPhase && <SlideToConfirm label="GLISSEZ POUR ARRIVER" color="#00B578" onConfirm={goArriving} testId="slide-arrive" disabled={busy} />}
-        {isArrived && <SlideToConfirm label="GLISSEZ POUR COMMENCER LE VOYAGE" color="#00B578" onConfirm={() => { setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }} testId="slide-start" disabled={busy} />}
-        {inProgress && <SlideToConfirm label="GLISSER POUR TERMINER LE VOYAGE" color="#E11900" onConfirm={() => { if (waitingStart) toggleWaiting(); setCompleting(true); }} testId="slide-finish" disabled={busy} />}
-      </div>
+      <RideFlowFooter
+        onCall={() => setShowCallType(true)}
+        onChat={() => navigate(`/ride/${ride.id}/chat`)}
+        onNav={() => setShowNav(true)}
+        passengerName={ride.passenger_name}
+        passengerAvatar={ride.passenger_avatar}
+        passengerRating={ride.passenger_rating}
+        distanceKm={ride.distance_km}
+        durationMins={ride.duration_mins}
+        isArrived={isArrived}
+        recordVideo={recordVideo}
+        onToggleVideo={(e) => setRecordVideo(e.target.checked)}
+        isPickupPhase={isPickupPhase}
+        inProgress={inProgress}
+        busy={busy}
+        onArrive={goArriving}
+        onStart={() => { setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }}
+        onFinish={() => { if (waitingStart) toggleWaiting(); setCompleting(true); }}
+      />
 
       {/* 3-dot menu */}
       {showMenu && (
