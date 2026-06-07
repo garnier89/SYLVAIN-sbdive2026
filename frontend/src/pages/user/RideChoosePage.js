@@ -318,7 +318,7 @@ const RideChoosePage = () => {
     await Promise.all(vtypes.map(async (v) => {
       try {
         const res = await rideAPI.estimate({ ...base, vehicle_type: v.slug });
-        setEstimates((p) => ({ ...p, [v.slug]: { fare: res.data.estimated_fare, duration: res.data.duration_mins, distance: res.data.distance_km, loading: false } }));
+        setEstimates((p) => ({ ...p, [v.slug]: { fare: res.data.estimated_fare, duration: res.data.duration_mins, distance: res.data.distance_km, maxPoolSeats: res.data.max_seats_per_booking, loading: false } }));
       } catch {
         setEstimates((p) => ({ ...p, [v.slug]: { loading: false, error: true } }));
       }
@@ -484,6 +484,7 @@ const RideChoosePage = () => {
           bookForName={bookForName} setBookForName={setBookForName} bookForPhone={bookForPhone} setBookForPhone={setBookForPhone}
           biddingFare={biddingFare} setBiddingFare={setBiddingFare}
           poolSeats={poolSeats} setPoolSeats={setPoolSeats}
+          poolMax={(selected && estimates[selected]?.maxPoolSeats) || 2}
         />
 
         {/* Choose a ride (comparison) */}
@@ -728,6 +729,8 @@ const ModeSpecificPanel = (p) => {
   }
   if (mode.id === 'pool') {
     const seats = p.poolSeats || 1;
+    const poolMax = Math.max(1, p.poolMax || 2);
+    const capped = Math.min(seats, poolMax);
     return (
       <div className={card} data-testid="panel-pool">
         <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-1"><UsersThree size={18} className="text-[#3B82F6]" /> Taxi partagé (Pool)</label>
@@ -735,12 +738,12 @@ const ModeSpecificPanel = (p) => {
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">Places à réserver</span>
           <div className="flex items-center gap-3">
-            <button onClick={() => p.setPoolSeats(Math.max(1, seats - 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-40" disabled={seats <= 1} data-testid="panel-pool-minus"><Minus size={14} /></button>
-            <span className="font-black text-lg w-6 text-center" data-testid="panel-pool-seats">{seats}</span>
-            <button onClick={() => p.setPoolSeats(Math.min(4, seats + 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-40" disabled={seats >= 4} data-testid="panel-pool-plus"><Plus size={14} /></button>
+            <button onClick={() => p.setPoolSeats(Math.max(1, capped - 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-40" disabled={capped <= 1} data-testid="panel-pool-minus"><Minus size={14} /></button>
+            <span className="font-black text-lg w-6 text-center" data-testid="panel-pool-seats">{capped}</span>
+            <button onClick={() => p.setPoolSeats(Math.min(poolMax, capped + 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-40" disabled={capped >= poolMax} data-testid="panel-pool-plus"><Plus size={14} /></button>
           </div>
         </div>
-        <p className="text-[11px] text-gray-400 mt-1.5">Maximum 4 places par réservation Pool.</p>
+        <p className="text-[11px] text-gray-400 mt-1.5">Maximum {poolMax} place{poolMax > 1 ? 's' : ''} par réservation Pool.</p>
       </div>
     );
   }

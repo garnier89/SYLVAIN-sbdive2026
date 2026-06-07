@@ -1,3 +1,12 @@
+## NEW - 2026-06-07 (50) - Pool : limite « places max par réservation » = 2 (configurable) (DONE)
+- **Demande user** : « J'ai commandé le Pool, normalement c'est maxi 2 places » (le sélecteur affichait 4).
+- **Logique** : un Pool est un trajet PARTAGÉ → un passager ne doit réserver qu'un nombre limité de places pour laisser de la place aux autres. La capacité totale du véhicule (`pool_capacity`=4) reste utilisée pour le badge « places restantes », mais la **réservation par passager est plafonnée à 2** (`max_seats_per_booking`, défaut 2, surchargeable par véhicule via `pool_max_seats_per_booking` ou la config Pool globale `max_seats_per_booking`).
+- **Backend (`rides.py`)** : `get_pool_config` renvoie `max_seats_per_booking` (défaut `POOL_DEFAULT_MAX_SEATS_PER_BOOKING=2`) ; estimate ET create_ride plafonnent `seats_required` à `min(max_seats_per_booking, available_seats)` ; le champ est exposé dans la réponse d'estimation. **Vérifié curl** : estimate seats 4→2, create pool seats 4→2 (pool_capacity reste 4).
+- **Frontend (`RideChoosePage`)** : le panneau Pool lit `max_seats_per_booking` depuis l'estimation (défaut 2), sélecteur borné 1→2, bouton + désactivé à 2, texte « Maximum 2 places par réservation Pool. » **Vérifié (Playwright)**.
+- ⚠️ Correctifs en PREVIEW → nécessite un redéploiement pour la production.
+
+
+
 ## NEW - 2026-06-07 (49) - Harmonie titres /course (H1 par mode) + ordre hub aligné admin (DONE)
 - **(a) Ordre du hub** : `TaxiHubPage` transmet désormais `display_order` dans `catConfig`, et `TaxiModeGrid` trie les modes de chaque groupe par cet ordre admin (au lieu de l'ordre statique des MODES).
 - **(b) Test e2e (testing_agent iteration_158)** : 5/7 PASS initialement. 2 bugs remontés → traités :

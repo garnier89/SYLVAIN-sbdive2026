@@ -17,6 +17,9 @@ OFFER_TTL_SECONDS = 30
 #   Capacity ("Available Seats", excl. driver) caps the seats a booking may request.
 POOL_DEFAULT_PERCENTAGE = 90.0
 POOL_DEFAULT_SEATS = 4
+# A single passenger can only reserve a few seats in a SHARED pool so the vehicle
+# keeps room for other pool riders. Admin-overridable per Vehicle Type / pool config.
+POOL_DEFAULT_MAX_SEATS_PER_BOOKING = 2
 
 
 def pool_seat_multiplier(seats: int, pool_percentage: float) -> float:
@@ -51,6 +54,7 @@ async def get_pool_config(vtype_doc=None):
             "enabled": _pool_bool(vtype_doc.get("enable_pool"), True),
             "pool_percentage": _pool_num(vtype_doc.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
             "available_seats": int(_pool_num(vtype_doc.get("person_capacity", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
+            "max_seats_per_booking": int(_pool_num(vtype_doc.get("pool_max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), POOL_DEFAULT_MAX_SEATS_PER_BOOKING)),
         }
 
     doc = await _db_pool_config()
@@ -59,6 +63,7 @@ async def get_pool_config(vtype_doc=None):
         "enabled": _pool_bool(s.get("enable_pool", True), True),
         "pool_percentage": _pool_num(s.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
         "available_seats": int(_pool_num(s.get("available_seats", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
+        "max_seats_per_booking": int(_pool_num(s.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), POOL_DEFAULT_MAX_SEATS_PER_BOOKING)),
     }
 
 
@@ -201,8 +206,10 @@ async def estimate_ride(data: RideRequest):
     pool_cfg = None
     if pool_enabled:
         pool_cfg = await get_pool_config(vtype_doc)
-        max_seats = max(1, pool_cfg["available_seats"])
-        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), max_seats))
+        # Per-booking cap (shared ride): a passenger can reserve at most N seats,
+        # bounded by the vehicle's pool capacity.
+        booking_cap = max(1, min(pool_cfg.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), pool_cfg["available_seats"]))
+        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), booking_cap))
         pool_original_fare = round(fare, 2)  # 1st-seat (full) fare
         fare = round(fare * pool_seat_multiplier(pool_seats, pool_cfg["pool_percentage"]), 2)
         pool_reason = [f"Pool partagé · {pool_seats} place(s)"]
@@ -221,6 +228,7 @@ async def estimate_ride(data: RideRequest):
         "pool_enabled": pool_enabled,
         "seats_required": pool_seats,
         "available_seats": pool_cfg["available_seats"] if pool_cfg else None,
+        "max_seats_per_booking": pool_cfg.get("max_seats_per_booking") if pool_cfg else None,
         "pool_percentage": pool_cfg["pool_percentage"] if pool_cfg else None,
         "original_fare": pool_original_fare,
     }
@@ -330,8 +338,9 @@ async def create_ride(data: RideRequest, request: Request):
     pool_capacity = 1
     if pool_enabled:
         pool_cfg = await get_pool_config(vtype_doc)
-        pool_capacity = max(1, pool_cfg["available_seats"])
-        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), pool_capacity))
+        pool_capacity = max(1, pool_cfg["available_seats"])  # total shared-vehicle capacity (for "remaining seats")
+        booking_cap = max(1, min(pool_cfg.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), pool_capacity))
+        pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), booking_cap))
         pool_original_fare = round(fare, 2)
         fare = round(fare * pool_seat_multiplier(pool_seats, pool_cfg["pool_percentage"]), 2)
 
