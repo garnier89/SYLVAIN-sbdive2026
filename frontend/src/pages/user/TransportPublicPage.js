@@ -13,9 +13,12 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Bus, Train, Boat, MapPin, NavigationArrow, Clock,
-  Lightning, ArrowsClockwise, CaretRight,
+  Lightning, ArrowsClockwise, CaretRight, Ticket, CarProfile, Scales,
 } from '@phosphor-icons/react';
 import { transportAPI } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 const MODE_ICON = { bus: Bus, tram: Train, brt: Bus, metro: Train, ferry: Boat };
 const MODE_LABEL = { bus: 'Bus', tram: 'Tram', brt: 'BRT', metro: 'Métro', ferry: 'Navette' };
@@ -29,11 +32,13 @@ const etaLabel = (m) => (m <= 0 ? "à l'instant" : m === 1 ? 'dans 1 min' : `dan
 
 const TransportPublicPage = () => {
   const navigate = useNavigate();
+  const { money } = useLocale();
   const [stops, setStops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fallback, setFallback] = useState(false);
   const [now, setNow] = useState('');
   const [coords, setCoords] = useState(null);
+  const [compare, setCompare] = useState({}); // line_id -> { loading, open, data }
 
   const fetchNearby = useCallback(async (lat, lng) => {
     setLoading(true);
@@ -64,6 +69,30 @@ const TransportPublicPage = () => {
   }, [fetchNearby]);
 
   useEffect(() => { locate(false); }, [locate]);
+
+  // Bus vs VTC — fetch a VTC estimate for the line's trip (this stop → terminus).
+  const toggleCompare = useCallback(async (stop, ln) => {
+    const cur = compare[ln.line_id];
+    if (cur?.open) { setCompare((c) => ({ ...c, [ln.line_id]: { ...cur, open: false } })); return; }
+    if (cur?.data !== undefined) { setCompare((c) => ({ ...c, [ln.line_id]: { ...cur, open: true } })); return; }
+    setCompare((c) => ({ ...c, [ln.line_id]: { loading: true, open: true } }));
+    try {
+      const r = await fetch(`${API}/api/rides/estimate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          pickup_lat: stop.lat, pickup_lng: stop.lng, pickup_address: stop.name,
+          dropoff_lat: ln.dest_lat, dropoff_lng: ln.dest_lng, dropoff_address: ln.destination,
+          vehicle_type: 'sb', payment_method: 'cash',
+        }),
+      });
+      const data = r.ok ? await r.json() : null;
+      setCompare((c) => ({ ...c, [ln.line_id]: { loading: false, open: true, data } }));
+    } catch (e) {
+      setCompare((c) => ({ ...c, [ln.line_id]: { loading: false, open: true, data: null } }));
+    }
+  }, [compare]);
 
   return (
     <div className="mobile-container min-h-screen bg-[#F8F9FA] pb-32" data-testid="transport-public-page">
@@ -128,31 +157,94 @@ const TransportPublicPage = () => {
                     {(s.lines || []).length === 0 && (
                       <p className="text-xs text-slate-400">Pas de passage prévu pour le moment.</p>
                     )}
-                    {(s.lines || []).map((ln) => (
-                      <div key={ln.line_id} className="flex items-center gap-2.5 py-1.5 border-t border-gray-100 first:border-t-0" data-testid={`transport-line-${ln.line_id}`}>
-                        <span className="text-[11px] font-black text-white px-2 py-1 rounded-md flex-shrink-0 min-w-[34px] text-center" style={{ backgroundColor: ln.color }}>
-                          {ln.code}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-[#0B1426] truncate">{ln.name}</p>
-                          <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                            <CaretRight size={9} /> {ln.destination || MODE_LABEL[ln.mode] || ''}
-                          </p>
+                    {(s.lines || []).map((ln) => {
+                      const cmp = compare[ln.line_id];
+                      const wait = ln.departures?.[0]?.eta_min ?? 0;
+                      const busMin = wait + (ln.ride_min || 0);
+                      const canCompare = ln.ride_min > 0 && ln.dest_lat != null && ln.dest_lng != null;
+                      const vtc = cmp?.data;
+                      return (
+                      <div key={ln.line_id} className="py-2 border-t border-gray-100 first:border-t-0" data-testid={`transport-line-${ln.line_id}`}>
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-[11px] font-black text-white px-2 py-1 rounded-md flex-shrink-0 min-w-[34px] text-center" style={{ backgroundColor: ln.color }}>
+                            {ln.code}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-[#0B1426] truncate">{ln.name}</p>
+                            <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
+                              <CaretRight size={9} /> {ln.destination || MODE_LABEL[ln.mode] || ''}
+                            </p>
+                          </div>
+                          <div className="flex gap-1.5 flex-shrink-0">
+                            {(ln.departures || []).slice(0, 3).map((d, i) => (
+                              <span key={i} data-testid={`transport-dep-${ln.line_id}-${i}`}
+                                className={`text-[10px] font-bold px-1.5 py-1 rounded-md ${i === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}
+                                title={etaLabel(d.eta_min)}>
+                                <Clock size={9} className="inline mr-0.5" weight="bold" />{d.eta_min <= 0 ? 'now' : `${d.eta_min}′`}
+                              </span>
+                            ))}
+                            {(ln.departures || []).length === 0 && (
+                              <span className="text-[10px] text-slate-400">—</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex gap-1.5 flex-shrink-0">
-                          {(ln.departures || []).slice(0, 3).map((d, i) => (
-                            <span key={i} data-testid={`transport-dep-${ln.line_id}-${i}`}
-                              className={`text-[10px] font-bold px-1.5 py-1 rounded-md ${i === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}
-                              title={etaLabel(d.eta_min)}>
-                              <Clock size={9} className="inline mr-0.5" weight="bold" />{d.eta_min <= 0 ? 'now' : `${d.eta_min}′`}
-                            </span>
-                          ))}
-                          {(ln.departures || []).length === 0 && (
-                            <span className="text-[10px] text-slate-400">—</span>
+
+                        {/* Fare + compare trigger */}
+                        <div className="flex items-center justify-between mt-1.5 pl-[44px]">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0B1426] bg-amber-50 px-2 py-0.5 rounded-md" data-testid={`transport-fare-${ln.line_id}`}>
+                            <Ticket size={11} weight="fill" className="text-amber-500" /> Ticket {money(ln.fare)}
+                          </span>
+                          {canCompare && (
+                            <button onClick={() => toggleCompare(s, ln)} data-testid={`compare-vtc-${ln.line_id}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-[#3730A3] active:scale-95 transition-transform">
+                              <Scales size={12} weight="bold" /> {cmp?.open ? 'Masquer' : 'Bus vs VTC'}
+                            </button>
                           )}
                         </div>
+
+                        {/* Comparison card */}
+                        {cmp?.open && (
+                          <div className="mt-2 ml-[44px] rounded-xl border border-[#E2E8F0] overflow-hidden" data-testid={`comparison-${ln.line_id}`}>
+                            {cmp.loading ? (
+                              <div className="p-3 text-center"><div className="w-4 h-4 border-2 border-orange-200 border-t-[#FF5000] rounded-full animate-spin mx-auto" /></div>
+                            ) : !vtc ? (
+                              <p className="p-3 text-[11px] text-slate-400 text-center">Comparaison indisponible pour le moment.</p>
+                            ) : (
+                              <>
+                                <div className="grid grid-cols-2 divide-x divide-[#E2E8F0]">
+                                  <div className="p-2.5 text-center">
+                                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#3730A3]"><Bus size={12} weight="duotone" /> Bus</div>
+                                    <p className="text-sm font-black text-[#0B1426] mt-1">~{busMin} min</p>
+                                    <p className="text-[11px] font-bold text-[#0B1426]">{money(ln.fare)}</p>
+                                    <p className="text-[9px] text-slate-400">{wait > 0 ? `${wait} min d'attente` : 'départ imminent'}</p>
+                                  </div>
+                                  <div className="p-2.5 text-center bg-[#FFF6F1]">
+                                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#FF5000]"><CarProfile size={12} weight="duotone" /> VTC</div>
+                                    <p className="text-sm font-black text-[#0B1426] mt-1">~{vtc.duration_mins} min</p>
+                                    <p className="text-[11px] font-bold text-[#0B1426]">{money(vtc.estimated_fare)}</p>
+                                    <p className="text-[9px] text-slate-400">porte à porte</p>
+                                  </div>
+                                </div>
+                                <div className="bg-[#0B1426] px-3 py-2 flex items-center gap-2" data-testid={`verdict-${ln.line_id}`}>
+                                  <Lightning size={13} weight="fill" className="text-[#FF5000] flex-shrink-0" />
+                                  <p className="text-[11px] text-white/90 leading-snug">
+                                    {busMin - vtc.duration_mins > 0
+                                      ? <>Le VTC vous fait gagner <span className="font-black text-[#FF5000]">~{busMin - vtc.duration_mins} min</span></>
+                                      : <>Le bus reste <span className="font-black text-emerald-400">{money(Math.max(0, vtc.estimated_fare - ln.fare))} moins cher</span></>}
+                                    {vtc.estimated_fare > ln.fare ? <> · surcoût VTC <span className="font-bold">{money(vtc.estimated_fare - ln.fare)}</span></> : null}
+                                  </p>
+                                </div>
+                                <button onClick={() => navigate('/course?mode=standard')} data-testid={`book-vtc-${ln.line_id}`}
+                                  className="w-full py-2 text-[11px] font-black bg-[#FF5000] text-[#0B1426] active:scale-[0.99] transition-transform">
+                                  Réserver ce trajet en VTC →
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </motion.div>
               );

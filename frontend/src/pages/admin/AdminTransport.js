@@ -16,7 +16,7 @@ const EMPTY_STOP = { name: '', zone: '', type: 'bus', lat: '', lng: '', is_activ
 const EMPTY_LINE = {
   code: '', name: '', mode: 'bus', color: '', operator: '',
   headway_min: 15, first_time: '05:00', last_time: '23:00', stop_travel_min: 2,
-  stop_ids: [], is_active: true,
+  fare: '', stop_ids: [], is_active: true,
 };
 
 const AdminTransport = () => {
@@ -154,11 +154,11 @@ const AdminTransport = () => {
                 <tr key={l.id} className="border-b border-gray-100" data-testid={`line-row-${l.id}`}>
                   <td className="py-3 px-4"><div className="flex items-center gap-2"><span className="text-[11px] font-black text-white px-2 py-1 rounded-md" style={{ backgroundColor: l.color || '#2563EB' }}>{l.code}</span><span className="font-medium text-gray-800">{l.name}</span></div></td>
                   <td className="py-3 px-4 text-gray-600">{MODES.find((m) => m.v === l.mode)?.l || l.mode}</td>
-                  <td className="py-3 px-4 text-gray-600 text-xs">toutes les {l.headway_min} min<div className="text-gray-400">{l.first_time}–{l.last_time}</div></td>
+                  <td className="py-3 px-4 text-gray-600 text-xs">toutes les {l.headway_min} min<div className="text-gray-400">{l.first_time}–{l.last_time}{l.fare != null ? ` · ${l.fare} €` : ''}</div></td>
                   <td className="py-3 px-4 text-gray-500 text-xs">{(l.stop_ids || []).map(stopName).join(' → ') || '—'}</td>
                   <td className="py-3 px-4 text-center">{l.is_active !== false ? <Badge className="bg-emerald-100 text-emerald-700">Active</Badge> : <Badge variant="outline" className="text-gray-400">Inactive</Badge>}</td>
                   <td className="py-3 px-4 text-center"><div className="flex items-center justify-center gap-2">
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditLine({ id: l.id, form: { code: l.code, name: l.name, mode: l.mode || 'bus', color: l.color || '', operator: l.operator || '', headway_min: l.headway_min || 15, first_time: l.first_time || '05:00', last_time: l.last_time || '23:00', stop_travel_min: l.stop_travel_min || 2, stop_ids: l.stop_ids || [], is_active: l.is_active !== false } })} data-testid={`edit-line-${l.id}`}><PencilSimple size={14} /></Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditLine({ id: l.id, form: { code: l.code, name: l.name, mode: l.mode || 'bus', color: l.color || '', operator: l.operator || '', headway_min: l.headway_min || 15, first_time: l.first_time || '05:00', last_time: l.last_time || '23:00', stop_travel_min: l.stop_travel_min || 2, fare: l.fare ?? '', stop_ids: l.stop_ids || [], is_active: l.is_active !== false } })} data-testid={`edit-line-${l.id}`}><PencilSimple size={14} /></Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-200" onClick={() => removeLine(l)} data-testid={`delete-line-${l.id}`}><Trash size={14} /></Button>
                   </div></td>
                 </tr>
@@ -218,6 +218,10 @@ const AdminTransport = () => {
                 <div><label className="text-xs font-semibold text-gray-700 block mb-1">Fréquence (min)</label><Input type="number" value={editLine.form.headway_min} onChange={(e) => setLF('headway_min', e.target.value)} data-testid="line-headway" /></div>
                 <div><label className="text-xs font-semibold text-gray-700 block mb-1">Premier</label><Input type="time" value={editLine.form.first_time} onChange={(e) => setLF('first_time', e.target.value)} data-testid="line-first" /></div>
                 <div><label className="text-xs font-semibold text-gray-700 block mb-1">Dernier</label><Input type="time" value={editLine.form.last_time} onChange={(e) => setLF('last_time', e.target.value)} data-testid="line-last" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-700 block mb-1">Tarif ticket (€)</label><Input type="number" step="0.01" value={editLine.form.fare} onChange={(e) => setLF('fare', e.target.value)} placeholder="ex. 1.50" data-testid="line-fare" /></div>
+                <div><label className="text-xs font-semibold text-gray-700 block mb-1">Temps inter-arrêt (min)</label><Input type="number" value={editLine.form.stop_travel_min} onChange={(e) => setLF('stop_travel_min', e.target.value)} data-testid="line-travel" /></div>
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-700 block mb-1">Arrêts desservis (dans l’ordre)</label>

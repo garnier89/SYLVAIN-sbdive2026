@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend E2E for iter175 additions: ticket fare badge per line, Bus vs VTC comparison card (temps + prix), book-vtc button, continue-vtc CTA, admin line-fare field. All targeted selectors and flows pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_175.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TransportPublicPage.toggleCompare uses raw fetch + credentials:'include' instead of services/api axios client. Works but bypasses any shared interceptors/auth-refresh logic; consider exposing a rides.estimate() helper for consistency.",
+    "Verdict logic mixes time-saving and price-cheaper branches: when busMin === vtc.duration_mins, the message falls through to 'le bus reste 0 € moins cher' which is awkward; consider a third 'égalité' branch.",
+    "AdminTransport line-fare input is text/number HTML; backend accepts a numeric/null but no client-side range validation (negative tariff allowed). Low priority."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Client: test2@example.com / TestPass123!  |  Admin: admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Created via admin UI: line 'TST / TEST_Auto_Line' with fare 2.00 -> edited to 3.50 -> deleted. Cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter175 additions verified end-to-end on preview URL. Observed on /transport-public (test2@example.com): 7 transport-fare-* badges all showing 'Ticket 1,50 €'; 5 compare-vtc-* buttons available (lines where ride_min>0). Clicking compare-vtc-tline_60c60816cc opened comparison-tline_60c60816cc with Bus '~34 min / 1,50 €' and VTC '~10 min / 10,00 €' (real /api/rides/estimate response), verdict-* showed 'Le VTC vous fait gagner ~24 min · surcoût VTC 8,50 €'. Re-click collapsed the card. book-vtc-* navigated to /course?mode=standard. Sticky continue-vtc-btn also navigates to /course?mode=standard. ADMIN /admin/transport lines tab: line-dialog contains line-fare field, created TST with fare 2.00 -> row shows '· 2 €', edited to 3.5 -> row shows '· 3.5 €', delete cleaned up.",
+  "validated_flows": [
+    "CLIENT /transport-public: transport-fare-* badges render with money(ln.fare) (7 badges, '1,50 €') ✅",
+    "CLIENT compare-vtc-* present only for lines with ride_min>0 and dest coords (5 of 7) ✅",
+    "CLIENT click compare-vtc-* -> comparison-* opens with 2 columns (Bus/VTC) + verdict-* banner ✅",
+    "CLIENT verdict-* shows correct 'gagner ~X min' message with surcoût VTC ✅",
+    "CLIENT re-click compare-vtc-* collapses comparison card ✅",
+    "CLIENT book-vtc-* navigates to /course?mode=standard ✅",
+    "CLIENT continue-vtc-btn navigates to /course?mode=standard ✅",
+    "ADMIN /admin/transport line-dialog contains line-fare (data-testid) input ✅",
+    "ADMIN create line with fare=2.00 persists; '· 2 €' visible in fréquence cell ✅",
+    "ADMIN edit line, line-fare prefilled with '2', update to 3.5 persists; '· 3.5 €' visible ✅"
+  ],
+  "rca of the issue": "No bugs. Iter175 'tarif ticket + Bus vs VTC' frontend is functioning as specified."
+}

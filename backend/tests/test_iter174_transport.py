@@ -38,7 +38,12 @@ def test_nearby_geo_match():
     assert s0["zone"] == "Pointe-à-Pitre"
     assert s0["distance_m"] == 0  # Place de la Victoire is the exact center
     assert len(s0["lines"]) >= 1
-    deps = s0["lines"][0]["departures"]
+    line0 = s0["lines"][0]
+    assert "fare" in line0 and line0["fare"] > 0
+    assert "ride_min" in line0
+    # at least one line of a non-terminus stop exposes terminus coords for VTC compare
+    assert any(l.get("dest_lat") is not None for l in s0["lines"])
+    deps = line0["departures"]
     assert len(deps) >= 1
     assert all(d["eta_min"] >= 0 for d in deps)
     # ETAs must be non-decreasing within a line

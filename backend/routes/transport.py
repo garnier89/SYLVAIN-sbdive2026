@@ -34,11 +34,11 @@ DEFAULT_RADIUS_KM = 2.0
 MAX_NEARBY_STOPS = 10
 
 MODE_META = {
-    "bus": {"label": "Bus", "color": "#2563EB"},
-    "tram": {"label": "Tram", "color": "#0891B2"},
-    "brt": {"label": "BRT", "color": "#DC2626"},
-    "metro": {"label": "Métro", "color": "#7C3AED"},
-    "ferry": {"label": "Navette maritime", "color": "#0EA5E9"},
+    "bus": {"label": "Bus", "color": "#2563EB", "fare": 1.50},
+    "tram": {"label": "Tram", "color": "#0891B2", "fare": 1.40},
+    "brt": {"label": "BRT", "color": "#DC2626", "fare": 1.00},
+    "metro": {"label": "Métro", "color": "#7C3AED", "fare": 1.60},
+    "ferry": {"label": "Navette maritime", "color": "#0EA5E9", "fare": 2.50},
 }
 
 
@@ -116,14 +116,25 @@ def _stop_lines(stop_id, lines_by_id_order, now_min, per_line=3):
             continue
         idx = stops.index(stop_id)
         deps = _next_departures(line, idx, now_min, count=per_line)
-        # terminus = last stop name (direction)
+        last_idx = len(stops) - 1
+        travel = int(line.get("stop_travel_min") or 2)
+        ride_min = max(0, (last_idx - idx) * travel)  # this stop → terminus
+        mode = line.get("mode", "bus")
+        fare = line.get("fare")
+        if fare is None:
+            fare = MODE_META.get(mode, {}).get("fare", 1.50)
+        # terminus = last stop name + coords (direction), for VTC comparison
         result.append({
             "line_id": line.get("id"),
             "code": line.get("code"),
             "name": line.get("name"),
-            "mode": line.get("mode", "bus"),
-            "color": line.get("color") or MODE_META.get(line.get("mode", "bus"), {}).get("color", "#2563EB"),
+            "mode": mode,
+            "color": line.get("color") or MODE_META.get(mode, {}).get("color", "#2563EB"),
             "destination": line.get("_terminus_name", ""),
+            "dest_lat": line.get("_terminus_lat"),
+            "dest_lng": line.get("_terminus_lng"),
+            "fare": round(float(fare), 2),
+            "ride_min": ride_min,
             "departures": deps,
         })
     # show lines with an upcoming departure first
@@ -149,18 +160,21 @@ def _shape_stop(s, distance_km=None):
 
 async def _load_lines_with_terminus():
     lines = await db.transport_lines.find({}, {"_id": 0}).to_list(1000)
-    # resolve terminus (last stop) names
-    stop_names = {}
+    # resolve terminus (last stop) names + coords
+    stop_meta = {}
     ids = set()
     for l in lines:
         for sid in (l.get("stop_ids") or []):
             ids.add(sid)
     if ids:
-        async for st in db.transport_stops.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1, "name": 1}):
-            stop_names[st["id"]] = st["name"]
+        async for st in db.transport_stops.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1, "name": 1, "lat": 1, "lng": 1}):
+            stop_meta[st["id"]] = st
     for l in lines:
         sids = l.get("stop_ids") or []
-        l["_terminus_name"] = stop_names.get(sids[-1], "") if sids else ""
+        term = stop_meta.get(sids[-1]) if sids else None
+        l["_terminus_name"] = (term or {}).get("name", "")
+        l["_terminus_lat"] = (term or {}).get("lat")
+        l["_terminus_lng"] = (term or {}).get("lng")
     return lines
 
 
@@ -292,6 +306,7 @@ def _parse_line(body):
         "first_time": (body.get("first_time") or "05:00").strip(),
         "last_time": (body.get("last_time") or "23:00").strip(),
         "stop_travel_min": int(body.get("stop_travel_min") or 2),
+        "fare": (lambda v: round(float(v), 2) if v not in (None, "") else MODE_META.get((body.get("mode") or "bus"), {}).get("fare", 1.50))(body.get("fare")),
         "stop_ids": stop_ids,
         "is_active": body.get("is_active", True) is not False,
     }
@@ -352,9 +367,9 @@ async def seed_transport():
                 ("pap_aeroport", "Aéroport Pôle Caraïbes", "bus", 16.2653, -61.5267),
             ],
             "lines": [
-                ("Karu'lis 1", "L1", "bus", 20, "05:00", "21:00",
+                ("Karu'lis 1", "L1", "bus", 20, "05:00", "21:00", 1.50,
                  ["pap_bergevin", "pap_victoire", "pap_chu", "pap_aeroport"]),
-                ("Karu'lis 2", "L2", "bus", 30, "05:30", "20:30",
+                ("Karu'lis 2", "L2", "bus", 30, "05:30", "20:30", 1.50,
                  ["pap_bergevin", "pap_victoire", "pap_univ"]),
             ],
             "operator": "Karu'lis",
@@ -368,9 +383,9 @@ async def seed_transport():
                 ("fdf_carrere", "Carrère (TCSP)", "brt", 14.6360, -61.0290),
             ],
             "lines": [
-                ("TCSP Ligne A", "A", "brt", 12, "05:00", "22:00",
+                ("TCSP Ligne A", "A", "brt", 12, "05:00", "22:00", 1.40,
                  ["fdf_pointe_simon", "fdf_savane", "fdf_dillon", "fdf_carrere"]),
-                ("Mozaïk 2", "M2", "bus", 25, "05:30", "20:00",
+                ("Mozaïk 2", "M2", "bus", 25, "05:30", "20:00", 1.30,
                  ["fdf_savane", "fdf_chu", "fdf_dillon"]),
             ],
             "operator": "Mozaïk / CACEM",
@@ -384,9 +399,9 @@ async def seed_transport():
                 ("dkr_guediawaye", "Guédiawaye", "brt", 14.7720, -17.4060),
             ],
             "lines": [
-                ("BRT Dakar", "BRT", "brt", 8, "05:30", "23:00",
+                ("BRT Dakar", "BRT", "brt", 8, "05:30", "23:00", 0.76,
                  ["dkr_petersen", "dkr_grand_yoff", "dkr_guediawaye"]),
-                ("Dakar Dem Dikk 7", "DDD7", "bus", 18, "05:30", "22:30",
+                ("Dakar Dem Dikk 7", "DDD7", "bus", 18, "05:30", "22:30", 0.40,
                  ["dkr_independance", "dkr_petersen", "dkr_ucad"]),
             ],
             "operator": "Dakar Dem Dikk / CETUD",
@@ -399,12 +414,12 @@ async def seed_transport():
                 "id": sid, "name": name, "type": typ, "zone": zone,
                 "lat": lat, "lng": lng, "is_active": True, "created_at": now_iso,
             })
-        for name, code, mode, headway, first, last, stop_ids in net["lines"]:
+        for name, code, mode, headway, first, last, fare, stop_ids in net["lines"]:
             await db.transport_lines.insert_one({
                 "id": f"tline_{uuid.uuid4().hex[:10]}",
                 "code": code, "name": name, "mode": mode,
                 "color": MODE_META.get(mode, {}).get("color", "#2563EB"),
                 "operator": net["operator"], "headway_min": headway,
-                "first_time": first, "last_time": last, "stop_travel_min": 2,
-                "stop_ids": stop_ids, "is_active": True, "created_at": now_iso,
+                "first_time": first, "last_time": last, "stop_travel_min": 5,
+                "fare": fare, "stop_ids": stop_ids, "is_active": True, "created_at": now_iso,
             })
