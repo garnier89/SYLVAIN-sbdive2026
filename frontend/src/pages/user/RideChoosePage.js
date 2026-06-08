@@ -114,6 +114,7 @@ const RideChoosePage = () => {
   const [roundTrip, setRoundTrip] = useState(false); // Intercity — aller-retour
   const [scheduleLater, setScheduleLater] = useState(mode.panel === 'datetime');
   const [showMap, setShowMap] = useState(false); // 2-step flow: address form → map + bottom sheet
+  const [nearby, setNearby] = useState({ count: 0, etaMins: null, positions: [] }); // online drivers near pickup
 
   const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(isBidding ? 'bidding' : mode.id);
 
@@ -335,6 +336,19 @@ const RideChoosePage = () => {
       Promise.resolve().then(() => setShowMap(true));
     }
   }, [needsDropoff, bothSet]);
+
+  // On the map step, poll online drivers near the pickup to reassure the rider
+  // ('Chauffeur à ~X min') and drop car markers on the map.
+  useEffect(() => {
+    if (!(needsDropoff && bothSet && showMap) || !pickup?.lat) return undefined;
+    let active = true;
+    const load = () => rideAPI.nearbyDrivers(pickup.lat, pickup.lng)
+      .then((r) => { if (active && r.data) setNearby({ count: r.data.count || 0, etaMins: r.data.eta_mins, positions: r.data.positions || [] }); })
+      .catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => { active = false; clearInterval(t); };
+  }, [needsDropoff, bothSet, showMap, pickup]);
 
   // ── Live estimates per vehicle (comparison modes only) ────────────────
   const fetchEstimates = useCallback(async () => {
@@ -604,7 +618,7 @@ const RideChoosePage = () => {
     return (
       <div className="mobile-container min-h-screen bg-gray-100 flex flex-col" data-testid="ride-choose-page">
         <div className="relative h-[42%] shrink-0">
-          <RideRouteMap pickup={pickup} dropoff={dropoff} />
+          <RideRouteMap pickup={pickup} dropoff={dropoff} drivers={nearby.positions} />
           <button onClick={() => { setShowMap(false); setPayOpen(false); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center z-20" data-testid="map-back-btn">
             <ArrowLeft size={20} className="text-[#0B1426]" />
           </button>
@@ -612,11 +626,30 @@ const RideChoosePage = () => {
             <p className="text-[9px] uppercase text-gray-400 font-bold leading-none mb-0.5">Destination</p>
             <p className="text-xs font-semibold text-[#0B1426] truncate">{dropoff?.address}</p>
           </div>
+          {nearby.etaMins != null ? (
+            <div className="absolute left-4 bottom-3 bg-[#0B1426] text-white rounded-full pl-2.5 pr-3.5 py-1.5 shadow-lg z-20 flex items-center gap-2" data-testid="driver-eta-chip">
+              <Car size={16} weight="fill" className="text-[#FF5000]" />
+              <span className="text-xs font-bold">Chauffeur à ~{nearby.etaMins} min</span>
+            </div>
+          ) : (
+            <div className="absolute left-4 bottom-3 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 shadow-lg z-20 flex items-center gap-2" data-testid="driver-eta-chip">
+              <Car size={15} weight="regular" className="text-gray-400" />
+              <span className="text-[11px] font-semibold text-gray-500">Recherche de chauffeurs proches…</span>
+            </div>
+          )}
         </div>
         <div className="bg-white rounded-t-3xl -mt-5 z-10 flex flex-col flex-1 min-h-0 shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" data-testid="map-bottom-sheet">
           <div className="pt-2.5 pb-1 flex justify-center shrink-0"><div className="w-10 h-1.5 rounded-full bg-gray-300" /></div>
           <div className="px-4 pb-2 overflow-y-auto flex-1">
             <h2 className="text-base font-black text-[#0B1426] mb-3">{isBidding ? 'Proposez votre prix' : 'Choisir une gamme ou faites glisser vers le haut'}</h2>
+            {showComparison && selected && estimates[selected]?.duration != null && (
+              <div className="flex items-center gap-1.5 -mt-2 mb-3 text-[11px] text-gray-500" data-testid="arrival-estimate">
+                <Clock size={13} weight="bold" className="text-[#FF5000]" />
+                <span>Trajet ~{estimates[selected].duration} min
+                  {` · arrivée vers ${new Date(Date.now() + ((nearby.etaMins || 0) + estimates[selected].duration) * 60000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
+                </span>
+              </div>
+            )}
             {(isPool || isIntercity) && <ModeSpecificPanel {...modePanelProps} />}
             {showComparison && renderVehicleList()}
             {isBidding && renderBiddingGrid()}

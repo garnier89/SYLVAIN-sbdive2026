@@ -8,10 +8,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { GMAPS_LOADER_OPTIONS } from '../lib/googleMaps';
 
-const RideRouteMap = ({ pickup, dropoff }) => {
+const RideRouteMap = ({ pickup, dropoff, drivers = [] }) => {
   const mapRef = useRef(null);
   const mapObj = useRef(null);
   const overlays = useRef([]);
+  const driverMarkers = useRef([]);
   const { isLoaded } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
   const [ready, setReady] = useState(false);
 
@@ -72,6 +73,24 @@ const RideRouteMap = ({ pickup, dropoff }) => {
     }
     return undefined;
   }, [isLoaded, pickup, dropoff]);
+
+  // Nearby driver cars (refreshed independently of the route).
+  useEffect(() => {
+    if (!isLoaded || !mapObj.current) return;
+    const maps = window.google.maps;
+    driverMarkers.current.forEach((m) => m.setMap(null));
+    driverMarkers.current = [];
+    const carIcon = {
+      url: 'data:image/svg+xml;utf8,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="%23FFFFFF" stroke="%230B1426" stroke-width="1.5"/><path fill="%230B1426" d="M6.5 13.2l.8-2.6c.15-.5.6-.85 1.13-.85h7.14c.52 0 .98.35 1.13.85l.8 2.6v3.05c0 .3-.24.55-.55.55h-.7a.55.55 0 0 1-.55-.55v-.55H8.3v.55c0 .3-.24.55-.55.55h-.7a.55.55 0 0 1-.55-.55V13.2zm1.8-.4h7.4l-.5-1.6H8.8l-.5 1.6zm.55 2.05a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4zm6.3 0a.7.7 0 1 0 0-1.4.7.7 0 0 0 0 1.4z"/></svg>'),
+      scaledSize: new maps.Size(30, 30),
+      anchor: new maps.Point(15, 15),
+    };
+    (drivers || []).forEach((d) => {
+      if (d?.lat == null || d?.lng == null) return;
+      driverMarkers.current.push(new maps.Marker({ position: { lat: d.lat, lng: d.lng }, map: mapObj.current, icon: carIcon, zIndex: 5 }));
+    });
+  }, [isLoaded, drivers, ready]);
 
   return (
     <>

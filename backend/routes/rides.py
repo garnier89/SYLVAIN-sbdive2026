@@ -701,6 +701,38 @@ async def nearby_drivers_count(ride_id: str, request: Request):
     return {"count": count, "radius_km": NEARBY_DRIVERS_RADIUS_KM, "positions": positions}
 
 
+@router.get("/nearby/drivers")
+async def nearby_online_drivers(lat: float, lng: float, request: Request):
+    """Pre-booking version: approved + online drivers near an arbitrary pickup
+    point (lat/lng). Returns the count, up to 12 positions, and the nearest
+    driver's ETA (minutes) so the booking map can reassure the rider before they
+    order ('Chauffeur à ~X min')."""
+    await get_current_user(request)
+    cursor = db.drivers.find(
+        {"status": "approved", "is_online": True},
+        {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1},
+    )
+    count = 0
+    positions = []
+    nearest_km = None
+    async for d in cursor:
+        loc = manager.get_driver_location(d["user_id"]) or {}
+        d_lat = loc.get("lat", d.get("current_lat"))
+        d_lng = loc.get("lng", d.get("current_lng"))
+        if d_lat is None or d_lng is None:
+            continue
+        dist = calculate_distance(lat, lng, d_lat, d_lng)
+        if dist <= NEARBY_DRIVERS_RADIUS_KM:
+            count += 1
+            if nearest_km is None or dist < nearest_km:
+                nearest_km = dist
+            if len(positions) < 12:
+                positions.append({"lat": d_lat, "lng": d_lng})
+    # ETA ≈ 2.5 min/km (~24 km/h urban approach), min 1 min when drivers exist.
+    eta_mins = max(1, round(nearest_km * 2.5)) if nearest_km is not None else None
+    return {"count": count, "radius_km": NEARBY_DRIVERS_RADIUS_KM, "positions": positions, "eta_mins": eta_mins, "nearest_km": round(nearest_km, 2) if nearest_km is not None else None}
+
+
 VALID_PAYMENT_METHODS = {"cash", "card", "wallet", "sbpaygo"}
 
 

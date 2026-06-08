@@ -1,4 +1,12 @@
-## NEW - 2026-06-09 (82) - Commande taxi en 2 ÉTAPES : carte + volet inférieur (Uber/V3Cube) (DONE, testé)
+## NEW - 2026-06-09 (83) - ETA chauffeur + estimation d'arrivée sur la carte (étape 2) (DONE, testé)
+- **Demande user** : afficher l'**ETA chauffeur** (« ~3 min ») et l'**estimation d'arrivée** sur la carte de l'étape 2 (rassurance avant commande).
+- **Backend** : nouvel endpoint `GET /api/rides/nearby/drivers?lat&lng` (auth) → chauffeurs approuvés+en ligne dans 12 km : `count`, `positions[≤12]`, `nearest_km`, `eta_mins` (≈2,5 min/km). Vérifié curl Paris : 15 chauffeurs, eta 1 min. (Route en 2 segments pour éviter collision avec `/{ride_id}`.)
+- **Frontend** : `rideAPI.nearbyDrivers`. `RideRouteMap` accepte `drivers=[]` → **marqueurs voiture** (icône SVG). `RideChoosePage` : état `nearby` + polling 15 s sur l'étape carte ; **chip ETA** sur la carte (`driver-eta-chip` : « Chauffeur à ~X min » / « Recherche de chauffeurs proches… » si aucun) ; **estimation d'arrivée** sous le titre du volet (`arrival-estimate` : « Trajet ~X min · arrivée vers HH:MM » = now + ETA chauffeur + durée trajet du véhicule sélectionné).
+- **Vérifié (screenshot)** : chip ETA + arrival-estimate rendus ; pytest pool 6/6, webpack compile. NB preview : géoloc IP (Iowa) sans chauffeur → chip « Recherche… » (normal ; avec vraie position Paris → « ~1 min »).
+- ⚠️ App **déployée en prod** (gojek-mvp-1.emergent.host) — ces changements nécessitent un nouveau Deploy pour la prod.
+
+
+
 - **Idée user (validée « oui oui a » = tous les modes)** : dès que la **destination** est saisie → bascule auto sur un **2ᵉ écran carte plein écran + volet inférieur** (gammes + prix + paiement + « Demander »), façon Uber.
 - **Nouveau composant `components/RideRouteMap.js`** : carte Google (loader app-wide), marqueurs départ (vert)/destination (rouge), **itinéraire tracé** via DirectionsService (fallback ligne droite), fitBounds.
 - **`RideChoosePage.js` restructuré en 2 vues** : (1) **formulaire** (adresses + panneaux mode + « Continuer · Voir les tarifs ») ; (2) **carte** (`map-bottom-sheet`) avec carte en hauteur fixe 42 % + volet scrollable (panneau Pool/Intercity si applicable, liste gammes/grille enchères, paiement déroulant vers le haut, CTA). Helpers `renderVehicleList/renderBiddingGrid/renderPayment/renderCta`. `mapStep = needsDropoff && bothSet && showMap`.
