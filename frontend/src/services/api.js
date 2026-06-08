@@ -355,6 +355,8 @@ export const configAPI = {
 export const serviceTrendsAPI = {
   track: (payload) => api.post('/service-trends/track', payload),
   trending: (zone, limit = 8) => api.get('/service-trends/trending', { params: { zone, limit } }),
+  adminGetPinned: () => api.get('/service-trends/admin/pinned'),
+  adminSetPinned: (items) => api.put('/service-trends/admin/pinned', { items }),
 };
 
 // Zones — admin-managed geographic zones + programmed (scheduled) shortcuts.

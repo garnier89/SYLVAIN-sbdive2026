@@ -189,6 +189,7 @@ const sidebarConfig = [
         { label: 'Bannières promo', path: '/admin/promo-banners' },
         { label: 'Commerces proches', path: '/admin/nearby-businesses' },
         { label: 'Zones & raccourcis', path: '/admin/zones' },
+        { label: 'Tendances épinglées', path: '/admin/trending-pinned' },
       ]},
       { icon: Slideshow, label: "Écrans d'intro", key: 'intro', children: [
         { label: 'Slides', path: '/admin/intro' },
