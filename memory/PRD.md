@@ -1,3 +1,17 @@
+## NEW - 2026-06-09 (110) - Transports publics : historique des trajets + favoris Maison/Travail + partage (DONE, testé 100%)
+- **Demande user** : historique des trajets transport public, favoris « Maison/Travail », et partage d'itinéraire (fidélisation + conversions VTC récurrentes).
+- **Backend** (`routes/transport.py`, collection `transport_journeys`, 1 doc/user, auth `get_current_user`) : `GET /api/transport/journeys` (liste, cap 10) · `POST /api/transport/journeys` (sauvegarde avec dédup par coords arrondies, plus récent en tête) · `DELETE /api/transport/journeys/{id}`.
+- **Frontend** (`TransportPublicPage.js`) : 
+  - **Favoris Maison/Travail** : réutilise les lieux enregistrés existants (`placesAPI.getSaved`) → chips `fav-home-btn`/`fav-work-btn` qui remplissent la destination et lancent le calcul.
+  - **Historique** : auto-sauvegarde à chaque itinéraire trouvé ; section « Trajets récents » (`journey-history`, items `recent-*`) avec rejouer (`recent-replay-*`) et supprimer (`recent-delete-*`) ; persistant après reload.
+  - **Partage** : bouton `journey-share-btn` (Web Share API + fallback presse-papiers) — résumé Bus/VTC + **deep-link** `?from_lat&from_lng&from_label&to_lat&to_lng&to_label`.
+  - **Deep-link** : à l'ouverture, pré-remplit départ/destination et affiche directement l'itinéraire (carte + étapes).
+- **Vérifié** : pytest `tests/test_iter174_transport.py` **12/12** (history save/dedup/delete + guard 401) + **testing_agent iteration_178 — frontend 100%** (favoris, auto-save/replay/delete/persistance, partage sans erreur, deep-link). Webpack compile.
+- ⚠️ Itinéraire SIMULÉ. PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-09 (109) - Transports publics : carte de l'itinéraire bus (polyligne + marqueurs) (DONE, testé 100%)
 - **Demande user** : tracer l'itinéraire bus sur une carte (polyligne des lignes dans leur couleur + marqueurs départ/destination/arrêts/correspondances) à côté du comparatif Bus vs VTC.
 - **Backend** (`routes/transport.py`) : les `legs` de `/api/transport/journey` incluent désormais les **coordonnées** — segments `ride` avec `via[]` (liste ordonnée {name,lat,lng} des arrêts traversés) + `from_lat/lng`/`to_lat/lng` ; segments `walk` avec `from_lat/lng`/`to_lat/lng` ; + `origin`/`dest` au niveau racine.
