@@ -1,3 +1,13 @@
+## NEW - 2026-06-08 (69) - Bouton « Aperçu de l'accueil » (preview admin) (DONE)
+- **Demande user** : un bouton dans l'admin pour visualiser l'accueil client (ordre/visibilité) avant de déployer.
+- **Contrainte** : `/home` est réservé au rôle `user` → un onglet/iframe redirigerait l'admin. Solution : **aperçu fidèle intégré** (modale cadre téléphone) rendu depuis la config live.
+- **`AdminHomeCategories.js`** : bouton orange `home-preview-btn` → `HomePreviewModal` (`home-preview-modal`). Rend les sections visibles dans l'ordre `secLayout`, chaque `preview-section-<key>`. Sections « tuiles » (`TILE_SECTIONS` = taxi + delivery/ondemand/beauty/pet/carcare/towing/nearby) → grille de tuiles visibles ; Taxi depuis `service_categories` (`visible_home`) + « Tous les Taxis » ; autres depuis `home_categories` CMS. Blocs non-tuiles (promo, marketplace, medical…) → placeholder « Bloc dynamique ». Fermeture par X (`home-preview-close`) ou backdrop. Récupère les catégories taxi via `adminAPI.listServiceCategories()`.
+- **Vérifié** : **testing_agent iteration_165.json — 100% (8/8)** : bouton visible, modale ouvre 19 sections dans l'ordre, taxi + Tous les Taxis, livraison tuiles visibles, placeholders OK, fermeture X+backdrop, masquage section retiré de l'aperçu + restauré. Aucun overlay d'erreur. Webpack compile (1 warning), lint = faux-positif `set-state-in-effect` pré-existant.
+- **Correctif data** : `service_categories.visible_home` avait dérivé à 16 lors des tests → **remis aux 7 canoniques** (standard, pool, moto, electric, book_later, rental, intercity) via script MongoDB.
+- ⚠️ PREVIEW → **redéploiement requis** pour la production.
+
+
+
 ## NEW - 2026-06-08 (68) - Éditeur d'accueil COMPLET : ordre + visibilité des SECTIONS (DONE)
 - **Demande user** : réordonner les sections de l'accueil (ex. Livraison avant Beauté) et masquer une section entière — dernier morceau de l'éditeur sans-code.
 - **Backend** (`routes/home_categories.py`) : nouvelle config **`home_sections`** (collection) avec `display_order` + `visible`. `HOME_BLOCKS` (19 blocs = miroir de `SECTION_ORDER`). `seed_home_sections()` idempotent (wiré dans `core/startup.py`). `_section_layout()` backfill les nouveaux blocs en fin de liste (jamais perdus). Public `GET /home-categories` renvoie désormais **`section_order`** (clés visibles, ordonnées). Endpoints admin : `GET /home-categories/admin/sections`, `POST /admin/sections/reorder` (`{ordered_keys}`), `POST /admin/sections/{key}/toggle`. Protégés `content.manage`.
