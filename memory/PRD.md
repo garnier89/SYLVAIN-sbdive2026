@@ -1,3 +1,13 @@
+## NEW - 2026-06-09 (113) - Transports Martinique : couche TEMPS RÉEL GTFS-RT (prête à activer) (DONE, testé 100%)
+- **Demande user** : support temps réel GTFS-RT Martinique « si publié plus tard ». **Constat** : aucun flux GTFS-RT n'est publié à ce jour pour les réseaux Martinique (vérifié sur transport.data.gouv.fr — uniquement GTFS statique). → Implémentation d'une **couche RT dormante, prête à activer**.
+- **Backend** (`routes/transport.py`, lib `gtfs-realtime-bindings`) : `parse_gtfs_rt(content)` (protobuf TripUpdates → retards/suppressions/arrêts sautés), cache 30 s (`_realtime_for_feed`), `_apply_rt` (superpose retard/heure ou annule un passage). `_gtfs_lines` applique le RT quand un flux est configuré → chaque départ porte `realtime:true/false`, la ligne/l'arrêt/la réponse remontent `realtime`. **Sans URL configurée → comportement inchangé (théorique)**. Endpoint admin `PUT /api/transport/admin/gtfs/realtime` (URL RT par réseau, vide=désactivé) + statut enrichi (`realtime_active`).
+- **Frontend** : écran `/transports-autour` bascule le bandeau **« Temps réel actif (GTFS-RT) »** (vert, pastille pulsante) vs **« Temps réel indisponible — horaire théorique »** selon `realtime` ; départs en direct stylés. Admin `/admin/transport` : section **« Temps réel (GTFS-RT) — optionnel »** (badge Actif/Inactif + 3 champs URL + enregistrer).
+- **Vérifié** : pytest `tests/test_iter181_gtfs_realtime.py` **6/6** (parse delay/cancel/skip + overlay) + `tests/test_iter174_transport.py` **20/20** (config RT admin set/clear + auth) = **26/26** + **testing_agent iteration_181 — frontend 100% (3/3)**. État final : RT **inactif** (théorique) par défaut. Webpack compile.
+- ✅ **Activation future** : dès qu'un flux GTFS-RT Martinique est publié, l'admin colle l'URL TripUpdates par réseau → le temps réel s'active automatiquement, sans code.
+
+
+
+
 ## NEW - 2026-06-09 (112) - GTFS Martinique : rafraîchissement automatique + statut admin (DONE, testé 100%)
 - **Demande user** : rafraîchissement automatique hebdomadaire du GTFS (réimport quand transport.data.gouv.fr publie une nouvelle version).
 - **Backend** : `scripts/import_gtfs_martinique.py` enrichi d'une fonction `refresh(force=False)` qui **résout l'URL de chaque feed et ne réimporte que si la version (URL) a changé** ; enregistre les métadonnées (`transport_meta` : url/date/compteurs par feed, `last_import_at`, `last_check_at`). Le scheduler `ensure_gtfs_imported` (tâche asyncio au démarrage) fait l'import initial puis vérifie ~toutes les 24h (réimport seulement sur nouvelle version). Endpoints admin : `GET /api/transport/admin/gtfs/status` (versions/compteurs/dernier import) et `POST /api/transport/admin/gtfs/refresh?force=` (rafraîchissement manuel).
