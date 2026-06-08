@@ -11,8 +11,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-41.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 
 
 def _rand_suffix(n=6):

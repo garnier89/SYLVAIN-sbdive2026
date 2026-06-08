@@ -7,14 +7,10 @@ def api_url():
 
 @pytest.fixture
 def admin_credentials():
-    return {
-        "email": os.environ.get("TEST_ADMIN_EMAIL", "admin@superapp.com"),
-        "password": os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!"),
-    }
+    from _creds import ADMIN_EMAIL, ADMIN_PASSWORD
+    return {"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}
 
 @pytest.fixture
 def test_user_credentials():
-    return {
-        "email": os.environ.get("TEST_USER_EMAIL", "test2@example.com"),
-        "password": os.environ.get("TEST_USER_PASSWORD", "TestPass123!"),
-    }
+    from _creds import TEST_USER_EMAIL, TEST_USER_PASSWORD
+    return {"email": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}

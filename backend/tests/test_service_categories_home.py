@@ -13,8 +13,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-41.preview.emergentagent.com").rstrip("/")
 
-ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 
 DEFAULT_HOME_KEYS = {"standard", "pool", "moto", "electric", "book_later", "rental", "intercity"}
 EXPECTED_TOTAL = 17

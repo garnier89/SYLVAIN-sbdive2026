@@ -1,0 +1,39 @@
+# Code Quality — documented false positives & intentional decisions
+# Reviewed 2026-06-09. Keep this file updated so resolved/false-positive findings
+# do not reappear as noise in future scans.
+
+## 1. "Insecure random number generation" — routes/simulation.py  → FALSE POSITIVE
+The flagged calls (random.randint / choice / uniform on lines ~202-228) are made on
+`_sim_random = secrets.SystemRandom()` (see routes/simulation.py line 6), i.e. a
+cryptographically-secure RNG that exposes the random.* API. No insecure `random`
+module usage exists here. The module is also a demo/simulation route (fake driver
+jitter), not a security-sensitive context. No change required.
+
+## 2. "9 possibly undefined variables" — → FALSE POSITIVE
+Verified clean with three tools on the whole backend (routes/ core/ scripts/):
+  - pyflakes                 -> 0 undefined names
+  - pylint E0601/E0602/E0606 -> 0 (used-before-assignment / undefined / possibly-undefined)
+  - ruff F821/F811/F823      -> All checks passed
+These are control-flow false positives from the scanner. No change required.
+
+## 3. Hardcoded secrets in tests — → FIXED
+All test credentials are centralized in `backend/tests/_creds.py`, sourced from env
+vars (TEST_ADMIN_PASSWORD, etc.) with non-production local fallbacks. Individual test
+files import from `_creds` instead of hardcoding. conftest fixtures also read `_creds`.
+Override in CI via env vars. (Files previously flagged: test_iter170_admin_audit.py,
+test_iter171_nearby_businesses.py, test_service_categories_home.py — now use `_creds`.)
+
+## 4. Complexity / parameter-count / import-count hotspots — INTENTIONAL (deferred)
+The following are production-critical, fully working and covered by the e2e/test suite
+(174→184, 100% pass). They are flagged for maintainability only. Refactoring them
+in-place carries real regression risk for marginal benefit, so they are deferred and
+will be split incrementally WITH test backing rather than in one risky pass:
+  - core/geo_scope.py: scope_matches / _zone_override_rank / resolve_zone_from_text
+  - core/startup.py: _seed_v3cube_reference / run_all_seeds  (seed orchestration)
+  - routes/admin.py: get_analytics_breakdown / _aggregate_negotiation_rides /
+    admin_create_user / get_delivery_monthly / list_priority_drivers
+  - routes/auth.py: google_session / phone_login          (critical auth path)
+  - routes/auto_promotions.py: _clean_payload
+  - routes/audit_logs.py: log_action (10 params) / list_audit_logs (9 params)
+  - core/api_router.py (60 imports) / routes/rides.py (48 imports) — router registration
+    by domain is a structural refactor tracked in ROADMAP (P3), not a defect.

@@ -15,8 +15,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "admin@superapp.com"
-ADMIN_PASSWORD = "SuperAdmin123!"
+from _creds import ADMIN_EMAIL, ADMIN_PASSWORD  # noqa: E402
 
 REQUIRED_CATEGORIES = {
     "Café", "Bar", "Restaurant", "Salon", "Boulangerie", "Pharmacie",
