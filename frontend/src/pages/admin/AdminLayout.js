@@ -220,6 +220,7 @@ const sidebarConfig = [
       { icon: Translate, label: 'Langue', path: '/admin/language' },
       { icon: HandCoins, label: 'Dons (Donation)', path: '/admin/donations' },
       { icon: FileText, label: 'Documents', path: '/admin/documents' },
+      { icon: Shield, label: 'Vérification vendeurs (KYC)', path: '/admin/kyc' },
       { icon: Shield, label: 'ACL — Rôles & Permissions', path: '/admin/acl' },
       { icon: FileText, label: 'Audit Logs', path: '/admin/audit-logs' },
       { icon: Buildings, label: 'Organisations (multi-tenant)', path: '/admin/organizations' },

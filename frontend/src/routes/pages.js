@@ -39,6 +39,7 @@ export const AllDeliveryPage = lazyWithPreload(() => import('../pages/user/AllDe
 export const AllServicesPage = lazy(() => import('../pages/user/AllServicesPage'));
 export const CarPoolPage = lazy(() => import('../pages/user/CarPoolPage'));
 export const MarketplacePage = lazy(() => import('../pages/user/MarketplacePage'));
+export const SellGalleryPage = lazy(() => import('../pages/user/SellGalleryPage'));
 export const NearbyBusinessPage = lazy(() => import('../pages/user/NearbyBusinessPage'));
 export const BeautyServicesPage = lazy(() => import('../pages/user/BeautyServicesPage'));
 export const PetServicesPage = lazy(() => import('../pages/user/PetServicesPage'));
@@ -142,6 +143,7 @@ export const AdminGiftCards = lazy(() => import('../pages/admin/AdminGiftCards')
 export const AdminReferralSettings = lazy(() => import('../pages/admin/AdminReferralSettings'));
 export const AdminTemplates = lazy(() => import('../pages/admin/AdminTemplates'));
 export const AdminNewsletter = lazy(() => import('../pages/admin/AdminNewsletter'));
+export const AdminKyc = lazy(() => import('../pages/admin/AdminKyc'));
 export const AdminMonitoring = lazy(() => import('../pages/admin/AdminMonitoring'));
 export const AdminLiveRides = lazy(() => import('../pages/admin/AdminLiveRides'));
 export const AdminAutoDispatch = lazy(() => import('../pages/admin/AdminAutoDispatch'));

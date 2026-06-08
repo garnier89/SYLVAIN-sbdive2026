@@ -18,7 +18,7 @@ import {
   AdminFeaturedListings, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings,
   AdminKiosks, AdminACL, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
   AdminPromoBanners, AdminNews, AdminI18n, AdminGeoFence, AdminGiftCards, AdminReferralSettings,
-  AdminBanners, AdminNewsletter, AdminStores, AdminTemplates, AdminWeatherSurcharge,
+  AdminBanners, AdminNewsletter, AdminKyc, AdminStores, AdminTemplates, AdminWeatherSurcharge,
   AdminPersonalDriver, AdminAutoPromotions, AdminVouchers, AdminFaqs, AdminHelpArticles,
   AdminDonations, AdminWeeklyReports,
 } from './pages';
@@ -146,6 +146,7 @@ export function adminRoutes() {
       <Route path="news" element={<AdminNewsletter />} />
       <Route path="stores" element={<AdminStores />} />
       <Route path="newsletter" element={<AdminNewsletter />} />
+      <Route path="kyc" element={<AdminKyc />} />
       <Route path="pages" element={<AdminServiceConfig serviceKey="pages" />} />
       <Route path="app-home" element={<AdminServiceConfig serviceKey="app-home" />} />
       <Route path="intro" element={<AdminServiceConfig serviceKey="intro" />} />

@@ -14,7 +14,7 @@ import {
   House, Car, GearSix, Fingerprint, UserCircle, FileText,
   Key, ArrowsLeftRight, Buildings,
   CarSimple, Gift, MapPin, Info, ShieldCheck, Lock, Question,
-  PaperPlaneTilt, Power, Envelope, HandHeart, ChatCircleDots, Newspaper
+  PaperPlaneTilt, Power, Envelope, HandHeart, ChatCircleDots, Newspaper, Storefront
 } from '@phosphor-icons/react';
 
 /* ── reusable section header ── */
@@ -194,6 +194,7 @@ const ProfilePage = () => {
         <MenuItem icon={ArrowsLeftRight} label={t('menu.items_list')} iconBg="bg-amber-600" iconColor="text-white" onClick={() => navigate('/marketplace/general')} testId="settings-items-btn" />
         <MenuItem icon={Buildings} label={t('menu.properties_list')} iconBg="bg-purple-700" iconColor="text-white" onClick={() => navigate('/marketplace/real-estate')} testId="settings-properties-btn" />
         <MenuItem icon={CarSimple} label={t('menu.cars_list')} iconBg="bg-orange-500" iconColor="text-white" onClick={() => navigate('/marketplace/car-rental')} testId="settings-cars-btn" />
+        <MenuItem icon={Storefront} label="Gérer ma galerie / Vendre" iconBg="bg-emerald-600" iconColor="text-white" onClick={() => navigate('/ma-galerie')} testId="settings-sell-gallery-btn" />
       </MenuCard>
 
       {/* ═══════════ PARAMÈTRE DU COMPTE ═══════════ */}

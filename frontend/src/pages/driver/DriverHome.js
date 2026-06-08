@@ -524,10 +524,28 @@ const DriverHome = () => {
         open={showDemandZones}
         onClose={() => setShowDemandZones(false)}
         origin={mapCenter}
-        onNavigate={(z) => {
+        onNavigate={async (z) => {
           setMapCenter({ lat: z.lat, lng: z.lng });
           setShowDemandZones(false);
-          toast.success(`Carte centrée sur ${z.name}`);
+          try {
+            const res = await fetch(`${API}/api/phase2/driver/destination-mode`, {
+              method: 'PUT', credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ active: true, lat: z.lat, lng: z.lng, address: z.name, radius_km: 5 }),
+            });
+            if (res.ok) {
+              const d = await res.json();
+              setDestMode({
+                active: d.destination_mode_active ?? true,
+                target: d.destination_mode_target ?? { address: z.name, lat: z.lat, lng: z.lng },
+              });
+              toast.success(`Mode destination activé vers ${z.name} — vous ne recevrez que les courses dans cette direction.`);
+            } else {
+              toast.success(`Carte centrée sur ${z.name}`);
+            }
+          } catch {
+            toast.success(`Carte centrée sur ${z.name}`);
+          }
         }}
       />
 

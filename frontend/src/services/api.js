@@ -287,6 +287,7 @@ export const marketplaceAPI = {
   createListing: (data) => api.post('/marketplace/listings', data),
   getListings: (params) => api.get('/marketplace/listings', { params }),
   getListing: (id) => api.get(`/marketplace/listings/${id}`),
+  myListings: () => api.get('/marketplace/my-listings'),
   deleteListing: (id) => api.delete(`/marketplace/listings/${id}`),
 };
 
@@ -551,6 +552,14 @@ export const simulationAPI = {
   start: () => api.post('/simulation/start'),
   stop: () => api.post('/simulation/stop'),
   status: () => api.get('/simulation/status'),
+};
+
+export const kycAPI = {
+  me: () => api.get('/kyc/me'),
+  submit: (data) => api.post('/kyc/submit', data),
+  adminList: (status = '') => api.get('/kyc/admin/list', { params: status ? { status } : {} }),
+  adminApprove: (id) => api.post(`/kyc/admin/${id}/approve`),
+  adminReject: (id, reason) => api.post(`/kyc/admin/${id}/reject`, { reason }),
 };
 
 export default api;

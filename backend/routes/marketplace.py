@@ -12,6 +12,11 @@ router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 @router.post("/listings")
 async def create_listing(request: Request):
     user = await get_current_user(request)
+    # Selling gate: KYC must be approved (+ driver account active/ever-active).
+    from routes.kyc import can_user_sell
+    gate = await can_user_sell(user)
+    if not gate["can_sell"]:
+        raise HTTPException(status_code=403, detail=gate["reason"] or "Vérification d'identité requise pour vendre.")
     body = await request.json()
 
     listing = {
@@ -60,6 +65,15 @@ async def list_listings(
     listings = await db.marketplace_listings.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     total = await db.marketplace_listings.count_documents(query)
     return {"listings": listings, "total": total}
+
+
+@router.get("/my-listings")
+async def my_listings(request: Request):
+    user = await get_current_user(request)
+    listings = await db.marketplace_listings.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return {"listings": listings, "total": len(listings)}
 
 
 @router.get("/listings/{listing_id}")
