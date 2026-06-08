@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (93) - PHASE C (slice 2) : « IA zones à forte demande » réelle (DONE, testé)
+- **Demande user** : calculer les zones chaudes à partir des **vraies courses en attente** (densité sur la dernière heure) au lieu d'une heatmap statique, marché par marché.
+- **Backend** (`phase2.py` → `GET /api/phase2/demand-zones?lat=&lng=`, driver/admin) : agrège les pickups des courses de la dernière heure en cellules ~1,1 km (0.01°), compte la **demande** (pending priorisé) ET l'**offre** = chauffeurs en ligne (`is_online` + current_lat/lng) dans un rayon de 2 km. Calcule `pressure = demande/(chauffeurs+1)` et `score = demande*2 + pressure*3` → tri décroissant. Renvoie nom (depuis pickup_address), niveau (hot/medium/low), demande, chauffeurs à proximité, distance du chauffeur.
+- **Frontend** : nouveau `components/driver/home/DemandZonesModal.jsx` (bottom-sheet) — liste classée avec badges de niveau, nb de courses, chauffeurs à proximité, distance, bouton **« Y aller »** → recentre la carte (`setMapCenter`). Wiré dans `DriverHome.js` : `onAiPlanner` ouvre le modal (remplace le toast). API `rideAPI.demandZones`.
+- **Vérifié** (9 courses démo seedées puis supprimées) : Gare du Nord (3 courses, 0 chauffeur) classée **#1** devant Châtelet (5 courses mais 15 chauffeurs) — l'algo oriente vers la demande **sous-desservie**. Screenshot modal OK (3 zones, badges, « Y aller »). Lint clean (effet restructuré : setState après await pour éviter set-state-in-effect).
+- **RESTE Phase C** : « Emplacements / lieu de résidence » + activer tous les services (encore toast placeholder). « Revenir » = modal dest + radius admin (OK). « Auto-stop » (slice 1) + « IA zones » (slice 2) DONE.
+- **RESTE Phase B** : Galerie côté client + KYC (CNI + justificatif, validation admin) + gating vente chauffeur. Non commencé.
+
+
 ## NEW - 2026-06-09 (92) - PHASE C (slice 1) : « Appelez un taxi » → « Auto-stop » + gating admin (DONE, testé)
 - **Demande user** : renommer « Appelez un taxi » → « Auto-stop » ; fonctionne selon le **score d'activité** (seuil admin) ; **espèces uniquement** ; bloqué si **solde < seuil admin** (invite à recharger) ; afficher **3 voitures + liste déroulante**. Seuils configurables depuis le dashboard.
 - **Backend** :

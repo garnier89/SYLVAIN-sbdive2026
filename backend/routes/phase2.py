@@ -114,6 +114,68 @@ async def get_demand_heatmap(request: Request):
     return {"points": points, "total_rides": len(rides), "window_hours": 1}
 
 
+@router.get("/demand-zones")
+async def get_demand_zones(request: Request, lat: float = None, lng: float = None):
+    """AI demand planner: rank hot zones from real rides created in the last hour,
+    weighting live (pending) demand against nearby online-driver supply (scarcity).
+    Driver-facing. Optional lat/lng give a distance from the driver's position."""
+    user = await get_current_user(request)
+    if user.get("role") not in ("driver", "admin"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    rides = await db.rides.find(
+        {"created_at": {"$gte": since}, "pickup_lat": {"$ne": None}, "pickup_lng": {"$ne": None}},
+        {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "pickup_address": 1, "status": 1},
+    ).to_list(3000)
+
+    # Aggregate pickups into ~1.1 km cells (0.01°).
+    cells = {}
+    for r in rides:
+        clat = round(r["pickup_lat"], 2)
+        clng = round(r["pickup_lng"], 2)
+        c = cells.setdefault(f"{clat}_{clng}", {
+            "lat": clat, "lng": clng, "demand": 0, "pending": 0, "sample_address": "",
+        })
+        c["demand"] += 1
+        if r.get("status") in ("pending", "searching"):
+            c["pending"] += 1
+        if not c["sample_address"] and r.get("pickup_address"):
+            c["sample_address"] = r["pickup_address"]
+
+    # Online-driver supply (for demand/supply pressure).
+    drivers = await db.drivers.find(
+        {"is_online": True, "current_lat": {"$ne": None}, "current_lng": {"$ne": None}},
+        {"_id": 0, "current_lat": 1, "current_lng": 1},
+    ).to_list(3000)
+
+    zones = []
+    for c in cells.values():
+        nearby = sum(
+            1 for d in drivers
+            if _haversine_km(c["lat"], c["lng"], d["current_lat"], d["current_lng"]) <= 2.0
+        )
+        live = c["pending"] or c["demand"]
+        pressure = round(live / (nearby + 1), 2)
+        score = round(live * 2 + pressure * 3, 1)
+        level = "hot" if (live >= 3 or pressure >= 2) else ("medium" if live >= 1 else "low")
+        dist = round(_haversine_km(lat, lng, c["lat"], c["lng"]), 1) if (lat is not None and lng is not None) else None
+        name = (c["sample_address"] or "").split(",")[0].strip() or f"Zone {c['lat']:.2f}, {c['lng']:.2f}"
+        zones.append({
+            "lat": c["lat"], "lng": c["lng"], "name": name,
+            "demand": c["demand"], "pending": c["pending"],
+            "drivers_nearby": nearby, "pressure": pressure,
+            "score": score, "level": level, "distance_km": dist,
+        })
+
+    zones.sort(key=lambda z: (-z["score"], z["distance_km"] if z["distance_km"] is not None else 1e9))
+    return {
+        "zones": zones[:8],
+        "total_demand": len(rides),
+        "window_hours": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 # ═══════════ DESTINATION MODE ═══════════
 
 @router.put("/driver/destination-mode")

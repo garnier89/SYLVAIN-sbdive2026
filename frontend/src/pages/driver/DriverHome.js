@@ -20,6 +20,7 @@ import DriverStatsRow from '../../components/driver/home/DriverStatsRow';
 import DriverHomeMap from '../../components/driver/home/DriverHomeMap';
 import DriverFab from '../../components/driver/home/DriverFab';
 import DestinationModeModal from '../../components/driver/home/DestinationModeModal';
+import DemandZonesModal from '../../components/driver/home/DemandZonesModal';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -52,6 +53,7 @@ const DriverHome = () => {
   const { homeFeed, setHomeFeed } = useDriverHomeFeed();
   const [showScheduled, setShowScheduled] = useState(false);
   const [showTaxiHall, setShowTaxiHall] = useState(false);
+  const [showDemandZones, setShowDemandZones] = useState(false);
   const [rideMinimized, setRideMinimized] = useState(false);
   const [taxiHallElig, setTaxiHallElig] = useState({ eligible: true, require_competition: false, reason: null });
 
@@ -439,7 +441,7 @@ const DriverHome = () => {
         open={fabOpen}
         setOpen={setFabOpen}
         taxiHailEnabled={appSettings.taxi_hail_option !== false}
-        onAiPlanner={() => toast.info('Planificateur IA bientôt disponible.')}
+        onAiPlanner={() => setShowDemandZones(true)}
         onTaxiHall={openTaxiHall}
         onHeatmap={() => setShowHeatmap((v) => !v)}
         onDest={() => setShowDestModal(true)}
@@ -515,6 +517,18 @@ const DriverHome = () => {
         onClose={() => setShowTaxiHall(false)}
         origin={{ ...mapCenter, address: 'Position actuelle' }}
         onStarted={onTaxiHallStarted}
+      />
+
+      {/* AI demand planner — hot zones */}
+      <DemandZonesModal
+        open={showDemandZones}
+        onClose={() => setShowDemandZones(false)}
+        origin={mapCenter}
+        onNavigate={(z) => {
+          setMapCenter({ lat: z.lat, lng: z.lng });
+          setShowDemandZones(false);
+          toast.success(`Carte centrée sur ${z.name}`);
+        }}
       />
 
       {/* Bottom Nav */}

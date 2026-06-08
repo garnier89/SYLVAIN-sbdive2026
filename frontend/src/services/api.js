@@ -113,6 +113,7 @@ export const merchantAPI = {
 // Ride APIs
 export const rideAPI = {
   estimate: (data) => api.post('/rides/estimate', data),
+  demandZones: (lat, lng) => api.get('/phase2/demand-zones', { params: { lat, lng } }),
   nearbyDrivers: (lat, lng) => api.get('/rides/nearby/drivers', { params: { lat, lng } }),
   getBestAutoPromo: (amount, service = 'ride', pickup = '') => api.get('/auto-promotions/best', { params: { amount, service, pickup } }),
   validateVoucher: (code, amount, pickup_address = '') => api.post('/vouchers/validate', { code, amount, pickup_address }),
