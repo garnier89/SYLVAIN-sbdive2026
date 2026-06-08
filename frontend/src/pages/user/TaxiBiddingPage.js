@@ -51,12 +51,21 @@ const TaxiBiddingPage = () => {
   const [offers, setOffers] = useState([]);
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
+  const [vehTypes, setVehTypes] = useState([]);
 
   // Admin-configurable radar cars (enabled / icon / count / radius)
   useEffect(() => {
     fetch(`${API}/api/config/ride-search`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setCarsCfg(d); })
+      .catch(() => {});
+  }, []);
+
+  // Vehicle types come from the admin "Types de véhicules" config (slug, name, images)
+  useEffect(() => {
+    fetch(`${API}/api/vehicle-types`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (Array.isArray(d) && d.length) setVehTypes(d); })
       .catch(() => {});
   }, []);
   const suggestedRef = useRef(false);
@@ -306,24 +315,27 @@ const TaxiBiddingPage = () => {
             </div>
             <span className="text-xs text-[#FF5000] font-semibold flex-shrink-0 mt-1">Modifier</span>
           </button>
-          {/* Vehicle type strip */}
+          {/* Vehicle type strip — dynamic from admin "Types de véhicules" config */}
           <div className="border-t border-gray-100 px-3 py-2 flex items-center gap-2 overflow-x-auto">
-            {[
-              { id: 'sb', name: 'Standard' },
-              { id: 'confort', name: 'Confort' },
-              { id: 'luxe', name: 'Luxe' },
-            ].map(v => (
-              <button
-                key={v.id}
-                onClick={() => setVehicleType(v.id)}
-                data-testid={`vehicle-${v.id}`}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  vehicleType === v.id ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                {v.name}
-              </button>
-            ))}
+            {(vehTypes.length ? vehTypes : [{ slug: 'sb', name_fr: 'Standard' }]).map((v) => {
+              const active = vehicleType === v.slug;
+              const img = active
+                ? (v.image_selected || v.image_unselected)
+                : (v.image_unselected || v.image_selected);
+              return (
+                <button
+                  key={v.slug}
+                  onClick={() => setVehicleType(v.slug)}
+                  data-testid={`vehicle-${v.slug}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                    active ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {img && <img src={img} alt={v.name_fr || v.slug} className="w-6 h-6 object-contain" />}
+                  {v.name_fr || v.name || v.slug}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
