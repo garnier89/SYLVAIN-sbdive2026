@@ -81,6 +81,25 @@ const ALL_SERVICES = [
   // Others
   { name: 'Covoiturage', category: 'Transport', path: '/carpool', keywords: 'covoiturage partage trajet voyage' },
   { name: 'Consultation Vidéo', category: 'Services', path: '/services', keywords: 'vidéo consultation tuteur avocat astrologue' },
+
+  // Nearby & proximity
+  { name: 'Musées', category: 'À proximité', path: '/nearby', keywords: 'musée musée culture art exposition' },
+  { name: 'Attractions', category: 'À proximité', path: '/nearby', keywords: 'attractions loisirs parc touristique' },
+  { name: 'Bibliothèques', category: 'À proximité', path: '/nearby', keywords: 'bibliothèque livres lecture étude' },
+  { name: 'Vie Nocturne', category: 'À proximité', path: '/nearby', keywords: 'vie nocturne club boîte nuit soirée' },
+  { name: 'Hôtels', category: 'À proximité', path: '/nearby', keywords: 'hôtel hébergement chambre nuit séjour' },
+  { name: 'Parking', category: 'À proximité', path: '/nearby', keywords: 'parking stationnement garer voiture place' },
+  { name: 'Garage', category: 'À proximité', path: '/nearby', keywords: 'garage réparation mécanique auto' },
+
+  // Extra on-demand & care
+  { name: 'Ménage', category: 'Services', path: '/services', keywords: 'ménage nettoyage maison propre femme de ménage' },
+  { name: 'Jardinage', category: 'Services', path: '/services', keywords: 'jardinage pelouse jardin tonte plantes' },
+  { name: 'Tutorat', category: 'Services', path: '/services', keywords: 'tutorat cours soutien scolaire professeur' },
+  { name: 'Avocats', category: 'Services', path: '/services', keywords: 'avocat juridique droit conseil légal' },
+  { name: 'Astrologue', category: 'Services', path: '/services', keywords: 'astrologue voyance horoscope astrologie' },
+  { name: 'Boutique Pièces', category: 'Entretien Auto', path: '/car-care', keywords: 'boutique pièces auto accessoires shop' },
+  { name: 'Lavage Moto', category: 'Entretien Auto', path: '/car-care', keywords: 'lavage moto scooter nettoyage deux roues' },
+  { name: 'Spa & Massage', category: 'Beauté', path: '/beauty', keywords: 'spa massage détente relaxation bien-être' },
 ];
 
 const CATEGORY_COLORS = {

@@ -1,3 +1,11 @@
+## NEW - 2026-06-08 (77) - 3 nouveautés accueil : Raccourcis + Badges + Recherche (DONE, vérifié)
+- **(a) Raccourcis intelligents** : `hooks/useServiceShortcuts.js` (localStorage `sb_service_taps`, compte les taps par service). UserHome : handler unique `go(service)` (remplace tous les `onSelect={navigate}`) qui enregistre l'usage puis route. ServiceTile passe désormais l'objet `service` complet (au lieu de `service.path`). Section « Vos raccourcis » (data-testid `shortcuts-section`, `shortcut-{id}`) affichée en haut dès ≥2 services utilisés, rendue via DynamicIcon (fallback GridFour si pas d'iconName).
+- **(b) Badges Nouveau/Promo** : champ `badge` ajouté à `home_categories` (backend `home_categories.py` : allowed set + create + persistance ; public list le renvoie déjà). `displayFor` propage `badge`. `ServiceTile` affiche `<TileBadge>` (Nouveau=emerald, Promo=rose) en absolu sur la tuile. Admin : sélecteur Badge dans `AdminHomeCategories` (emptyForm + `cat-badge-select`). Les 15 items XJEKPLUS taggés `Nouveau`.
+- **(c) Recherche universelle** : existait déjà (`components/SearchOverlay.js`, ALL_SERVICES) ouverte par la barre de recherche accueil ; **enrichie** des 15 nouveaux services (Musées, Hôtels, Tutorat, Avocats, Astrologue, Boutique Pièces, Lavage Moto, Spa & Massage, etc.).
+- **Vérifié** screenshots : raccourcis (Taxi VTC/Musées/Hôtels) + badges « Nouveau » (Boutique Pièces, Lavage Moto). Lint clean (sauf 1 faux positif pré-existant `set-state-in-effect` AdminHomeCategories:116, toléré webpack). Webpack OK.
+- ⚠️ PREVIEW → redéploiement requis.
+
+
 ## NEW - 2026-06-08 (76) - Complétion XJEKPLUS des sections accueil (DONE, vérifié)
 - Script `backend/scripts/add_xjekplus_items.py` (idempotent) : ajoute 15 sous-services manquants dans `home_categories` pour matcher XJEKPLUS, labels FR, couleurs depuis la palette déjà rendue (anti-purge Tailwind), routes existantes par section.
 - Ajouts : ondemand (Ménage, Jardinage, Tutorat, Avocats, Astrologue) ; carcare (Boutique Pièces, Lavage Moto) ; nearby (Musées, Attractions, Bibliothèques, Vie Nocturne, Hôtels, Parking, Garage) ; beauty (Spa & Massage).

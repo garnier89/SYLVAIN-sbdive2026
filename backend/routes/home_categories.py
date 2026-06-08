@@ -242,6 +242,7 @@ async def admin_create(request: Request, current_user: dict = Depends(require_pe
         "target_route": body.get("target_route") or "/",
         "display_order": body.get("display_order", count),
         "visible_home": bool(body.get("visible_home", True)),
+        "badge": body.get("badge") or "",
         "status": body.get("status", "active"),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -253,7 +254,7 @@ async def admin_create(request: Request, current_user: dict = Depends(require_pe
 async def admin_update(cat_id: str, request: Request, current_user: dict = Depends(require_permission("content.manage"))):
     body = await request.json()
     allowed = {"section", "key", "label_fr", "label_en", "subtitle_fr", "icon_name",
-               "image_url", "bg_class", "icon_color_class", "target_route", "status"}
+               "image_url", "bg_class", "icon_color_class", "target_route", "status", "badge"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if "visible_home" in body:
         updates["visible_home"] = bool(body["visible_home"])

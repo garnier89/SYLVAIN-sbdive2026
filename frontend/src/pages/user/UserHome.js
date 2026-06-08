@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,6 +13,7 @@ import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
 import { homeCategoriesAPI, promoBannersAPI, configAPI } from '../../services/api';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
+import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
 import {
   TAXI_DEFAULT, TAXI_VISUAL, taxiServices, deliveryServices, videoCategories,
   onDemandServices, beautyServices, petServices, bidServices, carCareServices,
@@ -56,19 +57,25 @@ const Visual = ({ service, size = 34 }) => {
 // ── V3Cube-style service tile (CMS-driven icon / image / colors preserved) ──
 // variant 'below'  → big pastel square, icon inside, bold label below (4-col grids)
 // variant 'inside' → pastel tile with bold label on top + icon below (3-col grids)
+const BADGE_STYLES = { Nouveau: 'bg-emerald-500', Promo: 'bg-rose-500' };
+const TileBadge = ({ label }) => (label ? (
+  <span className={`absolute -top-1.5 -right-1 z-10 px-1.5 py-0.5 rounded-full text-[8.5px] font-extrabold text-white leading-none shadow ${BADGE_STYLES[label] || 'bg-[#FF5000]'}`}>{label}</span>
+) : null);
+
 const ServiceTile = ({ service, variant = 'below', onSelect }) => {
   const warm = () => prefetchPath((service.path || '').split('?')[0]);
   if (variant === 'inside') {
     return (
       <motion.button
         whileTap={{ scale: 0.94 }}
-        onClick={() => onSelect(service.path)}
+        onClick={() => onSelect(service)}
         onPointerEnter={warm}
         onFocus={warm}
         data-prefetch={(service.path || '').split('?')[0]}
         data-testid={`service-${service.id}-btn`}
-        className={`rounded-2xl ${service.bg} px-2 py-3 flex flex-col items-center justify-center gap-2.5 min-h-[112px] border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}
+        className={`relative rounded-2xl ${service.bg} px-2 py-3 flex flex-col items-center justify-center gap-2.5 min-h-[112px] border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}
       >
+        <TileBadge label={service.badge} />
         <span className={`text-[12px] font-bold text-[#1F2430] text-center leading-[1.15] whitespace-pre-line ${HEAD}`}>{service.name}</span>
         <Visual service={service} size={36} />
       </motion.button>
@@ -77,14 +84,15 @@ const ServiceTile = ({ service, variant = 'below', onSelect }) => {
   return (
     <motion.button
       whileTap={{ scale: 0.92 }}
-      onClick={() => onSelect(service.path)}
+      onClick={() => onSelect(service)}
       onPointerEnter={warm}
       onFocus={warm}
       data-prefetch={(service.path || '').split('?')[0]}
       data-testid={`service-${service.id}-btn`}
       className="flex flex-col items-center group"
     >
-      <div className={`w-full aspect-square rounded-2xl ${service.bg} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)] transition-transform group-hover:-translate-y-0.5`}>
+      <div className={`relative w-full aspect-square rounded-2xl ${service.bg} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)] transition-transform group-hover:-translate-y-0.5`}>
+        <TileBadge label={service.badge} />
         <Visual service={service} size={34} />
       </div>
       <span className={`text-[11.5px] font-bold text-[#1F2430] text-center leading-[1.15] mt-2 whitespace-pre-line ${HEAD}`}>{service.name}</span>
@@ -104,6 +112,11 @@ const UserHome = () => {
   const { user } = useAuth();
   const { t } = useLocale();
   const navigate = useNavigate();
+  const { shortcuts, recordTap } = useServiceShortcuts();
+  // Single entry point for service-tile taps: remembers usage (for shortcuts) then routes.
+  const go = useCallback((service) => {
+    if (service && service.path) { recordTap(service); navigate(service.path); }
+  }, [recordTap, navigate]);
   const [showSearch, setShowSearch] = useState(false);
   const [showDeliverySearch, setShowDeliverySearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -171,7 +184,7 @@ const UserHome = () => {
     if (!cms.length) return sectionFallback[key] || [];
     const visible = cms.filter((i) => i.visible_home).map((i) => ({
       id: i.id, name: i.label_fr, iconName: i.icon_name, imageUrl: i.image_url,
-      bg: i.bg_class, iconColor: i.icon_color_class, path: i.target_route,
+      bg: i.bg_class, iconColor: i.icon_color_class, path: i.target_route, badge: i.badge || '',
     }));
     if (cms.some((i) => !i.visible_home)) {
       visible.push({ id: `${key}-more`, name: 'Plus de\nServices', iconName: 'GridFour', bg: 'bg-slate-100', iconColor: 'text-gray-600', path: sectionAllRoute[key] });
@@ -213,7 +226,7 @@ const UserHome = () => {
       <section key="taxi" className="px-4 mt-6">
         <SectionHeader title="Services Taxi" />
         <div className="grid grid-cols-4 gap-3">
-          {(taxiTiles || displayFor('taxi')).map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
+          {(taxiTiles || displayFor('taxi')).map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
@@ -263,7 +276,7 @@ const UserHome = () => {
           <span className={`text-sm text-[#9A6A4F] ${BODY}`}>Que voulez-vous vous faire livrer ?</span>
         </button>
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('delivery').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
+          {displayFor('delivery').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
@@ -308,7 +321,7 @@ const UserHome = () => {
       <section key="beauty" className="px-4 mt-6">
         <SectionHeader title="Services Beauté" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('beauty').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
+          {displayFor('beauty').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
@@ -352,7 +365,7 @@ const UserHome = () => {
       <section key="ondemand" className="px-4 mt-6">
         <SectionHeader title="Services à la demande" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('ondemand').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
+          {displayFor('ondemand').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
@@ -379,7 +392,7 @@ const UserHome = () => {
       <section key="carcare" className="px-4 mt-6">
         <SectionHeader title="Entretien Auto" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('carcare').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
+          {displayFor('carcare').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
@@ -387,7 +400,7 @@ const UserHome = () => {
       <section key="towing" className="px-4 mt-6">
         <SectionHeader title="Dépannage & Remorquage" sub="Assistance routière 24/7 — pneu crevé, démarrage, panne sèche et plus." />
         <div className="grid grid-cols-3 gap-3" data-testid="towing-grid">
-          {displayFor('towing').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={navigate} />)}
+          {displayFor('towing').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={go} />)}
         </div>
       </section>
     ),
@@ -433,7 +446,7 @@ const UserHome = () => {
       <section key="pet" className="px-4 mt-6">
         <SectionHeader title="Services Animaux" />
         <div className="grid grid-cols-3 gap-3">
-          {displayFor('pet').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={navigate} />)}
+          {displayFor('pet').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={go} />)}
         </div>
       </section>
     ),
@@ -491,7 +504,7 @@ const UserHome = () => {
       <section key="nearby" className="px-4 mt-6 mb-4">
         <SectionHeader title="Commerces Proches" />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('nearby').map((s) => <ServiceTile key={s.id} service={s} onSelect={navigate} />)}
+          {displayFor('nearby').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
@@ -553,6 +566,21 @@ const UserHome = () => {
       <DebtBanner />
 
       <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-1">
+        {shortcuts.length >= 2 && (
+          <section className="px-4 mt-5" data-testid="shortcuts-section">
+            <SectionHeader title="Vos raccourcis" />
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+              {shortcuts.map((s) => (
+                <button key={s.id} onClick={() => go(s)} data-testid={`shortcut-${s.id}`} className="flex flex-col items-center shrink-0 w-[64px]">
+                  <div className={`w-14 h-14 rounded-2xl ${s.bg || 'bg-slate-100'} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}>
+                    <DynamicIcon name={s.iconName} imageUrl={s.imageUrl} size={28} className={s.iconColor} />
+                  </div>
+                  <span className={`text-[10.5px] font-bold text-[#1F2430] text-center leading-tight mt-1.5 whitespace-pre-line line-clamp-2 ${HEAD}`}>{s.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {SECTION_ORDER.map((key) => blocks[key])}
       </motion.main>
 

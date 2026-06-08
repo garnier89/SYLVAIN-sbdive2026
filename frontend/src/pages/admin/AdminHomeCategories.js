@@ -18,7 +18,7 @@ const COLOR_OPTIONS = ['text-amber-500', 'text-teal-500', 'text-blue-500', 'text
 const emptyForm = {
   section: 'delivery', label_fr: '', label_en: '', subtitle_fr: '', icon_name: 'GridFour',
   image_url: null, bg_class: 'bg-gray-50', icon_color_class: 'text-gray-600',
-  target_route: '/food', visible_home: true, status: 'active',
+  target_route: '/food', visible_home: true, status: 'active', badge: '',
 };
 
 const isImg = (s) => typeof s === 'string' && (s.startsWith('http') || s.startsWith('data:'));
@@ -355,6 +355,17 @@ export default function AdminHomeCategories() {
                   {COLOR_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+            </div>
+
+            {/* Badge (Nouveau / Promo) */}
+            <div className="mt-4">
+              <label className="text-sm font-medium">Badge</label>
+              <select value={form.badge || ''} onChange={(e) => setForm({ ...form, badge: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" data-testid="cat-badge-select">
+                <option value="">Aucun</option>
+                <option value="Nouveau">Nouveau</option>
+                <option value="Promo">Promo</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Affiche une pastille « Nouveau » ou « Promo » sur la tuile du service.</p>
             </div>
 
             {/* Preview + visibility */}
