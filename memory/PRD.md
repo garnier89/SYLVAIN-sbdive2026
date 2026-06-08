@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (89) - Audit fonctionnel modules admin (Codes promo, ServiceConfig, CMS) (DONE, testé 100%)
+- **Demande user** : audit fonctionnel complet des modules admin existants via testing_agent.
+- **Bug réel trouvé & corrigé** : `AdminPromocodes.js` — le tableau lisait `c.discount_percent/c.discount/c.max_uses/c.current_uses` (champs inexistants) → tout code créé affichait « 0% ». Corrigé pour lire les vrais champs backend `discount_value/discount_type/usage_limit/used` (coupons.py). Discount = `${value}%` ou `${value} €` selon le type.
+- **Bug cosmétique corrigé** : `AdminLoginPage.js` warning React « two children with the same key » — `bottomLinks` avait 2 entrées avec `path:'/login'` → `key={link.path}` dupliqué. Passé à `key={link.label}` (unique).
+- **testing_agent iteration_170 — 100%** : backend 13/13 (nouveau `tests/test_iter170_admin_audit.py`) + frontend 7/7 modules. Confirmé : Promocodes (création+persistance+affichage « 15% » correct), ServiceConfig pool GET/PUT persistant après reload (valeur 92 conservée), taxi_booking charge ses champs (textarea WhatsApp), CMS home-categories/promo-banners/actualites chargent des données réelles, Newsletter live (KPIs+campagnes, statut « recorded » sans clé Resend = comportement attendu).
+- **Conclusion** : aucun module admin n'est un placeholder cassé. Tous live et fonctionnels.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-09 (88) - Newsletter admin BRANCHÉE au backend (fin du mock) (DONE, testé)
 - **Constat reprise (fork)** : le handoff était périmé. Audit réel : modules admin Codes promo/Newsletter/Bannières/Auto-promos/ServiceConfig existaient déjà ; menu profil CLIENT entièrement câblé (aucun `soon()`) ; bug auto-passage Pool/Intercity/Enchères DÉJÀ corrigé (effet `useEffect([needsDropoff,bothSet])` + `autoAdvancedRef` présent dans RideChoosePage). **Seul vrai mock restant trouvé = `AdminNewsletter.js`** (abonnés hardcodés + envoi `setTimeout` factice).
 - **Backend (nouveau `routes/newsletter.py`, monté dans `core/api_router.py`)** : collections `newsletter_subscribers` + `newsletter_campaigns`. Endpoints : public `POST /api/newsletter/subscribe` ; admin (perm `users.newsletter.send`) `GET /admin/subscribers`, `DELETE /admin/subscribers/{id}`, `GET /admin/campaigns`, `POST /admin/send`. L'envoi lit les abonnés actifs, tente Resend si `RESEND_API_KEY` présent (sinon statut `recorded`), persiste la campagne (statut sent/recorded/failed). Seed idempotent de 4 abonnés démo (`seed_newsletter` wiré dans `core/startup.py`).
