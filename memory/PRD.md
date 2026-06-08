@@ -1,3 +1,19 @@
+## NEW - 2026-06-09 (100) - Tendances & Raccourcis PAR ZONE (zones admin + raccourcis programmés/planifiés) (DONE, testé 100%)
+- **Demande user (P0)** : « Programmer les tendances et les raccourcis par zone ». Choix : (1) programmer = curation + planification horaire ; (2) zone = liste admin (nom + pays/région/ville + coordonnées/rayon + alias texte) ; (3) raccourcis = zone d'abord puis perso ; (4) tendances restent **automatiques** (alignées sur la zone résolue).
+- **Backend** (NOUVEAU `routes/zones.py`, monté + `seed_zones` dans `run_all_seeds`) : collections `zones` + `zone_shortcuts`.
+  - `resolve_zone()` : priorité **géo** (centre lat/lng + rayon, haversine) → sinon **hiérarchie/alias texte** (ville/région/pays/alias présent dans l'adresse) → sinon `null`.
+  - `_entry_active()` : un raccourci programmé est filtré par `schedule` {enabled, days(0=Dim..6=Sam JS), start_time/end_time (gère le créneau nocturne), start_date/end_date}.
+  - Public `GET /api/zones/resolve?lat=&lng=&label=&dow=&mins=&date=` → `{zone, trend_zone, shortcuts(actifs maintenant)}`. Admin (perm `content.manage`) : `GET /admin/list`, `POST/PUT/DELETE /admin/{id}`, `GET/PUT /admin/{id}/shortcuts`.
+  - Seed idempotent : 3 zones (Pointe-à-Pitre, Fort-de-France, Dakar) ; ex. raccourci « Bars » planifié Jeu/Ven/Sam 18:00-23:59 à PAP.
+- **Frontend** :
+  - `AdminZones.js` (route `/admin/zones`, sidebar CONTENU (CMS) → Écran accueil app → « Zones & raccourcis ») : tableau zones + modale CRUD (nom, pays/région/ville, lat/lng, rayon, alias, actif) + **modale « Raccourcis »** (picker de services depuis home_categories CMS + modes taxi, réordonnancement, suppression, **planification** jours/heures/dates par entrée).
+  - `zonesAPI` dans `services/api.js` ; `getBrowserZoneContext()` (label + lat/lng) dans `lib/browserZone.js`.
+  - `UserHome.js` : résout la zone (géo+heure locale), `mergedShortcuts` = **raccourcis programmés de la zone D'ABORD** puis raccourcis perso (dédup), section « Vos raccourcis ». Tendances : utilisent `trend_zone` renvoyé (restent organiques).
+- **Vérifié** : pytest `tests/test_zones.py` 11/11 + **testing_agent iteration_172 — 100%** (14/14 API : auth 401, CRUD zone, shortcuts GET/PUT, resolve géo/texte/no-match, planification Ven inclut Bars / Lun exclut ; frontend admin : création zone, programmation + planification Vendredi 18:00-23:59 persistée, édition, suppression). Webpack compile.
+- ⚠️ PREVIEW → **redéploiement requis** pour la prod `gojek-mvp-1.emergent.host`.
+
+
+
 ## NEW - 2026-06-09 (99) - Messagerie Marketplace : polling 4s → WebSocket temps réel (DONE, testé e2e)
 - **Demande user (P1)** : migrer la messagerie acheteur↔vendeur du polling HTTP 4s vers de vrais WebSockets.
 - **Backend** (`marketplace.py`) : `send_message` pousse désormais le message en **temps réel** via `manager.send_personal_message` aux **2 participants** (payload `{type:"marketplace_message", thread_id, listing_title, message}`) — le frontend dédoublonne par `id`. Nouvel endpoint léger **`POST /threads/{id}/read`** (accusé de lecture événementiel). `create_notification` continue d'émettre son event notif (sans champ `message`, ignoré par le guard frontend).
