@@ -1,3 +1,11 @@
+## NEW - 2026-06-09 (95) - Badge « Vendeur vérifié » sur le Marketplace (DONE, testé)
+- **Demande user** : afficher un badge « Vendeur vérifié ✓ » sur les annonces dont le vendeur a passé le KYC (confiance acheteur / conversion).
+- **Backend** (`marketplace.py` create_listing) : ajoute `seller_verified: True` (la création est déjà gated par KYC approuvé), `seller_name`, et `image = images[0]` (compat affichage MarketplacePage qui lit `l.image`).
+- **Frontend** (`MarketplacePage.js`) : badge vert « ✓ Vérifié » (en haut à droite de la carte, `data-testid=verified-seller-{id}`) quand `l.seller_verified`. Icône `CheckCircle` importée.
+- **Vérifié** : curl — nouvelle annonce `seller_verified=true`, `seller_name='Jean Test'`, `image` set ; endpoint public `/api/phase2/catalogs/marketplace_listings` expose le flag (« Canapé cuir » vérifié, 1/9). Lint clean (JS+PY), webpack compile.
+- **Note** : annonces démo créées par clienttest@demo.sb (« Vélo de ville », « Canapé cuir ») laissées en place pour démontrer le badge.
+
+
 ## NEW - 2026-06-09 (94) - PHASE B : Galerie/vente client + KYC + gating Marketplace, & « Y aller » → mode destination (DONE, testé)
 - **« Y aller » (amélioration confirmée)** : dans `DriverHome.js`, le bouton « Y aller » du planificateur IA active désormais le **mode destination** réel vers la zone (PUT `/api/phase2/driver/destination-mode`, radius_km=5) + recentre la carte → le chauffeur ne reçoit que les courses dans cette direction. Toast de confirmation.
 - **Phase B — Vérification d'identité (KYC) + vente** :

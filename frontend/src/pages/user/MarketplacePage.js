@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -83,6 +83,11 @@ const MarketplacePage = () => {
                 {l.is_featured && (
                   <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow" data-testid={`sponsored-${l.id}`}>
                     ★ Sponsorisé
+                  </span>
+                )}
+                {l.seller_verified && (
+                  <span className="absolute top-2 right-2 z-10 inline-flex items-center gap-0.5 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow" data-testid={`verified-seller-${l.id}`} title="Vendeur vérifié">
+                    <CheckCircle size={10} weight="fill" /> Vérifié
                   </span>
                 )}
                 {l.image && (

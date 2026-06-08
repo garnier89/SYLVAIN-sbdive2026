@@ -19,9 +19,12 @@ async def create_listing(request: Request):
         raise HTTPException(status_code=403, detail=gate["reason"] or "Vérification d'identité requise pour vendre.")
     body = await request.json()
 
+    images = body.get("images", [])
     listing = {
         "id": f"listing_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
+        "seller_name": user.get("name", ""),
+        "seller_verified": True,  # creation is gated by approved KYC
         "type": body.get("type", "items"),  # real-estate, cars, items
         "title": body["title"],
         "description": body.get("description", ""),
@@ -29,7 +32,8 @@ async def create_listing(request: Request):
         "currency": body.get("currency", "EUR"),
         "category": body.get("category", ""),
         "location": body.get("location", ""),
-        "images": body.get("images", []),
+        "images": images,
+        "image": images[0] if images else "",
         "listing_type": body.get("listing_type", "sell"),  # sell, rent
         "is_featured": False,
         "status": "active",
