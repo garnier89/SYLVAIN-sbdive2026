@@ -13,9 +13,9 @@ const BG_OPTIONS = ['bg-amber-50', 'bg-teal-50', 'bg-blue-50', 'bg-orange-50', '
 const COLOR_OPTIONS = ['text-amber-500', 'text-teal-500', 'text-blue-500', 'text-orange-500', 'text-pink-500', 'text-green-600', 'text-cyan-600', 'text-rose-500', 'text-purple-500', 'text-indigo-600', 'text-emerald-600', 'text-sky-500', 'text-lime-600', 'text-slate-600', 'text-gray-600', 'text-red-600'];
 
 const emptyForm = {
-  section: 'taxi', label_fr: '', label_en: '', subtitle_fr: '', icon_name: 'GridFour',
+  section: 'delivery', label_fr: '', label_en: '', subtitle_fr: '', icon_name: 'GridFour',
   image_url: null, bg_class: 'bg-gray-50', icon_color_class: 'text-gray-600',
-  target_route: '/taxi?mode=standard', visible_home: true, status: 'active',
+  target_route: '/food', visible_home: true, status: 'active',
 };
 
 export default function AdminHomeCategories() {
@@ -37,7 +37,7 @@ export default function AdminHomeCategories() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const openCreate = (section) => { setEditing(null); setForm({ ...emptyForm, section: section || 'taxi' }); setShowForm(true); };
+  const openCreate = (section) => { setEditing(null); setForm({ ...emptyForm, section: section || 'delivery' }); setShowForm(true); };
   const openEdit = (it) => { setEditing(it); setForm({ ...emptyForm, ...it }); setShowForm(true); };
 
   const save = async () => {
@@ -83,18 +83,26 @@ export default function AdminHomeCategories() {
     reader.readAsDataURL(file);
   };
 
-  const grouped = sections.map((s) => ({ ...s, list: items.filter((i) => i.section === s.key).sort((a, b) => a.display_order - b.display_order) }));
+  // Taxi tiles are now driven by "Catégories de service (Taxi)" (service_categories),
+  // not this CMS — exclude the stale taxi section to avoid confusion.
+  const managedSections = sections.filter((s) => s.key !== 'taxi');
+  const grouped = managedSections.map((s) => ({ ...s, list: items.filter((i) => i.section === s.key).sort((a, b) => a.display_order - b.display_order) }));
 
   return (
     <div className="p-6" data-testid="admin-home-categories-page">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Catégories de l'accueil</h1>
-          <p className="text-sm text-gray-500 mt-1">Configurez l'écran d'accueil : icônes, noms, ordre, visibilité. Les catégories masquées vont dans « Plus de services ».</p>
+          <h1 className="text-2xl font-bold">Catégories de l&apos;accueil</h1>
+          <p className="text-sm text-gray-500 mt-1">Configurez l&apos;écran d&apos;accueil : icônes, noms, ordre, visibilité. Les catégories masquées vont dans « Plus de services ».</p>
         </div>
-        <button onClick={() => openCreate('taxi')} className="bg-[#0B1426] text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2" data-testid="add-category-btn">
+        <button onClick={() => openCreate('delivery')} className="bg-[#0B1426] text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2" data-testid="add-category-btn">
           <Plus size={18} weight="bold" /> Nouvelle catégorie
         </button>
+      </div>
+
+      <div className="mb-6 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm text-[#0B1426]" data-testid="taxi-managed-elsewhere-note">
+        <span className="text-[#FF5000] font-bold">ℹ︎</span>
+        <span>Les tuiles <b>Taxi</b> de l&apos;accueil se gèrent dans <b>« Catégories de service (Taxi) »</b> (toggle « Accueil »). Cette page contrôle toutes les <b>autres</b> sections (Livraison, Beauté, Auto, Animaux, Remorquage, À proximité…).</span>
       </div>
 
       {loading ? <p>Chargement…</p> : grouped.map((sec) => (
@@ -142,7 +150,7 @@ export default function AdminHomeCategories() {
               <div>
                 <label className="text-sm font-medium">Section</label>
                 <select value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" data-testid="cat-section-select">
-                  {sections.map((s) => <option key={s.key} value={s.key}>{s.title_fr}</option>)}
+                  {managedSections.map((s) => <option key={s.key} value={s.key}>{s.title_fr}</option>)}
                 </select>
               </div>
               <div>
@@ -214,7 +222,7 @@ export default function AdminHomeCategories() {
                 <span className="text-xs whitespace-pre-line text-center font-medium">{(form.label_fr || 'Aperçu')}</span>
               </div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.visible_home} onChange={(e) => setForm({ ...form, visible_home: e.target.checked })} data-testid="cat-visible-checkbox" /> Visible sur l'accueil
+                <input type="checkbox" checked={form.visible_home} onChange={(e) => setForm({ ...form, visible_home: e.target.checked })} data-testid="cat-visible-checkbox" /> Visible sur l&apos;accueil
               </label>
             </div>
 
