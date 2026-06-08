@@ -1,0 +1,41 @@
+{
+  "summary": "End-to-end testing of Marketplace 'Acheter, Vendre & Louer' wiring (iter 184). Backend: 8/8 pytest cases passing (public listings vehicle>=2 / item>=5, real-estate excluded, admin guard 401, admin listings counts {vehicle:2,item:5}, admin settings GET/PUT, KYC-gated vehicle creation, admin toggle->hides from public + feature + delete with 404 verification). Frontend client: client login, Marketplace tabs (Véhicules=2, Articles=5), listing-detail-modal opens/closes, cat-real-estate routes to /real-estate, fab-sell-btn routes to /marketplace/sell-vehicle (PostVehiclePage rendered, KYC-approved), filled brand/model/year/mileage/fuel + toggled À louer→À vendre + price, post-vehicle-btn published the listing and redirected to /marketplace/cars where the new card 'Renault Clio Test ...' appeared. Frontend admin: after fixing a duplicate route, /admin/marketplace now loads the real AdminMarketplace dashboard — settings card (mp-settings, mp-commission, mp-delivery-fee, mp-save-settings) saves commission=12 with 'Réglages enregistrés' toast, mp-filter-all/vehicle/item chips show correct counts (8/3/5 during test, restored to 7/2/5), 8 rows with seller names and Vente/Location badges, mp-feature and mp-toggle row actions both work, mp-delete used via admin API to remove the test row. DB left clean. 15/15 functional assertions PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin Marketplace navigation",
+        "issue": "FIXED — Two routes were declared for path 'marketplace' in /app/frontend/src/routes/adminRoutes.jsx (line 69 used the old <AdminServiceConfig serviceKey=\"marketplace\"/> shadowing line 125 <AdminMarketplace/>). React Router uses the first match, so /admin/marketplace was rendering the legacy service-config page (Commission %, Prix min produit) and the new dashboard with mp-* testids was unreachable. Removed the duplicate line 69 — admin dashboard now loads.",
+        "affected_selectors": ["[data-testid=\"admin-marketplace-page\"]", "[data-testid=\"mp-settings\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter184_marketplace.py",
+    "/app/test_reports/pytest/iter184_marketplace.xml"
+  ],
+  "action_items": [
+    "Confirm the duplicate /admin/marketplace route removal in adminRoutes.jsx is acceptable (the legacy AdminServiceConfig serviceKey='marketplace' route was removed — if any other admin link still points to it, it now hits the new dashboard which is the desired behaviour).",
+    "Optional: audit adminRoutes.jsx for other duplicate <Route path='…'> declarations to avoid similar silent shadowing in the future."
+  ],
+  "critical_code_review_comments": [
+    "DUPLICATE ROUTE BUG (fixed): adminRoutes.jsx had two `<Route path=\"marketplace\">` entries — first one always wins in React Router v6. This kind of shadowing is silent and very easy to miss; a one-time grep for duplicate route paths in adminRoutes.jsx would be valuable.",
+    "marketplace.py create_listing always sets seller_verified=True at creation time. If the user's KYC is revoked later, old listings stay marked verified — consider deriving seller_verified at read-time from the user document.",
+    "_norm_kind returns 'item' for any non-vehicle input including unknown values. If the frontend ever sends kind='real_estate' by accident, it would be silently classified as 'item' and pollute the marketplace tiles. Consider rejecting unknown kinds with 400.",
+    "frontend/src/pages/admin/AdminMarketplace.js uses window.confirm for delete (line ~107) — inconsistent with the rest of the app that uses toast/modal confirmations (already flagged in iter 183 for AdminTransport).",
+    "MarketplacePage.js: the 'fab-sell-btn' uses `right-1/2 translate-x-[210px]` which assumes a fixed 430px mobile-container width — on wider viewports the FAB drifts. Already has a max-[480px] fallback but worth a quick design review."
+  ],
+  "updated_files": [
+    "/app/frontend/src/routes/adminRoutes.jsx (removed duplicate <Route path=\"marketplace\" element={<AdminServiceConfig serviceKey=\"marketplace\"/>} />)",
+    "/app/backend/tests/test_iter184_marketplace.py (new)"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (15/15 functional assertions)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! and Client clienttest@demo.sb / Client2026! both confirmed working. Client login form at /login/email.",
+  "seed_data_creation": "Created one transient vehicle 'Renault Clio Test 57265' via the client flow and a 'TEST_Peugeot 208 GT' via backend pytest. Both were cleaned up at end of run (deleted via admin API). Final admin counts restored to {vehicle:2, item:5, total:7}, commission_pct restored to 10.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All scenarios in the review request pass after the one-line route fix in adminRoutes.jsx. New AdminMarketplace dashboard at /admin/marketplace renders with full table, filter chips, settings save and per-row feature/toggle/delete actions. Client KYC-gated vehicle posting at /marketplace/sell-vehicle works and the new listing appears in the public /marketplace/cars tab. Real-estate chip correctly leaves the marketplace and goes to /real-estate. Listings detail modal opens via data-testid=listing-* card and closes via listing-detail-close. The 'Sidebar contains the group' check needs to be done with the 'Acheter, Vendre & Louer' menu EXPANDED (lazy-render in AdminLayout) — visually confirmed the group is present and highlighted when /admin/marketplace is the active route.",
+  "rca of the issue": "RCA — duplicate `<Route path=\"marketplace\">` in /app/frontend/src/routes/adminRoutes.jsx: line 69 mapped 'marketplace' to <AdminServiceConfig serviceKey=\"marketplace\"/> (legacy service-config), line 125 mapped the SAME path to the new <AdminMarketplace/>. React Router v6 returns the first matching <Route>, so the legacy component always rendered and the new dashboard (with mp-* test-ids) was effectively dead code. Repro: log in as admin, visit /admin/marketplace -> see 'Service actif / Commission (%) / Prix min produit' instead of the new dashboard. Mitigation: removed the legacy line 69; the new AdminMarketplace now renders correctly. Verified visually + via data-testid assertions."
+}

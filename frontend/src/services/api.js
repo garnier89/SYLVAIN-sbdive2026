@@ -305,6 +305,13 @@ export const marketplaceAPI = {
   myOrders: () => api.get('/marketplace/orders'),
   mySales: () => api.get('/marketplace/orders/sold'),
   updateOrderStatus: (orderId, status) => api.post(`/marketplace/orders/${orderId}/status`, { status }),
+  // Admin moderation + settings
+  adminListings: (params) => api.get('/marketplace/admin/listings', { params }),
+  adminDeleteListing: (id) => api.delete(`/marketplace/admin/listings/${id}`),
+  adminToggleListing: (id) => api.post(`/marketplace/admin/listings/${id}/toggle`),
+  adminFeatureListing: (id) => api.post(`/marketplace/admin/listings/${id}/feature`),
+  adminGetSettings: () => api.get('/marketplace/admin/settings'),
+  adminSetSettings: (data) => api.put('/marketplace/admin/settings', data),
 };
 
 // Carpool APIs

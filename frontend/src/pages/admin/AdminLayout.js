@@ -96,7 +96,7 @@ const sidebarConfig = [
       ]},
       { icon: Tag, label: 'Acheter, Vendre & Louer', key: 'marketplace', children: [
         { label: 'Immobilier — Annonces', path: '/admin/real-estate' },
-        { label: 'Paramètres', path: '/admin/marketplace' },
+        { label: 'Véhicules & Articles', path: '/admin/marketplace' },
       ]},
       { icon: FirstAid, label: 'Services médicaux', key: 'medical', children: [
         { label: 'Pharmacie', path: '/admin/pharmacy' },

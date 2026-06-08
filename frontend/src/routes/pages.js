@@ -42,6 +42,7 @@ export const MarketplacePage = lazy(() => import('../pages/user/MarketplacePage'
 export const MyOrdersPage = lazy(() => import('../pages/user/MyOrdersPage'));
 export const OrderSuccessPage = lazy(() => import('../pages/user/OrderSuccessPage'));
 export const SellGalleryPage = lazy(() => import('../pages/user/SellGalleryPage'));
+export const PostVehiclePage = lazy(() => import('../pages/user/PostVehiclePage'));
 export const MarketplaceMessagesPage = lazy(() => import('../pages/user/MarketplaceMessagesPage'));
 export const NearbyBusinessPage = lazy(() => import('../pages/user/NearbyBusinessPage'));
 export const BeautyServicesPage = lazy(() => import('../pages/user/BeautyServicesPage'));
@@ -165,6 +166,7 @@ export const AdminFeaturedListings = lazy(() => import('../pages/admin/AdminFeat
 export const AdminNearbyBusinesses = lazy(() => import('../pages/admin/AdminNearbyBusinesses'));
 export const AdminZones = lazy(() => import('../pages/admin/AdminZones'));
 export const AdminTrendingPinned = lazy(() => import('../pages/admin/AdminTrendingPinned'));
+export const AdminMarketplace = lazy(() => import('../pages/admin/AdminMarketplace'));
 export const AdminTransport = lazy(() => import('../pages/admin/AdminTransport'));
 export const AdminRealEstate = lazy(() => import('../pages/admin/AdminRealEstate'));
 export const AdminPharmacy = lazy(() => import('../pages/admin/AdminPharmacy'));

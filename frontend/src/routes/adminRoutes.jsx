@@ -15,7 +15,7 @@ import {
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
   AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications, AdminPaymentMethods,
   AdminSbPayGoZones, AdminDbBackup, AdminNegotiationGapReport, AdminNoDriverStats,
-  AdminFeaturedListings, AdminNearbyBusinesses, AdminZones, AdminTrendingPinned, AdminTransport, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings,
+  AdminFeaturedListings, AdminNearbyBusinesses, AdminZones, AdminTrendingPinned, AdminMarketplace, AdminTransport, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings,
   AdminKiosks, AdminACL, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
   AdminPromoBanners, AdminNews, AdminI18n, AdminGeoFence, AdminGiftCards, AdminReferralSettings,
   AdminBanners, AdminNewsletter, AdminKyc, AdminStores, AdminTemplates, AdminWeatherSurcharge,
@@ -66,7 +66,6 @@ export function adminRoutes() {
       <Route path="ondemand" element={<AdminServiceConfig serviceKey="ondemand" />} />
       <Route path="video" element={<AdminServiceConfig serviceKey="video" />} />
       <Route path="bids" element={<AdminServiceConfig serviceKey="bids" />} />
-      <Route path="marketplace" element={<AdminServiceConfig serviceKey="marketplace" />} />
       <Route path="medical" element={<AdminServiceConfig serviceKey="medical" />} />
       <Route path="rideshare" element={<AdminServiceConfig serviceKey="rideshare" />} />
       <Route path="nearby" element={<AdminServiceConfig serviceKey="nearby" />} />
@@ -122,6 +121,7 @@ export function adminRoutes() {
       <Route path="featured-listings" element={<AdminFeaturedListings />} />
       <Route path="nearby-businesses" element={<AdminNearbyBusinesses />} />
       <Route path="zones" element={<AdminZones />} />
+      <Route path="marketplace" element={<AdminMarketplace />} />
       <Route path="trending-pinned" element={<AdminTrendingPinned />} />
       <Route path="transport" element={<AdminTransport />} />
       <Route path="real-estate" element={<AdminRealEstate />} />

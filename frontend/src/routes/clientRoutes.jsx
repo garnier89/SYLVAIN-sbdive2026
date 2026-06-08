@@ -7,7 +7,7 @@ import {
   UserHome, RideBookingPage, RideChoosePage, RideTrackingPage, RideReceiptPage,
   FoodPage, RestaurantDetail, CheckoutPage, OrderTracking, WalletPage, ProfilePage,
   HistoryPage, SupportPage, ParcelPage, ReferralPage, DonationPage, LiveChatPage,
-  ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, MyOrdersPage, OrderSuccessPage, SellGalleryPage, MarketplaceMessagesPage,
+  ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
   NearbyBusinessPage, BeautyServicesPage, PetServicesPage, CarCarePage, TowingServicesPage,
   VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage,
   DeliveryTrackingPage, DeliveryJobsPage, RealEstatePage, PropertyDetailPage, PostPropertyPage,
@@ -57,6 +57,7 @@ export function clientRoutes(user) {
       <Route path="/ma-galerie" element={<ProtectedRoute allowedRoles={['user']}><SellGalleryPage /></ProtectedRoute>} />
       <Route path="/marketplace/messages" element={<ProtectedRoute allowedRoles={['user']}><MarketplaceMessagesPage /></ProtectedRoute>} />
       <Route path="/marketplace/messages/:threadId" element={<ProtectedRoute allowedRoles={['user']}><MarketplaceMessagesPage /></ProtectedRoute>} />
+      <Route path="/marketplace/sell-vehicle" element={<ProtectedRoute allowedRoles={['user']}><PostVehiclePage /></ProtectedRoute>} />
       <Route path="/marketplace/:category" element={<ProtectedRoute allowedRoles={['user']}><MarketplacePage /></ProtectedRoute>} />
       <Route path="/nearby" element={<ProtectedRoute allowedRoles={['user']}><NearbyBusinessPage /></ProtectedRoute>} />
       <Route path="/beauty" element={<ProtectedRoute allowedRoles={['user']}><BeautyServicesPage /></ProtectedRoute>} />

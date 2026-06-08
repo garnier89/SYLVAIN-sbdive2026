@@ -1,14 +1,23 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from core.config import db
 from core.deps import get_current_user
+from core.permissions import require_permission
 from core.notifications import create_notification
 from core.websocket import manager
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
+
+
+def _norm_kind(v):
+    """Canonical listing kind for the marketplace tiles: 'vehicle' or 'item'."""
+    v = (v or "").strip().lower()
+    if v in ("vehicle", "cars", "car", "véhicule", "vehicule", "vehicules"):
+        return "vehicle"
+    return "item"
 
 
 # ===== In-app buyer <-> seller messaging =====
@@ -153,6 +162,7 @@ async def create_listing(request: Request):
         raise HTTPException(status_code=403, detail=gate["reason"] or "Vérification d'identité requise pour vendre.")
     body = await request.json()
 
+    kind = _norm_kind(body.get("kind") or body.get("type"))
     images = body.get("images", [])
     listing = {
         "id": f"listing_{uuid.uuid4().hex[:12]}",
@@ -160,7 +170,8 @@ async def create_listing(request: Request):
         "seller_name": user.get("name", ""),
         "seller_phone": user.get("phone", ""),
         "seller_verified": True,  # creation is gated by approved KYC
-        "type": body.get("type", "items"),  # real-estate, cars, items
+        "kind": kind,  # vehicle | item  (canonical discriminant for the tiles)
+        "type": "cars" if kind == "vehicle" else "items",
         "title": body["title"],
         "description": body.get("description", ""),
         "price": body["price"],
@@ -171,6 +182,8 @@ async def create_listing(request: Request):
         "images": images,
         "image": images[0] if images else "",
         "listing_type": body.get("listing_type", "sell"),  # sell, rent
+        "rent_period": body.get("rent_period") or ("day" if body.get("listing_type") == "rent" else None),
+        "vehicle": body.get("vehicle") or {} if kind == "vehicle" else {},
         "is_featured": False,
         "status": "active",
         "views": 0,
@@ -184,12 +197,18 @@ async def create_listing(request: Request):
 @router.get("/listings")
 async def list_listings(
     type: Optional[str] = None,
+    kind: Optional[str] = None,
     category: Optional[str] = None,
     listing_type: Optional[str] = None,
     search: Optional[str] = None,
-    limit: int = 20, skip: int = 0
+    limit: int = 100, skip: int = 0
 ):
     query = {"status": "active"}
+    if kind:
+        query["kind"] = _norm_kind(kind)
+    else:
+        # marketplace tiles only show vehicles & items (real estate has its own module)
+        query["kind"] = {"$in": ["vehicle", "item"]}
     if type:
         query["type"] = type
     if category:
@@ -202,7 +221,8 @@ async def list_listings(
             {"description": {"$regex": search, "$options": "i"}}
         ]
 
-    listings = await db.marketplace_listings.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    listings = await db.marketplace_listings.find(query, {"_id": 0}).sort(
+        [("is_featured", -1), ("created_at", -1)]).skip(skip).limit(limit).to_list(limit)
     total = await db.marketplace_listings.count_documents(query)
     return {"listings": listings, "total": total}
 
@@ -265,6 +285,81 @@ async def get_mp_settings():
 
 @router.get("/settings")
 async def marketplace_settings():
+    s = await get_mp_settings()
+    return {"commission_pct": s.get("commission_pct", 10.0), "delivery_fee": s.get("delivery_fee", 5.0)}
+
+
+# ===== Admin dashboard (moderation + settings) ===========================
+
+@router.get("/admin/listings")
+async def admin_list_listings(
+    kind: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None,
+    limit: int = 200, current_user: dict = Depends(require_permission("content.manage")),
+):
+    """All marketplace listings (vehicles + items, every status) for moderation."""
+    query = {"kind": {"$in": ["vehicle", "item"]}}
+    if kind:
+        query["kind"] = _norm_kind(kind)
+    if status:
+        query["status"] = status
+    if search:
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"seller_name": {"$regex": search, "$options": "i"}},
+        ]
+    listings = await db.marketplace_listings.find(query, {"_id": 0}).sort(
+        [("is_featured", -1), ("created_at", -1)]).limit(limit).to_list(limit)
+    counts = {
+        "vehicle": await db.marketplace_listings.count_documents({"kind": "vehicle"}),
+        "item": await db.marketplace_listings.count_documents({"kind": "item"}),
+    }
+    return {"listings": listings, "total": len(listings), "counts": counts}
+
+
+@router.delete("/admin/listings/{listing_id}")
+async def admin_delete_listing(listing_id: str, current_user: dict = Depends(require_permission("content.manage"))):
+    r = await db.marketplace_listings.delete_one({"id": listing_id})
+    if not r.deleted_count:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    return {"ok": True}
+
+
+@router.post("/admin/listings/{listing_id}/toggle")
+async def admin_toggle_listing(listing_id: str, current_user: dict = Depends(require_permission("content.manage"))):
+    l = await db.marketplace_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not l:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    new_status = "inactive" if l.get("status") == "active" else "active"
+    await db.marketplace_listings.update_one({"id": listing_id}, {"$set": {"status": new_status}})
+    return {"ok": True, "status": new_status}
+
+
+@router.post("/admin/listings/{listing_id}/feature")
+async def admin_feature_listing(listing_id: str, current_user: dict = Depends(require_permission("content.manage"))):
+    l = await db.marketplace_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not l:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    val = not bool(l.get("is_featured"))
+    await db.marketplace_listings.update_one({"id": listing_id}, {"$set": {"is_featured": val}})
+    return {"ok": True, "is_featured": val}
+
+
+@router.get("/admin/settings")
+async def admin_get_settings(current_user: dict = Depends(require_permission("content.manage"))):
+    s = await get_mp_settings()
+    return {"commission_pct": s.get("commission_pct", 10.0), "delivery_fee": s.get("delivery_fee", 5.0)}
+
+
+@router.put("/admin/settings")
+async def admin_set_settings(request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    body = await request.json()
+    update = {}
+    if body.get("commission_pct") is not None:
+        update["commission_pct"] = max(0.0, min(float(body["commission_pct"]), 50.0))
+    if body.get("delivery_fee") is not None:
+        update["delivery_fee"] = max(0.0, float(body["delivery_fee"]))
+    if update:
+        await db.marketplace_settings.update_one({"id": "singleton"}, {"$set": update}, upsert=True)
     s = await get_mp_settings()
     return {"commission_pct": s.get("commission_pct", 10.0), "delivery_fee": s.get("delivery_fee", 5.0)}
 
