@@ -324,6 +324,12 @@ export const configAPI = {
   getGeneralSettings: () => api.get('/config/general-settings'),
 };
 
+// Trending services ("place de marché vivante") — zone-aware popular services.
+export const serviceTrendsAPI = {
+  track: (payload) => api.post('/service-trends/track', payload),
+  trending: (zone, limit = 8) => api.get('/service-trends/trending', { params: { zone, limit } }),
+};
+
 // Parcel delivery APIs (single & multi-drop)
 export const parcelAPI = {
   estimate: (data) => api.post('/parcels/estimate', data),

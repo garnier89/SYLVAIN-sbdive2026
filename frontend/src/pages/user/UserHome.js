@@ -11,7 +11,7 @@ import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
-import { homeCategoriesAPI, promoBannersAPI, configAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI, configAPI, serviceTrendsAPI } from '../../services/api';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
 import {
@@ -21,7 +21,7 @@ import {
 } from './userHomeServices';
 import {
   Car, Package, House, MapPin, Wallet, User,
-  CaretRight, CaretDown, Star, UsersThree, Taxi,
+  CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning, Buildings,
   Stethoscope, UsersFour, Briefcase, ShoppingBag, Bag, Pill,
@@ -113,10 +113,34 @@ const UserHome = () => {
   const { t } = useLocale();
   const navigate = useNavigate();
   const { shortcuts, recordTap } = useServiceShortcuts();
-  // Single entry point for service-tile taps: remembers usage (for shortcuts) then routes.
+  const [trending, setTrending] = useState([]);
+  const zoneRef = useRef('');
+  // Single entry point for service-tile taps: remembers usage (for shortcuts),
+  // pings the zone-aware trends tracker, then routes.
   const go = useCallback((service) => {
-    if (service && service.path) { recordTap(service); navigate(service.path); }
+    if (!service || !service.path) return;
+    recordTap(service);
+    serviceTrendsAPI.track({ ...service, zone: zoneRef.current }).catch(() => {});
+    navigate(service.path);
   }, [recordTap, navigate]);
+
+  // Trending services "near you" — global first (instant), then refined by zone.
+  useEffect(() => {
+    let alive = true;
+    serviceTrendsAPI.trending().then((r) => { if (alive) setTrending(r.data.items || []); }).catch(() => {});
+    getBrowserLocationLabel().then((label) => {
+      const parts = (label || '').split(',').map((s) => s.trim()).filter(Boolean);
+      const zone = parts.slice(-2).join(', ');
+      if (!zone) return;
+      zoneRef.current = zone;
+      serviceTrendsAPI.trending(zone).then((r) => { if (alive && (r.data.items || []).length) setTrending(r.data.items); }).catch(() => {});
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Trending tiles the user hasn't already pinned as a personal shortcut.
+  const shortcutIds = new Set(shortcuts.map((s) => s.id));
+  const trendingShown = trending.filter((s) => !shortcutIds.has(s.id)).slice(0, 8);
   const [showSearch, setShowSearch] = useState(false);
   const [showDeliverySearch, setShowDeliverySearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -574,6 +598,25 @@ const UserHome = () => {
                 <button key={s.id} onClick={() => go(s)} data-testid={`shortcut-${s.id}`} className="flex flex-col items-center shrink-0 w-[64px]">
                   <div className={`w-14 h-14 rounded-2xl ${s.bg || 'bg-slate-100'} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}>
                     <DynamicIcon name={s.iconName} imageUrl={s.imageUrl} size={28} className={s.iconColor} />
+                  </div>
+                  <span className={`text-[10.5px] font-bold text-[#1F2430] text-center leading-tight mt-1.5 whitespace-pre-line line-clamp-2 ${HEAD}`}>{s.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+        {trendingShown.length >= 2 && (
+          <section className="px-4 mt-5" data-testid="trending-section">
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <TrendUp size={17} weight="bold" className="text-[#FF5000]" />
+              <h2 className={`text-[15px] font-extrabold text-[#0B1426] ${HEAD}`}>Tendances près de vous</h2>
+            </div>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+              {trendingShown.map((s) => (
+                <button key={s.id} onClick={() => go(s)} data-testid={`trending-${s.id}`} className="relative flex flex-col items-center shrink-0 w-[64px]">
+                  <div className={`relative w-14 h-14 rounded-2xl ${s.bg || 'bg-slate-100'} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}>
+                    <DynamicIcon name={s.iconName} imageUrl={s.imageUrl} size={28} className={s.iconColor} />
+                    <span className="absolute -top-1.5 -right-1 z-10 w-4 h-4 rounded-full bg-[#FF5000] flex items-center justify-center shadow"><TrendUp size={9} weight="bold" className="text-white" /></span>
                   </div>
                   <span className={`text-[10.5px] font-bold text-[#1F2430] text-center leading-tight mt-1.5 whitespace-pre-line line-clamp-2 ${HEAD}`}>{s.name}</span>
                 </button>
