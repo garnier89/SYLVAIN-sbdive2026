@@ -1,3 +1,13 @@
+## NEW - 2026-06-08 (68) - Éditeur d'accueil COMPLET : ordre + visibilité des SECTIONS (DONE)
+- **Demande user** : réordonner les sections de l'accueil (ex. Livraison avant Beauté) et masquer une section entière — dernier morceau de l'éditeur sans-code.
+- **Backend** (`routes/home_categories.py`) : nouvelle config **`home_sections`** (collection) avec `display_order` + `visible`. `HOME_BLOCKS` (19 blocs = miroir de `SECTION_ORDER`). `seed_home_sections()` idempotent (wiré dans `core/startup.py`). `_section_layout()` backfill les nouveaux blocs en fin de liste (jamais perdus). Public `GET /home-categories` renvoie désormais **`section_order`** (clés visibles, ordonnées). Endpoints admin : `GET /home-categories/admin/sections`, `POST /admin/sections/reorder` (`{ordered_keys}`), `POST /admin/sections/{key}/toggle`. Protégés `content.manage`.
+- **Frontend** : `api.js` → `adminSections/reorderSections/toggleSection`. `AdminHomeCategories.js` → panneau **« Ordre & visibilité des sections »** (`section-layout-panel`) : 19 lignes avec ↑/↓ (`section-up/down-<key>`) + œil (`section-toggle-<key>`). `UserHome.js` → `SECTION_ORDER` piloté par `section_order` récupéré (repli sur `DEFAULT_SECTION_ORDER`).
+- **Vérifié** : **testing_agent iteration_164.json — 100%** (backend 7/7 pytest + frontend E2E) : réordonnancement (Beauté > Livraison) persistant et reflété sur l'accueil rider ; masquage « À proximité » → disparaît de l'accueil et du `section_order` public ; toggle ON → réapparaît ; section Taxi (8 tuiles) inchangée ; aucun overlay d'erreur. État par défaut restauré. Lint : seul flag = faux-positif `set-state-in-effect` pré-existant ; webpack compile.
+- **Éditeur d'accueil désormais COMPLET** : (a) tuiles taxi via `service_categories` (toggle Accueil), (b) tuiles autres sections via `home_categories` CMS, (c) ordre + visibilité des sections via `home_sections`.
+- ⚠️ PREVIEW → **redéploiement requis** pour la production.
+
+
+
 ## NEW - 2026-06-08 (67) - Éditeur d'accueil sans-code : sections hors-Taxi (home_categories CMS) (DONE)
 - **Demande user** : appliquer le contrôle « Accueil » aux autres sections (Livraison, Beauté, Auto…) → éditeur de page d'accueil sans code.
 - **Constat** : l'infra existe DÉJÀ — collection `home_categories` (CMS complet : add/edit/delete, reorder, `visible_home`, libellés FR/EN, sous-titre, icône biblio/upload, couleurs, route) + page admin `/admin/home-categories` (« Catégories accueil »). L'accueil rend déjà toutes les sections hors-taxi via `displayFor(section)` (filtré par `visible_home`, + tuile « Plus de Services » si masquées). 41 items seedés.
