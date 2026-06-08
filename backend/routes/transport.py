@@ -241,7 +241,110 @@ async def stop_departures(stop_id: str, mins: int = None):
     return shaped
 
 
-# ── admin: stops CRUD ─────────────────────────────────────────────────────────
+# ── journey planner (origin → destination, with transfers) ────────────────────
+WALK_KMH = 4.8
+WALK_RADIUS_KM = 1.2
+
+
+def _walk_min(km):
+    return int(round(km / WALK_KMH * 60))
+
+
+def plan_journey(stops, lines, flat, flng, tlat, tlng):
+    """Plan the fastest bus itinerary (with transfers) between two points.
+
+    Time-optimal Dijkstra over stop "platforms". Each line contributes direct
+    ride edges stop_i → stop_j (j>i) costing an expected wait (headway/2) plus
+    travel time; transferring is simply alighting at a platform and boarding
+    another line there. Walking connects the origin/destination to the access
+    stops. Falls back to the single nearest stop when none is within walk range
+    so a plan is always produced (useful for the demo / mocked data).
+    """
+    import heapq
+
+    stop_by_id = {s["id"]: s for s in stops
+                  if s.get("lat") is not None and s.get("lng") is not None and s.get("is_active", True)}
+    if not stop_by_id:
+        return {"found": False}
+
+    def near(plat, plng):
+        scored = sorted(
+            ((_haversine_km(plat, plng, s["lat"], s["lng"]), s) for s in stop_by_id.values()),
+            key=lambda x: x[0],
+        )
+        within = [(d, s) for d, s in scored if d <= WALK_RADIUS_KM]
+        return within if within else scored[:1]
+
+    origin_access = near(flat, flng)
+    dest_egress = {s["id"]: d for d, s in near(tlat, tlng)}
+
+    # ride edges: stop_id -> [(to_stop_id, cost_min, fare, leg)]
+    adj = {sid: [] for sid in stop_by_id}
+    for L in lines:
+        if not L.get("is_active", True):
+            continue
+        order = [x for x in (L.get("stop_ids") or []) if x in stop_by_id]
+        travel = int(L.get("stop_travel_min") or 5)
+        headway = int(L.get("headway_min") or 15)
+        wait = max(1, math.ceil(headway / 2))
+        fare = L.get("fare")
+        if fare is None:
+            fare = MODE_META.get(L.get("mode", "bus"), {}).get("fare", 1.50)
+        fare = round(float(fare), 2)
+        for i in range(len(order)):
+            for j in range(i + 1, len(order)):
+                si, sj = order[i], order[j]
+                cost = wait + (j - i) * travel
+                # lines run in BOTH directions → add forward and reverse edges
+                fwd = {
+                    "type": "ride", "line_id": L.get("id"), "code": L.get("code"),
+                    "name": L.get("name"), "mode": L.get("mode", "bus"), "color": L.get("color"),
+                    "from": stop_by_id[si]["name"], "to": stop_by_id[sj]["name"],
+                    "stops": j - i, "minutes": (j - i) * travel, "wait_min": wait, "fare": fare,
+                }
+                rev = {**fwd, "from": stop_by_id[sj]["name"], "to": stop_by_id[si]["name"]}
+                adj[si].append((sj, cost, fare, fwd))
+                adj[sj].append((si, cost, fare, rev))
+
+    heap = []
+    cnt = 0
+    for d, s in origin_access:
+        wm = _walk_min(d)
+        legs = [{"type": "walk", "to": s["name"], "minutes": wm, "km": round(d, 2)}] if wm > 0 else []
+        heapq.heappush(heap, (wm, cnt, s["id"], 0.0, legs)); cnt += 1
+
+    best = None
+    visited = {}
+    while heap:
+        time, _, sid, fare, legs = heapq.heappop(heap)
+        if sid in visited and visited[sid] <= time:
+            continue
+        visited[sid] = time
+        if sid in dest_egress:
+            wm = _walk_min(dest_egress[sid])
+            total = time + wm
+            final_legs = legs + ([{"type": "walk", "to": "Destination", "minutes": wm, "km": round(dest_egress[sid], 2)}] if wm > 0 else [])
+            rides = [l for l in final_legs if l["type"] == "ride"]
+            if rides and (best is None or total < best["total_min"]):
+                best = {"found": True, "total_min": int(total), "total_fare": round(fare, 2),
+                        "transfers": max(0, len(rides) - 1), "legs": final_legs}
+        for (to, cost, lf, leg) in adj.get(sid, []):
+            nt = time + cost
+            if to in visited and visited[to] <= nt:
+                continue
+            heapq.heappush(heap, (nt, cnt, to, fare + lf, legs + [leg])); cnt += 1
+
+    return best or {"found": False}
+
+
+@router.get("/journey")
+async def journey(from_lat: float, from_lng: float, to_lat: float, to_lng: float, mins: int = None):
+    """Fastest public-transport itinerary (with transfers) for a real trip."""
+    stops = await db.transport_stops.find({"is_active": True}, {"_id": 0}).to_list(2000)
+    lines = await _load_lines_with_terminus()
+    plan = plan_journey(stops, lines, from_lat, from_lng, to_lat, to_lng)
+    plan["mocked"] = True
+    return plan
 def _parse_stop(body):
     return {
         "name": (body.get("name") or "").strip(),

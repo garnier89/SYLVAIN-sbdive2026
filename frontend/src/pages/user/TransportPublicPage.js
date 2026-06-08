@@ -13,10 +13,11 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Bus, Train, Boat, MapPin, NavigationArrow, Clock,
-  Lightning, ArrowsClockwise, CaretRight, Ticket, CarProfile, Scales,
+  Lightning, ArrowsClockwise, CaretRight, Ticket, CarProfile, Scales, PersonSimpleWalk,
 } from '@phosphor-icons/react';
 import { transportAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
+import GooglePlacesInput from '../../components/GooglePlacesInput';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -39,6 +40,10 @@ const TransportPublicPage = () => {
   const [now, setNow] = useState('');
   const [coords, setCoords] = useState(null);
   const [compare, setCompare] = useState({}); // line_id -> { loading, open, data }
+  // Journey planner (origin → destination, with transfers)
+  const [jFrom, setJFrom] = useState(null);
+  const [jTo, setJTo] = useState(null);
+  const [journey, setJourney] = useState(null); // { loading, plan, vtc }
 
   const fetchNearby = useCallback(async (lat, lng) => {
     setLoading(true);
@@ -60,6 +65,7 @@ const TransportPublicPage = () => {
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
+        setJFrom((prev) => prev || { address: 'Ma position actuelle', lat: latitude, lng: longitude });
         fetchNearby(latitude, longitude);
         if (announce) toast.success('Position actualisée');
       },
@@ -94,6 +100,33 @@ const TransportPublicPage = () => {
     }
   }, [compare]);
 
+  // Journey planner: when both points are set, fetch the bus itinerary + VTC estimate.
+  useEffect(() => {
+    if (!jFrom?.lat || !jTo?.lat) { setJourney(null); return; }
+    let cancelled = false;
+    (async () => {
+      setJourney({ loading: true });
+      try {
+        const [jr, est] = await Promise.all([
+          transportAPI.journey({ from_lat: jFrom.lat, from_lng: jFrom.lng, to_lat: jTo.lat, to_lng: jTo.lng, mins: localMins() }),
+          fetch(`${API}/api/rides/estimate`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({
+              pickup_lat: jFrom.lat, pickup_lng: jFrom.lng, pickup_address: jFrom.address || 'Départ',
+              dropoff_lat: jTo.lat, dropoff_lng: jTo.lng, dropoff_address: jTo.address || 'Destination',
+              vehicle_type: 'sb', payment_method: 'cash',
+            }),
+          }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        ]);
+        if (cancelled) return;
+        setJourney({ loading: false, plan: jr.data, vtc: est });
+      } catch (e) {
+        if (!cancelled) setJourney({ loading: false, plan: null, vtc: null });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [jFrom, jTo]);
+
   return (
     <div className="mobile-container min-h-screen bg-[#F8F9FA] pb-32" data-testid="transport-public-page">
       {/* Header */}
@@ -113,6 +146,103 @@ const TransportPublicPage = () => {
       </div>
 
       <div className="px-5 -mt-3">
+        {/* Journey planner — real trip (origin → destination) with transfers */}
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 mb-3 shadow-sm" data-testid="journey-planner">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1">
+            <Scales size={13} className="text-[#3730A3]" /> Comparer un trajet (Bus vs VTC)
+          </p>
+          <div className="space-y-2">
+            <div className="border-l-4 border-[#0B1426] pl-2">
+              <label className="text-[10px] tracking-wide uppercase font-bold text-slate-500 flex items-center gap-1"><MapPin size={10} /> Départ</label>
+              <GooglePlacesInput value={jFrom?.address || ''} onSelect={setJFrom} placeholder="Point de départ" testId="journey-from-input" />
+            </div>
+            <div className="border-l-4 border-[#FF5000] pl-2">
+              <label className="text-[10px] tracking-wide uppercase font-bold text-slate-500 flex items-center gap-1"><MapPin size={10} className="text-[#FF5000]" /> Destination</label>
+              <GooglePlacesInput value={jTo?.address || ''} onSelect={setJTo} placeholder="Où allez-vous ?" testId="journey-to-input" />
+            </div>
+          </div>
+
+          {journey?.loading && (
+            <div className="p-4 text-center"><div className="w-5 h-5 border-2 border-orange-200 border-t-[#FF5000] rounded-full animate-spin mx-auto" /></div>
+          )}
+
+          {journey && !journey.loading && (() => {
+            const plan = journey.plan;
+            const vtc = journey.vtc;
+            const busFound = plan?.found;
+            const busMin = busFound ? plan.total_min : null;
+            const vtcMin = vtc?.duration_mins;
+            return (
+              <div className="mt-3" data-testid="journey-result">
+                <div className="grid grid-cols-2 divide-x divide-[#E2E8F0] rounded-xl border border-[#E2E8F0] overflow-hidden">
+                  <div className="p-2.5 text-center">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#3730A3]"><Bus size={12} weight="duotone" /> Bus</div>
+                    {busFound ? (
+                      <>
+                        <p className="text-base font-black text-[#0B1426] mt-1" data-testid="journey-bus-min">~{busMin} min</p>
+                        <p className="text-[11px] font-bold text-[#0B1426]">{money(plan.total_fare)}</p>
+                        <p className="text-[9px] text-slate-400">{plan.transfers === 0 ? 'direct' : `${plan.transfers} correspondance${plan.transfers > 1 ? 's' : ''}`}</p>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-2">Aucun itinéraire</p>
+                    )}
+                  </div>
+                  <div className="p-2.5 text-center bg-[#FFF6F1]">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#FF5000]"><CarProfile size={12} weight="duotone" /> VTC</div>
+                    {vtc ? (
+                      <>
+                        <p className="text-base font-black text-[#0B1426] mt-1">~{vtcMin} min</p>
+                        <p className="text-[11px] font-bold text-[#0B1426]">{money(vtc.estimated_fare)}</p>
+                        <p className="text-[9px] text-slate-400">porte à porte</p>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-2">—</p>
+                    )}
+                  </div>
+                </div>
+
+                {busFound && vtc && (
+                  <div className="bg-[#0B1426] px-3 py-2 rounded-lg mt-2 flex items-center gap-2" data-testid="journey-verdict">
+                    <Lightning size={13} weight="fill" className="text-[#FF5000] flex-shrink-0" />
+                    <p className="text-[11px] text-white/90 leading-snug">
+                      {busMin - vtcMin > 0
+                        ? <>Le VTC vous fait gagner <span className="font-black text-[#FF5000]">~{busMin - vtcMin} min</span></>
+                        : <>Le bus reste <span className="font-black text-emerald-400">{money(Math.max(0, vtc.estimated_fare - plan.total_fare))} moins cher</span></>}
+                      {vtc.estimated_fare > plan.total_fare ? <> · surcoût VTC <span className="font-bold">{money(vtc.estimated_fare - plan.total_fare)}</span></> : null}
+                    </p>
+                  </div>
+                )}
+
+                {/* Bus itinerary legs */}
+                {busFound && (
+                  <div className="mt-3 space-y-1.5" data-testid="journey-legs">
+                    {plan.legs.map((leg, i) => (
+                      <div key={i} className="flex items-center gap-2" data-testid={`journey-leg-${i}`}>
+                        {leg.type === 'walk' ? (
+                          <>
+                            <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"><PersonSimpleWalk size={15} className="text-slate-500" /></span>
+                            <p className="text-[11px] text-slate-600 flex-1">Marche jusqu'à <span className="font-semibold">{leg.to}</span> · {leg.minutes} min</p>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[10px] font-black text-white px-1.5 py-1 rounded-md flex-shrink-0 min-w-[30px] text-center" style={{ backgroundColor: leg.color }}>{leg.code}</span>
+                            <p className="text-[11px] text-slate-600 flex-1"><span className="font-semibold text-[#0B1426]">{leg.from}</span> → <span className="font-semibold text-[#0B1426]">{leg.to}</span> · {leg.stops} arrêt{leg.stops > 1 ? 's' : ''} · {leg.minutes} min</p>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button onClick={() => navigate('/course?mode=standard')} data-testid="journey-book-vtc-btn"
+                  className="w-full mt-3 py-2.5 text-xs font-black bg-[#FF5000] text-[#0B1426] rounded-lg active:scale-[0.99] transition-transform">
+                  Réserver ce trajet en VTC →
+                </button>
+              </div>
+            );
+          })()}
+        </div>
+
         {fallback && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-3" data-testid="transport-fallback-note">
             <p className="text-xs text-amber-700">Aucun arrêt à proximité immédiate — affichage du réseau le plus proche.</p>

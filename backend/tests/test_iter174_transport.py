@@ -76,6 +76,35 @@ def test_stop_departures_404():
     assert r.status_code == 404
 
 
+# ── journey planner ─────────────────────────────────────────────────────────────
+def test_journey_direct():
+    # Gare Routière Bergevin → Aéroport Pôle Caraïbes (same line L1, direct).
+    r = requests.get(f"{BASE_URL}/api/transport/journey",
+                     params={"from_lat": 16.2380, "from_lng": -61.5410, "to_lat": 16.2653, "to_lng": -61.5267}, timeout=20)
+    assert r.status_code == 200, r.text
+    plan = r.json()
+    assert plan["found"] is True
+    assert plan["transfers"] == 0
+    rides = [l for l in plan["legs"] if l["type"] == "ride"]
+    assert len(rides) == 1
+    assert plan["total_min"] > 0 and plan["total_fare"] > 0
+
+
+def test_journey_with_transfer():
+    # Université des Antilles (L2 only) → CHU des Abymes (L1 only) requires a
+    # transfer at Place de la Victoire (served by both lines).
+    r = requests.get(f"{BASE_URL}/api/transport/journey",
+                     params={"from_lat": 16.2230, "from_lng": -61.5100, "to_lat": 16.2614, "to_lng": -61.5180}, timeout=20)
+    assert r.status_code == 200, r.text
+    plan = r.json()
+    assert plan["found"] is True
+    assert plan["transfers"] >= 1
+    rides = [l for l in plan["legs"] if l["type"] == "ride"]
+    assert len(rides) >= 2
+    # two tickets → fare is the sum of both legs
+    assert plan["total_fare"] >= rides[0]["fare"] + rides[1]["fare"] - 0.001
+
+
 # ── admin auth guards ───────────────────────────────────────────────────────────
 def test_admin_stops_requires_auth():
     r = requests.get(f"{BASE_URL}/api/transport/admin/stops", timeout=15)

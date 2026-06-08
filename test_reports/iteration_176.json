@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend E2E test of NEW journey planner on /transport-public: origin→destination input with Google Places, auto-prefill from geoloc, journey-result with bus vs VTC comparison, multi-leg bus itinerary including L2→L1 correspondance, verdict banner, and 'Réserver en VTC' navigation. All target selectors and flows pass 100%. No bugs found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_176.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GooglePlacesInput: parent passes only `value` (string) and `onSelect`; if user types but never picks an autocomplete result, jFrom/jTo stay as the previous object so the planner won't fire — acceptable but minor UX gap (no inline hint that user must pick a suggestion).",
+    "Journey useEffect depends on jFrom & jTo object identity; if either is updated with same lat/lng but a new object, the API will be re-called. Low priority but could be memoized with lat/lng deps.",
+    "Like in iter175, the verdict 'Le bus reste 0 € moins cher' edge-case still possible if busMin==vtcMin and fares match exactly; consider an 'égalité' branch."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Client: test2@example.com / TestPass123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Tested on preview URL with geoloc set near Université des Antilles (16.227,-61.518). Login via /login → 'Ou choisir une autre option' → 'Email' → fill 'vous@exemple.com'/'••••••' inputs → 'Se connecter'. journey-planner is at top of /transport-public. jFrom auto-prefilled to {address:'Ma position actuelle', lat, lng}. To trigger autocomplete, type a long query (e.g. 'Aeroport Pole Caraibes Guadeloupe'), wait ~3s for .pac-container, then ArrowDown+Enter. Result with destination near Aéroport Pôle Caraïbes returned: Bus ~58 min / 3.00€ / '1 correspondance' (4 legs: walk → L2 Univ→Place Victoire → L1 Place Victoire→Aéroport → walk), VTC ~15 min / 14.75€, verdict 'Le VTC vous fait gagner ~43 min · surcoût VTC 11,75 €'. journey-book-vtc-btn navigates to /course?mode=standard. Second run with destination 'Centre Hospitalier Universitaire Abymes' resolved to a closer Plus Code (near Place de la Victoire) and produced a direct L2 itinerary (3 legs) — also coherent. Rest of page (transport-fare-*, compare-vtc-*, continue-vtc-btn) renders correctly under the planner.",
+  "validated_flows": [
+    "journey-planner panel renders at top of /transport-public ✅",
+    "journey-from-input auto-prefilled with 'Ma position actuelle' via geoloc ✅",
+    "journey-to-input accepts text + Google Places autocomplete dropdown appears ✅",
+    "Selecting destination triggers /api/transport/journey and /api/rides/estimate concurrently ✅",
+    "journey-result displays Bus (~min, fare, direct/N correspondances) and VTC (~min, fare, porte à porte) columns ✅",
+    "journey-verdict banner shows correct 'gagner ~X min · surcoût VTC' messaging ✅",
+    "journey-legs renders multi-leg itinerary with walk + bus line badges (color, code, stops, minutes) ✅",
+    "Correspondance scenario (Univ Antilles → Aéroport Pôle Caraïbes): legs include L2 then L1 with '1 correspondance' label ✅",
+    "Direct scenario (Univ Antilles → near Place Victoire): legs include walk → L2 → walk with 'direct' label ✅",
+    "journey-book-vtc-btn navigates to /course?mode=standard ✅",
+    "Page regression: stops list, transport-fare-*, compare-vtc-*, continue-vtc-btn still render correctly below the planner ✅"
+  ],
+  "rca of the issue": "No bugs. New journey planner feature is functioning as specified — including correspondance routing (L2→L1) on real Google Places coordinates."
+}
