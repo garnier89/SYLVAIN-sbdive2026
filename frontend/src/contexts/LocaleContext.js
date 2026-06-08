@@ -3,24 +3,23 @@ import api from '../services/api';
 import { useAuth } from './AuthContext';
 import { BASE_FLAT_FR, flatten, interpolate } from '../lib/i18nBase';
 import { getBrowserCountryCode } from '../lib/browserZone';
-import { OnboardingModal } from '../components/OnboardingModal';
 
 // Module-level cache of fetched (flattened) bundles, keyed by lang code.
 const _bundleCache = { fr: BASE_FLAT_FR };
 
-// Country (ISO) → locally-relevant UI language to SUGGEST on first launch.
-// Covers DOM-TOM creoles + key African markets.
-const ZONE_LANG = {
-  MQ: 'gcf-mq', // Martinique → créole martiniquais
-  GP: 'gcf',    // Guadeloupe → créole guadeloupéen
-  GF: 'gcr',    // Guyane → créole guyanais
-  RE: 'rcf',    // Réunion → créole réunionnais
-  HT: 'ht',     // Haïti → créole haïtien
-  SN: 'wo',     // Sénégal → wolof
-  CI: 'dyu',    // Côte d'Ivoire → dioula
-  CD: 'ln',     // RD Congo → lingala
-  CG: 'ln',     // Congo → lingala
-  NG: 'ha',     // Nigeria → haoussa
+// Country (ISO) → default CURRENCY applied automatically on first launch.
+// Language stays French everywhere by default (France, DOM-TOM, francophone Africa).
+//   • France + DOM-TOM            → Euro (EUR)
+//   • Francophone West Africa      → Franc CFA BCEAO (XOF)
+//   • Francophone Central Africa   → Franc CFA BEAC (XAF)
+const CURRENCY_BY_COUNTRY = {
+  // France métropolitaine + DOM-TOM + collectivités → Euro
+  FR: 'EUR', GP: 'EUR', MQ: 'EUR', GF: 'EUR', RE: 'EUR', YT: 'EUR',
+  PM: 'EUR', BL: 'EUR', MF: 'EUR', WF: 'EUR', PF: 'EUR', NC: 'EUR', MC: 'EUR',
+  // Afrique de l'Ouest francophone (BCEAO) → Franc CFA XOF
+  SN: 'XOF', CI: 'XOF', ML: 'XOF', BF: 'XOF', BJ: 'XOF', TG: 'XOF', NE: 'XOF', GW: 'XOF',
+  // Afrique centrale francophone (BEAC) → Franc CFA XAF
+  CM: 'XAF', GA: 'XAF', CG: 'XAF', TD: 'XAF', CF: 'XAF', GQ: 'XAF',
 };
 
 const CURRENCIES = [
@@ -86,45 +85,6 @@ const LANGUAGES = [
 
 const LocaleContext = createContext();
 
-// Non-intrusive first-launch banner suggesting the locally-relevant language.
-const LanguageSuggestionBanner = () => {
-  const ctx = useContext(LocaleContext);
-  const suggestion = ctx?.suggestion;
-  if (!suggestion) return null;
-  return (
-    <div
-      className="fixed top-3 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-1.5rem)] max-w-[406px] rounded-2xl bg-white shadow-[0_12px_40px_-8px_rgba(11,20,38,0.35)] border border-slate-200 p-3.5 animate-in slide-in-from-top"
-      data-testid="lang-suggestion-banner"
-    >
-      <div className="flex items-start gap-3">
-        <span className="text-2xl leading-none mt-0.5">{suggestion.flag}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-[#1F2430]">Bonjour ! 👋</p>
-          <p className="text-[13px] text-slate-600 mt-0.5">
-            Cette langue est disponible près de chez vous : <b>{suggestion.name}</b>. Souhaitez-vous l&apos;utiliser ?
-          </p>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={ctx.acceptSuggestion}
-              data-testid="lang-suggestion-accept"
-              className="flex-1 py-2 rounded-xl bg-[#FF5000] text-white text-sm font-semibold"
-            >
-              Oui, passer en {suggestion.name}
-            </button>
-            <button
-              onClick={ctx.dismissSuggestion}
-              data-testid="lang-suggestion-dismiss"
-              className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-medium"
-            >
-              Rester en français
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 
 export const LocaleProvider = ({ children }) => {
   const { user } = useAuth();
@@ -186,55 +146,29 @@ export const LocaleProvider = ({ children }) => {
     return () => { cancelled = true; };
   }, []);
 
-  // ── First-launch ONBOARDING (language + currency picker) ──
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    if (localStorage.getItem('sb_onboarded')) return false;
-    const p = (typeof window !== 'undefined' && window.location.pathname) || '';
-    // Skip for staff apps (admin / driver / merchant / dispatch / kiosk).
-    if (/^\/(admin|chauffeur|merchant|dispatch|kiosk)/.test(p)) return false;
-    return true;
-  });
-
-  // ── First-launch language SUGGESTION by zone (non-intrusive banner) ──
-  const [suggestedCode, setSuggestedCode] = useState('');
+  // ── First-launch AUTO region defaults ──
+  // Language stays French; only the CURRENCY is auto-set from the detected
+  // country (Euro for France/DOM-TOM, CFA XOF/XAF for francophone Africa).
+  // Runs ONCE per device, never overrides a returning/known user.
   useEffect(() => {
-    const savedRaw = localStorage.getItem('sb_language');
-    const savedCode = savedRaw ? (JSON.parse(savedRaw)?.code || 'fr') : 'fr';
-    const asked = localStorage.getItem('sb_lang_suggested');
-    // Only suggest when the user is still on the French default and was never asked.
-    if (asked || savedCode !== 'fr') return;
+    if (localStorage.getItem('sb_locale_init')) return;
+    const p = (typeof window !== 'undefined' && window.location.pathname) || '';
+    if (/^\/(admin|chauffeur|merchant|dispatch|kiosk)/.test(p)) return;
+    // A user who already completed the legacy onboarding keeps their choice.
+    if (localStorage.getItem('sb_onboarded')) { localStorage.setItem('sb_locale_init', '1'); return; }
     let cancelled = false;
+    const finish = () => { if (!cancelled) { localStorage.setItem('sb_locale_init', '1'); localStorage.setItem('sb_onboarded', '1'); } };
     getBrowserCountryCode()
       .then((cc) => {
-        const lang = ZONE_LANG[cc];
-        if (lang && lang !== 'fr' && !cancelled) setSuggestedCode(lang);
+        if (cancelled) return;
+        const code = CURRENCY_BY_COUNTRY[cc] || 'EUR';
+        const curr = CURRENCIES.find((c) => c.code === code) || CURRENCIES[0];
+        if (curr) setCurrencyState(curr);
+        finish();
       })
-      .catch(() => {});
+      .catch(finish);
     return () => { cancelled = true; };
   }, []);
-
-  // Derived suggestion object (needs the loaded languages for name/flag).
-  const suggestion = suggestedCode ? (languages.find((l) => l.code === suggestedCode) || null) : null;
-
-  const acceptSuggestion = useCallback(() => {
-    if (suggestion) setLanguage(suggestion);
-    localStorage.setItem('sb_lang_suggested', '1');
-    setSuggestedCode('');
-  }, [suggestion]);
-
-  const dismissSuggestion = useCallback(() => {
-    localStorage.setItem('sb_lang_suggested', '1');
-    setSuggestedCode('');
-  }, []);
-
-  const completeOnboarding = useCallback((lang, curr) => {
-    if (lang) setLanguage(lang);
-    if (curr) setCurrency(curr);
-    localStorage.setItem('sb_onboarded', '1');
-    localStorage.setItem('sb_lang_suggested', '1'); // skip the zone banner afterwards
-    setSuggestedCode('');
-    setShowOnboarding(false);
-  }, [setLanguage, setCurrency]);
   // Flattened label bundles by lang code (FR base always present as fallback).
   const [bundles, setBundles] = useState(() => ({ ..._bundleCache }));
 
@@ -276,17 +210,8 @@ export const LocaleProvider = ({ children }) => {
   };
 
   return (
-    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages, suggestion, acceptSuggestion, dismissSuggestion }}>
+    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages }}>
       {children}
-      <OnboardingModal
-        open={showOnboarding}
-        languages={languages}
-        currencies={CURRENCIES}
-        initialLang={language}
-        initialCurrency={currency}
-        onConfirm={completeOnboarding}
-      />
-      <LanguageSuggestionBanner />
     </LocaleContext.Provider>
   );
 };

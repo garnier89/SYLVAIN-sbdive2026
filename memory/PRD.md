@@ -1,3 +1,15 @@
+## NEW - 2026-06-09 (101) - Langue/Devise : suppression onboarding+pop-up créole → défauts auto par région (DONE, vérifié)
+- **Demande user** : l'onboarding 1er lancement (grille langue+devise) était « très gros » ; retirer le pop-up créole. Garder **Français + Euro** par défaut (France & DOM-TOM) et **Français + CFA** pour l'Afrique francophone (Ouest=XOF, Centrale=XAF). Les écrans ne sont pas traduits en créole → on ne force pas le créole.
+- **Frontend** (`contexts/LocaleContext.js`) :
+  - **Supprimé** : `OnboardingModal` (grande fenêtre langue+devise), `LanguageSuggestionBanner` (bandeau créole), map `ZONE_LANG` (créoles), états/handlers `showOnboarding/completeOnboarding/suggestion/acceptSuggestion/dismissSuggestion`. Le contexte n'expose plus `suggestion/accept/dismiss` (aucun autre composant ne les utilisait).
+  - **Ajouté** : effet de **défauts automatiques au 1er lancement** (`sb_locale_init`, exécuté une seule fois, jamais sur les apps staff) → langue **reste Français**, **devise auto** selon le pays détecté (`getBrowserCountryCode`) via `CURRENCY_BY_COUNTRY` : FR + DOM-TOM/collectivités → EUR ; Afrique Ouest francophone (SN, CI, ML, BF, BJ, TG, NE, GW) → XOF ; Afrique Centrale (CM, GA, CG, TD, CF, GQ) → XAF ; sinon EUR. Respecte un utilisateur déjà onboardé (legacy `sb_onboarded`) et la préférence compte (cross-device, inchangé). Sélecteur langue/devise manuel conservé.
+  - `OnboardingModal.jsx` n'est plus importé (fichier laissé en place, code mort sans impact).
+- **Vérifié** (screenshot visiteur neuf, localStorage vidé) : aucune modale d'onboarding, aucun bandeau créole, `sb_locale_init=1`, devise=EUR, landing en français. Webpack compile (warnings exhaustive-deps pré-existants tolérés).
+- **Note Marketplace (réponse à la question user)** : le Marketplace est de type **petites annonces** — le vendeur **est notifié** quand un acheteur le contacte (bouton « Message » → notification in-app + WS + push ; + bouton « Appeler »), mais **il n'existe AUCUN flux d'achat/paiement intégré** (pas de bouton « Acheter », transaction hors-app). Un vrai « Acheter + payer dans l'app + commission » reste **P1 backlog**.
+- ⚠️ PREVIEW → **redéploiement requis** pour la prod.
+
+
+
 ## NEW - 2026-06-09 (100) - Tendances & Raccourcis PAR ZONE (zones admin + raccourcis programmés/planifiés) (DONE, testé 100%)
 - **Demande user (P0)** : « Programmer les tendances et les raccourcis par zone ». Choix : (1) programmer = curation + planification horaire ; (2) zone = liste admin (nom + pays/région/ville + coordonnées/rayon + alias texte) ; (3) raccourcis = zone d'abord puis perso ; (4) tendances restent **automatiques** (alignées sur la zone résolue).
 - **Backend** (NOUVEAU `routes/zones.py`, monté + `seed_zones` dans `run_all_seeds`) : collections `zones` + `zone_shortcuts`.
