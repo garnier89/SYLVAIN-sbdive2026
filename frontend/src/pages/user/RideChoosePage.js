@@ -634,7 +634,7 @@ const RideChoosePage = () => {
           </button>
           <div className="absolute top-4 right-4 left-16 bg-white rounded-xl shadow-lg px-3 py-2 z-20" data-testid="map-dest-chip">
             <p className="text-[9px] uppercase text-gray-400 font-bold leading-none mb-0.5">Destination</p>
-            <p className="text-xs font-semibold text-[#0B1426] truncate">{dropoff?.address}</p>
+            <p data-testid="ride-choose-dropoff-display" className="text-xs font-semibold text-[#0B1426] truncate">{dropoff?.address}</p>
           </div>
           {nearby.etaMins != null ? (
             <div className="absolute left-4 bottom-3 bg-[#0B1426] text-white rounded-full pl-2.5 pr-3.5 py-1.5 shadow-lg z-20 flex items-center gap-2" data-testid="driver-eta-chip">
