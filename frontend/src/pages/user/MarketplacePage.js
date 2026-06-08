@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle, WhatsappLogo, Phone } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -18,6 +18,7 @@ const MarketplacePage = () => {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/api/phase2/catalogs/marketplace_listings`, { credentials: 'include' })
@@ -79,7 +80,7 @@ const MarketplacePage = () => {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map(l => (
-              <button key={l.id} onClick={() => toast.info(l.title)} className={`bg-white rounded-2xl overflow-hidden border text-left hover:shadow-md transition-shadow relative ${l.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`} data-testid={`listing-${l.id}`}>
+              <button key={l.id} onClick={() => setSelected(l)} className={`bg-white rounded-2xl overflow-hidden border text-left hover:shadow-md transition-shadow relative ${l.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`} data-testid={`listing-${l.id}`}>
                 {l.is_featured && (
                   <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow" data-testid={`sponsored-${l.id}`}>
                     ★ Sponsorisé
@@ -106,6 +107,55 @@ const MarketplacePage = () => {
           </div>
         )}
       </div>
+
+      {selected && (
+        <div className="fixed inset-0 z-[2800] bg-black/60 flex items-end" onClick={() => setSelected(null)} data-testid="listing-detail-modal">
+          <div className="w-full bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {selected.image ? (
+              <div className="relative w-full h-56 bg-gray-100">
+                <img src={selected.image} alt={selected.title} className="w-full h-full object-cover" />
+                <button onClick={() => setSelected(null)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center" data-testid="listing-detail-close">✕</button>
+                {selected.seller_verified && (
+                  <span className="absolute top-3 left-3 inline-flex items-center gap-0.5 bg-emerald-600 text-white text-[11px] font-bold px-2 py-1 rounded-full shadow">
+                    <CheckCircle size={13} weight="fill" /> Vendeur vérifié
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex justify-end p-3"><button onClick={() => setSelected(null)} data-testid="listing-detail-close" className="text-gray-400">✕</button></div>
+            )}
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-xl font-extrabold text-gray-900">{selected.title}</h2>
+                <p className="text-xl font-extrabold text-blue-600 whitespace-nowrap">{selected.price?.toLocaleString('fr-FR')} {selected.currency}</p>
+              </div>
+              {!selected.image && selected.seller_verified && (
+                <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full mt-2">
+                  <CheckCircle size={13} weight="fill" /> Vendeur vérifié
+                </span>
+              )}
+              {selected.location && <p className="text-sm text-gray-500 mt-2">📍 {selected.location}</p>}
+              {selected.seller_name && <p className="text-sm text-gray-600 mt-1">Vendeur : <span className="font-semibold">{selected.seller_name}</span></p>}
+              {selected.description && <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">{selected.description}</p>}
+
+              <div className="grid grid-cols-2 gap-3 mt-5">
+                {selected.seller_phone ? (
+                  <>
+                    <a href={`https://wa.me/${(selected.seller_phone || '').replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold text-sm" data-testid="contact-whatsapp-btn">
+                      <WhatsappLogo size={18} weight="fill" /> WhatsApp
+                    </a>
+                    <a href={`tel:${selected.seller_phone}`} className="flex items-center justify-center gap-2 bg-blue-600 text-white rounded-xl py-3 font-bold text-sm" data-testid="contact-call-btn">
+                      <Phone size={18} weight="fill" /> Appeler
+                    </a>
+                  </>
+                ) : (
+                  <p className="col-span-2 text-center text-sm text-gray-400">Contact du vendeur indisponible.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

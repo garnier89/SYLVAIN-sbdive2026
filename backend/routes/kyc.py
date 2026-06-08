@@ -20,6 +20,7 @@ import uuid
 
 from core.config import db
 from core.deps import get_current_user, require_role
+from core.notifications import create_notification
 
 router = APIRouter(prefix="/kyc", tags=["kyc"])
 
@@ -138,6 +139,14 @@ async def admin_approve_kyc(kyc_id: str, request: Request):
     )
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Dossier introuvable")
+    doc = await db.kyc_documents.find_one({"id": kyc_id}, {"_id": 0, "user_id": 1})
+    if doc:
+        await create_notification(
+            doc["user_id"], "kyc_approved",
+            "Identité vérifiée ✓",
+            "Vos documents ont été validés. Vous pouvez maintenant vendre sur le Marketplace.",
+            data={"kyc_status": "approved"},
+        )
     return {"id": kyc_id, "status": "approved"}
 
 
@@ -153,4 +162,12 @@ async def admin_reject_kyc(kyc_id: str, request: Request):
     )
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Dossier introuvable")
+    doc = await db.kyc_documents.find_one({"id": kyc_id}, {"_id": 0, "user_id": 1})
+    if doc:
+        await create_notification(
+            doc["user_id"], "kyc_rejected",
+            "Documents refusés",
+            f"Vos documents ont été refusés : {reason}. Veuillez les soumettre à nouveau.",
+            data={"kyc_status": "rejected", "reason": reason},
+        )
     return {"id": kyc_id, "status": "rejected", "reason": reason}

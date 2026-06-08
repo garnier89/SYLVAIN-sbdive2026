@@ -21,6 +21,7 @@ import DriverHomeMap from '../../components/driver/home/DriverHomeMap';
 import DriverFab from '../../components/driver/home/DriverFab';
 import DestinationModeModal from '../../components/driver/home/DestinationModeModal';
 import DemandZonesModal from '../../components/driver/home/DemandZonesModal';
+import DriverLocationsModal from '../../components/driver/home/DriverLocationsModal';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -54,6 +55,7 @@ const DriverHome = () => {
   const [showScheduled, setShowScheduled] = useState(false);
   const [showTaxiHall, setShowTaxiHall] = useState(false);
   const [showDemandZones, setShowDemandZones] = useState(false);
+  const [showLocations, setShowLocations] = useState(false);
   const [rideMinimized, setRideMinimized] = useState(false);
   const [taxiHallElig, setTaxiHallElig] = useState({ eligible: true, require_competition: false, reason: null });
 
@@ -445,7 +447,7 @@ const DriverHome = () => {
         onTaxiHall={openTaxiHall}
         onHeatmap={() => setShowHeatmap((v) => !v)}
         onDest={() => setShowDestModal(true)}
-        onLocations={() => toast.info('Emplacements favoris — bientôt disponible.')}
+        onLocations={() => setShowLocations(true)}
         onVehicleInfo={() => navigate('/chauffeur/vehicles')}
       />
 
@@ -548,6 +550,8 @@ const DriverHome = () => {
           }
         }}
       />
+
+      <DriverLocationsModal open={showLocations} onClose={() => setShowLocations(false)} />
 
       {/* Bottom Nav */}
       <DriverBottomNav active="home" />

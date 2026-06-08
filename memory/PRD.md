@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (96) - PHASE C terminée (Emplacements) + Notif KYC + Fiche annonce Marketplace (DONE, testé)
+- **Phase C — « Emplacements / lieu de résidence » (dernier placeholder du menu « + »)** :
+  - Backend (`drivers.py`) : `GET/PUT /api/drivers/work-base`. PUT enregistre `home_location {address,lat,lng}` et, si `activate_all`, active tous les services éligibles (delivery+courier toujours ; taxi seulement si la passerelle VTC `_taxi_block_reason` passe, sinon `taxi_note` explicatif).
+  - Frontend : `DriverLocationsModal.jsx` (adresse Google Places + toggle « Activer tous les services » + chips services actifs). Wiré dans `DriverHome.js` (`onLocations` → modal). API `driverAPI.getWorkBase/setWorkBase`. → **Le menu « + » chauffeur n'a plus aucun placeholder** (Auto-stop, IA zones, Revenir, Emplacements, Véhicule, tous actifs).
+- **Notification KYC** : `kyc.py` approve/reject appelle `create_notification` (in-app + WS + push). Types `kyc_approved` / `kyc_rejected`.
+- **Fiche détail annonce Marketplace** : `marketplace.py` create stocke `seller_phone`. `MarketplacePage.js` : clic sur une carte ouvre une **bottom-sheet** (photo, titre, prix, description, badge « Vendeur vérifié », nom vendeur) + boutons **« WhatsApp »** (`wa.me/<tel>`) et **« Appeler »** (`tel:`). Remplace l'ancien toast.
+- **Vérifié** : curl — work-base (résidence + services courier/delivery, taxi_note car véhicule inadapté) ; KYC approve → notification `kyc_approved` confirmée en base pour clienttest. Screenshot modal « Lieu de résidence » OK (toggle ON, chips Coursier/Livraison, Enregistrer). Lint clean (5 fichiers), webpack compile.
+
+
 ## NEW - 2026-06-09 (95) - Badge « Vendeur vérifié » sur le Marketplace (DONE, testé)
 - **Demande user** : afficher un badge « Vendeur vérifié ✓ » sur les annonces dont le vendeur a passé le KYC (confiance acheteur / conversion).
 - **Backend** (`marketplace.py` create_listing) : ajoute `seller_verified: True` (la création est déjà gated par KYC approuvé), `seller_name`, et `image = images[0]` (compat affichage MarketplacePage qui lit `l.image`).

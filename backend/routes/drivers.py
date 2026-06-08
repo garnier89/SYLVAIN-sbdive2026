@@ -309,6 +309,67 @@ async def update_service_types(request: Request):
     return {"message": "Services mis à jour", "service_types": service_types, "taxi_mode": taxi_mode}
 
 
+@router.get("/work-base")
+async def get_work_base(request: Request):
+    """Driver residence (work base) + currently active services."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one(
+        {"user_id": user["id"]}, {"_id": 0, "home_location": 1, "service_types": 1}
+    )
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    return {
+        "home_location": driver.get("home_location"),
+        "service_types": driver.get("service_types") or [],
+    }
+
+
+@router.put("/work-base")
+async def set_work_base(request: Request):
+    """Set the driver residence (lieu de résidence) and optionally activate every
+    service they are eligible for on the platform."""
+    user = await get_current_user(request)
+    body = await request.json()
+    driver = await db.drivers.find_one(
+        {"user_id": user["id"]}, {"_id": 0, "service_types": 1, "vehicle_type": 1, "documents": 1, "taxi_mode": 1}
+    )
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    update = {}
+    address = (body.get("address") or "").strip()
+    if address:
+        update["home_location"] = {
+            "address": address,
+            "lat": body.get("lat"),
+            "lng": body.get("lng"),
+        }
+
+    service_types = driver.get("service_types") or []
+    taxi_note = None
+    if body.get("activate_all"):
+        # delivery + courier are always available; taxi needs the VTC gate.
+        services = {"delivery", "courier"}
+        taxi_reason = _taxi_block_reason(driver, driver.get("taxi_mode") or "car")
+        if taxi_reason:
+            taxi_note = f"Taxi non activé : {taxi_reason}"
+        else:
+            services.add("taxi")
+            update["taxi_mode"] = driver.get("taxi_mode") or "car"
+        service_types = sorted(services)
+        update["service_types"] = service_types
+
+    if update:
+        await db.drivers.update_one({"user_id": user["id"]}, {"$set": update})
+
+    return {
+        "message": "Lieu de résidence et services mis à jour",
+        "home_location": update.get("home_location") or (await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "home_location": 1})).get("home_location"),
+        "service_types": service_types,
+        "taxi_note": taxi_note,
+    }
+
+
 @router.put("/profile/info")
 async def request_profile_info_change(request: Request):
     """Driver requests a change to their professional info (company name / license number).

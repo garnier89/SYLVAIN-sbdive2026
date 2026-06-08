@@ -24,6 +24,7 @@ async def create_listing(request: Request):
         "id": f"listing_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
         "seller_name": user.get("name", ""),
+        "seller_phone": user.get("phone", ""),
         "seller_verified": True,  # creation is gated by approved KYC
         "type": body.get("type", "items"),  # real-estate, cars, items
         "title": body["title"],
