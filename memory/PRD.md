@@ -1,3 +1,19 @@
+## NEW - 2026-06-08 (61) - Refactor P2 frontend : découpage `App.js` (605 → 88 lignes) (DONE)
+- **Demande user** : option B (P2) — découpage des gros composants frontend, en commençant par `App.js` (table de routage de 605 lignes).
+- **Découpage en modules de routage** (aucun changement de comportement, pattern fonction-retournant-Fragment compatible React Router v6) :
+  - `src/routes/pages.js` : barrel central de TOUS les `lazy()` (client, driver, merchant, admin, panels, kiosk) + re-export des named exports `AdminCrudPages`.
+  - `src/routes/clientRoutes.jsx` : `clientRoutes(user)` → toutes les routes client/auth/public (/, /login, /home, /taxi, /course, /all-delivery, /wallet, /profile, /actualites, etc.).
+  - `src/routes/driverRoutes.jsx` : `driverRoutes(user)` → toutes les routes `/chauffeur/*`.
+  - `src/routes/merchantRoutes.jsx` : `merchantRoutes()` → `/merchant/*` (nested).
+  - `src/routes/adminRoutes.jsx` : `adminRoutes()` → `/admin/*` (nested, ~110 routes).
+  - `src/routes/panelRoutes.jsx` : `panelRoutes()` → /dispatcher + 6 panels rôle (dispatch/billing/server/users-admin/drivers-admin/merchants-admin).
+  - `src/App.js` (88 l) : coquille fine — providers + Suspense + composition des groupes dans un seul `<Routes>` + /kiosk, /tab, /auth/callback, catch-all, VoiceAssistant (toujours sur /home rôle user).
+- **Nettoyage** : `RegisterPage` (import inutilisé, /register redirige vers /login) supprimé de l'arbre.
+- **Vérifié** : webpack compile (1 warning exhaustive-deps pré-existant), lint clean sur tous les nouveaux fichiers. **testing_agent iteration_159.json** : refactor « clean & idiomatic », 100% des routes exerçables OK (landing, /login, /chauffeur/login, /admin-login + sous-routes admin, /dispatch /billing /server, /kiosk, catch-all /xxx→/), aucune nouvelle erreur console. Routes driver/client OTP-gated non auto-testées (limite UX OTP) mais existent et `ProtectedRoute` redirige correctement. Login chauffeur vérifié au screenshot (page rendue).
+- **Reste P2** : `DriverHome.js` (623 l → extraire carte/liste/stats — composant LIVE critique, à tester finement), `DriverProfilePage.js`, `AdminDashboard.js` ; nettoyage `console.*` ; hook deps prudents.
+
+
+
 ## NEW - 2026-06-08 (60) - Refactor P2 (lots 2-3) : complexité backend `get_rewards_config` + `_process_pending_ride` (DONE)
 - **Méthode** : extraction de helpers PURS (testables sans DB) + orchestrateur async fin ; comportement strictement préservé.
 - **Lot 2 — `routes/admin.py` `get_rewards_config` (cc 21)** : extrait `_rewards_zone_candidates(zone)` (zone_keys ordonnés city>state>country, [] si pas de pays) et `_merge_rewards_settings(settings)` (merge sur DEFAULT, fallback champs falsy). La fonction async se réduit à : boucle sur candidats → fallback global → merge.
