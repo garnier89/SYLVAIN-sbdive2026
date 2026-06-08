@@ -446,7 +446,7 @@ const RideChoosePage = () => {
               <GooglePlacesInput placeholder="Où allez-vous ?" value={dropoff?.address || ''} iconColor="#EF4444" testId="ride-choose-dropoff" onSelect={(p) => setDropoff(p)} />
             </div>
           )}
-          <button onClick={() => autoLocate(true)} disabled={locating} className="flex items-center gap-2 text-sm font-semibold text-[#2563EB] pl-1 pt-1" data-testid="ride-choose-locate">
+          <button onClick={() => autoLocate(true)} disabled={locating} className="flex items-center gap-2 text-sm font-semibold text-[#FF5000] pl-1 pt-1" data-testid="ride-choose-locate">
             <NavigationArrow size={16} weight="fill" />
             {locating ? 'Localisation…' : 'Utiliser ma position actuelle'}
           </button>

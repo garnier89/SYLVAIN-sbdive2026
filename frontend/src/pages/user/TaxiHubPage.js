@@ -547,8 +547,8 @@ const TaxiHubPage = () => {
               <div className="mt-3" data-testid="places-shortcuts">
                 <button onClick={() => detectCurrentLocation(true)} disabled={locating}
                   className="w-full flex items-center gap-3 py-2.5 text-left active:opacity-70" data-testid="use-current-location-btn">
-                  <span className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <NavigationArrow size={18} weight="fill" className="text-blue-500" />
+                  <span className="w-9 h-9 rounded-full bg-[#FFF3EC] flex items-center justify-center flex-shrink-0">
+                    <NavigationArrow size={18} weight="fill" className="text-[#FF5000]" />
                   </span>
                   <span className="text-sm font-semibold text-[#0B1426]">{locating ? 'Localisation…' : 'Utiliser ma localisation actuelle'}</span>
                 </button>

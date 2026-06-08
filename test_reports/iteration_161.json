@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend-only verification of SB Drive VTC duplicate-tile removal and orange page-chrome fixes. All 6 assertions PASS. Logged in as rider.i18n@demo.sb via /login/email; Home 'Services Taxi' shows exactly the 8 canonical tiles (Taxi VTC, Pool-partage, Moto Taxi, Électric, Planifiez votre trajet, Mise à Dispo, Intercité, Tous les Taxis) with ZERO forbidden duplicates ('VTC Réservation', 'VTC Pooling', 'VTC Location', 'Enchères VTC', 'VTC Intercity', 'Programmer Course' all absent). Tapping 'Tous les Taxis' → /taxi hub 'Choisissez un service' with the 3 groups (Au quotidien / Temps & Distance / Spécialisé & Inclusif). Direct nav to /more-taxi REDIRECTS to /taxi (final URL ends with /taxi, no 'Plus de Services VTC' title present). On /course?mode=standard the 'Utiliser ma position actuelle' button text color computes to rgb(255, 80, 0) = #FF5000. No error overlay, no 'is not a constructor' console errors, no unrelated console errors detected during the test.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "UserHome.js is 696 lines — getting large. Consider extracting the per-section service tile arrays (taxi/delivery/beauty/pet/carcare/towing/nearby) into a separate /pages/user/userHomeServices.js to keep the page <500 lines and improve readability."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "test_credentials": "rider.i18n@demo.sb / Rider123! via /login/email (verified)",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 161 verified: (a) Home 'Services Taxi' canonical 8 tiles only — testids observed: service-svccat-standard-btn, -pool-btn, -moto-btn, -electric-btn, -book_later-btn, -rental-btn, -intercity-btn, service-more-taxi-btn; (b) /more-taxi → 302/replace navigates to /taxi (TaxiHubPage); (c) #FF5000 chrome confirmed on /course locate button (rgb(255,80,0)). The TaxiHub 'Utiliser ma localisation actuelle' row icon could not be programmatically captured in this run (sibling-span selector logic mismatch), but source inspection of TaxiHubPage.js lines 549-553 confirms bg-[#FFF3EC] + text-[#FF5000] are in place; visually orange in screenshot. No action needed.",
+  "rca of the issue": "N/A — verification pass."
+}

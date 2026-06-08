@@ -178,15 +178,18 @@ const UserHome = () => {
     return () => clearInterval(id);
   }, [promoBanners.length]);
 
-  // ===== Taxi Services (8 items) =====
+  // ===== Taxi Services fallback (8 items) =====
+  // Used only if "Gérer les catégories" (service_categories) hasn't loaded yet.
+  // Mirrors the canonical first-7 modes + "Tous les Taxis" so the Home stays
+  // consistent with the /taxi hub (no "VTC Réservation/Pooling/..." duplicates).
   const taxiServices = [
-    { id: 'taxi-booking', name: 'VTC\nRéservation', icon: Car, bg: 'bg-amber-50', iconColor: 'text-amber-500', path: '/course?mode=standard' },
-    { id: 'taxi-pooling', name: 'VTC\nPooling', icon: UsersThree, bg: 'bg-teal-50', iconColor: 'text-teal-500', path: '/course?mode=pool' },
-    { id: 'taxi-rental', name: 'VTC\nLocation', icon: Taxi, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/course?mode=rental' },
-    { id: 'personal-driver', name: 'Chauffeur\nPrivé', icon: User, bg: 'bg-orange-50', iconColor: 'text-orange-700', path: '/course?mode=buddy_driver' },
-    { id: 'taxi-bidding', name: 'Enchères\nVTC', icon: Gavel, bg: 'bg-pink-50', iconColor: 'text-pink-500', path: '/course?mode=bidding' },
-    { id: 'taxi-intercity', name: 'VTC\nIntercity', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/course?mode=intercity' },
-    { id: 'schedule-ride', name: 'Programmer\nCourse', icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/course?mode=book_later' },
+    { id: 'taxi-standard', name: 'Taxi VTC', icon: Car, bg: 'bg-amber-50', iconColor: 'text-amber-500', path: '/course?mode=standard' },
+    { id: 'taxi-pool', name: 'Pool-partage', icon: UsersThree, bg: 'bg-teal-50', iconColor: 'text-teal-500', path: '/course?mode=pool' },
+    { id: 'taxi-moto', name: 'Moto Taxi', icon: Bicycle, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/course?mode=moto' },
+    { id: 'taxi-electric', name: 'Électric', icon: Lightning, bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/course?mode=electric' },
+    { id: 'taxi-book_later', name: 'Planifiez\nvotre trajet', icon: Calendar, bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/course?mode=book_later' },
+    { id: 'taxi-rental', name: 'Mise à Dispo', icon: Taxi, bg: 'bg-blue-50', iconColor: 'text-blue-500', path: '/course?mode=rental' },
+    { id: 'taxi-intercity', name: 'Intercité', icon: Truck, bg: 'bg-green-50', iconColor: 'text-green-600', path: '/course?mode=intercity' },
     { id: 'more-taxi', name: 'Tous les\nTaxis', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi' },
   ];
 
