@@ -546,6 +546,67 @@ async def disruptions_history():
     return {"items": items}
 
 
+def _parse_disruption(body):
+    typ = (body.get("type") or "info").strip()
+    if typ not in DISRUPTION_TYPES:
+        typ = "info"
+    routes = body.get("routes") or []
+    if isinstance(routes, str):
+        routes = [r.strip() for r in routes.split(",") if r.strip()]
+    sev = (body.get("severity") or "").strip()
+    if sev not in ("high", "medium", "low"):
+        sev = "high" if typ in ("strike", "cancellation") else "medium"
+    return {
+        "type": typ,
+        "title": (body.get("title") or "").strip(),
+        "message": (body.get("message") or "").strip(),
+        "routes": routes,
+        "severity": sev,
+        "active": body.get("active", True) is not False,
+        "starts_at": (body.get("starts_at") or None),
+        "ends_at": (body.get("ends_at") or None),
+    }
+
+
+@router.get("/admin/disruptions")
+async def admin_list_disruptions(current_user: dict = Depends(require_permission("content.manage"))):
+    """All admin-declared disruptions/strikes (manual source), most recent first."""
+    items = await db.transport_disruptions.find({"source": "manual"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"disruptions": items}
+
+
+@router.post("/admin/disruptions")
+async def admin_create_disruption(request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    data = _parse_disruption(await request.json())
+    if not data["title"]:
+        raise HTTPException(400, "Titre requis")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    data.update({"id": f"dsr_{uuid.uuid4().hex[:10]}", "source": "manual",
+                 "created_at": now_iso, "updated_at": now_iso})
+    await db.transport_disruptions.insert_one(dict(data))
+    data.pop("_id", None)
+    return data
+
+
+@router.put("/admin/disruptions/{did}")
+async def admin_update_disruption(did: str, request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    data = _parse_disruption(await request.json())
+    if not data["title"]:
+        raise HTTPException(400, "Titre requis")
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    r = await db.transport_disruptions.update_one({"id": did, "source": "manual"}, {"$set": data})
+    if not r.matched_count:
+        raise HTTPException(404, "Perturbation introuvable")
+    d = await db.transport_disruptions.find_one({"id": did}, {"_id": 0})
+    return d
+
+
+@router.delete("/admin/disruptions/{did}")
+async def admin_delete_disruption(did: str, current_user: dict = Depends(require_permission("content.manage"))):
+    await db.transport_disruptions.delete_one({"id": did, "source": "manual"})
+    return {"ok": True}
+
+
 # ── journey planner (origin → destination, with transfers) ────────────────────
 WALK_KMH = 4.8
 WALK_RADIUS_KM = 1.2

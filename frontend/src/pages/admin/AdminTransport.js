@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Bus, Train, Boat, Plus, PencilSimple, Trash, X, MapPin, Path, ArrowsClockwise, Database, Bell, MagnifyingGlass } from '@phosphor-icons/react';
+import { Bus, Train, Boat, Plus, PencilSimple, Trash, X, MapPin, Path, ArrowsClockwise, Database, Bell, MagnifyingGlass, Megaphone, Prohibit, Warning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { transportAPI } from '../../services/api';
 
@@ -11,6 +11,14 @@ const MODES = [
   { v: 'metro', l: 'Métro' }, { v: 'ferry', l: 'Navette' },
 ];
 const MODE_ICON = { bus: Bus, tram: Train, brt: Bus, metro: Train, ferry: Boat };
+
+const DSR_TYPES = [
+  { v: 'strike', l: 'Grève' }, { v: 'cancellation', l: 'Annulation' },
+  { v: 'delay', l: 'Retards' }, { v: 'reduced', l: 'Service réduit' },
+  { v: 'detour', l: 'Déviation' }, { v: 'info', l: 'Information' },
+];
+const DSR_LABEL = (v) => DSR_TYPES.find((t) => t.v === v)?.l || v;
+const EMPTY_DSR = { type: 'strike', title: '', message: '', routes: '', active: true, starts_at: '', ends_at: '' };
 
 const EMPTY_STOP = { name: '', zone: '', type: 'bus', lat: '', lng: '', is_active: true };
 const EMPTY_LINE = {
@@ -31,6 +39,13 @@ const AdminTransport = () => {
   const [rtUrls, setRtUrls] = useState({ 'mq-centre': '', 'mq-maritime': '', 'mq-nord': '' });
   const [savingRt, setSavingRt] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [disruptions, setDisruptions] = useState([]);
+  const [editDsr, setEditDsr] = useState(null);  // {id, form}
+
+  const loadDisruptions = useCallback(async () => {
+    try { const r = await transportAPI.adminListDisruptions(); setDisruptions(r.data.disruptions || []); }
+    catch (e) { /* ignore */ }
+  }, []);
 
   const loadGtfs = useCallback(async () => {
     try {
@@ -86,9 +101,35 @@ const AdminTransport = () => {
     } catch (e) { console.error(e); toast.error('Erreur de chargement'); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { load(); loadGtfs(); }, [load, loadGtfs]);
+  useEffect(() => { load(); loadGtfs(); loadDisruptions(); }, [load, loadGtfs, loadDisruptions]);
 
   const stopName = (id) => stops.find((s) => s.id === id)?.name || id;
+
+  // ── Disruptions / strikes CRUD ──
+  const setDF = (k, v) => setEditDsr((e) => ({ ...e, form: { ...e.form, [k]: v } }));
+  const saveDsr = async () => {
+    const { id, form } = editDsr;
+    if (!form.title.trim()) { toast.error('Le titre est requis'); return; }
+    try {
+      if (id) await transportAPI.updateDisruption(id, form); else await transportAPI.createDisruption(form);
+      toast.success(id ? 'Perturbation mise à jour' : 'Perturbation publiée');
+      setEditDsr(null); loadDisruptions();
+    } catch (e) { toast.error('Erreur lors de l’enregistrement'); }
+  };
+  const toggleDsr = async (d) => {
+    try {
+      await transportAPI.updateDisruption(d.id, {
+        type: d.type, title: d.title, message: d.message, routes: d.routes || [],
+        severity: d.severity, starts_at: d.starts_at, ends_at: d.ends_at, active: !(d.active !== false),
+      });
+      loadDisruptions();
+    } catch (e) { toast.error('Erreur'); }
+  };
+  const removeDsr = async (d) => {
+    if (!window.confirm(`Supprimer « ${d.title} » ?`)) return;
+    try { await transportAPI.removeDisruption(d.id); toast.success('Perturbation supprimée'); loadDisruptions(); }
+    catch (e) { toast.error('Erreur'); }
+  };
 
   // ── Stops CRUD ──
   const setSF = (k, v) => setEditStop((e) => ({ ...e, form: { ...e.form, [k]: v } }));
@@ -227,6 +268,48 @@ const AdminTransport = () => {
               <MagnifyingGlass size={14} className={`mr-1 ${scanning ? 'animate-pulse' : ''}`} /> {scanning ? 'Veille…' : 'Scanner maintenant'}
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* Disruptions / strikes panel — pushes VTC conversion on the client */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4" data-testid="disruptions-panel">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Megaphone size={18} className="text-[#DC2626]" weight="duotone" />
+            <div>
+              <p className="text-sm font-bold text-gray-800">Perturbations & grèves</p>
+              <p className="text-xs text-gray-500">Déclarez une grève ou perturbation : une bannière s'affiche côté client (accueil + transports) et pousse la bascule vers le VTC. Les alertes GTFS-RT sont ajoutées automatiquement dès qu'un flux temps réel existe.</p>
+            </div>
+          </div>
+          <Button className="bg-[#DC2626] hover:bg-[#b91c1c] text-white h-8 text-xs" onClick={() => setEditDsr({ id: null, form: { ...EMPTY_DSR } })} data-testid="add-disruption-btn">
+            <Plus size={14} className="mr-1" /> Déclarer une perturbation
+          </Button>
+        </div>
+        <div className="mt-3 space-y-2">
+          {disruptions.length === 0 && <p className="text-xs text-gray-400" data-testid="disruptions-empty">Aucune perturbation déclarée. Réseau nominal.</p>}
+          {disruptions.map((d) => (
+            <div key={d.id} className="flex items-start justify-between gap-3 border border-gray-100 rounded-lg p-2.5" data-testid={`disruption-row-${d.id}`}>
+              <div className="flex items-start gap-2 min-w-0">
+                {d.type === 'strike' ? <Prohibit size={16} weight="fill" className="text-[#DC2626] shrink-0 mt-0.5" /> : <Warning size={16} weight="fill" className="text-amber-500 shrink-0 mt-0.5" />}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-black uppercase text-gray-500">{DSR_LABEL(d.type)}</span>
+                    {d.active !== false
+                      ? <Badge className="bg-red-100 text-red-700 text-[10px]">Active</Badge>
+                      : <Badge variant="outline" className="text-gray-400 text-[10px]">Inactive</Badge>}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800 leading-tight">{d.title}</p>
+                  {d.message && <p className="text-xs text-gray-500 leading-snug">{d.message}</p>}
+                  {(d.routes || []).length > 0 && <p className="text-[10px] text-gray-400">Lignes : {d.routes.join(', ')}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => toggleDsr(d)} data-testid={`toggle-disruption-${d.id}`}>{d.active !== false ? 'Désactiver' : 'Activer'}</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditDsr({ id: d.id, form: { type: d.type, title: d.title, message: d.message || '', routes: (d.routes || []).join(', '), active: d.active !== false, starts_at: d.starts_at || '', ends_at: d.ends_at || '' } })} data-testid={`edit-disruption-${d.id}`}><PencilSimple size={14} /></Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-200" onClick={() => removeDsr(d)} data-testid={`delete-disruption-${d.id}`}><Trash size={14} /></Button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -377,6 +460,30 @@ const AdminTransport = () => {
               <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={editLine.form.is_active} onChange={(e) => setLF('is_active', e.target.checked)} data-testid="line-active" /> Active</label>
             </div>
             <div className="flex gap-2 mt-5"><Button variant="outline" className="flex-1" onClick={() => setEditLine(null)}>Annuler</Button><Button className="flex-1 bg-[#FF5000] hover:bg-[#e64800] text-white" onClick={saveLine} data-testid="line-save">Enregistrer</Button></div>
+          </div>
+        </div>
+      )}
+      {/* Disruption modal */}
+      {editDsr && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setEditDsr(null)} data-testid="disruption-dialog">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-gray-900">{editDsr.id ? 'Modifier la perturbation' : 'Déclarer une perturbation'}</h3><button onClick={() => setEditDsr(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div>
+            <div className="space-y-3">
+              <div><label className="text-xs font-semibold text-gray-700 block mb-1">Type</label>
+                <select value={editDsr.form.type} onChange={(e) => setDF('type', e.target.value)} className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm" data-testid="dsr-type">
+                  {DSR_TYPES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+                </select>
+              </div>
+              <div><label className="text-xs font-semibold text-gray-700 block mb-1">Titre *</label><Input value={editDsr.form.title} onChange={(e) => setDF('title', e.target.value)} placeholder="Grève des transports CACEM" data-testid="dsr-title" /></div>
+              <div><label className="text-xs font-semibold text-gray-700 block mb-1">Message</label><textarea value={editDsr.form.message} onChange={(e) => setDF('message', e.target.value)} rows={2} className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm" placeholder="Réseau bus à l'arrêt aujourd'hui. Réservez un VTC pour vos trajets." data-testid="dsr-message" /></div>
+              <div><label className="text-xs font-semibold text-gray-700 block mb-1">Lignes concernées (séparées par des virgules)</label><Input value={editDsr.form.routes} onChange={(e) => setDF('routes', e.target.value)} placeholder="A, B, L1" data-testid="dsr-routes" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-700 block mb-1">Début (optionnel)</label><Input type="datetime-local" value={editDsr.form.starts_at} onChange={(e) => setDF('starts_at', e.target.value)} data-testid="dsr-starts" /></div>
+                <div><label className="text-xs font-semibold text-gray-700 block mb-1">Fin (optionnel)</label><Input type="datetime-local" value={editDsr.form.ends_at} onChange={(e) => setDF('ends_at', e.target.value)} data-testid="dsr-ends" /></div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={editDsr.form.active} onChange={(e) => setDF('active', e.target.checked)} data-testid="dsr-active" /> Active (visible côté client)</label>
+            </div>
+            <div className="flex gap-2 mt-5"><Button variant="outline" className="flex-1" onClick={() => setEditDsr(null)}>Annuler</Button><Button className="flex-1 bg-[#DC2626] hover:bg-[#b91c1c] text-white" onClick={saveDsr} data-testid="dsr-save">Publier</Button></div>
           </div>
         </div>
       )}

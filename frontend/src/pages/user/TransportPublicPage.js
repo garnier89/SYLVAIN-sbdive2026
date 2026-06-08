@@ -20,6 +20,7 @@ import { transportAPI, placesAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import JourneyMap from './transport/JourneyMap';
+import { LiveBadge, DisruptionBanner, DisruptionHistory } from '../../components/transport/transportAlerts';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -41,6 +42,7 @@ const TransportPublicPage = () => {
   const [loading, setLoading] = useState(true);
   const [fallback, setFallback] = useState(false);
   const [now, setNow] = useState('');
+  const [liveActive, setLiveActive] = useState(false);
   const [coords, setCoords] = useState(null);
   const [compare, setCompare] = useState({}); // line_id -> { loading, open, data }
   // Journey planner (origin → destination, with transfers)
@@ -57,6 +59,7 @@ const TransportPublicPage = () => {
       setStops(r.data.stops || []);
       setFallback(!!r.data.fallback);
       setNow(r.data.now || '');
+      setLiveActive(!!r.data.realtime);
     } catch (e) {
       toast.error('Impossible de charger les transports proches');
     } finally {
@@ -181,7 +184,10 @@ const TransportPublicPage = () => {
       <div className="bg-[#0B1426] text-white px-5 pt-12 pb-6">
         <button onClick={() => navigate(-1)} className="mb-4" data-testid="transport-back"><ArrowLeft size={24} /></button>
         <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#FF5000]">SB Drive · Mobilité</p>
-        <h1 className="text-3xl font-black tracking-tight mt-1">Transports publics</h1>
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <h1 className="text-3xl font-black tracking-tight">Transports publics</h1>
+          <LiveBadge active={liveActive} testId="transport-live" />
+        </div>
         <p className="text-sm text-white/60 mt-1">Arrêts proches & prochains passages{now ? ` · ${now}` : ''}</p>
         <div className="flex gap-2 mt-4">
           <button onClick={() => locate(true)} className="flex-1 bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 text-sm font-semibold active:scale-[0.98] transition-transform" data-testid="transport-locate-btn">
@@ -194,6 +200,9 @@ const TransportPublicPage = () => {
       </div>
 
       <div className="px-5 -mt-3">
+        {/* Active disruptions / strikes (cross-sell VTC) */}
+        <div className="-mx-5 mb-3"><DisruptionBanner vtcRoute="/course?mode=standard" /></div>
+
         {/* Accès écran dédié — Transports autour de moi (GTFS Martinique réel) */}
         <button onClick={() => navigate('/transports-autour')} data-testid="nearby-transit-entry"
           className="w-full mb-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 flex items-center gap-3 text-left shadow-sm hover:border-[#FF5000] transition-colors">
@@ -488,6 +497,9 @@ const TransportPublicPage = () => {
             })}
           </div>
         )}
+
+        {/* Perturbations history */}
+        <div className="mt-3"><DisruptionHistory /></div>
       </div>
 
       {/* Sticky cross-sell CTA — Continuer en VTC */}

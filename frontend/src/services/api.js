@@ -391,6 +391,13 @@ export const transportAPI = {
   setGtfsRealtime: (realtime_urls) => api.put('/transport/admin/gtfs/realtime', { realtime_urls }),
   scanGtfsRealtime: () => api.post('/transport/admin/gtfs/realtime/scan'),
   ackGtfsAlerts: () => api.post('/transport/admin/gtfs/alerts/ack'),
+  // Disruptions & strikes (perturbations / grèves)
+  disruptions: () => api.get('/transport/disruptions'),
+  disruptionsHistory: () => api.get('/transport/disruptions/history'),
+  adminListDisruptions: () => api.get('/transport/admin/disruptions'),
+  createDisruption: (data) => api.post('/transport/admin/disruptions', data),
+  updateDisruption: (id, data) => api.put(`/transport/admin/disruptions/${id}`, data),
+  removeDisruption: (id) => api.delete(`/transport/admin/disruptions/${id}`),
 };
 
 // Parcel delivery APIs (single & multi-drop)

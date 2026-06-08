@@ -9,6 +9,7 @@ import SideMenuDrawer from '../../components/SideMenuDrawer';
 import { useLocale } from '../../contexts/LocaleContext';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
+import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
 import { homeCategoriesAPI, promoBannersAPI, configAPI, serviceTrendsAPI, zonesAPI } from '../../services/api';
@@ -608,6 +609,7 @@ const UserHome = () => {
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 
       <DebtBanner />
+      <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />
 
       <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-1">
         {mergedShortcuts.length >= 2 && (

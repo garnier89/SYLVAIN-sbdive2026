@@ -17,6 +17,7 @@ import {
 } from '@phosphor-icons/react';
 import { transportAPI } from '../../services/api';
 import NearbyTransitMap from './transport/NearbyTransitMap';
+import { LiveBadge, DisruptionBanner, DisruptionHistory } from '../../components/transport/transportAlerts';
 
 // Fort-de-France (centre) — repli si la géoloc est indisponible / hors Martinique.
 const FDF = { lat: 14.6036, lng: -61.0730 };
@@ -93,7 +94,10 @@ const NearbyTransitPage = () => {
       <div className="bg-[#0B1426] text-white px-5 pt-12 pb-5">
         <button onClick={() => navigate(-1)} className="mb-4" data-testid="nearby-back"><ArrowLeft size={24} /></button>
         <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#FF5000]">SB Drive · Martinique</p>
-        <h1 className="text-3xl font-black tracking-tight mt-1">Transports autour de moi</h1>
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <h1 className="text-3xl font-black tracking-tight">Transports autour de moi</h1>
+          <LiveBadge active={liveActive} testId="nearby-live" />
+        </div>
         <p className="text-sm text-white/60 mt-1">Bus · TCSP · navettes — arrêts proches{now ? ` · ${now}` : ''}</p>
         <div className="flex gap-2 mt-4">
           <button onClick={() => locate(true)} className="flex-1 bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 text-sm font-semibold active:scale-[0.98] transition-transform" data-testid="nearby-locate-btn">
@@ -111,6 +115,9 @@ const NearbyTransitPage = () => {
           <NearbyTransitMap center={center} stops={stops} selectedId={selectedId} />
         </div>
       )}
+
+      {/* Active disruptions / strikes (cross-sell VTC) */}
+      <DisruptionBanner vtcRoute="/course?mode=standard" className="pt-3" />
 
       {/* Realtime / theoretical schedule notice */}
       <div className="px-5 pt-3">
@@ -214,6 +221,11 @@ const NearbyTransitPage = () => {
             );
           })
         )}
+      </div>
+
+      {/* Perturbations history */}
+      <div className="px-5 pt-3">
+        <DisruptionHistory />
       </div>
     </div>
   );
