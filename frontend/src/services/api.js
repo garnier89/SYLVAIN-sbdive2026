@@ -368,6 +368,21 @@ export const zonesAPI = {
   setShortcuts: (id, entries) => api.put(`/zones/admin/${id}/shortcuts`, { entries }),
 };
 
+// Transports publics — réseau de transport en commun (données simulées).
+export const transportAPI = {
+  nearby: (params) => api.get('/transport/nearby', { params }),
+  stopDepartures: (stopId, mins) => api.get(`/transport/stops/${stopId}/departures`, { params: mins != null ? { mins } : {} }),
+  // admin
+  adminListStops: () => api.get('/transport/admin/stops'),
+  createStop: (data) => api.post('/transport/admin/stops', data),
+  updateStop: (id, data) => api.put(`/transport/admin/stops/${id}`, data),
+  removeStop: (id) => api.delete(`/transport/admin/stops/${id}`),
+  adminListLines: () => api.get('/transport/admin/lines'),
+  createLine: (data) => api.post('/transport/admin/lines', data),
+  updateLine: (id, data) => api.put(`/transport/admin/lines/${id}`, data),
+  removeLine: (id) => api.delete(`/transport/admin/lines/${id}`),
+};
+
 // Parcel delivery APIs (single & multi-drop)
 export const parcelAPI = {
   estimate: (data) => api.post('/parcels/estimate', data),

@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus
 } from '@phosphor-icons/react';
 
 // Dashboard organisé en grandes familles : Pilotage, Membres, Services,
@@ -110,6 +110,9 @@ const sidebarConfig = [
       ]},
       { icon: Path, label: 'Suivi FET', key: 'tracking', children: [
         { label: 'Paramètres', path: '/admin/tracking' },
+      ]},
+      { icon: Bus, label: 'Transports publics', key: 'transport', children: [
+        { label: 'Arrêts & lignes', path: '/admin/transport' },
       ]},
     ]
   },

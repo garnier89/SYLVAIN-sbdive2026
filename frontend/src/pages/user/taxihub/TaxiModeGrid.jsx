@@ -4,7 +4,7 @@
  * + bouton "Me prévenir à l'ouverture"). Les services désactivés manuellement sont masqués.
  */
 import React from 'react';
-import { Clock, BellSimple, BellSimpleRinging } from '@phosphor-icons/react';
+import { Clock, BellSimple, BellSimpleRinging, Bus, CaretRight } from '@phosphor-icons/react';
 import { MODES, CATS } from './taxiHubConstants';
 
 const RemindButton = ({ mode, name, reminded, onToggleRemind }) => (
@@ -21,8 +21,22 @@ const RemindButton = ({ mode, name, reminded, onToggleRemind }) => (
   </span>
 );
 
-export const TaxiModeGrid = ({ catConfig, onSelect, remindedKeys = new Set(), onToggleRemind }) => (
+export const TaxiModeGrid = ({ catConfig, onSelect, remindedKeys = new Set(), onToggleRemind, onPublicTransport }) => (
   <div className="px-5 -mt-3" data-testid="mode-grid-view">
+    {/* Brique neutre — Transports publics (à côté de la liste des taxis) */}
+    {onPublicTransport && (
+      <button onClick={onPublicTransport} data-testid="public-transport-btn"
+        className="w-full mb-5 rounded-xl border border-[#E2E8F0] bg-white p-3.5 flex items-center gap-3 text-left hover:border-[#3730A3] transition-colors">
+        <span className="w-11 h-11 rounded-xl bg-[#EEF2FF] flex items-center justify-center flex-shrink-0">
+          <Bus size={24} weight="duotone" className="text-[#3730A3]" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-[#0B1426] leading-tight">Transport public</p>
+          <p className="text-[11px] text-slate-400">Bus, tram & BRT · arrêts et horaires proches</p>
+        </div>
+        <CaretRight size={16} className="text-slate-300 flex-shrink-0" />
+      </button>
+    )}
     {CATS.map((cat) => (
       <div key={cat.key} className="mb-5">
         <p className="text-[11px] tracking-[0.12em] uppercase font-bold text-slate-500 mb-2">{cat.title}</p>

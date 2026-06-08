@@ -13,6 +13,7 @@ import {
   DeliveryTrackingPage, DeliveryJobsPage, RealEstatePage, PropertyDetailPage, PostPropertyPage,
   MyPropertiesPage, PharmacyPage, PharmacyCatalogPage, PharmacyPrescriptionPage, PharmacyOrdersPage,
   BiddingPage, TaxiBiddingPage, AdvancedTaxiBookingPage, CorporateAccountPage, TaxiHubPage,
+  TransportPublicPage,
   ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage, IntercityRidePage,
   ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage,
@@ -83,6 +84,7 @@ export function clientRoutes(user) {
       <Route path="/taxi-advanced" element={<ProtectedRoute allowedRoles={['user']}><AdvancedTaxiBookingPage /></ProtectedRoute>} />
       <Route path="/taxi" element={<ProtectedRoute allowedRoles={['user']}><TaxiHubPage /></ProtectedRoute>} />
       <Route path="/course" element={<ProtectedRoute allowedRoles={['user']}><RideChoosePage /></ProtectedRoute>} />
+      <Route path="/transport-public" element={<ProtectedRoute allowedRoles={['user']}><TransportPublicPage /></ProtectedRoute>} />
       <Route path="/scheduled-rides" element={<ProtectedRoute allowedRoles={['user']}><ScheduledRidesPage /></ProtectedRoute>} />
       <Route path="/corporate" element={<ProtectedRoute allowedRoles={['user']}><CorporateAccountPage /></ProtectedRoute>} />
       <Route path="/runner" element={<ProtectedRoute allowedRoles={['user']}><RunnerPage /></ProtectedRoute>} />

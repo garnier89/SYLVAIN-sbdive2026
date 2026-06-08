@@ -460,7 +460,7 @@ const TaxiHubPage = () => {
       </div>
 
       {/* ===== GRID VIEW — only when choosing a service ("Plus de Services") ===== */}
-      {view === 'grid' && <TaxiModeGrid catConfig={catConfig} onSelect={selectMode} remindedKeys={remindedKeys} onToggleRemind={toggleRemind} />}
+      {view === 'grid' && <TaxiModeGrid catConfig={catConfig} onSelect={selectMode} remindedKeys={remindedKeys} onToggleRemind={toggleRemind} onPublicTransport={() => navigate('/transport-public')} />}
 
       {/* ===== BOOKING VIEW — "Planifiez votre trajet" (no other services shown) ===== */}
       {view === 'booking' && (

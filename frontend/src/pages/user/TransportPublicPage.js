@@ -1,0 +1,179 @@
+/**
+ * TransportPublicPage — brique "Transports publics" (données simulées).
+ *
+ * Accessible depuis la liste complète des taxis (TaxiModeGrid). Affiche les
+ * arrêts proches, les lignes (bus / tram / BRT / ferry) et les prochains
+ * passages, avec un bouton de bascule "Continuer en VTC" (cross-sell).
+ *
+ * ⚠️ Données SIMULÉES tant que la clé Navitia/GTFS n'est pas branchée.
+ */
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import {
+  ArrowLeft, Bus, Train, Boat, MapPin, NavigationArrow, Clock,
+  Lightning, ArrowsClockwise, CaretRight,
+} from '@phosphor-icons/react';
+import { transportAPI } from '../../services/api';
+
+const MODE_ICON = { bus: Bus, tram: Train, brt: Bus, metro: Train, ferry: Boat };
+const MODE_LABEL = { bus: 'Bus', tram: 'Tram', brt: 'BRT', metro: 'Métro', ferry: 'Navette' };
+
+const localMins = () => {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+};
+
+const etaLabel = (m) => (m <= 0 ? "à l'instant" : m === 1 ? 'dans 1 min' : `dans ${m} min`);
+
+const TransportPublicPage = () => {
+  const navigate = useNavigate();
+  const [stops, setStops] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fallback, setFallback] = useState(false);
+  const [now, setNow] = useState('');
+  const [coords, setCoords] = useState(null);
+
+  const fetchNearby = useCallback(async (lat, lng) => {
+    setLoading(true);
+    try {
+      const r = await transportAPI.nearby({ lat, lng, mins: localMins() });
+      setStops(r.data.stops || []);
+      setFallback(!!r.data.fallback);
+      setNow(r.data.now || '');
+    } catch (e) {
+      toast.error('Impossible de charger les transports proches');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const locate = useCallback((announce = false) => {
+    if (!navigator.geolocation) { fetchNearby(); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setCoords({ lat: latitude, lng: longitude });
+        fetchNearby(latitude, longitude);
+        if (announce) toast.success('Position actualisée');
+      },
+      () => { fetchNearby(); if (announce) toast.error('Localisation indisponible'); },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }, [fetchNearby]);
+
+  useEffect(() => { locate(false); }, [locate]);
+
+  return (
+    <div className="mobile-container min-h-screen bg-[#F8F9FA] pb-32" data-testid="transport-public-page">
+      {/* Header */}
+      <div className="bg-[#0B1426] text-white px-5 pt-12 pb-6">
+        <button onClick={() => navigate(-1)} className="mb-4" data-testid="transport-back"><ArrowLeft size={24} /></button>
+        <p className="text-xs tracking-[0.2em] uppercase font-bold text-[#FF5000]">SB Drive · Mobilité</p>
+        <h1 className="text-3xl font-black tracking-tight mt-1">Transports publics</h1>
+        <p className="text-sm text-white/60 mt-1">Arrêts proches & prochains passages{now ? ` · ${now}` : ''}</p>
+        <div className="flex gap-2 mt-4">
+          <button onClick={() => locate(true)} className="flex-1 bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 text-sm font-semibold active:scale-[0.98] transition-transform" data-testid="transport-locate-btn">
+            <NavigationArrow size={16} weight="fill" className="text-[#FF5000]" /> Ma position
+          </button>
+          <button onClick={() => fetchNearby(coords?.lat, coords?.lng)} className="bg-white/10 rounded-xl px-3 py-2.5 flex items-center justify-center" data-testid="transport-refresh-btn" title="Actualiser">
+            <ArrowsClockwise size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="px-5 -mt-3">
+        {fallback && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-3" data-testid="transport-fallback-note">
+            <p className="text-xs text-amber-700">Aucun arrêt à proximité immédiate — affichage du réseau le plus proche.</p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="p-12 text-center"><div className="w-8 h-8 border-2 border-orange-200 border-t-[#FF5000] rounded-full animate-spin mx-auto" /></div>
+        ) : stops.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center" data-testid="transport-empty">
+            <Bus size={36} className="text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-500">Aucun arrêt de transport public trouvé.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {stops.map((s) => {
+              const SIcon = MODE_ICON[s.type] || Bus;
+              return (
+                <motion.div
+                  key={s.id}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl border border-[#E2E8F0] p-4 shadow-sm"
+                  data-testid={`transport-stop-${s.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center flex-shrink-0">
+                        <SIcon size={20} weight="duotone" className="text-[#3730A3]" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-bold text-[#0B1426] text-sm leading-tight truncate">{s.name}</p>
+                        <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <MapPin size={11} />
+                          {s.distance_m != null ? `${s.distance_m} m` : (s.zone || '')}
+                          {s.zone && s.distance_m != null ? ` · ${s.zone}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lines + departures */}
+                  <div className="mt-3 space-y-2">
+                    {(s.lines || []).length === 0 && (
+                      <p className="text-xs text-slate-400">Pas de passage prévu pour le moment.</p>
+                    )}
+                    {(s.lines || []).map((ln) => (
+                      <div key={ln.line_id} className="flex items-center gap-2.5 py-1.5 border-t border-gray-100 first:border-t-0" data-testid={`transport-line-${ln.line_id}`}>
+                        <span className="text-[11px] font-black text-white px-2 py-1 rounded-md flex-shrink-0 min-w-[34px] text-center" style={{ backgroundColor: ln.color }}>
+                          {ln.code}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-[#0B1426] truncate">{ln.name}</p>
+                          <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
+                            <CaretRight size={9} /> {ln.destination || MODE_LABEL[ln.mode] || ''}
+                          </p>
+                        </div>
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          {(ln.departures || []).slice(0, 3).map((d, i) => (
+                            <span key={i} data-testid={`transport-dep-${ln.line_id}-${i}`}
+                              className={`text-[10px] font-bold px-1.5 py-1 rounded-md ${i === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}
+                              title={etaLabel(d.eta_min)}>
+                              <Clock size={9} className="inline mr-0.5" weight="bold" />{d.eta_min <= 0 ? 'now' : `${d.eta_min}′`}
+                            </span>
+                          ))}
+                          {(ln.departures || []).length === 0 && (
+                            <span className="text-[10px] text-slate-400">—</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Sticky cross-sell CTA — Continuer en VTC */}
+      <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-[#E2E8F0] p-4">
+        <button
+          onClick={() => navigate('/course?mode=standard')}
+          data-testid="continue-vtc-btn"
+          className="w-full py-4 font-black text-lg flex items-center justify-center gap-2 rounded-xl active:scale-[0.98] transition-transform"
+          style={{ backgroundColor: '#FF5000', color: '#0B1426' }}>
+          <Lightning size={20} weight="fill" /> Continuer en VTC
+        </button>
+        <p className="text-[11px] text-slate-400 text-center mt-2">Horaires simulés à des fins de démonstration.</p>
+      </div>
+    </div>
+  );
+};
+
+export default TransportPublicPage;

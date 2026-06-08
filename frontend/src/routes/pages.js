@@ -66,6 +66,7 @@ export const TaxiBiddingPage = lazy(() => import('../pages/user/TaxiBiddingPage'
 export const AdvancedTaxiBookingPage = lazy(() => import('../pages/user/AdvancedTaxiBookingPage'));
 export const CorporateAccountPage = lazy(() => import('../pages/user/CorporateAccountPage'));
 export const TaxiHubPage = lazyWithPreload(() => import('../pages/user/TaxiHubPage'));
+export const TransportPublicPage = lazy(() => import('../pages/user/TransportPublicPage'));
 export const ServicesHubPage = lazy(() => import('../pages/user/ServicesHubPage'));
 export const MyServiceBookingsPage = lazy(() => import('../pages/user/MyServiceBookingsPage'));
 export const ScheduledRidesPage = lazy(() => import('../pages/user/ScheduledRidesPage'));
@@ -162,6 +163,7 @@ export const AdminNoDriverStats = lazy(() => import('../pages/admin/AdminNoDrive
 export const AdminFeaturedListings = lazy(() => import('../pages/admin/AdminFeaturedListings'));
 export const AdminNearbyBusinesses = lazy(() => import('../pages/admin/AdminNearbyBusinesses'));
 export const AdminZones = lazy(() => import('../pages/admin/AdminZones'));
+export const AdminTransport = lazy(() => import('../pages/admin/AdminTransport'));
 export const AdminRealEstate = lazy(() => import('../pages/admin/AdminRealEstate'));
 export const AdminPharmacy = lazy(() => import('../pages/admin/AdminPharmacy'));
 export const AdminServiceSettings = lazy(() => import('../pages/admin/AdminServiceSettings'));

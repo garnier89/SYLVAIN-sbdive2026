@@ -408,6 +408,12 @@ async def run_all_seeds():
         logger.info("Zones seeded")
     except Exception as e:
         logger.error(f"Zones seed failed: {e}")
+    try:
+        from routes.transport import seed_transport
+        await seed_transport()          # public-transport networks (MOCK data)
+        logger.info("Transport (public transit) seeded")
+    except Exception as e:
+        logger.error(f"Transport seed failed: {e}")
 
 
 @asynccontextmanager
