@@ -272,7 +272,6 @@ const DriverProfilePage = () => {
           {rewardsActive && appSettings.enable_driver_reward_program !== false && (
             <ProfileRow icon={Gift} color="#22C55E" label={t('driver.reward_program')} onClick={() => navigate('/chauffeur/rewards')} />
           )}
-          <ProfileRow icon={Trophy} color="#F59E0B" label={t('driver.my_score')} onClick={() => navigate('/chauffeur/score')} />
         </div>
       </div>
 

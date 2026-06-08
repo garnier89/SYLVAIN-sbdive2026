@@ -124,10 +124,13 @@ const APP_GROUPS = [
     ],
   },
   {
-    title: 'Taxi Hall — zone de compétition', fields: [
-      F('taxi_hall_require_competition', 'Exiger un taux minimum pour accéder au Taxi Hall'),
+    title: 'Auto-stop (héler un taxi)', fields: [
+      F('taxi_hall_require_competition', 'Exiger un taux minimum pour accéder à l\u2019Auto-stop'),
       F('taxi_hall_min_acceptance_rate', "Taux d\u2019acceptation minimum requis (%)", 'int'),
       F('taxi_hall_max_cancellation_rate', "Taux d\u2019annulation maximum autorisé (%)", 'int'),
+      F('taxi_hall_min_activity_score', "Score d\u2019activité minimum requis (0 = désactivé)", 'int', 'Le chauffeur doit avoir au moins ce score d\u2019activité pour utiliser l\u2019Auto-stop.'),
+      F('taxi_hall_min_wallet_balance', "Solde minimum du portefeuille requis (0 = désactivé)", 'int', 'En dessous, le chauffeur est invité à recharger.'),
+      F('taxi_hall_cash_only', "Auto-stop en espèces uniquement"),
     ],
   },
   {

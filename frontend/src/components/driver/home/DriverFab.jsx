@@ -15,7 +15,7 @@ export const DriverFab = ({
 }) => {
   const actions = [
     { label: "Planificateur de demande basé sur l'IA", Icon: Sparkle, onClick: onAiPlanner },
-    taxiHailEnabled && { label: 'Appelez un taxi', Icon: Taxi, onClick: onTaxiHall },
+    taxiHailEnabled && { label: 'Auto-stop', Icon: Taxi, onClick: onTaxiHall },
     { label: 'Chaleur', Icon: Fire, onClick: onHeatmap },
     { label: 'Revenir', Icon: ArrowUUpLeft, onClick: onDest },
     { label: 'Emplacements', Icon: MapPin, onClick: onLocations },
@@ -39,8 +39,8 @@ export const DriverFab = ({
             ))}
           </div>
         )}
-        <button onClick={() => setOpen((v) => !v)} className="w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform" style={{ background: open ? '#0B0B0B' : '#00B578', transform: open ? 'rotate(135deg)' : 'none' }} data-testid="driver-fab-toggle">
-          <Plus size={26} className="text-white" weight="bold" />
+        <button onClick={() => setOpen((v) => !v)} className="w-10 h-10 rounded-full shadow-xl flex items-center justify-center transition-transform" style={{ background: open ? '#0B0B0B' : '#00B578', transform: open ? 'rotate(135deg)' : 'none' }} data-testid="driver-fab-toggle">
+          <Plus size={18} className="text-white" weight="bold" />
         </button>
       </div>
     </div>

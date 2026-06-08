@@ -349,6 +349,9 @@ DEFAULT_APP_SETTINGS = {
     "taxi_hall_require_competition": False,
     "taxi_hall_min_acceptance_rate": 80,
     "taxi_hall_max_cancellation_rate": 30,
+    "taxi_hall_min_activity_score": 0,
+    "taxi_hall_min_wallet_balance": 0,
+    "taxi_hall_cash_only": True,
     # — Accessibilité / options de course —
     "enable_handicap": True,
     "enable_child_seat": False,

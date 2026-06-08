@@ -86,8 +86,11 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
     <div className="fixed inset-0 z-[2700] bg-black/50 flex items-end" onClick={onClose} data-testid="taxi-hall-modal">
       <div className="w-full bg-white rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2"><Taxi size={22} weight="fill" style={{ color: '#00B578' }} /> Taxi Hall</h3>
+          <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2"><Taxi size={22} weight="fill" style={{ color: '#00B578' }} /> Auto-stop</h3>
           <button onClick={onClose} className="text-gray-400" data-testid="taxi-hall-close"><X size={22} /></button>
+        </div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1" data-testid="taxi-hall-cash-badge">Espèces uniquement</span>
         </div>
         <p className="text-xs text-gray-500 mb-3">Prenez en charge un client qui ne connaît pas l&apos;application. Saisissez la destination et la gamme du véhicule.</p>
 
@@ -97,13 +100,27 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
         </div>
 
         <label className="text-sm font-bold text-gray-700">Gamme du véhicule</label>
-        <div className="mt-1 mb-4 grid grid-cols-3 gap-2" data-testid="taxi-hall-gammes">
-          {types.map((t) => (
-            <button key={t.slug} onClick={() => setGamme(t.slug)} data-testid={`taxi-hall-gamme-${t.slug}`}
-              className={`py-2.5 rounded-xl text-sm font-bold border ${gamme === t.slug ? 'border-[#00B578] bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'}`}>
-              {t.name || t.slug}
-            </button>
-          ))}
+        <div className="mt-1 mb-4" data-testid="taxi-hall-gammes">
+          <div className="grid grid-cols-3 gap-2">
+            {types.slice(0, 3).map((t) => (
+              <button key={t.slug} onClick={() => setGamme(t.slug)} data-testid={`taxi-hall-gamme-${t.slug}`}
+                className={`py-2.5 rounded-xl text-sm font-bold border ${gamme === t.slug ? 'border-[#00B578] bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'}`}>
+                {t.name || t.slug}
+              </button>
+            ))}
+          </div>
+          {types.length > 3 && (
+            <select
+              value={types.slice(3).some((t) => t.slug === gamme) ? gamme : ''}
+              onChange={(e) => e.target.value && setGamme(e.target.value)}
+              className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 outline-none"
+              data-testid="taxi-hall-gamme-more">
+              <option value="">Plus de véhicules…</option>
+              {types.slice(3).map((t) => (
+                <option key={t.slug} value={t.slug}>{t.name || t.slug}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {dest && (

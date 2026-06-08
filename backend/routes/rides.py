@@ -1649,19 +1649,37 @@ async def _taxi_hall_eligibility(driver: dict, zone=None) -> dict:
     require = bool(cfg.get("taxi_hall_require_competition"))
     min_acc = float(cfg.get("taxi_hall_min_acceptance_rate", 0) or 0)
     max_can = float(cfg.get("taxi_hall_max_cancellation_rate", 100) or 100)
+    min_score = float(cfg.get("taxi_hall_min_activity_score", 0) or 0)
+    min_balance = float(cfg.get("taxi_hall_min_wallet_balance", 0) or 0)
+    cash_only = bool(cfg.get("taxi_hall_cash_only", True))
     acc = driver.get("acceptance_rate")
     acc = float(acc) if acc is not None else 100.0
     can = float(driver.get("cancellation_rate", 0) or 0)
-    eligible, reason = True, None
+    # Activity score: same weighted composite as /drivers/my-activity.
+    points_pct = min(float(driver.get("points", 0) or 0), 100)
+    activity_score = round(points_pct * 0.5 + acc * 0.3 + (100 - can) * 0.2)
+    wallet = await db.wallets.find_one({"user_id": driver.get("user_id")}, {"_id": 0, "balance": 1}) or {}
+    balance = float(wallet.get("balance", 0) or 0)
+    eligible, reason, need_recharge = True, None, False
     if require:
         if acc < min_acc:
             eligible, reason = False, f"Taux d'acceptation insuffisant ({acc:.0f}% < {min_acc:.0f}% requis)."
         elif can > max_can:
             eligible, reason = False, f"Taux d'annulation trop élevé ({can:.0f}% > {max_can:.0f}% autorisé)."
+    if eligible and min_score > 0 and activity_score < min_score:
+        eligible, reason = False, f"Score d'activité insuffisant ({activity_score} < {min_score:.0f} requis)."
+    if eligible and min_balance > 0 and balance < min_balance:
+        eligible, reason, need_recharge = False, (
+            f"Solde insuffisant ({balance:.2f} € < {min_balance:.2f} € requis). Rechargez votre portefeuille."
+        ), True
     return {
         "eligible": eligible, "require_competition": require, "reason": reason,
+        "need_recharge": need_recharge,
         "acceptance_rate": acc, "cancellation_rate": can,
         "min_acceptance_rate": min_acc, "max_cancellation_rate": max_can,
+        "activity_score": activity_score, "min_activity_score": min_score,
+        "wallet_balance": balance, "min_wallet_balance": min_balance,
+        "cash_only": cash_only,
     }
 
 
@@ -1691,8 +1709,10 @@ async def create_taxi_hall(request: Request):
     if not driver:
         raise HTTPException(status_code=403, detail="Driver profile required")
     from routes.config import get_app_settings_config
-    if not (await get_app_settings_config()).get("taxi_hail_option", True):
-        raise HTTPException(status_code=403, detail="Taxi Hall désactivé par l'administrateur")
+    th_cfg = await get_app_settings_config()
+    if not th_cfg.get("taxi_hail_option", True):
+        raise HTTPException(status_code=403, detail="Auto-stop désactivé par l'administrateur")
+    cash_only = bool(th_cfg.get("taxi_hall_cash_only", True))
     body = await request.json()
     # Zone-aware competition gate (acceptance/cancellation thresholds per zone).
     from core.geo_scope import resolve_zone_from_text
@@ -1724,7 +1744,7 @@ async def create_taxi_hall(request: Request):
         "distance_km": round(float(body.get("distance_km", 0) or 0), 2),
         "duration_mins": int(body.get("duration_mins", 0) or 0),
         "estimated_fare": round(float(body.get("estimated_fare", 0) or 0), 2),
-        "payment_method": body.get("payment_method", "cash"),
+        "payment_method": "cash" if cash_only else body.get("payment_method", "cash"),
         "passenger_name": "Client (hélé)",
         "passenger_rating": 5.0,
         "created_at": now,

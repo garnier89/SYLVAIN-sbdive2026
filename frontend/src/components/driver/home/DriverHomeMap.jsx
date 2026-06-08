@@ -13,10 +13,11 @@ export const DriverHomeMap = ({
   rewardsCount,
   onRewards,
 }) => (
-  <div className="flex-1 relative" style={{ height: '45vh' }}>
+  <div className="flex-1 relative min-h-0">
     <AdminGoogleMap
       center={mapCenter}
       zoom={15}
+      cleanUI
       driver={mapCenter}
       pickup={currentRide ? { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng } : undefined}
       dropoff={currentRide ? { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng } : undefined}

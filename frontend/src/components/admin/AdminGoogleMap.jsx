@@ -50,6 +50,7 @@ const AdminGoogleMap = ({
   heatmapData,
   staticView = false,
   mapTypeControl = true,
+  cleanUI = false,
 }) => {
   const { isLoaded, loadError } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
 
@@ -162,7 +163,23 @@ const AdminGoogleMap = ({
         gestureHandling: 'none', // map stays stable — no drag / zoom gestures
         disableDefaultUI: true,
       }
-    : { ...DEFAULT_OPTIONS, mapTypeId: mapType, mapTypeControl };
+    : {
+        ...DEFAULT_OPTIONS,
+        mapTypeId: mapType,
+        mapTypeControl: cleanUI ? false : mapTypeControl,
+        ...(cleanUI
+          ? {
+              disableDefaultUI: true,
+              zoomControl: false,
+              fullscreenControl: false,
+              streetViewControl: false,
+              rotateControl: false,
+              scaleControl: false,
+              keyboardShortcuts: false,
+              gestureHandling: 'greedy',
+            }
+          : {}),
+      };
 
   return (
     <GoogleMap

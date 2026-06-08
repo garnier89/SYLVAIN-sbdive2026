@@ -1,3 +1,31 @@
+## NEW - 2026-06-09 (92) - PHASE C (slice 1) : « Appelez un taxi » → « Auto-stop » + gating admin (DONE, testé)
+- **Demande user** : renommer « Appelez un taxi » → « Auto-stop » ; fonctionne selon le **score d'activité** (seuil admin) ; **espèces uniquement** ; bloqué si **solde < seuil admin** (invite à recharger) ; afficher **3 voitures + liste déroulante**. Seuils configurables depuis le dashboard.
+- **Backend** :
+  - `config.py` DEFAULT_APP_SETTINGS (section Auto-stop) : `taxi_hall_min_activity_score` (0), `taxi_hall_min_wallet_balance` (0), `taxi_hall_cash_only` (True). Le périmètre « Revenir » reste `radius_destination_driver_km` (déjà admin).
+  - `rides.py` `_taxi_hall_eligibility` étendu : calcule l'`activity_score` (même formule que /drivers/my-activity), lit le solde via `db.wallets` (par user_id), bloque si score<min (>0) ou solde<min (>0, `need_recharge=true`). Renvoie activity_score/min, wallet_balance/min, cash_only. `create_taxi_hall` force `payment_method=cash` si `cash_only`. Backward-compatible (seuils 0 = aucun blocage).
+  - **Note** : `PUT /api/config/admin/app-settings` attend les clés **à plat** (pas sous `settings`).
+- **Frontend** :
+  - `DriverFab.jsx` : libellé « Appelez un taxi » → « Auto-stop ».
+  - `DriverHome.js` `openTaxiHall` : bloque si `!eligible` (toast reason) ; si `need_recharge` → redirige vers `/chauffeur/wallet`.
+  - `TaxiHallModal.jsx` : titre « Auto-stop », badge « Espèces uniquement », **3 gammes** en boutons + `<select>` « Plus de véhicules… » pour le reste.
+  - `AdminAppSettings.js` : section renommée « Auto-stop (héler un taxi) » + 3 nouveaux champs (score min, solde min, espèces uniquement).
+- **Vérifié** : curl (save flat OK ; score 43<50 → bloqué ; solde −5€<20€ → need_recharge ; reset 0/0 → eligible) + screenshot modal Auto-stop (badge espèces, 3 véhicules + dropdown). Lint clean.
+- **RESTE Phase C** : « Emplacements/lieu de résidence » + activer tous services (encore toast placeholder) ; « IA zones forte demande » (planificateur, toast placeholder). « Revenir » = modal dest existant + radius admin (OK).
+- **RESTE Phase B** : Galerie côté client + KYC (CNI + justificatif, validation admin) + gating vente (chauffeur actif, exception déjà validé). Non commencé.
+
+
+## NEW - 2026-06-09 (91) - PHASE A : nettoyage accueil chauffeur + dédup « Mon score » (DONE, testé)
+- **Demande user (3 images, app chauffeur)** : 1) « Mon score » fait doublon avec « Programme de récompense » → supprimer ; 2) accueil chauffeur : retirer boutons carte (plein écran/zoom/recentrage) + barre blanche, réduire bouton « + » à ~30% ; 3) (Phase C, à venir) activer les options du menu « + ».
+- **Fait Phase A** :
+  - `DriverProfilePage.js` : suppression de la ProfileRow « Mon score » (route /chauffeur/score conservée mais déliée du menu). Garde « Programme de récompense ».
+  - `AdminGoogleMap.jsx` : nouveau prop `cleanUI` → `disableDefaultUI:true` + zoom/fullscreen/streetView/rotate/scale off, `gestureHandling:'greedy'` (carte toujours manipulable au doigt, sans boutons). N'affecte pas les cartes admin (prop opt-in).
+  - `DriverHomeMap.jsx` : passe `cleanUI`, et la carte passe de `height:45vh` fixe à `flex-1 min-h-0` (remplit l'espace, supprime la barre blanche).
+  - `DriverHome.js` : root `min-h-screen` → `h-[100dvh] flex flex-col overflow-hidden` pour que la carte remplisse jusqu'à la bottom-nav.
+  - `DriverFab.jsx` : bouton toggle `w-14 h-14`/icône 26 → `w-10 h-10`/icône 18 (~30% plus petit).
+- **Vérifié** : screenshot login chauffeur (+33644112233 / Chauffeur2026!) → accueil carte épurée plein écran, « + » plus petit, menu speed-dial OK (6 options). Lint clean, webpack compile.
+- **À VENIR — PHASE B** (galerie + KYC) et **PHASE C** (options menu « + » : Emplacements/lieu de résidence + activer tous services, « Revenir » avec périmètre admin, « Appelez un taxi » 3 voitures+dropdown/espèces/solde min, IA zones forte demande). Défauts confirmés : ordre A→B→C, Marketplace existant, street-hail espèces+solde min, validation admin manuelle.
+
+
 ## NEW - 2026-06-09 (90) - Codes promo 100% opérationnels : actions par ligne + groupées + export (DONE, testé)
 - **Demande user** : brancher réellement Activer/Désactiver/Supprimer par ligne + actions groupées + EXPORT (étaient décoratifs).
 - **Backend (`routes/coupons.py`)** : nouveaux endpoints admin (perm `billing.promocodes.create`) : `PUT /coupons/admin/{id}/toggle` (active↔inactive), `DELETE /coupons/admin/{id}`, `POST /coupons/admin/bulk` ({action: activate|deactivate|delete, ids[]}). Nettoyage 2 vars inutilisées pré-existantes (F841).

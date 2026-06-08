@@ -64,12 +64,15 @@ const DriverHome = () => {
   }, []);
 
   const openTaxiHall = useCallback(() => {
-    if (taxiHallElig.require_competition && !taxiHallElig.eligible) {
-      toast.error(taxiHallElig.reason || 'Accès Taxi Hall refusé (zone de compétition).');
+    if (!taxiHallElig.eligible) {
+      toast.error(taxiHallElig.reason || 'Accès Auto-stop refusé.');
+      if (taxiHallElig.need_recharge) {
+        setTimeout(() => navigate('/chauffeur/wallet'), 1200);
+      }
       return;
     }
     setShowTaxiHall(true);
-  }, [taxiHallElig]);
+  }, [taxiHallElig, navigate]);
 
   // Load current destination mode on mount
   useEffect(() => {
@@ -352,7 +355,7 @@ const DriverHome = () => {
   if (!driver) return null;
 
   return (
-    <div className="mobile-container bg-white min-h-screen relative pb-20" data-testid="driver-home-page">
+    <div className="mobile-container bg-white h-[100dvh] flex flex-col relative pb-20 overflow-hidden" data-testid="driver-home-page">
       {/* Active zone bonus banner (driver-shortage incentive) */}
       {zoneBonuses.length > 0 && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2400] w-[92%] max-w-md" data-testid="zone-bonus-banner">
