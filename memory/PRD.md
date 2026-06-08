@@ -1,3 +1,12 @@
+## NEW - 2026-06-08 (71) - Nettoyage des console.* en production (DONE)
+- **Tâche backlog P2** : production safety / console propre.
+- **Constat** : `lib/logger.js` + `silenceConsole()` existaient déjà et étaient **wirés** dans `index.js` (neutralisent `console.log/debug/info` en prod, gardaient warn/error). 173 occurrences console.* sur 87 fichiers (log 4, debug 4, info 2, warn 52, error 112).
+- **Fait** : `silenceConsole()` neutralise désormais aussi **`console.warn`** en production (les 52 warns sont surtout des diagnostics catch non-critiques) ; **`console.error` conservé** pour les vraies erreurs. `logger.warn` aussi no-op en prod. Aucune édition des 87 fichiers nécessaire (centralisé). Commentaires mis à jour.
+- **Vérifié** : lint clean, webpack compile (1 warning pré-existant). Test unitaire Node : en mode prod, seul `error` se déclenche (log/debug/info/warn silencieux). **Preview (NODE_ENV=development) inchangée** → aucun risque fonctionnel, rien n'est silencié en dev.
+- ⚠️ Effet visible uniquement sur le **build production** → redéploiement requis (`gojek-mvp-1.emergent.host`).
+
+
+
 ## NEW - 2026-06-08 (70) - Refactor P2 : extraction des tableaux de services de UserHome.js (DONE)
 - **Tâche backlog P2** : `UserHome.js` (~710 l) trop gros → extraire les données statiques.
 - **Fait** : nouveau module `pages/user/userHomeServices.js` (119 l) exportant `TAXI_DEFAULT`, `TAXI_VISUAL` + les 10 tableaux de tuiles (taxiServices, deliveryServices, videoCategories, onDemandServices, beautyServices, petServices, bidServices, carCareServices, towingServices, nearbyServices) avec leurs imports d'icônes Phosphor. `UserHome.js` les importe ; liste d'icônes élaguée aux seules encore utilisées dans le JSX. **UserHome.js : 710 → 584 lignes**. Refactor pur (données déplacées verbatim, aucun changement de comportement).
