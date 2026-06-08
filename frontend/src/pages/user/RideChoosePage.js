@@ -21,6 +21,7 @@ import {
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
+import RideRouteMap from '../../components/RideRouteMap';
 import DynamicIcon from '../../components/DynamicIcon';
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
@@ -112,6 +113,7 @@ const RideChoosePage = () => {
   const [poolSeats, setPoolSeats] = useState(1);
   const [roundTrip, setRoundTrip] = useState(false); // Intercity — aller-retour
   const [scheduleLater, setScheduleLater] = useState(mode.panel === 'datetime');
+  const [showMap, setShowMap] = useState(false); // 2-step flow: address form → map + bottom sheet
 
   const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(isBidding ? 'bidding' : mode.id);
 
@@ -290,6 +292,7 @@ const RideChoosePage = () => {
       setLocating(false);
       if (ip) {
         setPickup(ip);
+        if (needsDropoff && dropoff?.lat) setShowMap(true);
         if (announce) toast.success('Position approximative définie (activez le GPS pour plus de précision)');
       } else if (announce) {
         toast.error(errMsg || 'Position introuvable');
@@ -302,6 +305,7 @@ const RideChoosePage = () => {
         const address = await reverseGeocode(lat, lng);
         setPickup({ lat, lng, address });
         setLocating(false);
+        if (needsDropoff && dropoff?.lat) setShowMap(true);
         if (announce) toast.success('Position actuelle définie comme départ');
       },
       () => { fallbackToIp('Position introuvable'); },
@@ -309,7 +313,17 @@ const RideChoosePage = () => {
     );
   }
 
-  const applySaved = (place) => { if (place?.address) setDropoff({ address: place.address, lat: place.lat, lng: place.lng }); };
+  const applySaved = (place) => {
+    if (place?.address) {
+      setDropoff({ address: place.address, lat: place.lat, lng: place.lng });
+      if (pickup?.lat) setShowMap(true);
+    }
+  };
+
+  // Selecting an address advances to the map step (2-step flow). The map step is
+  // only used by modes that have a destination; rental/buddy stay single-screen.
+  const onPickupSelect = (p) => { setPickup(p); if (needsDropoff && dropoff?.lat) setShowMap(true); };
+  const onDropoffSelect = (p) => { setDropoff(p); if (pickup?.lat) setShowMap(true); };
 
   const bothSet = !!(pickup?.lat && (needsDropoff ? dropoff?.lat : true));
 
@@ -422,6 +436,190 @@ const RideChoosePage = () => {
 
   const ModeIcon = mode.icon || Car;
 
+  const modePanelProps = {
+    mode, isRental, isBuddy, isBidding,
+    scheduleLater, setScheduleLater, schedulingAllowed,
+    scheduledAt, setCalendarOpen,
+    flightNumber, setFlightNumber,
+    rentalPkg, setRentalPkg,
+    buddyHours, setBuddyHours,
+    petsCount, setPetsCount, petsSize, setPetsSize,
+    assistNeeds, setAssistNeeds,
+    corpAccounts, corpId, setCorpId,
+    bookForName, setBookForName, bookForPhone, setBookForPhone,
+    biddingFare, setBiddingFare,
+    poolSeats, setPoolSeats,
+    poolMax: (selected && estimates[selected]?.maxPoolSeats) || 2,
+    isIntercity, roundTrip, setRoundTrip,
+    intercityEst: selected ? estimates[selected] : null,
+  };
+
+  // 2-step flow: the map step is shown once a destination is set (modes with a dropoff).
+  const mapStep = needsDropoff && bothSet && showMap;
+
+  const scheduleModal = (
+    <ScheduleCalendarModal
+      open={calendarOpen}
+      onClose={() => setCalendarOpen(false)}
+      minAdvanceMinutes={schedConfig.min_advance_minutes}
+      maxAdvanceDays={schedConfig.max_advance_days}
+      initialValue={scheduledAt}
+      onConfirm={(iso) => { setScheduledAt(iso); setScheduleLater(true); setCalendarOpen(false); }}
+    />
+  );
+
+  const renderVehicleList = () => (
+    <div data-testid="choose-ride-section">
+      <p className="text-xs text-gray-500 mb-3">{isPool ? 'Tarif partagé réduit estimé par véhicule.' : 'Sélectionnez votre véhicule.'}</p>
+      <div className="space-y-2">
+        {vtypes.map((v) => {
+          const Icon = vehicleIcon(v);
+          const est = estimates[v.slug] || {};
+          const active = selected === v.slug;
+          const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
+          return (
+            <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
+              className={`w-full flex items-center gap-3 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-100 bg-white'}`}>
+              <div className={`w-16 h-12 rounded-lg flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/10' : 'bg-gray-50'}`}>
+                {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-12 object-contain" /> : <Icon size={28} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[#0B1426] truncate">{v.name_fr || v.name || v.slug}</p>
+                <p className="text-[11px] text-gray-500 truncate">
+                  {est.loading ? 'Calcul du tarif…' : est.error ? 'Tarif indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
+                </p>
+                <span className="flex items-center gap-0.5 text-[11px] text-gray-400 mt-0.5"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
+              </div>
+              <div className="text-right shrink-0">
+                {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
+                  : est.error ? <span className="text-xs text-gray-300">—</span>
+                  : (
+                    <div>
+                      {isPool && est.originalFare && est.originalFare > est.fare && (
+                        <p className="text-[11px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{est.originalFare.toFixed(2)} €</p>
+                      )}
+                      <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>
+                      {isPool && est.poolSavings > 0 && (
+                        <p className="text-[10px] font-bold text-emerald-600 leading-none" data-testid={`savings-${v.slug}`}>-{est.poolSavings.toFixed(2)} €</p>
+                      )}
+                    </div>
+                  )}
+                {active && <CheckCircle size={15} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderBiddingGrid = () => (
+    <div data-testid="bidding-vehicle-section">
+      <p className="text-xs text-gray-500 mb-3">Sélectionnez le type de véhicule pour votre offre.</p>
+      <div className="grid grid-cols-2 gap-2.5">
+        {vtypes.map((v) => {
+          const active = selected === v.slug;
+          const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
+          const Icon = vehicleIcon(v);
+          return (
+            <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`bidding-vehicle-${v.slug}`}
+              className={`flex items-center gap-2.5 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-transparent bg-white shadow-sm'}`}>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/15' : 'bg-gray-100'}`}>
+                {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={24} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[#0B1426] truncate text-sm">{v.name_fr || v.name || v.slug}</p>
+                <span className="flex items-center gap-0.5 text-[11px] text-gray-400"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
+              </div>
+              {active && <CheckCircle size={16} weight="fill" className="text-[#FF5000] shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderPayment = () => {
+    const sel = payments.find((pm) => pm.id === payment) || payments[0];
+    const SelIcon = PAYMENT_ICONS[sel?.icon] || Money;
+    return (
+      <>
+        <h3 className="text-xs font-bold uppercase text-gray-400 mt-4 mb-2">Moyen de paiement</h3>
+        <div className="relative" data-testid="payment-dropdown-wrap">
+          <button type="button" onClick={() => setPayOpen((o) => !o)} data-testid="payment-dropdown"
+            className="w-full flex items-center justify-between rounded-xl border-2 border-gray-200 bg-white py-3 px-3">
+            <span className="flex items-center gap-2 text-sm font-bold text-[#0B1426]"><SelIcon size={18} weight="fill" /> {sel?.label}</span>
+            <CaretDown size={16} weight="bold" className={`text-gray-400 transition-transform ${payOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {payOpen && (
+            <div className="absolute z-30 left-0 right-0 bottom-full mb-1.5 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden" data-testid="payment-dropdown-list">
+              {payments.map((pm) => {
+                const Icon = PAYMENT_ICONS[pm.icon] || Money; const active = payment === pm.id;
+                return (
+                  <button key={pm.id} type="button" onClick={() => { setPayment(pm.id); setPayOpen(false); }} data-testid={`ride-choose-pay-${pm.id}`}
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left ${active ? 'bg-[#FFF3EC] text-[#FF5000] font-bold' : 'text-[#0B1426]'}`}>
+                    <Icon size={18} weight={active ? 'fill' : 'regular'} /> {pm.label}
+                    {active && <CheckCircle size={15} weight="fill" className="ml-auto text-[#FF5000]" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance < displayPrice && (
+          <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 flex items-start gap-2" data-testid="wallet-shortfall-notice">
+            <Wallet size={16} weight="duotone" className="text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-[12px] text-amber-800 leading-snug">
+              Solde portefeuille : <b>{Number(walletBalance).toFixed(2)} €</b>. Insuffisant — la différence de <b>{(displayPrice - walletBalance).toFixed(2)} €</b> sera réglée en espèces.
+            </p>
+          </div>
+        )}
+        {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance >= displayPrice && (
+          <p className="mt-2 text-[12px] font-semibold text-emerald-700" data-testid="wallet-ok-notice">Solde portefeuille : {Number(walletBalance).toFixed(2)} € · suffisant ✓</p>
+        )}
+      </>
+    );
+  };
+
+  const renderCta = () => (
+    <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error))}
+      className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
+      style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
+      <Lightning size={20} weight="fill" />
+      {searching ? 'Recherche…' : `${isBidding ? 'Proposer mon tarif' : mode.cta || 'Demander'}${displayPrice != null && !isBidding ? ` · ${Number(displayPrice).toFixed(2)} €` : ''}`}
+    </button>
+  );
+
+  // ── Step 2: full-screen map + bottom sheet (Uber/V3Cube style) ──
+  if (mapStep) {
+    return (
+      <div className="mobile-container min-h-screen bg-gray-100 flex flex-col" data-testid="ride-choose-page">
+        <div className="relative flex-1 min-h-0">
+          <RideRouteMap pickup={pickup} dropoff={dropoff} />
+          <button onClick={() => { setShowMap(false); setPayOpen(false); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center z-10" data-testid="map-back-btn">
+            <ArrowLeft size={20} className="text-[#0B1426]" />
+          </button>
+          <div className="absolute top-4 right-4 left-16 bg-white rounded-xl shadow-lg px-3 py-2 z-10" data-testid="map-dest-chip">
+            <p className="text-[9px] uppercase text-gray-400 font-bold leading-none mb-0.5">Destination</p>
+            <p className="text-xs font-semibold text-[#0B1426] truncate">{dropoff?.address}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-t-3xl -mt-5 z-10 flex flex-col shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" style={{ maxHeight: '64%' }} data-testid="map-bottom-sheet">
+          <div className="pt-2.5 pb-1 flex justify-center shrink-0"><div className="w-10 h-1.5 rounded-full bg-gray-300" /></div>
+          <div className="px-4 pb-2 overflow-y-auto flex-1">
+            <h2 className="text-base font-black text-[#0B1426] mb-3">{isBidding ? 'Proposez votre prix' : 'Choisir une gamme ou faites glisser vers le haut'}</h2>
+            {(isPool || isIntercity) && <ModeSpecificPanel {...modePanelProps} />}
+            {showComparison && renderVehicleList()}
+            {isBidding && renderBiddingGrid()}
+            {renderPayment()}
+          </div>
+          <div className="p-4 border-t border-gray-100 shrink-0">{renderCta()}</div>
+        </div>
+        {scheduleModal}
+      </div>
+    );
+  }
+
   return (
     <div className="mobile-container min-h-screen bg-gray-50 flex flex-col" data-testid="ride-choose-page">
       {/* Compact orange header (admin-editable texts) */}
@@ -453,12 +651,12 @@ const RideChoosePage = () => {
             <p className="text-[10px] font-bold uppercase text-gray-400 mb-1 ml-1">
               Départ{locating && !pickup?.address ? ' · Localisation…' : ''}
             </p>
-            <GooglePlacesInput placeholder="Lieu de départ" value={pickup?.address || ''} iconColor="#22C55E" testId="ride-choose-pickup" onSelect={(p) => setPickup(p)} />
+            <GooglePlacesInput placeholder="Lieu de départ" value={pickup?.address || ''} iconColor="#22C55E" testId="ride-choose-pickup" onSelect={onPickupSelect} />
           </div>
           {needsDropoff && (
             <div>
               <p className="text-[10px] font-bold uppercase text-gray-400 mb-1 ml-1">Destination</p>
-              <GooglePlacesInput placeholder="Où allez-vous ?" value={dropoff?.address || ''} iconColor="#EF4444" testId="ride-choose-dropoff" onSelect={(p) => setDropoff(p)} />
+              <GooglePlacesInput placeholder="Où allez-vous ?" value={dropoff?.address || ''} iconColor="#EF4444" testId="ride-choose-dropoff" onSelect={onDropoffSelect} />
             </div>
           )}
           <button onClick={() => autoLocate(true)} disabled={locating} className="flex items-center gap-2 text-sm font-semibold text-[#FF5000] pl-1 pt-1" data-testid="ride-choose-locate">
@@ -488,100 +686,12 @@ const RideChoosePage = () => {
         </div>
 
         {/* Mode-specific panels */}
-        <ModePanel
-          mode={mode} isRental={isRental} isBuddy={isBuddy} isBidding={isBidding}
-          scheduleLater={scheduleLater} setScheduleLater={setScheduleLater} schedulingAllowed={schedulingAllowed}
-          scheduledAt={scheduledAt} setCalendarOpen={setCalendarOpen}
-          flightNumber={flightNumber} setFlightNumber={setFlightNumber}
-          rentalPkg={rentalPkg} setRentalPkg={setRentalPkg}
-          buddyHours={buddyHours} setBuddyHours={setBuddyHours}
-          petsCount={petsCount} setPetsCount={setPetsCount} petsSize={petsSize} setPetsSize={setPetsSize}
-          assistNeeds={assistNeeds} setAssistNeeds={setAssistNeeds}
-          corpAccounts={corpAccounts} corpId={corpId} setCorpId={setCorpId}
-          bookForName={bookForName} setBookForName={setBookForName} bookForPhone={bookForPhone} setBookForPhone={setBookForPhone}
-          biddingFare={biddingFare} setBiddingFare={setBiddingFare}
-          poolSeats={poolSeats} setPoolSeats={setPoolSeats}
-          poolMax={(selected && estimates[selected]?.maxPoolSeats) || 2}
-          isIntercity={isIntercity} roundTrip={roundTrip} setRoundTrip={setRoundTrip}
-          intercityEst={selected ? estimates[selected] : null}
-        />
+        <ModePanel {...modePanelProps} />
 
-        {/* Choose a ride — vertical scrollable list (most vehicles visible at once) */}
-        {showComparison && bothSet && (
-          <div className="mt-5" data-testid="choose-ride-section">
-            <h2 className="text-base font-black text-[#0B1426] mb-1">Choisir une gamme</h2>
-            <p className="text-xs text-gray-500 mb-3">{mode.id === 'pool' ? 'Tarif partagé estimé par véhicule.' : 'Faites défiler pour voir tous les véhicules.'}</p>
-            <div className="space-y-2">
-              {vtypes.map((v) => {
-                const Icon = vehicleIcon(v);
-                const est = estimates[v.slug] || {};
-                const active = selected === v.slug;
-                const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
-                return (
-                  <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
-                    className={`w-full flex items-center gap-3 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-100 bg-white'}`}>
-                    <div className={`w-16 h-12 rounded-lg flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/10' : 'bg-gray-50'}`}>
-                      {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-12 object-contain" /> : <Icon size={28} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-[#0B1426] truncate">{v.name_fr || v.name || v.slug}</p>
-                      <p className="text-[11px] text-gray-500 truncate">
-                        {est.loading ? 'Calcul du tarif…' : est.error ? 'Tarif indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
-                      </p>
-                      <span className="flex items-center gap-0.5 text-[11px] text-gray-400 mt-0.5"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
-                    </div>
-                    <div className="text-right shrink-0">
-                      {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
-                        : est.error ? <span className="text-xs text-gray-300">—</span>
-                        : (
-                          <div>
-                            {isPool && est.originalFare && est.originalFare > est.fare && (
-                              <p className="text-[11px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{est.originalFare.toFixed(2)} €</p>
-                            )}
-                            <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>
-                            {isPool && est.poolSavings > 0 && (
-                              <p className="text-[10px] font-bold text-emerald-600 leading-none" data-testid={`savings-${v.slug}`}>-{est.poolSavings.toFixed(2)} €</p>
-                            )}
-                          </div>
-                        )}
-                      {active && <CheckCircle size={15} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Choose a ride — vehicles/payment now live on the map step (step 2) for
+            destination modes; rental/buddy (no dropoff) keep an inline price + payment. */}
 
-        {/* Bidding: pick a vehicle (no live price — you name your fare) */}
-        {isBidding && bothSet && vtypes.length > 0 && (
-          <div className="mt-5" data-testid="bidding-vehicle-section">
-            <h2 className="text-base font-black text-[#0B1426] mb-1">Choisissez un véhicule</h2>
-            <p className="text-xs text-gray-500 mb-3">Sélectionnez le type de véhicule pour votre offre.</p>
-            <div className="grid grid-cols-2 gap-2.5">
-              {vtypes.map((v) => {
-                const active = selected === v.slug;
-                const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
-                const Icon = vehicleIcon(v);
-                return (
-                  <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`bidding-vehicle-${v.slug}`}
-                    className={`flex items-center gap-2.5 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-transparent bg-white shadow-sm'}`}>
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/15' : 'bg-gray-100'}`}>
-                      {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={24} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-[#0B1426] truncate text-sm">{v.name_fr || v.name || v.slug}</p>
-                      <span className="flex items-center gap-0.5 text-[11px] text-gray-400"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
-                    </div>
-                    {active && <CheckCircle size={16} weight="fill" className="text-[#FF5000] shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Single price card (rental / buddy / bidding) */}
+        {/* Single price card (rental / buddy) */}
         {(isRental || isBuddy) && pickup?.lat && (
           <div className="mt-5 bg-[#0B1426] text-white p-4 rounded-2xl flex items-center justify-between" data-testid="single-price-card">
             <div>
@@ -592,74 +702,24 @@ const RideChoosePage = () => {
           </div>
         )}
 
-        {/* Payment */}
-        {bothSet && (
-          <>
-            <h3 className="text-xs font-bold uppercase text-gray-400 mt-5 mb-2">Moyen de paiement</h3>
-            {(() => {
-              const sel = payments.find((p) => p.id === payment) || payments[0];
-              const SelIcon = PAYMENT_ICONS[sel?.icon] || Money;
-              return (
-                <div className="relative" data-testid="payment-dropdown-wrap">
-                  <button type="button" onClick={() => setPayOpen((o) => !o)} data-testid="payment-dropdown"
-                    className="w-full flex items-center justify-between rounded-xl border-2 border-gray-200 bg-white py-3 px-3">
-                    <span className="flex items-center gap-2 text-sm font-bold text-[#0B1426]"><SelIcon size={18} weight="fill" /> {sel?.label}</span>
-                    <CaretDown size={16} weight="bold" className={`text-gray-400 transition-transform ${payOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {payOpen && (
-                    <div className="absolute z-30 left-0 right-0 mt-1.5 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden" data-testid="payment-dropdown-list">
-                      {payments.map((p) => {
-                        const Icon = PAYMENT_ICONS[p.icon] || Money; const active = payment === p.id;
-                        return (
-                          <button key={p.id} type="button" onClick={() => { setPayment(p.id); setPayOpen(false); }} data-testid={`ride-choose-pay-${p.id}`}
-                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left ${active ? 'bg-[#FFF3EC] text-[#FF5000] font-bold' : 'text-[#0B1426]'}`}>
-                            <Icon size={18} weight={active ? 'fill' : 'regular'} /> {p.label}
-                            {active && <CheckCircle size={15} weight="fill" className="ml-auto text-[#FF5000]" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance < displayPrice && (
-              <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 flex items-start gap-2" data-testid="wallet-shortfall-notice">
-                <Wallet size={16} weight="duotone" className="text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-[12px] text-amber-800 leading-snug">
-                  Solde portefeuille : <b>{Number(walletBalance).toFixed(2)} €</b>. Insuffisant — la différence de <b>{(displayPrice - walletBalance).toFixed(2)} €</b> sera réglée en espèces.
-                </p>
-              </div>
-            )}
-            {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance >= displayPrice && (
-              <p className="mt-2 text-[12px] font-semibold text-emerald-700" data-testid="wallet-ok-notice">Solde portefeuille : {Number(walletBalance).toFixed(2)} € · suffisant ✓</p>
-            )}
-          </>
-        )}
+        {/* Inline payment for rental/buddy (these modes have no map step) */}
+        {!needsDropoff && bothSet && <div className="mt-1">{renderPayment()}</div>}
       </div>
 
-      {/* Sticky CTA */}
-      {bothSet && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-20 space-y-2">
-          <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error))}
-            className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
-            style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
-            <Lightning size={20} weight="fill" />
-            {searching ? 'Recherche…' : `${isBidding ? 'Proposer mon tarif' : mode.cta || 'Demander'}${displayPrice != null && !isBidding ? ` · ${Number(displayPrice).toFixed(2)} €` : ''}`}
+      {/* Sticky bottom bar */}
+      {needsDropoff && bothSet ? (
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-20">
+          <button onClick={() => setShowMap(true)} className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform" style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="continue-to-map-btn">
+            <NavigationArrow size={20} weight="fill" /> Continuer · Voir les tarifs
           </button>
         </div>
-      )}
+      ) : (!needsDropoff && bothSet && (
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-20">
+          {renderCta()}
+        </div>
+      ))}
 
-      {/* Searching overlay removed: the orange tracking radar (/ride/:id) is shown directly. */}
-
-      <ScheduleCalendarModal
-        open={calendarOpen}
-        onClose={() => setCalendarOpen(false)}
-        minAdvanceMinutes={schedConfig.min_advance_minutes}
-        maxAdvanceDays={schedConfig.max_advance_days}
-        initialValue={scheduledAt}
-        onConfirm={(iso) => { setScheduledAt(iso); setScheduleLater(true); setCalendarOpen(false); }}
-      />
+      {scheduleModal}
     </div>
   );
 };
