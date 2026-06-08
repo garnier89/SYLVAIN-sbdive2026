@@ -12,6 +12,7 @@ import { driverRoutes } from './routes/driverRoutes';
 import { merchantRoutes } from './routes/merchantRoutes';
 import { adminRoutes } from './routes/adminRoutes';
 import { panelRoutes } from './routes/panelRoutes';
+import { useRoutePrefetch } from './routes/useRoutePrefetch';
 import './index.css';
 
 const PageLoader = () => (
@@ -23,6 +24,8 @@ const PageLoader = () => (
 const AppRouter = () => {
   const location = useLocation();
   const { user } = useAuth();
+
+  useRoutePrefetch(user?.role);
 
   if (location.hash?.includes('session_id=')) {
     return <AuthCallback />;

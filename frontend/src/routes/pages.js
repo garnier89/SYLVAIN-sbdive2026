@@ -1,5 +1,13 @@
 import { lazy } from 'react';
 
+// lazy() wrapper exposing a `.preload()` so we can warm a route's chunk
+// ahead of navigation (idle prewarm per role + hover prefetch on desktop).
+export function lazyWithPreload(factory) {
+  const Component = lazy(factory);
+  Component.preload = factory;
+  return Component;
+}
+
 // Auth Pages
 export const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 export const EmailLoginPage = lazy(() => import('../pages/auth/EmailLoginPage'));
@@ -9,17 +17,17 @@ export const LandingPage = lazy(() => import('../pages/LandingPage'));
 
 // SB Drive Client Pages
 export const ClientWelcome = lazy(() => import('../pages/client/ClientWelcome'));
-export const UserHome = lazy(() => import('../pages/user/UserHome'));
+export const UserHome = lazyWithPreload(() => import('../pages/user/UserHome'));
 export const RideBookingPage = lazy(() => import('../pages/user/RideBookingPage'));
-export const RideChoosePage = lazy(() => import('../pages/user/RideChoosePage'));
-export const RideTrackingPage = lazy(() => import('../pages/user/RideTrackingPage'));
+export const RideChoosePage = lazyWithPreload(() => import('../pages/user/RideChoosePage'));
+export const RideTrackingPage = lazyWithPreload(() => import('../pages/user/RideTrackingPage'));
 export const RideReceiptPage = lazy(() => import('../pages/user/RideReceiptPage'));
-export const FoodPage = lazy(() => import('../pages/user/FoodPage'));
+export const FoodPage = lazyWithPreload(() => import('../pages/user/FoodPage'));
 export const RestaurantDetail = lazy(() => import('../pages/user/RestaurantDetail'));
 export const CheckoutPage = lazy(() => import('../pages/user/CheckoutPage'));
 export const OrderTracking = lazy(() => import('../pages/user/OrderTracking'));
-export const WalletPage = lazy(() => import('../pages/user/WalletPage'));
-export const ProfilePage = lazy(() => import('../pages/user/ProfilePage'));
+export const WalletPage = lazyWithPreload(() => import('../pages/user/WalletPage'));
+export const ProfilePage = lazyWithPreload(() => import('../pages/user/ProfilePage'));
 export const HistoryPage = lazy(() => import('../pages/user/HistoryPage'));
 export const SupportPage = lazy(() => import('../pages/user/SupportPage'));
 export const ParcelPage = lazy(() => import('../pages/user/ParcelPage'));
@@ -27,7 +35,7 @@ export const ReferralPage = lazy(() => import('../pages/user/ReferralPage'));
 export const DonationPage = lazy(() => import('../pages/user/DonationPage'));
 export const LiveChatPage = lazy(() => import('../pages/user/LiveChatPage'));
 export const ServicesPage = lazy(() => import('../pages/user/ServicesPage'));
-export const AllDeliveryPage = lazy(() => import('../pages/user/AllDeliveryPage'));
+export const AllDeliveryPage = lazyWithPreload(() => import('../pages/user/AllDeliveryPage'));
 export const AllServicesPage = lazy(() => import('../pages/user/AllServicesPage'));
 export const CarPoolPage = lazy(() => import('../pages/user/CarPoolPage'));
 export const MarketplacePage = lazy(() => import('../pages/user/MarketplacePage'));
@@ -54,7 +62,7 @@ export const BiddingPage = lazy(() => import('../pages/user/BiddingPage'));
 export const TaxiBiddingPage = lazy(() => import('../pages/user/TaxiBiddingPage'));
 export const AdvancedTaxiBookingPage = lazy(() => import('../pages/user/AdvancedTaxiBookingPage'));
 export const CorporateAccountPage = lazy(() => import('../pages/user/CorporateAccountPage'));
-export const TaxiHubPage = lazy(() => import('../pages/user/TaxiHubPage'));
+export const TaxiHubPage = lazyWithPreload(() => import('../pages/user/TaxiHubPage'));
 export const ServicesHubPage = lazy(() => import('../pages/user/ServicesHubPage'));
 export const MyServiceBookingsPage = lazy(() => import('../pages/user/MyServiceBookingsPage'));
 export const ScheduledRidesPage = lazy(() => import('../pages/user/ScheduledRidesPage'));
@@ -76,16 +84,16 @@ export const ChauffeurWelcome = lazy(() => import('../pages/chauffeur/ChauffeurW
 export const ChauffeurLogin = lazy(() => import('../pages/chauffeur/ChauffeurLogin'));
 export const ChauffeurRegister = lazy(() => import('../pages/chauffeur/ChauffeurRegister'));
 export const DriverHome = lazy(() => import('../pages/driver/DriverHome'));
-export const DriverBookingsPage = lazy(() => import('../pages/driver/DriverBookingsPage'));
+export const DriverBookingsPage = lazyWithPreload(() => import('../pages/driver/DriverBookingsPage'));
 export const DriverRegisterPage = lazy(() => import('../pages/driver/DriverRegisterPage'));
-export const DriverEarningsPage = lazy(() => import('../pages/driver/DriverEarningsPage'));
+export const DriverEarningsPage = lazyWithPreload(() => import('../pages/driver/DriverEarningsPage'));
 export const DriverWeeklyReportsPage = lazy(() => import('../pages/driver/DriverWeeklyReportsPage'));
 export const DriverHistoryPage = lazy(() => import('../pages/driver/DriverHistoryPage'));
-export const DriverProfilePage = lazy(() => import('../pages/driver/DriverProfilePage'));
+export const DriverProfilePage = lazyWithPreload(() => import('../pages/driver/DriverProfilePage'));
 export const DriverSupportPage = lazy(() => import('../pages/driver/DriverSupportPage'));
-export const DriverRewardsPage = lazy(() => import('../pages/driver/DriverRewardsPage'));
+export const DriverRewardsPage = lazyWithPreload(() => import('../pages/driver/DriverRewardsPage'));
 export const DriverScorePage = lazy(() => import('../pages/driver/DriverScorePage'));
-export const DriverWalletPage = lazy(() => import('../pages/driver/DriverWalletPage'));
+export const DriverWalletPage = lazyWithPreload(() => import('../pages/driver/DriverWalletPage'));
 export const DriverDocumentsPage = lazy(() => import('../pages/driver/DriverDocumentsPage'));
 export const DriverNotificationsPage = lazy(() => import('../pages/driver/DriverNotificationsPage'));
 export const DriverSubscriptions = lazy(() => import('../pages/driver/DriverSubscriptions'));
@@ -194,3 +202,16 @@ export const KioskApp = lazy(() => import('../pages/kiosk/KioskApp'));
 // Role-based Panels
 export const PanelLayout = lazy(() => import('../pages/panels/PanelLayout'));
 export const PanelHome = lazy(() => import('../pages/panels/PanelHome'));
+
+// Warm the most-likely-next route chunks for a given role, on idle.
+// On slow networks (DOM-TOM / Africa) this makes the first tap feel instant.
+export function prewarmRoutes(role) {
+  const groups = {
+    user: [TaxiHubPage, RideChoosePage, AllDeliveryPage, FoodPage, WalletPage, ProfilePage, RideTrackingPage],
+    driver: [DriverBookingsPage, DriverEarningsPage, DriverProfilePage, DriverWalletPage, DriverRewardsPage],
+  };
+  const list = groups[role] || [];
+  list.forEach((c) => {
+    try { c.preload && c.preload(); } catch (e) { /* ignore prewarm failures */ }
+  });
+}

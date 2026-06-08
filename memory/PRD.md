@@ -1,3 +1,13 @@
+## NEW - 2026-06-08 (62) - Perf : préchargement des routes (idle par rôle + prefetch au survol) (DONE)
+- **Demande user** : ajouter le lazy-loading par route avec préchargement (perçu plus rapide, ciblé réseaux lents DOM-TOM/Afrique).
+- **Constat** : la navigation est majoritairement **programmatique** (`navigate()`), pas des `<Link>` → le prefetch au survol d'ancres ne couvrirait presque rien ; et le public est surtout **mobile/tactile** (pas de survol). → approche principale = **préchargement à l'inactivité par rôle**.
+- **`src/routes/pages.js`** : helper `lazyWithPreload(factory)` (lazy + `.preload`). 13 routes « chaudes » converties (user : TaxiHub, RideChoose, AllDelivery, Food, Wallet, Profile, RideTracking ; driver : Bookings, Earnings, Profile, Wallet, Rewards). Fonction `prewarmRoutes(role)` qui déclenche `.preload()` sur les routes probables du rôle.
+- **`src/routes/useRoutePrefetch.js`** (nouveau) : hook `useRoutePrefetch(role)` → (1) `prewarmRoutes(role)` via `requestIdleCallback` (fallback setTimeout) après login ; (2) listener délégué `pointerover`/`focusin` qui précharge la route d'un élément `[data-prefetch="/path"]` (desktop). Export `prefetchPath(path)` (impératif, ex. touchstart). `PREFETCH_MAP` des chemins chauds.
+- **Branchements** : `App.js` appelle `useRoutePrefetch(user?.role)` ; `UserHome` bottom-nav `nav-wallet`/`nav-profile` reçoivent `data-prefetch`.
+- **Vérifié** : webpack compile (1 warning exhaustive-deps pré-existant), lint clean (useRoutePrefetch, UserHome), aucun nouvel log d'erreur console au boot (`/admin-login` rendu OK, hook no-op si non connecté). Additif & faible risque.
+
+
+
 ## NEW - 2026-06-08 (61) - Refactor P2 frontend : découpage `App.js` (605 → 88 lignes) (DONE)
 - **Demande user** : option B (P2) — découpage des gros composants frontend, en commençant par `App.js` (table de routage de 605 lignes).
 - **Découpage en modules de routage** (aucun changement de comportement, pattern fonction-retournant-Fragment compatible React Router v6) :

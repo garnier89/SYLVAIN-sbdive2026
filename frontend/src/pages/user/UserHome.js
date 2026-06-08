@@ -667,11 +667,11 @@ const UserHome = () => {
             <ClipboardText size={22} weight="regular" />
             <span className="text-[10px] font-medium">{t('tabs.orders')}</span>
           </button>
-          <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/wallet')} data-testid="nav-wallet">
+          <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/wallet')} data-prefetch="/wallet" data-testid="nav-wallet">
             <Wallet size={22} weight="regular" />
             <span className="text-[10px] font-medium">{t('tabs.wallet')}</span>
           </button>
-          <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/profile')} data-testid="nav-profile">
+          <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/profile')} data-prefetch="/profile" data-testid="nav-profile">
             <User size={22} weight="regular" />
             <span className="text-[10px] font-medium">{t('tabs.profile')}</span>
           </button>
