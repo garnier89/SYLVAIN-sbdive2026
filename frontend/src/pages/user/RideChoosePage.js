@@ -17,7 +17,7 @@ import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
   Money, CreditCard, Wallet, CheckCircle, Lightning,
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
-  CaretDown,
+  CaretDown, MapTrifold,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
@@ -70,6 +70,8 @@ const RideChoosePage = () => {
   const isRental = mode.ride_type === 'rental';
   const isBuddy = mode.id === 'buddy_driver';
   const isBidding = mode.id === 'bidding';
+  const isPool = mode.id === 'pool';
+  const isIntercity = mode.id === 'intercity';
   const needsDropoff = !isRental && !isBuddy;
   const showComparison = needsDropoff && !isBidding;
 
@@ -108,6 +110,7 @@ const RideChoosePage = () => {
   const [bookForPhone, setBookForPhone] = useState('');
   const [biddingFare, setBiddingFare] = useState('');
   const [poolSeats, setPoolSeats] = useState(1);
+  const [roundTrip, setRoundTrip] = useState(false); // Intercity — aller-retour
   const [scheduleLater, setScheduleLater] = useState(mode.panel === 'datetime');
 
   const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(isBidding ? 'bidding' : mode.id);
@@ -317,17 +320,19 @@ const RideChoosePage = () => {
     const base = {
       pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
       dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
-      payment_method: 'cash', ride_type: 'instant', pool_enabled: mode.id === 'pool',
+      payment_method: 'cash', ride_type: mode.ride_type || 'instant', pool_enabled: isPool,
+      seats_required: isPool ? poolSeats : 1, round_trip: isIntercity && roundTrip,
     };
     await Promise.all(vtypes.map(async (v) => {
       try {
         const res = await rideAPI.estimate({ ...base, vehicle_type: v.slug });
-        setEstimates((p) => ({ ...p, [v.slug]: { fare: res.data.estimated_fare, duration: res.data.duration_mins, distance: res.data.distance_km, maxPoolSeats: res.data.max_seats_per_booking, loading: false } }));
+        const d = res.data;
+        setEstimates((p) => ({ ...p, [v.slug]: { fare: d.estimated_fare, duration: d.duration_mins, distance: d.distance_km, maxPoolSeats: d.max_seats_per_booking, originalFare: d.original_fare, poolSavings: d.pool_savings, pricePerKm: d.price_per_km, loading: false } }));
       } catch {
         setEstimates((p) => ({ ...p, [v.slug]: { loading: false, error: true } }));
       }
     }));
-  }, [showComparison, vtypes, pickup, dropoff, mode.id]);
+  }, [showComparison, vtypes, pickup, dropoff, mode.id, mode.ride_type, isPool, isIntercity, poolSeats, roundTrip]);
 
   useEffect(() => { const t = setTimeout(fetchEstimates, 350); return () => clearTimeout(t); }, [fetchEstimates]);
 
@@ -368,6 +373,7 @@ const RideChoosePage = () => {
     if (mode.id === 'assist') base.assist_needs = assistNeeds;
     if (mode.id === 'access') base.handicap_accessibility = true;
     if (mode.id === 'pool') { base.pool_enabled = true; base.seats_required = poolSeats; }
+    if (isIntercity && roundTrip) { base.round_trip = true; if (scheduledAt) base.return_at = scheduledAt; }
     if (mode.id === 'book_for_someone') { base.book_for_name = bookForName; base.book_for_phone = bookForPhone; }
     return base;
   };
@@ -489,6 +495,8 @@ const RideChoosePage = () => {
           biddingFare={biddingFare} setBiddingFare={setBiddingFare}
           poolSeats={poolSeats} setPoolSeats={setPoolSeats}
           poolMax={(selected && estimates[selected]?.maxPoolSeats) || 2}
+          isIntercity={isIntercity} roundTrip={roundTrip} setRoundTrip={setRoundTrip}
+          intercityEst={selected ? estimates[selected] : null}
         />
 
         {/* Choose a ride — vertical scrollable list (most vehicles visible at once) */}
@@ -518,7 +526,17 @@ const RideChoosePage = () => {
                     <div className="text-right shrink-0">
                       {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
                         : est.error ? <span className="text-xs text-gray-300">—</span>
-                        : <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>}
+                        : (
+                          <div>
+                            {isPool && est.originalFare && est.originalFare > est.fare && (
+                              <p className="text-[11px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{est.originalFare.toFixed(2)} €</p>
+                            )}
+                            <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>
+                            {isPool && est.poolSavings > 0 && (
+                              <p className="text-[10px] font-bold text-emerald-600 leading-none" data-testid={`savings-${v.slug}`}>-{est.poolSavings.toFixed(2)} €</p>
+                            )}
+                          </div>
+                        )}
                       {active && <CheckCircle size={15} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
                     </div>
                   </button>
@@ -770,6 +788,32 @@ const ModeSpecificPanel = (p) => {
         <div className="grid grid-cols-2 gap-2">
           <input value={p.bookForName} onChange={(e) => p.setBookForName(e.target.value)} placeholder="Nom" className="border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-contact-name" />
           <input value={p.bookForPhone} onChange={(e) => p.setBookForPhone(e.target.value)} placeholder="Téléphone" className="border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-contact-phone" />
+        </div>
+      </div>
+    );
+  }
+  if (mode.id === 'intercity') {
+    const est = p.intercityEst || {};
+    return (
+      <div className={card} data-testid="panel-intercity">
+        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-1.5"><MapTrifold size={18} className="text-[#8B5CF6]" /> Trajet longue distance</label>
+        {est.distance ? (
+          <div className="flex items-center gap-2 flex-wrap mb-2" data-testid="intercity-info">
+            <span className="text-[11px] font-bold text-[#8B5CF6] bg-[#8B5CF6]/10 rounded-full px-2 py-0.5">{est.distance} km</span>
+            {est.pricePerKm ? <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">{Number(est.pricePerKm).toFixed(2)} €/km</span> : null}
+            {est.duration ? <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">≈ {Math.round(est.duration / 60)}h{String(est.duration % 60).padStart(2, '0')}</span> : null}
+          </div>
+        ) : (
+          <p className="text-[11px] text-gray-400 mb-2">Renseignez départ et destination pour estimer le tarif au kilomètre.</p>
+        )}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+          <span className="min-w-0">
+            <span className="text-sm font-bold text-[#0B1426] block leading-tight">Aller-retour</span>
+            <span className="text-[11px] text-gray-400">Tarif majoré · le chauffeur vous ramène</span>
+          </span>
+          <button onClick={() => p.setRoundTrip(!p.roundTrip)} className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${p.roundTrip ? 'bg-[#FF5000]' : 'bg-gray-300'}`} data-testid="intercity-roundtrip-toggle">
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${p.roundTrip ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
         </div>
       </div>
     );

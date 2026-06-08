@@ -130,6 +130,8 @@ class RideRequest(BaseModel):
     assist_needs: Optional[str] = None  # wheelchair | elderly | luggage | medical
     pool_enabled: bool = False
     seats_required: int = 1  # Pool — number of seats reserved (1..POOL_MAX_SEATS)
+    round_trip: bool = False  # Intercity — aller-retour
+    return_at: Optional[str] = None  # Intercity — return date/time (round-trip)
     stops: Optional[list] = None  # intermediate waypoints [{address,lat,lng}]
     # Ride profile (V3Cube) — Business / Personnel + business trip reason
     ride_profile: Optional[str] = None  # short_name (Business | Personnel)

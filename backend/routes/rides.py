@@ -20,6 +20,15 @@ POOL_DEFAULT_SEATS = 4
 # A single passenger can only reserve a few seats in a SHARED pool so the vehicle
 # keeps room for other pool riders. Admin-overridable per Vehicle Type / pool config.
 POOL_DEFAULT_MAX_SEATS_PER_BOOKING = 2
+# Pool = SHARED ride → the rider accepts detours/other passengers in exchange for a
+# genuinely cheaper fare. This % is taken off the standard private fare for the 1st
+# seat (each extra seat the same booking reserves is then billed via pool_percentage).
+# Admin-overridable per Vehicle Type (`pool_discount_percent`) or global pool config.
+POOL_DEFAULT_DISCOUNT_PERCENT = 25.0
+
+# Intercity (longue distance) — a round-trip (aller-retour) bills the outbound fare
+# times this factor (admin-overridable later). <2.0 reflects a return-trip rebate.
+INTERCITY_ROUNDTRIP_FACTOR = 1.9
 
 
 def pool_seat_multiplier(seats: int, pool_percentage: float) -> float:
@@ -55,6 +64,7 @@ async def get_pool_config(vtype_doc=None):
             "pool_percentage": _pool_num(vtype_doc.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
             "available_seats": int(_pool_num(vtype_doc.get("person_capacity", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
             "max_seats_per_booking": int(_pool_num(vtype_doc.get("pool_max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), POOL_DEFAULT_MAX_SEATS_PER_BOOKING)),
+            "discount_percent": _pool_num(vtype_doc.get("pool_discount_percent", POOL_DEFAULT_DISCOUNT_PERCENT), POOL_DEFAULT_DISCOUNT_PERCENT),
         }
 
     doc = await _db_pool_config()
@@ -64,6 +74,7 @@ async def get_pool_config(vtype_doc=None):
         "pool_percentage": _pool_num(s.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
         "available_seats": int(_pool_num(s.get("available_seats", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
         "max_seats_per_booking": int(_pool_num(s.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), POOL_DEFAULT_MAX_SEATS_PER_BOOKING)),
+        "discount_percent": _pool_num(s.get("pool_discount_percent", POOL_DEFAULT_DISCOUNT_PERCENT), POOL_DEFAULT_DISCOUNT_PERCENT),
     }
 
 
@@ -204,15 +215,29 @@ async def estimate_ride(data: RideRequest):
     pool_reason = []
     pool_seats = 1
     pool_cfg = None
+    pool_discount_pct = None
+    pool_savings = None
     if pool_enabled:
         pool_cfg = await get_pool_config(vtype_doc)
         # Per-booking cap (shared ride): a passenger can reserve at most N seats,
         # bounded by the vehicle's pool capacity.
         booking_cap = max(1, min(pool_cfg.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), pool_cfg["available_seats"]))
         pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), booking_cap))
-        pool_original_fare = round(fare, 2)  # 1st-seat (full) fare
-        fare = round(fare * pool_seat_multiplier(pool_seats, pool_cfg["pool_percentage"]), 2)
-        pool_reason = [f"Pool partagé · {pool_seats} place(s)"]
+        pool_original_fare = round(fare, 2)  # standard PRIVATE fare (reference for savings)
+        pool_discount_pct = pool_cfg.get("discount_percent", POOL_DEFAULT_DISCOUNT_PERCENT)
+        # 1st seat = discounted (sharing rebate); extra seats billed via pool_percentage.
+        pool_base = fare * (1 - pool_discount_pct / 100.0)
+        fare = round(pool_base * pool_seat_multiplier(pool_seats, pool_cfg["pool_percentage"]), 2)
+        pool_savings = round(max(pool_original_fare - fare, 0), 2)
+        pool_reason = [f"Pool partagé · -{pool_discount_pct:.0f}% · {pool_seats} place(s)"]
+
+    # ── Intercity (longue distance) — optional round-trip (aller-retour) ──
+    is_intercity = (getattr(data, "ride_type", "") == "intercity")
+    round_trip = bool(getattr(data, "round_trip", False))
+    intercity_reason = []
+    if is_intercity and round_trip and not pool_enabled:
+        fare = round(fare * INTERCITY_ROUNDTRIP_FACTOR, 2)
+        intercity_reason = ["Aller-retour"]
 
     result = {
         "distance_km": round(distance, 2),
@@ -224,13 +249,17 @@ async def estimate_ride(data: RideRequest):
         "surge_multiplier": adj["surge_multiplier"],
         "weather_multiplier": adj["weather_multiplier"],
         "weather_condition": adj["weather_condition"],
-        "pricing_reasons": adj["reasons"] + pool_reason,
+        "pricing_reasons": adj["reasons"] + pool_reason + intercity_reason,
         "pool_enabled": pool_enabled,
         "seats_required": pool_seats,
         "available_seats": pool_cfg["available_seats"] if pool_cfg else None,
         "max_seats_per_booking": pool_cfg.get("max_seats_per_booking") if pool_cfg else None,
         "pool_percentage": pool_cfg["pool_percentage"] if pool_cfg else None,
+        "pool_discount_percent": pool_discount_pct,
+        "pool_savings": pool_savings,
         "original_fare": pool_original_fare,
+        "is_intercity": is_intercity,
+        "round_trip": round_trip and is_intercity,
     }
     if route_polyline:
         result["route_polyline"] = route_polyline
@@ -336,13 +365,22 @@ async def create_ride(data: RideRequest, request: Request):
     pool_original_fare = None
     pool_seats = 1
     pool_capacity = 1
+    pool_discount_pct = None
     if pool_enabled:
         pool_cfg = await get_pool_config(vtype_doc)
         pool_capacity = max(1, pool_cfg["available_seats"])  # total shared-vehicle capacity (for "remaining seats")
         booking_cap = max(1, min(pool_cfg.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), pool_capacity))
         pool_seats = max(1, min(int(getattr(data, "seats_required", 1) or 1), booking_cap))
         pool_original_fare = round(fare, 2)
-        fare = round(fare * pool_seat_multiplier(pool_seats, pool_cfg["pool_percentage"]), 2)
+        pool_discount_pct = pool_cfg.get("discount_percent", POOL_DEFAULT_DISCOUNT_PERCENT)
+        pool_base = fare * (1 - pool_discount_pct / 100.0)
+        fare = round(pool_base * pool_seat_multiplier(pool_seats, pool_cfg["pool_percentage"]), 2)
+
+    # ── Intercity (longue distance) — optional round-trip (aller-retour) ──
+    is_intercity = (getattr(data, "ride_type", "") == "intercity")
+    intercity_round_trip = bool(getattr(data, "round_trip", False)) and is_intercity
+    if intercity_round_trip and not pool_enabled:
+        fare = round(fare * INTERCITY_ROUNDTRIP_FACTOR, 2)
 
     # ===== Pack C — Corporate booking validation + discount =====
     corporate_id = None
@@ -459,6 +497,9 @@ async def create_ride(data: RideRequest, request: Request):
         "pool_seats_taken": pool_seats if pool_enabled else 0,
         "pool_riders": [],
         "original_fare": pool_original_fare,
+        "pool_discount_percent": pool_discount_pct,
+        "round_trip": intercity_round_trip,
+        "return_at": getattr(data, 'return_at', None) if intercity_round_trip else None,
         "stops": getattr(data, 'stops', None),
         "ride_profile": getattr(data, 'ride_profile', None),
         "ride_profile_org_type": getattr(data, 'ride_profile_org_type', None),

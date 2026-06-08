@@ -1,0 +1,51 @@
+{
+  "summary": "Frontend e2e validation of iter121 POOL + INTERCITY business logic on PREVIEW. POOL fare reduction, savings rendering, seat capping, AND POOL order creation = ALL PASS. INTERCITY panel, km/€/km/duration, 1.9x round-trip toggle (and reversal) = ALL PASS at expected 1.9 ratio. ONLY issue: intercity order POST returned 400 on submission (likely stale scheduled_at vs min_advance_minutes=60 race when user takes time to fill addresses).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/rides (intercity, ride_type=intercity)", "issue": "Returns 400 when scheduled_at (pre-filled to now+min_advance) becomes < min_advance_minutes by the time the user finishes filling pickup/dropoff and toggles round-trip. Root cause is the front-end pre-fills scheduledAt once on mount (line ~217 RideChoosePage.js) and never refreshes it; backend rides.py:316 then rejects with 400 'doit être planifiée au moins 60 minutes à l avance'. Backend pytest 8/8 still pass because they POST immediately with a fresh timestamp."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Intercity order creation (Planifier le voyage)", "issue": "Click on CTA does NOT navigate to /scheduled-rides or /ride/<id> — stays on /course?mode=intercity. Network shows POST /api/rides → 400. UX consequence: client cannot place an intercity reservation if they take >0s to fill the form. Either auto-refresh scheduledAt on submit (clamp to max(scheduledAt, now+min_advance)) or display the backend error toast (currently silently swallowed).", "affected_selectors": ["ride-choose-request-btn"]}
+    ],
+    "design_issues": [
+      {"screen": "/course?mode=intercity", "issues": ["An orphaned address row 'Av. Gustave Eiffel, 75007 Paris' appears between Destination and 'Trajet longue distance' panel (clock icon prefix). Unclear whether this is a stale 'recent place' or a stop suggestion; should either be labelled or hidden when not relevant."]}
+    ]
+  },
+  "test_scenarios": {
+    "pool_panel_present": "PASS — panel-pool with initial panel-pool-seats=1",
+    "pool_discounted_price_orange": "PASS — every vehicle shows discounted price (e.g. SB 7021.89€) with struck-through orig-price (9362.52€) and green savings (-2340.63€) ≈ exactly 25% off",
+    "pool_price_lower_than_standard": "PASS — pool price < orig price for ALL 10 vehicles (sb/confort/luxe/moto/suv/electric/van/tuktuk/vtc/taxi)",
+    "pool_seat_selector_2_cap": "PASS — +1 → 2, +1 again → still 2 (capped). Prices updated on increase (SB 7021.89 → 9128.46€ at 2 seats, still discounted).",
+    "pool_order_creation": "PASS — clicked SB vehicle then orange CTA 'Commander Pool · 7021.89 €' → navigated to /ride/ride_2cf0c3730411 with normal tracking screen (search-driver state visible).",
+    "intercity_panel_present": "PASS — panel-intercity 'Trajet longue distance' visible",
+    "intercity_info_chips": "PASS — '469.74 km · 1.50 €/km · ≈ 5h48' all rendered (data-testid intercity-info)",
+    "intercity_datetime_picker": "PASS — calendar auto-opened (schedule-calendar-modal), Jun-2026 grid + 09:30 default time, Confirmer button works",
+    "intercity_roundtrip_toggle_increases_fare": "PASS — one-way 901.57€ → AR ON 1712.98€ → ratio EXACTLY 1.900 ✓",
+    "intercity_roundtrip_toggle_off_restores": "PASS — AR OFF → back to 901.57€",
+    "intercity_order_creation": "FAIL — POST /api/rides returned 400 Bad Request; URL stayed at /course?mode=intercity. No error toast surfaced to user. Likely scheduled_at became stale (< min_advance_minutes=60)."
+  },
+  "test_report_links": ["/app/backend/tests/test_iter121_taxi_pool.py"],
+  "action_items": [
+    "Fix front-end RideChoosePage.js to refresh scheduledAt on submit OR force the value to max(currentValue, now + min_advance_minutes) before POSTing the ride. Alternatively, accept past-by-a-few-minutes scheduled_at on the backend for intercity rides since user explicitly confirmed the slot.",
+    "Surface the backend 400 error as a toast (currently the request appears to fail silently — investigate the .catch in submitRide / createRide handler).",
+    "Investigate the orphan 'Av. Gustave Eiffel, 75007 Paris' chip rendered above the intercity panel (possibly a stale 'recent_places' entry from auto-geolocation; should be hidden once user picks an explicit dropoff)."
+  ],
+  "critical_code_review_comments": [
+    "RideChoosePage.js line ~217: scheduledAt is initialized only when scheduleLater flips true, never refreshed. For intercity (panel='datetime', auto-open) this guarantees a stale timestamp by the time the user finishes filling addresses. Add a useEffect that re-clamps scheduledAt to max(scheduledAt, now+min_advance) on submit click.",
+    "Backend rides.py:316 returns a perfectly-localised French message but front-end appears not to display it. Either pipe the error.detail into toast.error in handleRequest, or relax the 60-min check for intercity (long-distance rides are inherently planned hours/days ahead).",
+    "Pool discount math is solid: 25% off (= pool_discount_percent default), savings displayed correctly. 1.9x intercity round-trip math is EXACT.",
+    "Pool panel correctly caps at maximum 2 seats (panel-pool-plus disabled at 2). Disable also reflects visually."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (8/8 pytest pre-verified)", "frontend": "11/12 scenarios pass — only intercity ORDER POST 400s"},
+  "test_credentials": "Client +33 600000099 / Client2026! (worked first try, phone input must be filled WITHOUT country code prefix — just '600000099', as country defaults to +33).",
+  "seed_data_creation": "1 pool ride created (id=ride_2cf0c3730411) via SB vehicle, Paris→Tour Eiffel, 2 seats, 7021.89€.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "POOL flow is GREEN end-to-end including ride creation. INTERCITY rendering + 1.9x round-trip toggle is GREEN. Only failing scenario: POST /api/rides on intercity scheduling submission (400). Repro: navigate to /course?mode=intercity (logged in as client), let calendar auto-open and confirm, type Paris pickup + Lyon dropoff, toggle Aller-retour ON, click 'Planifier le voyage' CTA. The 400 happens because scheduledAt prefill is now+60min on mount but elapses while the user fills the form. Frontend submit handler also swallows the toast.",
+  "rca of the issue": "RCA — Intercity order 400: useEffect at lines ~214-220 of RideChoosePage.js sets scheduledAt = now + min_advance_minutes ONCE when scheduleLater flips true. For panel='datetime' modes (intercity), this happens on mount. Backend rides.py validates `sched_dt - now < min_advance` and rejects with 400. Mitigation options: (1) refresh scheduledAt on submit; (2) re-clamp scheduledAt in the submit handler; (3) loosen backend window slightly (e.g., min_advance - 5 min tolerance) for intercity ride_type."
+}
