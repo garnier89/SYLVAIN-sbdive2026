@@ -362,7 +362,14 @@ const RideChoosePage = () => {
       vehicle_type: selectedSlug, payment_method: payment, ride_type: mode.ride_type, mode_id: mode.id,
     };
     if ((mode.panel === 'datetime' || scheduleLater) && scheduledAt) {
-      base.scheduled_at = scheduledAt;
+      // Clamp to now + min advance: the value is pre-filled on mount and goes
+      // stale while the user fills the form, otherwise the backend rejects (400).
+      const pad = (n) => String(n).padStart(2, '0');
+      const minTime = Date.now() + (schedConfig.min_advance_minutes || 60) * 60000;
+      let sched = new Date(scheduledAt).getTime();
+      if (isNaN(sched) || sched < minTime) sched = minTime;
+      const d = new Date(sched);
+      base.scheduled_at = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       if (base.ride_type === 'instant') base.ride_type = 'scheduled';
     }
     if (mode.id === 'airport') base.flight_number = flightNumber || null;

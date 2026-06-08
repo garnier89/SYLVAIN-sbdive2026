@@ -1,4 +1,13 @@
-## NEW - 2026-06-08 (80) - Carrousel véhicules + paiement déroulant (DONE, vérifié)
+## NEW - 2026-06-09 (81) - Pool & Intercity : logique métier finalisée (DONE, testé)
+- **Demande user (option B)** : finaliser le « fonctionnement » distinct de Pool et Intercity (garder écrans dédiés).
+- **POOL = vraie réduction** : avant, 1 place pool = plein tarif (aucune réduc, contraire à la promesse). Ajout `POOL_DEFAULT_DISCOUNT_PERCENT=25` + champ `discount_percent` dans `get_pool_config` (surchargeable par Vehicle Type `pool_discount_percent` / config pool globale). `rides.py` estimate+create : 1ʳᵉ place = tarif privé −25 %, places suppl. via `pool_percentage`. Estimate renvoie `pool_discount_percent`, `pool_savings`, `original_fare`. Vérifié : 30,75 €→23,06 € (économie 7,69 €).
+- **INTERCITY = longue distance + aller-retour** : ajout `INTERCITY_ROUNDTRIP_FACTOR=1.9` ; `round_trip`/`return_at` ajoutés à `RideRequest`. Estimate/create appliquent ×1,9 si `round_trip` & `ride_type='intercity'`. Vérifié : Paris→Lyon 468 km, aller 750 €, A/R 1425 €.
+- **Frontend `RideChoosePage.js`** : (a) liste véhicules affiche prix pool barré (orig-price-<slug>) + économie verte (savings-<slug>) ; (b) nouveau panneau `panel-intercity` (distance km + €/km + durée + toggle `intercity-roundtrip-toggle`) ; fetchEstimates envoie `ride_type/pool_enabled/seats_required/round_trip`, deps mises à jour ; buildPayload **clampe `scheduled_at`** à now+min_advance (corrige le 400 intercity quand l'horodatage pré-rempli devient périmé).
+- **Tests** : `tests/test_iter121_taxi_pool.py` réécrit (modèle réduction + cap par réservation + intercity A/R) → **8/8 pass**. **testing_agent iteration_168** : Pool 100 % (réduction, économies, cap places, commande), Intercity panneau+A/R 100 %. Seul bug Intercity (400 sur commande, horodatage périmé) → **corrigé** par le clamp, recréation curl OK (1425 €, status pending).
+- ⚠️ PREVIEW — l'user teste sur Preview (pas de Deploy requis pour lui).
+
+
+
 - Demande user : véhicules en **liste roulante horizontale** (≈3 visibles, scroll) + paiement en **menu déroulant** (défaut sélectionné + flèche).
 - `RideChoosePage.js` : le bloc `showComparison && bothSet` remplacé par un **carrousel horizontal** (`flex overflow-x-auto`, cartes `w-[30%] min-w-[104px]` : image voiture + nom + prix + capacité·durée, sélection highlight orange). Supprimé l'état `expandVehicles` et l'import `CaretUp`.
 - Paiement : grille 2-col remplacée par **dropdown** (`payment-dropdown` + état `payOpen`) — bouton affiche le mode sélectionné (icône + label) + CaretDown (rotate quand ouvert) ; liste `payment-dropdown-list` (Espèces défaut/CB/Portefeuille/SB PayGo), sélection ferme + check orange.
