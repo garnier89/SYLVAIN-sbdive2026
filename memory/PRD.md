@@ -1,3 +1,11 @@
+## NEW - 2026-06-08 (80) - Carrousel véhicules + paiement déroulant (DONE, vérifié)
+- Demande user : véhicules en **liste roulante horizontale** (≈3 visibles, scroll) + paiement en **menu déroulant** (défaut sélectionné + flèche).
+- `RideChoosePage.js` : le bloc `showComparison && bothSet` remplacé par un **carrousel horizontal** (`flex overflow-x-auto`, cartes `w-[30%] min-w-[104px]` : image voiture + nom + prix + capacité·durée, sélection highlight orange). Supprimé l'état `expandVehicles` et l'import `CaretUp`.
+- Paiement : grille 2-col remplacée par **dropdown** (`payment-dropdown` + état `payOpen`) — bouton affiche le mode sélectionné (icône + label) + CaretDown (rotate quand ouvert) ; liste `payment-dropdown-list` (Espèces défaut/CB/Portefeuille/SB PayGo), sélection ferme + check orange.
+- **Vérifié** screenshot : carrousel (SB/Confort/Luxe + 4e qui dépasse), dropdown ouvert avec Espèces coché, bouton Commander visible. Lint OK (sauf faux positif pré-existant set-state-in-effect:218). Webpack OK.
+- ⚠️ PREVIEW → redéploiement requis. PROCHAIN : config dédiée Pool & Intercity (Q1 validé).
+
+
 ## NEW - 2026-06-08 (79) - Commande taxi EXPRESS (2 taps) (DONE, vérifié)
 - Objectif user : « simplifier la commande taxi, elle ne doit pas être longue ». Constat : la longue liste de comparaison véhicules repoussait le bouton Commander.
 - `RideChoosePage.js` : nouveau state `expandVehicles` (défaut false). Le bloc `showComparison && bothSet` affiche désormais par défaut une **carte « véhicule recommandé » compacte** (véhicule sélectionné + image + durée/distance + prix + badge RECOMMANDÉ) avec un bouton **« Changer (N) ▾ »** (`express-change-vehicle`) qui déplie la liste complète ; sélectionner un véhicule dans la liste replie automatiquement (`express-collapse`). Icônes CaretDown/CaretUp ajoutées.
