@@ -1,4 +1,12 @@
-## NEW - 2026-06-09 (83) - ETA chauffeur + estimation d'arrivée sur la carte (étape 2) (DONE, testé)
+## NEW - 2026-06-09 (84) - Volet inférieur GLISSABLE (3 véhicules repliés) + carte toujours visible (DONE, testé)
+- **Demande user** : afficher **max 3 véhicules** repliés ; glisser le volet vers le haut pour voir le reste ; la **carte (itinéraire 2 adresses + chauffeur le plus proche)** doit rester visible.
+- **Bug corrigé** : le conteneur utilisait `min-h-screen` (hauteur auto → `h-[42%]` carte s'effondrait → volet prenait tout l'écran, carte masquée). Conteneur passé en **hauteur définie `h-[100dvh]` + `overflow-hidden`**, carte `flex-1 min-h-0`.
+- **Volet glissable (snap 2 états)** : replié `h-[52vh]` (~3 véhicules), déplié `h-[88vh]` (liste complète scrollable), `transition-[height]`. Poignée `sheet-drag-handle` : **tap** ou **swipe** (touch + pointer, seuil 28px, garde anti double-toggle). **Paiement + CTA épinglés** en pied de volet (toujours visibles) ; seule la liste véhicules scrolle.
+- **Vérifié (screenshots 430×880)** : replié = carte + chip chauffeur + SB/Confort/Luxe + Espèces + Commander ; déplié = SB→TukTuk… scrollable, CTA visible. Webpack compile.
+- ⚠️ Preview : géoloc IP (Iowa) → itinéraire droit transatlantique (fallback Polyline car pas de route routière Iowa→Paris). Sur vrai GPS même ville → route routière + voitures chauffeurs près du départ.
+
+
+
 - **Demande user** : afficher l'**ETA chauffeur** (« ~3 min ») et l'**estimation d'arrivée** sur la carte de l'étape 2 (rassurance avant commande).
 - **Backend** : nouvel endpoint `GET /api/rides/nearby/drivers?lat&lng` (auth) → chauffeurs approuvés+en ligne dans 12 km : `count`, `positions[≤12]`, `nearest_km`, `eta_mins` (≈2,5 min/km). Vérifié curl Paris : 15 chauffeurs, eta 1 min. (Route en 2 segments pour éviter collision avec `/{ride_id}`.)
 - **Frontend** : `rideAPI.nearbyDrivers`. `RideRouteMap` accepte `drivers=[]` → **marqueurs voiture** (icône SVG). `RideChoosePage` : état `nearby` + polling 15 s sur l'étape carte ; **chip ETA** sur la carte (`driver-eta-chip` : « Chauffeur à ~X min » / « Recherche de chauffeurs proches… » si aucun) ; **estimation d'arrivée** sous le titre du volet (`arrival-estimate` : « Trajet ~X min · arrivée vers HH:MM » = now + ETA chauffeur + durée trajet du véhicule sélectionné).

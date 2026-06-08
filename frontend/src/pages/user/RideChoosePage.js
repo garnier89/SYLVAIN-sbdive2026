@@ -115,6 +115,8 @@ const RideChoosePage = () => {
   const [scheduleLater, setScheduleLater] = useState(mode.panel === 'datetime');
   const [showMap, setShowMap] = useState(false); // 2-step flow: address form → map + bottom sheet
   const [nearby, setNearby] = useState({ count: 0, etaMins: null, positions: [] }); // online drivers near pickup
+  const [sheetExpanded, setSheetExpanded] = useState(false); // draggable bottom sheet (collapsed shows ~3 vehicles)
+  const dragStartY = useRef(null);
 
   const schedulingAllowed = schedConfig.enabled && !(schedConfig.disabled_modes || []).includes(isBidding ? 'bidding' : mode.id);
 
@@ -616,8 +618,8 @@ const RideChoosePage = () => {
   // ── Step 2: full-screen map + bottom sheet (Uber/V3Cube style) ──
   if (mapStep) {
     return (
-      <div className="mobile-container min-h-screen bg-gray-100 flex flex-col" data-testid="ride-choose-page">
-        <div className="relative h-[42%] shrink-0">
+      <div className="mobile-container h-[100dvh] bg-gray-100 flex flex-col overflow-hidden" data-testid="ride-choose-page">
+        <div className="relative flex-1 min-h-0">
           <RideRouteMap pickup={pickup} dropoff={dropoff} drivers={nearby.positions} />
           <button onClick={() => { setShowMap(false); setPayOpen(false); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center z-20" data-testid="map-back-btn">
             <ArrowLeft size={20} className="text-[#0B1426]" />
@@ -638,9 +640,30 @@ const RideChoosePage = () => {
             </div>
           )}
         </div>
-        <div className="bg-white rounded-t-3xl -mt-5 z-10 flex flex-col flex-1 min-h-0 shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" data-testid="map-bottom-sheet">
-          <div className="pt-2.5 pb-1 flex justify-center shrink-0"><div className="w-10 h-1.5 rounded-full bg-gray-300" /></div>
-          <div className="px-4 pb-2 overflow-y-auto flex-1">
+        <div className={`bg-white rounded-t-3xl -mt-5 z-10 flex flex-col shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] transition-[height] duration-300 ${sheetExpanded ? 'h-[88vh]' : 'h-[52vh]'}`} data-testid="map-bottom-sheet">
+          {/* Drag handle — tap or swipe up/down to expand/collapse the sheet */}
+          <div
+            className="pt-2.5 pb-2 flex flex-col items-center shrink-0 cursor-grab active:cursor-grabbing select-none"
+            data-testid="sheet-drag-handle"
+            onClick={() => { if (dragStartY.current === 'dragged') { dragStartY.current = null; return; } setSheetExpanded((v) => !v); }}
+            onTouchStart={(e) => { dragStartY.current = e.touches[0].clientY; }}
+            onTouchMove={(e) => {
+              if (typeof dragStartY.current !== 'number') return;
+              const dy = dragStartY.current - e.touches[0].clientY;
+              if (dy > 28) { setSheetExpanded(true); dragStartY.current = 'dragged'; }
+              else if (dy < -28) { setSheetExpanded(false); dragStartY.current = 'dragged'; }
+            }}
+            onPointerDown={(e) => { dragStartY.current = e.clientY; }}
+            onPointerMove={(e) => {
+              if (typeof dragStartY.current !== 'number') return;
+              const dy = dragStartY.current - e.clientY;
+              if (dy > 28) { setSheetExpanded(true); dragStartY.current = 'dragged'; }
+              else if (dy < -28) { setSheetExpanded(false); dragStartY.current = 'dragged'; }
+            }}
+          >
+            <div className="w-10 h-1.5 rounded-full bg-gray-300" />
+          </div>
+          <div className="px-4 overflow-y-auto flex-1 min-h-0">
             <h2 className="text-base font-black text-[#0B1426] mb-3">{isBidding ? 'Proposez votre prix' : 'Choisir une gamme ou faites glisser vers le haut'}</h2>
             {showComparison && selected && estimates[selected]?.duration != null && (
               <div className="flex items-center gap-1.5 -mt-2 mb-3 text-[11px] text-gray-500" data-testid="arrival-estimate">
@@ -653,9 +676,12 @@ const RideChoosePage = () => {
             {(isPool || isIntercity) && <ModeSpecificPanel {...modePanelProps} />}
             {showComparison && renderVehicleList()}
             {isBidding && renderBiddingGrid()}
-            {renderPayment()}
           </div>
-          <div className="p-4 border-t border-gray-100 shrink-0">{renderCta()}</div>
+          {/* Pinned footer: payment + CTA always visible */}
+          <div className="px-4 pt-2 pb-4 border-t border-gray-100 shrink-0 space-y-2 bg-white rounded-b-3xl">
+            {renderPayment()}
+            {renderCta()}
+          </div>
         </div>
         {scheduleModal}
       </div>
