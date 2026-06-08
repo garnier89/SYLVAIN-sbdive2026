@@ -1,3 +1,11 @@
+## NEW - 2026-06-08 (79) - Commande taxi EXPRESS (2 taps) (DONE, vérifié)
+- Objectif user : « simplifier la commande taxi, elle ne doit pas être longue ». Constat : la longue liste de comparaison véhicules repoussait le bouton Commander.
+- `RideChoosePage.js` : nouveau state `expandVehicles` (défaut false). Le bloc `showComparison && bothSet` affiche désormais par défaut une **carte « véhicule recommandé » compacte** (véhicule sélectionné + image + durée/distance + prix + badge RECOMMANDÉ) avec un bouton **« Changer (N) ▾ »** (`express-change-vehicle`) qui déplie la liste complète ; sélectionner un véhicule dans la liste replie automatiquement (`express-collapse`). Icônes CaretDown/CaretUp ajoutées.
+- Résultat : départ GPS auto + destination → véhicule reco + prix instantané + paiement (Espèces défaut) + gros bouton Commander, **tout sur un écran** = 2 taps.
+- **Vérifié** screenshot (mode standard, destination Lyon → carte SB recommandée + Commander visibles, toggle Changer(10) présent). Lint OK (sauf faux positif pré-existant set-state-in-effect:218, toléré webpack). Webpack OK.
+- ⚠️ PREVIEW → redéploiement requis. PROCHAIN : config dédiée Pool & Intercity (Q1 validé).
+
+
 ## NEW - 2026-06-08 (78) - « Tendances près de vous » (place de marché vivante) (DONE, vérifié)
 - **Backend** : `routes/service_trends.py` (enregistré dans `core/api_router.py`). Collection `service_trends` (clé sid+zone). `POST /api/service-trends/track` incrémente le compteur zone + global (stocke métadonnées d'affichage, pas de PII, skip tuiles "more"). `GET /api/service-trends/trending?zone=&limit=` renvoie le top par zone avec fallback global si <4. Seed initial global via `scripts/seed_trends.py` (8 services).
 - **Frontend** : `serviceTrendsAPI` (track/trending) dans `services/api.js`. UserHome : `go()` ping le tracker avec la zone (résolue via `getBrowserLocationLabel` → 2 derniers segments d'adresse, ref `zoneRef`). useEffect charge trending (global d'abord, puis raffiné par zone). Nouvelle section **« Tendances près de vous »** (data-testid `trending-section`, `trending-{id}`, icône TrendUp + pastille orange), placée après « Vos raccourcis », dédupliquée des raccourcis perso.

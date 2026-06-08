@@ -17,6 +17,7 @@ import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
   Money, CreditCard, Wallet, CheckCircle, Lightning,
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
+  CaretDown, CaretUp,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
@@ -81,6 +82,7 @@ const RideChoosePage = () => {
   const [vtypes, setVtypes] = useState([]);
   const [estimates, setEstimates] = useState({}); // slug -> { fare, duration, distance, loading, error }
   const [selected, setSelected] = useState(null);
+  const [expandVehicles, setExpandVehicles] = useState(false); // express: collapse the vehicle list by default
   const [payment, setPayment] = useState('cash');
   const [payments, setPayments] = useState(DEFAULT_PAYMENTS);
   const [walletBalance, setWalletBalance] = useState(null);
@@ -489,42 +491,83 @@ const RideChoosePage = () => {
           poolMax={(selected && estimates[selected]?.maxPoolSeats) || 2}
         />
 
-        {/* Choose a ride (comparison) */}
+        {/* Choose a ride — EXPRESS (collapsed recommended) by default, expandable to compare all */}
         {showComparison && bothSet && (
           <div className="mt-5" data-testid="choose-ride-section">
-            <h2 className="text-base font-black text-[#0B1426] mb-1">Choisissez un voyage</h2>
-            <p className="text-xs text-gray-500 mb-3">{mode.id === 'pool' ? 'Tarif partagé estimé par véhicule.' : 'Tarif estimé en direct pour chaque véhicule.'}</p>
-            <div className="space-y-2.5">
-              {vtypes.map((v) => {
-                const Icon = vehicleIcon(v);
-                const est = estimates[v.slug] || {};
-                const active = selected === v.slug;
-                const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
-                return (
-                  <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
-                    className={`w-full flex items-center gap-3 rounded-2xl border-2 p-3 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-transparent bg-white shadow-sm'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/15' : 'bg-gray-100'}`}>
-                      {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={26} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />}
+            {!expandVehicles && (() => {
+              const v = vtypes.find((x) => x.slug === selected) || vtypes[0];
+              if (!v) return null;
+              const est = estimates[v.slug] || {};
+              const img = v.image_selected || v.image_unselected;
+              const Icon = vehicleIcon(v);
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-base font-black text-[#0B1426]">Votre course</h2>
+                    {vtypes.length > 1 && (
+                      <button onClick={() => setExpandVehicles(true)} className="text-xs font-bold text-[#FF5000] flex items-center gap-1" data-testid="express-change-vehicle">
+                        Changer ({vtypes.length}) <CaretDown size={13} weight="bold" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="w-full flex items-center gap-3 rounded-2xl border-2 border-[#FF5000] bg-[#FFF3EC] p-3" data-testid="express-recommended">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-[#FF5000]/15">
+                      {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={26} weight="fill" className="text-[#FF5000]" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="font-bold text-[#0B1426] truncate">{v.name_fr || v.name || v.slug}</p>
-                        <span className="flex items-center gap-0.5 text-[11px] text-gray-400 shrink-0"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
+                        <span className="text-[9px] font-extrabold uppercase text-[#FF5000] bg-white rounded px-1 py-0.5 shrink-0">Recommandé</span>
                       </div>
-                      <p className="text-[11px] text-gray-500 truncate">
-                        {est.loading ? 'Calcul du tarif…' : est.error ? 'Tarif indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
-                      </p>
+                      <p className="text-[11px] text-gray-500 truncate">{est.loading ? 'Calcul du tarif…' : est.error ? 'Tarif indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
-                        : est.error ? <span className="text-xs text-gray-300">—</span>
-                        : <p className="text-base font-black text-[#0B1426]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>}
-                      {active && <CheckCircle size={16} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
+                      {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" /> : est.error ? <span className="text-xs text-gray-300">—</span> : <p className="text-base font-black text-[#0B1426]">{est.fare?.toFixed(2)} €</p>}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                </>
+              );
+            })()}
+            {expandVehicles && (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-base font-black text-[#0B1426]">Choisissez un voyage</h2>
+                  <button onClick={() => setExpandVehicles(false)} className="text-xs font-bold text-gray-400 flex items-center gap-1" data-testid="express-collapse"><CaretUp size={13} weight="bold" /> Replier</button>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">{mode.id === 'pool' ? 'Tarif partagé estimé par véhicule.' : 'Tarif estimé en direct pour chaque véhicule.'}</p>
+                <div className="space-y-2.5">
+                  {vtypes.map((v) => {
+                    const Icon = vehicleIcon(v);
+                    const est = estimates[v.slug] || {};
+                    const active = selected === v.slug;
+                    const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
+                    return (
+                      <button key={v.slug} onClick={() => { setSelected(v.slug); setExpandVehicles(false); }} data-testid={`choose-vehicle-${v.slug}`}
+                        className={`w-full flex items-center gap-3 rounded-2xl border-2 p-3 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-transparent bg-white shadow-sm'}`}>
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/15' : 'bg-gray-100'}`}>
+                          {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={26} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-[#0B1426] truncate">{v.name_fr || v.name || v.slug}</p>
+                            <span className="flex items-center gap-0.5 text-[11px] text-gray-400 shrink-0"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 truncate">
+                            {est.loading ? 'Calcul du tarif…' : est.error ? 'Tarif indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
+                            : est.error ? <span className="text-xs text-gray-300">—</span>
+                            : <p className="text-base font-black text-[#0B1426]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>}
+                          {active && <CheckCircle size={16} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
 
