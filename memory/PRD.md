@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (112) - GTFS Martinique : rafraîchissement automatique + statut admin (DONE, testé 100%)
+- **Demande user** : rafraîchissement automatique hebdomadaire du GTFS (réimport quand transport.data.gouv.fr publie une nouvelle version).
+- **Backend** : `scripts/import_gtfs_martinique.py` enrichi d'une fonction `refresh(force=False)` qui **résout l'URL de chaque feed et ne réimporte que si la version (URL) a changé** ; enregistre les métadonnées (`transport_meta` : url/date/compteurs par feed, `last_import_at`, `last_check_at`). Le scheduler `ensure_gtfs_imported` (tâche asyncio au démarrage) fait l'import initial puis vérifie ~toutes les 24h (réimport seulement sur nouvelle version). Endpoints admin : `GET /api/transport/admin/gtfs/status` (versions/compteurs/dernier import) et `POST /api/transport/admin/gtfs/refresh?force=` (rafraîchissement manuel).
+- **Frontend** (`AdminTransport.js`) : panneau **« Données GTFS Martinique »** (`gtfs-panel`) — dernier import, 3 cartes réseau (Centre/Maritime/Nord) avec arrêts + horaires, bouton **« Rafraîchir maintenant »** (`gtfs-refresh-btn`) → toast « déjà à jour » si version inchangée.
+- **Vérifié** : pytest `tests/test_iter174_transport.py` **17/17** (status auth/shape + refresh skip-when-unchanged) + **testing_agent iteration_180 — frontend 100% (3/3)**. Refresh force=false confirmé : `changed=[]` quand version inchangée. Webpack compile.
+
+
+
+
 ## NEW - 2026-06-09 (111) - Transports publics Martinique : VRAIES données GTFS (transport.data.gouv.fr) + écran « Transports autour de moi » (DONE, testé 100%)
 - **Demande user** : afficher bus/TCSP/navettes proches avec horaires depuis le GTFS public Martinique (PAS Navitia) ; collections GTFS ; script d'import ; `GET /api/transport/nearby` ; écran mobile dédié avec liste arrêts + distance + horaires + bouton « Réserver un VTC jusqu'à cet arrêt ». Choix : importer **Centre/CACEM + Maritime + Nord** ; **écran séparé dédié** ; VTC va **vers l'arrêt** (arrêt=destination).
 - **Import GTFS** (NOUVEAU `backend/scripts/import_gtfs_martinique.py`) : résout la dernière version du ZIP via l'API datasets (par slug), parse `stops/routes/trips/stop_times/calendar/calendar_dates`, insère, indexe, idempotent (purge par feed). **Importé** : Centre 1373 arrêts/152 701 horaires, Maritime 5 arrêts (navettes ferry), Nord 1951 arrêts/77 226 horaires. Supprime l'ancien Fort-de-France simulé. Auto-lancé au démarrage si données GTFS absentes (`ensure_gtfs_imported`, en thread, non bloquant) → la prod se peuple après déploiement.
