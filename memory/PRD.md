@@ -1,4 +1,10 @@
-## NEW - 2026-06-09 (84) - Volet inférieur GLISSABLE (3 véhicules repliés) + carte toujours visible (DONE, testé)
+## NEW - 2026-06-09 (85) - Refactor AdminDashboard.js + hooks (DONE, testé)
+- **Refactor** : `AdminDashboard.js` 389 → **~110 lignes**. Extraction de 4 sous-composants présentationnels dans `pages/admin/dashboard/` : `DashboardHeader.jsx` (horloge live + sélecteur période + export CSV/PDF), `DashboardServiceCards.jsx` (lignes services/commerce V3Cube), `GodsViewPanel.jsx` (carte God's View + donut statut + courses récentes, dérivations internes), `EarningsScheduledPanel.jsx` (graphe gains + réservations programmées). `AdminDashboard` ne garde que l'état, les effets de chargement et la composition. Tous les `data-testid` préservés à l'identique.
+- **Hooks** : `load` (useCallback []), breakdown ([period]), horloge ([]) — dépendances correctes, lint 0 blocage sur le dossier `dashboard/`. (Nettoyage global des ~365 warnings hooks NON fait : majoritairement intentionnels/faux positifs tolérés par CRA, risque de régression élevé — déféré.)
+- **Vérifié (screenshot, login admin `/admin-login` → `admin@superapp.com`/`SuperAdmin123!`)** : dashboard rendu à l'identique (header, 5 KPIs, cartes services, God's View carte+donut, gains). Webpack compile, lint clean.
+
+
+
 - **Demande user** : afficher **max 3 véhicules** repliés ; glisser le volet vers le haut pour voir le reste ; la **carte (itinéraire 2 adresses + chauffeur le plus proche)** doit rester visible.
 - **Bug corrigé** : le conteneur utilisait `min-h-screen` (hauteur auto → `h-[42%]` carte s'effondrait → volet prenait tout l'écran, carte masquée). Conteneur passé en **hauteur définie `h-[100dvh]` + `overflow-hidden`**, carte `flex-1 min-h-0`.
 - **Volet glissable (snap 2 états)** : replié `h-[52vh]` (~3 véhicules), déplié `h-[88vh]` (liste complète scrollable), `transition-[height]`. Poignée `sheet-drag-handle` : **tap** ou **swipe** (touch + pointer, seuil 28px, garde anti double-toggle). **Paiement + CTA épinglés** en pied de volet (toujours visibles) ; seule la liste véhicules scrolle.
