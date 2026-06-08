@@ -1,4 +1,18 @@
-## NEW - 2026-06-09 (97) - Messagerie in-app acheteur↔vendeur (Marketplace) (DONE, testé)
+## NEW - 2026-06-09 (98) - « Commerces Proches » câblé de bout en bout + CMS admin (DONE, testé 100%)
+- **Demande user** : compléter la section « Commerces Proches » — tuiles accueil (Musées, Hôtels, Salons, Attractions, Bibliothèques, Vie Nocturne, Parking, Garage…) qui pointaient toutes vers un `/nearby` générique, backend ne contenant que 6 commerces. + page admin complète (création/édition/suppression + upload image). Catégories en français.
+- **Backend** :
+  - `demo_seed.py` : `CATEGORY_SEEDS['nearby_businesses']` passé de 6 → **22 commerces** couvrant 13 catégories FR (Café, Bar, Restaurant, Salon, Boulangerie, Pharmacie, Hôtel, Musée, Attraction, Bibliothèque, Vie Nocturne, Parking, Garage) + `is_active`/`phone`.
+  - `startup.py` `_seed_nearby_businesses_and_routes()` (idempotent, dans `run_all_seeds`) : **upsert par id** des 22 commerces (ajoute les nouveaux même si collection non vide) + **upsert des 10 tuiles** accueil section `nearby` avec `target_route=/nearby?category=<Catégorie urlencodée>` (robuste fresh deploy ET prod existante).
+  - `phase2.py` : **CRUD admin générique** sur les catalogues publics — `POST/PUT/DELETE /api/phase2/admin/catalogs/{collection}[/{id}]` (perm `content.manage`). Préfixes d'id par collection.
+- **Frontend** :
+  - `ServiceListLayout.js` : nouveau prop `initialCategory` (pré-sélectionne le chip, resync via useEffect).
+  - `NearbyBusinessPage.js` : lit `?category=` (useSearchParams), liste complète des 13 catégories en chips, pré-filtre via `initialCategory`.
+  - `AdminNearbyBusinesses.js` (NOUVEAU, route `/admin/nearby-businesses`, sidebar CONTENU (CMS) → Écran accueil app → « Commerces proches ») : tableau + recherche + filtre catégorie + modale CRUD (nom, catégorie, adresse, tél, desc, note, distance, ouvert/actif, **upload image base64 max 8 Mo**).
+- **Vérifié** : **testing_agent iteration_171 — 100%** (backend 9/9 pytest `tests/test_iter171_nearby_businesses.py` + frontend admin CRUD + deep-link client). Curl confirmé : catalogue 22/13 catégories, tuiles `/nearby?category=Mus%C3%A9e` etc., CRUD admin (create/update/delete) cookie-auth OK. Deep-link `/nearby?category=Musée` → chip Musée actif + 2 cartes (Louvre, Orsay). Webpack compile (1 warning pré-existant).
+- ⚠️ PREVIEW → **redéploiement requis** pour la prod `gojek-mvp-1.emergent.host`.
+
+
+
 - **Demande user** : remplacer la redirection WhatsApp par une messagerie in-app (échanges gardés dans la plateforme, données de vente, futur levier de commission).
 - **Backend** (`marketplace.py`) : collections `marketplace_threads` + `marketplace_messages`. Endpoints : `POST /threads` (get-or-create entre acheteur courant et vendeur de l'annonce, 400 si on est le vendeur), `GET /threads` (mes conversations + compteur `unread`), `GET /threads/{id}/messages` (marque lu + renvoie thread/messages/me), `POST /threads/{id}/messages` (envoi + maj last_message + `create_notification` type `marketplace_message` à l'autre participant). Garde-fou participant sur chaque accès.
 - **Frontend** : `pages/user/MarketplaceMessagesPage.js` (routes `/marketplace/messages` liste des conversations + `/marketplace/messages/:threadId` vue chat avec polling 4s, bulles, input). MarketplacePage : fiche annonce → bouton **« Message »** (in-app, CTA principal) + **« Appeler »** (tel) ; WhatsApp retiré. Bouton **« Mes messages »** dans l'en-tête Marketplace. API `marketplaceAPI.startThread/myThreads/threadMessages/sendMessage`.
