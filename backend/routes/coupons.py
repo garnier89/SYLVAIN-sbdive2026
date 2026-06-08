@@ -43,7 +43,6 @@ async def validate_coupon(request: Request):
     body = await request.json()
     code = body.get("code", "").strip().upper()
     amount = body.get("amount", 0)
-    service_type = body.get("service_type", "Ride")
 
     if not code:
         raise HTTPException(status_code=400, detail="Code promo requis")
@@ -136,7 +135,6 @@ async def apply_coupon(request: Request):
 async def list_active_coupons(request: Request):
     """List all active coupons (user-visible)."""
     await get_current_user(request)
-    now = datetime.now(timezone.utc).isoformat()
     coupons = await db.coupons.find(
         {"status": "active"},
         {"_id": 0, "code": 1, "description": 1, "discount_type": 1, "discount_value": 1, "max_discount": 1, "expiry_date": 1}
@@ -185,3 +183,42 @@ async def admin_list_coupons(request: Request):
     await require_role(request, ["admin"], permission="billing.promocodes.create")
     coupons = await db.coupons.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
     return coupons
+
+
+@router.put("/admin/{coupon_id}/toggle")
+async def toggle_coupon(coupon_id: str, request: Request):
+    """Activate/deactivate a coupon (admin only)."""
+    await require_role(request, ["admin"], permission="billing.promocodes.create")
+    coupon = await db.coupons.find_one({"id": coupon_id}, {"_id": 0})
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Code promo introuvable")
+    new_status = "inactive" if coupon.get("status") == "active" else "active"
+    await db.coupons.update_one({"id": coupon_id}, {"$set": {"status": new_status}})
+    return {"id": coupon_id, "status": new_status}
+
+
+@router.delete("/admin/{coupon_id}")
+async def delete_coupon(coupon_id: str, request: Request):
+    """Delete a coupon (admin only)."""
+    await require_role(request, ["admin"], permission="billing.promocodes.create")
+    result = await db.coupons.delete_one({"id": coupon_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Code promo introuvable")
+    return {"message": "Supprimé"}
+
+
+@router.post("/admin/bulk")
+async def bulk_coupon_action(request: Request):
+    """Apply a bulk action (activate/deactivate/delete) on multiple coupons."""
+    await require_role(request, ["admin"], permission="billing.promocodes.create")
+    body = await request.json()
+    action = body.get("action")
+    ids = body.get("ids", [])
+    if not ids or action not in ("activate", "deactivate", "delete"):
+        raise HTTPException(status_code=400, detail="Action ou sélection invalide")
+    if action == "delete":
+        result = await db.coupons.delete_many({"id": {"$in": ids}})
+        return {"affected": result.deleted_count, "action": action}
+    status = "active" if action == "activate" else "inactive"
+    result = await db.coupons.update_many({"id": {"$in": ids}}, {"$set": {"status": status}})
+    return {"affected": result.modified_count, "action": action}

@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (90) - Codes promo 100% opérationnels : actions par ligne + groupées + export (DONE, testé)
+- **Demande user** : brancher réellement Activer/Désactiver/Supprimer par ligne + actions groupées + EXPORT (étaient décoratifs).
+- **Backend (`routes/coupons.py`)** : nouveaux endpoints admin (perm `billing.promocodes.create`) : `PUT /coupons/admin/{id}/toggle` (active↔inactive), `DELETE /coupons/admin/{id}`, `POST /coupons/admin/bulk` ({action: activate|deactivate|delete, ids[]}). Nettoyage 2 vars inutilisées pré-existantes (F841).
+- **Frontend (`AdminPromocodes.js`)** : sélection par case (header select-all + par ligne), colonne **Status** réelle (badge Active/Inactive selon `c.status`), menu **engrenage** par ligne (Désactiver/Activer + Supprimer avec confirm), barre **action groupée** (Select Action + APPLIQUER(n)), **EXPORT CSV** réel (Blob+BOM, téléchargement), filtre **Select Status** désormais fonctionnel. API : `couponAPI.adminToggle/adminDelete/adminBulk`.
+- **Vérifié** : curl (create→toggle inactive→bulk activate affected:1→delete OK) + screenshot (table avec statuts Active, menu engrenage Désactiver/Supprimer ouvert, APPLIQUER + EXPORT présents, remises correctes 10%/15%/10€/20%). Webpack compile.
+- ⚠️ Lint : `react-hooks/immutability` sur AdminPromocodes = **pré-existant** (confirmé sur le fichier HEAD original, idiome `filtered`/React-Compiler), toléré par le build CRA — non introduit par ce lot.
+- ⚠️ PREVIEW → l'app est déployée en prod ; **redéploiement requis** pour pousser ces changements.
+
+
 ## NEW - 2026-06-09 (89) - Audit fonctionnel modules admin (Codes promo, ServiceConfig, CMS) (DONE, testé 100%)
 - **Demande user** : audit fonctionnel complet des modules admin existants via testing_agent.
 - **Bug réel trouvé & corrigé** : `AdminPromocodes.js` — le tableau lisait `c.discount_percent/c.discount/c.max_uses/c.current_uses` (champs inexistants) → tout code créé affichait « 0% ». Corrigé pour lire les vrais champs backend `discount_value/discount_type/usage_limit/used` (coupons.py). Discount = `${value}%` ou `${value} €` selon le type.

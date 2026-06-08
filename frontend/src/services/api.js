@@ -383,6 +383,9 @@ export const couponAPI = {
   list: () => api.get('/coupons'),
   adminCreate: (data) => api.post('/coupons/admin/create', data),
   adminList: () => api.get('/coupons/admin/all'),
+  adminToggle: (id) => api.put(`/coupons/admin/${id}/toggle`),
+  adminDelete: (id) => api.delete(`/coupons/admin/${id}`),
+  adminBulk: (action, ids) => api.post('/coupons/admin/bulk', { action, ids }),
 };
 
 // Simulation APIs
