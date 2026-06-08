@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAppSettings } from '../../hooks/useAppSettings';
+import { useHeatmap, useDriverHomeFeed, useZoneBonuses } from '../../hooks/driverHome';
 import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
@@ -40,15 +41,15 @@ const DriverHome = () => {
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const [showMenu, setShowMenu] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [heatPoints, setHeatPoints] = useState([]);
+  const heatPoints = useHeatmap(showHeatmap);
   const [showEarningsBreakdown, setShowEarningsBreakdown] = useState(false);
   const [showDestModal, setShowDestModal] = useState(false);
   const [destMode, setDestMode] = useState(null); // { enabled, destination_lat, destination_lng, address, expires_at }
   const [destInput, setDestInput] = useState({ address: '', lat: '', lng: '' });
   const [poolRoute, setPoolRoute] = useState(null); // { passenger_count, stops, newPassenger }
-  const [zoneBonuses, setZoneBonuses] = useState([]);
+  const { zoneBonuses, setZoneBonuses } = useZoneBonuses();
   const [fabOpen, setFabOpen] = useState(false);
-  const [homeFeed, setHomeFeed] = useState({ scheduled_pending: [], upcoming: [], available_rides: [], available_deliveries: [], next_scheduled_at: null });
+  const { homeFeed, setHomeFeed } = useDriverHomeFeed();
   const [showScheduled, setShowScheduled] = useState(false);
   const [showTaxiHall, setShowTaxiHall] = useState(false);
   const [rideMinimized, setRideMinimized] = useState(false);
@@ -69,77 +70,6 @@ const DriverHome = () => {
     }
     setShowTaxiHall(true);
   }, [taxiHallElig]);
-  const seenScheduledRef = useRef(null); // Set of known scheduled ids (null = not yet primed)
-  const alerted40Ref = useRef(new Set());
-
-  // Load heat map demand cells when toggled
-  useEffect(() => {
-    if (!showHeatmap) return;
-    const load = async () => {
-      try {
-        const res = await fetch(`${API}/api/phase2/heatmap`, { credentials: 'include' });
-        if (!res.ok) return;
-        const d = await res.json();
-        setHeatPoints(d.points || []);
-      } catch { /* ignore */ }
-    };
-    load();
-    const id = setInterval(load, 30000);
-    return () => clearInterval(id);
-  }, [showHeatmap]);
-
-  // V3Cube driver home feed: scheduled (RED) / upcoming circle / available (YELLOW)
-  // / deliveries (BLUE), with sound+vibration alerts on new reservations and T-40min.
-  useEffect(() => {
-    let alive = true;
-    const beep = () => {
-      try {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        const ctx = new Ctx();
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = 'sine'; o.frequency.value = 880;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-        o.start(); o.stop(ctx.currentTime + 0.55);
-      } catch { /* audio blocked until first interaction */ }
-      if (navigator.vibrate) navigator.vibrate([200, 90, 200]);
-    };
-    const loadFeed = async () => {
-      try {
-        const res = await rideAPI.driverHomeFeed();
-        if (!alive) return;
-        const feed = res.data;
-        setHomeFeed(feed);
-        const ids = (feed.scheduled_pending || []).map((r) => r.id);
-        if (seenScheduledRef.current === null) {
-          seenScheduledRef.current = new Set(ids); // prime without alerting
-        } else {
-          const fresh = ids.filter((id) => !seenScheduledRef.current.has(id));
-          if (fresh.length) {
-            fresh.forEach((id) => seenScheduledRef.current.add(id));
-            beep();
-            toast.success(`Nouvelle réservation planifiée (${fresh.length})`, { description: 'En attente de votre acceptation.' });
-          }
-        }
-        (feed.upcoming || []).forEach((r) => {
-          if (!r.scheduled_at || alerted40Ref.current.has(r.id)) return;
-          const mins = (new Date(r.scheduled_at).getTime() - Date.now()) / 60000;
-          if (mins > 0 && mins <= 40) {
-            alerted40Ref.current.add(r.id);
-            beep();
-            toast.warning(`Course à venir dans ${Math.round(mins)} min`, { description: r.pickup_address });
-          }
-        });
-      } catch { /* ignore */ }
-    };
-    loadFeed();
-    const id = setInterval(loadFeed, 12000);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
-
 
   // Load current destination mode on mount
   useEffect(() => {
@@ -270,20 +200,6 @@ const DriverHome = () => {
     });
     return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); };
   }, [on, currentRide, isOnline]);
-
-  // Active zone bonuses (driver-shortage incentives)
-  useEffect(() => {
-    let active = true;
-    const fetchBonuses = async () => {
-      try {
-        const res = await fetch(`${API}/api/rides/active-zone-bonuses`, { credentials: 'include' });
-        if (active && res.ok) { const d = await res.json(); setZoneBonuses(d.bonuses || []); }
-      } catch { /* non-blocking */ }
-    };
-    fetchBonuses();
-    const id = setInterval(fetchBonuses, 30000);
-    return () => { active = false; clearInterval(id); };
-  }, []);
 
   // Restore an in-progress ride after a reload/navigation so the driver never
   // "loses" the course they are currently on (and can still start/finish it).

@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only regression of P2 maintainability refactor on DriverHome.js (extraction of useHeatmap / useDriverHomeFeed / useZoneBonuses into src/hooks/driverHome.js). Driver phone-login → /chauffeur/home flow verified end-to-end. NO ReferenceError, NO runtime overlay, NO crash on re-mount, NO console errors during 22s polling observation. Behavior is identical to pre-refactor.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_scenarios": {
+    "login_and_no_runtime_error": "PASS — phone +33644112233 / Chauffeur2026! → lands on /chauffeur/home. Zero ReferenceErrors. Zero pageerrors. No 'setHeatPoints/homeFeed/zoneBonuses is not defined'.",
+    "driver_home_renders_fully": "PASS — header (online toggle 'En ligne'), stats row (18 trips / 5.0 rating / 0 upcoming / 8 pending / 2108.32 EUR), Google Map with driver marker, FAB (+) all present. testids found: driver-home-page, online-toggle, scheduled-reservations-btn, notifications-btn, open-earnings-breakdown-btn, stat-upcoming, stat-pending, rewards-floating-btn, driver-fab-toggle, driver-bottom-nav, nav-home/bookings/wallet/profile.",
+    "online_toggle": "PASS — En ligne → Hors ligne → En ligne. State flips and persists in header.",
+    "home_feed_polling": "PASS — empty state 'Aucune réservation planifiée en attente.' renders in scheduled-reservations sheet (homeFeed.scheduled_pending === []). 8 pending count comes from feed (no crash).",
+    "fab_menu": "PASS — FAB opens (driver-fab-toggle visible/clickable).",
+    "navigation_remount": "PASS — Navigated to /chauffeur/earnings then back to /chauffeur/home (twice, including bottom-nav and direct URL nav). DriverHome re-mounts cleanly; hooks re-initialize without error.",
+    "background_polling_idle_22s": "PASS — 0 console errors during 22s idle (feed @12s, zone-bonuses @30s polling cycles observed). No repeated error toasts."
+  },
+  "console_errors_observed": [
+    "2x '401' for resource load BEFORE login (pre-existing polling noise — explicitly listed as ignorable in review_request)"
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "src/hooks/driverHome.js cleanly mirrors the original 3 effects (heatmap 30s, home-feed 12s with seenScheduledRef/alerted40Ref/beep, zone-bonuses 30s). seenScheduledRef priming logic (null sentinel) preserved — first poll does not spuriously alert.",
+    "useZoneBonuses correctly exposes setZoneBonuses so the WebSocket 'zone_bonus_active' handler in DriverHome can still merge incoming bonuses (line 194 of DriverHome.js).",
+    "useDriverHomeFeed exposes setHomeFeed so DriverHome can patch the feed (line 330) after ride-accept actions.",
+    "Minor (non-blocking): empty catch blocks `catch { /* ignore */ }` swallow errors silently — fine for non-critical pollers but consider logging behind a debug flag.",
+    "Minor: useDriverHomeFeed's alerted40Ref is never cleared; for a long-lived session ids accumulate. Pre-existing behavior, not introduced by refactor."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Driver phone +33644112233 / Chauffeur2026! (worked first try)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DriverHome refactor (iter 167) is GREEN. Hooks live at /app/frontend/src/hooks/driverHome.js. Driver login flow is: tel input (testid=phone-input) → submit-btn → password-input → submit-btn. Lands on /chauffeur/home with testid=driver-home-page. Bottom-nav testids: nav-home / nav-bookings / nav-wallet / nav-profile. Note: nav-wallet currently stays on /chauffeur/home in this snapshot (separate matter, NOT related to this refactor).",
+  "rca of the issue": "N/A — no issues found. Refactor is behaviour-identical."
+}
