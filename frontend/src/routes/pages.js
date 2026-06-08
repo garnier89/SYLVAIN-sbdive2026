@@ -39,6 +39,8 @@ export const AllDeliveryPage = lazyWithPreload(() => import('../pages/user/AllDe
 export const AllServicesPage = lazy(() => import('../pages/user/AllServicesPage'));
 export const CarPoolPage = lazy(() => import('../pages/user/CarPoolPage'));
 export const MarketplacePage = lazy(() => import('../pages/user/MarketplacePage'));
+export const MyOrdersPage = lazy(() => import('../pages/user/MyOrdersPage'));
+export const OrderSuccessPage = lazy(() => import('../pages/user/OrderSuccessPage'));
 export const SellGalleryPage = lazy(() => import('../pages/user/SellGalleryPage'));
 export const MarketplaceMessagesPage = lazy(() => import('../pages/user/MarketplaceMessagesPage'));
 export const NearbyBusinessPage = lazy(() => import('../pages/user/NearbyBusinessPage'));

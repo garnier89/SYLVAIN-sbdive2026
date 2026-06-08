@@ -24,7 +24,7 @@ const SellGalleryPage = () => {
   const proofRef = useRef(null);
 
   // Listing form
-  const [listing, setListing] = useState({ title: '', price: '', category: 'general', description: '' });
+  const [listing, setListing] = useState({ title: '', price: '', category: 'general', description: '', purchasable: true });
   const [listingImg, setListingImg] = useState(null);
   const [posting, setPosting] = useState(false);
   const [myListings, setMyListings] = useState([]);
@@ -88,10 +88,11 @@ const SellGalleryPage = () => {
         description: listing.description,
         type: 'items',
         listing_type: 'sell',
+        purchasable: !!listing.purchasable,
         images: listingImg ? [listingImg] : [],
       });
       toast.success('Article publié sur le Marketplace !');
-      setListing({ title: '', price: '', category: 'general', description: '' });
+      setListing({ title: '', price: '', category: 'general', description: '', purchasable: true });
       setListingImg(null);
       reload();
     } catch (e) { toast.error(e?.response?.data?.detail || 'Publication impossible'); }
@@ -141,6 +142,10 @@ const SellGalleryPage = () => {
                 </select>
               </div>
               <textarea value={listing.description} onChange={(e) => setListing({ ...listing, description: e.target.value })} placeholder="Description" rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-2" data-testid="listing-description" />
+              <label className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2.5 mb-2 cursor-pointer" data-testid="listing-purchasable-toggle">
+                <input type="checkbox" checked={listing.purchasable} onChange={(e) => setListing({ ...listing, purchasable: e.target.checked })} className="w-4 h-4 accent-emerald-600" data-testid="listing-purchasable" />
+                <span className="text-xs text-gray-700"><b>Prix fixe — achetable en ligne</b> : les acheteurs voient un bouton « Acheter » et vous paient directement (commission plateforme déduite). Décochez pour « sur contact / négociable ».</span>
+              </label>
               <input ref={listingImgRef} type="file" accept="image/*" hidden onChange={(e) => pickDoc(e.target.files?.[0], setListingImg)} />
               <button onClick={() => listingImgRef.current?.click()} className="w-full border-2 border-dashed border-gray-200 rounded-xl py-2.5 text-sm text-gray-500 flex items-center justify-center gap-2 mb-3" data-testid="listing-photo-btn">
                 <Camera size={16} /> {listingImg ? 'Photo ajoutée ✓' : 'Ajouter une photo'}

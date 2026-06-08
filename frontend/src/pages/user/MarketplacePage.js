@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle, ChatCircleText, Phone } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { marketplaceAPI } from '../../services/api';
+import { useLocale } from '../../contexts/LocaleContext';
+import { BuyModal } from './marketplace/BuyModal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -14,12 +16,14 @@ const CATEGORIES = {
 
 const MarketplacePage = () => {
   const navigate = useNavigate();
+  const { money } = useLocale();
   const params = useParams();
   const activeCat = params.category || null;
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const [buying, setBuying] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/api/phase2/catalogs/marketplace_listings`, { credentials: 'include' })
@@ -111,7 +115,8 @@ const MarketplacePage = () => {
                 )}
                 <div className="p-2.5">
                   <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-tight">{l.title}</p>
-                  <p className="text-base font-extrabold text-blue-600 mt-1">{l.price?.toLocaleString('fr-FR')} {l.currency}</p>
+                  <p className="text-base font-extrabold text-blue-600 mt-1">{money(l.price)}</p>
+                  {l.purchasable && <span className="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Achetable</span>}
                   <p className="text-[10px] text-gray-500 mt-0.5 truncate">{l.location}</p>
                   <span className={`inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${l.type === 'Vente' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>{l.type}</span>
                 </div>
@@ -140,8 +145,13 @@ const MarketplacePage = () => {
             <div className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-xl font-extrabold text-gray-900">{selected.title}</h2>
-                <p className="text-xl font-extrabold text-blue-600 whitespace-nowrap">{selected.price?.toLocaleString('fr-FR')} {selected.currency}</p>
+                <p className="text-xl font-extrabold text-blue-600 whitespace-nowrap">{money(selected.price)}</p>
               </div>
+              {selected.purchasable && (
+                <button onClick={() => setBuying(selected)} className="w-full flex items-center justify-center gap-2 bg-[#FF5000] text-white rounded-xl py-3.5 font-bold text-sm mt-4" data-testid="buy-now-btn">
+                  🛒 Acheter · {money(selected.price)}
+                </button>
+              )}
               {!selected.image && selected.seller_verified && (
                 <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full mt-2">
                   <CheckCircle size={13} weight="fill" /> Vendeur vérifié
@@ -166,6 +176,10 @@ const MarketplacePage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {buying && (
+        <BuyModal listing={buying} onClose={() => setBuying(null)} onPaid={() => { setBuying(null); setSelected(null); navigate('/marketplace/orders'); }} />
       )}
     </div>
   );

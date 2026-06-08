@@ -13,7 +13,7 @@ from routes.merchants import router as merchants_router
 from routes.rides import router as rides_router
 from routes.orders import router as orders_router
 from routes.misc import router as misc_router
-from routes.marketplace import router as marketplace_router
+from routes.marketplace import router as marketplace_router, stripe_webhook_router
 from routes.carpool import router as carpool_router
 from routes.services import router as services_router
 from routes.config import router as config_router
@@ -68,7 +68,7 @@ from routes.zones import router as zones_router
 # Ordered list of every router mounted under /api
 _ROUTERS = [
     auth_router, users_router, drivers_router, merchants_router, rides_router,
-    orders_router, misc_router, marketplace_router, carpool_router, services_router,
+    orders_router, misc_router, marketplace_router, stripe_webhook_router, carpool_router, services_router,
     config_router, wallet_router, coupons_router, auto_promotions_router, vouchers_router,
     referral_router, payments_router, webhooks_router, features_router, simulation_router,
     gojek_services_router, cart_router, admin_router, phase1_router, phase2_router,

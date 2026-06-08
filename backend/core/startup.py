@@ -380,6 +380,11 @@ async def run_all_seeds():
     await _seed_corporate()
 
     await seed_home_categories()        # home categories CMS
+    try:
+        from routes.home_categories import seed_home_categories_extra
+        await seed_home_categories_extra()  # parcel + marketplace editable tiles
+    except Exception as e:
+        logger.error(f"home_categories extra seed failed: {e}")
     await seed_home_sections()          # home section layout (order + visibility)
     await seed_promo_banners()          # promo banners CMS
     await _seed_nearby_businesses_and_routes()  # nearby commerces + tile category routes

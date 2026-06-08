@@ -6,12 +6,12 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, DeviceMobile, PencilSimple, ArrowSquareOut } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, DeviceMobile, PencilSimple, ArrowSquareOut, MagnifyingGlass } from '@phosphor-icons/react';
 import { homeCategoriesAPI, adminAPI } from '../../services/api';
 import DynamicIcon, { ICON_MAP } from '../../components/DynamicIcon';
 
 // Section keys that render as a tile grid on the Home (taxi + the CMS tile sections).
-const TILE_SECTIONS = new Set(['taxi', 'delivery', 'ondemand', 'beauty', 'pet', 'carcare', 'towing', 'nearby']);
+const TILE_SECTIONS = new Set(['taxi', 'delivery', 'parcel', 'marketplace', 'ondemand', 'beauty', 'pet', 'carcare', 'towing', 'nearby']);
 
 const BG_OPTIONS = ['bg-amber-50', 'bg-teal-50', 'bg-blue-50', 'bg-orange-50', 'bg-pink-50', 'bg-green-50', 'bg-cyan-50', 'bg-rose-50', 'bg-purple-50', 'bg-indigo-50', 'bg-emerald-50', 'bg-sky-50', 'bg-lime-50', 'bg-slate-50', 'bg-gray-50', 'bg-red-50', 'bg-fuchsia-50', 'bg-yellow-50'];
 const COLOR_OPTIONS = ['text-amber-500', 'text-teal-500', 'text-blue-500', 'text-orange-500', 'text-pink-500', 'text-green-600', 'text-cyan-600', 'text-rose-500', 'text-purple-500', 'text-indigo-600', 'text-emerald-600', 'text-sky-500', 'text-lime-600', 'text-slate-600', 'text-gray-600', 'text-red-600'];
@@ -92,8 +92,6 @@ function HomePreviewModal({ secLayout, items, taxiCats, onClose }) {
 const SECTION_ROUTE = {
   taxi: '/admin/service-categories',
   promo: '/admin/promo-banners',
-  parcel: '/admin/parcels',
-  marketplace: '/admin/marketplace',
   medical: '/admin/medical',
   bid: '/admin/bids',
   genie: '/admin/genie',
@@ -107,6 +105,7 @@ export default function AdminHomeCategories() {
   const navigate = useNavigate();
   const sectionRefs = useRef({});
   const [highlight, setHighlight] = useState('');
+  const [query, setQuery] = useState('');
   const [items, setItems] = useState([]);
   const [sections, setSections] = useState([]);
   const [secLayout, setSecLayout] = useState([]);
@@ -221,6 +220,16 @@ export default function AdminHomeCategories() {
   const grouped = managedSections.map((s) => ({ ...s, list: items.filter((i) => i.section === s.key).sort((a, b) => a.display_order - b.display_order) }));
   const editableKeys = new Set(managedSections.map((s) => s.key));
 
+  // Search/filter across all tiles by name (FR/EN) or route. When active, the
+  // section-order panel is hidden and only matching tiles are shown.
+  const q = query.trim().toLowerCase();
+  const groupedFiltered = q
+    ? grouped
+        .map((s) => ({ ...s, list: s.list.filter((it) => `${it.label_fr} ${it.label_en} ${it.target_route}`.toLowerCase().includes(q)) }))
+        .filter((s) => s.list.length)
+    : grouped;
+  const matchCount = q ? groupedFiltered.reduce((n, s) => n + s.list.length, 0) : 0;
+
   // From the section-order panel, jump to the right place to ADD/EDIT tiles:
   // a tile section editable here → scroll to its block; otherwise → its own page.
   const goManage = (key) => {
@@ -250,11 +259,25 @@ export default function AdminHomeCategories() {
         </button>
       </div>
 
-      <div className="-mt-3 mb-4">
+      <div className="-mt-3 mb-4 flex flex-wrap items-center gap-3">
         <button onClick={() => setShowPreview(true)} data-testid="home-preview-btn"
           className="inline-flex items-center gap-2 bg-[#FF5000] text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-[#e64800] transition-colors">
           <DeviceMobile size={18} weight="bold" /> Aperçu de l&apos;accueil
         </button>
+        <div className="relative flex-1 min-w-[220px]">
+          <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher un service par nom ou route…"
+            className="w-full border rounded-lg pl-9 pr-9 py-2 text-sm"
+            data-testid="cms-search-input"
+          />
+          {query && (
+            <button onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 text-gray-400" data-testid="cms-search-clear"><X size={15} /></button>
+          )}
+        </div>
+        {q && <span className="text-xs text-gray-500" data-testid="cms-search-count">{matchCount} résultat(s)</span>}
       </div>
 
       <div className="mb-6 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm text-[#0B1426]" data-testid="taxi-managed-elsewhere-note">
@@ -263,7 +286,7 @@ export default function AdminHomeCategories() {
       </div>
 
       {/* ===== Section layout: order + show/hide whole sections ===== */}
-      {!loading && (
+      {!loading && !q && (
         <div className="mb-8 bg-white rounded-xl shadow p-4" data-testid="section-layout-panel">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Ordre & visibilité des sections</h2>
           <p className="text-sm text-gray-500 mb-3">Réordonnez les sections de l&apos;accueil (↑/↓) et masquez-en une entièrement avec l&apos;œil. L&apos;ordre est reflété en direct dans l&apos;app client. Cliquez sur <b>Gérer</b> pour <b>ajouter / modifier les services</b> d&apos;une section.</p>
@@ -295,7 +318,7 @@ export default function AdminHomeCategories() {
         </div>
       )}
 
-      {loading ? <p>Chargement…</p> : grouped.map((sec) => (
+      {loading ? <p>Chargement…</p> : groupedFiltered.map((sec) => (
         <div key={sec.key} ref={(el) => { sectionRefs.current[sec.key] = el; }} className={`mb-8 rounded-xl transition-shadow ${highlight === sec.key ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`} data-testid={`section-${sec.key}`}>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-bold text-gray-800">{sec.title_fr} <span className="text-xs text-gray-400 font-normal">({sec.list.length})</span></h2>
@@ -326,6 +349,10 @@ export default function AdminHomeCategories() {
           </div>
         </div>
       ))}
+
+      {!loading && q && groupedFiltered.length === 0 && (
+        <p className="text-center text-gray-400 py-10" data-testid="cms-search-empty">Aucun service ne correspond à « {query} ».</p>
+      )}
 
       {showPreview && (
         <HomePreviewModal secLayout={secLayout} items={items} taxiCats={taxiCats} onClose={() => setShowPreview(false)} />

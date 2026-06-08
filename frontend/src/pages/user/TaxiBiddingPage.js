@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Info, Minus, Plus, Users, TrendUp } from '@phosphor-icons/react';
@@ -24,6 +25,7 @@ const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
  *     (collapsed into a single swipe-up card once both are set).
  */
 const TaxiBiddingPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -212,7 +214,7 @@ const TaxiBiddingPage = () => {
       });
       if (!r.ok) { const t = await r.json().catch(() => ({})); throw new Error(t.detail || 'Erreur'); }
       setFare(newFare);
-      toast.success(`Tarif augmenté à ${newFare.toFixed(2)} € et renvoyé`);
+      toast.success(`Tarif augmenté à ${money(newFare)} et renvoyé`);
     } catch (e) { toast.error(e.message || 'Impossible d\'augmenter le tarif'); }
   };
 
@@ -377,7 +379,7 @@ const TaxiBiddingPage = () => {
             <Info size={18} className="text-[#FF5000] flex-shrink-0" weight="fill" />
             <p className="text-sm text-gray-700">
               Prix moyen : <span className="font-bold text-[#FF5000]">
-                {loading ? '...' : (estimate?.estimated_fare || liveStats?.avg_accepted_fare || 0).toFixed(2)} EUR
+                {loading ? '...' : money(estimate?.estimated_fare || liveStats?.avg_accepted_fare || 0)}
               </span>
             </p>
           </div>
@@ -403,7 +405,7 @@ const TaxiBiddingPage = () => {
                 <Plus size={20} weight="bold" />
               </button>
             </div>
-            <p className="text-[11px] text-gray-500 text-center mt-3" data-testid="min-fare-note">Tarif minimum : <span className="font-bold">{fareFloor.toFixed(2)} €</span> · vous ne pouvez pas proposer moins</p>
+            <p className="text-[11px] text-gray-500 text-center mt-3" data-testid="min-fare-note">Tarif minimum : <span className="font-bold">{money(fareFloor)}</span> · vous ne pouvez pas proposer moins</p>
           </div>
 
           {/* Find a Driver */}
@@ -434,7 +436,7 @@ const TaxiBiddingPage = () => {
           {/* Title (the radar animation is shown on the map above) */}
           <div className="flex flex-col items-center pt-4 pb-2">
             <h2 className="text-lg font-bold text-gray-900" data-testid="searching-title">Recherche d&apos;un chauffeur…</h2>
-            <p className="text-sm text-gray-500 mt-1">Votre offre : <span className="font-bold text-[#FF5000]" data-testid="searching-fare">{fare.toFixed(2)} €</span> · {searchSeconds}s</p>
+            <p className="text-sm text-gray-500 mt-1">Votre offre : <span className="font-bold text-[#FF5000]" data-testid="searching-fare">{money(fare)}</span> · {searchSeconds}s</p>
             {liveStats?.online_drivers_nearby != null && (
               <p className="text-[11px] text-gray-400 mt-0.5">{liveStats.online_drivers_nearby} chauffeurs en ligne à proximité</p>
             )}
@@ -519,3 +521,4 @@ const TaxiBiddingPage = () => {
 };
 
 export default TaxiBiddingPage;
+;

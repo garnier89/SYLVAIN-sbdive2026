@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -9,6 +10,7 @@ import {
 const TIME_SLOTS = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 
 const MedicalAppointmentPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [specialties, setSpecialties] = useState([]);
@@ -73,7 +75,7 @@ const MedicalAppointmentPage = () => {
               <h2 className="font-bold text-gray-900">{selected.name}</h2>
               <p className="text-sm text-gray-500">{selected.specialty}</p>
             </div>
-            <span className="text-[#FF4500] font-bold">{selected.fee} €</span>
+            <span className="text-[#FF4500] font-bold">{money(selected.fee)}</span>
           </div>
 
           {/* Mode */}
@@ -124,7 +126,7 @@ const MedicalAppointmentPage = () => {
           </div>
 
           <button onClick={submit} disabled={submitting} className="w-full bg-[#FF4500] text-white py-3.5 rounded-2xl font-semibold disabled:opacity-60" data-testid="confirm-appointment-btn">
-            {submitting ? 'Réservation...' : `Confirmer le RDV · ${selected.fee} €`}
+            {submitting ? 'Réservation...' : `Confirmer le RDV · ${money(selected.fee)}`}
           </button>
         </div>
       </div>
@@ -176,7 +178,7 @@ const MedicalAppointmentPage = () => {
               </div>
             </div>
             <div className="flex flex-col items-end justify-between">
-              <span className="text-[#FF4500] font-bold text-sm">{doc.fee} €</span>
+              <span className="text-[#FF4500] font-bold text-sm">{money(doc.fee)}</span>
               <CaretRight size={18} className="text-gray-300" />
             </div>
           </button>

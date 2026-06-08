@@ -37,6 +37,8 @@ ICON_LIBRARY = [
 SECTIONS = [
     {"key": "taxi", "title_fr": "Services Taxi", "all_route": "/taxi"},
     {"key": "delivery", "title_fr": "Services de Livraison", "all_route": "/all-delivery"},
+    {"key": "parcel", "title_fr": "Colis & Coursier", "all_route": "/parcel"},
+    {"key": "marketplace", "title_fr": "Acheter, Vendre & Louer", "all_route": "/marketplace/items"},
     {"key": "ondemand", "title_fr": "Services à la demande", "all_route": "/all-services"},
     {"key": "beauty", "title_fr": "Beauté & Bien-être", "all_route": "/beauty"},
     {"key": "pet", "title_fr": "Services Animaux", "all_route": "/pet-care"},
@@ -151,6 +153,15 @@ _SEED = [
     ("nearby", "bars", "Bars", "Wine", "bg-purple-50", "text-purple-500", "/nearby", True),
 ]
 
+# Default tiles for sections that became editable tile-grids later (parcel,
+# marketplace). Backfilled idempotently by key so existing DBs get them too.
+_SEED_EXTRA = [
+    ("parcel", "parcel-main", "Livraison\nColis", "Package", "bg-indigo-50", "text-indigo-500", "/parcel", True),
+    ("marketplace", "mp-realestate", "Immobilier", "Buildings", "bg-emerald-50", "text-emerald-600", "/real-estate", True),
+    ("marketplace", "mp-cars", "Véhicules", "Car", "bg-orange-50", "text-orange-500", "/marketplace/cars", True),
+    ("marketplace", "mp-items", "Articles\nDivers", "ShoppingBag", "bg-violet-50", "text-violet-500", "/marketplace/items", True),
+]
+
 
 async def seed_home_categories():
     """Seed default categories once (idempotent)."""
@@ -180,6 +191,23 @@ async def seed_home_categories():
         order_by_section[section] += 1
     if docs:
         await db.home_categories.insert_many(docs)
+
+
+async def seed_home_categories_extra():
+    """Idempotent backfill of tiles for newly-editable sections (parcel, marketplace).
+    Inserts each default by (section, key) only if missing — safe on existing DBs."""
+    for section, key, label, icon, bg, color, route, visible in _SEED_EXTRA:
+        if await db.home_categories.find_one({"section": section, "key": key}):
+            continue
+        count = await db.home_categories.count_documents({"section": section})
+        await db.home_categories.insert_one({
+            "id": f"hcat_{uuid.uuid4().hex[:10]}",
+            "section": section, "key": key, "label_fr": label, "label_en": label,
+            "subtitle_fr": "", "icon_name": icon, "image_url": None,
+            "bg_class": bg, "icon_color_class": color, "target_route": route,
+            "display_order": count, "visible_home": visible, "status": "active",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
 
 
 def _clean(doc):

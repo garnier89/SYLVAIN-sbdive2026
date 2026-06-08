@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 /**
  * AdvancedTaxiBookingPage — V3Cube Pack A
  * Single unified page with mode tabs: Ride Later, Intercity, Airport, Rental,
@@ -34,6 +35,7 @@ const VEHICLE_BY_MODE = {
 };
 
 const AdvancedTaxiBookingPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [mode, setMode] = useState(params.get('mode') || 'scheduled');
@@ -271,7 +273,7 @@ const AdvancedTaxiBookingPage = () => {
                   }`}
                 >
                   <p className="font-bold text-sm">{p.label}</p>
-                  <p className="text-xs text-gray-500">{p.price} €</p>
+                  <p className="text-xs text-gray-500">{money(p.price)}</p>
                 </button>
               ))}
             </div>
@@ -377,7 +379,7 @@ const AdvancedTaxiBookingPage = () => {
             <div>
               <p className="text-xs text-gray-500">Tarif estimé</p>
               <p className="text-2xl font-bold text-gray-900">
-                {estimate.estimated_fare?.toFixed(2)} €
+                {money(estimate.estimated_fare || 0)}
               </p>
               <p className="text-[10px] text-gray-400">
                 {estimate.distance_km?.toFixed(1)} km • {estimate.duration_mins} min

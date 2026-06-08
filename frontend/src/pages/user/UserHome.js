@@ -20,11 +20,11 @@ import {
   towingServices, nearbyServices,
 } from './userHomeServices';
 import {
-  Car, Package, House, MapPin, Wallet, User,
+  House, MapPin, Wallet, User,
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
   MagnifyingGlass, GridFour, List, ClipboardText,
-  VideoCamera, FirstAid, ArrowRight, Lightning, Buildings,
-  Stethoscope, UsersFour, Briefcase, ShoppingBag, Bag, Pill,
+  VideoCamera, FirstAid, ArrowRight, Lightning,
+  Stethoscope, UsersFour, Briefcase, Bag, Pill,
 } from '@phosphor-icons/react';
 
 const HEAD = "font-['Outfit']";
@@ -230,10 +230,19 @@ const UserHome = () => {
     taxi: taxiServices, delivery: deliveryServices, ondemand: onDemandServices,
     beauty: beautyServices, pet: petServices, carcare: carCareServices,
     towing: towingServices, nearby: nearbyServices,
+    parcel: [
+      { id: 'parcel-main', name: 'Livraison\nColis', iconName: 'Package', bg: 'bg-indigo-50', iconColor: 'text-indigo-500', path: '/parcel' },
+    ],
+    marketplace: [
+      { id: 'mp-realestate', name: 'Immobilier', iconName: 'Buildings', bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/real-estate' },
+      { id: 'mp-cars', name: 'Véhicules', iconName: 'Car', bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/marketplace/cars' },
+      { id: 'mp-items', name: 'Articles\nDivers', iconName: 'ShoppingBag', bg: 'bg-violet-50', iconColor: 'text-violet-500', path: '/marketplace/items' },
+    ],
   };
   const sectionAllRoute = {
     taxi: '/taxi', delivery: '/all-delivery', ondemand: '/all-services', beauty: '/beauty',
     pet: '/pet-care', carcare: '/car-care', towing: '/towing', nearby: '/nearby',
+    parcel: '/parcel', marketplace: '/marketplace/items',
   };
   const displayFor = (key) => {
     const cms = cmsItems.filter((i) => i.section === key).sort((a, b) => a.display_order - b.display_order);
@@ -337,40 +346,19 @@ const UserHome = () => {
       </section>
     ),
     parcel: (
-      <div key="parcel" className="px-4 mt-6">
-        <motion.button whileTap={{ scale: 0.98 }} className="w-full rounded-[20px] overflow-hidden bg-indigo-50/70 border border-indigo-100 p-5 flex items-center gap-4 text-left" onClick={() => navigate('/parcel')} data-testid="parcel-delivery-section">
-          <div className="flex-1">
-            <h3 className={`text-lg font-extrabold text-[#1F2430] ${HEAD}`}>Livraison de Colis</h3>
-            <p className={`text-[13px] text-[#475569] mt-1 leading-relaxed ${BODY}`}>Envoyez un ou plusieurs colis n&apos;importe où en ville. Choisissez le véhicule adapté à la taille.</p>
-          </div>
-          <div className="w-16 h-16 shrink-0 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-            <Package size={36} weight="duotone" className="text-indigo-500" />
-          </div>
-        </motion.button>
-      </div>
+      <section key="parcel" className="px-4 mt-6">
+        <SectionHeader title="Colis & Coursier" />
+        <div className="grid grid-cols-4 gap-3">
+          {displayFor('parcel').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
+        </div>
+      </section>
     ),
     marketplace: (
       <section key="marketplace" className="px-4 mt-6">
         <SectionHeader title="Acheter, Vendre & Louer" />
-        <div className="grid grid-cols-2 gap-3">
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate('/real-estate')} className="rounded-[20px] bg-emerald-50/70 border border-emerald-100 p-4 flex flex-col text-left h-[170px]" data-testid="marketplace-realestate-btn">
-            <h4 className={`text-[15px] font-extrabold text-[#1F2430] ${HEAD}`}>Immobilier</h4>
-            <p className={`text-[11px] text-[#475569] mt-1 leading-snug ${BODY}`}>Acheter, vendre ou louer résidentiel, commercial, etc.</p>
-            <div className="flex-1 flex items-end justify-center"><Buildings size={48} weight="duotone" className="text-emerald-600" /></div>
-          </motion.button>
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate('/marketplace/cars')} className="rounded-[20px] bg-orange-50/70 border border-orange-100 p-4 flex flex-col text-left h-[170px]" data-testid="marketplace-cars-btn">
-            <h4 className={`text-[15px] font-extrabold text-[#1F2430] ${HEAD}`}>Véhicules</h4>
-            <p className={`text-[11px] text-[#475569] mt-1 leading-snug ${BODY}`}>Berlines, SUV, luxe, sport… achat, vente ou location.</p>
-            <div className="flex-1 flex items-end justify-center"><Car size={48} weight="duotone" className="text-orange-500" /></div>
-          </motion.button>
+        <div className="grid grid-cols-4 gap-3">
+          {displayFor('marketplace').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
-        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/marketplace/items')} className="mt-3 w-full rounded-[20px] bg-violet-50/70 border border-violet-100 p-4 flex items-center gap-4 text-left" data-testid="marketplace-items-btn">
-          <div className="flex-1">
-            <h4 className={`text-[15px] font-extrabold text-[#1F2430] ${HEAD}`}>Articles Divers</h4>
-            <p className={`text-[11px] text-[#475569] mt-1 leading-snug ${BODY}`}>Meubles, électronique, jouets, mode… achat, vente ou location.</p>
-          </div>
-          <ShoppingBag size={42} weight="duotone" className="text-violet-500 shrink-0" />
-        </motion.button>
       </section>
     ),
     beauty: (

@@ -296,6 +296,15 @@ export const marketplaceAPI = {
   threadMessages: (threadId) => api.get(`/marketplace/threads/${threadId}/messages`),
   sendMessage: (threadId, text) => api.post(`/marketplace/threads/${threadId}/messages`, { text }),
   markThreadRead: (threadId) => api.post(`/marketplace/threads/${threadId}/read`),
+  // Buy / pay flow
+  settings: () => api.get('/marketplace/settings'),
+  setPurchasable: (id, purchasable, price) => api.patch(`/marketplace/listings/${id}/purchasable`, { purchasable, price }),
+  buyWithWallet: (data) => api.post('/marketplace/orders/wallet', data),
+  buyWithCard: (data) => api.post('/marketplace/orders/checkout', data),
+  checkoutStatus: (sessionId) => api.get(`/marketplace/checkout/status/${sessionId}`),
+  myOrders: () => api.get('/marketplace/orders'),
+  mySales: () => api.get('/marketplace/orders/sold'),
+  updateOrderStatus: (orderId, status) => api.post(`/marketplace/orders/${orderId}/status`, { status }),
 };
 
 // Carpool APIs

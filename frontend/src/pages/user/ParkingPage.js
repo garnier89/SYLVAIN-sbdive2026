@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Star, Car, Clock, Lightning, ShieldCheck, MagnifyingGlass } from '@phosphor-icons/react';
@@ -5,6 +6,7 @@ import { ArrowLeft, MapPin, Star, Car, Clock, Lightning, ShieldCheck, Magnifying
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const ParkingPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [spots, setSpots] = useState([]);
   const [selectedSpot, setSelectedSpot] = useState(null);
@@ -101,7 +103,7 @@ const ParkingPage = () => {
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">{selectedSpot.price_per_hour}€/h x {form.duration_hours}h</span>
-              <span className="font-bold text-gray-900">{totalPrice}€</span>
+              <span className="font-bold text-gray-900">{money(Number(totalPrice))}</span>
             </div>
           </div>
 

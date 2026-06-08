@@ -1,6 +1,7 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lightning, Drop, Hammer, PaintBrush, Wrench, Broom, Truck, Plant, Plus, MapPin, Calendar, CurrencyEur, ChatCircle, Clock, CaretRight } from '@phosphor-icons/react';
+import { ArrowLeft, Lightning, Drop, Hammer, PaintBrush, Wrench, Broom, Truck, Plant, Plus, MapPin, Calendar, ChatCircle, Clock, CaretRight } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -18,6 +19,7 @@ const CATEGORY_COLORS = {
 };
 
 const BiddingPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
@@ -163,7 +165,7 @@ const BiddingPage = () => {
               <p className="text-xs text-gray-500 line-clamp-2">{post.description}</p>
               <div className="flex items-center gap-4 mt-3 text-[10px] text-gray-400">
                 {post.budget_max > 0 && (
-                  <span className="flex items-center gap-1"><CurrencyEur size={12} />{post.budget_min}-{post.budget_max}€</span>
+                  <span className="flex items-center gap-1">{money(post.budget_min)} – {money(post.budget_max)}</span>
                 )}
                 {post.scheduled_date && <span className="flex items-center gap-1"><Calendar size={12} />{post.scheduled_date}</span>}
                 <span className="flex items-center gap-1"><ChatCircle size={12} />{post.offers_count || 0} offres</span>

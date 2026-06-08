@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, VideoCamera, Star, MagnifyingGlass, Clock, Globe, CheckCircle } from '@phosphor-icons/react';
@@ -15,6 +16,7 @@ const CATEGORIES = [
 ];
 
 const VideoConsultPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [providers, setProviders] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -85,7 +87,7 @@ const VideoConsultPage = () => {
         <p className="text-sm text-gray-500 mt-2">Votre consultation vidéo de {booked.duration} min avec <b>{booked.provider.name}</b> est confirmée. L&apos;expert vous contactera à l&apos;heure prévue.</p>
         <div className="bg-gray-50 rounded-xl p-4 w-full mt-5 flex justify-between text-sm">
           <span className="text-gray-500">Total</span>
-          <span className="font-bold text-gray-900">{booked.total}€</span>
+          <span className="font-bold text-gray-900">{money(Number(booked.total))}</span>
         </div>
         <button onClick={() => setBooked(null)} className="w-full mt-5 bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm" data-testid="video-success-back">
           Réserver une autre consultation
@@ -144,7 +146,7 @@ const VideoConsultPage = () => {
             <div className="bg-gray-50 rounded-xl p-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">{p.price_per_min}€/min x {booking.duration} min</span>
-                <span className="font-bold text-gray-900">{totalPrice}€</span>
+                <span className="font-bold text-gray-900">{money(Number(totalPrice))}</span>
               </div>
             </div>
 

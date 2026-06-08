@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
@@ -11,6 +12,7 @@ import {
 } from '@phosphor-icons/react';
 
 const RestaurantDetail = () => {
+  const { money } = useLocale();
   const { merchantId } = useParams();
   const navigate = useNavigate();
   const [merchant, setMerchant] = useState(null);
@@ -172,7 +174,7 @@ const RestaurantDetail = () => {
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900">{product.name}</h3>
                           <p className="text-sm text-gray-500 line-clamp-2">{product.description}</p>
-                          <p className="text-lg font-bold text-emerald-600 mt-2">{product.price.toFixed(2).replace('.', ',')} €</p>
+                          <p className="text-lg font-bold text-emerald-600 mt-2">{money(product.price)}</p>
                         </div>
                         <div className="flex flex-col items-center justify-center">
                           {quantity > 0 ? (
@@ -230,7 +232,7 @@ const RestaurantDetail = () => {
               data-testid="view-cart-btn"
             >
               <ShoppingCart size={20} className="mr-2" />
-              Voir le panier · {cartCount} article{cartCount > 1 ? 's' : ''} · {cartTotal.toFixed(2).replace('.', ',')} €
+              Voir le panier · {cartCount} article{cartCount > 1 ? 's' : ''} · {money(cartTotal)}
             </Button>
           </div>
         </div>

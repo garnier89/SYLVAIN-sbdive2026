@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ let stopSeq = 0;
 const emptyStop = () => ({ _id: ++stopSeq, lat: null, lng: null, recipient_name: '', recipient_phone: '' });
 
 const ParcelPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [step, setStep] = useState('choose');
   const [deliveryMode, setDeliveryMode] = useState(null); // single | multi
@@ -224,7 +226,7 @@ const ParcelPage = () => {
             <div className="flex justify-between"><span className="text-gray-600">Distance totale</span><span className="font-bold">{estimation?.total_distance_km?.toFixed(1)} km</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Durée estimée</span><span className="font-bold">~{Math.round(estimation?.total_duration_mins || 0)} min</span></div>
             <div className="flex justify-between"><span className="text-gray-600">Type</span><span className="font-bold">{vehicleType === 'box' ? 'Box' : 'Moto Send'}</span></div>
-            <div className="flex justify-between text-lg pt-1 border-t border-blue-100"><span className="text-gray-600">Prix total</span><span className="font-bold text-[#FF4500]" data-testid="confirm-total-fare">{estimation?.estimated_fare?.toFixed(2)} &euro;</span></div>
+            <div className="flex justify-between text-lg pt-1 border-t border-blue-100"><span className="text-gray-600">Prix total</span><span className="font-bold text-[#FF4500]" data-testid="confirm-total-fare">{money(estimation?.estimated_fare || 0)}</span></div>
           </div>
 
           {/* Per-leg breakdown */}
@@ -233,7 +235,7 @@ const ParcelPage = () => {
               {estimation.legs.map((l) => (
                 <div key={l.index} className="flex items-center justify-between px-4 py-2.5 text-sm">
                   <span className="text-gray-700">Dépôt {l.index + 1}{l.recipient_name ? ` · ${l.recipient_name}` : ''}</span>
-                  <span className="text-gray-500">{l.distance_km.toFixed(1)} km · <span className="font-semibold text-gray-800">{l.fare.toFixed(2)} €</span></span>
+                  <span className="text-gray-500">{l.distance_km.toFixed(1)} km · <span className="font-semibold text-gray-800">{money(l.fare)}</span></span>
                 </div>
               ))}
             </div>
@@ -246,7 +248,7 @@ const ParcelPage = () => {
           </div>
 
           <Button className="w-full rounded-2xl h-14 bg-[#FF4500] hover:bg-[#E03D00] text-white text-lg font-semibold" disabled={loading} onClick={confirm} data-testid="parcel-confirm-btn">
-            {loading ? 'Envoi...' : `Confirmer · ${estimation?.estimated_fare?.toFixed(2)} €`}
+            {loading ? 'Envoi...' : `Confirmer · ${money(estimation?.estimated_fare || 0)}`}
           </Button>
         </div>
       </div>

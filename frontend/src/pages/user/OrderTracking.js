@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
@@ -36,6 +37,7 @@ const destinationIcon = new L.Icon({
 });
 
 const OrderTracking = () => {
+  const { money } = useLocale();
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -248,21 +250,21 @@ const OrderTracking = () => {
               {order.items?.map((item, idx) => (
                 <div key={idx} className="flex justify-between text-sm">
                   <span className="text-gray-700">{item.quantity}x {item.name}</span>
-                  <span className="text-gray-500">{(item.price * item.quantity).toFixed(2).replace('.', ',')} €</span>
+                  <span className="text-gray-500">{money(item.price * item.quantity)}</span>
                 </div>
               ))}
               <div className="border-t pt-2 mt-2 space-y-1">
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Sous-total</span>
-                  <span>{order.subtotal?.toFixed(2).replace('.', ',')} €</span>
+                  <span>{money(order.subtotal || 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Livraison</span>
-                  <span>{order.delivery_fee?.toFixed(2).replace('.', ',')} €</span>
+                  <span>{money(order.delivery_fee || 0)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-gray-900">
                   <span>Total</span>
-                  <span>{order.total?.toFixed(2).replace('.', ',')} €</span>
+                  <span>{money(order.total || 0)}</span>
                 </div>
               </div>
             </div>

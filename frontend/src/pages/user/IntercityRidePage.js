@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Calendar, Clock, Users, Suitcase, CaretRight, Car, MagnifyingGlass } from '@phosphor-icons/react';
@@ -5,6 +6,7 @@ import { ArrowLeft, MapPin, Calendar, Clock, Users, Suitcase, CaretRight, Car, M
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const IntercityRidePage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [routes, setRoutes] = useState([]);
   const [search, setSearch] = useState('');
@@ -80,7 +82,7 @@ const IntercityRidePage = () => {
                 <p className="font-bold text-gray-900">{selectedRoute.to_city}</p>
               </div>
               <div className="text-right">
-                <p className="text-lg font-bold text-green-600">{selectedRoute.base_price}€</p>
+                <p className="text-lg font-bold text-green-600">{money(selectedRoute.base_price)}</p>
                 <p className="text-[10px] text-gray-400">par personne</p>
               </div>
             </div>
@@ -121,8 +123,8 @@ const IntercityRidePage = () => {
 
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-500">{form.passengers} passager(s) x {selectedRoute.base_price}€</span>
-              <span className="font-bold text-gray-900">{totalPrice}€</span>
+              <span className="text-gray-500">{form.passengers} passager(s) x {money(selectedRoute.base_price)}</span>
+              <span className="font-bold text-gray-900">{money(Number(totalPrice))}</span>
             </div>
           </div>
 

@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gift, CurrencyEur, Envelope, Heart, Star, ShoppingCart, Check, Copy } from '@phosphor-icons/react';
@@ -8,6 +9,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const AMOUNT_OPTIONS = [10, 20, 30, 50, 75, 100, 150, 200];
 
 const GiftCardsPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [myCards, setMyCards] = useState([]);
@@ -76,7 +78,7 @@ const GiftCardsPage = () => {
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">Carte cadeau créée !</h2>
         <p className="text-sm text-gray-500 text-center mb-4">
-          Montant: <strong>{purchaseResult.amount}€</strong>
+          Montant: <strong>{money(Number(purchaseResult.amount))}</strong>
         </p>
         <div className="bg-gray-50 rounded-xl p-4 w-full text-center mb-6">
           <p className="text-xs text-gray-400 mb-1">Code de la carte</p>
@@ -204,7 +206,7 @@ const GiftCardsPage = () => {
               <div key={card.id} className="bg-white rounded-2xl p-4 border border-gray-100" data-testid={`card-${card.id}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-bold text-gray-900">{card.amount}€</p>
+                    <p className="font-bold text-gray-900">{money(card.amount)}</p>
                     <p className="text-xs text-gray-400 mt-0.5">Code: {card.code}</p>
                     {card.recipient_name && <p className="text-[10px] text-gray-400">Pour: {card.recipient_name}</p>}
                   </div>

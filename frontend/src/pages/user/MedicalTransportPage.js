@@ -1,3 +1,4 @@
+import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ const URGENCY = [
 ];
 
 const MedicalTransportPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [types, setTypes] = useState([]);
   const [ambulanceType, setAmbulanceType] = useState(null);
@@ -140,7 +142,7 @@ const MedicalTransportPage = () => {
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${active ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}>
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${active ? 'bg-red-100' : 'bg-gray-100'}`}><Icon size={22} weight="duotone" className={active ? 'text-red-600' : 'text-gray-500'} /></div>
                   <div className="flex-1"><p className="font-bold text-sm text-gray-900">{t.name}</p><p className="text-[11px] text-gray-500">{t.desc}</p></div>
-                  <span className="text-xs text-gray-400">dès {t.base_fee}€</span>
+                  <span className="text-xs text-gray-400">dès {money(t.base_fee)}</span>
                 </button>
               );
             })}
@@ -182,13 +184,13 @@ const MedicalTransportPage = () => {
         {estimate ? (
           <div className="bg-red-50 rounded-2xl p-4">
             <div className="flex justify-between text-sm mb-1"><span className="text-gray-600">{estimate.ambulance_name}</span><span className="text-gray-500">{estimate.distance_km} km</span></div>
-            <div className="flex justify-between text-lg font-bold"><span className="text-gray-700">Prix estimé</span><span className="text-red-600" data-testid="transport-fare">{estimate.estimated_fare?.toFixed(2)} €</span></div>
+            <div className="flex justify-between text-lg font-bold"><span className="text-gray-700">Prix estimé</span><span className="text-red-600" data-testid="transport-fare">{money(estimate.estimated_fare || 0)}</span></div>
             <div className="mt-3" data-testid="transport-payment-section">
               <h3 className="text-sm font-bold text-gray-900 mb-2">Moyen de paiement</h3>
               <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} total={estimate.estimated_fare || 0} testidPrefix="transport-pay" />
             </div>
             <button onClick={confirm} disabled={loading} className="w-full mt-3 bg-red-600 text-white py-3.5 rounded-2xl font-semibold disabled:opacity-60" data-testid="transport-confirm-btn">
-              {loading ? 'Envoi...' : `Demander le transport · ${estimate.estimated_fare?.toFixed(2)} €`}
+              {loading ? 'Envoi...' : `Demander le transport · ${money(estimate.estimated_fare || 0)}`}
             </button>
           </div>
         ) : (
