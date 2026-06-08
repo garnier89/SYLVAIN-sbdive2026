@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CaretLeft, Clock, MapPin, FloppyDisk } from '@phosphor-icons/react';
+import { CaretLeft, Clock, MapPin, FloppyDisk, WarningCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { driverAPI } from '../../services/api';
 
@@ -25,6 +25,14 @@ const DriverAvailabilityPage = () => {
 
   const setDay = (k, patch) => setAvail((a) => ({ ...a, [k]: { ...a[k], ...patch } }));
 
+  // Weekly recap: total planned hours + active days (live from the editor state).
+  const toMin = (t) => { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  const activeDays = avail ? DAYS.filter(({ k }) => avail[k]?.enabled) : [];
+  const weeklyMinutes = activeDays.reduce((sum, { k }) => sum + Math.max(0, toMin(avail[k].end) - toMin(avail[k].start)), 0);
+  const weeklyHours = Math.floor(weeklyMinutes / 60);
+  const weeklyMins = weeklyMinutes % 60;
+  const noActiveSlot = avail && activeDays.length === 0;
+
   const save = async () => {
     setSaving(true);
     try {
@@ -47,6 +55,26 @@ const DriverAvailabilityPage = () => {
 
       {loading ? <div className="p-6 text-gray-400 text-sm">Chargement…</div> : (
         <div className="p-4 space-y-3">
+          {/* Weekly recap */}
+          <div className="bg-gradient-to-br from-[#0B1426] to-[#1a2740] text-white rounded-2xl p-4" data-testid="availability-recap">
+            <p className="text-[11px] uppercase tracking-wider text-white/50 font-bold mb-1">Heures prévues cette semaine</p>
+            <div className="flex items-end gap-2">
+              <p className="text-3xl font-black" data-testid="weekly-hours-value">{weeklyHours}h{weeklyMins > 0 ? String(weeklyMins).padStart(2, '0') : ''}</p>
+              <p className="text-xs text-white/60 mb-1.5">sur {activeDays.length} jour{activeDays.length > 1 ? 's' : ''} actif{activeDays.length > 1 ? 's' : ''}</p>
+            </div>
+          </div>
+
+          {/* No active slot reminder */}
+          {noActiveSlot && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5" data-testid="no-slot-reminder">
+              <WarningCircle size={20} weight="fill" className="text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-amber-800">Aucun créneau actif</p>
+                <p className="text-xs text-amber-700 leading-snug">Activez au moins un jour pour recevoir des courses et maximiser vos revenus.</p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl p-4">
             <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-2"><MapPin size={18} className="text-[#EF4444]" /> Lieu de travail (base)</label>
             <input value={workAddress} onChange={(e) => setWorkAddress(e.target.value)} placeholder="Ex. Fort-de-France, Martinique"
