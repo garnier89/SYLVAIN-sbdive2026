@@ -108,7 +108,9 @@ DEFAULT_CATEGORIES = [
 
 # Default set shown on the client Home "Services Taxi" grid (the rest live only in
 # the /taxi hub). Admin overrides this per-category via the "Accueil" toggle.
-HOME_DEFAULT_KEYS = {"standard", "pool", "moto", "electric", "book_later", "rental", "intercity"}
+# Mirrors the XJEKPLUS reference "Taxi Services" home grid:
+# Taxi Booking, Pool, Rental, Bidding, Intercity, Schedule A Ride, Airport (+ "More Services").
+HOME_DEFAULT_KEYS = {"standard", "pool", "rental", "bidding", "intercity", "book_later", "airport"}
 
 
 async def seed_service_categories():
