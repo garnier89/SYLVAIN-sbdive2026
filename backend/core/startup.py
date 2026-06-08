@@ -166,6 +166,12 @@ async def _seed_external_referentials():
         logger.info("i18n languages + base labels seeded")
     except Exception as e:
         logger.error(f"i18n seed failed: {e}")
+    try:
+        from routes.newsletter import seed_newsletter
+        await seed_newsletter()
+        logger.info("Newsletter demo subscribers seeded")
+    except Exception as e:
+        logger.error(f"Newsletter seed failed: {e}")
 
 
 async def _seed_v3cube_reference():
