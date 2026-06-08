@@ -1,3 +1,14 @@
+## NEW - 2026-06-08 (65) - Tuiles Taxi : suppression doublons + cohérence + page orange (DONE)
+- **Demande user (vidéo)** : (1) supprimer les tuiles en double de l'accueil « VTC Réservation/Pooling/Location/Chauffeur Privé/Enchères VTC/VTC Intercity/Programmer Course », garder les originaux ; (2) « Plus de taxis / Tous les Taxis » doit afficher l'ENSEMBLE des taxis, les mêmes partout ; (3) unifier la **page** en orange — **pas les icônes**.
+- **Fix 1 (doublons)** : `UserHome.taxiServices` (tableau de secours codé en dur) réécrit avec les 8 originaux (Taxi VTC, Pool-partage, Moto Taxi, Électric, Planifiez votre trajet, Mise à Dispo, Intercité, Tous les Taxis). La source principale `taxiTiles` (service_categories) reste prioritaire. Plus aucun « VTC Réservation… ».
+- **Fix 2 (cohérence)** : `/more-taxi` (page « Plus de Services VTC » en double + orpheline, header `#FF4500`, liste hardcodée incohérente) → **redirigée vers `/taxi`** (le hub qui liste TOUS les modes groupés). `MoreTaxiServicesPage.js` SUPPRIMÉ + imports retirés (clientRoutes/pages.js).
+- **Fix 3 (page orange, pas icônes)** : `RideChoosePage` bouton « Utiliser ma position actuelle » `#2563EB`→`#FF5000` ; `TaxiHubPage` ligne localisation `bg-blue-50`/`text-blue-500`→`bg-[#FFF3EC]`/`text-[#FF5000]`. Les icônes de modes (cars colorés) volontairement inchangées.
+- **Vérifié** : **testing_agent iteration_161.json — 100% (6/6)** : accueil = 8 tuiles canoniques, 0 doublon ; `/more-taxi`→`/taxi` ; bouton locate = rgb(255,80,0)=#FF5000 ; aucun overlay d'erreur. Webpack compile (1 warning pré-existant), lint clean.
+- **Note QA (P2)** : `UserHome.js` ~696 lignes → extraire les tableaux de services dans `userHomeServices.js` (backlog).
+- ⚠️ PREVIEW → **redéploiement requis** pour la production `gojek-mvp-1.emergent.host` (les doublons que vous voyez encore viennent de l'ancien build prod).
+
+
+
 ## NEW - 2026-06-08 (64) - BUG FIX : `window.google.maps.Geocoder is not a constructor` (hub Taxi) (DONE)
 - **Bug user (capture)** : overlay « Uncaught runtime errors: window.google.maps.Geocoder is not a constructor » au `tryGeocode`/`reverseGeocode` sur le hub Taxi (« Choisissez un service »).
 - **Cause racine** : le **loader async de Google Maps** (`loading=async`) expose l'espace de noms `google.maps` AVANT que les classes soient prêtes → `new window.google.maps.Geocoder()` lève « is not a constructor ». Les appels gardés seulement par `if (window.google?.maps)` (TaxiHubPage, MapLocationPicker) crashaient ; ceux gardés par `?.Geocoder` (RideChoosePage, TaxiHallModal) ne crashaient pas mais échouaient silencieusement (adresse → coords brutes).
