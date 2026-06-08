@@ -1,3 +1,14 @@
+## NEW - 2026-06-09 (107) - Transports publics : tarif ticket par ligne + comparatif « Bus vs VTC » (DONE, testé 100%)
+- **Demande user** : afficher le tarif estimé du ticket à côté de chaque ligne + un comparatif « Bus vs VTC » (temps & prix) pour rendre le cross-sell « Continuer en VTC » plus persuasif.
+- **Backend** (`routes/transport.py`) : champ `fare` par ligne (EUR, défauts par mode bus 1,50 / tram 1,40 / brt 1,00 / metro 1,60 / ferry 2,50 ; surchargeable par ligne en admin). `nearby`/`departures` exposent désormais par ligne : `fare`, `ride_min` (temps cet arrêt → terminus, `stop_travel_min` porté à 5 min pour réalisme), `dest_lat`/`dest_lng` (coords terminus, pour l'estimation VTC). Seed re-fait avec tarifs réels (PAP 1,50 ; FDF TCSP 1,40/M2 1,30 ; DKR BRT 0,76/DDD7 0,40).
+- **Frontend client** (`TransportPublicPage.js`) : badge **« Ticket {money(fare)} »** (CFA/EUR via LocaleContext) par ligne ; bouton **« Bus vs VTC »** (lignes avec trajet) → carte comparative dépliable (2 colonnes Bus temps+prix / VTC temps+prix via vrai `POST /api/rides/estimate`) + **bannière verdict** (« Le VTC vous fait gagner ~X min » ou « Le bus reste moins cher » + surcoût VTC) + bouton **« Réserver ce trajet en VTC »** → `/course`.
+- **Frontend admin** (`AdminTransport.js`) : champ **« Tarif ticket (€) »** (+ temps inter-arrêt) dans la modale ligne ; tarif affiché dans la table.
+- **Vérifié** : pytest `tests/test_iter174_transport.py` **8/8** (assertions fare/ride_min/dest ajoutées) + **testing_agent iteration_175 — frontend 100%** (badges tarif, comparatif Bus/VTC, verdict, réserver VTC, champ tarif admin persistant). Webpack compile.
+- ⚠️ Données transport SIMULÉES (le prix VTC vient du vrai moteur d'estimation). PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-09 (106) - Brique « Transports publics » (données SIMULÉES) (DONE, testé 100%)
 - **Demande user** : à côté des options taxi (dans la liste complète des taxis), un bouton neutre « Transport public » → arrêts proches, lignes, prochains passages + bouton « Continuer en VTC ». 3 zones simulées (Pointe-à-Pitre, Fort-de-France, Dakar) + gestion admin pour ajouter arrêts/lignes/zones. ⚠️ DONNÉES SIMULÉES (clé Navitia à brancher ensuite).
 - **Backend** (NOUVEAU `routes/transport.py`, monté + `seed_transport` dans `run_all_seeds`) : collections `transport_stops`, `transport_lines`. Horaires de passage **calculés dynamiquement** depuis la fréquence (headway) de chaque ligne + offset par index d'arrêt (pas de table d'horaires figée → toujours réaliste). 
