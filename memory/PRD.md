@@ -1,3 +1,10 @@
+## NEW - 2026-06-08 (63) - Prefetch tuiles d'accueil + revue de code pré-déploiement (DONE)
+- **Tuiles d'accueil** : `ServiceTile` (UserHome) précharge désormais le chunk de la route au `onPointerEnter`/`onFocus` via `prefetchPath(service.path.split('?')[0])` + attribut `data-prefetch`. Couvre Taxi (`/course`) et Livraison (`/all-delivery`, `/food`). Lint clean, webpack compile (1 warning pré-existant).
+- **Revue de code / readiness déploiement (deployment_agent)** : **status PASS (warn)**. Aucun blocker : URLs/secrets/DB en .env uniquement, routes /api OK, CORS OK, compilation OK, auth redirect via window.location.origin, refactor routes/*.jsx résout correctement. i18nBase.js « password » = libellés i18n (non-secrets, ignorés). **Seul WARN** : `mobile/.env EXPO_PACKAGER_PROXY_URL` (sous-domaine dev-tunnel Expo) — **hors périmètre du déploiement web**, non-bloquant, laissé tel quel.
+- **Déploiement** : le web est prêt. Le déploiement se lance via le bouton **Deploy** de l'interface Emergent (action utilisateur).
+
+
+
 ## NEW - 2026-06-08 (62) - Perf : préchargement des routes (idle par rôle + prefetch au survol) (DONE)
 - **Demande user** : ajouter le lazy-loading par route avec préchargement (perçu plus rapide, ciblé réseaux lents DOM-TOM/Afrique).
 - **Constat** : la navigation est majoritairement **programmatique** (`navigate()`), pas des `<Link>` → le prefetch au survol d'ancres ne couvrirait presque rien ; et le public est surtout **mobile/tactile** (pas de survol). → approche principale = **préchargement à l'inactivité par rôle**.
