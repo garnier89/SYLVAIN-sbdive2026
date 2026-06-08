@@ -535,9 +535,12 @@ async def _active_disruptions():
 
 @router.get("/disruptions")
 async def disruptions():
-    """Active disruptions (manual + live GTFS-RT alerts), strikes first."""
+    """Active disruptions (manual + live GTFS-RT alerts), strikes first.
+    The -15% VTC coupon is auto-enabled while a strike is active and auto-disabled
+    once it ends (covers admin toggle, end-date expiry and live GTFS-RT alerts)."""
     active = await _active_disruptions()
     has_strike = any(d.get("type") == "strike" for d in active)
+    await _sync_strike_coupon(has_strike)
     return {"disruptions": active, "count": len(active),
             "has_strike": has_strike,
             "strike_coupon": STRIKE_COUPON_CODE if has_strike else None,
@@ -599,6 +602,18 @@ async def _ensure_strike_coupon():
     return STRIKE_COUPON_CODE
 
 
+async def _sync_strike_coupon(active: bool):
+    """Mirror the strike coupon status to whether a strike is currently active.
+    Strike active (manual OR live GTFS-RT) -> coupon active; strike over -> the
+    coupon is automatically disabled so the discount stops with the strike."""
+    if active:
+        await _ensure_strike_coupon()
+    else:
+        await db.coupons.update_one(
+            {"code": STRIKE_COUPON_CODE, "status": {"$ne": "inactive"}},
+            {"$set": {"status": "inactive"}})
+
+
 async def _strike_audience():
     """Riders to notify on a strike. The transport network is regional, so we
     reach all riders; public-transport users (transport_journeys) are naturally
@@ -655,12 +670,17 @@ async def admin_update_disruption(did: str, request: Request, current_user: dict
     d = await db.transport_disruptions.find_one({"id": did}, {"_id": 0})
     if data["type"] == "strike" and data["active"]:
         asyncio.create_task(_run_strike_notify(did))
+    # keep the -15% coupon mirrored to the live strike state (e.g. toggled off)
+    active = await _active_disruptions()
+    await _sync_strike_coupon(any(x.get("type") == "strike" for x in active))
     return d
 
 
 @router.delete("/admin/disruptions/{did}")
 async def admin_delete_disruption(did: str, current_user: dict = Depends(require_permission("content.manage"))):
     await db.transport_disruptions.delete_one({"id": did, "source": "manual"})
+    active = await _active_disruptions()
+    await _sync_strike_coupon(any(x.get("type") == "strike" for x in active))
     return {"ok": True}
 
 
