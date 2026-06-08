@@ -385,6 +385,9 @@ export const transportAPI = {
   createLine: (data) => api.post('/transport/admin/lines', data),
   updateLine: (id, data) => api.put(`/transport/admin/lines/${id}`, data),
   removeLine: (id) => api.delete(`/transport/admin/lines/${id}`),
+  // GTFS (real data) status & manual refresh
+  gtfsStatus: () => api.get('/transport/admin/gtfs/status'),
+  gtfsRefresh: (force = false) => api.post(`/transport/admin/gtfs/refresh?force=${force}`),
 };
 
 // Parcel delivery APIs (single & multi-drop)

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Bus, Train, Boat, Plus, PencilSimple, Trash, X, MapPin, Path } from '@phosphor-icons/react';
+import { Bus, Train, Boat, Plus, PencilSimple, Trash, X, MapPin, Path, ArrowsClockwise, Database } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { transportAPI } from '../../services/api';
 
@@ -26,6 +26,23 @@ const AdminTransport = () => {
   const [loading, setLoading] = useState(true);
   const [editStop, setEditStop] = useState(null);  // {id, form}
   const [editLine, setEditLine] = useState(null);  // {id, form}
+  const [gtfs, setGtfs] = useState(null);          // GTFS import status
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadGtfs = useCallback(async () => {
+    try { const r = await transportAPI.gtfsStatus(); setGtfs(r.data); } catch (e) { /* ignore */ }
+  }, []);
+
+  const refreshGtfs = useCallback(async (force = false) => {
+    setRefreshing(true);
+    try {
+      const r = await transportAPI.gtfsRefresh(force);
+      const changed = r.data.changed || [];
+      toast.success(changed.length ? `GTFS mis à jour : ${changed.join(', ')}` : 'GTFS déjà à jour (aucune nouvelle version)');
+      loadGtfs();
+    } catch (e) { toast.error('Échec du rafraîchissement GTFS'); }
+    finally { setRefreshing(false); }
+  }, [loadGtfs]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,7 +53,7 @@ const AdminTransport = () => {
     } catch (e) { console.error(e); toast.error('Erreur de chargement'); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadGtfs(); }, [load, loadGtfs]);
 
   const stopName = (id) => stops.find((s) => s.id === id)?.name || id;
 
@@ -94,6 +111,41 @@ const AdminTransport = () => {
         {tab === 'stops'
           ? <Button className="bg-[#FF5000] hover:bg-[#e64800] text-white" onClick={() => setEditStop({ id: null, form: { ...EMPTY_STOP } })} data-testid="add-stop-btn"><Plus size={16} className="mr-1" /> Ajouter un arrêt</Button>
           : <Button className="bg-[#FF5000] hover:bg-[#e64800] text-white" onClick={() => setEditLine({ id: null, form: { ...EMPTY_LINE } })} data-testid="add-line-btn"><Plus size={16} className="mr-1" /> Ajouter une ligne</Button>}
+      </div>
+
+      {/* GTFS (real data) status panel */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4" data-testid="gtfs-panel">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Database size={18} className="text-[#3730A3]" weight="duotone" />
+            <div>
+              <p className="text-sm font-bold text-gray-800">Données GTFS Martinique (transport.data.gouv.fr)</p>
+              <p className="text-xs text-gray-500">
+                Rafraîchissement auto hebdomadaire · Dernier import :{' '}
+                <span className="font-semibold" data-testid="gtfs-last-import">
+                  {gtfs?.last_import_at ? new Date(gtfs.last_import_at).toLocaleString('fr-FR') : '—'}
+                </span>
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => refreshGtfs(false)} disabled={refreshing} variant="outline" className="h-8 text-xs" data-testid="gtfs-refresh-btn">
+            <ArrowsClockwise size={14} className={`mr-1 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Rafraîchissement…' : 'Rafraîchir maintenant'}
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          {['mq-centre', 'mq-maritime', 'mq-nord'].map((feed) => {
+            const fm = gtfs?.feeds?.[feed];
+            const cnt = gtfs?.live_stop_counts?.[feed];
+            const labels = { 'mq-centre': 'Centre / CACEM', 'mq-maritime': 'Maritime', 'mq-nord': 'Nord / Cap Nord' };
+            return (
+              <div key={feed} className="bg-gray-50 rounded-lg p-2.5 border border-gray-100" data-testid={`gtfs-feed-${feed}`}>
+                <p className="text-[11px] font-bold text-gray-700">{labels[feed]}</p>
+                <p className="text-[10px] text-gray-500">{cnt != null ? `${cnt} arrêts` : '—'}{fm?.stop_times ? ` · ${fm.stop_times} horaires` : ''}</p>
+                <p className="text-[10px] text-gray-400">{fm?.imported_at ? new Date(fm.imported_at).toLocaleDateString('fr-FR') : 'jamais importé'}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tabs */}

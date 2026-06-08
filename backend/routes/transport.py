@@ -651,33 +651,66 @@ async def admin_delete_line(line_id: str, current_user: dict = Depends(require_p
     return {"ok": True}
 
 
-async def ensure_gtfs_imported():
-    """One-time import of GTFS Martinique (real data) if not present yet.
+# ── admin: GTFS status & manual refresh ───────────────────────────────────────
+@router.get("/admin/gtfs/status")
+async def gtfs_status(current_user: dict = Depends(require_permission("content.manage"))):
+    """GTFS import metadata: last import/check, per-feed published version, counts."""
+    meta = await db.transport_meta.find_one({"id": "gtfs_martinique"}, {"_id": 0}) or {"feeds": {}}
+    # live stop counts per feed
+    counts = {}
+    for fk in ("centre", "maritime", "nord"):
+        feed = f"mq-{fk}"
+        counts[feed] = await db.transport_stops.count_documents({"feed": feed})
+    meta["live_stop_counts"] = counts
+    meta["refresh_interval_days"] = 7
+    return meta
 
-    Runs in a worker thread (the importer is synchronous: pymongo + requests).
-    Idempotent: skips when GTFS stops already exist (preview / after a deploy).
+
+@router.post("/admin/gtfs/refresh")
+async def gtfs_refresh(force: bool = False,
+                       current_user: dict = Depends(require_permission("content.manage"))):
+    """Trigger a GTFS refresh now. By default only re-imports feeds whose version
+    changed; pass force=true to re-import everything."""
+    import asyncio
+
+    def _run():
+        from scripts.import_gtfs_martinique import _db, refresh
+        return refresh(_db(), force=force)
+
+    result = await asyncio.to_thread(_run)
+    return {"ok": True, **result}
+
+
+async def ensure_gtfs_imported():
+    """Background scheduler: initial import if missing, then periodic refresh that
+    re-imports a feed ONLY when transport.data.gouv.fr publishes a new version.
+
+    Runs the synchronous importer in a worker thread (pymongo + requests).
+    Checks ~daily; refresh(force=False) skips feeds whose version is unchanged,
+    so schedules stay up to date (weekly-or-on-new-version) without heavy reloads.
     """
     import asyncio
+
+    def _run(force):
+        from scripts.import_gtfs_martinique import _db, refresh
+        return refresh(_db(), force=force)
+
+    # initial run (full import only when there is no GTFS data yet)
     try:
-        if await db.transport_stops.count_documents({"source": "gtfs"}) > 0:
-            return
-
-        def _run():
-            from scripts.import_gtfs_martinique import (
-                _db, import_feed, ensure_indexes, cleanup_mock_fdf, FEEDS,
-            )
-            d = _db()
-            for fk in FEEDS:
-                try:
-                    import_feed(d, fk)
-                except Exception:
-                    pass
-            ensure_indexes(d)
-            cleanup_mock_fdf(d)
-
-        await asyncio.to_thread(_run)
+        empty = (await db.transport_stops.count_documents({"source": "gtfs"})) == 0
+        await asyncio.to_thread(_run, empty)
     except Exception:
         pass
+
+    # periodic refresh — auto-detects new published GTFS versions
+    while True:
+        try:
+            await asyncio.sleep(24 * 3600)
+            await asyncio.to_thread(_run, False)
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            pass
 
 
 

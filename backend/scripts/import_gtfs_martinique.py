@@ -24,11 +24,14 @@ import sys
 import time
 import zipfile
 import argparse
+from datetime import datetime, timezone
 
 import requests
 from pymongo import MongoClient, ASCENDING
 
 DATASETS_API = "https://transport.data.gouv.fr/api/datasets"
+META_ID = "gtfs_martinique"
+REFRESH_INTERVAL_DAYS = 7
 
 FEEDS = {
     "centre":   {"slug": "gtfs-urbain-de-la-zone-centre",            "label": "Centre / CACEM (bus + TCSP)", "default_mode": "bus"},
@@ -205,6 +208,11 @@ def import_feed(db, feed_key):
         db.transport_calendar_dates.insert_many(cd)
     print(f"  calendar_dates: {len(cd)}", flush=True)
 
+    return {
+        "stops": len(stops), "routes": len(routes), "trips": n_trips,
+        "stop_times": n_st, "calendar": len(cal), "calendar_dates": len(cd),
+    }
+
 
 def ensure_indexes(db):
     db.transport_stops.create_index([("source", ASCENDING), ("is_active", ASCENDING)])
@@ -223,22 +231,70 @@ def cleanup_mock_fdf(db):
     print(f"\nCleanup mock Fort-de-France: stops={res_s.deleted_count} lines={res_l.deleted_count}", flush=True)
 
 
+def _now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def get_status(db):
+    """Return the stored GTFS import metadata (last import, per-feed versions)."""
+    meta = db.transport_meta.find_one({"id": META_ID}, {"_id": 0}) or {}
+    meta.setdefault("feeds", {})
+    return meta
+
+
+def refresh(db, feeds=None, force=False):
+    """Refresh GTFS feeds, re-importing ONLY those whose published version (URL)
+    changed since the last import (unless force=True). Records metadata so a
+    weekly scheduler can keep schedules up to date with transport.data.gouv.fr.
+    """
+    feeds = feeds or list(FEEDS)
+    meta = db.transport_meta.find_one({"id": META_ID}) or {"id": META_ID, "feeds": {}}
+    feeds_meta = meta.get("feeds", {})
+    changed = []
+    for fk in feeds:
+        cfg = FEEDS[fk]
+        feed = f"mq-{fk}"
+        try:
+            url = _resolve_gtfs_url(cfg["slug"])
+        except Exception as e:
+            print(f"  !! résolution URL {fk}: {e}", flush=True)
+            continue
+        if not url:
+            continue
+        has_data = db.transport_stops.count_documents({"feed": feed}) > 0
+        if not force and feeds_meta.get(feed, {}).get("url") == url and has_data:
+            print(f"  = {feed}: déjà à jour (version inchangée)", flush=True)
+            continue
+        counts = import_feed(db, fk)
+        feeds_meta[feed] = {"url": url, "label": cfg["label"],
+                            "imported_at": _now_iso(), **(counts or {})}
+        changed.append(feed)
+    ensure_indexes(db)
+    if changed:
+        cleanup_mock_fdf(db)
+    meta["feeds"] = feeds_meta
+    meta["last_check_at"] = _now_iso()
+    if changed:
+        meta["last_import_at"] = _now_iso()
+    meta["last_changed"] = changed
+    db.transport_meta.update_one({"id": META_ID}, {"$set": meta}, upsert=True)
+    return {"changed": changed, "last_import_at": meta.get("last_import_at"),
+            "last_check_at": meta["last_check_at"], "feeds": feeds_meta}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--feeds", default="centre,maritime,nord")
+    ap.add_argument("--force", action="store_true", default=True,
+                    help="forcer la réimportation (par défaut en CLI)")
     args = ap.parse_args()
     feeds = [f.strip() for f in args.feeds.split(",") if f.strip() in FEEDS]
 
     db = _db()
     t0 = time.time()
-    for fk in feeds:
-        try:
-            import_feed(db, fk)
-        except Exception as e:
-            print(f"  !! Échec import {fk}: {e}", flush=True)
-    ensure_indexes(db)
-    cleanup_mock_fdf(db)
-    print(f"\n✅ Import GTFS Martinique terminé en {time.time()-t0:.1f}s", flush=True)
+    result = refresh(db, feeds, force=args.force)
+    print(f"\n✅ Import GTFS Martinique terminé en {time.time()-t0:.1f}s "
+          f"(réseaux mis à jour: {', '.join(result['changed']) or 'aucun'})", flush=True)
 
 
 if __name__ == "__main__":

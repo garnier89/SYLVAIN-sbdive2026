@@ -142,6 +142,34 @@ def test_gtfs_stop_departures_board():
     assert board["id"] == sid and board["source"] == "gtfs"
     assert board["realtime"] is False
 
+
+# ── GTFS status & weekly refresh (admin) ──────────────────────────────────────
+def test_gtfs_status_requires_auth():
+    r = requests.get(f"{BASE_URL}/api/transport/admin/gtfs/status", timeout=15)
+    assert r.status_code == 401
+
+
+def test_gtfs_status_reports_feeds_and_versions():
+    s = _admin_session()
+    r = s.get(f"{BASE_URL}/api/transport/admin/gtfs/status", timeout=20)
+    assert r.status_code == 200, r.text
+    meta = r.json()
+    assert "last_import_at" in meta
+    assert "mq-centre" in meta.get("feeds", {})
+    # each feed records its published version URL (used for change detection)
+    assert meta["feeds"]["mq-centre"].get("url", "").startswith("http")
+    assert meta.get("live_stop_counts", {}).get("mq-centre", 0) > 0
+
+
+def test_gtfs_refresh_skips_when_version_unchanged():
+    s = _admin_session()
+    r = s.post(f"{BASE_URL}/api/transport/admin/gtfs/refresh?force=false", timeout=120)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["ok"] is True
+    # versions already imported and unchanged → no feed is re-imported
+    assert data["changed"] == []
+
     r = requests.get(f"{BASE_URL}/api/transport/journeys", timeout=15)
     assert r.status_code == 401
 
