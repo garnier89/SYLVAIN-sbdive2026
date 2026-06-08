@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only validation of GTFS-RT (temps réel) feature. All 3 scenarios PASS: (1) ADMIN /admin/transport renders gtfs-realtime-config section with badge 'Inactif (horaire théorique)' by default, 3 URL inputs (rt-url-mq-centre/maritime/nord) empty, and 'Enregistrer le temps réel' button visible. (2) Activate flow: filling rt-url-mq-centre with placeholder URL + clicking rt-save-btn → toast 'Temps réel GTFS-RT activé' shown + badge switches to 'Actif'. Deactivate flow: clearing rt-url-mq-centre + clicking rt-save-btn → toast 'Temps réel désactivé (horaire théorique)' shown + badge returns to 'Inactif (horaire théorique)'. Final state confirmed INACTIVE (no RT URLs configured). (3) CLIENT /transports-autour shows theoretical-notice ('Temps réel indisponible — horaire théorique (GTFS transport.data.gouv.fr)') and NO realtime-notice; 10 nearby stops rendered with theoretical departures (régression OK).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminTransport.js now ~346 lines and starts to become dense — RT config block could be split into a dedicated GtfsRealtimeConfig sub-component for clarity, especially if more feeds (e.g. cross-island) get added later.",
+    "saveRt error path uses a single generic 'Échec de la configuration temps réel' toast — surfacing the backend error detail (e.g. invalid URL scheme) would help admins troubleshoot.",
+    "NearbyTransitPage.js: liveActive state is derived from r.data.realtime per fetch, but when admin toggles RT in another tab the user screen needs a manual refresh — acceptable for MVP but could be documented or auto-refreshed via interval."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped per request)", "frontend": "100% (3/3 scenarios)" },
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! ; Client: test2@example.com / TestPass123! (both via /login/email)",
+  "seed_data_creation": "None. Tests only toggle RT config on/off; final state left INACTIVE as required (no URL persisted) to avoid 8s timeouts on /nearby endpoint.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "GTFS-RT config persists across reloads via backend (loadGtfs() repopulates rtUrls from r.data.realtime_urls). To assert toasts with sonner, page.locator('body').inner_text() after the action works reliably (toast text remains in DOM briefly). The save button is data-testid='rt-save-btn'; URL inputs are rt-url-mq-{centre|maritime|nord}; status badge is gtfs-realtime-status. Client page /transports-autour shows either [data-testid=realtime-notice] (when r.data.realtime=true) OR [data-testid=theoretical-notice] (default). DO NOT leave any RT URL configured at end of test — the /nearby endpoint will attempt a real fetch (8s timeout) and slow the user screen.",
+  "validation_evidence": {
+    "scenarios": [
+      { "test": "Admin panel GTFS-RT default state", "result": "PASS — gtfs-realtime-config visible, badge='Inactif (horaire théorique)', 3 inputs empty, rt-save-btn present." },
+      { "test": "Activate then deactivate RT", "result": "PASS — fill rt-url-mq-centre='https://example.com/centre-rt.pb' + click rt-save-btn → toast 'Temps réel GTFS-RT activé' + badge='Actif'. Then clear field + click rt-save-btn → toast 'Temps réel désactivé' + badge='Inactif (horaire théorique)'. Final state: inactive, all URLs empty." },
+      { "test": "Client /transports-autour default theoretical banner", "result": "PASS — theoretical-notice rendered with text 'Temps réel indisponible — horaire théorique (GTFS transport.data.gouv.fr).'; realtime-notice NOT present; 10 nearby stops with theoretical departures (régression OK)." }
+    ]
+  }
+}

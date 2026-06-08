@@ -21,8 +21,11 @@ temps réel des lignes — pas de table d'horaires figée à maintenir.
 """
 import math
 import uuid
+import asyncio
+import time as _time
 from datetime import datetime, timezone, timedelta
 
+import requests
 from fastapi import APIRouter, Request, HTTPException, Depends
 
 from core.config import db
@@ -224,8 +227,83 @@ def _gtfs_color(mode, route):
     return c or GTFS_MODE_COLOR.get(mode, "#2563EB")
 
 
-async def _gtfs_lines(feed, stop_id, now_sec, active, per_line=4, limit_lines=8):
-    """Next THEORETICAL departures at a GTFS stop, grouped by line/destination."""
+# ── GTFS-Realtime (TripUpdates) — temps réel, prêt à activer ───────────────────
+# Aucun flux GTFS-RT Martinique n'est publié à ce jour : la couche reste dormante
+# tant qu'aucune URL n'est configurée (admin) → on retombe sur l'horaire théorique.
+_RT_CACHE = {}   # feed -> {"ts": epoch, "data": {...}}
+RT_TTL_SEC = 30
+
+
+def parse_gtfs_rt(content):
+    """Parse a GTFS-RT FeedMessage (protobuf) into trip/stop updates.
+
+    Returns {"updates": {(trip_id, stop_id): {delay,time,skipped}}, "canceled": set}.
+    """
+    from google.transit import gtfs_realtime_pb2
+    msg = gtfs_realtime_pb2.FeedMessage()
+    msg.ParseFromString(content)
+    updates, canceled = {}, set()
+    for ent in msg.entity:
+        if not ent.HasField("trip_update"):
+            continue
+        tu = ent.trip_update
+        tid = tu.trip.trip_id
+        if tu.trip.schedule_relationship == 3:  # CANCELED
+            canceled.add(tid)
+            continue
+        for stu in tu.stop_time_update:
+            if stu.schedule_relationship == 1:  # SKIPPED
+                updates[(tid, stu.stop_id)] = {"skipped": True}
+                continue
+            ev = stu.departure if stu.HasField("departure") else (stu.arrival if stu.HasField("arrival") else None)
+            delay = ev.delay if (ev is not None and ev.delay) else None
+            t = ev.time if (ev is not None and ev.time) else None
+            updates[(tid, stu.stop_id)] = {"delay": delay, "time": t}
+    return {"updates": updates, "canceled": canceled}
+
+
+async def _realtime_for_feed(feed):
+    """Fetch & cache the GTFS-RT TripUpdates for a feed, if an URL is configured."""
+    meta = await db.transport_meta.find_one({"id": "gtfs_martinique"}, {"_id": 0, "realtime_urls": 1}) or {}
+    url = (meta.get("realtime_urls") or {}).get(feed)
+    if not url:
+        return None
+    c = _RT_CACHE.get(feed)
+    if c and _time.time() - c["ts"] < RT_TTL_SEC:
+        return c["data"]
+    try:
+        content = await asyncio.to_thread(lambda: requests.get(url, timeout=8).content)
+        data = parse_gtfs_rt(content)
+        _RT_CACHE[feed] = {"ts": _time.time(), "data": data}
+        return data
+    except Exception:
+        return c["data"] if c else None
+
+
+def _apply_rt(dep_sec, trip_id, stop_id, rt):
+    """Overlay realtime on a scheduled departure.
+    Returns (adjusted_dep_sec, is_realtime) or (None, _) if cancelled/skipped.
+    """
+    if not rt:
+        return dep_sec, False
+    if trip_id in rt["canceled"]:
+        return None, True
+    u = rt["updates"].get((trip_id, stop_id))
+    if not u:
+        return dep_sec, False
+    if u.get("skipped"):
+        return None, True
+    if u.get("time"):
+        loc = datetime.fromtimestamp(int(u["time"]), timezone.utc) - timedelta(hours=4)
+        return loc.hour * 3600 + loc.minute * 60 + loc.second, True
+    if u.get("delay") is not None:
+        return dep_sec + int(u["delay"]), True
+    return dep_sec, False
+
+
+async def _gtfs_lines(feed, stop_id, now_sec, active, per_line=4, limit_lines=8, rt=None):
+    """Next departures at a GTFS stop, grouped by line. Theoretical by default,
+    overlaid with realtime (delays / cancellations) when a GTFS-RT feed exists."""
     sts = await db.transport_stop_times.find(
         {"feed": feed, "stop_id": stop_id, "dep_sec": {"$gte": now_sec}},
         {"_id": 0, "trip_id": 1, "dep_sec": 1},
@@ -251,6 +329,9 @@ async def _gtfs_lines(feed, stop_id, now_sec, active, per_line=4, limit_lines=8)
         r = routes.get(t["route_id"])
         if not r:
             continue
+        adj_sec, is_rt = _apply_rt(s["dep_sec"], s["trip_id"], stop_id, rt)
+        if adj_sec is None:
+            continue  # cancelled / skipped
         dest = (t.get("headsign") or r.get("long_name") or "").strip()
         key = (t["route_id"], dest)
         if key not in grouped:
@@ -260,14 +341,18 @@ async def _gtfs_lines(feed, stop_id, now_sec, active, per_line=4, limit_lines=8)
                 "code": (r.get("short_name") or r.get("route_id") or "").strip(),
                 "name": (r.get("long_name") or r.get("short_name") or "").strip(),
                 "mode": mode, "color": _gtfs_color(mode, r), "destination": dest,
-                "departures": [], "fare": None, "ride_min": 0, "dest_lat": None, "dest_lng": None,
+                "departures": [], "realtime": False,
+                "fare": None, "ride_min": 0, "dest_lat": None, "dest_lng": None,
             }
             order.append(key)
         if len(grouped[key]["departures"]) < per_line:
             grouped[key]["departures"].append({
-                "time": _fmt_hm(s["dep_sec"] // 60),
-                "eta_min": max(0, (s["dep_sec"] - now_sec) // 60),
+                "time": _fmt_hm(adj_sec // 60),
+                "eta_min": max(0, (adj_sec - now_sec) // 60),
+                "realtime": is_rt,
             })
+            if is_rt:
+                grouped[key]["realtime"] = True
     lines = [grouped[k] for k in order]
     lines.sort(key=lambda L: L["departures"][0]["eta_min"] if L["departures"] else 9999)
     return lines[:limit_lines]
@@ -316,29 +401,34 @@ async def nearby(lat: float = None, lng: float = None, mins: int = None,
 
     items = []
     active_cache = {}
+    rt_cache = {}
     for d, s in selected:
         shaped = _shape_stop(s, distance_km=d)
-        shaped["realtime"] = False  # temps réel indisponible — horaire théorique
+        shaped["realtime"] = False  # par défaut : horaire théorique (temps réel indispo)
         if s.get("source") == "gtfs":
             feed = s["feed"]
             if feed not in active_cache:
                 active_cache[feed] = await _active_services(feed, g_date, g_wd)
+            if feed not in rt_cache:
+                rt_cache[feed] = await _realtime_for_feed(feed)
             shaped["source"] = "gtfs"
-            shaped["lines"] = await _gtfs_lines(feed, s["stop_id"], g_now_sec, active_cache[feed])
+            shaped["lines"] = await _gtfs_lines(feed, s["stop_id"], g_now_sec, active_cache[feed], rt=rt_cache[feed])
+            shaped["realtime"] = any(L.get("realtime") for L in shaped["lines"])
         else:
             shaped["source"] = "mock"
             shaped["lines"] = _stop_lines(s["id"], lines, now_min, per_line=3)
         items.append(shaped)
 
     has_gtfs = any(it["source"] == "gtfs" for it in items)
+    any_realtime = any(it.get("realtime") for it in items)
     return {"stops": items, "fallback": fallback,
             "now": g_hhmm if has_gtfs else _fmt_hm(now_min),
-            "realtime": False, "theoretical": True, "mocked": True}
+            "realtime": any_realtime, "theoretical": True, "mocked": True}
 
 
 @router.get("/stops/{stop_id}/departures")
 async def stop_departures(stop_id: str, mins: int = None):
-    """Full next-departures board for a single stop (theoretical)."""
+    """Full next-departures board for a single stop (theoretical + realtime overlay)."""
     s = await db.transport_stops.find_one({"id": stop_id}, {"_id": 0})
     if not s:
         raise HTTPException(404, "Arrêt introuvable")
@@ -349,8 +439,10 @@ async def stop_departures(stop_id: str, mins: int = None):
         if mins is not None:
             g_now_sec = mins * 60
         active = await _active_services(s["feed"], g_date, g_wd)
+        rt = await _realtime_for_feed(s["feed"])
         shaped["source"] = "gtfs"
-        shaped["lines"] = await _gtfs_lines(s["feed"], s["stop_id"], g_now_sec, active, per_line=6)
+        shaped["lines"] = await _gtfs_lines(s["feed"], s["stop_id"], g_now_sec, active, per_line=6, rt=rt)
+        shaped["realtime"] = any(L.get("realtime") for L in shaped["lines"])
         shaped["now"] = g_hhmm
     else:
         now_min = mins if mins is not None else _now_min_utc()
@@ -663,7 +755,32 @@ async def gtfs_status(current_user: dict = Depends(require_permission("content.m
         counts[feed] = await db.transport_stops.count_documents({"feed": feed})
     meta["live_stop_counts"] = counts
     meta["refresh_interval_days"] = 7
+    rt_urls = meta.get("realtime_urls") or {}
+    meta["realtime_urls"] = rt_urls
+    meta["realtime_active"] = any(bool(v) for v in rt_urls.values())
     return meta
+
+
+@router.put("/admin/gtfs/realtime")
+async def gtfs_set_realtime(request: Request,
+                            current_user: dict = Depends(require_permission("content.manage"))):
+    """Configure GTFS-RT TripUpdates feed URLs per network (dormant until set).
+
+    Body: {"realtime_urls": {"mq-centre": "https://...", "mq-maritime": "", ...}}
+    Empty string disables realtime for that network (falls back to theoretical).
+    """
+    body = await request.json()
+    urls = body.get("realtime_urls") or {}
+    clean = {}
+    for k in ("mq-centre", "mq-maritime", "mq-nord"):
+        v = (urls.get(k) or "").strip()
+        if v:
+            clean[k] = v
+    await db.transport_meta.update_one(
+        {"id": "gtfs_martinique"}, {"$set": {"realtime_urls": clean}}, upsert=True
+    )
+    _RT_CACHE.clear()  # force refetch with the new config
+    return {"ok": True, "realtime_urls": clean, "realtime_active": bool(clean)}
 
 
 @router.post("/admin/gtfs/refresh")

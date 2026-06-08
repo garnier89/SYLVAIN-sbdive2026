@@ -388,6 +388,7 @@ export const transportAPI = {
   // GTFS (real data) status & manual refresh
   gtfsStatus: () => api.get('/transport/admin/gtfs/status'),
   gtfsRefresh: (force = false) => api.post(`/transport/admin/gtfs/refresh?force=${force}`),
+  setGtfsRealtime: (realtime_urls) => api.put('/transport/admin/gtfs/realtime', { realtime_urls }),
 };
 
 // Parcel delivery APIs (single & multi-drop)

@@ -170,6 +170,36 @@ def test_gtfs_refresh_skips_when_version_unchanged():
     # versions already imported and unchanged → no feed is re-imported
     assert data["changed"] == []
 
+
+# ── GTFS-Realtime config (admin) — dormant until a feed URL is set ─────────────
+def test_gtfs_realtime_default_inactive():
+    s = _admin_session()
+    meta = s.get(f"{BASE_URL}/api/transport/admin/gtfs/status", timeout=20).json()
+    assert meta.get("realtime_active") in (False, None) or meta.get("realtime_active") is False
+
+
+def test_gtfs_realtime_set_and_clear():
+    s = _admin_session()
+    # set a (placeholder) RT feed URL for the Centre network
+    r = s.put(f"{BASE_URL}/api/transport/admin/gtfs/realtime",
+              json={"realtime_urls": {"mq-centre": "https://example.com/centre-rt.pb"}}, timeout=20)
+    assert r.status_code == 200, r.text
+    assert r.json()["realtime_active"] is True
+    assert "mq-centre" in r.json()["realtime_urls"]
+    # status reflects it
+    st = s.get(f"{BASE_URL}/api/transport/admin/gtfs/status", timeout=20).json()
+    assert st["realtime_active"] is True
+    # clear (back to theoretical) — leave the system in its default state
+    r2 = s.put(f"{BASE_URL}/api/transport/admin/gtfs/realtime",
+               json={"realtime_urls": {}}, timeout=20)
+    assert r2.status_code == 200 and r2.json()["realtime_active"] is False
+
+
+def test_gtfs_realtime_config_requires_auth():
+    r = requests.put(f"{BASE_URL}/api/transport/admin/gtfs/realtime", json={"realtime_urls": {}}, timeout=15)
+    assert r.status_code == 401
+
+
     r = requests.get(f"{BASE_URL}/api/transport/journeys", timeout=15)
     assert r.status_code == 401
 

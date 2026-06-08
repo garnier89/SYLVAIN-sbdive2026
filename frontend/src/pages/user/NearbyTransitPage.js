@@ -40,6 +40,7 @@ const NearbyTransitPage = () => {
   const [loading, setLoading] = useState(true);
   const [farNote, setFarNote] = useState(false);
   const [now, setNow] = useState('');
+  const [liveActive, setLiveActive] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const triedFallback = useRef(false);
 
@@ -58,6 +59,7 @@ const NearbyTransitPage = () => {
       }
       setStops(list);
       setNow(r.data.now || '');
+      setLiveActive(!!r.data.realtime);
     } catch (e) {
       toast.error('Impossible de charger les transports proches');
     } finally {
@@ -110,12 +112,22 @@ const NearbyTransitPage = () => {
         </div>
       )}
 
-      {/* Theoretical schedule notice */}
+      {/* Realtime / theoretical schedule notice */}
       <div className="px-5 pt-3">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2" data-testid="theoretical-notice">
-          <WarningCircle size={16} className="text-amber-500 flex-shrink-0" weight="fill" />
-          <p className="text-[11px] text-amber-700 leading-snug">Temps réel indisponible — horaire théorique (GTFS transport.data.gouv.fr).</p>
-        </div>
+        {liveActive ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center gap-2" data-testid="realtime-notice">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <p className="text-[11px] text-emerald-700 leading-snug font-semibold">Temps réel actif (GTFS-RT) — horaires en direct.</p>
+          </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2" data-testid="theoretical-notice">
+            <WarningCircle size={16} className="text-amber-500 flex-shrink-0" weight="fill" />
+            <p className="text-[11px] text-amber-700 leading-snug">Temps réel indisponible — horaire théorique (GTFS transport.data.gouv.fr).</p>
+          </div>
+        )}
         {farNote && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mt-2" data-testid="far-note">
             <p className="text-[11px] text-blue-700">Vous semblez loin de la Martinique — affichage centré sur Fort‑de‑France.</p>
@@ -177,9 +189,12 @@ const NearbyTransitPage = () => {
                         <div className="flex gap-1.5 flex-shrink-0">
                           {(ln.departures || []).slice(0, 3).map((d, i) => (
                             <span key={i} data-testid={`nearby-dep-${ln.line_id}-${i}`}
-                              className={`text-[10px] font-bold px-1.5 py-1 rounded-md ${i === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}
-                              title={etaLabel(d.eta_min)}>
-                              <Clock size={9} className="inline mr-0.5" weight="bold" />{d.time}
+                              className={`text-[10px] font-bold px-1.5 py-1 rounded-md ${d.realtime ? 'bg-emerald-100 text-emerald-700' : i === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}
+                              title={d.realtime ? `Temps réel · ${etaLabel(d.eta_min)}` : etaLabel(d.eta_min)}>
+                              {d.realtime
+                                ? <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 align-middle animate-pulse" />
+                                : <Clock size={9} className="inline mr-0.5" weight="bold" />}
+                              {d.time}
                             </span>
                           ))}
                           {(ln.departures || []).length === 0 && <span className="text-[10px] text-slate-400">—</span>}

@@ -28,10 +28,27 @@ const AdminTransport = () => {
   const [editLine, setEditLine] = useState(null);  // {id, form}
   const [gtfs, setGtfs] = useState(null);          // GTFS import status
   const [refreshing, setRefreshing] = useState(false);
+  const [rtUrls, setRtUrls] = useState({ 'mq-centre': '', 'mq-maritime': '', 'mq-nord': '' });
+  const [savingRt, setSavingRt] = useState(false);
 
   const loadGtfs = useCallback(async () => {
-    try { const r = await transportAPI.gtfsStatus(); setGtfs(r.data); } catch (e) { /* ignore */ }
+    try {
+      const r = await transportAPI.gtfsStatus();
+      setGtfs(r.data);
+      const u = r.data.realtime_urls || {};
+      setRtUrls({ 'mq-centre': u['mq-centre'] || '', 'mq-maritime': u['mq-maritime'] || '', 'mq-nord': u['mq-nord'] || '' });
+    } catch (e) { /* ignore */ }
   }, []);
+
+  const saveRt = useCallback(async () => {
+    setSavingRt(true);
+    try {
+      const r = await transportAPI.setGtfsRealtime(rtUrls);
+      toast.success(r.data.realtime_active ? 'Temps réel GTFS-RT activé' : 'Temps réel désactivé (horaire théorique)');
+      loadGtfs();
+    } catch (e) { toast.error('Échec de la configuration temps réel'); }
+    finally { setSavingRt(false); }
+  }, [rtUrls, loadGtfs]);
 
   const refreshGtfs = useCallback(async (force = false) => {
     setRefreshing(true);
@@ -145,6 +162,29 @@ const AdminTransport = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* GTFS-RT (temps réel) — configurable, dormant tant qu'aucune URL n'est fournie */}
+        <div className="mt-3 border-t border-gray-100 pt-3" data-testid="gtfs-realtime-config">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-gray-700">Temps réel (GTFS-RT) — optionnel</p>
+            <Badge className={gtfs?.realtime_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'} data-testid="gtfs-realtime-status">
+              {gtfs?.realtime_active ? 'Actif' : 'Inactif (horaire théorique)'}
+            </Badge>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1">Collez l'URL d'un flux GTFS-RT TripUpdates par réseau (laisser vide = théorique). Les retards/suppressions seront appliqués automatiquement.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+            {[['mq-centre', 'Centre / CACEM'], ['mq-maritime', 'Maritime'], ['mq-nord', 'Nord / Cap Nord']].map(([feed, label]) => (
+              <div key={feed}>
+                <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">{label}</label>
+                <Input value={rtUrls[feed]} onChange={(e) => setRtUrls((u) => ({ ...u, [feed]: e.target.value }))}
+                  placeholder="https://…/gtfs-rt" className="h-8 text-xs" data-testid={`rt-url-${feed}`} />
+              </div>
+            ))}
+          </div>
+          <Button onClick={saveRt} disabled={savingRt} className="mt-2 h-8 text-xs bg-[#0B1426] hover:bg-[#1a2942] text-white" data-testid="rt-save-btn">
+            {savingRt ? 'Enregistrement…' : 'Enregistrer le temps réel'}
+          </Button>
         </div>
       </div>
 
