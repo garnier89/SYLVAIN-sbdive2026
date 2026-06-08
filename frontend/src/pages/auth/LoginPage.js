@@ -76,8 +76,16 @@ const LoginPage = () => {
         credentials: 'include',
         body: JSON.stringify({ phone: getFullPhone(), password }),
       });
-      const data = await res.json();
-      if (!res.ok) { setError(formatApiErrorDetail(data.detail) || 'Mot de passe incorrect'); return; }
+      let data = {};
+      try { data = await res.json(); } catch { /* non-JSON error body */ }
+      if (!res.ok) {
+        if (res.status === 429) {
+          setError(formatApiErrorDetail(data.detail) || 'Trop de tentatives. Patientez ~15 minutes avant de réessayer.');
+        } else {
+          setError(formatApiErrorDetail(data.detail) || 'Mot de passe incorrect');
+        }
+        return;
+      }
       // Token managed via httpOnly cookies set by backend
       setUser(data.user);
       // Route based on user role so drivers/admins/merchants land on their own app
