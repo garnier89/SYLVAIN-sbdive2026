@@ -491,27 +491,36 @@ const RideChoosePage = () => {
           poolMax={(selected && estimates[selected]?.maxPoolSeats) || 2}
         />
 
-        {/* Choose a ride — horizontal carousel (≈3 visible, scroll for more) */}
+        {/* Choose a ride — vertical scrollable list (most vehicles visible at once) */}
         {showComparison && bothSet && (
           <div className="mt-5" data-testid="choose-ride-section">
-            <h2 className="text-base font-black text-[#0B1426] mb-2">Votre course</h2>
-            <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+            <h2 className="text-base font-black text-[#0B1426] mb-1">Choisir une gamme</h2>
+            <p className="text-xs text-gray-500 mb-3">{mode.id === 'pool' ? 'Tarif partagé estimé par véhicule.' : 'Faites défiler pour voir tous les véhicules.'}</p>
+            <div className="space-y-2">
               {vtypes.map((v) => {
-                const active = selected === v.slug;
-                const est = estimates[v.slug] || {};
-                const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
                 const Icon = vehicleIcon(v);
+                const est = estimates[v.slug] || {};
+                const active = selected === v.slug;
+                const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
                 return (
                   <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
-                    className={`shrink-0 w-[30%] min-w-[104px] rounded-2xl border-2 p-2.5 flex flex-col items-center text-center transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-100 bg-white'}`}>
-                    <div className="h-12 flex items-center justify-center">
-                      {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-12 object-contain" /> : <Icon size={30} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
+                    className={`w-full flex items-center gap-3 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-100 bg-white'}`}>
+                    <div className={`w-16 h-12 rounded-lg flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/10' : 'bg-gray-50'}`}>
+                      {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-12 object-contain" /> : <Icon size={28} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
                     </div>
-                    <p className="font-bold text-[12px] text-[#0B1426] truncate w-full mt-1">{v.name_fr || v.name || v.slug}</p>
-                    <p className="text-[13px] font-black text-[#0B1426] leading-tight" data-testid={`price-${v.slug}`}>
-                      {est.loading ? '…' : est.error ? '—' : `${est.fare?.toFixed(2)} €`}
-                    </p>
-                    <p className="text-[9.5px] text-gray-400 flex items-center gap-0.5"><UsersThree size={11} weight="fill" /> {v.person_capacity || 4} · {est.duration ?? '–'}min</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#0B1426] truncate">{v.name_fr || v.name || v.slug}</p>
+                      <p className="text-[11px] text-gray-500 truncate">
+                        {est.loading ? 'Calcul du tarif…' : est.error ? 'Tarif indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
+                      </p>
+                      <span className="flex items-center gap-0.5 text-[11px] text-gray-400 mt-0.5"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
+                        : est.error ? <span className="text-xs text-gray-300">—</span>
+                        : <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>}
+                      {active && <CheckCircle size={15} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
+                    </div>
                   </button>
                 );
               })}
