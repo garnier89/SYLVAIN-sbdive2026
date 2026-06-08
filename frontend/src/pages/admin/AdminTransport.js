@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Bus, Train, Boat, Plus, PencilSimple, Trash, X, MapPin, Path, ArrowsClockwise, Database } from '@phosphor-icons/react';
+import { Bus, Train, Boat, Plus, PencilSimple, Trash, X, MapPin, Path, ArrowsClockwise, Database, Bell, MagnifyingGlass } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { transportAPI } from '../../services/api';
 
@@ -30,6 +30,7 @@ const AdminTransport = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [rtUrls, setRtUrls] = useState({ 'mq-centre': '', 'mq-maritime': '', 'mq-nord': '' });
   const [savingRt, setSavingRt] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const loadGtfs = useCallback(async () => {
     try {
@@ -39,6 +40,21 @@ const AdminTransport = () => {
       setRtUrls({ 'mq-centre': u['mq-centre'] || '', 'mq-maritime': u['mq-maritime'] || '', 'mq-nord': u['mq-nord'] || '' });
     } catch (e) { /* ignore */ }
   }, []);
+
+  const scanRt = useCallback(async () => {
+    setScanning(true);
+    try {
+      const r = await transportAPI.scanGtfsRealtime();
+      const det = r.data.detected || [];
+      toast.success(det.length ? `Flux temps réel détecté & activé : ${det.map((d) => d.label).join(', ')}` : 'Aucun flux GTFS-RT publié pour le moment');
+      loadGtfs();
+    } catch (e) { toast.error('Échec de la veille GTFS-RT'); }
+    finally { setScanning(false); }
+  }, [loadGtfs]);
+
+  const ackAlerts = useCallback(async () => {
+    try { await transportAPI.ackGtfsAlerts(); loadGtfs(); } catch (e) { /* ignore */ }
+  }, [loadGtfs]);
 
   const saveRt = useCallback(async () => {
     setSavingRt(true);
@@ -167,12 +183,33 @@ const AdminTransport = () => {
         {/* GTFS-RT (temps réel) — configurable, dormant tant qu'aucune URL n'est fournie */}
         <div className="mt-3 border-t border-gray-100 pt-3" data-testid="gtfs-realtime-config">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-gray-700">Temps réel (GTFS-RT) — optionnel</p>
+            <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+              Temps réel (GTFS-RT) — veille automatique
+              {gtfs?.rt_unack_count > 0 && (
+                <span className="relative" data-testid="gtfs-alert-bell">
+                  <Bell size={16} weight="fill" className="text-[#FF5000]" />
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center">{gtfs.rt_unack_count}</span>
+                </span>
+              )}
+            </p>
             <Badge className={gtfs?.realtime_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'} data-testid="gtfs-realtime-status">
               {gtfs?.realtime_active ? 'Actif' : 'Inactif (horaire théorique)'}
             </Badge>
           </div>
-          <p className="text-[11px] text-gray-400 mt-1">Collez l'URL d'un flux GTFS-RT TripUpdates par réseau (laisser vide = théorique). Les retards/suppressions seront appliqués automatiquement.</p>
+
+          {/* Detection alerts (auto-activated feeds) */}
+          {(gtfs?.rt_detections || []).filter((d) => !d.acknowledged).length > 0 && (
+            <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5" data-testid="gtfs-alerts">
+              {(gtfs.rt_detections || []).filter((d) => !d.acknowledged).map((d, i) => (
+                <p key={i} className="text-[11px] text-emerald-800" data-testid={`gtfs-alert-${d.feed}`}>
+                  ⚡ Flux temps réel détecté pour <span className="font-bold">{d.label}</span> — activé automatiquement.
+                </p>
+              ))}
+              <button onClick={ackAlerts} className="text-[10px] font-semibold text-emerald-700 underline mt-1" data-testid="gtfs-alert-ack">Marquer comme lu</button>
+            </div>
+          )}
+
+          <p className="text-[11px] text-gray-400 mt-1">La veille vérifie ~quotidiennement transport.data.gouv.fr ; à l'apparition d'un flux GTFS-RT, il est activé automatiquement. Vous pouvez aussi coller une URL manuellement (vide = théorique).</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
             {[['mq-centre', 'Centre / CACEM'], ['mq-maritime', 'Maritime'], ['mq-nord', 'Nord / Cap Nord']].map(([feed, label]) => (
               <div key={feed}>
@@ -182,9 +219,14 @@ const AdminTransport = () => {
               </div>
             ))}
           </div>
-          <Button onClick={saveRt} disabled={savingRt} className="mt-2 h-8 text-xs bg-[#0B1426] hover:bg-[#1a2942] text-white" data-testid="rt-save-btn">
-            {savingRt ? 'Enregistrement…' : 'Enregistrer le temps réel'}
-          </Button>
+          <div className="flex gap-2 mt-2">
+            <Button onClick={saveRt} disabled={savingRt} className="h-8 text-xs bg-[#0B1426] hover:bg-[#1a2942] text-white" data-testid="rt-save-btn">
+              {savingRt ? 'Enregistrement…' : 'Enregistrer le temps réel'}
+            </Button>
+            <Button onClick={scanRt} disabled={scanning} variant="outline" className="h-8 text-xs" data-testid="rt-scan-btn">
+              <MagnifyingGlass size={14} className={`mr-1 ${scanning ? 'animate-pulse' : ''}`} /> {scanning ? 'Veille…' : 'Scanner maintenant'}
+            </Button>
+          </div>
         </div>
       </div>
 

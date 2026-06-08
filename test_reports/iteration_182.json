@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only validation of new GTFS-RT 'veille automatique' (auto-detection) admin UI on /admin/transport. All 3 requested scenarios PASS: (1) gtfs-realtime-config panel renders by default with badge gtfs-realtime-status='Inactif (horaire théorique)', 3 empty URL inputs (rt-url-mq-centre/maritime/nord), rt-save-btn ('Enregistrer le temps réel') and rt-scan-btn ('Scanner maintenant') buttons visible. (2) Clicking rt-scan-btn triggers transportAPI.scanGtfsRealtime() — backend returns detected=[] (no real Martinique GTFS-RT feed published) → toast 'Aucun flux GTFS-RT publié pour le moment' shown, badge stays 'Inactif (horaire théorique)', gtfs-alert-bell and gtfs-alerts elements correctly remain absent (count=0). Button does not crash, no JS console errors triggered. (3) Régression OK: GTFS status block (Centre/CACEM, Maritime, Nord/Cap Nord cards) + 'Rafraîchir maintenant' button + tabs 'Arrêts (10)' & 'Lignes (4)' all render correctly. Final state left INACTIVE as required.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminTransport.js is now ~388 lines and the GTFS-RT block (config + alerts + scan + save) keeps growing — consider extracting a <GtfsRealtimeConfig/> sub-component to keep the page focused.",
+    "scanRt() error path uses a single generic toast 'Échec de la veille GTFS-RT' — surfacing the backend error (e.g. transport.data.gouv.fr unreachable, rate-limited) would help admins triage during incidents.",
+    "Toast for 'Aucun flux GTFS-RT publié pour le moment' uses toast.success() — semantically this is an info/neutral outcome (not a success); toast.info() or toast() would be slightly more appropriate. Cosmetic only."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped per request)", "frontend": "100% (3/3 scenarios)" },
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123! (via /login/email)",
+  "seed_data_creation": "None. Scanner did not detect any flux (expected), no alerts created, final state INACTIVE — system left clean as required.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "GTFS-RT 'veille automatique' panel: data-testid='gtfs-realtime-config' on the wrapper, 'gtfs-realtime-status' on the badge ('Inactif (horaire théorique)' default), 'rt-url-mq-{centre|maritime|nord}' on URL inputs, 'rt-save-btn' (Enregistrer) and 'rt-scan-btn' (Scanner maintenant) on buttons. Alert UI is conditional: 'gtfs-alert-bell' (header bell) and 'gtfs-alerts' (alert block) + 'gtfs-alert-ack' (Marquer comme lu) ONLY render when backend reports unread alerts (gtfs?.unread_alerts && gtfs?.alerts?.length>0). Currently absent = correct. Scan endpoint: POST /api/transport/admin/gtfs/realtime/scan; ack: POST /api/transport/admin/gtfs/alerts/ack. Toast assertion via page.locator('body').inner_text() works (sonner toast text stays in DOM briefly).",
+  "validation_evidence": {
+    "scenarios": [
+      { "test": "Default panel state (gtfs-realtime-config + badge + inputs + buttons)", "result": "PASS — config visible, badge='Inactif (horaire théorique)', 3 URL inputs empty, rt-save-btn and rt-scan-btn visible, gtfs-alert-bell and gtfs-alerts absent (count=0)." },
+      { "test": "Scanner maintenant: no flux published", "result": "PASS — click rt-scan-btn → toast 'Aucun flux GTFS-RT publié pour le moment' shown; badge stays 'Inactif (horaire théorique)'; gtfs-alert-bell and gtfs-alerts remain absent; no crash, no JS errors." },
+      { "test": "Régression panneau GTFS + onglets", "result": "PASS — 'Rafraîchir maintenant' button visible, tabs 'Arrêts (10)' and 'Lignes (4)' rendered, 3 zone cards (Centre/CACEM, Maritime, Nord/Cap Nord) with last-import timestamps shown." }
+    ]
+  }
+}

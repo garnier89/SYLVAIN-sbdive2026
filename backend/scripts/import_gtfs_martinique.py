@@ -242,6 +242,55 @@ def get_status(db):
     return meta
 
 
+def detect_realtime(db):
+    """Watch transport.data.gouv.fr for a GTFS-RT feed on the Martinique networks.
+
+    When a GTFS-RT resource appears for a network, its URL is AUTO-ACTIVATED
+    (written to realtime_urls) and a detection alert is recorded for the admin
+    dashboard (no external dependency). Returns the list of newly detected feeds.
+    """
+    meta = db.transport_meta.find_one({"id": META_ID}) or {"id": META_ID}
+    rt_urls = dict(meta.get("realtime_urls") or {})
+    detections = list(meta.get("rt_detections") or [])
+    known = {d.get("url") for d in detections}
+    newly = []
+    try:
+        datasets = requests.get(DATASETS_API, timeout=60).json()
+    except Exception as e:
+        print(f"  !! veille GTFS-RT: {e}", flush=True)
+        return []
+    by_slug = {ds.get("slug"): ds for ds in datasets}
+    for fk, cfg in FEEDS.items():
+        feed = f"mq-{fk}"
+        ds = by_slug.get(cfg["slug"])
+        if not ds:
+            continue
+        for r in ds.get("resources", []):
+            fmt = (r.get("format") or "").lower()
+            title = (r.get("title") or "")
+            is_rt = ("gtfs-rt" in fmt) or (fmt in ("gtfs rt", "gtfsrt")) or ("gtfs-rt" in title.lower())
+            if not is_rt:
+                continue
+            url = r.get("original_url") or r.get("url")
+            if not url:
+                continue
+            rt_urls[feed] = url           # auto-activate
+            if url not in known:
+                newly.append({"feed": feed, "label": cfg["label"], "url": url,
+                              "title": title, "detected_at": _now_iso(),
+                              "auto_activated": True, "acknowledged": False})
+                known.add(url)
+    if newly:
+        detections = newly + detections
+        db.transport_meta.update_one(
+            {"id": META_ID},
+            {"$set": {"realtime_urls": rt_urls, "rt_detections": detections[:50]}},
+            upsert=True,
+        )
+        print(f"  ⚡ GTFS-RT détecté & activé: {[d['feed'] for d in newly]}", flush=True)
+    return newly
+
+
 def refresh(db, feeds=None, force=False):
     """Refresh GTFS feeds, re-importing ONLY those whose published version (URL)
     changed since the last import (unless force=True). Records metadata so a

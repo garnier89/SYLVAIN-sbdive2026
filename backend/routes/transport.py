@@ -758,7 +758,35 @@ async def gtfs_status(current_user: dict = Depends(require_permission("content.m
     rt_urls = meta.get("realtime_urls") or {}
     meta["realtime_urls"] = rt_urls
     meta["realtime_active"] = any(bool(v) for v in rt_urls.values())
+    dets = meta.get("rt_detections") or []
+    meta["rt_detections"] = dets
+    meta["rt_unack_count"] = sum(1 for d in dets if not d.get("acknowledged"))
     return meta
+
+
+@router.post("/admin/gtfs/realtime/scan")
+async def gtfs_scan_realtime(current_user: dict = Depends(require_permission("content.manage"))):
+    """Manually run the GTFS-RT watch now (auto-activates any newly found feed)."""
+    def _run():
+        from scripts.import_gtfs_martinique import _db, detect_realtime
+        return detect_realtime(_db())
+
+    newly = await asyncio.to_thread(_run)
+    _RT_CACHE.clear()
+    meta = await db.transport_meta.find_one({"id": "gtfs_martinique"}, {"_id": 0, "realtime_urls": 1}) or {}
+    return {"ok": True, "detected": newly,
+            "realtime_active": any(bool(v) for v in (meta.get("realtime_urls") or {}).values())}
+
+
+@router.post("/admin/gtfs/alerts/ack")
+async def gtfs_ack_alerts(current_user: dict = Depends(require_permission("content.manage"))):
+    """Acknowledge GTFS-RT detection alerts (clears the dashboard bell)."""
+    meta = await db.transport_meta.find_one({"id": "gtfs_martinique"}, {"_id": 0, "rt_detections": 1}) or {}
+    dets = meta.get("rt_detections") or []
+    for d in dets:
+        d["acknowledged"] = True
+    await db.transport_meta.update_one({"id": "gtfs_martinique"}, {"$set": {"rt_detections": dets}}, upsert=True)
+    return {"ok": True, "rt_detections": dets}
 
 
 @router.put("/admin/gtfs/realtime")
@@ -809,8 +837,11 @@ async def ensure_gtfs_imported():
     import asyncio
 
     def _run(force):
-        from scripts.import_gtfs_martinique import _db, refresh
-        return refresh(_db(), force=force)
+        from scripts.import_gtfs_martinique import _db, refresh, detect_realtime
+        d = _db()
+        refresh(d, force=force)
+        detect_realtime(d)      # veille GTFS-RT → auto-activation + alerte admin
+        _RT_CACHE.clear()       # refetch with any newly activated realtime feed
 
     # initial run (full import only when there is no GTFS data yet)
     try:
@@ -819,7 +850,7 @@ async def ensure_gtfs_imported():
     except Exception:
         pass
 
-    # periodic refresh — auto-detects new published GTFS versions
+    # periodic refresh + GTFS-RT watch — auto-detects new published versions/feeds
     while True:
         try:
             await asyncio.sleep(24 * 3600)

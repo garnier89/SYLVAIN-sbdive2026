@@ -200,6 +200,37 @@ def test_gtfs_realtime_config_requires_auth():
     assert r.status_code == 401
 
 
+# ── GTFS-RT auto-watch (admin) ────────────────────────────────────────────────
+def test_gtfs_scan_requires_auth():
+    r = requests.post(f"{BASE_URL}/api/transport/admin/gtfs/realtime/scan", timeout=20)
+    assert r.status_code == 401
+
+
+def test_gtfs_alerts_ack_requires_auth():
+    r = requests.post(f"{BASE_URL}/api/transport/admin/gtfs/alerts/ack", timeout=15)
+    assert r.status_code == 401
+
+
+def test_gtfs_status_exposes_alert_fields():
+    s = _admin_session()
+    meta = s.get(f"{BASE_URL}/api/transport/admin/gtfs/status", timeout=20).json()
+    assert "rt_unack_count" in meta
+    assert "rt_detections" in meta
+
+
+def test_gtfs_scan_runs_and_no_false_positive():
+    # No GTFS-RT is published for Martinique yet → scan must find nothing and
+    # must NOT activate realtime.
+    s = _admin_session()
+    r = s.post(f"{BASE_URL}/api/transport/admin/gtfs/realtime/scan", timeout=90)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["ok"] is True
+    assert data["detected"] == []
+    assert data["realtime_active"] is False
+
+
+
     r = requests.get(f"{BASE_URL}/api/transport/journeys", timeout=15)
     assert r.status_code == 401
 
