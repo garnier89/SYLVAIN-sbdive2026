@@ -45,6 +45,59 @@ SECTIONS = [
     {"key": "nearby", "title_fr": "À proximité", "all_route": "/nearby"},
 ]
 
+# ── Home SECTION LAYOUT (order + show/hide of every block on the client Home) ──
+# Master list of all home blocks in their default order (mirrors UserHome.SECTION_ORDER).
+# Admin reorders / hides whole sections; the client renders blocks in this order.
+HOME_BLOCKS = [
+    {"key": "taxi", "title_fr": "Services Taxi"},
+    {"key": "promo", "title_fr": "Bannières promo"},
+    {"key": "delivery", "title_fr": "Services de Livraison"},
+    {"key": "parcel", "title_fr": "Colis & Coursier"},
+    {"key": "marketplace", "title_fr": "Marketplace"},
+    {"key": "beauty", "title_fr": "Beauté & Bien-être"},
+    {"key": "medical", "title_fr": "Santé & Médical"},
+    {"key": "ondemand", "title_fr": "Services à la demande"},
+    {"key": "bid", "title_fr": "Services aux enchères"},
+    {"key": "carcare", "title_fr": "Entretien Auto"},
+    {"key": "towing", "title_fr": "Remorquage"},
+    {"key": "genie", "title_fr": "Genie (multi-services)"},
+    {"key": "video", "title_fr": "Consultation vidéo"},
+    {"key": "pet", "title_fr": "Services Animaux"},
+    {"key": "parking", "title_fr": "Parking"},
+    {"key": "giftcards", "title_fr": "Cartes cadeaux"},
+    {"key": "carpool", "title_fr": "Covoiturage"},
+    {"key": "tracking", "title_fr": "Suivi de colis"},
+    {"key": "nearby", "title_fr": "À proximité"},
+]
+
+
+async def seed_home_sections():
+    """Idempotent: insert any missing home-section layout entry (preserves admin order/visibility)."""
+    for i, b in enumerate(HOME_BLOCKS):
+        existing = await db.home_sections.find_one({"key": b["key"]})
+        if not existing:
+            await db.home_sections.insert_one({
+                "key": b["key"],
+                "title_fr": b["title_fr"],
+                "display_order": i,
+                "visible": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+
+
+async def _section_layout(visible_only: bool = True):
+    """Returns home-section layout (admin order), backfilling titles for any new blocks."""
+    rows = await db.home_sections.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    known = {r["key"] for r in rows}
+    # Backfill blocks added after the last seed so they still appear (at the end).
+    extra = [{"key": b["key"], "title_fr": b["title_fr"], "display_order": 1000 + i, "visible": True}
+             for i, b in enumerate(HOME_BLOCKS) if b["key"] not in known]
+    rows = sorted(rows + extra, key=lambda r: r.get("display_order", 0))
+    if visible_only:
+        rows = [r for r in rows if r.get("visible", True)]
+    return rows
+
+
 # (section, key, label_fr, icon_name, bg_class, icon_color_class, target_route, visible_home)
 _SEED = [
     # ---- Taxi (16 modes from the hub) ----
@@ -145,7 +198,8 @@ async def list_public(section: str = None):
     if section:
         q["section"] = section
     items = await db.home_categories.find(q, {"_id": 0}).sort("display_order", 1).to_list(1000)
-    return {"sections": SECTIONS, "items": items}
+    layout = await _section_layout(visible_only=True)
+    return {"sections": SECTIONS, "items": items, "section_order": [r["key"] for r in layout]}
 
 
 @router.get("/icons")
@@ -229,3 +283,43 @@ async def admin_reorder(request: Request, current_user: dict = Depends(require_p
     for i, cid in enumerate(ids):
         await db.home_categories.update_one({"id": cid}, {"$set": {"display_order": i}})
     return {"message": "reordered", "count": len(ids)}
+
+
+# ============================================================
+# Admin — Home SECTION layout (order + show/hide whole sections)
+# ============================================================
+
+@router.get("/admin/sections")
+async def admin_list_sections(current_user: dict = Depends(require_permission("content.manage"))):
+    """All home sections (visible + hidden) in their saved order, for the layout editor."""
+    await seed_home_sections()
+    rows = await _section_layout(visible_only=False)
+    return {"sections": rows}
+
+
+@router.post("/admin/sections/reorder")
+async def admin_reorder_sections(request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    """Body: {ordered_keys: [...]} — sets each home section's display_order by index."""
+    body = await request.json()
+    keys = body.get("ordered_keys", [])
+    for i, key in enumerate(keys):
+        await db.home_sections.update_one(
+            {"key": key},
+            {"$set": {"display_order": i, "updated_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=False,
+        )
+    return {"message": "reordered", "count": len(keys)}
+
+
+@router.post("/admin/sections/{key}/toggle")
+async def admin_toggle_section(key: str, current_user: dict = Depends(require_permission("content.manage"))):
+    """Show/hide an entire home section on the client Home."""
+    row = await db.home_sections.find_one({"key": key}, {"_id": 0})
+    if not row:
+        raise HTTPException(404, "Section introuvable")
+    new_visible = not row.get("visible", True)
+    await db.home_sections.update_one(
+        {"key": key},
+        {"$set": {"visible": new_visible, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"key": key, "visible": new_visible}

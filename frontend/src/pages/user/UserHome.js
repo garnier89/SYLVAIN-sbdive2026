@@ -135,6 +135,7 @@ const UserHome = () => {
   const [showDeliverySearch, setShowDeliverySearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [cmsItems, setCmsItems] = useState([]);
+  const [sectionOrder, setSectionOrder] = useState(null);
   const [taxiCats, setTaxiCats] = useState([]);
   const [promoBanners, setPromoBanners] = useState([]);
   const promoRef = useRef(null);
@@ -144,7 +145,10 @@ const UserHome = () => {
   // Load admin-configured home categories (CMS). Falls back to hardcoded arrays if empty.
   useEffect(() => {
     homeCategoriesAPI.public()
-      .then((r) => setCmsItems(r.data.items || []))
+      .then((r) => {
+        setCmsItems(r.data.items || []);
+        setSectionOrder(Array.isArray(r.data.section_order) && r.data.section_order.length ? r.data.section_order : null);
+      })
       .catch((e) => console.warn('home categories load:', e?.message || e));
     // Taxi services come from "Gérer les catégories" (service_categories) → single source of truth.
     configAPI.getServiceCategories()
@@ -618,11 +622,14 @@ const UserHome = () => {
 
   // User-defined section order. First the 11 prioritised sections, then the
   // remaining sections kept at the bottom (their original relative order).
-  const SECTION_ORDER = [
+  // Section order/visibility is admin-configurable (home_sections); fall back to the
+  // curated default order, and only render blocks we actually have.
+  const DEFAULT_SECTION_ORDER = [
     'taxi', 'promo', 'delivery', 'parcel', 'marketplace', 'beauty', 'medical',
     'ondemand', 'bid', 'carcare', 'towing',
     'genie', 'video', 'pet', 'parking', 'giftcards', 'carpool', 'tracking', 'nearby',
   ];
+  const SECTION_ORDER = sectionOrder && sectionOrder.length ? sectionOrder : DEFAULT_SECTION_ORDER;
 
   return (
     <div className={`mobile-container min-h-screen pb-36 bg-white text-[#1F2430] ${BODY}`}>

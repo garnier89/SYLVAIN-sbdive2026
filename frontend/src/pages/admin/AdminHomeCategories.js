@@ -21,6 +21,7 @@ const emptyForm = {
 export default function AdminHomeCategories() {
   const [items, setItems] = useState([]);
   const [sections, setSections] = useState([]);
+  const [secLayout, setSecLayout] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -29,13 +30,34 @@ export default function AdminHomeCategories() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await homeCategoriesAPI.adminList();
+      const [r, s] = await Promise.all([homeCategoriesAPI.adminList(), homeCategoriesAPI.adminSections()]);
       setItems(r.data.items || []);
       setSections(r.data.sections || []);
+      setSecLayout(s.data.sections || []);
     } catch (e) { toast.error('Erreur chargement'); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Reorder a whole home section (↑/↓) — reflected in the client Home block order.
+  const moveSection = async (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= secLayout.length) return;
+    const next = [...secLayout];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setSecLayout(next);
+    try { await homeCategoriesAPI.reorderSections(next.map((s) => s.key)); }
+    catch { toast.error('Échec du classement'); load(); }
+  };
+
+  // Show/hide an entire home section.
+  const toggleSection = async (key) => {
+    try {
+      const r = await homeCategoriesAPI.toggleSection(key);
+      setSecLayout((ls) => ls.map((s) => (s.key === key ? { ...s, visible: r.data.visible } : s)));
+      toast.success(r.data.visible ? 'Section affichée' : 'Section masquée');
+    } catch { toast.error('Erreur'); }
+  };
 
   const openCreate = (section) => { setEditing(null); setForm({ ...emptyForm, section: section || 'delivery' }); setShowForm(true); };
   // Show stored line-breaks as literal "\n" in the single-line inputs so admins can
@@ -121,6 +143,27 @@ export default function AdminHomeCategories() {
         <span className="text-[#FF5000] font-bold">ℹ︎</span>
         <span>Les tuiles <b>Taxi</b> de l&apos;accueil se gèrent dans <b>« Catégories de service (Taxi) »</b> (toggle « Accueil »). Cette page contrôle toutes les <b>autres</b> sections (Livraison, Beauté, Auto, Animaux, Remorquage, À proximité…).</span>
       </div>
+
+      {/* ===== Section layout: order + show/hide whole sections ===== */}
+      {!loading && (
+        <div className="mb-8 bg-white rounded-xl shadow p-4" data-testid="section-layout-panel">
+          <h2 className="text-lg font-bold text-gray-800 mb-1">Ordre & visibilité des sections</h2>
+          <p className="text-sm text-gray-500 mb-3">Réordonnez les sections de l&apos;accueil (↑/↓) et masquez-en une entièrement avec l&apos;œil. L&apos;ordre est reflété en direct dans l&apos;app client.</p>
+          <div className="divide-y border rounded-lg">
+            {secLayout.map((s, idx) => (
+              <div key={s.key} className={`flex items-center gap-3 p-2.5 ${!s.visible ? 'opacity-50' : ''}`} data-testid={`section-layout-row-${s.key}`}>
+                <span className="text-xs font-mono text-gray-400 w-6 text-center">{idx + 1}</span>
+                <span className="flex-1 font-semibold text-sm text-gray-800">{s.title_fr}</span>
+                <button onClick={() => moveSection(idx, -1)} disabled={idx === 0} className="p-1.5 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30" title="Monter" data-testid={`section-up-${s.key}`}><ArrowUp size={15} /></button>
+                <button onClick={() => moveSection(idx, 1)} disabled={idx === secLayout.length - 1} className="p-1.5 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30" title="Descendre" data-testid={`section-down-${s.key}`}><ArrowDown size={15} /></button>
+                <button onClick={() => toggleSection(s.key)} className={`p-1.5 rounded hover:bg-gray-100 ${s.visible ? 'text-emerald-600' : 'text-gray-400'}`} title="Afficher/Masquer la section" data-testid={`section-toggle-${s.key}`}>
+                  {s.visible ? <Eye size={16} /> : <EyeSlash size={16} />}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? <p>Chargement…</p> : grouped.map((sec) => (
         <div key={sec.key} className="mb-8" data-testid={`section-${sec.key}`}>

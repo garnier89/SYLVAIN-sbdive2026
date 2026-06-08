@@ -34,7 +34,7 @@ from routes.acl import seed_acl
 from routes.subscriptions import seed_subscription_plans
 from routes.geo import seed_countries
 from routes.i18n import seed_i18n
-from routes.home_categories import seed_home_categories
+from routes.home_categories import seed_home_categories, seed_home_sections
 from routes.promo_banners import seed_promo_banners
 from routes.service_categories import seed_service_categories
 from routes.store_categories import seed_store_categories
@@ -322,6 +322,7 @@ async def run_all_seeds():
     await _seed_corporate()
 
     await seed_home_categories()        # home categories CMS
+    await seed_home_sections()          # home section layout (order + visibility)
     await seed_promo_banners()          # promo banners CMS
     try:
         await seed_driver_categories()

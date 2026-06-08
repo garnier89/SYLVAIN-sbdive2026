@@ -394,6 +394,9 @@ export const homeCategoriesAPI = {
   update: (id, data) => api.put(`/home-categories/admin/${id}`, data),
   remove: (id) => api.delete(`/home-categories/admin/${id}`),
   reorder: (orderedIds) => api.post('/home-categories/admin/reorder', { ordered_ids: orderedIds }),
+  adminSections: () => api.get('/home-categories/admin/sections'),
+  reorderSections: (orderedKeys) => api.post('/home-categories/admin/sections/reorder', { ordered_keys: orderedKeys }),
+  toggleSection: (key) => api.post(`/home-categories/admin/sections/${key}/toggle`),
 };
 
 export const promoBannersAPI = {

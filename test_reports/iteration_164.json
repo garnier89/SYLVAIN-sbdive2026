@@ -1,0 +1,45 @@
+{
+  "summary": "Iter 164 — Home Sections layout (order + visibility) end-to-end PASS. Backend (7/7 pytest) + Admin UI + Rider /home reflection all confirmed. Reorder (beauty above delivery) persists across reload and is reflected on rider /home; hiding 'À proximité' removes it from /home and the public section_order; toggling back restores it. Taxi 8-tile canonical section unaffected (service_categories driven). No runtime errors. Final state RESTORED to default order with nearby visible=true.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter164_home_sections.py",
+    "/app/test_reports/pytest/iter164_home_sections.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/home_categories.py: HOME_BLOCKS (19) seeded idempotently into home_sections collection on startup; _section_layout() backfills any future blocks at the end with display_order=1000+i so newly added blocks never silently disappear — good defensive design.",
+    "Admin endpoints correctly gated by require_permission('content.manage'); unauthenticated GET /admin/sections returns 401/403 as expected.",
+    "POST /admin/sections/{key}/toggle simply flips the boolean — verified twice (off then on) and idempotent.",
+    "POST /admin/sections/reorder sets display_order by index over ordered_keys; verified beauty<delivery after reorder, and restore returns delivery<beauty.",
+    "Public GET /api/home-categories returns section_order filtered by visible=true (hidden keys correctly drop out). Verified by hiding nearby and seeing it disappear from section_order.",
+    "AdminHomeCategories.js section-layout-panel exposes 19 rows with section-up-<key>, section-down-<key>, section-toggle-<key> testids — moveSection writes ordered keys back via reorderSections and the order persists across page reload.",
+    "UserHome.js correctly drives section render order from fetched section_order (with DEFAULT_SECTION_ORDER fallback) — confirmed by checking that 'Beauté' appeared before 'Livraison' on rider /home when admin moved beauty up.",
+    "Toggle 404 verified for unknown key (good error handling)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter164_home_sections.py"
+  ],
+  "success_rate": { "backend": "100% (7/7 pytest)", "frontend": "100% (admin section-layout-panel, reorder persistence across reload, toggle hide/show with toasts 'Section masquée'/'Section affichée', rider /home reflection of order + hide, taxi 8-tile regression, no runtime overlay)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (/admin-login) ; rider.i18n@demo.sb / Rider123! (/login/email)",
+  "seed_data_creation": "None new. home_sections collection auto-seeded with 19 blocks by seed_home_sections() on startup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Home SECTION layout lives at /admin/home-categories panel data-testid='section-layout-panel' with 19 rows section-layout-row-<key> and per-row section-up-<key>, section-down-<key>, section-toggle-<key>. Backend: GET /api/home-categories returns {sections, items, section_order}; admin GET /api/home-categories/admin/sections returns 19 rows with display_order+visible; POST /admin/sections/reorder body={ordered_keys:[...]}; POST /admin/sections/{key}/toggle flips visibility. Default order: taxi, promo, delivery, parcel, marketplace, beauty, medical, ondemand, bid, carcare, towing, genie, video, pet, parking, giftcards, carpool, tracking, nearby. Pytest: /app/backend/tests/test_iter164_home_sections.py — 7/7 pass.",
+  "verification_evidence": {
+    "GET /api/home-categories section_order length": "19 (default), 18 (nearby hidden — re-validated then restored)",
+    "GET /api/home-categories/admin/sections": "200, 19 rows with display_order+visible",
+    "Admin UI panel section-layout-panel": "Present with 19 section-layout-row-<key> entries",
+    "Reorder beauty up 4× via UI": "Order becomes [taxi, beauty, promo, delivery, parcel, ...]; persists after page reload",
+    "Toggle section-toggle-nearby OFF (UI)": "Toast 'Section masquée'; row dimmed; rider /home no longer shows 'À proximité'; public section_order omits nearby",
+    "Rider /home with beauty>delivery & nearby hidden": "Headings list: ..., 'Services Beauté' (idx 2), 'Services de Livraison' (idx 3), 'À proximité' ABSENT; 8 canonical taxi tiles (7 svccat + 1 more-taxi)",
+    "Restore default via UI (move beauty down 4× + toggle nearby ON)": "Toast 'Section affichée'; admin list == default 19-key order; public API: delivery<beauty=true, nearby in section_order=true",
+    "Runtime errors": "0 pageerrors; no 'Uncaught runtime errors' overlay",
+    "Auth/permission": "GET /admin/sections without auth → 401/403 (verified)"
+  },
+  "rca of the issue": "N/A — feature works end-to-end as designed. No bugs encountered."
+}
