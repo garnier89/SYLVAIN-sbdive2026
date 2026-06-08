@@ -18,6 +18,7 @@ import {
 import { transportAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import JourneyMap from './transport/JourneyMap';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -214,6 +215,9 @@ const TransportPublicPage = () => {
                 )}
 
                 {/* Bus itinerary legs */}
+                {busFound && (
+                  <JourneyMap plan={plan} />
+                )}
                 {busFound && (
                   <div className="mt-3 space-y-1.5" data-testid="journey-legs">
                     {plan.legs.map((leg, i) => (

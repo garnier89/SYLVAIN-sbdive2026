@@ -295,14 +295,22 @@ def plan_journey(stops, lines, flat, flng, tlat, tlng):
             for j in range(i + 1, len(order)):
                 si, sj = order[i], order[j]
                 cost = wait + (j - i) * travel
+                fwd_via = [{"name": stop_by_id[k]["name"], "lat": stop_by_id[k]["lat"], "lng": stop_by_id[k]["lng"]}
+                           for k in order[i:j + 1]]
                 # lines run in BOTH directions → add forward and reverse edges
                 fwd = {
                     "type": "ride", "line_id": L.get("id"), "code": L.get("code"),
                     "name": L.get("name"), "mode": L.get("mode", "bus"), "color": L.get("color"),
                     "from": stop_by_id[si]["name"], "to": stop_by_id[sj]["name"],
+                    "from_lat": stop_by_id[si]["lat"], "from_lng": stop_by_id[si]["lng"],
+                    "to_lat": stop_by_id[sj]["lat"], "to_lng": stop_by_id[sj]["lng"],
+                    "via": fwd_via,
                     "stops": j - i, "minutes": (j - i) * travel, "wait_min": wait, "fare": fare,
                 }
-                rev = {**fwd, "from": stop_by_id[sj]["name"], "to": stop_by_id[si]["name"]}
+                rev = {**fwd, "from": stop_by_id[sj]["name"], "to": stop_by_id[si]["name"],
+                       "from_lat": stop_by_id[sj]["lat"], "from_lng": stop_by_id[sj]["lng"],
+                       "to_lat": stop_by_id[si]["lat"], "to_lng": stop_by_id[si]["lng"],
+                       "via": list(reversed(fwd_via))}
                 adj[si].append((sj, cost, fare, fwd))
                 adj[sj].append((si, cost, fare, rev))
 
@@ -310,7 +318,8 @@ def plan_journey(stops, lines, flat, flng, tlat, tlng):
     cnt = 0
     for d, s in origin_access:
         wm = _walk_min(d)
-        legs = [{"type": "walk", "to": s["name"], "minutes": wm, "km": round(d, 2)}] if wm > 0 else []
+        legs = [{"type": "walk", "to": s["name"], "minutes": wm, "km": round(d, 2),
+                 "from_lat": flat, "from_lng": flng, "to_lat": s["lat"], "to_lng": s["lng"]}] if wm > 0 else []
         heapq.heappush(heap, (wm, cnt, s["id"], 0.0, legs)); cnt += 1
 
     best = None
@@ -323,11 +332,14 @@ def plan_journey(stops, lines, flat, flng, tlat, tlng):
         if sid in dest_egress:
             wm = _walk_min(dest_egress[sid])
             total = time + wm
-            final_legs = legs + ([{"type": "walk", "to": "Destination", "minutes": wm, "km": round(dest_egress[sid], 2)}] if wm > 0 else [])
+            es = stop_by_id[sid]
+            final_legs = legs + ([{"type": "walk", "to": "Destination", "minutes": wm, "km": round(dest_egress[sid], 2),
+                                   "from_lat": es["lat"], "from_lng": es["lng"], "to_lat": tlat, "to_lng": tlng}] if wm > 0 else [])
             rides = [l for l in final_legs if l["type"] == "ride"]
             if rides and (best is None or total < best["total_min"]):
                 best = {"found": True, "total_min": int(total), "total_fare": round(fare, 2),
-                        "transfers": max(0, len(rides) - 1), "legs": final_legs}
+                        "transfers": max(0, len(rides) - 1), "legs": final_legs,
+                        "origin": {"lat": flat, "lng": flng}, "dest": {"lat": tlat, "lng": tlng}}
         for (to, cost, lf, leg) in adj.get(sid, []):
             nt = time + cost
             if to in visited and visited[to] <= nt:
@@ -345,6 +357,9 @@ async def journey(from_lat: float, from_lng: float, to_lat: float, to_lng: float
     plan = plan_journey(stops, lines, from_lat, from_lng, to_lat, to_lng)
     plan["mocked"] = True
     return plan
+
+
+# ── admin: stops CRUD ─────────────────────────────────────────────────────────
 def _parse_stop(body):
     return {
         "name": (body.get("name") or "").strip(),

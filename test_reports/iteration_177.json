@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only E2E validation of the NEW JourneyMap (Google Maps itinerary visualization) on /transport-public. Login (test2@example.com), geoloc seeded near Université des Antilles (16.227,-61.518), 'Ma position actuelle' auto-prefilled, destination 'Aeroport Pole Caraibes Guadeloupe' picked via .pac-container autocomplete. journey-map renders inside journey-result, above journey-legs, with full Google Maps stack (.gm-style present, 17 tile imgs, 8 canvas) and visible polylines/markers (green origin, red destination, intermediate stops). Verdict + journey-book-vtc-btn navigate to /course?mode=standard. Zero real console/page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_177.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "JourneyMap.jsx: map height fixed at 200px — works for mobile, but on a long multi-leg trip (e.g. correspondance L2→L1 with wide bounds) the polyline can appear cramped. Consider 220-260px or dynamic based on legs.length.",
+    "JourneyMap reuses the same map instance across re-renders but never re-centers/zooms-out if plan switches to a totally different bounding box AND fitBounds throws (try/catch swallows it silently). Add a console.warn in catch for debuggability.",
+    "Polyline path uses leg.via coords directly with no decimation — fine for simulated short bus lines, but if a real GTFS shape with hundreds of points is wired later this should be simplified.",
+    "Origin/destination dot markers are drawn on top of intermediate stop dots (zIndex 50 vs 10) — good. But the green/red filled circles use scale=7 which can overlap when origin and destination are very close; not a regression, just noting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Client: test2@example.com / TestPass123!",
+  "seed_data_creation": "None — relied on existing simulated /api/transport/journey",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Confirmed measured layout (viewport 390x844): journey-map at y=581 h=202 (w=316), journey-legs at y=795 — map IS above legs as required. Google Maps loader is shared (GMAPS_LOADER_OPTIONS) and works without re-injecting the script. Login flow: /login → click 'Ou choisir une autre option' → 'Email & mot de passe' (this is the new modal label, NOT just 'Email') → fill email/password → 'Se connecter'. Geolocation must be granted + set before /transport-public for jFrom autoprefill. Trip tested: Univ Antilles → Aéroport Pôle Caraïbes => Bus ~58 min / 3.00 € / 1 correspondance, VTC ~15 min / 14.75 €, verdict 'gagner ~43 min · surcoût VTC 11.75 €'. journey-book-vtc-btn navigates to /course?mode=standard.",
+  "validated_flows": [
+    "Login via Email modal works on preview URL",
+    "/transport-public renders journey-planner with jFrom auto-prefilled to 'Ma position actuelle'",
+    "journey-to-input + Google Places autocomplete selection triggers /api/transport/journey + /api/rides/estimate",
+    "journey-result renders Bus vs VTC comparison",
+    "NEW: journey-map renders inside journey-result, ABOVE journey-legs (verified by bounding boxes)",
+    "NEW: Google Maps instance fully rendered (.gm-style, tile imgs, canvas overlays)",
+    "NEW: Polyline + colored markers visible (green origin, red destination, intermediate stop dots)",
+    "journey-verdict banner displays correct gain + surcoût messaging",
+    "journey-book-vtc-btn navigates to /course?mode=standard",
+    "Zero real console/page errors during the entire flow"
+  ],
+  "rca of the issue": "No bug. New JourneyMap feature works as specified: map renders above journey-legs with polylines per leg color + origin/destination/transfer markers, and the rest of the journey planner (verdict, legs, VTC booking CTA) remains fully functional."
+}
