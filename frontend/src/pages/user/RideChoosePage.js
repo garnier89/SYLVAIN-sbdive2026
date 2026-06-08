@@ -292,7 +292,6 @@ const RideChoosePage = () => {
       setLocating(false);
       if (ip) {
         setPickup(ip);
-        if (needsDropoff && dropoff?.lat) setShowMap(true);
         if (announce) toast.success('Position approximative définie (activez le GPS pour plus de précision)');
       } else if (announce) {
         toast.error(errMsg || 'Position introuvable');
@@ -305,7 +304,6 @@ const RideChoosePage = () => {
         const address = await reverseGeocode(lat, lng);
         setPickup({ lat, lng, address });
         setLocating(false);
-        if (needsDropoff && dropoff?.lat) setShowMap(true);
         if (announce) toast.success('Position actuelle définie comme départ');
       },
       () => { fallbackToIp('Position introuvable'); },
@@ -316,16 +314,27 @@ const RideChoosePage = () => {
   const applySaved = (place) => {
     if (place?.address) {
       setDropoff({ address: place.address, lat: place.lat, lng: place.lng });
-      if (pickup?.lat) setShowMap(true);
     }
   };
 
-  // Selecting an address advances to the map step (2-step flow). The map step is
-  // only used by modes that have a destination; rental/buddy stay single-screen.
-  const onPickupSelect = (p) => { setPickup(p); if (needsDropoff && dropoff?.lat) setShowMap(true); };
-  const onDropoffSelect = (p) => { setDropoff(p); if (pickup?.lat) setShowMap(true); };
+  // Selecting an address (or geolocation resolving) advances to the map step via
+  // the effect below — robust to the IP-geolocation race (pickup may resolve after
+  // the destination is picked).
+  const onPickupSelect = (p) => setPickup(p);
+  const onDropoffSelect = (p) => setDropoff(p);
 
   const bothSet = !!(pickup?.lat && (needsDropoff ? dropoff?.lat : true));
+
+  // Auto-advance to the map step ONCE both points are set (2-step flow). A ref
+  // guards re-entry so the back button (← → form) is not immediately overridden;
+  // re-entry from the form then uses the explicit « Continuer » button.
+  const autoAdvancedRef = useRef(false);
+  useEffect(() => {
+    if (needsDropoff && bothSet && !autoAdvancedRef.current) {
+      autoAdvancedRef.current = true;
+      Promise.resolve().then(() => setShowMap(true));
+    }
+  }, [needsDropoff, bothSet]);
 
   // ── Live estimates per vehicle (comparison modes only) ────────────────
   const fetchEstimates = useCallback(async () => {
@@ -594,17 +603,17 @@ const RideChoosePage = () => {
   if (mapStep) {
     return (
       <div className="mobile-container min-h-screen bg-gray-100 flex flex-col" data-testid="ride-choose-page">
-        <div className="relative flex-1 min-h-0">
+        <div className="relative h-[42%] shrink-0">
           <RideRouteMap pickup={pickup} dropoff={dropoff} />
-          <button onClick={() => { setShowMap(false); setPayOpen(false); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center z-10" data-testid="map-back-btn">
+          <button onClick={() => { setShowMap(false); setPayOpen(false); }} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center z-20" data-testid="map-back-btn">
             <ArrowLeft size={20} className="text-[#0B1426]" />
           </button>
-          <div className="absolute top-4 right-4 left-16 bg-white rounded-xl shadow-lg px-3 py-2 z-10" data-testid="map-dest-chip">
+          <div className="absolute top-4 right-4 left-16 bg-white rounded-xl shadow-lg px-3 py-2 z-20" data-testid="map-dest-chip">
             <p className="text-[9px] uppercase text-gray-400 font-bold leading-none mb-0.5">Destination</p>
             <p className="text-xs font-semibold text-[#0B1426] truncate">{dropoff?.address}</p>
           </div>
         </div>
-        <div className="bg-white rounded-t-3xl -mt-5 z-10 flex flex-col shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" style={{ maxHeight: '64%' }} data-testid="map-bottom-sheet">
+        <div className="bg-white rounded-t-3xl -mt-5 z-10 flex flex-col flex-1 min-h-0 shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" data-testid="map-bottom-sheet">
           <div className="pt-2.5 pb-1 flex justify-center shrink-0"><div className="w-10 h-1.5 rounded-full bg-gray-300" /></div>
           <div className="px-4 pb-2 overflow-y-auto flex-1">
             <h2 className="text-base font-black text-[#0B1426] mb-3">{isBidding ? 'Proposez votre prix' : 'Choisir une gamme ou faites glisser vers le haut'}</h2>

@@ -1,4 +1,13 @@
-## NEW - 2026-06-09 (81) - Pool & Intercity : logique métier finalisée (DONE, testé)
+## NEW - 2026-06-09 (82) - Commande taxi en 2 ÉTAPES : carte + volet inférieur (Uber/V3Cube) (DONE, testé)
+- **Idée user (validée « oui oui a » = tous les modes)** : dès que la **destination** est saisie → bascule auto sur un **2ᵉ écran carte plein écran + volet inférieur** (gammes + prix + paiement + « Demander »), façon Uber.
+- **Nouveau composant `components/RideRouteMap.js`** : carte Google (loader app-wide), marqueurs départ (vert)/destination (rouge), **itinéraire tracé** via DirectionsService (fallback ligne droite), fitBounds.
+- **`RideChoosePage.js` restructuré en 2 vues** : (1) **formulaire** (adresses + panneaux mode + « Continuer · Voir les tarifs ») ; (2) **carte** (`map-bottom-sheet`) avec carte en hauteur fixe 42 % + volet scrollable (panneau Pool/Intercity si applicable, liste gammes/grille enchères, paiement déroulant vers le haut, CTA). Helpers `renderVehicleList/renderBiddingGrid/renderPayment/renderCta`. `mapStep = needsDropoff && bothSet && showMap`.
+- **Auto-avance robuste** : effet `useEffect([needsDropoff, bothSet])` + `autoAdvancedRef` → bascule **une fois** quand les 2 points sont posés (corrige la course avec la géoloc IP lente du preview). Bouton **back** (`map-back-btn`, z-20) → retour formulaire ; ré-entrée via `continue-to-map-btn`. Rental/Buddy (sans destination) restent en **mono-écran** (carte prix + paiement inline).
+- **Vérifié (screenshots)** : Standard e2e (testing_agent iter169 : form→destination→carte+volet+10 véhicules+prix, commande→/ride/:id) ; **Pool** : auto-avance OK, panneau pool dans le volet, **prix barré + économie verte** par véhicule ; Rental/Buddy mono-écran OK. Intercity : panneau « Trajet longue distance » + calendrier auto (ride_type datetime) ; A/R ×1,9 backend prouvé. Webpack compile (1 warning pré-existant), lint OK (seul faux positif set-state-in-effect:223 toléré CRA).
+- ⚠️ PREVIEW (l'user y teste directement).
+
+
+
 - **Demande user (option B)** : finaliser le « fonctionnement » distinct de Pool et Intercity (garder écrans dédiés).
 - **POOL = vraie réduction** : avant, 1 place pool = plein tarif (aucune réduc, contraire à la promesse). Ajout `POOL_DEFAULT_DISCOUNT_PERCENT=25` + champ `discount_percent` dans `get_pool_config` (surchargeable par Vehicle Type `pool_discount_percent` / config pool globale). `rides.py` estimate+create : 1ʳᵉ place = tarif privé −25 %, places suppl. via `pool_percentage`. Estimate renvoie `pool_discount_percent`, `pool_savings`, `original_fare`. Vérifié : 30,75 €→23,06 € (économie 7,69 €).
 - **INTERCITY = longue distance + aller-retour** : ajout `INTERCITY_ROUNDTRIP_FACTOR=1.9` ; `round_trip`/`return_at` ajoutés à `RideRequest`. Estimate/create appliquent ×1,9 si `round_trip` & `ride_type='intercity'`. Vérifié : Paris→Lyon 468 km, aller 750 €, A/R 1425 €.
