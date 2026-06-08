@@ -3,6 +3,7 @@ import api from '../services/api';
 import { useAuth } from './AuthContext';
 import { BASE_FLAT_FR, flatten, interpolate } from '../lib/i18nBase';
 import { getBrowserCountryCode } from '../lib/browserZone';
+import { OnboardingModal } from '../components/OnboardingModal';
 
 // Module-level cache of fetched (flattened) bundles, keyed by lang code.
 const _bundleCache = { fr: BASE_FLAT_FR };
@@ -185,6 +186,15 @@ export const LocaleProvider = ({ children }) => {
     return () => { cancelled = true; };
   }, []);
 
+  // ── First-launch ONBOARDING (language + currency picker) ──
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (localStorage.getItem('sb_onboarded')) return false;
+    const p = (typeof window !== 'undefined' && window.location.pathname) || '';
+    // Skip for staff apps (admin / driver / merchant / dispatch / kiosk).
+    if (/^\/(admin|chauffeur|merchant|dispatch|kiosk)/.test(p)) return false;
+    return true;
+  });
+
   // ── First-launch language SUGGESTION by zone (non-intrusive banner) ──
   const [suggestedCode, setSuggestedCode] = useState('');
   useEffect(() => {
@@ -216,6 +226,15 @@ export const LocaleProvider = ({ children }) => {
     localStorage.setItem('sb_lang_suggested', '1');
     setSuggestedCode('');
   }, []);
+
+  const completeOnboarding = useCallback((lang, curr) => {
+    if (lang) setLanguage(lang);
+    if (curr) setCurrency(curr);
+    localStorage.setItem('sb_onboarded', '1');
+    localStorage.setItem('sb_lang_suggested', '1'); // skip the zone banner afterwards
+    setSuggestedCode('');
+    setShowOnboarding(false);
+  }, [setLanguage, setCurrency]);
   // Flattened label bundles by lang code (FR base always present as fallback).
   const [bundles, setBundles] = useState(() => ({ ..._bundleCache }));
 
@@ -259,6 +278,14 @@ export const LocaleProvider = ({ children }) => {
   return (
     <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages, suggestion, acceptSuggestion, dismissSuggestion }}>
       {children}
+      <OnboardingModal
+        open={showOnboarding}
+        languages={languages}
+        currencies={CURRENCIES}
+        initialLang={language}
+        initialCurrency={currency}
+        onConfirm={completeOnboarding}
+      />
       <LanguageSuggestionBanner />
     </LocaleContext.Provider>
   );

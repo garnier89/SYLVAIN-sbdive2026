@@ -1,3 +1,10 @@
+## NEW - 2026-06-08 (75) - Onboarding Langue/Devise au 1er lancement (DONE, vérifié)
+- Nouveau composant `components/OnboardingModal.jsx` (motion bottom-sheet, branding orange #FF5000), branché dans `LocaleProvider` (`contexts/LocaleContext.js`).
+- Affiché si `localStorage.sb_onboarded` absent ; **masqué** sur chemins staff (`/admin|/chauffeur|/merchant|/dispatch|/kiosk`). `completeOnboarding(lang,curr)` applique langue+devise, pose `sb_onboarded=1` + `sb_lang_suggested=1` (supprime le banner zone), ferme.
+- Réutilise CURRENCIES (30) + languages (34, via /i18n/languages). data-testids: `onboarding-modal`, `onboarding-lang-{code}`, `onboarding-currency-{code}`, `onboarding-confirm-btn`.
+- **Vérifié** screenshot + interaction (EN+USD → Continuer → fermé, sb_onboarded=1). Lint clean, webpack OK. Note: réordonné `completeOnboarding` après `setSuggestedCode` pour éviter erreurs react-compiler.
+
+
 ## NEW - 2026-06-08 (74) - 13 images de voiture générées (Nano Banana) + intégrées (DONE, vérifié)
 - User a finalement demandé d'ajouter les images. Script `backend/scripts/gen_vehicle_images.py` : génère via **Gemini Nano Banana** (`gemini-3.1-flash-image-preview`, EMERGENT_LLM_KEY) une illustration par véhicule, fond blanc → **transparent** (PIL keying near-white), recadrage bbox + canvas 128×128 PNG, stocké en data-URI dans `vehicle_types.image_selected`/`image_unselected`.
 - 13 slugs traités OK : confort, luxe, moto, suv, van, electric, tuktuk, vtc, taxi, airport, pets, accessible, assist (0 échec).
