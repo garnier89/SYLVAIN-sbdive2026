@@ -10,6 +10,7 @@ import { useLocale } from '../../contexts/LocaleContext';
 import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
 import { MODES } from './taxihub/taxiHubConstants';
+import { prefetchPath } from '../../routes/useRoutePrefetch';
 import { homeCategoriesAPI, promoBannersAPI, configAPI } from '../../services/api';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 import {
@@ -83,11 +84,15 @@ const Visual = ({ service, size = 34 }) => {
 // variant 'below'  → big pastel square, icon inside, bold label below (4-col grids)
 // variant 'inside' → pastel tile with bold label on top + icon below (3-col grids)
 const ServiceTile = ({ service, variant = 'below', onSelect }) => {
+  const warm = () => prefetchPath((service.path || '').split('?')[0]);
   if (variant === 'inside') {
     return (
       <motion.button
         whileTap={{ scale: 0.94 }}
         onClick={() => onSelect(service.path)}
+        onPointerEnter={warm}
+        onFocus={warm}
+        data-prefetch={(service.path || '').split('?')[0]}
         data-testid={`service-${service.id}-btn`}
         className={`rounded-2xl ${service.bg} px-2 py-3 flex flex-col items-center justify-center gap-2.5 min-h-[112px] border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}
       >
@@ -100,6 +105,9 @@ const ServiceTile = ({ service, variant = 'below', onSelect }) => {
     <motion.button
       whileTap={{ scale: 0.92 }}
       onClick={() => onSelect(service.path)}
+      onPointerEnter={warm}
+      onFocus={warm}
+      data-prefetch={(service.path || '').split('?')[0]}
       data-testid={`service-${service.id}-btn`}
       className="flex flex-col items-center group"
     >
