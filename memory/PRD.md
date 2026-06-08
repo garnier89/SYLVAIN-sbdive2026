@@ -1,3 +1,12 @@
+## NEW - 2026-06-08 (70) - Refactor P2 : extraction des tableaux de services de UserHome.js (DONE)
+- **Tâche backlog P2** : `UserHome.js` (~710 l) trop gros → extraire les données statiques.
+- **Fait** : nouveau module `pages/user/userHomeServices.js` (119 l) exportant `TAXI_DEFAULT`, `TAXI_VISUAL` + les 10 tableaux de tuiles (taxiServices, deliveryServices, videoCategories, onDemandServices, beautyServices, petServices, bidServices, carCareServices, towingServices, nearbyServices) avec leurs imports d'icônes Phosphor. `UserHome.js` les importe ; liste d'icônes élaguée aux seules encore utilisées dans le JSX. **UserHome.js : 710 → 584 lignes**. Refactor pur (données déplacées verbatim, aucun changement de comportement).
+- **Vérifié** : lint clean (no-undef confirme toutes les références résolues, 0 import inutilisé), webpack compile (1 warning pré-existant). **testing_agent iteration_166.json — 100%** : `/home` rend les 8 tuiles taxi canoniques + toutes les sections (Livraison, Beauté, Auto, Remorquage, Animaux, Médical, à demande, proximité), navigation des tuiles OK (Tous les Taxis→/taxi, Livraison Repas→/food, Beauté→/beauty), bottom nav OK, 0 erreur JS/ReferenceError, 0 image cassée.
+- **Note data** : `service_categories.visible_home` avait re-dérivé (tests) → remis aux 7 canoniques (book_later, electric, intercity, moto, pool, rental, standard).
+- ⚠️ PREVIEW → redéploiement requis pour la production.
+
+
+
 ## NEW - 2026-06-08 (69) - Bouton « Aperçu de l'accueil » (preview admin) (DONE)
 - **Demande user** : un bouton dans l'admin pour visualiser l'accueil client (ordre/visibilité) avant de déployer.
 - **Contrainte** : `/home` est réservé au rôle `user` → un onglet/iframe redirigerait l'admin. Solution : **aperçu fidèle intégré** (modale cadre téléphone) rendu depuis la config live.
