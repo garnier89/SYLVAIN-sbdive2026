@@ -7,7 +7,7 @@
  *
  * ⚠️ Données SIMULÉES tant que la clé Navitia/GTFS n'est pas branchée.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -16,10 +16,12 @@ import {
   Lightning, ArrowsClockwise, CaretRight, Ticket, CarProfile, Scales, PersonSimpleWalk,
   House, Briefcase, ShareNetwork, ClockCounterClockwise, Trash,
 } from '@phosphor-icons/react';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { transportAPI, placesAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import JourneyMap from './transport/JourneyMap';
+import { GMAPS_LOADER_OPTIONS } from '../../lib/googleMaps';
 import { LiveBadge, DisruptionBanner, DisruptionHistory } from '../../components/transport/transportAlerts';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -38,6 +40,8 @@ const TransportPublicPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { money } = useLocale();
+  const { isLoaded } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
+  const autoFrom = useRef(true); // departure is auto-filled until the user edits it
   const [stops, setStops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fallback, setFallback] = useState(false);
@@ -83,6 +87,20 @@ const TransportPublicPage = () => {
   }, [fetchNearby]);
 
   useEffect(() => { locate(false); }, [locate]);
+
+  // Reverse-geocode the user's position into a real address and auto-fill the
+  // departure field (until the user manually edits it). Runs once Maps is ready.
+  useEffect(() => {
+    if (!isLoaded || !coords || !autoFrom.current || !window.google?.maps?.Geocoder) return;
+    let cancelled = false;
+    const g = new window.google.maps.Geocoder();
+    g.geocode({ location: { lat: coords.lat, lng: coords.lng } }, (res, status) => {
+      if (cancelled || !autoFrom.current) return;
+      const addr = status === 'OK' && res?.[0] ? res[0].formatted_address : null;
+      if (addr) setJFrom({ address: addr, lat: coords.lat, lng: coords.lng });
+    });
+    return () => { cancelled = true; };
+  }, [isLoaded, coords]);
 
   // Bus vs VTC — fetch a VTC estimate for the line's trip (this stop → terminus).
   const toggleCompare = useCallback(async (stop, ln) => {
@@ -155,6 +173,7 @@ const TransportPublicPage = () => {
     })();
     const fl = searchParams.get('from_lat'), tl = searchParams.get('to_lat');
     if (fl && tl) {
+      autoFrom.current = false;
       setJFrom({ address: searchParams.get('from_label') || 'Départ', lat: parseFloat(fl), lng: parseFloat(searchParams.get('from_lng')) });
       setJTo({ address: searchParams.get('to_label') || 'Destination', lat: parseFloat(tl), lng: parseFloat(searchParams.get('to_lng')) });
     }
@@ -224,7 +243,7 @@ const TransportPublicPage = () => {
           <div className="space-y-2">
             <div className="border-l-4 border-[#0B1426] pl-2">
               <label className="text-[10px] tracking-wide uppercase font-bold text-slate-500 flex items-center gap-1"><MapPin size={10} /> Départ</label>
-              <GooglePlacesInput value={jFrom?.address || ''} onSelect={setJFrom} placeholder="Point de départ" testId="journey-from-input" />
+              <GooglePlacesInput value={jFrom?.address || ''} onSelect={(p) => { autoFrom.current = false; setJFrom(p); }} placeholder="Point de départ" testId="journey-from-input" />
             </div>
             <div className="border-l-4 border-[#FF5000] pl-2">
               <label className="text-[10px] tracking-wide uppercase font-bold text-slate-500 flex items-center gap-1"><MapPin size={10} className="text-[#FF5000]" /> Destination</label>

@@ -72,3 +72,29 @@ def test_create_requires_title():
     s = _admin_session()
     r = s.post(f"{BASE_URL}/api/transport/admin/disruptions", json={"type": "delay", "title": "  "}, timeout=20)
     assert r.status_code == 400
+
+
+def test_strike_creates_working_vtc_coupon_and_exposes_code():
+    """Declaring a strike must auto-provision the -15% first-VTC coupon and expose
+    its code on the public disruptions endpoint (for the cross-sell banner)."""
+    s = _admin_session()
+    r = s.post(f"{BASE_URL}/api/transport/admin/disruptions",
+               json={"type": "strike", "title": "Grève coupon test", "message": "x"}, timeout=20)
+    assert r.status_code == 200, r.text
+    did = r.json()["id"]
+    try:
+        pub = requests.get(f"{BASE_URL}/api/transport/disruptions", timeout=20).json()
+        assert pub["has_strike"] is True
+        assert pub["strike_coupon"] == "GREVE15"
+        assert pub["strike_discount_percent"] == 15
+        # the coupon must actually validate at checkout for a real user
+        cs = requests.Session()
+        lr = cs.post(f"{BASE_URL}/api/auth/login",
+                     json={"email": "clienttest@demo.sb", "password": "Client2026!"}, timeout=30)
+        if lr.status_code == 200:
+            v = cs.post(f"{BASE_URL}/api/coupons/validate",
+                        json={"code": "GREVE15", "amount": 30}, timeout=20).json()
+            assert v["valid"] is True
+            assert round(v["discount_amount"], 2) == 4.5  # 15% of 30
+    finally:
+        s.delete(f"{BASE_URL}/api/transport/admin/disruptions/{did}", timeout=20)

@@ -31,6 +31,7 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from core.config import db
 from core.permissions import require_permission
 from core.deps import get_current_user
+from core.notifications import create_notification
 
 router = APIRouter(prefix="/transport", tags=["transport"])
 
@@ -483,6 +484,8 @@ async def stop_departures(stop_id: str, mins: int = None):
 
 # ── disruptions & strikes (perturbations / grèves) ────────────────────────────
 DISRUPTION_TYPES = {"strike", "cancellation", "delay", "reduced", "detour", "info"}
+STRIKE_COUPON_CODE = "GREVE15"
+STRIKE_DISCOUNT_PERCENT = 15
 
 
 def _disruption_active(d, now_iso):
@@ -534,8 +537,11 @@ async def _active_disruptions():
 async def disruptions():
     """Active disruptions (manual + live GTFS-RT alerts), strikes first."""
     active = await _active_disruptions()
+    has_strike = any(d.get("type") == "strike" for d in active)
     return {"disruptions": active, "count": len(active),
-            "has_strike": any(d.get("type") == "strike" for d in active),
+            "has_strike": has_strike,
+            "strike_coupon": STRIKE_COUPON_CODE if has_strike else None,
+            "strike_discount_percent": STRIKE_DISCOUNT_PERCENT if has_strike else None,
             "mocked": True}
 
 
@@ -575,6 +581,53 @@ async def admin_list_disruptions(current_user: dict = Depends(require_permission
     return {"disruptions": items}
 
 
+async def _ensure_strike_coupon():
+    """Ensure a working first-VTC discount coupon exists & is active for strikes."""
+    existing = await db.coupons.find_one({"code": STRIKE_COUPON_CODE})
+    if existing:
+        if existing.get("status") != "active":
+            await db.coupons.update_one({"code": STRIKE_COUPON_CODE}, {"$set": {"status": "active"}})
+        return STRIKE_COUPON_CODE
+    await db.coupons.insert_one({
+        "id": f"cpn_{uuid.uuid4().hex[:10]}", "code": STRIKE_COUPON_CODE,
+        "description": "Grève transports — 15% sur votre course VTC",
+        "discount_type": "Percentage", "discount_value": STRIKE_DISCOUNT_PERCENT,
+        "max_discount": 15, "status": "active", "usage_limit": 0, "used": 0,
+        "per_user_limit": 1, "expiry_date": None, "source": "transport_strike",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return STRIKE_COUPON_CODE
+
+
+async def _strike_audience():
+    """Riders to notify on a strike. The transport network is regional, so we
+    reach all riders; public-transport users (transport_journeys) are naturally
+    included. Returns a set of user ids."""
+    ids = set()
+    async for u in db.users.find({"role": "user"}, {"_id": 0, "id": 1}).limit(5000):
+        if u.get("id"):
+            ids.add(u["id"])
+    return ids
+
+
+async def _run_strike_notify(did):
+    """Idempotently notify riders of a newly-active strike + attach a -15% VTC coupon."""
+    d = await db.transport_disruptions.find_one({"id": did}, {"_id": 0})
+    if not d or d.get("type") != "strike" or not d.get("active", True) or d.get("notified_at"):
+        return
+    # Mark first (before fan-out) to avoid double sends on races / re-toggles.
+    await db.transport_disruptions.update_one(
+        {"id": did}, {"$set": {"notified_at": datetime.now(timezone.utc).isoformat()}})
+    code = await _ensure_strike_coupon()
+    title = "🚍 Bus en grève près de chez vous"
+    body = (f"{d.get('title') or 'Réseau perturbé'} — évitez l'attente : "
+            f"-{STRIKE_DISCOUNT_PERCENT}% sur votre VTC avec le code {code}.")
+    data = {"route": "/course?mode=standard", "coupon": code,
+            "discount_percent": STRIKE_DISCOUNT_PERCENT, "disruption_id": did}
+    for uid in await _strike_audience():
+        await create_notification(uid, "transport_strike", title, body, data=data)
+
+
 @router.post("/admin/disruptions")
 async def admin_create_disruption(request: Request, current_user: dict = Depends(require_permission("content.manage"))):
     data = _parse_disruption(await request.json())
@@ -585,6 +638,8 @@ async def admin_create_disruption(request: Request, current_user: dict = Depends
                  "created_at": now_iso, "updated_at": now_iso})
     await db.transport_disruptions.insert_one(dict(data))
     data.pop("_id", None)
+    if data["type"] == "strike" and data["active"]:
+        asyncio.create_task(_run_strike_notify(data["id"]))
     return data
 
 
@@ -598,6 +653,8 @@ async def admin_update_disruption(did: str, request: Request, current_user: dict
     if not r.matched_count:
         raise HTTPException(404, "Perturbation introuvable")
     d = await db.transport_disruptions.find_one({"id": did}, {"_id": 0})
+    if data["type"] == "strike" and data["active"]:
+        asyncio.create_task(_run_strike_notify(did))
     return d
 
 

@@ -85,6 +85,12 @@ export const DisruptionBanner = ({ strikesOnly = false, vtcRoute = '/course?mode
               <p className="text-[12px] text-white/80 mt-1 leading-snug">
                 {list.find((d) => d.type === 'strike')?.message || 'Évitez l’attente : un chauffeur VTC vous emmène directement à destination.'}
               </p>
+              {data.strike_coupon && (
+                <p className="text-[12px] font-bold text-white mt-1.5 inline-flex items-center gap-1.5" data-testid="strike-coupon">
+                  <Lightning size={13} weight="fill" className="text-[#FF5000]" />
+                  −{data.strike_discount_percent}% avec le code <span className="bg-[#FF5000] text-[#0B1426] px-1.5 py-0.5 rounded font-black tracking-wide">{data.strike_coupon}</span>
+                </p>
+              )}
             </div>
           </div>
           <button onClick={() => navigate(vtcRoute)} data-testid="strike-book-vtc-btn"
