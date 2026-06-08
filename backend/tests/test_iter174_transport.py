@@ -105,8 +105,43 @@ def test_journey_with_transfer():
     assert plan["total_fare"] >= rides[0]["fare"] + rides[1]["fare"] - 0.001
 
 
-# ── journey history (per user) ──────────────────────────────────────────────────
-def test_journeys_requires_auth():
+# ── GTFS Martinique (real data) ──────────────────────────────────────────────
+# Fort-de-France (centre) — dense GTFS network area.
+FDF = {"lat": 14.6036, "lng": -61.0730}
+
+
+def test_gtfs_nearby_returns_real_stops():
+    # mins=480 (08:00) ensures theoretical departures regardless of test run time.
+    r = requests.get(f"{BASE_URL}/api/transport/nearby", params={**FDF, "mins": 480}, timeout=25)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["realtime"] is False
+    assert data["theoretical"] is True
+    gtfs_stops = [s for s in data["stops"] if s.get("source") == "gtfs"]
+    assert len(gtfs_stops) >= 1, "expected real GTFS stops near Fort-de-France"
+    s0 = gtfs_stops[0]
+    assert s0["distance_m"] is not None
+    # at least one line with theoretical departures
+    assert any(len(l.get("departures", [])) > 0 for l in s0.get("lines", []))
+
+
+def test_gtfs_modes_bus_and_tcsp_present():
+    r = requests.get(f"{BASE_URL}/api/transport/nearby", params={**FDF, "mins": 480, "radius_km": 1.0}, timeout=25)
+    data = r.json()
+    modes = {l["mode"] for s in data["stops"] if s.get("source") == "gtfs" for l in s.get("lines", [])}
+    assert "bus" in modes or "tcsp" in modes
+
+
+def test_gtfs_stop_departures_board():
+    r = requests.get(f"{BASE_URL}/api/transport/nearby", params={**FDF, "mins": 480}, timeout=25)
+    gtfs = [s for s in r.json()["stops"] if s.get("source") == "gtfs"]
+    sid = gtfs[0]["id"]
+    r2 = requests.get(f"{BASE_URL}/api/transport/stops/{sid}/departures", params={"mins": 480}, timeout=20)
+    assert r2.status_code == 200, r2.text
+    board = r2.json()
+    assert board["id"] == sid and board["source"] == "gtfs"
+    assert board["realtime"] is False
+
     r = requests.get(f"{BASE_URL}/api/transport/journeys", timeout=15)
     assert r.status_code == 401
 

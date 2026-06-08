@@ -21,7 +21,7 @@ temps réel des lignes — pas de table d'horaires figée à maintenir.
 """
 import math
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 
@@ -179,6 +179,100 @@ async def _load_lines_with_terminus():
     return lines
 
 
+# ── GTFS (real data — Martinique, théorique) ──────────────────────────────────
+GTFS_MODE_BY_TYPE = {0: "tram", 1: "metro", 2: "rail", 3: "bus", 4: "ferry",
+                     5: "tram", 6: "gondola", 7: "funicular", 11: "bus", 12: "metro"}
+GTFS_MODE_COLOR = {"bus": "#2563EB", "tcsp": "#DC2626", "ferry": "#0EA5E9",
+                   "tram": "#0891B2", "metro": "#7C3AED", "rail": "#475569"}
+
+
+def _martinique_now():
+    """Current local time in Martinique (America/Martinique = UTC-4, no DST)."""
+    n = datetime.now(timezone.utc) - timedelta(hours=4)
+    now_sec = n.hour * 3600 + n.minute * 60 + n.second
+    return now_sec, n.strftime("%Y%m%d"), n.weekday(), n.strftime("%H:%M")
+
+
+async def _active_services(feed, yyyymmdd, weekday_idx):
+    """GTFS service_ids running on a given date (calendar + calendar_dates)."""
+    days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    active = set()
+    async for c in db.transport_calendar.find({"feed": feed}, {"_id": 0}):
+        if c.get("start_date", "") <= yyyymmdd <= c.get("end_date", "") and c.get(days[weekday_idx]):
+            active.add(c["service_id"])
+    async for e in db.transport_calendar_dates.find({"feed": feed, "date": yyyymmdd}, {"_id": 0}):
+        if e.get("exception_type") == 1:
+            active.add(e["service_id"])
+        elif e.get("exception_type") == 2:
+            active.discard(e["service_id"])
+    return active
+
+
+def _gtfs_mode(feed, route):
+    # TCSP (Mozaïk) = lignes A / B de la zone Centre, ou nom contenant "TCSP"
+    sn = (route.get("short_name") or "").strip().upper()
+    ln = (route.get("long_name") or "").upper()
+    if "TCSP" in ln or (feed == "mq-centre" and sn in ("A", "B")):
+        return "tcsp"
+    return GTFS_MODE_BY_TYPE.get(route.get("route_type", 3), "bus")
+
+
+def _gtfs_color(mode, route):
+    c = (route.get("color") or "").strip()
+    if c and not c.startswith("#"):
+        c = "#" + c
+    return c or GTFS_MODE_COLOR.get(mode, "#2563EB")
+
+
+async def _gtfs_lines(feed, stop_id, now_sec, active, per_line=4, limit_lines=8):
+    """Next THEORETICAL departures at a GTFS stop, grouped by line/destination."""
+    sts = await db.transport_stop_times.find(
+        {"feed": feed, "stop_id": stop_id, "dep_sec": {"$gte": now_sec}},
+        {"_id": 0, "trip_id": 1, "dep_sec": 1},
+    ).sort("dep_sec", 1).limit(200).to_list(200)
+    if not sts:
+        return []
+    trip_ids = list({s["trip_id"] for s in sts})
+    trips = {}
+    async for t in db.transport_trips.find(
+            {"feed": feed, "trip_id": {"$in": trip_ids}},
+            {"_id": 0, "trip_id": 1, "route_id": 1, "service_id": 1, "headsign": 1}):
+        trips[t["trip_id"]] = t
+    route_ids = list({t["route_id"] for t in trips.values()})
+    routes = {}
+    async for r in db.transport_routes.find({"feed": feed, "route_id": {"$in": route_ids}}, {"_id": 0}):
+        routes[r["route_id"]] = r
+
+    grouped, order = {}, []
+    for s in sts:
+        t = trips.get(s["trip_id"])
+        if not t or t["service_id"] not in active:
+            continue
+        r = routes.get(t["route_id"])
+        if not r:
+            continue
+        dest = (t.get("headsign") or r.get("long_name") or "").strip()
+        key = (t["route_id"], dest)
+        if key not in grouped:
+            mode = _gtfs_mode(feed, r)
+            grouped[key] = {
+                "line_id": f"{feed}:{t['route_id']}:{len(order)}",
+                "code": (r.get("short_name") or r.get("route_id") or "").strip(),
+                "name": (r.get("long_name") or r.get("short_name") or "").strip(),
+                "mode": mode, "color": _gtfs_color(mode, r), "destination": dest,
+                "departures": [], "fare": None, "ride_min": 0, "dest_lat": None, "dest_lng": None,
+            }
+            order.append(key)
+        if len(grouped[key]["departures"]) < per_line:
+            grouped[key]["departures"].append({
+                "time": _fmt_hm(s["dep_sec"] // 60),
+                "eta_min": max(0, (s["dep_sec"] - now_sec) // 60),
+            })
+    lines = [grouped[k] for k in order]
+    lines.sort(key=lambda L: L["departures"][0]["eta_min"] if L["departures"] else 9999)
+    return lines[:limit_lines]
+
+
 # ── public ───────────────────────────────────────────────────────────────────
 @router.get("/nearby")
 async def nearby(lat: float = None, lng: float = None, mins: int = None,
@@ -190,7 +284,10 @@ async def nearby(lat: float = None, lng: float = None, mins: int = None,
     device geolocation lands far from any seeded network).
     """
     now_min = mins if mins is not None else _now_min_utc()
-    stops = await db.transport_stops.find({"is_active": True}, {"_id": 0}).to_list(2000)
+    g_now_sec, g_date, g_wd, g_hhmm = _martinique_now()
+    if mins is not None:
+        g_now_sec = mins * 60  # allow client override for testing
+    stops = await db.transport_stops.find({"is_active": True}, {"_id": 0}).to_list(5000)
     lines = await _load_lines_with_terminus()
 
     fallback = False
@@ -218,26 +315,49 @@ async def nearby(lat: float = None, lng: float = None, mins: int = None,
         selected = [(None, s) for s in stops if s.get("zone") == first_zone][:MAX_NEARBY_STOPS]
 
     items = []
+    active_cache = {}
     for d, s in selected:
         shaped = _shape_stop(s, distance_km=d)
-        shaped["lines"] = _stop_lines(s["id"], lines, now_min, per_line=3)
+        shaped["realtime"] = False  # temps réel indisponible — horaire théorique
+        if s.get("source") == "gtfs":
+            feed = s["feed"]
+            if feed not in active_cache:
+                active_cache[feed] = await _active_services(feed, g_date, g_wd)
+            shaped["source"] = "gtfs"
+            shaped["lines"] = await _gtfs_lines(feed, s["stop_id"], g_now_sec, active_cache[feed])
+        else:
+            shaped["source"] = "mock"
+            shaped["lines"] = _stop_lines(s["id"], lines, now_min, per_line=3)
         items.append(shaped)
 
-    return {"stops": items, "fallback": fallback, "now": _fmt_hm(now_min),
-            "mocked": True}
+    has_gtfs = any(it["source"] == "gtfs" for it in items)
+    return {"stops": items, "fallback": fallback,
+            "now": g_hhmm if has_gtfs else _fmt_hm(now_min),
+            "realtime": False, "theoretical": True, "mocked": True}
 
 
 @router.get("/stops/{stop_id}/departures")
 async def stop_departures(stop_id: str, mins: int = None):
-    """Full next-departures board for a single stop."""
-    now_min = mins if mins is not None else _now_min_utc()
+    """Full next-departures board for a single stop (theoretical)."""
     s = await db.transport_stops.find_one({"id": stop_id}, {"_id": 0})
     if not s:
         raise HTTPException(404, "Arrêt introuvable")
-    lines = await _load_lines_with_terminus()
     shaped = _shape_stop(s)
-    shaped["lines"] = _stop_lines(stop_id, lines, now_min, per_line=5)
-    shaped["now"] = _fmt_hm(now_min)
+    shaped["realtime"] = False
+    if s.get("source") == "gtfs":
+        g_now_sec, g_date, g_wd, g_hhmm = _martinique_now()
+        if mins is not None:
+            g_now_sec = mins * 60
+        active = await _active_services(s["feed"], g_date, g_wd)
+        shaped["source"] = "gtfs"
+        shaped["lines"] = await _gtfs_lines(s["feed"], s["stop_id"], g_now_sec, active, per_line=6)
+        shaped["now"] = g_hhmm
+    else:
+        now_min = mins if mins is not None else _now_min_utc()
+        lines = await _load_lines_with_terminus()
+        shaped["source"] = "mock"
+        shaped["lines"] = _stop_lines(stop_id, lines, now_min, per_line=5)
+        shaped["now"] = _fmt_hm(now_min)
     shaped["mocked"] = True
     return shaped
 
@@ -264,7 +384,8 @@ def plan_journey(stops, lines, flat, flng, tlat, tlng):
     import heapq
 
     stop_by_id = {s["id"]: s for s in stops
-                  if s.get("lat") is not None and s.get("lng") is not None and s.get("is_active", True)}
+                  if s.get("lat") is not None and s.get("lng") is not None
+                  and s.get("is_active", True) and s.get("source") != "gtfs"}
     if not stop_by_id:
         return {"found": False}
 
@@ -353,7 +474,7 @@ def plan_journey(stops, lines, flat, flng, tlat, tlng):
 @router.get("/journey")
 async def journey(from_lat: float, from_lng: float, to_lat: float, to_lng: float, mins: int = None):
     """Fastest public-transport itinerary (with transfers) for a real trip."""
-    stops = await db.transport_stops.find({"is_active": True}, {"_id": 0}).to_list(2000)
+    stops = await db.transport_stops.find({"is_active": True, "source": {"$ne": "gtfs"}}, {"_id": 0}).to_list(2000)
     lines = await _load_lines_with_terminus()
     plan = plan_journey(stops, lines, from_lat, from_lng, to_lat, to_lng)
     plan["mocked"] = True
@@ -437,7 +558,7 @@ def _parse_stop(body):
 
 @router.get("/admin/stops")
 async def admin_list_stops(current_user: dict = Depends(require_permission("content.manage"))):
-    stops = await db.transport_stops.find({}, {"_id": 0}).sort("name", 1).to_list(2000)
+    stops = await db.transport_stops.find({"source": {"$ne": "gtfs"}}, {"_id": 0}).sort("name", 1).to_list(2000)
     return {"stops": stops}
 
 
@@ -528,6 +649,36 @@ async def admin_update_line(line_id: str, request: Request, current_user: dict =
 async def admin_delete_line(line_id: str, current_user: dict = Depends(require_permission("content.manage"))):
     await db.transport_lines.delete_one({"id": line_id})
     return {"ok": True}
+
+
+async def ensure_gtfs_imported():
+    """One-time import of GTFS Martinique (real data) if not present yet.
+
+    Runs in a worker thread (the importer is synchronous: pymongo + requests).
+    Idempotent: skips when GTFS stops already exist (preview / after a deploy).
+    """
+    import asyncio
+    try:
+        if await db.transport_stops.count_documents({"source": "gtfs"}) > 0:
+            return
+
+        def _run():
+            from scripts.import_gtfs_martinique import (
+                _db, import_feed, ensure_indexes, cleanup_mock_fdf, FEEDS,
+            )
+            d = _db()
+            for fk in FEEDS:
+                try:
+                    import_feed(d, fk)
+                except Exception:
+                    pass
+            ensure_indexes(d)
+            cleanup_mock_fdf(d)
+
+        await asyncio.to_thread(_run)
+    except Exception:
+        pass
+
 
 
 # ── seed (idempotent, MOCK data) ──────────────────────────────────────────────

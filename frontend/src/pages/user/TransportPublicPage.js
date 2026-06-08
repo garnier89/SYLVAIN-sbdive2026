@@ -194,6 +194,19 @@ const TransportPublicPage = () => {
       </div>
 
       <div className="px-5 -mt-3">
+        {/* Accès écran dédié — Transports autour de moi (GTFS Martinique réel) */}
+        <button onClick={() => navigate('/transports-autour')} data-testid="nearby-transit-entry"
+          className="w-full mb-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 flex items-center gap-3 text-left shadow-sm hover:border-[#FF5000] transition-colors">
+          <span className="w-11 h-11 rounded-xl bg-[#FFF1EC] flex items-center justify-center flex-shrink-0">
+            <NavigationArrow size={22} weight="fill" className="text-[#FF5000]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm text-[#0B1426] leading-tight">Transports autour de moi · Martinique</p>
+            <p className="text-[11px] text-slate-400">Bus, TCSP & navettes en temps réel théorique (GTFS)</p>
+          </div>
+          <CaretRight size={16} className="text-slate-300 flex-shrink-0" />
+        </button>
+
         {/* Journey planner — real trip (origin → destination) with transfers */}
         <div className="bg-white rounded-2xl border border-[#E2E8F0] p-4 mb-3 shadow-sm" data-testid="journey-planner">
           <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1">

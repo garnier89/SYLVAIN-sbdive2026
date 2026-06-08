@@ -414,6 +414,13 @@ async def run_all_seeds():
         logger.info("Transport (public transit) seeded")
     except Exception as e:
         logger.error(f"Transport seed failed: {e}")
+    try:
+        import asyncio as _asyncio
+        from routes.transport import ensure_gtfs_imported
+        _asyncio.create_task(ensure_gtfs_imported())   # GTFS Martinique (real data, one-time)
+        logger.info("GTFS Martinique import scheduled (if missing)")
+    except Exception as e:
+        logger.error(f"GTFS import scheduling failed: {e}")
 
 
 @asynccontextmanager

@@ -67,6 +67,7 @@ export const AdvancedTaxiBookingPage = lazy(() => import('../pages/user/Advanced
 export const CorporateAccountPage = lazy(() => import('../pages/user/CorporateAccountPage'));
 export const TaxiHubPage = lazyWithPreload(() => import('../pages/user/TaxiHubPage'));
 export const TransportPublicPage = lazy(() => import('../pages/user/TransportPublicPage'));
+export const NearbyTransitPage = lazy(() => import('../pages/user/NearbyTransitPage'));
 export const ServicesHubPage = lazy(() => import('../pages/user/ServicesHubPage'));
 export const MyServiceBookingsPage = lazy(() => import('../pages/user/MyServiceBookingsPage'));
 export const ScheduledRidesPage = lazy(() => import('../pages/user/ScheduledRidesPage'));

@@ -83,7 +83,13 @@ const RideChoosePage = () => {
   const [schedConfig, setSchedConfig] = useState({ enabled: true, min_advance_minutes: 60, max_advance_days: 30, disabled_modes: ['pool', 'bidding'] });
 
   const [pickup, setPickup] = useState(null);
-  const [dropoff, setDropoff] = useState(null);
+  const [dropoff, setDropoff] = useState(() => {
+    // Pre-filled destination via query params (e.g. "Réserver un VTC jusqu'à cet arrêt")
+    const dlat = params.get('dlat'), dlng = params.get('dlng');
+    return (dlat && dlng)
+      ? { lat: parseFloat(dlat), lng: parseFloat(dlng), address: params.get('daddr') || 'Arrêt' }
+      : null;
+  });
   const [vtypes, setVtypes] = useState([]);
   const [estimates, setEstimates] = useState({}); // slug -> { fare, duration, distance, loading, error }
   const [selected, setSelected] = useState(null);
