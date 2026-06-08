@@ -70,18 +70,25 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const loginWithGoogle = () => {
+  const loginWithGoogle = (roleHint = 'user') => {
+    // Remember whether the user is signing in as a client or a chauffeur so the
+    // backend can assign the right role to a brand-new Google account (the OAuth
+    // redirect drops query state, so we stash it in sessionStorage).
+    try { sessionStorage.setItem('sb_oauth_role', roleHint === 'driver' ? 'driver' : 'user'); } catch (e) { /* ignore */ }
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     const redirectUrl = window.location.origin + '/auth/callback';
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
 
   const handleGoogleCallback = async (sessionId) => {
+    let roleHint = 'user';
+    try { roleHint = sessionStorage.getItem('sb_oauth_role') || 'user'; } catch (e) { /* ignore */ }
     const response = await axios.post(
       `${API_URL}/api/auth/google/session`,
-      { session_id: sessionId },
+      { session_id: sessionId, role_hint: roleHint },
       { withCredentials: true }
     );
+    try { sessionStorage.removeItem('sb_oauth_role'); } catch (e) { /* ignore */ }
     setUser(response.data.user);
     return response.data;
   };

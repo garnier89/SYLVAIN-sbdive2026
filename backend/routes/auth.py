@@ -292,6 +292,11 @@ async def refresh_token(request: Request, response: Response):
 async def google_session(request: Request, response: Response):
     body = await request.json()
     session_id = body.get("session_id")
+    # role_hint lets a brand-new Google account land as a CLIENT or a CHAUFFEUR
+    # depending on which login screen they came from. Existing accounts keep their role.
+    role_hint = body.get("role_hint", "user")
+    if role_hint not in ("user", "driver"):
+        role_hint = "user"
     if not session_id:
         raise HTTPException(status_code=400, detail="Session ID required")
 
@@ -304,6 +309,8 @@ async def google_session(request: Request, response: Response):
             if resp.status_code != 200:
                 raise HTTPException(status_code=401, detail="Invalid session")
             google_data = resp.json()
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Google auth error: {e}")
         raise HTTPException(status_code=500, detail="Authentication failed")
@@ -321,8 +328,9 @@ async def google_session(request: Request, response: Response):
         user_id = f"user_{uuid.uuid4().hex[:12]}"
         user = {
             "id": user_id, "email": email, "password_hash": "",
-            "name": google_data.get("name", "User"), "phone": None, "role": "user",
+            "name": google_data.get("name", "User"), "phone": None, "role": role_hint,
             "is_verified": True, "avatar_url": google_data.get("picture"),
+            "auth_provider": "google",
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.users.insert_one(user)

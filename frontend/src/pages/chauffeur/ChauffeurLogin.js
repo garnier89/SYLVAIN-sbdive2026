@@ -192,7 +192,7 @@ const ChauffeurLogin = () => {
                   <span className="text-base font-medium text-gray-900 flex-1 text-left">Apple</span>
                   <CaretRight size={18} className="text-gray-400" />
                 </button>
-                <button onClick={() => { setShowAccountModal(false); loginWithGoogle && loginWithGoogle(); }} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-google-btn">
+                <button onClick={() => { setShowAccountModal(false); loginWithGoogle && loginWithGoogle('driver'); }} className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 rounded-xl transition-colors" data-testid="login-google-btn">
                   <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                     <svg width="20" height="20" viewBox="0 0 24 24">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
