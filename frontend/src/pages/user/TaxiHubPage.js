@@ -18,6 +18,7 @@ import MapLocationPicker from '../../components/MapLocationPicker';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { corporateAPI, couponAPI, placesAPI, configAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
+import { getGeocoder } from '../../lib/googleMaps';
 import { TaxiModeGrid } from './taxihub/TaxiModeGrid';
 import { TaxiModePanels } from './taxihub/TaxiModePanels';
 import { TaxiCheckoutSection } from './taxihub/TaxiCheckoutSection';
@@ -98,18 +99,18 @@ const TaxiHubPage = () => {
 
   // ── Geolocation + reverse geocoding (auto-localize departure) ──
   const reverseGeocode = (lat, lng) => new Promise((resolve) => {
-    const tryGeocode = () => {
-      if (!window.google?.maps) return resolve(null);
-      const geocoder = new window.google.maps.Geocoder();
+    const run = async () => {
+      const geocoder = await getGeocoder();
+      if (!geocoder) return resolve(null);
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
         resolve(status === 'OK' && results?.[0] ? results[0].formatted_address : null);
       });
     };
-    if (window.google?.maps) return tryGeocode();
+    if (window.google?.maps) return run();
     let tries = 0;
     const iv = setInterval(() => {
       tries += 1;
-      if (window.google?.maps) { clearInterval(iv); tryGeocode(); }
+      if (window.google?.maps) { clearInterval(iv); run(); }
       else if (tries > 25) { clearInterval(iv); resolve(null); }
     }, 300);
   });

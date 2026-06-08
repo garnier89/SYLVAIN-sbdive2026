@@ -19,3 +19,27 @@ export const GMAPS_LOADER_OPTIONS = {
   language: 'fr',
   region: 'FR',
 };
+
+/**
+ * Returns a ready-to-use google.maps.Geocoder instance, or null if Maps isn't
+ * loaded. Google's async loader (loading=async) exposes the `google.maps`
+ * namespace BEFORE the classes are ready, so `new google.maps.Geocoder()` can
+ * throw "Geocoder is not a constructor". This helper prefers the direct
+ * constructor and falls back to `importLibrary('geocoding')` (the supported way
+ * to lazily load a class), guaranteeing the constructor is available.
+ */
+export async function getGeocoder() {
+  const maps = window.google?.maps;
+  if (!maps) return null;
+  if (typeof maps.Geocoder === 'function') {
+    try { return new maps.Geocoder(); } catch (e) { /* fall through to importLibrary */ }
+  }
+  if (typeof maps.importLibrary === 'function') {
+    try {
+      const lib = await maps.importLibrary('geocoding');
+      const Ctor = lib?.Geocoder || maps.Geocoder;
+      return typeof Ctor === 'function' ? new Ctor() : null;
+    } catch (e) { return null; }
+  }
+  return null;
+}

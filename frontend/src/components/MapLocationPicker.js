@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, X, NavigationArrow } from '@phosphor-icons/react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { GMAPS_LOADER_OPTIONS } from '../lib/googleMaps';
+import { GMAPS_LOADER_OPTIONS, getGeocoder } from '../lib/googleMaps';
 
 const DEFAULT_CENTER = { lat: 48.8566, lng: 2.3522 }; // Paris
 
@@ -28,8 +28,10 @@ const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClo
       center, zoom: 15, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy',
     });
     setReady(true);
-    const geocoder = new window.google.maps.Geocoder();
-    const update = () => {
+    let geocoder = null;
+    const update = async () => {
+      if (!geocoder) geocoder = await getGeocoder();
+      if (!geocoder || !mapObj.current) return;
       const c = mapObj.current.getCenter();
       geocoder.geocode({ location: { lat: c.lat(), lng: c.lng() } }, (results, status) => {
         if (!cancelled && status === 'OK' && results?.[0]) setAddress(results[0].formatted_address);

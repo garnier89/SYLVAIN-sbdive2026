@@ -23,6 +23,7 @@ import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import DynamicIcon from '../../components/DynamicIcon';
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
+import { getGeocoder } from '../../lib/googleMaps';
 
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
 
@@ -171,16 +172,19 @@ const RideChoosePage = () => {
     const vehicleMap = { 'vtc-taxi': 'sb', premium: 'luxe', van: 'van', 'moto-taxi': 'moto' };
     if (prefill.vehicle_type && vehicleMap[prefill.vehicle_type]) setSelected(vehicleMap[prefill.vehicle_type]);
     const geocode = (addr) => new Promise((resolve) => {
-      if (!addr || addr === 'current_location' || !window.google?.maps?.Geocoder) return resolve(null);
-      new window.google.maps.Geocoder().geocode({ address: `${addr}, France` }, (res, status) => {
-        if (status === 'OK' && res?.[0]) {
-          const loc = res[0].geometry.location;
-          resolve({ lat: loc.lat(), lng: loc.lng(), address: res[0].formatted_address || addr });
-        } else resolve(null);
-      });
+      if (!addr || addr === 'current_location') return resolve(null);
+      getGeocoder().then((geocoder) => {
+        if (!geocoder) return resolve(null);
+        geocoder.geocode({ address: `${addr}, France` }, (res, status) => {
+          if (status === 'OK' && res?.[0]) {
+            const loc = res[0].geometry.location;
+            resolve({ lat: loc.lat(), lng: loc.lng(), address: res[0].formatted_address || addr });
+          } else resolve(null);
+        });
+      }).catch(() => resolve(null));
     });
     const waitMaps = (cb, tries = 0) => {
-      if (window.google?.maps?.Geocoder) return cb();
+      if (window.google?.maps) return cb();
       if (tries > 30) return undefined;
       return setTimeout(() => waitMaps(cb, tries + 1), 200);
     };
@@ -232,25 +236,23 @@ const RideChoosePage = () => {
   }, [mode.id, corpId]);
 
   const reverseGeocode = (lat, lng, attempt = 0) => new Promise((resolve) => {
-    // Prefer the already-loaded Google Maps JS Geocoder (no CORS/referrer issues
-    // unlike the REST endpoint). Retry on throttling before falling back to coords.
-    try {
-      if (window.google?.maps?.Geocoder) {
-        new window.google.maps.Geocoder().geocode(
-          { location: { lat, lng } },
-          (results, status) => {
-            if (status === 'OK' && results?.[0]) { resolve(results[0].formatted_address); return; }
-            if (status === 'OVER_QUERY_LIMIT' && attempt < 2) {
-              setTimeout(() => reverseGeocode(lat, lng, attempt + 1).then(resolve), 1000 + attempt * 800);
-              return;
-            }
-            resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-          },
-        );
-        return;
-      }
-    } catch (e) { console.warn('[ride-choose] geocoder failed', e?.message); }
-    resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    // Prefer the Google Maps JS Geocoder (no CORS/referrer issues unlike the REST
+    // endpoint). Loaded via importLibrary fallback to survive the async loader.
+    // Retry on throttling before falling back to coords.
+    getGeocoder().then((geocoder) => {
+      if (!geocoder) { resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`); return; }
+      geocoder.geocode(
+        { location: { lat, lng } },
+        (results, status) => {
+          if (status === 'OK' && results?.[0]) { resolve(results[0].formatted_address); return; }
+          if (status === 'OVER_QUERY_LIMIT' && attempt < 2) {
+            setTimeout(() => reverseGeocode(lat, lng, attempt + 1).then(resolve), 1000 + attempt * 800);
+            return;
+          }
+          resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        },
+      );
+    }).catch((e) => { console.warn('[ride-choose] geocoder failed', e?.message); resolve(`${lat.toFixed(5)}, ${lng.toFixed(5)}`); });
   });
 
   // Load enabled payment methods (admin-configurable) + wallet balance.

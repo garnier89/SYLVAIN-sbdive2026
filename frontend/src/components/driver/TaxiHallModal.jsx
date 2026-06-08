@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { X, Taxi, CheckCircle } from '@phosphor-icons/react';
 import GooglePlacesInput from '../GooglePlacesInput';
 import { configAPI, rideAPI } from '../../services/api';
+import { getGeocoder } from '../../lib/googleMaps';
 
 const haversineKm = (a, b) => {
   if (!a || !b || a.lat == null || b.lat == null) return 0;
@@ -50,13 +51,15 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
     if (!gamme) { toast.error('Choisissez une gamme.'); return; }
     // Resolve the destination: prefer a picked Places result, else geocode the typed text.
     let target = dest;
-    if (!target && typedAddr.trim() && window.google?.maps) {
+    if (!target && typedAddr.trim()) {
       try {
-        const geocoder = new window.google.maps.Geocoder();
-        const { results } = await geocoder.geocode({ address: typedAddr });
-        if (results && results[0]) {
-          const loc = results[0].geometry.location;
-          target = { address: results[0].formatted_address, lat: loc.lat(), lng: loc.lng() };
+        const geocoder = await getGeocoder();
+        if (geocoder) {
+          const { results } = await geocoder.geocode({ address: typedAddr });
+          if (results && results[0]) {
+            const loc = results[0].geometry.location;
+            target = { address: results[0].formatted_address, lat: loc.lat(), lng: loc.lng() };
+          }
         }
       } catch { /* fall through */ }
     }

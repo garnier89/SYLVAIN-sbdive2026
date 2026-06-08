@@ -1,0 +1,35 @@
+{
+  "summary": "Targeted bug-fix verification for the Google Maps 'Geocoder is not a constructor' crash. Verified that /taxi (TaxiHubPage) and /course?mode=standard (RideChoosePage) load cleanly, render correctly, and never throw the constructor error. Geocoder access is now centralized through the new getGeocoder() helper in src/lib/googleMaps.js (direct constructor + importLibrary('geocoding') fallback), and all 4 listed consumers (TaxiHubPage, RideChoosePage, MapLocationPicker, TaxiHallModal) route through it.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "regression_checks": {
+    "taxi_hub_loads": "PASS - title 'Choisissez un service' rendered, 6 mode tiles visible (Taxi VTC, Pool-partage, Moto Taxi, Electric, Planifiez votre trajet, Mise a Dispo, etc.). No error overlay.",
+    "taxi_geolocate_no_crash": "PASS - no dedicated locate button on /taxi; navigation to the page already triggers reverse-geocode internally and did not crash.",
+    "course_standard_loads": "PASS - 'Taxi VTC' heading + departure card + 'Utiliser ma position actuelle' button render.",
+    "course_locate_button_no_crash": "PASS - clicking data-testid='ride-choose-locate' (geolocation granted, Paris 48.8566,2.3522) populated DEPART with '4 Pl. de l'Hotel de Ville, 75004 Paris, France' - reverse-geocode succeeded via getGeocoder(). No overlay, no constructor error.",
+    "map_location_picker": "NOT TESTED - no 'Definir sur la carte' entry point reachable from /taxi in current build (lower priority).",
+    "console_constructor_errors": "PASS - 0 occurrences of 'is not a constructor' across /taxi and /course flows.",
+    "error_overlay_iframe": "PASS - 0 sightings of react-error-overlay / webpack-dev-server-client-overlay iframe across the entire flow."
+  },
+  "console_noise_ignored_as_pre_existing": [
+    "401 polling errors (unrelated auth poll)",
+    "google.maps.places.Autocomplete deprecation warning (informational, unrelated)"
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "getGeocoder() helper is correctly async and resilient: direct constructor first, falls back to importLibrary('geocoding'), returns null otherwise - good defensive pattern.",
+    "All Geocoder consumers (TaxiHubPage L103, RideChoosePage L176/L242, MapLocationPicker L33, TaxiHallModal L56) confirmed routing through getGeocoder() via grep; no remaining 'new google.maps.Geocoder' call sites in the listed files."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% on requested regression assertions"},
+  "test_credentials": "rider.i18n@demo.sb / Rider123! via /login/email (successful, lands on /home)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug fix verified end-to-end. If you need to also cover MapLocationPicker, look for an entry point (e.g., 'Definir sur la carte' / 'Choisir sur la carte') on /course/* address inputs - it was not reachable from /taxi directly. Geolocation must be granted to the origin and a coordinate set (Paris 48.8566,2.3522 works) to exercise the reverse-geocode path."
+}
