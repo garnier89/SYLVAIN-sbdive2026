@@ -1,3 +1,14 @@
+## NEW - 2026-06-09 (102) - Conversion devise locale (CFA) sur les prix client (moteur + flux cœur, DONE/vérifié)
+- **Demande user** : afficher les prix dans la devise locale (CFA) automatiquement hors zone euro (confiance/conversion Afrique).
+- **Moteur** (NOUVEAU `lib/money.js`) : `EUR_RATES` (base EUR ; **XOF/XAF = parité fixe légale 655,957/€**, exacte ; autres devises = taux indicatifs statiques) + `convertFromEur()` + `formatMoney(amountEur, currency)` (décimales 0 pour XOF/XAF/JPY…, séparateurs `fr-FR`, symbole préfixe/suffixe selon devise). `LocaleContext.formatPrice` convertit désormais réellement et expose un alias `money`.
+- **Règle** : on convertit uniquement les **affichages prix en lecture seule** (tarifs, totaux, soldes, transactions, estimations). Les **champs de saisie de montant** (recharge, transfert wallet, enchère) restent en € pour préserver la cohérence backend (à convertir bidirectionnellement plus tard si besoin).
+- **Pages client converties** (import `useLocale` + `money()`) : `RideChoosePage` (tarifs estimés, CTA, prix/km, solde, dette annulation), `TaxiHubPage` (estimation hub, promo, pool, location/buddy), `CheckoutPage` (sous-total/livraison/total/unité/solde), `ServiceBookingFlow` (prix live, promo, base), `RideTrackingPage` (tarif course, frais annulation, shortfall), `FinancePage` (solde + transactions wallet).
+- **Vérifié** : portefeuille affiche « 0 CFA » en devise XOF (capture) ; conversion 30,75 € → 20 171 CFA exacte ; webpack compile. Admin pages laissées en € (intentionnel).
+- **RESTE À FAIRE (rollout)** : autres pages client encore en € — IntercityRidePage, TaxiBiddingPage, ParkingPage, GiftCardsPage, VideoConsultPage, OrderTracking, BiddingPage, Medical(Transport/Appointment), sous-pages Food/Delivery, etc. (~70 fichiers `€` restants, dont beaucoup admin à ne PAS toucher).
+- ⚠️ PREVIEW → **redéploiement requis** pour la prod.
+
+
+
 ## NEW - 2026-06-09 (101) - Langue/Devise : suppression onboarding+pop-up créole → défauts auto par région (DONE, vérifié)
 - **Demande user** : l'onboarding 1er lancement (grille langue+devise) était « très gros » ; retirer le pop-up créole. Garder **Français + Euro** par défaut (France & DOM-TOM) et **Français + CFA** pour l'Afrique francophone (Ouest=XOF, Centrale=XAF). Les écrans ne sont pas traduits en créole → on ne force pas le créole.
 - **Frontend** (`contexts/LocaleContext.js`) :

@@ -22,10 +22,12 @@ import { getGeocoder } from '../../lib/googleMaps';
 import { TaxiModeGrid } from './taxihub/TaxiModeGrid';
 import { TaxiModePanels } from './taxihub/TaxiModePanels';
 import { TaxiCheckoutSection } from './taxihub/TaxiCheckoutSection';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const TaxiHubPage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const cameFromGrid = !params.get('mode');
@@ -615,7 +617,7 @@ const TaxiHubPage = () => {
                     <p className="text-xs text-white/60 mt-0.5">{estimate?.distance_km?.toFixed(1)} km · {estimate?.duration_mins} min</p>
                   )}
                   {corpDiscount > 0 && <p className="text-[10px] text-emerald-400 font-bold mt-0.5">Remise entreprise -{corpDiscount}%</p>}
-                  {promoDiscount > 0 && <p className="text-[10px] text-emerald-400 font-bold mt-0.5">Code promo -{promoDiscount.toFixed(2)} €</p>}
+                  {promoDiscount > 0 && <p className="text-[10px] text-emerald-400 font-bold mt-0.5">Code promo -{money(promoDiscount)}</p>}
                   {(estimate?.pricing_reasons || []).map((reason, i) => (
                     <p key={`pr-${i}`} className="text-[10px] text-amber-400 font-bold mt-0.5" data-testid={`pricing-reason-${i}`}>⚡ {reason}</p>
                   ))}
@@ -691,7 +693,7 @@ const TaxiHubPage = () => {
                         <UsersThree size={20} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />
                         <span className={`text-2xl font-black ${active ? 'text-[#FF5000]' : 'text-[#0B1426]'}`}>{s}</span>
                       </div>
-                      <p className="text-sm font-bold text-[#0B1426] mt-2">{price.toFixed(2)} €</p>
+                      <p className="text-sm font-bold text-[#0B1426] mt-2">{money(price)}</p>
                       <p className="text-[10px] text-gray-400">{s === 1 ? 'place' : 'places'}</p>
                     </button>
                   );
@@ -707,9 +709,9 @@ const TaxiHubPage = () => {
                   <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-[#E9F9EF] border border-[#10B981]/30 p-3" data-testid="pool-savings-banner">
                     <Tag size={18} weight="fill" className="text-[#0B8A4B] mt-0.5 shrink-0" />
                     <p className="text-xs text-[#0B6B3A] leading-snug">
-                      <span className="font-black">Vous économisez {savings.toFixed(2)} €</span>{' '}
-                      en partageant&nbsp;: vous payez <span className="font-bold">{poolTotal.toFixed(2)} €</span>{' '}
-                      au lieu de <span className="line-through text-[#0B6B3A]/70">{separateTotal.toFixed(2)} €</span>{' '}
+                      <span className="font-black">Vous économisez {money(savings)}</span>{' '}
+                      en partageant&nbsp;: vous payez <span className="font-bold">{money(poolTotal)}</span>{' '}
+                      au lieu de <span className="line-through text-[#0B6B3A]/70">{money(separateTotal)}</span>{' '}
                       ({poolSeats} places réservées séparément).
                     </p>
                   </div>

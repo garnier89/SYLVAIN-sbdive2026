@@ -18,6 +18,7 @@ import DriverEnRouteView from './ride-tracking/DriverEnRouteView';
 import RouteEditModal from './ride-tracking/RouteEditModal';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
@@ -79,6 +80,7 @@ const STATUS_STEPS = [
 ];
 
 const RideTrackingPage = () => {
+  const { money } = useLocale();
   const { rideId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -199,7 +201,7 @@ const RideTrackingPage = () => {
         const d = await res.json();
         setRide((r) => (r ? { ...r, payment_method: method, payment_shortfall: d.shortfall, difference_in_cash: d.difference_in_cash } : r));
         setShowPayPicker(false);
-        if (d.difference_in_cash) toast.warning(`Solde insuffisant — différence de ${Number(d.shortfall).toFixed(2)} € à régler en espèces.`);
+        if (d.difference_in_cash) toast.warning(`Solde insuffisant — différence de ${money(Number(d.shortfall))} à régler en espèces.`);
         else toast.success('Moyen de paiement mis à jour');
       } else { toast.error('Échec du changement de paiement'); }
     } catch (err) {
@@ -410,7 +412,7 @@ const RideTrackingPage = () => {
       if (msg.ride_id !== rideId) return;
       setRide((prev) => (prev ? { ...prev, waiting_active: msg.active, waiting_charge: msg.charge } : prev));
       if (msg.active) toast.info("Le chauffeur a activé le temps d'attente — cette attente est facturée.");
-      else toast.success(`Attente terminée — ${Number(msg.charge || 0).toFixed(2)} € ajoutés à la course.`);
+      else toast.success(`Attente terminée — ${money(Number(msg.charge || 0))} ajoutés à la course.`);
     });
     const unsub2 = on('ride_accepted', (msg) => {
       if (msg.ride_id !== rideId) return;
@@ -615,7 +617,7 @@ const RideTrackingPage = () => {
               <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center mb-3"><Warning size={28} weight="fill" className="text-amber-600" /></div>
               <h3 className="text-lg font-black text-[#0B1426]">Politique d'annulation</h3>
               <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-                Si vous souhaitez annuler, il est préférable de le faire <b>maintenant</b> (gratuit). Passé <b>{cancelPolicy.free_min} min</b> après l'acceptation par un chauffeur, des <b>frais de {Number(cancelPolicy.fee).toFixed(2)} €</b> s'appliqueront.
+                Si vous souhaitez annuler, il est préférable de le faire <b>maintenant</b> (gratuit). Passé <b>{cancelPolicy.free_min} min</b> après l'acceptation par un chauffeur, des <b>frais de {money(Number(cancelPolicy.fee))}</b> s'appliqueront.
               </p>
               <button onClick={() => setShowPolicy(false)} className="mt-5 w-full py-3.5 rounded-xl bg-[#0B1426] text-white font-bold" data-testid="cancel-policy-ok">J'ai compris</button>
             </div>
@@ -686,7 +688,7 @@ const RideTrackingPage = () => {
             </div>
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
               <span className="text-[11px] text-gray-500 capitalize">{ride.vehicle_type} · {ride.distance_km?.toFixed(1)} km</span>
-              <span className="text-sm font-black text-[#0B1426]">{(ride.final_fare || ride.estimated_fare)?.toFixed(2)} €</span>
+              <span className="text-sm font-black text-[#0B1426]">{money((ride.final_fare || ride.estimated_fare) || 0)}</span>
             </div>
           </div>
 
@@ -795,7 +797,7 @@ const RideTrackingPage = () => {
             {ride.cancel_reason || 'Aucun chauffeur disponible pour le moment.'}
           </p>
           {ride.cancellation_fee > 0 && (
-            <p className="text-white text-xs font-bold mt-2">Frais d'annulation : {ride.cancellation_fee?.toFixed(2)} €</p>
+            <p className="text-white text-xs font-bold mt-2">Frais d'annulation : {money(ride.cancellation_fee || 0)}</p>
           )}
 
           <div className="mt-8 w-full max-w-sm bg-white/10 border border-white/25 rounded-2xl p-3 text-left" data-testid="ride-cancelled-route">
@@ -937,7 +939,7 @@ const RideTrackingPage = () => {
           <div className="border-t border-gray-200 mt-3 pt-3 flex items-center justify-between">
             <span className="font-semibold text-gray-900">Total</span>
             <span className="text-xl font-bold text-gray-900">
-              {(ride.final_fare || ride.estimated_fare)?.toFixed(2)} EUR
+              {money((ride.final_fare || ride.estimated_fare) || 0)}
             </span>
           </div>
         </div>
@@ -956,7 +958,7 @@ const RideTrackingPage = () => {
             </div>
             {ride.difference_in_cash && ride.payment_shortfall > 0 && (
               <p className="mt-2 text-[12px] text-amber-700 font-medium" data-testid="ride-payment-shortfall">
-                Solde insuffisant — différence de {Number(ride.payment_shortfall).toFixed(2)} € à régler en espèces.
+                Solde insuffisant — différence de {money(Number(ride.payment_shortfall))} à régler en espèces.
               </p>
             )}
             {showPayPicker && (

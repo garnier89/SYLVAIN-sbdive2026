@@ -26,6 +26,7 @@ import DynamicIcon from '../../components/DynamicIcon';
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 import { getGeocoder } from '../../lib/googleMaps';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
 
@@ -63,6 +64,7 @@ const formatScheduled = (iso) => {
 
 const RideChoosePage = () => {
   const navigate = useNavigate();
+  const { money } = useLocale();
   const [params] = useSearchParams();
   const routerLocation = useLocation();
   const modeId = params.get('mode') || 'standard';
@@ -447,7 +449,7 @@ const RideChoosePage = () => {
       if (dropoff?.lat) placesAPI.addRecent({ address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng }).catch(() => {});
       const cd = res.data?.carried_debt;
       if (cd && Number(cd.amount) > 0) {
-        toast.info(`Dette d'annulation de ${Number(cd.amount).toFixed(2)} € ajoutée à cette course.`, {
+        toast.info(`Dette d'annulation de ${money(Number(cd.amount))} ajoutée à cette course.`, {
           description: 'À régler avec le paiement de la course (espèces, carte ou portefeuille).',
         });
       }
@@ -521,11 +523,11 @@ const RideChoosePage = () => {
                   : (
                     <div>
                       {isPool && est.originalFare && est.originalFare > est.fare && (
-                        <p className="text-[11px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{est.originalFare.toFixed(2)} €</p>
+                        <p className="text-[11px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{money(est.originalFare)}</p>
                       )}
-                      <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>
+                      <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare != null ? money(est.fare) : '—'}</p>
                       {isPool && est.poolSavings > 0 && (
-                        <p className="text-[10px] font-bold text-emerald-600 leading-none" data-testid={`savings-${v.slug}`}>-{est.poolSavings.toFixed(2)} €</p>
+                        <p className="text-[10px] font-bold text-emerald-600 leading-none" data-testid={`savings-${v.slug}`}>-{money(est.poolSavings)}</p>
                       )}
                     </div>
                   )}
@@ -595,7 +597,7 @@ const RideChoosePage = () => {
           <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 flex items-start gap-2" data-testid="wallet-shortfall-notice">
             <Wallet size={16} weight="duotone" className="text-amber-600 mt-0.5 shrink-0" />
             <p className="text-[12px] text-amber-800 leading-snug">
-              Solde portefeuille : <b>{Number(walletBalance).toFixed(2)} €</b>. Insuffisant — la différence de <b>{(displayPrice - walletBalance).toFixed(2)} €</b> sera réglée en espèces.
+              Solde portefeuille : <b>{money(Number(walletBalance))}</b>. Insuffisant — la différence de <b>{money(displayPrice - walletBalance)}</b> sera réglée en espèces.
             </p>
           </div>
         )}
@@ -611,7 +613,7 @@ const RideChoosePage = () => {
       className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
       style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
       <Lightning size={20} weight="fill" />
-      {searching ? 'Recherche…' : `${isBidding ? 'Proposer mon tarif' : mode.cta || 'Demander'}${displayPrice != null && !isBidding ? ` · ${Number(displayPrice).toFixed(2)} €` : ''}`}
+      {searching ? 'Recherche…' : `${isBidding ? 'Proposer mon tarif' : mode.cta || 'Demander'}${displayPrice != null && !isBidding ? ` · ${money(Number(displayPrice))}` : ''}`}
     </button>
   );
 
@@ -766,7 +768,7 @@ const RideChoosePage = () => {
               <p className="text-[10px] tracking-wider uppercase text-[#FF5000] font-bold">{catName || mode.label}</p>
               <p className="text-xs text-white/60 mt-0.5">{isRental ? `Forfait ${RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.label}` : `${buddyHours}h de chauffeur dédié`}</p>
             </div>
-            <p className="text-3xl font-black" data-testid="single-price-value">{Number(displayPrice).toFixed(0)} <span className="text-base">€</span></p>
+            <p className="text-3xl font-black" data-testid="single-price-value">{money(Number(displayPrice))}</p>
           </div>
         )}
 
@@ -935,7 +937,7 @@ const ModeSpecificPanel = (p) => {
         {est.distance ? (
           <div className="flex items-center gap-2 flex-wrap mb-2" data-testid="intercity-info">
             <span className="text-[11px] font-bold text-[#8B5CF6] bg-[#8B5CF6]/10 rounded-full px-2 py-0.5">{est.distance} km</span>
-            {est.pricePerKm ? <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">{Number(est.pricePerKm).toFixed(2)} €/km</span> : null}
+            {est.pricePerKm ? <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">{money(Number(est.pricePerKm))}/km</span> : null}
             {est.duration ? <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">≈ {Math.round(est.duration / 60)}h{String(est.duration % 60).padStart(2, '0')}</span> : null}
           </div>
         ) : (

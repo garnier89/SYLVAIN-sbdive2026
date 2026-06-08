@@ -13,10 +13,12 @@ import {
 } from '@phosphor-icons/react';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 import { toast } from 'sonner';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const ICON_MAP = { CreditCard, Money, Wallet, DeviceMobile, Waves, Bank };
 
 const CheckoutPage = () => {
+  const { money } = useLocale();
   const { merchantId } = useParams();
   const navigate = useNavigate();
   const { methods: paymentMethods } = usePaymentMethods();
@@ -320,7 +322,7 @@ const CheckoutPage = () => {
                         <span>{m.label}</span>
                       </div>
                       {m.id === 'wallet' && (
-                        <span className="text-sm text-gray-500">Solde : {wallet.balance.toFixed(2)} €</span>
+                        <span className="text-sm text-gray-500">Solde : {money(wallet.balance)}</span>
                       )}
                     </Label>
                   </div>
@@ -338,7 +340,7 @@ const CheckoutPage = () => {
           <CardContent className="space-y-2">
             <div className="flex justify-between text-gray-600">
               <span>Sous-total</span>
-              <span>{subtotal.toFixed(2)} €</span>
+              <span>{money(subtotal)}</span>
             </div>
             <div className="flex justify-between text-gray-600">
               <span>Frais de livraison</span>
@@ -346,7 +348,7 @@ const CheckoutPage = () => {
             </div>
             <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t">
               <span>Total</span>
-              <span>{total.toFixed(2)} €</span>
+              <span>{money(total)}</span>
             </div>
           </CardContent>
         </Card>
@@ -362,7 +364,7 @@ const CheckoutPage = () => {
             disabled={loading}
             data-testid="place-order-btn"
           >
-            {loading ? 'Commande en cours…' : `Commander · ${total.toFixed(2).replace('.', ',')} €`}
+            {loading ? 'Commande en cours…' : `Commander · ${money(total)}`}
           </Button>
         </div>
       </div>

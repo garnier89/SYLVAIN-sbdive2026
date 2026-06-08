@@ -16,6 +16,7 @@ import GooglePlacesInput from './GooglePlacesInput';
 import MapLocationPicker from './MapLocationPicker';
 import { servicesAPI } from '../services/api';
 import { getServiceConfig } from '../data/serviceCatalog';
+import { useLocale } from '../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const PAYMENTS = [
@@ -25,6 +26,7 @@ const PAYMENTS = [
 ];
 
 const ServiceBookingFlow = () => {
+  const { money } = useLocale();
   const { serviceKey } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -98,7 +100,7 @@ const ServiceBookingFlow = () => {
   const applyPromo = async () => {
     if (!promoCode.trim()) return;
     const d = await fetchEstimate();
-    if (d?.promo_valid) toast.success(`Code promo appliqué : -${d.discount.toFixed(2)} €`);
+    if (d?.promo_valid) toast.success(`Code promo appliqué : -${money(d.discount)}`);
     else toast.error('Code promo invalide');
   };
 
@@ -288,7 +290,7 @@ const ServiceBookingFlow = () => {
             <p className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500 mb-1.5 flex items-center gap-1"><Tag size={11} /> Code promo</p>
             {promoOk ? (
               <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
-                <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5" data-testid="promo-applied"><CheckCircle size={16} weight="fill" /> {promoCode.toUpperCase()} · -{estimate.discount.toFixed(2)} €</span>
+                <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5" data-testid="promo-applied"><CheckCircle size={16} weight="fill" /> {promoCode.toUpperCase()} · -{money(estimate.discount)}</span>
                 <button onClick={() => { setPromoCode(''); fetchEstimate(); }} className="text-xs text-emerald-700 underline" data-testid="promo-clear">Retirer</button>
               </div>
             ) : (
@@ -306,9 +308,9 @@ const ServiceBookingFlow = () => {
                 className="bg-[#0B1426] text-white p-4 rounded-2xl flex items-center justify-between" data-testid="live-price-card">
                 <div>
                   <p className="text-[10px] tracking-[0.1em] uppercase font-bold" style={{ color: cfg.color }}>{subService.name}</p>
-                  <p className="text-xs text-white/60 mt-0.5">{quantity} × {subService.base_price}€{estimate.discount > 0 ? ` · promo -${estimate.discount.toFixed(2)}€` : ''}</p>
+                  <p className="text-xs text-white/60 mt-0.5">{quantity} × {money(subService.base_price)}{estimate.discount > 0 ? ` · promo -${money(estimate.discount)}` : ''}</p>
                 </div>
-                <p className="text-4xl font-black tracking-tighter" data-testid="live-price-value">{estimate.total.toFixed(2)}<span className="text-lg"> €</span></p>
+                <p className="text-4xl font-black tracking-tighter" data-testid="live-price-value">{money(estimate.total)}</p>
               </motion.div>
             )}
           </AnimatePresence>

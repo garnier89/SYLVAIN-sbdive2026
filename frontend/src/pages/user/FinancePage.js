@@ -8,6 +8,7 @@ import {
 } from '@phosphor-icons/react';
 import { useSbPayGoAvailability } from '../../hooks/useSbPayGoAvailability';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -16,6 +17,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
  * No external redirect — TopUp and Send Money are handled via modals.
  */
 const FinancePage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { available: zoneAvailable, zone, loading: zoneLoading } = useSbPayGoAvailability(user?.country);
@@ -103,7 +105,7 @@ const FinancePage = () => {
             <div className="h-9 w-32 bg-white/20 animate-pulse rounded mt-1" />
           ) : (
             <p className="text-3xl font-black" data-testid="finance-balance">
-              {balance?.toFixed(2)} <span className="text-base font-bold">{currency === 'EUR' ? '€' : currency}</span>
+              {money(balance || 0)}
             </p>
           )}
         </div>
@@ -150,7 +152,7 @@ const FinancePage = () => {
                 <p className="text-[11px] text-gray-500">{new Date(t.created_at).toLocaleString('fr-FR')}</p>
               </div>
               <p className={`text-sm font-bold ${t.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {t.type === 'credit' ? '+' : '-'}{Number(t.amount).toFixed(2)} €
+                {t.type === 'credit' ? '+' : '-'}{money(Number(t.amount))}
               </p>
             </div>
           ))}

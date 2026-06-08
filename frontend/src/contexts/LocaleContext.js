@@ -3,6 +3,7 @@ import api from '../services/api';
 import { useAuth } from './AuthContext';
 import { BASE_FLAT_FR, flatten, interpolate } from '../lib/i18nBase';
 import { getBrowserCountryCode } from '../lib/browserZone';
+import { formatMoney } from '../lib/money';
 
 // Module-level cache of fetched (flattened) bundles, keyed by lang code.
 const _bundleCache = { fr: BASE_FLAT_FR };
@@ -204,13 +205,10 @@ export const LocaleProvider = ({ children }) => {
     return interpolate(val, vars);
   }, [bundle]);
 
-  const formatPrice = (amount) => {
-    if (currency.code === 'EUR') return `${amount.toFixed(2)} ${currency.symbol}`;
-    return `${currency.symbol}${amount.toFixed(2)}`;
-  };
+  const formatPrice = (amount) => formatMoney(amount, currency);
 
   return (
-    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, t, currencies: CURRENCIES, languages }}>
+    <LocaleContext.Provider value={{ currency, setCurrency, language, setLanguage, formatPrice, money: formatPrice, t, currencies: CURRENCIES, languages }}>
       {children}
     </LocaleContext.Provider>
   );
