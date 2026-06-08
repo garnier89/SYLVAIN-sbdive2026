@@ -499,11 +499,12 @@ const RideChoosePage = () => {
                 const Icon = vehicleIcon(v);
                 const est = estimates[v.slug] || {};
                 const active = selected === v.slug;
+                const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
                 return (
                   <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
                     className={`w-full flex items-center gap-3 rounded-2xl border-2 p-3 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-transparent bg-white shadow-sm'}`}>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/15' : 'bg-gray-100'}`}>
-                      <Icon size={26} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />
+                      {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={26} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
@@ -520,6 +521,34 @@ const RideChoosePage = () => {
                         : <p className="text-base font-black text-[#0B1426]" data-testid={`price-${v.slug}`}>{est.fare?.toFixed(2)} €</p>}
                       {active && <CheckCircle size={16} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
                     </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Bidding: pick a vehicle (no live price — you name your fare) */}
+        {isBidding && bothSet && vtypes.length > 0 && (
+          <div className="mt-5" data-testid="bidding-vehicle-section">
+            <h2 className="text-base font-black text-[#0B1426] mb-1">Choisissez un véhicule</h2>
+            <p className="text-xs text-gray-500 mb-3">Sélectionnez le type de véhicule pour votre offre.</p>
+            <div className="grid grid-cols-2 gap-2.5">
+              {vtypes.map((v) => {
+                const active = selected === v.slug;
+                const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
+                const Icon = vehicleIcon(v);
+                return (
+                  <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`bidding-vehicle-${v.slug}`}
+                    className={`flex items-center gap-2.5 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-transparent bg-white shadow-sm'}`}>
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/15' : 'bg-gray-100'}`}>
+                      {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={24} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#0B1426] truncate text-sm">{v.name_fr || v.name || v.slug}</p>
+                      <span className="flex items-center gap-0.5 text-[11px] text-gray-400"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
+                    </div>
+                    {active && <CheckCircle size={16} weight="fill" className="text-[#FF5000] shrink-0" />}
                   </button>
                 );
               })}
