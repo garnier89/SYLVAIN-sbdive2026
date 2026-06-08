@@ -1,3 +1,13 @@
+## NEW - 2026-06-09 (109) - Transports publics : carte de l'itinéraire bus (polyligne + marqueurs) (DONE, testé 100%)
+- **Demande user** : tracer l'itinéraire bus sur une carte (polyligne des lignes dans leur couleur + marqueurs départ/destination/arrêts/correspondances) à côté du comparatif Bus vs VTC.
+- **Backend** (`routes/transport.py`) : les `legs` de `/api/transport/journey` incluent désormais les **coordonnées** — segments `ride` avec `via[]` (liste ordonnée {name,lat,lng} des arrêts traversés) + `from_lat/lng`/`to_lat/lng` ; segments `walk` avec `from_lat/lng`/`to_lat/lng` ; + `origin`/`dest` au niveau racine.
+- **Frontend** (NOUVEAU `pages/user/transport/JourneyMap.jsx`) : carte Google (réutilise `GMAPS_LOADER_OPTIONS`) — **polyligne par ligne** (couleur de la ligne, via les arrêts), **segments de marche en pointillés**, marqueurs **départ (vert)**, **destination (rouge)**, **embarquement (indigo)**, **correspondances (sombre)**, arrêts intermédiaires (points couleur ligne), `fitBounds` auto. Intégrée dans `TransportPublicPage.js` au-dessus de la liste des étapes (`journey-map`).
+- **Vérifié** : pytest `tests/test_iter174_transport.py` **10/10** (legs avec via/coords) + **testing_agent iteration_177 — frontend 100%** (carte rendue dans journey-result au-dessus des étapes, polyligne + marqueurs verts/rouges/arrêts, 0 erreur console). Webpack compile.
+- ⚠️ Itinéraire SIMULÉ. PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-09 (108) - Transports publics : planificateur de trajet réel (origine→destination, correspondances) + comparatif Bus vs VTC (DONE, testé 100%)
 - **Demande user** : comparatif Bus vs VTC sur un VRAI trajet saisi (origine → destination) avec itinéraire bus incluant les correspondances, au lieu de « jusqu'au terminus ».
 - **Backend** (`routes/transport.py`) : `GET /api/transport/journey?from_lat&from_lng&to_lat&to_lng&mins` — **planificateur Dijkstra** (temps optimal) sur le graphe des arrêts/lignes seedés. Arêtes de ligne **bidirectionnelles** (les bus circulent dans les 2 sens), marche d'accès/sortie (4,8 km/h, rayon 1,2 km, fallback arrêt le plus proche → jamais vide), attente d'embarquement = fréquence/2, **correspondances** par changement de ligne à un arrêt commun, **tarif cumulé** (1 ticket par embarquement). Renvoie `{found, total_min, total_fare, transfers, legs[]}` (legs = marche/ride avec ligne, de→vers, nb arrêts, minutes).
