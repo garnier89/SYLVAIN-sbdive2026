@@ -915,6 +915,64 @@ async def list_public_catalog(collection: str, limit: int = 100, skip: int = 0):
     return await cursor.to_list(limit)
 
 
+# Prefix used to generate ids per collection (keeps demo-style readable ids)
+_CATALOG_ID_PREFIX = {
+    "nearby_businesses": "nb", "beauty_salons": "bs", "pet_providers": "pp",
+    "car_services": "cs", "towing_partners": "tw", "ondemand_services": "od",
+}
+
+
+@router.post("/admin/catalogs/{collection}")
+async def admin_create_catalog_item(collection: str, request: Request):
+    """Create a new catalog item (admin CMS). Stores arbitrary fields from the body
+    plus a generated id and created_at. Used by the 'Commerces proches' admin page."""
+    await require_role(request, ["admin"], permission="content.manage")
+    if collection not in PUBLIC_CATALOGS:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    body = await request.json() if await request.body() else {}
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Invalid body")
+    body.pop("_id", None)
+    prefix = _CATALOG_ID_PREFIX.get(collection, "cat")
+    doc = {**body, "id": f"{prefix}_{uuid.uuid4().hex[:10]}",
+           "is_active": bool(body.get("is_active", True)),
+           "created_at": datetime.now(timezone.utc).isoformat()}
+    await db[collection].insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/admin/catalogs/{collection}/{item_id}")
+async def admin_update_catalog_item(collection: str, item_id: str, request: Request):
+    """Update an existing catalog item (admin CMS)."""
+    await require_role(request, ["admin"], permission="content.manage")
+    if collection not in PUBLIC_CATALOGS:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    body = await request.json() if await request.body() else {}
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Invalid body")
+    body.pop("_id", None)
+    body.pop("id", None)
+    body.pop("created_at", None)
+    result = await db[collection].update_one({"id": item_id}, {"$set": body})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    doc = await db[collection].find_one({"id": item_id}, {"_id": 0})
+    return doc
+
+
+@router.delete("/admin/catalogs/{collection}/{item_id}")
+async def admin_delete_catalog_item(collection: str, item_id: str, request: Request):
+    """Delete a catalog item (admin CMS)."""
+    await require_role(request, ["admin"], permission="content.manage")
+    if collection not in PUBLIC_CATALOGS:
+        raise HTTPException(status_code=404, detail="Catalog not found")
+    result = await db[collection].delete_one({"id": item_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Deleted"}
+
+
 @router.post("/admin/catalogs/{collection}/{item_id}/feature")
 async def admin_feature_catalog_item(collection: str, item_id: str, request: Request):
     """Admin endpoint to mark an item as featured for N days (default 30).

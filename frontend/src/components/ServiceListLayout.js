@@ -22,13 +22,16 @@ const ServiceListLayout = ({
   categories = null, categoryField = 'category',
   renderCard, emptyHint = "Aucun résultat",
   searchPlaceholder = "Rechercher...",
-  testId,
+  testId, initialCategory = null,
 }) => {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeCat, setActiveCat] = useState(null);
+  const [activeCat, setActiveCat] = useState(initialCategory);
+
+  // Re-sync the active chip when the incoming category (from URL) changes.
+  useEffect(() => { setActiveCat(initialCategory); }, [initialCategory]);
 
   useEffect(() => {
     let active = true;

@@ -158,6 +158,7 @@ export const AdminDbBackup = lazy(() => import('../pages/admin/AdminDbBackup'));
 export const AdminNegotiationGapReport = lazy(() => import('../pages/admin/AdminNegotiationGapReport'));
 export const AdminNoDriverStats = lazy(() => import('../pages/admin/AdminNoDriverStats'));
 export const AdminFeaturedListings = lazy(() => import('../pages/admin/AdminFeaturedListings'));
+export const AdminNearbyBusinesses = lazy(() => import('../pages/admin/AdminNearbyBusinesses'));
 export const AdminRealEstate = lazy(() => import('../pages/admin/AdminRealEstate'));
 export const AdminPharmacy = lazy(() => import('../pages/admin/AdminPharmacy'));
 export const AdminServiceSettings = lazy(() => import('../pages/admin/AdminServiceSettings'));

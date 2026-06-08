@@ -1,17 +1,29 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayout';
+
+// Full category set — mirrors the Home « À proximité » tiles + the original commerces.
+const NEARBY_CATEGORIES = [
+  'Café', 'Bar', 'Restaurant', 'Salon', 'Boulangerie', 'Pharmacie',
+  'Hôtel', 'Musée', 'Attraction', 'Bibliothèque', 'Vie Nocturne', 'Parking', 'Garage',
+];
 
 const NearbyBusinessPage = () => {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // Home tiles deep-link with ?category=<Catégorie> to pre-filter the list.
+  const rawCat = (params.get('category') || '').trim();
+  const initialCategory = NEARBY_CATEGORIES.find((c) => c === rawCat) || null;
+
   return (
     <ServiceListLayout
       title="Commerces Proches"
       collection="nearby_businesses"
       colorClass="bg-indigo-50 text-indigo-700"
-      categories={['Café', 'Bar', 'Salon', 'Boulangerie', 'Pharmacie', 'Restaurant']}
+      categories={NEARBY_CATEGORIES}
+      initialCategory={initialCategory}
       searchPlaceholder="Commerce, type..."
-      emptyHint="Aucun commerce à proximité"
+      emptyHint="Aucun commerce à proximité dans cette catégorie"
       testId="nearby-page"
       renderCard={({ item }) => (
         <ServiceCard

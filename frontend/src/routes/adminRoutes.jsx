@@ -15,7 +15,7 @@ import {
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
   AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications, AdminPaymentMethods,
   AdminSbPayGoZones, AdminDbBackup, AdminNegotiationGapReport, AdminNoDriverStats,
-  AdminFeaturedListings, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings,
+  AdminFeaturedListings, AdminNearbyBusinesses, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings,
   AdminKiosks, AdminACL, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
   AdminPromoBanners, AdminNews, AdminI18n, AdminGeoFence, AdminGiftCards, AdminReferralSettings,
   AdminBanners, AdminNewsletter, AdminKyc, AdminStores, AdminTemplates, AdminWeatherSurcharge,
@@ -120,6 +120,7 @@ export function adminRoutes() {
       <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
       <Route path="reports/no-driver-stats" element={<AdminNoDriverStats />} />
       <Route path="featured-listings" element={<AdminFeaturedListings />} />
+      <Route path="nearby-businesses" element={<AdminNearbyBusinesses />} />
       <Route path="real-estate" element={<AdminRealEstate />} />
       <Route path="pharmacy" element={<AdminPharmacy />} />
       <Route path="services-settings" element={<AdminServiceSettings />} />

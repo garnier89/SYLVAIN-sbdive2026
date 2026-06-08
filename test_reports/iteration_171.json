@@ -1,0 +1,36 @@
+{
+  "summary": "Iter171 — End-to-end regression of Commerces Proches (Nearby Businesses) wiring. Backend: 9/9 pytest pass (public catalog 22 items spanning all 13 required categories, home nearby section has 10 tiles all deep-linking to /nearby?category=<urlencoded French cat>, admin auth guards return 401 for unauth, admin CRUD POST/PUT/DELETE works with cookie auth, created item appears in public catalog and is removed after delete). Frontend admin: /admin/nearby-businesses lists 22 commerces; Ajouter→fill (form-name/category=Musée/address/rating/distance)→save shows new row with edit-{id}/delete-{id} testids; Edit→change name→save persists; Delete→confirm→row removed. Frontend client deep-link (logged in as buyer@demo.sb / Buyer2026!): /nearby?category=Mus%C3%A9e pre-selects the 'Musée' chip (cat-mus-e has bg-orange-600) and renders exactly 2 cards: Musée du Louvre + Musée d'Orsay. /nearby with no param shows 22 items with 'Tout' chip active.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/phase2/catalogs/nearby_businesses?category=Musée", "issue": "Public catalog endpoint ignores ?category= filter (returns all 22 categories instead of filtering server-side). Not a bug — frontend filters client-side via ServiceListLayout chips, and the spec implies client-side filtering. Mentioned only for awareness if server-side filtering is later desired."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter171_nearby_businesses.py",
+    "/app/test_reports/pytest/iter171_nearby.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminNearbyBusinesses.js — uses window.confirm() for delete confirmation (works but not consistent with sonner/shadcn dialogs used elsewhere). Functional, low priority.",
+    "ServiceListLayout exposes initialCategory and resets activeCat via useEffect when initialCategory changes — confirmed correct (works for direct deep-link and SPA navigation).",
+    "NearbyBusinessPage uses NEARBY_CATEGORIES.find((c) => c === rawCat) for exact match — works correctly with raw or url-encoded category values (browser auto-decodes search params). Verified with %C3%A9 (é) and direct 'Musée'.",
+    "Home nearby tiles deep-link routes are correctly urlencoded (Musée -> /nearby?category=Mus%C3%A9e, Hôtel -> /nearby?category=H%C3%B4tel, Café -> /nearby?category=Caf%C3%A9). All 10 tile target_routes pass the decode-and-validate check.",
+    "Admin endpoints require admin role and return 401 (unauth). Cookie-based auth works (access_token cookie set on login)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter171_nearby_businesses.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (admin CRUD + client deep-link + chip filter)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (admin); buyer@demo.sb / Buyer2026! (client email login via /login -> other options -> Email)",
+  "seed_data_creation": "Created+deleted 1 transient business per pytest run (TEST_BUSINESS_<rand>) and 1 transient business per UI run (TEST_UI_BUSINESS_xyz123) — both cleaned up by the same test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter171 verified the Commerces Proches wiring requested in the review. pytest file at /app/backend/tests/test_iter171_nearby_businesses.py covers public catalog count+categories, home-categories nearby section deep-link routes (urlencoded), admin auth guards, and full admin CRUD (POST/PUT/DELETE) with cookie auth. Frontend admin CRUD verified via Playwright on /admin/nearby-businesses with all data-testids (add-business-btn, form-name/category/address/rating/distance, dialog-save, edit-{id}, delete-{id}, business-row-{id}). Client deep-link verified by logging in as buyer@demo.sb / Buyer2026! via /login (Other options -> login-email-btn -> email-input/password-input/email-login-submit-btn) then navigating to /nearby?category=Mus%C3%A9e (cat-mus-e chip becomes active, only Musée du Louvre + Musée d'Orsay render) and to /nearby (cat-all active, 22 items). No regressions found.",
+  "rca of the issue": "N/A — feature is functional end-to-end."
+}

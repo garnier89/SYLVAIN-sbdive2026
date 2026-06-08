@@ -202,12 +202,41 @@ CATEGORY_SEEDS = {
         {"id": "tw_04", "name": "Allo Dépanneur", "address": "Banlieue Ouest & Nord", "phone": "+33800777888", "rating": 4.9, "response_time_mins": 20, "services": ["Démarrage", "Ouverture portière", "Carburant"], "available_24h": True, "price_from": 60.0},
     ],
     "nearby_businesses": [
-        {"id": "nb_01", "name": "Café de Flore", "category": "Café", "address": "172 Bd Saint-Germain, Paris 75006", "rating": 4.5, "distance_km": 0.8, "image": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400", "open_now": True},
-        {"id": "nb_02", "name": "Bar Le Mary Celeste", "category": "Bar", "address": "1 Rue Commines, Paris 75003", "rating": 4.7, "distance_km": 1.2, "image": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400", "open_now": True},
-        {"id": "nb_03", "name": "Salon Pure Beauty", "category": "Salon", "address": "10 Rue de Rivoli, Paris 75004", "rating": 4.6, "distance_km": 0.5, "image": "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=400", "open_now": True},
-        {"id": "nb_04", "name": "Boulangerie du Coin", "category": "Boulangerie", "address": "5 Rue de Turenne, Paris 75004", "rating": 4.8, "distance_km": 0.3, "image": "https://images.unsplash.com/photo-1568254183919-78a4f43a2877?w=400", "open_now": True},
-        {"id": "nb_05", "name": "Pharmacie Centrale", "category": "Pharmacie", "address": "21 Rue Saint-Antoine, Paris 75004", "rating": 4.4, "distance_km": 0.7, "image": "https://images.unsplash.com/photo-1631549916768-4119b4123a21?w=400", "open_now": True},
-        {"id": "nb_06", "name": "Le Petit Bistrot", "category": "Restaurant", "address": "33 Rue des Archives, Paris 75004", "rating": 4.6, "distance_km": 1.0, "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400", "open_now": False},
+        # — Café —
+        {"id": "nb_01", "name": "Café de Flore", "category": "Café", "address": "172 Bd Saint-Germain, Paris 75006", "phone": "+33145485526", "rating": 4.5, "distance_km": 0.8, "image": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_07", "name": "Le Procope Café", "category": "Café", "address": "13 Rue de l'Ancienne Comédie, Paris 75006", "phone": "+33140468879", "rating": 4.3, "distance_km": 1.1, "image": "https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=400", "open_now": True, "is_active": True},
+        # — Bar —
+        {"id": "nb_02", "name": "Bar Le Mary Celeste", "category": "Bar", "address": "1 Rue Commines, Paris 75003", "phone": "+33183567200", "rating": 4.7, "distance_km": 1.2, "image": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_08", "name": "Le Syndicat Cocktail", "category": "Bar", "address": "51 Rue du Faubourg Saint-Denis, Paris 75010", "phone": "+33666633424", "rating": 4.8, "distance_km": 1.8, "image": "https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400", "open_now": True, "is_active": True},
+        # — Salon —
+        {"id": "nb_03", "name": "Salon Pure Beauty", "category": "Salon", "address": "10 Rue de Rivoli, Paris 75004", "phone": "+33142781234", "rating": 4.6, "distance_km": 0.5, "image": "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=400", "open_now": True, "is_active": True},
+        # — Boulangerie —
+        {"id": "nb_04", "name": "Boulangerie du Coin", "category": "Boulangerie", "address": "5 Rue de Turenne, Paris 75004", "phone": "+33142712345", "rating": 4.8, "distance_km": 0.3, "image": "https://images.unsplash.com/photo-1568254183919-78a4f43a2877?w=400", "open_now": True, "is_active": True},
+        # — Pharmacie —
+        {"id": "nb_05", "name": "Pharmacie Centrale", "category": "Pharmacie", "address": "21 Rue Saint-Antoine, Paris 75004", "phone": "+33148876543", "rating": 4.4, "distance_km": 0.7, "image": "https://images.unsplash.com/photo-1631549916768-4119b4123a21?w=400", "open_now": True, "is_active": True},
+        # — Restaurant —
+        {"id": "nb_06", "name": "Le Petit Bistrot", "category": "Restaurant", "address": "33 Rue des Archives, Paris 75004", "phone": "+33142729090", "rating": 4.6, "distance_km": 1.0, "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400", "open_now": False, "is_active": True},
+        # — Musée —
+        {"id": "nb_09", "name": "Musée du Louvre", "category": "Musée", "address": "Rue de Rivoli, Paris 75001", "phone": "+33140205050", "rating": 4.9, "distance_km": 1.5, "image": "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_10", "name": "Musée d'Orsay", "category": "Musée", "address": "1 Rue de la Légion d'Honneur, Paris 75007", "phone": "+33140494814", "rating": 4.8, "distance_km": 2.0, "image": "https://images.unsplash.com/photo-1587974928442-77dc3e0dba72?w=400", "open_now": True, "is_active": True},
+        # — Hôtel —
+        {"id": "nb_11", "name": "Hôtel Le Marais", "category": "Hôtel", "address": "12 Rue de Sévigné, Paris 75004", "phone": "+33142780303", "rating": 4.5, "distance_km": 0.6, "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_12", "name": "Hôtel des Arts Montmartre", "category": "Hôtel", "address": "5 Rue Tholozé, Paris 75018", "phone": "+33146063052", "rating": 4.4, "distance_km": 3.2, "image": "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400", "open_now": True, "is_active": True},
+        # — Attraction —
+        {"id": "nb_13", "name": "Tour Eiffel", "category": "Attraction", "address": "Champ de Mars, Paris 75007", "phone": "+33892701239", "rating": 4.9, "distance_km": 3.5, "image": "https://images.unsplash.com/photo-1543349689-9a4d426bee8e?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_14", "name": "Arc de Triomphe", "category": "Attraction", "address": "Place Charles de Gaulle, Paris 75008", "phone": "+33155377377", "rating": 4.7, "distance_km": 4.1, "image": "https://images.unsplash.com/photo-1564660612075-04a1d27cf6b1?w=400", "open_now": True, "is_active": True},
+        # — Bibliothèque —
+        {"id": "nb_15", "name": "Bibliothèque BnF François-Mitterrand", "category": "Bibliothèque", "address": "Quai François Mauriac, Paris 75013", "phone": "+33153795959", "rating": 4.6, "distance_km": 2.8, "image": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_16", "name": "Bibliothèque Forney", "category": "Bibliothèque", "address": "1 Rue du Figuier, Paris 75004", "phone": "+33142781460", "rating": 4.5, "distance_km": 0.4, "image": "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=400", "open_now": False, "is_active": True},
+        # — Vie Nocturne —
+        {"id": "nb_17", "name": "Rex Club", "category": "Vie Nocturne", "address": "5 Bd Poissonnière, Paris 75002", "phone": "+33142362683", "rating": 4.6, "distance_km": 1.9, "image": "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_18", "name": "Le Comptoir Général", "category": "Vie Nocturne", "address": "80 Quai de Jemmapes, Paris 75010", "phone": "+33144882424", "rating": 4.5, "distance_km": 2.3, "image": "https://images.unsplash.com/photo-1545128485-c400e7702796?w=400", "open_now": True, "is_active": True},
+        # — Parking —
+        {"id": "nb_19", "name": "Parking Hôtel de Ville", "category": "Parking", "address": "6 Pl. Baudoyer, Paris 75004", "phone": "+33892277500", "rating": 4.1, "distance_km": 0.5, "image": "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_20", "name": "Parking Saint-Antoine", "category": "Parking", "address": "Rue de la Bastille, Paris 75004", "phone": "+33892277500", "rating": 4.0, "distance_km": 0.9, "image": "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=400", "open_now": True, "is_active": True},
+        # — Garage —
+        {"id": "nb_21", "name": "Garage du Centre", "category": "Garage", "address": "44 Rue de Charenton, Paris 75012", "phone": "+33143431212", "rating": 4.5, "distance_km": 1.4, "image": "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?w=400", "open_now": True, "is_active": True},
+        {"id": "nb_22", "name": "Auto Réparation Bastille", "category": "Garage", "address": "15 Av. Ledru-Rollin, Paris 75012", "phone": "+33143431313", "rating": 4.3, "distance_km": 1.6, "image": "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400", "open_now": False, "is_active": True},
     ],
     "ondemand_services": [
         {"id": "od_01", "name": "Bricoleur Express", "category": "Bricolage", "rating": 4.8, "price_from": 35.0, "price_unit": "/h", "image": "https://images.unsplash.com/photo-1581244277943-fe4a9c777189?w=400", "services": ["Montage meuble", "Petite réparation", "Étagère"]},

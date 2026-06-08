@@ -308,6 +308,58 @@ async def _run_route_migrations():
     )
 
 
+async def _seed_nearby_businesses_and_routes():
+    """Idempotent: ensure ALL demo nearby_businesses exist (upsert by id, so new
+    categories are added even when the collection isn't empty), and wire each Home
+    'À proximité' tile to its category filter (/nearby?category=<Catégorie>)."""
+    # 1) Upsert every demo business by id (adds new categories, keeps existing).
+    now_iso = _now()
+    for biz in CATEGORY_SEEDS.get("nearby_businesses", []):
+        await db.nearby_businesses.update_one(
+            {"id": biz["id"]},
+            {"$set": {**biz}, "$setOnInsert": {"created_at": now_iso}},
+            upsert=True,
+        )
+    # Backfill is_active on any legacy doc missing the flag.
+    await db.nearby_businesses.update_many(
+        {"is_active": {"$exists": False}}, {"$set": {"is_active": True}}
+    )
+
+    # 2) Ensure each Home 'À proximité' tile exists and points to its category
+    #    filter (/nearby?category=<Catégorie>). Idempotent upsert by (section,key)
+    #    so this is correct on both existing and freshly-seeded databases.
+    from urllib.parse import quote
+    # key, label, icon, bg, color, category
+    nearby_tiles = [
+        ("cafes", "Cafés", "Coffee", "bg-amber-50", "text-amber-600", "Café"),
+        ("salons", "Salons", "Scissors", "bg-pink-50", "text-pink-500", "Salon"),
+        ("bars", "Bars", "Wine", "bg-purple-50", "text-purple-500", "Bar"),
+        ("musees", "Musées", "Bank", "bg-purple-50", "text-purple-500", "Musée"),
+        ("attractions", "Attractions", "Confetti", "bg-pink-50", "text-pink-500", "Attraction"),
+        ("bibliotheques", "Bibliothèques", "BookOpen", "bg-blue-50", "text-blue-500", "Bibliothèque"),
+        ("vie-nocturne", "Vie\nNocturne", "MusicNotes", "bg-fuchsia-50", "text-fuchsia-500", "Vie Nocturne"),
+        ("hotels", "Hôtels", "Bed", "bg-rose-50", "text-rose-500", "Hôtel"),
+        ("parking", "Parking", "MapPin", "bg-sky-50", "text-sky-500", "Parking"),
+        ("garage", "Garage", "Wrench", "bg-slate-50", "text-slate-600", "Garage"),
+    ]
+    for order, (key, label, icon, bg, color, cat) in enumerate(nearby_tiles):
+        route = f"/nearby?category={quote(cat)}"
+        await db.home_categories.update_one(
+            {"section": "nearby", "key": key},
+            {
+                "$set": {"target_route": route},
+                "$setOnInsert": {
+                    "id": f"hcat_{uuid.uuid4().hex[:10]}", "section": "nearby", "key": key,
+                    "label_fr": label, "label_en": label, "subtitle_fr": "",
+                    "icon_name": icon, "image_url": None, "bg_class": bg,
+                    "icon_color_class": color, "display_order": order,
+                    "visible_home": True, "status": "active", "created_at": now_iso,
+                },
+            },
+            upsert=True,
+        )
+
+
 async def run_all_seeds():
     """Run the full startup seeding sequence (order matters)."""
     await _create_indexes()
@@ -330,6 +382,7 @@ async def run_all_seeds():
     await seed_home_categories()        # home categories CMS
     await seed_home_sections()          # home section layout (order + visibility)
     await seed_promo_banners()          # promo banners CMS
+    await _seed_nearby_businesses_and_routes()  # nearby commerces + tile category routes
     try:
         await seed_driver_categories()
         logger.info("Driver categories seeded")
