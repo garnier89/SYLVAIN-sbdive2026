@@ -1,0 +1,23 @@
+{
+  "summary": "Verified P2 maintainability refactor extracting 10 service-tile arrays + TAXI_VISUAL/TAXI_DEFAULT from UserHome.js (~710 lines) into pages/user/userHomeServices.js. No regressions detected. Login as rider.i18n@demo.sb lands on /home cleanly. All canonical taxi tiles (Taxi VTC, Pool-partage, Moto Taxi, Électric, Planifiez votre trajet, Mise à Dispo, Intercité, Tous les Taxis) render. Delivery, Beauté, Entretien Auto, Remorquage, Animaux, Médicaux, à demande, à proximité sections all render with tile grids and icons. Tile navigation works post-extraction: 'Tous les Taxis' → /taxi, Beauty tile → /beauty, Livraison Repas → /food. Bottom nav (Accueil/Mes courses/Portefeuille/Profil) renders. Zero JS runtime errors, zero ReferenceError for icons/arrays (no 'taxiServices is not defined', no 'Truck is not defined'). Zero broken images.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "userHomeServices.js extraction is clean (~120 lines, pure data, no side effects). Icon import list in UserHome.js correctly trimmed to only JSX-referenced icons; no unused imports leaked.",
+    "Note: live taxi grid is CMS-driven (renders 12 tiles via service_categories admin override). The 8-item static fallback in userHomeServices.taxiServices is unused when CMS is populated — verified the canonical 7 modes + 'Tous les Taxis' all appear via TAXI_VISUAL mapping. Behavior matches pre-refactor."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Rider: rider.i18n@demo.sb / Rider123! via /login/email — confirmed working",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Refactor verified in iteration_166. UserHome.js now imports static service catalogs from ./userHomeServices.js. Live taxi section is CMS-driven (12 active categories in admin); first 7 fallback modes + 'Tous les Taxis' (data-testid='service-more-taxi-btn') all render. Delivery section is also CMS-driven; tile testids use 'service-hcat_<id>-btn' format for CMS categories, while 'service-svccat-<key>-btn' is used for taxi categories. Login flow stable.",
+  "rca of the issue": "n/a — no issue. Pure refactor confirmed regression-free."
+}
