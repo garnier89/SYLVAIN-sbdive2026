@@ -12,6 +12,35 @@
  */
 const GKEY = process.env.REACT_APP_GOOGLE_MAPS_KEY || '';
 
+/**
+ * Resolve the user's full zone context: free-text address label + coordinates.
+ * Used to resolve admin-managed zones (geo radius + text match) for zone-aware
+ * shortcuts. Returns {label:'', lat:null, lng:null} on any failure.
+ */
+export function getBrowserZoneContext() {
+  return new Promise((resolve) => {
+    if (!GKEY || typeof navigator === 'undefined' || !navigator.geolocation) {
+      resolve({ label: '', lat: null, lng: null });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&language=fr&key=${GKEY}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          resolve({ label: data?.results?.[0]?.formatted_address || '', lat: latitude, lng: longitude });
+        } catch {
+          resolve({ label: '', lat: latitude, lng: longitude });
+        }
+      },
+      () => resolve({ label: '', lat: null, lng: null }),
+      { timeout: 6000, maximumAge: 600000 },
+    );
+  });
+}
+
 export function getBrowserLocationLabel() {
   return new Promise((resolve) => {
     if (!GKEY || typeof navigator === 'undefined' || !navigator.geolocation) {

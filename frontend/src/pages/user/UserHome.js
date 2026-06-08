@@ -11,8 +11,8 @@ import DynamicIcon from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
-import { homeCategoriesAPI, promoBannersAPI, configAPI, serviceTrendsAPI } from '../../services/api';
-import { getBrowserLocationLabel } from '../../lib/browserZone';
+import { homeCategoriesAPI, promoBannersAPI, configAPI, serviceTrendsAPI, zonesAPI } from '../../services/api';
+import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
 import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
 import {
   TAXI_DEFAULT, TAXI_VISUAL, taxiServices, deliveryServices, videoCategories,
@@ -114,6 +114,7 @@ const UserHome = () => {
   const navigate = useNavigate();
   const { shortcuts, recordTap } = useServiceShortcuts();
   const [trending, setTrending] = useState([]);
+  const [zoneShortcuts, setZoneShortcuts] = useState([]);
   const zoneRef = useRef('');
   // Single entry point for service-tile taps: remembers usage (for shortcuts),
   // pings the zone-aware trends tracker, then routes.
@@ -124,23 +125,54 @@ const UserHome = () => {
     navigate(service.path);
   }, [recordTap, navigate]);
 
-  // Trending services "near you" — global first (instant), then refined by zone.
+  // Trending services "near you" (organic) + admin-programmed zone shortcuts.
+  // Global trends load first (instant); once we resolve the user's zone we
+  // refine trends by zone AND fetch the shortcuts the admin scheduled for it.
   useEffect(() => {
     let alive = true;
     serviceTrendsAPI.trending().then((r) => { if (alive) setTrending(r.data.items || []); }).catch(() => {});
-    getBrowserLocationLabel().then((label) => {
-      const parts = (label || '').split(',').map((s) => s.trim()).filter(Boolean);
-      const zone = parts.slice(-2).join(', ');
-      if (!zone) return;
-      zoneRef.current = zone;
-      serviceTrendsAPI.trending(zone).then((r) => { if (alive && (r.data.items || []).length) setTrending(r.data.items); }).catch(() => {});
+    getBrowserZoneContext().then((ctx) => {
+      if (!alive) return;
+      const now = new Date();
+      const params = {
+        label: ctx.label || undefined,
+        lat: ctx.lat ?? undefined,
+        lng: ctx.lng ?? undefined,
+        dow: now.getDay(),
+        mins: now.getHours() * 60 + now.getMinutes(),
+        date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+      };
+      zonesAPI.resolve(params).then((r) => {
+        if (!alive) return;
+        const data = r.data || {};
+        if (Array.isArray(data.shortcuts)) setZoneShortcuts(data.shortcuts);
+        const tz = data.trend_zone || '';
+        if (tz && tz !== 'global') {
+          zoneRef.current = tz;
+          serviceTrendsAPI.trending(tz).then((tr) => { if (alive && (tr.data.items || []).length) setTrending(tr.data.items); }).catch(() => {});
+        }
+      }).catch(() => {});
     }).catch(() => {});
     return () => { alive = false; };
   }, []);
 
-  // Trending tiles the user hasn't already pinned as a personal shortcut.
-  const shortcutIds = new Set(shortcuts.map((s) => s.id));
-  const trendingShown = trending.filter((s) => !shortcutIds.has(s.id)).slice(0, 8);
+  // Shortcuts = admin-programmed zone shortcuts FIRST, then the user's personal
+  // most-used services (deduped by id/path), capped to a single scroll row.
+  const mergedShortcuts = (() => {
+    const seen = new Set();
+    const out = [];
+    for (const s of [...zoneShortcuts, ...shortcuts]) {
+      const key = s.id || s.path;
+      if (!key || seen.has(key) || seen.has(s.path)) continue;
+      seen.add(key); seen.add(s.path);
+      out.push(s);
+    }
+    return out.slice(0, 10);
+  })();
+
+  // Trending tiles the user hasn't already pinned as a shortcut.
+  const shortcutIds = new Set(mergedShortcuts.map((s) => s.id || s.path));
+  const trendingShown = trending.filter((s) => !shortcutIds.has(s.id) && !shortcutIds.has(s.path)).slice(0, 8);
   const [showSearch, setShowSearch] = useState(false);
   const [showDeliverySearch, setShowDeliverySearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -590,12 +622,12 @@ const UserHome = () => {
       <DebtBanner />
 
       <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-1">
-        {shortcuts.length >= 2 && (
+        {mergedShortcuts.length >= 2 && (
           <section className="px-4 mt-5" data-testid="shortcuts-section">
             <SectionHeader title="Vos raccourcis" />
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
-              {shortcuts.map((s) => (
-                <button key={s.id} onClick={() => go(s)} data-testid={`shortcut-${s.id}`} className="flex flex-col items-center shrink-0 w-[64px]">
+              {mergedShortcuts.map((s) => (
+                <button key={s.id || s.path} onClick={() => go(s)} data-testid={`shortcut-${s.id || s.path}`} className="flex flex-col items-center shrink-0 w-[64px]">
                   <div className={`w-14 h-14 rounded-2xl ${s.bg || 'bg-slate-100'} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)]`}>
                     <DynamicIcon name={s.iconName} imageUrl={s.imageUrl} size={28} className={s.iconColor} />
                   </div>

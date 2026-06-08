@@ -348,6 +348,17 @@ export const serviceTrendsAPI = {
   trending: (zone, limit = 8) => api.get('/service-trends/trending', { params: { zone, limit } }),
 };
 
+// Zones — admin-managed geographic zones + programmed (scheduled) shortcuts.
+export const zonesAPI = {
+  resolve: (params) => api.get('/zones/resolve', { params }),
+  adminList: () => api.get('/zones/admin/list'),
+  create: (data) => api.post('/zones/admin', data),
+  update: (id, data) => api.put(`/zones/admin/${id}`, data),
+  remove: (id) => api.delete(`/zones/admin/${id}`),
+  getShortcuts: (id) => api.get(`/zones/admin/${id}/shortcuts`),
+  setShortcuts: (id, entries) => api.put(`/zones/admin/${id}/shortcuts`, { entries }),
+};
+
 // Parcel delivery APIs (single & multi-drop)
 export const parcelAPI = {
   estimate: (data) => api.post('/parcels/estimate', data),

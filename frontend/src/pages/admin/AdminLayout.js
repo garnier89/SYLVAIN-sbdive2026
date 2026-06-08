@@ -185,6 +185,7 @@ const sidebarConfig = [
         { label: 'Catégories accueil', path: '/admin/home-categories' },
         { label: 'Bannières promo', path: '/admin/promo-banners' },
         { label: 'Commerces proches', path: '/admin/nearby-businesses' },
+        { label: 'Zones & raccourcis', path: '/admin/zones' },
       ]},
       { icon: Slideshow, label: "Écrans d'intro", key: 'intro', children: [
         { label: 'Slides', path: '/admin/intro' },

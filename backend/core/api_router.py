@@ -63,6 +63,7 @@ from routes.weekly_reports import router as weekly_reports_router, driver_router
 from routes.service_trends import router as service_trends_router
 from routes.newsletter import router as newsletter_router
 from routes.kyc import router as kyc_router
+from routes.zones import router as zones_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -80,7 +81,7 @@ _ROUTERS = [
     taxi_extra_public_router, driver_pro_router, parcels_router, chat_router, real_estate_router,
     real_estate_admin_router, pharmacy_router, pharmacy_admin_router, service_settings_router,
     service_settings_admin_router, weekly_reports_router, weekly_reports_driver_router,
-    service_trends_router, newsletter_router, kyc_router,
+    service_trends_router, newsletter_router, kyc_router, zones_router,
 ]
 
 
