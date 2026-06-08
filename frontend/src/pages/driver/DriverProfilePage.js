@@ -24,7 +24,6 @@ const DriverProfilePage = () => {
   const { user, logout } = useAuth();
   const { t } = useLocale();
   const { on } = useWebSocket(user?.id);
-  const soon = () => toast.info('Bientôt disponible');
   const [driver, setDriver] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [activity, setActivity] = useState(null);
@@ -196,7 +195,7 @@ const DriverProfilePage = () => {
     <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-28" data-testid="driver-profile-page">
       {/* ===== GREEN HEADER ===== */}
       <div className="px-5 pt-6 pb-5 relative" style={{ background: GREEN }}>
-        <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={soon} data-testid="settings-gear">
+        <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={openInfoEdit} data-testid="settings-gear">
           <Gear size={20} className="text-white" />
         </button>
         <div className="flex items-center gap-4 mt-2">
@@ -250,12 +249,12 @@ const DriverProfilePage = () => {
           {allowEditProfile && (
             <ProfileRow icon={IdentificationCard} color="#0EA5E9" label={t('driver.my_info')} onClick={openInfoEdit} />
           )}
-          <ProfileRow icon={MapPin} color="#EF4444" label={t('driver.manage_workplace')} onClick={soon} />
+          <ProfileRow icon={MapPin} color="#EF4444" label={t('driver.manage_workplace')} onClick={() => navigate('/chauffeur/availability')} />
           <ProfileRow icon={Images} color="#8B5CF6" label={t('driver.manage_gallery')} onClick={() => navigate('/chauffeur/gallery')} />
-          <ProfileRow icon={CalendarCheck} color="#A3A3A3" label={t('driver.my_availability')} onClick={soon} />
+          <ProfileRow icon={CalendarCheck} color="#A3A3A3" label={t('driver.my_availability')} onClick={() => navigate('/chauffeur/availability')} />
           <ProfileRow icon={ChartBar} color="#22C55E" label={t('driver.statistics')} onClick={() => navigate('/chauffeur/earnings')} />
-          <ProfileRow icon={ChatCircleText} color="#06B6D4" label={t('driver.user_comments')} onClick={soon} />
-          <ProfileRow icon={Receipt} color="#78716C" label={t('driver.waybill')} onClick={soon} />
+          <ProfileRow icon={ChatCircleText} color="#06B6D4" label={t('driver.user_comments')} onClick={() => navigate('/chauffeur/reviews')} />
+          <ProfileRow icon={Receipt} color="#78716C" label={t('driver.waybill')} onClick={() => navigate('/chauffeur/history')} />
           <ProfileRow icon={Bell} color="#F97316" label={t('menu.notifications')} onClick={() => navigate('/chauffeur/notifications')} />
           <ProfileRow icon={Newspaper} color="#FF4500" label={t('menu.news')} onClick={() => navigate('/chauffeur/actualites')} badge={newsUnread} />
           <ProfileRow icon={UsersThree} color="#EF4444" label={t('menu.invite_friends')} onClick={() => navigate('/referral')} />
@@ -268,8 +267,8 @@ const DriverProfilePage = () => {
         <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.account_settings')}</p>
         <div className="bg-white">
           <ProfileRow icon={Fingerprint} color="#64748B" label={t('menu.enable_faceid')} toggle onToggle={(v) => toast.success(v ? 'Face ID / Touch ID activé' : 'Face ID / Touch ID désactivé')} />
-          <ProfileRow icon={UserCircle} color="#D946EF" label={t('menu.manage_account')} onClick={soon} />
-          <ProfileRow icon={Key} color="#374151" label={t('menu.change_password')} onClick={soon} />
+          <ProfileRow icon={UserCircle} color="#D946EF" label={t('menu.manage_account')} onClick={openInfoEdit} />
+          <ProfileRow icon={Key} color="#374151" label={t('menu.change_password')} onClick={() => navigate('/chauffeur/change-password')} />
           {rewardsActive && appSettings.enable_driver_reward_program !== false && (
             <ProfileRow icon={Gift} color="#22C55E" label={t('driver.reward_program')} onClick={() => navigate('/chauffeur/rewards')} />
           )}

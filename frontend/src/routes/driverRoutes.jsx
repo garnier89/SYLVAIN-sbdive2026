@@ -7,6 +7,7 @@ import {
   DriverRewardsPage, DriverScorePage, DriverSubscriptions, DriverSupportPage, DriverWalletPage,
   DriverDocumentsPage, DriverNotificationsPage, NewsFeedPage, LiveChatPage,
   ManageVehiclesPage, BankDetailsPage, DriverEarningsStatsPage, DriverGalleryPage,
+  DriverAvailabilityPage, DriverReviewsPage, DriverChangePasswordPage,
   DriverRegisterPage,
 } from './pages';
 
@@ -36,6 +37,9 @@ export function driverRoutes(user) {
       <Route path="/chauffeur/bank" element={<ProtectedRoute allowedRoles={['driver']}><BankDetailsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/earnings/stats" element={<ProtectedRoute allowedRoles={['driver']}><DriverEarningsStatsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/gallery" element={<ProtectedRoute allowedRoles={['driver']}><DriverGalleryPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/availability" element={<ProtectedRoute allowedRoles={['driver']}><DriverAvailabilityPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/reviews" element={<ProtectedRoute allowedRoles={['driver']}><DriverReviewsPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/change-password" element={<ProtectedRoute allowedRoles={['driver']}><DriverChangePasswordPage /></ProtectedRoute>} />
       <Route path="/driver/register" element={<ProtectedRoute allowedRoles={['user', 'driver']}><DriverRegisterPage /></ProtectedRoute>} />
     </>
   );

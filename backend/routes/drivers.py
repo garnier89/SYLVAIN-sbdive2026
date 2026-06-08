@@ -343,6 +343,77 @@ async def request_profile_info_change(request: Request):
     return {"message": "Demande envoyée — en attente de validation de l'administrateur.", "pending_info": pending}
 
 
+# ── Driver weekly availability (V3Cube "Ma disponibilité") ────────────────
+_AVAIL_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+DEFAULT_AVAILABILITY = {d: {"enabled": True, "start": "08:00", "end": "20:00"} for d in _AVAIL_DAYS}
+
+
+@router.get("/availability")
+async def get_availability(request: Request):
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "availability": 1, "work_address": 1})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    return {"availability": driver.get("availability") or DEFAULT_AVAILABILITY, "work_address": driver.get("work_address")}
+
+
+@router.put("/availability")
+async def update_availability(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    avail = body.get("availability") or {}
+    clean = {}
+    for d in _AVAIL_DAYS:
+        item = avail.get(d) or {}
+        clean[d] = {
+            "enabled": bool(item.get("enabled", True)),
+            "start": str(item.get("start", "08:00"))[:5],
+            "end": str(item.get("end", "20:00"))[:5],
+        }
+    update = {"availability": clean}
+    if "work_address" in body:
+        update["work_address"] = (body.get("work_address") or "").strip() or None
+    res = await db.drivers.update_one({"user_id": user["id"]}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    return {"message": "Disponibilités enregistrées", "availability": clean, "work_address": update.get("work_address")}
+
+
+# ── Driver reviews / passenger comments (V3Cube "Commentaires des utilisateurs") ──
+@router.get("/reviews")
+async def get_driver_reviews(request: Request):
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1, "rating": 1})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    did = driver["id"]
+    docs = await db.ratings.find({"driver_id": did}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    total = len(docs)
+    avg = round(sum(int(d.get("rating", 5)) for d in docs) / total, 2) if total else round(float(driver.get("rating", 5.0) or 5.0), 2)
+    distribution = {str(i): 0 for i in range(1, 6)}
+    for d in docs:
+        r = max(1, min(5, int(d.get("rating", 5))))
+        distribution[str(r)] += 1
+    user_ids = list({d.get("user_id") for d in docs if d.get("user_id")})
+    names = {}
+    if user_ids:
+        async for u in db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1, "avatar_url": 1}):
+            names[u["id"]] = u
+    reviews = []
+    for d in docs[:100]:
+        u = names.get(d.get("user_id"), {})
+        reviews.append({
+            "id": d.get("id"),
+            "rating": int(d.get("rating", 5)),
+            "comment": d.get("comment"),
+            "created_at": d.get("created_at"),
+            "user_name": u.get("name") or "Client",
+            "user_avatar": u.get("avatar_url"),
+        })
+    return {"average": avg, "total": total, "distribution": distribution, "reviews": reviews}
+
+
+
 @router.get("/taxi-eligibility")
 async def taxi_eligibility(request: Request):
     """Tells the client which taxi modes the driver can enable, and what's missing."""

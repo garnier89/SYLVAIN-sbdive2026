@@ -100,6 +100,9 @@ export const ManageVehiclesPage = lazy(() => import('../pages/driver/ManageVehic
 export const BankDetailsPage = lazy(() => import('../pages/driver/BankDetailsPage'));
 export const DriverEarningsStatsPage = lazy(() => import('../pages/driver/DriverEarningsStatsPage'));
 export const DriverGalleryPage = lazy(() => import('../pages/driver/DriverGalleryPage'));
+export const DriverAvailabilityPage = lazy(() => import('../pages/driver/DriverAvailabilityPage'));
+export const DriverReviewsPage = lazy(() => import('../pages/driver/DriverReviewsPage'));
+export const DriverChangePasswordPage = lazy(() => import('../pages/driver/DriverChangePasswordPage'));
 
 // Merchant Pages
 export const MerchantLayout = lazy(() => import('../pages/merchant/MerchantLayout'));

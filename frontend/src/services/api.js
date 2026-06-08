@@ -57,6 +57,7 @@ export const authAPI = {
   logout: () => api.post('/auth/logout'),
   me: () => api.get('/auth/me'),
   refresh: () => api.post('/auth/refresh'),
+  changePassword: (data) => api.post('/auth/change-password', data),
   googleSession: (sessionId) => api.post('/auth/google/session', { session_id: sessionId }),
 };
 
@@ -92,6 +93,9 @@ export const driverAPI = {
   getNotifications: () => api.get('/drivers/my-notifications'),
   markAllNotificationsRead: () => api.post('/drivers/notifications/read-all'),
   deleteNotification: (id) => api.delete(`/drivers/notifications/${id}`),
+  getAvailability: () => api.get('/drivers/availability'),
+  updateAvailability: (data) => api.put('/drivers/availability', data),
+  getReviews: () => api.get('/drivers/reviews'),
 };
 
 // Merchant APIs

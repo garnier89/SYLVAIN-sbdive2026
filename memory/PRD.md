@@ -1,4 +1,13 @@
-## NEW - 2026-06-09 (86) - Login Google (Emergent) clients + CHAUFFEURS via role_hint (DONE, testé)
+## NEW - 2026-06-09 (87) - Activation menu CHAUFFEUR (lot 1/4) (DONE, testé)
+- **Demande user** : « Activer toutes les fonctionnalités du menu chauffeur + client + dashboard + tous les services, brancher au backend. » → traité **par lots** dans l'ordre demandé. **Lot 1 = menu chauffeur.**
+- **Backend (`drivers.py`)** : `GET/PUT /api/drivers/availability` (planning hebdo 7 jours {enabled,start,end} + `work_address`, stocké sur le doc driver) ; `GET /api/drivers/reviews` (agrège `db.ratings` du chauffeur : moyenne, total, distribution 1-5★, liste avec nom/avatar passager). `change-password` réutilisé (existait déjà).
+- **Frontend** : 3 nouvelles pages `pages/driver/` : `DriverAvailabilityPage` (`/chauffeur/availability`), `DriverReviewsPage` (`/chauffeur/reviews`), `DriverChangePasswordPage` (`/chauffeur/change-password`). API `driverAPI.getAvailability/updateAvailability/getReviews`, `authAPI.changePassword`. Routes + barrel ajoutés.
+- **Menu `DriverProfilePage` câblé** (remplace les `soon()` placeholders) : manage_workplace & my_availability → /availability ; user_comments → /reviews ; change_password → /change-password ; manage_account & gear → openInfoEdit (édition profil existante) ; waybill → /history. `soon` supprimé.
+- **Vérifié** : curl (availability GET/PUT, reviews moy 5,0/2 avis) + screenshots login chauffeur des 3 pages (rendu OK). Webpack compile, lint propre (mes fichiers).
+- **RESTE (lots à venir)** : Lot 2 = menu CLIENT (profil : documents, favoris domicile/travail, profil covoiturage, B2B…), Lot 3 = DASHBOARD admin (activer panneaux/actions restants), Lot 4 = tous les SERVICES (écrans config admin `AdminServiceConfig` « bientôt disponible »).
+
+
+
 - **Demande user** : OAuth/login pour clients ET chauffeurs ; Google géré par Emergent (oui).
 - **Constat** : Emergent Google Auth était DÉJÀ câblé bout en bout (frontend `loginWithGoogle`/`handleGoogleCallback`/`AuthCallback`, backend `POST /api/auth/google/session`) MAIS tout nouveau compte Google était forcé en `role:"user"` → impossible d'arriver comme chauffeur.
 - **Ajout `role_hint`** : `AuthContext.loginWithGoogle(roleHint)` stocke le rôle en `sessionStorage` avant le redirect OAuth ; `handleGoogleCallback` le relit et l'envoie ; nettoyé après. Page chauffeur (`ChauffeurLogin.js`) appelle `loginWithGoogle('driver')` ; client (`LoginPage`/`RegisterPage`) reste `user`. Backend `/google/session` : accepte `role_hint` (∈ user/driver), l'applique aux NOUVEAUX comptes (comptes existants gardent leur rôle), ajoute `auth_provider:"google"`. Le profil chauffeur (doc `drivers`) reste créé par l'onboarding existant (comme l'inscription téléphone role=driver).
