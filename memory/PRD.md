@@ -1,3 +1,13 @@
+## NEW - 2026-06-08 (72) - Alignement des tuiles d'accueil sur le modèle XJEKPLUS (DONE)
+- **Contexte user (97 captures XJEKPLUS)** : l'user pensait à un bug frontend / « ancienne version » / fichiers à nettoyer. **Diagnostic** : (a) scan code = AUCUN fichier .bak/.old/doublon, un seul `UserHome.js` correctement branché ; (b) preview `gojek-clone-41` sert bien la dernière version et l'accueil REND les services (prouvé par screenshots login client) ; (c) la « production » `gojek-mvp-1.emergent.host` est un build gelé → besoin de **redéploiement** (pas de nettoyage de fichiers). La vraie différence = **quelles tuiles sont cochées « Accueil »** (config `visible_home`), pas le code.
+- **Cause concrète (Taxi)** : l'accueil affichait Moto+Électric à la place de **Bidding (Proposez votre tarif)** + **Aéroport** que montre XJEKPLUS. 
+- **Fix** : `HOME_DEFAULT_KEYS` (routes/service_categories.py) passé à **{standard, pool, rental, bidding, intercity, book_later, airport}** (miroir XJEKPLUS : Booking, Pool, Rental, Bidding, Intercity, Schedule, Airport + « More/Tous les Taxis »). DB `service_categories.visible_home` mis à jour en conséquence (Moto/Électric retirés de l'accueil, restent dans `/taxi`). Tous les `home_categories` (delivery/beauty/carcare/ondemand/nearby/pet/towing) passés `visible_home=True` (1 seul était masqué : « Soins Hommes »).
+- **Vérifié (screenshots preview, login client +33600000099)** : accueil Taxi = 8 tuiles alignées XJEKPLUS ; sections Livraison/Santé/À la demande/Enchères/Auto rendent tous leurs services. 10 `home_categories` restants masqués = section `taxi` (non utilisée pour le rendu, tuiles taxi viennent de `service_categories`).
+- **Décision produit** : noms gardés en **FR** (localisation DOM-TOM/Afrique voulue), pas renommés en anglais XJEKPLUS. Items XJEKPLUS génériques absents (Snow Plows, Astrologer, Museums, Hotels…) NON injectés d'office (inappropriés/non-fonctionnels pour le marché) — à ajouter à la demande explicite de l'user.
+- ⚠️ PREVIEW → **redéploiement requis** pour la production.
+- **Compte test client créé** : +33600000099 / Client2026! (ajouté à test_credentials.md).
+
+
 ## NEW - 2026-06-08 (71) - Nettoyage des console.* en production (DONE)
 - **Tâche backlog P2** : production safety / console propre.
 - **Constat** : `lib/logger.js` + `silenceConsole()` existaient déjà et étaient **wirés** dans `index.js` (neutralisent `console.log/debug/info` en prod, gardaient warn/error). 173 occurrences console.* sur 87 fichiers (log 4, debug 4, info 2, warn 52, error 112).
