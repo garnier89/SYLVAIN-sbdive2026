@@ -1,3 +1,9 @@
+## NEW - 2026-06-08 (74) - 13 images de voiture générées (Nano Banana) + intégrées (DONE, vérifié)
+- User a finalement demandé d'ajouter les images. Script `backend/scripts/gen_vehicle_images.py` : génère via **Gemini Nano Banana** (`gemini-3.1-flash-image-preview`, EMERGENT_LLM_KEY) une illustration par véhicule, fond blanc → **transparent** (PIL keying near-white), recadrage bbox + canvas 128×128 PNG, stocké en data-URI dans `vehicle_types.image_selected`/`image_unselected`.
+- 13 slugs traités OK : confort, luxe, moto, suv, van, electric, tuktuk, vtc, taxi, airport, pets, accessible, assist (0 échec).
+- **Vérifié screenshot** (`/course?mode=bidding`) : tous les véhicules affichent leur vraie voiture (SB verte, Confort grise, Luxe noire, Moto scooter orange, SUV, Électrique verte, Van bleu, TukTuk, VTC noire, Taxi jaune…). Images visibles dans le sélecteur bidding ET la comparaison normale.
+- NOTE : images **IA-générées** — l'user peut les remplacer par ses propres photos via Admin → Types de véhicule → Modifier.
+
 ## NEW - 2026-06-08 (73) - « Vraies voitures » + Bidding véhicules + Login 429 (DONE, vérifié)
 - **Vrai besoin user décodé** : « la version avec les vraies voitures » = les **images de voiture** sur l'écran de choix de véhicule. Diagnostic : seul le type `SB` (vehicle_types) a une image (`image_selected` base64) ; les 14 autres (Confort, Luxe, Moto, Pool, SUV, Van, Électrique, TukTuk, VTC, Taxi, Aeroport, Animaux, Accessible, Assistance) ont `image_selected=None` → fallback icône.
 - **OÙ ajouter les images (montré à l'user)** : Admin → SERVICES → Taxi/Transport → « Types de véhicule » (`/admin/vehicle-types`) → Modifier → champs « Image (non sélectionné) » / « Image (sélectionné) » (ImageUpload) → Enregistrer. User a choisi **B = il uploade lui-même** (pas de génération auto).
