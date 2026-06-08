@@ -235,31 +235,58 @@ RT_TTL_SEC = 30
 
 
 def parse_gtfs_rt(content):
-    """Parse a GTFS-RT FeedMessage (protobuf) into trip/stop updates.
+    """Parse a GTFS-RT FeedMessage (protobuf) into trip/stop updates + alerts.
 
-    Returns {"updates": {(trip_id, stop_id): {delay,time,skipped}}, "canceled": set}.
+    Returns {
+      "updates": {(trip_id, stop_id): {delay,time,skipped}},
+      "canceled": set(trip_id),
+      "alerts": [ {cause_id, effect_id, type, header, description, routes:[...], stops:[...]} ],
+    }
+    GTFS-RT Alert.Cause: STRIKE=4, DEMONSTRATION=5 ; Effect: NO_SERVICE=1,
+    REDUCED_SERVICE=2, SIGNIFICANT_DELAYS=3, DETOUR=4.
     """
     from google.transit import gtfs_realtime_pb2
     msg = gtfs_realtime_pb2.FeedMessage()
     msg.ParseFromString(content)
-    updates, canceled = {}, set()
+    updates, canceled, alerts = {}, set(), []
+
+    def _txt(ts):
+        try:
+            return ts.translation[0].text if ts.translation else ""
+        except Exception:
+            return ""
+
     for ent in msg.entity:
-        if not ent.HasField("trip_update"):
-            continue
-        tu = ent.trip_update
-        tid = tu.trip.trip_id
-        if tu.trip.schedule_relationship == 3:  # CANCELED
-            canceled.add(tid)
-            continue
-        for stu in tu.stop_time_update:
-            if stu.schedule_relationship == 1:  # SKIPPED
-                updates[(tid, stu.stop_id)] = {"skipped": True}
+        if ent.HasField("trip_update"):
+            tu = ent.trip_update
+            tid = tu.trip.trip_id
+            if tu.trip.schedule_relationship == 3:  # CANCELED
+                canceled.add(tid)
                 continue
-            ev = stu.departure if stu.HasField("departure") else (stu.arrival if stu.HasField("arrival") else None)
-            delay = ev.delay if (ev is not None and ev.delay) else None
-            t = ev.time if (ev is not None and ev.time) else None
-            updates[(tid, stu.stop_id)] = {"delay": delay, "time": t}
-    return {"updates": updates, "canceled": canceled}
+            for stu in tu.stop_time_update:
+                if stu.schedule_relationship == 1:  # SKIPPED
+                    updates[(tid, stu.stop_id)] = {"skipped": True}
+                    continue
+                ev = stu.departure if stu.HasField("departure") else (stu.arrival if stu.HasField("arrival") else None)
+                delay = ev.delay if (ev is not None and ev.delay) else None
+                t = ev.time if (ev is not None and ev.time) else None
+                updates[(tid, stu.stop_id)] = {"delay": delay, "time": t}
+        elif ent.HasField("alert"):
+            al = ent.alert
+            cause = int(al.cause) if al.cause else 0
+            effect = int(al.effect) if al.effect else 0
+            routes = sorted({ie.route_id for ie in al.informed_entity if ie.route_id})
+            stops = sorted({ie.stop_id for ie in al.informed_entity if ie.stop_id})
+            atype = "strike" if cause in (4, 5) else (
+                "cancellation" if effect == 1 else (
+                    "reduced" if effect == 2 else (
+                        "delay" if effect == 3 else "info")))
+            alerts.append({
+                "alert_id": ent.id, "cause_id": cause, "effect_id": effect, "type": atype,
+                "header": _txt(al.header_text), "description": _txt(al.description_text),
+                "routes": routes, "stops": stops,
+            })
+    return {"updates": updates, "canceled": canceled, "alerts": alerts}
 
 
 async def _realtime_for_feed(feed):
@@ -452,6 +479,71 @@ async def stop_departures(stop_id: str, mins: int = None):
         shaped["now"] = _fmt_hm(now_min)
     shaped["mocked"] = True
     return shaped
+
+
+# ── disruptions & strikes (perturbations / grèves) ────────────────────────────
+DISRUPTION_TYPES = {"strike", "cancellation", "delay", "reduced", "detour", "info"}
+
+
+def _disruption_active(d, now_iso):
+    if not d.get("active", True):
+        return False
+    s, e = d.get("starts_at"), d.get("ends_at")
+    if s and now_iso < s:
+        return False
+    if e and now_iso > e:
+        return False
+    return True
+
+
+async def _live_alerts():
+    """GTFS-RT service alerts from active feeds (incl. strikes), persisted to history.
+    Returns [] when no realtime feed is configured (dormant)."""
+    meta = await db.transport_meta.find_one({"id": "gtfs_martinique"}, {"_id": 0, "realtime_urls": 1}) or {}
+    out = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for feed, url in (meta.get("realtime_urls") or {}).items():
+        if not url:
+            continue
+        rt = await _realtime_for_feed(feed)
+        if not rt:
+            continue
+        for a in rt.get("alerts", []):
+            did = f"rt:{feed}:{a.get('alert_id')}"
+            doc = {"id": did, "source": "gtfs-rt", "feed": feed, "type": a["type"],
+                   "title": a.get("header") or a["type"].title(),
+                   "message": a.get("description") or "", "routes": a.get("routes", []),
+                   "severity": "high" if a["type"] in ("strike", "cancellation") else "medium",
+                   "active": True, "starts_at": None, "ends_at": None, "updated_at": now_iso}
+            await db.transport_disruptions.update_one(
+                {"id": did}, {"$set": doc, "$setOnInsert": {"created_at": now_iso}}, upsert=True)
+            out.append(doc)
+    return out
+
+
+async def _active_disruptions():
+    now_iso = datetime.now(timezone.utc).isoformat()
+    manual = await db.transport_disruptions.find({"source": "manual"}, {"_id": 0}).to_list(200)
+    active = [d for d in manual if _disruption_active(d, now_iso)]
+    active = (await _live_alerts()) + active
+    active.sort(key=lambda d: 0 if d.get("type") == "strike" else 1)
+    return active
+
+
+@router.get("/disruptions")
+async def disruptions():
+    """Active disruptions (manual + live GTFS-RT alerts), strikes first."""
+    active = await _active_disruptions()
+    return {"disruptions": active, "count": len(active),
+            "has_strike": any(d.get("type") == "strike" for d in active),
+            "mocked": True}
+
+
+@router.get("/disruptions/history")
+async def disruptions_history():
+    """Recent disruptions (resolved + active), most recent first."""
+    items = await db.transport_disruptions.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return {"items": items}
 
 
 # ── journey planner (origin → destination, with transfers) ────────────────────
