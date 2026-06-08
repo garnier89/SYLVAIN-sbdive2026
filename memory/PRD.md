@@ -1,3 +1,14 @@
+## NEW - 2026-06-08 (67) - Éditeur d'accueil sans-code : sections hors-Taxi (home_categories CMS) (DONE)
+- **Demande user** : appliquer le contrôle « Accueil » aux autres sections (Livraison, Beauté, Auto…) → éditeur de page d'accueil sans code.
+- **Constat** : l'infra existe DÉJÀ — collection `home_categories` (CMS complet : add/edit/delete, reorder, `visible_home`, libellés FR/EN, sous-titre, icône biblio/upload, couleurs, route) + page admin `/admin/home-categories` (« Catégories accueil »). L'accueil rend déjà toutes les sections hors-taxi via `displayFor(section)` (filtré par `visible_home`, + tuile « Plus de Services » si masquées). 41 items seedés.
+- **Travail réalisé (nettoyage + robustesse)** :
+  - `AdminHomeCategories.js` : section **`taxi` masquée** (désormais pilotée par `service_categories`/AdminServiceCategories) — exclue de la liste ET du menu déroulant du formulaire ; **bandeau orange** d'info (`taxi-managed-elsewhere-note`) renvoyant vers « Catégories de service (Taxi) ». Défauts du formulaire passés de taxi→delivery.
+  - **Fix libellés 2 lignes** : aller-retour `\n` littéral ↔ saut de ligne réel (openEdit affiche `\n`, save reconvertit en newline ; aperçu converti) — les `<input>` n'écrasent plus les retours à la ligne.
+- **Vérifié** : **testing_agent iteration_163.json — 100%** (backend 6/6 pytest + frontend E2E) : 7 sections gérées, taxi absent + bandeau présent, toggle visibilité/édition libellé/réordonnancement OK et persistés, accueil rider reflète l'état CMS, section Taxi (8 tuiles service_categories) inchangée, aucun overlay d'erreur. État par défaut restauré. Webpack compile (1 warning pré-existant).
+- ⚠️ PREVIEW → **redéploiement requis** pour la production.
+
+
+
 ## NEW - 2026-06-08 (66) - Accueil « Services Taxi » pilotable depuis l'admin (visible_home) (DONE)
 - **Demande user** : rendre la section « Services Taxi » de l'accueil pilotable depuis « Gérer les catégories » (nombre de tuiles, ordre, libellés) sans repasser par le code ni redéployer.
 - **Constat** : libellés/ordre/active étaient déjà admin-pilotés ; manquait le contrôle de **quelles tuiles / combien** apparaissent sur l'accueil.

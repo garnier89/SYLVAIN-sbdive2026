@@ -38,13 +38,30 @@ export default function AdminHomeCategories() {
   useEffect(() => { load(); }, [load]);
 
   const openCreate = (section) => { setEditing(null); setForm({ ...emptyForm, section: section || 'delivery' }); setShowForm(true); };
-  const openEdit = (it) => { setEditing(it); setForm({ ...emptyForm, ...it }); setShowForm(true); };
+  // Show stored line-breaks as literal "\n" in the single-line inputs so admins can
+  // edit two-line labels (round-tripped back to real newlines on save).
+  const openEdit = (it) => {
+    setEditing(it);
+    setForm({
+      ...emptyForm, ...it,
+      label_fr: (it.label_fr || '').replace(/\n/g, '\\n'),
+      label_en: (it.label_en || '').replace(/\n/g, '\\n'),
+    });
+    setShowForm(true);
+  };
 
   const save = async () => {
     if (!form.label_fr) { toast.error('Nom (FR) requis'); return; }
+    // Round-trip: convert the literal "\n" admins type into real newlines so the
+    // client renders two-line labels (whitespace-pre-line).
+    const payload = {
+      ...form,
+      label_fr: form.label_fr.replace(/\\n/g, '\n'),
+      label_en: (form.label_en || '').replace(/\\n/g, '\n'),
+    };
     try {
-      if (editing) { await homeCategoriesAPI.update(editing.id, form); toast.success('Catégorie mise à jour'); }
-      else { await homeCategoriesAPI.create(form); toast.success('Catégorie créée'); }
+      if (editing) { await homeCategoriesAPI.update(editing.id, payload); toast.success('Catégorie mise à jour'); }
+      else { await homeCategoriesAPI.create(payload); toast.success('Catégorie créée'); }
       setShowForm(false); load();
     } catch (e) { toast.error(e.response?.data?.detail || 'Erreur'); }
   };
@@ -219,7 +236,7 @@ export default function AdminHomeCategories() {
                 <div className={`w-12 h-12 rounded-2xl ${form.bg_class} flex items-center justify-center`}>
                   <DynamicIcon name={form.icon_name} imageUrl={form.image_url} size={26} className={form.icon_color_class} />
                 </div>
-                <span className="text-xs whitespace-pre-line text-center font-medium">{(form.label_fr || 'Aperçu')}</span>
+                <span className="text-xs whitespace-pre-line text-center font-medium">{(form.label_fr || 'Aperçu').replace(/\\n/g, '\n')}</span>
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.visible_home} onChange={(e) => setForm({ ...form, visible_home: e.target.checked })} data-testid="cat-visible-checkbox" /> Visible sur l&apos;accueil
