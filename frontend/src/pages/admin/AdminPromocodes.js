@@ -171,15 +171,15 @@ const AdminPromocodes = () => {
                   <tr key={c.id || i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" data-testid={`promo-row-${i}`}>
                     <td className="py-3 px-3"><input type="checkbox" className="rounded border-gray-300" /></td>
                     <td className="py-3 px-3 text-sm text-gray-800 font-mono font-medium">{c.code}</td>
-                    <td className="py-3 px-3 text-sm text-gray-700">{c.discount_percent || c.discount || 0}%</td>
+                    <td className="py-3 px-3 text-sm text-gray-700">{c.discount_type === 'Flat' ? `${c.discount_value || 0} €` : `${c.discount_value || 0}%`}</td>
                     <td className="py-3 px-3 text-sm text-gray-600">{c.validity || 'Permanent'}</td>
-                    <td className="py-3 px-3 text-sm text-gray-600">{c.type || 'Public'}</td>
+                    <td className="py-3 px-3 text-sm text-gray-600">{c.discount_type || 'Percentage'}</td>
                     <td className="py-3 px-3 text-sm text-gray-600">{c.expiry_date || '-'}</td>
-                    <td className="py-3 px-3 text-sm text-gray-700">{c.max_uses || 'Unlimited'}</td>
+                    <td className="py-3 px-3 text-sm text-gray-700">{c.usage_limit ? c.usage_limit : 'Unlimited'}</td>
                     <td className="py-3 px-3">
-                      <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded">{c.current_uses || 0}</span>
+                      <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded">{c.used || 0}</span>
                     </td>
-                    <td className="py-3 px-3 text-sm text-gray-600">{c.system_type || 'General'}</td>
+                    <td className="py-3 px-3 text-sm text-gray-600">{c.service_type || 'All'}</td>
                     <td className="py-3 px-3">
                       <span className="inline-flex items-center justify-center w-6 h-6">
                         <svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10" fill="#d4edda" stroke="#28a745" strokeWidth="1.5"/><path d="M6 11l3 3 6-6" stroke="#28a745" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>

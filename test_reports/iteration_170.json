@@ -1,0 +1,39 @@
+{
+  "summary": "Full functional audit of admin modules (Promocodes, ServiceConfig, CMS pages, Newsletter) completed — all modules are live and functional. 13/13 backend tests pass and all UI flows succeed end-to-end in the browser.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin-login", "issues": ["React console warning: 'Encountered two children with the same key' on tabs/nav cards under /admin-login. Cosmetic only, but a duplicate key= prop should be deduped in AdminLoginPage tabs/bottom-nav."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter170_admin_audit.py",
+    "/app/test_reports/pytest/iter170_admin_audit.xml"
+  ],
+  "action_items": [
+    "(Optional) Fix duplicate React key warning on /admin-login (tabs or bottom-nav cards) — non-blocking.",
+    "(Optional) Add Resend API key in backend .env to switch newsletter send status from 'recorded' to 'sent' — current behavior is documented as expected."
+  ],
+  "critical_code_review_comments": [
+    "AdminPromocodes display bug (discount '0%') is confirmed FIXED — new row shows '15%' Percentage with correct usage_limit/used.",
+    "ServiceConfig PUT/GET correctly upserts into db.service_configs keyed by service_key; persistence verified for /api/admin/service-config/pool both at API and UI level.",
+    "Newsletter wiring confirmed real (not mock) — /api/newsletter/admin/* endpoints all return live data; campaigns persist; UI KPIs reflect DB. 'recorded' status branch executes correctly when RESEND_API_KEY is absent (per spec).",
+    "Home-categories CMS uses CUSTOM BUTTON toggles (testids: section-toggle-{key}, toggle-visible-{id}) rather than native <input type=checkbox>/role=switch — Playwright native-toggle selectors will not match. Functionally fine.",
+    "Minor: AdminLoginPage has a duplicate React key warning on /login — should be deduped (tabs or bottom-nav-cards array)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter170_admin_audit.py (new)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% (7/7 modules)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (used at /admin-login)",
+  "seed_data_creation": "Created 1 newsletter subscriber (audit_<rand>@example.test) and 1 promo coupon (AUDIT<rand>) and 1 newsletter campaign per run — prefixed with 'AUDIT'/'audit_' for cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter170 audit of admin modules. Backend test file at /app/backend/tests/test_iter170_admin_audit.py covers: Promocodes (list+create+persist), ServiceConfig (pool GET/PUT persist + taxi_booking GET), CMS (home-categories admin+sections, promo-banners admin, news admin), Newsletter (subscribe+list+campaigns+send). UI Playwright run verified the same modules end-to-end, including: AdminPromocodes shows '15%' (not '0%') for new Percentage codes, pool-config persistence after reload (set numeric input to 92, reloaded -> 92), and newsletter campaign appears in 'Historique des campagnes' with 'recorded' status (correct since RESEND_API_KEY is empty).",
+  "rca of the issue": "N/A — no bugs found. Both recently fixed regressions (AdminPromocodes column mapping and AdminNewsletter wiring) are confirmed correct in this audit."
+}
