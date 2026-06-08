@@ -1,0 +1,40 @@
+{
+  "summary": "Iter 165 — 'Aperçu de l'accueil' (Home preview) modal on /admin/home-categories. End-to-end frontend PASS. Orange home-preview-btn visible; opens home-preview-modal showing 19 preview-section-<key> blocks in the saved order. Taxi block renders 16 taxi tiles (visible_home=true from service_categories) PLUS the 'Tous les Taxis' tile. Delivery block renders its visible CMS tiles. Non-tile blocks (promo, parcel/Colis & Coursier, marketplace, medical, bid, genie, video, parking, giftcards, carpool, tracking) correctly show the 'Bloc dynamique' placeholder. Close button + backdrop both close the modal. Hiding section-toggle-nearby removes preview-section-nearby from the modal; re-enabling restores it. No runtime errors overlay. Final state: nearby visible=ON (restored).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminHomeCategories.js HomePreviewModal correctly derives visibleSections from secLayout.filter(s.visible) — order/visibility 100% mirrors backend home_sections.",
+    "PreviewTile tile factory for taxi maps service_categories with active!==false && visible_home===true, sorted by display_order, then appends the 'Tous les Taxis' more-tile — matches the public Home behaviour.",
+    "TILE_SECTIONS set (taxi, delivery, ondemand, beauty, pet, carcare, towing, nearby) used to decide tile-grid vs 'Bloc dynamique' placeholder; consistent with UserHome render logic.",
+    "Backdrop click closes modal via onClick on the outer fixed inset-0 wrapper with stopPropagation on inner card — clean implementation, no event leakage observed.",
+    "Pre-existing console warning 'Encountered two children with the same key' originates from /login (not the preview); unrelated to this iteration and should be ignored per instructions."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (8/8 acceptance criteria)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! via /admin-login",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Home-preview modal lives in /app/frontend/src/pages/admin/AdminHomeCategories.js (HomePreviewModal + PreviewTile). Testids: home-preview-btn (open), home-preview-modal (container), home-preview-close (X), preview-section-<key> for each visible block. TILE_SECTIONS={taxi,delivery,ondemand,beauty,pet,carcare,towing,nearby}; everything else renders 'Bloc dynamique'. Taxi tiles come from adminAPI.listServiceCategories() (service_categories collection), other sections from items (home_categories CMS). Section visibility/order driven by secLayout from homeCategoriesAPI.adminSections() → backend home_sections collection. Final state at end of test: nearby section visible=ON, default 19-key section order preserved.",
+  "verification_evidence": {
+    "Login + navigation to /admin/home-categories": "OK",
+    "home-preview-btn visible (orange button)": "OK",
+    "Modal opens with 19 preview-section-<key> in default order": "OK (taxi, promo, delivery, parcel, marketplace, beauty, medical, ondemand, bid, carcare, towing, genie, video, pet, parking, giftcards, carpool, tracking, nearby)",
+    "Taxi preview shows taxi tiles + 'Tous les Taxis' tile": "OK (16 service_categories tiles visible_home=true + more-taxi tile)",
+    "Delivery preview shows visible delivery tiles": "OK (Livraison Repas, Livraison Courses, Coursier Express, Livraison Colis)",
+    "Non-tile blocks render 'Bloc dynamique' placeholder": "OK (verified for promo, parcel, marketplace etc.)",
+    "home-preview-close button closes modal": "OK",
+    "Backdrop click closes modal": "OK",
+    "Hide nearby via section-toggle-nearby + reopen preview": "OK — preview-section-nearby ABSENT",
+    "Re-enable nearby + reopen preview": "OK — preview-section-nearby RESTORED",
+    "Runtime errors overlay": "None present",
+    "Final state": "nearby visible=ON, default section order intact"
+  },
+  "rca of the issue": "N/A — feature works end-to-end as specified."
+}

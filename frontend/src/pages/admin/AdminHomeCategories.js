@@ -5,9 +5,12 @@
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon } from '@phosphor-icons/react';
-import { homeCategoriesAPI } from '../../services/api';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, DeviceMobile } from '@phosphor-icons/react';
+import { homeCategoriesAPI, adminAPI } from '../../services/api';
 import DynamicIcon, { ICON_MAP } from '../../components/DynamicIcon';
+
+// Section keys that render as a tile grid on the Home (taxi + the CMS tile sections).
+const TILE_SECTIONS = new Set(['taxi', 'delivery', 'ondemand', 'beauty', 'pet', 'carcare', 'towing', 'nearby']);
 
 const BG_OPTIONS = ['bg-amber-50', 'bg-teal-50', 'bg-blue-50', 'bg-orange-50', 'bg-pink-50', 'bg-green-50', 'bg-cyan-50', 'bg-rose-50', 'bg-purple-50', 'bg-indigo-50', 'bg-emerald-50', 'bg-sky-50', 'bg-lime-50', 'bg-slate-50', 'bg-gray-50', 'bg-red-50', 'bg-fuchsia-50', 'bg-yellow-50'];
 const COLOR_OPTIONS = ['text-amber-500', 'text-teal-500', 'text-blue-500', 'text-orange-500', 'text-pink-500', 'text-green-600', 'text-cyan-600', 'text-rose-500', 'text-purple-500', 'text-indigo-600', 'text-emerald-600', 'text-sky-500', 'text-lime-600', 'text-slate-600', 'text-gray-600', 'text-red-600'];
@@ -18,10 +21,77 @@ const emptyForm = {
   target_route: '/food', visible_home: true, status: 'active',
 };
 
+const isImg = (s) => typeof s === 'string' && (s.startsWith('http') || s.startsWith('data:'));
+
+const PreviewTile = ({ t }) => (
+  <div className="flex flex-col items-center gap-1 w-1/4 mb-3 px-0.5">
+    <div className={`w-12 h-12 rounded-xl ${t.bg || 'bg-orange-50'} flex items-center justify-center`}>
+      {t.iconName
+        ? <DynamicIcon name={t.iconName} imageUrl={t.imageUrl} size={22} className={t.color || 'text-[#FF5000]'} />
+        : isImg(t.emoji)
+          ? <img src={t.emoji} alt="" className="w-6 h-6 object-contain" />
+          : <span className="text-xl leading-none">{t.emoji || '🚕'}</span>}
+    </div>
+    <span className="text-[9px] text-center leading-tight whitespace-pre-line text-[#1F2430]">{(t.label || '').replace(/\\n/g, '\n')}</span>
+  </div>
+);
+
+// Read-only preview of the client Home reflecting the saved order/visibility — lets
+// the admin verify changes without leaving the panel (the real /home is user-only).
+function HomePreviewModal({ secLayout, items, taxiCats, onClose }) {
+  const tilesFor = (key) => {
+    if (key === 'taxi') {
+      const home = (taxiCats || [])
+        .filter((c) => c.active !== false && c.visible_home === true)
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+        .map((c) => ({ id: c.key, label: c.name, emoji: c.icon }));
+      home.push({ id: 'more-taxi', label: 'Tous les\nTaxis', iconName: 'GridFour', bg: 'bg-orange-50', color: 'text-orange-500' });
+      return home;
+    }
+    return (items || [])
+      .filter((i) => i.section === key && i.status === 'active' && i.visible_home)
+      .sort((a, b) => a.display_order - b.display_order)
+      .map((i) => ({ id: i.id, label: i.label_fr, iconName: i.icon_name, imageUrl: i.image_url, bg: i.bg_class, color: i.icon_color_class }));
+  };
+  const visibleSections = (secLayout || []).filter((s) => s.visible);
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-sm max-h-[92vh] flex flex-col overflow-hidden" data-testid="home-preview-modal">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="font-bold text-[#0B1426] flex items-center gap-2"><DeviceMobile size={18} /> Aperçu de l&apos;accueil</h3>
+          <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100" data-testid="home-preview-close"><X size={18} /></button>
+        </div>
+        <div className="overflow-y-auto p-4 bg-[#F8F9FA]">
+          {visibleSections.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Toutes les sections sont masquées.</p>}
+          {visibleSections.map((s) => {
+            const tiles = TILE_SECTIONS.has(s.key) ? tilesFor(s.key) : null;
+            return (
+              <div key={s.key} className="mb-5" data-testid={`preview-section-${s.key}`}>
+                <p className="text-sm font-bold text-[#0B1426] mb-2">{s.title_fr}</p>
+                {tiles ? (
+                  tiles.length ? (
+                    <div className="flex flex-wrap bg-white rounded-xl p-2 border border-slate-100">
+                      {tiles.map((t) => <PreviewTile key={t.id} t={t} />)}
+                    </div>
+                  ) : <p className="text-[11px] text-slate-400 italic">Aucune tuile visible</p>
+                ) : (
+                  <div className="rounded-lg bg-slate-100 text-slate-400 text-[11px] py-2 text-center">Bloc dynamique</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminHomeCategories() {
   const [items, setItems] = useState([]);
   const [sections, setSections] = useState([]);
   const [secLayout, setSecLayout] = useState([]);
+  const [taxiCats, setTaxiCats] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -34,6 +104,9 @@ export default function AdminHomeCategories() {
       setItems(r.data.items || []);
       setSections(r.data.sections || []);
       setSecLayout(s.data.sections || []);
+      // Taxi tiles for the preview come from service_categories (managed elsewhere).
+      try { const t = await adminAPI.listServiceCategories(); setTaxiCats(Array.isArray(t.data) ? t.data : (t.data.items || [])); }
+      catch { /* preview will just skip taxi tiles */ }
     } catch (e) { toast.error('Erreur chargement'); }
     finally { setLoading(false); }
   }, []);
@@ -139,6 +212,13 @@ export default function AdminHomeCategories() {
         </button>
       </div>
 
+      <div className="-mt-3 mb-4">
+        <button onClick={() => setShowPreview(true)} data-testid="home-preview-btn"
+          className="inline-flex items-center gap-2 bg-[#FF5000] text-white font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-[#e64800] transition-colors">
+          <DeviceMobile size={18} weight="bold" /> Aperçu de l&apos;accueil
+        </button>
+      </div>
+
       <div className="mb-6 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm text-[#0B1426]" data-testid="taxi-managed-elsewhere-note">
         <span className="text-[#FF5000] font-bold">ℹ︎</span>
         <span>Les tuiles <b>Taxi</b> de l&apos;accueil se gèrent dans <b>« Catégories de service (Taxi) »</b> (toggle « Accueil »). Cette page contrôle toutes les <b>autres</b> sections (Livraison, Beauté, Auto, Animaux, Remorquage, À proximité…).</span>
@@ -196,6 +276,10 @@ export default function AdminHomeCategories() {
           </div>
         </div>
       ))}
+
+      {showPreview && (
+        <HomePreviewModal secLayout={secLayout} items={items} taxiCats={taxiCats} onClose={() => setShowPreview(false)} />
+      )}
 
       {/* Form modal */}
       {showForm && (
