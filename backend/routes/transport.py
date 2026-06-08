@@ -27,6 +27,7 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 
 from core.config import db
 from core.permissions import require_permission
+from core.deps import get_current_user
 
 router = APIRouter(prefix="/transport", tags=["transport"])
 
@@ -357,6 +358,69 @@ async def journey(from_lat: float, from_lng: float, to_lat: float, to_lng: float
     plan = plan_journey(stops, lines, from_lat, from_lng, to_lat, to_lng)
     plan["mocked"] = True
     return plan
+
+
+# ── journey history (per user) ────────────────────────────────────────────────
+def _r4(v):
+    try:
+        return round(float(v), 4)
+    except Exception:
+        return None
+
+
+def _place(body, key):
+    p = body.get(key) or {}
+    return {"address": (p.get("address") or "").strip() or "—",
+            "lat": _num(p.get("lat")), "lng": _num(p.get("lng"))}
+
+
+@router.get("/journeys")
+async def list_journeys(request: Request):
+    """Recent public-transport journeys for the current user."""
+    user = await get_current_user(request)
+    doc = await db.transport_journeys.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+    return {"items": (doc.get("items") or [])[:10]}
+
+
+@router.post("/journeys")
+async def save_journey(request: Request):
+    """Save a journey to history (dedup by endpoints, most recent first, cap 10)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    frm, to = _place(body, "from"), _place(body, "to")
+    if frm["lat"] is None or to["lat"] is None:
+        raise HTTPException(400, "Coordonnées requises")
+    summary = body.get("summary") or {}
+    item = {
+        "id": f"tj_{uuid.uuid4().hex[:10]}",
+        "from": frm, "to": to,
+        "total_min": summary.get("total_min"),
+        "total_fare": summary.get("total_fare"),
+        "transfers": summary.get("transfers"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    doc = await db.transport_journeys.find_one({"user_id": user["id"]}, {"_id": 0}) or {"items": []}
+    key = (_r4(frm["lat"]), _r4(frm["lng"]), _r4(to["lat"]), _r4(to["lng"]))
+    items = [it for it in (doc.get("items") or [])
+             if (_r4(it["from"]["lat"]), _r4(it["from"]["lng"]), _r4(it["to"]["lat"]), _r4(it["to"]["lng"])) != key]
+    items.insert(0, item)
+    items = items[:10]
+    await db.transport_journeys.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"user_id": user["id"], "items": items}},
+        upsert=True,
+    )
+    return {"items": items}
+
+
+@router.delete("/journeys/{jid}")
+async def delete_journey(jid: str, request: Request):
+    user = await get_current_user(request)
+    await db.transport_journeys.update_one(
+        {"user_id": user["id"]}, {"$pull": {"items": {"id": jid}}}
+    )
+    doc = await db.transport_journeys.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+    return {"items": (doc.get("items") or [])[:10]}
 
 
 # ── admin: stops CRUD ─────────────────────────────────────────────────────────

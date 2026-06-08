@@ -8,14 +8,15 @@
  * ⚠️ Données SIMULÉES tant que la clé Navitia/GTFS n'est pas branchée.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Bus, Train, Boat, MapPin, NavigationArrow, Clock,
   Lightning, ArrowsClockwise, CaretRight, Ticket, CarProfile, Scales, PersonSimpleWalk,
+  House, Briefcase, ShareNetwork, ClockCounterClockwise, Trash,
 } from '@phosphor-icons/react';
-import { transportAPI } from '../../services/api';
+import { transportAPI, placesAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import JourneyMap from './transport/JourneyMap';
@@ -34,6 +35,7 @@ const etaLabel = (m) => (m <= 0 ? "à l'instant" : m === 1 ? 'dans 1 min' : `dan
 
 const TransportPublicPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { money } = useLocale();
   const [stops, setStops] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,8 @@ const TransportPublicPage = () => {
   const [jFrom, setJFrom] = useState(null);
   const [jTo, setJTo] = useState(null);
   const [journey, setJourney] = useState(null); // { loading, plan, vtc }
+  const [saved, setSaved] = useState({ home: null, work: null }); // favoris Maison/Travail
+  const [recents, setRecents] = useState([]); // historique des trajets
 
   const fetchNearby = useCallback(async (lat, lng) => {
     setLoading(true);
@@ -120,13 +124,56 @@ const TransportPublicPage = () => {
           }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
         ]);
         if (cancelled) return;
-        setJourney({ loading: false, plan: jr.data, vtc: est });
+        const plan = jr.data;
+        setJourney({ loading: false, plan, vtc: est });
+        // auto-save to history when a real itinerary is found
+        if (plan?.found) {
+          transportAPI.saveJourney({
+            from: { address: jFrom.address || 'Départ', lat: jFrom.lat, lng: jFrom.lng },
+            to: { address: jTo.address || 'Destination', lat: jTo.lat, lng: jTo.lng },
+            summary: { total_min: plan.total_min, total_fare: plan.total_fare, transfers: plan.transfers },
+          }).then((r) => setRecents(r.data.items || [])).catch(() => {});
+        }
       } catch (e) {
         if (!cancelled) setJourney({ loading: false, plan: null, vtc: null });
       }
     })();
     return () => { cancelled = true; };
   }, [jFrom, jTo]);
+
+  // Load saved places (Maison/Travail) + journey history. Apply deep-link if any.
+  useEffect(() => {
+    (async () => {
+      try {
+        const [sp, hj] = await Promise.allSettled([placesAPI.getSaved(), transportAPI.listJourneys()]);
+        if (sp.status === 'fulfilled') setSaved({ home: sp.value.data.home, work: sp.value.data.work });
+        if (hj.status === 'fulfilled') setRecents(hj.value.data.items || []);
+      } catch (e) { /* ignore */ }
+    })();
+    const fl = searchParams.get('from_lat'), tl = searchParams.get('to_lat');
+    if (fl && tl) {
+      setJFrom({ address: searchParams.get('from_label') || 'Départ', lat: parseFloat(fl), lng: parseFloat(searchParams.get('from_lng')) });
+      setJTo({ address: searchParams.get('to_label') || 'Destination', lat: parseFloat(tl), lng: parseFloat(searchParams.get('to_lng')) });
+    }
+  }, [searchParams]);
+
+  const removeRecent = useCallback(async (jid) => {
+    try { const r = await transportAPI.deleteJourney(jid); setRecents(r.data.items || []); } catch (e) { /* ignore */ }
+  }, []);
+
+  const shareJourney = useCallback(async () => {
+    const plan = journey?.plan;
+    if (!jFrom || !jTo) return;
+    const url = `${window.location.origin}/transport-public?from_lat=${jFrom.lat}&from_lng=${jFrom.lng}&from_label=${encodeURIComponent(jFrom.address || 'Départ')}&to_lat=${jTo.lat}&to_lng=${jTo.lng}&to_label=${encodeURIComponent(jTo.address || 'Destination')}`;
+    const lines = ['🚌 Itinéraire SB Drive', `${jFrom.address || 'Départ'} → ${jTo.address || 'Destination'}`];
+    if (plan?.found) lines.push(`Bus : ~${plan.total_min} min · ${money(plan.total_fare)}${plan.transfers ? ` · ${plan.transfers} corresp.` : ''}`);
+    if (journey?.vtc) lines.push(`VTC : ~${journey.vtc.duration_mins} min · ${money(journey.vtc.estimated_fare)}`);
+    const text = lines.join('\n');
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Itinéraire SB Drive', text, url }); }
+      else { await navigator.clipboard.writeText(`${text}\n${url}`); toast.success('Itinéraire copié'); }
+    } catch (e) { /* cancelled */ }
+  }, [journey, jFrom, jTo, money]);
 
   return (
     <div className="mobile-container min-h-screen bg-[#F8F9FA] pb-32" data-testid="transport-public-page">
@@ -162,6 +209,43 @@ const TransportPublicPage = () => {
               <GooglePlacesInput value={jTo?.address || ''} onSelect={setJTo} placeholder="Où allez-vous ?" testId="journey-to-input" />
             </div>
           </div>
+
+          {/* Favoris Maison / Travail (lieux enregistrés) */}
+          {(saved.home || saved.work) && (
+            <div className="flex flex-wrap gap-2 mt-2" data-testid="journey-favorites">
+              {saved.home && (
+                <button onClick={() => setJTo({ address: saved.home.address, lat: saved.home.lat, lng: saved.home.lng })} data-testid="fav-home-btn"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-full active:scale-95 transition-transform">
+                  <House size={12} weight="fill" className="text-[#3730A3]" /> Maison
+                </button>
+              )}
+              {saved.work && (
+                <button onClick={() => setJTo({ address: saved.work.address, lat: saved.work.lat, lng: saved.work.lng })} data-testid="fav-work-btn"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-full active:scale-95 transition-transform">
+                  <Briefcase size={12} weight="fill" className="text-[#3730A3]" /> Travail
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Historique des trajets */}
+          {recents.length > 0 && (
+            <div className="mt-3" data-testid="journey-history">
+              <p className="text-[10px] tracking-wide uppercase font-bold text-slate-400 flex items-center gap-1 mb-1.5"><ClockCounterClockwise size={11} /> Trajets récents</p>
+              <div className="space-y-1.5">
+                {recents.slice(0, 4).map((r) => (
+                  <div key={r.id} className="flex items-center gap-2" data-testid={`recent-${r.id}`}>
+                    <button onClick={() => { setJFrom(r.from); setJTo(r.to); }} data-testid={`recent-replay-${r.id}`}
+                      className="flex-1 text-left bg-slate-50 hover:bg-slate-100 rounded-lg px-2.5 py-1.5 active:scale-[0.99] transition-transform">
+                      <p className="text-[11px] font-semibold text-[#0B1426] truncate">{r.from.address} → {r.to.address}</p>
+                      {r.total_min != null && <p className="text-[10px] text-slate-400">Bus ~{r.total_min} min · {money(r.total_fare)}{r.transfers ? ` · ${r.transfers} corresp.` : ''}</p>}
+                    </button>
+                    <button onClick={() => removeRecent(r.id)} data-testid={`recent-delete-${r.id}`} className="text-slate-300 hover:text-red-500 p-1"><Trash size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {journey?.loading && (
             <div className="p-4 text-center"><div className="w-5 h-5 border-2 border-orange-200 border-t-[#FF5000] rounded-full animate-spin mx-auto" /></div>
@@ -238,10 +322,16 @@ const TransportPublicPage = () => {
                   </div>
                 )}
 
-                <button onClick={() => navigate('/course?mode=standard')} data-testid="journey-book-vtc-btn"
-                  className="w-full mt-3 py-2.5 text-xs font-black bg-[#FF5000] text-[#0B1426] rounded-lg active:scale-[0.99] transition-transform">
-                  Réserver ce trajet en VTC →
-                </button>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={shareJourney} data-testid="journey-share-btn"
+                    className="px-3 py-2.5 text-xs font-bold bg-white border border-[#E2E8F0] text-[#0B1426] rounded-lg flex items-center gap-1.5 active:scale-[0.98] transition-transform">
+                    <ShareNetwork size={15} weight="bold" /> Partager
+                  </button>
+                  <button onClick={() => navigate('/course?mode=standard')} data-testid="journey-book-vtc-btn"
+                    className="flex-1 py-2.5 text-xs font-black bg-[#FF5000] text-[#0B1426] rounded-lg active:scale-[0.99] transition-transform">
+                    Réserver ce trajet en VTC →
+                  </button>
+                </div>
               </div>
             );
           })()}

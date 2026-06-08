@@ -373,6 +373,9 @@ export const transportAPI = {
   nearby: (params) => api.get('/transport/nearby', { params }),
   stopDepartures: (stopId, mins) => api.get(`/transport/stops/${stopId}/departures`, { params: mins != null ? { mins } : {} }),
   journey: (params) => api.get('/transport/journey', { params }),
+  listJourneys: () => api.get('/transport/journeys'),
+  saveJourney: (data) => api.post('/transport/journeys', data),
+  deleteJourney: (jid) => api.delete(`/transport/journeys/${jid}`),
   // admin
   adminListStops: () => api.get('/transport/admin/stops'),
   createStop: (data) => api.post('/transport/admin/stops', data),

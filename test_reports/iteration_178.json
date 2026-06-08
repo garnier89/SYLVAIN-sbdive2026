@@ -1,0 +1,68 @@
+{
+  "summary": "Frontend tests for new TransportPublicPage features (favorites Maison/Travail, journey history, share button, deep-link). All 4 features validated end-to-end with role=user test2@example.com. No JS errors, no UI bugs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "test_details": {
+    "deep_link": {
+      "url": "/transport-public?from_lat=16.2230&from_lng=-61.5100&from_label=Universite&to_lat=16.2614&to_lng=-61.5180&to_label=CHU",
+      "journey_from_input_value": "Universite",
+      "journey_to_input_value": "CHU",
+      "journey_result_visible": true,
+      "journey_legs_visible": true,
+      "journey_bus_min": "~35 min",
+      "vtc_estimate_returned": true,
+      "JourneyMap_rendered": true,
+      "result": "PASS"
+    },
+    "share_button": {
+      "journey_share_btn_present": true,
+      "journey_book_vtc_btn_present": true,
+      "click_no_js_error": true,
+      "toast_message": "Itinéraire copié",
+      "clipboard_content_snippet": "🚌 Itinéraire SB Drive\\nUniversite → CHU\\nBus : ~35 min · 3,00 € · 1 corresp.\\nVTC : ~11 min · 13,10 €\\nhttps://.../transport-public?from_lat=...",
+      "result": "PASS"
+    },
+    "history": {
+      "auto_save_after_deeplink": true,
+      "persists_after_reload": true,
+      "recent_items_in_dom": ["recent-tj_c359018677"],
+      "replay_refills_inputs": true,
+      "replay_triggers_journey_result": true,
+      "delete_removes_item_from_dom_and_backend": true,
+      "backend_items_count_after_delete": 0,
+      "result": "PASS"
+    },
+    "favorites": {
+      "saved_places_api_response": { "home": null, "work": { "address": "5 Rue Travail", "lat": 48.8, "lng": 2.4 } },
+      "journey_favorites_panel_visible": true,
+      "fav_home_btn_present": false,
+      "fav_home_btn_note": "ABSENT — expected (compte test n'a pas de Maison enregistrée). Per request, this is NOT a bug.",
+      "fav_work_btn_present": true,
+      "fav_work_click_fills_destination": true,
+      "destination_after_fav_work_click": "5 Rue Travail",
+      "result": "PASS"
+    }
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: shareJourney catches all errors silently (line 175 'cancelled' comment). Could log share failures for debugging clipboard permission denials.",
+    "Minor: journey-share-btn is always rendered inside the journey-result block, even when neither bus nor VTC found. Sharing an empty journey is harmless (toast still copies the from→to URL), so this is acceptable.",
+    "Note: when only from_lat (or only to_lat) is provided in the deep-link, the useEffect (line 153) requires BOTH to set state. Single-point deep-links are silently ignored. This is intentional but undocumented."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "test_credentials": "test2@example.com / TestPass123! (role=user) — verified working via /api/auth/login",
+  "seed_data_creation": "Cleaned + recreated journey history items via deep-link auto-save during tests. Backend test2 user has work address '5 Rue Travail' saved (home=null).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Compte test2@example.com a uniquement 'work' enregistré (pas de home). Pour tester fav-home-btn, ajouter une adresse 'home' via /api/places/saved (PUT). Le deep-link est la méthode la plus fiable pour générer un journey-result en E2E car bypass Google Places autocomplete. La clipboard read nécessite grant_permissions(['clipboard-read', 'clipboard-write']) en Playwright.",
+  "rca_of_the_issue": "N/A — all features working correctly."
+}

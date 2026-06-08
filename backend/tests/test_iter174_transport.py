@@ -105,6 +105,49 @@ def test_journey_with_transfer():
     assert plan["total_fare"] >= rides[0]["fare"] + rides[1]["fare"] - 0.001
 
 
+# ── journey history (per user) ──────────────────────────────────────────────────
+def test_journeys_requires_auth():
+    r = requests.get(f"{BASE_URL}/api/transport/journeys", timeout=15)
+    assert r.status_code == 401
+
+
+def _client_session():
+    s = requests.Session()
+    r = s.post(f"{BASE_URL}/api/auth/login",
+               json={"email": os.environ.get("TEST_CLIENT_EMAIL", "test2@example.com"),
+                     "password": os.environ.get("TEST_CLIENT_PASSWORD", "TestPass123!")}, timeout=30)
+    assert r.status_code == 200, f"Client login failed: {r.status_code} {r.text}"
+    return s
+
+
+def test_journey_history_save_dedup_delete():
+    s = _client_session()
+    payload = {
+        "from": {"address": "Université", "lat": 16.2230, "lng": -61.5100},
+        "to": {"address": "CHU des Abymes", "lat": 16.2614, "lng": -61.5180},
+        "summary": {"total_min": 35, "total_fare": 3.0, "transfers": 1},
+    }
+    r1 = s.post(f"{BASE_URL}/api/transport/journeys", json=payload, timeout=20)
+    assert r1.status_code == 200, r1.text
+    items = r1.json()["items"]
+    assert any(i["from"]["address"] == "Université" for i in items)
+    saved = next(i for i in items if i["from"]["address"] == "Université")
+    n_before = len(items)
+    # dedup: saving the same endpoints must NOT create a duplicate
+    r2 = s.post(f"{BASE_URL}/api/transport/journeys", json=payload, timeout=20)
+    matches = [i for i in r2.json()["items"]
+               if abs(i["from"]["lat"] - 16.2230) < 1e-4 and abs(i["to"]["lat"] - 16.2614) < 1e-4]
+    assert len(matches) == 1
+    assert len(r2.json()["items"]) <= n_before
+    # list reflects it
+    rl = s.get(f"{BASE_URL}/api/transport/journeys", timeout=15)
+    assert rl.status_code == 200 and len(rl.json()["items"]) >= 1
+    # delete
+    rd = s.delete(f"{BASE_URL}/api/transport/journeys/{saved['id']}", timeout=20)
+    assert rd.status_code == 200
+    assert all(i["id"] != saved["id"] for i in rd.json()["items"])
+
+
 # ── admin auth guards ───────────────────────────────────────────────────────────
 def test_admin_stops_requires_auth():
     r = requests.get(f"{BASE_URL}/api/transport/admin/stops", timeout=15)
