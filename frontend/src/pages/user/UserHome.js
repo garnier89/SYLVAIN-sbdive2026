@@ -298,7 +298,8 @@ const UserHome = () => {
     return visible;
   };
 
-  // Taxi Home tiles built from "Gérer les catégories" (admin) → names/order/active in sync.
+  // Taxi Home tiles built from "Gérer les catégories" (admin) → names/order/active
+  // AND which tiles appear (visible_home toggle) all driven from the admin panel.
   const taxiTiles = (() => {
     if (!taxiCats.length) return null;
     const active = taxiCats
@@ -311,7 +312,11 @@ const UserHome = () => {
         // 2) admin display_order within the group
         return (a.display_order || 0) - (b.display_order || 0);
       });
-    const tiles = active.slice(0, 7).map((c) => {
+    // Admin chooses which modes show on the Home grid via the "Accueil" toggle.
+    // Fallback to the first 7 active if the admin hasn't flagged any.
+    let home = active.filter((c) => c.visible_home === true);
+    if (!home.length) home = active.slice(0, 7);
+    const tiles = home.map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
       // Home taxi tiles always use the clean Phosphor icon (not the uploaded photo)
       // for a consistent, icon-based look across the app.

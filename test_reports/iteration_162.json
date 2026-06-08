@@ -1,0 +1,42 @@
+{
+  "summary": "Verified admin-controllable 'Accueil' (visible_home) toggle for taxi service categories — both backend and frontend pass end-to-end. Final state restored: airport=OFF.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_service_categories_home.py",
+    "/app/test_reports/pytest/service_categories_home.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "service_categories.py: seed migration uses HOME_DEFAULT_KEYS only on docs missing the field — correct & idempotent.",
+    "POST /admin/service-categories/{key}/toggle-home is protected by require_role(['admin'], permission='server.settings.edit') — auth verified (401 when unauthenticated).",
+    "UserHome.js taxiTiles fallback to first 7 active when no category has visible_home=true — sensible safety net.",
+    "Pre-existing console noise ignored as per request: duplicate React 'key=/login' warning, intermittent 401 polling, Google Maps deprecation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_service_categories_home.py"
+  ],
+  "success_rate": {"backend": "100% (6/6 pytest)", "frontend": "100% (admin toggle, client reflection, /taxi hub regression, no overlay)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (admin-login) ; rider.i18n@demo.sb / Rider123! (/login/email)",
+  "seed_data_creation": "None. Default seed already in place: 17 categories, 7 default visible_home keys (standard, pool, moto, electric, book_later, rental, intercity).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend has POST /api/admin/service-categories/{key}/toggle-home and PUT /api/admin/service-categories/{key} (accepts visible_home). Pytest at /app/backend/tests/test_service_categories_home.py — all 6 pass. Home grid testids: service-svccat-<key>-btn, service-more-taxi-btn. Admin home toggle: svc-cat-home-toggle-<key>. Final state: airport visible_home = OFF (canonical 8-tile Home: standard, pool, moto, electric, book_later, rental, intercity + Tous les Taxis).",
+  "verification_evidence": {
+    "GET /api/service-categories": "200, 17 categories, all with boolean visible_home, defaults match HOME_DEFAULT_KEYS",
+    "POST .../airport/toggle-home (admin)": "200, persists across reload",
+    "POST .../airport/toggle-home (unauth)": "401",
+    "Admin UI toggle airport ON": "orange toggle, toast 'Affiché sur l'accueil', persists on reload",
+    "Rider /home with airport ON": "9 tiles incl. service-svccat-airport-btn + service-more-taxi-btn",
+    "Admin UI toggle airport OFF": "toast 'Retiré de l'accueil', tile disappears from /home (back to 8 tiles)",
+    "/taxi hub regression": "All 17 modes listed (mode-select-* testids) regardless of Accueil toggle",
+    "Runtime errors": "0 page errors, no 'Uncaught runtime errors' overlay"
+  }
+}

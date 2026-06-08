@@ -220,6 +220,7 @@ export const adminAPI = {
   listServiceCategories: () => api.get('/admin/service-categories'),
   updateServiceCategory: (key, data) => api.put(`/admin/service-categories/${key}`, data),
   toggleServiceCategory: (key) => api.post(`/admin/service-categories/${key}/toggle`),
+  toggleServiceCategoryHome: (key) => api.post(`/admin/service-categories/${key}/toggle-home`),
   reorderServiceCategories: (orderedKeys) => api.post('/admin/service-categories/reorder', { ordered_keys: orderedKeys }),
   listStoreCategories: () => api.get('/admin/store-categories'),
   updateStoreCategory: (key, data) => api.put(`/admin/store-categories/${key}`, data),

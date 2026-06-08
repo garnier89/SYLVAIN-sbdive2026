@@ -106,6 +106,11 @@ DEFAULT_CATEGORIES = [
 ]
 
 
+# Default set shown on the client Home "Services Taxi" grid (the rest live only in
+# the /taxi hub). Admin overrides this per-category via the "Accueil" toggle.
+HOME_DEFAULT_KEYS = {"standard", "pool", "moto", "electric", "book_later", "rental", "intercity"}
+
+
 async def seed_service_categories():
     """Idempotent: insert any missing category (preserves admin edits/toggles)."""
     for c in DEFAULT_CATEGORIES:
@@ -120,8 +125,19 @@ async def seed_service_categories():
                 "group": c["group"],
                 "display_order": c["display_order"],
                 "active": True,
+                "visible_home": c["key"] in HOME_DEFAULT_KEYS,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
+    # Migration: backfill `visible_home` on existing docs (drives the Home "Services
+    # Taxi" grid — admin picks which/how many modes appear via the "Accueil" toggle).
+    missing = await db.service_categories.find(
+        {"visible_home": {"$exists": False}}, {"_id": 0, "key": 1}
+    ).to_list(200)
+    for doc in missing:
+        await db.service_categories.update_one(
+            {"key": doc["key"]},
+            {"$set": {"visible_home": doc["key"] in HOME_DEFAULT_KEYS}},
+        )
 
 
 @router.get("")
@@ -218,7 +234,7 @@ async def admin_update_service_category(key: str, request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     allowed = {}
-    for f in ("name", "name_en", "icon", "display_order", "active", "schedule_enabled", "schedule_windows", "schedule_tz"):
+    for f in ("name", "name_en", "icon", "display_order", "active", "visible_home", "schedule_enabled", "schedule_windows", "schedule_tz"):
         if f in body:
             allowed[f] = body[f]
     if not allowed:
@@ -229,6 +245,22 @@ async def admin_update_service_category(key: str, request: Request):
         raise HTTPException(status_code=404, detail="Service category not found")
     updated = await db.service_categories.find_one({"key": key}, {"_id": 0})
     return updated
+
+
+@admin_router.post("/{key}/toggle-home")
+async def admin_toggle_service_category_home(key: str, request: Request):
+    """Toggle whether a taxi mode appears on the client Home 'Services Taxi' grid
+    (independent from /taxi hub visibility, which is governed by `active`)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    cat = await db.service_categories.find_one({"key": key}, {"_id": 0})
+    if not cat:
+        raise HTTPException(status_code=404, detail="Service category not found")
+    new_home = not cat.get("visible_home", False)
+    await db.service_categories.update_one(
+        {"key": key},
+        {"$set": {"visible_home": new_home, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"key": key, "visible_home": new_home}
 
 
 @admin_router.post("/{key}/toggle")

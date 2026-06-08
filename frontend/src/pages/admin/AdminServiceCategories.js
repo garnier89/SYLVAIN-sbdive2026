@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, Clock, Plus, Trash, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, Clock, Plus, Trash, ArrowUp, ArrowDown, House } from '@phosphor-icons/react';
 import { adminAPI } from '../../services/api';
 
 const GROUP_LABELS = { everyday: 'Au quotidien', time: 'Temps & Distance', special: 'Spécialisé & Inclusif' };
@@ -48,6 +48,15 @@ const AdminServiceCategories = () => {
     } catch { toast.error('Échec de la mise à jour'); }
   };
 
+  // Toggle whether the mode shows on the client Home "Services Taxi" grid.
+  const toggleHome = async (key) => {
+    try {
+      const r = await adminAPI.toggleServiceCategoryHome(key);
+      setCats((cs) => cs.map((c) => (c.key === key ? { ...c, visible_home: r.data.visible_home } : c)));
+      toast.success(r.data.visible_home ? 'Affiché sur l\'accueil' : 'Retiré de l\'accueil');
+    } catch { toast.error('Échec de la mise à jour'); }
+  };
+
   // Reorder a service to feature it where you want (reflected in the client /taxi hub).
   const move = async (key, dir) => {
     const idx = cats.findIndex((c) => c.key === key);
@@ -73,7 +82,7 @@ const AdminServiceCategories = () => {
   return (
     <div className="p-6" data-testid="admin-service-categories-page">
       <h1 className="text-2xl font-bold text-slate-900">Catégories de service (Taxi)</h1>
-      <p className="text-sm text-slate-500 mb-5">Activez/désactivez chaque mode, personnalisez nom et icône, et <b>classez-les avec les flèches ↑/↓</b> pour choisir l&apos;ordre mis en avant dans l&apos;app client (sans filtre actif). Les catégories désactivées disparaissent de l&apos;app.</p>
+      <p className="text-sm text-slate-500 mb-5">Activez/désactivez chaque mode, personnalisez nom et icône, et <b>classez-les avec les flèches ↑/↓</b>. Le bouton <b className="text-[#FF5000]">Accueil</b> choisit quelles tuiles (et combien) apparaissent dans la section « Services Taxi » de l&apos;accueil client — sans toucher au code. Les catégories désactivées disparaissent de l&apos;app.</p>
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 flex flex-wrap items-center gap-3">
@@ -113,6 +122,18 @@ const AdminServiceCategories = () => {
               </div>
               <p className="font-bold text-slate-900">{c.name}</p>
               <p className="text-[11px] text-slate-400 mb-3">{GROUP_LABELS[c.group] || c.group}</p>
+              {/* Accueil (Home grid) visibility — controls which/how many taxi tiles
+                  appear in the client Home "Services Taxi" section. */}
+              <div className="flex items-center justify-between gap-2 mb-3 bg-orange-50 rounded-lg px-3 py-2">
+                <span className="text-xs font-semibold text-[#FF5000] inline-flex items-center gap-1.5">
+                  <House size={14} weight="bold" /> Accueil
+                </span>
+                <button onClick={() => toggleHome(c.key)} data-testid={`svc-cat-home-toggle-${c.key}`}
+                  title="Afficher cette tuile sur l'accueil client"
+                  className={`relative w-11 h-6 rounded-full transition-colors ${c.visible_home ? 'bg-[#FF5000]' : 'bg-slate-300'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${c.visible_home ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
               <div className="flex items-center gap-2 mb-3">
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${c.schedule_enabled && (c.schedule_windows || []).length ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`} data-testid={`svc-cat-schedule-badge-${c.key}`}>
                   <Clock size={11} weight="bold" /> {scheduleSummary(c)}
