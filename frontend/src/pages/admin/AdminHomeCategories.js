@@ -3,9 +3,10 @@
  * L'admin gère toutes les sections : ajout/édition/suppression, icône (bibliothèque
  * ou image uploadée), nom FR/EN, sous-titre, ordre, visibilité accueil, route cible.
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, DeviceMobile } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, DeviceMobile, PencilSimple, ArrowSquareOut } from '@phosphor-icons/react';
 import { homeCategoriesAPI, adminAPI } from '../../services/api';
 import DynamicIcon, { ICON_MAP } from '../../components/DynamicIcon';
 
@@ -86,7 +87,26 @@ function HomePreviewModal({ secLayout, items, taxiCats, onClose }) {
   );
 }
 
+// Sections that are NOT editable tile-grids on this page: each is managed on its
+// own dedicated admin page (route) — clicking "Gérer" routes there.
+const SECTION_ROUTE = {
+  taxi: '/admin/service-categories',
+  promo: '/admin/promo-banners',
+  parcel: '/admin/parcels',
+  marketplace: '/admin/marketplace',
+  medical: '/admin/medical',
+  bid: '/admin/bids',
+  genie: '/admin/genie',
+  video: '/admin/video',
+  giftcards: '/admin/giftcards',
+  carpool: '/admin/rideshare',
+  tracking: '/admin/tracking',
+};
+
 export default function AdminHomeCategories() {
+  const navigate = useNavigate();
+  const sectionRefs = useRef({});
+  const [highlight, setHighlight] = useState('');
   const [items, setItems] = useState([]);
   const [sections, setSections] = useState([]);
   const [secLayout, setSecLayout] = useState([]);
@@ -199,6 +219,24 @@ export default function AdminHomeCategories() {
   // not this CMS — exclude the stale taxi section to avoid confusion.
   const managedSections = sections.filter((s) => s.key !== 'taxi');
   const grouped = managedSections.map((s) => ({ ...s, list: items.filter((i) => i.section === s.key).sort((a, b) => a.display_order - b.display_order) }));
+  const editableKeys = new Set(managedSections.map((s) => s.key));
+
+  // From the section-order panel, jump to the right place to ADD/EDIT tiles:
+  // a tile section editable here → scroll to its block; otherwise → its own page.
+  const goManage = (key) => {
+    if (editableKeys.has(key)) {
+      const el = sectionRefs.current[key];
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setHighlight(key);
+        setTimeout(() => setHighlight(''), 1800);
+      }
+    } else if (SECTION_ROUTE[key]) {
+      navigate(SECTION_ROUTE[key]);
+    } else {
+      toast.info('Cette section est un bloc dynamique : seuls l\u2019ordre et la visibilit\u00e9 sont configurables ici.');
+    }
+  };
 
   return (
     <div className="p-6" data-testid="admin-home-categories-page">
@@ -228,25 +266,37 @@ export default function AdminHomeCategories() {
       {!loading && (
         <div className="mb-8 bg-white rounded-xl shadow p-4" data-testid="section-layout-panel">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Ordre & visibilité des sections</h2>
-          <p className="text-sm text-gray-500 mb-3">Réordonnez les sections de l&apos;accueil (↑/↓) et masquez-en une entièrement avec l&apos;œil. L&apos;ordre est reflété en direct dans l&apos;app client.</p>
+          <p className="text-sm text-gray-500 mb-3">Réordonnez les sections de l&apos;accueil (↑/↓) et masquez-en une entièrement avec l&apos;œil. L&apos;ordre est reflété en direct dans l&apos;app client. Cliquez sur <b>Gérer</b> pour <b>ajouter / modifier les services</b> d&apos;une section.</p>
           <div className="divide-y border rounded-lg">
-            {secLayout.map((s, idx) => (
+            {secLayout.map((s, idx) => {
+              const manageable = editableKeys.has(s.key);
+              const hasPage = !!SECTION_ROUTE[s.key];
+              return (
               <div key={s.key} className={`flex items-center gap-3 p-2.5 ${!s.visible ? 'opacity-50' : ''}`} data-testid={`section-layout-row-${s.key}`}>
                 <span className="text-xs font-mono text-gray-400 w-6 text-center">{idx + 1}</span>
                 <span className="flex-1 font-semibold text-sm text-gray-800">{s.title_fr}</span>
+                {(manageable || hasPage) ? (
+                  <button onClick={() => goManage(s.key)} title={manageable ? 'Ajouter / modifier les services' : 'Gérer sur sa page dédiée'}
+                    className="flex items-center gap-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md px-2 py-1" data-testid={`section-manage-${s.key}`}>
+                    {manageable ? <PencilSimple size={13} /> : <ArrowSquareOut size={13} />} Gérer
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-gray-400 italic px-2" title="Bloc dynamique">ordre/visibilité</span>
+                )}
                 <button onClick={() => moveSection(idx, -1)} disabled={idx === 0} className="p-1.5 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30" title="Monter" data-testid={`section-up-${s.key}`}><ArrowUp size={15} /></button>
                 <button onClick={() => moveSection(idx, 1)} disabled={idx === secLayout.length - 1} className="p-1.5 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30" title="Descendre" data-testid={`section-down-${s.key}`}><ArrowDown size={15} /></button>
                 <button onClick={() => toggleSection(s.key)} className={`p-1.5 rounded hover:bg-gray-100 ${s.visible ? 'text-emerald-600' : 'text-gray-400'}`} title="Afficher/Masquer la section" data-testid={`section-toggle-${s.key}`}>
                   {s.visible ? <Eye size={16} /> : <EyeSlash size={16} />}
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {loading ? <p>Chargement…</p> : grouped.map((sec) => (
-        <div key={sec.key} className="mb-8" data-testid={`section-${sec.key}`}>
+        <div key={sec.key} ref={(el) => { sectionRefs.current[sec.key] = el; }} className={`mb-8 rounded-xl transition-shadow ${highlight === sec.key ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`} data-testid={`section-${sec.key}`}>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-bold text-gray-800">{sec.title_fr} <span className="text-xs text-gray-400 font-normal">({sec.list.length})</span></h2>
             <button onClick={() => openCreate(sec.key)} className="text-sm text-indigo-600 font-semibold" data-testid={`add-to-${sec.key}`}>+ Ajouter</button>

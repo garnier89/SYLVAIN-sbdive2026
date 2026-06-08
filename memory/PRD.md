@@ -1,3 +1,14 @@
+## NEW - 2026-06-09 (103) - CMS Accueil : bouton « Gérer » par section (lève la confusion édition/ajout) (DONE, vérifié)
+- **Problème user** : sur « Écran accueil app » → panneau « Ordre & visibilité des sections », impossible d'éditer/ajouter des services (seulement ↑/↓ et œil). Cause : ce panneau ne gère QUE l'ordre/visibilité ; les blocs d'édition (+ Ajouter / ✏️ / 🗑️) sont plus bas et ne couvrent que les 8 sections à tuiles (`SECTIONS`), alors que le registre de mise en page (`home_sections`) compte 19 sections — plusieurs (Taxi, Bannières promo, Colis, Marketplace, Médical, Enchères, Genie, Vidéo…) se gèrent ailleurs ou sont des blocs dynamiques.
+- **Fix UX** (`AdminHomeCategories.js`) : ajout d'un bouton **« Gérer »** sur chaque ligne du panneau d'ordre :
+  - section à tuiles éditable ici (Livraison, À la demande, Beauté, Animaux, Auto, Remorquage, À proximité) → **scroll + surbrillance** du bloc d'édition correspondant ;
+  - section gérée sur sa page dédiée → **navigation** (Taxi→service-categories, Bannières promo→promo-banners, Colis→parcels, Marketplace→marketplace, Médical→medical, Enchères→bids, Genie→genie, Vidéo→video, Cartes cadeaux→giftcards, Covoiturage→rideshare, Suivi→tracking) ;
+  - bloc purement dynamique (ex. Parking) → libellé « ordre/visibilité » + toast explicatif.
+- Texte d'aide mis à jour. **Vérifié** (screenshots) : 18 boutons « Gérer », clic Livraison défile et surligne le bloc éditable. Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-09 (102) - Conversion devise locale (CFA) sur les prix client (moteur + flux cœur, DONE/vérifié)
 - **Demande user** : afficher les prix dans la devise locale (CFA) automatiquement hors zone euro (confiance/conversion Afrique).
 - **Moteur** (NOUVEAU `lib/money.js`) : `EUR_RATES` (base EUR ; **XOF/XAF = parité fixe légale 655,957/€**, exacte ; autres devises = taux indicatifs statiques) + `convertFromEur()` + `formatMoney(amountEur, currency)` (décimales 0 pour XOF/XAF/JPY…, séparateurs `fr-FR`, symbole préfixe/suffixe selon devise). `LocaleContext.formatPrice` convertit désormais réellement et expose un alias `money`.
