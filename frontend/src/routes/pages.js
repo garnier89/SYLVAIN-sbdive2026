@@ -40,6 +40,7 @@ export const AllServicesPage = lazy(() => import('../pages/user/AllServicesPage'
 export const CarPoolPage = lazy(() => import('../pages/user/CarPoolPage'));
 export const MarketplacePage = lazy(() => import('../pages/user/MarketplacePage'));
 export const SellGalleryPage = lazy(() => import('../pages/user/SellGalleryPage'));
+export const MarketplaceMessagesPage = lazy(() => import('../pages/user/MarketplaceMessagesPage'));
 export const NearbyBusinessPage = lazy(() => import('../pages/user/NearbyBusinessPage'));
 export const BeautyServicesPage = lazy(() => import('../pages/user/BeautyServicesPage'));
 export const PetServicesPage = lazy(() => import('../pages/user/PetServicesPage'));

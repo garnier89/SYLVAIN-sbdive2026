@@ -5,8 +5,118 @@ from typing import Optional
 
 from core.config import db
 from core.deps import get_current_user
+from core.notifications import create_notification
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
+
+
+# ===== In-app buyer <-> seller messaging =====
+
+@router.post("/threads")
+async def start_thread(request: Request):
+    """Get or create a conversation thread between the current user (buyer) and a
+    listing's seller."""
+    buyer = await get_current_user(request)
+    body = await request.json()
+    listing_id = body.get("listing_id")
+    listing = await db.marketplace_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    seller_id = listing.get("user_id")
+    if seller_id == buyer["id"]:
+        raise HTTPException(status_code=400, detail="Vous êtes le vendeur de cette annonce")
+
+    existing = await db.marketplace_threads.find_one(
+        {"listing_id": listing_id, "buyer_id": buyer["id"], "seller_id": seller_id}, {"_id": 0}
+    )
+    if existing:
+        return existing
+
+    now = datetime.now(timezone.utc).isoformat()
+    thread = {
+        "id": f"thr_{uuid.uuid4().hex[:12]}",
+        "listing_id": listing_id,
+        "listing_title": listing.get("title", ""),
+        "listing_image": listing.get("image", ""),
+        "buyer_id": buyer["id"],
+        "buyer_name": buyer.get("name", "Acheteur"),
+        "seller_id": seller_id,
+        "seller_name": listing.get("seller_name", "Vendeur"),
+        "last_message": None,
+        "last_message_at": None,
+        "created_at": now,
+    }
+    await db.marketplace_threads.insert_one(dict(thread))
+    thread.pop("_id", None)
+    return thread
+
+
+@router.get("/threads")
+async def my_threads(request: Request):
+    user = await get_current_user(request)
+    threads = await db.marketplace_threads.find(
+        {"$or": [{"buyer_id": user["id"]}, {"seller_id": user["id"]}]}, {"_id": 0}
+    ).sort("last_message_at", -1).to_list(100)
+    for t in threads:
+        t["unread"] = await db.marketplace_messages.count_documents(
+            {"thread_id": t["id"], "sender_id": {"$ne": user["id"]}, "read": False}
+        )
+    return {"threads": threads}
+
+
+async def _require_participant(thread_id: str, user_id: str) -> dict:
+    thread = await db.marketplace_threads.find_one({"id": thread_id}, {"_id": 0})
+    if not thread or user_id not in (thread.get("buyer_id"), thread.get("seller_id")):
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
+    return thread
+
+
+@router.get("/threads/{thread_id}/messages")
+async def thread_messages(thread_id: str, request: Request):
+    user = await get_current_user(request)
+    thread = await _require_participant(thread_id, user["id"])
+    await db.marketplace_messages.update_many(
+        {"thread_id": thread_id, "sender_id": {"$ne": user["id"]}, "read": False},
+        {"$set": {"read": True}},
+    )
+    messages = await db.marketplace_messages.find(
+        {"thread_id": thread_id}, {"_id": 0}
+    ).sort("created_at", 1).to_list(500)
+    return {"thread": thread, "messages": messages, "me": user["id"]}
+
+
+@router.post("/threads/{thread_id}/messages")
+async def send_message(thread_id: str, request: Request):
+    user = await get_current_user(request)
+    thread = await _require_participant(thread_id, user["id"])
+    body = await request.json()
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Message vide")
+    now = datetime.now(timezone.utc).isoformat()
+    msg = {
+        "id": f"msg_{uuid.uuid4().hex[:12]}",
+        "thread_id": thread_id,
+        "sender_id": user["id"],
+        "sender_name": user.get("name", ""),
+        "text": text[:2000],
+        "read": False,
+        "created_at": now,
+    }
+    await db.marketplace_messages.insert_one(dict(msg))
+    await db.marketplace_threads.update_one(
+        {"id": thread_id}, {"$set": {"last_message": text[:120], "last_message_at": now}}
+    )
+    other_id = thread["seller_id"] if user["id"] == thread["buyer_id"] else thread["buyer_id"]
+    sender_name = user.get("name") or "Quelqu’un"
+    await create_notification(
+        other_id, "marketplace_message",
+        f"Message · {thread.get('listing_title', 'Annonce')}",
+        f"{sender_name}: {text[:80]}",
+        data={"thread_id": thread_id, "listing_id": thread.get("listing_id")},
+    )
+    msg.pop("_id", None)
+    return msg
 
 
 @router.post("/listings")

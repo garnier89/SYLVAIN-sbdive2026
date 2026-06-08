@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (97) - Messagerie in-app acheteur↔vendeur (Marketplace) (DONE, testé)
+- **Demande user** : remplacer la redirection WhatsApp par une messagerie in-app (échanges gardés dans la plateforme, données de vente, futur levier de commission).
+- **Backend** (`marketplace.py`) : collections `marketplace_threads` + `marketplace_messages`. Endpoints : `POST /threads` (get-or-create entre acheteur courant et vendeur de l'annonce, 400 si on est le vendeur), `GET /threads` (mes conversations + compteur `unread`), `GET /threads/{id}/messages` (marque lu + renvoie thread/messages/me), `POST /threads/{id}/messages` (envoi + maj last_message + `create_notification` type `marketplace_message` à l'autre participant). Garde-fou participant sur chaque accès.
+- **Frontend** : `pages/user/MarketplaceMessagesPage.js` (routes `/marketplace/messages` liste des conversations + `/marketplace/messages/:threadId` vue chat avec polling 4s, bulles, input). MarketplacePage : fiche annonce → bouton **« Message »** (in-app, CTA principal) + **« Appeler »** (tel) ; WhatsApp retiré. Bouton **« Mes messages »** dans l'en-tête Marketplace. API `marketplaceAPI.startThread/myThreads/threadMessages/sendMessage`.
+- **Bug corrigé** : SyntaxError f-string (backslash `\u2019` dans l'expression) → sortie de la variable `sender_name` hors f-string. Backend redémarré OK.
+- **Vérifié** e2e (curl, 2 comptes) : acheteur crée thread + envoie → vendeur voit `unread=1` + last_message → lit (unread→0) → répond → acheteur voit les 2 messages. Lint clean (3 fichiers), webpack compile. Comptes test : clienttest@demo.sb (vendeur), **buyer@demo.sb / Buyer2026!** (acheteur).
+- **Note** : polling 4s (pas de WS) — simple et fiable. Notification in-app/push à chaque message.
+
+
 ## NEW - 2026-06-09 (96) - PHASE C terminée (Emplacements) + Notif KYC + Fiche annonce Marketplace (DONE, testé)
 - **Phase C — « Emplacements / lieu de résidence » (dernier placeholder du menu « + »)** :
   - Backend (`drivers.py`) : `GET/PUT /api/drivers/work-base`. PUT enregistre `home_location {address,lat,lng}` et, si `activate_all`, active tous les services éligibles (delivery+courier toujours ; taxi seulement si la passerelle VTC `_taxi_block_reason` passe, sinon `taxi_note` explicatif).

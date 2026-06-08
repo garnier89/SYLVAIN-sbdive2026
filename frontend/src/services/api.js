@@ -291,6 +291,10 @@ export const marketplaceAPI = {
   getListing: (id) => api.get(`/marketplace/listings/${id}`),
   myListings: () => api.get('/marketplace/my-listings'),
   deleteListing: (id) => api.delete(`/marketplace/listings/${id}`),
+  startThread: (listingId) => api.post('/marketplace/threads', { listing_id: listingId }),
+  myThreads: () => api.get('/marketplace/threads'),
+  threadMessages: (threadId) => api.get(`/marketplace/threads/${threadId}/messages`),
+  sendMessage: (threadId, text) => api.post(`/marketplace/threads/${threadId}/messages`, { text }),
 };
 
 // Carpool APIs

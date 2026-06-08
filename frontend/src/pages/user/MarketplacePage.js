@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle, WhatsappLogo, Phone } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle, ChatCircleText, Phone } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { marketplaceAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -39,6 +40,15 @@ const MarketplacePage = () => {
   const cat = activeCat ? CATEGORIES[activeCat] : null;
   const title = cat ? cat.label : 'Acheter, Vendre & Louer';
 
+  const startChat = async (l) => {
+    try {
+      const r = await marketplaceAPI.startThread(l.id);
+      navigate(`/marketplace/messages/${r.data.id}`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Impossible de démarrer la conversation');
+    }
+  };
+
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-8" data-testid="marketplace-page">
       <div className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100 sticky top-0 z-20">
@@ -46,6 +56,9 @@ const MarketplacePage = () => {
           <ArrowLeft size={20} />
         </button>
         <h1 className="text-lg font-bold text-gray-900 flex-1">{title}</h1>
+        <button onClick={() => navigate('/marketplace/messages')} className="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-blue-600" data-testid="marketplace-messages-btn" title="Mes messages">
+          <ChatCircleText size={22} weight="fill" />
+        </button>
         <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-blue-50 text-blue-700">{filtered.length}</span>
       </div>
 
@@ -139,17 +152,15 @@ const MarketplacePage = () => {
               {selected.description && <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">{selected.description}</p>}
 
               <div className="grid grid-cols-2 gap-3 mt-5">
+                <button onClick={() => startChat(selected)} className="flex items-center justify-center gap-2 bg-blue-600 text-white rounded-xl py-3 font-bold text-sm" data-testid="contact-message-btn">
+                  <ChatCircleText size={18} weight="fill" /> Message
+                </button>
                 {selected.seller_phone ? (
-                  <>
-                    <a href={`https://wa.me/${(selected.seller_phone || '').replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold text-sm" data-testid="contact-whatsapp-btn">
-                      <WhatsappLogo size={18} weight="fill" /> WhatsApp
-                    </a>
-                    <a href={`tel:${selected.seller_phone}`} className="flex items-center justify-center gap-2 bg-blue-600 text-white rounded-xl py-3 font-bold text-sm" data-testid="contact-call-btn">
-                      <Phone size={18} weight="fill" /> Appeler
-                    </a>
-                  </>
+                  <a href={`tel:${selected.seller_phone}`} className="flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold text-sm" data-testid="contact-call-btn">
+                    <Phone size={18} weight="fill" /> Appeler
+                  </a>
                 ) : (
-                  <p className="col-span-2 text-center text-sm text-gray-400">Contact du vendeur indisponible.</p>
+                  <span className="flex items-center justify-center text-xs text-gray-400">Téléphone indisponible</span>
                 )}
               </div>
             </div>
