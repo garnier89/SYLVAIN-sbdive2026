@@ -1,4 +1,12 @@
-## NEW - 2026-06-09 (98) - « Commerces Proches » câblé de bout en bout + CMS admin (DONE, testé 100%)
+## NEW - 2026-06-09 (99) - Messagerie Marketplace : polling 4s → WebSocket temps réel (DONE, testé e2e)
+- **Demande user (P1)** : migrer la messagerie acheteur↔vendeur du polling HTTP 4s vers de vrais WebSockets.
+- **Backend** (`marketplace.py`) : `send_message` pousse désormais le message en **temps réel** via `manager.send_personal_message` aux **2 participants** (payload `{type:"marketplace_message", thread_id, listing_title, message}`) — le frontend dédoublonne par `id`. Nouvel endpoint léger **`POST /threads/{id}/read`** (accusé de lecture événementiel). `create_notification` continue d'émettre son event notif (sans champ `message`, ignoré par le guard frontend).
+- **Frontend** (`MarketplaceMessagesPage.js`) : suppression du `setInterval(4000)` ; utilise le hook existant **`useWebSocket(user.id)`** + `on('marketplace_message', …)`. Vue thread → append dédupliqué + `markThreadRead` à réception. Vue liste → refresh des conversations sur event. API `marketplaceAPI.markThreadRead`.
+- **Vérifié e2e** (script websockets, 2 comptes réels buyer@demo.sb + clienttest@demo.sb) : buyer envoie via HTTP → seller **reçoit le message via WS** en <4s (texte exact), endpoint mark-read → `{ok:true}`. Frontend compile (1 warning pré-existant). NB : screenshot login bloqué par la modale d'onboarding (limite d'automatisation connue, pas un bug code).
+- ⚠️ PREVIEW → **redéploiement requis** pour la prod.
+
+
+
 - **Demande user** : compléter la section « Commerces Proches » — tuiles accueil (Musées, Hôtels, Salons, Attractions, Bibliothèques, Vie Nocturne, Parking, Garage…) qui pointaient toutes vers un `/nearby` générique, backend ne contenant que 6 commerces. + page admin complète (création/édition/suppression + upload image). Catégories en français.
 - **Backend** :
   - `demo_seed.py` : `CATEGORY_SEEDS['nearby_businesses']` passé de 6 → **22 commerces** couvrant 13 catégories FR (Café, Bar, Restaurant, Salon, Boulangerie, Pharmacie, Hôtel, Musée, Attraction, Bibliothèque, Vie Nocturne, Parking, Garage) + `is_active`/`phone`.

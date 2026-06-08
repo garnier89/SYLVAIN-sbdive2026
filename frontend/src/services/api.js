@@ -295,6 +295,7 @@ export const marketplaceAPI = {
   myThreads: () => api.get('/marketplace/threads'),
   threadMessages: (threadId) => api.get(`/marketplace/threads/${threadId}/messages`),
   sendMessage: (threadId, text) => api.post(`/marketplace/threads/${threadId}/messages`, { text }),
+  markThreadRead: (threadId) => api.post(`/marketplace/threads/${threadId}/read`),
 };
 
 // Carpool APIs

@@ -6,6 +6,7 @@ from typing import Optional
 from core.config import db
 from core.deps import get_current_user
 from core.notifications import create_notification
+from core.websocket import manager
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
@@ -116,7 +117,30 @@ async def send_message(thread_id: str, request: Request):
         data={"thread_id": thread_id, "listing_id": thread.get("listing_id")},
     )
     msg.pop("_id", None)
+    # Real-time push (replaces the old 4s polling). Sent to BOTH participants so
+    # open chat windows append instantly; the frontend dedupes by message id.
+    ws_payload = {
+        "type": "marketplace_message",
+        "thread_id": thread_id,
+        "listing_title": thread.get("listing_title", "Annonce"),
+        "message": msg,
+    }
+    for uid in {other_id, user["id"]}:
+        await manager.send_personal_message(ws_payload, uid)
     return msg
+
+
+@router.post("/threads/{thread_id}/read")
+async def mark_thread_read(thread_id: str, request: Request):
+    """Lightweight, event-driven read receipt: mark the other party's messages as
+    read for the current user (called when a WS message arrives in an open chat)."""
+    user = await get_current_user(request)
+    await _require_participant(thread_id, user["id"])
+    await db.marketplace_messages.update_many(
+        {"thread_id": thread_id, "sender_id": {"$ne": user["id"]}, "read": False},
+        {"$set": {"read": True}},
+    )
+    return {"ok": True}
 
 
 @router.post("/listings")

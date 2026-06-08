@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, PaperPlaneRight, ChatCircleText } from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { marketplaceAPI } from '../../services/api';
 
 const MarketplaceMessagesPage = () => {
   const navigate = useNavigate();
   const { threadId } = useParams();
   const { user } = useAuth();
+  const { on } = useWebSocket(user?.id);
   const [threads, setThreads] = useState([]);
   const [messages, setMessages] = useState([]);
   const [thread, setThread] = useState(null);
@@ -16,25 +18,28 @@ const MarketplaceMessagesPage = () => {
   const [sending, setSending] = useState(false);
   const endRef = useRef(null);
 
-  // Thread list (when no thread is open)
+  // Thread list (when no thread is open) — refreshed in real time on WS events.
   useEffect(() => {
     if (threadId) return undefined;
     let alive = true;
-    (async () => {
+    const loadThreads = async () => {
       try {
         const r = await marketplaceAPI.myThreads();
         if (alive) setThreads(r.data?.threads || []);
       } catch { /* ignore */ }
       finally { if (alive) setLoading(false); }
-    })();
-    return () => { alive = false; };
-  }, [threadId]);
+    };
+    loadThreads();
+    // New incoming message → refresh the list (updates last_message + unread badge).
+    const off = on('marketplace_message', () => { loadThreads(); });
+    return () => { alive = false; off(); };
+  }, [threadId, on]);
 
-  // Open thread: load + poll messages
+  // Open thread: initial load + real-time WebSocket append (no more polling).
   useEffect(() => {
     if (!threadId) return undefined;
     let alive = true;
-    const fetchMsgs = async () => {
+    (async () => {
       try {
         const r = await marketplaceAPI.threadMessages(threadId);
         if (!alive) return;
@@ -42,11 +47,20 @@ const MarketplaceMessagesPage = () => {
         setThread(r.data?.thread || null);
       } catch { /* ignore */ }
       finally { if (alive) setLoading(false); }
-    };
-    fetchMsgs();
-    const iv = setInterval(fetchMsgs, 4000);
-    return () => { alive = false; clearInterval(iv); };
-  }, [threadId]);
+    })();
+
+    const off = on('marketplace_message', (data) => {
+      if (!alive || data.thread_id !== threadId || !data.message) return;
+      setMessages((prev) => (
+        prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]
+      ));
+      // Event-driven read receipt (only when actively viewing the thread).
+      if (data.message.sender_id !== user?.id) {
+        marketplaceAPI.markThreadRead(threadId).catch(() => {});
+      }
+    });
+    return () => { alive = false; off(); };
+  }, [threadId, on, user?.id]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
