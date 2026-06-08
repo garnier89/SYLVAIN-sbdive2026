@@ -1,3 +1,13 @@
+## NEW - 2026-06-08 (66) - Accueil « Services Taxi » pilotable depuis l'admin (visible_home) (DONE)
+- **Demande user** : rendre la section « Services Taxi » de l'accueil pilotable depuis « Gérer les catégories » (nombre de tuiles, ordre, libellés) sans repasser par le code ni redéployer.
+- **Constat** : libellés/ordre/active étaient déjà admin-pilotés ; manquait le contrôle de **quelles tuiles / combien** apparaissent sur l'accueil.
+- **Backend** (`routes/service_categories.py`) : nouveau flag **`visible_home`** par catégorie. Seed + **migration idempotente** (backfill via `HOME_DEFAULT_KEYS` = {standard, pool, moto, electric, book_later, rental, intercity}). PUT accepte `visible_home`. Nouvel endpoint **`POST /admin/service-categories/{key}/toggle-home`** (require_role admin, `server.settings.edit`).
+- **Frontend** : `api.js` → `adminAPI.toggleServiceCategoryHome`. `AdminServiceCategories.js` → toggle orange **« Accueil »** par carte (`svc-cat-home-toggle-<key>`) + texte d'aide. `UserHome.taxiTiles` filtre désormais `c.visible_home === true` (repli sur les 7 premiers actifs si aucun flag) + « Tous les Taxis ».
+- **Vérifié** : **testing_agent iteration_162.json — 100%** : backend 6/6 pytest (`/app/backend/tests/test_service_categories_home.py`), endpoint protégé (401 non-auth), toggle persiste, accueil rider reflète l'ajout/retrait d'une tuile (ex. Aéroport ON→9 tuiles, OFF→8), `/taxi` liste toujours TOUS les modes (le toggle Accueil n'affecte que la grille d'accueil). État final restauré (8 tuiles canoniques). Lint clean, webpack compile (1 warning pré-existant).
+- ⚠️ PREVIEW → **redéploiement requis** pour la production.
+
+
+
 ## NEW - 2026-06-08 (65) - Tuiles Taxi : suppression doublons + cohérence + page orange (DONE)
 - **Demande user (vidéo)** : (1) supprimer les tuiles en double de l'accueil « VTC Réservation/Pooling/Location/Chauffeur Privé/Enchères VTC/VTC Intercity/Programmer Course », garder les originaux ; (2) « Plus de taxis / Tous les Taxis » doit afficher l'ENSEMBLE des taxis, les mêmes partout ; (3) unifier la **page** en orange — **pas les icônes**.
 - **Fix 1 (doublons)** : `UserHome.taxiServices` (tableau de secours codé en dur) réécrit avec les 8 originaux (Taxi VTC, Pool-partage, Moto Taxi, Électric, Planifiez votre trajet, Mise à Dispo, Intercité, Tous les Taxis). La source principale `taxiTiles` (service_categories) reste prioritaire. Plus aucun « VTC Réservation… ».
