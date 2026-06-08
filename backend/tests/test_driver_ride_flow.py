@@ -9,7 +9,7 @@ import time
 import uuid
 import requests
 
-API = os.environ.get("API_URL") or "https://gojek-clone-40.preview.emergentagent.com"
+API = os.environ.get("API_URL") or "https://gojek-clone-41.preview.emergentagent.com"
 BASE = f"{API}/api"
 
 

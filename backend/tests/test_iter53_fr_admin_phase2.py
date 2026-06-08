@@ -15,7 +15,7 @@ import pytest
 import requests
 import uuid
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-40.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gojek-clone-41.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "admin@superapp.com"
 ADMIN_PASS = os.environ.get("TEST_ADMIN_PASSWORD", "SuperAdmin123!")
 DRIVER_EMAIL = "jean.dupont@demo.sb"
