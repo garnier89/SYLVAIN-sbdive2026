@@ -12,6 +12,8 @@ import {
   Heart, Sparkle, Scissors, HairDryer, MaskHappy, HandSoap, Drop,
   GasPump, BatteryFull, Plug, Coffee, Wine, Stethoscope, FirstAid,
   VideoCamera, GridFour, Wallet, Buildings, Star, MapPin,
+  GraduationCap, Scales, Moon, Bank, Bed, Tree, MusicNotes, BookOpen,
+  Confetti, SteeringWheel, Snowflake,
 } from '@phosphor-icons/react';
 
 export const ICON_MAP = {
@@ -23,6 +25,8 @@ export const ICON_MAP = {
   Heart, Sparkle, Scissors, HairDryer, MaskHappy, HandSoap, Drop,
   GasPump, BatteryFull, Plug, Coffee, Wine, Stethoscope, FirstAid,
   VideoCamera, GridFour, Wallet, Buildings, Star, MapPin,
+  GraduationCap, Scales, Moon, Bank, Bed, Tree, MusicNotes, BookOpen,
+  Confetti, SteeringWheel, Snowflake,
 };
 
 const DynamicIcon = ({ name, imageUrl, size = 28, weight = 'duotone', className = '' }) => {

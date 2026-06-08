@@ -1,3 +1,12 @@
+## NEW - 2026-06-08 (76) - Complétion XJEKPLUS des sections accueil (DONE, vérifié)
+- Script `backend/scripts/add_xjekplus_items.py` (idempotent) : ajoute 15 sous-services manquants dans `home_categories` pour matcher XJEKPLUS, labels FR, couleurs depuis la palette déjà rendue (anti-purge Tailwind), routes existantes par section.
+- Ajouts : ondemand (Ménage, Jardinage, Tutorat, Avocats, Astrologue) ; carcare (Boutique Pièces, Lavage Moto) ; nearby (Musées, Attractions, Bibliothèques, Vie Nocturne, Hôtels, Parking, Garage) ; beauty (Spa & Massage).
+- Icônes : ajout de 11 icônes Phosphor à `components/DynamicIcon.js` ICON_MAP (GraduationCap, Scales, Moon, Bank, Bed, Tree, MusicNotes, BookOpen, Confetti, SteeringWheel, Snowflake). Lint clean.
+- **Vérifié** screenshot accueil (Entretien Auto montre Boutique Pièces + Lavage Moto ; tous les nouveaux labels présents).
+- Décision : noms FR conservés (marché DOM-TOM/Afrique). Items XJEKPLUS génériques inclus à la demande user (« XJEKPLUS complète »).
+- ⚠️ PREVIEW → redéploiement requis.
+
+
 ## NEW - 2026-06-08 (75) - Onboarding Langue/Devise au 1er lancement (DONE, vérifié)
 - Nouveau composant `components/OnboardingModal.jsx` (motion bottom-sheet, branding orange #FF5000), branché dans `LocaleProvider` (`contexts/LocaleContext.js`).
 - Affiché si `localStorage.sb_onboarded` absent ; **masqué** sur chemins staff (`/admin|/chauffeur|/merchant|/dispatch|/kiosk`). `completeOnboarding(lang,curr)` applique langue+devise, pose `sb_onboarded=1` + `sb_lang_suggested=1` (supprime le banner zone), ferme.
