@@ -24,6 +24,40 @@ from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 
 router = APIRouter(prefix="/promo-banners", tags=["promo-banners"])
 
+
+def _parse_dt(s):
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _days_active(b):
+    """Inclusive number of billable days for a per-day campaign."""
+    now = datetime.now(timezone.utc)
+    start = _parse_dt(b.get("starts_at")) or _parse_dt(b.get("created_at")) or now
+    end = _parse_dt(b.get("ends_at")) or now
+    if end > now:
+        end = now
+    if end < start:
+        return 0
+    return (end - start).days + 1
+
+
+def _banner_cost(b):
+    """Estimated cost of a banner based on its pricing model."""
+    model = b.get("pricing_model", "free")
+    if model == "per_day":
+        return round(float(b.get("price_per_day") or 0) * _days_active(b), 2)
+    if model == "cpm":
+        return round(float(b.get("cpm") or 0) * (b.get("impressions") or 0) / 1000.0, 2)
+    return 0.0
+
 # (title, subtitle, highlight, promo_code, cta_label, target_route, image_url, theme, bg_color)
 _SEED = [
     (
@@ -147,11 +181,50 @@ async def admin_create(request: Request, current_user: dict = Depends(require_pe
         "display_order": body.get("display_order", count),
         "status": body.get("status", "active"),
         "surfaces": [s for s in (body.get("surfaces") or ["home"]) if s in ("home", "food", "marketplace")] or ["home"],
+        "advertiser": (body.get("advertiser") or "").strip(),
+        "advertiser_contact": (body.get("advertiser_contact") or "").strip(),
+        "pricing_model": body.get("pricing_model") if body.get("pricing_model") in ("free", "per_day", "cpm") else "free",
+        "price_per_day": float(body.get("price_per_day") or 0),
+        "cpm": float(body.get("cpm") or 0),
+        "starts_at": body.get("starts_at") or None,
+        "ends_at": body.get("ends_at") or None,
         "scope": clean_scope(body.get("scope")),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.promo_banners.insert_one(doc)
     return _clean(doc)
+
+
+@router.get("/admin/billing")
+async def admin_billing(current_user: dict = Depends(require_permission("content.manage"))):
+    """Per-advertiser billing recap: impressions, clicks, CTR and estimated cost.
+    Cost is derived from each banner's pricing model (per_day × days, or CPM × impressions/1000)."""
+    items = await db.promo_banners.find({}, {"_id": 0}).to_list(1000)
+    groups = {}
+    for b in items:
+        adv = (b.get("advertiser") or "").strip() or "Non attribué"
+        cost = _banner_cost(b)
+        g = groups.setdefault(adv, {
+            "advertiser": adv, "contact": b.get("advertiser_contact") or "",
+            "banners": 0, "impressions": 0, "clicks": 0, "cost": 0.0,
+        })
+        g["banners"] += 1
+        g["impressions"] += b.get("impressions") or 0
+        g["clicks"] += b.get("clicks") or 0
+        g["cost"] = round(g["cost"] + cost, 2)
+        if not g["contact"] and b.get("advertiser_contact"):
+            g["contact"] = b["advertiser_contact"]
+    out = sorted(groups.values(), key=lambda x: x["cost"], reverse=True)
+    for g in out:
+        g["ctr"] = round(100 * g["clicks"] / g["impressions"], 1) if g["impressions"] else 0.0
+    totals = {
+        "advertisers": len(out),
+        "banners": sum(g["banners"] for g in out),
+        "impressions": sum(g["impressions"] for g in out),
+        "clicks": sum(g["clicks"] for g in out),
+        "cost": round(sum(g["cost"] for g in out), 2),
+    }
+    return {"advertisers": out, "totals": totals}
 
 
 @router.put("/admin/{banner_id}")
@@ -166,6 +239,20 @@ async def admin_update(banner_id: str, request: Request, current_user: dict = De
         updates["display_order"] = int(body["display_order"])
     if "surfaces" in body:
         updates["surfaces"] = [s for s in (body["surfaces"] or []) if s in ("home", "food", "marketplace")] or ["home"]
+    if "advertiser" in body:
+        updates["advertiser"] = (body["advertiser"] or "").strip()
+    if "advertiser_contact" in body:
+        updates["advertiser_contact"] = (body["advertiser_contact"] or "").strip()
+    if "pricing_model" in body and body["pricing_model"] in ("free", "per_day", "cpm"):
+        updates["pricing_model"] = body["pricing_model"]
+    if "price_per_day" in body:
+        updates["price_per_day"] = float(body["price_per_day"] or 0)
+    if "cpm" in body:
+        updates["cpm"] = float(body["cpm"] or 0)
+    if "starts_at" in body:
+        updates["starts_at"] = body["starts_at"] or None
+    if "ends_at" in body:
+        updates["ends_at"] = body["ends_at"] or None
     if "scope" in body:
         updates["scope"] = clean_scope(body["scope"])
     if isinstance(updates.get("image_url"), str) and len(updates["image_url"]) > 11_000_000:

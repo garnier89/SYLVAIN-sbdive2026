@@ -1,4 +1,13 @@
-## NEW - 2026-06-09 (133) - Suivi impressions/clics des bannières Sponsorisé (DONE, curl + screenshot)
+## NEW - 2026-06-09 (134) - Facturation des emplacements Sponsorisé (DONE, curl + screenshot)
+- **Demande user** : facturer les emplacements (tarif/jour ou CPM par bannière) + récap par commerçant, couplé au CTR → vraie source de revenus pub.
+- **Backend** (`promo_banners.py`) : champs `advertiser`, `advertiser_contact`, `pricing_model` (free/per_day/cpm), `price_per_day`, `cpm`, `starts_at`, `ends_at` (create/update). Helpers `_days_active` (jours inclusifs, plafonné à maintenant) + `_banner_cost` (per_day×jours ou cpm×impressions/1000). NOUVEL endpoint admin `GET /promo-banners/admin/billing` → récap groupé par commerçant (bannières, impressions, clics, CTR, coût) + totaux.
+- **Frontend admin** (`AdminPromoBanners.js`) : fieldset « Facturation publicitaire » dans le formulaire (annonceur, contact, modèle, tarif/jour ou CPM, dates début/fin) + panneau dépliable « 💶 Facturation publicitaire » avec tableau par commerçant + ligne Total. `promoBannersAPI.billing()`.
+- **Vérifié** : curl (CPM 3 × 2 impressions = 0,01 € ; CTR 50% ; groupe « Non attribué ») + screenshot admin (tableau récap + total). Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : mini-stats impressions/clics par bannière dans l'admin → emplacement publicitaire mesurable, facturable aux commerçants.
 - **Backend** (`promo_banners.py`) : endpoints publics `POST /promo-banners/{id}/impression` et `/click` (`$inc` compteurs). La liste admin renvoie déjà `impressions`/`clicks`.
 - **Frontend** : `SponsoredBanners.jsx` → 1 impression par bannière **par session** (dédup `sessionStorage`) + clic tracké avant navigation. `promoBannersAPI.impression/click`. Admin `AdminPromoBanners.js` → ligne mini-stats par bannière (👁 impressions, 🖱 clics, **CTR %**) + badges d'emplacement (Accueil/Livraison/Marketplace).

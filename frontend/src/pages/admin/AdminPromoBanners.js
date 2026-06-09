@@ -14,6 +14,7 @@ const emptyForm = {
   title: '', subtitle: '', highlight: '', promo_code: '', cta_label: '',
   target_route: '/food', image_url: null, theme: 'light', bg_color: '#FFFFFF', status: 'active',
   surfaces: ['home'],
+  advertiser: '', advertiser_contact: '', pricing_model: 'free', price_per_day: '', cpm: '', starts_at: '', ends_at: '',
   scope: { country: '', state: '', city: '' },
 };
 
@@ -61,6 +62,17 @@ export default function AdminPromoBanners() {
   const [showPreview, setShowPreview] = useState(false);
   const [previewZone, setPreviewZone] = useState({ country: '', state: '', city: '' });
   const [previewItems, setPreviewItems] = useState(null);
+  const [billing, setBilling] = useState(null);
+  const [showBilling, setShowBilling] = useState(false);
+
+  const toggleBilling = async () => {
+    const next = !showBilling;
+    setShowBilling(next);
+    if (next) {
+      try { const r = await promoBannersAPI.billing(); setBilling(r.data); }
+      catch { setBilling({ advertisers: [], totals: {} }); }
+    }
+  };
 
   const loadPreview = async (zone) => {
     setPreviewZone(zone);
@@ -100,6 +112,10 @@ export default function AdminPromoBanners() {
       target_route: it.target_route || '/', image_url: it.image_url || null,
       theme: it.theme || 'light', bg_color: it.bg_color || '#FFFFFF', status: it.status || 'active',
       surfaces: it.surfaces && it.surfaces.length ? it.surfaces : ['home'],
+      advertiser: it.advertiser || '', advertiser_contact: it.advertiser_contact || '',
+      pricing_model: it.pricing_model || 'free',
+      price_per_day: it.price_per_day || '', cpm: it.cpm || '',
+      starts_at: it.starts_at || '', ends_at: it.ends_at || '',
       scope: it.scope || { country: '', state: '', city: '' },
     });
     setShowForm(true);
@@ -185,7 +201,58 @@ export default function AdminPromoBanners() {
         )}
       </div>
 
-      {loading ? <p>Chargement…</p> : (
+      {/* Billing recap — per-advertiser impressions, clicks, CTR and estimated revenue */}
+      <div className="bg-white rounded-xl border border-slate-200 mb-6" data-testid="billing-card">
+        <button onClick={toggleBilling} className="w-full flex items-center justify-between px-4 py-3" data-testid="billing-toggle-btn">
+          <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            💶 Facturation publicitaire
+            <span className="text-xs font-normal text-slate-400">— récap par commerçant (tarif/jour ou CPM)</span>
+          </span>
+          {showBilling ? <EyeSlash size={16} className="text-slate-400" /> : <Eye size={16} className="text-slate-400" />}
+        </button>
+        {showBilling && (
+          <div className="px-4 pb-4 border-t border-slate-100 pt-4 overflow-x-auto">
+            {!billing ? <p className="text-sm text-slate-400">Chargement…</p> : billing.advertisers.length === 0 ? (
+              <p className="text-sm text-slate-400">Aucune donnée. Renseignez un commerçant et un modèle de tarification sur vos bannières.</p>
+            ) : (
+              <table className="w-full text-sm" data-testid="billing-table">
+                <thead>
+                  <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                    <th className="py-2 pr-3">Commerçant</th>
+                    <th className="py-2 px-3">Bannières</th>
+                    <th className="py-2 px-3">Impressions</th>
+                    <th className="py-2 px-3">Clics</th>
+                    <th className="py-2 px-3">CTR</th>
+                    <th className="py-2 pl-3 text-right">Montant dû</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billing.advertisers.map((a) => (
+                    <tr key={a.advertiser} className="border-b border-slate-50" data-testid={`billing-row-${a.advertiser}`}>
+                      <td className="py-2 pr-3 font-semibold text-slate-800">{a.advertiser}{a.contact ? <span className="block text-[11px] font-normal text-slate-400">{a.contact}</span> : null}</td>
+                      <td className="py-2 px-3">{a.banners}</td>
+                      <td className="py-2 px-3">{a.impressions}</td>
+                      <td className="py-2 px-3">{a.clicks}</td>
+                      <td className="py-2 px-3 font-semibold text-[#FF5000]">{a.ctr}%</td>
+                      <td className="py-2 pl-3 text-right font-bold text-slate-900">{Number(a.cost).toFixed(2)} €</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="font-bold text-slate-900">
+                    <td className="py-2 pr-3">Total</td>
+                    <td className="py-2 px-3">{billing.totals.banners}</td>
+                    <td className="py-2 px-3">{billing.totals.impressions}</td>
+                    <td className="py-2 px-3">{billing.totals.clicks}</td>
+                    <td className="py-2 px-3" />
+                    <td className="py-2 pl-3 text-right text-emerald-600" data-testid="billing-total">{Number(billing.totals.cost || 0).toFixed(2)} €</td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
+        )}
+      </div>
         <div className="space-y-4">
           {items.length === 0 && <p className="text-sm text-gray-400">Aucune bannière. Créez-en une pour l&apos;afficher sur l&apos;accueil.</p>}
           {items.map((it, idx) => (
@@ -306,6 +373,53 @@ export default function AdminPromoBanners() {
                 <div className="flex items-center gap-2">
                   <img src={form.image_url} alt="" className="w-12 h-9 object-cover rounded" />
                   <button onClick={() => setForm({ ...form, image_url: null })} className="text-xs text-red-600 underline">retirer</button>
+                </div>
+              )}
+            </div>
+
+            {/* Billing / advertiser (monetization) */}
+            <div className="mt-4 border-t border-slate-100 pt-4" data-testid="banner-billing-fields">
+              <p className="text-sm font-bold text-slate-700 mb-2">💶 Facturation publicitaire (optionnel)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium">Commerçant / Annonceur</label>
+                  <input value={form.advertiser} onChange={(e) => setForm({ ...form, advertiser: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" placeholder="Ex. Boulangerie Martin" data-testid="banner-advertiser-input" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Contact (email/tél)</label>
+                  <input value={form.advertiser_contact} onChange={(e) => setForm({ ...form, advertiser_contact: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" placeholder="contact@…" data-testid="banner-advertiser-contact" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Modèle de tarification</label>
+                  <select value={form.pricing_model} onChange={(e) => setForm({ ...form, pricing_model: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" data-testid="banner-pricing-model">
+                    <option value="free">Gratuit</option>
+                    <option value="per_day">Par jour (€/jour)</option>
+                    <option value="cpm">CPM (€ / 1000 impressions)</option>
+                  </select>
+                </div>
+                {form.pricing_model === 'per_day' && (
+                  <div>
+                    <label className="text-sm font-medium">Tarif / jour (€)</label>
+                    <input type="number" value={form.price_per_day} onChange={(e) => setForm({ ...form, price_per_day: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" placeholder="5" data-testid="banner-price-per-day" />
+                  </div>
+                )}
+                {form.pricing_model === 'cpm' && (
+                  <div>
+                    <label className="text-sm font-medium">CPM (€ / 1000 vues)</label>
+                    <input type="number" value={form.cpm} onChange={(e) => setForm({ ...form, cpm: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" placeholder="2" data-testid="banner-cpm" />
+                  </div>
+                )}
+              </div>
+              {form.pricing_model !== 'free' && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="text-sm font-medium">Début (optionnel)</label>
+                    <input type="date" value={form.starts_at ? String(form.starts_at).slice(0, 10) : ''} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" data-testid="banner-starts-at" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Fin (optionnel)</label>
+                    <input type="date" value={form.ends_at ? String(form.ends_at).slice(0, 10) : ''} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" data-testid="banner-ends-at" />
+                  </div>
                 </div>
               )}
             </div>

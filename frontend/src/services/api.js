@@ -535,6 +535,7 @@ export const promoBannersAPI = {
   reorder: (orderedIds) => api.post('/promo-banners/admin/reorder', { ordered_ids: orderedIds }),
   impression: (id) => api.post(`/promo-banners/${id}/impression`),
   click: (id) => api.post(`/promo-banners/${id}/click`),
+  billing: () => api.get('/promo-banners/admin/billing'),
 };
 
 export const newsAPI = {
