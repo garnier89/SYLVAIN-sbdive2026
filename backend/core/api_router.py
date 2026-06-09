@@ -66,6 +66,7 @@ from routes.kyc import router as kyc_router
 from routes.zones import router as zones_router
 from routes.transport import router as transport_router
 from routes.trip_share import router as trip_share_router
+from routes.loyalty import router as loyalty_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -84,7 +85,7 @@ _ROUTERS = [
     real_estate_admin_router, pharmacy_router, pharmacy_admin_router, service_settings_router,
     service_settings_admin_router, weekly_reports_router, weekly_reports_driver_router,
     service_trends_router, newsletter_router, kyc_router, zones_router,
-    transport_router, trip_share_router,
+    transport_router, trip_share_router, loyalty_router,
 ]
 
 

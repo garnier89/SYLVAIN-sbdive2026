@@ -17,7 +17,7 @@ import {
   AdminSbPayGoZones, AdminDbBackup, AdminNegotiationGapReport, AdminNoDriverStats,
   AdminFeaturedListings, AdminNearbyBusinesses, AdminZones, AdminTrendingPinned, AdminMarketplace, AdminTransport, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings,
   AdminKiosks, AdminACL, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
-  AdminPromoBanners, AdminNews, AdminI18n, AdminGeoFence, AdminGiftCards, AdminReferralSettings,
+  AdminPromoBanners, AdminNews, AdminI18n, AdminGeoFence, AdminGiftCards, AdminReferralSettings, AdminLoyalty,
   AdminBanners, AdminNewsletter, AdminKyc, AdminStores, AdminTemplates, AdminWeatherSurcharge,
   AdminPersonalDriver, AdminAutoPromotions, AdminVouchers, AdminFaqs, AdminHelpArticles,
   AdminDonations, AdminWeeklyReports,
@@ -146,6 +146,7 @@ export function adminRoutes() {
       <Route path="state" element={<AdminServiceConfig serviceKey="state" />} />
       <Route path="giftcards" element={<AdminGiftCards />} />
       <Route path="referral" element={<AdminReferralSettings />} />
+      <Route path="loyalty" element={<AdminLoyalty />} />
       <Route path="banners" element={<AdminBanners />} />
       <Route path="news" element={<AdminNewsletter />} />
       <Route path="stores" element={<AdminStores />} />

@@ -14,6 +14,7 @@ import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
 import { homeCategoriesAPI, promoBannersAPI, configAPI, serviceTrendsAPI, zonesAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
+import { LoyaltyStatusCard } from '../../components/LoyaltyStatusCard';
 import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
 import {
   TAXI_DEFAULT, TAXI_VISUAL, taxiServices, deliveryServices, videoCategories,
@@ -643,6 +644,8 @@ const UserHome = () => {
           <ChevR size={18} weight="bold" className="text-white/90 shrink-0" />
         </button>
       )}
+
+      <LoyaltyStatusCard onClick={() => navigate('/loyalty')} className="mx-4 mt-3" />
 
       <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-1">
         {mergedShortcuts.length >= 2 && (

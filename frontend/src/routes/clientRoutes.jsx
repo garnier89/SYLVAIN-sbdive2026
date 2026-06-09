@@ -16,7 +16,7 @@ import {
   TransportPublicPage, NearbyTransitPage,
   ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage, IntercityRidePage,
   ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
-  EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage,
+  EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
 } from './pages';
 
 export function clientRoutes(user) {
@@ -28,6 +28,7 @@ export function clientRoutes(user) {
       <Route path="/ride/:rideId/chat" element={<ProtectedRoute><RideChatPage /></ProtectedRoute>} />
       <Route path="/safety" element={<ProtectedRoute><EmergencyContactsPage /></ProtectedRoute>} />
       <Route path="/favorite-drivers" element={<ProtectedRoute><FavoriteDriversPage /></ProtectedRoute>} />
+      <Route path="/loyalty" element={<ProtectedRoute><LoyaltyPage /></ProtectedRoute>} />
       <Route path="/home" element={<ProtectedRoute allowedRoles={['user']}><UserHome /></ProtectedRoute>} />
       <Route path="/app" element={user ? <Navigate to="/home" replace /> : <ClientWelcome />} />
       <Route path="/login" element={user ? <Navigate to="/home" replace /> : <LoginPage />} />

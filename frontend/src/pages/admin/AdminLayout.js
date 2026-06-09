@@ -157,6 +157,7 @@ const sidebarConfig = [
     items: [
       { icon: Trophy, label: 'Récompenses & Fidélité', key: 'rewards', children: [
         { label: 'Programme de récompenses', path: '/admin/rewards' },
+        { label: 'Statuts de fidélité', path: '/admin/loyalty' },
         { label: 'Rapports récompenses', path: '/admin/rewards-reports' },
         { label: 'Chauffeurs prioritaires', path: '/admin/priority-drivers' },
         { label: 'Top Chauffeurs (public)', path: '/admin/top-drivers' },

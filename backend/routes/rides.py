@@ -1310,10 +1310,16 @@ async def update_ride_status(ride_id: str, request: Request):
         else:
             update_data["payment_status"] = "completed" if pm != "cash" else "pending_cash"
         if ride.get("driver_id"):
-            commission = ride.get("commission_percent", 10) / 100
+            d_full = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "taxi_sub": 1, "user_id": 1})
+            # ===== Phase 5 loyalty: reduce commission for higher-tier drivers =====
+            from routes.loyalty import get_commission_discount_pct, apply_loyalty_on_completion
+            base_commission = ride.get("commission_percent", 10) / 100
+            loyalty_disc = await get_commission_discount_pct((d_full or {}).get("user_id"))
+            commission = base_commission * (1 - loyalty_disc / 100)
+            if loyalty_disc > 0:
+                update_data["loyalty_commission_discount_pct"] = loyalty_disc
             driver_earnings = final_fare * (1 - commission)
             # ===== Sub-category bonus (Particulier / VTC / Taxi licence) =====
-            d_full = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "taxi_sub": 1, "user_id": 1})
             sub = (d_full or {}).get("taxi_sub")
             subcat_bonus = 0.0
             if sub:
@@ -1362,6 +1368,18 @@ async def update_ride_status(ride_id: str, request: Request):
         # ===== Phase 2: advance referral qualification on ride completion =====
         from routes.referral import process_referral_on_ride_completion
         await process_referral_on_ride_completion(ride.get("user_id"), ride.get("driver_id"))
+
+        # ===== Phase 5: award loyalty points to passenger + driver =====
+        try:
+            d_uid = None
+            if ride.get("driver_id"):
+                _d = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "user_id": 1})
+                d_uid = (_d or {}).get("user_id")
+            from routes.loyalty import apply_loyalty_on_completion
+            await apply_loyalty_on_completion(ride, d_uid)
+        except Exception as _e:
+            import logging
+            logging.getLogger("loyalty").warning("loyalty award failed: %s", _e)
 
     elif new_status == "cancelled":
         update_data["cancelled_at"] = now

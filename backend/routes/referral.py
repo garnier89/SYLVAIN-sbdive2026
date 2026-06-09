@@ -195,6 +195,14 @@ async def _qualify_referral(referred_user_id: str):
         "amount_earned": amount,
         "qualified_at": now,
     }})
+    # Phase 5: reward the referrer with loyalty points on a qualified referral.
+    try:
+        from routes.loyalty import award_loyalty_points, get_loyalty_config
+        bonus = int((await get_loyalty_config()).get("bonus_referral", 0))
+        if bonus > 0:
+            await award_loyalty_points(ref["referrer_id"], bonus, "referral_bonus")
+    except Exception:
+        pass
     try:
         from core.notifications import create_notification
         await create_notification(
@@ -219,6 +227,49 @@ async def process_referral_on_ride_completion(passenger_user_id: str, driver_id:
     except Exception as e:
         import logging
         logging.getLogger("referral").warning("referral qualification failed: %s", e)
+
+
+async def create_pending_referral(referrer_id: str, referred_user: dict):
+    """Create a PENDING referral at signup time (reusable from the auth flow).
+    No-op when disabled, self-referral, already referred, or referrer missing."""
+    cfg = await get_referral_config()
+    if not cfg.get("enabled", True) or not referrer_id:
+        return None
+    if referrer_id == referred_user.get("id"):
+        return None
+    if await db.referrals.find_one({"referred_id": referred_user["id"]}):
+        return None
+    referrer = await db.users.find_one({"id": referrer_id}, {"_id": 0, "id": 1, "name": 1})
+    if not referrer:
+        return None
+    referrer_is_driver = await _is_driver(referrer_id)
+    referred_is_driver = await _is_driver(referred_user["id"])
+    amount, rides_required, window_days = _reward_for(cfg, referrer_is_driver, referred_is_driver)
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
+    expires_at = (now_dt + timedelta(days=window_days)).isoformat() if window_days else None
+    doc = {
+        "id": f"ref_{uuid.uuid4().hex[:12]}",
+        "referrer_id": referrer["id"],
+        "referrer_name": referrer.get("name", ""),
+        "referrer_role": "driver" if referrer_is_driver else "client",
+        "referred_id": referred_user["id"],
+        "referred_name": referred_user.get("name", ""),
+        "referred_role": "driver" if referred_is_driver else "client",
+        "code": referred_user.get("referral_code_used", ""),
+        "reward_amount": amount,
+        "currency": cfg["currency"],
+        "rides_required": rides_required,
+        "window_days": window_days,
+        "expires_at": expires_at,
+        "referred_ride_count": 0,
+        "amount_earned": 0,
+        "status": "pending",
+        "created_at": now,
+    }
+    await db.referrals.insert_one(doc)
+    return doc
+
 
 
 # ═══════════════════════ USER ENDPOINTS ═══════════════════════

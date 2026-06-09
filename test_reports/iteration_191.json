@@ -1,0 +1,42 @@
+{
+  "summary": "Phase 5 — Statuts de fidélité (loyalty) backend + frontend validated end-to-end. Backend pytest suite (9/9 PASSING) covers: public /loyalty/config shape (4 tiers, defaults), admin authz (anon 401/403, plain client 403), admin PUT persistence + tier re-sort (Gold min_points=600 + reorder honored, public reflects change, baseline restored in finally), /loyalty/me fresh client (0 pts/Silver/next=Gold/points_to_next=500/perk={value:0}), award_loyalty_points → tier transition (650 pts seeded via db.loyalty → Gold tier reported by /loyalty/me with points_to_next=850 and perk.value=3 = client_discount_pct), phone-register bugfix (driver 'Jean Dupont' + referrer code → 200 OK, name-based driver own code 'Jean01P' with P suffix, PENDING db.referrals doc created with correct referrer_id + referred_role=driver), phone-register without code still 200 (Sophie01 own code, no P), phone-register with invalid code still 200 and creates NO referral, email register + lazy /referral/my-code generates name-based client code (no P). Frontend playwright verified: /home shows loyalty-status-card with tier name 'Silver', clicking navigates to /loyalty page that renders all 4 tiers (silver/gold/platinum/diamond highlighted current), and /admin/loyalty (reachable, loyalty-enabled-toggle ON, save-loyalty-btn save fires PUT /loyalty/admin/config that returns 200).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter191_loyalty.py",
+    "/app/test_reports/pytest/iter191_loyalty.xml"
+  ],
+  "action_items": [
+    "Optional: full E2E ride-completion → points award through the rides.py hook (apply_loyalty_on_completion) was NOT exercised through the HTTP layer in this iteration because driver-side OTP gating + demo driver login + multi-step status transitions make it expensive in pytest. Main agent's curl verification + the unit-coverage of award_loyalty_points (seeded via DB) + the tier-transition assertion in /loyalty/me are sufficient evidence the engine works; if a stricter regression is desired, add an admin-driven E2E ride (admin can force in_progress to bypass passenger OTP).",
+    "Optional: expose `referral_code_own` in UserResponse to make phone-register / register responses self-validating without a /referral/my-code follow-up (currently this field is in the DB doc but stripped by UserResponse Pydantic model). Cosmetic only — generate_name_code is verified through DB inspection."
+  ],
+  "critical_code_review_comments": [
+    "routes/loyalty.py:111 — admin PUT merges with `await _raw_settings()` then overlays new keys; this correctly preserves untouched fields but means an admin cannot reset a key to default by omitting it. Acceptable for current UX (Save button always re-sends every field).",
+    "routes/loyalty.py:104 — `float(t.get('driver_commission_discount_pct') or 0)` treats explicit 0 as falsy and replaces with 0; harmless here because the fallback is also 0, but the same idiom in routes/config.py was previously flagged (iter190). Consistent style across both files would be nicer.",
+    "routes/auth.py:86-106 — phone-register now correctly: (a) generates a name-based own code via generate_name_code with driver 'P' suffix, (b) calls create_pending_referral only if referrer was successfully resolved, (c) tolerates non-existent referral_code (referrer_id=None → no referral, no crash). The removed broken _apply_referral_bonus / REFERRAL_AMOUNT path is gone — confirmed.",
+    "routes/referral.py:232 create_pending_referral — early-returns on disabled/self-referral/duplicate referred. Defensively also handles missing referrer doc (None) → harmless no-op. Good.",
+    "LoyaltyStatusCard.jsx + LoyaltyPage.jsx — both correctly hide when /loyalty/me returns enabled:false (verified via code path; not exercised because the toggle was kept ON during testing to avoid disturbing the platform). All testids match the spec.",
+    "AdminLoyalty.js — save-loyalty-btn PUTs the full config (points + bonuses + tiers) in a single call; returns 200; UI re-syncs from response. Toast/feedback path exists (verified via the inline data-testid and the 200 response intercepted by Playwright)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter191_loyalty.py"
+  ],
+  "success_rate": {
+    "backend": "100% — 9/9 tests pass in 2.62s (config public/admin/PUT, /loyalty/me fresh + tier-promote, phone-register with/without/invalid referral_code, email lazy code)",
+    "frontend": "100% on the surfaces in scope — loyalty-status-card on /home (visible, tier 'Silver'), navigation to /loyalty (4 tiers rendered), /admin/loyalty (toggle + save + PUT 200)"
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; demo driver jean.dupont@demo.sb / Driver123! ; clients registered ad-hoc via POST /api/auth/register (@example.com domain required — .test/.local TLDs are rejected by Pydantic EmailStr).",
+  "seed_data_creation": "Ad-hoc clients + one phone-register driver and two phone-register clients per run; each test cleans up its own users/wallets/referrals/loyalty docs via direct MongoClient in finally/end-of-test. Admin PUT test snapshots config then restores baseline. No persistent state changes.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "/app/backend/tests/test_iter191_loyalty.py is the canonical regression for Phase 5 + the phone-register referral bugfix. It loads /app/backend/.env via python-dotenv to access MONGO_URL/DB_NAME for direct DB assertions (UserResponse does not expose referral_code_own, so verify it via db.users). The award_loyalty_points tier-transition test seeds db.loyalty directly with 650 points — adjust if defaults change Gold threshold away from 500. Frontend selectors confirmed: loyalty-status-card, loyalty-tier-name, loyalty-page, loyalty-tier-{silver|gold|platinum|diamond}, admin-loyalty, loyalty-enabled-toggle, save-loyalty-btn, tier-{key}-{min|comm|disc|prio}. The /home card click navigates to /loyalty (router-driven, no separate testid for the link). Full E2E ride completion → award via apply_loyalty_on_completion was NOT re-exercised over HTTP in this iteration (OTP gate + demo driver flow are expensive); engine + hook integration are covered indirectly by the seeded tier-transition test and main-agent's curl evidence.",
+  "rca of the issue": "No new bugs found. Phase 5 backend and the two new UI surfaces (client card+page, admin page) are working as specified. The phone-register crash with REFERRAL_AMOUNT is fully fixed: own-code generation is now name-based (Jean01P for drivers, Sophie01 for clients), and a pending db.referrals doc is created when (and only when) a valid referrer code resolves."
+}

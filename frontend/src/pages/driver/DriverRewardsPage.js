@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gift, CurrencyEur, Clock, MapPin, CalendarCheck, Car, Motorcycle, Bicycle, CheckCircle, XCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
+import { LoyaltyStatusCard } from '../../components/LoyaltyStatusCard';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GREEN = '#FF5000';
@@ -49,6 +50,8 @@ const DriverRewardsPage = () => {
           </div>
         </div>
       </div>
+
+      <LoyaltyStatusCard onClick={() => navigate('/loyalty')} className="mx-5 -mt-3 relative z-10" />
 
       {loading ? <p className="text-center text-gray-400 text-sm py-8">Chargement...</p> : !data?.any_active ? (
         <div className="mx-5 mt-6 bg-white rounded-2xl p-8 text-center" data-testid="no-rewards">

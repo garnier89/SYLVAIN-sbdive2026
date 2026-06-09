@@ -73,16 +73,17 @@ async def phone_register(data: dict, response: Response):
     name = data.get("name", "").strip()
     first_name = data.get("first_name", "").strip()
     email = data.get("email", "").strip().lower() if data.get("email") else None
-    referral_code = data.get("referral_code", "").strip().upper() if data.get("referral_code") else None
+    referral_code = data.get("referral_code", "").strip() if data.get("referral_code") else None
 
     await _validate_phone_register(phone, password, email)
     referrer_id = await _resolve_referrer(referral_code)
-    own_code = await _generate_unique_referral_code()
 
     full_name = f"{first_name} {name}".strip() if first_name or name else phone
     requested_role = data.get("role", "user")
     if requested_role not in ("user", "driver"):
         requested_role = "user"
+    from routes.referral import generate_name_code, create_pending_referral
+    own_code = await generate_name_code(full_name, requested_role == "driver")
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     user_doc = {
         "id": user_id,
@@ -102,7 +103,7 @@ async def phone_register(data: dict, response: Response):
     await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "created_at": datetime.now(timezone.utc).isoformat()})
 
     if referrer_id:
-        await _apply_referral_bonus(referrer_id, user_id, full_name, referral_code)
+        await create_pending_referral(referrer_id, user_doc)
 
     access_token = create_access_token(user_id, user_doc["email"], "user")
     refresh_token = create_refresh_token(user_id)
@@ -126,56 +127,11 @@ async def _validate_phone_register(phone: str, password: str, email):
 async def _resolve_referrer(referral_code):
     if not referral_code:
         return None
-    referrer = await db.users.find_one({"referral_code_own": referral_code}, {"_id": 0, "id": 1})
+    import re as _re
+    referrer = await db.users.find_one(
+        {"referral_code_own": _re.compile(f"^{_re.escape(referral_code)}$", _re.IGNORECASE)},
+        {"_id": 0, "id": 1})
     return referrer["id"] if referrer else None
-
-
-async def _generate_unique_referral_code():
-    import secrets
-    import string
-    own_code = None
-    for _ in range(10):
-        own_code = f"SB-{''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))}"
-        if not await db.users.find_one({"referral_code_own": own_code}):
-            break
-    return own_code
-
-
-async def _apply_referral_bonus(referrer_id: str, new_user_id: str, full_name: str, referral_code: str):
-    from routes.referral import REFERRAL_AMOUNT
-    now = datetime.now(timezone.utc).isoformat()
-    await db.referrals.insert_one({
-        "id": f"ref_{uuid.uuid4().hex[:12]}",
-        "referrer_id": referrer_id,
-        "referred_id": new_user_id,
-        "referred_name": full_name,
-        "code": referral_code,
-        "amount_earned": REFERRAL_AMOUNT,
-        "currency": "EUR",
-        "status": "completed",
-        "created_at": now,
-    })
-    await db.wallets.update_one({"user_id": referrer_id}, {"$inc": {"balance": REFERRAL_AMOUNT}}, upsert=False)
-    ref_wallet = await db.wallets.find_one({"user_id": referrer_id}, {"_id": 0})
-    await db.wallet_transactions.insert_one({
-        "id": f"tx_{uuid.uuid4().hex[:12]}",
-        "user_id": referrer_id,
-        "amount": REFERRAL_AMOUNT,
-        "type": "referral_credit",
-        "description": f"Bonus parrainage - {full_name} a rejoint avec votre code",
-        "balance_after": ref_wallet["balance"] if ref_wallet else REFERRAL_AMOUNT,
-        "created_at": now,
-    })
-    await db.wallets.update_one({"user_id": new_user_id}, {"$inc": {"balance": REFERRAL_AMOUNT}})
-    await db.wallet_transactions.insert_one({
-        "id": f"tx_{uuid.uuid4().hex[:12]}",
-        "user_id": new_user_id,
-        "amount": REFERRAL_AMOUNT,
-        "type": "referral_bonus",
-        "description": f"Bonus de bienvenue - Code {referral_code}",
-        "balance_after": REFERRAL_AMOUNT,
-        "created_at": now,
-    })
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str):
