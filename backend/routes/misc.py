@@ -159,6 +159,38 @@ async def reject_driver(driver_id: str, request: Request):
     return {"message": "Driver rejected"}
 
 
+@router.put("/admin/drivers/{driver_id}/service-types")
+async def admin_set_driver_service_types(driver_id: str, request: Request):
+    """ADMIN override: enable/disable the services a driver handles
+    (taxi / delivery / courier) in one click. Unlike the driver self-service
+    endpoint, this bypasses the VTC gate (admin authority). Enabling 'taxi' makes
+    the driver eligible to receive scheduled taxi reservations on the home-feed."""
+    user = await require_role(request, ["admin"], permission="drivers.approve")
+    body = await request.json()
+    allowed = {"taxi", "delivery", "courier"}
+    service_types = [s for s in (body.get("service_types") or []) if s in allowed]
+    if not service_types:
+        raise HTTPException(status_code=400, detail="Sélectionnez au moins un service (taxi, livraison ou coursier)")
+    driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "id": 1, "taxi_mode": 1})
+    if driver is None:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    update = {"service_types": service_types}
+    if "taxi" in service_types:
+        update["taxi_mode"] = body.get("taxi_mode") or driver.get("taxi_mode") or "car"
+    else:
+        update["taxi_mode"] = None
+    await db.drivers.update_one({"id": driver_id}, {"$set": update})
+    try:
+        from routes.audit_logs import log_action
+        await log_action(actor_id=user["id"], actor_role=user["role"], action="driver.service_types.update",
+                         target_type="driver", target_id=driver_id,
+                         ip_address=request.client.host if request.client else None)
+    except Exception:
+        pass
+    return {"message": "Services mis à jour", "driver_id": driver_id,
+            "service_types": service_types, "taxi_mode": update["taxi_mode"]}
+
+
 @router.get("/admin/drivers/{driver_id}/documents")
 async def admin_get_driver_documents(driver_id: str, request: Request):
     """List a driver's documents merged with the documents required by their categories."""

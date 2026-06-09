@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
-import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload } from '@phosphor-icons/react';
+import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload, Wrench } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const DOC_STATUS = {
@@ -143,6 +143,67 @@ const DriverDocsModal = ({ driver, onClose, onChanged }) => {
   );
 };
 
+const SERVICE_OPTIONS = [
+  { value: 'taxi', label: 'Taxi (transport de personnes)' },
+  { value: 'delivery', label: 'Livraison (livreur)' },
+  { value: 'courier', label: 'Coursier (colis)' },
+];
+
+const DriverServicesModal = ({ driver, onClose, onChanged }) => {
+  const [selected, setSelected] = useState((driver.service_types || []).filter((s) => SERVICE_OPTIONS.some((o) => o.value === s)));
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (v) => setSelected((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
+
+  const save = async () => {
+    if (selected.length === 0) { toast.error('Sélectionnez au moins un service'); return; }
+    setSaving(true);
+    try {
+      const r = await adminAPI.setDriverServiceTypes(driver.id, selected);
+      toast.success(`Services mis à jour : ${r.data.service_types.join(', ')}`);
+      if (onChanged) onChanged();
+      onClose();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" data-testid="driver-services-modal" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="p-5 border-b border-gray-100 flex items-start justify-between">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-gray-800 truncate">Services — {driver.user?.name || 'Chauffeur'}</h2>
+            <p className="text-xs text-gray-500 truncate">Activez/désactivez les services en 1 clic (override admin)</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 shrink-0" data-testid="services-modal-close"><X size={20} /></button>
+        </div>
+        <div className="p-5 space-y-2.5">
+          {SERVICE_OPTIONS.map((opt) => {
+            const active = selected.includes(opt.value);
+            return (
+              <button key={opt.value} onClick={() => toggle(opt.value)} data-testid={`admin-service-${opt.value}`}
+                className={`w-full flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors ${active ? 'border-[#3b82f6] bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                <span className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${active ? 'bg-[#3b82f6] text-white' : 'border-2 border-gray-300'}`}>
+                  {active && <Check size={14} weight="bold" />}
+                </span>
+                <span className="text-sm font-medium text-gray-800">{opt.label}</span>
+              </button>
+            );
+          })}
+          {selected.includes('taxi') && !(driver.service_types || []).includes('taxi') && (
+            <p className="text-[11px] text-amber-600 pt-1" data-testid="admin-service-taxi-note">⚠️ Activer Taxi rend ce chauffeur éligible aux réservations taxi (override de la carte VTC).</p>
+          )}
+          <button onClick={save} disabled={saving} className="w-full mt-2 py-2.5 rounded-xl bg-[#3b82f6] text-white font-bold text-sm disabled:opacity-50" data-testid="admin-services-save">
+            {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const SortIcon = ({ field, sortField, sortDir, onSort }) => (
   <span className="inline-flex flex-col ml-1 cursor-pointer" onClick={() => onSort(field)}>
     <CaretUp size={8} className={sortField === field && sortDir === 'asc' ? 'text-gray-800' : 'text-gray-300'} />
@@ -159,6 +220,7 @@ const AdminDrivers = () => {
   const [sortField, setSortField] = useState('');
   const [sortDir, setSortDir] = useState('asc');
   const [docDriver, setDocDriver] = useState(null);
+  const [servicesDriver, setServicesDriver] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -239,6 +301,7 @@ const AdminDrivers = () => {
                   </th>
                   <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Contact</th>
                   <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Vehicle</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">Services</th>
                   <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700">License</th>
                   <th className="text-left py-3 px-3 text-sm font-semibold text-gray-700 cursor-pointer" onClick={() => toggleSort('rating')}>
                     Rating <SortIcon field="rating" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
@@ -250,7 +313,7 @@ const AdminDrivers = () => {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-12 text-gray-400">No drivers found</td></tr>
+                  <tr><td colSpan={10} className="text-center py-12 text-gray-400">No drivers found</td></tr>
                 ) : filtered.map((d, i) => {
                   const pendingDocs = (d.documents || []).filter((x) => (x.status || 'pending') === 'pending').length;
                   return (
@@ -265,6 +328,15 @@ const AdminDrivers = () => {
                         <p className="text-sm text-gray-700 capitalize">{d.vehicle_type || '-'}</p>
                         <p className="text-xs text-gray-400">{d.vehicle_number || ''}</p>
                       </div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <button onClick={() => setServicesDriver(d)} className="flex flex-wrap gap-1 items-center group" data-testid={`services-cell-${i}`} title="Gérer les services">
+                        {(d.service_types || []).length === 0 && <span className="text-xs text-gray-400">—</span>}
+                        {(d.service_types || []).includes('taxi') && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Taxi</span>}
+                        {(d.service_types || []).includes('delivery') && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Livr.</span>}
+                        {(d.service_types || []).includes('courier') && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Cours.</span>}
+                        <Gear size={12} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+                      </button>
                     </td>
                     <td className="py-3 px-3 text-sm text-gray-600 font-mono">{d.license_number || '-'}</td>
                     <td className="py-3 px-3 text-sm text-gray-700 font-medium">{(d.rating || 0).toFixed(1)}</td>
@@ -297,6 +369,9 @@ const AdminDrivers = () => {
                         <button onClick={() => setDocDriver(d)} className="w-7 h-7 rounded bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-500 transition-colors" data-testid={`docs-${i}`} title="Documents">
                           <FileText size={14} />
                         </button>
+                        <button onClick={() => setServicesDriver(d)} className="w-7 h-7 rounded bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center text-indigo-500 transition-colors" data-testid={`services-btn-${i}`} title="Gérer les services">
+                          <Wrench size={14} />
+                        </button>
                         <button className="w-7 h-7 rounded bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors" data-testid={`view-${i}`} title="View Details">
                           <Gear size={14} />
                         </button>
@@ -312,6 +387,7 @@ const AdminDrivers = () => {
         </>
       )}
       {docDriver && <DriverDocsModal driver={docDriver} onClose={() => setDocDriver(null)} onChanged={loadDrivers} />}
+      {servicesDriver && <DriverServicesModal driver={servicesDriver} onClose={() => setServicesDriver(null)} onChanged={loadDrivers} />}
     </div>
   );
 };

@@ -1,0 +1,39 @@
+{
+  "summary": "Iter207 — Admin override of driver service_types (taxi/delivery/courier). Backend PUT /api/admin/drivers/{driver_id}/service-types validated end-to-end (200 set/update, 400 empty/invalid, 404 unknown driver, taxi_mode auto='car' when 'taxi' enabled, taxi_mode=None when removed, home-feed scheduled_pending populated when has_taxi and empty otherwise). Frontend AdminDrivers UI verified: drivers-table renders, Services column shows badges, services-cell-{i}/services-btn-{i} present, modal opens with admin-service-{taxi,delivery,courier} + admin-services-save, badges refresh after save.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter207_admin_driver_service_types.py",
+    "/app/test_reports/pytest/iter207_admin_driver_services.xml"
+  ],
+  "action_items": [
+    "Driver-side flow (become-taxi-cta on DriverHome + auto-open driver-services-modal via /chauffeur/profile?services=1) NOT exhaustively tested by Playwright due to multi-step phone-login interstitials. The CTA is conditional on a driver WITHOUT 'taxi' in service_types. Recommendation for next testing pass: use admin to first remove 'taxi' from a known driver (e.g. jean.dupont via PUT /api/admin/drivers/{id}/service-types with [\"courier\"]), log in via email/password as that driver, navigate to /chauffeur and confirm become-taxi-cta is visible; click it and confirm /chauffeur/profile?services=1 auto-opens driver-services-modal. Then restore the driver to [taxi,delivery,courier]."
+  ],
+  "critical_code_review_comments": [
+    "BUG FOUND & FIXED in /app/backend/routes/misc.py PUT /admin/drivers/{driver_id}/service-types: find_one used positive projection {'_id':0,'taxi_mode':1} — when the driver document has NO taxi_mode field, MongoDB returns {} which is falsy in Python, causing the `if not driver` branch to wrongly return 404 even though the driver exists. Reproduced on jean.dupont (driver_b366adb552eb). FIX applied: changed projection to include 'id' and the truthiness check to `if driver is None`. This impacted any approved demo driver whose taxi_mode key was never written.",
+    "Endpoint correctly enforces admin permission drivers.approve, whitelists allowed values, sets taxi_mode='car' automatically when taxi is enabled and previous taxi_mode was None (override of VTC gate), and clears taxi_mode when taxi removed.",
+    "Frontend AdminDrivers.js exposes all required data-testids (drivers-table, services-cell-{i}, services-btn-{i}, driver-services-modal, admin-service-taxi/delivery/courier, admin-services-save). Modal closes on Save and the Services column reflects the new badges after save.",
+    "data-testid='driver-services-modal' is reused for both the admin modal (AdminDrivers.js) and the driver-side modal (DriverProfilePage.js). They live on different routes so there is no runtime conflict, but a test reading this testid from a wrong route would target the wrong dialog. Consider renaming the admin one to 'admin-driver-services-modal' for clarity."
+  ],
+  "updated_files": [
+    "/app/backend/routes/misc.py (fixed projection/truthiness 404 bug in admin_set_driver_service_types)",
+    "/app/backend/tests/test_iter207_admin_driver_service_types.py (new pytest suite, 7 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 pytest)",
+    "frontend": "Admin path 100% (table+modal+save). Driver CTA path: NOT EXECUTED via Playwright."
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (email login via 'Ou choisir une autre option de connexion'); jean.dupont@demo.sb / Driver123! (driver email login); +33644112233 / Chauffeur2026! (driver phone login — currently taxi-enabled so will NOT show become-taxi-cta).",
+  "seed_data_creation": "Tests temporarily flip jean.dupont (driver_b366adb552eb) service_types between [courier] and [taxi,courier]; final teardown restores [taxi,delivery,courier]. No leftover state. NOTE: during admin frontend smoke, the first row driver (Profile Test Driver) was set to courier-only and then back to courier (was the test data before). No production driver mutated beyond the demo set.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend PUT /api/admin/drivers/{driver_id}/service-types fully covered. Frontend admin path (badges + modal + save) visually confirmed via Playwright screenshots (/tmp/admin_modal.png shows the 3 checkboxes Taxi/Livraison/Coursier + Sauvegarder button; row badges refresh to 'Cours.' after saving courier-only). The driver-side become-taxi-cta + auto-open modal flow was NOT exercised end-to-end due to phone-login interstitial complexity — the modal exists in DriverProfilePage and the CTA exists in DriverHome with the correct data-testids per code review. If next agent needs to validate this flow, easiest path is the recommendation in action_items.",
+  "rca of the issue": "PUT /admin/drivers/{driver_id}/service-types returned 404 for drivers without taxi_mode key. Root cause: MongoDB projection {'_id':0,'taxi_mode':1} returns {} (empty dict) when the requested field is missing on the document; `if not driver` then treats {} as falsy. Fix: include 'id' in projection and change check to `if driver is None`. Mitigation deployed in /app/backend/routes/misc.py."
+}

@@ -8,7 +8,7 @@ import { useHeatmap, useDriverHomeFeed, useZoneBonuses } from '../../hooks/drive
 import { toast } from 'sonner';
 import { driverAPI, rideAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
-import { X, Gift, UsersThree, Car } from '@phosphor-icons/react';
+import { X, Gift, UsersThree, Car, CaretRight } from '@phosphor-icons/react';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 import IncomingRequestSheet from '../../components/driver/IncomingRequestSheet';
@@ -517,6 +517,25 @@ const DriverHome = () => {
         onNotifications={() => navigate('/chauffeur/notifications')}
         notifCount={notifCount}
       />
+
+      {/* « Devenir chauffeur Taxi » — CTA pour les chauffeurs sans le service taxi
+          (sinon ils ne reçoivent pas les réservations taxi planifiées). */}
+      {driver && !(driver.service_types || []).includes('taxi') && (
+        <button
+          onClick={() => navigate('/chauffeur/profile?services=1')}
+          className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl border-2 border-[#FF5000] bg-sky-50 p-3 text-left shadow-sm"
+          data-testid="become-taxi-cta"
+        >
+          <div className="w-9 h-9 rounded-full bg-[#FF5000] flex items-center justify-center shrink-0">
+            <Car size={18} weight="fill" className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-extrabold text-[#0B1426]">Devenir chauffeur Taxi</p>
+            <p className="text-[12px] text-gray-600 leading-snug">Activez le service Taxi pour recevoir des courses et réservations planifiées.</p>
+          </div>
+          <CaretRight size={18} className="text-[#FF5000] shrink-0" />
+        </button>
+      )}
 
       {/* "Prochaine course" — offered to a busy driver who is ~X min from finishing */}
       {nextJobOffer && (

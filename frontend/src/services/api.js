@@ -221,6 +221,7 @@ export const adminAPI = {
   getDriverDocuments: (driverId) => api.get(`/admin/drivers/${driverId}/documents`),
   setDriverDocumentStatus: (driverId, docType, status, reason) => api.put(`/admin/drivers/${driverId}/documents/${docType}/status`, { status, reason }),
   setDriverInfoChangeStatus: (driverId, status, reason) => api.put(`/admin/drivers/${driverId}/info-change/status`, { status, reason }),
+  setDriverServiceTypes: (driverId, serviceTypes) => api.put(`/admin/drivers/${driverId}/service-types`, { service_types: serviceTypes }),
   updateAppSettings: (data) => api.put('/config/admin/app-settings', data),
   getAppSettingsZones: () => api.get('/config/admin/app-settings/zones'),
   updateGeneralSettings: (data) => api.put('/config/admin/general-settings', data),

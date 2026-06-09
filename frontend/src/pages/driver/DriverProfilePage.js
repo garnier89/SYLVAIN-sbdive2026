@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -21,6 +21,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 
 const DriverProfilePage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
   const { t } = useLocale();
   const { on } = useWebSocket(user?.id);
@@ -67,6 +68,19 @@ const DriverProfilePage = () => {
     setTaxiPicker(false);
     setShowServices(true);
   };
+
+  // Deep-link: open « Gérer mes services » directly (e.g. from the driver-home
+  // « Devenir chauffeur Taxi » CTA at /chauffeur/profile?services=1).
+  const servicesAutoOpenedRef = React.useRef(false);
+  useEffect(() => {
+    if (driver && searchParams.get('services') === '1' && !servicesAutoOpenedRef.current) {
+      servicesAutoOpenedRef.current = true;
+      openServices();
+      searchParams.delete('services');
+      setSearchParams(searchParams, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driver, searchParams]);
   const toggleType = (v) => {
     if (v === 'taxi') {
       if (selectedTypes.includes('taxi')) {
