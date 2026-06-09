@@ -343,14 +343,6 @@ const UserHome = () => {
     delivery: (
       <section key="delivery" className="px-4 mt-6">
         <SectionHeader title="Services de Livraison" />
-        <button
-          onClick={() => setShowDeliverySearch(true)}
-          className="mb-3 w-full h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center px-4 gap-3 text-left active:scale-[0.99] transition-transform"
-          data-testid="delivery-search-bar"
-        >
-          <MagnifyingGlass size={20} className="text-[#FF5000]" />
-          <span className={`text-sm text-[#9A6A4F] ${BODY}`}>Que voulez-vous vous faire livrer ?</span>
-        </button>
         <div className="grid grid-cols-4 gap-3">
           {displayFor('delivery').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
@@ -619,7 +611,8 @@ const UserHome = () => {
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 
       <DebtBanner />
-      <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />
+      {/* Désactivé à la demande : bannière grève (mettre true pour réactiver) */}
+      {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 
       {/* Referral progress nudge — reminds the referred user how close their reward is */}
       {pendingRef && (
@@ -648,7 +641,8 @@ const UserHome = () => {
       <LoyaltyStatusCard onClick={() => navigate('/loyalty')} className="mx-4 mt-3" />
 
       <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-1">
-        {mergedShortcuts.length >= 2 && (
+        {/* Désactivé à la demande : section « Vos raccourcis » (mettre true pour réactiver) */}
+        {false && mergedShortcuts.length >= 2 && (
           <section className="px-4 mt-5" data-testid="shortcuts-section">
             <SectionHeader title="Vos raccourcis" />
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
@@ -663,7 +657,8 @@ const UserHome = () => {
             </div>
           </section>
         )}
-        {trendingShown.length >= 2 && (
+        {/* Désactivé à la demande : section « Tendances près de vous » (mettre true pour réactiver) */}
+        {false && trendingShown.length >= 2 && (
           <section className="px-4 mt-5" data-testid="trending-section">
             <div className="flex items-center gap-1.5 mb-2.5">
               <TrendUp size={17} weight="bold" className="text-[#FF5000]" />
