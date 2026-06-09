@@ -104,8 +104,10 @@ const TaxiBiddingPage = () => {
   }, []);
 
   const mapReady = pickup?.lat && dropoff?.lat;
-  // Recommended fare = minimum allowed (cannot bid lower)
-  const fareFloor = Math.round((estimate?.estimated_fare || liveStats?.avg_accepted_fare || 1) * 100) / 100;
+  // Recommended fare = minimum allowed (cannot bid lower). Always finite.
+  const fareFloor = Math.round((Number(estimate?.estimated_fare) || Number(liveStats?.avg_accepted_fare) || 1) * 100) / 100;
+  // Safety net: never let the offer fare become NaN (corrupts inputs + gates)
+  useEffect(() => { if (!Number.isFinite(fare)) setFare(fareFloor); }, [fare, fareFloor]);
 
   const fetchEstimate = useCallback(async () => {
     if (!pickup?.lat || !dropoff?.lat) return;
@@ -124,9 +126,10 @@ const TaxiBiddingPage = () => {
       if (!res.ok) throw new Error(`estimate ${res.status}`);
       const data = await res.json();
       setEstimate(data);
-      if (data?.estimated_fare && fare === 0) {
+      const ef = Number(data?.estimated_fare);
+      if (Number.isFinite(ef) && ef > 0 && fare === 0) {
         // Default offer = recommended fare (cannot go below it)
-        setFare(Math.round(data.estimated_fare * 100) / 100);
+        setFare(Math.round(ef * 100) / 100);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -356,7 +359,8 @@ const TaxiBiddingPage = () => {
   };
 
   const raiseFare = async (delta) => {
-    const newFare = Math.round((fare + delta) * 100) / 100;
+    const base = Number.isFinite(fare) ? fare : fareFloor;
+    const newFare = Math.round((base + delta) * 100) / 100;
     try {
       const r = await fetch(`${API}/api/rides/${searching}/proposed-fare`, {
         method: 'POST',
@@ -383,7 +387,10 @@ const TaxiBiddingPage = () => {
     setSearching(null);
   };
 
-  const adjustFare = (delta) => setFare(prev => Math.max(fareFloor, Math.round((prev + delta) * 100) / 100));
+  const adjustFare = (delta) => setFare(prev => {
+    const base = Number.isFinite(prev) ? prev : fareFloor;
+    return Math.max(fareFloor, Math.round((base + delta) * 100) / 100);
+  });
   const onFareInput = (e) => {
     const v = parseFloat(e.target.value) || 0;
     setFare(v < fareFloor ? fareFloor : v);
@@ -730,7 +737,7 @@ const TaxiBiddingPage = () => {
               className="w-full h-12 rounded-xl bg-[#FF5000] hover:bg-[#E04600] text-white font-bold mb-2.5 flex items-center justify-center gap-2">
               <ArrowClockwise size={20} weight="bold" /> Réessayer
             </button>
-            {suggestedFare > fare && (
+            {suggestedFare > (Number.isFinite(fare) ? fare : fareFloor) && (
               <button onClick={retryHigher} data-testid="no-driver-raise-btn"
                 className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold mb-2.5 flex items-center justify-center gap-2">
                 <TrendUp size={20} weight="bold" /> Augmenter mon tarif (+{Math.round((suggestedFare - fare) * 100) / 100} €)

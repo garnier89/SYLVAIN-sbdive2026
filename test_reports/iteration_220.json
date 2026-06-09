@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 220 (frontend only, FR app SB Drive VTC) — Re-tested 3 features after E1 fixes: (A) Raise-fare on no-driver popup, (D) Big accept-timer ring on driver map, (E) Auto-stop modal with Name+Phone. ALL THREE PASS end-to-end in the rendered UI. Order followed: D, A, then E (E creates an active ride). Each test cleaned up its rides; the driver_b366adb552eb is no longer being auto-spawned with stale rides (clean during the run).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/.screenshots/iter220_no_driver_modal.png",
+    "/app/.screenshots/iter220b_no_driver_modal.png",
+    "/app/.screenshots/iter220_accept_timer_big.png",
+    "/app/.screenshots/iter220_taxi_hall_modal.png",
+    "/app/.screenshots/iter220_taxi_hall_started.png"
+  ],
+  "action_items": [
+    "LOW (cosmetic) — A single React console warning still appears once after clicking [data-testid=find-driver-btn]: \"Received NaN for the value attribute\" and \"The specified value 'NaN' cannot be parsed, or is out of range.\" The visible fare-input value remains correct ('11.17') and all downstream gates work, so this does not impact functionality, but a transient NaN is briefly assigned to some controlled <input> during the submit transition. Likely candidates: the hidden [data-testid=fare-picker-fallback] input around L760-763 of TaxiBiddingPage.js, or a momentary state where fareOverride flows through Math.max with NaN before the safety-net useEffect fires. Worth tightening to silence the warning. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "TaxiBiddingPage.js L740 gate `{suggestedFare > (Number.isFinite(fare) ? fare : fareFloor) && (...)}` — verified correct in the live UI: the green raise button now renders. ✅",
+    "TaxiBiddingPage.js L109-110 safety-net `useEffect(()=>{ if(!Number.isFinite(fare)) setFare(fareFloor); })` — confirmed effective: even with a brief NaN warning fired, the final rendered state has fare=11.17 and downstream raise button shows '+2.23 €' (real number). ✅",
+    "TaxiBiddingPage.js L283 suggestedFare = Math.max(fareFloor, Math.round((fare||fareFloor)*1.2*100)/100) — produced 13.40 from base 11.17 in the live run; matches expected formula. ✅",
+    "IncomingRequestSheet.jsx L76-81 accept-timer-big — confirmed visible at viewport top, 140x140 CountdownRing inside a black/35 blur disc, label 'Temps pour accepter' below, offer-countdown showed '35' seconds. ✅",
+    "CountdownRing.jsx — font auto-scales nicely at size=140 (large green '35' visible on the dimmed map). ✅",
+    "TaxiHallModal.jsx — taxi-hall-client-name + taxi-hall-client-phone present and accepted input; the destination uses [data-testid=taxi-hall-dest] (Google Places typeahead) — selecting a pac-item is required (typing alone shows toast 'Saisissez et sélectionnez une destination.'). After full flow, ride started successfully and 'COURSE EN COURS' rendered with passenger 'Marie Test'. ✅"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "n/a (skipped per request)",
+    "frontend": "Test A (no-driver raise-btn): PASS end-to-end (fare=11.17 finite, raise button shows '+2.23 €', tapping it restarts search at 13.40 €). Test D (accept-timer-big): PASS (ring 140x140 + 'Temps pour accepter' + offer-countdown=35 visible on dimmed map when incoming-request-modal opens). Test E (Auto-stop name+phone): PASS (modal opens, both inputs accept, after dest+gamme+start a real ride is created and COURSE EN COURS renders for Marie Test). 3/3 = 100%."
+  },
+  "test_credentials": "Driver: jean.dupont@demo.sb / Driver123! (driver_b366adb552eb). Fresh users registered: test_iter220_*, test_iter220b_*, test_iter220e_* / Client123!",
+  "seed_data_creation": "Created and cancelled bidding rides ride_cba8b19768cc (initial offer 11.17 → cancelled to trigger no-driver-modal), ride_0e6a2f7f8e8a (raise fare to 13.40, cancelled in cleanup), ride_de501c32febe (Test D bidding ride for driver incoming-request-modal, cancelled), and ride_00a2be53fbb3 (Test E auto-stop in_progress ride for Marie Test, cancelled in cleanup). All in_progress/accepted/pending rides on driver_b366adb552eb were swept before each test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All three iter219 bugs are confirmed fixed in UI. Only minor follow-up: silence the transient 'Received NaN for value attribute' console warning on /taxi-bidding after pressing find-driver-btn. To investigate, breakpoint setFare(...) on the submit path or inspect the hidden fare-picker-fallback at L760-763 (it does `value={fare}` directly without Number.isFinite guard — when fare is briefly NaN before the safety net runs, this input emits the warning).",
+  "rca of the issue": "Iter219 root cause was that the no-driver-raise-btn render gate `suggestedFare > fare` evaluated to false when fare was NaN. Fix (verified in /app/frontend/src/pages/user/TaxiBiddingPage.js L740) changes the gate to `suggestedFare > (Number.isFinite(fare) ? fare : fareFloor)`, plus L109-110 adds a safety-net useEffect that resets fare to fareFloor whenever it becomes non-finite, and L130 estimate/setFare init is wrapped in Number.isFinite. Behavior in live run: fare stays finite (11.17), the green raise button now renders with '+2.23 €' label, and tapping it correctly restarts the search via retryHigher → handleSubmit(suggestedFare) at the new fare of 13.40 €."
+}
