@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent } from '@phosphor-icons/react';
+import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -46,6 +46,7 @@ const AdminStores = () => {
           discount_pct: Number(editing.discount_pct) || 0,
           delivery_fee: Number(editing.delivery_fee) || 0,
           eta_min: Number(editing.eta_min) || 30,
+          flash_discount: { ...editing.flash, pct: Number(editing.flash?.pct) || 0 },
         }),
       });
       if (res.ok) { toast.success('Marchand mis à jour'); setEditing(null); loadStores(); }
@@ -53,6 +54,12 @@ const AdminStores = () => {
     } catch { toast.error('Erreur réseau'); }
     finally { setSaving(false); }
   };
+
+  const ADM_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  const toggleAdmDay = (i) => setEditing((e) => {
+    const days = (e.flash.days || []).includes(i) ? e.flash.days.filter((d) => d !== i) : [...(e.flash.days || []), i];
+    return { ...e, flash: { ...e.flash, days } };
+  });
 
   const filtered = stores.filter(s =>
     (s.store_name || '').toLowerCase().includes(filter.toLowerCase()) ||
@@ -109,7 +116,7 @@ const AdminStores = () => {
                   </Badge>
                 </td>
                 <td className="py-3 px-4 text-center whitespace-nowrap">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing({ ...store, cuisine: store.cuisine || '', discount_pct: store.discount_pct || 0, delivery_fee: store.delivery_fee ?? 2.5, eta_min: store.eta_min || 30 })} data-testid={`store-edit-${store.id}`}>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing({ ...store, cuisine: store.cuisine || '', discount_pct: store.discount_pct || 0, delivery_fee: store.delivery_fee ?? 2.5, eta_min: store.eta_min || 30, flash: store.flash_discount || { enabled: false, pct: 20, start_time: '14:00', end_time: '17:00', days: [] } })} data-testid={`store-edit-${store.id}`}>
                     <PencilSimple size={16} className="text-blue-500" />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => toggleStatus(store.id, store.status || 'active')} data-testid={`store-toggle-${store.id}`}>
@@ -150,6 +157,30 @@ const AdminStores = () => {
                   <label className="text-xs font-medium text-gray-600 block mb-1">Délai (min)</label>
                   <Input type="number" step="5" min="1" value={editing.eta_min} onChange={(e) => setEditing({ ...editing, eta_min: e.target.value })} data-testid="edit-eta" />
                 </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-3">
+                <label className="flex items-center gap-2 cursor-pointer mb-2">
+                  <input type="checkbox" checked={editing.flash?.enabled} onChange={(e) => setEditing({ ...editing, flash: { ...editing.flash, enabled: e.target.checked } })} className="w-4 h-4 text-amber-500 rounded" data-testid="edit-flash-enabled" />
+                  <span className="text-sm font-medium text-gray-700 flex items-center gap-1"><Lightning size={14} weight="fill" className="text-amber-500" /> Réduction flash</span>
+                </label>
+                {editing.flash?.enabled && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input type="number" min="0" max="90" placeholder="%" value={editing.flash.pct} onChange={(e) => setEditing({ ...editing, flash: { ...editing.flash, pct: e.target.value } })} data-testid="edit-flash-pct" />
+                      <Input type="time" value={editing.flash.start_time} onChange={(e) => setEditing({ ...editing, flash: { ...editing.flash, start_time: e.target.value } })} data-testid="edit-flash-start" />
+                      <Input type="time" value={editing.flash.end_time} onChange={(e) => setEditing({ ...editing, flash: { ...editing.flash, end_time: e.target.value } })} data-testid="edit-flash-end" />
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {ADM_DAYS.map((d, i) => (
+                        <button key={d} type="button" onClick={() => toggleAdmDay(i)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${(editing.flash.days || []).includes(i) ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-4 border-t border-gray-100">

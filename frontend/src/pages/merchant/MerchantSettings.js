@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { useAuth } from '../../contexts/AuthContext';
-import { Gear, Storefront, Clock, Phone, SealPercent, ForkKnife } from '@phosphor-icons/react';
+import { Gear, Storefront, Clock, Phone, SealPercent, ForkKnife, Lightning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -18,7 +18,12 @@ const MerchantSettings = () => {
   useEffect(() => {
     fetch(`${API}/api/merchants/me`, { credentials: 'include' })
       .then((r) => r.ok ? r.json() : null)
-      .then((m) => { if (m) setVitrine({ cuisine: m.cuisine || '', discount_pct: m.discount_pct || 0, delivery_fee: m.delivery_fee ?? 2.5, eta_min: m.eta_min || 30, store_name: m.store_name }); })
+      .then((m) => { if (m) setVitrine({
+        cuisine: m.cuisine || '', discount_pct: m.discount_pct || 0,
+        delivery_fee: m.delivery_fee ?? 2.5, eta_min: m.eta_min || 30, store_name: m.store_name,
+        flash: m.flash_discount || { enabled: false, pct: 20, start_time: '14:00', end_time: '17:00', days: [] },
+        flash_active: m.flash_active,
+      }); })
       .catch(() => {});
   }, []);
 
@@ -32,13 +37,20 @@ const MerchantSettings = () => {
           discount_pct: Number(vitrine.discount_pct) || 0,
           delivery_fee: Number(vitrine.delivery_fee) || 0,
           eta_min: Number(vitrine.eta_min) || 30,
+          flash_discount: { ...vitrine.flash, pct: Number(vitrine.flash.pct) || 0 },
         }),
       });
-      if (res.ok) { const m = await res.json(); setVitrine({ ...vitrine, ...m }); toast.success('Vitrine mise à jour !'); }
+      if (res.ok) { const m = await res.json(); setVitrine({ ...vitrine, ...m, flash: m.flash_discount || vitrine.flash }); toast.success('Vitrine mise à jour !'); }
       else toast.error('Échec de l\'enregistrement');
     } catch { toast.error('Erreur réseau'); }
     finally { setSavingVitrine(false); }
   };
+
+  const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  const toggleDay = (i) => setVitrine((v) => {
+    const days = v.flash.days.includes(i) ? v.flash.days.filter((d) => d !== i) : [...v.flash.days, i];
+    return { ...v, flash: { ...v.flash, days } };
+  });
 
   const [settings, setSettings] = useState({
     store_name: user?.name || 'Ma Boutique',
@@ -93,6 +105,57 @@ const MerchantSettings = () => {
               </div>
               <Button onClick={saveVitrine} disabled={savingVitrine} className="bg-orange-500 hover:bg-orange-600 text-white" data-testid="save-vitrine-btn">
                 {savingVitrine ? 'Enregistrement…' : 'Enregistrer la vitrine'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Réduction flash — programmable time window */}
+        {vitrine && (
+          <Card className="border-amber-200">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Lightning size={18} weight="fill" className="text-amber-500" /> Réduction flash
+                {vitrine.flash_active && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">ACTIVE</span>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={vitrine.flash.enabled} onChange={(e) => setVitrine({ ...vitrine, flash: { ...vitrine.flash, enabled: e.target.checked } })} className="w-4 h-4 text-amber-500 rounded" data-testid="flash-enabled" />
+                <span className="text-sm text-gray-700">Activer une réduction sur un créneau horaire</span>
+              </label>
+              {vitrine.flash.enabled && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Réduction (%)</label>
+                      <Input type="number" min="0" max="90" value={vitrine.flash.pct} onChange={(e) => setVitrine({ ...vitrine, flash: { ...vitrine.flash, pct: e.target.value } })} data-testid="flash-pct" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Début</label>
+                      <Input type="time" value={vitrine.flash.start_time} onChange={(e) => setVitrine({ ...vitrine, flash: { ...vitrine.flash, start_time: e.target.value } })} data-testid="flash-start" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Fin</label>
+                      <Input type="time" value={vitrine.flash.end_time} onChange={(e) => setVitrine({ ...vitrine, flash: { ...vitrine.flash, end_time: e.target.value } })} data-testid="flash-end" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-2">Jours (vide = tous les jours)</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {DAYS.map((d, i) => (
+                        <button key={d} type="button" onClick={() => toggleDay(i)} data-testid={`flash-day-${i}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${vitrine.flash.days.includes(i) ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">Ex : −20% entre 14:00 et 17:00 pour remplir les heures creuses. La réduction la plus avantageuse s'applique.</p>
+                </>
+              )}
+              <Button onClick={saveVitrine} disabled={savingVitrine} className="bg-amber-500 hover:bg-amber-600 text-white" data-testid="save-flash-btn">
+                {savingVitrine ? 'Enregistrement…' : 'Enregistrer la réduction flash'}
               </Button>
             </CardContent>
           </Card>

@@ -420,6 +420,9 @@ async def update_merchant_settings(merchant_id: str, request: Request):
             update["eta_min"] = max(1, int(body["eta_min"]))
         except (TypeError, ValueError):
             pass
+    if "flash_discount" in body:
+        from routes.merchants import validate_flash_discount
+        update["flash_discount"] = validate_flash_discount(body["flash_discount"])
     if not update:
         raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
     result = await db.merchants.update_one({"id": merchant_id}, {"$set": update})

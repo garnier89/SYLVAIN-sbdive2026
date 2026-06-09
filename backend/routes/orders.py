@@ -90,7 +90,8 @@ async def create_order(data: OrderCreate, request: Request):
     if delivery_fee is None:
         delivery_fee = default_fee
     delivery_fee = float(delivery_fee)
-    discount_pct = float(merchant.get("discount_pct") or 0)
+    from routes.merchants import compute_effective_discount
+    discount_pct, _flash = compute_effective_discount(merchant)
     discount = round(subtotal * discount_pct / 100, 2)
     discounted_subtotal = round(subtotal - discount, 2)
     commission = round(discounted_subtotal * commission_percent / 100, 2)

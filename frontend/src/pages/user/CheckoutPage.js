@@ -103,7 +103,7 @@ const CheckoutPage = () => {
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryFee = merchant?.delivery_fee != null ? Number(merchant.delivery_fee) : 2.50;
-  const discountPct = merchant?.discount_pct ? Number(merchant.discount_pct) : 0;
+  const discountPct = merchant?.effective_discount_pct != null ? Number(merchant.effective_discount_pct) : (merchant?.discount_pct ? Number(merchant.discount_pct) : 0);
   const discount = +(subtotal * discountPct / 100).toFixed(2);
   const total = subtotal - discount + deliveryFee;
 
@@ -346,7 +346,7 @@ const CheckoutPage = () => {
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-emerald-600 font-medium" data-testid="checkout-discount-row">
-                <span>Réduction marchand (−{discountPct}%)</span>
+                <span>{merchant?.flash_active ? `Réduction flash ⚡ (−${discountPct}%)` : `Réduction marchand (−${discountPct}%)`}</span>
                 <span>−{money(discount)}</span>
               </div>
             )}

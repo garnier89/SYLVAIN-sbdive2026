@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 from core.config import db
@@ -8,6 +9,72 @@ from core.deps import get_current_user, calculate_distance
 from models.schemas import MerchantCreate, ProductCreate
 
 router = APIRouter(prefix="/merchants", tags=["merchants"])
+
+# Local timezone used to evaluate flash-discount windows.
+FLASH_TZ = ZoneInfo("Europe/Paris")
+
+
+def _flash_is_active(flash: dict, now=None) -> bool:
+    """True if a flash discount window is currently open."""
+    if not flash or not flash.get("enabled"):
+        return False
+    try:
+        pct = float(flash.get("pct") or 0)
+    except (TypeError, ValueError):
+        return False
+    if pct <= 0:
+        return False
+    now = now or datetime.now(FLASH_TZ)
+    days = flash.get("days") or []
+    if days and now.weekday() not in days:
+        return False
+    start = str(flash.get("start_time") or "")
+    end = str(flash.get("end_time") or "")
+    if ":" not in start or ":" not in end:
+        return False
+    cur = now.strftime("%H:%M")
+    if start <= end:
+        return start <= cur <= end
+    # Window crossing midnight (e.g. 22:00 → 02:00)
+    return cur >= start or cur <= end
+
+
+def compute_effective_discount(m: dict):
+    """Return (effective_pct, flash_active). Flash overrides base when higher."""
+    base = float(m.get("discount_pct") or 0)
+    flash = m.get("flash_discount") or {}
+    if _flash_is_active(flash):
+        fpct = float(flash.get("pct") or 0)
+        return (max(base, fpct), True)
+    return (base, False)
+
+
+def _enrich_merchant(m: dict) -> dict:
+    """Add client-facing defaults used by the apps (non-breaking)."""
+    if m.get("delivery_fee") is None:
+        m["delivery_fee"] = 2.5
+    if "is_open" not in m:
+        m["is_open"] = bool(m.get("is_active", True))
+    if "eta_min" not in m:
+        m["eta_min"] = 30
+    if not m.get("cuisine"):
+        m["cuisine"] = _STORE_TYPE_CUISINE.get(m.get("store_type"), "")
+    if m.get("discount_pct") is None:
+        m["discount_pct"] = 0
+    eff, flash_active = compute_effective_discount(m)
+    m["effective_discount_pct"] = eff
+    m["flash_active"] = flash_active
+    return m
+
+
+_STORE_TYPE_CUISINE = {
+    "restaurant": "Cuisine variée",
+    "grocery": "Épicerie",
+    "florist": "Fleuriste",
+    "stationery": "Papeterie",
+    "wine": "Cave & Spiritueux",
+    "construction": "Bricolage",
+}
 
 
 @router.post("/register")
@@ -30,31 +97,6 @@ async def register_merchant(data: MerchantCreate, request: Request):
     await db.users.update_one({"id": user["id"]}, {"$set": {"role": "merchant"}})
     merchant.pop("_id", None)
     return merchant
-
-
-def _enrich_merchant(m: dict) -> dict:
-    """Add client-facing defaults used by the apps (non-breaking)."""
-    if m.get("delivery_fee") is None:
-        m["delivery_fee"] = 2.5
-    if "is_open" not in m:
-        m["is_open"] = bool(m.get("is_active", True))
-    if "eta_min" not in m:
-        m["eta_min"] = 30
-    if not m.get("cuisine"):
-        m["cuisine"] = _STORE_TYPE_CUISINE.get(m.get("store_type"), "")
-    if m.get("discount_pct") is None:
-        m["discount_pct"] = 0
-    return m
-
-
-_STORE_TYPE_CUISINE = {
-    "restaurant": "Cuisine variée",
-    "grocery": "Épicerie",
-    "florist": "Fleuriste",
-    "stationery": "Papeterie",
-    "wine": "Cave & Spiritueux",
-    "construction": "Bricolage",
-}
 
 
 async def _avg_price_map(merchant_ids: list) -> dict:
@@ -86,6 +128,24 @@ async def list_merchants(store_type: Optional[str] = None, lat: Optional[float] 
             m["distance"] = calculate_distance(lat, lng, m["lat"], m["lng"])
         merchants.sort(key=lambda x: x["distance"])
     return merchants
+
+
+def validate_flash_discount(raw) -> dict:
+    """Sanitize a flash-discount config from request body."""
+    if not isinstance(raw, dict):
+        return {"enabled": False, "pct": 0, "start_time": "", "end_time": "", "days": []}
+    try:
+        pct = max(0.0, min(90.0, round(float(raw.get("pct") or 0), 2)))
+    except (TypeError, ValueError):
+        pct = 0
+    days = [d for d in (raw.get("days") or []) if isinstance(d, int) and 0 <= d <= 6]
+    return {
+        "enabled": bool(raw.get("enabled")),
+        "pct": pct,
+        "start_time": str(raw.get("start_time") or ""),
+        "end_time": str(raw.get("end_time") or ""),
+        "days": days,
+    }
 
 
 @router.get("/me")
@@ -124,6 +184,8 @@ async def update_my_merchant(request: Request):
             update["eta_min"] = max(1, int(body["eta_min"]))
         except (TypeError, ValueError):
             pass
+    if "flash_discount" in body:
+        update["flash_discount"] = validate_flash_discount(body["flash_discount"])
     if not update:
         raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
     res = await db.merchants.update_one({"user_id": user["id"]}, {"$set": update})

@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { merchantAPI, cartAPI } from '../../services/api';
 import {
   MagnifyingGlass, MapPin, Star, Clock, ArrowLeft, Funnel, User,
-  ShoppingCart, SealPercent,
+  ShoppingCart, SealPercent, Lightning,
 } from '@phosphor-icons/react';
 
 // Verticales de livraison — chaque type filtre les marchands par `store_type`.
@@ -192,10 +192,10 @@ const FoodPage = () => {
                   <Clock size={13} weight="fill" className="text-[#FF4500]" />
                   {merchant.eta_min || 30} min
                 </span>
-                {merchant.discount_pct > 0 && (
-                  <span className="absolute bottom-3 left-3 bg-red-600 text-white text-xs font-bold rounded-full px-3 py-1.5 flex items-center gap-1 shadow" data-testid={`merchant-discount-${merchant.id}`}>
-                    <SealPercent size={14} weight="fill" />
-                    Obtenir {merchant.discount_pct.toFixed(2)}% de réduction
+                {merchant.effective_discount_pct > 0 && (
+                  <span className={`absolute bottom-3 left-3 text-white text-xs font-bold rounded-full px-3 py-1.5 flex items-center gap-1 shadow ${merchant.flash_active ? 'bg-amber-500' : 'bg-red-600'}`} data-testid={`merchant-discount-${merchant.id}`}>
+                    {merchant.flash_active ? <Lightning size={14} weight="fill" /> : <SealPercent size={14} weight="fill" />}
+                    {merchant.flash_active ? `Flash −${merchant.effective_discount_pct.toFixed(0)}%` : `Obtenir ${merchant.effective_discount_pct.toFixed(2)}% de réduction`}
                   </span>
                 )}
               </div>
