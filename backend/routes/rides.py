@@ -83,6 +83,37 @@ async def _db_pool_config():
     return await _db.service_configs.find_one({"service_key": "pool"}, {"_id": 0})
 
 
+# Payment methods that may be allowed for Pool (shared) rides.
+POOL_ALL_PAYMENTS = ["cash", "card", "wallet", "sbpaygo"]
+POOL_DEFAULT_MAX_STOPS = 2
+
+
+async def get_pool_global_config():
+    """GLOBAL Pool configuration (V3Cube « Configuration Pool »), stored in the
+    service_configs 'pool' doc. Unlike `get_pool_config` (per Vehicle Type pricing),
+    this exposes the admin's cross-cutting Pool policy consumed by the booking flow:
+    eligible vehicle categories, allowed payment methods, capacity & max stops."""
+    doc = await _db_pool_config()
+    s = (doc or {}).get("settings", {}) or {}
+    elig = s.get("eligible_vehicle_slugs")
+    if not isinstance(elig, list):
+        elig = []
+    pms = s.get("payment_methods")
+    if not isinstance(pms, list) or not pms:
+        pms = list(POOL_ALL_PAYMENTS)
+    discount = s.get("share_discount_percent", s.get("pool_discount_percent", POOL_DEFAULT_DISCOUNT_PERCENT))
+    return {
+        "enabled": _pool_bool(s.get("enable_pool", True), True),
+        "pool_percentage": _pool_num(s.get("pool_percentage", POOL_DEFAULT_PERCENTAGE), POOL_DEFAULT_PERCENTAGE),
+        "available_seats": int(_pool_num(s.get("available_seats", POOL_DEFAULT_SEATS), POOL_DEFAULT_SEATS)),
+        "max_seats_per_booking": int(_pool_num(s.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), POOL_DEFAULT_MAX_SEATS_PER_BOOKING)),
+        "discount_percent": _pool_num(discount, POOL_DEFAULT_DISCOUNT_PERCENT),
+        "max_stops": int(_pool_num(s.get("max_stops", POOL_DEFAULT_MAX_STOPS), POOL_DEFAULT_MAX_STOPS)),
+        "eligible_vehicle_slugs": [str(x).strip().lower() for x in elig if x],
+        "payment_methods": [str(x).strip().lower() for x in pms if x in POOL_ALL_PAYMENTS],
+    }
+
+
 from core.config import db
 from core.deps import get_current_user, calculate_distance, calculate_fare
 from models.schemas import RideRequest, RideResponse
@@ -371,6 +402,19 @@ async def create_ride(data: RideRequest, request: Request):
     pool_capacity = 1
     pool_discount_pct = None
     if pool_enabled:
+        # ── Enforce the admin's GLOBAL Pool policy (V3Cube « Configuration Pool ») ──
+        pool_global = await get_pool_global_config()
+        if not pool_global.get("enabled", True):
+            raise HTTPException(status_code=400, detail="Le service Pool (taxi partagé) est actuellement indisponible.")
+        elig = pool_global.get("eligible_vehicle_slugs") or []
+        if elig and (data.vehicle_type or "").strip().lower() not in elig:
+            raise HTTPException(status_code=400, detail="Ce véhicule n'est pas éligible aux courses Pool.")
+        allowed_pms = pool_global.get("payment_methods") or POOL_ALL_PAYMENTS
+        if (data.payment_method or "").strip().lower() not in allowed_pms:
+            raise HTTPException(status_code=400, detail="Ce moyen de paiement n'est pas autorisé pour les courses Pool.")
+        max_stops = pool_global.get("max_stops", POOL_DEFAULT_MAX_STOPS)
+        if len(stop_points) > max_stops:
+            raise HTTPException(status_code=400, detail=f"Une course Pool accepte au maximum {max_stops} arrêt(s).")
         pool_cfg = await get_pool_config(vtype_doc)
         pool_capacity = max(1, pool_cfg["available_seats"])  # total shared-vehicle capacity (for "remaining seats")
         booking_cap = max(1, min(pool_cfg.get("max_seats_per_booking", POOL_DEFAULT_MAX_SEATS_PER_BOOKING), pool_capacity))

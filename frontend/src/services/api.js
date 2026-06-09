@@ -379,6 +379,7 @@ export const configAPI = {
   getBusinessTripReasons: () => api.get('/config/business-trip-reasons'),
   getTaxiBooking: () => api.get('/config/taxi-booking'),
   getPaymentMethods: () => api.get('/config/payment-methods'),
+  getPoolConfig: () => api.get('/config/pool'),
   getAppSettings: (params) => api.get('/config/app-settings', { params }),
   getGeneralSettings: () => api.get('/config/general-settings'),
 };

@@ -101,6 +101,7 @@ const RideChoosePage = () => {
   const [searching, setSearching] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
   const [taxiOpts, setTaxiOpts] = useState(null);
+  const [poolCfg, setPoolCfg] = useState(null); // GLOBAL « Configuration Pool » admin policy
   const [modeCms, setModeCms] = useState(null); // admin CMS override for label/sub/icon
   const [allCats, setAllCats] = useState([]); // « Catégories » (service_categories) — single source of truth
 
@@ -283,6 +284,42 @@ const RideChoosePage = () => {
       .catch((e) => console.warn('wallet load:', e?.message || e));
   }, []);
 
+  // Load GLOBAL Pool config (eligible vehicles, payment methods, capacity, max stops).
+  useEffect(() => {
+    configAPI.getPoolConfig().then((r) => r.data && setPoolCfg(r.data)).catch(() => {});
+  }, []);
+
+  // In Pool mode, restrict the vehicle list & payment methods to the admin's policy.
+  const effectiveVtypes = useMemo(() => {
+    if (isPool && poolCfg?.eligible_vehicle_slugs?.length) {
+      const set = new Set(poolCfg.eligible_vehicle_slugs);
+      const f = vtypes.filter((v) => set.has(v.slug));
+      return f.length ? f : vtypes;
+    }
+    return vtypes;
+  }, [isPool, poolCfg, vtypes]);
+
+  const effectivePayments = useMemo(() => {
+    if (isPool && poolCfg?.payment_methods?.length) {
+      const set = new Set(poolCfg.payment_methods);
+      const f = payments.filter((p) => set.has(p.id));
+      return f.length ? f : payments;
+    }
+    return payments;
+  }, [isPool, poolCfg, payments]);
+
+  // Keep the selected vehicle / payment valid within the Pool-restricted lists.
+  useEffect(() => {
+    if (selected && effectiveVtypes.length && !effectiveVtypes.some((v) => v.slug === selected)) {
+      setSelected(effectiveVtypes[0].slug);
+    }
+  }, [effectiveVtypes, selected]);
+  useEffect(() => {
+    if (effectivePayments.length && !effectivePayments.some((p) => p.id === payment)) {
+      setPayment(effectivePayments[0].id);
+    }
+  }, [effectivePayments, payment]);
+
   // IP-based approximate location — works even when the browser GPS is blocked
   // (e.g. inside the preview iframe, or when location permission is denied/off).
   // Resolved server-side (reads the real client IP) to avoid CORS / mixed-content.
@@ -362,15 +399,15 @@ const RideChoosePage = () => {
 
   // ── Live estimates per vehicle (comparison modes only) ────────────────
   const fetchEstimates = useCallback(async () => {
-    if (!showComparison || !pickup?.lat || !dropoff?.lat || vtypes.length === 0) return;
-    setEstimates(Object.fromEntries(vtypes.map((v) => [v.slug, { loading: true }])));
+    if (!showComparison || !pickup?.lat || !dropoff?.lat || effectiveVtypes.length === 0) return;
+    setEstimates(Object.fromEntries(effectiveVtypes.map((v) => [v.slug, { loading: true }])));
     const base = {
       pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
       dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
       payment_method: 'cash', ride_type: mode.ride_type || 'instant', pool_enabled: isPool,
       seats_required: isPool ? poolSeats : 1, round_trip: isIntercity && roundTrip,
     };
-    await Promise.all(vtypes.map(async (v) => {
+    await Promise.all(effectiveVtypes.map(async (v) => {
       try {
         const res = await rideAPI.estimate({ ...base, vehicle_type: v.slug });
         const d = res.data;
@@ -379,7 +416,7 @@ const RideChoosePage = () => {
         setEstimates((p) => ({ ...p, [v.slug]: { loading: false, error: true } }));
       }
     }));
-  }, [showComparison, vtypes, pickup, dropoff, mode.id, mode.ride_type, isPool, isIntercity, poolSeats, roundTrip]);
+  }, [showComparison, effectiveVtypes, pickup, dropoff, mode.id, mode.ride_type, isPool, isIntercity, poolSeats, roundTrip]);
 
   useEffect(() => { const t = setTimeout(fetchEstimates, 350); return () => clearTimeout(t); }, [fetchEstimates]);
 
@@ -482,7 +519,7 @@ const RideChoosePage = () => {
     bookForName, setBookForName, bookForPhone, setBookForPhone,
     biddingFare, setBiddingFare,
     poolSeats, setPoolSeats,
-    poolMax: (selected && estimates[selected]?.maxPoolSeats) || 2,
+    poolMax: (selected && estimates[selected]?.maxPoolSeats) || poolCfg?.max_seats_per_booking || 2,
     isIntercity, roundTrip, setRoundTrip,
     intercityEst: selected ? estimates[selected] : null,
   };
@@ -505,7 +542,7 @@ const RideChoosePage = () => {
     <div data-testid="choose-ride-section">
       <p className="text-xs text-gray-500 mb-3">{isPool ? 'Tarif partagé réduit estimé par véhicule.' : 'Sélectionnez votre véhicule.'}</p>
       <div className="space-y-2">
-        {vtypes.map((v) => {
+        {effectiveVtypes.map((v) => {
           const Icon = vehicleIcon(v);
           const est = estimates[v.slug] || {};
           const active = selected === v.slug;
@@ -550,7 +587,7 @@ const RideChoosePage = () => {
     <div data-testid="bidding-vehicle-section">
       <p className="text-xs text-gray-500 mb-3">Sélectionnez le type de véhicule pour votre offre.</p>
       <div className="grid grid-cols-2 gap-2.5">
-        {vtypes.map((v) => {
+        {effectiveVtypes.map((v) => {
           const active = selected === v.slug;
           const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
           const Icon = vehicleIcon(v);
@@ -586,7 +623,7 @@ const RideChoosePage = () => {
           </button>
           {payOpen && (
             <div className="absolute z-30 left-0 right-0 bottom-full mb-1.5 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden" data-testid="payment-dropdown-list">
-              {payments.map((pm) => {
+              {effectivePayments.map((pm) => {
                 const Icon = PAYMENT_ICONS[pm.icon] || Money; const active = payment === pm.id;
                 return (
                   <button key={pm.id} type="button" onClick={() => { setPayment(pm.id); setPayOpen(false); }} data-testid={`ride-choose-pay-${pm.id}`}

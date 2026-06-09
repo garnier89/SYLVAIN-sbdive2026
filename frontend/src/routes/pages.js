@@ -164,6 +164,7 @@ export const AdminAutoDispatch = lazy(() => import('../pages/admin/AdminAutoDisp
 export const AdminDispatch = lazy(() => import('../pages/admin/AdminDispatch'));
 export const AdminManageAdmins = lazy(() => import('../pages/admin/AdminManageAdmins'));
 export const AdminServiceConfig = lazy(() => import('../pages/admin/AdminServiceConfig'));
+export const AdminPoolConfig = lazy(() => import('../pages/admin/AdminPoolConfig'));
 export const AdminAppSettings = lazy(() => import('../pages/admin/AdminAppSettings'));
 export const AdminRewards = lazy(() => import('../pages/admin/AdminRewards'));
 export const AdminPriorityDrivers = lazy(() => import('../pages/admin/AdminPriorityDrivers'));

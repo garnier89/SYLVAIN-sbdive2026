@@ -5,7 +5,7 @@ import { useLocale } from '../../contexts/LocaleContext';
  * Hire A Driver (Buddy), Corporate, Moto.
  * Reuses the same backend POST /api/rides with `ride_type` discriminator.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -15,7 +15,7 @@ import {
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
-import { corporateAPI } from '../../services/api';
+import { corporateAPI, configAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -29,9 +29,11 @@ const MODES = [
   { key: 'moto', label: 'Moto', icon: Motorcycle, color: '#EF4444' },
 ];
 
+// Default mapping mode → REAL vehicle_type slug (validated against the admin's
+// /api/config/vehicle-types). Used as a fallback when the slug isn't loaded yet.
 const VEHICLE_BY_MODE = {
-  scheduled: 'comfort', intercity: 'premium', airport: 'comfort',
-  rental: 'comfort', buddy_driver: 'comfort', corporate: 'premium', moto: 'moto',
+  scheduled: 'sb', intercity: 'luxe', airport: 'airport',
+  rental: 'confort', buddy_driver: 'confort', corporate: 'luxe', moto: 'moto',
 };
 
 const AdvancedTaxiBookingPage = () => {
@@ -53,6 +55,15 @@ const AdvancedTaxiBookingPage = () => {
   const [estimate, setEstimate] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [loyaltyDisc, setLoyaltyDisc] = useState(null);
+  const [vtypes, setVtypes] = useState([]); // admin-configured vehicle types (images + pricing)
+
+  // Resolve the active mode → an actual vehicle_type from the admin config so the
+  // estimate uses the admin's pricing and the card shows the admin-uploaded image.
+  const currentVehicle = useMemo(() => {
+    const want = mode === 'moto' ? 'moto' : (VEHICLE_BY_MODE[mode] || 'sb');
+    return vtypes.find((v) => v.slug === want) || vtypes.find((v) => v.slug === 'sb') || vtypes[0] || null;
+  }, [vtypes, mode]);
+  const currentSlug = currentVehicle?.slug || (mode === 'moto' ? 'moto' : VEHICLE_BY_MODE[mode] || 'sb');
 
   // Loyalty booking discount (shown at checkout to drive retention)
   useEffect(() => {
@@ -60,6 +71,11 @@ const AdvancedTaxiBookingPage = () => {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d && d.discount_pct > 0) setLoyaltyDisc(d); })
       .catch(() => {});
+  }, []);
+
+  // Load admin vehicle types once (single source of truth for pricing + images).
+  useEffect(() => {
+    configAPI.getVehicleTypes().then((r) => setVtypes(r.data || [])).catch(() => {});
   }, []);
 
   // Load rental packages once
@@ -101,7 +117,7 @@ const AdvancedTaxiBookingPage = () => {
     if (!pickup?.lat) return;
     if (mode !== 'rental' && mode !== 'buddy_driver' && !dropoff?.lat) return;
     try {
-      const vehicleType = mode === 'moto' ? motoSubType : VEHICLE_BY_MODE[mode];
+      const vehicleType = currentSlug;
       const dest = dropoff || pickup; // rental/buddy don't require dropoff
       const r = await fetch(`${API}/api/rides/estimate`, {
         method: 'POST',
@@ -115,7 +131,7 @@ const AdvancedTaxiBookingPage = () => {
       });
       if (r.ok) setEstimate(await r.json());
     } catch (e) { console.warn('estimate failed:', e?.message || e); }
-  }, [pickup, dropoff, mode, motoSubType]);
+  }, [pickup, dropoff, mode, currentSlug]);
 
   useEffect(() => {
     const t = setTimeout(fetchEstimate, 400);
@@ -123,7 +139,7 @@ const AdvancedTaxiBookingPage = () => {
   }, [fetchEstimate]);
 
   const buildPayload = () => {
-    const vehicleType = mode === 'moto' ? motoSubType : VEHICLE_BY_MODE[mode];
+    const vehicleType = currentSlug;
     const base = {
       pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
       dropoff_lat: (dropoff || pickup).lat, dropoff_lng: (dropoff || pickup).lng,
@@ -402,8 +418,12 @@ const AdvancedTaxiBookingPage = () => {
                   {estimate.distance_km?.toFixed(1)} km • {estimate.duration_mins} min
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: current?.color + '22' }}>
-                <Icon size={24} style={{ color: current?.color }} weight="duotone" />
+              <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden" style={{ backgroundColor: current?.color + '22' }} data-testid="estimate-vehicle-icon">
+                {currentVehicle?.image_unselected || currentVehicle?.image_selected ? (
+                  <img src={currentVehicle.image_unselected || currentVehicle.image_selected} alt={currentVehicle.name_fr || currentVehicle.slug} className="w-full h-full object-cover" />
+                ) : (
+                  <Icon size={24} style={{ color: current?.color }} weight="duotone" />
+                )}
               </div>
             </div>
             {loyaltyDisc && (

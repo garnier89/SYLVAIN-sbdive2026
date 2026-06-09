@@ -1,0 +1,30 @@
+{
+  "summary": "Iter206 — Validated Pool config: public GET /api/config/pool, admin save (service-config/pool), enforcement in POST /api/rides (ineligible vehicle, disallowed payment, too many stops), Advanced Taxi estimate non-regression for real slugs, and AdminPoolConfig.js UI loads with all data-testids and persists selections after reload.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter206_pool_config.py",
+    "/app/test_reports/pytest/iter206_pool.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/rides.py is very large (>1000 lines) and mixes ride creation, status transitions, bidding, pool, cancellation, route updates. Consider splitting into rides_create.py, rides_status.py, rides_pool.py for maintainability.",
+    "config.py — GLOBAL Pool config exposed via get_pool_global_config() reads from service_configs[pool].settings; admin save endpoint lives in routes/admin.py PUT /admin/service-config/{service_key}. There is no Pydantic validation on the pool settings payload (e.g. negative pool_percentage or non-string slug entries). Recommend a SaveServiceConfig model to enforce bounds.",
+    "Pool enforcement in create_ride correctly returns 400 with explicit French messages and verifies vehicle eligibility, payment method whitelist, and max_stops — good UX.",
+    "Frontend AdminPoolConfig.js exposes all required data-testids (admin-pool-config, pool-enable-toggle, pool-pool_percentage, pool-available_seats, pool-max_seats_per_booking, pool-max_stops, pool-share_discount_percent, pool-eligible-vehicles + pool-vehicle-<slug>, pool-payment-methods + pool-payment-cash/card/wallet/sbpaygo, pool-save-btn). Persistence verified after reload."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter206_pool_config.py (new)"
+  ],
+  "success_rate": { "backend": "100% (7/7)", "frontend": "100% (admin pool config render+persist)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (admin); TEST_pool_rider_iter206@example.com / Rider2026! (rider, auto-created by tests)",
+  "seed_data_creation": "Tests temporarily restrict pool to [sb, confort] + cash-only, then RESTORE permissive config (eligible_vehicle_slugs=[], all payments enabled) in the final teardown test. No leftover restrictive state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend Pool API verified end-to-end. Tests live at /app/backend/tests/test_iter206_pool_config.py and are idempotent (auto register+login rider; restore permissive pool config at the end). Frontend admin route /admin/pool-config is fully wired with data-testids. Not exhaustively tested: RideChoosePage /course?mode=pool client-side filtering (effectiveVtypes/effectivePayments memos consuming /api/config/pool) — recommended next pass if you need full E2E of the rider Pool flow. AdvancedTaxiBookingPage estimate non-regression for slugs sb/confort/luxe/airport/moto passes via /api/rides/estimate.",
+  "rca of the issue": "N/A — feature additions verified working."
+}
