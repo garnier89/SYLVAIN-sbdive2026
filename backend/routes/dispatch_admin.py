@@ -255,6 +255,126 @@ async def dispatch_overview(request: Request):
 
 
 # ============================================================
+# Taxi recruitment — courier-only drivers in high-demand taxi zones
+# ============================================================
+TAXI_RECRUITMENT_MIN_PENDING = 3  # min pending taxi rides for a zone to be "hot"
+_VTC_DOC_TYPES = {"vtc_card", "carte_vtc", "carte_pro_taxi"}
+_CAR_VEH = {"car", "voiture", "sedan", "berline", "suv", "van", "minivan", "luxe",
+            "luxury", "comfort", "confort", "prime", "premium", "xl", "sb"}
+_MOTO_VEH = {"moto", "motorcycle", "motorbike", "scooter", "moped"}
+
+
+def _vtc_eligible(d: dict) -> bool:
+    """Whether the driver could self-enable Taxi (has a VTC card + car/moto)."""
+    has_doc = any((doc or {}).get("type") in _VTC_DOC_TYPES for doc in (d.get("documents") or []))
+    vt = (d.get("vehicle_type") or "").lower()
+    return has_doc and (vt in _CAR_VEH or vt in _MOTO_VEH)
+
+
+@router.get("/taxi-recruitment")
+async def taxi_recruitment(request: Request):
+    """Zones with HIGH taxi demand and LOW taxi supply (pending taxi rides ≥ seuil
+    ET courses en attente > chauffeurs taxi en ligne), plus the courier-only drivers
+    located there whom the admin can activate / invite to Taxi in 1 click."""
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    zones = await db.zones.find({"is_active": True}, {"_id": 0}).to_list(500)
+    UNZONED = "Hors zone"
+
+    zmap = {}
+
+    def _z(name):
+        return zmap.setdefault(name, {"zone": name, "pending": 0, "online_taxi": 0, "candidates": []})
+
+    # Pending taxi rides per zone (rides collection = taxi).
+    pending = await db.rides.find(
+        {"status": "pending", "driver_id": None},
+        {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "pickup_address": 1},
+    ).to_list(300)
+    for r in pending:
+        z = resolve_zone(zones, r.get("pickup_lat"), r.get("pickup_lng"), r.get("pickup_address"))
+        _z((z or {}).get("name") or UNZONED)["pending"] += 1
+
+    # Online TAXI drivers per zone.
+    async for d in db.drivers.find(
+        {"status": "approved", "is_online": True, "service_types": "taxi"},
+        {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1},
+    ):
+        loc = manager.get_driver_location(d["user_id"]) or {}
+        lat = loc.get("lat", d.get("current_lat"))
+        lng = loc.get("lng", d.get("current_lng"))
+        z = resolve_zone(zones, lat, lng, None)
+        _z((z or {}).get("name") or UNZONED)["online_taxi"] += 1
+
+    # Hot zones: enough pending AND demand outstrips supply.
+    hot = {n: g for n, g in zmap.items()
+           if g["pending"] >= TAXI_RECRUITMENT_MIN_PENDING and g["pending"] > g["online_taxi"]}
+
+    candidates_total = 0
+    if hot:
+        async for d in db.drivers.find(
+            {"status": "approved", "service_types": {"$in": ["courier", "delivery"], "$nin": ["taxi"]}},
+            {"_id": 0, "id": 1, "user_id": 1, "current_lat": 1, "current_lng": 1,
+             "is_online": 1, "vehicle_type": 1, "documents": 1, "service_types": 1},
+        ):
+            loc = manager.get_driver_location(d["user_id"]) or {}
+            lat = loc.get("lat", d.get("current_lat"))
+            lng = loc.get("lng", d.get("current_lng"))
+            z = resolve_zone(zones, lat, lng, None)
+            zname = (z or {}).get("name") or UNZONED
+            if zname not in hot:
+                continue
+            u = await db.users.find_one({"id": d["user_id"]}, {"_id": 0, "name": 1, "phone": 1}) or {}
+            hot[zname]["candidates"].append({
+                "driver_id": d["id"],
+                "name": u.get("name") or "Chauffeur",
+                "phone": u.get("phone"),
+                "is_online": bool(d.get("is_online")),
+                "vehicle_type": d.get("vehicle_type"),
+                "services": d.get("service_types") or [],
+                "vtc_eligible": _vtc_eligible(d),
+            })
+            candidates_total += 1
+
+    out = []
+    for n, g in hot.items():
+        g["deficit"] = g["pending"] - g["online_taxi"]
+        g["candidates"].sort(key=lambda c: (not c["is_online"], not c["vtc_eligible"]))
+        out.append(g)
+    out.sort(key=lambda g: (-g["deficit"], -g["pending"]))
+
+    return {
+        "hot_zones": out,
+        "totals": {
+            "hot_zones": len(out),
+            "candidates": candidates_total,
+            "min_pending": TAXI_RECRUITMENT_MIN_PENDING,
+        },
+        "server_time": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.post("/taxi-recruitment/invite")
+async def taxi_recruitment_invite(request: Request):
+    """Send a driver an invitation to enable the Taxi service (deep-links to their
+    « Gérer mes services » screen). The driver still passes the VTC gate to confirm."""
+    user = await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    body = await request.json()
+    driver_id = (body.get("driver_id") or "").strip()
+    zone = (body.get("zone") or "").strip()
+    d = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "user_id": 1})
+    if not d:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    from core.notifications import create_notification
+    await create_notification(
+        d["user_id"], "promo", "Activez le service Taxi 🚕",
+        f"Forte demande de courses{(' à ' + zone) if zone else ''} ! Activez le Taxi pour recevoir plus de courses et gagner davantage.",
+        push=True, data={"kind": "taxi_invite", "link": "/chauffeur/profile?services=1"},
+    )
+    return {"message": "Invitation envoyée", "driver_id": driver_id}
+
+
+
+# ============================================================
 # Driver behaviour + 1-click suspend
 # ============================================================
 @router.get("/driver-behavior")

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { dispatchAdminAPI } from '../../services/api';
 import {
   Broadcast, MapPin, Warning, Money, CreditCard, Wallet, Clock,
-  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell,
+  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell, Car,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -37,8 +38,10 @@ const PayChip = ({ method }) => {
 };
 
 const AdminDispatch = () => {
+  const navigate = useNavigate();
   const [overview, setOverview] = useState(null);
   const [behavior, setBehavior] = useState(null);
+  const [recruit, setRecruit] = useState(null);
   const [cfg, setCfg] = useState(null);
   const [savingCfg, setSavingCfg] = useState(false);
   const [tick, setTick] = useState(0); // forces age re-render every second
@@ -75,6 +78,7 @@ const AdminDispatch = () => {
       ]);
       setOverview(ov.data);
       setBehavior(bh.data);
+      dispatchAdminAPI.taxiRecruitment().then((r) => setRecruit(r.data)).catch(() => {});
       if (!cfg) setCfg(ov.data.config);
       // Live alerting: beep + toast when a NEW no-driver zone or flagged driver appears.
       const alertZones = new Set((ov.data.zones || []).filter((z) => z.alert).map((z) => z.zone));
@@ -198,6 +202,28 @@ const AdminDispatch = () => {
               </div>
               <Button onClick={saveCfg} disabled={savingCfg} className="bg-orange-500 hover:bg-orange-600 text-white" data-testid="cfg-save-btn">{savingCfg ? '…' : 'Enregistrer'}</Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Taxi recruitment alert — courier-only drivers in high-demand taxi zones */}
+      {recruit?.totals?.hot_zones > 0 && (
+        <Card className="mb-6 border-[#FF5000] bg-orange-50/50" data-testid="dispatch-recruit-widget">
+          <CardContent className="p-4 flex items-center gap-3 flex-wrap">
+            <div className="w-10 h-10 rounded-full bg-[#FF5000] flex items-center justify-center shrink-0">
+              <Car size={20} weight="fill" className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-extrabold text-[#0B1426]">
+                {recruit.totals.hot_zones} zone{recruit.totals.hot_zones > 1 ? 's' : ''} taxi en tension
+              </p>
+              <p className="text-xs text-gray-600">
+                {recruit.totals.candidates} chauffeur{recruit.totals.candidates > 1 ? 's' : ''} livraison/coursier à proximité — activez ou invitez-les au Taxi pour absorber la demande.
+              </p>
+            </div>
+            <Button onClick={() => navigate('/admin/taxi-recruitment')} className="bg-[#FF5000] hover:bg-[#e64900] text-white" data-testid="dispatch-recruit-cta">
+              Recruter <ArrowRight size={14} className="ml-1" />
+            </Button>
           </CardContent>
         </Card>
       )}

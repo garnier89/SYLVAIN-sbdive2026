@@ -6,7 +6,7 @@ import {
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
   AdminMonitoring, AdminLiveRides, AdminAutoDispatch, AdminDispatch, AdminManageAdmins, AdminGroupsPage,
   AdminVehicles, AdminDriverCategories, AdminRequests, AdminDocumentsCrud, AdminCompany,
-  AdminHotels, AdminOrganization, AdminVehicleTypes, AdminOrders, AdminServiceConfig, AdminPoolConfig,
+  AdminHotels, AdminOrganization, AdminVehicleTypes, AdminOrders, AdminServiceConfig, AdminPoolConfig, AdminTaxiRecruitment,
   AdminManualBooking, AdminPayoutsCrud, AdminSettlementsCrud, AdminDisputesCrud,
   AdminWithdrawRequests, AdminRewards, AdminPriorityDrivers, AdminTopDriversSettings,
   AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancellationReasonsPage,
@@ -112,6 +112,7 @@ export function adminRoutes() {
       <Route path="seo" element={<AdminServiceConfig serviceKey="seo" />} />
       <Route path="maps-api" element={<AdminServiceConfig serviceKey="maps-api" />} />
       <Route path="pool-config" element={<AdminPoolConfig />} />
+      <Route path="taxi-recruitment" element={<AdminTaxiRecruitment />} />
       <Route path="ride-search-config" element={<AdminServiceConfig serviceKey="ride_search" />} />
       <Route path="taxi-booking-config" element={<AdminServiceConfig serviceKey="taxi_booking" />} />
       <Route path="no-driver-alerts-config" element={<AdminServiceConfig serviceKey="no_driver_alerts" />} />

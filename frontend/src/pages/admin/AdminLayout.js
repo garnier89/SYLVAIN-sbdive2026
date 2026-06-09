@@ -64,6 +64,7 @@ const sidebarConfig = [
         { label: 'Tarification dynamique', path: '/admin/dynamic-pricing' },
         { label: 'Surcharge météo', path: '/admin/weather-surcharge' },
         { label: 'Configuration Pool', path: '/admin/pool-config' },
+        { label: 'Recrutement Taxi (zones)', path: '/admin/taxi-recruitment' },
         { label: 'Recherche chauffeur (Relances)', path: '/admin/ride-search-config' },
         { label: 'Forfaits de location', path: '/admin/rental-packages' },
         { label: 'Profils de course', path: '/admin/ride-profiles' },

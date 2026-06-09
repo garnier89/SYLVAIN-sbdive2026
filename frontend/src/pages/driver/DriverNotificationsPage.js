@@ -88,17 +88,23 @@ const DriverNotificationsPage = () => {
         {!loading && notifications.map((notif) => {
           const config = typeConfig[notif.type] || typeConfig.system;
           const Icon = config.icon;
+          const link = notif.data?.link;
           return (
             <div key={notif.id} className={`bg-gray-900 border rounded-xl p-3 flex items-start gap-3 ${notif.read ? 'border-gray-800' : 'border-amber-500/30'}`} data-testid={`notif-item-${notif.id}`}>
               <div className={`w-10 h-10 rounded-full ${config.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
                 <Icon size={18} className={config.color} />
               </div>
-              <div className="flex-1 min-w-0">
+              <div
+                className={`flex-1 min-w-0 ${link ? 'cursor-pointer' : ''}`}
+                onClick={link ? () => { markAllRead(); navigate(link); } : undefined}
+                data-testid={link ? `notif-link-${notif.id}` : undefined}
+              >
                 <div className="flex items-center gap-2">
                   <p className={`text-sm font-medium ${notif.read ? 'text-gray-400' : 'text-white'}`}>{notif.title}</p>
                   {!notif.read && <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />}
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">{notif.body || notif.desc}</p>
+                {link && <p className="text-[11px] text-amber-400 font-semibold mt-1">Appuyez pour activer →</p>}
                 <p className="text-[10px] text-gray-600 mt-1">{timeAgo(notif.created_at)}</p>
               </div>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-600 hover:text-red-400 flex-shrink-0" onClick={() => deleteNotif(notif.id)} data-testid={`notif-delete-${notif.id}`}>

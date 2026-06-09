@@ -1,0 +1,28 @@
+{
+  "summary": "Iter208 — Taxi recruitment alert (courier-only drivers in hot taxi zones) tested end-to-end. Backend GET /api/admin/dispatch/taxi-recruitment and POST /api/admin/dispatch/taxi-recruitment/invite both pass with correct hot-zone rules and notification persistence. Admin UI at /admin/taxi-recruitment renders correctly with all data-testids; Inviter shows success toast, Activer enables taxi and the candidate disappears after reload. Dispatch widget on /admin/dispatch shows the hot-zone CTA. All 5 backend pytest cases pass.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_iter208_taxi_recruitment.py",
+    "/app/test_reports/pytest/iter208_results.xml"
+  ],
+  "action_items": [
+    "Heads-up: at the start of this run the 4 seed rides 'recruit_test_*' were already in status='cancelled' (likely auto-cancellation cron expired them). I restored them to status='pending' so the hot-zone test could pass. Main agent should make the seed idempotent or extend the no-cancel window, otherwise the recruitment widget will silently empty itself over time.",
+    "After the Activer click on driver_3575f54d5180 the candidate is consumed (taxi added to services) — to re-run the UI test, re-seed: remove 'taxi' from this driver's service_types AND ensure recruit_test_* rides remain 'pending'."
+  ],
+  "critical_code_review_comments": [
+    "dispatch_admin.py taxi_recruitment loops async drivers cursor and calls db.users.find_one per candidate (N+1); fine at current scale but worth batching with $in if candidates grow.",
+    "Hot-zone rule pending>online_taxi can flap when supply momentarily exceeds demand by 1 (e.g. 4 pending vs 4 online → hidden). Consider a small hysteresis or surface 'au seuil' zones for UX continuity.",
+    "_vtc_eligible only checks document type, not validity/expiry; if a driver has an expired VTC card they will still surface as 'vtc_eligible:true'."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter208_taxi_recruitment.py (created)"
+  ],
+  "success_rate": { "backend": "100% (5/5)", "frontend": "100% (all critical flows)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; driver candidate user_54bb6199dc19 (driver_3575f54d5180); driver email login qa.docs.live@demo.sb returned 401 'Invalid email or password' — driver-side notification was validated by direct DB read instead (kind=taxi_invite, link=/chauffeur/profile?services=1).",
+  "seed_data_creation": "Re-set 4 recruit_test_* rides from 'cancelled' back to 'pending' so the hot-zone surfaced. After running UI tests, driver_3575f54d5180 now has service_types including 'taxi' (consumed by Activer button).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend at /api/admin/dispatch/taxi-recruitment (GET) and /invite (POST) verified. UI at /admin/taxi-recruitment fully wired: data-testids admin-taxi-recruitment, recruit-total-zones, recruit-total-candidates, recruit-zone-<name>, recruit-deficit-<name>, recruit-invite-<driverId>, recruit-activate-<driverId>. Dispatch widget data-testids: dispatch-recruit-widget, dispatch-recruit-cta. Notification persisted in DB collection 'notifications' with type='promo', data.kind='taxi_invite', data.link='/chauffeur/profile?services=1'. The seed driver was consumed by the Activer action during testing — re-seed before re-test.",
+  "rca of the issue": "Initial GET /taxi-recruitment returned hot_zones=[] because the 4 seed pending rides had been moved to 'cancelled' status (auto-cancellation timeout). Restoring them to 'pending' immediately produced the expected single hot zone with the one candidate."
+}

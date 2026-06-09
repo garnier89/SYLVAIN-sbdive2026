@@ -157,6 +157,8 @@ export const dispatchAdminAPI = {
   reinstateDriver: (id) => api.post(`/admin/dispatch/drivers/${id}/reinstate`),
   getConfig: () => api.get('/admin/auto-dispatch/config'),
   updateConfig: (data) => api.put('/admin/auto-dispatch/config', data),
+  taxiRecruitment: () => api.get('/admin/dispatch/taxi-recruitment'),
+  inviteTaxi: (driverId, zone) => api.post('/admin/dispatch/taxi-recruitment/invite', { driver_id: driverId, zone }),
 };
 
 // Order APIs
