@@ -309,6 +309,14 @@ async def review_prompt_feedback(request: Request):
     return {"ok": True}
 
 
+@router.get("/admin/feedback")
+async def list_app_feedback(request: Request):
+    """Admin: recent internal feedback collected from the store-review prompt (1-3★)."""
+    await require_role(request, ["admin"])
+    items = await db.app_feedback.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return items
+
+
 
 @router.get("/app")
 async def get_app_config():

@@ -1221,3 +1221,11 @@ Roadmap validée : A Paiements → B Annulations/dette → D Favoris → F Popup
 - Phase 4 — Logique de dispatch (courses planifiées pool/lock ; dispatch live 30s zone → fallback → propose price).
 - Phase 5 — Statuts de fidélité (Silver/Gold/Platinum/Diamond, configurables admin).
 - Backlog : Livraison Marketplace (coursiers) ; accusés de lecture « lu » messages Marketplace.
+
+## Iteration 187 (Jun 9, 2026) — Croissance : bannière parrainage + rappel d'évaluation Store (DONE)
+- **Bannière de parrainage** sur le reçu de fin de course (`RideReceiptPage.jsx`) : « Invitez un ami, gagnez X€ » + code basé sur le nom + bouton Inviter/Partager (boucle virale au moment de satisfaction).
+- **Rappel d'évaluation Play Store / App Store** après N courses (défaut 2), affiché UNE seule fois : 4-5★ → ouvre le store (détection iOS/Android) ; 1-3★ → retour interne (anti-avis négatifs, stocké dans `db.app_feedback`). Rejetable « Plus tard ».
+- URLs configurables en admin (carte « Rappel d'évaluation » dans la page Parrainage), seedées : Play `com.sbdrivervtc.client`, App Store `id1444980912`.
+- Backend (`config.py`) : `GET /config/store-review`, `PUT /config/admin/store-review` (admin), `GET /config/review-prompt`, `POST /config/review-prompt/seen`, `POST /config/review-prompt/feedback`, `GET /config/admin/feedback` (admin — liste des retours négatifs).
+- Testé 10/10 backend + frontend 100% (iter 187). Régression : `/app/backend/tests/test_iter187_growth.py`.
+- Reste possible : page admin UI pour lister `db.app_feedback` (endpoint déjà exposé).
