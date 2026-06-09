@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (213) - FIX enchères : le chauffeur ne voyait pas où proposer son tarif (DONE, testé 2/2 frontend)
+- **Bug user (preview)** : sur l'enchère VTC, le chauffeur ne pouvait pas proposer son propre tarif (contre-proposition).
+- **Cause racine** : le payload WebSocket `new_ride_request` porte la clé **`ride_id`** (pas `id`). `DriverHome` faisait `setIncomingRequest(msg)` tel quel → `request.id` **undefined** → Accepter / contre-offre appelaient `/api/rides/undefined/...` et **échouaient silencieusement**. Le chemin poll (8 s) renvoie un `id` correct mais ne remplaçait jamais l'objet WS cassé (garde `!incomingRequest`).
+- **Fix** (`DriverHome.js`) : normalisation `withId(m) = {...m, id: m.id || m.ride_id}` sur les handlers `new_ride_request` + `priority_ride_offer` (et `nextJobOffer`). `IncomingRequestSheet.jsx` : le bouton **« Proposer un autre prix »** passe d'un lien texte discret à un **bouton encadré bien visible** (résout « ne voit pas OÙ »).
+- **Vérifié** : curl e2e (chauffeur propose 15 € → `ride.counter_offers` montre 15 € de « Jean Dupont ») + **testing_agent iteration_213 — 100% (2/2)** : contre-offre 15 € (at_proposed_fare=false) ET acceptation au tarif client 14 € (at_proposed_fare=true), `my-offer-panel` avec compte à rebours. Backend inchangé (déjà correct).
+- **Note data hygiene (backlog)** : des courses `accepted` orphelines sur un chauffeur démo bloquent l'affichage de la feuille de demande (`currentRide` non vide) → prévoir un auto-cancel des courses anciennes pour les comptes démo.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-09 (212) - P0.2 Livraison Marketplace ↔ réseau SB Drive (DONE, testé 4/4 backend + 3/3 frontend)
 - **Demande user** : connecter les commandes vitrine au réseau coursier + options de livraison + suivi temps réel. Choix validés : Express **+3 €**, Prioritaire **+2 €**, Programmée +0 € ; **broadcast + claim** priorisé ; périmètre = commandes food/vitrine (`orders`). C2C articles → P1.4.
 - **Backend** (`routes/orders.py`, `models/schemas.py`) :

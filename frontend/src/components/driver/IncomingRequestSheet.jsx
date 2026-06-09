@@ -50,6 +50,13 @@ const IncomingRequestSheet = ({
   }, [offerPending, windowSeconds, onDecline]);
 
   const price = (request.proposed_fare || request.estimated_fare || 0).toFixed(2);
+  // Counter-offer stepper (driver at the wheel → no typing): pre-fill with the
+  // passenger fare and adjust by ±1 € taps.
+  const COUNTER_STEP = 1;
+  const counterBase = () => parseFloat(counterVal || price) || parseFloat(price) || 1;
+  const incCounter = () => setCounterVal(Math.max(1, counterBase() + COUNTER_STEP).toFixed(2));
+  const decCounter = () => setCounterVal(Math.max(1, counterBase() - COUNTER_STEP).toFixed(2));
+  const openCounter = () => { setCounterVal(price); setShowCounter(true); };
   const pickupDist = haversineKm(driverPos, { lat: request.pickup_lat, lng: request.pickup_lng });
   const pickupEta = pickupDist != null ? Math.max(1, Math.round((pickupDist / 22) * 60) + 1) : null;
   const seats = request.seats_required || 1;
@@ -154,20 +161,25 @@ const IncomingRequestSheet = ({
           <>
             {showCounter && (
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-3">
-                <p className="text-xs font-bold text-slate-700 mb-2">{t('driver.propose_other_price')}</p>
-                <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-                    <span className="text-base">€</span>
-                    <input type="number" step="0.50" min="1" value={counterVal} onChange={(e) => setCounterVal(e.target.value)}
-                      placeholder={price} className="flex-1 outline-none text-base font-bold text-slate-800" data-testid="counter-offer-input" />
+                <p className="text-xs font-bold text-slate-700 mb-2 text-center">{t('driver.propose_other_price')}</p>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={decCounter} aria-label="Diminuer"
+                    className="w-14 h-14 rounded-2xl bg-white border-2 border-orange-300 text-orange-600 text-3xl font-extrabold flex items-center justify-center active:scale-95 transition-transform" data-testid="counter-minus-btn">−</button>
+                  <div className="flex-1 flex items-center justify-center gap-1 bg-white border border-gray-200 rounded-2xl h-14">
+                    <span className="text-xl font-bold text-slate-400">€</span>
+                    <input type="number" inputMode="decimal" step="0.50" min="1" value={counterVal}
+                      onChange={(e) => setCounterVal(e.target.value)} placeholder={price}
+                      className="w-24 text-center outline-none text-2xl font-extrabold text-slate-800 bg-transparent" data-testid="counter-offer-input" />
                   </div>
-                  <button onClick={() => { if (counterVal && parseFloat(counterVal) > 0) onSendCounterOffer?.(request.id, counterVal); }}
-                    className="px-4 rounded-lg bg-orange-500 text-white font-bold text-sm" data-testid="send-counter-offer-btn">{t('driver.send')}</button>
+                  <button type="button" onClick={incCounter} aria-label="Augmenter"
+                    className="w-14 h-14 rounded-2xl bg-white border-2 border-orange-300 text-orange-600 text-3xl font-extrabold flex items-center justify-center active:scale-95 transition-transform" data-testid="counter-plus-btn">+</button>
                 </div>
+                <button onClick={() => { const amt = parseFloat(counterVal); if (amt > 0) onSendCounterOffer?.(request.id, counterVal); }}
+                  className="w-full mt-3 h-12 rounded-2xl bg-orange-500 text-white font-extrabold text-base active:scale-[0.99] transition-transform" data-testid="send-counter-offer-btn">{t('driver.send')}</button>
               </div>
             )}
             {!showCounter && onSendCounterOffer && (
-              <button onClick={() => setShowCounter(true)} className="w-full mb-3 h-12 rounded-2xl border-2 border-orange-500 text-orange-600 font-extrabold text-base flex items-center justify-center gap-2" data-testid="toggle-counter-offer-btn">
+              <button onClick={openCounter} className="w-full mb-3 h-12 rounded-2xl border-2 border-orange-500 text-orange-600 font-extrabold text-base flex items-center justify-center gap-2 active:scale-[0.99] transition-transform" data-testid="toggle-counter-offer-btn">
                 <Plus size={18} weight="bold" /> {t('driver.propose_other_price')}
               </button>
             )}
