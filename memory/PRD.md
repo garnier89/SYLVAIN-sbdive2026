@@ -1,3 +1,15 @@
+## NEW - 2026-06-09 (215) - Tarif moyen accepté (enchère) + Partager ma boutique (DONE, testé 2/2 backend + 3/3 frontend)
+- **Demande user** : (A) afficher « Tarif moyen accepté : X € » par véhicule sur la liste enchère (aide au juste prix → +taux d'acceptation). (B) « Partager ma boutique » : QR + impression côté commerçant, et partage social (WhatsApp/SMS/Copier/natif) côté vitrine publique.
+- **A — Tarif moyen accepté** :
+  - Backend `routes/rides.py` : NOUVEAU `GET /rides/bidding/avg-fares` → `{fares:{slug:moyenne}, counts, sample_days:30}` (moyenne du tarif accepté `final_fare`/`estimated_fare` des courses enchère acceptées/complétées sur 30 j, groupées par véhicule, slug en minuscules).
+  - Frontend `RideChoosePage.js` : `rideAPI.biddingAvgFares()` chargé en mode enchère ; ligne verte « Tarif moyen accepté : X € » (icône Gavel) sous chaque véhicule ayant des données (data-testid `avg-fare-{slug}`).
+- **B — Partager ma boutique** :
+  - `components/merchant/MerchantShareCard.jsx` (lib **qrcode.react** ajoutée) : QR vers `<origin>/food/{id}`, lien copiable, **Télécharger** (PNG) + **Imprimer**. Intégré dans `MerchantSettings.js` (utilise `vitrine.id`).
+  - `components/ShareStoreSheet.jsx` : bottom-sheet WhatsApp / SMS / Copier / partage natif, ouvert depuis le bouton partage de la bannière de `RestaurantDetail.js` (data-testid `share-store-btn`).
+- **Vérifié** : pytest `tests/test_iter215_bidding_avg_fares.py` **2/2** + **testing_agent iteration_215 — frontend 100% (3/3)** (hint SB ≈ 21,46 €, carte QR commerçant copy/download/print, sheet partage vitrine + toast « Lien copié »).
+- ⚠️ PREVIEW → redéploiement requis pour la prod (https://gojek-mvp-1.emergent.host).
+
+
 ## NEW - 2026-06-09 (214) - UX d'après croquis user : stepper tarif chauffeur + parité liste véhicules enchère (DONE, testé 3/3 frontend)
 - **Demande user (2 croquis)** : (1) côté chauffeur, le montant de contre-offre doit arriver **pré-rempli** avec boutons **− / +** (pas de saisie au volant) → soit Accepter, soit ±  puis Envoyer. (2) sur le flux **Enchère « Proposer votre tarif »**, la sélection des véhicules après saisie d'adresse doit être **comme le flux standard (image 2)** : carte + cartes véhicules avec prix live, capacité, ⓘ, badge « Meilleur choix », bordure de sélection.
 - **Fix** :
