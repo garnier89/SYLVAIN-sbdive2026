@@ -7,8 +7,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, Clock, Plus, Trash, ArrowUp, ArrowDown, House } from '@phosphor-icons/react';
 import { adminAPI } from '../../services/api';
+import { ImageUpload } from '../../components/ImageUpload';
 
 const GROUP_LABELS = { everyday: 'Au quotidien', time: 'Temps & Distance', special: 'Spécialisé & Inclusif' };
+const VIEW_TYPES = [{ v: 'icon', l: 'Icône' }, { v: 'banner', l: 'Bannière' }, { v: 'icon_banner', l: 'Icône + Bannière' }];
 const DAYS = [{ v: 0, l: 'Lun' }, { v: 1, l: 'Mar' }, { v: 2, l: 'Mer' }, { v: 3, l: 'Jeu' }, { v: 4, l: 'Ven' }, { v: 5, l: 'Sam' }, { v: 6, l: 'Dim' }];
 
 const scheduleSummary = (c) => {
@@ -30,6 +32,7 @@ const AdminServiceCategories = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [editing, setEditing] = useState(null);
+  const [creating, setCreating] = useState(false);
   const [scheduling, setScheduling] = useState(null);
 
   const load = () => {
@@ -69,6 +72,15 @@ const AdminServiceCategories = () => {
     catch { toast.error('Échec du classement'); load(); }
   };
 
+  const remove = async (c) => {
+    if (!window.confirm(`Supprimer la catégorie « ${c.name} » ? Elle disparaîtra de l'app.`)) return;
+    try {
+      await adminAPI.deleteServiceCategory(c.key);
+      setCats((cs) => cs.filter((x) => x.key !== c.key));
+      toast.success('Catégorie supprimée');
+    } catch { toast.error('Échec de la suppression'); }
+  };
+
   const filtered = useMemo(() => cats.filter((c) => {
     const q = search.trim().toLowerCase();
     const matchSearch = !q || c.name?.toLowerCase().includes(q) || c.name_en?.toLowerCase().includes(q);
@@ -98,6 +110,7 @@ const AdminServiceCategories = () => {
           <option value="inactive">Inactif</option>
         </select>
         <button onClick={() => { setLoading(true); load(); }} data-testid="svc-cat-refresh" className="p-2.5 rounded-lg bg-violet-100 text-violet-600"><ArrowsClockwise size={18} /></button>
+        <button onClick={() => setCreating(true)} data-testid="svc-cat-create" className="px-4 py-2.5 rounded-lg bg-[#FF5000] text-white text-sm font-semibold flex items-center gap-1.5"><Plus size={16} weight="bold" /> Créer une catégorie</button>
       </div>
 
       {loading ? (
@@ -149,6 +162,10 @@ const AdminServiceCategories = () => {
                     className="text-sm font-semibold text-amber-600 flex items-center gap-1">
                     Planning <Clock size={14} />
                   </button>
+                  <button onClick={() => remove(c)} data-testid={`svc-cat-delete-${c.key}`}
+                    className="text-sm font-semibold text-rose-600 flex items-center gap-1">
+                    <Trash size={14} />
+                  </button>
                 </div>
                 {canReorder && (
                   <div className="flex items-center gap-1">
@@ -174,6 +191,11 @@ const AdminServiceCategories = () => {
           onSaved={(updated) => { setCats((cs) => cs.map((c) => (c.key === updated.key ? updated : c))); setEditing(null); }} />
       )}
 
+      {creating && (
+        <EditCategoryModal cat={null} onClose={() => setCreating(false)}
+          onSaved={(created) => { setCats((cs) => [...cs, created]); setCreating(false); }} />
+      )}
+
       {scheduling && (
         <ScheduleModal cat={scheduling} onClose={() => setScheduling(null)}
           onSaved={(updated) => { setCats((cs) => cs.map((c) => (c.key === updated.key ? updated : c))); setScheduling(null); }} />
@@ -183,9 +205,17 @@ const AdminServiceCategories = () => {
 };
 
 const EditCategoryModal = ({ cat, onClose, onSaved }) => {
-  const [name, setName] = useState(cat.name || '');
-  const [nameEn, setNameEn] = useState(cat.name_en || '');
-  const [icon, setIcon] = useState(cat.icon || '');
+  const creating = !cat;
+  const [key, setKey] = useState('');
+  const [name, setName] = useState(cat?.name || '');
+  const [nameEn, setNameEn] = useState(cat?.name_en || '');
+  const [icon, setIcon] = useState(cat?.icon || '🚕');
+  const [group, setGroup] = useState(cat?.group || 'special');
+  const [viewType, setViewType] = useState(cat?.view_type || 'icon');
+  const [bannerImage, setBannerImage] = useState(cat?.banner_image || '');
+  const [serviceImage, setServiceImage] = useState(cat?.service_image || '');
+  const [listDesc, setListDesc] = useState(cat?.list_description || '');
+  const [description, setDescription] = useState(cat?.description || '');
   const [saving, setSaving] = useState(false);
 
   const onFile = (e) => {
@@ -199,41 +229,107 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
 
   const save = async () => {
     setSaving(true);
+    const payload = {
+      name, name_en: nameEn, icon, view_type: viewType,
+      banner_image: bannerImage, service_image: serviceImage,
+      list_description: listDesc, description,
+    };
     try {
-      const r = await adminAPI.updateServiceCategory(cat.key, { name, name_en: nameEn, icon });
-      toast.success('Catégorie mise à jour');
+      let r;
+      if (creating) {
+        r = await adminAPI.createServiceCategory({ key, group, ...payload });
+        toast.success('Catégorie créée');
+      } else {
+        r = await adminAPI.updateServiceCategory(cat.key, payload);
+        toast.success('Catégorie mise à jour');
+      }
       onSaved(r.data);
-    } catch { toast.error('Échec de l\'enregistrement'); } finally { setSaving(false); }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec de l\'enregistrement');
+    } finally { setSaving(false); }
   };
+
+  const showBanner = viewType === 'banner' || viewType === 'icon_banner';
+  const showIcon = viewType === 'icon' || viewType === 'icon_banner';
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose} data-testid="svc-cat-edit-modal">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-900">Catégorie de service</h3>
+          <h3 className="text-lg font-bold text-slate-900">{creating ? 'Nouvelle catégorie' : 'Catégorie de service'}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" data-testid="svc-cat-edit-close"><X size={20} /></button>
         </div>
+
+        {creating && (
+          <>
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Identifiant (clé)<span className="text-rose-500"> *</span></label>
+            <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="ex: corporate" data-testid="svc-cat-edit-key"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 mb-3 text-sm" />
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Groupe</label>
+            <select value={group} onChange={(e) => setGroup(e.target.value)} data-testid="svc-cat-edit-group"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 mb-3 text-sm">
+              {Object.entries(GROUP_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </>
+        )}
+
         <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Nom (FR)<span className="text-rose-500"> *</span></label>
         <input value={name} onChange={(e) => setName(e.target.value)} data-testid="svc-cat-edit-name"
           className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 mb-3 text-sm" />
         <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Nom (EN)</label>
         <input value={nameEn} onChange={(e) => setNameEn(e.target.value)} data-testid="svc-cat-edit-name-en"
           className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 mb-3 text-sm" />
-        <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Icône</label>
-        <div className="flex items-center gap-4 mt-1 mb-2">
-          <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center flex-shrink-0">
-            <ServiceCategoryIcon icon={icon} />
-          </div>
-          <div className="flex-1">
-            <input value={isImage(icon) ? '' : icon} onChange={(e) => setIcon(e.target.value)} placeholder="Emoji (ex: 🚕)"
-              data-testid="svc-cat-edit-icon-emoji" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-2" />
-            <input type="file" accept="image/png,image/jpeg" onChange={onFile} data-testid="svc-cat-edit-icon-file" className="text-xs" />
-          </div>
+
+        {/* V3Cube — type d'affichage */}
+        <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Type d&apos;affichage</label>
+        <div className="flex gap-2 mt-1 mb-3" data-testid="svc-cat-edit-viewtype">
+          {VIEW_TYPES.map((vt) => (
+            <button key={vt.v} onClick={() => setViewType(vt.v)} type="button"
+              data-testid={`svc-cat-viewtype-${vt.v}`}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold border ${viewType === vt.v ? 'bg-[#FF5000] text-white border-[#FF5000]' : 'bg-white text-slate-600 border-slate-300'}`}>
+              {vt.l}
+            </button>
+          ))}
         </div>
-        <p className="text-[11px] text-slate-400 mb-4">Emoji OU image PNG/JPG (512×512 px recommandé, max 5 Mo). L&apos;image s&apos;affiche aussi sur l&apos;accueil de l&apos;app client.</p>
-        <button onClick={save} disabled={saving || !name.trim()} data-testid="svc-cat-edit-save"
+
+        {showIcon && (
+          <>
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Icône</label>
+            <div className="flex items-center gap-4 mt-1 mb-3">
+              <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center flex-shrink-0">
+                <ServiceCategoryIcon icon={icon} />
+              </div>
+              <div className="flex-1">
+                <input value={isImage(icon) ? '' : icon} onChange={(e) => setIcon(e.target.value)} placeholder="Emoji (ex: 🚕)"
+                  data-testid="svc-cat-edit-icon-emoji" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-2" />
+                <input type="file" accept="image/png,image/jpeg" onChange={onFile} data-testid="svc-cat-edit-icon-file" className="text-xs" />
+              </div>
+            </div>
+          </>
+        )}
+
+        {showBanner && (
+          <div className="mb-3" data-testid="svc-cat-edit-banner">
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Bannière</label>
+            <ImageUpload value={bannerImage} onChange={setBannerImage} label="Image bannière (16:9)" />
+          </div>
+        )}
+
+        <div className="mb-3" data-testid="svc-cat-edit-serviceimg">
+          <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Service Image</label>
+          <ImageUpload value={serviceImage} onChange={setServiceImage} label="Image du service" />
+        </div>
+
+        <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Description courte (liste)</label>
+        <input value={listDesc} onChange={(e) => setListDesc(e.target.value)} data-testid="svc-cat-edit-listdesc"
+          placeholder="Ex: Course immédiate" className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 mb-3 text-sm" />
+        <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Description</label>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} data-testid="svc-cat-edit-desc"
+          rows={2} className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 mb-4 text-sm" />
+
+        <button onClick={save} disabled={saving || !name.trim() || (creating && !key.trim())} data-testid="svc-cat-edit-save"
           className="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
-          <Check size={18} /> {saving ? 'Enregistrement…' : 'Mettre à jour'}
+          <Check size={18} /> {saving ? 'Enregistrement…' : (creating ? 'Créer' : 'Mettre à jour')}
         </button>
       </div>
     </div>

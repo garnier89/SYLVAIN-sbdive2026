@@ -1,0 +1,58 @@
+{
+  "summary": "Iter 205 — COVOITURAGE (carpool) end-to-end + V3Cube Service Category editor. FULL PASS backend (14/14) + frontend (all targeted flows green). Backend (/app/backend/tests/test_iter205_carpool_svccat.py): carpool publish (200, no _id, status=open, passengers=[]), list contains new ride, owner-cannot-book-own (400), book seat (200, passengers+=1 verified via list), double-book rejected (400), search by pickup substring works, service-category create with view_type=icon_banner+banner_image+service_image+list_description+description (200, is_custom=true), duplicate-key 409, update view_type/description persists, public /service-categories includes the new key, regression toggle/toggle-home/reorder still 200, delete (200) removes from public list AND second delete 404. Frontend (mobile 390×844 for /carpool, desktop 1920×1080 for /admin): Phone-first login confirmed (sheet 'Ou choisir une autre option de connexion' → 'Email & mot de passe'). /carpool as test2: 'Publier un trajet' opens publish-modal, all 5 fields fillable (publish-from/to/when/seats/price), publish-submit creates a card visible as trip-<id> in the list; search-input filters live (1 match for UITEST_From, carpool-empty placeholder for ZZNOMATCH123). Booking flow (jean.dupont published a 1-seat ride via API since drivers cannot navigate to /carpool — see below; test2 then booked via UI): seats decremented 1→0, ride became 'full' on backend (correctly excluded from GET /carpool/rides default open-only filter) → card disappears (expected). Admin /admin/service-categories: svc-cat-create opens svc-cat-edit-modal, view-type radios behave correctly — icon hides svc-cat-edit-banner (banner uploader), banner shows it, icon_banner shows both banner + service uploaders; svc-cat-edit-serviceimg always present; descriptions saved; new card appears as svc-cat-edit-<key>; editing changes view_type+desc and saves; svc-cat-delete-<key> with native confirm() removes card and triggers 'Catégorie supprimée' toast; existing 'standard' card still present (regression OK).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/carpool/rides",
+        "issue": "Default filter is {status: 'open'} so 'full' rides disappear from the list entirely. This means the spec-described 'when full, button shows Complet and is disabled' state is never user-visible (the ride is removed before the UI sees 0 seats) unless another client has the page already open when the last seat is booked. Not a bug per se — just a UX implication. Consider keeping full rides in the list (greyed) or supporting a status filter."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Driver access to /carpool",
+        "issue": "When jean.dupont (driver) logs in and visits /carpool, a route guard immediately redirects to /chauffeur/home so the publish-trip-btn is unreachable in the driver UI. The spec & test request explicitly use jean.dupont as the publisher — currently only non-driver users (test2, etc.) can publish via UI. Workaround used in this test: jean.dupont published via API; test2 booked via UI. Either (a) allow drivers to access /carpool, or (b) update the spec to use non-driver publisher.",
+        "affected_selectors": ["[data-testid=\"publish-trip-btn\"]"]
+      },
+      {
+        "flow": "Admin access to /carpool",
+        "issue": "admin@superapp.com is auto-redirected from /carpool to /admin (same route-guard pattern). Acceptable, just noting — admin is not in scope as a carpool actor.",
+        "affected_selectors": []
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter205_carpool_svccat.py",
+    "/app/test_reports/pytest/iter205.xml"
+  ],
+  "action_items": [
+    "(Optional) Decide whether GET /api/carpool/rides should include full rides so the 'Complet' disabled state is visible (currently hidden by status=open filter).",
+    "(Optional) Either allow drivers to reach /carpool to publish trips OR update the test spec to use a non-driver as publisher (matching real production behavior)."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routes/carpool.py is clean — uses UUID4 ids, ISO timestamps, $push for passengers (atomic), post-update status flip to 'full', excludes _id via projection. LGTM.",
+    "/app/backend/routes/service_categories.py admin_create_service_category correctly lowercases+strips key, validates uniqueness (409), assigns display_order = max+1, defaults view_type='icon', and persists all 5 V3Cube fields (banner_image, service_image, list_description, description, view_type). admin_update_service_category whitelists allowed fields. admin_delete_service_category returns 404 on missing — symmetric with PUT. Good.",
+    "MINOR: GET /api/carpool/rides hides 'full' rides — see issues above.",
+    "MINOR: book endpoint uses {'$push': {'passengers': passenger}} then re-reads the doc to flip status — fine but two roundtrips; could be a single $push + conditional $set via aggregation pipeline update. Not blocking.",
+    "MINOR: CarPoolPage.js fetches via raw fetch instead of the shared api.js axios instance — inconsistent with the rest of the codebase but not buggy (credentials: include works with httpOnly cookies).",
+    "MINOR: PublishTripModal sends 'departure_date' as 'YYYY-MM-DDTHH:MM' (no seconds, no tz) which the backend stores as-is. The GET ride list sort('departure_date', 1) is lexical-string sort — works for same-format dates but won't be timezone-aware. Fine for the current product scope."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter205_carpool_svccat.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14)",
+    "frontend": "100% on covered flows — publish, search filter, book, admin CRUD with view-type switching"
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! · test2@example.com / TestPass123! · jean.dupont@demo.sb / Driver123!",
+  "seed_data_creation": "Each test class creates TEST_/UITEST_ prefixed carpool rides and one 'uitest_<ts>' service category. The service category is deleted at end of test. Carpool rides are left in DB (additive, marked TEST_/UITEST_ for easy cleanup).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression: pytest /app/backend/tests/test_iter205_carpool_svccat.py (14 tests, ~2.5s). Login is phone-first: 'Ou choisir une autre option de connexion' → 'Email & mot de passe' (NOT 'Email' which is the OAuth provider tile). Drivers are auto-redirected away from /carpool; use test2@example.com (regular user) for UI publish. Admin is also redirected from /carpool to /admin. Carpool ride disappears from GET /carpool/rides once status becomes 'full' (status=open default filter) — adjust UI assertions accordingly. The admin svc-cat-edit-modal banner uploader only mounts when view_type is 'banner' or 'icon_banner'; service-image uploader always mounts.",
+  "rca of the issue": "No bugs; one product-decision note (full rides invisible) and one driver-routing observation that breaks the literal spec actor but not the feature itself."
+}

@@ -231,12 +231,52 @@ async def admin_reorder_service_categories(request: Request):
     return {"message": "reordered", "count": len(keys)}
 
 
+@admin_router.post("")
+async def admin_create_service_category(request: Request):
+    """Create a custom category (V3Cube parity). Body: key, name, ... ."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    key = (body.get("key") or "").strip().lower().replace(" ", "_")
+    if not key:
+        raise HTTPException(status_code=400, detail="Clé (identifiant) requise")
+    if not (body.get("name") or "").strip():
+        raise HTTPException(status_code=400, detail="Nom requis")
+    if await db.service_categories.find_one({"key": key}):
+        raise HTTPException(status_code=409, detail="Cette clé existe déjà")
+    last = await db.service_categories.find({}, {"_id": 0, "display_order": 1}).sort("display_order", -1).limit(1).to_list(1)
+    order = (last[0].get("display_order", 0) + 1) if last else 1
+    doc = {
+        "key": key,
+        "name": body["name"],
+        "name_en": body.get("name_en", body["name"]),
+        "icon": body.get("icon", "🚕"),
+        "group": body.get("group", "special"),
+        "view_type": body.get("view_type", "icon"),
+        "banner_image": body.get("banner_image"),
+        "service_image": body.get("service_image"),
+        "list_description": body.get("list_description"),
+        "description": body.get("description"),
+        "display_order": order,
+        "active": body.get("active", True),
+        "visible_home": body.get("visible_home", False),
+        "show_in_services": body.get("show_in_services", True),
+        "is_custom": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.service_categories.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
 @admin_router.put("/{key}")
 async def admin_update_service_category(key: str, request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     allowed = {}
-    for f in ("name", "name_en", "icon", "display_order", "active", "visible_home", "schedule_enabled", "schedule_windows", "schedule_tz"):
+    for f in ("name", "name_en", "icon", "display_order", "active", "visible_home",
+              "schedule_enabled", "schedule_windows", "schedule_tz",
+              "view_type", "banner_image", "service_image", "list_description",
+              "description", "show_in_services"):
         if f in body:
             allowed[f] = body[f]
     if not allowed:
@@ -247,6 +287,15 @@ async def admin_update_service_category(key: str, request: Request):
         raise HTTPException(status_code=404, detail="Service category not found")
     updated = await db.service_categories.find_one({"key": key}, {"_id": 0})
     return updated
+
+
+@admin_router.delete("/{key}")
+async def admin_delete_service_category(key: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    result = await db.service_categories.delete_one({"key": key})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Service category not found")
+    return {"message": "deleted", "key": key}
 
 
 @admin_router.post("/{key}/toggle-home")
