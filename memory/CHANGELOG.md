@@ -1260,3 +1260,10 @@ Roadmap validée : A Paiements → B Annulations/dette → D Favoris → F Popup
 ### Bugfix parrainage à l'inscription (Phase 2)
 - `phone_register` crashait (REFERRAL_AMOUNT supprimé) et générait des codes `SB-XXXX`. Corrigé : code **basé sur le nom** (`Jean01P` chauffeur / `Sophie01` client), résolution insensible à la casse, création d'un parrainage **pending** (modèle Phase 2) au lieu du crédit instantané. Fonctions cassées supprimées.
 - Régression : test_iter191_loyalty.py (9/9).
+
+## Iteration 192 (Jun 9, 2026) — Remise fidélité client appliquée + affichée au checkout (DONE)
+- La remise de palier client (`client_discount_pct`) est désormais **appliquée concrètement** au tarif : à la réservation (sur `estimated_fare`) et au **tarif final** à la complétion (sur la part tarifaire, hors péages/extras), comme une couche de remise (après voucher/corporate/promo).
+- **Affichage au checkout** (`AdvancedTaxiBookingPage`) : bannière « En tant que membre {palier}, -X% appliqués 🎉 » + prix remisé avec l'ancien prix barré. Endpoint `GET /api/loyalty/my-discount`.
+- Stocké sur la course : `loyalty_discount_pct/amount/tier_name` ; `fare_breakdown.loyalty_discount` à la complétion.
+- Testé 5/5 backend (réservation + complétion : Gold final_fare ≤ Silver) + frontend (Silver sans bannière, Gold -3%). Régression : test_iter192_loyalty_discount.py.
+- Note : remise absorbée comme un voucher (réduit le tarif payé). Avantages Phase 5 restants à câbler : priorité dispatch dans l'auto-dispatch.
