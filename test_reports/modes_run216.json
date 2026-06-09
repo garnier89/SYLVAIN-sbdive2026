@@ -1,0 +1,70 @@
+{
+  "standard": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "pool": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "electric": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "moto": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "rental": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "intercity": {
+    "code": "warn",
+    "msg": "missing panel-intercity"
+  },
+  "book_later": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "moto_rental": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "buddy_driver": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "bidding": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "airport": {
+    "code": "warn",
+    "msg": "missing panel-flight"
+  },
+  "pets": {
+    "code": "warn",
+    "msg": "missing panel-pets"
+  },
+  "book_for_someone": {
+    "code": "warn",
+    "msg": "missing panel-contact"
+  },
+  "tuktuk": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  },
+  "assist": {
+    "code": "warn",
+    "msg": "missing panel-assist"
+  },
+  "corporate": {
+    "code": "warn",
+    "msg": "missing panel-corporate"
+  },
+  "access": {
+    "code": "warn",
+    "msg": "pickup not set (google places didn't return suggestion)"
+  }
+}
