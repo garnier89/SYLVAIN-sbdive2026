@@ -19,7 +19,7 @@ Stats tracked per ride:
 """
 import asyncio
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 
@@ -39,6 +39,11 @@ DEFAULT_CONFIG = {
     "radius_km": 5,
     "first_palettes": ["Expert", "Confirme"],
     "second_palettes": ["Expert", "Confirme", "Standard"],
+    # === Scheduled (planned) rides ===
+    # A planned ride waits in the driver agenda pool until this many minutes
+    # before its pickup time; only then does it enter live dispatch (broadcast +
+    # escalation). Before that it must NOT be escalated or auto-cancelled.
+    "scheduled_lead_minutes": 15,
     # === Driver Quality Scoring ===
     "scoring_enabled": True,
     "accept_bonus_points": 2,        # +N points when a driver accepts an escalated ride
@@ -277,16 +282,70 @@ async def _resolve_radius_km(ride: dict, cfg) -> float:
     return radius_km
 
 
+async def _activate_scheduled_ride(ride):
+    """A planned ride enters live dispatch as its pickup approaches: broadcast the
+    request to online drivers once (it was withheld at creation, see rides.py) and
+    flag it so we don't re-broadcast on every 5s cycle."""
+    await manager.broadcast_to_drivers({
+        "type": "new_ride_request",
+        "ride_id": ride["id"],
+        "booking_no": ride.get("booking_no"),
+        "pickup_lat": ride.get("pickup_lat"),
+        "pickup_lng": ride.get("pickup_lng"),
+        "pickup_address": ride.get("pickup_address"),
+        "dropoff_address": ride.get("dropoff_address"),
+        "vehicle_type": ride.get("vehicle_type"),
+        "estimated_fare": ride.get("estimated_fare"),
+        "proposed_fare": ride.get("proposed_fare"),
+        "distance_km": ride.get("distance_km"),
+        "duration_mins": ride.get("duration_mins"),
+        "mode": ride.get("mode"),
+        "scheduled_at": ride.get("scheduled_at"),
+    })
+    await db.rides.update_one(
+        {"id": ride["id"]},
+        {"$set": {
+            "dispatch_activated": True,
+            "dispatch_activated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    ride["dispatch_activated"] = True
+    logger.info(f"AutoDispatch ACTIVATED scheduled ride={ride['id']} (pickup near)")
+
+
 async def _process_pending_ride(ride: dict, now, cfg, points_cfg):
-    """Inspect a single pending ride and trigger escalation / cancellation if due."""
-    created_at_iso = ride.get("created_at")
-    if not created_at_iso:
-        return
-    try:
-        created_at = datetime.fromisoformat(created_at_iso.replace("Z", "+00:00"))
-    except Exception:
-        return
-    age_seconds = (now - created_at).total_seconds()
+    """Inspect a single pending ride and trigger escalation / cancellation if due.
+
+    Reference time for the escalation timeline:
+      • instant ride   → created_at.
+      • scheduled ride → (scheduled_at − scheduled_lead_minutes). Before that
+        moment the ride waits in the planned pool / driver agenda and is left
+        untouched (never escalated, never auto-cancelled)."""
+    scheduled_at_iso = ride.get("scheduled_at")
+    if scheduled_at_iso:
+        try:
+            sched_dt = datetime.fromisoformat(str(scheduled_at_iso).replace("Z", "+00:00"))
+            if sched_dt.tzinfo is None:
+                sched_dt = sched_dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            return
+        lead = int(cfg.get("scheduled_lead_minutes", 15) or 15)
+        due_dt = sched_dt - timedelta(minutes=lead)
+        if now < due_dt:
+            return  # not due yet — stays in the planned pool (driver agenda)
+        ref_start = due_dt
+        if not ride.get("dispatch_activated"):
+            await _activate_scheduled_ride(ride)
+    else:
+        created_at_iso = ride.get("created_at")
+        if not created_at_iso:
+            return
+        try:
+            ref_start = datetime.fromisoformat(created_at_iso.replace("Z", "+00:00"))
+        except Exception:
+            return
+
+    age_seconds = (now - ref_start).total_seconds()
     current_tier = ride.get("auto_dispatch_tier", 0)
     action = _dispatch_action(age_seconds, current_tier, cfg)
     if action == "none":
@@ -347,6 +406,7 @@ class AutoDispatchConfigUpdate(BaseModel):
     second_escalation_seconds: int | None = None
     auto_cancel_after_seconds: int | None = None
     radius_km: int | None = None
+    scheduled_lead_minutes: int | None = None
     first_palettes: list[str] | None = None
     second_palettes: list[str] | None = None
     scoring_enabled: bool | None = None

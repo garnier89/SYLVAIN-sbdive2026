@@ -1053,16 +1053,25 @@ async def accept_ride(ride_id: str, request: Request):
         )
 
     now = datetime.now(timezone.utc).isoformat()
-    await db.rides.update_one({"id": ride_id}, {"$set": {
-        "driver_id": driver["id"],
-        "status": "accepted",
-        "accepted_at": now,
-        "driver_name": driver.get("user_name", user.get("name", "Chauffeur")),
-        "driver_phone": driver.get("user_phone", user.get("phone")),
-        "driver_rating": driver.get("rating", 5.0),
-        "driver_vehicle_model": driver.get("vehicle_model"),
-        "driver_vehicle_number": driver.get("vehicle_number"),
-    }})
+    # Phase 4 — ATOMIC LOCK: only ONE driver can claim a ride. The filter still
+    # requires status=pending AND driver_id=None, so concurrent /accept calls
+    # race on the same document and only the first one matches. The loser gets a
+    # 409 instead of silently overwriting the winning driver.
+    claimed = await db.rides.find_one_and_update(
+        {"id": ride_id, "status": "pending", "driver_id": None},
+        {"$set": {
+            "driver_id": driver["id"],
+            "status": "accepted",
+            "accepted_at": now,
+            "driver_name": driver.get("user_name", user.get("name", "Chauffeur")),
+            "driver_phone": driver.get("user_phone", user.get("phone")),
+            "driver_rating": driver.get("rating", 5.0),
+            "driver_vehicle_model": driver.get("vehicle_model"),
+            "driver_vehicle_number": driver.get("vehicle_number"),
+        }},
+    )
+    if not claimed:
+        raise HTTPException(status_code=409, detail="Course déjà acceptée par un autre chauffeur")
 
     # ===== Activity journal: new ride accepted =====
     try:
@@ -2028,8 +2037,8 @@ async def passenger_accept_offer(ride_id: str, offer_id: str, request: Request):
 
     # Mark offer accepted, reject others, assign driver and switch ride to accepted
     await db.rides.update_one({"id": ride_id, "counter_offers.id": offer_id}, {"$set": {"counter_offers.$.status": "accepted"}})
-    await db.rides.update_one(
-        {"id": ride_id},
+    claimed = await db.rides.find_one_and_update(
+        {"id": ride_id, "status": "pending", "driver_id": None},
         {
             "$set": {
                 "driver_id": driver["id"],
@@ -2044,6 +2053,8 @@ async def passenger_accept_offer(ride_id: str, offer_id: str, request: Request):
             },
         },
     )
+    if not claimed:
+        raise HTTPException(status_code=409, detail="Cette course a déjà été attribuée")
     # Reject remaining pending offers
     await db.rides.update_one(
         {"id": ride_id},

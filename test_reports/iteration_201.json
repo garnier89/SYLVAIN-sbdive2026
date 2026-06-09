@@ -1,0 +1,30 @@
+{
+  "summary": "Iter 201 — Phase 4 dispatch backend validation. Created /app/backend/tests/test_iter201_phase4_api.py (8 API-level tests) covering: atomic /accept lock (concurrent 200+404/409), driver release back to pool + re-accept, scheduled-ride separation in driver/home-feed (scheduled_pending vs available_rides + status stays pending shortly after creation), scheduled-ride atomic claim from agenda, bidding offer accept-atomic regression with final_fare verification, happy-path create→accept→arriving regression, admin auto-dispatch config GET/PUT for scheduled_lead_minutes, and instant ride auto_dispatch_tier escalation regression (shortened thresholds via admin config then restored). Combined with the existing unit suite tests/test_iter201_phase4_scheduled_dispatch.py (5/5) and tests/test_rewards_dispatch_helpers.py (13/13): 26/26 pass deterministically in ~22s. End-to-end behaviour matches spec: ATOMIC LOCK confirmed (loser returns 409 'Course déjà acceptée par un autre chauffeur'), DRIVER RELEASE confirmed (ride returns to status=pending, driver_id=null, re-accept succeeds), SCHEDULED RIDE confirmed (excluded from available_rides feed AND present in scheduled_pending AND status stays pending 8s after creation), BIDDING ATOMIC confirmed (passenger_accept_offer returns 200+final_fare and subsequent direct /accept returns 409), DISPATCH ESCALATION confirmed (auto_dispatch_tier advances past 0 within escalation window).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter201_phase4_api.py",
+    "/app/backend/tests/test_iter201_phase4_scheduled_dispatch.py",
+    "/app/test_reports/pytest/iter201_phase4_api.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "rides.py accept_ride (~L1060): atomic claim via find_one_and_update({id,status:pending,driver_id:None}) is correctly implemented — two concurrent /accept can never both succeed (verified by threaded test). 409 is the documented loser code; the spec also allowed 404 — current code consistently returns 409 for the race, which is more accurate.",
+    "rides.py driver_cancel_booking (~L1137): correctly clears driver_id/accepted_at/driver_name/etc and stores released_at; instant rides are re-broadcast to drivers, scheduled rides correctly skip immediate broadcast (the dispatcher will reactivate them when due). Applies a €1 penalty (apply_driver_penalty 'accept_release') which seems intentional.",
+    "rides.py driver_home_feed (~L1686): clean separation — scheduled_pending uses {scheduled_at:{$ne:null,$gte:now_iso}}, available_rides uses {$or:[{scheduled_at:null},{scheduled_at:{$exists:false}}]}. Both gated by 'taxi' in service_types.",
+    "auto_dispatch.py _process_pending_ride (~L316): scheduled rides bypass escalation/cancel until (scheduled_at - scheduled_lead_minutes), then are activated once via _activate_scheduled_ride. Default lead = 15 min. Config exposed at GET/PUT /api/admin/auto-dispatch/config with scheduled_lead_minutes field.",
+    "rides.py passenger_accept_offer (~L2001): atomic claim mirrors accept_ride. Returns final_fare = offer.amount. Subsequent direct /accept correctly returns 409.",
+    "MINOR (non-blocking): driver cancel triggers passenger notification + WS event; ride re-broadcast in driver_cancel_booking uses manager.broadcast_to_drivers which targets ALL online drivers, not just the original zone candidates. Acceptable for release flow but could over-notify on dense zones — consider scoping to the same palette/radius used by auto_dispatch.",
+    "MINOR: driver_cancel_booking applies a €1 penalty unconditionally; in some edge cases (driver releases within seconds because of a legit emergency) this could feel harsh — admin override / grace window worth considering.",
+    "Test isolation: passenger_sess can hit moderation 'Réservations suspendues' after ~5 cancels in 120 min (working as designed). The new test resets db.moderation_state for the test passenger before/after the session via motor — main agent should be aware test_credentials passenger may show transient moderation_state during dev."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter201_phase4_api.py"],
+  "success_rate": {"backend": "100% (26/26 across unit + api suites)", "frontend": "N/A (skip frontend per request)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123!  —  Passenger test2@example.com / TestPass123!  —  Drivers jean.dupont@demo.sb & amadou.diallo@demo.sb / Driver123! (both approved, toggled online during test fixtures, locations set near Châtelet/Paris).",
+  "seed_data_creation": "No persistent seed. Tests create rides on the fly under the test passenger and cancel them (status=cancelled) at the end; the autouse fixture clears db.moderation_state for the test passenger so repeated runs stay deterministic. No production data modified.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 4 dispatch suite = pytest tests/test_iter201_phase4_scheduled_dispatch.py tests/test_iter201_phase4_api.py tests/test_rewards_dispatch_helpers.py (26 tests, ~22s). The API suite needs the public REACT_APP_BACKEND_URL (HTTPS) because login sets Secure cookies — but the suite is robust: it reads from /app/frontend/.env and additionally attaches the Bearer access_token from the login response body, so it works even if cookies are dropped on http. test_instant_ride_dispatch_tier_advances temporarily shortens auto-dispatch thresholds (3s/6s/30s) via admin PUT and restores them in a finally — leaves config untouched on success/failure. If you need to test full auto-cancel at 120s, expect a 2-min wait or temporarily reduce auto_cancel_after_seconds via /api/admin/auto-dispatch/config.",
+  "rca of the issue": "N/A — no bugs found. Phase 4 atomic accept lock, scheduled-pool separation, driver release, bidding atomic accept, escalation loop, and admin config endpoint all behave per spec."
+}
