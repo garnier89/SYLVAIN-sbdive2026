@@ -20,13 +20,13 @@ export const DriverHomeHeader = ({
     </button>
     <button
       onClick={onToggleOnline}
-      className={`flex items-center gap-2 px-5 py-2 rounded-full border-2 ${isOnline ? 'bg-white border-white' : 'bg-white/20 border-white/40'}`}
+      className={`flex items-center gap-2 px-5 py-2 rounded-full border-2 ${isOnline ? 'bg-green-500 border-green-500' : 'bg-white/20 border-white/40'}`}
       data-testid="online-toggle"
     >
-      <span className={`text-sm font-bold ${isOnline ? 'text-[#FF5000]' : 'text-white'}`}>
+      <span className="text-sm font-bold text-white">
         {isOnline ? t('driver.online') : t('driver.offline')}
       </span>
-      <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-[#FF5000]' : 'bg-gray-400'}`} />
+      <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-white' : 'bg-gray-400'}`} />
     </button>
     <div className="flex items-center gap-2">
       <button onClick={onScheduled} className={`relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center ${scheduledCount > 0 ? 'animate-blink-ring' : ''}`} data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
