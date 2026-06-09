@@ -1,3 +1,16 @@
+## NEW - 2026-06-09 (212) - P0.2 Livraison Marketplace ↔ réseau SB Drive (DONE, testé 4/4 backend + 3/3 frontend)
+- **Demande user** : connecter les commandes vitrine au réseau coursier + options de livraison + suivi temps réel. Choix validés : Express **+3 €**, Prioritaire **+2 €**, Programmée +0 € ; **broadcast + claim** priorisé ; périmètre = commandes food/vitrine (`orders`). C2C articles → P1.4.
+- **Backend** (`routes/orders.py`, `models/schemas.py`) :
+  - `OrderCreate.delivery_speed` (standard/express/priority/scheduled) + `scheduled_at`. `create_order` applique le **surcharge** (config) au `delivery_fee`/total, pose `delivery_speed`/`delivery_surcharge`/`priority`/`scheduled_at`. `OrderResponse` enrichi.
+  - NOUVEAU `GET /orders/delivery-options` (options + suppléments). `GET/PUT /orders/admin/delivery-settings` étendus (`express_surcharge`, `priority_surcharge`, `dispatch_radius_km`).
+  - **Dispatch coursier** : `_is_dispatchable` (express/prioritaire dès `accepted`, standard à `ready`), `available-deliveries` trié **priorité d'abord** + champs speed/priority/status ; `claim` relâché aux états dispatchables (409 si déjà pris). `driver/active` inclut accepted/preparing.
+  - **Loop** `order_auto_progress_loop` : (a) respecte les **commandes programmées** (reste pending jusqu'à `scheduled_at`), (b) **n'avance plus past `ready` si un livreur est assigné** (le livreur contrôle picked_up/delivered), (c) **broadcast `new_delivery_offer`** aux livreurs `delivery` en ligne dans le rayon (idempotent via `dispatch_notified`).
+- **Frontend** : `CheckoutPage.js` carte **« Mode de livraison »** (4 options + supplément, datetime pour Programmée, total réactif, validation date) ; `DeliveryJobsPage.js` badges **⚡ EXPRESS / ⭐ PRIORITAIRE**, écoute WS `new_delivery_offer`, et « En cours » affiche les commandes fraîchement prises (état « En attente de préparation »). `orderAPI.deliveryOptions()`.
+- **Vérifié** : pytest `tests/test_iter212_delivery_dispatch.py` **4/4** (options, surcharge/priorité, dispatch+claim+409, admin settings) + **testing_agent iteration_212 — frontend 100% (3/3)** (sélecteur+total+programmée, récap, badges+claim livreur). Correctif UX post-test (visibilité livreur) appliqué et vérifié.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+- **Backlog immédiat** : « Partager ma boutique » (QR+impression côté commerçant + partage social côté vitrine) — validé par user, à faire **après P0.2**.
+
+
 ## NEW - 2026-06-09 (211) - P0.1 Vitrine digitale marchand complète (DONE, testé 5/5 backend + 4/4 frontend)
 - **Demande user** : compléter la vitrine marchand (logo/bannière/galerie, catalogue + **stock**, horaires structurés, **avis clients**, mini-stats). Choix user : avis réservés aux **clients ayant commandé** ; **2 créneaux horaires/jour** (coupure midi). Ordre validé : P0.1 → P0.2 (livraison) → P0.3 (paiement).
 - **Backend** (`routes/merchants.py`, `models/schemas.py`) :

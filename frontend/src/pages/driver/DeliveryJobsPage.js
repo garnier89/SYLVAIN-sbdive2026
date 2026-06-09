@@ -9,7 +9,7 @@ import {
 } from '@phosphor-icons/react';
 
 const FOOD_NEXT = { ready: 'picked_up', picked_up: 'delivered' };
-const FOOD_LABEL = { ready: 'À récupérer', picked_up: 'En livraison' };
+const FOOD_LABEL = { accepted: 'Acceptée', preparing: 'En préparation', ready: 'À récupérer', picked_up: 'En livraison' };
 const FOOD_NEXT_LABEL = { ready: 'Commande récupérée', picked_up: 'Marquer livré' };
 
 const PARCEL_NEXT = { accepted: 'arrived_pickup', arrived_pickup: 'picked_up', picked_up: 'in_transit' };
@@ -241,11 +241,15 @@ const DeliveryJobsPage = () => {
                 </div>
                 <p className="text-xs text-gray-500 truncate"><MapPin size={11} className="inline text-green-500" /> {o.merchant_address || 'Restaurant'}</p>
                 <p className="text-xs text-gray-500 mb-3 truncate"><FlagCheckered size={11} className="inline text-red-500" /> {o.delivery_address}</p>
-                {FOOD_NEXT[o.status] && (
+                {FOOD_NEXT[o.status] ? (
                   <button onClick={() => advanceFood(o.id, FOOD_NEXT[o.status])} data-testid={`food-advance-${o.id}`}
                     className="w-full bg-[#0B1426] text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5">
                     {FOOD_NEXT_LABEL[o.status]} <CaretRight size={15} />
                   </button>
+                ) : (
+                  <p className="text-xs text-center text-amber-600 bg-amber-50 rounded-lg py-2" data-testid={`food-waiting-${o.id}`}>
+                    En attente de préparation par le restaurant…
+                  </p>
                 )}
               </div>
             ))}

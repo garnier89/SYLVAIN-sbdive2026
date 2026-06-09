@@ -287,7 +287,7 @@ async def driver_active_orders(request: Request):
     if not driver:
         return []
     orders = await db.orders.find(
-        {"driver_id": driver["id"], "status": {"$in": ["ready", "picked_up"]}},
+        {"driver_id": driver["id"], "status": {"$in": ["accepted", "preparing", "ready", "picked_up"]}},
         {"_id": 0},
     ).sort("created_at", -1).to_list(30)
     for o in orders:
