@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { marketplaceAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import { BuyModal } from './marketplace/BuyModal';
+import { SponsoredBanners } from '../../components/SponsoredBanners';
 
 const CATEGORIES = {
   cars: { label: 'Véhicules', icon: Car, kind: 'vehicle' },
@@ -76,8 +77,7 @@ const MarketplacePage = () => {
       </div>
 
       <div className="px-4 pt-3 flex gap-2 overflow-x-auto scrollbar-hide">
-        {Object.entries(CATEGORIES).map(([key, c]) => (
-          <button
+        {Object.entries(CATEGORIES).map(([key, c]) => (          <button
             key={key}
             onClick={() => navigate(`/marketplace/${key}`)}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeCat === key ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
@@ -93,6 +93,9 @@ const MarketplacePage = () => {
           <button onClick={() => navigate('/marketplace')} className="px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 underline" data-testid="cat-clear">Tout voir</button>
         )}
       </div>
+
+      {/* Sponsored banners (admin-managed) */}
+      <SponsoredBanners surface="marketplace" accent="#FF4500" />
 
       <div className="px-4 mt-4">
         {loading ? (

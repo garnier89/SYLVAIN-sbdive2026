@@ -13,8 +13,15 @@ import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 const emptyForm = {
   title: '', subtitle: '', highlight: '', promo_code: '', cta_label: '',
   target_route: '/food', image_url: null, theme: 'light', bg_color: '#FFFFFF', status: 'active',
+  surfaces: ['home'],
   scope: { country: '', state: '', city: '' },
 };
+
+const SURFACE_OPTIONS = [
+  { key: 'home', label: 'Accueil' },
+  { key: 'food', label: 'Livraison' },
+  { key: 'marketplace', label: 'Marketplace' },
+];
 
 const scopeLabel = (scope) => {
   if (!scope || !scope.country) return '';
@@ -92,6 +99,7 @@ export default function AdminPromoBanners() {
       promo_code: it.promo_code || '', cta_label: it.cta_label || '',
       target_route: it.target_route || '/', image_url: it.image_url || null,
       theme: it.theme || 'light', bg_color: it.bg_color || '#FFFFFF', status: it.status || 'active',
+      surfaces: it.surfaces && it.surfaces.length ? it.surfaces : ['home'],
       scope: it.scope || { country: '', state: '', city: '' },
     });
     setShowForm(true);
@@ -239,6 +247,30 @@ export default function AdminPromoBanners() {
               <div>
                 <label className="text-sm font-medium">Route cible</label>
                 <input value={form.target_route} onChange={(e) => setForm({ ...form, target_route: e.target.value })} className="w-full border rounded px-3 py-2 mt-1" placeholder="/food" data-testid="banner-route-input" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm font-medium">Emplacements d'affichage</label>
+                <div className="flex flex-wrap gap-2 mt-1.5" data-testid="banner-surfaces">
+                  {SURFACE_OPTIONS.map((s) => {
+                    const checked = (form.surfaces || []).includes(s.key);
+                    return (
+                      <button
+                        type="button"
+                        key={s.key}
+                        onClick={() => setForm((f) => {
+                          const cur = new Set(f.surfaces || []);
+                          if (cur.has(s.key)) cur.delete(s.key); else cur.add(s.key);
+                          return { ...f, surfaces: Array.from(cur) };
+                        })}
+                        data-testid={`banner-surface-${s.key}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${checked ? 'bg-[#FF5000] text-white border-[#FF5000]' : 'bg-white text-gray-600 border-gray-300'}`}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">« Livraison » et « Marketplace » affichent la bannière avec le label « Sponsorisé ».</p>
               </div>
               <div>
                 <label className="text-sm font-medium">Thème</label>

@@ -522,7 +522,7 @@ export const homeCategoriesAPI = {
 };
 
 export const promoBannersAPI = {
-  public: (location) => api.get('/promo-banners', { params: location ? { location } : {} }),
+  public: (location, surface) => api.get('/promo-banners', { params: { ...(location ? { location } : {}), ...(surface ? { surface } : {}) } }),
   preview: (zone) => api.get('/promo-banners', { params: {
     ...(zone?.country ? { country: zone.country } : {}),
     ...(zone?.state ? { state: zone.state } : {}),

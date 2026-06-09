@@ -74,15 +74,22 @@ def _clean(doc):
 # ============================================================
 
 @router.get("")
-async def list_public(country: str = "", state: str = "", city: str = "", location: str = ""):
-    """Active banners for the user home carousel, filtered by the request zone.
+async def list_public(country: str = "", state: str = "", city: str = "", location: str = "", surface: str = ""):
+    """Active banners for a given surface, filtered by the request zone.
 
-    Zone is taken from explicit scope params (country/state/city) or resolved from a
-    free-text `location` (browser reverse-geocoded address). When NO zone info is
-    provided at all, every active banner is returned (safe fallback, e.g. geolocation
-    denied/pending). Banners with an empty/global scope always match.
+    `surface` targets where the banner shows: "home" (default), "food" or
+    "marketplace". Banners with no `surfaces` field default to home (backward
+    compat). Zone filtering is unchanged.
     """
-    items = await db.promo_banners.find({"status": "active"}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    items = await db.promo_banners.find({"status": "active"}, {"_id": 0}).sort("display_order", 1).to_list(200)
+
+    # Surface filter (home is the default for legacy banners without `surfaces`)
+    target_surface = surface or "home"
+    items = [
+        b for b in items
+        if (target_surface in (b.get("surfaces") or ["home"]))
+    ]
+
     if not (country or location):
         return {"items": items}
     if country:
@@ -125,6 +132,7 @@ async def admin_create(request: Request, current_user: dict = Depends(require_pe
         "bg_color": body.get("bg_color") or "#FFFFFF",
         "display_order": body.get("display_order", count),
         "status": body.get("status", "active"),
+        "surfaces": [s for s in (body.get("surfaces") or ["home"]) if s in ("home", "food", "marketplace")] or ["home"],
         "scope": clean_scope(body.get("scope")),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -142,6 +150,8 @@ async def admin_update(banner_id: str, request: Request, current_user: dict = De
         updates["theme"] = body["theme"]
     if "display_order" in body:
         updates["display_order"] = int(body["display_order"])
+    if "surfaces" in body:
+        updates["surfaces"] = [s for s in (body["surfaces"] or []) if s in ("home", "food", "marketplace")] or ["home"]
     if "scope" in body:
         updates["scope"] = clean_scope(body["scope"])
     if isinstance(updates.get("image_url"), str) and len(updates["image_url"]) > 11_000_000:

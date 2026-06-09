@@ -7,6 +7,7 @@ import {
   MagnifyingGlass, MapPin, Star, Clock, ArrowLeft, Funnel, User,
   ShoppingCart, SealPercent, Lightning,
 } from '@phosphor-icons/react';
+import { SponsoredBanners } from '../../components/SponsoredBanners';
 
 // Verticales de livraison — chaque type filtre les marchands par `store_type`.
 // La page est réutilisée par : Repas, Courses, Fleurs, Papeterie, Vin, Matériaux.
@@ -130,6 +131,9 @@ const FoodPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Sponsored banners (admin-managed) */}
+      <SponsoredBanners surface="food" accent="#FF4500" />
 
       {/* Cuisine chips */}
       {showChips && (
