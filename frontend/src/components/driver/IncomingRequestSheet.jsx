@@ -169,7 +169,7 @@ const IncomingRequestSheet = ({
                     <span className="text-xl font-bold text-slate-400">€</span>
                     <input type="number" inputMode="decimal" step="0.50" min="1" value={counterVal}
                       onChange={(e) => setCounterVal(e.target.value)} placeholder={price}
-                      className="w-24 text-center outline-none text-2xl font-extrabold text-slate-800 bg-transparent" data-testid="counter-offer-input" />
+                      className="w-28 text-center outline-none text-2xl font-extrabold text-slate-800 bg-transparent" data-testid="counter-offer-input" />
                   </div>
                   <button type="button" onClick={incCounter} aria-label="Augmenter"
                     className="w-14 h-14 rounded-2xl bg-white border-2 border-orange-300 text-orange-600 text-3xl font-extrabold flex items-center justify-center active:scale-95 transition-transform" data-testid="counter-plus-btn">+</button>

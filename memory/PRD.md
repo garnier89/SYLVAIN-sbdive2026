@@ -1,3 +1,13 @@
+## NEW - 2026-06-09 (214) - UX d'après croquis user : stepper tarif chauffeur + parité liste véhicules enchère (DONE, testé 3/3 frontend)
+- **Demande user (2 croquis)** : (1) côté chauffeur, le montant de contre-offre doit arriver **pré-rempli** avec boutons **− / +** (pas de saisie au volant) → soit Accepter, soit ±  puis Envoyer. (2) sur le flux **Enchère « Proposer votre tarif »**, la sélection des véhicules après saisie d'adresse doit être **comme le flux standard (image 2)** : carte + cartes véhicules avec prix live, capacité, ⓘ, badge « Meilleur choix », bordure de sélection.
+- **Fix** :
+  - `IncomingRequestSheet.jsx` : panneau contre-offre = `[−]  € (pré-rempli au tarif passager)  [+]` + bouton **Envoyer** pleine largeur. `openCounter()` pré-remplit, `inc/decCounter` ±1 € (plancher 1 €). Bouton « Proposer un autre prix » encadré bien visible. « Accepter · X € » inchangé (offre au tarif client).
+  - `RideChoosePage.js` : `showVehicles = needsDropoff` (inclut désormais l'enchère) → `renderVehicleList()` (liste riche) affichée aussi en mode enchère ; estimations chargées pour l'enchère ; `renderBiddingGrid` (ancienne grille 2 colonnes) **supprimé** ; `onRequest` enchère exige un véhicule sélectionné et navigue `/taxi-bidding?...&vehicle={slug}&fare={ref}`.
+- **Vérifié** : **testing_agent iteration_214 — 100% (3/3)** (stepper chauffeur, parité liste véhicules enchère avec ancienne grille absente, non-régression flux standard). Polish : largeur input contre-offre w-28 (anti-clip 4 chiffres).
+- **Backlog (signalé par testing agent)** : géoloc IP du départ peut retomber sur un datacenter US en environnement de test (prix aberrant) → prévoir un fallback (ville destination/Paris) si le départ géolocalisé est à >100 km de la destination.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-09 (213) - FIX enchères : le chauffeur ne voyait pas où proposer son tarif (DONE, testé 2/2 frontend)
 - **Bug user (preview)** : sur l'enchère VTC, le chauffeur ne pouvait pas proposer son propre tarif (contre-proposition).
 - **Cause racine** : le payload WebSocket `new_ride_request` porte la clé **`ride_id`** (pas `id`). `DriverHome` faisait `setIncomingRequest(msg)` tel quel → `request.id` **undefined** → Accepter / contre-offre appelaient `/api/rides/undefined/...` et **échouaient silencieusement**. Le chemin poll (8 s) renvoie un `id` correct mais ne remplaçait jamais l'objet WS cassé (garde `!incomingRequest`).
