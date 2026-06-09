@@ -328,3 +328,74 @@ async def seed_zones():
             {"$set": {"zone_id": z["id"], "entries": entries}},
             upsert=True,
         )
+
+
+
+# ── Martinique communes (real geo zones for zone-level dispatch & recruitment) ──
+# (lat, lng) = town-centre, radius_km tuned to roughly cover each commune.
+_MARTINIQUE_COMMUNES = [
+    ("Fort-de-France", 14.6037, -61.0594, 6),
+    ("Le Lamentin", 14.6097, -60.9989, 7),
+    ("Schœlcher", 14.6133, -61.0900, 5),
+    ("Saint-Joseph", 14.6670, -61.0330, 6),
+    ("Case-Pilote", 14.6420, -61.1330, 4),
+    ("Bellefontaine", 14.6890, -61.1620, 4),
+    ("Le Carbet", 14.7080, -61.1170, 5),
+    ("Saint-Pierre", 14.7430, -61.1750, 5),
+    ("Le Prêcheur", 14.8000, -61.2280, 5),
+    ("Le Morne-Rouge", 14.7720, -61.1380, 5),
+    ("L'Ajoupa-Bouillon", 14.8170, -61.1330, 5),
+    ("Fonds-Saint-Denis", 14.7330, -61.1370, 5),
+    ("Le Morne-Vert", 14.7180, -61.1480, 4),
+    ("Basse-Pointe", 14.8700, -61.1170, 6),
+    ("Macouba", 14.8700, -61.1500, 5),
+    ("Grand'Rivière", 14.8800, -61.1830, 5),
+    ("Le Lorrain", 14.8330, -61.0500, 6),
+    ("Le Marigot", 14.8270, -61.0220, 5),
+    ("Sainte-Marie", 14.7833, -60.9950, 7),
+    ("La Trinité", 14.7370, -60.9650, 7),
+    ("Gros-Morne", 14.7050, -60.9810, 7),
+    ("Le Robert", 14.6770, -60.9430, 7),
+    ("Le François", 14.6160, -60.9030, 7),
+    ("Le Vauclin", 14.5470, -60.8390, 6),
+    ("Saint-Esprit", 14.5560, -60.9220, 5),
+    ("Ducos", 14.5760, -60.9560, 5),
+    ("Rivière-Salée", 14.5310, -60.9740, 6),
+    ("Les Trois-Îlets", 14.5380, -61.0350, 5),
+    ("Les Anses-d'Arlet", 14.4880, -61.0840, 5),
+    ("Le Diamant", 14.4790, -61.0270, 5),
+    ("Sainte-Luce", 14.4670, -60.9270, 5),
+    ("Rivière-Pilote", 14.4810, -60.8970, 6),
+    ("Le Marin", 14.4700, -60.8680, 5),
+    ("Sainte-Anne", 14.4350, -60.8780, 6),
+]
+
+
+def _commune_slug(name):
+    return _norm(name).replace(" ", "-").replace("'", "").replace("œ", "oe")
+
+
+async def seed_martinique_communes():
+    """Seed the 34 communes of Martinique as active geo zones (idempotent by id).
+    Enables zone-level dispatch, demand heatmaps and the taxi-recruitment alert.
+    Never overwrites a zone an admin may have edited (insert-only)."""
+    order = 100
+    for name, lat, lng, radius in _MARTINIQUE_COMMUNES:
+        zid = f"zone_mq_{_commune_slug(name)}"
+        if await db.zones.find_one({"id": zid}):
+            continue
+        await db.zones.insert_one({
+            "id": zid,
+            "name": name,
+            "country": "Martinique",
+            "region": "Martinique",
+            "city": name,
+            "lat": lat,
+            "lng": lng,
+            "radius_km": radius,
+            "aliases": [_norm(name), _norm(name).replace("-", " ")],
+            "is_active": True,
+            "display_order": order,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        order += 1

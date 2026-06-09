@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-09 — Zones géographiques Martinique (34 communes) [DONE]
+
+- `routes/zones.py` : nouvelle fonction `seed_martinique_communes()` — seed idempotent (insert-only, par id `zone_mq_<slug>`) des **34 communes de Martinique** comme zones géo actives (centre lat/lng + rayon ajusté 4-7 km + alias texte). Appelée au démarrage dans `core/startup.py` après `seed_zones()` → s'applique automatiquement en preview ET en prod (DB distinctes).
+- Active le ciblage par zone pour le **dispatch** (overview/heatmap par zone) et le **recrutement Taxi** (zones chaudes par commune au lieu de « Hors zone »).
+- Vérifié : 34 zones actives, `resolve_zone` mappe correctement les coordonnées (Fort-de-France, Le Marin, Sainte-Anne…), page admin `/admin/zones` liste les 37 zones (3 anciennes démo restées inactives). Les zones restent éditables/désactivables par l'admin (le seed ne réécrit jamais une zone existante).
+
+
 ## 2026-06-09 — Recrutement Taxi par zone (alerte admin chauffeurs courier→taxi) [DONE, testé 100% — iter208]
 
 ### Backend (dispatch_admin.py, préfixe /admin/dispatch)

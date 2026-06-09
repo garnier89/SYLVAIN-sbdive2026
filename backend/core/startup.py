@@ -414,8 +414,9 @@ async def run_all_seeds():
     except Exception as e:
         logger.error(f"On-demand seed failed: {e}")
     try:
-        from routes.zones import seed_zones
+        from routes.zones import seed_zones, seed_martinique_communes
         await seed_zones()              # admin-managed zones + programmed shortcuts
+        await seed_martinique_communes()  # 34 communes de Martinique (geo zones actives)
         logger.info("Zones seeded")
     except Exception as e:
         logger.error(f"Zones seed failed: {e}")
