@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { dispatchAdminAPI } from '../../services/api';
 import {
   Broadcast, MapPin, Warning, Money, CreditCard, Wallet, Clock,
-  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch,
+  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -43,6 +43,27 @@ const AdminDispatch = () => {
   const [savingCfg, setSavingCfg] = useState(false);
   const [tick, setTick] = useState(0); // forces age re-render every second
   const refreshing = useRef(false);
+  const prevAlerts = useRef(null);
+  const prevFlagged = useRef(null);
+  const audioRef = useRef(null);
+
+  const beep = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = audioRef.current || new Ctx();
+      audioRef.current = ctx;
+      if (ctx.state === 'suspended') ctx.resume();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine'; o.frequency.setValueAtTime(880, ctx.currentTime);
+      o.frequency.setValueAtTime(660, ctx.currentTime + 0.18);
+      g.gain.setValueAtTime(0.18, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.55);
+      o.start(); o.stop(ctx.currentTime + 0.55);
+    } catch { /* audio not available */ }
+  }, []);
 
   const load = useCallback(async () => {
     if (refreshing.current) return;
@@ -55,12 +76,25 @@ const AdminDispatch = () => {
       setOverview(ov.data);
       setBehavior(bh.data);
       if (!cfg) setCfg(ov.data.config);
+      // Live alerting: beep + toast when a NEW no-driver zone or flagged driver appears.
+      const alertZones = new Set((ov.data.zones || []).filter((z) => z.alert).map((z) => z.zone));
+      const flagged = new Set((bh.data.drivers || []).filter((d) => d.flagged).map((d) => d.id));
+      if (prevAlerts.current !== null) {
+        if ([...alertZones].some((z) => !prevAlerts.current.has(z))) {
+          beep(); toast.error('🚨 Zone sans chauffeur détectée — réaffectez un chauffeur', { duration: 8000 });
+        }
+        if ([...flagged].some((id) => !prevFlagged.current.has(id))) {
+          beep(); toast.warning('🚩 Chauffeur signalé (annulations sans espèces)', { duration: 8000 });
+        }
+      }
+      prevAlerts.current = alertZones;
+      prevFlagged.current = flagged;
     } catch (e) {
       console.error('dispatch load failed', e);
     } finally {
       refreshing.current = false;
     }
-  }, [cfg]);
+  }, [cfg, beep]);
 
   useEffect(() => {
     load();
@@ -111,8 +145,16 @@ const AdminDispatch = () => {
           </h1>
           <p className="text-sm text-gray-500">Supervision temps réel — courses en attente, chauffeurs en ligne &amp; comportements</p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" /> EN DIRECT (5s)
+        <div className="flex items-center gap-4">
+          <div className="relative" title="Alertes zones sans chauffeur" data-testid="dispatch-bell">
+            <Bell size={24} weight={totals.no_driver_alerts ? 'fill' : 'regular'} className={totals.no_driver_alerts ? 'text-red-500 animate-bounce' : 'text-gray-400'} />
+            {totals.no_driver_alerts > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{totals.no_driver_alerts}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" /> EN DIRECT (5s)
+          </div>
         </div>
       </div>
 
@@ -212,8 +254,8 @@ const AdminDispatch = () => {
       {/* Driver behaviour */}
       <h2 className="text-lg font-bold text-gray-700 mb-1 flex items-center gap-2"><ShieldWarning size={20} className="text-red-500" /> Comportement chauffeurs</h2>
       <p className="text-xs text-gray-500 mb-3">
-        Drapeau rouge quand le taux d'annulation sur courses CB ≥ {behavior?.flag_pct ?? 30}% (min. {behavior?.flag_min ?? 3} annulations).
-        Détecte les chauffeurs qui acceptent puis annulent les courses payées par carte (clients pris « au black »).
+        Drapeau rouge quand le taux d'annulation sur courses <strong>sans espèces (CB ou Wallet)</strong> ≥ {behavior?.flag_pct ?? 30}% (min. {behavior?.flag_min ?? 3} annulations).
+        Détecte les chauffeurs qui acceptent puis annulent les courses payées par carte ou portefeuille (clients pris « au black »).
       </p>
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -223,8 +265,8 @@ const AdminDispatch = () => {
                 <th className="p-3">Chauffeur</th>
                 <th className="p-3">Statut</th>
                 <th className="p-3 text-center">Accept→Annul.</th>
-                <th className="p-3 text-center">dont CB</th>
-                <th className="p-3 text-center">% CB</th>
+                <th className="p-3 text-center">dont sans esp.</th>
+                <th className="p-3 text-center">% sans esp.</th>
                 <th className="p-3 text-center">Refus récents</th>
                 <th className="p-3 text-right">Action</th>
               </tr>

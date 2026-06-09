@@ -27,6 +27,8 @@ from routes.auto_dispatch import get_config as get_dispatch_config
 router = APIRouter(prefix="/admin/dispatch", tags=["dispatch-admin"])
 
 CARD_METHODS = {"card", "cb", "credit_card", "creditcard", "stripe", "carte"}
+WALLET_METHODS = {"wallet", "paygo"}
+NONCASH_METHODS = CARD_METHODS | WALLET_METHODS
 
 
 def _parse_dt(s):
@@ -84,12 +86,12 @@ async def record_driver_refusal(driver: dict, ride_id: str) -> dict:
 
 async def record_driver_cancellation(driver_id: str, ride: dict):
     """Track an accept-then-cancel event with the ride payment method so the
-    control tower can flag drivers who dump CARD rides."""
+    control tower can flag drivers who dump non-cash (CARD or WALLET) rides."""
     pm = (ride.get("payment_method") or "").lower()
-    is_cb = pm in CARD_METHODS
+    is_noncash = pm in NONCASH_METHODS
     inc = {"accept_release_count": 1}
-    if is_cb:
-        inc["accept_release_cb_count"] = 1
+    if is_noncash:
+        inc["accept_release_cb_count"] = 1  # "cb" = non-cash (card or wallet)
     await db.drivers.update_one(
         {"id": driver_id},
         {

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Switch } from '../../components/ui/switch';
-import { Warning, FloppyDisk, Phone, ChatCircleText, ShieldWarning } from '@phosphor-icons/react';
+import { Warning, FloppyDisk, Phone, ChatCircleText, ShieldWarning, XCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -21,13 +21,24 @@ const AdminModeration = () => {
   const [events, setEvents] = useState([]);
   const [calls, setCalls] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [rideConvs, setRideConvs] = useState([]);
+  const [ridePay, setRidePay] = useState('all');
+  const [thread, setThread] = useState(null); // {ride, messages}
 
   useEffect(() => { load(); }, []);
   useEffect(() => {
     if (tab === 'events') fetchJson('/api/moderation/admin/events?limit=100', setEvents);
     if (tab === 'calls') fetchJson('/api/moderation/admin/call-logs?limit=100', setCalls);
     if (tab === 'conversations') fetchJson('/api/moderation/admin/conversations?limit=50', setConversations);
-  }, [tab]);
+    if (tab === 'ride_chats') fetchJson(`/api/moderation/admin/ride-conversations?limit=80${ridePay !== 'all' ? `&payment=${ridePay}` : ''}`, setRideConvs);
+  }, [tab, ridePay]);
+
+  const openThread = async (rideId) => {
+    try {
+      const res = await fetch(`${API}/api/moderation/admin/ride-conversations/${rideId}`, { credentials: 'include' });
+      if (res.ok) setThread(await res.json());
+    } catch { toast.error('Échec du chargement de la conversation'); }
+  };
 
   const fetchJson = async (path, setter) => {
     try {
@@ -83,6 +94,7 @@ const AdminModeration = () => {
           { k: 'events', label: 'Avertissements & pénalités' },
           { k: 'calls', label: 'Journal d\'appels' },
           { k: 'conversations', label: 'Conversations' },
+          { k: 'ride_chats', label: 'Courses (chauffeur↔client)' },
         ].map((t) => (
           <button key={t.k} onClick={() => setTab(t.k)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t.k ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
@@ -184,10 +196,86 @@ const AdminModeration = () => {
           </CardContent>
         </Card>
       )}
+      {tab === 'ride_chats' && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="p-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-500 font-semibold">Filtrer :</span>
+              {[
+                { k: 'all', label: 'Toutes' },
+                { k: 'noncash', label: 'Sans espèces (CB+Wallet)' },
+                { k: 'card', label: 'CB' },
+                { k: 'wallet', label: 'Wallet' },
+                { k: 'cash', label: 'Espèces' },
+              ].map((f) => (
+                <button key={f.k} onClick={() => setRidePay(f.k)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${ridePay === f.k ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                  data-testid={`ridechat-filter-${f.k}`}>{f.label}</button>
+              ))}
+            </div>
+            <div className="divide-y divide-gray-100">
+              {rideConvs.length === 0 && <div className="p-6 text-sm text-gray-400">Aucune conversation de course.</div>}
+              {rideConvs.map((cv) => (
+                <button key={cv.ride_id} onClick={() => openThread(cv.ride_id)}
+                  className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors" data-testid={`ridechat-row-${cv.ride_id}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <ChatCircleText size={18} className="text-blue-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{cv.driver_name} ↔ {cv.client_name} <span className="text-gray-400 font-normal">#{cv.booking_no || cv.ride_id.slice(-6)}</span></p>
+                      <p className="text-xs text-gray-500 truncate max-w-md">{cv.last_text || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <PayKindChip kind={cv.payment_kind} />
+                    <span className="text-[11px] text-gray-400">{cv.message_count} msg · {fmt(cv.last_at)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {thread && (
+        <div className="fixed inset-0 z-[2000] bg-black/40 flex items-end sm:items-center sm:justify-center" onClick={() => setThread(null)} data-testid="ridechat-thread-modal">
+          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <p className="font-bold text-gray-800">{thread.ride.driver_name || 'Chauffeur'} ↔ {thread.ride.client_name || 'Client'}</p>
+                <p className="text-xs text-gray-500">#{thread.ride.booking_no} · <PayKindChipInline method={thread.ride.payment_method} /> · {thread.ride.status}</p>
+              </div>
+              <button onClick={() => setThread(null)} className="text-gray-400 hover:text-gray-700" data-testid="ridechat-thread-close"><XCircle size={24} weight="fill" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
+              {thread.messages.length === 0 && <p className="text-center text-sm text-gray-400 py-6">Aucun message.</p>}
+              {thread.messages.map((m) => (
+                <div key={m.id} className={`flex ${m.sender_role === 'driver' ? 'justify-start' : 'justify-end'}`} data-testid={`thread-msg-${m.id}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.sender_role === 'driver' ? 'bg-white text-gray-800 shadow-sm' : 'bg-blue-500 text-white'}`}>
+                    <p className="text-[10px] font-bold opacity-70 mb-0.5">{m.sender_name} · {m.sender_role === 'driver' ? 'Chauffeur' : 'Client'}</p>
+                    {m.image && <img src={m.image} alt="" className="rounded-lg mb-1 max-h-48" />}
+                    {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
+                    <p className="text-[9px] mt-1 text-right opacity-60">{fmt(m.created_at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
+const PayKindChip = ({ kind }) => {
+  if (kind === 'card') return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">CB</span>;
+  if (kind === 'wallet') return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">Wallet</span>;
+  return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Espèces</span>;
+};
+const PayKindChipInline = ({ method }) => {
+  const m = (method || '').toLowerCase();
+  const kind = ['card', 'cb', 'credit_card', 'stripe', 'carte'].includes(m) ? 'card' : (['wallet', 'paygo'].includes(m) ? 'wallet' : 'cash');
+  return <PayKindChip kind={kind} />;
+};
 const Field = ({ label, value, onChange, testId, step }) => (
   <div>
     <label className="text-xs font-medium text-gray-600 block mb-1">{label}</label>

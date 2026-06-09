@@ -351,3 +351,95 @@ async def admin_conversation_thread(ref_type: str, ref_id: str, request: Request
         {"ref_type": ref_type, "ref_id": ref_id}, {"_id": 0}
     ).sort("created_at", 1).to_list(500)
     return msgs
+
+
+# ── Conversations de COURSES (taxi) chauffeur ↔ client ───────────────────────
+# Le chat de course est stocké dans `ride_messages` (≠ `chat_messages`). L'admin
+# doit pouvoir relire ces échanges pour détecter un chauffeur qui pousse le
+# client à payer en espèces / hors-app (« au black ») sur une course CB/wallet.
+_CARD = {"card", "cb", "credit_card", "creditcard", "stripe", "carte"}
+_WALLET = {"wallet", "paygo"}
+
+
+@router.get("/admin/ride-conversations")
+async def admin_ride_conversations(request: Request, limit: int = 60, payment: str = None):
+    """List ride chat threads (driver↔client) with ride context. `payment` filter:
+    'noncash' (card+wallet), 'card', 'wallet', 'cash'."""
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    rows = await db.ride_messages.aggregate([
+        {"$sort": {"created_at": -1}},
+        {"$group": {
+            "_id": "$ride_id",
+            "last_text": {"$first": "$text"},
+            "last_image": {"$first": "$image"},
+            "last_at": {"$first": "$created_at"},
+            "count": {"$sum": 1},
+        }},
+        {"$sort": {"last_at": -1}},
+        {"$limit": min(max(limit, 1), 200)},
+    ]).to_list(min(max(limit, 1), 200))
+
+    ride_ids = [r["_id"] for r in rows]
+    ride_map = {}
+    if ride_ids:
+        async for rd in db.rides.find(
+            {"id": {"$in": ride_ids}},
+            {"_id": 0, "id": 1, "booking_no": 1, "driver_name": 1, "user_id": 1,
+             "payment_method": 1, "status": 1, "estimated_fare": 1, "pickup_address": 1, "dropoff_address": 1},
+        ):
+            ride_map[rd["id"]] = rd
+    client_ids = list({rd.get("user_id") for rd in ride_map.values() if rd.get("user_id")})
+    cmap = {}
+    if client_ids:
+        async for u in db.users.find({"id": {"$in": client_ids}}, {"_id": 0, "id": 1, "name": 1}):
+            cmap[u["id"]] = u.get("name")
+
+    out = []
+    for r in rows:
+        rd = ride_map.get(r["_id"]) or {}
+        pm = (rd.get("payment_method") or "").lower()
+        kind = "card" if pm in _CARD else ("wallet" if pm in _WALLET else "cash")
+        if payment == "noncash" and kind == "cash":
+            continue
+        if payment in ("card", "wallet", "cash") and kind != payment:
+            continue
+        out.append({
+            "ride_id": r["_id"],
+            "booking_no": rd.get("booking_no"),
+            "driver_name": rd.get("driver_name") or "Chauffeur",
+            "client_name": cmap.get(rd.get("user_id")) or "Client",
+            "payment_method": pm or None,
+            "payment_kind": kind,
+            "ride_status": rd.get("status"),
+            "fare": rd.get("estimated_fare"),
+            "last_text": r.get("last_text") or ("📷 Photo" if r.get("last_image") else None),
+            "last_at": r.get("last_at"),
+            "message_count": r.get("count"),
+        })
+    return out
+
+
+@router.get("/admin/ride-conversations/{ride_id}")
+async def admin_ride_conversation_thread(ride_id: str, request: Request):
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    msgs = await db.ride_messages.find({"ride_id": ride_id}, {"_id": 0}).sort("created_at", 1).to_list(1000)
+    rd = await db.rides.find_one(
+        {"id": ride_id},
+        {"_id": 0, "id": 1, "booking_no": 1, "driver_name": 1, "user_id": 1,
+         "payment_method": 1, "status": 1, "estimated_fare": 1, "pickup_address": 1, "dropoff_address": 1},
+    ) or {}
+    client_name = None
+    if rd.get("user_id"):
+        u = await db.users.find_one({"id": rd["user_id"]}, {"_id": 0, "name": 1})
+        client_name = (u or {}).get("name")
+    pm = (rd.get("payment_method") or "").lower()
+    return {
+        "ride": {
+            "ride_id": ride_id, "booking_no": rd.get("booking_no"),
+            "driver_name": rd.get("driver_name"), "client_name": client_name,
+            "payment_method": pm or None, "status": rd.get("status"),
+            "fare": rd.get("estimated_fare"),
+            "pickup_address": rd.get("pickup_address"), "dropoff_address": rd.get("dropoff_address"),
+        },
+        "messages": msgs,
+    }
