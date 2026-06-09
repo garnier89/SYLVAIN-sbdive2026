@@ -163,7 +163,7 @@ const TaxiBiddingPage = () => {
     }
   }, [pickup, dropoff, searching, searchParams, navigate]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (fareOverride) => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }
     // Unlock the audio chime on this user gesture (browser autoplay policy).
     try {
@@ -174,7 +174,7 @@ const TaxiBiddingPage = () => {
       audioCtxRef.current?.resume?.();
     } catch { /* no audio support */ }
     // Offer cannot be below the recommended (minimum) fare
-    const finalFare = Math.max(fareFloor, fare || fareFloor);
+    const finalFare = Math.max(fareFloor, fareOverride || fare || fareFloor);
     setFare(finalFare);
     setSubmitting(true);
     userCancelledRef.current = false;
@@ -292,6 +292,11 @@ const TaxiBiddingPage = () => {
   const retrySearch = () => {
     setNoDriver(false); setExpired(false); setSearchSeconds(0);
     handleSubmit();
+  };
+  const retryHigher = () => {
+    setNoDriver(false); setExpired(false); setSearchSeconds(0);
+    setFare(suggestedFare);
+    handleSubmit(suggestedFare);
   };
   const scheduleTrip = () => {
     const q = new URLSearchParams({
@@ -725,6 +730,12 @@ const TaxiBiddingPage = () => {
               className="w-full h-12 rounded-xl bg-[#FF5000] hover:bg-[#E04600] text-white font-bold mb-2.5 flex items-center justify-center gap-2">
               <ArrowClockwise size={20} weight="bold" /> Réessayer
             </button>
+            {suggestedFare > fare && (
+              <button onClick={retryHigher} data-testid="no-driver-raise-btn"
+                className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold mb-2.5 flex items-center justify-center gap-2">
+                <TrendUp size={20} weight="bold" /> Augmenter mon tarif (+{Math.round((suggestedFare - fare) * 100) / 100} €)
+              </button>
+            )}
             <button onClick={scheduleTrip} data-testid="no-driver-schedule-btn"
               className="w-full h-12 rounded-xl border-2 border-gray-200 text-gray-800 font-bold mb-2.5 flex items-center justify-center gap-2">
               <CalendarBlank size={20} weight="bold" /> Planifier le trajet

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
 import os
+import re
 import math
 import secrets
 import requests
@@ -1917,10 +1918,26 @@ async def create_taxi_hall(request: Request):
     now = datetime.now(timezone.utc).isoformat()
     vt_slug = body.get("vehicle_type", "sb")
     vtype = await db.vehicle_types.find_one({"slug": vt_slug}, {"_id": 0}) or {}
+    # Street-client identity: if the entered phone matches an app account, link it
+    # so the trip becomes a classic ride (history + re-engagement); else keep guest info.
+    client_name = (body.get("client_name") or "").strip()
+    client_phone = (body.get("client_phone") or "").strip()
+    matched = None
+    digits = re.sub(r"\D", "", client_phone)
+    if len(digits) >= 6:
+        suffix = digits[-8:]
+        matched = await db.users.find_one(
+            {"phone": {"$regex": re.escape(suffix) + r"\D*$"}, "role": "user"},
+            {"_id": 0, "id": 1, "name": 1, "phone": 1},
+        )
+    passenger_name = (matched or {}).get("name") or client_name or "Client (hélé)"
     ride = {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
         "booking_no": str(secrets.randbelow(90000000) + 10000000),
-        "user_id": None,
+        "user_id": matched["id"] if matched else None,
+        "client_matched": bool(matched),
+        "guest_name": client_name or None,
+        "guest_phone": client_phone or None,
         "driver_id": driver["id"],
         "driver_name": driver.get("user_name", user.get("name", "Chauffeur")),
         "status": "in_progress",
@@ -1939,7 +1956,7 @@ async def create_taxi_hall(request: Request):
         "duration_mins": int(body.get("duration_mins", 0) or 0),
         "estimated_fare": round(float(body.get("estimated_fare", 0) or 0), 2),
         "payment_method": "cash" if cash_only else body.get("payment_method", "cash"),
-        "passenger_name": "Client (hélé)",
+        "passenger_name": passenger_name,
         "passenger_rating": 5.0,
         "created_at": now,
         "accepted_at": now,

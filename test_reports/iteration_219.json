@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 219 (frontend only, FR app SB Drive VTC) — Tested 3 features: (A) Raise-fare button on no-driver popup, (E) Auto-stop modal Name+Phone inputs, (D) Big accept-timer ring on driver map. RESULT: A FAILS in the rendered UI (raise button never shows due to NaN fare state); E and D BLOCKED by a stale active ride on driver_b366adb552eb that keeps re-spawning (Hail Match / Marie Invitee), preventing the FAB and incoming-request sheet from rendering — E and D verified via code review only.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TaxiBiddingPage.js (no-driver-modal)",
+        "issue": "data-testid='no-driver-raise-btn' (green 'Augmenter mon tarif +X €') NEVER renders end-to-end. Root cause: at modal-open time the `fare` React state has been corrupted to NaN (confirmed by walking React fiber hooks on the modal — useState hook idx 13 = NaN; also the console warning 'Received NaN for the %s attribute. value' fires on /taxi-bidding). The gate at line 733 `{suggestedFare > fare && (...)}` evaluates `13.40 > NaN` which is false in JS, so the green button is removed from the DOM. Visually & via DOM dump: only no-driver-retry-btn, no-driver-schedule-btn, no-driver-dismiss-btn are present.",
+        "selector": "[data-testid=no-driver-raise-btn]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Driver home — Auto-stop & Incoming request",
+        "issue": "driver_b366adb552eb persistently has an in_progress taxi_hall ride (cancelled via API → a NEW one appears within seconds; seen as 'Hail Match' then 'Marie Invitee'). This forces /chauffeur/home into 'COURSE EN COURS' mode, where the driver-fab-menu yields 0 actions (Auto-stop entry not rendered) and incoming-request-modal is gated off. Likely a seed/cron job auto-creates them. Recommend pausing the seeder or using a fresh driver for E and D tests.",
+        "affected_selectors": ["[data-testid=driver-fab-toggle]", "[data-testid=incoming-request-modal]", "[data-testid=taxi-hall-modal]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/.screenshots/iter219_no_driver_modal.png",
+    "/app/.screenshots/iter219b_modal.png",
+    "/app/.screenshots/iter219c_modal_buttons.png",
+    "/app/.screenshots/iter219_driver_clean.png",
+    "/app/.screenshots/iter219_fab_open.png"
+  ],
+  "action_items": [
+    "HIGH — Fix raise-fare button visibility. Quick patch (defensive): change line 733 from `{suggestedFare > fare && (` to `{suggestedFare > (Number.isFinite(fare) ? fare : fareFloor) && (` OR `{suggestedFare > (fare || fareFloor) && (` (will still gate correctly since fare||fareFloor falls back to fareFloor when NaN). True root cause: track where `fare` becomes NaN — most likely a slider/input onChange that does `parseFloat(e.target.value)` without `|| 0`, or `setFare(prev => prev + delta)` when prev is NaN. Search TaxiBiddingPage.js for setFare callers; line 754 is OK (`parseFloat(v) || 0`), but other onChange may not be. Also consider `setFare(Number.isFinite(v) ? v : fareFloor)` everywhere.",
+    "MEDIUM — Investigate the auto-spawning taxi_hall rides on driver_b366adb552eb. After POST /api/rides/{id}/status {status:'cancelled'} a new in_progress ride appears within seconds (booking_no '56729556' Hail Match → 'Marie Invitee'). Likely a demo seeder cron. Either disable it during E2E tests or move E/D tests to a fresh driver (amadou.diallo@demo.sb / sophie.martin@demo.sb).",
+    "LOW — Once the seeder issue is fixed, re-run the full driver flow (online → FAB open → Auto-stop → fill name+phone → start) and the bidding-ride flow (client posts bidding → driver receives incoming-request-modal with accept-timer-big visible)."
+  ],
+  "critical_code_review_comments": [
+    "TaxiBiddingPage.js L280 `suggestedFare = Math.max(fareFloor, Math.round((fare || fareFloor) * 1.2 * 100) / 100)` — uses `fare || fareFloor` (NaN-safe) for the suggested value, BUT the render gate L733 compares against raw `fare` which can be NaN. This is the actual visibility bug.",
+    "TaxiBiddingPage.js L177-178 `finalFare = Math.max(fareFloor, fareOverride || fare || fareFloor); setFare(finalFare);` — safe path, not the source of NaN.",
+    "TaxiBiddingPage.js L754 fallback fare-input uses `parseFloat(e.target.value) || 0` (safe). Other onChange handlers should be audited identically.",
+    "IncomingRequestSheet.jsx L73-82 — accept-timer-big overlay is correctly placed inside the incoming-request-modal, only rendered when `!offerPending`, with a 140-sized CountdownRing wrapped in a black/35 blur disc and a 'Temps pour accepter' label below. Code is correct; just couldn't be exercised under playwright because the driver had an active ride.",
+    "CountdownRing.jsx — font size auto-scales (`Math.max(11, Math.round(size * 0.34))`), so at size=140 the seconds number is ~48px — visually prominent on the dimmed map. Correct.",
+    "TaxiHallModal.jsx L102-109 — both `taxi-hall-client-name` and `taxi-hall-client-phone` inputs are present, controlled, and their trimmed values are passed to rideAPI.taxiHall as `client_name` / `client_phone` (L81-82). On success the toast logic at L84-85 correctly handles `res.data?.client_matched` (green 'Compte client détecté') vs the random-phone fallback ('Course Auto-stop démarrée.'). Implementation matches the brief.",
+    "DriverFab.jsx L18 — Auto-stop action only appears when `taxiHailEnabled === true`. DriverHome sets this via `taxiHallElig.eligible`; if the driver is in a ride the FAB is mounted but in 'in-ride' mode the menu actions are zero (taxiHallElig may also be re-fetched). Worth a quick guard so the FAB doesn't show when in-ride at all."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "n/a (skipped per request)",
+    "frontend": "Test A (no-driver raise-btn): FAIL end-to-end (button never renders due to NaN fare). Test E (Auto-stop name/phone): code-PASS; UI blocked by stale active ride. Test D (accept-timer-big): code-PASS; UI blocked by stale active ride."
+  },
+  "test_credentials": "Fresh client registered for A: test_iter219c_1781037448@demo.sb / Client123! (also iter219_, iter219b_, iter219d_ siblings). Driver: jean.dupont@demo.sb / Driver123! (driver_b366adb552eb).",
+  "seed_data_creation": "Created 4 bidding rides via the UI (ride_ee930460d13a, ride_29206421c966, ride_7f64f3b17955, ride_89def13bee96), all cancelled via raw /api/rides/{id}/status. Also cancelled a stray taxi_hall ride_9ad28fbcce83 on driver_b366adb552eb (which was promptly replaced by a new in_progress one).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "For TEST A reproduction (works 100%): (1) Register fresh user POST /api/auth/register {email,password,name,role:'user',phone}. (2) Login. (3) page.goto /course?mode=bidding with plat/plng/paddr+dlat/dlng/daddr deep-link → wait 6s. (4) Click [data-testid=ride-choose-request-btn]. (5) On /taxi-bidding click [data-testid=find-driver-btn]. (6) Capture rideId via page.on('request') matching /api/rides/(ride_[a-f0-9]+). (7) POST /api/rides/{id}/status {status:'cancelled'} → wait 5s → [data-testid=no-driver-modal] appears. (8) Inspect buttons via querySelectorAll('button') on the modal — confirm whether no-driver-raise-btn is in the DOM. To prove the NaN root cause, walk the TaxiBiddingPage fiber hooks (Object.keys(node).find(k=>k.startsWith('__reactFiber'))) and dump memoizedState — hook idx 13 was 'nan' in this iteration. For TEST D & E, BEFORE testing: cancel the driver's active ride AND ensure no new one auto-spawns (the platform appears to seed taxi_hall rides on this driver every ~10s). If the seeder cannot be stopped, switch to amadou.diallo@demo.sb or sophie.martin@demo.sb (both /Driver123!) which may be cleaner.",
+  "rca of the issue": "Bug A (no-driver-raise-btn never renders): In /app/frontend/src/pages/user/TaxiBiddingPage.js, the visibility gate at line 733 is `{suggestedFare > fare && (...)}`. Reading the React useState hook chain on the live page revealed that the `fare` state had become NaN by the time the no-driver modal opened (the page also throws 'Received NaN for the value attribute' to the console). Since `13.40 > NaN === false` in JavaScript, the green raise button is removed from the rendered tree. The companion `suggestedFare` value is NaN-safe because it uses `fare || fareFloor` on line 280, but the gate does not. Recommended one-line fix: `{suggestedFare > (Number.isFinite(fare) ? fare : fareFloor) && (...)}`. A deeper fix should locate the setFare(...) call that lands NaN (look at any onChange that does parseFloat without `|| 0`, and any setFare(prev=>prev+delta) when prev may be NaN — adjustFare on L386 is safe because Math.max(fareFloor, ...) is NaN-bleeding (`Math.max(11.17, NaN) === NaN`) — that's a likely smoking gun: if at any point prev becomes NaN, `Math.max(fareFloor, prev+delta)` propagates NaN forever. Suggest wrapping with `Number.isFinite(prev) ? prev : fareFloor` inside adjustFare and friends."
+}

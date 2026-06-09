@@ -22,6 +22,8 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
   const [gamme, setGamme] = useState(null);
   const [dest, setDest] = useState(null); // { address, lat, lng }
   const [typedAddr, setTypedAddr] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -76,8 +78,11 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
         duration_mins: Math.max(1, Math.round((dKm / 28) * 60)),
         estimated_fare: Number(est.toFixed(2)),
         payment_method: 'cash',
+        client_name: clientName.trim(),
+        client_phone: clientPhone.trim(),
       });
-      toast.success('Course Taxi Hall démarrée.');
+      if (res.data?.client_matched) toast.success(`Compte client détecté : ${res.data.passenger_name}`);
+      else toast.success('Course Auto-stop démarrée.');
       onStarted(res.data);
     } catch { toast.error('Impossible de démarrer la course.'); setBusy(false); }
   };
@@ -92,7 +97,16 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1" data-testid="taxi-hall-cash-badge">Espèces uniquement</span>
         </div>
-        <p className="text-xs text-gray-500 mb-3">Prenez en charge un client qui ne connaît pas l&apos;application. Saisissez la destination et la gamme du véhicule.</p>
+        <p className="text-xs text-gray-500 mb-3">Prenez en charge un client qui ne connaît pas l&apos;application. Indiquez le client puis la destination et la gamme.</p>
+
+        <label className="text-sm font-bold text-gray-700">Client (facultatif)</label>
+        <div className="mt-1 mb-1 grid grid-cols-2 gap-2">
+          <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Nom du client"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none" data-testid="taxi-hall-client-name" />
+          <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="Téléphone" inputMode="tel"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none" data-testid="taxi-hall-client-phone" />
+        </div>
+        <p className="text-[11px] text-gray-400 mb-4">Si le numéro correspond à un compte SB Drive, la course est rattachée au client (relance possible).</p>
 
         <label className="text-sm font-bold text-gray-700">Destination</label>
         <div className="mt-1 mb-4">

@@ -71,11 +71,19 @@ const IncomingRequestSheet = ({
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/40 flex items-end" data-testid="incoming-request-modal">
+      {/* Large countdown on the dimmed map (behind the sheet) — time left to accept */}
+      {!offerPending && (
+        <div className="absolute top-0 left-0 right-0 flex flex-col items-center pt-12 pointer-events-none" data-testid="accept-timer-big">
+          <div className="bg-black/35 backdrop-blur-sm rounded-full p-3 shadow-2xl">
+            <CountdownRing seconds={remaining} total={windowSeconds} size={140} />
+          </div>
+          <span className="mt-2 text-white text-sm font-bold drop-shadow-lg">Temps pour accepter</span>
+        </div>
+      )}
       <div className="w-full bg-white rounded-t-3xl px-5 pt-3 pb-5 max-h-[92vh] overflow-y-auto">
         <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-3" />
 
         <div className="flex items-center justify-center gap-3 mb-3">
-          {!offerPending && <CountdownRing seconds={remaining} total={windowSeconds} size={44} />}
           <h3 className="text-xl font-extrabold text-gray-900 text-center truncate" data-testid="request-title">{title}</h3>
           {request.is_priority && (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 animate-pulse" data-testid="priority-badge">
