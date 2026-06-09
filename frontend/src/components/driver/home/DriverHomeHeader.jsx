@@ -14,7 +14,7 @@ export const DriverHomeHeader = ({
 }) => {
   const { t } = useLocale();
   return (
-  <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: '#0EA5E9' }}>
+  <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: 'linear-gradient(120deg, #0EA5E9 0%, #0EA5E9 42%, #FF5000 58%, #FF5000 100%)' }}>
     <button onClick={onMenu} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="driver-menu-btn">
       <List size={20} className="text-white" />
     </button>
@@ -40,7 +40,7 @@ export const DriverHomeHeader = ({
       <button onClick={onNotifications} className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="notifications-btn">
         <Bell size={20} className="text-white" />
         {notifCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5000] text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white animate-blink-turn" data-testid="notifications-badge">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white animate-blink-turn" data-testid="notifications-badge">
             {notifCount}
           </span>
         )}
