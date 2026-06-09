@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (217-218) - Vérif 17 catégories taxi + fix Intercité + auto-fermeture chauffeur + pop-up client « aucun chauffeur »
+- **Vérification des 17 catégories taxi (demande user, priorité)** : **17/17 PASS** end-to-end (testing_agent iteration_217). Catégories : standard, pool, electric, moto, rental, intercity, book_later, moto_rental, buddy_driver, bidding, airport, pets, book_for_someone, tuktuk, assist, corporate, access.
+  - **BUG corrigé — Intercité plantait** : `ModeSpecificPanel` (composant module) appelait `money()` hors scope → ReferenceError dès qu'une estimation arrivait. Fix : `useLocale()` dans `ModeSpecificPanel`. Vérifié (chip « 1,50 €/km » OK, plus d'erreur React).
+  - **Robustesse + deep-links** : `RideChoosePage` accepte désormais le **pré-remplissage du départ par URL** (`plat/plng/paddr`, miroir de `dlat/dlng/daddr`) ; `autoLocate` ignoré si départ pré-rempli (évite le fallback géoloc datacenter US en test).
+- **FIX 1 — Chauffeur, écran bloqué** (`DriverHome.js`) : après envoi d'une offre non acceptée, **auto-fermeture** de la feuille (retour en ligne) si l'offre **expire et n'est pas relancée sous 10 s**, **et** après **2 relances** sans acceptation (grace 0). `renewCountRef` + `useEffect([myOffer])` + toast « Aucune réponse du client. Retour en ligne. ». Vérifié par revue de code (test temporel ~45 s non exécuté).
+- **FIX 2 — Client, aucun chauffeur trouvé** (`TaxiBiddingPage.js`) : quand la course est annulée par le système (pas de chauffeur), un **pop-up** `no-driver-modal` s'affiche avec **Réessayer** (`no-driver-retry-btn`) + **Planifier le trajet** (`no-driver-schedule-btn` → `/course?mode=book_later` avec adresses pré-remplies) + Annuler. `userCancelledRef` distingue annulation système vs passager. **Vérifié e2e 2/2** (cas positif + négatif, iteration_218).
+- ⚠️ PREVIEW → redéploiement requis pour la prod (https://gojek-mvp-1.emergent.host).
+
+
 ## NEW - 2026-06-09 (215) - Tarif moyen accepté (enchère) + Partager ma boutique (DONE, testé 2/2 backend + 3/3 frontend)
 - **Demande user** : (A) afficher « Tarif moyen accepté : X € » par véhicule sur la liste enchère (aide au juste prix → +taux d'acceptation). (B) « Partager ma boutique » : QR + impression côté commerçant, et partage social (WhatsApp/SMS/Copier/natif) côté vitrine publique.
 - **A — Tarif moyen accepté** :
