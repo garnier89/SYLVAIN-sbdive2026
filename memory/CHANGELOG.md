@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-09 — Fix « la proposition de tarif ne fonctionne pas » (enchères) [DONE, testé]
+
+- **Bug** : à l'acceptation directe d'une course en enchère (« Offrez votre tarif »), le chauffeur acceptait le tarif proposé par le client (ex. 25 €) mais la course retombait sur l'estimation système (ex. 14,38 €) → le tarif proposé/négocié était perdu.
+- **Cause** : `accept_ride` (rides.py) n'appliquait pas `proposed_fare` pour les courses bidding.
+- **Fix** : `accept_ride` détecte les courses bidding (`mode/ride_type=='bidding'` ou `is_bidding`) et fixe `estimated_fare = agreed_fare = final_fare = proposed_fare` dans le verrou atomique d'acceptation.
+- **Vérifié** : reproduction E2E via API (création enchère → chauffeur accepte → tarif = 25 € ✓ ; contre-offre chauffeur → client accepte → 32 € ✓) + 2 tests pytest (`test_iter210_bidding_accept_fare.py`). Le flux web d'enchères fonctionnait par ailleurs (contre-offre/accept). Aucun changement frontend requis (affiche `estimated_fare`, désormais correct).
+- NB : analyse menée sur l'app **web** (reproductible). Si le symptôme concernait l'app **mobile native** (`/app/mobile`, Expo — codebase distinct), me le préciser pour un correctif ciblé.
+
+
 ## 2026-06-09 — Surge auto par commune + contact client + chauffeurs hors-ligne à proximité [DONE, testé 100% — iter209]
 
 ### 1. Tarification dynamique automatique par commune (surge)

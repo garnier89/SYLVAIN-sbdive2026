@@ -1101,18 +1101,31 @@ async def accept_ride(ride_id: str, request: Request):
     # requires status=pending AND driver_id=None, so concurrent /accept calls
     # race on the same document and only the first one matches. The loser gets a
     # 409 instead of silently overwriting the winning driver.
+    accept_fields = {
+        "driver_id": driver["id"],
+        "status": "accepted",
+        "accepted_at": now,
+        "driver_name": driver.get("user_name", user.get("name", "Chauffeur")),
+        "driver_phone": driver.get("user_phone", user.get("phone")),
+        "driver_rating": driver.get("rating", 5.0),
+        "driver_vehicle_model": driver.get("vehicle_model"),
+        "driver_vehicle_number": driver.get("vehicle_number"),
+    }
+    # BIDDING: accepting the request means agreeing to the PASSENGER's proposed
+    # fare — it becomes the agreed price (otherwise the negotiated amount is lost
+    # and the system estimate is wrongly used).
+    is_bidding_ride = ride.get("mode") == "bidding" or ride.get("is_bidding") or ride.get("ride_type") == "bidding"
+    if is_bidding_ride and ride.get("proposed_fare"):
+        try:
+            pf = round(float(ride["proposed_fare"]), 2)
+            accept_fields["estimated_fare"] = pf
+            accept_fields["agreed_fare"] = pf
+            accept_fields["final_fare"] = pf
+        except (TypeError, ValueError):
+            pass
     claimed = await db.rides.find_one_and_update(
         {"id": ride_id, "status": "pending", "driver_id": None},
-        {"$set": {
-            "driver_id": driver["id"],
-            "status": "accepted",
-            "accepted_at": now,
-            "driver_name": driver.get("user_name", user.get("name", "Chauffeur")),
-            "driver_phone": driver.get("user_phone", user.get("phone")),
-            "driver_rating": driver.get("rating", 5.0),
-            "driver_vehicle_model": driver.get("vehicle_model"),
-            "driver_vehicle_number": driver.get("vehicle_number"),
-        }},
+        {"$set": accept_fields},
     )
     if not claimed:
         raise HTTPException(status_code=409, detail="Course déjà acceptée par un autre chauffeur")
