@@ -56,6 +56,7 @@ const TaxiBiddingPage = () => {
   const [expired, setExpired] = useState(false); // délai dépassé sans chauffeur
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
+  const [newOfferFlash, setNewOfferFlash] = useState(false);
 
   // Admin-configurable radar cars (enabled / icon / count / radius)
   useEffect(() => {
@@ -67,6 +68,32 @@ const TaxiBiddingPage = () => {
 
   const suggestedRef = useRef(false);
   const debounceRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const prevOfferIdsRef = useRef(new Set());
+
+  // Pleasant two-note chime when a driver offer arrives (WebAudio, no asset).
+  // The AudioContext is created on the "Find a driver" tap (a user gesture) so
+  // playback during polling is allowed by browser autoplay policies.
+  const playOfferChime = useCallback(() => {
+    try {
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      const t0 = ctx.currentTime;
+      [880, 1175].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const start = t0 + i * 0.14;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.28, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.26);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(start); osc.stop(start + 0.28);
+      });
+    } catch { /* audio unavailable — silent fallback */ }
+  }, []);
 
   const mapReady = pickup?.lat && dropoff?.lat;
   // Recommended fare = minimum allowed (cannot bid lower)
@@ -130,6 +157,14 @@ const TaxiBiddingPage = () => {
 
   const handleSubmit = async () => {
     if (!pickup || !dropoff) { toast.error('Veuillez saisir départ et arrivée'); return; }
+    // Unlock the audio chime on this user gesture (browser autoplay policy).
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) audioCtxRef.current = new Ctx();
+      }
+      audioCtxRef.current?.resume?.();
+    } catch { /* no audio support */ }
     // Offer cannot be below the recommended (minimum) fare
     const finalFare = Math.max(fareFloor, fare || fareFloor);
     setFare(finalFare);
@@ -168,7 +203,18 @@ const TaxiBiddingPage = () => {
         const r = await fetch(`${API}/api/rides/${searching}`, { credentials: 'include' });
         if (!r.ok) return;
         const ride = await r.json();
-        setOffers((ride.counter_offers || []).filter((o) => o.status === 'pending'));
+        const pending = (ride.counter_offers || []).filter((o) => o.status === 'pending');
+        // Chime + flash + vibration when a NEW driver offer arrives.
+        const fresh = pending.filter((o) => !prevOfferIdsRef.current.has(o.id));
+        if (fresh.length > 0) {
+          playOfferChime();
+          try { navigator.vibrate?.(90); } catch { /* no haptics */ }
+          setNewOfferFlash(true);
+          setTimeout(() => setNewOfferFlash(false), 1400);
+          toast.success(fresh.length > 1 ? `${fresh.length} chauffeurs ont répondu !` : 'Un chauffeur a répondu !', { icon: '🚗' });
+        }
+        prevOfferIdsRef.current = new Set(pending.map((o) => o.id));
+        setOffers(pending);
         setViewedCount(ride.viewed_count || 0);
         if (ride.status && ride.status !== 'pending') {
           clearInterval(poll); clearInterval(tick);
@@ -178,7 +224,7 @@ const TaxiBiddingPage = () => {
       } catch (e) { console.warn('[bidding] poll error', e?.message); }
     }, 2500);
     return () => { clearInterval(poll); clearInterval(tick); };
-  }, [searching, navigate]);
+  }, [searching, navigate, playOfferChime]);
 
   // Auto-suggest raising the fare after 20s with no offers
   useEffect(() => {
@@ -480,7 +526,7 @@ const TaxiBiddingPage = () => {
               .sort((a, b) => (b.at_proposed_fare === true) - (a.at_proposed_fare === true) || a.amount - b.amount);
             if (liveOffers.length === 0) return null;
             return (
-              <div className="mx-5 mt-1 mb-2 space-y-2.5 max-h-72 overflow-y-auto" data-testid="driver-offers-list">
+              <div className={`mx-5 mt-1 mb-2 space-y-2.5 max-h-72 overflow-y-auto rounded-2xl transition-all duration-300 ${newOfferFlash ? 'ring-2 ring-green-400 ring-offset-2 bg-green-50/40' : ''}`} data-testid="driver-offers-list">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{liveOffers.length} chauffeur(s) disponible(s)</p>
                 {liveOffers.map((o) => {
                   const rem = remainingFor(o);

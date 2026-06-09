@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (124) - Enchères : son + animation à l'arrivée d'une offre chauffeur (DONE)
+- **Demande user** : notification sonore légère + animation côté client quand un chauffeur répond (couplé au compteur « vu par X ») → maximise l'attention, réduit les annulations.
+- **Frontend** (`TaxiBiddingPage.js`, aucun asset) : carillon 2 notes via **WebAudio** (`playOfferChime`, AudioContext débloqué au tap « Trouver un chauffeur » pour respecter l'autoplay policy) + **vibration** `navigator.vibrate(90)` + **flash vert** (`ring` animé 1,4 s sur `driver-offers-list`, state `newOfferFlash`) + toast « Un/X chauffeur(s) a/ont répondu ! ». Détection des NOUVELLES offres via `prevOfferIdsRef` (set d'ids comparé à chaque poll 2,5 s) → ne se déclenche qu'à l'apparition d'une offre inédite.
+- **Vérifié** : webpack compile (warnings pré-existants DriverHome seulement). Son/anim non testables par curl ; logique de détection (diff d'ids) simple et le flux d'offres backend déjà validé (iter 210).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-09 (123) - Enchères : compteur live « X chauffeurs ont vu votre offre » (DONE, testé curl)
 - **Demande user** : pendant la recherche d'enchère, afficher en temps réel combien de chauffeurs ont VU l'offre (rassure le client, l'incite à attendre/augmenter plutôt qu'annuler → meilleur taux de complétion).
 - **Backend** (`routes/rides.py`) : NOUVEL endpoint **`POST /{ride_id}/seen`** (chauffeur, idempotent, `$addToSet viewed_by`) ; `get_ride` expose désormais **`viewed_count`** (= len(viewed_by)).
