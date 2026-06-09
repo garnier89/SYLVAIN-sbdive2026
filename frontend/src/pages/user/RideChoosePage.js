@@ -553,14 +553,15 @@ const RideChoosePage = () => {
   const vehicleDesc = (v) => v.info || DEFAULT_VEHICLE_INFO[v.slug] || 'Trajet confortable jusqu\'à destination.';
 
   const renderVehicleList = () => {
-    // "Meilleur choix" badge = best price-per-seat ratio (fare ÷ capacity),
-    // e.g. SB at 10€/4 beats Moto at 5.50€/1. Shown only when ≥2 priced options.
+    // "Meilleur choix" badge = best price-per-seat ratio among real cars
+    // (capacity ≥ 4 — excludes Moto/TukTuk), e.g. SB at 10€/4. Shown when ≥2 eligible.
     let bestSlug = null; let _min = Infinity; let _pricedCount = 0;
     effectiveVtypes.forEach((v) => {
       const e = estimates[v.slug];
-      if (e && !e.loading && !e.error && e.fare != null) {
+      const cap = v.person_capacity || 1;
+      if (e && !e.loading && !e.error && e.fare != null && cap >= 4) {
         _pricedCount += 1;
-        const ratio = e.fare / (v.person_capacity || 1);
+        const ratio = e.fare / cap;
         if (ratio < _min) { _min = ratio; bestSlug = v.slug; }
       }
     });

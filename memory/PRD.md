@@ -1,8 +1,12 @@
-## NEW - 2026-06-09 (127) - Badge « Recommandé » sur la gamme la moins chère (DONE, screenshot)
-- **Demande user** : badge « Recommandé » sur la gamme la plus économique de la liste (guide le choix, valorise le rapport qualité-prix).
-- **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : calcul du `cheapestSlug` (min `est.fare` parmi les gammes tarifées, affiché seulement si ≥2 options tarifées) → pill emerald « RECOMMANDÉ » (`data-testid="recommended-{slug}"`) à côté du nom de la carte concernée.
-- **Vérifié** : screenshot client → badge unique sur **Moto (5,50 €)**, la moins chère (tuktuk 6,52 €, SB 10 €, Confort 15 €…). Webpack compile.
+## NEW - 2026-06-09 (127) - Badge « Meilleur choix » (rapport prix/place, ≥4 places) (DONE, screenshot)
+- **Demande user** : badge non plus sur le moins cher brut (souvent Moto 1 place) mais sur la gamme au **meilleur rapport prix/capacité**. Après discussion → option (a) : meilleur rapport **parmi les véhicules ≥ 4 places** (exclut Moto/TukTuk), oriente vers une option rentable et pertinente.
+- **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : `bestSlug` = min(`est.fare / person_capacity`) parmi les gammes tarifées **avec capacité ≥ 4** (affiché si ≥2 éligibles) → pill emerald « MEILLEUR CHOIX » (`data-testid="best-choice-{slug}"`).
+- **Vérifié** : screenshot client → badge sur **SB** (12€/4 = 3,0/place, meilleur que Confort/SUV/Van parmi ≥4 places ; Moto/TukTuk exclus). Webpack compile.
 - ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 
 
 
