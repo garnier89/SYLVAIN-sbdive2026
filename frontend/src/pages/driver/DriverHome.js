@@ -55,6 +55,12 @@ const DriverHome = () => {
   const { homeFeed, setHomeFeed } = useDriverHomeFeed();
   const [showScheduled, setShowScheduled] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
+  const [nextRide, setNextRide] = useState(null);          // reserved next ride (starts after current)
+  const [nextJobOffer, setNextJobOffer] = useState(null);  // pending "prochaine course" offer
+  const [nextJobCfg, setNextJobCfg] = useState({ next_job_enabled: true, next_job_lead_minutes: 5 });
+  const nextRideRef = useRef(null);
+  const nextJobOfferRef = useRef(null);
+  const canReceiveNextRef = useRef(false);
   const [showTaxiHall, setShowTaxiHall] = useState(false);
   const [showDemandZones, setShowDemandZones] = useState(false);
   const [showLocations, setShowLocations] = useState(false);
@@ -173,14 +179,17 @@ const DriverHome = () => {
 
   useEffect(() => {
     const unsub1 = on('new_ride_request', (msg) => {
-      if (!currentRide && isOnline) setIncomingRequest(msg);
+      if (!isOnline) return;
+      if (!currentRide) { setIncomingRequest(msg); return; }
+      // Busy but ~X min from finishing → offer it as the NEXT job (Phase 4 dispatch).
+      if (canReceiveNextRef.current && !nextRideRef.current && !nextJobOfferRef.current) setNextJobOffer(msg);
     });
     // Priority offers from auto-dispatch escalation (tier 1/2). Reuse the same UI as a regular request,
     // but flag it as priority so the driver knows it's escalated.
     const unsub3 = on('priority_ride_offer', (msg) => {
-      if (!currentRide && isOnline) {
-        setIncomingRequest({ ...msg, is_priority: true });
-      }
+      if (!isOnline) return;
+      if (!currentRide) { setIncomingRequest({ ...msg, is_priority: true }); return; }
+      if (canReceiveNextRef.current && !nextRideRef.current && !nextJobOfferRef.current) setNextJobOffer({ ...msg, is_priority: true });
     });
     const unsub2 = on('ride_status_update', (msg) => {
       if (currentRide && msg.ride_id === currentRide.id) {
@@ -230,6 +239,31 @@ const DriverHome = () => {
     const id = setInterval(load, 20000);
     return () => { alive = false; clearInterval(id); };
   }, []);
+
+  // ── "Prochaine course" (Phase 4): let a busy driver pre-book a next job when
+  // they are within `next_job_lead_minutes` of finishing their in-progress ride.
+  useEffect(() => { nextRideRef.current = nextRide; }, [nextRide]);
+  useEffect(() => { nextJobOfferRef.current = nextJobOffer; }, [nextJobOffer]);
+  useEffect(() => {
+    fetch(`${API}/api/config/ride-search`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setNextJobCfg({ next_job_enabled: d.next_job_enabled !== false, next_job_lead_minutes: d.next_job_lead_minutes || 5 }); })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    let ok = false;
+    if (nextJobCfg.next_job_enabled && currentRide?.status === 'in_progress'
+        && currentRide?.dropoff_lat && mapCenter?.lat) {
+      const toR = Math.PI / 180;
+      const dLat = (currentRide.dropoff_lat - mapCenter.lat) * toR;
+      const dLng = (currentRide.dropoff_lng - mapCenter.lng) * toR;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(mapCenter.lat * toR) * Math.cos(currentRide.dropoff_lat * toR) * Math.sin(dLng / 2) ** 2;
+      const km = 2 * 6371 * Math.asin(Math.sqrt(a));
+      const thresholdKm = (nextJobCfg.next_job_lead_minutes / 60) * 25; // ~25 km/h urban speed
+      ok = km <= thresholdKm;
+    }
+    canReceiveNextRef.current = ok;
+  }, [currentRide, mapCenter, nextJobCfg]);
 
   // Restore an in-progress ride after a reload/navigation so the driver never
   // "loses" the course they are currently on (and can still start/finish it).
@@ -347,10 +381,34 @@ const DriverHome = () => {
     setIncomingRequest(null);
   };
 
+  const reserveNextJob = async (offer) => {
+    const id = offer?.ride_id || offer?.id;
+    if (!id) { setNextJobOffer(null); return; }
+    try {
+      await rideAPI.accept(id);
+      const res = await rideAPI.get(id);
+      setNextRide(res.data);
+      setNextJobOffer(null);
+      toast.success('Prochaine course réservée — elle démarrera après votre course actuelle.');
+    } catch (err) {
+      const s = err?.response?.status;
+      toast.info(s === 404 || s === 400 ? "Cette course n'est plus disponible." : 'Réservation impossible, réessayez.');
+      setNextJobOffer(null);
+    }
+  };
+
   const finishRide = () => {
-    setCurrentRide(null);
     setRideMinimized(false);
     loadDriverProfile();
+    if (nextRideRef.current) {
+      const nx = nextRideRef.current;
+      setNextRide(null);
+      setCurrentRide(nx);
+      joinRide(nx.id);
+      toast.success('Course suivante démarrée.');
+    } else {
+      setCurrentRide(null);
+    }
   };
 
   const acceptScheduled = useCallback(async (ride) => {
@@ -437,6 +495,37 @@ const DriverHome = () => {
         onNotifications={() => navigate('/chauffeur/notifications')}
         notifCount={notifCount}
       />
+
+      {/* "Prochaine course" — offered to a busy driver who is ~X min from finishing */}
+      {nextJobOffer && (
+        <div className="mx-4 mt-3 rounded-2xl border-2 border-[#0EA5E9] bg-sky-50 p-3 shadow-sm" data-testid="next-job-offer">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5000] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF5000]" />
+            </span>
+            <p className="text-sm font-extrabold text-[#0B1426] flex-1">Prochaine course disponible</p>
+            <span className="text-sm font-extrabold text-[#0EA5E9]">{((nextJobOffer.estimated_fare || nextJobOffer.fare || 0)).toFixed(2)} €</span>
+          </div>
+          <p className="text-[12px] text-gray-600 truncate">{nextJobOffer.pickup_address || 'Ramassage proche'} → {nextJobOffer.dropoff_address || 'Destination'}</p>
+          <div className="flex gap-2 mt-3">
+            <button onClick={() => setNextJobOffer(null)} className="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-bold text-sm" data-testid="next-job-ignore">Ignorer</button>
+            <button onClick={() => reserveNextJob(nextJobOffer)} className="flex-1 py-2.5 rounded-xl bg-[#FF5000] text-white font-bold text-sm" data-testid="next-job-reserve">Réserver pour après</button>
+          </div>
+        </div>
+      )}
+
+      {/* Reserved next ride indicator (starts automatically when the current ride ends) */}
+      {nextRide && (
+        <div className="mx-4 mt-3 rounded-2xl bg-[#0EA5E9] text-white p-3 shadow-sm flex items-center gap-3" data-testid="next-job-reserved">
+          <Car size={20} weight="fill" className="text-white shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-extrabold leading-tight">Prochaine course réservée</p>
+            <p className="text-[12px] text-white/85 truncate">{nextRide.pickup_address} → {nextRide.dropoff_address}</p>
+          </div>
+          <button onClick={() => { setNextRide(null); }} className="text-white/80 shrink-0" data-testid="next-job-cancel-reserved"><X size={18} /></button>
+        </div>
+      )}
 
       {/* GAINS + 4 STAT CARDS */}
       <DriverStatsRow

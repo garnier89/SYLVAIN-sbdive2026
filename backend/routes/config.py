@@ -56,6 +56,10 @@ DEFAULT_RIDE_SEARCH = {
     "cars_icon_url": "",       # custom car icon (data-URL or http URL); empty = default
     "cars_simulated_count": 5, # cars to display (real positions first, padded with simulated)
     "cars_radius_m": 600,      # dispersion radius around the pickup (meters)
+    # "Prochaine course" — let a busy driver receive a next job when they are
+    # within `next_job_lead_minutes` of finishing their current in-progress ride.
+    "next_job_enabled": True,
+    "next_job_lead_minutes": 5,
 }
 
 
@@ -85,6 +89,11 @@ async def get_ride_search_config():
         cfg["cars_radius_m"] = min(5000, max(100, int(cfg.get("cars_radius_m", 600))))
     except (TypeError, ValueError):
         cfg["cars_radius_m"] = 600
+    cfg["next_job_enabled"] = bool(cfg.get("next_job_enabled", True))
+    try:
+        cfg["next_job_lead_minutes"] = min(30, max(1, int(cfg.get("next_job_lead_minutes", 5))))
+    except (TypeError, ValueError):
+        cfg["next_job_lead_minutes"] = 5
     return cfg
 
 

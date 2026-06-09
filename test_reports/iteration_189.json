@@ -1,0 +1,43 @@
+{
+  "summary": "Phase 4 'Prochaine course' dispatch MVP backend tests + frontend smoke test. Config exposes next_job_enabled/next_job_lead_minutes correctly. Regression flow (free driver accepts pending ride) passes. Backend supports the 'reserve next job' pattern: a driver with an in_progress ride A can be assigned a second pending ride B via POST /api/rides/{B}/accept — B.driver_id matches A.driver_id and A stays in_progress. Frontend driver home renders without crashing with the new nextRide/nextJobOffer state, refs and banners wired.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Next-job WS-triggered banner (next-job-offer)",
+        "issue": "The banner only appears when a new_ride_request/priority_ride_offer WS event arrives AND the eligibility effect computes canReceiveNext=true from mapCenter→currentRide.dropoff haversine ≤ next_job_lead_minutes/60*25 km. mapCenter comes from the browser geolocation, which is not reliably controllable in headless automation. NOT a code bug — flagged as untestable here. Main agent already verified the underlying primitives compile + render. The backend assignment behavior (the real persistence layer) is verified to work.",
+        "affected_selectors": ["[data-testid='next-job-offer']", "[data-testid='next-job-reserve']", "[data-testid='next-job-ignore']", "[data-testid='next-job-reserved']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter189_nextjob.py",
+    "/app/test_reports/pytest/iter189_results.xml"
+  ],
+  "action_items": [
+    "(Optional) If you want the next-job-offer banner reliably triggerable in headless tests, expose a dev-only hook (e.g. window.__forceNextJobOffer(ride)) or accept a query-param to seed mapCenter near the current ride's dropoff. Today it's strictly geolocation-driven."
+  ],
+  "critical_code_review_comments": [
+    "routes/rides.py /accept does NOT reject a driver who is already on an in_progress ride — this is what enables the 'Prochaine course' reservation via the same endpoint and is intentional per spec. Worth a code comment to make the design choice explicit so a future contributor doesn't add a 'driver already busy' guard and break the feature.",
+    "routes/config.py get_ride_search_config correctly clamps next_job_lead_minutes to 1..30 and coerces next_job_enabled to bool with the documented defaults (5, true). Looks good.",
+    "DriverHome.js: nextJobOfferRef/canReceiveNextRef pattern avoids stale-closure inside the WebSocket handler — solid implementation. Eligibility uses 25 km/h as the implicit average city speed; could be made admin-configurable if 5 min ⇒ 2.08 km radius proves too tight in suburbs."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter189_nextjob.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "smoke-only: driver home renders without crash; new banners wired with correct data-testid; WS-triggered banner not exercisable headlessly"
+  },
+  "test_credentials": "jean.dupont@demo.sb / Driver123! (taxi driver). Clients registered ad-hoc via /api/auth/register.",
+  "seed_data_creation": "Test created 1 client per regression test + 2 clients for the next-job test, all prefixed test_iter189_*. Cleanup cancel calls attempted; rides already in_progress cannot be cancelled by passenger (admin would be needed) — left as residual data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests at /app/backend/tests/test_iter189_nextjob.py cover (1) GET /api/config/ride-search exposes next_job_enabled/next_job_lead_minutes with clamping, (2) regression that a free driver can accept a pending ride, (3) a driver in_progress on ride A can be assigned ride B via /api/rides/{B}/accept. To start a ride end-to-end you must POST /api/phase1/rides/{id}/start-otp/request as the client and POST /api/phase1/rides/{id}/start-otp/verify as the driver (the generic /rides/{id}/status endpoint rejects driver-initiated in_progress without OTP). Frontend banner (next-job-offer) is WS+geolocation gated — main agent should verify visually in a real browser or expose a dev hook for automated UI testing.",
+  "rca of the issue": "N/A — no functional bug found. Initial test failures were test-script issues only: (a) used PUT instead of POST for /rides/{id}/status, (b) tried to drive a ride directly to in_progress instead of going through the phase1 start-OTP flow. Both fixed."
+}

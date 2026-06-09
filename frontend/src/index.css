@@ -228,6 +228,9 @@ h1, h2, h3, h4, h5, h6 {
 .animate-blink-ring {
   animation: blink-ring 0.8s steps(1, end) infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+  .animate-blink-turn, .animate-blink-ring { animation: none; }
+}
 
 
 /* Data test id wrapper fix */
