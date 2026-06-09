@@ -1,4 +1,14 @@
-## NEW - 2026-06-09 (128) - Badge véhicule configurable depuis l'admin (DONE, curl + screenshot)
+## NEW - 2026-06-09 (129) - Couleur du badge véhicule configurable (DONE, curl + screenshot)
+- **Demande user** : couleur du badge configurable (Vert/Orange/Bleu/Rouge) en plus du libellé, pour aligner sur des opérations commerciales (ex. « Promo » orange) sans toucher au code.
+- **Backend** (`config.py`) : `DEFAULT_VEHICLE_BADGE` + `color` (défaut « Vert ») ; sanitize contre `{Vert,Orange,Bleu,Rouge}` (valeur invalide → Vert).
+- **Frontend admin** (`AdminServiceConfig.js`) : select « Couleur du badge » (Vert/Orange/Bleu/Rouge) dans `vehicle_badge`.
+- **Frontend client** (`RideChoosePage.js`) : `BADGE_COLOR_CLASSES` (classes Tailwind littérales → JIT) appliquées au badge selon `badgeCfg.color`.
+- **Vérifié** : curl (color « Orange » persiste ; « Rose » → Vert) + screenshot client (badge « PROMO » orange `bg-orange-100 text-orange-700` sur SB) ; config restaurée au défaut. Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : rendre le badge « Meilleur choix » configurable en admin — activer/désactiver + choisir le libellé (Meilleur choix / Populaire / Éco…).
 - **Backend** (`config.py`) : NOUVEL endpoint public **`GET /config/vehicle-badge`** (`{enabled, label}`, défauts) lisant `service_configs.vehicle_badge`. La sauvegarde admin passe par l'endpoint générique existant `PUT /admin/service-config/vehicle_badge`.
 - **Frontend admin** (`AdminServiceConfig.js`) : entrée `vehicle_badge` (toggle `enabled` + nouveau type **`select`** pour `label` avec options Meilleur choix/Populaire/Éco/Recommandé/Le moins cher) ; route `/admin/vehicle-badge-config` (adminRoutes) + lien menu « Badge véhicule (Meilleur choix) » (AdminLayout, sous Taxi/Transport).

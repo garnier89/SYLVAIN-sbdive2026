@@ -251,17 +251,21 @@ async def store_review_config():
 DEFAULT_VEHICLE_BADGE = {
     "enabled": True,
     "label": "Meilleur choix",
+    "color": "Vert",
 }
+
+_BADGE_COLORS = {"Vert", "Orange", "Bleu", "Rouge"}
 
 
 @router.get("/vehicle-badge")
 async def get_vehicle_badge_config():
-    """Public config for the vehicle highlight badge (enabled + label)."""
+    """Public config for the vehicle highlight badge (enabled + label + color)."""
     doc = await db.service_configs.find_one({"service_key": "vehicle_badge"}, {"_id": 0})
     settings = (doc or {}).get("settings") or {}
     cfg = {**DEFAULT_VEHICLE_BADGE, **settings}
     cfg["enabled"] = bool(cfg.get("enabled", True))
     cfg["label"] = (str(cfg.get("label") or "").strip() or DEFAULT_VEHICLE_BADGE["label"])
+    cfg["color"] = cfg.get("color") if cfg.get("color") in _BADGE_COLORS else DEFAULT_VEHICLE_BADGE["color"]
     return cfg
 
 

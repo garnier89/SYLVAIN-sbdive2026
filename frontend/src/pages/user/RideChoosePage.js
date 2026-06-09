@@ -30,6 +30,14 @@ import { useLocale } from '../../contexts/LocaleContext';
 
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
 
+// Admin-configurable "Meilleur choix" badge colours → Tailwind classes.
+const BADGE_COLOR_CLASSES = {
+  Vert: 'bg-emerald-100 text-emerald-700',
+  Orange: 'bg-orange-100 text-orange-700',
+  Bleu: 'bg-blue-100 text-blue-700',
+  Rouge: 'bg-red-100 text-red-700',
+};
+
 const PAYMENT_ICONS = { Money, CreditCard, Wallet, Lightning };
 
 const DEFAULT_PAYMENTS = [
@@ -94,7 +102,7 @@ const RideChoosePage = () => {
   const [estimates, setEstimates] = useState({}); // slug -> { fare, duration, distance, loading, error }
   const [selected, setSelected] = useState(null);
   const [infoVehicle, setInfoVehicle] = useState(null); // ⓘ vehicle detail popup
-  const [badgeCfg, setBadgeCfg] = useState({ enabled: true, label: 'Meilleur choix' });
+  const [badgeCfg, setBadgeCfg] = useState({ enabled: true, label: 'Meilleur choix', color: 'Vert' });
   const [payOpen, setPayOpen] = useState(false); // payment method dropdown
   const [payment, setPayment] = useState('cash');
   const [payments, setPayments] = useState(DEFAULT_PAYMENTS);
@@ -189,7 +197,7 @@ const RideChoosePage = () => {
   // Admin-configurable "Meilleur choix" badge (enabled + label)
   useEffect(() => {
     configAPI.getVehicleBadge()
-      .then((r) => { const d = r.data; if (d) setBadgeCfg({ enabled: !!d.enabled, label: d.label || 'Meilleur choix' }); })
+      .then((r) => { const d = r.data; if (d) setBadgeCfg({ enabled: !!d.enabled, label: d.label || 'Meilleur choix', color: d.color || 'Vert' }); })
       .catch(() => {});
   }, []);
 
@@ -597,7 +605,7 @@ const RideChoosePage = () => {
                   <p className="font-black text-[#0B1426] text-base truncate">{v.name_fr || v.name || v.slug}</p>
                   <span className="flex items-center gap-0.5 text-xs text-gray-500 shrink-0"><UsersThree size={14} weight="fill" />{v.person_capacity || 4}</span>
                   {badgeCfg.enabled && v.slug === bestSlug && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wide shrink-0" data-testid={`best-choice-${v.slug}`}>{badgeCfg.label}</span>
+                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide shrink-0 ${BADGE_COLOR_CLASSES[badgeCfg.color] || BADGE_COLOR_CLASSES.Vert}`} data-testid={`best-choice-${v.slug}`}>{badgeCfg.label}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
