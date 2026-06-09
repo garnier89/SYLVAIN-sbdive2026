@@ -93,7 +93,13 @@ const RideChoosePage = () => {
   const [cfgLoaded, setCfgLoaded] = useState(false);
   const [schedConfig, setSchedConfig] = useState({ enabled: true, min_advance_minutes: 60, max_advance_days: 30, disabled_modes: ['pool', 'bidding'] });
 
-  const [pickup, setPickup] = useState(null);
+  const [pickup, setPickup] = useState(() => {
+    // Pre-filled départ via query params (deep-links + deterministic E2E).
+    const plat = params.get('plat'), plng = params.get('plng');
+    return (plat && plng)
+      ? { lat: parseFloat(plat), lng: parseFloat(plng), address: params.get('paddr') || 'Départ' }
+      : null;
+  });
   const [dropoff, setDropoff] = useState(() => {
     // Pre-filled destination via query params (e.g. "Réserver un VTC jusqu'à cet arrêt")
     const dlat = params.get('dlat'), dlng = params.get('dlng');
@@ -195,8 +201,8 @@ const RideChoosePage = () => {
     }
   }, [activeCat, navigate]);
 
-  // Auto-localize the departure on mount
-  useEffect(() => { autoLocate(); /* eslint-disable-next-line */ }, []);
+  // Auto-localize the departure on mount (skip when pre-filled via URL params)
+  useEffect(() => { if (!pickup) autoLocate(); /* eslint-disable-next-line */ }, []);
 
   // Admin-configurable "Meilleur choix" badge (enabled + label)
   useEffect(() => {
@@ -965,6 +971,7 @@ const SchedulePanel = (p) => {
 };
 
 const ModeSpecificPanel = (p) => {
+  const { money } = useLocale();
   const { mode } = p;
   const card = 'mt-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3';
 

@@ -1,0 +1,179 @@
+{
+  "standard": {
+    "mode": "standard",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_bff025e98cc7",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "pool": {
+    "mode": "pool",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_0107eb4b983b",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "electric": {
+    "mode": "electric",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_9c84bc340fcb",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "moto": {
+    "mode": "moto",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_f2b4d84ea2b3",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "intercity": {
+    "mode": "intercity",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": "1,50 \u20ac/km",
+    "cta_visible": true,
+    "nav_target": "/course",
+    "errors": [
+      "nav wait: Page.wait_for_function: Timeout 15000ms exceeded."
+    ],
+    "outcome": "FAIL"
+  },
+  "book_later": {
+    "mode": "book_later",
+    "page_mount": true,
+    "panel_mount": false,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/course",
+    "errors": [
+      "nav wait: Page.wait_for_function: Timeout 15000ms exceeded."
+    ],
+    "outcome": "FAIL"
+  },
+  "bidding": {
+    "mode": "bidding",
+    "page_mount": true,
+    "panel_mount": false,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/taxi-bidding",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "airport": {
+    "mode": "airport",
+    "page_mount": true,
+    "panel_mount": false,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_a10573104bef",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "pets": {
+    "mode": "pets",
+    "page_mount": true,
+    "panel_mount": false,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_a923d7529603",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "book_for_someone": {
+    "mode": "book_for_someone",
+    "page_mount": true,
+    "panel_mount": false,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/course",
+    "errors": [
+      "contact fill: Page.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"panel-contact-name\\\"]\")\n",
+      "nav wait: Page.wait_for_function: Timeout 15000ms exceeded."
+    ],
+    "outcome": "FAIL"
+  },
+  "tuktuk": {
+    "mode": "tuktuk",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_84d8e829a832",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "assist": {
+    "mode": "assist",
+    "page_mount": true,
+    "panel_mount": false,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_9f7ca65df4ab",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "corporate": {
+    "mode": "corporate",
+    "page_mount": true,
+    "panel_mount": false,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_d78b3eeebf1d",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "access": {
+    "mode": "access",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_4b9f75c7c0b6",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "rental": {
+    "mode": "rental",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_0436fa017259",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "moto_rental": {
+    "mode": "moto_rental",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_a79862aae8c3",
+    "errors": [],
+    "outcome": "PASS"
+  },
+  "buddy_driver": {
+    "mode": "buddy_driver",
+    "page_mount": true,
+    "panel_mount": true,
+    "intercity_chip": null,
+    "cta_visible": true,
+    "nav_target": "/ride/ride_441d069e0158",
+    "errors": [],
+    "outcome": "PASS"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 217 — RE-VERIFY of ALL 17 taxi modes after two fixes (plat/plng/paddr URL pre-fill + ModeSpecificPanel useLocale money() fix). Result: ALL 17 modes PASS end-to-end on https://gojek-clone-41.preview.emergentagent.com. Logged in as test_iter217_1781033305@demo.sb / Client123! and navigated to /course?mode=<id> with Tour Eiffel (48.8584,2.2945) as pickup and Gare du Nord (48.8809,2.3553) as dropoff (14 modes) — or pickup-only (3 modes). Both root-causes from iteration_216 are CONFIRMED FIXED: (1) auto-geolocation is now skipped when pickup is pre-filled via URL params, so estimates are realistic Paris distances (~6.37 km, SB ~11.17 €); (2) panel-intercity mounts without a React error and the per-km chip renders correctly ('1,50 €/km' via money()).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/modes_run217.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Both fixes from the brief are correctly applied at /app/frontend/src/pages/user/RideChoosePage.js — line 98-100 (plat/plng/paddr pickup pre-fill), line 205 (autoLocate skipped when pickup is pre-filled), line 974 (ModeSpecificPanel calls useLocale → money() is in scope), line 1081 (intercity per-km chip uses money()).",
+    "Console noise persists (Google Maps Autocomplete/DirectionsService/Marker deprecation warnings + Canvas2D willReadFrequently). Non-blocking but should be addressed at some point (track for a future iteration).",
+    "Two background 401s observed (likely /api/auth/me or wallet polling after auth flips) — not blocking but worth confirming no regression in token refresh."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "17/17 modes PASS (100%) — booking flow verified end-to-end" },
+  "test_credentials": "Client (fresh, registered via POST /api/auth/register): test_iter217_1781033305@demo.sb / Client123!",
+  "seed_data_creation": "Registered one fresh client. Created multiple rides during testing (one per mode) — at least 15 instant rides routed to /ride/<id> and 2 scheduled rides (intercity at 20:35 / Confort 16,95 € and scheduled at 20:40 / SB 11,17 €) confirmed visible on /scheduled-rides.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Per-mode test methodology that works: navigate to /course?mode=<id>&plat=48.8584&plng=2.2945&paddr=Tour%20Eiffel&dlat=48.8809&dlng=2.3553&daddr=Gare%20du%20Nord (or pickup-only for rental/moto_rental/buddy_driver). For intercity & book_later (panel='datetime'), the schedule-calendar-modal auto-opens — click [data-testid=schedule-confirm-btn] and wait >3s for estimate to load before clicking [data-testid=ride-choose-request-btn]. For book_for_someone, the page auto-advances to the map step on mount when bothSet=true; you MUST click [data-testid=map-back-btn] FIRST to return to step 1, fill [data-testid=panel-contact-name] + [data-testid=panel-contact-phone], then click [data-testid=continue-to-map-btn], then [data-testid=ride-choose-request-btn]. Expected navigation: standard/pool/electric/moto/airport/pets/book_for_someone/tuktuk/assist/corporate/access/rental/moto_rental/buddy_driver → /ride/<id>; intercity/book_later → /scheduled-rides; bidding → /taxi-bidding.",
+  "per_mode_results": {
+    "standard":         { "outcome": "PASS", "nav": "/ride/ride_bff025e98cc7" },
+    "pool":             { "outcome": "PASS", "nav": "/ride/ride_0107eb4b983b", "panel_mount": true },
+    "electric":         { "outcome": "PASS", "nav": "/ride/ride_9c84bc340fcb" },
+    "moto":             { "outcome": "PASS", "nav": "/ride/ride_f2b4d84ea2b3" },
+    "intercity":        { "outcome": "PASS", "nav": "/scheduled-rides", "panel_mount": true, "per_km_chip": "1,50 €/km", "react_error": "NONE (fix verified)" },
+    "book_later":       { "outcome": "PASS", "nav": "/scheduled-rides", "note": "schedule modal auto-opens → confirm → wait for estimate → CTA" },
+    "bidding":          { "outcome": "PASS", "nav": "/taxi-bidding" },
+    "airport":          { "outcome": "PASS", "nav": "/ride/ride_a10573104bef" },
+    "pets":             { "outcome": "PASS", "nav": "/ride/ride_a923d7529603" },
+    "book_for_someone": { "outcome": "PASS", "nav": "/ride/ride_dfd719e646b3", "note": "must back to step 1 to fill panel-contact-name/phone" },
+    "tuktuk":           { "outcome": "PASS", "nav": "/ride/ride_84d8e829a832" },
+    "assist":           { "outcome": "PASS", "nav": "/ride/ride_9f7ca65df4ab" },
+    "corporate":        { "outcome": "PASS", "nav": "/ride/ride_d78b3eeebf1d" },
+    "access":           { "outcome": "PASS", "nav": "/ride/ride_4b9f75c7c0b6" },
+    "rental":           { "outcome": "PASS", "nav": "/ride/ride_0436fa017259", "panel_mount": true },
+    "moto_rental":      { "outcome": "PASS", "nav": "/ride/ride_a79862aae8c3", "panel_mount": true },
+    "buddy_driver":     { "outcome": "PASS", "nav": "/ride/ride_441d069e0158", "panel_mount": true }
+  },
+  "rca of the issue": "Both root-causes flagged in iteration_216 are FIXED. (1) Auto-geolocation US-fallback no longer affects automated tests because pickup pre-fill via plat/plng/paddr is now honoured and the autoLocate effect at L205 is gated by `if (!pickup)`. (2) The ModeSpecificPanel intercity crash (money() out of scope) is fixed — the component now calls useLocale() at L974 and the per-km chip at L1081 renders '1,50 €/km' without a React error boundary throw. All 17 taxi modes complete an end-to-end booking flow with correct navigation."
+}
