@@ -296,6 +296,24 @@ const UserHome = () => {
     return tiles;
   })();
 
+  // V3Cube parity: categories configured with a banner view type + banner image
+  // render as full-width promo cards (image + name + subtitle) under the grid.
+  const taxiBanners = (() => {
+    if (!taxiCats.length) return [];
+    const apiBase = process.env.REACT_APP_BACKEND_URL || '';
+    return taxiCats
+      .filter((c) => c.active !== false && c.visible_home === true)
+      .filter((c) => (c.view_type === 'banner' || c.view_type === 'icon_banner') && c.banner_image)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      .map((c) => ({
+        key: c.key,
+        name: c.name,
+        subtitle: c.list_description || c.description || '',
+        image: c.banner_image.startsWith('/api/') ? `${apiBase}${c.banner_image}` : c.banner_image,
+        path: `/course?mode=${c.key}`,
+      }));
+  })();
+
   // ── Section render blocks (keyed) so we can order them declaratively ──
   const blocks = {
     taxi: (
@@ -304,6 +322,25 @@ const UserHome = () => {
         <div className="grid grid-cols-4 gap-3">
           {(taxiTiles || displayFor('taxi')).map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
+        {taxiBanners.length > 0 && (
+          <div className="mt-3 space-y-3" data-testid="taxi-banner-cards">
+            {taxiBanners.map((b) => (
+              <button
+                key={b.key}
+                onClick={() => navigate(b.path)}
+                data-testid={`taxi-banner-${b.key}`}
+                className="relative w-full h-28 rounded-2xl overflow-hidden text-left shadow-sm active:scale-[0.99] transition-transform"
+              >
+                <img src={b.image} alt={b.name} className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+                <div className="absolute inset-0 p-4 flex flex-col justify-center">
+                  <p className="text-white font-bold text-lg leading-tight">{b.name}</p>
+                  {b.subtitle && <p className="text-white/85 text-xs mt-1 max-w-[70%]">{b.subtitle}</p>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     ),
     promo: (

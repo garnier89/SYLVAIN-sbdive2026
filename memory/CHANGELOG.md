@@ -1,5 +1,10 @@
 # CHANGELOG
-# CHANGELOG
+
+## 2026-06-09 — Bannières + sous-titres catégories taxi visibles côté client [DONE, vérifié]
+
+- `UserHome.js` : les catégories taxi configurées avec **Type d'affichage = Bannière / Icône+Bannière** + image bannière s'affichent en **cartes pleine largeur** (image + nom + sous-titre `list_description`) sous la grille « Services Taxi » → parité visuelle V3Cube. `data-testid=taxi-banner-cards` / `taxi-banner-{key}`.
+- Vérifié e2e + screenshot : catégorie « Trajet Premium » rendue sur l'accueil. Clic → `/course?mode={key}`. Catégories en mode Icône inchangées.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
 
 ## 2026-06-09 — Éditeur de catégories façon V3Cube + covoiturage visible "Complet" [DONE, testé 100%]
 
