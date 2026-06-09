@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Switch } from '../../components/ui/switch';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Lightning, Timer, MapTrifold, Users, FloppyDisk, ChartBar, Trophy } from '@phosphor-icons/react';
+import { Lightning, Timer, MapTrifold, Users, FloppyDisk, ChartBar, Trophy, Car } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const PALETTES = ['Expert', 'Confirme', 'Standard', 'Debutant'];
@@ -14,15 +14,19 @@ const AdminAutoDispatch = () => {
   const [cfg, setCfg] = useState(null);
   const [stats, setStats] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [nj, setNj] = useState(null);
+  const [njSaving, setNjSaving] = useState(false);
 
   const loadAll = async () => {
     try {
-      const [c, s] = await Promise.all([
+      const [c, s, n] = await Promise.all([
         fetch(`${API}/api/admin/auto-dispatch/config`, { credentials: 'include' }).then(r => r.json()),
         fetch(`${API}/api/admin/auto-dispatch/stats`, { credentials: 'include' }).then(r => r.json()),
+        fetch(`${API}/api/config/next-job/admin`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
       ]);
       setCfg(c.config);
       setStats(s);
+      if (n) setNj(n);
     } catch (e) { toast.error('Erreur chargement'); }
   };
 
@@ -56,6 +60,36 @@ const AdminAutoDispatch = () => {
   };
 
   if (!cfg) return <div className="p-6 text-gray-400 text-sm">Chargement...</div>;
+
+  const saveNextJob = async () => {
+    if (!nj) return;
+    setNjSaving(true);
+    try {
+      const overrides = {};
+      (nj.zones || []).forEach((z) => { if (z.override === true || z.override === false) overrides[z.id] = z.override; });
+      const res = await fetch(`${API}/api/config/next-job/admin`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: nj.enabled, lead_minutes: nj.lead_minutes, zone_overrides: overrides }),
+      });
+      if (!res.ok) throw new Error('Erreur sauvegarde');
+      setNj(await res.json());
+      toast.success('« Prochaine course » enregistrée');
+    } catch (e) { toast.error(e.message); }
+    finally { setNjSaving(false); }
+  };
+
+  // override cycle: inherit (null) → forcé ON (true) → forcé OFF (false) → inherit
+  const cycleZone = (id) => {
+    setNj({
+      ...nj,
+      zones: nj.zones.map((z) => {
+        if (z.id !== id) return z;
+        const next = z.override == null ? true : z.override === true ? false : null;
+        return { ...z, override: next };
+      }),
+    });
+  };
 
   const setNum = (k, v) => {
     const n = parseInt(v) || 0;
@@ -222,6 +256,74 @@ const AdminAutoDispatch = () => {
           {saving ? 'Enregistrement...' : 'Enregistrer la configuration'}
         </Button>
       </div>
+
+      {/* "Prochaine course" — global switch + delay + per-zone overrides */}
+      {nj && (
+        <Card data-testid="next-job-card">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-gray-800 flex items-center gap-2">
+                <Car size={18} weight="fill" className="text-[#0EA5E9]" /> Prochaine course
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600">Activé (global)</span>
+                <Switch
+                  checked={nj.enabled}
+                  onCheckedChange={(v) => setNj({ ...nj, enabled: v })}
+                  className="data-[state=checked]:bg-[#0EA5E9]"
+                  data-testid="next-job-enabled-toggle"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 -mt-2">
+              Un chauffeur proche de sa destination peut réserver la course suivante (démarre automatiquement à la fin de la course en cours).
+            </p>
+            <div className="max-w-xs">
+              <NumberField
+                label="Délai avant la fin (minutes)"
+                hint="Distance estimée ≤ ce délai → la prochaine course est proposée"
+                value={nj.lead_minutes}
+                onChange={(v) => setNj({ ...nj, lead_minutes: Math.min(30, Math.max(1, parseInt(v) || 5)) })}
+                testId="next-job-lead-input"
+              />
+            </div>
+
+            {nj.zones?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">Par zone (cliquez pour basculer : Hérite → Forcé ON → Forcé OFF)</p>
+                <div className="flex flex-wrap gap-2">
+                  {nj.zones.map((z) => {
+                    const state = z.override == null ? 'inherit' : z.override ? 'on' : 'off';
+                    const cls = state === 'on'
+                      ? 'bg-sky-100 text-sky-700 border-sky-300'
+                      : state === 'off'
+                      ? 'bg-rose-100 text-rose-700 border-rose-300'
+                      : 'bg-white text-gray-500 border-gray-200';
+                    const label = state === 'on' ? 'ON' : state === 'off' ? 'OFF' : 'Hérite';
+                    return (
+                      <button
+                        key={z.id}
+                        onClick={() => cycleZone(z.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${cls}`}
+                        data-testid={`next-job-zone-${z.id}`}
+                      >
+                        {z.name} · {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button onClick={saveNextJob} disabled={njSaving} className="bg-[#0EA5E9] hover:bg-sky-600 text-white" data-testid="save-next-job-btn">
+                <FloppyDisk size={16} weight="fill" className="mr-2" />
+                {njSaving ? 'Enregistrement...' : 'Enregistrer « Prochaine course »'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

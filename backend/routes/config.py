@@ -326,6 +326,77 @@ async def list_app_feedback(request: Request):
     return items
 
 
+# ── "Prochaine course" (next-job dispatch) — global + per-zone config ─────────
+async def _save_ride_search(patch: dict):
+    """Patch individual keys inside the ride_search service_config 'settings'."""
+    s = {f"settings.{k}": v for k, v in patch.items()}
+    s["service_key"] = "ride_search"
+    await db.service_configs.update_one(
+        {"service_key": "ride_search"}, {"$set": s}, upsert=True)
+
+
+@router.get("/next-job")
+async def next_job_effective(lat: float = None, lng: float = None, label: str = None):
+    """Driver-facing effective 'Prochaine course' config, resolved for the zone
+    of the given location (per-zone override falls back to the global switch)."""
+    cfg = await get_ride_search_config()
+    enabled = bool(cfg.get("next_job_enabled", True))
+    lead = int(cfg.get("next_job_lead_minutes", 5))
+    overrides = cfg.get("next_job_zone_overrides") or {}
+    zone = None
+    if (lat is not None and lng is not None) or label:
+        from routes.zones import resolve_zone
+        zones = await db.zones.find({"is_active": True}, {"_id": 0}).to_list(500)
+        zone = resolve_zone(zones, lat, lng, label)
+    if zone and zone.get("id") in overrides:
+        enabled = bool(overrides[zone["id"]])
+    return {
+        "enabled": enabled,
+        "lead_minutes": lead,
+        "zone_id": zone.get("id") if zone else None,
+        "zone_name": zone.get("name") if zone else None,
+    }
+
+
+@router.get("/next-job/admin")
+async def next_job_admin_get(request: Request):
+    """Admin: global next-job config + per-zone override state."""
+    await require_role(request, ["admin"])
+    cfg = await get_ride_search_config()
+    overrides = cfg.get("next_job_zone_overrides") or {}
+    zones = await db.zones.find({}, {"_id": 0, "id": 1, "name": 1, "is_active": 1}).sort("display_order", 1).to_list(1000)
+    return {
+        "enabled": bool(cfg.get("next_job_enabled", True)),
+        "lead_minutes": int(cfg.get("next_job_lead_minutes", 5)),
+        "zones": [
+            {"id": z["id"], "name": z.get("name", ""), "is_active": z.get("is_active", True),
+             "override": overrides.get(z["id"])}
+            for z in zones
+        ],
+    }
+
+
+@router.put("/next-job/admin")
+async def next_job_admin_save(request: Request):
+    """Admin: save the global switch/delay and per-zone overrides (null = inherit)."""
+    await require_role(request, ["admin"])
+    body = await request.json()
+    patch = {}
+    if "enabled" in body:
+        patch["next_job_enabled"] = bool(body["enabled"])
+    if "lead_minutes" in body:
+        try:
+            patch["next_job_lead_minutes"] = min(30, max(1, int(body["lead_minutes"] or 5)))
+        except (TypeError, ValueError):
+            patch["next_job_lead_minutes"] = 5
+    if isinstance(body.get("zone_overrides"), dict):
+        patch["next_job_zone_overrides"] = {k: bool(v) for k, v in body["zone_overrides"].items() if v is not None}
+    if patch:
+        await _save_ride_search(patch)
+    return await next_job_admin_get(request)
+
+
+
 
 @router.get("/app")
 async def get_app_config():

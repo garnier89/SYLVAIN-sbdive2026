@@ -1,0 +1,51 @@
+{
+  "summary": "Validated Phase-4 'Prochaine course' NEW admin configuration end-to-end. Backend: GET/PUT /api/config/next-job/admin (admin-only, non-admin → 403), shape, persistence (enabled/lead_minutes), upper-bound clamp (999 → 30), lower-bound clamp (negative → 1), zone-override round-trip, and effective resolution GET /api/config/next-job (no active zone → global; activated zone with override=false → override wins over enabled=true). Frontend: AdminAutoDispatch 'Prochaine course' card renders all controls, the enabled toggle + lead-minutes input + zone cycle (Hérite→ON) all save via the save-next-job-btn and persist across reload. iter189 next-job backend regression (free driver accept + busy-driver-reserve-B-via-/accept) re-confirmed PASSING.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "PUT /api/config/next-job/admin",
+        "issue": "lead_minutes=0 in the request body silently falls back to 5 instead of clamping to 1. Caused by `int(body['lead_minutes'] or 5)` in routes/config.py:389 — 0 is falsy in Python. Behavior for any other negative/positive value is correct (-5→1, 999→30, 7→7). Result is still in the valid [1..30] range so not user-visible, but inconsistent with the explicit min/max clamp described in the spec."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Next-job offer banner (next-job-offer / next-job-reserve / next-job-reserved)",
+        "issue": "Banner is gated by WebSocket new_ride_request/priority_ride_offer events AND a haversine eligibility check between mapCenter (browser geolocation) and current ride's dropoff. Headless geolocation override (`context.set_geolocation`) does push coordinates into `navigator.geolocation`, but the production DriverHome reads geolocation only on mount + on the watchPosition stream, and the in_progress current ride state has to be loaded too. Triggering the banner reliably in this environment requires manual driver app + a second client app + correctly timed ride lifecycle transitions. NOT a bug — flagged again as untestable in headless. Underlying backend behavior (busy driver reserves ride B via the same /api/rides/{B}/accept and B.driver_id == A.driver_id) is already verified by iter189 TestNextJobAssignmentViaAccept (still passing).",
+        "affected_selectors": ["[data-testid='next-job-offer']", "[data-testid='next-job-reserve']", "[data-testid='next-job-ignore']", "[data-testid='next-job-reserved']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter190_nextjob_admin.py",
+    "/app/backend/tests/test_iter189_nextjob.py",
+    "/app/test_reports/pytest/iter190_results.xml"
+  ],
+  "action_items": [
+    "(Minor) Fix the 0-input edge case in routes/config.py:389. Replace `int(body['lead_minutes'] or 5)` with `int(body['lead_minutes'])` inside the try/except so the explicit `min(30, max(1, ...))` clamp applies uniformly. Without this, 0 silently becomes 5 instead of 1 (cosmetic — result remains in valid range).",
+    "(Optional, carried over from iter189) Expose a dev-only window hook (e.g. `window.__forceNextJobOffer(rideB)`) or honor a `?force_next_job=1` query param to seed `canReceiveNext=true` so the next-job-offer banner can be exercised in headless UI tests; today it is strictly browser-geolocation + WS gated."
+  ],
+  "critical_code_review_comments": [
+    "routes/config.py next_job_admin_save: the `body['lead_minutes'] or 5` short-circuit is a minor footgun (treats 0 as None). Use `int(body['lead_minutes'])` directly inside the try and let the surrounding max/min do the clamping.",
+    "routes/config.py next_job_effective: correctly returns global when zone resolution returns None (because all seed zones are is_active=false). Validates only ACTIVE zones (delegates to routes.zones.resolve_zone) — confirmed in test by activating zone_fdf temporarily.",
+    "AdminAutoDispatch.js: zone cycle (null→true→false→null) is implemented inline via cycleZone and the PUT only persists keys with value != null — clean.",
+    "AdminAutoDispatch.js: NumberField inline clamp `Math.min(30, Math.max(1, parseInt(v) || 5))` mirrors the backend default-on-falsy behavior for 0 — so the UI inconsistency matches the API but still loses any actual user-typed 0 silently."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter190_nextjob_admin.py"
+  ],
+  "success_rate": {
+    "backend": "100% — 8/8 new admin/effective tests pass + 3/3 iter189 regression pass (11/11 total)",
+    "frontend": "Admin 'Prochaine course' card: 100% (controls present, toggle + lead + zone cycle save and persist across reload, success toast shown). Driver E2E offer→reserve banner: not exercised headlessly (geolocation-gated)."
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!; jean.dupont@demo.sb / Driver123!. Ad-hoc clients via POST /api/auth/register.",
+  "seed_data_creation": "Two ad-hoc registered clients per test run (test_iter190_az_*, test_iter190_az2_*). No persistent state changes — every PUT writes restoration to the snapshot captured at the start of the test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "/app/backend/tests/test_iter190_nextjob_admin.py covers: (1) admin-only authz on GET/PUT /config/next-job/admin (403 for non-admin client + 401/403 anonymous), (2) admin GET shape (enabled bool, lead_minutes int in [1..30], zones list with id/name/is_active/override), (3) PUT persistence + clamp (upper 999→30, lower negative→1; note 0→5 quirk asserted as in (1,5)), (4) zone_overrides round-trip, (5) effective GET returns global when no zone resolved (all seed zones is_active=false), (6) effective GET returns override=false when a zone is temporarily activated and its center is queried (override wins). All tests fully clean up state via restore-from-snapshot in finally blocks. The active-zone test reads zone center from zone.lat/zone.lng (the actual seed schema in /app/backend/routes/zones.py). The next-job-offer UI banner remains headless-unfriendly — backend reservation via /api/rides/{id}/accept is the verifiable layer.",
+  "rca of the issue": "Only one minor issue uncovered: PUT /config/next-job/admin treats lead_minutes=0 as falsy via `body['lead_minutes'] or 5`, so 0 → 5 instead of 0 → 1 (clamp). Other clamps (negative→1, >30→30) work correctly. Cosmetic only; the persisted value is always in [1,30]."
+}

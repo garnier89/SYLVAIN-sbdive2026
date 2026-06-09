@@ -244,12 +244,22 @@ const DriverHome = () => {
   // they are within `next_job_lead_minutes` of finishing their in-progress ride.
   useEffect(() => { nextRideRef.current = nextRide; }, [nextRide]);
   useEffect(() => { nextJobOfferRef.current = nextJobOffer; }, [nextJobOffer]);
+  // Zone-aware "Prochaine course" config (per-zone override → global fallback).
+  // Coarse grid (~2 km) so we only refetch when the driver moves zones, not on
+  // every GPS tick.
+  const coarseLat = mapCenter?.lat != null ? Math.round(mapCenter.lat * 50) / 50 : null;
+  const coarseLng = mapCenter?.lng != null ? Math.round(mapCenter.lng * 50) / 50 : null;
   useEffect(() => {
-    fetch(`${API}/api/config/ride-search`, { credentials: 'include' })
+    let alive = true;
+    const url = coarseLat != null
+      ? `${API}/api/config/next-job?lat=${coarseLat}&lng=${coarseLng}`
+      : `${API}/api/config/next-job`;
+    fetch(url, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setNextJobCfg({ next_job_enabled: d.next_job_enabled !== false, next_job_lead_minutes: d.next_job_lead_minutes || 5 }); })
+      .then((d) => { if (alive && d) setNextJobCfg({ next_job_enabled: d.enabled !== false, next_job_lead_minutes: d.lead_minutes || 5 }); })
       .catch(() => {});
-  }, []);
+    return () => { alive = false; };
+  }, [coarseLat, coarseLng]);
   useEffect(() => {
     let ok = false;
     if (nextJobCfg.next_job_enabled && currentRide?.status === 'in_progress'
