@@ -88,6 +88,52 @@ async def list_merchants(store_type: Optional[str] = None, lat: Optional[float] 
     return merchants
 
 
+@router.get("/me")
+async def get_my_merchant(request: Request):
+    """Current merchant's own storefront (for the merchant settings page)."""
+    user = await get_current_user(request)
+    m = await db.merchants.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not m:
+        raise HTTPException(status_code=404, detail="Vous n'êtes pas marchand")
+    _enrich_merchant(m)
+    return m
+
+
+@router.put("/me")
+async def update_my_merchant(request: Request):
+    """Merchant self-service edit of cuisine / discount / delivery settings."""
+    user = await get_current_user(request)
+    body = await request.json()
+    update = {}
+    if "cuisine" in body:
+        update["cuisine"] = str(body["cuisine"]).strip()
+    if "description" in body:
+        update["description"] = str(body["description"]).strip()
+    if "discount_pct" in body:
+        try:
+            update["discount_pct"] = max(0.0, min(90.0, round(float(body["discount_pct"]), 2)))
+        except (TypeError, ValueError):
+            pass
+    if "delivery_fee" in body:
+        try:
+            update["delivery_fee"] = max(0.0, round(float(body["delivery_fee"]), 2))
+        except (TypeError, ValueError):
+            pass
+    if "eta_min" in body:
+        try:
+            update["eta_min"] = max(1, int(body["eta_min"]))
+        except (TypeError, ValueError):
+            pass
+    if not update:
+        raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
+    res = await db.merchants.update_one({"user_id": user["id"]}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Vous n'êtes pas marchand")
+    m = await db.merchants.find_one({"user_id": user["id"]}, {"_id": 0})
+    _enrich_merchant(m)
+    return m
+
+
 @router.get("/{merchant_id}")
 async def get_merchant(merchant_id: str):
     merchant = await db.merchants.find_one({"id": merchant_id}, {"_id": 0})

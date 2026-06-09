@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Storefront, MagnifyingGlass, Eye, Star, CheckCircle, XCircle } from '@phosphor-icons/react';
+import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -10,6 +11,8 @@ const AdminStores = () => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadStores(); }, []);
 
@@ -31,6 +34,24 @@ const AdminStores = () => {
       });
       loadStores();
     } catch (err) { console.error('Toggle status error:', err); }
+  };
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/api/admin/merchants/${editing.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({
+          cuisine: editing.cuisine || '',
+          discount_pct: Number(editing.discount_pct) || 0,
+          delivery_fee: Number(editing.delivery_fee) || 0,
+          eta_min: Number(editing.eta_min) || 30,
+        }),
+      });
+      if (res.ok) { toast.success('Marchand mis à jour'); setEditing(null); loadStores(); }
+      else toast.error('Échec de l\'enregistrement');
+    } catch { toast.error('Erreur réseau'); }
+    finally { setSaving(false); }
   };
 
   const filtered = stores.filter(s =>
@@ -57,10 +78,10 @@ const AdminStores = () => {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="text-left py-3 px-4 font-semibold text-gray-600">Nom</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600">Catégorie</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-600">Adresse</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-600">Cuisine</th>
+              <th className="text-center py-3 px-4 font-semibold text-gray-600">Réduction</th>
+              <th className="text-center py-3 px-4 font-semibold text-gray-600">Livraison</th>
               <th className="text-center py-3 px-4 font-semibold text-gray-600">Note</th>
-              <th className="text-center py-3 px-4 font-semibold text-gray-600">Commandes</th>
               <th className="text-center py-3 px-4 font-semibold text-gray-600">Statut</th>
               <th className="text-center py-3 px-4 font-semibold text-gray-600">Actions</th>
             </tr>
@@ -69,21 +90,28 @@ const AdminStores = () => {
             {filtered.map(store => (
               <tr key={store.id} className="border-b border-gray-100 hover:bg-gray-50" data-testid={`store-row-${store.id}`}>
                 <td className="py-3 px-4 font-medium text-gray-800">{store.store_name}</td>
-                <td className="py-3 px-4"><Badge variant="outline">{store.category || 'food'}</Badge></td>
-                <td className="py-3 px-4 text-gray-600 max-w-[200px] truncate">{store.address || '-'}</td>
+                <td className="py-3 px-4 text-gray-600">{store.cuisine || '—'}</td>
+                <td className="py-3 px-4 text-center">
+                  {store.discount_pct > 0
+                    ? <Badge className="bg-red-100 text-red-700">{store.discount_pct}%</Badge>
+                    : <span className="text-gray-400">—</span>}
+                </td>
+                <td className="py-3 px-4 text-center text-gray-600">{(store.delivery_fee ?? 2.5).toFixed(2)} €</td>
                 <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <Star size={14} weight="fill" className="text-amber-400" />
                     <span>{store.rating || '5.0'}</span>
                   </div>
                 </td>
-                <td className="py-3 px-4 text-center">{store.total_orders || 0}</td>
                 <td className="py-3 px-4 text-center">
                   <Badge className={store.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
                     {store.status || 'active'}
                   </Badge>
                 </td>
-                <td className="py-3 px-4 text-center">
+                <td className="py-3 px-4 text-center whitespace-nowrap">
+                  <Button size="sm" variant="ghost" onClick={() => setEditing({ ...store, cuisine: store.cuisine || '', discount_pct: store.discount_pct || 0, delivery_fee: store.delivery_fee ?? 2.5, eta_min: store.eta_min || 30 })} data-testid={`store-edit-${store.id}`}>
+                    <PencilSimple size={16} className="text-blue-500" />
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => toggleStatus(store.id, store.status || 'active')} data-testid={`store-toggle-${store.id}`}>
                     {store.status === 'active' ? <XCircle size={16} className="text-red-500" /> : <CheckCircle size={16} className="text-green-500" />}
                   </Button>
@@ -95,6 +123,43 @@ const AdminStores = () => {
         {loading && <div className="p-8 text-center text-gray-400">Chargement...</div>}
         {!loading && filtered.length === 0 && <div className="p-8 text-center text-gray-400">Aucun marchand trouvé</div>}
       </div>
+
+      {editing && (
+        <div className="fixed inset-0 z-[2800] bg-black/50 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()} data-testid="store-editor">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><Storefront size={18} className="text-orange-500" />{editing.store_name}</h3>
+              <button onClick={() => setEditing(null)} className="text-gray-400"><X size={22} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Type de cuisine</label>
+                <Input value={editing.cuisine} onChange={(e) => setEditing({ ...editing, cuisine: e.target.value })} placeholder="Ex : Italien, Japonais…" data-testid="edit-cuisine" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1"><SealPercent size={14} className="text-red-500" /> Réduction (%)</label>
+                <Input type="number" step="1" min="0" max="90" value={editing.discount_pct} onChange={(e) => setEditing({ ...editing, discount_pct: e.target.value })} data-testid="edit-discount" />
+                <p className="text-[11px] text-gray-400 mt-1">Affiché en badge rouge et appliqué au total du panier.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Frais de livraison (€)</label>
+                  <Input type="number" step="0.5" min="0" value={editing.delivery_fee} onChange={(e) => setEditing({ ...editing, delivery_fee: e.target.value })} data-testid="edit-delivery" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Délai (min)</label>
+                  <Input type="number" step="5" min="1" value={editing.eta_min} onChange={(e) => setEditing({ ...editing, eta_min: e.target.value })} data-testid="edit-eta" />
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <Button onClick={saveSettings} disabled={saving} className="w-full bg-orange-500 hover:bg-orange-600 text-white" data-testid="save-store-btn">
+                <FloppyDisk size={16} weight="fill" className="mr-2" />{saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,0 +1,35 @@
+{
+  "summary": "Iter 196 — Configurable cuisine/discount/delivery/eta (admin + merchant) and on-demand provider seed coverage validated end-to-end. BACKEND: 31/31 pytest pass in /app/backend/tests/test_iter196_merchant_config_ondemand.py covering (a) Admin PUT /api/admin/merchants/{id} updates cuisine='TEST_Italien', discount_pct=15, delivery_fee=3.5, eta_min=25 and GET /api/merchants/{id} reflects them — then restored. (b) Admin update on unknown merchant returns 404. (c) GET /api/merchants/me returns storefront pre-filled. (d) PUT /api/merchants/me persists cuisine/discount/delivery/eta and public GET /api/merchants/{id} confirms, then restored. (e) PUT /api/merchants/me without auth returns 401/403. (f) GET /api/services/providers?category=X returns >=1 provider for ALL 24 categories (parametrised) + focused regression on gardien, jardinage, dj, traiteur, serrurier, coach-fitness, reparation-ordinateur. (g) Provider detail endpoint returns services array. FRONTEND: ADMIN flow — login admin@superapp.com → /admin/stores shows columns Nom, Cuisine, Réduction, Livraison, Note, Statut, Actions. Click store-edit-merchant_burger_palace opens store-editor modal pre-filled (cuisine=Américain, discount=10, delivery=2.5, eta=30). Modified to TEST_Italien_UI/17/4.5/27 → save-store-btn → toast 'Marchand mis à jour' + table row reflects new values. Restored to original. MERCHANT flow — login merchant@example.com → /merchant/settings shows Vitrine & Réduction card with vitrine-cuisine='Cuisine variée', vitrine-discount='0', vitrine-delivery='2.5', vitrine-eta='30' pre-filled from /merchants/me. Modified discount to 20 → save-vitrine-btn → toast 'Vitrine mise à jour !' + value persisted. Restored to 0. CLIENT regression — login test2@example.com → /food?type=restaurant shows Burger Palace card with red badge 'Obtenir 10.00% de réduction', cuisine 'Américain', '9,87 € par personne'; /service-providers/dj shows 'DJ Max' provider card, click navigates to /service-provider/svp_dj_max with 'Détail du service' and 'Réserver' CTAs; /service-providers/traiteur shows 'Délices Traiteur' (no more 'Aucun prestataire'). All seed values restored after testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter196_merchant_config_ondemand.py",
+    "/app/test_reports/pytest/iter196.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/admin.py:400-428 update_merchant_settings — silently ignores malformed numeric values (try/except pass); a 400 with which field failed would be more user-friendly. Low priority.",
+    "routes/merchants.py:102-134 update_my_merchant — same try/except pass pattern as admin; consider sharing a small validator. Also returns the enriched merchant doc (good) — but the admin variant returns only {message, updated} (inconsistent). Could harmonise to return the updated merchant in both.",
+    "AdminStores.js — edit modal does not have a 'Cancel' explicit affordance besides clicking outside; works (overlay click closes via stopPropagation pattern) but a visible Annuler button improves UX. Cosmetic.",
+    "MerchantSettings.js — when /merchants/me 404s (a user that is not a merchant), the Vitrine card silently renders empty fields with no error message. Consider a small notice 'Aucune boutique associée' for clarity.",
+    "ondemand_seed.py — providers upserted by id; existing providers' services/prices won't be refreshed if seed evolves (carried over from iter195 comment). Acceptable for now."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter196_merchant_config_ondemand.py"
+  ],
+  "success_rate": {"backend": "100% (31/31 pytest pass)", "frontend": "100% on all in-scope flows (admin AdminStores edit + restore, merchant MerchantSettings vitrine edit + restore, client /food + /service-providers/dj + /service-providers/traiteur)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!  |  Marchand: merchant@example.com / Merchant123! (boutique 'Resto Demo SB', cuisine 'Cuisine variée', discount 0)  |  User: test2@example.com / TestPass123! via /login/email.",
+  "seed_data_creation": "No persistent test data. Burger Palace storefront and Resto Demo SB vitrine were temporarily edited then restored to original values (Burger Palace: Américain / 10% / 2.50 € / 30 min; Resto Demo SB: Cuisine variée / 0% / 2.5 € / 30 min). One booking remained from iter195 (not re-created here).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Canonical regression file: /app/backend/tests/test_iter196_merchant_config_ondemand.py (31 tests, ~5s). Login on this app is phone-by-default; switch to email via /login/email which has direct input[type=email] + input[type=password] + button[type=submit]. Admin /admin/stores testids: store-row-{id}, store-edit-{id}, store-editor, edit-cuisine, edit-discount, edit-delivery, edit-eta, save-store-btn. Merchant /merchant/settings testids: merchant-settings, vitrine-cuisine, vitrine-discount, vitrine-delivery, vitrine-eta, save-vitrine-btn. Toast detection: just inner_text('body') contains 'Marchand mis à jour' (admin) or 'Vitrine mise à jour' (merchant). On-demand: 24 categories, 27 providers seeded — every category has >=1 provider. /service-providers/{slug} pages use data-testid='provider-{id}' cards.",
+  "rca of the issue": "No bugs found. Both Lot 1 (merchant storefront configuration) and Lot 2 (on-demand provider catalog) are production-ready. Admin and merchant edit flows persist, public GET endpoints reflect changes, and every on-demand category — including the previously empty gardien/jardinage/dj/traiteur/serrurier/coach-fitness/reparation-ordinateur — now exposes at least one demo provider with services, gallery, distance and price_from."
+}

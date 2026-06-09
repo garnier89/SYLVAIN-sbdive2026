@@ -397,6 +397,37 @@ async def update_merchant_status(merchant_id: str, request: Request):
     return {"message": f"Merchant status updated to {new_status}"}
 
 
+@router.put("/merchants/{merchant_id}")
+async def update_merchant_settings(merchant_id: str, request: Request):
+    """Admin edit of a merchant's storefront settings (cuisine, discount, delivery)."""
+    await require_role(request, ["admin"], permission="merchants.activate")
+    body = await request.json()
+    update = {}
+    if "cuisine" in body:
+        update["cuisine"] = str(body["cuisine"]).strip()
+    if "discount_pct" in body:
+        try:
+            update["discount_pct"] = max(0.0, min(90.0, round(float(body["discount_pct"]), 2)))
+        except (TypeError, ValueError):
+            pass
+    if "delivery_fee" in body:
+        try:
+            update["delivery_fee"] = max(0.0, round(float(body["delivery_fee"]), 2))
+        except (TypeError, ValueError):
+            pass
+    if "eta_min" in body:
+        try:
+            update["eta_min"] = max(1, int(body["eta_min"]))
+        except (TypeError, ValueError):
+            pass
+    if not update:
+        raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
+    result = await db.merchants.update_one({"id": merchant_id}, {"$set": update})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    return {"message": "Merchant updated", "updated": update}
+
+
 @router.get("/stats")
 async def get_admin_stats(request: Request):
     await require_role(request, ["admin"])
