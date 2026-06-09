@@ -1,6 +1,22 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Phase 4 : Logique de dispatch (verrou atomique + courses planifiées) [DONE, testé 26/26]
+
+### Upload logo & photos (Object Storage) — VALIDÉ
+- La fonctionnalité était déjà entièrement implémentée (handoff périmé) : backend `routes/uploads.py` (Object Storage Emergent, POST `/api/uploads/image` auth + GET `/api/uploads/{id}` public), composant `components/ImageUpload.jsx` (ImageUpload + GalleryUpload) branché dans `MerchantSettings.js`, `AdminStores.js`, `AdminServiceProviders.js`. Champs `image_url`/`photo`/`gallery` persistés (merchants.py, admin.py, services.py).
+- Vérifié e2e (upload + serve PNG 200) + testing_agent iteration_200 : 9/9 backend + persistance UI marchand. Incohérence max=8→12 corrigée côté `MerchantSettings`.
+
+### Phase 4 — Dispatch (P1)
+- **Verrou atomique à l'acceptation** (`routes/rides.py` `accept_ride`) : remplacé le find-then-update par `find_one_and_update({id,status:pending,driver_id:None})` → un SEUL chauffeur gagne la course ; le perdant reçoit **409** « Course déjà acceptée par un autre chauffeur ». Idem `passenger_accept_offer` (bidding) → 409 si déjà attribuée.
+- **Courses planifiées = pool/agenda** : créées en `status:pending` avec `scheduled_at`, NON broadcastées à la création, visibles dans l'agenda chauffeur (`driver/home-feed` → `scheduled_pending`), absentes du feed immédiat (`available_rides`).
+- **Auto-dispatch corrigé** (`routes/auto_dispatch.py` `_process_pending_ride`) : une course planifiée n'est plus escaladée ni auto-annulée tant qu'on n'est pas à `scheduled_lead_minutes` (défaut 15 min, configurable admin) avant le `scheduled_at`. À l'échéance → `_activate_scheduled_ride` (broadcast unique aux chauffeurs) puis timeline d'escalade normale (30s → 60s → annulation 120s) basée sur l'heure d'échéance.
+- **Relâche dans le pool** : `driver_cancel_booking` remet la course en `pending` (driver_id=null) ; instantanée = re-broadcast, planifiée = retour à l'agenda.
+- Config admin `GET/PUT /api/admin/auto-dispatch/config` expose `scheduled_lead_minutes`.
+- **Tests** : `tests/test_iter201_phase4_scheduled_dispatch.py` (unit, 5/5) + `tests/test_iter201_phase4_api.py` (e2e, 8/8) + `test_rewards_dispatch_helpers.py` (13/13) = **26/26**. testing_agent iteration_201 : 100%, aucun bug.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## 2026-06-09 — « Parler en direct » (IA + escalade) + Upload images (object storage)
 
 ### Support « Parler en direct » (IA d'abord → escalade humaine)
