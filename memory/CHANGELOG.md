@@ -1,6 +1,15 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Alertes live + conversations chauffeur↔client + abus wallet [DONE, testé 100%]
+
+- **Alerte admin en direct (cloche + son)** sur `/admin/dispatch` : icône cloche avec badge rouge = nb de zones « aucun chauffeur » ; bip Web Audio + toast quand une NOUVELLE zone passe en alerte ou qu'un chauffeur est nouvellement signalé. `data-testid=dispatch-bell`.
+- **Abus élargi au WALLET** : `record_driver_cancellation` (dispatch_admin.py) incrémente le compteur « sans espèces » pour les paiements CARTE **et** WALLET (`NONCASH_METHODS`). Colonnes renommées « dont sans esp. » / « % sans esp. ».
+- **Conversations course chauffeur↔client (admin)** : le chat de course est stocké dans `db.ride_messages` (≠ `chat_messages`). NOUVEAUX endpoints `GET /api/moderation/admin/ride-conversations` (+ filtre `payment=noncash|card|wallet|cash`) et `/admin/ride-conversations/{ride_id}` (fil complet + contexte course). NOUVEL onglet « Courses (chauffeur↔client) » dans `AdminModeration.js` : liste avec puce paiement + ouverture du fil en modal (`ridechat-thread-modal`).
+- **Tests** : `tests/test_iter203_ride_conversations_and_noncash.py` (6/6) + frontend complet. testing_agent iteration_203 : **100%**, 0 erreur JS. (Régression iter201/202 OK.)
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## 2026-06-09 — Tour de contrôle dispatch + anti-abus chauffeurs [DONE, testé 100%]
 
 ### Tour de contrôle dispatch (admin/dispatcher temps réel)
