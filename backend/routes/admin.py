@@ -423,6 +423,10 @@ async def update_merchant_settings(merchant_id: str, request: Request):
     if "flash_discount" in body:
         from routes.merchants import validate_flash_discount
         update["flash_discount"] = validate_flash_discount(body["flash_discount"])
+    if "image_url" in body:
+        update["image_url"] = str(body["image_url"]).strip()
+    if "gallery" in body and isinstance(body["gallery"], list):
+        update["gallery"] = [str(g) for g in body["gallery"]][:12]
     if not update:
         raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
     result = await db.merchants.update_one({"id": merchant_id}, {"$set": update})

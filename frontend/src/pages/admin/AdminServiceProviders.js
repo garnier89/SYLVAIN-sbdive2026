@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Switch } from '../../components/ui/switch';
 import { Plus, PencilSimple, Trash, X, FloppyDisk, Wrench, Star } from '@phosphor-icons/react';
+import { ImageUpload, GalleryUpload } from '../../components/ImageUpload';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -147,6 +148,8 @@ const AdminServiceProviders = () => {
                 <Field label="Note"><Input type="number" step="0.1" value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: parseFloat(e.target.value) || 0 })} /></Field>
                 <Field label="Nb avis"><Input type="number" value={editing.reviews_count} onChange={(e) => setEditing({ ...editing, reviews_count: parseInt(e.target.value) || 0 })} /></Field>
               </div>
+              <ImageUpload label="Photo du prestataire" value={editing.photo} onChange={(url) => setEditing({ ...editing, photo: url })} testId="provider-photo-upload" />
+              <GalleryUpload label="Galerie" value={editing.gallery || []} onChange={(g) => setEditing({ ...editing, gallery: g })} testId="provider-gallery-upload" />
               <Field label="Photo (URL)"><Input value={editing.photo} onChange={(e) => setEditing({ ...editing, photo: e.target.value })} /></Field>
               <Field label="Téléphone"><Input value={editing.phone} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} /></Field>
               <Field label="Bio"><Input value={editing.bio} onChange={(e) => setEditing({ ...editing, bio: e.target.value })} /></Field>

@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { Gear, Storefront, Clock, Phone, SealPercent, ForkKnife, Lightning } from '@phosphor-icons/react';
+import { ImageUpload, GalleryUpload } from '../../components/ImageUpload';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -21,6 +22,7 @@ const MerchantSettings = () => {
       .then((m) => { if (m) setVitrine({
         cuisine: m.cuisine || '', discount_pct: m.discount_pct || 0,
         delivery_fee: m.delivery_fee ?? 2.5, eta_min: m.eta_min || 30, store_name: m.store_name,
+        image_url: m.image_url || '', gallery: m.gallery || [],
         flash: m.flash_discount || { enabled: false, pct: 20, start_time: '14:00', end_time: '17:00', days: [] },
         flash_active: m.flash_active,
       }); })
@@ -37,6 +39,8 @@ const MerchantSettings = () => {
           discount_pct: Number(vitrine.discount_pct) || 0,
           delivery_fee: Number(vitrine.delivery_fee) || 0,
           eta_min: Number(vitrine.eta_min) || 30,
+          image_url: vitrine.image_url || '',
+          gallery: vitrine.gallery || [],
           flash_discount: { ...vitrine.flash, pct: Number(vitrine.flash.pct) || 0 },
         }),
       });
@@ -83,6 +87,8 @@ const MerchantSettings = () => {
           <Card className="border-orange-200">
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><ForkKnife size={18} className="text-orange-500" /> Vitrine & Réduction</CardTitle></CardHeader>
             <CardContent className="space-y-4">
+              <ImageUpload label="Logo / photo de la boutique" value={vitrine.image_url} onChange={(url) => setVitrine({ ...vitrine, image_url: url })} testId="vitrine-logo-upload" />
+              <GalleryUpload label="Galerie boutique" value={vitrine.gallery} onChange={(g) => setVitrine({ ...vitrine, gallery: g })} testId="vitrine-gallery-upload" />
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Type de cuisine</label>
                 <Input value={vitrine.cuisine} onChange={e => setVitrine({ ...vitrine, cuisine: e.target.value })} placeholder="Ex : Italien, Japonais, Américain…" data-testid="vitrine-cuisine" />

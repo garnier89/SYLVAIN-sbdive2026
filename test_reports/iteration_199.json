@@ -1,0 +1,40 @@
+{
+  "summary": "Iter 199 — Image upload (Emergent object storage) + persistence in vitrine marchand / admin boutique / prestataire — TOUS PASSENT. BACKEND: pytest /app/backend/tests/test_iter199_uploads.py — 9/9 pass (~9s). Couvre: POST /api/uploads/image (401 sans auth ; rejet text/plain → 400 ; rejet >6 Mo → 400 ; PNG OK → {id, url}); GET /api/uploads/{id} PUBLIC (sans cookie) → Content-Type image/png + signature PNG; PUT /api/merchants/me persiste image_url + gallery (vérifié via GET /api/merchants/me); cap gallery à 12 (20 envoyés → 12 stockés); PUT /api/admin/merchants/{id} image_url persiste; PUT /api/services/admin/providers/{id} photo + gallery persistent; régression /api/support/message (livechat client) répond toujours via IA. FRONTEND Playwright: MARCHAND (/merchant/settings) — vitrine-logo-upload et vitrine-gallery-upload présents, upload PNG → preview rouge affiché, bouton 'Changer' visible, save-vitrine-btn → toast succès, après reload le preview img src='/api/uploads/{id}' se charge (persistance OK). ADMIN STORES — 10 store-edit-{id}, modale contient store-logo-upload, upload → preview, save-store-btn → toast 'Marchand mis à jour'. ADMIN PRESTATAIRE — provider-photo-upload + provider-gallery-upload + save-provider-btn dans la modale 'Nouveau prestataire', upload PNG (2 file inputs détectés) → toast succès à l'enregistrement. Le serve public /api/uploads/{id} fonctionne en <img> (preview rendu OK après reload).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MerchantSettings GalleryUpload (vitrine)", "issue": "Label affiche '12/8' car le composant GalleryUpload utilise max=8 par défaut mais le backend cap à 12. Inconsistance UX : l'UI bloque les uploads à 8 alors que la BD en autorise 12, et le compteur '12/8' s'affiche si l'admin/historique a chargé >8 items.", "selector": "[data-testid='vitrine-gallery-upload']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter199_uploads.py",
+    "/app/test_reports/pytest/iter199.xml"
+  ],
+  "action_items": [
+    "(LOW) Passer max={12} au GalleryUpload de la vitrine marchand (MerchantSettings.js) pour aligner UI et backend (et idem côté admin provider gallery si pertinent).",
+    "(Optionnel) Nettoyer la galerie de test du marchand seed après le run pytest (actuellement 12 entrées de test_iter199 persistent dans la BD)."
+  ],
+  "critical_code_review_comments": [
+    "routes/uploads.py: bonne séparation upload (auth requis) / serve (public). MAX_BYTES=6 Mo + whitelist content-type appliqués avant l'envoi vers Emergent objstore (early-fail efficace).",
+    "Le file_id MongoDB est un uuid4 distinct du storage_path — bon, évite la prédictibilité des URLs publiques.",
+    "Rafraîchissement du storage_key sur 403 dans _put_object et _get_object — robuste face à l'expiration.",
+    "Cache-Control: public, max-age=86400 sur GET /uploads/{id} — bon pour la livraison de logos statiques.",
+    "ImageUpload.jsx: helper src() préfixe `${API}` quand l'URL commence par /api/ → résout same-origin et fonctionne aussi en preview vs prod. Bon.",
+    "MerchantSettings vitrine: GalleryUpload utilise max=8 par défaut mais backend tronque à 12 (routes/merchants.py:192). Inconsistance mineure de capacité.",
+    "AdminServiceProviders/AdminStores: pas de validation côté frontend du nombre max d'items de gallery (utilise default 8 aussi pour provider).",
+    "Pas de fallback/placeholder en cas d'image cassée (img sans onError) — si un upload est supprimé côté objstore, le <img> affichera une icône cassée. Non-bloquant pour ce sprint."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter199_uploads.py"
+  ],
+  "success_rate": {"backend": "100% (9/9 pytest)", "frontend": "100% sur les 3 flux uploaders (marchand vitrine, admin store, admin prestataire) + persistance reload OK"},
+  "test_credentials": "Marchand merchant@example.com / Merchant123! — Admin admin@superapp.com / SuperAdmin123! — Client test2@example.com / TestPass123! (login via /login/email — l'endpoint backend est /api/auth/login, pas /api/auth/login/email)",
+  "seed_data_creation": "Le marchand seed a maintenant un image_url + 12 entrées de gallery (uploads PNG 2x2 de test, ~70 octets chacun). Le prestataire seed (premier dans services/admin/providers) a photo + gallery=[1 item]. Pas de production data modifiée. Pour nettoyer: PUT /api/merchants/me {image_url:'', gallery:[]}.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Régression canonique: /app/backend/tests/test_iter199_uploads.py (9 tests, ~9s). Testids frontend uploads — marchand: vitrine-logo-upload, vitrine-gallery-upload, save-vitrine-btn ; admin store: store-edit-{id}, store-logo-upload, save-store-btn ; admin provider: provider-photo-upload, provider-gallery-upload, save-provider-btn. Le serve public /api/uploads/{id} ne nécessite PAS d'auth et retourne directement le binaire — utilisable en <img>. L'object storage Emergent est piloté via EMERGENT_LLM_KEY (env backend); pas de fallback local — si la clé est absente, POST /uploads/image renvoie 500. La régression livechat continue de passer (test_livechat_still_works).",
+  "rca of the issue": "Aucun bug bloquant. Seule remarque mineure: le composant GalleryUpload du marchand affiche '12/8' lorsque la galerie contient plus d'items que la limite UI (le backend caps à 12, l'UI à 8). C'est cosmétique et facilement réglable en passant max={12} au composant. Tous les flows critiques (upload auth, serve public, persistance backend, preview <img> après reload, sauvegarde marchand/admin/prestataire avec toasts) sont opérationnels."
+}

@@ -3,6 +3,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning } from '@phosphor-icons/react';
+import { ImageUpload } from '../../components/ImageUpload';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -46,6 +47,7 @@ const AdminStores = () => {
           discount_pct: Number(editing.discount_pct) || 0,
           delivery_fee: Number(editing.delivery_fee) || 0,
           eta_min: Number(editing.eta_min) || 30,
+          image_url: editing.image_url || '',
           flash_discount: { ...editing.flash, pct: Number(editing.flash?.pct) || 0 },
         }),
       });
@@ -116,7 +118,7 @@ const AdminStores = () => {
                   </Badge>
                 </td>
                 <td className="py-3 px-4 text-center whitespace-nowrap">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing({ ...store, cuisine: store.cuisine || '', discount_pct: store.discount_pct || 0, delivery_fee: store.delivery_fee ?? 2.5, eta_min: store.eta_min || 30, flash: store.flash_discount || { enabled: false, pct: 20, start_time: '14:00', end_time: '17:00', days: [] } })} data-testid={`store-edit-${store.id}`}>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing({ ...store, cuisine: store.cuisine || '', discount_pct: store.discount_pct || 0, delivery_fee: store.delivery_fee ?? 2.5, eta_min: store.eta_min || 30, image_url: store.image_url || '', flash: store.flash_discount || { enabled: false, pct: 20, start_time: '14:00', end_time: '17:00', days: [] } })} data-testid={`store-edit-${store.id}`}>
                     <PencilSimple size={16} className="text-blue-500" />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => toggleStatus(store.id, store.status || 'active')} data-testid={`store-toggle-${store.id}`}>
@@ -139,6 +141,7 @@ const AdminStores = () => {
               <button onClick={() => setEditing(null)} className="text-gray-400"><X size={22} /></button>
             </div>
             <div className="p-4 space-y-3">
+              <ImageUpload label="Logo / photo de la boutique" value={editing.image_url} onChange={(url) => setEditing({ ...editing, image_url: url })} testId="store-logo-upload" />
               <div>
                 <label className="text-xs font-medium text-gray-600 block mb-1">Type de cuisine</label>
                 <Input value={editing.cuisine} onChange={(e) => setEditing({ ...editing, cuisine: e.target.value })} placeholder="Ex : Italien, Japonais…" data-testid="edit-cuisine" />

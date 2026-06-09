@@ -219,6 +219,8 @@ async def admin_reply(thread_id: str, request: Request):
     thread = await db.support_threads.find_one({"id": thread_id}, {"_id": 0})
     if not thread:
         raise HTTPException(status_code=404, detail="Conversation introuvable")
+    if thread.get("status") == "closed":
+        raise HTTPException(status_code=400, detail="Conversation clôturée")
     msg = await _add_message(thread_id, thread["user_id"], "agent", text)
     await db.support_threads.update_one(
         {"id": thread_id},
