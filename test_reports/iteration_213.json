@@ -1,0 +1,27 @@
+{
+  "summary": "Driver-side counter-offer bug fix verified end-to-end on PREVIEW. Both user stories PASS: (1) Driver can propose their own fare (counter-offer 15€) on a bidding ride — the previously-broken action — and (2) Accept-at-client-fare still submits an offer at the passenger's proposed fare. Both produce a real ride id in /api/rides/{id}/counter-offer (no more 'rides/undefined' silent failure), and the my-offer-panel renders correctly with countdown.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "[Data hygiene, non-blocking] The demo driver jean.dupont@demo.sb (user_dcf7d4bc4de6 / driver_b366adb552eb) had 23 stale 'accepted' rides and 3 in-flight orders left over from previous iterations. They blocked the driver-home UI from showing the incoming-request sheet because `currentRide` was populated. Cleaned up via direct Mongo update in this iteration. Consider adding an admin cron / test-reset endpoint that auto-cancels rides older than N minutes for demo drivers so future test runs are not blocked."
+  ],
+  "critical_code_review_comments": [
+    "DriverHome.js L181-205: `withId(m) = {...m, id: m.id||m.ride_id}` correctly normalises the WS payload — the original RCA (ride_id vs id) is fixed and re-tested in the live preview. ride_status_update / counter_offer_response handlers still key off `msg.ride_id` (correct because those endpoints emit ride_id and are matched against currentRide.id which is now consistent).",
+    "DriverHome.js L391-411 sendCounterOffer posts to /api/rides/{rideId}/counter-offer — confirmed via backend GET on ride that the driver entry (15€ then 14€) lands with `at_proposed_fare` flag set correctly (false for counter-offer, true for accept-at-client-fare). Good.",
+    "IncomingRequestSheet.jsx L170: 'Proposer un autre prix' button is now a prominent outlined orange button (border-2 border-orange-500 text-orange-600 h-12). Visually verified — clearly above the orange Accepter CTA. Good UX.",
+    "Driver poll path (DriverHome.js L302-312, 8s rideAPI.list({status:'pending'})) also feeds incomingRequest — useful fallback when WS is flaky; works against the same withId-normalised shape (poll already returns full ride objects with `id`)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (2/2 user stories pass)"},
+  "test_credentials": "Driver: jean.dupont@demo.sb / Driver123! (approved, taxi service). Fresh test client registered via /api/auth/register at test_iter213c_<ts>@demo.sb / Client123!.",
+  "seed_data_creation": "2 bidding rides created as client (proposed_fare 12€ and 14€, Paris→Nord). Both routed to jean.dupont via WS broadcast + 8s poll fallback. Driver submitted 15€ counter-offer on ride1 (off_462010aa, at_proposed_fare=false) and accepted ride2 at client fare 14€ (off_4f413bf2, at_proposed_fare=true). Both visible in ride.counter_offers list. Also cancelled 23 stale 'accepted' rides + 3 orders that were stuck on driver_b366adb552eb to unblock the home screen.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "PREVIEW URL https://gojek-clone-41.preview.emergentagent.com. To reproduce the driver-side bidding flow: (a) FIRST cancel any stale active rides on the demo driver — the driver doc id is user_dcf7d4bc4de6 but the ride.driver_id field uses the separate driver entity id driver_b366adb552eb. Query db.rides for {driver_id:'driver_b366adb552eb', status NOT IN [completed,cancelled,expired]} and set status='cancelled'. Otherwise /api/rides/active/current returns an old accepted ride and the IncomingRequestSheet won't render (gated by `!currentRide`). (b) Login driver via /api/auth/login, go to /chauffeur/home, click [data-testid=online-toggle] until text reads 'En ligne'. (c) From a SEPARATE browser context, register/login a fresh user then POST /api/rides with proposed_fare + ride_type='bidding' + mode_id='bidding'. Modal pops within ~3-8s via WS, fallback up to 8s poll. (d) toggle-counter-offer-btn → counter-offer-input → send-counter-offer-btn → my-offer-panel with my-offer-amount + cancel-offer-btn/renew-offer-btn. (e) accept-ride-btn on a fresh bidding ride submits at the client fare. Pending bidding rides auto-cancel after ~120s.",
+  "rca of the issue": "Original bug: WS new_ride_request payload uses key 'ride_id' but the driver's incoming-request sheet read `request.id`, so any action (accept / counter-offer) called /api/rides/undefined/... and failed silently. Fix in DriverHome.js (withId helper) + sendCounterOffer in the bidding accept path is correct and confirmed in PREVIEW: driver's 15€ counter-offer and 14€ accept-at-fare both land on the correct ride_id with valid backend entries. The 'Proposer un autre prix' control is now a prominent outlined button — also visually confirmed."
+}

@@ -167,8 +167,8 @@ const IncomingRequestSheet = ({
               </div>
             )}
             {!showCounter && onSendCounterOffer && (
-              <button onClick={() => setShowCounter(true)} className="w-full text-center text-sm font-bold text-orange-600 mb-3" data-testid="toggle-counter-offer-btn">
-                {t('driver.propose_other_price')}
+              <button onClick={() => setShowCounter(true)} className="w-full mb-3 h-12 rounded-2xl border-2 border-orange-500 text-orange-600 font-extrabold text-base flex items-center justify-center gap-2" data-testid="toggle-counter-offer-btn">
+                <Plus size={18} weight="bold" /> {t('driver.propose_other_price')}
               </button>
             )}
             <div className="flex items-center gap-4">

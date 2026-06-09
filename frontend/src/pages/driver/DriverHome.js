@@ -178,18 +178,21 @@ const DriverHome = () => {
   }, [loadDriverProfile, sendLocation]);
 
   useEffect(() => {
+    // WS request payloads carry `ride_id` (not `id`); normalize so the request
+    // sheet's accept / decline / counter-offer actions get a valid ride id.
+    const withId = (m) => ({ ...m, id: m.id || m.ride_id });
     const unsub1 = on('new_ride_request', (msg) => {
       if (!isOnline) return;
-      if (!currentRide) { setIncomingRequest(msg); return; }
+      if (!currentRide) { setIncomingRequest(withId(msg)); return; }
       // Busy but ~X min from finishing → offer it as the NEXT job (Phase 4 dispatch).
-      if (canReceiveNextRef.current && !nextRideRef.current && !nextJobOfferRef.current) setNextJobOffer(msg);
+      if (canReceiveNextRef.current && !nextRideRef.current && !nextJobOfferRef.current) setNextJobOffer(withId(msg));
     });
     // Priority offers from auto-dispatch escalation (tier 1/2). Reuse the same UI as a regular request,
     // but flag it as priority so the driver knows it's escalated.
     const unsub3 = on('priority_ride_offer', (msg) => {
       if (!isOnline) return;
-      if (!currentRide) { setIncomingRequest({ ...msg, is_priority: true }); return; }
-      if (canReceiveNextRef.current && !nextRideRef.current && !nextJobOfferRef.current) setNextJobOffer({ ...msg, is_priority: true });
+      if (!currentRide) { setIncomingRequest({ ...withId(msg), is_priority: true }); return; }
+      if (canReceiveNextRef.current && !nextRideRef.current && !nextJobOfferRef.current) setNextJobOffer({ ...withId(msg), is_priority: true });
     });
     const unsub2 = on('ride_status_update', (msg) => {
       if (currentRide && msg.ride_id === currentRide.id) {
