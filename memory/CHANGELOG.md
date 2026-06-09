@@ -1229,3 +1229,16 @@ Roadmap validée : A Paiements → B Annulations/dette → D Favoris → F Popup
 - Backend (`config.py`) : `GET /config/store-review`, `PUT /config/admin/store-review` (admin), `GET /config/review-prompt`, `POST /config/review-prompt/seen`, `POST /config/review-prompt/feedback`, `GET /config/admin/feedback` (admin — liste des retours négatifs).
 - Testé 10/10 backend + frontend 100% (iter 187). Régression : `/app/backend/tests/test_iter187_growth.py`.
 - Reste possible : page admin UI pour lister `db.app_feedback` (endpoint déjà exposé).
+
+## Iteration 188-189 (Jun 9, 2026) — UX chauffeur/client + Dispatch "Prochaine course" (DONE)
+### 1. Mini-compteur de parrainage (accueil client) — testé iter188
+- Bannière « Plus que N course(s) pour débloquer vos X€ » + barre de progression pour le filleul avec parrainage en attente. Backend : `GET /api/referral/my-pending`. (`UserHome.js`)
+### 2-3. Chauffeur : son + clignotant + calendrier — testé iter188
+- Util audio déblocable partagé `src/lib/driverAlert.js` (AudioContext résumé à la 1ère interaction) : `playAlert/startSiren/stopSiren`. Sirène + vibration tant qu'une demande immédiate est affichée. Le hook `driverHome.js` réutilise `playAlert` (réservations planifiées + T-40min).
+- Badge calendrier : clignotement franc « clignotant de voiture » (CSS `@keyframes blink-turn`/`blink-ring`, rouge) + badge orange sur la cloche de notifications (compteur non lus). Respect `prefers-reduced-motion`.
+### 4. Thème — testé iter188
+- App chauffeur : vert `#00B578` → **bleu ciel `#0EA5E9`** (header confirmé rgb(14,165,233)) + accents **orange `#FF5000`** (boutons Accepter). App client : reste orange.
+### 5. Dispatch "Prochaine course" (Phase 4 MVP) — backend testé iter189
+- Un chauffeur occupé à ≤ `next_job_lead_minutes` (défaut 5, configurable, dans `config/ride-search`) de sa destination peut recevoir/réserver la course suivante (banner `next-job-offer` → `Réserver pour après`). Réservation via `/api/rides/{id}/accept` (assigne le chauffeur sans interrompre la course en cours), puis promotion auto à la fin (`finishRide`). Éligibilité = distance haversine position→dropoff vs vitesse 25 km/h.
+- NB : le banner est piloté WebSocket + géolocalisation → non automatisable en headless ; backend (config + assignation 2e course + non-régression) validé 100%. Commentaire explicite ajouté sur `/accept` (ne pas ajouter de garde « chauffeur occupé »).
+- Régressions : test_iter188_ux.py, test_iter189_nextjob.py.

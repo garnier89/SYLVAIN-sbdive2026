@@ -1006,6 +1006,11 @@ async def get_ride(ride_id: str, request: Request):
 
 @router.post("/{ride_id}/accept")
 async def accept_ride(ride_id: str, request: Request):
+    # NOTE (Phase 4 "Prochaine course"): this endpoint intentionally does NOT
+    # reject a driver who already has an in-progress ride. A busy driver near
+    # finishing can pre-book the next job via this same endpoint, which starts
+    # automatically once the current ride completes (see DriverHome.finishRide).
+    # Do not add a "driver already busy" guard here — it would break that flow.
     user = await get_current_user(request)
     driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
     if not driver or driver["status"] != "approved":
