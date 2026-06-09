@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only verification of P0.1 Merchant Storefront (FR locale). Tested merchant Catalogue, Vitrine settings (hours/contact/category persistence), Merchant Dashboard, and public Storefront (/food/:merchantId) including reviews policy. All critical flows PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MerchantSettings / Galerie boutique", "issues": ["12 broken gallery image thumbnails (HTTP 404 for placeholder g-0..g-11) — seed data has invalid URLs; cosmetic only"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional cleanup: delete leftover TEST_OOS_* product created during testing on merchant_d3cc002c7d87 (one product with stock=0 remains).",
+    "Optional: replace 12 broken placeholder gallery image URLs in seed data for merchant_d3cc002c7d87 (returns 404)."
+  ],
+  "critical_code_review_comments": [
+    "MerchantSettings.js uses raw fetch with credentials:'include' (instead of the shared axios merchantAPI). Works but inconsistent with rest of codebase — consider unifying.",
+    "RestaurantDetail.js: review error toast only handles 403 explicitly; other server errors fall back to 'Échec de l'envoi'. Acceptable for now."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (4/4 user stories pass)"},
+  "test_credentials": "merchant@example.com / Merchant123!  (UI login requires: Login → 'Ou choisir une autre option de connexion' → 'Email & mot de passe'). Test user registered on the fly via POST /api/auth/register (field name=, not full_name).",
+  "seed_data_creation": "Created one TEST_OOS_<ts> product (stock=0, price 2,50 €, category Boulangerie) on merchant_d3cc002c7d87. Persists in DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified: (1) Merchant Catalogue loads 3 real products, prices in €, OOS shows red 'Rupture' badge (data-testid=out-of-stock-{id}). (2) MerchantSettings persists across reload: Monday slots 08:00-13:00 + 15:00-19:00, Sunday closed=true, phone='+596600000099', storefront_category='Boulangeries'. All 7 hours-row-{day} testids present, hours-{day}-add allows up to 2 slots. (3) MerchantDashboard shows 4 stat cards in French with € currency and 'Produits les plus commandés' badges. (4) Public /food/merchant_d3cc002c7d87 as logged-in user: storefront-page, open-status='Fermé' (Sunday), store-rating='4.0 (1 avis)', Appeler link, toggle-hours opens hours-list with Dimanche='Fermé' and Lundi='08:00–13:00, 15:00–19:00'; oos-{id} badge + 'Indisponible' label visible; submitting review as non-customer returned 403 and showed toast 'Seuls les clients ayant commandé peuvent laisser un avis'. UI is fully in French.",
+  "rca of the issue": "No bugs found."
+}

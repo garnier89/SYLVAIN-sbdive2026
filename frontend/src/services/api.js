@@ -106,10 +106,16 @@ export const merchantAPI = {
   list: (params) => api.get('/merchants', { params }),
   searchDelivery: (q) => api.get('/search/delivery', { params: { q } }),
   get: (id) => api.get(`/merchants/${id}`),
+  getMine: () => api.get('/merchants/me'),
+  updateMine: (data) => api.put('/merchants/me', data),
+  getStats: () => api.get('/merchants/me/stats'),
+  getCategories: () => api.get('/merchants/meta/categories'),
   getProducts: (id) => api.get(`/merchants/${id}/products`),
   addProduct: (data) => api.post('/merchants/products', data),
   updateProduct: (id, data) => api.put(`/merchants/products/${id}`, data),
   deleteProduct: (id) => api.delete(`/merchants/products/${id}`),
+  getReviews: (id) => api.get(`/merchants/${id}/reviews`),
+  addReview: (id, data) => api.post(`/merchants/${id}/reviews`, data),
 };
 
 // Ride APIs

@@ -96,6 +96,11 @@ class ProductCreate(BaseModel):
     category: str
     image_url: Optional[str] = None
     is_available: bool = True
+    stock: Optional[int] = None  # None = stock illimité / non suivi ; 0 = rupture
+
+class MerchantReviewCreate(BaseModel):
+    rating: int
+    comment: Optional[str] = None
 
 # Ride Models — enriched with V3Cube fare logic
 class RideRequest(BaseModel):
