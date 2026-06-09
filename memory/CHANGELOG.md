@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-06-09 — Configuration Pool admin (parité V3Cube) + véhicules dynamiques dans la réservation [DONE, testé 100% — iter206]
+
+### Interface admin « Configuration Pool » (/admin/pool-config)
+- Nouvelle page dédiée `AdminPoolConfig.js` (remplace le formulaire générique) : activation Pool, `pool_percentage`, capacité max passagers (`available_seats`), sièges max/commande (`max_seats_per_booking`), nombre max d'arrêts (`max_stops`), réduction covoiturage, **catégories de véhicules éligibles** (cases liées à `/api/config/vehicle-types`), **moyens de paiement autorisés** (cash/card/wallet/sbpaygo). Sauvegarde via `PUT /api/admin/service-config/pool` (préserve les autres clés du doc).
+- Backend : nouvelle fonction `get_pool_global_config()` (rides.py) + endpoint public `GET /api/config/pool`. **Enforcement** dans `create_ride` : véhicule non éligible / paiement non autorisé / trop d'arrêts → 400 (messages FR explicites).
+
+### Correction MODES véhicule codés en dur
+- `AdvancedTaxiBookingPage.js` : `VEHICLE_BY_MODE` corrigé vers des slugs RÉELS (sb/luxe/airport/confort/moto), résolution dynamique via `/api/config/vehicle-types`, affichage de l'**image admin** dans la carte d'estimation. Auparavant 'comfort'/'premium' (inexistants) cassaient l'estimation.
+- `RideChoosePage.js` : en mode Pool, la liste véhicules (`effectiveVtypes`) et les paiements (`effectivePayments`) sont filtrés selon la config admin ; le sélecteur de places respecte `max_seats_per_booking`.
+- Tests : `/app/backend/tests/test_iter206_pool_config.py` (7/7). ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## 2026-06-09 — Bannières + sous-titres catégories taxi visibles côté client [DONE, vérifié]
 
 - `UserHome.js` : les catégories taxi configurées avec **Type d'affichage = Bannière / Icône+Bannière** + image bannière s'affichent en **cartes pleine largeur** (image + nom + sous-titre `list_description`) sous la grille « Services Taxi » → parité visuelle V3Cube. `data-testid=taxi-banner-cards` / `taxi-banner-{key}`.
