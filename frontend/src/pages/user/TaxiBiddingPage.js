@@ -1,7 +1,7 @@
 import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Info, Minus, Plus, Users, TrendUp } from '@phosphor-icons/react';
+import { ArrowLeft, Info, Minus, Plus, Users, TrendUp, ArrowClockwise, CalendarBlank } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { CountdownRing } from '../../components/CountdownRing';
 import RadarCars from '../../components/RadarCars';
@@ -60,6 +60,8 @@ const TaxiBiddingPage = () => {
   const autoAcceptedRef = useRef(false);
   const fareRef = useRef(0);
   const [expired, setExpired] = useState(false); // délai dépassé sans chauffeur
+  const [noDriver, setNoDriver] = useState(false); // aucun chauffeur trouvé (course annulée système)
+  const userCancelledRef = useRef(false); // distingue annulation passager vs système
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
   const [newOfferFlash, setNewOfferFlash] = useState(false);
@@ -175,6 +177,8 @@ const TaxiBiddingPage = () => {
     const finalFare = Math.max(fareFloor, fare || fareFloor);
     setFare(finalFare);
     setSubmitting(true);
+    userCancelledRef.current = false;
+    setNoDriver(false);
     try {
       const res = await fetch(`${API}/api/rides`, {
         method: 'POST',
@@ -242,7 +246,12 @@ const TaxiBiddingPage = () => {
         }
         if (ride.status && ride.status !== 'pending') {
           clearInterval(poll); clearInterval(tick);
-          if (ride.status === 'cancelled') { toast.info('Course annulée'); setSearching(null); }
+          if (ride.status === 'cancelled') {
+            setSearching(null);
+            // System-cancelled (no driver / timeout) → offer Retry + Schedule.
+            if (!userCancelledRef.current) setNoDriver(true);
+            userCancelledRef.current = false;
+          }
           else { toast.success('Chauffeur trouvé !'); navigate(`/ride/${searching}`); }
         }
       } catch (e) { console.warn('[bidding] poll error', e?.message); }
@@ -278,6 +287,20 @@ const TaxiBiddingPage = () => {
   };
 
   const keepWaiting = () => { setSearchSeconds(0); setExpired(false); };
+
+  // No driver found → retry the bid or switch to a scheduled trip.
+  const retrySearch = () => {
+    setNoDriver(false); setExpired(false); setSearchSeconds(0);
+    handleSubmit();
+  };
+  const scheduleTrip = () => {
+    const q = new URLSearchParams({
+      mode: 'book_later',
+      plat: pickup.lat, plng: pickup.lng, paddr: pickup.address,
+      dlat: dropoff.lat, dlng: dropoff.lng, daddr: dropoff.address,
+    });
+    navigate(`/course?${q.toString()}`);
+  };
 
   const switchToStandard = async () => {
     try {
@@ -343,6 +366,7 @@ const TaxiBiddingPage = () => {
   };
 
   const cancelSearch = async () => {
+    userCancelledRef.current = true;
     if (searching) {
       try {
         await fetch(`${API}/api/rides/${searching}/status`, {
@@ -679,6 +703,35 @@ const TaxiBiddingPage = () => {
             <button onClick={keepWaiting} data-testid="bid-keep-waiting-btn"
               className="w-full text-gray-500 text-sm font-medium py-1.5">
               Continuer d'attendre
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Aucun chauffeur trouvé (course annulée par le système) → Réessayer / Planifier */}
+      {noDriver && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" data-testid="no-driver-modal">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 animate-slide-up">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-3">
+                <Info size={26} className="text-rose-500" weight="bold" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Aucun chauffeur trouvé</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Aucun chauffeur n'a accepté votre course pour le moment. Réessayez maintenant ou planifiez votre trajet pour plus tard.
+              </p>
+            </div>
+            <button onClick={retrySearch} data-testid="no-driver-retry-btn"
+              className="w-full h-12 rounded-xl bg-[#FF5000] hover:bg-[#E04600] text-white font-bold mb-2.5 flex items-center justify-center gap-2">
+              <ArrowClockwise size={20} weight="bold" /> Réessayer
+            </button>
+            <button onClick={scheduleTrip} data-testid="no-driver-schedule-btn"
+              className="w-full h-12 rounded-xl border-2 border-gray-200 text-gray-800 font-bold mb-2.5 flex items-center justify-center gap-2">
+              <CalendarBlank size={20} weight="bold" /> Planifier le trajet
+            </button>
+            <button onClick={() => { setNoDriver(false); navigate('/course?mode=bidding'); }} data-testid="no-driver-dismiss-btn"
+              className="w-full text-gray-500 text-sm font-medium py-1.5">
+              Annuler
             </button>
           </div>
         </div>

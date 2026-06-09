@@ -38,6 +38,7 @@ const DriverHome = () => {
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [myOffer, setMyOffer] = useState(null); // { rideId, amount, expires_at, ttl_seconds }
   const [nowTs, setNowTs] = useState(() => Date.now());
+  const renewCountRef = useRef(0); // renewals of the current pending offer (auto-close after 2)
   const [rewardsActive, setRewardsActive] = useState(false);
   const [rewardsCount, setRewardsCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -349,6 +350,25 @@ const DriverHome = () => {
     return () => { clearInterval(poll); clearInterval(tick); };
   }, [myOffer, driver, joinRide]);
 
+  // Auto-close a pending offer the passenger never accepts, so the driver doesn't
+  // stay stuck on the request sheet:
+  //   • after 2 renewals (relances) without acceptance → close as soon as it expires;
+  //   • otherwise, if the expired offer isn't renewed within 10 s → close.
+  // "Close" returns the driver to the online map to wait for other requests.
+  useEffect(() => {
+    if (!myOffer || !myOffer.expires_at) return undefined;
+    const expiresMs = new Date(myOffer.expires_at).getTime();
+    const graceMs = renewCountRef.current >= 2 ? 0 : 10000;
+    const delay = Math.max(0, (expiresMs + graceMs) - Date.now());
+    const id = setTimeout(() => {
+      toast.info('Aucune réponse du client. Retour en ligne.', { duration: 5000 });
+      renewCountRef.current = 0;
+      setMyOffer(null);
+      setIncomingRequest(null);
+    }, delay);
+    return () => clearTimeout(id);
+  }, [myOffer]);
+
   const toggleOnline = async () => {
     if (driver?.status !== 'approved') return;
     try {
@@ -388,7 +408,7 @@ const DriverHome = () => {
     } catch { /* best-effort, never block the UI */ }
   };
 
-  const sendCounterOffer = async (rideId, amount) => {
+  const sendCounterOffer = async (rideId, amount, isRenew = false) => {
     try {
       const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/rides/${rideId}/counter-offer`, {
         method: 'POST',
@@ -399,6 +419,7 @@ const DriverHome = () => {
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       const offer = data.offer || {};
+      if (!isRenew) renewCountRef.current = 0; // fresh offer → reset renewal counter
       // Keep the request open and switch to "offer pending" state with a live countdown
       setMyOffer({
         rideId,
@@ -411,10 +432,13 @@ const DriverHome = () => {
   };
 
   const renewOffer = () => {
-    if (myOffer) sendCounterOffer(myOffer.rideId, myOffer.amount);
+    if (!myOffer) return;
+    renewCountRef.current += 1;
+    sendCounterOffer(myOffer.rideId, myOffer.amount, true);
   };
 
   const cancelOffer = () => {
+    renewCountRef.current = 0;
     setMyOffer(null);
     setIncomingRequest(null);
   };
