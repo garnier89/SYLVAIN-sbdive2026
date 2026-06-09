@@ -116,6 +116,9 @@ export const merchantAPI = {
 export const tripShareAPI = {
   create: (rideId) => api.post(`/rides/${rideId}/share`),
   get: (token) => api.get(`/trip-share/${token}`),
+  getAutoShare: () => api.get('/safety/auto-share'),
+  setAutoShare: (enabled) => api.put('/safety/auto-share', { enabled }),
+  getRideAutoShare: (rideId) => api.get(`/rides/${rideId}/auto-share`),
 };
 
 

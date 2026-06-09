@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash, Warning, PaperPlaneTilt, Phone, Shield } from '@phosphor-icons/react';
+import { ArrowLeft, Plus, Trash, Warning, PaperPlaneTilt, Phone, Shield, ShareNetwork } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { tripShareAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -12,15 +13,25 @@ const EmergencyContactsPage = () => {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', relation: '' });
   const [sosLoading, setSosLoading] = useState(false);
+  const [autoShare, setAutoShare] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const r = await fetch(`${API}/api/phase1/emergency-contacts`, { credentials: 'include' });
       if (r.ok) setContacts(await r.json());
+      const a = await tripShareAPI.getAutoShare();
+      setAutoShare(!!a.data.enabled);
     } catch { toast.error('Erreur'); }
     finally { setLoading(false); }
   }, []);
+
+  const toggleAutoShare = async () => {
+    const next = !autoShare;
+    setAutoShare(next);
+    try { await tripShareAPI.setAutoShare(next); toast.success(next ? 'Partage automatique activé' : 'Partage automatique désactivé'); }
+    catch { setAutoShare(!next); toast.error('Erreur'); }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -86,6 +97,23 @@ const EmergencyContactsPage = () => {
           </div>
           <PaperPlaneTilt size={22} className="text-red-500" weight="fill" />
         </button>
+      </div>
+
+      {/* Partage automatique du trajet aux contacts de confiance */}
+      <div className="px-5 mt-5">
+        <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3" data-testid="auto-share-card">
+          <div className="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+            <ShareNetwork size={22} weight="fill" className="text-violet-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900 text-sm">Partage automatique du trajet</p>
+            <p className="text-[11px] text-gray-500 leading-snug">À chaque course, un lien de suivi en direct est préparé pour vos contacts de confiance.</p>
+          </div>
+          <button onClick={toggleAutoShare} data-testid="auto-share-toggle"
+            className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${autoShare ? 'bg-violet-600' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${autoShare ? 'translate-x-5' : ''}`} />
+          </button>
+        </div>
       </div>
 
       <div className="px-5 mt-5">

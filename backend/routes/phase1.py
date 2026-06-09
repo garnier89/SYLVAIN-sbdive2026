@@ -200,6 +200,12 @@ async def add_favorite_driver(driver_id: str, request: Request):
     driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "user_id": 1})
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
+    # Max 2 favorite drivers (allow re-adding an already-favorited one).
+    already = await db.favorite_drivers.find_one({"user_id": user["id"], "driver_id": driver_id}, {"_id": 0, "id": 1})
+    if not already:
+        count = await db.favorite_drivers.count_documents({"user_id": user["id"]})
+        if count >= 2:
+            raise HTTPException(status_code=400, detail="Maximum 2 chauffeurs favoris. Retirez-en un pour en ajouter un nouveau.")
     driver_user = await db.users.find_one({"id": driver["user_id"]}, {"_id": 0, "name": 1})
     doc = {
         "id": f"fav_{uuid.uuid4().hex[:10]}",

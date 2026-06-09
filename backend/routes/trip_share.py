@@ -50,8 +50,36 @@ async def create_trip_share(ride_id: str, request: Request):
     return {"token": token}
 
 
-@router.get("/trip-share/{token}")
-async def get_trip_share(token: str):
+@router.get("/safety/auto-share")
+async def get_auto_share(request: Request):
+    user = await get_current_user(request)
+    u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "auto_share_trip": 1}) or {}
+    contacts = await db.emergency_contacts.count_documents({"user_id": user["id"]})
+    return {"enabled": bool(u.get("auto_share_trip")), "contacts_count": contacts}
+
+
+@router.put("/safety/auto-share")
+async def set_auto_share(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    enabled = bool(body.get("enabled"))
+    await db.users.update_one({"id": user["id"]}, {"$set": {"auto_share_trip": enabled}})
+    return {"enabled": enabled}
+
+
+@router.get("/rides/{ride_id}/auto-share")
+async def ride_auto_share(ride_id: str, request: Request):
+    """Returns whether this ride should be auto-shared and the contacts to notify
+    (the rider's trusted/emergency contacts). Used by the client to fire the link
+    automatically at ride start without a manual tap when the option is ON."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "user_id": 1})
+    if not ride or ride.get("user_id") != user["id"]:
+        raise HTTPException(404, "Course introuvable")
+    u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "auto_share_trip": 1}) or {}
+    contacts = await db.emergency_contacts.find(
+        {"user_id": user["id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1}).to_list(10)
+    return {"enabled": bool(u.get("auto_share_trip")), "contacts": contacts}
     """PUBLIC — live snapshot of a shared trip (no auth)."""
     share = await db.trip_shares.find_one({"token": token}, {"_id": 0})
     if not share:

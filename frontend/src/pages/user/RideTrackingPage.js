@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import DebtBanner from '../../components/DebtBanner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { rideAPI } from '../../services/api';
+import { rideAPI, tripShareAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
   Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, ArrowLeft, UsersThree,
@@ -115,6 +115,8 @@ const RideTrackingPage = () => {
   const [statusDialog, setStatusDialog] = useState(null);
   const [showRouteEdit, setShowRouteEdit] = useState(false);
   const [showSafety, setShowSafety] = useState(false);
+  const [autoShareInfo, setAutoShareInfo] = useState(null);
+  const autoSharedRef = useRef(null);
   const [relanceCount, setRelanceCount] = useState(0);
   const [showNoDriver, setShowNoDriver] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
@@ -515,6 +517,29 @@ const RideTrackingPage = () => {
     }
   };
 
+  // Auto-share the live trip link with the rider's trusted contacts on ride start
+  // (only when the option is ON in Contacts de confiance). Fires once per ride.
+  useEffect(() => {
+    if (!ride?.id) return;
+    const assigned = ['accepted', 'arriving', 'in_progress'].includes(ride.status) && ride.driver_name;
+    if (!assigned || autoSharedRef.current === ride.id) return;
+    autoSharedRef.current = ride.id;
+    (async () => {
+      try {
+        const a = await tripShareAPI.getRideAutoShare(ride.id);
+        if (!a.data.enabled || !(a.data.contacts || []).length) return;
+        const s = await tripShareAPI.create(ride.id);
+        const url = `${window.location.origin}/t/${s.data.token}`;
+        setAutoShareInfo({ url, contacts: a.data.contacts });
+        toast.success('Trajet partagé avec vos contacts de confiance');
+        if (navigator.share) {
+          navigator.share({ title: 'Suivi de mon trajet SB Drive', text: 'Suivez mon trajet en direct :', url }).catch(() => {});
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  }, [ride?.id, ride?.status]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+
   if (loading) {
     return (
       <div className="mobile-container min-h-screen bg-white flex items-center justify-center">
@@ -570,6 +595,28 @@ const RideTrackingPage = () => {
         {showSafety && (
           <SafetyToolsSheet ride={ride} onClose={() => setShowSafety(false)} />
         )}
+        {autoShareInfo && (
+          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[92%] max-w-[440px] z-40 bg-white rounded-2xl shadow-xl border border-violet-100 p-3" data-testid="auto-share-live-card">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield size={18} weight="fill" className="text-violet-600" />
+              <p className="text-sm font-bold text-gray-900 flex-1">Trajet partagé · contacts de confiance</p>
+              <button onClick={() => setAutoShareInfo(null)} className="text-gray-400 text-lg leading-none" data-testid="auto-share-dismiss">✕</button>
+            </div>
+            <div className="space-y-1.5">
+              {autoShareInfo.contacts.map((c) => {
+                const msg = encodeURIComponent(`Suivez mon trajet SB Drive en direct (sécurité) : ${autoShareInfo.url}`);
+                const num = (c.phone || '').replace(/[^0-9]/g, '');
+                return (
+                  <div key={c.id} className="flex items-center gap-2" data-testid={`auto-share-contact-${c.id}`}>
+                    <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{c.name}</span>
+                    <a href={`https://wa.me/${num}?text=${msg}`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-white bg-[#25D366] px-2.5 py-1 rounded-full">WhatsApp</a>
+                    <a href={`sms:${c.phone}?&body=${msg}`} className="text-[11px] font-bold text-white bg-blue-600 px-2.5 py-1 rounded-full">SMS</a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <RouteEditModal
           open={showRouteEdit}
           ride={ride}
@@ -587,7 +634,6 @@ const RideTrackingPage = () => {
     );
   }
 
-  // ── V3Cube full-screen "Recherche d'un chauffeur" experience (pending) ──
   if (ride.status === 'pending') {
     const radarMapUrl = ride.pickup_lat && GMAP_KEY
       ? `https://maps.googleapis.com/maps/api/staticmap?size=400x340&scale=2&zoom=15` +
