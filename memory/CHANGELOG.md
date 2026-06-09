@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-06-09 — Recrutement Taxi par zone (alerte admin chauffeurs courier→taxi) [DONE, testé 100% — iter208]
+
+### Backend (dispatch_admin.py, préfixe /admin/dispatch)
+- `GET /taxi-recruitment` : détecte les zones « chaudes » (courses taxi en attente ≥ 3 ET pending > chauffeurs taxi en ligne dans la zone) via `resolve_zone`, et liste les chauffeurs courier/livraison (sans taxi) localisés dans ces zones, avec flag `vtc_eligible`. Retour : `{hot_zones:[{zone,pending,online_taxi,deficit,candidates[]}], totals}`.
+- `POST /taxi-recruitment/invite` : crée une notification 'promo' au chauffeur (`data.kind=taxi_invite`, `data.link=/chauffeur/profile?services=1`).
+- « Activer » réutilise `PUT /api/admin/drivers/{id}/service-types`.
+
+### Frontend
+- Nouvelle page `AdminTaxiRecruitment.js` (route `/admin/taxi-recruitment`, menu Taxi/Transport) : compteurs, cartes zones en tension, candidats avec statut VTC, boutons **Activer** (override immédiat) / **Inviter** (notification). Auto-refresh 15s.
+- Widget `dispatch-recruit-widget` sur le Tour de contrôle dispatch (`/admin/dispatch`) → CTA vers la page.
+- `DriverNotificationsPage.js` : notifications avec `data.link` désormais cliquables (deep-link vers la gestion des services).
+
+### Notes
+- Aucune zone configurée en prod → tout tombe sous « Hors zone » (l'admin doit créer des zones pour un ciblage fin). Logique validée via zone de test (nettoyée). Backend 5/5 pytest (`test_iter208_taxi_recruitment.py`).
+- Consultatif (non corrigé) : N+1 lookup candidats, pas d'hystérésis sur pending=online_taxi, `vtc_eligible` ne vérifie pas l'expiration.
+
+
 ## 2026-06-09 — Gestion services chauffeur (Taxi/Livraison/Coursier) admin + chauffeur [DONE, testé — iter207]
 
 ### Contexte / bug à l'origine
