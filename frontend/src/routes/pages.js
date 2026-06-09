@@ -123,6 +123,7 @@ export const MerchantPromotions = lazy(() => import('../pages/merchant/MerchantP
 export const MerchantAnalytics = lazy(() => import('../pages/merchant/MerchantAnalytics'));
 export const MerchantSettings = lazy(() => import('../pages/merchant/MerchantSettings'));
 export const MerchantChat = lazy(() => import('../pages/merchant/MerchantChat'));
+export const MerchantLiveSupport = lazy(() => import('../pages/merchant/MerchantLiveSupport'));
 
 // Admin Pages
 export const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
@@ -153,6 +154,7 @@ export const AdminReferralSettings = lazy(() => import('../pages/admin/AdminRefe
 export const AdminLoyalty = lazy(() => import('../pages/admin/AdminLoyalty'));
 export const AdminModeration = lazy(() => import('../pages/admin/AdminModeration'));
 export const AdminServiceProviders = lazy(() => import('../pages/admin/AdminServiceProviders'));
+export const AdminLiveSupport = lazy(() => import('../pages/admin/AdminLiveSupport'));
 export const AdminTemplates = lazy(() => import('../pages/admin/AdminTemplates'));
 export const AdminNewsletter = lazy(() => import('../pages/admin/AdminNewsletter'));
 export const AdminKyc = lazy(() => import('../pages/admin/AdminKyc'));

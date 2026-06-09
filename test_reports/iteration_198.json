@@ -1,0 +1,34 @@
+{
+  "summary": "Iter 198 — 'Parler en direct' (AI support chat + escalation + admin inbox) fully validated end-to-end. BACKEND pytest /app/backend/tests/test_iter198_live_support.py — 8/8 pass (7.6s): unauth blocked (401); POST /api/support/message creates thread and returns user+ai messages (GPT-4o-mini, FR); GET /api/support/me returns {thread, messages} with _id stripped; POST /api/support/escalate sets status='escalated'; POST /message after escalate returns only [user] (no AI reply) and unread_admin increments; admin GET /support/admin/threads?status=escalated lists the escalated thread; GET /support/admin/threads/{id} returns full history; empty admin reply 400; POST /admin/reply adds 'agent' message visible to client; POST /admin/close sets status='closed' so client's /support/me returns thread=null; non-admin gets 401/403 on admin endpoints; merchant role can chat (AI replies). FRONTEND Playwright covering all 4 flows: CLIENT (/livechat) — sends message → AI reply renders under 'Assistant IA' label; clicks 'Parler à un conseiller' → escalated-banner visible; ADMIN (/admin/live-support) — admin-live-support page renders, escalated thread listed via support-thread-{id}, opening it loads conversation, admin-reply-input + admin-reply-send sends agent reply, sidebar shows 'Parler en direct'; E2E — re-logged-in client sees agent reply 'Marc du support' with 'Conseiller' label within polling window (5s); close-thread-btn closes the conversation; MERCHANT (/merchant/live-support) — merchant-livesupport renders with sidebar 'Parler en direct', sending message returns AI reply. Backend pytest leaves no escalated/open thread (closed by test) — merchant 'ai' thread left open is harmless (admin default filter is 'escalated').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter198_live_support.py",
+    "/app/test_reports/pytest/iter198.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/support.py:_ai_reply degrades gracefully when EMERGENT_LLM_KEY missing or emergentintegrations import fails — returns a polite FR fallback inviting escalation. Good.",
+    "Escalate endpoint inserts a 'system' message with sender='ai' (the 'Je transfère…' notice). Functionally correct but mixing 'ai' sender for a system event slightly muddles message provenance; consider sender='system' if you later want UI to distinguish it. Non-blocking.",
+    "Admin reply forces status='escalated' on every reply (even on a previously-closed thread). Minor: a closed thread, if it surfaces via 'all' filter, can be re-opened by replying. Consider rejecting reply if status=='closed' or document this behaviour.",
+    "_get_active_thread filters out closed threads — correct so client gets a fresh thread post-close.",
+    "Admin endpoints correctly call require_role(['admin']) — non-admin gets 401/403 (verified).",
+    "MongoDB _id is consistently projected out ({_id: 0}) on all reads — good.",
+    "SupportChatPanel.jsx polls /api/support/me every 5s — fine for the demo scale; for production at scale consider websockets/SSE. Non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter198_live_support.py"
+  ],
+  "success_rate": {"backend": "100% (8/8 pytest)", "frontend": "100% on client + admin + e2e + merchant UI flows"},
+  "test_credentials": "Client test2@example.com / TestPass123! (via /login/email) — Marchand merchant@example.com / Merchant123! — Admin admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Support threads were created for test2 and merchant during tests. test2's thread was escalated → replied → closed by admin during the run (cleanup done). Merchant's thread is left in 'ai' status (harmless; admin default filter is 'escalated' so does not pollute inbox). No production data modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Canonical regression: /app/backend/tests/test_iter198_live_support.py (8 tests, ~7s). Endpoints: GET /api/support/me, POST /api/support/message, POST /api/support/escalate, GET /api/support/admin/threads?status=, GET /api/support/admin/threads/{id}, POST /api/support/admin/threads/{id}/reply, POST /api/support/admin/threads/{id}/close. Frontend testids — client: livechat-page, support-input, support-send, support-msg-{user|ai|agent}, escalate-btn, escalated-banner; admin: admin-live-support, support-filter-{escalated|ai|closed|all}, support-thread-{id}, admin-reply-input, admin-reply-send, close-thread-btn; merchant: merchant-livesupport (sidebar item 'Parler en direct' routes to /merchant/live-support). Driver regression flow (DriverSupportPage chat section using SupportChatPanel) was NOT explicitly retested via UI in this iteration — the underlying component is shared and backend covers driver role implicitly (require_role permits all authenticated). If driver UI must be retested, login via phone +33644112233 / Chauffeur2026! and navigate to /chauffeur/livechat (uses LiveChatPage with same SupportChatPanel).",
+  "rca of the issue": "No bugs found. The new 'Parler en direct' feature is production-ready across the 3 user roles (client, marchand, admin) and the E2E loop client→escalate→admin reply→client sees reply (polling) works as designed within 5s. AI replies in French via GPT-4o-mini take ~2-5s as expected; escalation correctly disables AI for subsequent user messages; admin close terminates the thread cleanly."
+}

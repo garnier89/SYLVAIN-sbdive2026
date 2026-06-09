@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, PaperPlaneTilt, ChatCircleText, Info, ShieldCheck, Lock, Question, EnvelopeSimple } from '@phosphor-icons/react';
+import { ArrowLeft, ChatCircleText, Info, ShieldCheck, Lock, Question, EnvelopeSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { DriverBottomNav } from './DriverProfilePage';
+import { SupportChatPanel } from '../../components/SupportChatPanel';
 
 const GREEN = '#FF5000';
 
@@ -68,10 +69,6 @@ const DriverSupportPage = () => {
   const { section } = useParams();
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    { id: `msg_init_${Date.now()}`, from: 'support', text: 'Bonjour ! Comment pouvons-nous vous aider aujourd\'hui ?', time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) },
-  ]);
-  const [chatInput, setChatInput] = useState('');
 
   const text = TEXTS[section];
 
@@ -88,19 +85,6 @@ const DriverSupportPage = () => {
       setMessage('');
     } catch (err) { toast.error('Erreur d\'envoi, reessayez'); }
     finally { setSending(false); }
-  };
-
-  const handleSendChat = () => {
-    if (!chatInput.trim()) return;
-    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const msgId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    setChatMessages(msgs => [...msgs, { id: msgId, from: 'driver', text: chatInput.trim(), time: now }]);
-    setChatInput('');
-    // Simulated reply
-    setTimeout(() => {
-      const replyId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      setChatMessages(msgs => [...msgs, { id: replyId, from: 'support', text: 'Merci pour votre message. Un agent va vous repondre sous peu.', time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }]);
-    }, 1200);
   };
 
   return (
@@ -137,32 +121,10 @@ const DriverSupportPage = () => {
         </div>
       )}
 
-      {/* ===== PARLER EN DIRECT ===== */}
+      {/* ===== PARLER EN DIRECT (IA + escalade conseiller) ===== */}
       {section === 'chat' && (
         <div className="flex flex-col" style={{ height: 'calc(100vh - 140px)' }}>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3" data-testid="chat-messages">
-            {chatMessages.map((m) => (
-              <div key={m.id} className={`flex ${m.from === 'driver' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${m.from === 'driver' ? 'bg-green-500 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md shadow-sm'}`}>
-                  <p className="text-sm">{m.text}</p>
-                  <p className={`text-[10px] mt-1 ${m.from === 'driver' ? 'text-green-100' : 'text-gray-400'}`}>{m.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
-            <input
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-              placeholder="Votre message..."
-              className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm outline-none focus:bg-white focus:ring-2 focus:ring-green-500/30"
-              data-testid="chat-input"
-            />
-            <button onClick={handleSendChat} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: GREEN }} data-testid="chat-send">
-              <PaperPlaneTilt size={18} className="text-white" weight="fill" />
-            </button>
-          </div>
+          <SupportChatPanel accent={GREEN} />
         </div>
       )}
 

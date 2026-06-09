@@ -3,7 +3,7 @@ import { Route } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import {
   MerchantLayout, MerchantDashboard, MerchantOrders, MerchantProducts,
-  MerchantPromotions, MerchantAnalytics, MerchantSettings, MerchantChat,
+  MerchantPromotions, MerchantAnalytics, MerchantSettings, MerchantChat, MerchantLiveSupport,
 } from './pages';
 
 export function merchantRoutes() {
@@ -16,6 +16,7 @@ export function merchantRoutes() {
       <Route path="analytics" element={<MerchantAnalytics />} />
       <Route path="settings" element={<MerchantSettings />} />
       <Route path="chat" element={<MerchantChat />} />
+      <Route path="live-support" element={<MerchantLiveSupport />} />
     </Route>
   );
 }

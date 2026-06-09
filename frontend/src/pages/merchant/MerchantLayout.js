@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { 
   House, Package, Storefront, Tag, 
-  ChartLine, Gear, SignOut, List, X, Clock
+  ChartLine, Gear, SignOut, List, X, Clock, Robot
 } from '@phosphor-icons/react';
 
 const MerchantLayout = () => {
@@ -27,6 +27,7 @@ const MerchantLayout = () => {
     { icon: ChartLine, label: 'Analytics', path: '/merchant/analytics' },
     { icon: Gear, label: 'Settings', path: '/merchant/settings' },
     { icon: Clock, label: 'Chat Support', path: '/merchant/chat' },
+    { icon: Robot, label: 'Parler en direct', path: '/merchant/live-support' },
   ];
 
   const isActive = (path) => {

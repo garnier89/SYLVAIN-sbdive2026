@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset
 } from '@phosphor-icons/react';
 
 // Dashboard organisé en grandes familles : Pilotage, Membres, Services,
@@ -131,6 +131,7 @@ const sidebarConfig = [
       ]},
       { icon: Shield, label: 'Litiges', path: '/admin/disputes' },
       { icon: Warning, label: 'Modération & Annulations', path: '/admin/moderation' },
+      { icon: Headset, label: 'Support — Parler en direct', path: '/admin/live-support' },
       { icon: Warning, label: 'Alertes SOS', path: '/admin/sos-requests' },
       { icon: EnvelopeSimple, label: 'Demandes de contact', path: '/admin/contact-requests' },
       { icon: FileText, label: 'Aide commandes', path: '/admin/order-help-requests' },
