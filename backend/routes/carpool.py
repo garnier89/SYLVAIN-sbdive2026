@@ -40,7 +40,9 @@ async def search_carpool_rides(
     date: Optional[str] = None,
     limit: int = 20
 ):
-    query = {"status": "open"}
+    # Show both open and full rides so the client sees the "Complet" state
+    # (only hide cancelled/completed rides).
+    query = {"status": {"$in": ["open", "full"]}}
     if pickup:
         query["pickup_address"] = {"$regex": pickup, "$options": "i"}
     if dropoff:

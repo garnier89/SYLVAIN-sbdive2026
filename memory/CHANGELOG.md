@@ -1,6 +1,24 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Éditeur de catégories façon V3Cube + covoiturage visible "Complet" [DONE, testé 100%]
+
+### Éditeur de catégories de service (parité V3Cube)
+- Backend `service_categories.py` : `POST /api/admin/service-categories` (créer, clé unique, `is_custom`), `DELETE /{key}` (supprimer), et `PUT /{key}` étendu aux champs V3Cube : `view_type` (icon|banner|icon_banner), `banner_image`, `service_image`, `list_description`, `description`.
+- Frontend `AdminServiceCategories.js` : bouton **« Créer une catégorie »**, **suppression** par carte (confirm), et modale enrichie : choix du **Type d'affichage** (Icône / Bannière / Icône+Bannière), upload **icône** + **bannière** (objet storage via `ImageUpload`) + **Service Image**, **description courte** et **description**. `adminAPI.createServiceCategory` / `deleteServiceCategory`.
+- Vérifié : créer (icon_banner + images), éditer, supprimer → reflété dans `/api/service-categories` (app client).
+
+### Covoiturage
+- `GET /api/carpool/rides` renvoie désormais les trajets `open` ET `full` → l'état **« Complet »** est visible côté client (au lieu de disparaître).
+
+- **Tests** : `tests/test_iter205_carpool_svccat.py` (14/14). testing_agent iteration_205 : **100% (backend 14/14 + frontend complet)**.
+- Note : les chauffeurs/admins sont redirigés hors de `/carpool` (c'est une fonction CLIENT) — comportement attendu.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+### ⚠️ Clarification importante (véhicules)
+- La config véhicules de NOTRE app se reflète déjà dans l'app cliente. Les écrans « Service Category » montrés par l'utilisateur viennent de **sbdrivevtc.com** (V3Cube PHP séparé). Tout doit être configuré dans NOTRE admin pour être reflété dans NOTRE app.
+
+
 ## 2026-06-09 — Covoiturage interurbain activé [DONE, testé e2e]
 
 - `CarPoolPage.js` rebranché sur le vrai backend `/api/carpool` (était sur un catalogue de démo `phase2` + bouton « Publier » factice).
