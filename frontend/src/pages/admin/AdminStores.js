@@ -173,7 +173,7 @@ const AdminStores = () => {
                     </div>
                     <div className="flex gap-1.5 flex-wrap">
                       {ADM_DAYS.map((d, i) => (
-                        <button key={d} type="button" onClick={() => toggleAdmDay(i)}
+                        <button key={d} type="button" onClick={() => toggleAdmDay(i)} data-testid={`edit-flash-day-${i}`}
                           className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${(editing.flash.days || []).includes(i) ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
                           {d}
                         </button>

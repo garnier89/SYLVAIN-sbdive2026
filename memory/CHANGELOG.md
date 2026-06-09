@@ -1,6 +1,15 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Réduction flash programmable (marchand + admin)
+
+- **Backend** (`routes/merchants.py`): config `flash_discount {enabled, pct, start_time, end_time, days}` sur le marchand. Helpers `_flash_is_active` (fenêtre horaire en tz Europe/Paris, gère le passage minuit + jours), `compute_effective_discount` (la réduction la plus avantageuse s'applique), `validate_flash_discount`. `_enrich_merchant` expose `effective_discount_pct` + `flash_active`. Accepté par `PUT /merchants/me` et `PUT /admin/merchants/{id}`. `orders.py` applique la réduction effective au total.
+- **Marchand** (`MerchantSettings.js`): carte « Réduction flash » (toggle, %, début/fin, chips jours, badge ACTIVE).
+- **Admin** (`AdminStores.js`): mêmes champs flash dans la modale d'édition marchand.
+- **Client**: badge **ambre « Flash −X% »** sur la carte resto quand actif (FoodPage), libellé « Réduction flash ⚡ » au checkout, total appliqué.
+- **Tests**: `tests/test_iter197_flash_discount.py` (10/10 pass) + testing_agent iter 197 = 100% backend & frontend, aucun bug.
+
+
 ## 2026-06-09 — Cuisines & réductions configurables + couverture prestataires
 
 - **Admin** (`AdminStores.js` + `PUT /api/admin/merchants/{id}`): édition cuisine, réduction (%), frais de livraison et délai par marchand (modale + colonnes dédiées). Reflété immédiatement côté client.
