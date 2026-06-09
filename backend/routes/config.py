@@ -386,7 +386,7 @@ async def next_job_admin_save(request: Request):
         patch["next_job_enabled"] = bool(body["enabled"])
     if "lead_minutes" in body:
         try:
-            patch["next_job_lead_minutes"] = min(30, max(1, int(body["lead_minutes"] or 5)))
+            patch["next_job_lead_minutes"] = min(30, max(1, int(body["lead_minutes"])))
         except (TypeError, ValueError):
             patch["next_job_lead_minutes"] = 5
     if isinstance(body.get("zone_overrides"), dict):
