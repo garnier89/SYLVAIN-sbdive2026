@@ -138,15 +138,15 @@ export const RideFlowFooter = ({
     {/* Video record checkbox (arrived, before start) */}
     {isArrived && (
       <label className="px-5 pb-2 flex items-center gap-2 text-sm text-gray-600" data-testid="ride-flow-video-row">
-        <input type="checkbox" checked={recordVideo} onChange={onToggleVideo} className="w-4 h-4 accent-[#00B578]" data-testid="ride-flow-video-checkbox" />
+        <input type="checkbox" checked={recordVideo} onChange={onToggleVideo} className="w-4 h-4 accent-[#0EA5E9]" data-testid="ride-flow-video-checkbox" />
         {t('driver.record_video')}
       </label>
     )}
 
     {/* Slider */}
     <div className="px-5 pb-6 pt-1">
-      {isPickupPhase && <SlideToConfirm label={t('driver.slide_arrive')} color="#00B578" onConfirm={onArrive} testId="slide-arrive" disabled={busy} />}
-      {isArrived && <SlideToConfirm label={t('driver.slide_start')} color="#00B578" onConfirm={onStart} testId="slide-start" disabled={busy} />}
+      {isPickupPhase && <SlideToConfirm label={t('driver.slide_arrive')} color="#0EA5E9" onConfirm={onArrive} testId="slide-arrive" disabled={busy} />}
+      {isArrived && <SlideToConfirm label={t('driver.slide_start')} color="#0EA5E9" onConfirm={onStart} testId="slide-start" disabled={busy} />}
       {inProgress && <SlideToConfirm label={t('driver.slide_finish')} color="#E11900" onConfirm={onFinish} testId="slide-finish" disabled={busy} nudge={nearDestination} />}
     </div>
   </>

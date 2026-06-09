@@ -23,7 +23,7 @@ const TopDriversPage = () => {
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white" data-testid="top-drivers-page">
       {/* Hero */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20" style={{ background: 'radial-gradient(circle at 30% 20%, #FFD700 0%, transparent 50%), radial-gradient(circle at 70% 80%, #00B578 0%, transparent 50%)' }} />
+        <div className="absolute inset-0 opacity-20" style={{ background: 'radial-gradient(circle at 30% 20%, #FFD700 0%, transparent 50%), radial-gradient(circle at 70% 80%, #FF5000 0%, transparent 50%)' }} />
         <div className="relative max-w-6xl mx-auto px-6 pt-10 pb-12">
           <Link to="/" className="inline-flex items-center gap-2 text-slate-300 hover:text-white text-sm mb-8" data-testid="back-home">
             <ArrowLeft size={16} /> Retour

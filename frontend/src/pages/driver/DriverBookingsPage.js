@@ -5,7 +5,7 @@ import { MapPin, CaretDown, Package, Gavel, ClipboardText } from '@phosphor-icon
 import { rideAPI, parcelAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 
-const GREEN = '#00B578';
+const GREEN = '#0EA5E9';
 
 const ConfirmDialog = ({ open, message, onYes, onNo, busy }) => {
   if (!open) return null;
@@ -154,7 +154,7 @@ const DriverBookingsPage = () => {
           { id: 'bids', label: 'Enchères', Icon: Gavel },
         ].map(({ id, label, Icon }) => (
           <button key={id} onClick={() => setTab(id)} data-testid={`bookings-tab-${id}`}
-            className={`flex-1 py-3 flex flex-col items-center gap-1 border-b-2 transition-colors ${tab === id ? 'border-[#00B578] text-white' : 'border-transparent text-white/50'}`}>
+            className={`flex-1 py-3 flex flex-col items-center gap-1 border-b-2 transition-colors ${tab === id ? 'border-[#0EA5E9] text-white' : 'border-transparent text-white/50'}`}>
             <Icon size={20} weight={tab === id ? 'fill' : 'regular'} />
             <span className="text-[11px] font-semibold">{label}</span>
           </button>

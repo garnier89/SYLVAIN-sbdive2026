@@ -57,7 +57,7 @@ const DriverLocationsModal = ({ open, onClose }) => {
     <div className="fixed inset-0 z-[2700] bg-black/50 flex items-end" onClick={onClose} data-testid="driver-locations-modal">
       <div className="w-full bg-white rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2"><House size={22} weight="fill" style={{ color: '#00B578' }} /> Lieu de résidence</h3>
+          <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2"><House size={22} weight="fill" style={{ color: '#0EA5E9' }} /> Lieu de résidence</h3>
           <button onClick={onClose} className="text-gray-400" data-testid="driver-locations-close"><X size={22} /></button>
         </div>
         <p className="text-xs text-gray-500 mb-4">Définissez votre point d&apos;attache et activez tous les services disponibles sur la plateforme.</p>
@@ -96,7 +96,7 @@ const DriverLocationsModal = ({ open, onClose }) => {
           </div>
         )}
 
-        <button onClick={save} disabled={saving} className="w-full text-white rounded-xl py-3 font-bold text-sm disabled:opacity-50" style={{ background: '#00B578' }} data-testid="save-work-base-btn">
+        <button onClick={save} disabled={saving} className="w-full text-white rounded-xl py-3 font-bold text-sm disabled:opacity-50" style={{ background: '#0EA5E9' }} data-testid="save-work-base-btn">
           {saving ? 'Enregistrement…' : 'Enregistrer'}
         </button>
       </div>

@@ -332,6 +332,32 @@ async def apply_referral(request: Request):
     }
 
 
+@router.get("/my-pending")
+async def my_pending_referral(request: Request):
+    """For the current user AS A REFEREE (filleul): the pending referral they were
+    signed up with, with progress toward unlocking the reward. Powers the home
+    'Plus que N course(s) pour débloquer X€' nudge."""
+    user = await get_current_user(request)
+    ref = await db.referrals.find_one(
+        {"referred_id": user["id"], "status": "pending"}, {"_id": 0})
+    if not ref:
+        return {"pending": False}
+    rides_required = int(ref.get("rides_required", 1))
+    done = int(ref.get("referred_ride_count", 0))
+    remaining = max(0, rides_required - done)
+    return {
+        "pending": True,
+        "reward_amount": round(float(ref.get("reward_amount", 0)), 2),
+        "currency": ref.get("currency", REFERRAL_CURRENCY),
+        "rides_required": rides_required,
+        "referred_ride_count": done,
+        "remaining": remaining,
+        "referrer_name": ref.get("referrer_name", ""),
+        "window_days": ref.get("window_days") or 0,
+        "expires_at": ref.get("expires_at"),
+    }
+
+
 @router.get("/stats")
 async def get_referral_stats(request: Request):
     """Referral statistics for the current user."""

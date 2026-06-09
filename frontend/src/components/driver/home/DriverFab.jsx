@@ -33,13 +33,13 @@ export const DriverFab = ({
                 data-testid={`fab-action-${i}`}>
                 <span className="bg-white text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full shadow-md whitespace-nowrap">{label}</span>
                 <span className="w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center flex-shrink-0">
-                  <Icon size={20} weight="fill" style={{ color: '#00B578' }} />
+                  <Icon size={20} weight="fill" style={{ color: '#0EA5E9' }} />
                 </span>
               </button>
             ))}
           </div>
         )}
-        <button onClick={() => setOpen((v) => !v)} className="w-10 h-10 rounded-full shadow-xl flex items-center justify-center transition-transform" style={{ background: open ? '#0B0B0B' : '#00B578', transform: open ? 'rotate(135deg)' : 'none' }} data-testid="driver-fab-toggle">
+        <button onClick={() => setOpen((v) => !v)} className="w-10 h-10 rounded-full shadow-xl flex items-center justify-center transition-transform" style={{ background: open ? '#0B0B0B' : '#0EA5E9', transform: open ? 'rotate(135deg)' : 'none' }} data-testid="driver-fab-toggle">
           <Plus size={18} className="text-white" weight="bold" />
         </button>
       </div>

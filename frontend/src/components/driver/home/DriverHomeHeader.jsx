@@ -10,10 +10,11 @@ export const DriverHomeHeader = ({
   scheduledCount,
   onScheduled,
   onNotifications,
+  notifCount = 0,
 }) => {
   const { t } = useLocale();
   return (
-  <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: '#00B578' }}>
+  <div className="px-4 pt-4 pb-3 flex items-center justify-between" style={{ background: '#0EA5E9' }}>
     <button onClick={onMenu} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="driver-menu-btn">
       <List size={20} className="text-white" />
     </button>
@@ -28,16 +29,21 @@ export const DriverHomeHeader = ({
       <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
     </button>
     <div className="flex items-center gap-2">
-      <button onClick={onScheduled} className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
-        <CalendarCheck size={20} className="text-white" />
+      <button onClick={onScheduled} className={`relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center ${scheduledCount > 0 ? 'animate-blink-ring' : ''}`} data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
+        <CalendarCheck size={20} className={scheduledCount > 0 ? 'text-white animate-blink-turn' : 'text-white'} weight={scheduledCount > 0 ? 'fill' : 'regular'} />
         {scheduledCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center animate-pulse ring-2 ring-white" data-testid="scheduled-badge">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white animate-blink-turn" data-testid="scheduled-badge">
             {scheduledCount}
           </span>
         )}
       </button>
-      <button onClick={onNotifications} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="notifications-btn">
+      <button onClick={onNotifications} className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" data-testid="notifications-btn">
         <Bell size={20} className="text-white" />
+        {notifCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5000] text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white animate-blink-turn" data-testid="notifications-badge">
+            {notifCount}
+          </span>
+        )}
       </button>
     </div>
   </div>

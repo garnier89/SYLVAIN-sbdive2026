@@ -25,9 +25,10 @@ import {
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
-  Stethoscope, UsersFour, Briefcase, Bag, Pill,
+  Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
 } from '@phosphor-icons/react';
 
+const API = process.env.REACT_APP_BACKEND_URL;
 const HEAD = "font-['Outfit']";
 const BODY = "font-['Manrope']";
 
@@ -180,6 +181,14 @@ const UserHome = () => {
   const [cmsItems, setCmsItems] = useState([]);
   const [sectionOrder, setSectionOrder] = useState(null);
   const [taxiCats, setTaxiCats] = useState([]);
+  const [pendingRef, setPendingRef] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/api/referral/my-pending`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && d.pending && d.remaining > 0) setPendingRef(d); })
+      .catch(() => {});
+  }, []);
   const [promoBanners, setPromoBanners] = useState([]);
   const promoRef = useRef(null);
   const promoIdx = useRef(0);
@@ -610,6 +619,30 @@ const UserHome = () => {
 
       <DebtBanner />
       <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />
+
+      {/* Referral progress nudge — reminds the referred user how close their reward is */}
+      {pendingRef && (
+        <button
+          onClick={() => navigate('/referral')}
+          className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left bg-gradient-to-br from-[#FF5000] to-[#ff7a3d] text-white shadow-sm active:scale-[0.99] transition-transform"
+          data-testid="referral-progress-banner"
+        >
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <Gift size={22} weight="fill" className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-extrabold leading-tight ${HEAD}`} data-testid="referral-progress-text">
+              {pendingRef.remaining <= 1
+                ? `Plus qu'une course pour débloquer vos ${pendingRef.reward_amount}${pendingRef.currency} !`
+                : `Plus que ${pendingRef.remaining} courses pour débloquer vos ${pendingRef.reward_amount}${pendingRef.currency} !`}
+            </p>
+            <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/30 overflow-hidden">
+              <div className="h-full rounded-full bg-white" style={{ width: `${Math.min(100, Math.round((pendingRef.referred_ride_count / pendingRef.rides_required) * 100))}%` }} data-testid="referral-progress-bar" />
+            </div>
+          </div>
+          <ChevR size={18} weight="bold" className="text-white/90 shrink-0" />
+        </button>
+      )}
 
       <motion.main initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="pt-1">
         {mergedShortcuts.length >= 2 && (

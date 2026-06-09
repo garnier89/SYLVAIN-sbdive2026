@@ -11,7 +11,7 @@ import { CaretDoubleRight } from '@phosphor-icons/react';
  */
 export const SlideToConfirm = ({
   label,
-  color = '#00B578',
+  color = '#0EA5E9',
   textColor = '#ffffff',
   onConfirm,
   testId = 'slide-to-confirm',

@@ -18,7 +18,7 @@ const ScheduledReservationsSheet = ({ rides = [], onClose, onAccept }) => (
                 <Clock size={13} weight="fill" />
                 {r.scheduled_at ? new Date(r.scheduled_at).toLocaleString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Planifiée'}
               </span>
-              <span className="font-bold text-[#00B578]">{(r.estimated_fare || 0).toFixed(2)} €</span>
+              <span className="font-bold text-[#0EA5E9]">{(r.estimated_fare || 0).toFixed(2)} €</span>
             </div>
             <div className="space-y-2 mb-3">
               <div className="flex items-start gap-2.5"><MapPin size={16} weight="fill" className="text-green-600 mt-0.5 flex-shrink-0" /><p className="text-sm text-gray-800">{r.pickup_address}</p></div>
@@ -26,7 +26,7 @@ const ScheduledReservationsSheet = ({ rides = [], onClose, onAccept }) => (
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-500">{r.passenger_name || 'Passager'} · {(r.distance_km || 0).toFixed(1)} km</span>
-              <button onClick={() => onAccept(r)} className="px-6 py-2 rounded-full text-white font-bold text-sm" style={{ background: '#00B578' }} data-testid={`accept-scheduled-${r.id}`}>Accepter</button>
+              <button onClick={() => onAccept(r)} className="px-6 py-2 rounded-full text-white font-bold text-sm" style={{ background: '#FF5000' }} data-testid={`accept-scheduled-${r.id}`}>Accepter</button>
             </div>
           </div>
         ))}

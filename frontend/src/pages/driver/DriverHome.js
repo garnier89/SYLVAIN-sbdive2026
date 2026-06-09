@@ -23,6 +23,7 @@ import DestinationModeModal from '../../components/driver/home/DestinationModeMo
 import DemandZonesModal from '../../components/driver/home/DemandZonesModal';
 import DriverLocationsModal from '../../components/driver/home/DriverLocationsModal';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
+import { startSiren, stopSiren, unlockAudio } from '../../lib/driverAlert';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -53,6 +54,7 @@ const DriverHome = () => {
   const [fabOpen, setFabOpen] = useState(false);
   const { homeFeed, setHomeFeed } = useDriverHomeFeed();
   const [showScheduled, setShowScheduled] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const [showTaxiHall, setShowTaxiHall] = useState(false);
   const [showDemandZones, setShowDemandZones] = useState(false);
   const [showLocations, setShowLocations] = useState(false);
@@ -208,6 +210,27 @@ const DriverHome = () => {
     return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); };
   }, [on, currentRide, isOnline]);
 
+  // Audible "turn-signal" siren + vibration while an incoming request is on screen.
+  useEffect(() => {
+    if (incomingRequest && !currentRide) { unlockAudio(); startSiren(); }
+    else stopSiren();
+    return () => stopSiren();
+  }, [incomingRequest, currentRide]);
+
+  // Unread notifications count for the bell badge (blinks while > 0).
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await driverAPI.getNotifications();
+        if (alive) setNotifCount((r.data || []).filter((n) => !(n.read || n.is_read || n.seen)).length);
+      } catch { /* ignore */ }
+    };
+    load();
+    const id = setInterval(load, 20000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
   // Restore an in-progress ride after a reload/navigation so the driver never
   // "loses" the course they are currently on (and can still start/finish it).
   useEffect(() => {
@@ -351,7 +374,7 @@ const DriverHome = () => {
   if (loading) {
     return (
       <div className="mobile-container min-h-screen bg-white flex items-center justify-center">
-        <div className="w-10 h-10 border-3 rounded-full animate-spin" style={{ borderColor: '#e5e7eb', borderTopColor: '#00B578' }} />
+        <div className="w-10 h-10 border-3 rounded-full animate-spin" style={{ borderColor: '#e5e7eb', borderTopColor: '#0EA5E9' }} />
       </div>
     );
   }
@@ -404,7 +427,7 @@ const DriverHome = () => {
           </div>
         </div>
       )}
-      {/* GREEN HEADER */}
+      {/* SKY-BLUE HEADER */}
       <DriverHomeHeader
         isOnline={isOnline}
         onToggleOnline={toggleOnline}
@@ -412,6 +435,7 @@ const DriverHome = () => {
         scheduledCount={homeFeed.scheduled_pending.length}
         onScheduled={() => setShowScheduled(true)}
         onNotifications={() => navigate('/chauffeur/notifications')}
+        notifCount={notifCount}
       />
 
       {/* GAINS + 4 STAT CARDS */}
@@ -466,7 +490,7 @@ const DriverHome = () => {
         {currentRide && rideMinimized && (
           <button
             onClick={() => setRideMinimized(false)}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1400] bg-[#00B578] text-white rounded-full pl-4 pr-5 py-3 shadow-2xl flex items-center gap-3 active:scale-95 transition-transform"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1400] bg-[#0EA5E9] text-white rounded-full pl-4 pr-5 py-3 shadow-2xl flex items-center gap-3 active:scale-95 transition-transform"
             data-testid="resume-ride-banner"
           >
             <span className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">

@@ -26,7 +26,7 @@ export const CallTypeSheet = ({ onClose, onVideo, onVoice }) => {
       <div className="w-full bg-white rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
         <p className="text-lg font-extrabold text-gray-900 mb-4 text-center">{t('driver.choose_call_type')}</p>
         <button onClick={onVideo} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 mb-3" data-testid="call-video-btn"><VideoCamera size={24} className="text-[#2F9BFF]" weight="fill" /> <span className="font-bold text-gray-800">{t('driver.video_call')}</span></button>
-        <button onClick={onVoice} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50" data-testid="call-voice-btn"><Phone size={24} className="text-[#00B578]" weight="fill" /> <span className="font-bold text-gray-800">{t('driver.voice_call')}</span></button>
+        <button onClick={onVoice} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50" data-testid="call-voice-btn"><Phone size={24} className="text-[#0EA5E9]" weight="fill" /> <span className="font-bold text-gray-800">{t('driver.voice_call')}</span></button>
       </div>
     </div>
   );
@@ -38,7 +38,7 @@ export const NavChooserSheet = ({ onClose, onChoose }) => {
     <div className="fixed inset-0 z-[2600] bg-black/40 flex items-end" onClick={onClose} data-testid="nav-chooser-sheet">
       <div className="w-full bg-white rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
         <p className="text-lg font-extrabold text-gray-900 mb-4 text-center">{t('ride.choose_on_map')}</p>
-        <button onClick={() => onChoose('inapp')} className="w-full text-left px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="nav-inapp-btn">Navigation Google <span className="text-[#00B578] text-xs">(recommandé)</span></button>
+        <button onClick={() => onChoose('inapp')} className="w-full text-left px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="nav-inapp-btn">Navigation Google <span className="text-[#0EA5E9] text-xs">(recommandé)</span></button>
         <button onClick={() => onChoose('gmaps')} className="w-full text-left px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="nav-gmaps-btn">Google Maps</button>
         <button onClick={() => onChoose('waze')} className="w-full text-left px-4 py-4 rounded-2xl bg-gray-50 font-bold text-gray-800" data-testid="nav-waze-btn">Waze</button>
       </div>
@@ -77,7 +77,7 @@ export const OtpModal = ({ value, onChange, onClose, onVerify, error, busy, mode
         {error && <p className="text-xs text-red-500 mb-2 text-center" data-testid="ride-flow-otp-error">{error}</p>}
         <div className="flex gap-2 mt-2">
           <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-bold text-sm text-gray-600">{t('ride.cancel')}</button>
-          <button onClick={onVerify} disabled={value.length !== 4 || busy} className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#00B578' }} data-testid="ride-flow-otp-verify-btn">{phone ? t('driver.verify_start') : t('driver.start')}</button>
+          <button onClick={onVerify} disabled={value.length !== 4 || busy} className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: '#0EA5E9' }} data-testid="ride-flow-otp-verify-btn">{phone ? t('driver.verify_start') : t('driver.start')}</button>
         </div>
       </div>
     </div>

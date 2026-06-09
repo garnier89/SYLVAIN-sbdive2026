@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { rideAPI } from '../services/api';
+import { playAlert } from '../lib/driverAlert';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -35,21 +36,7 @@ export function useDriverHomeFeed() {
 
   useEffect(() => {
     let alive = true;
-    const beep = () => {
-      try {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        const ctx = new Ctx();
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = 'sine'; o.frequency.value = 880;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-        o.start(); o.stop(ctx.currentTime + 0.55);
-      } catch { /* audio blocked until first interaction */ }
-      if (navigator.vibrate) navigator.vibrate([200, 90, 200]);
-    };
+    const beep = () => playAlert();
     const loadFeed = async () => {
       try {
         const res = await rideAPI.driverHomeFeed();

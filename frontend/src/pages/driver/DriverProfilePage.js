@@ -16,7 +16,7 @@ import {
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
-const GREEN = '#00B578';
+const GREEN = '#0EA5E9';
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const DriverProfilePage = () => {

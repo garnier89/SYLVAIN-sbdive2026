@@ -122,7 +122,7 @@ const RideChatPage = () => {
   return (
     <div className="mobile-container min-h-screen bg-[#ECEFF1] flex flex-col" data-testid="ride-chat-page">
       {/* Green header */}
-      <div className="bg-[#00B578] text-white sticky top-0 z-10">
+      <div className="bg-[#0EA5E9] text-white sticky top-0 z-10">
         <div className="px-3 py-3 flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="chat-back">
             <ArrowLeft size={18} weight="bold" />
@@ -158,7 +158,7 @@ const RideChatPage = () => {
                 </div>
               )}
               <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`} data-testid={`msg-${m.id}`}>
-                <div className={`max-w-[78%] px-3 py-2 rounded-2xl ${mine ? 'bg-[#00B578] text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                <div className={`max-w-[78%] px-3 py-2 rounded-2xl ${mine ? 'bg-[#0EA5E9] text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'}`}>
                   {!mine && <p className="text-[10px] font-bold text-gray-400 mb-0.5">{m.sender_name}</p>}
                   {m.image && <img src={m.image} alt="" className="rounded-xl mb-1 max-h-56 w-full object-cover" data-testid="chat-msg-image" />}
                   {m.text && <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>}
@@ -181,7 +181,7 @@ const RideChatPage = () => {
         <button onClick={() => fileRef.current?.click()} disabled={sending} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center disabled:opacity-50" data-testid="chat-camera-btn" aria-label="Envoyer une photo">
           <Camera size={20} className="text-gray-600" weight="fill" />
         </button>
-        <button onClick={send} disabled={sending || !input.trim()} className="w-10 h-10 rounded-full bg-[#00B578] flex items-center justify-center disabled:opacity-50" data-testid="chat-send">
+        <button onClick={send} disabled={sending || !input.trim()} className="w-10 h-10 rounded-full bg-[#0EA5E9] flex items-center justify-center disabled:opacity-50" data-testid="chat-send">
           <PaperPlaneTilt size={18} className="text-white" weight="fill" />
         </button>
       </div>

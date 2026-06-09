@@ -4,7 +4,7 @@ import { ArrowLeft, PaperPlaneTilt, ChatCircleText, Info, ShieldCheck, Lock, Que
 import { toast } from 'sonner';
 import { DriverBottomNav } from './DriverProfilePage';
 
-const GREEN = '#00B578';
+const GREEN = '#0EA5E9';
 
 const FAQS = [
   { q: 'Comment activer mon compte chauffeur ?', a: 'Deposez vos documents (permis, carte grise, assurance, KBIS) dans la section Documents. Notre equipe valide sous 24h.' },
