@@ -1248,3 +1248,15 @@ Roadmap validée : A Paiements → B Annulations/dette → D Favoris → F Popup
 - **Calendrier réservations planifiées** : confirmé fonctionnel (ouvre la feuille ; vide si aucune réservation planifiée en attente — normal).
 - **Admin "Prochaine course"** (carte dans `AdminAutoDispatch` /admin/auto-dispatch) : interrupteur global + délai (min, clampé 1..30) + **override par zone** (cycle Hérite→ON→OFF). Backend : `GET/PUT /api/config/next-job/admin` (admin), `GET /api/config/next-job?lat&lng` (effectif, résolu par zone active via `resolve_zone`, fallback global). Frontend chauffeur consomme la config effective par zone (grille grossière ~2km).
 - NB : zones seedées `is_active=false` en env → la config globale s'applique tant qu'une zone n'est pas activée (override validé en activant temporairement zone_fdf). Le banner « Prochaine course » reste piloté WS+géoloc (non automatisable headless) ; backend + admin validés 100% (11/11). Régression : test_iter190_nextjob_admin.py.
+
+## Iteration 191 (Jun 9, 2026) — Thème chauffeur NOIR + Phase 5 Fidélité (DONE)
+### Thème chauffeur
+- En-tête chauffeur passé en **noir `#0B0B0B`** (textes/icônes blancs, accents + toggle « En ligne » orange, badges rouges clignotants). Bleu ciel `#0EA5E9` remplacé par orange `#FF5000` dans toute l'app chauffeur.
+### Phase 5 — Statuts de fidélité (testé 9/9 backend + frontend 100%, iter191)
+- Paliers Silver/Gold/Platinum/Diamond (seuils 0/500/1500/4000, configurables). Points : +10/course (config), +50 1ère course, +20 parrainage qualifié — pour clients ET chauffeurs (stockés dans `db.loyalty`, séparés du score dispatch 0-100).
+- **Avantage concret câblé** : réduction de commission chauffeur selon le palier (appliquée au calcul des gains à la complétion). Réduction client & priorité dispatch exposées (config) pour câblage progressif.
+- Backend `routes/loyalty.py` : `GET /loyalty/me`, `GET /loyalty/config`, `GET/PUT /loyalty/admin/config`. Hook d'attribution dans `rides.py` (complétion).
+- Frontend : `LoyaltyStatusCard` (accueil client + page récompenses chauffeur), page `/loyalty` (paliers + historique), admin `/admin/loyalty` (points, bonus, paliers/avantages éditables).
+### Bugfix parrainage à l'inscription (Phase 2)
+- `phone_register` crashait (REFERRAL_AMOUNT supprimé) et générait des codes `SB-XXXX`. Corrigé : code **basé sur le nom** (`Jean01P` chauffeur / `Sophie01` client), résolution insensible à la casse, création d'un parrainage **pending** (modèle Phase 2) au lieu du crédit instantané. Fonctions cassées supprimées.
+- Régression : test_iter191_loyalty.py (9/9).
