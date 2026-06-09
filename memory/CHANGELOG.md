@@ -1,6 +1,18 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Covoiturage interurbain activé [DONE, testé e2e]
+
+- `CarPoolPage.js` rebranché sur le vrai backend `/api/carpool` (était sur un catalogue de démo `phase2` + bouton « Publier » factice).
+- **Publier un trajet** (modale : départ, destination, date/heure, places, prix/place → POST `/api/carpool/rides`), **liste des trajets réels** (`GET /api/carpool/rides`), **réserver une place** (`POST /api/carpool/rides/{id}/book`) avec décompte des places restantes + état « Complet ».
+- Distinct du **Pool** (taxi partagé instantané, catégorie taxi séparée).
+- Vérifié e2e : publier → lister (5 trajets) → réserver → passagers +1. Frontend compile OK.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+### Constat config véhicules (à clarifier avec l'utilisateur)
+- Vérifié : la config véhicules de NOTRE app se reflète bien côté client — `AdminVehicleTypes`/`VehicleTypeEditor` (images, tarifs, capacité) → `/api/config/vehicle-types` → `RideChoosePage` affiche images + tarifs (15 types avec images servies). Les captures « Service Category (Vehicle Service) » viennent de **sbdrivevtc.com**, un système V3Cube PHP **séparé** (pas notre app).
+
+
 ## 2026-06-09 — Détection de mots-clés à risque dans le chat course [DONE, testé 100%]
 
 - **Scanner** `scan_risky_text` (dispatch_admin.py) : détecte espèces/cash/liquide, intention d'annulation, hors-app (WhatsApp, virement, paypal, « appelle-moi », « payer directement »…) + numéros de téléphone (≥9 chiffres, ignore les petits montants).
