@@ -80,6 +80,10 @@ async def ride_auto_share(ride_id: str, request: Request):
     contacts = await db.emergency_contacts.find(
         {"user_id": user["id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1}).to_list(10)
     return {"enabled": bool(u.get("auto_share_trip")), "contacts": contacts}
+
+
+@router.get("/trip-share/{token}")
+async def get_trip_share(token: str):
     """PUBLIC — live snapshot of a shared trip (no auth)."""
     share = await db.trip_shares.find_one({"token": token}, {"_id": 0})
     if not share:
