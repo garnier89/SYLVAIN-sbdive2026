@@ -52,6 +52,7 @@ const TaxiBiddingPage = () => {
   const [searching, setSearching] = useState(() => searchParams.get('resume') || null); // rideId once submitted
   const [searchSeconds, setSearchSeconds] = useState(0);
   const [offers, setOffers] = useState([]);
+  const [viewedCount, setViewedCount] = useState(0);
   const [expired, setExpired] = useState(false); // délai dépassé sans chauffeur
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
@@ -168,6 +169,7 @@ const TaxiBiddingPage = () => {
         if (!r.ok) return;
         const ride = await r.json();
         setOffers((ride.counter_offers || []).filter((o) => o.status === 'pending'));
+        setViewedCount(ride.viewed_count || 0);
         if (ride.status && ride.status !== 'pending') {
           clearInterval(poll); clearInterval(tick);
           if (ride.status === 'cancelled') { toast.info('Course annulée'); setSearching(null); }
@@ -449,6 +451,14 @@ const TaxiBiddingPage = () => {
           <div className="flex flex-col items-center pt-4 pb-2">
             <h2 className="text-lg font-bold text-gray-900" data-testid="searching-title">Recherche d&apos;un chauffeur…</h2>
             <p className="text-sm text-gray-500 mt-1">Votre offre : <span className="font-bold text-[#FF5000]" data-testid="searching-fare">{money(fare)}</span> · {searchSeconds}s</p>
+            {viewedCount > 0 && (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-200" data-testid="viewed-count">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-xs font-bold text-green-700">
+                  {viewedCount} chauffeur{viewedCount > 1 ? 's' : ''} {viewedCount > 1 ? 'ont' : 'a'} vu votre offre
+                </span>
+              </div>
+            )}
             {liveStats?.online_drivers_nearby != null && (
               <p className="text-[11px] text-gray-400 mt-0.5">{liveStats.online_drivers_nearby} chauffeurs en ligne à proximité</p>
             )}

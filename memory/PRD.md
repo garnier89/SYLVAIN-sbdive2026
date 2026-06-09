@@ -1,3 +1,13 @@
+## NEW - 2026-06-09 (123) - Enchères : compteur live « X chauffeurs ont vu votre offre » (DONE, testé curl)
+- **Demande user** : pendant la recherche d'enchère, afficher en temps réel combien de chauffeurs ont VU l'offre (rassure le client, l'incite à attendre/augmenter plutôt qu'annuler → meilleur taux de complétion).
+- **Backend** (`routes/rides.py`) : NOUVEL endpoint **`POST /{ride_id}/seen`** (chauffeur, idempotent, `$addToSet viewed_by`) ; `get_ride` expose désormais **`viewed_count`** (= len(viewed_by)).
+- **Frontend** : `DriverHome.js` → effet qui appelle `/seen` une fois quand une demande d'enchère apparaît. `TaxiBiddingPage.js` → state `viewedCount` alimenté par le poll 2,5s, badge vert pulsant `data-testid="viewed-count"` dans la feuille de recherche (« X chauffeur(s) ont/a vu votre offre »).
+- **Vérifié** : curl (driver `/seen` → `{ok:true, viewed_count:1}` ; client GET ride → `viewed_count:1`). Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-09 (122) - Enchères VTC modèle iDrive/V3Cube : le CLIENT choisit parmi plusieurs chauffeurs (DONE, testé 4/4)
 - **Demande user (captures)** : reproduire l'écran V3Cube « Demander » — le client propose un tarif, PLUSIEURS chauffeurs en compétition reçoivent la proposition et peuvent soit **Accepter le tarif exact** soit faire une **contre-proposition** ; le client voit la **liste de tous les chauffeurs** (badge « Votre tarif » pour ceux qui acceptent son prix) et **choisit** (Refuser/Acceptez). + Retirer la **carte récapitulatif d'itinéraire** (adresses + Modifier) de l'écran « Offrez votre tarif ». Choix user : modèle « le client choisit toujours » (2a).
 - **Changement de modèle** : un chauffeur qui « Accepte » une enchère ne **rafle plus** la course instantanément — il soumet une **offre au tarif du client** (via `/counter-offer` avec `amount = proposed_fare`) qui apparaît dans la liste du client avec le badge « Votre tarif ». Le client confirme (accept-offer) → attribution + tarif honoré.

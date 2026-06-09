@@ -308,6 +308,19 @@ const DriverHome = () => {
     return () => clearInterval(interval);
   }, [isOnline, currentRide, driver, incomingRequest]);
 
+  // Acknowledge a bidding request as SEEN → powers the passenger's live
+  // "X chauffeurs ont vu votre offre" counter. Best-effort, once per request.
+  useEffect(() => {
+    if (!incomingRequest) return;
+    const isBid = incomingRequest.is_bidding === true
+      || incomingRequest.mode === 'bidding'
+      || incomingRequest.ride_type === 'bidding';
+    if (!isBid) return;
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/rides/${incomingRequest.id}/seen`, {
+      method: 'POST', credentials: 'include',
+    }).catch(() => {});
+  }, [incomingRequest]);
+
   // While our counter-offer is pending: tick the countdown + poll the ride.
   // If the passenger picks us, transition straight into the active ride.
   useEffect(() => {

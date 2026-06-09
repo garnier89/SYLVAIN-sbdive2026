@@ -1066,7 +1066,28 @@ async def get_ride(ride_id: str, request: Request):
     if is_assigned_driver or is_admin:
         await enrich_passenger_info(ride)
 
+    # Bidding: how many drivers have seen this offer (live "vu par X chauffeurs").
+    ride["viewed_count"] = len(ride.get("viewed_by") or [])
+
     return ride
+
+
+@router.post("/{ride_id}/seen")
+async def mark_ride_seen(ride_id: str, request: Request):
+    """A driver acknowledges they have SEEN a (bidding) ride request. Records the
+    driver in the ride's viewed_by set so the passenger can show a live
+    'X chauffeurs ont vu votre offre' counter. Best-effort, idempotent."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not driver:
+        return {"ok": False}
+    res = await db.rides.update_one(
+        {"id": ride_id, "status": "pending"},
+        {"$addToSet": {"viewed_by": driver["id"]}},
+    )
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "viewed_by": 1})
+    count = len(ride.get("viewed_by") or []) if ride else 0
+    return {"ok": res.matched_count > 0, "viewed_count": count}
 
 
 @router.post("/{ride_id}/accept")
