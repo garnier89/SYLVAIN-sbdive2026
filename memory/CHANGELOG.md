@@ -1,6 +1,14 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Cuisines & réductions configurables + couverture prestataires
+
+- **Admin** (`AdminStores.js` + `PUT /api/admin/merchants/{id}`): édition cuisine, réduction (%), frais de livraison et délai par marchand (modale + colonnes dédiées). Reflété immédiatement côté client.
+- **Marchand** (`MerchantSettings.js` carte « Vitrine & Réduction » + `GET/PUT /api/merchants/me`): le marchand configure lui-même sa cuisine, sa réduction et sa livraison (champs pré-remplis, réels).
+- **Services à la demande**: seed étendu à 27 prestataires couvrant **les 24 catégories** — plus aucune catégorie vide (gardien, jardinage, dj, traiteur, serrurier, coach-fitness, etc. ont désormais un prestataire avec prestations).
+- **Tests**: `tests/test_iter196_merchant_config_ondemand.py` (31/31 pass) + testing_agent iter 196 = 100% backend & frontend, aucun bug.
+
+
 ## 2026-06-09 — Module « Services à la demande » (V3Cube) + harmonisation UI
 
 ### Module Services à la demande (Lot 1 + Lot 2) — NEW
