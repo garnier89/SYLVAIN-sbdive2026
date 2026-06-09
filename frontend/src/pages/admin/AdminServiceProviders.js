@@ -149,7 +149,7 @@ const AdminServiceProviders = () => {
                 <Field label="Nb avis"><Input type="number" value={editing.reviews_count} onChange={(e) => setEditing({ ...editing, reviews_count: parseInt(e.target.value) || 0 })} /></Field>
               </div>
               <ImageUpload label="Photo du prestataire" value={editing.photo} onChange={(url) => setEditing({ ...editing, photo: url })} testId="provider-photo-upload" />
-              <GalleryUpload label="Galerie" value={editing.gallery || []} onChange={(g) => setEditing({ ...editing, gallery: g })} testId="provider-gallery-upload" />
+              <GalleryUpload label="Galerie" value={editing.gallery || []} max={12} onChange={(g) => setEditing({ ...editing, gallery: g })} testId="provider-gallery-upload" />
               <Field label="Photo (URL)"><Input value={editing.photo} onChange={(e) => setEditing({ ...editing, photo: e.target.value })} /></Field>
               <Field label="Téléphone"><Input value={editing.phone} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} /></Field>
               <Field label="Bio"><Input value={editing.bio} onChange={(e) => setEditing({ ...editing, bio: e.target.value })} /></Field>

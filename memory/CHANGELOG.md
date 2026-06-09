@@ -1,6 +1,19 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — « Parler en direct » (IA + escalade) + Upload images (object storage)
+
+### Support « Parler en direct » (IA d'abord → escalade humaine)
+- **Backend** (`routes/support.py`): agent IA **GPT-4o-mini** via clé Emergent (emergentintegrations). Endpoints `/support/me`, `/support/message` (réponse IA tant que status=ai), `/support/escalate` (→ status=escalated, l'IA se coupe), inbox admin `/support/admin/threads*` (reply en tant que `agent`, close). Garde-fou: pas de réponse sur thread clôturé. Prompt FR connaissant tout l'app (VTC, livraison, services, portefeuille, fidélité…).
+- **Frontend**: composant réutilisable `SupportChatPanel.jsx` (polling 5s, bouton « Parler à un conseiller »). Intégré client (`/livechat`), chauffeur (DriverSupportPage), marchand (`/merchant/live-support`). **Admin inbox** `AdminLiveSupport` (`/admin/live-support`, lien sidebar).
+- **Tests**: `test_iter198_support.py` (8/8) + testing_agent iter 198 = 100% (4 rôles).
+
+### Upload logo & photos (object storage Emergent)
+- **Backend** (`routes/uploads.py`): `POST /uploads/image` (auth, validation type + max 6 Mo) → `{id, url:'/api/uploads/{id}'}`; `GET /uploads/{id}` **public** (sert l'image pour `<img>`, Cache-Control). Refresh auto du storage_key sur 403.
+- **Frontend**: `ImageUpload` + `GalleryUpload` (aperçu, progression). Marchand (logo + galerie boutique dans Vitrine), Admin boutique (logo dans `/admin/stores`), Admin prestataire (photo + galerie dans `/admin/service-providers`). `image_url`/`gallery` acceptés par `PUT /merchants/me` et `PUT /admin/merchants/{id}`.
+- **Tests**: `test_iter199_uploads.py` (9/9) + testing_agent iter 199 = 100%. Galerie cap à 12 (UI alignée).
+
+
 ## 2026-06-09 — Réduction flash programmable (marchand + admin)
 
 - **Backend** (`routes/merchants.py`): config `flash_discount {enabled, pct, start_time, end_time, days}` sur le marchand. Helpers `_flash_is_active` (fenêtre horaire en tz Europe/Paris, gère le passage minuit + jours), `compute_effective_discount` (la réduction la plus avantageuse s'applique), `validate_flash_discount`. `_enrich_merchant` expose `effective_discount_pct` + `flash_active`. Accepté par `PUT /merchants/me` et `PUT /admin/merchants/{id}`. `orders.py` applique la réduction effective au total.

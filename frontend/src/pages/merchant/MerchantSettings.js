@@ -88,7 +88,7 @@ const MerchantSettings = () => {
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><ForkKnife size={18} className="text-orange-500" /> Vitrine & Réduction</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <ImageUpload label="Logo / photo de la boutique" value={vitrine.image_url} onChange={(url) => setVitrine({ ...vitrine, image_url: url })} testId="vitrine-logo-upload" />
-              <GalleryUpload label="Galerie boutique" value={vitrine.gallery} onChange={(g) => setVitrine({ ...vitrine, gallery: g })} testId="vitrine-gallery-upload" />
+              <GalleryUpload label="Galerie boutique" value={vitrine.gallery} max={12} onChange={(g) => setVitrine({ ...vitrine, gallery: g })} testId="vitrine-gallery-upload" />
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Type de cuisine</label>
                 <Input value={vitrine.cuisine} onChange={e => setVitrine({ ...vitrine, cuisine: e.target.value })} placeholder="Ex : Italien, Japonais, Américain…" data-testid="vitrine-cuisine" />
