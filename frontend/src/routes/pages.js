@@ -152,6 +152,7 @@ export const AdminGiftCards = lazy(() => import('../pages/admin/AdminGiftCards')
 export const AdminReferralSettings = lazy(() => import('../pages/admin/AdminReferralSettings'));
 export const AdminLoyalty = lazy(() => import('../pages/admin/AdminLoyalty'));
 export const AdminModeration = lazy(() => import('../pages/admin/AdminModeration'));
+export const AdminServiceProviders = lazy(() => import('../pages/admin/AdminServiceProviders'));
 export const AdminTemplates = lazy(() => import('../pages/admin/AdminTemplates'));
 export const AdminNewsletter = lazy(() => import('../pages/admin/AdminNewsletter'));
 export const AdminKyc = lazy(() => import('../pages/admin/AdminKyc'));

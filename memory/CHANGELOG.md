@@ -1,6 +1,21 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Module « Services à la demande » (V3Cube) + harmonisation UI
+
+### Module Services à la demande (Lot 1 + Lot 2) — NEW
+- **Backend** (`routes/services.py`): `GET /services/ondemand-categories`, `GET /services/providers?category=&lat=&lng=` (distance + price_from), `GET /services/providers/{id}`. Admin CRUD: `GET/POST/PUT/DELETE /services/admin/providers`, `GET/PUT /services/admin/ondemand-categories`. Réservation via `/services/bookings` existant (status=confirmed si provider_id).
+- **Seed** (`core/ondemand_seed.py`, branché dans startup): 24 catégories FR + 9 prestataires démo (dont Sylvain G coiffeur avec 6 prestations). Idempotent.
+- **Frontend**: `AllServicesPage` (grille catégories « Tous les autres services »), `ServiceProvidersPage` (`/service-providers/:slug` — « Fournisseur de services »), `ServiceProviderDetailPage` (`/service-provider/:id` — « Détail du service » avec onglets Prestations/Galerie/Avis + modale de réservation). `lib/phosphorIcon.js` résout les icônes par nom. Tuiles Accueil « Services à la demande » reliées au nouveau flux.
+- **Admin**: `AdminServiceProviders` (`/admin/service-providers`) — CRUD prestataires + éditeur de prestations + toggle catégories. Lien sidebar sous « Services à la demande ».
+- **Tests**: `tests/test_iter195_ondemand_services.py` (9/9 pass). Testing agent iter 195 = 100% backend + frontend, aucun bug.
+
+### Harmonisation UI (style page Repas V3Cube)
+- `MarketplacePage` + `ServiceListLayout` (Magasins à proximité & autres listes): en-tête orange + recherche blanche arrondie intégrée, cohérent avec Livraison Repas.
+- Page Livraison Repas refondue (bannière, chips Cuisines, cartes Vendeurs chauds, réductions marchand réelles, panier flottant).
+- Bouton chauffeur « En ligne » modernisé (dégradé vert + halo + point live), cercles de stats chauffeur peaufinés.
+
+
 ## 2026-06-09 — Phase 3 : Annulations, pénalités & modération + bouton chauffeur vert
 
 ### UI Chauffeur

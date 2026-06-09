@@ -85,6 +85,7 @@ const sidebarConfig = [
         { label: 'Paramètres', path: '/admin/runner' },
       ]},
       { icon: Wrench, label: 'Services à la demande', key: 'ondemand', children: [
+        { label: 'Prestataires & catégories', path: '/admin/service-providers' },
         { label: 'Paramètres', path: '/admin/ondemand' },
       ]},
       { icon: VideoCamera, label: 'Consultation vidéo', key: 'video', children: [
