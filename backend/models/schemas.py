@@ -231,6 +231,8 @@ class OrderResponse(BaseModel):
     driver_id: Optional[str] = None
     items: List[Dict]
     subtotal: float
+    discount_pct: float = 0
+    discount: float = 0
     delivery_fee: float
     total: float
     status: str
