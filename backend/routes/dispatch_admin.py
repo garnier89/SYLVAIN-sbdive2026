@@ -115,7 +115,8 @@ RISK_PATTERNS = {
     "espèces": [r"esp[èe]ces?", r"\bliquide\b", r"\bcash\b", r"main\s+propre", r"\bbillets?\b"],
     "annulation": [r"annul", r"je vais annuler"],
     "hors-app": [r"whats\s*app", r"hors[\s-]?app", r"en dehors", r"sans (?:passer par )?l'?app",
-                 r"\bdirectement\b", r"au black", r"appelle[\s-]?moi", r"mon num[ée]ro",
+                 r"pay\w*\s+directement", r"directement\s+en\s+esp", r"au black",
+                 r"appelle[\s-]?moi", r"mon num[ée]ro",
                  r"contacte[\s-]?moi", r"\bpaypal\b", r"\bvirement\b", r"\bzelle\b"],
 }
 _PHONE_RE = re.compile(r"(?:(?:\+|00)\d{1,3}[\s.\-]?)?(?:\d[\s.\-]?){8,}\d")

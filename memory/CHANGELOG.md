@@ -1,6 +1,15 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Détection de mots-clés à risque dans le chat course [DONE, testé 100%]
+
+- **Scanner** `scan_risky_text` (dispatch_admin.py) : détecte espèces/cash/liquide, intention d'annulation, hors-app (WhatsApp, virement, paypal, « appelle-moi », « payer directement »…) + numéros de téléphone (≥9 chiffres, ignore les petits montants).
+- Intégré dans `phase1.send_ride_message` : le message du chauffeur est marqué `flagged`/`flag_reasons` ; si c'est le CHAUFFEUR, `record_chat_flag` incrémente `chat_flags_count` + alerte admin temps réel (`chat_risk_flag`). Un message client risqué est surligné mais ne sanctionne pas le chauffeur.
+- **Admin** : `ride-conversations` marque le fil `flagged` ; la modale surligne les messages à risque (bordure rouge + puces de raison). `driver-behavior` renvoie `chat_flags` et signale (🚩) tout chauffeur avec ≥1 alerte chat ; nouvelle colonne « Alertes chat » dans la tour de contrôle.
+- **Tests** : `tests/test_iter204_chat_risk_keywords.py` (6/6) + `test_iter204_chat_risk_e2e.py` (4/4). testing_agent iteration_204 : **100% (10/10 backend + frontend complet)**, 0 erreur JS.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## 2026-06-09 — Alertes live + conversations chauffeur↔client + abus wallet [DONE, testé 100%]
 
 - **Alerte admin en direct (cloche + son)** sur `/admin/dispatch` : icône cloche avec badge rouge = nb de zones « aucun chauffeur » ; bip Web Audio + toast quand une NOUVELLE zone passe en alerte ou qu'un chauffeur est nouvellement signalé. `data-testid=dispatch-bell`.
