@@ -129,6 +129,7 @@ const sidebarConfig = [
         { label: 'Avis courses/missions', path: '/admin/reviews' },
       ]},
       { icon: Shield, label: 'Litiges', path: '/admin/disputes' },
+      { icon: Warning, label: 'Modération & Annulations', path: '/admin/moderation' },
       { icon: Warning, label: 'Alertes SOS', path: '/admin/sos-requests' },
       { icon: EnvelopeSimple, label: 'Demandes de contact', path: '/admin/contact-requests' },
       { icon: FileText, label: 'Aide commandes', path: '/admin/order-help-requests' },

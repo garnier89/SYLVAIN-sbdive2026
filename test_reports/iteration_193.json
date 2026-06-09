@@ -1,0 +1,43 @@
+{
+  "summary": "Iter 193 — Phase 3 (Annulations, pénalités & modération) validated end-to-end. BACKEND: 10/10 pytest pass in /app/backend/tests/test_iter193_moderation_api.py covering admin config GET/PUT/persistence + non-admin 403, GET /moderation/passenger-status shape (cancel_count/warn_threshold/ban_threshold/banned/ban_until), admin events/call-logs/conversations listings, ban gating on POST /api/rides (lowered thresholds → 2 cancels → 403 'Réservations suspendues'), and /moderation/call-log validation (404 unknown ride, 400 missing ride_id). DEFAULTS RESTORED (warn=10, ban=15, ban_hours=2, abusive=2.0, release=1.0, enabled=true) — verified via curl after tests. FRONTEND: /admin/moderation accessible after email login (admin@superapp.com), renders data-testid='admin-moderation' with 4 tabs (config/events/calls/conversations). All required testids present: warn-threshold(10), ban-threshold(15), abusive-penalty(2), save-moderation-btn, moderation-enabled-toggle. Save click → toast 'Règles de modération enregistrées !' (success). Sidebar link 'Modération & Annulations' present under EXPLOITATION group. Tab switching functional. The pre-existing helper-level pytest /app/backend/tests/test_iter193_moderation.py has a pytest rootdir issue ('No module named core') when run from /app — that test was authored to be executed from /app/backend/ where conftest paths resolve; not introduced by this iteration. Functional coverage is fully delivered by the new HTTP test file.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/app/backend/tests/test_iter193_moderation.py (helper unit test)", "issue": "Collection fails from /app rootdir with 'No module named core' because it imports `from core.config import db` directly. The HTTP-level test_iter193_moderation_api.py supersedes it for e2e coverage."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter193_moderation_api.py",
+    "/app/test_reports/pytest/iter193_moderation_api.xml"
+  ],
+  "action_items": [
+    "Optional: fix the rootdir/imports of /app/backend/tests/test_iter193_moderation.py so it can be collected from /app (add a sys.path hook in /app/backend/tests/conftest.py or move the test to use `from backend.routes import moderation`). Non-blocking — functionality is covered by test_iter193_moderation_api.py."
+  ],
+  "critical_code_review_comments": [
+    "routes/moderation.py:107-127 — passenger ban path is correct: ban_until set ≥ ban_at, cancel_count reset to 0, event 'client_ban' logged. Notification create_notification wrapped in try/except is good (resilient to notif failures).",
+    "routes/moderation.py:153-184 apply_driver_penalty — short-circuits when amount <= 0 or driver has no user_id. Uses routes.debts._debit_wallet (private helper). Acceptable but underscored helper signals internal API; consider exposing a public debit_wallet to make the cross-module dependency explicit.",
+    "routes/moderation.py:286-299 admin_list_events — enrich loop does N+1 db.users.find_one queries per event. For limit=500 events this is 500 round-trips. Recommend batch-fetch via {'id':{'$in':[...]}} and dict lookup.",
+    "routes/moderation.py:302-316 admin_call_logs — same N+1 pattern for from/to names (potentially 2 queries per call log).",
+    "routes/moderation.py:319-344 admin_conversations — aggregation is fine but {'$group': by ref_type+ref_id} can be slow without an index on (ref_type, ref_id, created_at) on chat_messages. Consider an index.",
+    "routes/moderation.py:254-283 admin_save_config — coerces silently on bad input (try/except ValueError: pass) which means a malformed PUT silently no-ops that field. Better: return 400 to surface client bugs.",
+    "AdminModeration.js:191-196 Field — uses `parseFloat(e.target.value) || 0` which coerces empty string to 0 immediately as user clears the field. UX: switch to allowing transient empty string in state and validate on save.",
+    "AdminModeration.js:32-37 fetchJson — silently swallows non-OK responses with `if (res.ok)` and no toast; admin won't know if loading events/calls/conversations failed (e.g., session expired). Add an error toast on !res.ok.",
+    "AdminModeration.js — no Enabled-toggle behavior visible to user before save: toggling Switch only updates local state; user could be confused about whether enabling persists. Consider auto-save the toggle or show a 'modifications non enregistrées' badge."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter193_moderation_api.py"
+  ],
+  "success_rate": {"backend": "100% (10/10 pytest pass)", "frontend": "100% on the surfaces in scope (page loads, 4 tabs, all testids, save toast, sidebar link)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (email login via /login → 'Ou choisir une autre option de connexion' → 'Email & mot de passe' → /login/email)",
+  "seed_data_creation": "Transient passengers TEST_iter193_pax_*@example.com created via /api/auth/register for each test that needs a non-admin session; no cleanup performed (TEST_ prefix preserves them as ban-state residue is acceptable for transient accounts).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Canonical regression: /app/backend/tests/test_iter193_moderation_api.py. Uses Bearer token from /api/auth/login (cookies via requests.Session do NOT roundtrip through Cloudflare in this env — always extract access_token from JSON). Ride creation payload requires flat pickup_lat/pickup_lng/pickup_address/dropoff_lat/dropoff_lng/dropoff_address + payment_method='cash'. Cancel endpoint requires JSON body (even empty {'reason':''}) — calling without body returns 422. Restore_defaults autouse fixture always PUTs canonical defaults at teardown — DO NOT remove it. The frontend admin login flow requires switching from phone to email via 'Ou choisir une autre option de connexion' → 'Email & mot de passe' which routes to /login/email; admin then lands on /admin and /admin/moderation is in the sidebar under EXPLOITATION.",
+  "rca of the issue": "No bug — Phase 3 fully validated. Backend ban flow exercised end-to-end over HTTP for the first time in this iteration: lowering warn=1, ban=2, then creating + cancelling 2 rides through POST /api/rides + POST /api/rides/{id}/cancel triggers the moderation state machine in routes/moderation.py:register_passenger_cancel, which sets ban_until and resets cancel_count, and the subsequent POST /api/rides returns 403 'Réservations suspendues suite à des annulations répétées' from check_passenger_ban (routes/rides.py:280 call). The admin GET/PUT /moderation/admin/config + listings + non-admin 403 path are also exercised. Defaults restored at end via PUT — verified by post-test curl returning the exact DEFAULT_CONFIG dict."
+}

@@ -245,9 +245,10 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
 
   const callPassenger = useCallback(() => {
     setShowCallType(false);
+    fetch(`${API}/api/moderation/call-log`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ride_id: ride.id }) }).catch(() => {});
     if (ride.passenger_phone) window.location.href = `tel:${ride.passenger_phone}`;
     else toast.info('Numéro du passager indisponible.');
-  }, [ride.passenger_phone]);
+  }, [ride.passenger_phone, ride.id]);
 
   const openNav = useCallback((app) => {
     setShowNav(false);

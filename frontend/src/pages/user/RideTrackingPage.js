@@ -584,7 +584,10 @@ const RideTrackingPage = () => {
           otp={startOtp || ride.start_otp}
           onRequestOtp={requestStartOtp}
           onBack={() => navigate('/home')}
-          onCall={() => { if (ride.driver_phone) window.location.href = `tel:${ride.driver_phone}`; else toast.info('Numéro du chauffeur indisponible'); }}
+          onCall={() => {
+            fetch(`${API}/api/moderation/call-log`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ride_id: rideId }) }).catch(() => {});
+            if (ride.driver_phone) window.location.href = `tel:${ride.driver_phone}`; else toast.info('Numéro du chauffeur indisponible');
+          }}
           onChat={() => navigate(`/ride/${rideId}/chat`)}
           onShare={handleShare}
           onSos={() => setShowSafety(true)}

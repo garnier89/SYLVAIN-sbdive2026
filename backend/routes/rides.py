@@ -279,6 +279,10 @@ async def estimate_ride(data: RideRequest):
 async def create_ride(data: RideRequest, request: Request):
     user = await get_current_user(request)
 
+    # Phase 3 — block bookings while the passenger is under a temporary ban.
+    from routes.moderation import check_passenger_ban
+    await check_passenger_ban(user["id"])
+
     # ── Service availability (admin can disable a Taxi mode / set a schedule without redeploy) ──
     mode_id = getattr(data, "mode_id", None)
     if mode_id:
@@ -1163,6 +1167,10 @@ async def driver_cancel_booking(ride_id: str, request: Request):
         "released_at": now,
     }})
 
+    # Phase 3 — €1 penalty for accepting then releasing a booking.
+    from routes.moderation import apply_driver_penalty
+    await apply_driver_penalty(driver["id"], "accept_release", ride_id)
+
     # Notify the passenger their driver stepped back.
     try:
         from core.notifications import create_notification
@@ -1439,6 +1447,13 @@ async def update_ride_status(ride_id: str, request: Request):
                     {"$set": {"points": new_pts}, "$inc": {"cancelled_count": 1}},
                 )
                 await _recompute_rates(ride["driver_id"])
+            # Phase 3 — monetary penalty for an abusive driver cancellation.
+            from routes.moderation import apply_driver_penalty
+            await apply_driver_penalty(ride["driver_id"], "abusive_cancel", ride_id)
+        # ===== Phase 3: track passenger cancellation (warning / temporary ban) =====
+        if is_passenger:
+            from routes.moderation import register_passenger_cancel
+            await register_passenger_cancel(ride["user_id"], ride_id)
 
     await db.rides.update_one({"id": ride_id}, {"$set": update_data})
 
@@ -1521,12 +1536,19 @@ async def cancel_ride(ride_id: str, request: Request):
     if ride_id in manager.ride_rooms:
         del manager.ride_rooms[ride_id]
 
+    # Phase 3 — track passenger cancellation (warning / temporary ban).
+    moderation = {"count": 0, "warned": False, "banned": False, "ban_until": None}
+    if ride["user_id"] == user["id"]:
+        from routes.moderation import register_passenger_cancel
+        moderation = await register_passenger_cancel(user["id"], ride_id)
+
     return {
         "message": "Ride cancelled",
         "cancellation_fee": cancel_fee,
         "debt_created": settle.get("debt_created", False),
         "paid_from_wallet": settle.get("paid_from_wallet", False),
         "free_window_min": policy["free_window_min"],
+        "moderation": moderation,
     }
 
 
