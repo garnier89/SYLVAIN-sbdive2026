@@ -45,7 +45,7 @@ const TaxiBiddingPage = () => {
 
   const [estimate, setEstimate] = useState(null);
   const [fare, setFare] = useState(0);
-  const [vehicleType, setVehicleType] = useState(() => searchParams.get('vehicle') || 'sb');
+  const [vehicleType] = useState(() => searchParams.get('vehicle') || 'sb');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [liveStats, setLiveStats] = useState(null);
@@ -55,7 +55,6 @@ const TaxiBiddingPage = () => {
   const [expired, setExpired] = useState(false); // délai dépassé sans chauffeur
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
-  const [vehTypes, setVehTypes] = useState([]);
 
   // Admin-configurable radar cars (enabled / icon / count / radius)
   useEffect(() => {
@@ -65,13 +64,6 @@ const TaxiBiddingPage = () => {
       .catch(() => {});
   }, []);
 
-  // Vehicle types come from the admin "Types de véhicules" config (slug, name, images)
-  useEffect(() => {
-    fetch(`${API}/api/vehicle-types`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => { if (Array.isArray(d) && d.length) setVehTypes(d); })
-      .catch(() => {});
-  }, []);
   const suggestedRef = useRef(false);
   const debounceRef = useRef(null);
 
@@ -252,6 +244,16 @@ const TaxiBiddingPage = () => {
     } catch (e) { toast.error(e.message || 'Impossible d\'accepter cette offre'); }
   };
 
+  const rejectOffer = async (offerId) => {
+    // Optimistically drop the offer from the list, then mark it rejected server-side.
+    setOffers((prev) => prev.filter((o) => o.id !== offerId));
+    try {
+      await fetch(`${API}/api/rides/${searching}/reject-offer/${offerId}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (e) { console.warn('[bidding] reject offer failed', e?.message); }
+  };
+
   const raiseFare = async (delta) => {
     const newFare = Math.round((fare + delta) * 100) / 100;
     try {
@@ -349,47 +351,8 @@ const TaxiBiddingPage = () => {
         </button>
       </div>
 
-      {/* Route summary when map is visible (hidden during driver search) */}
-      {mapReady && !searching && (
-        <div className="relative z-10 mx-4 mt-4 bg-white rounded-2xl shadow-lg overflow-hidden" data-testid="route-summary">
-          <button onClick={() => { setPickup(null); setDropoff(null); setFare(0); }}
-            className="w-full p-3 flex items-start gap-3 text-left"
-            data-testid="edit-route-btn">
-            <div className="flex flex-col items-center pt-1">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <div className="w-0.5 h-6 bg-gray-300 my-1" />
-              <div className="w-2.5 h-2.5 rounded-sm bg-red-500" />
-            </div>
-            <div className="flex-1 min-w-0 space-y-1.5">
-              <p className="text-sm font-medium text-gray-800 truncate">{pickup.address}</p>
-              <p className="text-sm font-medium text-gray-800 truncate">{dropoff.address}</p>
-            </div>
-            <span className="text-xs text-[#FF5000] font-semibold flex-shrink-0 mt-1">Modifier</span>
-          </button>
-          {/* Vehicle type strip — dynamic from admin "Types de véhicules" config */}
-          <div className="border-t border-gray-100 px-3 py-2 flex items-center gap-2 overflow-x-auto">
-            {(vehTypes.length ? vehTypes : [{ slug: 'sb', name_fr: 'Standard' }]).map((v) => {
-              const active = vehicleType === v.slug;
-              const img = active
-                ? (v.image_selected || v.image_unselected)
-                : (v.image_unselected || v.image_selected);
-              return (
-                <button
-                  key={v.slug}
-                  onClick={() => setVehicleType(v.slug)}
-                  data-testid={`vehicle-${v.slug}`}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                    active ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {img && <img src={img} alt={v.name_fr || v.slug} className="w-6 h-6 object-contain" />}
-                  {v.name_fr || v.name || v.slug}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Route summary card removed per design — addresses are set on the
+          previous /course screen; the bidding screen only shows "Offrez votre tarif". */}
 
       {/* Bottom sheet (Offer Your Fare) */}
       {mapReady && !searching && (
@@ -498,35 +461,56 @@ const TaxiBiddingPage = () => {
               const ms = new Date(o.expires_at).getTime() - nowTs;
               return Math.max(0, Math.ceil(ms / 1000));
             };
-            const liveOffers = offers.filter((o) => {
-              const rem = remainingFor(o);
-              return rem === null || rem > 0;
-            });
+            const liveOffers = offers
+              .filter((o) => {
+                const rem = remainingFor(o);
+                return rem === null || rem > 0;
+              })
+              // "Votre tarif" (accepted your exact price) first, then lowest price.
+              .sort((a, b) => (b.at_proposed_fare === true) - (a.at_proposed_fare === true) || a.amount - b.amount);
             if (liveOffers.length === 0) return null;
             return (
-              <div className="mx-5 mt-1 mb-2 space-y-2 max-h-64 overflow-y-auto" data-testid="driver-offers-list">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{liveOffers.length} chauffeur(s) proposent un tarif</p>
+              <div className="mx-5 mt-1 mb-2 space-y-2.5 max-h-72 overflow-y-auto" data-testid="driver-offers-list">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{liveOffers.length} chauffeur(s) disponible(s)</p>
                 {liveOffers.map((o) => {
                   const rem = remainingFor(o);
+                  const initial = (o.driver_name || 'C').charAt(0).toUpperCase();
                   return (
-                    <div key={o.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-3 shadow-sm" data-testid={`offer-${o.id}`}>
-                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <Users size={20} className="text-[#FF5000]" />
+                    <div key={o.id} className="bg-white border border-gray-200 rounded-2xl p-3 shadow-sm" data-testid={`offer-${o.id}`}>
+                      {/* Top row: driver identity + rating/eta/km */}
+                      <div className="flex items-center gap-3">
+                        {o.driver_photo ? (
+                          <img src={o.driver_photo} alt={o.driver_name || 'Chauffeur'} className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-11 h-11 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 text-[#FF5000] font-bold">{initial}</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-[#FF5000] text-sm truncate" data-testid={`offer-name-${o.id}`}>{o.driver_name || 'Chauffeur'}</p>
+                          {o.driver_vehicle_model && <p className="text-[11px] text-gray-500 truncate">{o.driver_vehicle_model}</p>}
+                        </div>
+                        <div className="text-right text-[11px] text-gray-600 leading-tight flex-shrink-0">
+                          <p className="flex items-center justify-end gap-1 font-semibold text-gray-800">⭐ {(o.driver_rating || 5).toFixed(1)}{o.eta_min != null ? ` · ${o.eta_min} min` : ''}</p>
+                          {o.distance_km != null && <p>{o.distance_km.toFixed(2)} km</p>}
+                        </div>
+                        {rem !== null && <CountdownRing seconds={rem} total={o.ttl_seconds || 30} size={34} />}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm truncate">{o.driver_name || 'Chauffeur'}</p>
-                        <p className="text-[11px] text-gray-500 flex items-center gap-1">
-                          ⭐ {(o.driver_rating || 5).toFixed(1)}{o.driver_vehicle_model ? ` · ${o.driver_vehicle_model}` : ''}
-                        </p>
+                      {/* Bottom row: price + Refuser / Acceptez */}
+                      <div className="flex items-center gap-2 mt-2.5">
+                        <div className="flex-shrink-0">
+                          <p className="text-lg font-extrabold text-[#FF5000] leading-none">{o.amount.toFixed(2)} €</p>
+                          {o.at_proposed_fare && (
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-[#FF5000] text-white text-[10px] font-bold" data-testid={`offer-your-fare-${o.id}`}>Votre tarif</span>
+                          )}
+                        </div>
+                        <button onClick={() => rejectOffer(o.id)} data-testid={`reject-offer-${o.id}`}
+                          className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-600 font-bold text-sm transition-transform">
+                          Refuser
+                        </button>
+                        <button onClick={() => acceptOffer(o.id)} data-testid={`accept-offer-${o.id}`}
+                          className="flex-1 py-2.5 rounded-xl bg-[#FF5000] hover:bg-[#E04600] active:scale-95 text-white font-bold text-sm transition-transform">
+                          Acceptez
+                        </button>
                       </div>
-                      {rem !== null && <CountdownRing seconds={rem} total={o.ttl_seconds || 30} size={36} />}
-                      <div className="text-right">
-                        <p className="text-lg font-extrabold text-gray-900">{o.amount.toFixed(2)} €</p>
-                      </div>
-                      <button onClick={() => acceptOffer(o.id)} data-testid={`accept-offer-${o.id}`}
-                        className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-sm transition-transform">
-                        Choisir
-                      </button>
                     </div>
                   );
                 })}

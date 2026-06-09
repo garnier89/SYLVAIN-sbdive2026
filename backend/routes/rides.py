@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
 import os
+import math
 import secrets
 import requests
 from datetime import datetime, timezone, timedelta
@@ -2052,6 +2053,28 @@ async def driver_counter_offer(ride_id: str, request: Request):
     bid_cfg = await get_taxi_config("taxi_bid")
     ttl = int(bid_cfg.get("offer_ttl_seconds", OFFER_TTL_SECONDS))
 
+    # Flag offers that match the passenger's proposed fare exactly ("Votre tarif")
+    proposed = ride.get("proposed_fare")
+    at_proposed_fare = bool(proposed) and abs(amount - float(proposed)) < 0.01
+
+    # Driver photo + distance/ETA to the pickup (so the passenger's bidding list
+    # mirrors the V3Cube "Demander" screen: photo, rating, ETA, km, price).
+    driver_photo = (
+        user.get("avatar_url") or user.get("photo")
+        or driver.get("photo_url") or driver.get("selfie_url")
+    )
+    distance_km = None
+    eta_min = None
+    d_lat, d_lng = driver.get("current_lat"), driver.get("current_lng")
+    p_lat, p_lng = ride.get("pickup_lat"), ride.get("pickup_lng")
+    if None not in (d_lat, d_lng, p_lat, p_lng):
+        R, to_rad = 6371.0, math.radians
+        dlat, dlng = to_rad(p_lat - d_lat), to_rad(p_lng - d_lng)
+        h = (math.sin(dlat / 2) ** 2
+             + math.cos(to_rad(d_lat)) * math.cos(to_rad(p_lat)) * math.sin(dlng / 2) ** 2)
+        distance_km = round(R * 2 * math.atan2(math.sqrt(h), math.sqrt(1 - h)), 2)
+        eta_min = max(1, round((distance_km / 22) * 60) + 1)
+
     offer = {
         "id": f"off_{uuid.uuid4().hex[:8]}",
         "driver_id": driver["id"],
@@ -2059,7 +2082,11 @@ async def driver_counter_offer(ride_id: str, request: Request):
         "driver_rating": driver.get("rating", 5.0),
         "driver_vehicle_model": driver.get("vehicle_model"),
         "driver_vehicle_number": driver.get("vehicle_number"),
+        "driver_photo": driver_photo,
+        "distance_km": distance_km,
+        "eta_min": eta_min,
         "amount": amount,
+        "at_proposed_fare": at_proposed_fare,
         "status": "pending",  # pending | accepted | rejected
         "created_at": datetime.now(timezone.utc).isoformat(),
         "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=ttl)).isoformat(),
@@ -2169,6 +2196,32 @@ async def passenger_accept_offer(ride_id: str, offer_id: str, request: Request):
     })
 
     return {"message": "Offer accepted", "ride_id": ride_id, "final_fare": offer["amount"]}
+
+
+@router.post("/{ride_id}/reject-offer/{offer_id}")
+async def passenger_reject_offer(ride_id: str, offer_id: str, request: Request):
+    """Passenger refuses a driver's bid/counter-offer. Marks it rejected (so it
+    drops out of the passenger's chooser list) and notifies the driver. Other
+    drivers keep competing — the ride stays pending."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "user_id": 1, "status": 1})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your ride")
+    res = await db.rides.update_one(
+        {"id": ride_id, "counter_offers.id": offer_id},
+        {"$set": {"counter_offers.$.status": "rejected"}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    # Let the driver know their bid was declined (best-effort).
+    await manager.send_to_ride_room(ride_id, {
+        "type": "offer_rejected",
+        "ride_id": ride_id,
+        "offer_id": offer_id,
+    })
+    return {"message": "Offer rejected", "offer_id": offer_id}
 
 
 async def _get_driver_points_cfg():

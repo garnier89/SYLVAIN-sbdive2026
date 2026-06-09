@@ -647,7 +647,9 @@ const DriverHome = () => {
             request={incomingRequest}
             driverPos={mapCenter}
             windowSeconds={Math.max(10, appSettings.driver_timeout || 35)}
-            onAccept={acceptRide}
+            onAccept={isBiddingReq
+              ? (id) => sendCounterOffer(id, incomingRequest.proposed_fare || incomingRequest.estimated_fare)
+              : acceptRide}
             onDecline={() => declineRide(incomingRequest.id)}
             myOffer={myOffer}
             nowTs={nowTs}
