@@ -1,3 +1,17 @@
+## NEW - 2026-06-09 (211) - P0.1 Vitrine digitale marchand complète (DONE, testé 5/5 backend + 4/4 frontend)
+- **Demande user** : compléter la vitrine marchand (logo/bannière/galerie, catalogue + **stock**, horaires structurés, **avis clients**, mini-stats). Choix user : avis réservés aux **clients ayant commandé** ; **2 créneaux horaires/jour** (coupure midi). Ordre validé : P0.1 → P0.2 (livraison) → P0.3 (paiement).
+- **Backend** (`routes/merchants.py`, `models/schemas.py`) :
+  - `ProductCreate.stock` (None = illimité, 0 = rupture) persisté + exposé dans le catalogue public.
+  - `PUT /merchants/me` étendu : `phone`, `banner_url`, `storefront_category`, **`hours` structuré** (7 jours, ≤2 créneaux/jour, `closed`). Helper `validate_hours` + `_hours_open_now` → `is_open` calculé depuis les horaires.
+  - NOUVEAU `GET /merchants/meta/categories` (catégories FR structurées : Épiceries, Boulangeries, Pharmacies, Fleuristes, Boucheries, Poissonneries, Supermarchés, Commerces indépendants, Producteurs locaux…).
+  - NOUVEAU `GET /merchants/me/stats` (commandes jour/total, CA, en attente, note, nb avis, top produits, rupture).
+  - NOUVEAU `GET/POST /merchants/{id}/reviews` : POST **réservé aux clients avec une commande `delivered`/`completed`** (sinon 403), 1 avis/client (upsert), recalcule `rating`+`review_count` du marchand.
+- **Frontend** : `MerchantProducts.js` (vrai marchand via `merchantAPI.getMine`, champ **stock** + badge Rupture, FR, devise locale `money()`), `MerchantSettings.js` (cartes réelles : Vitrine, **Contact & Catégorie**, **Horaires structurés 7j/2 créneaux**, Flash ; tout connecté à `PUT /me`), `MerchantDashboard.js` (stats réelles + top produits, FR, `money()`), `RestaurantDetail.js` = **vitrine publique** enrichie (bannière/logo, badge Ouvert/Fermé, note+avis, Appeler, horaires dépliables, badge Rupture + ajout désactivé, **section Avis + formulaire étoiles**).
+- **API** (`services/api.js`) : `getMine/updateMine/getStats/getCategories/getReviews/addReview`.
+- **Vérifié** : pytest `tests/test_iter211_merchant_storefront.py` **5/5** (categories, horaires structurés, stock, stats, review 403) + **testing_agent iteration_211 — frontend 100% (4/4)** (catalogue+stock+rupture, settings persistés après reload, dashboard FR, vitrine publique + avis 403 non-client). Nettoyage : galerie placeholder cassée vidée + produit de test supprimé.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-09 (134) - Facturation des emplacements Sponsorisé (DONE, curl + screenshot)
 - **Demande user** : facturer les emplacements (tarif/jour ou CPM par bannière) + récap par commerçant, couplé au CTR → vraie source de revenus pub.
 - **Backend** (`promo_banners.py`) : champs `advertiser`, `advertiser_contact`, `pricing_model` (free/per_day/cpm), `price_per_day`, `cpm`, `starts_at`, `ends_at` (create/update). Helpers `_days_active` (jours inclusifs, plafonné à maintenant) + `_banner_cost` (per_day×jours ou cpm×impressions/1000). NOUVEL endpoint admin `GET /promo-banners/admin/billing` → récap groupé par commerçant (bannières, impressions, clics, CTR, coût) + totaux.
