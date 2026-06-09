@@ -6,9 +6,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Star, Heart, CheckCircle } from '@phosphor-icons/react';
+import { Star, Heart, CheckCircle, Gift, ShareNetwork, X } from '@phosphor-icons/react';
 import { rideAPI } from '../../services/api';
 
+const API = process.env.REACT_APP_BACKEND_URL;
 const PAYMENT_LABELS = { cash: 'Espèces', card: 'Carte', sbpaygo: 'SB PayGo', wallet: 'Portefeuille' };
 
 const Line = ({ label, sub, value, strong }) => (
@@ -29,12 +30,68 @@ const RideReceiptPage = () => {
   const [favorite, setFavorite] = useState(false);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [referral, setReferral] = useState(null);
+  const [reviewPrompt, setReviewPrompt] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewStars, setReviewStars] = useState(0);
+  const [reviewMode, setReviewMode] = useState('rate'); // 'rate' | 'feedback'
+  const [reviewComment, setReviewComment] = useState('');
 
   const load = useCallback(async () => {
     try { const { data } = await rideAPI.get(rideId); setRide(data); }
     catch { toast.error('Course introuvable'); navigate('/home'); }
   }, [rideId, navigate]);
   useEffect(() => { load(); }, [load]);
+
+  // Referral banner data + store-review prompt eligibility (viral / conversion)
+  useEffect(() => {
+    fetch(`${API}/api/referral/my-code`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setReferral(d); }).catch(() => {});
+    fetch(`${API}/api/config/review-prompt`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) { setReviewPrompt(d); if (d.show) setShowReview(true); } })
+      .catch(() => {});
+  }, []);
+
+  const shareReferral = () => {
+    if (!referral?.code) return;
+    const text = `Rejoignez SB Drive VTC avec mon code ${referral.code} et gagnez ${referral.amount_per_referral}${referral.currency} de bonus !`;
+    if (navigator.share) {
+      navigator.share({ title: 'SB Drive VTC', text, url: window.location.origin }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(referral.code);
+      toast.success('Code copié !');
+    }
+  };
+
+  const markReviewSeen = () => {
+    fetch(`${API}/api/config/review-prompt/seen`, { method: 'POST', credentials: 'include' }).catch(() => {});
+  };
+
+  const pickReviewStars = (s) => {
+    setReviewStars(s);
+    if (s >= 4) {
+      markReviewSeen();
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+      const url = (isIOS ? reviewPrompt?.ios_url : reviewPrompt?.android_url) || reviewPrompt?.android_url || reviewPrompt?.ios_url;
+      if (url) window.open(url, '_blank', 'noopener');
+      setShowReview(false);
+      toast.success('Merci ! Cela nous aide énormément 🙏');
+    } else {
+      setReviewMode('feedback');
+    }
+  };
+
+  const submitReviewFeedback = () => {
+    fetch(`${API}/api/config/review-prompt/feedback`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: reviewStars, comment: reviewComment.trim() }),
+    }).catch(() => {});
+    setShowReview(false);
+    toast.success('Merci pour votre retour, nous allons nous améliorer.');
+  };
+
+  const dismissReview = () => { markReviewSeen(); setShowReview(false); };
 
   if (!ride) {
     return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-gray-200 border-t-[#FF5000] rounded-full animate-spin" /></div>;
@@ -140,7 +197,60 @@ const RideReceiptPage = () => {
             </button>
           </div>
         </div>
+
+        {/* Referral banner — convert at the moment of satisfaction (viral loop) */}
+        {referral?.code && (
+          <div className="rounded-2xl p-4 shadow-sm bg-gradient-to-br from-[#FF5000] to-[#ff7a3d] text-white" data-testid="receipt-referral-banner">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <Gift size={24} weight="fill" className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-extrabold leading-tight">Invitez un ami, gagnez {referral.amount_per_referral}{referral.currency}</p>
+                <p className="text-[12px] text-white/85 mt-0.5">Votre code : <span className="font-bold tracking-wide" data-testid="receipt-referral-code">{referral.code}</span></p>
+              </div>
+              <button onClick={shareReferral} className="shrink-0 flex items-center gap-1.5 bg-white text-[#FF5000] font-extrabold text-sm px-4 py-2.5 rounded-full active:scale-95 transition-transform" data-testid="receipt-referral-share-btn">
+                <ShareNetwork size={16} weight="bold" /> Inviter
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Store-review prompt — discreet bottom sheet after N completed rides */}
+      {showReview && (
+        <div className="fixed inset-0 z-[3000] flex items-end justify-center bg-black/40" data-testid="store-review-sheet">
+          <div className="w-full max-w-[430px] bg-white rounded-t-3xl p-6 pb-8">
+            <div className="flex items-start justify-between">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
+              <button onClick={dismissReview} className="text-gray-400" data-testid="store-review-close"><X size={20} /></button>
+            </div>
+            {reviewMode === 'rate' ? (
+              <div className="text-center">
+                <h3 className="text-lg font-black text-[#0B1426]">Vous aimez SB Drive VTC ?</h3>
+                <p className="text-sm text-gray-500 mt-1 mb-4">Donnez-nous votre avis, ça nous aide énormément.</p>
+                <div className="flex justify-center gap-2 mb-2">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button key={s} onClick={() => pickReviewStars(s)} data-testid={`store-review-star-${s}`} className="active:scale-90 transition-transform">
+                      <Star size={38} weight={s <= reviewStars ? 'fill' : 'regular'} className={s <= reviewStars ? 'text-amber-400' : 'text-gray-300'} />
+                    </button>
+                  ))}
+                </div>
+                <button onClick={dismissReview} className="mt-3 w-full py-2.5 text-sm font-semibold text-gray-500" data-testid="store-review-later">Plus tard</button>
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-lg font-black text-[#0B1426] text-center">Comment pouvons-nous nous améliorer ?</h3>
+                <p className="text-sm text-gray-500 mt-1 mb-3 text-center">Votre retour va directement à notre équipe.</p>
+                <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} rows={4} placeholder="Dites-nous ce qui n'a pas été…"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none" data-testid="store-review-feedback-input" />
+                <button onClick={submitReviewFeedback} className="mt-4 w-full py-3.5 rounded-xl bg-[#0B1426] text-white font-bold" data-testid="store-review-feedback-submit">Envoyer mon retour</button>
+                <button onClick={dismissReview} className="mt-2 w-full py-2.5 text-sm font-semibold text-gray-500" data-testid="store-review-feedback-skip">Plus tard</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

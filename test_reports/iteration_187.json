@@ -1,0 +1,37 @@
+{
+  "summary": "iter187 growth features (referral banner + store-review prompt on receipt) — full backend + UI validation. 10/10 pytest passing on /app/backend/tests/test_iter187_growth.py covering store-review config GET/PUT, 403 for non-admin, review-prompt threshold/seen/feedback flow and referral my-code. UI verified end-to-end on /ride/:id/receipt: referral banner shows code 'Sylvain07' + share button, store-review bottom sheet appears when show=true (completed_rides>=min_rides AND not previously seen), 4-5★ closes sheet and opens Play Store URL via window.open popup, 1-3★ switches to feedback textarea + submit, both paths mark 'seen' so the sheet does NOT reappear on the next receipt visit. Admin page /admin/referral renders the 'Rappel d'évaluation' card with review-enabled-toggle, review-min-rides, review-android-url, review-ios-url and save-review-btn; PUT persists (min_rides 2 → 3 → restored).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter187_growth.py",
+    "/app/test_reports/pytest/iter187_growth.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "RideReceiptPage uses fetch(... credentials:'include') without Authorization header — works because backend get_current_user also reads the access_token cookie set by /auth/login. If a client ever logs in via mobile/SPA token-only (no cookie), the receipt's referral and review-prompt fetches will silently fail (the .catch(()=>{}) swallows errors). Consider centralising on the apiClient (already attaches Bearer) for consistency.",
+    "config.py PUT /admin/store-review does not return validation errors when min_rides<1 — it silently clamps to 1. Acceptable but undocumented.",
+    "review-prompt/feedback endpoint stores feedback in db.app_feedback but no admin-facing list endpoint exists yet to read negative feedback — main agent should consider exposing GET /admin/feedback for the support team.",
+    "Frontend platform detection iOS vs Android relies on navigator.userAgent — fine for mobile, but on a desktop browser fallback uses android_url first which is acceptable for testing/web.",
+    "The store-review sheet is rendered as a fixed overlay with z-[3000]; it covers the rating section (stars/comment) of the receipt while open — intentional, but worth confirming with the PM that users still get to rate the driver after dismissing the prompt.",
+    "iter186 carry-over: process_referral_on_ride_completion still wrapped in silent try/except — log exceptions."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter187_growth.py",
+    "/app/test_reports/pytest/iter187_growth.xml",
+    "/app/test_reports/iteration_187.json"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (referral banner + 1-3★ feedback + 4-5★ store + show-once + admin card all pass)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. Fresh users registered ad-hoc via /api/auth/register with @example.com.",
+  "seed_data_creation": "For UI tests, registered two fresh clients and inserted 2 completed rides directly via Mongo for each (db.rides with status=completed, fare_breakdown) so review-prompt returns show=true. Cleared db.user_flags for each test user before the run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression at /app/backend/tests/test_iter187_growth.py is stable and idempotent (snapshots store-review config and restores it). For UI re-tests of the store-review sheet, you must seed >=min_rides completed rides for the test user AND clear db.user_flags.{user_id}.store_review_seen — otherwise the sheet will not appear. The receipt page uses cookie auth via /auth/login (set-cookie access_token); injecting the JWT into localStorage as 'access_token' is not strictly necessary if the cookie is set. Banner needs only /api/referral/my-code which works from any authenticated session.",
+  "rca of the issue": "N/A — all features working as specified. The bottom sheet 'show-once' guarantee is enforced both client-side (markReviewSeen called in pickReviewStars when s>=4, in submitReviewFeedback, and in dismissReview) and server-side (POST /config/review-prompt/seen + /feedback both set user_flags.store_review_seen=true). GET /config/review-prompt then returns show=false on subsequent visits."
+}

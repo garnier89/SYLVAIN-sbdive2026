@@ -206,6 +206,110 @@ async def cancel_policy_seen(request: Request):
     return {"count": int((doc or {}).get("cancel_popup_count", 1) or 1)}
 
 
+# ── Store-review prompt ("Notez-nous sur le Store" après N courses) ──────────
+DEFAULT_STORE_REVIEW = {
+    "enabled": True,
+    "min_rides": 2,
+    "android_url": "https://play.google.com/store/apps/details?id=com.sbdrivervtc.client",
+    "ios_url": "https://apps.apple.com/fr/app/sb-drive-client/id1444980912",
+}
+
+
+async def get_store_review_config():
+    doc = await db.service_configs.find_one({"service_key": "store_review"}, {"_id": 0})
+    settings = (doc or {}).get("settings") or {}
+    cfg = {**DEFAULT_STORE_REVIEW, **settings}
+    cfg["enabled"] = bool(cfg.get("enabled", True))
+    try:
+        cfg["min_rides"] = max(1, int(cfg.get("min_rides", 2)))
+    except (TypeError, ValueError):
+        cfg["min_rides"] = 2
+    cfg["android_url"] = str(cfg.get("android_url") or "")
+    cfg["ios_url"] = str(cfg.get("ios_url") or "")
+    return cfg
+
+
+@router.get("/store-review")
+async def store_review_config():
+    """Public store-review configuration (links + threshold)."""
+    return await get_store_review_config()
+
+
+@router.put("/admin/store-review")
+async def save_store_review_config(request: Request):
+    """Admin: persist the store-review prompt configuration."""
+    await require_role(request, ["admin"])
+    body = await request.json()
+    settings = {}
+    for key in DEFAULT_STORE_REVIEW:
+        if key in body:
+            if key == "enabled":
+                settings[key] = bool(body[key])
+            elif key == "min_rides":
+                settings[key] = max(1, int(body[key] or 2))
+            else:
+                settings[key] = str(body[key] or "")
+    await db.service_configs.update_one(
+        {"service_key": "store_review"},
+        {"$set": {"settings": settings, "service_key": "store_review"}},
+        upsert=True,
+    )
+    return await get_store_review_config()
+
+
+@router.get("/review-prompt")
+async def review_prompt_state(request: Request):
+    """Whether to show the store-review prompt to this user: enabled, threshold
+    reached (N completed rides) and not previously dismissed."""
+    user = await get_current_user(request)
+    cfg = await get_store_review_config()
+    completed = await db.rides.count_documents({"user_id": user["id"], "status": "completed"})
+    flag = await db.user_flags.find_one({"user_id": user["id"]}, {"_id": 0, "store_review_seen": 1}) or {}
+    already = bool(flag.get("store_review_seen"))
+    show = bool(cfg["enabled"]) and completed >= cfg["min_rides"] and not already
+    return {
+        "show": show,
+        "completed_rides": completed,
+        "min_rides": cfg["min_rides"],
+        "android_url": cfg["android_url"],
+        "ios_url": cfg["ios_url"],
+    }
+
+
+@router.post("/review-prompt/seen")
+async def review_prompt_seen(request: Request):
+    """Mark the store-review prompt as shown so it is not displayed again."""
+    user = await get_current_user(request)
+    await db.user_flags.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"store_review_seen": True}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+@router.post("/review-prompt/feedback")
+async def review_prompt_feedback(request: Request):
+    """Store low-rating internal feedback (1-3 stars) instead of sending to the store."""
+    import uuid as _uuid
+    from datetime import datetime as _dt, timezone as _tz
+    user = await get_current_user(request)
+    body = await request.json()
+    await db.app_feedback.insert_one({
+        "id": f"fb_{_uuid.uuid4().hex[:10]}",
+        "user_id": user["id"],
+        "user_name": user.get("name"),
+        "rating": int(body.get("rating") or 0),
+        "comment": (body.get("comment") or "").strip()[:1000],
+        "source": "store_review_prompt",
+        "created_at": _dt.now(_tz.utc).isoformat(),
+    })
+    await db.user_flags.update_one(
+        {"user_id": user["id"]}, {"$set": {"store_review_seen": True}}, upsert=True)
+    return {"ok": True}
+
+
+
 @router.get("/app")
 async def get_app_config():
     """Public app configuration (currency, company info, feature flags)."""

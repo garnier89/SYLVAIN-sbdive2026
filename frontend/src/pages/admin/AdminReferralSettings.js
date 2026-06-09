@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { ShareNetwork, CurrencyEur, Users, Gift, Clock } from '@phosphor-icons/react';
+import { ShareNetwork, CurrencyEur, Users, Gift, Clock, Star } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -14,15 +14,44 @@ const DEFAULTS = {
   client_rides_required: 1, driver_driver_rides_required: 20, driver_driver_window_days: 30,
 };
 
+const REVIEW_DEFAULTS = {
+  enabled: true, min_rides: 2,
+  android_url: '', ios_url: '',
+};
+
 const AdminReferral = () => {
   const [config, setConfig] = useState(DEFAULTS);
   const [stats, setStats] = useState({ total_referrals: 0, total_earned: 0 });
   const [saving, setSaving] = useState(false);
+  const [review, setReview] = useState(REVIEW_DEFAULTS);
+  const [savingReview, setSavingReview] = useState(false);
 
   useEffect(() => {
     loadConfig();
     loadStats();
+    loadReview();
   }, []);
+
+  const loadReview = async () => {
+    try {
+      const res = await fetch(`${API}/api/config/store-review`, { credentials: 'include' });
+      if (res.ok) setReview({ ...REVIEW_DEFAULTS, ...(await res.json()) });
+    } catch (err) { console.error('Failed to load review config:', err); }
+  };
+
+  const saveReview = async () => {
+    setSavingReview(true);
+    try {
+      const res = await fetch(`${API}/api/config/admin/store-review`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(review),
+      });
+      if (res.ok) { setReview({ ...REVIEW_DEFAULTS, ...(await res.json()) }); toast.success('Rappel d\'évaluation enregistré !'); }
+      else toast.error('Échec de l\'enregistrement');
+    } catch { toast.error('Erreur réseau'); }
+    finally { setSavingReview(false); }
+  };
 
   const loadConfig = async () => {
     try {
@@ -125,6 +154,34 @@ const AdminReferral = () => {
 
           <Button onClick={handleSave} disabled={saving} className="bg-[#3b82f6] text-white" data-testid="save-referral-btn">
             {saving ? 'Enregistrement…' : 'Sauvegarder'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-3xl mt-6">
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Star size={18} weight="fill" className="text-amber-400" /> Rappel d'évaluation (Play Store / App Store)</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-gray-500">Une invitation discrète à noter l'app s'affiche sur le reçu après N courses (4-5★ → store, 1-3★ → retour interne).</p>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={review.enabled} onChange={e => setReview({ ...review, enabled: e.target.checked })} className="w-4 h-4 rounded" data-testid="review-enabled-toggle" />
+            <span className="text-sm font-medium text-gray-700">Activer le rappel d'évaluation</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Afficher après (courses)</label>
+              <Input type="number" value={review.min_rides} onChange={e => setReview({ ...review, min_rides: parseInt(e.target.value, 10) || 1 })} data-testid="review-min-rides" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-gray-600 block mb-1">URL Google Play</label>
+              <Input value={review.android_url} onChange={e => setReview({ ...review, android_url: e.target.value })} placeholder="https://play.google.com/store/apps/details?id=…" data-testid="review-android-url" />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="text-xs font-medium text-gray-600 block mb-1">URL App Store</label>
+              <Input value={review.ios_url} onChange={e => setReview({ ...review, ios_url: e.target.value })} placeholder="https://apps.apple.com/…" data-testid="review-ios-url" />
+            </div>
+          </div>
+          <Button onClick={saveReview} disabled={savingReview} className="bg-[#3b82f6] text-white" data-testid="save-review-btn">
+            {savingReview ? 'Enregistrement…' : 'Sauvegarder'}
           </Button>
         </CardContent>
       </Card>
