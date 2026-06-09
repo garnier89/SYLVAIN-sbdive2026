@@ -1,4 +1,12 @@
-## NEW - 2026-06-09 (126) - Sélecteur véhicules : liste verticale détaillée V3Cube + fiche ⓘ (DONE, screenshot)
+## NEW - 2026-06-09 (127) - Badge « Recommandé » sur la gamme la moins chère (DONE, screenshot)
+- **Demande user** : badge « Recommandé » sur la gamme la plus économique de la liste (guide le choix, valorise le rapport qualité-prix).
+- **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : calcul du `cheapestSlug` (min `est.fare` parmi les gammes tarifées, affiché seulement si ≥2 options tarifées) → pill emerald « RECOMMANDÉ » (`data-testid="recommended-{slug}"`) à côté du nom de la carte concernée.
+- **Vérifié** : screenshot client → badge unique sur **Moto (5,50 €)**, la moins chère (tuktuk 6,52 €, SB 10 €, Confort 15 €…). Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user (capture V3Cube)** : remplacer le sélecteur de véhicules par la **liste verticale détaillée** « Choisissez un voyage » pour TOUT le système taxi standard. (Annule le carrousel horizontal de l'itération 125.)
 - **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : cartes verticales empilées — grande image véhicule, **nom + capacité** (👤N), **prix** + icône **ⓘ**, **heure de prise en charge · ETA** (now+`nearby.etaMins`), **description** (`v.info` avec fallback `DEFAULT_VEHICLE_INFO`), carte sélectionnée = **bordure foncée** `#0B1426`. Titre « Choisissez un voyage », CTA « Choisir {Véhicule} ». NOUVEAU **modal fiche ⓘ** (`vehicle-info-modal`, state `infoVehicle`) : image, nom, N passagers, description, tarifs prise en charge/km/min, bouton « Choisir {Véhicule} ». Nouveaux testids `vehicle-info-{slug}`, `vehicle-info-select-btn`. Testids existants conservés (`choose-vehicle-{slug}`, `price-{slug}`, `orig-price-{slug}`, `savings-{slug}`).
 - **Backend** (`core/startup.py`) : backfill idempotent des **descriptions par défaut** (`info`) pour 15 gammes quand vide — admin-éditable via VehicleTypeEditor.

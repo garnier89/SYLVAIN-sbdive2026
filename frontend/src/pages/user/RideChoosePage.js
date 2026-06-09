@@ -552,7 +552,18 @@ const RideChoosePage = () => {
   };
   const vehicleDesc = (v) => v.info || DEFAULT_VEHICLE_INFO[v.slug] || 'Trajet confortable jusqu\'à destination.';
 
-  const renderVehicleList = () => (
+  const renderVehicleList = () => {
+    // Cheapest priced vehicle gets a "Recommandé" badge (only when ≥2 priced options).
+    let cheapestSlug = null; let _min = Infinity; let _pricedCount = 0;
+    effectiveVtypes.forEach((v) => {
+      const e = estimates[v.slug];
+      if (e && !e.loading && !e.error && e.fare != null) {
+        _pricedCount += 1;
+        if (e.fare < _min) { _min = e.fare; cheapestSlug = v.slug; }
+      }
+    });
+    if (_pricedCount < 2) cheapestSlug = null;
+    return (
     <div data-testid="choose-ride-section" className="space-y-2.5">
       {effectiveVtypes.map((v) => {
         const Icon = vehicleIcon(v);
@@ -571,9 +582,12 @@ const RideChoosePage = () => {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   <p className="font-black text-[#0B1426] text-base truncate">{v.name_fr || v.name || v.slug}</p>
                   <span className="flex items-center gap-0.5 text-xs text-gray-500 shrink-0"><UsersThree size={14} weight="fill" />{v.person_capacity || 4}</span>
+                  {v.slug === cheapestSlug && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wide shrink-0" data-testid={`recommended-${v.slug}`}>Recommandé</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
@@ -597,7 +611,8 @@ const RideChoosePage = () => {
         );
       })}
     </div>
-  );
+    );
+  };
 
   const renderBiddingGrid = () => (
     <div data-testid="bidding-vehicle-section">
