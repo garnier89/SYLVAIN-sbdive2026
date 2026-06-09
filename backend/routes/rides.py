@@ -439,6 +439,19 @@ async def create_ride(data: RideRequest, request: Request):
         voucher_discount = v_disc
         fare = round(max(fare - voucher_discount, 0), 2)
 
+    # ===== Phase 5 — Loyalty tier discount (client) =====
+    loyalty_discount_pct = 0.0
+    loyalty_discount_amount = 0.0
+    loyalty_tier_name = None
+    try:
+        from routes.loyalty import get_client_discount
+        loyalty_discount_pct, loyalty_tier_name = await get_client_discount(user["id"])
+        if loyalty_discount_pct > 0:
+            loyalty_discount_amount = round(fare * loyalty_discount_pct / 100, 2)
+            fare = round(max(fare - loyalty_discount_amount, 0), 2)
+    except Exception:
+        loyalty_discount_pct, loyalty_discount_amount, loyalty_tier_name = 0.0, 0.0, None
+
     ride = {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
         "booking_no": str(secrets.randbelow(90000000) + 10000000),
@@ -464,6 +477,9 @@ async def create_ride(data: RideRequest, request: Request):
         "scheduled_at": data.scheduled_at,
         "coupon_code": data.coupon_code,
         "discount": 0.0,
+        "loyalty_discount_pct": loyalty_discount_pct,
+        "loyalty_discount_amount": loyalty_discount_amount,
+        "loyalty_tier_name": loyalty_tier_name,
         "book_for_name": data.book_for_name,
         "book_for_phone": data.book_for_phone,
         "auto_assign": getattr(data, 'auto_assign', True),
@@ -1250,6 +1266,14 @@ async def update_ride_status(ride_id: str, request: Request):
         extra_waiting = round(float(extra.get("waiting", 0) or 0), 2)
         extras_total = round(extra_toll + extra_other + extra_waiting, 2)
         subtotal = round(base + dist_charge + time_charge + extras_total, 2)
+        # ===== Phase 5 — apply the rider's loyalty discount on the metered fare
+        # (fare components only, not toll/extra passthrough) =====
+        loy_pct = float(ride.get("loyalty_discount_pct", 0) or 0)
+        loyalty_cut = 0.0
+        if loy_pct > 0:
+            fare_part = round(base + dist_charge + time_charge, 2)
+            loyalty_cut = round(fare_part * loy_pct / 100, 2)
+            subtotal = round(max(subtotal - loyalty_cut, 0), 2)
         min_adj = round(max(0, min_fare - subtotal), 2)
         final_fare = round(subtotal + min_adj, 2)
         # Safety floor: never bill below the originally estimated fare + extras (covers
@@ -1278,6 +1302,8 @@ async def update_ride_status(ride_id: str, request: Request):
             "extra_waiting": extra_waiting,
             "extra_total": extras_total,
             "extra_note": extra.get("note") or None,
+            "loyalty_discount": loyalty_cut,
+            "loyalty_tier": ride.get("loyalty_tier_name"),
             "subtotal": subtotal_before_round,
             "rounding": rounding,
             "total": final_fare,

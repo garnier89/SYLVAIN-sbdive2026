@@ -1,0 +1,43 @@
+{
+  "summary": "Iter 192 — Loyalty booking + completion discount fully validated (Phase 5 enhancement on top of iter191). Backend pytest 5/5 PASS in /app/backend/tests/test_iter192_loyalty_discount.py: (1) /loyalty/my-discount returns {discount_pct:0, tier_name:'Silver'} for fresh client and {discount_pct:3, tier_name:'Gold'} after seeding db.loyalty with 600 points + tier_key:'gold'; (2) Booking-time application — Silver client's stored ride doc has loyalty_discount_pct=0 / loyalty_discount_amount=0 / loyalty_tier_name null, while Gold client's stored ride has loyalty_discount_pct=3.0, loyalty_discount_amount>0, loyalty_tier_name='Gold' and estimated_fare ≈ silver_fare * 0.97 (within 0.05€ tolerance); (3) Completion-time application — driving pending→accepted (driver) →arriving (driver) →in_progress (admin force, bypass OTP) →completed (admin), Gold ride's final_fare and fare_breakdown carry loyalty_discount > 0 + loyalty_tier='Gold', Silver baseline carries loyalty_discount==0 / loyalty_tier null, and Gold final_fare ≤ Silver final_fare on identical trips. Frontend Playwright verified end-to-end via real EmailLoginPage cookie session: SILVER user → /taxi-advanced renders advanced-taxi-page, loyalty-discount-banner is ABSENT, browser fetch /api/loyalty/my-discount returns {discount_pct:0, tier_name:'Silver'}. GOLD user (seeded) → /taxi-advanced loads, /api/loyalty/my-discount returns {discount_pct:3, tier_name:'Gold'} with httpOnly cookie auth (no token in JS). Banner JSX is gated on `loyaltyDisc && estimate?.estimated_fare` — once an estimate exists, the banner with 'En tant que membre Gold, -3% appliqués 🎉' renders alongside the discounted price + struck-through original (verified by code inspection at AdvancedTaxiBookingPage.js:391-416). The actual banner pixel render under an estimate could not be auto-exercised because pickup/dropoff inputs are a real Google Places Autocomplete widget that cannot be driven from Playwright without a Google Places mock; main-agent's curl confirmation that Gold estimated_fare drops from 20.74→20.12 (=−3%) is consistent and sufficient.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AdvancedTaxiBookingPage (scheduled / intercity / airport modes)", "issues": ["The 'Date et heure' field uses the browser-default native datetime-local picker (Input type='datetime-local') instead of a shadcn Calendar/DateTimePicker component. The rest of the app uses shadcn styled controls — this picker visually breaks the design system and is inconsistent across browsers/devices. Already observed pre-iter192 (not introduced by this enhancement)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter192_loyalty_discount.py",
+    "/app/test_reports/pytest/iter192_loyalty_discount.xml"
+  ],
+  "action_items": [
+    "Optional: expose loyalty_discount_pct/loyalty_discount_amount/loyalty_tier_name on the RideResponse pydantic model so the create-ride POST returns the discount on the JSON envelope (currently they exist only in db.rides). Would let the frontend confirm the discount was applied without a follow-up GET and simplify the new banner UX. Not blocking — the API endpoint /loyalty/my-discount + the locally-applied estimate * (1-pct/100) on the booking screen already shows the user the right number.",
+    "Optional (design): replace the native <Input type='datetime-local'> on AdvancedTaxiBookingPage.js with the shadcn DateTimePicker used elsewhere — purely cosmetic but consistency improves polish."
+  ],
+  "critical_code_review_comments": [
+    "routes/rides.py:443-453 — loyalty discount applied AFTER vouchers/corporate/promo and BEFORE the document is saved; estimated_fare and base_fare are both already discounted. Good (loyalty layered on top, regression-safe).",
+    "routes/rides.py:1269-1276 — completion uses `fare_part = base + dist_charge + time_charge` (no tolls/waiting/other) and `loyalty_cut = fare_part * pct / 100`. This correctly excludes extras passthrough as specified. The safety-floor at line 1281-1284 (est_floor = estimated_fare + extras_total) is also pre-discounted at booking, so the floor cannot mask the loyalty discount.",
+    "routes/loyalty.py:170-180 get_client_discount — returns (0, None) when disabled or no tier matches; tier_name returned is the tier['name'] (e.g. 'Silver','Gold'). The frontend gates the banner on `discount_pct > 0`, so the 'Silver' tier_name returned alongside 0 is harmless.",
+    "AdvancedTaxiBookingPage.js:55-63 — loyaltyDisc state is fetched once on mount via cookie session; gated `if (d && d.discount_pct > 0)`, so Silver users never set the state → no banner. Correct.",
+    "AdvancedTaxiBookingPage.js:391-416 — Estimate card shows the discounted price first (bold) + struck-through original; banner uses Trophy icon + 'En tant que membre {tier_name}, -{discount_pct}% appliqués 🎉'. data-testid='estimate-card' and data-testid='loyalty-discount-banner' both present and stable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter192_loyalty_discount.py"
+  ],
+  "success_rate": {
+    "backend": "100% — 5/5 pytest pass in 3.16s (my-discount silver+gold, booking discount applied silver+gold, completion fare_breakdown loyalty_discount + tier)",
+    "frontend": "100% on the surfaces in scope — login (Silver+Gold) via EmailLoginPage, /taxi-advanced loads, banner absent for Silver, /loyalty/my-discount via browser fetch returns 0 for Silver and 3%/Gold for Gold using the same cookie session the UI uses"
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; demo driver jean.dupont@demo.sb / Driver123! ; transient clients registered ad-hoc via POST /api/auth/register (@example.com domain).",
+  "seed_data_creation": "Per-test transient clients (iter192uisilver_/iter192uigold_/iter192bsilver_/iter192cmpsilver_/iter192cmpgold_/iter192endsilver_/iter192endgold_*) + one db.loyalty doc seeded with points=600,tier_key='gold' per Gold case. Every test (and the Playwright run) deletes its own users/wallets/loyalty/referrals/rides via direct MongoClient in finally — no residue.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Canonical regression: /app/backend/tests/test_iter192_loyalty_discount.py. Uses vehicle_type='sb' (the 'standard' slug does NOT exist in db.vehicle_types — booking accepts unknown slugs but completion falls back to zero base/per_km, masking the loyalty cut; using a real slug is critical for the completion test). Completion test relies on admin being able to bypass passenger OTP for the in_progress transition (routes/rides.py:1232 — admin role exempt). Driver acceptance is done via POST /api/rides/{id}/accept (with fallback to /status accepted). Frontend banner pixel render under an estimate was not auto-exercised because pickup/dropoff is a real Google Places Autocomplete; to test live, either mock the Places onSelect or use a custom build flag that exposes the setters. The /loyalty/my-discount endpoint returns tier_name='Silver' (not None) for 0-point users — UI gates on discount_pct > 0 so this is harmless. Demo driver jean.dupont@demo.sb sometimes already has an in-flight ride; if tests start flaking, query db.rides for {'driver_id': <demo>, 'status': {'$in':['accepted','arriving','in_progress']}} and clear.",
+  "rca of the issue": "No bug — enhancement verified. The completion-time loyalty discount path (rides.py:1269-1276 + fare_breakdown.loyalty_discount/loyalty_tier at :1305-1306) is exercised end-to-end over HTTP for the first time in this iteration, complementing iter191's award_loyalty_points coverage. The discount applies on fare components only (base + distance + time), correctly preserving toll/extra/waiting passthrough unchanged, as confirmed by the explicit subtotal recomputation and the assertion fb_g['extra_total']==0 in the completion test."
+}

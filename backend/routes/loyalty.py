@@ -167,6 +167,19 @@ async def get_commission_discount_pct(driver_user_id: str) -> float:
     return float(tier.get("driver_commission_discount_pct", 0) or 0)
 
 
+async def get_client_discount(user_id: str):
+    """Client's current loyalty booking discount → (pct, tier_name). (0, None) if off."""
+    if not user_id:
+        return 0.0, None
+    cfg = await get_loyalty_config()
+    if not cfg.get("enabled", True):
+        return 0.0, None
+    doc = await db.loyalty.find_one({"user_id": user_id}, {"_id": 0, "points": 1})
+    points = int((doc or {}).get("points", 0))
+    tier = compute_tier(points, cfg["tiers"])
+    return float(tier.get("client_discount_pct", 0) or 0), tier.get("name")
+
+
 async def apply_loyalty_on_completion(ride: dict, driver_user_id: str = None):
     """Award per-ride loyalty points to the passenger and the driver on completion,
     including the first-ride bonus."""
@@ -193,6 +206,14 @@ async def apply_loyalty_on_completion(ride: dict, driver_user_id: str = None):
 
 
 # ═══════════════════════ USER ENDPOINT ═══════════════════════
+
+@router.get("/my-discount")
+async def my_discount(request: Request):
+    """Client's current loyalty booking discount (shown at checkout)."""
+    user = await get_current_user(request)
+    pct, tier_name = await get_client_discount(user["id"])
+    return {"discount_pct": pct, "tier_name": tier_name}
+
 
 @router.get("/me")
 async def my_loyalty(request: Request):

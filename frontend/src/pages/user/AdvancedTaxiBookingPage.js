@@ -10,7 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Calendar, MapPin, Airplane, Clock, Briefcase,
-  UserCheck, Motorcycle, RoadHorizon,
+  UserCheck, Motorcycle, RoadHorizon, Trophy,
 } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -52,6 +52,15 @@ const AdvancedTaxiBookingPage = () => {
   const [motoSubType, setMotoSubType] = useState('bike'); // bike | scooter | sport
   const [estimate, setEstimate] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loyaltyDisc, setLoyaltyDisc] = useState(null);
+
+  // Loyalty booking discount (shown at checkout to drive retention)
+  useEffect(() => {
+    fetch(`${API}/api/loyalty/my-discount`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && d.discount_pct > 0) setLoyaltyDisc(d); })
+      .catch(() => {});
+  }, []);
 
   // Load rental packages once
   useEffect(() => {
@@ -375,19 +384,36 @@ const AdvancedTaxiBookingPage = () => {
 
         {/* Estimate preview */}
         {estimate?.estimated_fare && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between" data-testid="estimate-card">
-            <div>
-              <p className="text-xs text-gray-500">Tarif estimé</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {money(estimate.estimated_fare || 0)}
-              </p>
-              <p className="text-[10px] text-gray-400">
-                {estimate.distance_km?.toFixed(1)} km • {estimate.duration_mins} min
-              </p>
+          <div className="bg-white rounded-2xl p-4 shadow-sm" data-testid="estimate-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">Tarif estimé</p>
+                {loyaltyDisc ? (
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {money(estimate.estimated_fare * (1 - loyaltyDisc.discount_pct / 100))}
+                    </p>
+                    <p className="text-sm text-gray-400 line-through">{money(estimate.estimated_fare)}</p>
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{money(estimate.estimated_fare || 0)}</p>
+                )}
+                <p className="text-[10px] text-gray-400">
+                  {estimate.distance_km?.toFixed(1)} km • {estimate.duration_mins} min
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: current?.color + '22' }}>
+                <Icon size={24} style={{ color: current?.color }} weight="duotone" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: current?.color + '22' }}>
-              <Icon size={24} style={{ color: current?.color }} weight="duotone" />
-            </div>
+            {loyaltyDisc && (
+              <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2" data-testid="loyalty-discount-banner">
+                <Trophy size={16} weight="fill" className="text-amber-500 shrink-0" />
+                <p className="text-[12px] font-semibold text-amber-700">
+                  En tant que membre {loyaltyDisc.tier_name}, -{loyaltyDisc.discount_pct}% appliqués 🎉
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
