@@ -1,4 +1,14 @@
-## NEW - 2026-06-09 (129) - Couleur du badge véhicule configurable (DONE, curl + screenshot)
+## NEW - 2026-06-09 (130) - Badge véhicule : libellé personnalisé libre (DONE, curl)
+- **Demande user** : champ texte libre pour un libellé personnalisé (ex. « -20% week-end ») en plus des presets.
+- **Backend** (`config.py`) : `custom_label` ajouté ; libellé effectif = `custom_label` (si non vide) sinon preset `label`. Réponse expose `label` (effectif) + `custom_label`.
+- **Frontend admin** (`AdminServiceConfig.js`) : champ texte « Libellé personnalisé (optionnel — remplace le choix ci-dessus) » dans `vehicle_badge`.
+- **Client** : inchangé (consomme `badgeCfg.label` = libellé effectif).
+- **Vérifié** : curl (« -20% week-end » remplace le preset ; vide → retour au preset « Populaire ») ; config restaurée. Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : couleur du badge configurable (Vert/Orange/Bleu/Rouge) en plus du libellé, pour aligner sur des opérations commerciales (ex. « Promo » orange) sans toucher au code.
 - **Backend** (`config.py`) : `DEFAULT_VEHICLE_BADGE` + `color` (défaut « Vert ») ; sanitize contre `{Vert,Orange,Bleu,Rouge}` (valeur invalide → Vert).
 - **Frontend admin** (`AdminServiceConfig.js`) : select « Couleur du badge » (Vert/Orange/Bleu/Rouge) dans `vehicle_badge`.

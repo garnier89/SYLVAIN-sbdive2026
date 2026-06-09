@@ -165,6 +165,7 @@ const serviceConfigs = {
   vehicle_badge: { title: 'Badge véhicule (Meilleur choix)', icon: Tag, color: '#10B981', desc: 'Badge mis en avant sur la liste « Choisissez un voyage » — meilleur rapport prix/place parmi les véhicules ≥ 4 places', settings: [
     { key: 'enabled', label: 'Afficher le badge sur la gamme recommandée', type: 'toggle', value: true },
     { key: 'label', label: 'Libellé du badge', type: 'select', value: 'Meilleur choix', options: ['Meilleur choix', 'Populaire', 'Éco', 'Recommandé', 'Le moins cher'] },
+    { key: 'custom_label', label: 'Libellé personnalisé (optionnel — remplace le choix ci-dessus, ex. « -20% week-end »)', type: 'text', value: '' },
     { key: 'color', label: 'Couleur du badge', type: 'select', value: 'Vert', options: ['Vert', 'Orange', 'Bleu', 'Rouge'] },
   ]},
   payment_methods: { title: 'Moyens de paiement', icon: Wallet, color: '#FF5000', desc: 'Activer/désactiver les moyens de paiement, marge de pré-autorisation CB, règle « différence en espèces » du portefeuille et frais d\'annulation', settings: [
