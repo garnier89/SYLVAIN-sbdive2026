@@ -533,6 +533,8 @@ export const promoBannersAPI = {
   update: (id, data) => api.put(`/promo-banners/admin/${id}`, data),
   remove: (id) => api.delete(`/promo-banners/admin/${id}`),
   reorder: (orderedIds) => api.post('/promo-banners/admin/reorder', { ordered_ids: orderedIds }),
+  impression: (id) => api.post(`/promo-banners/${id}/impression`),
+  click: (id) => api.post(`/promo-banners/${id}/click`),
 };
 
 export const newsAPI = {

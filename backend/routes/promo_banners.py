@@ -100,6 +100,20 @@ async def list_public(country: str = "", state: str = "", city: str = "", locati
     return {"items": filtered}
 
 
+@router.post("/{banner_id}/impression")
+async def track_impression(banner_id: str):
+    """Public, fire-and-forget: count one impression for a banner."""
+    await db.promo_banners.update_one({"id": banner_id}, {"$inc": {"impressions": 1}})
+    return {"ok": True}
+
+
+@router.post("/{banner_id}/click")
+async def track_click(banner_id: str):
+    """Public, fire-and-forget: count one click for a banner."""
+    await db.promo_banners.update_one({"id": banner_id}, {"$inc": {"clicks": 1}})
+    return {"ok": True}
+
+
 # ============================================================
 # Admin
 # ============================================================

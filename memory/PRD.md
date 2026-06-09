@@ -1,4 +1,13 @@
-## NEW - 2026-06-09 (132) - Cartes « Sponsorisé » sur Livraison & Marketplace (P2) (DONE, curl + screenshots)
+## NEW - 2026-06-09 (133) - Suivi impressions/clics des bannières Sponsorisé (DONE, curl + screenshot)
+- **Demande user** : mini-stats impressions/clics par bannière dans l'admin → emplacement publicitaire mesurable, facturable aux commerçants.
+- **Backend** (`promo_banners.py`) : endpoints publics `POST /promo-banners/{id}/impression` et `/click` (`$inc` compteurs). La liste admin renvoie déjà `impressions`/`clicks`.
+- **Frontend** : `SponsoredBanners.jsx` → 1 impression par bannière **par session** (dédup `sessionStorage`) + clic tracké avant navigation. `promoBannersAPI.impression/click`. Admin `AdminPromoBanners.js` → ligne mini-stats par bannière (👁 impressions, 🖱 clics, **CTR %**) + badges d'emplacement (Accueil/Livraison/Marketplace).
+- **Vérifié** : curl (2 impressions + 1 clic → admin imp 2 / clics 1) + screenshot admin (« Promo Resto -30% » CTR 50.0%, badges Livraison/Marketplace). Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : bannières sponsorisées gérées par l'admin, affichées sur Livraison (Food) ET Marketplace, format bannière + carte labellisée « Sponsorisé ».
 - **Approche** : extension du CMS existant `promo_banners` (au lieu d'un système parallèle) avec un champ **`surfaces`** (`home`/`food`/`marketplace`).
 - **Backend** (`promo_banners.py`) : `GET /promo-banners?surface=` filtre par surface (legacy sans `surfaces` → `home` par rétrocompat) ; `surfaces` ajouté à create/update (défaut `['home']`, valeurs validées).

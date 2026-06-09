@@ -16,7 +16,19 @@ export const SponsoredBanners = ({ surface, accent = '#FF4500' }) => {
   useEffect(() => {
     let alive = true;
     promoBannersAPI.public(undefined, surface)
-      .then((r) => { if (alive) setBanners(r.data?.items || []); })
+      .then((r) => {
+        if (!alive) return;
+        const items = r.data?.items || [];
+        setBanners(items);
+        // Count one impression per banner per session (dedup via sessionStorage)
+        items.forEach((b) => {
+          const key = `spb_imp_${surface}_${b.id}`;
+          if (!sessionStorage.getItem(key)) {
+            sessionStorage.setItem(key, '1');
+            promoBannersAPI.impression(b.id).catch(() => {});
+          }
+        });
+      })
       .catch(() => {});
     return () => { alive = false; };
   }, [surface]);
@@ -38,6 +50,7 @@ export const SponsoredBanners = ({ surface, accent = '#FF4500' }) => {
   if (banners.length === 0) return null;
 
   const onClick = (b) => {
+    promoBannersAPI.click(b.id).catch(() => {});
     const t = (b.target_route || '').trim();
     if (!t) return;
     if (/^https?:\/\//i.test(t)) window.open(t, '_blank', 'noopener');

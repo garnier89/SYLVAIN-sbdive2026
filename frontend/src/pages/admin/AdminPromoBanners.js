@@ -199,6 +199,16 @@ export default function AdminPromoBanners() {
                     <MapPin size={10} weight="fill" /> {scopeLabel(it.scope)}
                   </span>
                 )}
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-500" data-testid={`banner-stats-${it.id}`}>
+                  <span title="Impressions">👁 {it.impressions || 0}</span>
+                  <span title="Clics">🖱 {it.clicks || 0}</span>
+                  <span title="Taux de clic" className="font-semibold text-[#FF5000]">
+                    CTR {it.impressions ? ((100 * (it.clicks || 0)) / it.impressions).toFixed(1) : '0.0'}%
+                  </span>
+                  {(it.surfaces || ['home']).map((s) => (
+                    <span key={s} className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 text-[10px]">{s === 'home' ? 'Accueil' : s === 'food' ? 'Livraison' : 'Marketplace'}</span>
+                  ))}
+                </div>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => move(idx, -1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500" title="Monter"><ArrowUp size={15} /></button>
