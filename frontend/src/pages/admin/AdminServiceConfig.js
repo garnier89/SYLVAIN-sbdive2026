@@ -162,6 +162,10 @@ const serviceConfigs = {
     { key: 'bonus_amount', label: 'Montant de la prime chauffeur (€)', type: 'number', value: 5 },
     { key: 'bonus_duration_minutes', label: 'Durée de la prime (minutes)', type: 'number', value: 60 },
   ]},
+  vehicle_badge: { title: 'Badge véhicule (Meilleur choix)', icon: Tag, color: '#10B981', desc: 'Badge mis en avant sur la liste « Choisissez un voyage » — meilleur rapport prix/place parmi les véhicules ≥ 4 places', settings: [
+    { key: 'enabled', label: 'Afficher le badge sur la gamme recommandée', type: 'toggle', value: true },
+    { key: 'label', label: 'Libellé du badge', type: 'select', value: 'Meilleur choix', options: ['Meilleur choix', 'Populaire', 'Éco', 'Recommandé', 'Le moins cher'] },
+  ]},
   payment_methods: { title: 'Moyens de paiement', icon: Wallet, color: '#FF5000', desc: 'Activer/désactiver les moyens de paiement, marge de pré-autorisation CB, règle « différence en espèces » du portefeuille et frais d\'annulation', settings: [
     { key: 'pm_cash_enabled', label: 'Activer Espèces', type: 'toggle', value: true },
     { key: 'pm_card_enabled', label: 'Activer CB (carte)', type: 'toggle', value: true },
@@ -259,6 +263,11 @@ const AdminServiceConfig = ({ serviceKey = 'genie' }) => {
               </button>
             ) : s.type === 'number' ? (
               <Input type="number" value={s.value} onChange={e => updateSetting(s.key, parseFloat(e.target.value) || 0)} />
+            ) : s.type === 'select' ? (
+              <select value={s.value} onChange={e => updateSetting(s.key, e.target.value)} data-testid={`config-select-${s.key}`}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
+                {(s.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
             ) : s.type === 'textarea' ? (
               <Textarea value={s.value} onChange={e => updateSetting(s.key, e.target.value)} rows={6} data-testid={`config-${s.key}`} />
             ) : s.type === 'image' ? (

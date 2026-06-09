@@ -1,4 +1,14 @@
-## NEW - 2026-06-09 (127) - Badge « Meilleur choix » (rapport prix/place, ≥4 places) (DONE, screenshot)
+## NEW - 2026-06-09 (128) - Badge véhicule configurable depuis l'admin (DONE, curl + screenshot)
+- **Demande user** : rendre le badge « Meilleur choix » configurable en admin — activer/désactiver + choisir le libellé (Meilleur choix / Populaire / Éco…).
+- **Backend** (`config.py`) : NOUVEL endpoint public **`GET /config/vehicle-badge`** (`{enabled, label}`, défauts) lisant `service_configs.vehicle_badge`. La sauvegarde admin passe par l'endpoint générique existant `PUT /admin/service-config/vehicle_badge`.
+- **Frontend admin** (`AdminServiceConfig.js`) : entrée `vehicle_badge` (toggle `enabled` + nouveau type **`select`** pour `label` avec options Meilleur choix/Populaire/Éco/Recommandé/Le moins cher) ; route `/admin/vehicle-badge-config` (adminRoutes) + lien menu « Badge véhicule (Meilleur choix) » (AdminLayout, sous Taxi/Transport).
+- **Frontend client** (`RideChoosePage.js`) : `configAPI.getVehicleBadge()` → state `badgeCfg` ; le badge n'apparaît que si `badgeCfg.enabled` et utilise `badgeCfg.label`.
+- **Vérifié** : curl e2e (admin sauve « Populaire » → lecture publique « Populaire » ; `enabled:false` masque ; restauration) + screenshot page admin (toggle + select rendus). Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : badge non plus sur le moins cher brut (souvent Moto 1 place) mais sur la gamme au **meilleur rapport prix/capacité**. Après discussion → option (a) : meilleur rapport **parmi les véhicules ≥ 4 places** (exclut Moto/TukTuk), oriente vers une option rentable et pertinente.
 - **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : `bestSlug` = min(`est.fare / person_capacity`) parmi les gammes tarifées **avec capacité ≥ 4** (affiché si ≥2 éligibles) → pill emerald « MEILLEUR CHOIX » (`data-testid="best-choice-{slug}"`).
 - **Vérifié** : screenshot client → badge sur **SB** (12€/4 = 3,0/place, meilleur que Confort/SUV/Van parmi ≥4 places ; Moto/TukTuk exclus). Webpack compile.

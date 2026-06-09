@@ -94,6 +94,7 @@ const RideChoosePage = () => {
   const [estimates, setEstimates] = useState({}); // slug -> { fare, duration, distance, loading, error }
   const [selected, setSelected] = useState(null);
   const [infoVehicle, setInfoVehicle] = useState(null); // ⓘ vehicle detail popup
+  const [badgeCfg, setBadgeCfg] = useState({ enabled: true, label: 'Meilleur choix' });
   const [payOpen, setPayOpen] = useState(false); // payment method dropdown
   const [payment, setPayment] = useState('cash');
   const [payments, setPayments] = useState(DEFAULT_PAYMENTS);
@@ -184,6 +185,13 @@ const RideChoosePage = () => {
 
   // Auto-localize the departure on mount
   useEffect(() => { autoLocate(); /* eslint-disable-next-line */ }, []);
+
+  // Admin-configurable "Meilleur choix" badge (enabled + label)
+  useEffect(() => {
+    configAPI.getVehicleBadge()
+      .then((r) => { const d = r.data; if (d) setBadgeCfg({ enabled: !!d.enabled, label: d.label || 'Meilleur choix' }); })
+      .catch(() => {});
+  }, []);
 
   // Voice-assistant prefill (forwarded from the legacy /ride redirect): geocode
   // the spoken destination (and pickup) so the booking is ready to confirm.
@@ -588,8 +596,8 @@ const RideChoosePage = () => {
                 <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   <p className="font-black text-[#0B1426] text-base truncate">{v.name_fr || v.name || v.slug}</p>
                   <span className="flex items-center gap-0.5 text-xs text-gray-500 shrink-0"><UsersThree size={14} weight="fill" />{v.person_capacity || 4}</span>
-                  {v.slug === bestSlug && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wide shrink-0" data-testid={`best-choice-${v.slug}`}>Meilleur choix</span>
+                  {badgeCfg.enabled && v.slug === bestSlug && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wide shrink-0" data-testid={`best-choice-${v.slug}`}>{badgeCfg.label}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">

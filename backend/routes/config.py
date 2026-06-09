@@ -244,6 +244,27 @@ async def store_review_config():
     return await get_store_review_config()
 
 
+# ── Vehicle "Meilleur choix" badge configuration ──────────────────────────
+# Stored in service_configs under service_key="vehicle_badge" (admin-editable
+# via the generic /admin/service-config endpoint). Drives the highlight badge
+# on the "Choisissez un voyage" list (best price/seat among ≥4-seat vehicles).
+DEFAULT_VEHICLE_BADGE = {
+    "enabled": True,
+    "label": "Meilleur choix",
+}
+
+
+@router.get("/vehicle-badge")
+async def get_vehicle_badge_config():
+    """Public config for the vehicle highlight badge (enabled + label)."""
+    doc = await db.service_configs.find_one({"service_key": "vehicle_badge"}, {"_id": 0})
+    settings = (doc or {}).get("settings") or {}
+    cfg = {**DEFAULT_VEHICLE_BADGE, **settings}
+    cfg["enabled"] = bool(cfg.get("enabled", True))
+    cfg["label"] = (str(cfg.get("label") or "").strip() or DEFAULT_VEHICLE_BADGE["label"])
+    return cfg
+
+
 @router.put("/admin/store-review")
 async def save_store_review_config(request: Request):
     """Admin: persist the store-review prompt configuration."""

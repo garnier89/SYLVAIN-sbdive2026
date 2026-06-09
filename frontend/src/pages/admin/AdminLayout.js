@@ -61,6 +61,7 @@ const sidebarConfig = [
         { label: 'Gérer les catégories', path: '/admin/service-categories' },
         { label: 'Réservation & WhatsApp', path: '/admin/taxi-booking-config' },
         { label: 'Moyens de paiement', path: '/admin/payment-methods-config' },
+        { label: 'Badge véhicule (Meilleur choix)', path: '/admin/vehicle-badge-config' },
         { label: 'Tarification dynamique', path: '/admin/dynamic-pricing' },
         { label: 'Surcharge météo', path: '/admin/weather-surcharge' },
         { label: 'Configuration Pool', path: '/admin/pool-config' },
