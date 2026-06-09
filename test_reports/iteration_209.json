@@ -1,0 +1,33 @@
+{
+  "summary": "Iter209 — Tested: (1) Auto-surge par commune (GET/PUT + tiers x1.2/x1.5/x1.8 + cap x2.0 + disabled→x1.0), (2) demand-heatmap surge_multiplier, (3) nearby-offline-drivers (shape + seeded taxi appears). Backend: 8/8 pytest cases PASS. Frontend /admin/dispatch: auto-surge-config card with toggle, 3 editable tiers, cap, save→toast 'Surge auto sauvegardé' OK. Heatmap card rendered with FdF tile. dispatch-ride-call-{rideId} with valid tel: href rendered for the 1 pending ride. nearby-offline-drivers and recruit-nearby-offline panels correctly HIDDEN when count=0 (no completed taxi rides in last 14d for an offline approved taxi driver in seed DB).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter209_auto_surge.py",
+    "/app/test_reports/pytest/iter209_results.xml"
+  ],
+  "action_items": [
+    "(Non-blocking) Estimate response does not expose human-readable 'reasons' at top-level — surge_multiplier is exposed per-vehicle but the 'Tarif majoré x1.5 — forte demande (Fort-de-France)' reason string from compute_pricing_adjustment isn't surfaced in /api/rides/estimate body. Consider returning it so the front passenger UI can show why the price went up.",
+    "(Non-blocking) nearby-offline-drivers panel & recruit-nearby-offline panel are CONDITIONALLY rendered when count>0. With current DB they're hidden. Backend test seeded a driver and the API returned the expected payload, so the conditional UI is correct, but a manual seed script (seed_nearby_drivers.py) would make demoing easier."
+  ],
+  "critical_code_review_comments": [
+    "pricing.py::_auto_commune_surge re-queries all pending rides & calls calculate_distance per row on EVERY estimate request — O(P) per estimate. At scale, cache the per-commune pending count for ~5–10s.",
+    "pricing.py::compute_pricing_adjustment takes max(manual_surge, auto_surge) only on multiplier — but loses the manual rule's reason if auto wins. Consider keeping both reasons or the higher rule's metadata.",
+    "auto_surge_multiplier_for_demand caps at 2.0 fine, but DEFAULT_AUTO_SURGE.cap=2.0 means a tier multiplier of 1.8 + manual 1.5 still maxes at 2.0 — admins should be warned in the UI that cap caps EVERYTHING, not just tiers.",
+    "dispatch_admin.py::nearby_offline_drivers filters `is_online: {$ne: True}` which correctly includes False AND missing field, good. But last_worked uses updated_at sort by isoformat string compare — works for ISO 8601 with timezone but fragile if any rides stored a naive timestamp; consider $dateFromString-based aggregation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter209_auto_surge.py (created)"
+  ],
+  "success_rate": { "backend": "100% (8/8)", "frontend": "100% (all data-testids present + toast verified)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123! via POST /api/auth/login. Note: review_request mentioned '/login/email' but that's a FRONTEND route — the backend endpoint is /api/auth/login.",
+  "seed_data_creation": "Tests seed pending rides tagged _seed='iter209_seed' at FdF and a completed ride tagged _seed='iter209_offline_seed'. Both cleaned up at teardown (verified: 0 leftover). auto_surge remains ENABLED in DB as required by the user.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend endpoints validated: GET/PUT /api/admin/dispatch/auto-surge, POST /api/rides/estimate (surge applied via auto_surge), GET /api/admin/dispatch/demand-heatmap (auto_surge_enabled + per-commune surge_multiplier), GET /api/admin/dispatch/nearby-offline-drivers?days=14. UI data-testids verified on /admin/dispatch: auto-surge-config, auto-surge-toggle, surge-tier-min-{0..2}, surge-tier-mult-{0..2}, surge-cap, auto-surge-save, dispatch-demand-heatmap, heat-commune-{name}, heat-surge-{name} (only when surge>1), dispatch-ride-call-{rideId} (href=tel:...). Conditional panels: nearby-offline-drivers (when count>0), dispatch-recruit-widget. Auth: backend login is /api/auth/login (NOT /login/email).",
+  "rca of the issue": "No issues found. Initial test failures were due to: (a) using /api/login/email (404) — should be /api/auth/login; (b) /api/rides/estimate requires payment_method field; (c) async cleanup attached to wrong event loop. All three were test-side issues fixed within the new test file."
+}

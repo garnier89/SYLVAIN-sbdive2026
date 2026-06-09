@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/input';
 import { dispatchAdminAPI } from '../../services/api';
 import {
   Broadcast, MapPin, Warning, Money, CreditCard, Wallet, Clock,
-  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell, Car, Fire,
+  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell, Car, Fire, Phone, TrendUp,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -35,6 +35,105 @@ const PayChip = ({ method }) => {
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700"><Wallet size={11} weight="fill" /> Wallet</span>;
   }
   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700"><Money size={11} weight="fill" /> Espèces</span>;
+};
+
+const fmtDateShort = (iso) => {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (days <= 0) return "aujourd'hui";
+    if (days === 1) return 'hier';
+    return `il y a ${days} j`;
+  } catch { return '—'; }
+};
+
+const AutoSurgeConfig = () => {
+  const [cfg, setCfg] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { dispatchAdminAPI.getAutoSurge().then((r) => setCfg(r.data)).catch(() => {}); }, []);
+
+  if (!cfg) return null;
+  const setTier = (i, key, val) => {
+    const tiers = cfg.tiers.map((t, idx) => idx === i ? { ...t, [key]: parseFloat(val) || 0 } : t);
+    setCfg({ ...cfg, tiers });
+  };
+  const save = async () => {
+    setSaving(true);
+    try { const r = await dispatchAdminAPI.saveAutoSurge(cfg); setCfg(r.data.config); toast.success('Surge auto sauvegardé'); }
+    catch { toast.error('Échec'); } finally { setSaving(false); }
+  };
+
+  return (
+    <Card className="mb-6" data-testid="auto-surge-config">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center justify-between flex-wrap gap-2">
+          <span className="flex items-center gap-2"><TrendUp size={18} weight="bold" className="text-red-500" /> Tarification dynamique automatique (par commune)</span>
+          <button onClick={() => setCfg({ ...cfg, enabled: !cfg.enabled })} data-testid="auto-surge-toggle"
+            className={`w-12 h-7 rounded-full relative transition-colors ${cfg.enabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+            <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${cfg.enabled ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-gray-500 mb-3">Majoration auto du tarif quand la demande d'une commune (courses en attente) dépasse un palier. {cfg.enabled ? <span className="text-green-600 font-semibold">Actif</span> : <span className="text-gray-400 font-semibold">Inactif</span>}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {cfg.tiers.map((t, i) => (
+            <div key={i} className="border border-gray-200 rounded-xl p-3" data-testid={`surge-tier-${i}`}>
+              <label className="text-[11px] text-gray-500 font-semibold">À partir de (courses en attente)</label>
+              <input type="number" value={t.min_pending} onChange={(e) => setTier(i, 'min_pending', e.target.value)} className="w-full border rounded-lg px-2 py-1 text-sm mb-2" data-testid={`surge-tier-min-${i}`} />
+              <label className="text-[11px] text-gray-500 font-semibold">Multiplicateur</label>
+              <input type="number" step="0.1" value={t.multiplier} onChange={(e) => setTier(i, 'multiplier', e.target.value)} className="w-full border rounded-lg px-2 py-1 text-sm" data-testid={`surge-tier-mult-${i}`} />
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 mt-3 flex-wrap">
+          <label className="text-xs font-semibold text-gray-600">Plafond x</label>
+          <input type="number" step="0.1" value={cfg.cap} onChange={(e) => setCfg({ ...cfg, cap: parseFloat(e.target.value) || 2 })} className="w-20 border rounded-lg px-2 py-1 text-sm" data-testid="surge-cap" />
+          <button onClick={save} disabled={saving} className="ml-auto bg-[#3b82f6] text-white text-sm font-bold px-5 py-2 rounded-lg disabled:opacity-50" data-testid="auto-surge-save">{saving ? 'Sauvegarde...' : 'Sauvegarder'}</button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const NearbyOfflineDrivers = () => {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    const load = () => dispatchAdminAPI.nearbyOfflineDrivers(14).then((r) => setData(r.data)).catch(() => {});
+    load();
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, []);
+  if (!data || data.count === 0) return null;
+  return (
+    <Card className="mb-6" data-testid="nearby-offline-drivers">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Power size={18} className="text-gray-400" /> Chauffeurs taxi à proximité (hors-ligne, actifs ≤ {data.days} j)
+          <span className="text-xs font-normal text-gray-400">— appelez-les pour renforcer l'offre</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {data.drivers.map((d) => (
+            <div key={d.driver_id} className="flex items-center justify-between gap-2 border border-gray-100 rounded-xl p-2.5 bg-gray-50/60" data-testid={`nearby-driver-${d.driver_id}`}>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{d.name}</p>
+                <p className="text-[11px] text-gray-500 truncate">{d.zone} · {d.vehicle_type || '—'} · {fmtDateShort(d.last_worked)}</p>
+              </div>
+              {d.phone && (
+                <a href={`tel:${d.phone}`} className="shrink-0 inline-flex items-center gap-1 bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-full" data-testid={`nearby-call-${d.driver_id}`}>
+                  <Phone size={12} weight="fill" /> Appeler
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 const heatBg = (intensity) => {
@@ -236,6 +335,10 @@ const AdminDispatch = () => {
         </Card>
       )}
 
+      {/* Tarification dynamique auto + chauffeurs hors-ligne à proximité */}
+      <AutoSurgeConfig />
+      <NearbyOfflineDrivers />
+
       {/* Demand heatmap by commune */}
       {heat?.communes?.length > 0 && (
         <Card className="mb-6" data-testid="dispatch-demand-heatmap">
@@ -253,6 +356,11 @@ const AdminDispatch = () => {
                 <div key={c.zone} className="rounded-xl p-3 text-white relative overflow-hidden" style={{ backgroundColor: heatBg(c.intensity) }} data-testid={`heat-commune-${c.zone}`}>
                   <p className="text-xs font-bold truncate drop-shadow-sm" title={c.zone}>{c.zone}</p>
                   <p className="text-2xl font-extrabold leading-tight drop-shadow-sm">{c.pending}<span className="text-xs font-medium opacity-90"> en attente</span></p>
+                  {c.surge_multiplier > 1 && (
+                    <span className="inline-flex items-center gap-0.5 bg-white/90 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full mt-0.5" data-testid={`heat-surge-${c.zone}`}>
+                      <TrendUp size={10} weight="bold" /> x{c.surge_multiplier}
+                    </span>
+                  )}
                   <div className="flex items-center justify-between mt-1 text-[10px] font-semibold">
                     <span className="opacity-90">{c.today} auj.</span>
                     <span className="opacity-90 flex items-center gap-0.5"><Power size={9} weight="fill" /> {c.online_taxi} taxi</span>
@@ -317,7 +425,15 @@ const AdminDispatch = () => {
                       <span className="truncate max-w-[40%]">{r.dropoff_address || '—'}</span>
                     </div>
                     <div className="flex items-center justify-between mt-1 text-[11px] text-gray-500">
-                      <span>{r.passenger_name || 'Client'} · {r.vehicle_type}</span>
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="truncate font-medium text-gray-700">{r.passenger_name || 'Client'}</span>
+                        {r.passenger_phone && (
+                          <a href={`tel:${r.passenger_phone}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 text-blue-600 font-semibold hover:underline" data-testid={`dispatch-ride-call-${r.id}`}>
+                            <Phone size={11} weight="fill" /> {r.passenger_phone}
+                          </a>
+                        )}
+                        <span className="text-gray-400">· {r.vehicle_type}</span>
+                      </span>
                       <span className="font-bold text-gray-700">{(r.estimated_fare || 0).toFixed(2)} €</span>
                     </div>
                   </div>

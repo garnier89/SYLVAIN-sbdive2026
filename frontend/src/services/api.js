@@ -160,6 +160,9 @@ export const dispatchAdminAPI = {
   taxiRecruitment: () => api.get('/admin/dispatch/taxi-recruitment'),
   inviteTaxi: (driverId, zone) => api.post('/admin/dispatch/taxi-recruitment/invite', { driver_id: driverId, zone }),
   demandHeatmap: () => api.get('/admin/dispatch/demand-heatmap'),
+  getAutoSurge: () => api.get('/admin/dispatch/auto-surge'),
+  saveAutoSurge: (cfg) => api.put('/admin/dispatch/auto-surge', cfg),
+  nearbyOfflineDrivers: (days = 14) => api.get(`/admin/dispatch/nearby-offline-drivers?days=${days}`),
 };
 
 // Order APIs

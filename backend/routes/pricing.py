@@ -125,6 +125,72 @@ async def _weather_multiplier(lat, lng, vehicle_type):
     return mult, matched
 
 
+# ── Auto commune surge (global toggle, branché sur la heatmap de demande) ──────
+DEFAULT_AUTO_SURGE = {
+    "enabled": False,
+    "tiers": [
+        {"min_pending": 3, "multiplier": 1.2},
+        {"min_pending": 6, "multiplier": 1.5},
+        {"min_pending": 10, "multiplier": 1.8},
+    ],
+    "cap": 2.0,
+}
+
+
+async def get_auto_surge_config():
+    """Global « Surge auto par commune » config (service_configs 'auto_surge')."""
+    doc = await db.service_configs.find_one({"service_key": "auto_surge"}, {"_id": 0})
+    s = (doc or {}).get("settings") or {}
+    cfg = {
+        "enabled": bool(s.get("enabled", DEFAULT_AUTO_SURGE["enabled"])),
+        "cap": float(s.get("cap", DEFAULT_AUTO_SURGE["cap"]) or DEFAULT_AUTO_SURGE["cap"]),
+        "tiers": DEFAULT_AUTO_SURGE["tiers"],
+    }
+    tiers = s.get("tiers")
+    if isinstance(tiers, list) and tiers:
+        clean = []
+        for t in tiers:
+            try:
+                clean.append({"min_pending": int(t["min_pending"]), "multiplier": float(t["multiplier"])})
+            except (KeyError, TypeError, ValueError):
+                continue
+        if clean:
+            cfg["tiers"] = sorted(clean, key=lambda t: t["min_pending"])
+    return cfg
+
+
+def auto_surge_multiplier_for_demand(demand: int, cfg: dict) -> float:
+    """Highest tier multiplier whose min_pending ≤ demand, capped."""
+    mult = 1.0
+    for t in cfg.get("tiers", []):
+        if demand >= t["min_pending"]:
+            mult = max(mult, t["multiplier"])
+    return min(mult, float(cfg.get("cap") or 2.0))
+
+
+async def _auto_commune_surge(lat, lng, cfg=None):
+    """Auto-surge based on the LIVE pending demand of the pickup commune."""
+    if lat is None or lng is None:
+        return 1.0, None
+    cfg = cfg or await get_auto_surge_config()
+    if not cfg.get("enabled"):
+        return 1.0, None
+    from routes.zones import resolve_zone
+    zones = await db.zones.find({"is_active": True}, {"_id": 0}).to_list(500)
+    z = resolve_zone(zones, lat, lng, None)
+    zlat, zlng, r = (z or {}).get("lat"), (z or {}).get("lng"), (z or {}).get("radius_km")
+    if not z or zlat is None or not r:
+        return 1.0, None
+    pending = await db.rides.find(
+        {"status": "pending", "driver_id": None},
+        {"_id": 0, "pickup_lat": 1, "pickup_lng": 1},
+    ).to_list(800)
+    demand = sum(1 for p in pending if p.get("pickup_lat") is not None
+                 and calculate_distance(zlat, zlng, p["pickup_lat"], p["pickup_lng"]) <= float(r))
+    mult = auto_surge_multiplier_for_demand(demand, cfg)
+    return (mult, z.get("name")) if mult > 1.0 else (1.0, None)
+
+
 async def compute_pricing_adjustment(base_fare, lat, lng, vehicle_type="all"):
     """Apply AI Dynamic Surge + Weather Surcharge. Returns {fare, surge_multiplier,
     weather_multiplier, weather_condition, reasons[]}."""
@@ -132,6 +198,9 @@ async def compute_pricing_adjustment(base_fare, lat, lng, vehicle_type="all"):
     reasons = []
 
     surge_mult, zone = await _surge_multiplier(lat, lng, vehicle_type)
+    auto_mult, auto_zone = await _auto_commune_surge(lat, lng)
+    if auto_mult > surge_mult:
+        surge_mult, zone = auto_mult, auto_zone
     if surge_mult > 1.0:
         fare = round(fare * surge_mult, 2)
         z = f" ({zone})" if zone else ""

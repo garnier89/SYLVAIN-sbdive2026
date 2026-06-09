@@ -5,10 +5,21 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { dispatchAdminAPI, adminAPI } from '../../services/api';
 
+const fmtDateShort = (iso) => {
+  if (!iso) return '—';
+  try {
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (days <= 0) return "aujourd'hui";
+    if (days === 1) return 'hier';
+    return `il y a ${days} j`;
+  } catch { return '—'; }
+};
+
 const AdminTaxiRecruitment = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState({}); // driverId -> 'activate' | 'invite'
+  const [nearby, setNearby] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -20,6 +31,7 @@ const AdminTaxiRecruitment = () => {
 
   useEffect(() => {
     load();
+    dispatchAdminAPI.nearbyOfflineDrivers(14).then((r) => setNearby(r.data)).catch(() => {});
     const id = setInterval(load, 15000);
     return () => clearInterval(id);
   }, [load]);
@@ -124,6 +136,35 @@ const AdminTaxiRecruitment = () => {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Chauffeurs taxi hors-ligne actifs récemment (à rappeler) */}
+      {nearby && nearby.count > 0 && (
+        <Card className="mt-6" data-testid="recruit-nearby-offline">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Car size={18} className="text-gray-400" /> Chauffeurs taxi hors-ligne actifs (≤ {nearby.days} j)
+              <span className="text-xs font-normal text-gray-400">— déjà chauffeurs Taxi, à rappeler pour renforcer l'offre</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {nearby.drivers.map((d) => (
+                <div key={d.driver_id} className="flex items-center justify-between gap-2 border border-gray-100 rounded-xl p-2.5 bg-gray-50/60" data-testid={`recruit-nearby-${d.driver_id}`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{d.name}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{d.zone} · {d.vehicle_type || '—'} · {fmtDateShort(d.last_worked)}</p>
+                  </div>
+                  {d.phone && (
+                    <a href={`tel:${d.phone}`} className="shrink-0 inline-flex items-center gap-1 bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-full" data-testid={`recruit-nearby-call-${d.driver_id}`}>
+                      <PaperPlaneTilt size={12} weight="fill" /> Appeler
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

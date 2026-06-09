@@ -201,6 +201,7 @@ async def dispatch_overview(request: Request):
             "estimated_fare": r.get("estimated_fare"), "tier": r.get("auto_dispatch_tier", 0),
             "age_seconds": age, "scheduled": is_scheduled, "scheduled_at": scheduled_at, "due": due,
             "passenger_name": (umap.get(r.get("user_id")) or {}).get("name"),
+            "passenger_phone": r.get("book_for_phone") or (umap.get(r.get("user_id")) or {}).get("phone"),
         }
         g = groups.setdefault(zname, {"zone": zname, "pending": 0, "online_drivers": 0, "rides": []})
         g["pending"] += 1
@@ -435,9 +436,16 @@ async def demand_heatmap(request: Request):
     if unzoned:
         unzoned["intensity"] = 0
 
+    # Auto-surge multiplier currently applied per commune (live demand).
+    from routes.pricing import get_auto_surge_config, auto_surge_multiplier_for_demand
+    asc = await get_auto_surge_config()
+    for r in communes:
+        r["surge_multiplier"] = auto_surge_multiplier_for_demand(r["pending"], asc) if asc.get("enabled") else 1.0
+
     return {
         "communes": communes,
         "unzoned": unzoned,
+        "auto_surge_enabled": asc.get("enabled", False),
         "totals": {
             "pending": sum(r["pending"] for r in rows),
             "today": sum(r["today"] for r in rows),
@@ -445,6 +453,86 @@ async def demand_heatmap(request: Request):
         },
         "server_time": now.isoformat(),
     }
+
+
+@router.get("/auto-surge")
+async def get_auto_surge(request: Request):
+    """GLOBAL « Surge auto par commune » config."""
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    from routes.pricing import get_auto_surge_config
+    return await get_auto_surge_config()
+
+
+@router.put("/auto-surge")
+async def put_auto_surge(request: Request):
+    await require_role(request, ["admin"], permission="dispatch.view")
+    body = await request.json()
+    tiers = []
+    for t in (body.get("tiers") or []):
+        try:
+            tiers.append({"min_pending": int(t["min_pending"]), "multiplier": float(t["multiplier"])})
+        except (KeyError, TypeError, ValueError):
+            continue
+    settings = {
+        "enabled": bool(body.get("enabled", False)),
+        "cap": float(body.get("cap") or 2.0),
+        "tiers": sorted(tiers, key=lambda t: t["min_pending"]) if tiers else None,
+    }
+    settings = {k: v for k, v in settings.items() if v is not None}
+    await db.service_configs.update_one(
+        {"service_key": "auto_surge"},
+        {"$set": {"service_key": "auto_surge", "settings": settings,
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    from routes.pricing import get_auto_surge_config
+    return {"message": "Surge auto sauvegardé", "config": await get_auto_surge_config()}
+
+
+@router.get("/nearby-offline-drivers")
+async def nearby_offline_drivers(request: Request, days: int = 14):
+    """Taxi drivers currently OFFLINE but who worked recently (completed a ride
+    within `days`), grouped by their last-known commune — so the dispatcher can
+    call them to come online when demand spikes."""
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    zones = await db.zones.find({"is_active": True}, {"_id": 0}).to_list(500)
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=max(1, min(days, 90)))).isoformat()
+
+    # driver_id -> most recent completed ride date (within window)
+    last_worked = {}
+    async for r in db.rides.find(
+        {"status": "completed", "driver_id": {"$ne": None}, "updated_at": {"$gte": since}},
+        {"_id": 0, "driver_id": 1, "updated_at": 1, "completed_at": 1, "created_at": 1},
+    ):
+        did = r["driver_id"]
+        d = r.get("completed_at") or r.get("updated_at") or r.get("created_at")
+        if d and (did not in last_worked or d > last_worked[did]):
+            last_worked[did] = d
+
+    if not last_worked:
+        return {"drivers": [], "days": days, "count": 0}
+
+    out = []
+    async for d in db.drivers.find(
+        {"id": {"$in": list(last_worked.keys())}, "status": "approved",
+         "is_online": {"$ne": True}, "service_types": "taxi"},
+        {"_id": 0, "id": 1, "user_id": 1, "current_lat": 1, "current_lng": 1, "vehicle_type": 1},
+    ):
+        lat, lng = d.get("current_lat"), d.get("current_lng")
+        z = resolve_zone(zones, lat, lng, None)
+        u = await db.users.find_one({"id": d["user_id"]}, {"_id": 0, "name": 1, "phone": 1}) or {}
+        out.append({
+            "driver_id": d["id"],
+            "name": u.get("name") or "Chauffeur",
+            "phone": u.get("phone"),
+            "vehicle_type": d.get("vehicle_type"),
+            "zone": (z or {}).get("name") or "Hors zone",
+            "last_worked": last_worked.get(d["id"]),
+            "has_location": lat is not None and lng is not None,
+        })
+    out.sort(key=lambda x: x["last_worked"] or "", reverse=True)
+    return {"drivers": out, "days": days, "count": len(out)}
 
 
 
