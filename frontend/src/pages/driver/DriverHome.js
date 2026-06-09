@@ -442,7 +442,7 @@ const DriverHome = () => {
   if (loading) {
     return (
       <div className="mobile-container min-h-screen bg-white flex items-center justify-center">
-        <div className="w-10 h-10 border-3 rounded-full animate-spin" style={{ borderColor: '#e5e7eb', borderTopColor: '#0EA5E9' }} />
+        <div className="w-10 h-10 border-3 rounded-full animate-spin" style={{ borderColor: '#e5e7eb', borderTopColor: '#FF5000' }} />
       </div>
     );
   }
@@ -508,14 +508,14 @@ const DriverHome = () => {
 
       {/* "Prochaine course" — offered to a busy driver who is ~X min from finishing */}
       {nextJobOffer && (
-        <div className="mx-4 mt-3 rounded-2xl border-2 border-[#0EA5E9] bg-sky-50 p-3 shadow-sm" data-testid="next-job-offer">
+        <div className="mx-4 mt-3 rounded-2xl border-2 border-[#FF5000] bg-sky-50 p-3 shadow-sm" data-testid="next-job-offer">
           <div className="flex items-center gap-2 mb-2">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5000] opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF5000]" />
             </span>
             <p className="text-sm font-extrabold text-[#0B1426] flex-1">Prochaine course disponible</p>
-            <span className="text-sm font-extrabold text-[#0EA5E9]">{((nextJobOffer.estimated_fare || nextJobOffer.fare || 0)).toFixed(2)} €</span>
+            <span className="text-sm font-extrabold text-[#FF5000]">{((nextJobOffer.estimated_fare || nextJobOffer.fare || 0)).toFixed(2)} €</span>
           </div>
           <p className="text-[12px] text-gray-600 truncate">{nextJobOffer.pickup_address || 'Ramassage proche'} → {nextJobOffer.dropoff_address || 'Destination'}</p>
           <div className="flex gap-2 mt-3">
@@ -527,7 +527,7 @@ const DriverHome = () => {
 
       {/* Reserved next ride indicator (starts automatically when the current ride ends) */}
       {nextRide && (
-        <div className="mx-4 mt-3 rounded-2xl bg-[#0EA5E9] text-white p-3 shadow-sm flex items-center gap-3" data-testid="next-job-reserved">
+        <div className="mx-4 mt-3 rounded-2xl bg-[#FF5000] text-white p-3 shadow-sm flex items-center gap-3" data-testid="next-job-reserved">
           <Car size={20} weight="fill" className="text-white shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-extrabold leading-tight">Prochaine course réservée</p>
@@ -589,7 +589,7 @@ const DriverHome = () => {
         {currentRide && rideMinimized && (
           <button
             onClick={() => setRideMinimized(false)}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1400] bg-[#0EA5E9] text-white rounded-full pl-4 pr-5 py-3 shadow-2xl flex items-center gap-3 active:scale-95 transition-transform"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1400] bg-[#FF5000] text-white rounded-full pl-4 pr-5 py-3 shadow-2xl flex items-center gap-3 active:scale-95 transition-transform"
             data-testid="resume-ride-banner"
           >
             <span className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">

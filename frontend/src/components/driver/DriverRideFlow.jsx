@@ -263,7 +263,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const isArrived = status === 'arriving';
   const inProgress = status === 'in_progress';
   const headerLabel = inProgress ? t('driver.header_in_progress') : isArrived ? t('driver.header_enroute') : t('driver.header_pickup');
-  const headerBg = inProgress ? '#0B0B0B' : '#0EA5E9';
+  const headerBg = inProgress ? '#0B0B0B' : '#FF5000';
 
   // Distance from the driver to the drop-off — drives the "near destination"
   // finish hint (auto-nudge ≤ 200 m) and the "finish far away" confirmation.

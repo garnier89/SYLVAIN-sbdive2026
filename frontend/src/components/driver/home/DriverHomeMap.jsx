@@ -39,7 +39,7 @@ export const DriverHomeMap = ({
       onClick={onRewards}
       className="absolute top-4 left-4 z-[500] w-12 h-12 rounded-full flex items-center justify-center animate-pulse"
       style={{
-        background: rewardsActive ? '#0EA5E9' : '#F59E0B',
+        background: rewardsActive ? '#FF5000' : '#F59E0B',
         boxShadow: '0 0 0 4px rgba(255,255,255,0.7), 0 4px 12px rgba(0,0,0,0.28)',
       }}
       data-testid="rewards-floating-btn"

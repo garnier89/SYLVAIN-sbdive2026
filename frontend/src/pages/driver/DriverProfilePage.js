@@ -16,7 +16,7 @@ import {
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
-const GREEN = '#0EA5E9';
+const GREEN = '#FF5000';
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const DriverProfilePage = () => {
@@ -247,7 +247,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={Wrench} color="#F59E0B" label={t('driver.manage_services')} onClick={openServices} />
           <ProfileRow icon={FileText} color="#06B6D4" label={t('menu.manage_documents')} onClick={() => navigate('/chauffeur/documents')} />
           {allowEditProfile && (
-            <ProfileRow icon={IdentificationCard} color="#0EA5E9" label={t('driver.my_info')} onClick={openInfoEdit} />
+            <ProfileRow icon={IdentificationCard} color="#FF5000" label={t('driver.my_info')} onClick={openInfoEdit} />
           )}
           <ProfileRow icon={MapPin} color="#EF4444" label={t('driver.manage_workplace')} onClick={() => navigate('/chauffeur/availability')} />
           <ProfileRow icon={Images} color="#8B5CF6" label={t('driver.manage_gallery')} onClick={() => navigate('/chauffeur/gallery')} />

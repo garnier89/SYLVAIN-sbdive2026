@@ -43,7 +43,7 @@ const DemandZonesModal = ({ open, onClose, origin, onNavigate }) => {
       <div className="w-full bg-white rounded-t-3xl p-5 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2">
-            <Sparkle size={22} weight="fill" style={{ color: '#0EA5E9' }} /> Zones à forte demande
+            <Sparkle size={22} weight="fill" style={{ color: '#FF5000' }} /> Zones à forte demande
           </h3>
           <button onClick={onClose} className="text-gray-400" data-testid="demand-zones-close"><X size={22} /></button>
         </div>
@@ -53,7 +53,7 @@ const DemandZonesModal = ({ open, onClose, origin, onNavigate }) => {
 
         {loading ? (
           <div className="py-10 flex justify-center">
-            <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: '#e5e7eb', borderTopColor: '#0EA5E9' }} />
+            <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: '#e5e7eb', borderTopColor: '#FF5000' }} />
           </div>
         ) : zones.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-400" data-testid="demand-zones-empty">
@@ -83,7 +83,7 @@ const DemandZonesModal = ({ open, onClose, origin, onNavigate }) => {
                   <button
                     onClick={() => onNavigate && onNavigate(z)}
                     className="flex-shrink-0 flex items-center gap-1 text-white text-xs font-bold px-3 py-2 rounded-xl"
-                    style={{ background: '#0EA5E9' }}
+                    style={{ background: '#FF5000' }}
                     data-testid={`demand-zone-go-${i}`}>
                     <NavigationArrow size={14} weight="fill" /> Y aller
                   </button>

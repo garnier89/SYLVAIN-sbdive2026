@@ -86,7 +86,7 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
     <div className="fixed inset-0 z-[2700] bg-black/50 flex items-end" onClick={onClose} data-testid="taxi-hall-modal">
       <div className="w-full bg-white rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2"><Taxi size={22} weight="fill" style={{ color: '#0EA5E9' }} /> Auto-stop</h3>
+          <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2"><Taxi size={22} weight="fill" style={{ color: '#FF5000' }} /> Auto-stop</h3>
           <button onClick={onClose} className="text-gray-400" data-testid="taxi-hall-close"><X size={22} /></button>
         </div>
         <div className="flex items-center gap-2 mb-3">
@@ -104,7 +104,7 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
           <div className="grid grid-cols-3 gap-2">
             {types.slice(0, 3).map((t) => (
               <button key={t.slug} onClick={() => setGamme(t.slug)} data-testid={`taxi-hall-gamme-${t.slug}`}
-                className={`py-2.5 rounded-xl text-sm font-bold border ${gamme === t.slug ? 'border-[#0EA5E9] bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'}`}>
+                className={`py-2.5 rounded-xl text-sm font-bold border ${gamme === t.slug ? 'border-[#FF5000] bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'}`}>
                 {t.name || t.slug}
               </button>
             ))}
@@ -130,7 +130,7 @@ const TaxiHallModal = ({ open, onClose, origin, onStarted }) => {
           </div>
         )}
 
-        <button onClick={start} disabled={busy} className="w-full py-3.5 rounded-2xl text-white font-extrabold flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: '#0EA5E9' }} data-testid="taxi-hall-start-btn">
+        <button onClick={start} disabled={busy} className="w-full py-3.5 rounded-2xl text-white font-extrabold flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: '#FF5000' }} data-testid="taxi-hall-start-btn">
           <CheckCircle size={20} weight="fill" /> Démarrer la course
         </button>
       </div>

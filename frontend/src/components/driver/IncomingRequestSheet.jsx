@@ -173,7 +173,7 @@ const IncomingRequestSheet = ({
             )}
             <div className="flex items-center gap-4">
               <button onClick={onDecline} className="px-6 py-4 text-lg font-bold text-gray-500" data-testid="reject-ride-btn">{t('driver.decline')}</button>
-              <button onClick={() => onAccept?.(request.id)} className="flex-1 h-14 rounded-2xl text-white text-lg font-extrabold flex items-center justify-center gap-2 shadow-lg" style={{ background: '#0EA5E9' }} data-testid="accept-ride-btn">
+              <button onClick={() => onAccept?.(request.id)} className="flex-1 h-14 rounded-2xl text-white text-lg font-extrabold flex items-center justify-center gap-2 shadow-lg" style={{ background: '#FF5000' }} data-testid="accept-ride-btn">
                 {t('driver.accept')} <ArrowRight size={22} weight="bold" />
               </button>
             </div>

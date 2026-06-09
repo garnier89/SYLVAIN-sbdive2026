@@ -103,7 +103,7 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
         </div>
         <div className="p-4 flex gap-3 border-t border-gray-100">
           <button onClick={submitCharges} disabled={busy} className="flex-1 py-3.5 rounded-2xl border border-gray-300 text-gray-700 font-bold disabled:opacity-50" data-testid="extra-skip-btn">Sauter</button>
-          <button onClick={() => setConfirmCharges(true)} disabled={busy} className="flex-1 py-3.5 rounded-2xl text-white font-bold disabled:opacity-50" style={{ background: '#0EA5E9' }} data-testid="extra-submit-btn">Soumettre</button>
+          <button onClick={() => setConfirmCharges(true)} disabled={busy} className="flex-1 py-3.5 rounded-2xl text-white font-bold disabled:opacity-50" style={{ background: '#FF5000' }} data-testid="extra-submit-btn">Soumettre</button>
         </div>
         {confirmCharges && (
           <div className="absolute inset-0 z-[3100] bg-black/40 flex items-center justify-center p-6" data-testid="extra-confirm-dialog">
