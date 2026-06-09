@@ -1,3 +1,39 @@
+# 🔜 BACKLOG PRIORITAIRE (validé avec user, 2026-06-09)
+
+## Lot 1 — restant
+- **C. Audit boutons retour** (client + chauffeur) : ajouter les retours manquants sur de nombreuses pages.
+
+## Lot 2 — Notifications push PWA (VALIDÉ "2b oui")
+- Notifs système + son à l'arrivée d'une course/commande **même app en arrière-plan / autre onglet / autre site**.
+- Implémentation : Web Push (service worker + Push API + VAPID), envoi backend. Limite iPhone : nécessite « Ajouter à l'écran d'accueil » (PWA installée) + autorisation notifications.
+
+## Lot 3 — Refonte modules (specs détaillées fournies par user)
+
+### ✈️ Module "Airport Transfer" (service premium)
+- Réservation immédiate **ou à l'avance**.
+- **Flight Watch** : saisie n° de vol → suivi temps réel (retard/avance/annulation) → **ajustement automatique de l'heure de prise en charge** sans action client/chauffeur.
+- Détection auto aéroport (départ/arrivée) → tarif "Aéroport" **forfaitaire** (pas de surprise).
+- **Attribution prioritaire aux chauffeurs certifiés Aéroport** ; affichage du n° de vol au chauffeur.
+- **Temps d'attente gratuit** après atterrissage (ex. 30–60 min).
+- **Point de rendez-vous précis** dans le terminal (envoi auto au client).
+- Suppléments premium : **accueil pancarte (VIP)**, aide bagages, véhicules haut de gamme, navette partagée (option).
+- **Notifications auto client ↔ chauffeur** + **alerte admin** (suivi réservations VIP).
+- **Dashboard admin dédié transferts aéroport** + historique vols/réservations.
+
+### 🕒 Module "Mise à disposition" (réserver un chauffeur+véhicule pour une durée)
+- Durées : 2h / 4h / 8h / journée / plusieurs jours. Client choisit date, heure début, durée, type véhicule, nb passagers.
+- **Tarification forfaitaire** (ex. 2h=60€, 4h=110€, 8h=200€, journée=350€) + **km inclus** + **dépassement km/temps facturé**.
+- **Chauffeur dédié** : reste dispo, attend, multi-arrêts. **Itinéraire flexible** (modif destination/arrêts depuis l'app).
+- **Dashboard temps réel** : temps restant, km parcourus, coût estimé, coût supplémentaire. Vue chauffeur : début mission, temps restant, arrêts, historique.
+- **Option Business** : abonnement entreprise, facturation centralisée, multi-utilisateurs, compte société.
+- **Option Luxe** : berline premium, van VIP, chauffeur bilingue, eau/Wi-Fi à bord.
+- Note : paniers bien plus élevés qu'une course classique → cible entreprises/hôtels/haut de gamme.
+
+### Pop-up "aucun chauffeur" — fait ✅ (Réessayer + Augmenter tarif + Planifier)
+
+---
+
+
 # 🗺️ Roadmap — SB Marketplace Locale (12 modules)
 
 Stack cible : **React + FastAPI + MongoDB** (pas Flutter/Laravel — adaptation à l'existant, zéro réécriture).

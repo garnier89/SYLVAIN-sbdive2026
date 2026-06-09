@@ -515,7 +515,7 @@ const TaxiBiddingPage = () => {
               <div className="flex-1 bg-white border border-gray-200 rounded-xl py-2.5 text-center">
                 <input
                   type="number"
-                  value={fare}
+                  value={Number.isFinite(fare) ? fare : ""}
                   onChange={onFareInput}
                   className="w-full text-3xl font-extrabold text-gray-900 text-center outline-none"
                   data-testid="fare-input"
@@ -758,7 +758,7 @@ const TaxiBiddingPage = () => {
       {/* Fare picker always accessible for testid coverage (hidden when sheet open) */}
       {!mapReady && (
         <div className="hidden" data-testid="fare-picker-fallback">
-          <input type="number" value={fare} onChange={(e) => setFare(parseFloat(e.target.value) || 0)} data-testid="fare-input" />
+          <input type="number" value={Number.isFinite(fare) ? fare : ""} onChange={(e) => setFare(parseFloat(e.target.value) || 0)} data-testid="fare-input" />
           <button onClick={() => adjustFare(-1)} data-testid="fare-minus">-</button>
           <button onClick={() => adjustFare(1)} data-testid="fare-plus">+</button>
         </div>

@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (219-220) - Lot 1 : minuteur chauffeur agrandi (D) + Auto-stop nom/téléphone (E) + bouton "Augmenter tarif" (A) (DONE, testé 2/2 backend + 3/3 frontend)
+- **D. Minuteur chauffeur agrandi** : `IncomingRequestSheet.jsx` affiche un **gros cercle de compte à rebours sur la carte** (derrière la fiche), data-testid `accept-timer-big`, avec le nombre de secondes à l'intérieur (CountdownRing 140px, police auto-scalée) + label « Temps pour accepter ». Délai = `appSettings.driver_timeout` (déjà configurable admin).
+- **E. Auto-stop (Taxi Hall)** : `TaxiHallModal.jsx` ajoute **Nom + Téléphone** du client (`taxi-hall-client-name/phone`). Backend `POST /rides/taxi-hall` : **match par téléphone** (suffixe digits) → si compte trouvé, `user_id` rattaché + `passenger_name` = nom du compte + `client_matched=true` (course rattachée, relance possible) ; sinon `guest_name/guest_phone` + nom saisi. Fini le « Client (hélé) » générique.
+- **A. Pop-up « aucun chauffeur »** : bouton vert **« Augmenter mon tarif (+X €) »** (`no-driver-raise-btn`, X = suggestedFare−fare) en plus de Réessayer/Planifier ; `retryHigher` → `handleSubmit(suggestedFare)`.
+- **Bug corrigé** : `fare` pouvait devenir **NaN** (cassait l'affichage + masquait le bouton raise). Durci : `fareFloor` via `Number()||1`, setFare gardés `Number.isFinite`, `adjustFare/raiseFare` anti-NaN, **useEffect filet de sécurité** (reset à fareFloor), inputs `value={Number.isFinite(fare)?fare:""}`.
+- **Vérifié** : pytest `tests/test_iter219_taxi_hall_match.py` **2/2** + **testing_agent iteration_220 — frontend 100% (3/3)** (A: fare 11,17 → bouton +2,23 € → relance à 13,40 € ; D: ring 140px + « 35 » visible ; E: inputs + course démarrée « Marie Test »).
+- ⚠️ PREVIEW → redéploiement requis pour la prod (https://gojek-mvp-1.emergent.host).
+
+
 ## NEW - 2026-06-09 (217-218) - Vérif 17 catégories taxi + fix Intercité + auto-fermeture chauffeur + pop-up client « aucun chauffeur »
 - **Vérification des 17 catégories taxi (demande user, priorité)** : **17/17 PASS** end-to-end (testing_agent iteration_217). Catégories : standard, pool, electric, moto, rental, intercity, book_later, moto_rental, buddy_driver, bidding, airport, pets, book_for_someone, tuktuk, assist, corporate, access.
   - **BUG corrigé — Intercité plantait** : `ModeSpecificPanel` (composant module) appelait `money()` hors scope → ReferenceError dès qu'une estimation arrivait. Fix : `useLocale()` dans `ModeSpecificPanel`. Vérifié (chip « 1,50 €/km » OK, plus d'erreur React).
