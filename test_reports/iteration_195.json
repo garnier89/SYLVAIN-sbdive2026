@@ -1,0 +1,35 @@
+{
+  "summary": "Iter 195 - On-Demand Services (Services à la demande) Lot 1 fully validated. BACKEND: 9/9 pytest pass in /app/backend/tests/test_iter195_ondemand_services.py covering (1) GET /api/services/ondemand-categories → 24 active cats sorted by order (bricoleur/menage/massage/coiffeur present, all with slug/name/icon/color/order); (2) GET /api/services/providers?category=coiffeur&lat=48.85&lng=2.35 → 2 providers (Sylvain G, Amir B.), distance_km computed for both, price_from computed (12.89 / 12.00), sorted by distance ascending; (3) GET /api/services/providers/svp_coiffeur_sylvain → profile + 6 services incl. Coupe Homme Classique @ 17.19, gallery present; (4) 404 on unknown provider; (5) POST /api/services/bookings with provider_id → status='confirmed', price=base_price (17.19), persisted and listed in GET /api/services/bookings; (6) Admin list providers (>=9); (7) Admin POST → PUT → DELETE full provider CRUD with cleanup; (8) Admin GET + PUT /admin/ondemand-categories (toggle is_active on 'decorateur' then restore); (9) Admin endpoints reject regular user with 401/403. FRONTEND: e2e login (test2@example.com via /login/email) → /home OK → /all-services renders 24 category tiles (data-testid all-services-page + category-{slug}), search input filters (search 'coif' → 1 visible category) → click category-coiffeur navigates to /service-providers/coiffeur with header 'Fournisseur de services' + subtitle 'Coiffeur' + provider-svp_coiffeur_sylvain card (photo/4.6/'0 km'/'dès 12,89 €') → click card → /service-provider/svp_coiffeur_sylvain renders 'Détail du service', 'Sylvain G' with 4.6 (128 avis), 3 tabs (tab-services/tab-gallery/tab-reviews), 'Coupe Homme Classique 17,19 €' with 'Réserver maintenant' (book-service-s1) → modal (booking-modal) opens, address filled (booking-address), confirm (booking-confirm) creates booking and navigates to /my-bookings. All 24 home page on-demand category tiles + 3 quick tiles + 'Plus de Services' tile are defined in userHomeServices.js with paths /service-providers/{slug} and /all-services (verified in source — tiles use React Router programmatic nav, not <a href>, so checking innerHTML for the URL strings returned false but the navigation works).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter195_ondemand_services.py",
+    "/app/test_reports/pytest/iter195_ondemand.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/services.py:51-62 list_service_providers — limit default 50 but to_list(limit) uses the cap; price_from computes min over services array client-side per call. For 2-3 providers per category this is negligible, fine as-is.",
+    "routes/services.py:84-107 admin_create_provider — no validation that body['services'] entries have id/name/price; passing malformed services would silently insert. Low risk because endpoint is admin-only, but a Pydantic model would harden it.",
+    "routes/services.py:170-217 create_service_booking — `category`/`service_name` accessed via body['category'] / body['service_name'] without explicit validation; will raise KeyError → 500 if missing. Consider Pydantic body model for clearer 422 responses (consistent with rest of codebase).",
+    "ondemand_seed.py:172-175 — providers are upserted by id; existing providers' services/prices won't be refreshed if seed changes. If catalog evolves, expect operator to clear collection or extend seed to overwrite. Documented behavior is fine.",
+    "Frontend userHomeServices.js — the 3 'Services à la demande' quick tiles + 'Plus de Services' use React Router navigation (no <a href>); recommend adding data-testid on each tile (e.g. home-ondemand-tile-{id}) for easier regression coverage."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter195_ondemand_services.py"
+  ],
+  "success_rate": {"backend": "100% (9/9 pytest pass)", "frontend": "100% on all in-scope flows (login, /all-services grid + search, providers list, provider detail tabs + booking modal + confirm → /my-bookings)"},
+  "test_credentials": "User: test2@example.com / TestPass123! (via /login/email). Admin: admin@superapp.com / SuperAdmin123! (Bearer access_token returned by POST /api/auth/login).",
+  "seed_data_creation": "One service booking created for test2@example.com (svcbk_*, coiffeur/Coupe Homme Classique, status=confirmed, price=17.19). Admin CRUD test creates a TEST_Prov_<hex> provider in 'bricoleur' category but DELETES it before the test ends (cleanup verified in test). No residual admin data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Canonical regression file: /app/backend/tests/test_iter195_ondemand_services.py (9 tests, ~3s). Login on this app is phone-by-default; switch to email via 'Ou choisir une autre option de connexion' → 'Email & mot de passe' which routes to /login/email. Booking endpoint returns status='confirmed' immediately when provider_id is provided (no separate confirmation step). Frontend testids in scope: all-services-page, category-{slug}, provider-{id}, tab-services|gallery|reviews, book-service-{service_id}, booking-modal, booking-address, booking-confirm. Backend admin CRUD requires Bearer token from admin@superapp.com.",
+  "rca of the issue": "No bugs found. Lot 1 of the on-demand services module is production-ready: backend endpoints (public + admin) behave per spec, frontend e2e flow (Home → All Services → Providers → Provider detail → Booking → /my-bookings) is complete and uses correct data-testids. Admin CRUD properly cleans up after tests (provider deleted, category restored)."
+}

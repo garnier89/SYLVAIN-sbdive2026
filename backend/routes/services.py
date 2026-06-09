@@ -4,10 +4,11 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from core.config import db
-from core.deps import get_current_user
+from core.deps import get_current_user, require_role
 from core.seed_data import SERVICE_CATEGORIES
 from core.websocket import manager
 from routes.coupons import compute_coupon_discount
+import math
 
 
 router = APIRouter(prefix="/services", tags=["services"])
@@ -24,6 +25,124 @@ SVC_TRANSITIONS = {
 async def list_service_categories():
     """Return service categories with full V3Cube structure."""
     return SERVICE_CATEGORIES
+
+
+# ── On-Demand Services (« Services à la demande ») ───────────────────────────
+def _distance_km(lat1, lng1, lat2, lng2):
+    if None in (lat1, lng1, lat2, lng2):
+        return None
+    r = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2)
+    return round(r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 1)
+
+
+@router.get("/ondemand-categories")
+async def list_ondemand_categories():
+    """Categories grid for Home + « Tous les autres services »."""
+    cats = await db.ondemand_categories.find(
+        {"is_active": True}, {"_id": 0}
+    ).sort("order", 1).to_list(200)
+    return cats
+
+
+@router.get("/providers")
+async def list_service_providers(category: str, lat: Optional[float] = None, lng: Optional[float] = None, limit: int = 50):
+    """Providers for a category (« Fournisseur de services »), sorted by distance."""
+    providers = await db.service_providers.find(
+        {"category_slug": category, "is_active": True}, {"_id": 0}
+    ).to_list(limit)
+    for p in providers:
+        p["distance_km"] = _distance_km(lat, lng, p.get("lat"), p.get("lng"))
+        p["price_from"] = min((s["price"] for s in p.get("services", [])), default=None)
+    if lat is not None and lng is not None:
+        providers.sort(key=lambda x: (x["distance_km"] is None, x["distance_km"] or 0))
+    return providers
+
+
+@router.get("/providers/{provider_id}")
+async def get_service_provider(provider_id: str):
+    """Provider profile + bookable services (« Détail du service »)."""
+    p = await db.service_providers.find_one({"id": provider_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Prestataire introuvable")
+    return p
+
+
+# ── Admin: manage on-demand providers & categories ──────────────────────────
+@router.get("/admin/providers")
+async def admin_list_providers(request: Request, category: Optional[str] = None):
+    await require_role(request, ["admin"])
+    query = {}
+    if category:
+        query["category_slug"] = category
+    return await db.service_providers.find(query, {"_id": 0}).to_list(500)
+
+
+@router.post("/admin/providers")
+async def admin_create_provider(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    if not body.get("name") or not body.get("category_slug"):
+        raise HTTPException(status_code=400, detail="name et category_slug requis")
+    provider = {
+        "id": f"svp_{uuid.uuid4().hex[:12]}",
+        "category_slug": body["category_slug"],
+        "name": body["name"],
+        "rating": float(body.get("rating") or 5.0),
+        "reviews_count": int(body.get("reviews_count") or 0),
+        "lat": body.get("lat", 48.8566),
+        "lng": body.get("lng", 2.3522),
+        "address": body.get("address", "Paris, Île-de-France"),
+        "phone": body.get("phone", ""),
+        "photo": body.get("photo", ""),
+        "bio": body.get("bio", ""),
+        "gallery": body.get("gallery", []),
+        "services": body.get("services", []),
+        "is_active": bool(body.get("is_active", True)),
+    }
+    await db.service_providers.insert_one(dict(provider))
+    return provider
+
+
+@router.put("/admin/providers/{provider_id}")
+async def admin_update_provider(provider_id: str, request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    allowed = {"name", "category_slug", "rating", "reviews_count", "lat", "lng",
+               "address", "phone", "photo", "bio", "gallery", "services", "is_active"}
+    update = {k: v for k, v in body.items() if k in allowed}
+    res = await db.service_providers.update_one({"id": provider_id}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Prestataire introuvable")
+    return await db.service_providers.find_one({"id": provider_id}, {"_id": 0})
+
+
+@router.delete("/admin/providers/{provider_id}")
+async def admin_delete_provider(provider_id: str, request: Request):
+    await require_role(request, ["admin"])
+    await db.service_providers.delete_one({"id": provider_id})
+    return {"deleted": True}
+
+
+@router.get("/admin/ondemand-categories")
+async def admin_list_categories(request: Request):
+    await require_role(request, ["admin"])
+    return await db.ondemand_categories.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+
+
+@router.put("/admin/ondemand-categories/{slug}")
+async def admin_update_category(slug: str, request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    allowed = {"name", "icon", "color", "order", "is_active"}
+    update = {k: v for k, v in body.items() if k in allowed}
+    res = await db.ondemand_categories.update_one({"slug": slug}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+    return await db.ondemand_categories.find_one({"slug": slug}, {"_id": 0})
 
 
 @router.post("/estimate")

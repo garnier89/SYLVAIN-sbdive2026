@@ -14,9 +14,9 @@ import {
   MyPropertiesPage, PharmacyPage, PharmacyCatalogPage, PharmacyPrescriptionPage, PharmacyOrdersPage,
   BiddingPage, TaxiBiddingPage, AdvancedTaxiBookingPage, CorporateAccountPage, TaxiHubPage,
   TransportPublicPage, NearbyTransitPage,
-  ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage, IntercityRidePage,
-  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
+  ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage, IntercityRidePage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
+  ServiceProvidersPage, ServiceProviderDetailPage,
 } from './pages';
 
 export function clientRoutes(user) {
@@ -51,6 +51,8 @@ export function clientRoutes(user) {
       <Route path="/all-delivery" element={<ProtectedRoute allowedRoles={['user']}><AllDeliveryPage /></ProtectedRoute>} />
       <Route path="/actualites" element={<ProtectedRoute allowedRoles={['user']}><NewsFeedPage /></ProtectedRoute>} />
       <Route path="/all-services" element={<ProtectedRoute allowedRoles={['user']}><AllServicesPage /></ProtectedRoute>} />
+      <Route path="/service-providers/:slug" element={<ProtectedRoute allowedRoles={['user']}><ServiceProvidersPage /></ProtectedRoute>} />
+      <Route path="/service-provider/:id" element={<ProtectedRoute allowedRoles={['user']}><ServiceProviderDetailPage /></ProtectedRoute>} />
       <Route path="/carpool" element={<ProtectedRoute allowedRoles={['user']}><CarPoolPage /></ProtectedRoute>} />
       <Route path="/marketplace" element={<ProtectedRoute allowedRoles={['user']}><MarketplacePage /></ProtectedRoute>} />
       <Route path="/marketplace/orders" element={<ProtectedRoute allowedRoles={['user']}><MyOrdersPage /></ProtectedRoute>} />

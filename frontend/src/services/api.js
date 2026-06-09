@@ -334,6 +334,9 @@ export const carpoolAPI = {
 // Services APIs
 export const servicesAPI = {
   getCategories: () => api.get('/services/categories'),
+  getOnDemandCategories: () => api.get('/services/ondemand-categories'),
+  getProviders: (params) => api.get('/services/providers', { params }),
+  getProvider: (id) => api.get(`/services/providers/${id}`),
   createBooking: (data) => api.post('/services/bookings', data),
   getBookings: (params) => api.get('/services/bookings', { params }),
   getBooking: (id) => api.get(`/services/bookings/${id}`),

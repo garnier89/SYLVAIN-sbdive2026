@@ -408,6 +408,12 @@ async def run_all_seeds():
     await seed_real_estate_boost_plans()
     await seed_pharmacy()               # pharmacy partners & OTC catalog
     try:
+        from core.ondemand_seed import seed_ondemand
+        await seed_ondemand()           # on-demand service categories + demo providers
+        logger.info("On-demand services seeded")
+    except Exception as e:
+        logger.error(f"On-demand seed failed: {e}")
+    try:
         from routes.zones import seed_zones
         await seed_zones()              # admin-managed zones + programmed shortcuts
         logger.info("Zones seeded")

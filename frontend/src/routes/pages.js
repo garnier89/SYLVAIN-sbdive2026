@@ -38,6 +38,8 @@ export const LiveChatPage = lazy(() => import('../pages/user/LiveChatPage'));
 export const ServicesPage = lazy(() => import('../pages/user/ServicesPage'));
 export const AllDeliveryPage = lazyWithPreload(() => import('../pages/user/AllDeliveryPage'));
 export const AllServicesPage = lazy(() => import('../pages/user/AllServicesPage'));
+export const ServiceProvidersPage = lazy(() => import('../pages/user/ServiceProvidersPage'));
+export const ServiceProviderDetailPage = lazy(() => import('../pages/user/ServiceProviderDetailPage'));
 export const CarPoolPage = lazy(() => import('../pages/user/CarPoolPage'));
 export const MarketplacePage = lazy(() => import('../pages/user/MarketplacePage'));
 export const MyOrdersPage = lazy(() => import('../pages/user/MyOrdersPage'));
