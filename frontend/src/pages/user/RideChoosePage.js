@@ -553,16 +553,18 @@ const RideChoosePage = () => {
   const vehicleDesc = (v) => v.info || DEFAULT_VEHICLE_INFO[v.slug] || 'Trajet confortable jusqu\'à destination.';
 
   const renderVehicleList = () => {
-    // Cheapest priced vehicle gets a "Recommandé" badge (only when ≥2 priced options).
-    let cheapestSlug = null; let _min = Infinity; let _pricedCount = 0;
+    // "Meilleur choix" badge = best price-per-seat ratio (fare ÷ capacity),
+    // e.g. SB at 10€/4 beats Moto at 5.50€/1. Shown only when ≥2 priced options.
+    let bestSlug = null; let _min = Infinity; let _pricedCount = 0;
     effectiveVtypes.forEach((v) => {
       const e = estimates[v.slug];
       if (e && !e.loading && !e.error && e.fare != null) {
         _pricedCount += 1;
-        if (e.fare < _min) { _min = e.fare; cheapestSlug = v.slug; }
+        const ratio = e.fare / (v.person_capacity || 1);
+        if (ratio < _min) { _min = ratio; bestSlug = v.slug; }
       }
     });
-    if (_pricedCount < 2) cheapestSlug = null;
+    if (_pricedCount < 2) bestSlug = null;
     return (
     <div data-testid="choose-ride-section" className="space-y-2.5">
       {effectiveVtypes.map((v) => {
@@ -585,8 +587,8 @@ const RideChoosePage = () => {
                 <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   <p className="font-black text-[#0B1426] text-base truncate">{v.name_fr || v.name || v.slug}</p>
                   <span className="flex items-center gap-0.5 text-xs text-gray-500 shrink-0"><UsersThree size={14} weight="fill" />{v.person_capacity || 4}</span>
-                  {v.slug === cheapestSlug && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wide shrink-0" data-testid={`recommended-${v.slug}`}>Recommandé</span>
+                  {v.slug === bestSlug && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wide shrink-0" data-testid={`best-choice-${v.slug}`}>Meilleur choix</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
