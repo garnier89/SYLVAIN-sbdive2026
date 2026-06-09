@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
-  Money, CreditCard, Wallet, CheckCircle, Lightning,
+  Money, CreditCard, Wallet, CheckCircle, Lightning, Info,
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
   CaretDown, MapTrifold,
 } from '@phosphor-icons/react';
@@ -93,6 +93,7 @@ const RideChoosePage = () => {
   const [vtypes, setVtypes] = useState([]);
   const [estimates, setEstimates] = useState({}); // slug -> { fare, duration, distance, loading, error }
   const [selected, setSelected] = useState(null);
+  const [infoVehicle, setInfoVehicle] = useState(null); // ⓘ vehicle detail popup
   const [payOpen, setPayOpen] = useState(false); // payment method dropdown
   const [payment, setPayment] = useState('cash');
   const [payments, setPayments] = useState(DEFAULT_PAYMENTS);
@@ -538,46 +539,63 @@ const RideChoosePage = () => {
     />
   );
 
+  // Fallback descriptions when a vehicle has no admin-set `info`.
+  const DEFAULT_VEHICLE_INFO = {
+    sb: 'Taxi de base et de routine pour les trajets quotidiens.',
+    confort: 'Confort supérieur pour vos trajets quotidiens.',
+    luxe: 'Berline haut de gamme, chauffeur en costume.',
+    moto: 'Déplacements rapides en moto, idéal en ville.',
+    pool: 'Trajet partagé à prix réduit avec d\'autres passagers.',
+    suv: 'Véhicule spacieux pour les voyages en groupe.',
+    electric: 'Véhicule électrique, trajet propre et silencieux.',
+    van: 'Grand véhicule pour les groupes et les bagages.',
+  };
+  const vehicleDesc = (v) => v.info || DEFAULT_VEHICLE_INFO[v.slug] || 'Trajet confortable jusqu\'à destination.';
+
   const renderVehicleList = () => (
-    <div data-testid="choose-ride-section">
-      <p className="text-xs text-gray-500 mb-3">{isPool ? 'Tarif partagé réduit estimé par véhicule.' : 'Sélectionnez votre véhicule.'}</p>
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }} data-testid="vehicle-carousel">
-        {effectiveVtypes.map((v) => {
-          const Icon = vehicleIcon(v);
-          const est = estimates[v.slug] || {};
-          const active = selected === v.slug;
-          const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
-          return (
-            <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
-              className={`relative shrink-0 w-[7.5rem] snap-start flex flex-col items-center gap-1 rounded-2xl border-2 p-3 text-center transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-100 bg-white'}`}>
-              {active && <CheckCircle size={18} weight="fill" className="text-[#FF5000] absolute top-1.5 right-1.5" />}
-              <div className={`w-full h-14 rounded-lg flex items-center justify-center ${active ? 'bg-[#FF5000]/10' : 'bg-gray-50'}`}>
-                {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-14 object-contain" /> : <Icon size={30} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
+    <div data-testid="choose-ride-section" className="space-y-2.5">
+      {effectiveVtypes.map((v) => {
+        const Icon = vehicleIcon(v);
+        const est = estimates[v.slug] || {};
+        const active = selected === v.slug;
+        const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
+        const pickupEta = nearby.etaMins;
+        const pickupTime = pickupEta != null
+          ? new Date(Date.now() + pickupEta * 60000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          : null;
+        return (
+          <div key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
+            className={`flex items-center gap-3 rounded-2xl border-2 p-3 cursor-pointer transition-colors ${active ? 'border-[#0B1426] bg-white' : 'border-transparent bg-gray-50'}`}>
+            <div className="w-20 h-16 flex items-center justify-center shrink-0">
+              {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-16 object-contain" /> : <Icon size={36} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="font-black text-[#0B1426] text-base truncate">{v.name_fr || v.name || v.slug}</p>
+                  <span className="flex items-center gap-0.5 text-xs text-gray-500 shrink-0"><UsersThree size={14} weight="fill" />{v.person_capacity || 4}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
+                    : est.error ? <span className="text-xs text-gray-300">—</span>
+                    : <p className="font-black text-[#0B1426] text-base" data-testid={`price-${v.slug}`}>{est.fare != null ? money(est.fare) : '—'}</p>}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setInfoVehicle(v); }} data-testid={`vehicle-info-${v.slug}`} className="text-gray-400 active:scale-90 transition-transform" aria-label="Détails du véhicule">
+                    <Info size={17} weight="bold" />
+                  </button>
+                </div>
               </div>
-              <p className="font-bold text-[13px] text-[#0B1426] truncate w-full leading-tight">{v.name_fr || v.name || v.slug}</p>
-              <span className="flex items-center gap-0.5 text-[11px] text-gray-400"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
-              <p className="text-[10px] text-gray-500 truncate w-full">
-                {est.loading ? 'Calcul…' : est.error ? 'Indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
-              </p>
-              <div className="min-h-[1.75rem] flex flex-col items-center justify-center">
-                {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
-                  : est.error ? <span className="text-xs text-gray-300">—</span>
-                  : (
-                    <>
-                      {isPool && est.originalFare && est.originalFare > est.fare && (
-                        <p className="text-[10px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{money(est.originalFare)}</p>
-                      )}
-                      <p className="text-[15px] font-black text-[#FF5000] leading-none" data-testid={`price-${v.slug}`}>{est.fare != null ? money(est.fare) : '—'}</p>
-                      {isPool && est.poolSavings > 0 && (
-                        <p className="text-[10px] font-bold text-emerald-600 leading-none mt-0.5" data-testid={`savings-${v.slug}`}>-{money(est.poolSavings)}</p>
-                      )}
-                    </>
-                  )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              <p className="text-[12px] text-gray-500 mt-0.5">{pickupTime ? `${pickupTime} · ${pickupEta} min` : (est.duration != null ? `${est.duration} min` : '')}</p>
+              <p className="text-[12px] text-gray-500 mt-0.5 line-clamp-2">{vehicleDesc(v)}</p>
+              {isPool && est.originalFare && est.originalFare > est.fare && (
+                <p className="text-[11px] text-gray-400 line-through leading-none mt-0.5" data-testid={`orig-price-${v.slug}`}>{money(est.originalFare)}</p>
+              )}
+              {isPool && est.poolSavings > 0 && (
+                <p className="text-[11px] font-bold text-emerald-600 leading-none mt-0.5" data-testid={`savings-${v.slug}`}>-{money(est.poolSavings)}</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -649,16 +667,64 @@ const RideChoosePage = () => {
     );
   };
 
-  const renderCta = () => (
-    <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error))}
-      className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
-      style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
-      <Lightning size={20} weight="fill" />
-      {searching ? 'Recherche…' : `${isBidding ? 'Proposer mon tarif' : mode.cta || 'Demander'}${displayPrice != null && !isBidding ? ` · ${money(Number(displayPrice))}` : ''}`}
-    </button>
-  );
+  const renderCta = () => {
+    const selName = effectiveVtypes.find((v) => v.slug === selected)?.name_fr || effectiveVtypes.find((v) => v.slug === selected)?.name;
+    const label = searching
+      ? 'Recherche…'
+      : isBidding
+        ? 'Proposer mon tarif'
+        : (showComparison && selName)
+          ? `Choisir ${selName}`
+          : `${mode.cta || 'Demander'}${displayPrice != null ? ` · ${money(Number(displayPrice))}` : ''}`;
+    return (
+      <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error))}
+        className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
+        style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
+        <Lightning size={20} weight="fill" />
+        {label}
+      </button>
+    );
+  };
 
   // ── Step 2: full-screen map + bottom sheet (Uber/V3Cube style) ──
+  const vehicleInfoModal = infoVehicle ? (
+    <div className="fixed inset-0 z-[120] bg-black/50 flex items-end" onClick={() => setInfoVehicle(null)} data-testid="vehicle-info-modal">
+      <div className="w-full bg-white rounded-t-3xl p-5 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
+        <div className="flex items-center gap-4 mb-3">
+          <div className="w-24 h-18 flex items-center justify-center shrink-0">
+            {(infoVehicle.image_selected || infoVehicle.image_unselected)
+              ? <img src={infoVehicle.image_selected || infoVehicle.image_unselected} alt={infoVehicle.name_fr || infoVehicle.slug} className="max-h-20 object-contain" />
+              : <Car size={44} className="text-gray-400" />}
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-xl font-black text-[#0B1426] truncate">{infoVehicle.name_fr || infoVehicle.name || infoVehicle.slug}</h3>
+            <span className="flex items-center gap-1 text-sm text-gray-500 mt-0.5"><UsersThree size={16} weight="fill" /> {infoVehicle.person_capacity || 4} passagers</span>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mb-4 leading-snug">{vehicleDesc(infoVehicle)}</p>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="bg-gray-50 rounded-xl p-3 text-center">
+            <p className="text-[11px] text-gray-400">Prise en charge</p>
+            <p className="font-black text-[#0B1426] text-sm mt-0.5">{money(Number(infoVehicle.base_fare || infoVehicle.pickup_price || 0))}</p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center">
+            <p className="text-[11px] text-gray-400">Par km</p>
+            <p className="font-black text-[#0B1426] text-sm mt-0.5">{money(Number(infoVehicle.price_per_km || 0))}</p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-3 text-center">
+            <p className="text-[11px] text-gray-400">Par min</p>
+            <p className="font-black text-[#0B1426] text-sm mt-0.5">{money(Number(infoVehicle.price_per_min || 0))}</p>
+          </div>
+        </div>
+        <button onClick={() => { setSelected(infoVehicle.slug); setInfoVehicle(null); }} data-testid="vehicle-info-select-btn"
+          className="w-full py-3.5 rounded-xl bg-[#FF5000] text-white font-black active:scale-[0.98] transition-transform">
+          Choisir {infoVehicle.name_fr || infoVehicle.name || infoVehicle.slug}
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   if (mapStep) {
     return (
       <div className="mobile-container h-[100dvh] bg-gray-100 flex flex-col overflow-hidden" data-testid="ride-choose-page">
@@ -707,7 +773,7 @@ const RideChoosePage = () => {
             <div className="w-10 h-1.5 rounded-full bg-gray-300" />
           </div>
           <div className="px-4 overflow-y-auto flex-1 min-h-0">
-            <h2 className="text-base font-black text-[#0B1426] mb-3">{isBidding ? 'Proposez votre prix' : 'Choisir une gamme ou faites glisser vers le haut'}</h2>
+            <h2 className="text-base font-black text-[#0B1426] mb-3">{isBidding ? 'Proposez votre prix' : 'Choisissez un voyage'}</h2>
             {showComparison && selected && estimates[selected]?.duration != null && (
               <div className="flex items-center gap-1.5 -mt-2 mb-3 text-[11px] text-gray-500" data-testid="arrival-estimate">
                 <Clock size={13} weight="bold" className="text-[#FF5000]" />
@@ -726,6 +792,7 @@ const RideChoosePage = () => {
             {renderCta()}
           </div>
         </div>
+        {vehicleInfoModal}
         {scheduleModal}
       </div>
     );

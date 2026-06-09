@@ -1,4 +1,13 @@
-## NEW - 2026-06-09 (125) - Sélecteur de véhicules en carrousel HORIZONTAL (course standard) (DONE, screenshot)
+## NEW - 2026-06-09 (126) - Sélecteur véhicules : liste verticale détaillée V3Cube + fiche ⓘ (DONE, screenshot)
+- **Demande user (capture V3Cube)** : remplacer le sélecteur de véhicules par la **liste verticale détaillée** « Choisissez un voyage » pour TOUT le système taxi standard. (Annule le carrousel horizontal de l'itération 125.)
+- **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : cartes verticales empilées — grande image véhicule, **nom + capacité** (👤N), **prix** + icône **ⓘ**, **heure de prise en charge · ETA** (now+`nearby.etaMins`), **description** (`v.info` avec fallback `DEFAULT_VEHICLE_INFO`), carte sélectionnée = **bordure foncée** `#0B1426`. Titre « Choisissez un voyage », CTA « Choisir {Véhicule} ». NOUVEAU **modal fiche ⓘ** (`vehicle-info-modal`, state `infoVehicle`) : image, nom, N passagers, description, tarifs prise en charge/km/min, bouton « Choisir {Véhicule} ». Nouveaux testids `vehicle-info-{slug}`, `vehicle-info-select-btn`. Testids existants conservés (`choose-vehicle-{slug}`, `price-{slug}`, `orig-price-{slug}`, `savings-{slug}`).
+- **Backend** (`core/startup.py`) : backfill idempotent des **descriptions par défaut** (`info`) pour 15 gammes quand vide — admin-éditable via VehicleTypeEditor.
+- **Vérifié** : screenshots client (/course, dest 75010 Paris) → liste verticale SB/Confort (image, 👤4, prix, ⓘ, 16:15·1 min, description, bordure foncée sur sélection, « Choisir SB ») + popup ⓘ (tarifs + description). Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : sur l'écran de choix après saisie d'adresse, afficher les véhicules en **carrousel coulissant horizontal** (comme les apps standard) au lieu de la liste verticale actuelle.
 - **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : liste verticale (`space-y-2`, lignes pleine largeur) → **carrousel horizontal** (`flex gap-3 overflow-x-auto snap-x`, scrollbar masquée, `data-testid="vehicle-carousel"`). Chaque carte (largeur fixe 7,5rem) empile : image, nom, capacité, durée·distance, prix ; sélection = bordure orange + coche. Tous les `data-testid` préservés (`choose-vehicle-{slug}`, `price-{slug}`, `orig-price-{slug}`, `savings-{slug}`).
 - **Vérifié** : screenshot client (/course, destination 75010 Paris pré-remplie) → SB/Confort/Luxe côte à côte, défilement horizontal (Luxe coupé à droite), tarifs 10/15/25 €. Webpack compile.

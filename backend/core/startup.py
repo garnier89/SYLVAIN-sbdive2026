@@ -194,6 +194,30 @@ async def _seed_v3cube_reference():
         {"allowed_taxi_subs": {"$exists": False}},
         {"$set": {"allowed_taxi_subs": ["particulier", "vtc", "taxi"]}},
     )
+    # Backfill: default vehicle descriptions (admin-editable) shown on the
+    # "Choisissez un voyage" card. Only fills empty/missing `info`.
+    _default_vehicle_info = {
+        "sb": "Taxi de base et de routine pour les trajets quotidiens.",
+        "confort": "Confort supérieur pour vos trajets quotidiens.",
+        "luxe": "Berline haut de gamme, chauffeur en costume.",
+        "moto": "Déplacements rapides en moto, idéal en ville.",
+        "pool": "Trajet partagé à prix réduit avec d'autres passagers.",
+        "suv": "Véhicule spacieux pour les voyages en groupe.",
+        "electric": "Véhicule électrique, trajet propre et silencieux.",
+        "van": "Grand véhicule pour les groupes et les bagages.",
+        "accessible": "Véhicule adapté aux personnes à mobilité réduite.",
+        "airport": "Service dédié aux transferts aéroport.",
+        "pets": "Véhicule acceptant les animaux de compagnie.",
+        "tuktuk": "Petit véhicule économique pour les courts trajets.",
+        "assist": "Chauffeur avec assistance pour vos besoins spécifiques.",
+        "vtc": "Chauffeur privé VTC pour un trajet confortable.",
+        "taxi": "Taxi traditionnel agréé.",
+    }
+    for _slug, _info in _default_vehicle_info.items():
+        await db.vehicle_types.update_one(
+            {"slug": _slug, "$or": [{"info": {"$in": ["", None]}}, {"info": {"$exists": False}}]},
+            {"$set": {"info": _info}},
+        )
 
     for mc in MASTER_SERVICE_CATEGORIES:
         if not await db.master_service_categories.find_one({"id": mc["id"]}):
