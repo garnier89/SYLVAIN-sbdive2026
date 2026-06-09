@@ -1194,3 +1194,30 @@ Roadmap validée : A Paiements → B Annulations/dette → D Favoris → F Popup
 ### Roadmap restante
 - Phase A reste : **CB pré-autorisation Stripe** (attend clés Stripe réelles user).
 - Suivantes : D (Favoris max 2) → F (Popup promo en course) → C (Permissions/docs) → E (Appels+enregistrement Twilio, clés à fournir).
+
+## Iteration 185-186 (Jun 9, 2026) — Phase 1 Sécurité & Favoris + Phase 2 Parrainage (DONE)
+
+### Correctifs critiques (reprise de fork)
+- **RideTrackingPage.js** : erreur de compilation `return outside of function` — la ligne `if (ride.status === 'pending') {` avait été supprimée par erreur, laissant le bloc radar orphelin. Restaurée. Le `useEffect` d'auto-partage est correctement placé avant tous les early returns.
+- **trip_share.py** : l'endpoint public `GET /api/trip-share/{token}` (suivi live `/t/:token`) avait perdu son décorateur `@router.get` et sa signature `def` (code orphelin après le `return` de `ride_auto_share`). Restauré. Testé : 404 FR pour token invalide, snapshot complet sinon.
+
+### Phase 1 — Sécurité & Favoris (testé 11/11 backend, frontend OK — iter 185)
+- Auto-partage du trajet aux contacts de confiance à l'acceptation (toggle dans /safety, hook dans RideTrackingPage).
+- Limite de 2 chauffeurs favoris (`phase1.py` add/list/delete, 400 au 3e).
+- Régression : `/app/backend/tests/test_iter185_phase1_safety.py`.
+
+### Phase 2 — Parrainage (testé 14/14 backend, frontend OK — iter 186)
+- **Codes basés sur le nom** : `Sylvain01` (client), `Sylvain01P` (chauffeur, suffixe P), uniques (Sylvain02...). Anciens codes aléatoires conservés pour comptes existants.
+- **Récompenses conditionnelles différenciées par rôle**, payées aux DEUX parties :
+  - Chauffeur→Chauffeur = 50€ chacun après 20 courses du filleul en 30 jours (fenêtre `expires_at`).
+  - Chauffeur→Client / Client→Client / Client→Chauffeur = 5€ chacun après la 1ère course.
+- Statut `pending` à l'application (aucun crédit immédiat) → `completed` + crédit wallet via le hook `process_referral_on_ride_completion` branché à la complétion de course (`rides.py` ~l.1357).
+- Validation insensible à la casse. Config admin réelle persistée : `GET/PUT /api/referral/config` (admin only).
+- Frontend : `AdminReferralSettings.js` (4 montants + 3 conditions, save persistant) ; `ReferralPage.js` (badges En attente/Expiré/validé + progression courses).
+- Régression : `/app/backend/tests/test_iter186_referral.py`.
+
+### Roadmap restante (5 phases validées)
+- Phase 3 — Annulations, pénalités & modération (bans clients 10/15, pénalités chauffeurs 1-2€, archivage conversations).
+- Phase 4 — Logique de dispatch (courses planifiées pool/lock ; dispatch live 30s zone → fallback → propose price).
+- Phase 5 — Statuts de fidélité (Silver/Gold/Platinum/Diamond, configurables admin).
+- Backlog : Livraison Marketplace (coursiers) ; accusés de lecture « lu » messages Marketplace.

@@ -216,8 +216,9 @@ async def process_referral_on_ride_completion(passenger_user_id: str, driver_id:
             d = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "user_id": 1})
             if d and d.get("user_id"):
                 await _qualify_referral(d["user_id"])
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("referral").warning("referral qualification failed: %s", e)
 
 
 # ═══════════════════════ USER ENDPOINTS ═══════════════════════
