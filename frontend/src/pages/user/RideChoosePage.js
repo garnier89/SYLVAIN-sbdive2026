@@ -85,6 +85,9 @@ const RideChoosePage = () => {
   const isIntercity = mode.id === 'intercity';
   const needsDropoff = !isRental && !isBuddy;
   const showComparison = needsDropoff && !isBidding;
+  // Rich vehicle list (map + cards with live price, like the standard flow) —
+  // used for ALL destination modes, including bidding (parité image client).
+  const showVehicles = needsDropoff;
 
   const [cfg, setCfg] = useState({ unified_flow_enabled: true, whatsapp_enabled: false, whatsapp_number: '', whatsapp_message_template: '' });
   const [cfgLoaded, setCfgLoaded] = useState(false);
@@ -416,7 +419,7 @@ const RideChoosePage = () => {
 
   // ── Live estimates per vehicle (comparison modes only) ────────────────
   const fetchEstimates = useCallback(async () => {
-    if (!showComparison || !pickup?.lat || !dropoff?.lat || effectiveVtypes.length === 0) return;
+    if (!showVehicles || !pickup?.lat || !dropoff?.lat || effectiveVtypes.length === 0) return;
     setEstimates(Object.fromEntries(effectiveVtypes.map((v) => [v.slug, { loading: true }])));
     const base = {
       pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
@@ -433,7 +436,7 @@ const RideChoosePage = () => {
         setEstimates((p) => ({ ...p, [v.slug]: { loading: false, error: true } }));
       }
     }));
-  }, [showComparison, effectiveVtypes, pickup, dropoff, mode.id, mode.ride_type, isPool, isIntercity, poolSeats, roundTrip]);
+  }, [showVehicles, effectiveVtypes, pickup, dropoff, mode.id, mode.ride_type, isPool, isIntercity, poolSeats, roundTrip]);
 
   useEffect(() => { const t = setTimeout(fetchEstimates, 350); return () => clearTimeout(t); }, [fetchEstimates]);
 
@@ -491,11 +494,15 @@ const RideChoosePage = () => {
     if (needsDropoff && !dropoff?.lat) return toast.error('Renseignez la destination');
 
     if (isBidding) {
+      if (!selected) return toast.error('Choisissez un véhicule');
       const q = new URLSearchParams({
         pickup: pickup.address, plat: pickup.lat, plng: pickup.lng,
         dropoff: dropoff.address, dlat: dropoff.lat, dlng: dropoff.lng,
+        vehicle: selectedSlug,
       });
-      if (biddingFare) q.set('fare', biddingFare);
+      // Pre-fill the bid with the live estimate (or the rider's typed amount) as a reference.
+      const refFare = biddingFare || (selected && estimates[selected]?.fare);
+      if (refFare) q.set('fare', refFare);
       return navigate(`/taxi-bidding?${q.toString()}`);
     }
     if (showComparison && !selected) return toast.error('Choisissez un véhicule');
@@ -633,32 +640,6 @@ const RideChoosePage = () => {
     );
   };
 
-  const renderBiddingGrid = () => (
-    <div data-testid="bidding-vehicle-section">
-      <p className="text-xs text-gray-500 mb-3">Sélectionnez le type de véhicule pour votre offre.</p>
-      <div className="grid grid-cols-2 gap-2.5">
-        {effectiveVtypes.map((v) => {
-          const active = selected === v.slug;
-          const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
-          const Icon = vehicleIcon(v);
-          return (
-            <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`bidding-vehicle-${v.slug}`}
-              className={`flex items-center gap-2.5 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-transparent bg-white shadow-sm'}`}>
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/15' : 'bg-gray-100'}`}>
-                {img ? <img src={img} alt={v.name_fr || v.slug} className="w-full h-full object-contain p-1" /> : <Icon size={24} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-600'} />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-[#0B1426] truncate text-sm">{v.name_fr || v.name || v.slug}</p>
-                <span className="flex items-center gap-0.5 text-[11px] text-gray-400"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
-              </div>
-              {active && <CheckCircle size={16} weight="fill" className="text-[#FF5000] shrink-0" />}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   const renderPayment = () => {
     const sel = payments.find((pm) => pm.id === payment) || payments[0];
     const SelIcon = PAYMENT_ICONS[sel?.icon] || Money;
@@ -711,7 +692,7 @@ const RideChoosePage = () => {
           ? `Choisir ${selName}`
           : `${mode.cta || 'Demander'}${displayPrice != null ? ` · ${money(Number(displayPrice))}` : ''}`;
     return (
-      <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error))}
+      <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error)) || (isBidding && !selected)}
         className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
         style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
         <Lightning size={20} weight="fill" />
@@ -808,7 +789,7 @@ const RideChoosePage = () => {
           </div>
           <div className="px-4 overflow-y-auto flex-1 min-h-0">
             <h2 className="text-base font-black text-[#0B1426] mb-3">{isBidding ? 'Proposez votre prix' : 'Choisissez un voyage'}</h2>
-            {showComparison && selected && estimates[selected]?.duration != null && (
+            {showVehicles && selected && estimates[selected]?.duration != null && (
               <div className="flex items-center gap-1.5 -mt-2 mb-3 text-[11px] text-gray-500" data-testid="arrival-estimate">
                 <Clock size={13} weight="bold" className="text-[#FF5000]" />
                 <span>Trajet ~{estimates[selected].duration} min
@@ -817,8 +798,7 @@ const RideChoosePage = () => {
               </div>
             )}
             {(isPool || isIntercity) && <ModeSpecificPanel {...modePanelProps} />}
-            {showComparison && renderVehicleList()}
-            {isBidding && renderBiddingGrid()}
+            {showVehicles && renderVehicleList()}
           </div>
           {/* Pinned footer: payment + CTA always visible */}
           <div className="px-4 pt-2 pb-4 border-t border-gray-100 shrink-0 space-y-2 bg-white rounded-b-3xl">
