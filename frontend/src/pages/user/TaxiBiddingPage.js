@@ -9,6 +9,7 @@ import SearchRadar from '../../components/SearchRadar';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
+const BID_TIMEOUT_SECONDS = 120; // délai avant proposition d'augmenter / passer en standard
 
 /**
  * TaxiBiddingPage — iDrive-style "Offer Your Fare" (V3Cube mockup match).
@@ -51,6 +52,7 @@ const TaxiBiddingPage = () => {
   const [searching, setSearching] = useState(() => searchParams.get('resume') || null); // rideId once submitted
   const [searchSeconds, setSearchSeconds] = useState(0);
   const [offers, setOffers] = useState([]);
+  const [expired, setExpired] = useState(false); // délai dépassé sans chauffeur
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
   const [vehTypes, setVehTypes] = useState([]);
@@ -191,6 +193,53 @@ const TaxiBiddingPage = () => {
       toast('Aucune offre pour le moment — augmentez votre tarif pour attirer les chauffeurs', { icon: '⏱️' });
     }
   }, [searching, searchSeconds, offers.length]);
+
+  // Hard timeout: after BID_TIMEOUT_SECONDS with no driver offer, prompt the rider
+  // to raise their fare or switch to standard pricing (avoids stuck bids).
+  const bidTimeout = carsCfg?.bid_timeout_seconds || BID_TIMEOUT_SECONDS;
+  useEffect(() => {
+    if (searching && !expired && offers.length === 0 && searchSeconds >= bidTimeout) {
+      setExpired(true);
+    }
+  }, [searching, searchSeconds, expired, offers.length, bidTimeout]);
+
+  const suggestedFare = Math.max(fareFloor, Math.round((fare || fareFloor) * 1.2 * 100) / 100);
+
+  const raiseToSuggested = async () => {
+    await raiseFare(Math.round((suggestedFare - fare) * 100) / 100);
+    suggestedRef.current = false;
+    setSearchSeconds(0);
+    setExpired(false);
+  };
+
+  const keepWaiting = () => { setSearchSeconds(0); setExpired(false); };
+
+  const switchToStandard = async () => {
+    try {
+      if (searching) {
+        await fetch(`${API}/api/rides/${searching}/status`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ status: 'cancelled', cancel_reason: 'Bascule vers tarif standard' }),
+        });
+      }
+      const res = await fetch(`${API}/api/rides`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({
+          pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
+          dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoff.address,
+          vehicle_type: vehicleType, payment_method: 'cash',
+        }),
+      });
+      if (!res.ok) throw new Error('create standard failed');
+      const ride = await res.json();
+      setSearching(null); setExpired(false);
+      toast.success('Passage au tarif standard');
+      navigate(`/ride/${ride.id}`);
+    } catch (e) {
+      console.error('[bidding] switch to standard failed', e);
+      toast.error('Impossible de basculer en tarif standard');
+    }
+  };
 
   const acceptOffer = async (offerId) => {
     try {
@@ -503,6 +552,36 @@ const TaxiBiddingPage = () => {
           <div className="text-center py-5">
             <button onClick={cancelSearch} className="text-gray-500 text-sm font-medium hover:text-gray-700" data-testid="cancel-search-btn">
               Annuler la recherche
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bid expiration prompt — raise offer or switch to standard */}
+      {searching && expired && (
+        <div className="fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center p-4" data-testid="bid-expired-modal">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 animate-slide-up">
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
+                <TrendUp size={26} className="text-[#FF5000]" weight="bold" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Aucun chauffeur pour le moment</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Votre tarif de <span className="font-bold text-[#FF5000]">{money(fare)}</span> n'a pas encore été accepté.
+                Augmentez votre offre ou passez au tarif standard.
+              </p>
+            </div>
+            <button onClick={raiseToSuggested} data-testid="bid-raise-suggested-btn"
+              className="w-full h-12 rounded-xl bg-[#FF5000] hover:bg-[#E04600] text-white font-bold mb-2.5">
+              Augmenter mon offre à {money(suggestedFare)}
+            </button>
+            <button onClick={switchToStandard} data-testid="bid-switch-standard-btn"
+              className="w-full h-12 rounded-xl border-2 border-gray-200 text-gray-800 font-bold mb-2.5">
+              Passer au tarif standard{estimate?.estimated_fare ? ` (${money(estimate.estimated_fare)})` : ''}
+            </button>
+            <button onClick={keepWaiting} data-testid="bid-keep-waiting-btn"
+              className="w-full text-gray-500 text-sm font-medium py-1.5">
+              Continuer d'attendre
             </button>
           </div>
         </div>
