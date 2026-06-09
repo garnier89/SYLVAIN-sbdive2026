@@ -4,7 +4,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import {
   AdminLayout, AdminDashboard, AdminUsers, AdminUserEdit, AdminDrivers, AdminRides,
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
-  AdminMonitoring, AdminLiveRides, AdminAutoDispatch, AdminManageAdmins, AdminGroupsPage,
+  AdminMonitoring, AdminLiveRides, AdminAutoDispatch, AdminDispatch, AdminManageAdmins, AdminGroupsPage,
   AdminVehicles, AdminDriverCategories, AdminRequests, AdminDocumentsCrud, AdminCompany,
   AdminHotels, AdminOrganization, AdminVehicleTypes, AdminOrders, AdminServiceConfig,
   AdminManualBooking, AdminPayoutsCrud, AdminSettlementsCrud, AdminDisputesCrud,
@@ -49,6 +49,7 @@ export function adminRoutes() {
       <Route path="monitoring" element={<AdminMonitoring />} />
       <Route path="live-rides" element={<AdminLiveRides />} />
       <Route path="auto-dispatch" element={<AdminAutoDispatch />} />
+      <Route path="dispatch" element={<AdminDispatch />} />
       <Route path="admins" element={<AdminManageAdmins />} />
       <Route path="groups" element={<AdminGroupsPage />} />
       <Route path="vehicles" element={<AdminVehicles />} />

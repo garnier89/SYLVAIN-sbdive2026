@@ -360,6 +360,18 @@ const DriverHome = () => {
     }
   };
 
+  const declineRide = async (rideId) => {
+    setIncomingRequest(null);
+    if (!rideId) return;
+    try {
+      const res = await rideAPI.decline(rideId);
+      if (res?.data?.went_offline) {
+        setIsOnline(false);
+        toast.warning(`Vous êtes passé hors-ligne après ${res.data.count} refus.`, { duration: 8000 });
+      }
+    } catch { /* best-effort, never block the UI */ }
+  };
+
   const sendCounterOffer = async (rideId, amount) => {
     try {
       const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/rides/${rideId}/counter-offer`, {
@@ -617,7 +629,7 @@ const DriverHome = () => {
             driverPos={mapCenter}
             windowSeconds={Math.max(10, appSettings.driver_timeout || 35)}
             onAccept={acceptRide}
-            onDecline={() => setIncomingRequest(null)}
+            onDecline={() => declineRide(incomingRequest.id)}
             myOffer={myOffer}
             nowTs={nowTs}
             onSendCounterOffer={isBiddingReq ? sendCounterOffer : null}

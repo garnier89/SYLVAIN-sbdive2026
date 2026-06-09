@@ -49,6 +49,16 @@ DEFAULT_CONFIG = {
     "accept_bonus_points": 2,        # +N points when a driver accepts an escalated ride
     "no_response_penalty": 1,        # -N points when a driver was offered tier-1 but didn't accept before tier-2 / cancel
     "min_points_floor": 0,           # don't let points go below this
+    # === Anti-abuse / driver discipline (Phase 4 control tower) ===
+    # After this many REFUSALS (declines) within refusal_window_minutes the
+    # driver app is automatically switched OFFLINE. 0 = disabled.
+    "max_refusals_before_offline": 0,
+    "refusal_window_minutes": 60,
+    # A driver is FLAGGED in the dispatch control tower when their accept-then-
+    # cancel ratio on CARD/CB rides reaches cb_cancel_flag_pct (%), provided they
+    # have at least cb_cancel_flag_min cancellations (avoids tiny-sample flags).
+    "cb_cancel_flag_pct": 30,
+    "cb_cancel_flag_min": 3,
 }
 
 
@@ -413,6 +423,10 @@ class AutoDispatchConfigUpdate(BaseModel):
     accept_bonus_points: int | None = None
     no_response_penalty: int | None = None
     min_points_floor: int | None = None
+    max_refusals_before_offline: int | None = None
+    refusal_window_minutes: int | None = None
+    cb_cancel_flag_pct: int | None = None
+    cb_cancel_flag_min: int | None = None
 
 
 @router.put("/config")

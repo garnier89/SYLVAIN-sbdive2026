@@ -161,6 +161,7 @@ export const AdminKyc = lazy(() => import('../pages/admin/AdminKyc'));
 export const AdminMonitoring = lazy(() => import('../pages/admin/AdminMonitoring'));
 export const AdminLiveRides = lazy(() => import('../pages/admin/AdminLiveRides'));
 export const AdminAutoDispatch = lazy(() => import('../pages/admin/AdminAutoDispatch'));
+export const AdminDispatch = lazy(() => import('../pages/admin/AdminDispatch'));
 export const AdminManageAdmins = lazy(() => import('../pages/admin/AdminManageAdmins'));
 export const AdminServiceConfig = lazy(() => import('../pages/admin/AdminServiceConfig'));
 export const AdminAppSettings = lazy(() => import('../pages/admin/AdminAppSettings'));

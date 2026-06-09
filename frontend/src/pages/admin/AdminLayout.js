@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast
 } from '@phosphor-icons/react';
 
 // Dashboard organisé en grandes familles : Pilotage, Membres, Services,
@@ -22,6 +22,7 @@ const sidebarConfig = [
       { icon: ChartLine, label: 'Monitoring serveur', path: '/admin/monitoring' },
       { icon: Path, label: 'Courses en direct', path: '/admin/live-rides' },
       { icon: Lightning, label: 'Auto-dispatch', path: '/admin/auto-dispatch' },
+      { icon: Broadcast, label: 'Tour de contrôle dispatch', path: '/admin/dispatch' },
       { icon: Binoculars, label: "Vue d'ensemble", path: '/admin/gods-view' },
       { icon: Fire, label: 'Vue thermique', path: '/admin/heat-view' },
     ]

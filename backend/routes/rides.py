@@ -1131,6 +1131,23 @@ async def accept_ride(ride_id: str, request: Request):
     return {"message": "Ride accepted", "status": "accepted"}
 
 
+@router.post("/{ride_id}/decline")
+async def decline_ride(ride_id: str, request: Request):
+    """A driver refuses an incoming offer. Records the refusal and, once the
+    driver crosses the admin-configured threshold within the rolling window,
+    auto-switches them OFFLINE. Best-effort — never blocks the driver UI."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1, "user_id": 1})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Driver profile required")
+    try:
+        from routes.dispatch_admin import record_driver_refusal
+        result = await record_driver_refusal(driver, ride_id)
+    except Exception:
+        result = {"count": 0, "max": 0, "went_offline": False}
+    return {"ok": True, **result}
+
+
 DRIVER_CANCEL_WINDOW_MIN = 20
 
 
@@ -1179,6 +1196,14 @@ async def driver_cancel_booking(ride_id: str, request: Request):
     # Phase 3 — €1 penalty for accepting then releasing a booking.
     from routes.moderation import apply_driver_penalty
     await apply_driver_penalty(driver["id"], "accept_release", ride_id)
+
+    # Phase 4 — track accept-then-cancel for the dispatch control tower (flags
+    # drivers who dump CARD rides). Best-effort.
+    try:
+        from routes.dispatch_admin import record_driver_cancellation
+        await record_driver_cancellation(driver["id"], ride)
+    except Exception:
+        pass
 
     # Notify the passenger their driver stepped back.
     try:
@@ -1604,6 +1629,12 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
             ]
         for r in rides:
             await enrich_passenger_info(r)
+            # Phase 4 (anti cherry-pick): hide the payment method on still-pending
+            # offers so a driver can't accept cash-only and reject card rides.
+            # It is revealed only once the ride is assigned to THEM.
+            if r.get("status") == "pending" and r.get("driver_id") != driver_doc_id:
+                r.pop("payment_method", None)
+                r.pop("payment_status", None)
     return rides
 
 

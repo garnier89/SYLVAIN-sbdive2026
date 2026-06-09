@@ -131,6 +131,7 @@ export const rideAPI = {
   create: (data) => api.post('/rides', data),
   get: (id) => api.get(`/rides/${id}`),
   accept: (id) => api.post(`/rides/${id}/accept`),
+  decline: (id) => api.post(`/rides/${id}/decline`),
   driverCancelBooking: (id) => api.post(`/rides/${id}/driver-cancel-booking`),
   updateStatus: (id, status) => api.post(`/rides/${id}/status`, { status }),
   cancel: (id, reason) => api.post(`/rides/${id}/cancel`, { reason }),
@@ -146,6 +147,16 @@ export const rideAPI = {
   getAvailable: () => api.get('/rides/pending/available'),
   updateRoute: (id, data) => api.post(`/rides/${id}/update-route`, data),
   changePaymentMethod: (id, payment_method) => api.put(`/rides/${id}/payment-method`, { payment_method }),
+};
+
+// Dispatch control tower (admin / dispatcher)
+export const dispatchAdminAPI = {
+  overview: () => api.get('/admin/dispatch/overview'),
+  driverBehavior: () => api.get('/admin/dispatch/driver-behavior'),
+  suspendDriver: (id) => api.post(`/admin/dispatch/drivers/${id}/suspend`),
+  reinstateDriver: (id) => api.post(`/admin/dispatch/drivers/${id}/reinstate`),
+  getConfig: () => api.get('/admin/auto-dispatch/config'),
+  updateConfig: (data) => api.put('/admin/auto-dispatch/config', data),
 };
 
 // Order APIs
