@@ -7,6 +7,8 @@ import InstallPWA from './components/InstallPWA';
 import AuthCallback from './components/AuthCallback';
 import VoiceAssistant from './components/VoiceAssistant';
 import { KioskApp } from './routes/pages';
+
+const SharedTripPage = React.lazy(() => import('./pages/SharedTripPage'));
 import { clientRoutes } from './routes/clientRoutes';
 import { driverRoutes } from './routes/driverRoutes';
 import { merchantRoutes } from './routes/merchantRoutes';
@@ -43,6 +45,9 @@ const AppRouter = () => {
           <Route path="/kiosk" element={<KioskApp />} />
           <Route path="/tab" element={<KioskApp />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+
+          {/* ======= PUBLIC — Suivi de trajet partagé (sécurité, sans login) ======= */}
+          <Route path="/t/:token" element={<SharedTripPage />} />
 
           {/* ======= SB DRIVE CLIENT (App Passager) ======= */}
           {clientRoutes(user)}

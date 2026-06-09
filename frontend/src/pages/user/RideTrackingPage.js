@@ -15,6 +15,7 @@ import RadarCars from '../../components/RadarCars';
 import SearchRadar from '../../components/SearchRadar';
 import DriverInfoCard from './ride-tracking/DriverInfoCard';
 import DriverEnRouteView from './ride-tracking/DriverEnRouteView';
+import { SafetyToolsSheet } from '../../components/safety/SafetyToolsSheet';
 import RouteEditModal from './ride-tracking/RouteEditModal';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
@@ -113,6 +114,7 @@ const RideTrackingPage = () => {
   const [joiningRideId, setJoiningRideId] = useState(null);
   const [statusDialog, setStatusDialog] = useState(null);
   const [showRouteEdit, setShowRouteEdit] = useState(false);
+  const [showSafety, setShowSafety] = useState(false);
   const [relanceCount, setRelanceCount] = useState(0);
   const [showNoDriver, setShowNoDriver] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
@@ -539,13 +541,7 @@ const RideTrackingPage = () => {
   const canCancel = ['pending', 'accepted', 'arriving'].includes(ride.status);
   const isAssigned = ['accepted', 'arriving', 'in_progress'].includes(ride.status) && ride.driver_name;
 
-  const handleShare = async () => {
-    const text = `Je suis en route avec SB Drive VTC.\nChauffeur : ${ride.driver_name || ''} ${ride.driver_vehicle_number ? `(${ride.driver_vehicle_number})` : ''}\nDestination : ${ride.dropoff_address}`;
-    try {
-      if (navigator.share) await navigator.share({ title: 'Ma course SB Drive', text });
-      else { await navigator.clipboard.writeText(text); toast.success('Détails copiés dans le presse-papier'); }
-    } catch (err) { console.warn('[share] cancelled:', err?.message || err); }
-  };
+  const handleShare = () => setShowSafety(true);
 
   // Immersive V3Cube-style "EN ARRIVANT / EN ROUTE" experience once a driver is assigned
   if (isAssigned) {
@@ -566,11 +562,14 @@ const RideTrackingPage = () => {
           onCall={() => { if (ride.driver_phone) window.location.href = `tel:${ride.driver_phone}`; else toast.info('Numéro du chauffeur indisponible'); }}
           onChat={() => navigate(`/ride/${rideId}/chat`)}
           onShare={handleShare}
-          onSos={() => { toast.error("Alerte d'urgence envoyée au support et à vos contacts."); navigate('/safety'); }}
+          onSos={() => setShowSafety(true)}
           canCancel={canCancel}
           onCancel={() => setShowCancel(true)}
           onEditDest={() => setShowRouteEdit(true)}
         />
+        {showSafety && (
+          <SafetyToolsSheet ride={ride} onClose={() => setShowSafety(false)} />
+        )}
         <RouteEditModal
           open={showRouteEdit}
           ride={ride}

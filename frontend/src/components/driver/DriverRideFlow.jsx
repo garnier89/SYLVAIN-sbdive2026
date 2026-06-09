@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { decodePolyline } from '../../utils/polyline';
 import { rideAPI } from '../../services/api';
 import RideCompletionFlow from './RideCompletionFlow';
-import { RideFlowMenu, CallTypeSheet, SafetySheet, OtpModal } from './RideFlowSheets';
+import { RideFlowMenu, CallTypeSheet, OtpModal } from './RideFlowSheets';
+import { SafetyToolsSheet } from '../safety/SafetyToolsSheet';
 import { RideFlowHeader, RideFlowAddressCard, RideFlowMap, RideFlowFooter } from './RideFlowViews';
 import InAppNav from './InAppNav';
 import { useLocale } from '../../contexts/LocaleContext';
@@ -390,16 +391,9 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
 
       {/* Safety sheet */}
       {showSafety && (
-        <SafetySheet
+        <SafetyToolsSheet
+          ride={ride}
           onClose={() => setShowSafety(false)}
-          onSosMessage={() => { setShowSafety(false); toast.success('Message SOS envoyé à vos contacts et au support.'); }}
-          onAudio={() => { setShowSafety(false); toast.info('Enregistrement audio démarré.'); }}
-          onShare={() => {
-            setShowSafety(false);
-            const url = `${window.location.origin}/track/${ride.id}`;
-            if (navigator.share) navigator.share({ title: 'Suivi de voyage', url }).catch(() => {});
-            else { navigator.clipboard?.writeText(url); toast.success('Lien de suivi copié.'); }
-          }}
         />
       )}
 

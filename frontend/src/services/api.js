@@ -113,6 +113,12 @@ export const merchantAPI = {
 };
 
 // Ride APIs
+export const tripShareAPI = {
+  create: (rideId) => api.post(`/rides/${rideId}/share`),
+  get: (token) => api.get(`/trip-share/${token}`),
+};
+
+
 export const rideAPI = {
   estimate: (data) => api.post('/rides/estimate', data),
   demandZones: (lat, lng) => api.get('/phase2/demand-zones', { params: { lat, lng } }),
