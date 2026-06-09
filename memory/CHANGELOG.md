@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-06-09 — Surge auto par commune + contact client + chauffeurs hors-ligne à proximité [DONE, testé 100% — iter209]
+
+### 1. Tarification dynamique automatique par commune (surge)
+- `pricing.py` : `get_auto_surge_config()`, `auto_surge_multiplier_for_demand()`, `_auto_commune_surge()` — majoration auto selon la demande en attente de la commune du pickup (paliers ≥3→x1.2, ≥6→x1.5, ≥10→x1.8, plafond x2.0). Intégré dans `compute_pricing_adjustment` (max entre surge manuel et auto) → appliqué à l'estimation ET à la création de course.
+- `dispatch_admin.py` : `GET/PUT /api/admin/dispatch/auto-surge` (config, stockée dans service_configs `auto_surge`). `demand-heatmap` expose `surge_multiplier` par commune + `auto_surge_enabled`.
+- `AdminDispatch.js` : carte « Tarification dynamique automatique » (toggle + 3 paliers éditables + plafond + save) + badge `xN` sur les tuiles de la heatmap. **Activé par défaut** (demande utilisateur).
+
+### 2. Nom + téléphone client à côté des commandes
+- Overview dispatch : ajout `passenger_phone`. `AdminDispatch.js` : nom client + téléphone cliquable (`tel:`) sur chaque course en attente. Côté chauffeur : déjà existant (`tel:${ride.passenger_phone}` dans `DriverRideFlow.jsx`).
+
+### 3. Chauffeurs taxi à proximité (hors-ligne, actifs récemment)
+- `GET /api/admin/dispatch/nearby-offline-drivers?days=14` : chauffeurs taxi approuvés hors-ligne ayant terminé une course ≤ 14 j, groupés par dernière commune connue, avec téléphone (appeler). Panneaux sur `AdminDispatch.js` ET `AdminTaxiRecruitment.js` (affichés si count>0).
+
+### Notes (consultatif, non corrigé)
+- `_auto_commune_surge` re-requête les pending à chaque estimation (O(P)) → à cacher ~5-10s à l'échelle. Le plafond `cap` plafonne le total. Backend 8/8 pytest (`test_iter209_auto_surge.py`).
+
+
 ## 2026-06-09 — Carte thermique de la demande par commune (Tour de contrôle dispatch) [DONE]
 
 - Backend `dispatch_admin.py` : `GET /api/admin/dispatch/demand-heatmap` — agrège par commune la demande taxi (pending en cours pondéré ×3 + volume du jour) vs l'offre (chauffeurs taxi en ligne), avec intensité normalisée 0-100 (sur les communes localisées uniquement) et `deficit`. Le bucket « Hors zone » (demande non géolocalisée) est renvoyé séparément pour ne pas fausser l'échelle.
