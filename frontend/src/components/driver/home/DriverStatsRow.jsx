@@ -34,7 +34,7 @@ export const DriverStatsRow = ({
 
   return (
     <>
-      <div className="px-4 py-3 flex items-center justify-between bg-white border-b border-gray-100">
+      <div className="px-4 py-3 flex items-center justify-between" style={{ background: '#DCEAF6' }}>
         <span className="text-base font-bold text-gray-800">{t('driver.earnings_today')}</span>
         <button
           type="button"
