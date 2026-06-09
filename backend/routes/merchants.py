@@ -40,7 +40,35 @@ def _enrich_merchant(m: dict) -> dict:
         m["is_open"] = bool(m.get("is_active", True))
     if "eta_min" not in m:
         m["eta_min"] = 30
+    if not m.get("cuisine"):
+        m["cuisine"] = _STORE_TYPE_CUISINE.get(m.get("store_type"), "")
+    if m.get("discount_pct") is None:
+        m["discount_pct"] = 0
     return m
+
+
+_STORE_TYPE_CUISINE = {
+    "restaurant": "Cuisine variée",
+    "grocery": "Épicerie",
+    "florist": "Fleuriste",
+    "stationery": "Papeterie",
+    "wine": "Cave & Spiritueux",
+    "construction": "Bricolage",
+}
+
+
+async def _avg_price_map(merchant_ids: list) -> dict:
+    """Average product price per merchant → shown as 'prix par personne'."""
+    if not merchant_ids:
+        return {}
+    pipeline = [
+        {"$match": {"merchant_id": {"$in": merchant_ids}, "is_available": True}},
+        {"$group": {"_id": "$merchant_id", "avg": {"$avg": "$price"}}},
+    ]
+    out = {}
+    async for row in db.products.aggregate(pipeline):
+        out[row["_id"]] = round(float(row["avg"]), 2)
+    return out
 
 
 @router.get("")
@@ -49,8 +77,10 @@ async def list_merchants(store_type: Optional[str] = None, lat: Optional[float] 
     if store_type:
         query["store_type"] = store_type
     merchants = await db.merchants.find(query, {"_id": 0}).to_list(100)
+    avg_map = await _avg_price_map([m["id"] for m in merchants])
     for m in merchants:
         _enrich_merchant(m)
+        m["price_per_person"] = avg_map.get(m["id"])
     if lat and lng:
         for m in merchants:
             m["distance"] = calculate_distance(lat, lng, m["lat"], m["lng"])
@@ -63,7 +93,10 @@ async def get_merchant(merchant_id: str):
     merchant = await db.merchants.find_one({"id": merchant_id}, {"_id": 0})
     if not merchant:
         raise HTTPException(status_code=404, detail="Merchant not found")
-    return _enrich_merchant(merchant)
+    _enrich_merchant(merchant)
+    avg_map = await _avg_price_map([merchant_id])
+    merchant["price_per_person"] = avg_map.get(merchant_id)
+    return merchant
 
 
 @router.get("/{merchant_id}/products")

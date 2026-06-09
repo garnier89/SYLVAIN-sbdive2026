@@ -1,0 +1,40 @@
+{
+  "summary": "Iter 194 — FoodPage refonte + merchant enrichment + checkout discount validated end-to-end. BACKEND: 4/4 pytest pass in /app/backend/tests/test_iter194_food_refonte.py covering (1) GET /api/merchants?store_type=restaurant returns cuisine/discount_pct/price_per_person/eta_min/delivery_fee for all 3 restaurants (Burger Palace='Américain'/10%, Pizza Heaven='Italien'/5%/price_per_person≈12.99€, Sushi Master='Japonais'/0%); (2) GET /api/merchants/{id} same enrichment; (3) POST /api/orders applies merchant discount_pct (Burger Palace 2×12.99 → subtotal 25.98, discount 2.60, +2.50 delivery → total 25.88, persisted with discount_pct=10); (4) Sushi Master 0% discount path. FRONTEND: /food?type=restaurant renders hero (LIVRAISON REPAS), 'Cuisines' chips (Tous/Américain/Italien/Japonais), 'Vendeurs chauds' section, Burger Palace card with discount badge 'Obtenir 10.00% de réduction', cuisine 'Américain', rating 4.8, '9,87 € par personne'. Italien chip filters to Pizza Heaven only; 'Tous' restores; search 'Sushi' filters to Sushi Master only. Click merchant card navigates to /food/{id}. Cart FAB appears after adding prod_bp_classic with count=1 and navigates to /checkout/merchant_burger_palace. Checkout shows 'Réduction marchand (−10%) −1,30 €' (data-testid checkout-discount-row); Total=14,19 € (12,99 − 1,30 + 2,50) ✓.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/orders", "issue": "OrderResponse Pydantic model (models/schemas.py:227-241) does NOT include discount_pct / discount fields, so they are stripped from the create-order HTTP response even though they are persisted to MongoDB. Frontend that needs immediate discount confirmation from the POST response (without a follow-up GET) will see total but no breakdown. Persisted values are correct and readable via GET /api/orders/{id}."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter194_food_refonte.py",
+    "/app/test_reports/pytest/iter194_food.xml"
+  ],
+  "action_items": [
+    "Optional: add `discount_pct: float = 0`, `discount: float = 0`, `commission_percent`, `commission`, `merchant_payout` to OrderResponse in /app/backend/models/schemas.py so POST /api/orders returns the discount breakdown directly (avoids a GET roundtrip on confirmation screen)."
+  ],
+  "critical_code_review_comments": [
+    "routes/orders.py:96 — commission is computed on discounted_subtotal but commission_percent stays in app_config; spec ambiguous on whether platform should absorb commission proportionally to the merchant promo. Confirm with PO that taking commission on the discounted (i.e. merchant-borne) subtotal is intended; otherwise merchant pays both the discount AND a lower commission base which is normally favourable to merchant — looks correct, just flagging.",
+    "routes/merchants.py:60-71 _avg_price_map — iterates aggregate per call (no caching). For the home + verticals lists this query fires on each request. Cheap for 9 merchants but consider lru_cache with TTL once catalog grows.",
+    "routes/merchants.py:43-46 — `cuisine` falls back to a generic store_type label ('Cuisine variée', 'Épicerie'...) but admin-created merchants without explicit cuisine will all collapse into the same chip; FoodPage hides the chips when only ≤2 cuisines exist so this is fine, but worth documenting.",
+    "FoodPage.js:87 — chips derived only from currently loaded merchants; if a merchant has a typo'd cuisine ('italien' vs 'Italien') user will see duplicate chips. Consider normalising to TitleCase on backend side.",
+    "FoodPage.js:91 — search is case-insensitive on store_name only; description/cuisine not searched. Acceptable for MVP.",
+    "models/schemas.py:227-241 OrderResponse — missing discount_pct/discount/commission fields (see backend_issues.minor); this is the only real gap."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter194_food_refonte.py"
+  ],
+  "success_rate": {"backend": "100% (4/4 pytest pass)", "frontend": "100% on the surfaces in scope (hero, cuisine chips, search filter, cuisine filter, discount badge, FAB, checkout discount row + total math)"},
+  "test_credentials": "test2@example.com / TestPass123! (used via /login → 'Ou choisir une autre option de connexion' → 'Email & mot de passe'). For backend, the test_iter194_food_refonte.py registers an ephemeral TEST_iter194_*@example.com user via /api/auth/register and uses returned access_token as Bearer.",
+  "seed_data_creation": "Test creates a transient TEST_iter194_<8hex>@example.com user (no cleanup). Two orders persisted to db.orders under that user (Burger Palace + Sushi Master).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Canonical regression: /app/backend/tests/test_iter194_food_refonte.py. Note: POST /api/orders uses Pydantic OrderResponse which strips discount_pct/discount — verify discount via GET /api/orders/{id}. Login flow on this app is phone-by-default; switch to email via 'Ou choisir une autre option de connexion' → 'Email & mot de passe' (routes to /login/email). FoodPage testids: store-hero, store-list-title, cuisine-chip-{name}, merchant-{id}, merchant-discount-{id}, food-cart-fab, food-cart-count, search-input. Checkout discount testid: checkout-discount-row. Restaurant seeds: merchant_burger_palace (Américain/10%), merchant_pizza_heaven (Italien/5%), merchant_sushi_master (Japonais/0%). Burger product: prod_bp_classic (12.99 €).",
+  "rca of the issue": "No bug blocking release. The only finding is a non-critical Pydantic response-shape gap on POST /api/orders (OrderResponse drops discount_pct/discount/commission fields). Persistence is correct — verified via GET /api/orders/{id}. End-to-end UX is correct because CheckoutPage computes/displays the discount client-side from the merchant payload (already enriched via /api/merchants/{id}). Recommend extending OrderResponse for completeness (see action_items)."
+}

@@ -103,7 +103,9 @@ const CheckoutPage = () => {
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryFee = merchant?.delivery_fee != null ? Number(merchant.delivery_fee) : 2.50;
-  const total = subtotal + deliveryFee;
+  const discountPct = merchant?.discount_pct ? Number(merchant.discount_pct) : 0;
+  const discount = +(subtotal * discountPct / 100).toFixed(2);
+  const total = subtotal - discount + deliveryFee;
 
   const placeOrder = async () => {
     if (!formData.delivery_address) {
@@ -342,6 +344,12 @@ const CheckoutPage = () => {
               <span>Sous-total</span>
               <span>{money(subtotal)}</span>
             </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-emerald-600 font-medium" data-testid="checkout-discount-row">
+                <span>Réduction marchand (−{discountPct}%)</span>
+                <span>−{money(discount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-gray-600">
               <span>Frais de livraison</span>
               <span>{deliveryFee.toFixed(2)} €</span>

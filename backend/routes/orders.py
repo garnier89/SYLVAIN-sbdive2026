@@ -90,12 +90,16 @@ async def create_order(data: OrderCreate, request: Request):
     if delivery_fee is None:
         delivery_fee = default_fee
     delivery_fee = float(delivery_fee)
-    commission = round(subtotal * commission_percent / 100, 2)
-    merchant_payout = round(subtotal - commission, 2)
-    total = subtotal + delivery_fee
+    discount_pct = float(merchant.get("discount_pct") or 0)
+    discount = round(subtotal * discount_pct / 100, 2)
+    discounted_subtotal = round(subtotal - discount, 2)
+    commission = round(discounted_subtotal * commission_percent / 100, 2)
+    merchant_payout = round(discounted_subtotal - commission, 2)
+    total = round(discounted_subtotal + delivery_fee, 2)
     order = {
         "id": f"order_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "merchant_id": data.merchant_id,
         "driver_id": None, "items": items_with_details, "subtotal": round(subtotal, 2),
+        "discount_pct": discount_pct, "discount": discount,
         "delivery_fee": round(delivery_fee, 2), "commission_percent": commission_percent,
         "commission": commission, "merchant_payout": merchant_payout,
         "total": round(total, 2), "order_type": data.order_type or "food",

@@ -88,10 +88,15 @@ async def _seed_demo_merchants_products():
             await db.merchants.insert_one(merchant)
             logger.info(f"Seeded merchant: {merchant['store_name']}")
         else:
-            # Keep demo merchant descriptions in sync (FR)
+            # Keep demo merchant descriptions + cuisine/discount in sync (FR)
+            _sync = {"description": merchant["description"]}
+            if "cuisine" in merchant:
+                _sync["cuisine"] = merchant["cuisine"]
+            if "discount_pct" in merchant:
+                _sync["discount_pct"] = merchant["discount_pct"]
             await db.merchants.update_one(
                 {"id": merchant["id"]},
-                {"$set": {"description": merchant["description"]}},
+                {"$set": _sync},
             )
     for product in DEMO_PRODUCTS:
         existing = await db.products.find_one({"id": product["id"]})
