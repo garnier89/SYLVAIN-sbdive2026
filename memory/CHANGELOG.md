@@ -1,6 +1,22 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Phase 3 : Annulations, pénalités & modération + bouton chauffeur vert
+
+### UI Chauffeur
+- `DriverHomeHeader.jsx` : fond de l'en-tête repassé en **noir** (`#0B0B0B`) avec bouton « En ligne » en **vert d'origine** (`#00B578`). Vérifié visuellement.
+
+### Phase 3 — Modération (NEW)
+- Nouveau module `routes/moderation.py` (enregistré dans `core/api_router.py`).
+- Règles client configurables : seuil d'avertissement (def. 10 annulations), seuil de bannissement (def. 15) → bannissement temporaire (def. 2 h) puis remise à zéro du compteur.
+- Pénalités chauffeur configurables : 2 € annulation abusive, 1 € « accepter puis relâcher » (débitées du portefeuille).
+- Hooks dans `routes/rides.py` : `create_ride`→`check_passenger_ban` (403 si banni) ; `cancel_ride` & `update_ride_status`(cancelled)→`register_passenger_cancel` ; `driver_cancel_booking`→pénalité `accept_release` ; cancel chauffeur→pénalité `abusive_cancel`.
+- Journalisation des appels (`POST /api/moderation/call-log`, branché sur boutons d'appel client `RideTrackingPage.js` & chauffeur `DriverRideFlow.jsx`) + archivage des conversations (chat_messages) pour modération admin.
+- Endpoints admin : `GET/PUT /api/moderation/admin/config`, `/admin/events`, `/admin/call-logs`, `/admin/conversations[/{ref_type}/{ref_id}]`. Self : `GET /api/moderation/passenger-status`.
+- Frontend admin : page `/admin/moderation` (`AdminModeration.js`) avec 4 onglets (Règles, Avertissements & pénalités, Journal d'appels, Conversations). Lien sidebar « Modération & Annulations » sous EXPLOITATION.
+- Tests : `tests/test_iter193_moderation.py` (helpers, 3 pass) + `tests/test_iter193_moderation_api.py` (HTTP e2e, 10/10 pass). Validé par testing_agent iteration_193 — 100% backend & frontend.
+
+
 ## 2026-06-06 (suite) — Menus restaurants traduits en FR/€
 
 - Seed `server.py` : noms, descriptions et catégories des produits des 3 restaurants (Burger Palace, Pizza Heaven, Sushi Master) traduits en français ; descriptions des restaurants traduites. Catégories : Sides→Accompagnements, Drinks→Boissons, Rolls→Makis (Burgers/Pizzas/Desserts/Nigiri/Sashimi conservés).
