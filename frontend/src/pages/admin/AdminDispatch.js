@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/input';
 import { dispatchAdminAPI } from '../../services/api';
 import {
   Broadcast, MapPin, Warning, Money, CreditCard, Wallet, Clock,
-  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell, Car,
+  ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell, Car, Fire,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -37,11 +37,18 @@ const PayChip = ({ method }) => {
   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700"><Money size={11} weight="fill" /> Espèces</span>;
 };
 
+const heatBg = (intensity) => {
+  // Red heat scale by demand intensity (0-100): faint → intense.
+  const a = 0.12 + (Math.max(0, Math.min(100, intensity)) / 100) * 0.78;
+  return `rgba(239, 68, 68, ${a.toFixed(2)})`;
+};
+
 const AdminDispatch = () => {
   const navigate = useNavigate();
   const [overview, setOverview] = useState(null);
   const [behavior, setBehavior] = useState(null);
   const [recruit, setRecruit] = useState(null);
+  const [heat, setHeat] = useState(null);
   const [cfg, setCfg] = useState(null);
   const [savingCfg, setSavingCfg] = useState(false);
   const [tick, setTick] = useState(0); // forces age re-render every second
@@ -79,6 +86,7 @@ const AdminDispatch = () => {
       setOverview(ov.data);
       setBehavior(bh.data);
       dispatchAdminAPI.taxiRecruitment().then((r) => setRecruit(r.data)).catch(() => {});
+      dispatchAdminAPI.demandHeatmap().then((r) => setHeat(r.data)).catch(() => {});
       if (!cfg) setCfg(ov.data.config);
       // Live alerting: beep + toast when a NEW no-driver zone or flagged driver appears.
       const alertZones = new Set((ov.data.zones || []).filter((z) => z.alert).map((z) => z.zone));
@@ -224,6 +232,49 @@ const AdminDispatch = () => {
             <Button onClick={() => navigate('/admin/taxi-recruitment')} className="bg-[#FF5000] hover:bg-[#e64900] text-white" data-testid="dispatch-recruit-cta">
               Recruter <ArrowRight size={14} className="ml-1" />
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Demand heatmap by commune */}
+      {heat?.communes?.length > 0 && (
+        <Card className="mb-6" data-testid="dispatch-demand-heatmap">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center justify-between flex-wrap gap-2">
+              <span className="flex items-center gap-2"><Fire size={18} weight="fill" className="text-red-500" /> Carte thermique de la demande (par commune)</span>
+              <span className="text-xs font-normal text-gray-500">
+                {heat.totals.pending} en attente · {heat.totals.today} demandes aujourd'hui · {heat.totals.communes_active} communes actives
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+              {heat.communes.map((c) => (
+                <div key={c.zone} className="rounded-xl p-3 text-white relative overflow-hidden" style={{ backgroundColor: heatBg(c.intensity) }} data-testid={`heat-commune-${c.zone}`}>
+                  <p className="text-xs font-bold truncate drop-shadow-sm" title={c.zone}>{c.zone}</p>
+                  <p className="text-2xl font-extrabold leading-tight drop-shadow-sm">{c.pending}<span className="text-xs font-medium opacity-90"> en attente</span></p>
+                  <div className="flex items-center justify-between mt-1 text-[10px] font-semibold">
+                    <span className="opacity-90">{c.today} auj.</span>
+                    <span className="opacity-90 flex items-center gap-0.5"><Power size={9} weight="fill" /> {c.online_taxi} taxi</span>
+                  </div>
+                  {c.deficit > 0 && (
+                    <span className="absolute top-1.5 right-1.5 bg-white/90 text-red-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full" data-testid={`heat-deficit-${c.zone}`}>−{c.deficit}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            {heat.unzoned && (heat.unzoned.pending > 0 || heat.unzoned.today > 0) && (
+              <div className="mt-2.5 rounded-xl p-3 bg-gray-100 border border-gray-200 flex items-center justify-between" data-testid="heat-unzoned">
+                <span className="text-xs font-semibold text-gray-600">Hors zone (demande non géolocalisée)</span>
+                <span className="text-xs text-gray-500">{heat.unzoned.pending} en attente · {heat.unzoned.today} auj.</span>
+              </div>
+            )}
+            <div className="flex items-center gap-3 mt-3 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: heatBg(10) }} /> faible</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: heatBg(55) }} /> moyenne</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: heatBg(100) }} /> forte demande</span>
+              <span className="ml-auto">−N = déficit chauffeurs taxi</span>
+            </div>
           </CardContent>
         </Card>
       )}

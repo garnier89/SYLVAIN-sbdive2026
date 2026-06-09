@@ -159,6 +159,7 @@ export const dispatchAdminAPI = {
   updateConfig: (data) => api.put('/admin/auto-dispatch/config', data),
   taxiRecruitment: () => api.get('/admin/dispatch/taxi-recruitment'),
   inviteTaxi: (driverId, zone) => api.post('/admin/dispatch/taxi-recruitment/invite', { driver_id: driverId, zone }),
+  demandHeatmap: () => api.get('/admin/dispatch/demand-heatmap'),
 };
 
 // Order APIs

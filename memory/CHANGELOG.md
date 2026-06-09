@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-09 — Carte thermique de la demande par commune (Tour de contrôle dispatch) [DONE]
+
+- Backend `dispatch_admin.py` : `GET /api/admin/dispatch/demand-heatmap` — agrège par commune la demande taxi (pending en cours pondéré ×3 + volume du jour) vs l'offre (chauffeurs taxi en ligne), avec intensité normalisée 0-100 (sur les communes localisées uniquement) et `deficit`. Le bucket « Hors zone » (demande non géolocalisée) est renvoyé séparément pour ne pas fausser l'échelle.
+- Frontend `AdminDispatch.js` : nouveau widget « Carte thermique de la demande (par commune) » — grille de tuiles colorées (dégradé rouge selon l'intensité) avec courses en attente, volume du jour, taxis en ligne, badge déficit −N, légende, + tuile grise « Hors zone ». Auto-refresh. `dispatchAdminAPI.demandHeatmap`.
+- Vérifié e2e : endpoint (FdF intensité 100, Lamentin 46, Sainte-Anne 31) + rendu UI (screenshot). Données de test nettoyées.
+
+
 ## 2026-06-09 — Zones géographiques Martinique (34 communes) [DONE]
 
 - `routes/zones.py` : nouvelle fonction `seed_martinique_communes()` — seed idempotent (insert-only, par id `zone_mq_<slug>`) des **34 communes de Martinique** comme zones géo actives (centre lat/lng + rayon ajusté 4-7 km + alias texte). Appelée au démarrage dans `core/startup.py` après `seed_zones()` → s'applique automatiquement en preview ET en prod (DB distinctes).

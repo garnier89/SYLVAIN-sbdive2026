@@ -373,6 +373,80 @@ async def taxi_recruitment_invite(request: Request):
     return {"message": "Invitation envoyée", "driver_id": driver_id}
 
 
+@router.get("/demand-heatmap")
+async def demand_heatmap(request: Request):
+    """Per-commune taxi demand intensity for the dispatch control tower:
+    pending now (poids fort) + volume du jour, vs offre (chauffeurs taxi en ligne)."""
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    zones = await db.zones.find({"is_active": True}, {"_id": 0}).to_list(500)
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    UNZONED = "Hors zone"
+
+    agg = {}
+
+    def _z(name):
+        return agg.setdefault(name, {"zone": name, "pending": 0, "today": 0, "online_taxi": 0})
+
+    for r in await db.rides.find(
+        {"status": "pending", "driver_id": None},
+        {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "pickup_address": 1},
+    ).to_list(500):
+        z = resolve_zone(zones, r.get("pickup_lat"), r.get("pickup_lng"), r.get("pickup_address"))
+        _z((z or {}).get("name") or UNZONED)["pending"] += 1
+
+    for r in await db.rides.find(
+        {"created_at": {"$gte": today_start}},
+        {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "pickup_address": 1},
+    ).to_list(5000):
+        z = resolve_zone(zones, r.get("pickup_lat"), r.get("pickup_lng"), r.get("pickup_address"))
+        _z((z or {}).get("name") or UNZONED)["today"] += 1
+
+    async for d in db.drivers.find(
+        {"status": "approved", "is_online": True, "service_types": "taxi"},
+        {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1},
+    ):
+        loc = manager.get_driver_location(d["user_id"]) or {}
+        lat = loc.get("lat", d.get("current_lat"))
+        lng = loc.get("lng", d.get("current_lng"))
+        z = resolve_zone(zones, lat, lng, None)
+        _z((z or {}).get("name") or UNZONED)["online_taxi"] += 1
+
+    centers = {z["name"]: (z.get("lat"), z.get("lng")) for z in zones}
+    rows = [r for r in agg.values() if r["pending"] > 0 or r["today"] > 0]
+    unzoned = None
+    communes = []
+    for r in rows:
+        r["deficit"] = max(0, r["pending"] - r["online_taxi"])
+        r["demand"] = r["pending"] * 3 + r["today"]
+        if r["zone"] == UNZONED:
+            r["lat"], r["lng"] = None, None
+            unzoned = r
+        else:
+            c = centers.get(r["zone"]) or (None, None)
+            r["lat"], r["lng"] = c[0], c[1]
+            communes.append(r)
+    # Intensity normalised over LOCATED communes only (Hors zone excluded so it
+    # doesn't flatten the colour scale of the real communes).
+    maxd = max([r["demand"] for r in communes], default=0) or 1
+    for r in communes:
+        r["intensity"] = round(100 * r["demand"] / maxd)
+    communes.sort(key=lambda r: (-r["demand"], -r["pending"]))
+    if unzoned:
+        unzoned["intensity"] = 0
+
+    return {
+        "communes": communes,
+        "unzoned": unzoned,
+        "totals": {
+            "pending": sum(r["pending"] for r in rows),
+            "today": sum(r["today"] for r in rows),
+            "communes_active": len(communes),
+        },
+        "server_time": now.isoformat(),
+    }
+
+
 
 # ============================================================
 # Driver behaviour + 1-click suspend
