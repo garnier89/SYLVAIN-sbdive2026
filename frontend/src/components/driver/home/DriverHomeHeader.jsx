@@ -20,14 +20,25 @@ export const DriverHomeHeader = ({
     </button>
     <button
       onClick={onToggleOnline}
-      className="flex items-center gap-2 px-5 py-2 rounded-full"
-      style={{ background: isOnline ? '#00B578' : '#FFFFFF', border: isOnline ? 'none' : '1px solid #D1D5DB' }}
+      className="relative flex items-center gap-2.5 pl-5 pr-4 py-2.5 rounded-full transition-all duration-300 active:scale-95"
+      style={{
+        background: isOnline ? 'linear-gradient(135deg, #00C766 0%, #00A86B 100%)' : '#FFFFFF',
+        border: isOnline ? 'none' : '1px solid #E5E7EB',
+        boxShadow: isOnline
+          ? '0 0 0 3px rgba(0,181,120,0.22), 0 6px 18px rgba(0,181,120,0.40)'
+          : '0 1px 3px rgba(0,0,0,0.12)',
+      }}
       data-testid="online-toggle"
     >
-      <span className={`text-sm font-bold ${isOnline ? 'text-white' : 'text-gray-600'}`}>
+      <span className={`text-sm font-extrabold tracking-tight ${isOnline ? 'text-white' : 'text-gray-500'}`}>
         {isOnline ? t('driver.online') : t('driver.offline')}
       </span>
-      <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-white' : 'bg-gray-400'}`} />
+      <span className="relative flex items-center justify-center w-3.5 h-3.5">
+        {isOnline && (
+          <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-60 animate-ping" />
+        )}
+        <span className={`relative inline-flex rounded-full w-2.5 h-2.5 ${isOnline ? 'bg-white' : 'bg-gray-300'}`} />
+      </span>
     </button>
     <div className="flex items-center gap-2">
       <button onClick={onScheduled} className={`relative w-10 h-10 rounded-full bg-[#2E3B5B] flex items-center justify-center ${scheduledCount > 0 ? 'animate-blink-ring' : ''}`} data-testid="scheduled-reservations-btn" aria-label="Réservations planifiées">
