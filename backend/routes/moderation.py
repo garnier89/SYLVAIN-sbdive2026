@@ -374,6 +374,7 @@ async def admin_ride_conversations(request: Request, limit: int = 60, payment: s
             "last_image": {"$first": "$image"},
             "last_at": {"$first": "$created_at"},
             "count": {"$sum": 1},
+            "flagged": {"$max": {"$cond": [{"$eq": ["$flagged", True]}, 1, 0]}},
         }},
         {"$sort": {"last_at": -1}},
         {"$limit": min(max(limit, 1), 200)},
@@ -415,6 +416,7 @@ async def admin_ride_conversations(request: Request, limit: int = 60, payment: s
             "last_text": r.get("last_text") or ("📷 Photo" if r.get("last_image") else None),
             "last_at": r.get("last_at"),
             "message_count": r.get("count"),
+            "flagged": bool(r.get("flagged")),
         })
     return out
 

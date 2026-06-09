@@ -1,0 +1,35 @@
+{
+  "summary": "Iter 204 — Automatic risky-keyword detection in driver↔client ride chat. FULL PASS on backend e2e + frontend. Backend: 10/10 (6 unit scan_risky_text + 4 new e2e in /app/backend/tests/test_iter204_chat_risk_e2e.py). Verified (a) DRIVER risky POST /api/phase1/rides/{rid}/messages → response flagged=True with reasons ⊇ {espèces, hors-app, numéro de téléphone} AND driver chat_flags_count +1; (b) clean message → no `flagged` field; (c) PASSENGER (client) risky message → message.flagged True but driver chat_flags_count does NOT increment (counter-side parity check before/after); (d) GET /api/moderation/admin/ride-conversations marks the matching thread flagged=True and thread endpoint exposes per-message flag_reasons; (e) GET /api/admin/dispatch/driver-behavior surfaces chat_flags ≥ 1 + flagged=True for jean.dupont. Regression iter202 (6/6) + iter203 (6/6) still green. Frontend (live https://gojek-clone-41.preview.emergentagent.com after admin login via Phone → 'Ou choisir une autre option de connexion' → 'Email & mot de passe'): /admin/moderation 'Courses (chauffeur↔client)' tab lists 44 ride threads, of which 9 are 🚩-prefixed (red ChatCircleText). Opening the first flagged thread (ridechat-row-*) shows ridechat-thread-modal with the driver's risky bubble styled bg-red-50 + border-red-300 and a thread-msg-flags-{msgId} chip-row reading '🚩 espèces 🚩 hors-app 🚩 numéro de téléphone'. /admin/dispatch behavior table now has 'Alertes chat' column (header verified) and Jean Dupont's row shows '🚩 7' chip in red, the driver-name cell carries 🚩 prefix, and the row is highlighted with bg-red-50. 0 pageerrors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter204_chat_risk_e2e.py",
+    "/app/backend/tests/test_iter204_chat_risk_keywords.py",
+    "/app/test_reports/pytest/iter204.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "dispatch_admin.scan_risky_text uses three label buckets ('espèces','annulation','hors-app') + phone regex `(?:(?:\\+|00)\\d{1,3}[\\s.\\-]?)?(?:\\d[\\s.\\-]?){8,}\\d`. The 8+ digit threshold correctly excludes '25 euros' / short amounts and triggers on 0612345678 / +33 6 12 34 56 78. LGTM, but worth a code-comment noting the threshold rationale.",
+    "phase1.send_ride_message scans regardless of sender role but only calls record_chat_flag when sender is_driver — this is the intended asymmetry (passengers can be victims/quoted, drivers are sanctioned). Verified via e2e test that passenger risky text does NOT bump driver chat_flags. Good.",
+    "record_chat_flag catches no exception itself; phase1 wraps it in try/except pass — fine for resilience. The Mongo $push uses $slice -50 to bound chat_flag_log (good — symmetric to cancel_log).",
+    "driver_behavior `flagged = (total >= flag_min and cb_ratio >= flag_pct) or chat_flags > 0` — a single chat flag is enough to surface a driver, which matches the product intent. Item also early-returns drivers with no signal except suspended ones (correct).",
+    "MINOR: RISK_PATTERNS for 'hors-app' includes `\\bdirectement\\b` — a pretty broad word in French chat ('je viens directement vous chercher') could over-flag. Consider tightening to e.g. 'payer directement' / 'envoie directement'. Currently NOT raised as critical since false positives only feed admin review, not auto-suspension.",
+    "MINOR: scan_risky_text returns label de-duplicated via list-comprehension on RISK_PATTERNS keys, BUT does not de-dup if the phone regex AND another pattern both hit (no overlap risk today since 'numéro de téléphone' is unique). Fine.",
+    "MINOR: AdminModeration thread modal shows flag-reason chips only when m.flagged is true — but the modal currently never re-fetches when a new flagged msg arrives. Real-time admin chat_risk_flag broadcast exists (manager.broadcast_to_admins) but UI doesn't subscribe. Out of scope for this iter, just noting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter204_chat_risk_e2e.py"
+  ],
+  "success_rate": {"backend": "100% (10/10 — 6 unit + 4 e2e)", "frontend": "100% (ride_chats tab flagging + modal red-border + chips + dispatch Alertes-chat column + row highlight)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! · Passenger test2@example.com / TestPass123! · Driver jean.dupont@demo.sb / Driver123!",
+  "seed_data_creation": "Each e2e test creates a CARD ride (passenger test2), driver jean.dupont accepts, sends a risky/clean message, then passenger cancels. moderation_state for test2 is wiped before & after the module. After full run jean.dupont accumulated chat_flags_count=7 (visible in the dispatch screenshot) — purely additive, no destructive cleanup of driver counters (matches existing iter203 behavior).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 204 regression: pytest /app/backend/tests/test_iter204_chat_risk_e2e.py /app/backend/tests/test_iter204_chat_risk_keywords.py (10 tests, ~5s). Combine with iter201+202+203 for full Phase 4 dispatch+moderation regression. To produce a fresh flagged thread for UI work: passenger creates a 'card' ride, driver jean.dupont accepts, then POST /api/phase1/rides/{id}/messages with {\"text\": \"Payez en especes, appelez-moi au 0612345678, on fait hors app\"}. Login is phone-first: 'Ou choisir une autre option de connexion' -> 'Email & mot de passe' (NOT just 'Email'). Ride chat lives in db.ride_messages (NOT db.chat_messages). Driver counter field is drivers.chat_flags_count; surfaced as `chat_flags` in /api/admin/dispatch/driver-behavior. Driver-behavior items use `name` (not `driver_name`).",
+  "rca of the issue": "No bugs found. Implementation matches the spec end-to-end. One test-only fix: my first e2e read items[*].driver_name from /admin/dispatch/driver-behavior; the endpoint actually returns `name`, so the assertion was updated to read both. After the fix all 10 tests pass."
+}

@@ -219,9 +219,9 @@ const AdminModeration = () => {
                 <button key={cv.ride_id} onClick={() => openThread(cv.ride_id)}
                   className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors" data-testid={`ridechat-row-${cv.ride_id}`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <ChatCircleText size={18} className="text-blue-500 flex-shrink-0" />
+                    <ChatCircleText size={18} className={cv.flagged ? 'text-red-500 flex-shrink-0' : 'text-blue-500 flex-shrink-0'} />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{cv.driver_name} ↔ {cv.client_name} <span className="text-gray-400 font-normal">#{cv.booking_no || cv.ride_id.slice(-6)}</span></p>
+                      <p className="text-sm font-semibold text-gray-800 truncate">{cv.flagged && <span title="Mots-clés à risque détectés">🚩 </span>}{cv.driver_name} ↔ {cv.client_name} <span className="text-gray-400 font-normal">#{cv.booking_no || cv.ride_id.slice(-6)}</span></p>
                       <p className="text-xs text-gray-500 truncate max-w-md">{cv.last_text || '—'}</p>
                     </div>
                   </div>
@@ -250,10 +250,17 @@ const AdminModeration = () => {
               {thread.messages.length === 0 && <p className="text-center text-sm text-gray-400 py-6">Aucun message.</p>}
               {thread.messages.map((m) => (
                 <div key={m.id} className={`flex ${m.sender_role === 'driver' ? 'justify-start' : 'justify-end'}`} data-testid={`thread-msg-${m.id}`}>
-                  <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.sender_role === 'driver' ? 'bg-white text-gray-800 shadow-sm' : 'bg-blue-500 text-white'}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${m.flagged ? 'bg-red-50 border-2 border-red-300 text-gray-800' : m.sender_role === 'driver' ? 'bg-white text-gray-800 shadow-sm' : 'bg-blue-500 text-white'}`}>
                     <p className="text-[10px] font-bold opacity-70 mb-0.5">{m.sender_name} · {m.sender_role === 'driver' ? 'Chauffeur' : 'Client'}</p>
                     {m.image && <img src={m.image} alt="" className="rounded-lg mb-1 max-h-48" />}
                     {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
+                    {m.flagged && (
+                      <div className="mt-1 flex flex-wrap gap-1" data-testid={`thread-msg-flags-${m.id}`}>
+                        {(m.flag_reasons || []).map((r) => (
+                          <span key={r} className="px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] font-bold">🚩 {r}</span>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-[9px] mt-1 text-right opacity-60">{fmt(m.created_at)}</p>
                   </div>
                 </div>

@@ -55,6 +55,8 @@ async def send_ride_message(ride_id: str, request: Request):
     if not text and not image:
         raise HTTPException(status_code=400, detail="Message required")
 
+    from routes.dispatch_admin import scan_risky_text, record_chat_flag
+    reasons = scan_risky_text(text)
     msg = {
         "id": f"msg_{uuid.uuid4().hex[:10]}",
         "ride_id": ride_id,
@@ -65,9 +67,18 @@ async def send_ride_message(ride_id: str, request: Request):
         "image": image if isinstance(image, str) else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if reasons:
+        msg["flagged"] = True
+        msg["flag_reasons"] = reasons
     await db.ride_messages.insert_one(msg)
     msg.pop("_id", None)
     await manager.send_to_ride_room(ride_id, {"type": "chat_message", "message": msg})
+    # Flag the DRIVER in the control tower when their message trips the risk filter.
+    if reasons and is_driver:
+        try:
+            await record_chat_flag(user["id"], ride_id, msg["id"], reasons)
+        except Exception:
+            pass
     return msg
 
 

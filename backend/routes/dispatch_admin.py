@@ -16,6 +16,7 @@ Discipline helpers (called from rides.py):
     ride payment method.
 """
 from datetime import datetime, timezone, timedelta
+import re
 from fastapi import APIRouter, Request, HTTPException
 
 from core.config import db, logger
@@ -105,6 +106,52 @@ async def record_driver_cancellation(driver_id: str, ride: dict):
             }], "$slice": -100}},
         },
     )
+
+
+# ── Risky-keyword detection in driver↔client chat ────────────────────────────
+# Catch drivers pushing clients off-platform / to pay cash ("au black"): cash
+# terms, cancellation intent, off-app contact, and phone numbers.
+RISK_PATTERNS = {
+    "espèces": [r"esp[èe]ces?", r"\bliquide\b", r"\bcash\b", r"main\s+propre", r"\bbillets?\b"],
+    "annulation": [r"annul", r"je vais annuler"],
+    "hors-app": [r"whats\s*app", r"hors[\s-]?app", r"en dehors", r"sans (?:passer par )?l'?app",
+                 r"\bdirectement\b", r"au black", r"appelle[\s-]?moi", r"mon num[ée]ro",
+                 r"contacte[\s-]?moi", r"\bpaypal\b", r"\bvirement\b", r"\bzelle\b"],
+}
+_PHONE_RE = re.compile(r"(?:(?:\+|00)\d{1,3}[\s.\-]?)?(?:\d[\s.\-]?){8,}\d")
+
+
+def scan_risky_text(text: str):
+    """Return a list of risk labels found in the text (empty if clean)."""
+    if not text:
+        return []
+    low = text.lower()
+    reasons = [label for label, pats in RISK_PATTERNS.items() if any(re.search(p, low) for p in pats)]
+    if _PHONE_RE.search(text):
+        reasons.append("numéro de téléphone")
+    return reasons
+
+
+async def record_chat_flag(driver_user_id: str, ride_id: str, msg_id: str, reasons: list):
+    """A DRIVER message tripped the risk filter → bump their chat-flag counter and
+    alert admins in real time."""
+    d = await db.drivers.find_one({"user_id": driver_user_id}, {"_id": 0, "id": 1})
+    if not d:
+        return
+    await db.drivers.update_one(
+        {"id": d["id"]},
+        {
+            "$inc": {"chat_flags_count": 1},
+            "$push": {"chat_flag_log": {"$each": [{
+                "at": datetime.now(timezone.utc).isoformat(),
+                "ride_id": ride_id, "msg_id": msg_id, "reasons": reasons,
+            }], "$slice": -50}},
+        },
+    )
+    await manager.broadcast_to_admins({
+        "type": "chat_risk_flag", "driver_id": d["id"], "ride_id": ride_id, "reasons": reasons,
+    })
+    logger.info(f"Chat risk flag driver={d['id']} ride={ride_id} reasons={reasons}")
 
 
 # ============================================================
@@ -222,7 +269,8 @@ async def driver_behavior(request: Request):
     items = []
     drv_docs = await db.drivers.find(
         {}, {"_id": 0, "id": 1, "user_id": 1, "user_name": 1, "status": 1, "is_online": 1,
-             "points": 1, "accept_release_count": 1, "accept_release_cb_count": 1, "refusal_log": 1},
+             "points": 1, "accept_release_count": 1, "accept_release_cb_count": 1,
+             "refusal_log": 1, "chat_flags_count": 1},
     ).to_list(2000)
     missing = list({d["user_id"] for d in drv_docs if not d.get("user_name") and d.get("user_id")})
     namemap = {}
@@ -234,8 +282,9 @@ async def driver_behavior(request: Request):
         cb = int(d.get("accept_release_cb_count") or 0)
         cb_ratio = round(cb / total * 100, 1) if total else 0.0
         recent_refusals = len([r for r in (d.get("refusal_log") or []) if (_parse_dt(r.get("at")) or now) >= cutoff])
-        flagged = total >= flag_min and cb_ratio >= flag_pct
-        if total == 0 and cb == 0 and recent_refusals == 0 and d.get("status") != "suspended":
+        chat_flags = int(d.get("chat_flags_count") or 0)
+        flagged = (total >= flag_min and cb_ratio >= flag_pct) or chat_flags > 0
+        if total == 0 and cb == 0 and recent_refusals == 0 and chat_flags == 0 and d.get("status") != "suspended":
             continue  # only surface drivers with some signal (or suspended ones)
         items.append({
             "id": d["id"], "name": d.get("user_name") or namemap.get(d.get("user_id")) or "Chauffeur",
@@ -243,9 +292,10 @@ async def driver_behavior(request: Request):
             "points": d.get("points"),
             "accept_release_count": total, "accept_release_cb_count": cb,
             "cb_cancel_ratio": cb_ratio, "recent_refusals": recent_refusals,
+            "chat_flags": chat_flags,
             "flagged": flagged,
         })
-    items.sort(key=lambda x: (not x["flagged"], -x["cb_cancel_ratio"], -x["accept_release_count"]))
+    items.sort(key=lambda x: (not x["flagged"], -x["chat_flags"], -x["cb_cancel_ratio"], -x["accept_release_count"]))
     return {"drivers": items, "flag_pct": flag_pct, "flag_min": flag_min, "refusal_window_minutes": window}
 
 

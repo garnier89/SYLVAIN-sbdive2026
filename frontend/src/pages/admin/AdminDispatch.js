@@ -268,14 +268,15 @@ const AdminDispatch = () => {
                 <th className="p-3 text-center">dont sans esp.</th>
                 <th className="p-3 text-center">% sans esp.</th>
                 <th className="p-3 text-center">Refus récents</th>
+                <th className="p-3 text-center">Alertes chat</th>
                 <th className="p-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {!behavior ? (
-                <tr><td colSpan={7} className="p-6 text-center text-gray-400"><CircleNotch size={18} className="animate-spin inline" /></td></tr>
+                <tr><td colSpan={8} className="p-6 text-center text-gray-400"><CircleNotch size={18} className="animate-spin inline" /></td></tr>
               ) : behavior.drivers.length === 0 ? (
-                <tr><td colSpan={7} className="p-6 text-center text-gray-400">Aucun comportement à signaler.</td></tr>
+                <tr><td colSpan={8} className="p-6 text-center text-gray-400">Aucun comportement à signaler.</td></tr>
               ) : behavior.drivers.map((d) => (
                 <tr key={d.id} className={`border-b last:border-0 ${d.flagged ? 'bg-red-50' : ''}`} data-testid={`behavior-row-${d.id}`}>
                   <td className="p-3 font-semibold text-gray-800">
@@ -290,6 +291,7 @@ const AdminDispatch = () => {
                   <td className="p-3 text-center">{d.accept_release_cb_count}</td>
                   <td className={`p-3 text-center font-bold ${d.flagged ? 'text-red-600' : 'text-gray-600'}`}>{d.cb_cancel_ratio}%</td>
                   <td className="p-3 text-center">{d.recent_refusals}</td>
+                  <td className="p-3 text-center">{d.chat_flags > 0 ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">🚩 {d.chat_flags}</span> : <span className="text-gray-300">0</span>}</td>
                   <td className="p-3 text-right">
                     {d.status === 'suspended'
                       ? <Button size="sm" variant="outline" onClick={() => reinstate(d.id)} data-testid={`reinstate-${d.id}`}><ArrowCounterClockwise size={14} className="mr-1" /> Réintégrer</Button>
