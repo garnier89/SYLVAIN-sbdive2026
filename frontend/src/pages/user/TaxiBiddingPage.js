@@ -53,6 +53,12 @@ const TaxiBiddingPage = () => {
   const [searchSeconds, setSearchSeconds] = useState(0);
   const [offers, setOffers] = useState([]);
   const [viewedCount, setViewedCount] = useState(0);
+  const [autoAccept, setAutoAccept] = useState(false);
+  const [autoAcceptEta, setAutoAcceptEta] = useState(10);
+  const autoAcceptRef = useRef(false);
+  const autoAcceptEtaRef = useRef(10);
+  const autoAcceptedRef = useRef(false);
+  const fareRef = useRef(0);
   const [expired, setExpired] = useState(false); // délai dépassé sans chauffeur
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [carsCfg, setCarsCfg] = useState(null);
@@ -185,6 +191,7 @@ const TaxiBiddingPage = () => {
       const ride = await res.json();
       toast.success('Votre tarif a été envoyé aux chauffeurs !');
       // Stay on the interface: enter "searching" mode (no navigation)
+      autoAcceptedRef.current = false;
       setSearching(ride.id);
       setSearchSeconds(0);
     } catch (e) {
@@ -194,10 +201,14 @@ const TaxiBiddingPage = () => {
     finally { setSubmitting(false); }
   };
 
+  // Keep refs in sync so the poll closure reads fresh auto-accept settings
+  useEffect(() => { autoAcceptRef.current = autoAccept; }, [autoAccept]);
+  useEffect(() => { autoAcceptEtaRef.current = autoAcceptEta; }, [autoAcceptEta]);
+  useEffect(() => { fareRef.current = fare; }, [fare]);
+
   // Poll ride status while searching; navigate once a driver accepts
   useEffect(() => {
-    if (!searching) return;
-    const tick = setInterval(() => { setSearchSeconds((s) => s + 1); setNowTs(Date.now()); }, 1000);
+    if (!searching) return;    const tick = setInterval(() => { setSearchSeconds((s) => s + 1); setNowTs(Date.now()); }, 1000);
     const poll = setInterval(async () => {
       try {
         const r = await fetch(`${API}/api/rides/${searching}`, { credentials: 'include' });
@@ -216,6 +227,19 @@ const TaxiBiddingPage = () => {
         prevOfferIdsRef.current = new Set(pending.map((o) => o.id));
         setOffers(pending);
         setViewedCount(ride.viewed_count || 0);
+        // Auto-accept: first eligible offer (≤ my fare AND ETA ≤ max minutes).
+        if (autoAcceptRef.current && !autoAcceptedRef.current && ride.status === 'pending') {
+          const eligible = pending
+            .filter((o) => o.amount <= fareRef.current && o.eta_min != null && o.eta_min <= autoAcceptEtaRef.current)
+            .sort((a, b) => a.amount - b.amount || (a.eta_min || 0) - (b.eta_min || 0));
+          if (eligible.length) {
+            autoAcceptedRef.current = true;
+            clearInterval(poll); clearInterval(tick);
+            toast.success(`Acceptation auto : ${eligible[0].driver_name || 'chauffeur'} · ${eligible[0].eta_min} min`, { icon: '⚡' });
+            acceptOffer(eligible[0].id);
+            return;
+          }
+        }
         if (ride.status && ride.status !== 'pending') {
           clearInterval(poll); clearInterval(tick);
           if (ride.status === 'cancelled') { toast.info('Course annulée'); setSearching(null); }
@@ -224,6 +248,7 @@ const TaxiBiddingPage = () => {
       } catch (e) { console.warn('[bidding] poll error', e?.message); }
     }, 2500);
     return () => { clearInterval(poll); clearInterval(tick); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searching, navigate, playOfferChime]);
 
   // Auto-suggest raising the fare after 20s with no offers
@@ -466,6 +491,38 @@ const TaxiBiddingPage = () => {
               </button>
             </div>
             <p className="text-[11px] text-gray-500 text-center mt-3" data-testid="min-fare-note">Tarif minimum : <span className="font-bold">{money(fareFloor)}</span> · vous ne pouvez pas proposer moins</p>
+          </div>
+
+          {/* Auto-accept option (V3Cube/iDrive "accept first matching offer") */}
+          <div className="mx-5 mt-3 bg-gray-50 rounded-2xl p-3" data-testid="auto-accept-box">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-[#0B1426]">Acceptation automatique</p>
+                <p className="text-[11px] text-gray-500 leading-snug">Accepte la 1ʳᵉ offre ≤ votre tarif et à ≤ {autoAcceptEta} min</p>
+              </div>
+              <button
+                onClick={() => setAutoAccept((v) => !v)}
+                data-testid="auto-accept-toggle"
+                className={`w-12 h-7 rounded-full relative transition-colors shrink-0 ${autoAccept ? 'bg-[#FF5000]' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform ${autoAccept ? 'left-[22px]' : 'left-0.5'}`} />
+              </button>
+            </div>
+            {autoAccept && (
+              <div className="flex items-center gap-2 mt-3" data-testid="auto-accept-eta-row">
+                <span className="text-[11px] text-gray-500">Délai max d'arrivée :</span>
+                {[8, 10, 15].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setAutoAcceptEta(m)}
+                    data-testid={`auto-accept-eta-${m}`}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${autoAcceptEta === m ? 'bg-[#FF5000] text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+                  >
+                    {m} min
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Find a Driver */}

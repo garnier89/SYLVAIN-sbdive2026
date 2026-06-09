@@ -1,4 +1,12 @@
-## NEW - 2026-06-09 (130) - Badge véhicule : libellé personnalisé libre (DONE, curl)
+## NEW - 2026-06-09 (131) - Auto-acceptation des enchères (client) (DONE, e2e screenshot)
+- **Demande user** : option client « accepter automatiquement la 1ʳᵉ offre ≤ mon tarif ET à ≤ X min » (garde-fou distance/ETA). Limite par défaut 10 min, ajustable (8/10/15).
+- **Frontend** (`TaxiBiddingPage.js`) : toggle « Acceptation automatique » + sélecteur ETA (8/10/15 min) dans la feuille d'enchère (`auto-accept-toggle`, `auto-accept-eta-{m}`). États + refs (`autoAcceptRef`, `autoAcceptEtaRef`, `fareRef`, `autoAcceptedRef`) synchronisés. Dans le poll : 1ʳᵉ offre éligible (`amount ≤ fare` ET `eta_min != null && eta_min ≤ maxEta`, triée par prix puis ETA) → `acceptOffer()` auto + navigation. Garde anti-double via ref ; réinitialisé à chaque publication.
+- **Vérifié** : screenshots e2e — offre 18€ > tarif 10€ correctement ignorée ; offre 10€ (≤ tarif, ETA 1 min ≤ 15) → acceptation auto → `/ride/{id}` (écran « EN ARRIVANT », OTP). UI toggle/ETA OK. Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : champ texte libre pour un libellé personnalisé (ex. « -20% week-end ») en plus des presets.
 - **Backend** (`config.py`) : `custom_label` ajouté ; libellé effectif = `custom_label` (si non vide) sinon preset `label`. Réponse expose `label` (effectif) + `custom_label`.
 - **Frontend admin** (`AdminServiceConfig.js`) : champ texte « Libellé personnalisé (optionnel — remplace le choix ci-dessus) » dans `vehicle_badge`.
