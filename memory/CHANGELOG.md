@@ -1,6 +1,21 @@
 # CHANGELOG
 # CHANGELOG
 
+## 2026-06-09 — Tour de contrôle dispatch + anti-abus chauffeurs [DONE, testé 100%]
+
+### Tour de contrôle dispatch (admin/dispatcher temps réel)
+- NOUVEAU `routes/dispatch_admin.py` (monté) : `GET /api/admin/dispatch/overview` (courses en attente groupées par ZONE via `resolve_zone`, tier d'escalade, mode de paiement, âge, tarif ; chauffeurs en ligne par zone ; alertes « aucun chauffeur » ; config), `GET /driver-behavior`, `POST /drivers/{id}/suspend`, `POST /drivers/{id}/reinstate`.
+- NOUVELLE page `pages/admin/AdminDispatch.js` (route `/admin/dispatch`, sidebar PILOTAGE → « Tour de contrôle dispatch ») : totaux live (rafraîchissement 5s), barre « Règles de discipline », cartes zones (badges tier/paiement, chrono d'âge), table « Comportement chauffeurs » avec drapeau 🚩 + Suspendre/Réintégrer en 1 clic. `dispatchAdminAPI` ajouté.
+
+### Anti-abus chauffeurs
+- **Mode de paiement caché au chauffeur avant accept** (`rides.py list_rides`) : `payment_method`/`payment_status` retirés des offres en attente non assignées → empêche le tri (n'accepter que les espèces). Révélé après acceptation. L'admin le voit toujours.
+- **Détection accepter-puis-annuler** : `driver_cancel_booking` appelle `record_driver_cancellation` (compteurs `accept_release_count`/`accept_release_cb_count` + log). Drapeau dans le contrôle tour quand le % d'annulations CB ≥ `cb_cancel_flag_pct` (avec min. `cb_cancel_flag_min`).
+- **Passage hors-ligne auto après X refus** : NOUVEAU `POST /api/rides/{id}/decline` → `record_driver_refusal` ; au-delà de `max_refusals_before_offline` (fenêtre `refusal_window_minutes`) le chauffeur passe `is_online:false` + notif. Câblé dans `DriverHome.js` (`declineRide` + toast). Sonnerie+vibration à la réception : déjà présente (`startSiren`).
+- Config admin via `auto-dispatch/config` (nouveaux champs : `max_refusals_before_offline`, `refusal_window_minutes`, `cb_cancel_flag_pct`, `cb_cancel_flag_min`).
+- **Tests** : `tests/test_iter202_dispatch_control_tower.py` (6/6) + frontend complet. testing_agent iteration_202 : **100%**, aucun bug.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## 2026-06-09 — Phase 4 : Logique de dispatch (verrou atomique + courses planifiées) [DONE, testé 26/26]
 
 ### Upload logo & photos (Object Storage) — VALIDÉ
