@@ -3,19 +3,26 @@ import { Trophy, CaretRight } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
+// Le badge fidélité ne s'affiche qu'en mode "live" ET uniquement le lundi
+// (visible une seule fois par semaine). Désactivé pour le moment :
+//   → passer LOYALTY_BADGE_LIVE à true pour l'activer en production.
+const LOYALTY_BADGE_LIVE = false;
+const isLoyaltyBadgeVisible = () => LOYALTY_BADGE_LIVE && new Date().getDay() === 1; // 1 = lundi
+
 /** Compact loyalty status card (client & driver). Shows tier, progress to the
  *  next tier and the active perk. Hidden when loyalty is disabled. */
 export const LoyaltyStatusCard = ({ onClick, className = '' }) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
+    if (!isLoyaltyBadgeVisible()) return;
     fetch(`${API}/api/loyalty/me`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d && d.enabled) setData(d); })
       .catch(() => {});
   }, []);
 
-  if (!data) return null;
+  if (!isLoyaltyBadgeVisible() || !data) return null;
   const { tier, next_tier, points, points_to_next, perk } = data;
   const pct = next_tier
     ? Math.min(100, Math.round(((points - tier.min_points) / (next_tier.min_points - tier.min_points)) * 100))
