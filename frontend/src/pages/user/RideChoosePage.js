@@ -103,6 +103,7 @@ const RideChoosePage = () => {
   });
   const [vtypes, setVtypes] = useState([]);
   const [estimates, setEstimates] = useState({}); // slug -> { fare, duration, distance, loading, error }
+  const [avgFares, setAvgFares] = useState({}); // slug -> avg accepted bidding fare (enchère hint)
   const [selected, setSelected] = useState(null);
   const [infoVehicle, setInfoVehicle] = useState(null); // ⓘ vehicle detail popup
   const [badgeCfg, setBadgeCfg] = useState({ enabled: true, label: 'Meilleur choix', color: 'Vert' });
@@ -308,6 +309,12 @@ const RideChoosePage = () => {
   useEffect(() => {
     configAPI.getPoolConfig().then((r) => r.data && setPoolCfg(r.data)).catch(() => {});
   }, []);
+
+  // Enchère only: average ACCEPTED fare per vehicle (recent rides) → fair-price hint.
+  useEffect(() => {
+    if (!isBidding) return;
+    rideAPI.biddingAvgFares().then((r) => setAvgFares(r.data?.fares || {})).catch(() => {});
+  }, [isBidding]);
 
   // In Pool mode, restrict the vehicle list & payment methods to the admin's policy.
   const effectiveVtypes = useMemo(() => {
@@ -626,6 +633,11 @@ const RideChoosePage = () => {
               </div>
               <p className="text-[12px] text-gray-500 mt-0.5">{pickupTime ? `${pickupTime} · ${pickupEta} min` : (est.duration != null ? `${est.duration} min` : '')}</p>
               <p className="text-[12px] text-gray-500 mt-0.5 line-clamp-2">{vehicleDesc(v)}</p>
+              {isBidding && avgFares[v.slug] != null && (
+                <p className="text-[11px] font-semibold text-emerald-600 mt-0.5 flex items-center gap-1" data-testid={`avg-fare-${v.slug}`}>
+                  <Gavel size={12} weight="fill" /> Tarif moyen accepté : {money(avgFares[v.slug])}
+                </p>
+              )}
               {isPool && est.originalFare && est.originalFare > est.fare && (
                 <p className="text-[11px] text-gray-400 line-through leading-none mt-0.5" data-testid={`orig-price-${v.slug}`}>{money(est.originalFare)}</p>
               )}

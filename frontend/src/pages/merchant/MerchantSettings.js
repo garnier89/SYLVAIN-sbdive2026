@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Clock, SealPercent, ForkKnife, Lightning, Storefront } from '@phosphor-icons/react';
 import { ImageUpload, GalleryUpload } from '../../components/ImageUpload';
+import { MerchantShareCard } from '../../components/merchant/MerchantShareCard';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -24,7 +25,7 @@ const MerchantSettings = () => {
       .then((r) => (r.ok ? r.json() : null))
       .then((m) => {
         if (m) setVitrine({
-          store_name: m.store_name, address: m.address,
+          id: m.id, store_name: m.store_name, address: m.address,
           cuisine: m.cuisine || '', discount_pct: m.discount_pct || 0,
           delivery_fee: m.delivery_fee ?? 2.5, eta_min: m.eta_min || 30,
           image_url: m.image_url || '', banner_url: m.banner_url || '', gallery: m.gallery || [],
@@ -234,6 +235,9 @@ const MerchantSettings = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Partager ma boutique */}
+        {vitrine.id && <MerchantShareCard merchantId={vitrine.id} storeName={vitrine.store_name} />}
       </div>
     </div>
   );

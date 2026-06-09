@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 215 frontend-only verification. All 3 new feature user stories PASS in the live preview at https://gojek-clone-41.preview.emergentagent.com. (1) Bidding 'Tarif moyen accepté' hint renders only for vehicles present in GET /api/rides/bidding/avg-fares (SB: 21,46 €), localized via money(). (2) Merchant 'Partager ma boutique' card shows QR canvas (180x180), public link <origin>/food/<merchantId>, copy/download/print buttons all functional with no JS errors. (3) Storefront ShareStoreSheet opens with WhatsApp/SMS/Copier le lien, copy triggers 'Lien copié !' toast and closes the sheet.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "RideChoosePage.js L106/L316: avgFares state + rideAPI.biddingAvgFares() fetch on mount when isBidding — correct gating. L636-639: green emerald hint with Gavel icon + money(avgFares[v.slug]) renders ONLY when isBidding AND avgFares[v.slug] != null. Verified live: only [data-testid=avg-fare-sb] is rendered (backend returns just sb≈21.46), other vehicle cards correctly omit the line. Localized to '21,46 €' via French locale — matches spec.",
+    "MerchantShareCard.jsx: Uses qrcode.react QRCodeCanvas (180px) wrapped in a Card with data-testid='merchant-share-card'. Public URL is built from window.location.origin + '/food/' + merchantId — verified value '<preview-origin>/food/merchant_d3cc002c7d87' matches /api spec. downloadQR converts canvas → toBlob → anchor click (filename 'QR-<storeName>.png' — captured 'QR-Resto-Demo-SB.png'). printQR opens window.print after a small wait — verified by stubbing window.print and observing it was invoked. No JS errors on any of the three button clicks.",
+    "ShareStoreSheet.jsx: Bottom sheet with z-[130] overlay (data-testid='share-store-sheet'). WhatsApp link uses wa.me?text=, SMS uses sms:?&body=, share-copy uses navigator.clipboard.writeText + toast.success('Lien copié !') + onClose(). All three testids verified present. Copy path verified end-to-end: toast appears, sheet unmounts.",
+    "Minor (non-blocking): MerchantShareCard reads window.location.origin at render-time; if a user opens the merchant settings on a domain different from the public app domain (e.g. an admin subdomain), the QR/link will point to the same origin. Not an issue for the current single-origin setup but worth a comment.",
+    "Minor (non-blocking): ShareStoreSheet does not surface the native Web Share API option in the rendered sheet for desktop testing — the spec mentions 'natif' but the visible options are WhatsApp/SMS/Copier le lien only. On mobile UA where navigator.share exists, an additional native button would be nice; not required by the spec data-testids."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (3/3 user stories verified live)"},
+  "test_credentials": "Client: test_iter215_1781031729@demo.sb / Client123! (freshly registered). Merchant: merchant@example.com / Merchant123!. Public URL: https://gojek-clone-41.preview.emergentagent.com.",
+  "seed_data_creation": "Registered fresh client test_iter215_1781031729@demo.sb via POST /api/auth/register (role=user). No bidding rides created — backend already has accepted-bidding seed data for SB (avg 21.46€) per iter context. No merchant data was modified.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Live selectors verified on preview: (A) Bidding avg-fare hint — open /course?mode=bidding&dlat=48.87&dlng=2.33&daddr=Gare%20du%20Nord as a logged-in user; expect [data-testid=avg-fare-sb] with text 'Tarif moyen accepté : 21,46 €' on the SB card; other vehicle cards (confort/luxe/moto/suv/electric/van/tuktuk/vtc/taxi) correctly render WITHOUT an avg-fare line because backend fares map only has 'sb'. (B) Merchant share card — login merchant@example.com/Merchant123! → /merchant/settings → scroll to bottom → [data-testid=merchant-share-card] contains a 180x180 <canvas>, [data-testid=share-link]='https://gojek-clone-41.preview.emergentagent.com/food/merchant_d3cc002c7d87', [data-testid=copy-link-btn] triggers Sonner toast 'Lien copié !', [data-testid=download-qr-btn] triggers download of QR-Resto-Demo-SB.png, [data-testid=print-qr-btn] calls window.print(). (C) Storefront share sheet — login any user → /food/merchant_d3cc002c7d87 → click [data-testid=share-store-btn] (top-right of banner) → [data-testid=share-store-sheet] appears with [data-testid=share-whatsapp], [data-testid=share-sms], [data-testid=share-copy]; clicking share-copy shows 'Lien copié !' toast and closes the sheet. No console errors except pre-existing /api/auth/me 401 calls on the public /auth route, which are unrelated.",
+  "rca of the issue": "Not applicable — feature verification, all 3 stories pass on first run."
+}

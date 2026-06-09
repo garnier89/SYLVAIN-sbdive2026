@@ -2219,6 +2219,31 @@ async def passenger_accept_offer(ride_id: str, offer_id: str, request: Request):
     return {"message": "Offer accepted", "ride_id": ride_id, "final_fare": offer["amount"]}
 
 
+@router.get("/bidding/avg-fares")
+async def bidding_avg_fares(request: Request):
+    """Average ACCEPTED bidding fare per vehicle type over the last 30 days.
+    Helps riders propose a fair price on the enchère flow (and lifts acceptance)."""
+    await get_current_user(request)
+    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    pipeline = [
+        {"$match": {
+            "ride_type": "bidding",
+            "status": {"$in": ["accepted", "arriving", "in_progress", "completed"]},
+            "created_at": {"$gte": since},
+        }},
+        {"$group": {
+            "_id": {"$toLower": "$vehicle_type"},
+            "avg": {"$avg": {"$ifNull": ["$final_fare", "$estimated_fare"]}},
+            "n": {"$sum": 1},
+        }},
+    ]
+    rows = await db.rides.aggregate(pipeline).to_list(50)
+    fares = {r["_id"]: round(float(r["avg"]), 2) for r in rows if r.get("_id") and r.get("avg")}
+    counts = {r["_id"]: r["n"] for r in rows if r.get("_id")}
+    return {"fares": fares, "counts": counts, "sample_days": 30}
+
+
+
 @router.post("/{ride_id}/reject-offer/{offer_id}")
 async def passenger_reject_offer(ride_id: str, offer_id: str, request: Request):
     """Passenger refuses a driver's bid/counter-offer. Marks it rejected (so it

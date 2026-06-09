@@ -7,7 +7,8 @@ import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
 import { merchantAPI, cartAPI } from '../../services/api';
 import { toast } from 'sonner';
-import { ArrowLeft, Star, Clock, MapPin, Plus, Minus, ShoppingCart, Phone, CaretDown } from '@phosphor-icons/react';
+import ShareStoreSheet from '../../components/ShareStoreSheet';
+import { ArrowLeft, Star, Clock, MapPin, Plus, Minus, ShoppingCart, Phone, CaretDown, ShareNetwork } from '@phosphor-icons/react';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = { mon: 'Lundi', tue: 'Mardi', wed: 'Mercredi', thu: 'Jeudi', fri: 'Vendredi', sat: 'Samedi', sun: 'Dimanche' };
@@ -28,6 +29,7 @@ const RestaurantDetail = () => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showHours, setShowHours] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [myRating, setMyRating] = useState(0);
   const [myComment, setMyComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -124,6 +126,7 @@ const RestaurantDetail = () => {
           alt={merchant?.store_name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <Button variant="ghost" size="icon" className="absolute top-4 left-4 bg-white/90 rounded-full" onClick={() => navigate(-1)} data-testid="back-btn"><ArrowLeft size={20} /></Button>
+        <Button variant="ghost" size="icon" className="absolute top-4 right-4 bg-white/90 rounded-full" onClick={() => setShowShare(true)} data-testid="share-store-btn" aria-label="Partager"><ShareNetwork size={20} /></Button>
       </div>
 
       {/* Store info */}
@@ -267,6 +270,12 @@ const RestaurantDetail = () => {
           </div>
         </div>
       )}
+      <ShareStoreSheet
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        url={`${window.location.origin}/food/${merchantId}`}
+        name={merchant?.store_name || 'cette boutique'}
+      />
     </div>
   );
 };
