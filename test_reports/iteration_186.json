@@ -1,0 +1,34 @@
+{
+  "summary": "Phase 2 Parrainage — full backend + frontend validation. 14/14 pytest passed including the previously unverified end-to-end ride-completion qualification (the referrer wallet got +5€ and the referral flipped to 'completed' after the referred client's 1st ride). Admin and client UI pages render with all required data-testids, save persists via PUT, name-based 'Sylvain06' code is displayed correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter186_referral.py",
+    "/app/test_reports/pytest/iter186_referral.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "rides.py: process_referral_on_ride_completion is wrapped in try/except that silently swallows ALL exceptions — failures will not surface in logs. Consider logging the exception before pass.",
+    "referral.py _qualify_referral: ride counter only increments for the FIRST pending referral matched. A user can only have one (current rule), but if D→D rules ever loosen and a user can be referred twice, this would miss increments. Acceptable for current spec.",
+    "Driver→driver registration path: a brand-new user registered with role='driver' is treated as a driver by _is_driver only if a db.drivers profile exists OR users.role=='driver'. Currently it relies on the users.role flag — confirm this is set at register time. Test passed using the role check.",
+    "phone validator: register accepts '+3361xxxxxxxx'. Email validator rejects .test TLD (reserved) — switch test domain to example.com (already done).",
+    "Admin config PUT does not validate currency length / ISO code; minor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter186_referral.py"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (admin + client pages OK)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123!; demo drivers Driver123!; new test users registered with @example.com",
+  "seed_data_creation": "Tests register fresh @example.com users for each scenario; no DB seed file. One ride was created and completed end-to-end (Châtelet → Arc de Triomphe) accepted by demo driver jean.dupont@demo.sb.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression at /app/backend/tests/test_iter186_referral.py covers: admin config GET/PUT, 403 for non-admin, name-based code generation (client + driver/P-suffix, uniqueness), case-insensitive validate, pending creation (no instant credit), duplicate/self rejection, full ride lifecycle (create → accept → arriving → OTP start → completed) triggers payout (referrer total_earned=5, referral status='completed'), and driver→driver returns 50€/20 rides/30 days pending. Demo driver gamme/sub may force fallback to another demo driver during accept — test already handles this.",
+  "rca of the issue": "N/A — no issues found. The ride-completion hook at rides.py:1357-1359 calls process_referral_on_ride_completion(ride.user_id, ride.driver_id) which credits both wallets via db.wallets ($inc balance) and inserts wallet_transactions entries with type='referral_credit' (referrer) and 'referral_bonus' (referred) once the threshold is met. Verified end-to-end."
+}

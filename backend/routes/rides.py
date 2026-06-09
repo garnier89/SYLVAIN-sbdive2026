@@ -1354,6 +1354,10 @@ async def update_ride_status(ride_id: str, request: Request):
             from routes.debts import settle_carried_debts
             await settle_carried_debts({**ride, "final_fare": final_fare}, carried)
 
+        # ===== Phase 2: advance referral qualification on ride completion =====
+        from routes.referral import process_referral_on_ride_completion
+        await process_referral_on_ride_completion(ride.get("user_id"), ride.get("driver_id"))
+
     elif new_status == "cancelled":
         update_data["cancelled_at"] = now
         update_data["cancelled_by"] = "driver" if is_driver else "user" if is_passenger else "admin"

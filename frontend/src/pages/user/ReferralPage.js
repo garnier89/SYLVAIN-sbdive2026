@@ -152,7 +152,9 @@ const ReferralPage = () => {
           {[
             { step: '1', text: 'Partagez votre code de parrainage avec vos amis' },
             { step: '2', text: 'Votre ami s\'inscrit avec votre code' },
-            { step: '3', text: `Vous recevez tous les deux ${stats?.amount_per_referral || 5}${stats?.currency || 'EUR'} sur votre portefeuille !` },
+            { step: '3', text: stats?.is_driver
+                ? `Vous recevez tous les deux ${stats?.amount_per_referral || 50}${stats?.currency || 'EUR'} dès qu'un chauffeur parrainé effectue 20 courses (ou après la 1ère course pour un client).`
+                : `Vous recevez tous les deux ${stats?.amount_per_referral || 5}${stats?.currency || 'EUR'} après la 1ère course de votre filleul !` },
           ].map((item) => (
             <div key={item.step} className="flex items-start gap-3">
               <div className="w-7 h-7 rounded-full bg-[#FF4500] flex items-center justify-center flex-shrink-0">
@@ -169,20 +171,33 @@ const ReferralPage = () => {
         <div className="px-4 mt-6">
           <h3 className="text-sm font-bold text-gray-900 mb-3">Vos parrainages</h3>
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-100">
-            {stats.referrals.map((ref) => (
-              <div key={ref.id} className="flex items-center gap-3 px-4 py-3">
+            {stats.referrals.map((ref) => {
+              const isPending = ref.status === 'pending';
+              const isExpired = ref.status === 'expired';
+              const progress = isPending && ref.rides_required > 1
+                ? ` · ${ref.referred_ride_count || 0}/${ref.rides_required} courses`
+                : '';
+              return (
+              <div key={ref.id} className="flex items-center gap-3 px-4 py-3" data-testid={`referral-row-${ref.id}`}>
                 <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center">
                   <Users size={16} className="text-[#FF4500]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{ref.referred_name || 'Utilisateur'}</p>
                   <p className="text-[11px] text-gray-400">
-                    {new Date(ref.created_at).toLocaleDateString('fr-FR')}
+                    {new Date(ref.created_at).toLocaleDateString('fr-FR')}{progress}
                   </p>
                 </div>
-                <span className="text-sm font-bold text-green-600">+{ref.amount_earned}{ref.currency}</span>
+                {isPending ? (
+                  <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full" data-testid={`referral-status-${ref.id}`}>En attente</span>
+                ) : isExpired ? (
+                  <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full" data-testid={`referral-status-${ref.id}`}>Expiré</span>
+                ) : (
+                  <span className="text-sm font-bold text-green-600" data-testid={`referral-status-${ref.id}`}>+{ref.amount_earned}{ref.currency}</span>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
