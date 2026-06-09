@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-06-09 — Gestion services chauffeur (Taxi/Livraison/Coursier) admin + chauffeur [DONE, testé — iter207]
+
+### Contexte / bug à l'origine
+Un chauffeur configuré courier/livraison uniquement (sans "taxi") ne reçoit pas les réservations taxi planifiées (home-feed `scheduled_pending` filtré par `has_taxi`). Le compte de test `+33644112233` était dans ce cas → taxi activé (fix data).
+
+### Côté ADMIN (nouveau)
+- Backend `misc.py` : `PUT /api/admin/drivers/{driver_id}/service-types` (permission `drivers.approve`) — override admin (bypass gate VTC), `taxi_mode='car'` auto si taxi ajouté, 400 si liste vide, 404 si introuvable. (Bug projection MongoDB `{}` → faux 404 trouvé & corrigé par l'agent de test : `if driver is None` + projection `id`.)
+- Frontend `AdminDrivers.js` : colonne **Services** (badges Taxi/Livr./Cours.) + modale `admin-driver-services-modal` (3 cases + Sauvegarder) accessible par cellule ou bouton clé. `adminAPI.setDriverServiceTypes`.
+
+### Côté CHAUFFEUR (nouveau + existant)
+- `DriverHome.js` : CTA **« Devenir chauffeur Taxi »** (`become-taxi-cta`) affiché quand le chauffeur n'a pas "taxi" → navigue vers `/chauffeur/profile?services=1`.
+- `DriverProfilePage.js` : auto-ouverture de la modale « Gérer mes services » (existante, avec gate Carte VTC) via `?services=1`.
+- Vérifié e2e : CTA rendu pour chauffeur courier-only, deep-link ouvre la modale, gate VTC actif. Backend 7/7 pytest.
+
+
 ## 2026-06-09 — Configuration Pool admin (parité V3Cube) + véhicules dynamiques dans la réservation [DONE, testé 100% — iter206]
 
 ### Interface admin « Configuration Pool » (/admin/pool-config)

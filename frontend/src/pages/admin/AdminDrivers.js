@@ -169,7 +169,7 @@ const DriverServicesModal = ({ driver, onClose, onChanged }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" data-testid="driver-services-modal" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" data-testid="admin-driver-services-modal" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="p-5 border-b border-gray-100 flex items-start justify-between">
           <div className="min-w-0">
