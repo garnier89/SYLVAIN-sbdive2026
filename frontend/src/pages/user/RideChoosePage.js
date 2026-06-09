@@ -541,7 +541,7 @@ const RideChoosePage = () => {
   const renderVehicleList = () => (
     <div data-testid="choose-ride-section">
       <p className="text-xs text-gray-500 mb-3">{isPool ? 'Tarif partagé réduit estimé par véhicule.' : 'Sélectionnez votre véhicule.'}</p>
-      <div className="space-y-2">
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }} data-testid="vehicle-carousel">
         {effectiveVtypes.map((v) => {
           const Icon = vehicleIcon(v);
           const est = estimates[v.slug] || {};
@@ -549,32 +549,30 @@ const RideChoosePage = () => {
           const img = active ? (v.image_selected || v.image_unselected) : (v.image_unselected || v.image_selected);
           return (
             <button key={v.slug} onClick={() => setSelected(v.slug)} data-testid={`choose-vehicle-${v.slug}`}
-              className={`w-full flex items-center gap-3 rounded-2xl border-2 p-2.5 text-left transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-100 bg-white'}`}>
-              <div className={`w-16 h-12 rounded-lg flex items-center justify-center shrink-0 ${active ? 'bg-[#FF5000]/10' : 'bg-gray-50'}`}>
-                {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-12 object-contain" /> : <Icon size={28} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
+              className={`relative shrink-0 w-[7.5rem] snap-start flex flex-col items-center gap-1 rounded-2xl border-2 p-3 text-center transition-colors ${active ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-100 bg-white'}`}>
+              {active && <CheckCircle size={18} weight="fill" className="text-[#FF5000] absolute top-1.5 right-1.5" />}
+              <div className={`w-full h-14 rounded-lg flex items-center justify-center ${active ? 'bg-[#FF5000]/10' : 'bg-gray-50'}`}>
+                {img ? <img src={img} alt={v.name_fr || v.slug} className="max-h-14 object-contain" /> : <Icon size={30} weight={active ? 'fill' : 'regular'} className={active ? 'text-[#FF5000]' : 'text-gray-500'} />}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-[#0B1426] truncate">{v.name_fr || v.name || v.slug}</p>
-                <p className="text-[11px] text-gray-500 truncate">
-                  {est.loading ? 'Calcul du tarif…' : est.error ? 'Tarif indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
-                </p>
-                <span className="flex items-center gap-0.5 text-[11px] text-gray-400 mt-0.5"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
-              </div>
-              <div className="text-right shrink-0">
+              <p className="font-bold text-[13px] text-[#0B1426] truncate w-full leading-tight">{v.name_fr || v.name || v.slug}</p>
+              <span className="flex items-center gap-0.5 text-[11px] text-gray-400"><UsersThree size={13} weight="fill" /> {v.person_capacity || 4}</span>
+              <p className="text-[10px] text-gray-500 truncate w-full">
+                {est.loading ? 'Calcul…' : est.error ? 'Indisponible' : `${est.duration ?? '–'} min · ${est.distance ?? '–'} km`}
+              </p>
+              <div className="min-h-[1.75rem] flex flex-col items-center justify-center">
                 {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
                   : est.error ? <span className="text-xs text-gray-300">—</span>
                   : (
-                    <div>
+                    <>
                       {isPool && est.originalFare && est.originalFare > est.fare && (
-                        <p className="text-[11px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{money(est.originalFare)}</p>
+                        <p className="text-[10px] text-gray-400 line-through leading-none" data-testid={`orig-price-${v.slug}`}>{money(est.originalFare)}</p>
                       )}
-                      <p className="text-[15px] font-black text-[#FF5000]" data-testid={`price-${v.slug}`}>{est.fare != null ? money(est.fare) : '—'}</p>
+                      <p className="text-[15px] font-black text-[#FF5000] leading-none" data-testid={`price-${v.slug}`}>{est.fare != null ? money(est.fare) : '—'}</p>
                       {isPool && est.poolSavings > 0 && (
-                        <p className="text-[10px] font-bold text-emerald-600 leading-none" data-testid={`savings-${v.slug}`}>-{money(est.poolSavings)}</p>
+                        <p className="text-[10px] font-bold text-emerald-600 leading-none mt-0.5" data-testid={`savings-${v.slug}`}>-{money(est.poolSavings)}</p>
                       )}
-                    </div>
+                    </>
                   )}
-                {active && <CheckCircle size={15} weight="fill" className="text-[#FF5000] inline-block mt-0.5" />}
               </div>
             </button>
           );

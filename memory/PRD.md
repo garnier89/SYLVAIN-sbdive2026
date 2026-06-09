@@ -1,3 +1,12 @@
+## NEW - 2026-06-09 (125) - Sélecteur de véhicules en carrousel HORIZONTAL (course standard) (DONE, screenshot)
+- **Demande user** : sur l'écran de choix après saisie d'adresse, afficher les véhicules en **carrousel coulissant horizontal** (comme les apps standard) au lieu de la liste verticale actuelle.
+- **Frontend** (`RideChoosePage.js`, `renderVehicleList`) : liste verticale (`space-y-2`, lignes pleine largeur) → **carrousel horizontal** (`flex gap-3 overflow-x-auto snap-x`, scrollbar masquée, `data-testid="vehicle-carousel"`). Chaque carte (largeur fixe 7,5rem) empile : image, nom, capacité, durée·distance, prix ; sélection = bordure orange + coche. Tous les `data-testid` préservés (`choose-vehicle-{slug}`, `price-{slug}`, `orig-price-{slug}`, `savings-{slug}`).
+- **Vérifié** : screenshot client (/course, destination 75010 Paris pré-remplie) → SB/Confort/Luxe côte à côte, défilement horizontal (Luxe coupé à droite), tarifs 10/15/25 €. Webpack compile.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-09 (124) - Enchères : son + animation à l'arrivée d'une offre chauffeur (DONE)
 - **Demande user** : notification sonore légère + animation côté client quand un chauffeur répond (couplé au compteur « vu par X ») → maximise l'attention, réduit les annulations.
 - **Frontend** (`TaxiBiddingPage.js`, aucun asset) : carillon 2 notes via **WebAudio** (`playOfferChime`, AudioContext débloqué au tap « Trouver un chauffeur » pour respecter l'autoplay policy) + **vibration** `navigator.vibrate(90)` + **flash vert** (`ring` animé 1,4 s sur `driver-offers-list`, state `newOfferFlash`) + toast « Un/X chauffeur(s) a/ont répondu ! ». Détection des NOUVELLES offres via `prevOfferIdsRef` (set d'ids comparé à chaque poll 2,5 s) → ne se déclenche qu'à l'apparition d'une offre inédite.
