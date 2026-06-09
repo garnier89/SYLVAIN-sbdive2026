@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only verification of P0.2 — Livraison Marketplace ↔ réseau SB Drive (FR locale). All 3 user stories PASS end-to-end: checkout delivery-speed selector + surcharge + scheduled validation, order summary updates, driver delivery jobs with Express/Priority badges + claim flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Minor UX: After driver claims an Express order, backend sets status to 'preparing' but the driver 'En cours' tab only renders food orders with status 'ready' or 'picked_up' (FOOD_NEXT/FOOD_LABEL in DeliveryJobsPage.js cover only ready/picked_up). The just-claimed Express order is therefore not visible in the En cours list until the merchant marks it 'ready'. Consider mapping FOOD_LABEL/FOOD_NEXT for status 'preparing' (e.g., label 'En préparation', next 'ready' awaited from merchant) or surfacing claimed-but-not-ready orders so the driver gets immediate visual feedback after tapping 'Accepter la livraison'.",
+    "Optional cleanup: the customer test account left behind one Express order (order_ec19b7441bdf) assigned to driver_b366adb552eb."
+  ],
+  "critical_code_review_comments": [
+    "CheckoutPage.js line 422: order summary label uses opt.label ('Express'/'Prioritaire'/'Programmée'). Spec asked for '(Express)' specifically; implementation already covers Express + Prioritaire + Programmée correctly so this is fine.",
+    "DeliveryJobsPage.js lines 11-13: FOOD_NEXT/FOOD_LABEL only have 'ready' and 'picked_up' keys. Once an Express order is claimed it transitions to status='preparing', which has neither a label nor a 'next' action — driver sees no actionable card. Consider extending FOOD_LABEL with 'preparing' or instructing backend to return the order on driverActiveOrders with a synthesized waiting state.",
+    "Surcharge surfacing: option.surcharge is read as Number(opt.surcharge) (line 116) — robust. Total recomputes reactively. No issues.",
+    "scheduled_at validation (line 131) is client-side only and acceptable for UX; backend should also reject empty scheduled_at when speed='scheduled' (not verified — out of scope: frontend-only)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (3/3 user stories pass)"},
+  "test_credentials": "Customer: test_iter212_1781028448@demo.sb / Test1234! (registered via POST /api/auth/register). Driver: jean.dupont@demo.sb / Driver123! (role=delivery, approved). Merchant: merchant@example.com / Merchant123!.",
+  "seed_data_creation": "Created order_ec19b7441bdf (Express, Croissant 1,20 € + 5,50 € livraison = 6,70 €, address '10 rue de Test, Paris'). Merchant pushed to 'accepted' via PUT /api/orders/{id}/status. Driver jean.dupont claimed it via UI; order now status='preparing' assigned to driver_b366adb552eb.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified live on https://gojek-clone-41.preview.emergentagent.com: (1) /checkout/merchant_d3cc002c7d87 renders the 'Mode de livraison' card with delivery-speed-group + 4 children (delivery-speed-standard 'Inclus', delivery-speed-express '+3,00 €', delivery-speed-priority '+2,00 €', delivery-speed-scheduled 'Inclus'). Subtotal 1,20 € + base delivery 2,50 € = Total 3,70 € (Standard); switching to Express updates the 'Frais de livraison (Express)' row to 5,50 € → Total 6,70 €; Prioritaire → 4,50 €/5,70 €; Scheduled reveals scheduled-at-input (datetime-local) and keeps fee at 2,50 €. (2) Placing a Scheduled order with empty date pops Sonner error toast 'Veuillez choisir une date et une heure pour la livraison programmée' (no API call). (3) Placing an Express order after setting address succeeds → success screen 'Commande passée ! #441bdf' with Suivre/Retour buttons. (4) Driver UI at /chauffeur/livraisons: Disponibles tab lists 12 missions including avail-food-order_ec19b7441bdf with badge-express (⚡ EXPRESS) above the accept-food-{id} button. Tapping it triggered the claim (toast 'Commande acceptée'), backend now reports order in status 'preparing' with driver_id assigned. Priority/Express sorting verified by backend (per pytest test_iter212_delivery_dispatch.py) and the only food card shown was the Express one (others auto-progressed). NOTE: the 'En cours' tab does NOT render claimed Express orders while their status is 'preparing' because FOOD_LABEL only covers ready/picked_up — see action_items.",
+  "rca of the issue": "No bugs; one minor UX gap documented in action_items (driver 'En cours' tab hides freshly-claimed Express orders until merchant marks them 'ready')."
+}

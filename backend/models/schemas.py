@@ -228,6 +228,8 @@ class OrderCreate(BaseModel):
     order_type: str
     payment_method: str
     special_instructions: Optional[str] = None
+    delivery_speed: str = "standard"  # standard | express | priority | scheduled
+    scheduled_at: Optional[str] = None  # ISO datetime for scheduled deliveries
 
 class OrderResponse(BaseModel):
     id: str
@@ -239,6 +241,10 @@ class OrderResponse(BaseModel):
     discount_pct: float = 0
     discount: float = 0
     delivery_fee: float
+    delivery_speed: str = "standard"
+    delivery_surcharge: float = 0
+    priority: bool = False
+    scheduled_at: Optional[str] = None
     total: float
     status: str
     delivery_address: str

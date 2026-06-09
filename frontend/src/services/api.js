@@ -184,6 +184,7 @@ export const orderAPI = {
   driverActiveOrders: () => api.get('/orders/driver/active'),
   claim: (id) => api.post(`/orders/${id}/claim`),
   track: (id) => api.get(`/orders/${id}/track`),
+  deliveryOptions: () => api.get('/orders/delivery-options'),
 };
 
 // Cart APIs

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
 import asyncio
+import math
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -10,6 +11,73 @@ from models.schemas import OrderCreate, OrderResponse
 from core.websocket import manager
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+# Default delivery-speed surcharges (EUR) — overridable via admin delivery-settings.
+DELIVERY_DEFAULTS = {
+    "commission_percent": 15.0,
+    "default_delivery_fee": 2.5,
+    "express_surcharge": 3.0,
+    "priority_surcharge": 2.0,
+    "dispatch_radius_km": 5.0,
+}
+
+
+async def _delivery_settings() -> dict:
+    doc = await db.app_config.find_one({"key": "delivery"}, {"_id": 0}) or {}
+    return {**DELIVERY_DEFAULTS, **{k: v for k, v in doc.items() if k != "key"}}
+
+
+def _speed_surcharge(speed: str, cfg: dict) -> float:
+    if speed == "express":
+        return float(cfg.get("express_surcharge", 3.0))
+    if speed == "priority":
+        return float(cfg.get("priority_surcharge", 2.0))
+    return 0.0
+
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    if None in (lat1, lng1, lat2, lng2):
+        return 9999
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+async def _nearby_delivery_drivers(lat, lng, radius_km):
+    """Online, approved drivers offering 'delivery' service within radius (nearest first)."""
+    cursor = db.drivers.find(
+        {"status": "approved", "is_online": True},
+        {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1, "service_types": 1},
+    )
+    out = []
+    async for d in cursor:
+        svc = d.get("service_types") or ["taxi", "delivery"]
+        if "delivery" not in svc:
+            continue
+        loc = manager.get_driver_location(d["user_id"]) or {}
+        dlat = loc.get("lat", d.get("current_lat"))
+        dlng = loc.get("lng", d.get("current_lng"))
+        if dlat is None or dlng is None:
+            continue
+        dist = _haversine_km(lat, lng, dlat, dlng)
+        if dist <= radius_km:
+            out.append((dist, d["user_id"]))
+    out.sort(key=lambda x: x[0])
+    return [uid for _, uid in out]
+
+
+def _is_dispatchable(o: dict) -> bool:
+    """An order is offered to couriers when there's no driver yet and it's ready
+    (express/priority orders are lined up earlier, from 'accepted')."""
+    if o.get("driver_id"):
+        return False
+    speed = o.get("delivery_speed", "standard")
+    if speed in ("express", "priority"):
+        return o.get("status") in ("accepted", "preparing", "ready")
+    return o.get("status") == "ready"
+
 
 # ── Food order lifecycle simulation ──
 # Stages a meal order moves through, with the elapsed-time (seconds since the
@@ -28,30 +96,75 @@ DEMO_ORDER_SCHEDULE = [
 ORDER_DELIVERED_SEC = DEMO_ORDER_SCHEDULE[-1][1]
 
 
+async def _broadcast_delivery_offers(now):
+    """Notify nearby online courier drivers about dispatchable orders (once each).
+    Priority/express orders are offered earlier and flagged so the driver app can
+    surface them first."""
+    cfg = await _delivery_settings()
+    radius = float(cfg.get("dispatch_radius_km", 5.0))
+    cursor = db.orders.find(
+        {"driver_id": None, "status": {"$in": ["accepted", "preparing", "ready"]}, "dispatch_notified": {"$ne": True}},
+        {"_id": 0},
+    )
+    async for o in cursor:
+        if not _is_dispatchable(o):
+            continue
+        merchant = await db.merchants.find_one({"id": o.get("merchant_id")}, {"_id": 0, "lat": 1, "lng": 1, "store_name": 1})
+        if not merchant:
+            continue
+        drivers = await _nearby_delivery_drivers(merchant.get("lat"), merchant.get("lng"), radius)
+        payload = {
+            "type": "new_delivery_offer",
+            "order_id": o["id"],
+            "merchant_name": merchant.get("store_name"),
+            "earning": o.get("delivery_fee"),
+            "total": o.get("total"),
+            "delivery_speed": o.get("delivery_speed", "standard"),
+            "priority": bool(o.get("priority")),
+        }
+        for uid in drivers[:10]:
+            await manager.send_personal_message(payload, uid)
+        await db.orders.update_one(
+            {"id": o["id"]},
+            {"$set": {"dispatch_notified": True, "dispatch_notified_at": now.isoformat(), "dispatch_drivers_count": len(drivers)}},
+        )
+
+
 async def order_auto_progress_loop():
     """Demo/MVP simulation: advance active food orders through their lifecycle
-    (Confirmée → En préparation → Prête → En livraison → Livrée) based on elapsed
-    time, so the customer's order tracking reaches delivery without a live
-    merchant/driver. Only moves FORWARD and never past what a real actor already set."""
+    based on elapsed time so the customer's tracking reaches delivery even with no
+    live actor. Real drivers take over once they claim: when a driver is assigned,
+    the loop stops at 'ready' and lets the driver control picked_up/delivered.
+    Scheduled orders stay pending until their scheduled time."""
     while True:
         try:
             now = datetime.now(timezone.utc)
             cursor = db.orders.find(
                 {"status": {"$in": ["pending", "accepted", "preparing", "ready", "picked_up"]}},
-                {"_id": 0, "id": 1, "status": 1, "created_at": 1, "user_id": 1, "payment_method": 1},
+                {"_id": 0, "id": 1, "status": 1, "created_at": 1, "user_id": 1, "payment_method": 1,
+                 "driver_id": 1, "delivery_speed": 1, "scheduled_at": 1},
             )
             async for o in cursor:
+                # Scheduled orders: hold until their scheduled time, then progress from there.
+                ref_iso = o.get("created_at")
+                if o.get("delivery_speed") == "scheduled" and o.get("scheduled_at"):
+                    ref_iso = o.get("scheduled_at")
                 try:
-                    created = datetime.fromisoformat(str(o.get("created_at")).replace("Z", "+00:00"))
+                    ref = datetime.fromisoformat(str(ref_iso).replace("Z", "+00:00"))
                 except (ValueError, TypeError):
                     continue
-                if created.tzinfo is None:
-                    created = created.replace(tzinfo=timezone.utc)
-                elapsed = (now - created).total_seconds()
+                if ref.tzinfo is None:
+                    ref = ref.replace(tzinfo=timezone.utc)
+                elapsed = (now - ref).total_seconds()
+                if elapsed < 0:
+                    continue  # scheduled in the future — stays pending
                 target = o["status"]
                 for status, threshold in DEMO_ORDER_SCHEDULE:
                     if elapsed >= threshold:
                         target = status
+                # A claimed order is driver-controlled past 'ready'.
+                if o.get("driver_id") and _STAGE_INDEX.get(target, 0) > _STAGE_INDEX["ready"]:
+                    target = "ready"
                 if _STAGE_INDEX.get(target, 0) > _STAGE_INDEX.get(o["status"], 0):
                     update = {"status": target}
                     if target == "delivered":
@@ -61,6 +174,7 @@ async def order_auto_progress_loop():
                         await manager.send_personal_message(
                             {"type": "order_status", "order_id": o["id"], "status": target}, o["user_id"]
                         )
+            await _broadcast_delivery_offers(now)
         except Exception:
             pass
         await asyncio.sleep(10)
@@ -83,13 +197,16 @@ async def create_order(data: OrderCreate, request: Request):
         subtotal += item_total
         items_with_details.append({"product_id": item.product_id, "name": product["name"], "price": product["price"], "quantity": item.quantity, "total": item_total})
 
-    settings = await db.app_config.find_one({"key": "delivery"}, {"_id": 0}) or {}
+    settings = await _delivery_settings()
     commission_percent = float(settings.get("commission_percent", 15.0))
     default_fee = float(settings.get("default_delivery_fee", 2.5))
-    delivery_fee = merchant.get("delivery_fee")
-    if delivery_fee is None:
-        delivery_fee = default_fee
-    delivery_fee = float(delivery_fee)
+    base_delivery_fee = merchant.get("delivery_fee")
+    if base_delivery_fee is None:
+        base_delivery_fee = default_fee
+    base_delivery_fee = float(base_delivery_fee)
+    speed = data.delivery_speed if data.delivery_speed in ("standard", "express", "priority", "scheduled") else "standard"
+    surcharge = _speed_surcharge(speed, settings)
+    delivery_fee = round(base_delivery_fee + surcharge, 2)
     from routes.merchants import compute_effective_discount
     discount_pct, _flash = compute_effective_discount(merchant)
     discount = round(subtotal * discount_pct / 100, 2)
@@ -101,7 +218,10 @@ async def create_order(data: OrderCreate, request: Request):
         "id": f"order_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "merchant_id": data.merchant_id,
         "driver_id": None, "items": items_with_details, "subtotal": round(subtotal, 2),
         "discount_pct": discount_pct, "discount": discount,
-        "delivery_fee": round(delivery_fee, 2), "commission_percent": commission_percent,
+        "delivery_fee": delivery_fee, "delivery_speed": speed,
+        "delivery_surcharge": surcharge, "priority": speed in ("express", "priority"),
+        "scheduled_at": data.scheduled_at if speed == "scheduled" else None,
+        "commission_percent": commission_percent,
         "commission": commission, "merchant_payout": merchant_payout,
         "total": round(total, 2), "order_type": data.order_type or "food",
         "status": "pending", "delivery_address": data.delivery_address,
@@ -137,9 +257,16 @@ async def available_deliveries(request: Request):
     svc = (driver or {}).get("service_types") or ["taxi", "delivery"]
     if "delivery" not in svc:
         return []
-    orders = await db.orders.find({"status": "ready", "driver_id": None}, {"_id": 0}).sort("created_at", 1).limit(30).to_list(30)
+    # Dispatchable = ready (all speeds) + express/priority lined up from 'accepted'.
+    raw = await db.orders.find(
+        {"driver_id": None, "status": {"$in": ["accepted", "preparing", "ready"]}},
+        {"_id": 0},
+    ).sort("created_at", 1).limit(60).to_list(60)
+    orders = [o for o in raw if _is_dispatchable(o)]
+    # Priority/express first, then oldest first.
+    orders.sort(key=lambda o: (0 if o.get("priority") else 1, o.get("created_at")))
     out = []
-    for o in orders:
+    for o in orders[:30]:
         m = await db.merchants.find_one({"id": o["merchant_id"]}, {"_id": 0, "store_name": 1, "address": 1, "lat": 1, "lng": 1})
         out.append({
             "id": o["id"],
@@ -147,7 +274,8 @@ async def available_deliveries(request: Request):
             "delivery_address": o.get("delivery_address"), "delivery_lat": o.get("delivery_lat"), "delivery_lng": o.get("delivery_lng"),
             "items_count": sum(int(i.get("quantity", 1)) for i in o.get("items", [])),
             "total": o.get("total"), "earning": o.get("delivery_fee"),
-            "created_at": o.get("created_at"),
+            "delivery_speed": o.get("delivery_speed", "standard"), "priority": bool(o.get("priority")),
+            "status": o.get("status"), "created_at": o.get("created_at"),
         })
     return out
 
@@ -172,8 +300,7 @@ async def driver_active_orders(request: Request):
 @router.get("/admin/delivery-settings")
 async def get_delivery_settings(request: Request):
     await require_role(request, ["admin", "dispatcher"], permission="server.settings.edit")
-    doc = await db.app_config.find_one({"key": "delivery"}, {"_id": 0}) or {}
-    return {"commission_percent": float(doc.get("commission_percent", 15.0)), "default_delivery_fee": float(doc.get("default_delivery_fee", 2.5))}
+    return await _delivery_settings()
 
 
 @router.put("/admin/delivery-settings")
@@ -181,13 +308,29 @@ async def set_delivery_settings(request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
     update = {"key": "delivery"}
-    if "commission_percent" in body:
-        update["commission_percent"] = float(body["commission_percent"])
-    if "default_delivery_fee" in body:
-        update["default_delivery_fee"] = float(body["default_delivery_fee"])
+    for k in ("commission_percent", "default_delivery_fee", "express_surcharge", "priority_surcharge", "dispatch_radius_km"):
+        if k in body:
+            try:
+                update[k] = float(body[k])
+            except (TypeError, ValueError):
+                pass
     await db.app_config.update_one({"key": "delivery"}, {"$set": update}, upsert=True)
-    doc = await db.app_config.find_one({"key": "delivery"}, {"_id": 0}) or {}
-    return {"commission_percent": float(doc.get("commission_percent", 15.0)), "default_delivery_fee": float(doc.get("default_delivery_fee", 2.5))}
+    return await _delivery_settings()
+
+
+@router.get("/delivery-options")
+async def delivery_options(request: Request):
+    """Public delivery-speed options + current surcharges for the checkout."""
+    await get_current_user(request)
+    cfg = await _delivery_settings()
+    return {
+        "options": [
+            {"id": "standard", "label": "Standard", "surcharge": 0.0, "desc": "Livraison classique"},
+            {"id": "express", "label": "Express", "surcharge": float(cfg["express_surcharge"]), "desc": "Plus rapide, dispatch immédiat"},
+            {"id": "priority", "label": "Prioritaire", "surcharge": float(cfg["priority_surcharge"]), "desc": "En tête de file des livreurs"},
+            {"id": "scheduled", "label": "Programmée", "surcharge": 0.0, "desc": "Choisissez date et heure"},
+        ],
+    }
 
 
 @router.post("/{order_id}/claim")
@@ -196,13 +339,15 @@ async def claim_order(order_id: str, request: Request):
     driver = await db.drivers.find_one({"user_id": user["id"]})
     if not driver:
         raise HTTPException(status_code=403, detail="Not a driver")
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order or not _is_dispatchable(order):
+        raise HTTPException(status_code=409, detail="Commande déjà prise ou non disponible")
     res = await db.orders.update_one(
-        {"id": order_id, "driver_id": None, "status": "ready"},
+        {"id": order_id, "driver_id": None},
         {"$set": {"driver_id": driver["id"]}},
     )
     if res.modified_count == 0:
         raise HTTPException(status_code=409, detail="Commande déjà prise ou non disponible")
-    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     await manager.send_personal_message({"type": "order_driver_assigned", "order_id": order_id}, order["user_id"])
     return {"message": "claimed", "order_id": order_id}
 

@@ -37,13 +37,16 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState(null);
-  
+  const [deliveryOptions, setDeliveryOptions] = useState([]);
+
   const [formData, setFormData] = useState({
     delivery_address: '',
     delivery_lat: 48.8566,
     delivery_lng: 2.3522,
     payment_method: 'cash',
-    special_instructions: ''
+    special_instructions: '',
+    delivery_speed: 'standard',
+    scheduled_at: ''
   });
 
   useEffect(() => {
@@ -59,6 +62,12 @@ const CheckoutPage = () => {
         setWallet(walletRes.data);
       } catch (error) {
         console.warn('[checkout] wallet fetch error', error?.message);
+      }
+      try {
+        const optRes = await orderAPI.deliveryOptions();
+        setDeliveryOptions(optRes.data.options || []);
+      } catch (error) {
+        console.warn('[checkout] delivery options fetch error', error?.message);
       }
     };
     loadData();
@@ -102,7 +111,10 @@ const CheckoutPage = () => {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const deliveryFee = merchant?.delivery_fee != null ? Number(merchant.delivery_fee) : 2.50;
+  const baseDeliveryFee = merchant?.delivery_fee != null ? Number(merchant.delivery_fee) : 2.50;
+  const selectedOption = deliveryOptions.find(o => o.id === formData.delivery_speed);
+  const surcharge = selectedOption ? Number(selectedOption.surcharge) : 0;
+  const deliveryFee = baseDeliveryFee + surcharge;
   const discountPct = merchant?.effective_discount_pct != null ? Number(merchant.effective_discount_pct) : (merchant?.discount_pct ? Number(merchant.discount_pct) : 0);
   const discount = +(subtotal * discountPct / 100).toFixed(2);
   const total = subtotal - discount + deliveryFee;
@@ -114,6 +126,10 @@ const CheckoutPage = () => {
     }
     if (!formData.payment_method) {
       toast.error('Veuillez choisir un mode de paiement');
+      return;
+    }
+    if (formData.delivery_speed === 'scheduled' && !formData.scheduled_at) {
+      toast.error('Veuillez choisir une date et une heure pour la livraison programmée');
       return;
     }
 
@@ -130,7 +146,10 @@ const CheckoutPage = () => {
         delivery_lng: formData.delivery_lng,
         order_type: 'food',
         payment_method: formData.payment_method,
-        special_instructions: formData.special_instructions
+        special_instructions: formData.special_instructions,
+        delivery_speed: formData.delivery_speed,
+        scheduled_at: formData.delivery_speed === 'scheduled' && formData.scheduled_at
+          ? new Date(formData.scheduled_at).toISOString() : null
       };
 
       const response = await orderAPI.create(orderData);
@@ -280,6 +299,55 @@ const CheckoutPage = () => {
           </CardContent>
         </Card>
 
+        {/* Delivery Speed */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Mode de livraison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup
+              value={formData.delivery_speed}
+              onValueChange={(value) => setFormData({ ...formData, delivery_speed: value })}
+              className="space-y-3"
+              data-testid="delivery-speed-group"
+            >
+              {deliveryOptions.map((opt) => {
+                const selected = formData.delivery_speed === opt.id;
+                return (
+                  <div
+                    key={opt.id}
+                    onClick={() => setFormData({ ...formData, delivery_speed: opt.id })}
+                    className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${selected ? 'border-[#FF4500] bg-orange-50' : 'border-gray-200'}`}
+                    data-testid={`delivery-speed-${opt.id}`}
+                  >
+                    <RadioGroupItem value={opt.id} id={`ds-${opt.id}`} />
+                    <Label htmlFor={`ds-${opt.id}`} className="flex items-center justify-between cursor-pointer flex-1">
+                      <div>
+                        <span className="font-medium">{opt.label}</span>
+                        <p className="text-xs text-gray-500">{opt.desc}</p>
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">{opt.surcharge > 0 ? `+${money(opt.surcharge)}` : 'Inclus'}</span>
+                    </Label>
+                  </div>
+                );
+              })}
+            </RadioGroup>
+            {formData.delivery_speed === 'scheduled' && (
+              <div className="mt-3">
+                <Label htmlFor="scheduled_at" className="text-sm">Date et heure de livraison</Label>
+                <Input
+                  id="scheduled_at"
+                  type="datetime-local"
+                  value={formData.scheduled_at}
+                  onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                  className="mt-1"
+                  data-testid="scheduled-at-input"
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Special Instructions */}
         <Card>
           <CardHeader className="pb-2">
@@ -351,8 +419,8 @@ const CheckoutPage = () => {
               </div>
             )}
             <div className="flex justify-between text-gray-600">
-              <span>Frais de livraison</span>
-              <span>{deliveryFee.toFixed(2)} €</span>
+              <span>Frais de livraison{selectedOption && selectedOption.id !== 'standard' ? ` (${selectedOption.label})` : ''}</span>
+              <span>{money(deliveryFee)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t">
               <span>Total</span>

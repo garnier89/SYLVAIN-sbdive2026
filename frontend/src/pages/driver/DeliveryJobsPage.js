@@ -68,7 +68,12 @@ const DeliveryJobsPage = () => {
       toast.success(`🍔 Nouvelle commande à livrer · ${msg.total?.toFixed?.(2) ?? msg.total} €`, { duration: 6000 });
       refresh();
     });
-    return () => { unsubP(); unsubT(); unsubF(); };
+    const unsubD = on('new_delivery_offer', (msg) => {
+      const tag = msg.delivery_speed === 'express' ? '⚡ Express' : (msg.priority ? '⭐ Prioritaire' : '🍔');
+      toast.success(`${tag} · Livraison à prendre · ${msg.earning?.toFixed?.(2) ?? msg.earning} €`, { duration: 7000 });
+      refresh();
+    });
+    return () => { unsubP(); unsubT(); unsubF(); unsubD(); };
   }, [on, refresh]);
 
   const activeCount = activeParcels.length + activeTransports.length + activeFood.length;
@@ -152,6 +157,8 @@ const DeliveryJobsPage = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <ForkKnife size={18} weight="duotone" className="text-orange-500" />
                   <span className="font-bold text-sm truncate">{o.merchant?.name || 'Restaurant'}</span>
+                  {o.delivery_speed === 'express' && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700" data-testid={`badge-express-${o.id}`}>⚡ EXPRESS</span>}
+                  {o.delivery_speed === 'priority' && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700" data-testid={`badge-priority-${o.id}`}>⭐ PRIORITAIRE</span>}
                   <span className="ml-auto font-bold text-[#FF5000]">{o.earning?.toFixed?.(2) ?? o.earning} €</span>
                 </div>
                 <p className="text-xs text-gray-500 truncate"><MapPin size={11} className="inline text-green-500" /> {o.merchant?.address || 'Restaurant'}</p>
