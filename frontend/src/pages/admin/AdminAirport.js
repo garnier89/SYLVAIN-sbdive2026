@@ -6,7 +6,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { AirplaneTilt, Trash, Plus, FloppyDisk, MapPin, ArrowClockwise } from '@phosphor-icons/react';
+import { AirplaneTilt, Trash, Plus, FloppyDisk, MapPin } from '@phosphor-icons/react';
 import { airportAdminAPI } from '../../services/api';
 
 const BLANK = {
@@ -37,19 +37,28 @@ const AdminAirport = () => {
   const [editingId, setEditingId] = useState(null);
   const [resv, setResv] = useState({ reservations: [], counts: {} });
   const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const loadAirports = useCallback(() => {
     airportAdminAPI.list().then((r) => setAirports(Array.isArray(r.data) ? r.data : [])).catch(() => {});
   }, []);
-  const loadResv = useCallback(() => {
-    setLoading(true);
+  const loadResv = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     airportAdminAPI.reservations()
-      .then((r) => setResv(r.data || { reservations: [], counts: {} }))
+      .then((r) => { setResv(r.data || { reservations: [], counts: {} }); setLastUpdated(new Date()); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { loadAirports(); loadResv(); }, [loadAirports, loadResv]);
+
+  // Live Flight Watch — auto-refresh the reservations every 30s while the tab is open.
+  // (The backend flight_watch_loop keeps each flight status synced server-side.)
+  useEffect(() => {
+    if (tab !== 'reservations') return undefined;
+    const id = setInterval(() => loadResv(true), 30000);
+    return () => clearInterval(id);
+  }, [tab, loadResv]);
 
   const submit = async () => {
     if (!form.name || form.lat === '' || form.lng === '') return toast.error('Nom et coordonnées requis');
@@ -116,10 +125,12 @@ const AdminAirport = () => {
 
       {tab === 'reservations' && (
         <div data-testid="airport-reservations">
-          <div className="flex justify-end mb-2">
-            <button onClick={loadResv} className="flex items-center gap-1.5 text-sm font-semibold text-[#FF5000]" data-testid="airport-resv-refresh">
-              <ArrowClockwise size={16} /> Actualiser
-            </button>
+          <div className="flex justify-end items-center gap-2 mb-2" data-testid="airport-live-indicator">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <span className="text-xs font-semibold text-emerald-700">En direct · MAJ auto 30s{lastUpdated ? ` · ${lastUpdated.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}</span>
           </div>
           {loading ? <p className="text-sm text-gray-400">Chargement…</p>
             : resv.reservations.length === 0 ? <p className="text-sm text-gray-400" data-testid="airport-resv-empty">Aucune réservation aéroport.</p>
