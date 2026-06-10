@@ -5,6 +5,7 @@ import { LocaleProvider } from './contexts/LocaleContext';
 import { Toaster } from './components/ui/sonner';
 import InstallPWA from './components/InstallPWA';
 import EnableNotificationsBanner from './components/EnableNotificationsBanner';
+import ActiveRideFlag from './components/ActiveRideFlag';
 import AuthCallback from './components/AuthCallback';
 import VoiceAssistant from './components/VoiceAssistant';
 import { KioskApp } from './routes/pages';
@@ -82,6 +83,7 @@ function App() {
           <Toaster position="top-center" />
           <InstallPWA />
           <EnableNotificationsBanner />
+          <ActiveRideFlag />
         </LocaleProvider>
       </AuthProvider>
     </BrowserRouter>

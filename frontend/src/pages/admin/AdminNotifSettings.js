@@ -68,29 +68,8 @@ const AdminNotifSettings = () => {
         <p className="text-xs text-gray-400 mt-1">Le client est notifié « votre chauffeur arrive » à cette distance.</p>
       </section>
 
-      {/* Chaining */}
-      <section className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
-        <h2 className="font-bold text-gray-800 mb-3">Enchaînement des courses</h2>
-        <label className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-          <input type="checkbox" checked={s.chaining_enabled}
-            onChange={(e) => num('chaining_enabled', e.target.checked)} data-testid="chaining-enabled-toggle" />
-          Autoriser une 2ᵉ course pendant la finalisation d'une course
-        </label>
-        <div className="flex gap-4">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Délai max (min)</label>
-            <input type="number" min="0" value={s.chaining_time_min}
-              onChange={(e) => num('chaining_time_min', parseInt(e.target.value || '0', 10))}
-              className="w-32 border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="chaining-time-input" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Distance max (km)</label>
-            <input type="number" min="0" step="0.5" value={s.chaining_distance_km}
-              onChange={(e) => num('chaining_distance_km', parseFloat(e.target.value || '0'))}
-              className="w-32 border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="chaining-distance-input" />
-          </div>
-        </div>
-      </section>
+      {/* Chaining is governed by the dedicated "Prochaine course" (next-job)
+          admin config; not duplicated here to avoid conflicting settings. */}
 
       {/* Messages */}
       <section className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">

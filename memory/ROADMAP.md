@@ -28,8 +28,12 @@
 - **Bandeau opt-in** : `EnableNotificationsBanner` (monté global) propose "Activez les notifications" aux users connectés (permission `default`), dismissible.
 - Notifs cycle de vie (arrivé/démarré/terminé) déjà en Phase 2.
 
-### 🔜 Phase 4 — Enchaînement & Flux actif
-- Chauffeur reçoit d'autres courses même sur pages "terminée" (config admin temps+distance), suppression bouton retour pendant course active (client+chauffeur).
+### ✅ Phase 4 — Flag flottant + Enchaînement + No-back actif (FAIT 2026-06-10)
+- **Flag flottant SB** : `ActiveRideFlag.jsx` (monté global) — bulle ronde avec logo SB transparent + anneau pulsant, visible quand une course est active (client + chauffeur) et qu'on n'est pas sur l'écran de course. Tap → retour à la course (`/ride/:id` client, `/chauffeur/home` chauffeur). Source : `/api/rides/active/current` (poll 15s + sur changement de route).
+- **Enchaînement** : DÉJÀ implémenté via `next_job` (offre la course suivante près du dropoff, gating distance via `next_job_lead_minutes`). Admin dédié : `/api/config/next-job/admin` (switch global + délai + overrides par zone). Section "enchaînement" retirée du panneau Notifications pour éviter un doublon.
+- **No-back pendant course active** : déjà satisfait — écrans de course active sans bouton retour (client `RideTrackingPage` : retour seulement en phase recherche/annulée ; chauffeur `DriverRideFlow` : seulement "minimiser"). Le flag fournit le retour.
+
+## ✅ Lot 2 (Notifications Push) — COMPLET (Phases 1→4)
 
 ## Lot 3 — Refonte modules (specs détaillées fournies par user)
 
