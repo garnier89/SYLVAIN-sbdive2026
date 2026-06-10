@@ -13,6 +13,13 @@ const MerchantLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [approval, setApproval] = useState('approved');
+
+  useEffect(() => {
+    import('../../services/api').then(({ merchantAPI }) => {
+      merchantAPI.getMine().then((res) => setApproval(res.data?.approval_status || 'approved')).catch(() => {});
+    });
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -121,6 +128,20 @@ const MerchantLayout = () => {
 
       {/* Main Content */}
       <main className="lg:ml-64 min-h-screen">
+        {approval === 'pending' && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3" data-testid="merchant-pending-banner">
+            <Clock size={20} weight="fill" className="text-amber-600 shrink-0" />
+            <p className="text-sm text-amber-800">
+              <b>Boutique en attente de validation.</b> Vous pouvez préparer votre catalogue ; elle sera visible des clients dès l'approbation par notre équipe.
+            </p>
+          </div>
+        )}
+        {approval === 'rejected' && (
+          <div className="bg-red-50 border-b border-red-200 px-6 py-3 flex items-center gap-3" data-testid="merchant-rejected-banner">
+            <X size={20} weight="bold" className="text-red-600 shrink-0" />
+            <p className="text-sm text-red-800"><b>Demande non validée.</b> Contactez le support pour réactiver votre boutique.</p>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

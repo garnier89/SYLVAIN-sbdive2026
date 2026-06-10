@@ -231,6 +231,7 @@ export const DispatcherPanel = lazy(() => import('../pages/dispatcher/Dispatcher
 // Kiosk
 export const KioskApp = lazy(() => import('../pages/kiosk/KioskApp'));
 export const ProAccessPage = lazy(() => import('../pages/ProAccessPage'));
+export const SbStoreSignupPage = lazy(() => import('../pages/SbStoreSignupPage'));
 
 // Role-based Panels
 export const PanelLayout = lazy(() => import('../pages/panels/PanelLayout'));

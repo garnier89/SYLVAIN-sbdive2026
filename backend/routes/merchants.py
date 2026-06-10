@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, Response, HTTPException
 import uuid
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 
 from core.config import db
-from core.deps import get_current_user, calculate_distance
-from models.schemas import MerchantCreate, ProductCreate, MerchantReviewCreate
+from core.deps import get_current_user, calculate_distance, hash_password, create_access_token, create_refresh_token
+from models.schemas import MerchantCreate, MerchantSignup, ProductCreate, MerchantReviewCreate
 
 router = APIRouter(prefix="/merchants", tags=["merchants"])
 
@@ -141,6 +141,7 @@ def _enrich_merchant(m: dict) -> dict:
     paused = _is_paused(m)
     m["accepting_orders"] = not paused
     m["pause_until"] = m.get("pause_until")
+    m["approval_status"] = m.get("approval_status", "approved")
     # Open state: prefer structured hours, fall back to is_active; pause forces closed.
     base_open = _hours_open_now(m["hours"]) if m.get("is_active", True) else False
     m["is_open"] = base_open and not paused
@@ -158,6 +159,65 @@ _STORE_TYPE_CUISINE = {
     "wine": "Cave & Spiritueux",
     "construction": "Bricolage",
 }
+
+
+@router.post("/signup")
+async def merchant_signup(data: MerchantSignup, response: Response):
+    """PUBLIC self-service SB Store registration: creates the merchant account
+    AND the store in one step. The store starts as 'pending' (is_active=False)
+    and is NOT publicly listed until an admin approves it. The new merchant is
+    auto-logged-in (httpOnly cookies) so they land on a 'pending approval' state."""
+    email = data.email.lower().strip()
+    if len(data.password) < 6:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 6 caractères")
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+    if not data.store_name.strip():
+        raise HTTPException(status_code=400, detail="Le nom de la boutique est requis")
+
+    now = datetime.now(timezone.utc).isoformat()
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    user_doc = {
+        "id": user_id, "email": email, "password_hash": hash_password(data.password),
+        "name": data.name.strip(), "phone": data.phone, "role": "merchant",
+        "is_verified": False, "avatar_url": None, "created_at": now,
+    }
+    await db.users.insert_one(user_doc)
+    await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "currency": "EUR", "created_at": now})
+
+    merchant = {
+        "id": f"merchant_{uuid.uuid4().hex[:12]}", "user_id": user_id,
+        "store_name": data.store_name.strip(), "store_type": data.store_type or "restaurant",
+        "address": data.address.strip(), "lat": data.lat, "lng": data.lng,
+        "description": (data.description or "").strip(), "rating": 5.0, "review_count": 0,
+        "total_orders": 0,
+        # Pending approval: not active / not accepting until an admin validates.
+        "approval_status": "pending", "is_active": False, "accepting_orders": True,
+        "opening_hours": "09:00-22:00", "image_url": None, "created_at": now,
+    }
+    await db.merchants.insert_one(merchant)
+
+    # Notify admins of the new application.
+    try:
+        from core.notifications import create_notification
+        async for admin in db.users.find({"role": "admin"}, {"_id": 0, "id": 1}):
+            await create_notification(
+                admin["id"], "merchant_signup", "Nouveau commerçant 🏪",
+                f"« {merchant['store_name']} » demande à rejoindre SB Store — à valider.",
+                data={"url": "/stores-admin", "merchant_id": merchant["id"]}, push=True,
+            )
+    except Exception:
+        pass
+
+    access_token = create_access_token(user_id, email, "merchant")
+    refresh_token = create_refresh_token(user_id)
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    return {
+        "message": "Compte créé. Votre boutique est en attente de validation par l'administrateur.",
+        "user": {"id": user_id, "email": email, "name": user_doc["name"], "role": "merchant"},
+        "merchant": {"id": merchant["id"], "store_name": merchant["store_name"], "approval_status": "pending"},
+    }
 
 
 @router.post("/register")

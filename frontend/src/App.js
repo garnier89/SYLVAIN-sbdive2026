@@ -8,7 +8,7 @@ import EnableNotificationsBanner from './components/EnableNotificationsBanner';
 import ActiveRideFlag from './components/ActiveRideFlag';
 import AuthCallback from './components/AuthCallback';
 import VoiceAssistant from './components/VoiceAssistant';
-import { KioskApp, ProAccessPage } from './routes/pages';
+import { KioskApp, ProAccessPage, SbStoreSignupPage } from './routes/pages';
 
 const SharedTripPage = React.lazy(() => import('./pages/SharedTripPage'));
 import { clientRoutes } from './routes/clientRoutes';
@@ -50,6 +50,9 @@ const AppRouter = () => {
           <Route path="/connexion" element={<ProAccessPage />} />
           <Route path="/espace-pro" element={<ProAccessPage />} />
           <Route path="/apps" element={<ProAccessPage />} />
+          {/* ======= SB Store — inscription self-service commerçant ======= */}
+          <Route path="/sb-store/inscription" element={<SbStoreSignupPage />} />
+          <Route path="/store-signup" element={<SbStoreSignupPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* ======= PUBLIC — Suivi de trajet partagé (sécurité, sans login) ======= */}

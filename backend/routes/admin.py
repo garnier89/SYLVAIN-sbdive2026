@@ -386,6 +386,61 @@ async def admin_reorder_driver_categories(request: Request):
 
 
 
+@router.get("/merchants")
+async def admin_list_merchants(request: Request, status: str = "all"):
+    """Admin merchant list INCLUDING pending applications (the public list hides
+    pending/inactive). Filter by status: all | pending | approved | rejected."""
+    await require_role(request, ["admin"], permission="merchants.activate")
+    query = {}
+    if status == "pending":
+        query["approval_status"] = "pending"
+    elif status == "approved":
+        query["approval_status"] = {"$in": ["approved", None]}
+    elif status == "rejected":
+        query["approval_status"] = "rejected"
+    merchants = await db.merchants.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    # Attach owner email for context.
+    uids = [m.get("user_id") for m in merchants if m.get("user_id")]
+    owners = {u["id"]: u async for u in db.users.find({"id": {"$in": uids}}, {"_id": 0, "id": 1, "email": 1, "name": 1, "phone": 1})}
+    for m in merchants:
+        o = owners.get(m.get("user_id"), {})
+        m["approval_status"] = m.get("approval_status", "approved")
+        m["owner_email"] = o.get("email")
+        m["owner_name"] = o.get("name")
+        m["owner_phone"] = o.get("phone")
+    pending_count = await db.merchants.count_documents({"approval_status": "pending"})
+    return {"merchants": merchants, "pending_count": pending_count}
+
+
+@router.post("/merchants/{merchant_id}/approval")
+async def set_merchant_approval(merchant_id: str, request: Request):
+    """Approve or reject a self-service merchant application.
+    Body: {action: 'approve' | 'reject'}."""
+    await require_role(request, ["admin"], permission="merchants.activate")
+    body = await request.json()
+    action = body.get("action")
+    merchant = await db.merchants.find_one({"id": merchant_id}, {"_id": 0})
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    if action == "approve":
+        update = {"approval_status": "approved", "is_active": True}
+        msg, title, body_txt = "approved", "Boutique validée ✅", "Félicitations ! Votre boutique SB Store est validée et désormais visible des clients."
+    elif action == "reject":
+        update = {"approval_status": "rejected", "is_active": False}
+        msg, title, body_txt = "rejected", "Demande refusée", "Votre demande d'ouverture de boutique SB Store n'a pas été validée. Contactez le support pour plus d'informations."
+    else:
+        raise HTTPException(status_code=400, detail="action doit être 'approve' ou 'reject'")
+    await db.merchants.update_one({"id": merchant_id}, {"$set": update})
+    try:
+        from core.notifications import create_notification
+        if merchant.get("user_id"):
+            await create_notification(merchant["user_id"], "merchant_approval", title, body_txt,
+                                      data={"url": "/merchant"}, push=True)
+    except Exception:
+        pass
+    return {"merchant_id": merchant_id, "approval_status": update["approval_status"]}
+
+
 @router.post("/merchants/{merchant_id}/status")
 async def update_merchant_status(merchant_id: str, request: Request):
     await require_role(request, ["admin"], permission="merchants.activate")

@@ -89,6 +89,20 @@ class MerchantCreate(BaseModel):
     lng: float
     description: Optional[str] = None
 
+class MerchantSignup(BaseModel):
+    # Account
+    name: str
+    email: EmailStr
+    password: str
+    phone: Optional[str] = None
+    # Store
+    store_name: str
+    store_type: str = "restaurant"
+    address: str
+    description: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+
 class ProductCreate(BaseModel):
     name: str
     description: str

@@ -14,16 +14,30 @@ const AdminStores = () => {
   const [filter, setFilter] = useState('');
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [pendingCount, setPendingCount] = useState(0);
 
-  useEffect(() => { loadStores(); }, []);
+  useEffect(() => { loadStores(); }, [statusFilter]);
 
   const loadStores = async () => {
     try {
-      const res = await fetch(`${API}/api/merchants`, { credentials: 'include' });
+      const res = await fetch(`${API}/api/admin/merchants?status=${statusFilter}`, { credentials: 'include' });
       const data = await res.json();
       setStores(Array.isArray(data) ? data : data.merchants || []);
+      if (typeof data.pending_count === 'number') setPendingCount(data.pending_count);
     } catch (err) { console.error('Failed to load stores:', err); }
     finally { setLoading(false); }
+  };
+
+  const setApproval = async (storeId, action) => {
+    try {
+      const res = await fetch(`${API}/api/admin/merchants/${storeId}/approval`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) { toast.success(action === 'approve' ? 'Boutique validée ✅' : 'Demande refusée'); loadStores(); }
+      else toast.error('Échec de l\'action');
+    } catch { toast.error('Erreur réseau'); }
   };
 
   const toggleStatus = async (storeId, currentStatus) => {
@@ -77,9 +91,20 @@ const AdminStores = () => {
         </div>
       </div>
 
-      <div className="relative mb-5 max-w-md">
-        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <Input placeholder="Rechercher par nom ou catégorie..." className="pl-9" value={filter} onChange={e => setFilter(e.target.value)} data-testid="store-search" />
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1" data-testid="store-status-filter">
+          {[{ id: 'all', label: 'Tous' }, { id: 'pending', label: 'En attente' }, { id: 'approved', label: 'Validés' }].map((t) => (
+            <button key={t.id} onClick={() => setStatusFilter(t.id)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${statusFilter === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+              data-testid={`store-filter-${t.id}`}>
+              {t.label}{t.id === 'pending' && pendingCount > 0 ? ` (${pendingCount})` : ''}
+            </button>
+          ))}
+        </div>
+        <div className="relative max-w-md flex-1 min-w-[200px]">
+          <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Input placeholder="Rechercher par nom ou catégorie..." className="pl-9" value={filter} onChange={e => setFilter(e.target.value)} data-testid="store-search" />
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -113,17 +138,32 @@ const AdminStores = () => {
                   </div>
                 </td>
                 <td className="py-3 px-4 text-center">
-                  <Badge className={store.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                    {store.status || 'active'}
-                  </Badge>
+                  {store.approval_status === 'pending'
+                    ? <Badge className="bg-amber-100 text-amber-700">En attente</Badge>
+                    : store.approval_status === 'rejected'
+                      ? <Badge className="bg-red-100 text-red-700">Refusé</Badge>
+                      : <Badge className={store.status === 'suspended' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}>{store.status === 'suspended' ? 'Suspendu' : 'Validé'}</Badge>}
                 </td>
                 <td className="py-3 px-4 text-center whitespace-nowrap">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing({ ...store, cuisine: store.cuisine || '', discount_pct: store.discount_pct || 0, delivery_fee: store.delivery_fee ?? 2.5, eta_min: store.eta_min || 30, image_url: store.image_url || '', flash: store.flash_discount || { enabled: false, pct: 20, start_time: '14:00', end_time: '17:00', days: [] } })} data-testid={`store-edit-${store.id}`}>
-                    <PencilSimple size={16} className="text-blue-500" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => toggleStatus(store.id, store.status || 'active')} data-testid={`store-toggle-${store.id}`}>
-                    {store.status === 'active' ? <XCircle size={16} className="text-red-500" /> : <CheckCircle size={16} className="text-green-500" />}
-                  </Button>
+                  {store.approval_status === 'pending' ? (
+                    <>
+                      <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white h-7 px-2 mr-1" onClick={() => setApproval(store.id, 'approve')} data-testid={`store-approve-${store.id}`}>
+                        <CheckCircle size={14} className="mr-1" /> Valider
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-red-600 h-7 px-2" onClick={() => setApproval(store.id, 'reject')} data-testid={`store-reject-${store.id}`}>
+                        Refuser
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing({ ...store, cuisine: store.cuisine || '', discount_pct: store.discount_pct || 0, delivery_fee: store.delivery_fee ?? 2.5, eta_min: store.eta_min || 30, image_url: store.image_url || '', flash: store.flash_discount || { enabled: false, pct: 20, start_time: '14:00', end_time: '17:00', days: [] } })} data-testid={`store-edit-${store.id}`}>
+                        <PencilSimple size={16} className="text-blue-500" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => toggleStatus(store.id, store.status || 'active')} data-testid={`store-toggle-${store.id}`}>
+                        {store.status === 'suspended' ? <CheckCircle size={16} className="text-green-500" /> : <XCircle size={16} className="text-red-500" />}
+                      </Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

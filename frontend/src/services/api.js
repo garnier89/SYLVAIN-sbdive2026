@@ -107,6 +107,7 @@ export const merchantAPI = {
   searchDelivery: (q) => api.get('/search/delivery', { params: { q } }),
   get: (id) => api.get(`/merchants/${id}`),
   getMine: () => api.get('/merchants/me'),
+  signup: (payload) => api.post('/merchants/signup', payload),
   setAvailability: (payload) => api.post('/merchants/me/availability', payload),
   updateMine: (data) => api.put('/merchants/me', data),
   getStats: () => api.get('/merchants/me/stats'),

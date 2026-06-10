@@ -37,7 +37,7 @@ const LandingPage = () => {
               <a href="#register" className="text-sm text-gray-600 hover:text-[#FF5000] transition-colors font-medium">Inscription</a>
             </div>
             <div className="hidden md:flex items-center gap-3">
-              <button onClick={() => navigate('/login')} className="text-sm font-medium text-gray-700 hover:text-[#FF5000] px-4 py-2" data-testid="nav-login">Connexion</button>
+              <button onClick={() => navigate('/connexion')} className="text-sm font-medium text-gray-700 hover:text-[#FF5000] px-4 py-2" data-testid="nav-login">Connexion</button>
               <button onClick={() => navigate('/login')} className="text-sm font-bold text-white bg-[#FF5000] hover:bg-[#cc4000] px-5 py-2.5 rounded-full transition-colors" data-testid="nav-signup">Reserver</button>
             </div>
             <button className="md:hidden p-2" onClick={() => setMobileMenu(!mobileMenu)} data-testid="mobile-menu-btn">

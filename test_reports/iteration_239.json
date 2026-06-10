@@ -1,0 +1,29 @@
+{
+  "summary": "Full E2E test of SB Store self-service merchant signup + admin approval flow + nav-login wiring. Backend pytest tests/test_merchant_signup.py: 5/5 PASS. Frontend Playwright covers: (1) home nav-login -> /connexion, (2) /connexion 6-card hub + Store card -> /login/email, (3) open-store-signup-btn -> /sb-store/inscription with both steps, (4) submit -> sbstore-signup-success, (5) goto-dashboard-btn -> /merchant with merchant-pending-banner, (6) admin login + AdminStores page with status filter + approve button -> merchant becomes approved + appears in public /api/merchants list, (7) regression login merchant@example.com / Merchant123! still works (no pending banner). 100% of the spec's functional checks pass. One documentation discrepancy: the review request says the admin Manage Stores route is /stores-admin but the actual mounted route is /merchants-admin/stores (panelKey merchants_admin in /app/frontend/src/routes/panelRoutes.jsx line 100-102). Navigation to /stores-admin redirects to /admin (no route match -> dashboard fallback).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_merchant_signup.py",
+    "/app/test_reports/iteration_239.json"
+  ],
+  "action_items": [
+    "Documentation-only: review request mentions admin stores route as /stores-admin, but the real path is /merchants-admin/stores. Either add a /stores-admin alias route pointing to AdminStores (so the path matches the spec & emerging conventions), or update internal docs/links to use /merchants-admin/stores. Not blocking — the page exists, the data-testids work, and the flow is reachable via the merchants_admin panel menu."
+  ],
+  "critical_code_review_comments": [
+    "AdminStores approve/reject buttons use window.confirm() which blocks Playwright unless a dialog handler is registered — works fine but UX-wise a custom confirm modal would be more on-brand. Optional.",
+    "POST /api/merchants/signup correctly returns approval_status='pending', is_active=false at the DB level, hides the merchant from GET /api/merchants, and sets httpOnly auth cookie (auto-login). Verified via 5/5 pytest tests.",
+    "MerchantLayout reads approval_status from /api/auth/me or /api/merchants/me and conditionally renders merchant-pending-banner — verified visible for the new signup and hidden for merchant@example.com (approved).",
+    "Public /api/merchants properly filters approval_status: pending/rejected merchants do not appear; after approve they do."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5 pytest)", "frontend": "100% (7/7 critical flows)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123!  |  Merchant merchant@example.com / Merchant123!  |  Self-signup uses fresh random email each run (cleaned up after).",
+  "seed_data_creation": "One throwaway merchant teststore_933e4q5q@test.com was created during E2E and CLEANED UP afterwards (db.users + db.merchants + db.wallets deleted).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All data-testids requested in the spec exist and resolve: nav-login, pro-app-store, open-store-signup-btn, sbstore-signup-page, signup-name/email/password/phone/next-btn, signup-store-name/store-type (SELECT element)/address/description/submit-btn, sbstore-signup-success, goto-dashboard-btn, merchant-pending-banner, admin-stores, store-status-filter, store-filter-all/pending/approved, store-approve-{id}, store-reject-{id}. IMPORTANT: AdminStores page is at /merchants-admin/stores (NOT /stores-admin as written in the review request). Approve buttons trigger window.confirm — must register page.on('dialog', accept) before clicking."
+}

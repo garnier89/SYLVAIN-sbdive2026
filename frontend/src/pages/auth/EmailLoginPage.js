@@ -107,6 +107,20 @@ const EmailLoginPage = () => {
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
+
+        <div className="mt-6 rounded-2xl bg-[#FF4500]/10 border border-[#FF4500]/20 p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-white text-sm font-semibold">Vous êtes commerçant ?</p>
+            <p className="text-gray-400 text-xs">Ouvrez votre boutique SB Store gratuitement.</p>
+          </div>
+          <button
+            onClick={() => navigate('/sb-store/inscription')}
+            className="shrink-0 px-4 py-2 rounded-full bg-[#FF4500] text-white text-sm font-bold hover:bg-[#e63e00] transition-colors"
+            data-testid="open-store-signup-btn"
+          >
+            S'inscrire
+          </button>
+        </div>
       </div>
     </div>
   );
