@@ -17,6 +17,8 @@ async def compute_coupon_discount(code: str, amount: float, user_id: str = None)
     coupon = await db.coupons.find_one({"code": code, "status": "active"}, {"_id": 0})
     if not coupon:
         return {"valid": False, "discount_amount": 0.0, "reason": "invalid"}
+    if coupon.get("user_id") and coupon["user_id"] != user_id:
+        return {"valid": False, "discount_amount": 0.0, "reason": "invalid"}
     now = datetime.now(timezone.utc)
     if coupon.get("expiry_date"):
         try:
@@ -49,6 +51,8 @@ async def validate_coupon(request: Request):
 
     coupon = await db.coupons.find_one({"code": code, "status": "active"}, {"_id": 0})
     if not coupon:
+        raise HTTPException(status_code=404, detail="Code promo invalide ou expire")
+    if coupon.get("user_id") and coupon["user_id"] != user["id"]:
         raise HTTPException(status_code=404, detail="Code promo invalide ou expire")
 
     # Check expiry
@@ -103,6 +107,8 @@ async def apply_coupon(request: Request):
     coupon = await db.coupons.find_one({"code": code, "status": "active"}, {"_id": 0})
     if not coupon:
         raise HTTPException(status_code=404, detail="Code promo invalide")
+    if coupon.get("user_id") and coupon["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Code promo invalide")
 
     discount_type = coupon.get("discount_type", "Flat")
     discount_value = coupon.get("discount_value", 0)
@@ -133,10 +139,12 @@ async def apply_coupon(request: Request):
 
 @router.get("")
 async def list_active_coupons(request: Request):
-    """List all active coupons (user-visible)."""
-    await get_current_user(request)
+    """List active coupons visible to the user: global ones + their own personal
+    (loyalty-reward) coupons. Other users' targeted coupons stay private."""
+    user = await get_current_user(request)
     coupons = await db.coupons.find(
-        {"status": "active"},
+        {"status": "active",
+         "$or": [{"user_id": {"$exists": False}}, {"user_id": None}, {"user_id": user["id"]}]},
         {"_id": 0, "code": 1, "description": 1, "discount_type": 1, "discount_value": 1, "max_discount": 1, "expiry_date": 1}
     ).to_list(50)
     return coupons

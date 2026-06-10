@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CurrencyEur, TrendUp, Car, Star, CalendarBlank, Clock, MapPin, ArrowRight, Receipt, ArrowLeft } from '@phosphor-icons/react';
+import { CurrencyEur, TrendUp, Car, Star, CalendarBlank, Clock, MapPin, ArrowRight, Receipt, ArrowLeft, QrCode, HandHeart } from '@phosphor-icons/react';
 import { driverAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 const DriverEarningsPage = () => {
   const navigate = useNavigate();
@@ -10,9 +12,14 @@ const DriverEarningsPage = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('today');
+  const [takings, setTakings] = useState(null);
 
   useEffect(() => {
     loadEarnings();
+    fetch(`${API}/api/contactless/driver/today-summary`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setTakings(d); })
+      .catch(() => {});
   }, []);
 
   const loadEarnings = async () => {
@@ -66,6 +73,28 @@ const DriverEarningsPage = () => {
           <div className="flex items-center gap-1.5">
             <Star size={16} weight="fill" className="text-amber-100" />
             <span className="text-amber-100 text-sm">{earnings.rating.toFixed(1)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Today's takings — contactless + tips (real withdrawable money) */}
+      <div className="mx-5 mt-4 rounded-2xl bg-gray-900 border border-indigo-500/30 p-4" data-testid="today-takings-card">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-indigo-300 text-xs uppercase tracking-wide font-semibold">Encaissé aujourd'hui</p>
+          <button onClick={() => navigate('/encaisser')} className="flex items-center gap-1 bg-indigo-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg" data-testid="go-encaisser-btn">
+            <QrCode size={14} weight="fill" /> Encaisser
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gray-800 rounded-xl p-3">
+            <div className="flex items-center gap-1.5 mb-1"><QrCode size={15} className="text-indigo-400" /><span className="text-gray-400 text-xs">Sans contact</span></div>
+            <p className="text-white font-bold text-lg" data-testid="takings-contactless">{(takings?.encaissements?.total || 0).toFixed(2)} €</p>
+            <p className="text-gray-500 text-[11px]">{takings?.encaissements?.count || 0} paiement(s)</p>
+          </div>
+          <div className="bg-gray-800 rounded-xl p-3">
+            <div className="flex items-center gap-1.5 mb-1"><HandHeart size={15} className="text-pink-400" /><span className="text-gray-400 text-xs">Pourboires</span></div>
+            <p className="text-white font-bold text-lg" data-testid="takings-tips">{(takings?.tips?.total || 0).toFixed(2)} €</p>
+            <p className="text-gray-500 text-[11px]">{takings?.tips?.count || 0} reçu(s)</p>
           </div>
         </div>
       </div>

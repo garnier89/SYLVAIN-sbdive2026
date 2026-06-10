@@ -228,6 +228,12 @@ async def _settle_parcel_on_completion(parcel: dict):
                           {"type": "parcel_completed", "parcel_id": pid})
     except Exception:
         pass
+    # Loyalty points (idempotent — settle runs once).
+    try:
+        from routes.loyalty import award_completion_points
+        await award_completion_points(parcel["user_id"], "delivery")
+    except Exception:
+        pass
 
 
 @router.get("/driver/available")

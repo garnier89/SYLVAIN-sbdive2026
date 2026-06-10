@@ -387,6 +387,35 @@ async def pay_status(req_id: str, request: Request, session_id: str):
             "payment_status": status.payment_status if status else "pending", "amount": tx["amount"]}
 
 
+# ═══════════ PAYEE — today's takings (encaissements + tips) ═══════════
+
+@router.get("/driver/today-summary")
+async def driver_today_summary(request: Request):
+    """Today's real-money takings for a payee: contactless encaissements + tips
+    received, both credited to the withdrawable SB Pay wallet."""
+    user = await get_current_user(request)
+    if user.get("role") not in PAYEE_ROLES:
+        raise HTTPException(status_code=403, detail="Réservé aux chauffeurs et marchands")
+    try:
+        from zoneinfo import ZoneInfo
+        now_local = datetime.now(ZoneInfo("Europe/Paris"))
+    except Exception:
+        now_local = datetime.now(timezone.utc)
+    start = now_local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).isoformat()
+
+    out = {"encaissements": {"total": 0.0, "count": 0}, "tips": {"total": 0.0, "count": 0}, "currency": "EUR"}
+    pipeline = [
+        {"$match": {"user_id": user["id"], "created_at": {"$gte": start},
+                    "type": {"$in": ["Encaissement", "Tip"]}, "amount": {"$gt": 0}}},
+        {"$group": {"_id": "$type", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}},
+    ]
+    async for row in db.wallet_transactions.aggregate(pipeline):
+        key = "encaissements" if row["_id"] == "Encaissement" else "tips"
+        out[key] = {"total": round(row.get("total", 0) or 0, 2), "count": int(row.get("count", 0))}
+    out["total"] = round(out["encaissements"]["total"] + out["tips"]["total"], 2)
+    return out
+
+
 # ═══════════ ADMIN — config ═══════════
 
 @router.get("/admin/config")

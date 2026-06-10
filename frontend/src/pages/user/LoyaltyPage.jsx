@@ -1,18 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trophy, Check, Crown } from '@phosphor-icons/react';
+import { ArrowLeft, Trophy, Check, Crown, Gift, Lock } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const LoyaltyPage = () => {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [rewards, setRewards] = useState(null);
+  const [redeeming, setRedeeming] = useState(null);
 
-  useEffect(() => {
+  const loadRewards = useCallback(() => {
+    fetch(`${API}/api/loyalty/rewards`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setRewards(d); }).catch(() => {});
+  }, []);
+
+  const loadMe = useCallback(() => {
     fetch(`${API}/api/loyalty/me`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then(setData).catch(() => {});
   }, []);
+
+  useEffect(() => { loadMe(); loadRewards(); }, [loadMe, loadRewards]);
+
+  const redeem = async (reward) => {
+    setRedeeming(reward.id);
+    try {
+      const r = await fetch(`${API}/api/loyalty/redeem`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reward_id: reward.id }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Échec');
+      if (d.granted?.type === 'wallet_credit') toast.success(`${d.granted.amount.toFixed(2)} € crédités sur votre SB Pay 🎁`);
+      else toast.success(`Code obtenu : ${d.granted?.code} 🎟️`);
+      loadMe(); loadRewards();
+    } catch (e) {
+      toast.error(e.message || 'Échange impossible');
+    } finally { setRedeeming(null); }
+  };
 
   if (!data) return <div className="min-h-screen flex items-center justify-center text-gray-400">Chargement…</div>;
 
@@ -45,6 +74,41 @@ const LoyaltyPage = () => {
       </div>
 
       <div className="p-4 space-y-3">
+        {/* Rewards catalog */}
+        {rewards && rewards.rewards?.length > 0 && (
+          <div data-testid="rewards-catalog">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-bold text-gray-700 flex items-center gap-2"><Gift size={16} weight="fill" className="text-emerald-500" /> Récompenses</h2>
+              <span className="text-xs font-bold text-emerald-600" data-testid="rewards-available">{rewards.available_points} pts disponibles</span>
+            </div>
+            <div className="space-y-2">
+              {rewards.rewards.map((r) => {
+                const locked = !r.tier_ok;
+                const canRedeem = r.affordable && r.tier_ok;
+                return (
+                  <div key={r.id} className="rounded-xl bg-white border border-gray-200 p-3 flex items-center gap-3" data-testid={`reward-${r.id}`}>
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                      {locked ? <Lock size={18} className="text-gray-400" /> : <Gift size={18} weight="duotone" className="text-emerald-600" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-800 truncate">{r.name}</p>
+                      <p className="text-[12px] text-gray-500">{r.cost_points} pts{locked ? ` · dès ${r.min_tier}` : ''}</p>
+                    </div>
+                    <button
+                      onClick={() => redeem(r)}
+                      disabled={!canRedeem || redeeming === r.id}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold shrink-0 ${canRedeem ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400'}`}
+                      data-testid={`redeem-${r.id}`}
+                    >
+                      {redeeming === r.id ? '…' : locked ? 'Verrouillé' : r.affordable ? 'Échanger' : 'Manque pts'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <h2 className="text-sm font-bold text-gray-700 flex items-center gap-2"><Crown size={16} weight="fill" className="text-amber-500" /> Les paliers</h2>
         {tiers.map((t) => {
           const reached = points >= t.min_points;
@@ -83,6 +147,8 @@ const LoyaltyPage = () => {
 
 const labelFor = (r) => ({
   ride_completed: 'Course terminée',
+  order_completed: 'Commande livrée',
+  delivery_completed: 'Livraison terminée',
   first_ride_bonus: 'Bonus 1ère course',
   referral_bonus: 'Bonus parrainage',
 }[r] || r);

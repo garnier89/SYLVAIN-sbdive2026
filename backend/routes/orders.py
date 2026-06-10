@@ -424,6 +424,13 @@ async def update_order_status(order_id: str, request: Request):
         if cb > 0:
             update_data["cashback_earned"] = cb
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    if new_status == "delivered" and not order.get("loyalty_awarded"):
+        await db.orders.update_one({"id": order_id}, {"$set": {"loyalty_awarded": True}})
+        try:
+            from routes.loyalty import award_completion_points
+            await award_completion_points(order["user_id"], "order")
+        except Exception:
+            pass
     await manager.send_personal_message({"type": "order_status", "order_id": order_id, "status": new_status}, order["user_id"])
     return {"message": f"Status updated to {new_status}"}
 
