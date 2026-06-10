@@ -300,6 +300,17 @@ const DriverHome = () => {
     return () => { alive = false; };
   }, [joinRide]);
 
+  // Lock the driver onto the active ride: while a course is in progress, block the
+  // browser/hardware "back" so they can never navigate away from the ride screen.
+  useEffect(() => {
+    if (!currentRide) return undefined;
+    window.history.pushState(null, '', window.location.href);
+    const onPop = () => { window.history.pushState(null, '', window.location.href); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [currentRide]);
+
+
   useEffect(() => {
     if (!(isOnline && !currentRide)) return undefined;
     const loadPending = async () => {
@@ -669,7 +680,6 @@ const DriverHome = () => {
             <RentalDriverFlow
               ride={currentRide}
               onFinished={finishRide}
-              onMinimize={() => setRideMinimized(true)}
             />
           ) : (
             <DriverRideFlow
@@ -677,7 +687,6 @@ const DriverHome = () => {
               driverPos={mapCenter}
               askOtp={appSettings.ask_otp_before_start !== false}
               onFinished={finishRide}
-              onMinimize={() => setRideMinimized(true)}
             />
           )
         )}

@@ -81,27 +81,64 @@ async def add_vehicle(request: Request):
     for k in required:
         if not body.get(k):
             raise HTTPException(status_code=400, detail=f"{k} required")
-    # ensure plate uniqueness for this driver
-    exists = await db.driver_vehicles.find_one(
-        {"driver_id": user["id"], "plate": body["plate"]}, {"_id": 0, "id": 1}
+    plate = body["plate"].upper().replace(" ", "")
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Same driver can't register the same plate twice.
+    if await db.driver_vehicles.find_one({"driver_id": user["id"], "plate": plate}, {"_id": 0, "id": 1}):
+        raise HTTPException(status_code=400, detail="Vous avez déjà enregistré ce véhicule")
+
+    # GLOBAL uniqueness: a plate that is currently ACTIVE on another account blocks
+    # registration — unless the driver proves ownership (vehicle sold) with a chassis
+    # (VIN) photo, which triggers an automatic ownership transfer.
+    other_active = await db.driver_vehicles.find_one(
+        {"plate": plate, "is_active": True, "driver_id": {"$ne": user["id"]}}, {"_id": 0, "id": 1}
     )
-    if exists:
-        raise HTTPException(status_code=400, detail="Plate already registered")
+    chassis = body.get("chassis_photo")
+    if chassis and isinstance(chassis, str) and len(chassis) > 11_000_000:
+        raise HTTPException(status_code=413, detail="Photo du châssis trop volumineuse (max 8 Mo)")
+    if other_active and not chassis:
+        raise HTTPException(
+            status_code=409,
+            detail="Cette plaque est déjà connectée sur un autre compte. Si ce véhicule vous a été vendu, ajoutez une photo du châssis (numéro VIN) pour en réclamer la propriété.",
+        )
+
     is_first = await db.driver_vehicles.count_documents({"driver_id": user["id"]}) == 0
+    is_active = bool(body.get("is_active", is_first))
+    is_primary = bool(body.get("is_primary", is_first))
     doc = {
         "id": str(uuid.uuid4()),
         "driver_id": user["id"],
         "brand": body["brand"],
         "model": body["model"],
-        "plate": body["plate"].upper(),
+        "plate": plate,
         "year": int(body["year"]),
         "color": body["color"],
         "vehicle_type": body["vehicle_type"],
-        "is_active": bool(body.get("is_active", is_first)),
-        "is_primary": bool(body.get("is_primary", is_first)),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "is_active": is_active,
+        "is_primary": is_primary,
+        "created_at": now,
     }
+
+    # Ownership transfer (vehicle sold): the claimer becomes the owner, the previous
+    # active vehicle(s) with this plate are deactivated automatically.
+    if other_active and chassis:
+        doc.update({"is_active": True, "is_primary": True, "chassis_photo": chassis, "transfer_claimed_at": now})
+        await db.driver_vehicles.update_many(
+            {"plate": plate, "driver_id": {"$ne": user["id"]}},
+            {"$set": {"is_active": False, "is_primary": False, "transferred_out_at": now}},
+        )
+        # demote this driver's other primaries
+        await db.driver_vehicles.update_many({"driver_id": user["id"]}, {"$set": {"is_primary": False}})
+
     await db.driver_vehicles.insert_one(doc)
+    # If this vehicle is the active/primary one, mirror it to the driver record.
+    if doc["is_primary"]:
+        await db.drivers.update_one(
+            {"user_id": user["id"]},
+            {"$set": {"vehicle_brand": doc["brand"], "vehicle_model": doc["model"],
+                      "vehicle_plate": doc["plate"], "vehicle_type": doc["vehicle_type"]}},
+        )
     doc.pop("_id", None)
     return doc
 
@@ -138,6 +175,12 @@ async def set_primary_vehicle(vid: str, request: Request):
     )
     if not target:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+    # Can't activate a plate that is currently active on another account.
+    conflict = await db.driver_vehicles.find_one(
+        {"plate": target["plate"], "is_active": True, "driver_id": {"$ne": user["id"]}}, {"_id": 0, "id": 1}
+    )
+    if conflict:
+        raise HTTPException(status_code=409, detail="Cette plaque est déjà active sur un autre compte.")
     await db.driver_vehicles.update_many(
         {"driver_id": user["id"]}, {"$set": {"is_primary": False}}
     )
