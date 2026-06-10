@@ -1,8 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { HandCoins, IdentificationCard, Star, CheckCircle, XCircle, Money, ShieldCheck, PaperPlaneTilt, ArrowsClockwise, Warning, ClipboardText } from '@phosphor-icons/react';
+import { HandCoins, IdentificationCard, Star, CheckCircle, XCircle, Money, ShieldCheck, PaperPlaneTilt, ArrowsClockwise, Warning, ClipboardText, DownloadSimple } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+// Authenticated CSV download (cookie sent via credentials) → blob → save.
+const downloadCsv = async (url, filename) => {
+  try {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error("Échec de l'export");
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+    toast.success('Export CSV téléchargé');
+  } catch (e) { toast.error(e.message); }
+};
 
 const AI_BADGE = {
   match: 'bg-emerald-100 text-emerald-700',
@@ -38,10 +53,18 @@ const AuditTab = () => {
   if (items === null) return <p className="text-gray-400 text-sm">Chargement…</p>;
   return (
     <div data-testid="audit-tab">
-      <p className="text-sm text-gray-500 mb-4 flex items-center gap-2">
-        <ClipboardText size={16} className="text-indigo-500" />
-        Traçabilité des versements <b>forcés</b> malgré un avertissement de vérification du bénéficiaire (conformité).
-      </p>
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+        <p className="text-sm text-gray-500 flex items-center gap-2">
+          <ClipboardText size={16} className="text-indigo-500" />
+          Traçabilité des versements <b>forcés</b> malgré un avertissement de vérification du bénéficiaire (conformité).
+        </p>
+        {items.length > 0 && (
+          <button onClick={() => downloadCsv(`${API}/api/payouts/admin/payout-audit/export`, 'audit_versements_forces.csv')}
+            className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-bold flex items-center gap-1 shrink-0" data-testid="audit-export-btn">
+            <DownloadSimple size={14} /> Exporter CSV
+          </button>
+        )}
+      </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-400" data-testid="audit-empty">
           Aucun versement forcé enregistré.
@@ -216,13 +239,17 @@ const WithdrawalsTab = () => {
         </div>
       )}
 
-      <div className="flex gap-2 mb-4 flex-wrap">
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
         {['pending', 'approved', 'processing', 'paid', 'rejected'].map((s) => (
           <button key={s} onClick={() => setStatus(s)} data-testid={`wd-filter-${s}`}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold ${status === s ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
             {({ pending: 'En attente', approved: 'Approuvés', processing: 'En cours', paid: 'Versés', rejected: 'Refusés' })[s]} ({data.counts?.[s] ?? 0})
           </button>
         ))}
+        <button onClick={() => downloadCsv(`${API}/api/payouts/admin/withdrawals/export?status=${status}`, `versements_${status}.csv`)}
+          className="ml-auto px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 text-xs font-bold flex items-center gap-1" data-testid="withdrawals-export-btn">
+          <DownloadSimple size={14} /> Exporter CSV
+        </button>
       </div>
       {loading ? <p className="text-gray-400">Chargement…</p> : data.items.length === 0 ? (
         <p className="text-gray-400 text-sm py-8 text-center" data-testid="wd-empty">Aucune demande.</p>

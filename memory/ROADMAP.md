@@ -164,7 +164,8 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 
   - **Pré-vérification du bénéficiaire** (sécurité avant argent réel) : bouton admin « Vérifier le bénéficiaire » → `POST /api/payouts/admin/withdrawals/{id}/verify-recipient`. Wave `POST /v1/verify_recipient/` (renvoie `name_match` MATCH/NO_MATCH/NAME_NOT_KNOWN + `within_limits` — Wave ne divulgue pas le nom) ; MTN `accountholder/.../active`. Sandbox simulé. Verdict ok/warning/info affiché en ligne dans `AdminPayouts`.
   - **Garde-fou actif (auto-vérification avant envoi)** : `preflight_verify()` — en **mode live**, chaque envoi lance d'abord la vérification ; si `NO_MATCH`/hors-limites/vérif impossible → **envoi BLOQUÉ** (réponse `blocked`), l'admin doit **forcer explicitement** (`force=true`, confirmation UI). Sandbox et force contournent.
-  - **Trace d'audit (conformité)** : chaque versement **forcé** est enregistré dans `payout_audit_log` (admin, horodatage, verdict contourné, montant EUR/XOF, prestataire, résultat). Consultable via `GET /api/payouts/admin/payout-audit` + onglet « Audit versements forcés » dans `AdminPayouts`. Tests : `test_mobile_money_payout.py` (17/17).
+  - **Trace d'audit (conformité)** : chaque versement **forcé** est enregistré dans `payout_audit_log` (admin, horodatage, verdict contourné, montant EUR/XOF, prestataire, résultat). Consultable via `GET /api/payouts/admin/payout-audit` + onglet « Audit versements forcés » dans `AdminPayouts`.
+  - **Export CSV** : `GET /api/payouts/admin/payout-audit/export` (journal d'audit) et `GET /api/payouts/admin/withdrawals/export?status=` (versements) → CSV téléchargeable. Boutons « Exporter CSV » sur les onglets audit + retraits. Tests : `test_mobile_money_payout.py` (18/18).
 - ⏳ Reste : versements RIB SEPA réels (Stripe Payouts) — optionnel.
 
 ### Pourboire (Pourboire) — mouvement d'argent réel · ✅ LIVRÉ (2026-06-10, testé pytest 4/4)

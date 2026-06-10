@@ -12,6 +12,9 @@ Admin withdrawal flow: review request with the driver/merchant SCORE, optionally
 REDUCE the amount (refunds the difference), then approve / reject / mark-paid.
 """
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import Response
+import csv
+import io
 from datetime import datetime, timezone
 import uuid
 
@@ -535,6 +538,61 @@ async def admin_payout_audit(request: Request):
     await require_role(request, ["admin"], permission=_PM_PERM)
     items = await db.payout_audit_log.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
     return {"items": items, "count": len(items)}
+
+
+def _csv_response(rows: list, columns: list, filename: str) -> Response:
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for r in rows:
+        writer.writerow({c: r.get(c, "") for c in columns})
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/admin/payout-audit/export")
+async def admin_payout_audit_export(request: Request):
+    """CSV export of the forced-payout audit trail (accounting / compliance)."""
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    rows = await db.payout_audit_log.find({}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+    cols = ["created_at", "admin_email", "beneficiary_name", "user_id", "provider",
+            "mobile_number", "amount_eur", "amount_xof", "mode", "overridden_verdict",
+            "verification_message", "result_status", "provider_ref", "withdrawal_id"]
+    return _csv_response(rows, cols, "audit_versements_forces.csv")
+
+
+@router.get("/admin/withdrawals/export")
+async def admin_withdrawals_export(request: Request, status: str = None):
+    """CSV export of withdrawal requests (optionally filtered by status)."""
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    query = {} if not status or status == "all" else {"status": status}
+    reqs = await db.admin_withdraw_requests.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
+    # Enrich with beneficiary name + payout method for the export.
+    rows = []
+    for r in reqs:
+        user = await db.users.find_one({"id": r.get("user_id")}, {"_id": 0, "name": 1, "email": 1})
+        method = await db.payout_methods.find_one({"user_id": r.get("user_id")}, {"_id": 0, "type": 1, "provider": 1})
+        rows.append({
+            "created_at": r.get("created_at"),
+            "withdrawal_id": r.get("id"),
+            "beneficiary": (user or {}).get("name") or (user or {}).get("email"),
+            "user_id": r.get("user_id"),
+            "amount_eur": r.get("net_amount", r.get("final_amount", r.get("amount"))),
+            "status": r.get("status"),
+            "method_type": (method or {}).get("type"),
+            "provider": r.get("payout_provider") or (method or {}).get("provider"),
+            "payout_mode": r.get("payout_mode"),
+            "amount_xof": r.get("payout_amount_xof"),
+            "provider_ref": r.get("provider_ref"),
+            "paid_at": r.get("paid_at"),
+            "paid_by": r.get("paid_by"),
+        })
+    cols = ["created_at", "withdrawal_id", "beneficiary", "user_id", "amount_eur", "status",
+            "method_type", "provider", "payout_mode", "amount_xof", "provider_ref", "paid_at", "paid_by"]
+    return _csv_response(rows, cols, f"versements_{status or 'tous'}.csv")
 
 
 @router.get("/admin/payout-config")

@@ -307,3 +307,23 @@ def test_forced_send_writes_audit_log():
         db.payout_audit_log.delete_many({"withdrawal_id": req_id})
         cli.close()
 
+
+
+
+def test_csv_exports_return_csv():
+    """Audit + withdrawals CSV exports return downloadable CSV with headers."""
+    from _creds import ADMIN_EMAIL, ADMIN_PASSWORD
+    tok = requests.post(f"{API}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15).json()
+    token = tok.get("access_token") or tok.get("token")
+    h = {"Authorization": f"Bearer {token}"}
+
+    r1 = requests.get(f"{API}/api/payouts/admin/payout-audit/export", headers=h, timeout=20)
+    assert r1.status_code == 200, r1.text
+    assert "text/csv" in r1.headers.get("content-type", "")
+    assert "attachment" in r1.headers.get("content-disposition", "")
+    assert "admin_email" in r1.text.splitlines()[0]  # header row
+
+    r2 = requests.get(f"{API}/api/payouts/admin/withdrawals/export?status=paid", headers=h, timeout=20)
+    assert r2.status_code == 200, r2.text
+    assert "text/csv" in r2.headers.get("content-type", "")
+    assert "beneficiary" in r2.text.splitlines()[0]
