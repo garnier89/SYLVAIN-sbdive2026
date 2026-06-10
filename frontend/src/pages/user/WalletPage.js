@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { walletAPI, couponAPI } from '../../services/api';
 import {
   Wallet as WalletIcon, Plus, ArrowLeft,
-  ArrowUp, ArrowDown, Gift, Tag, Coins, PaperPlaneTilt, X, ShieldCheck, Bank
+  ArrowUp, ArrowDown, Gift, Tag, Coins, PaperPlaneTilt, X, ShieldCheck, Bank, QrCode
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -225,6 +225,24 @@ const WalletPage = () => {
             <Bank size={18} weight="fill" /> Retirer vers mon compte
           </button>
         )}
+
+        {/* Phase D — Contactless payments */}
+        {wallet.can_withdraw && (
+          <button
+            onClick={() => navigate('/encaisser')}
+            className="w-full h-12 rounded-2xl bg-indigo-600 text-white font-bold flex items-center justify-center gap-2"
+            data-testid="receive-payment-btn"
+          >
+            <QrCode size={18} weight="fill" /> Encaisser un paiement (QR)
+          </button>
+        )}
+        <button
+          onClick={() => navigate('/pay')}
+          className="w-full h-12 rounded-2xl bg-white border border-gray-200 text-gray-800 font-bold flex items-center justify-center gap-2"
+          data-testid="scan-pay-btn"
+        >
+          <QrCode size={18} weight="duotone" className="text-indigo-600" /> Payer / Scanner un QR
+        </button>
 
         {/* Linked accounts */}
         <button

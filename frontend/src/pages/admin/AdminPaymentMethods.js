@@ -20,6 +20,7 @@ const AdminPaymentMethods = () => {
   const [cashback, setCashback] = useState(null);
   const [reserve, setReserve] = useState(null);
   const [sla, setSla] = useState(null);
+  const [contactless, setContactless] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
 
@@ -36,6 +37,8 @@ const AdminPaymentMethods = () => {
       if (rv.ok) setReserve(await rv.json());
       const sl = await fetch(`${API}/api/payouts/admin/sla-config`, { credentials: 'include' });
       if (sl.ok) setSla(await sl.json());
+      const cl = await fetch(`${API}/api/contactless/admin/config`, { credentials: 'include' });
+      if (cl.ok) setContactless(await cl.json());
     } catch (e) {
       console.error(e);
       toast.error('Erreur de chargement');
@@ -71,6 +74,22 @@ const AdminPaymentMethods = () => {
       if (!res.ok) throw new Error('save failed');
       setReserve(await res.json());
       toast.success('Réserve mise à jour');
+    } catch (e) {
+      toast.error('Échec de la sauvegarde');
+    } finally { setSavingId(null); }
+  };
+
+  const saveContactless = async (patch) => {
+    setSavingId('contactless');
+    try {
+      const res = await fetch(`${API}/api/contactless/admin/config`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setContactless(await res.json());
+      toast.success('Paiement sans contact mis à jour');
     } catch (e) {
       toast.error('Échec de la sauvegarde');
     } finally { setSavingId(null); }
@@ -348,6 +367,52 @@ const AdminPaymentMethods = () => {
               <input type="number" min="0" step="0.5" defaultValue={sla.express?.fee}
                 onBlur={(e) => Number(e.target.value) !== sla.express?.fee && saveSla({ express: { fee: Number(e.target.value) } })}
                 className="w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm" data-testid="sla-express-fee-input" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Paiement sans contact (Phase D) */}
+      {contactless && (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-5" data-testid="contactless-config-card">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal size={20} weight="duotone" className="text-violet-600" />
+              <h2 className="text-base font-bold text-gray-900">Paiement sans contact (QR / code)</h2>
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={!!contactless.enabled}
+                onChange={(e) => saveContactless({ enabled: e.target.checked })}
+                disabled={savingId === 'contactless'}
+                data-testid="contactless-enabled-toggle" />
+              Activé
+            </label>
+          </div>
+          <p className="text-xs text-gray-600 mb-4">Le chauffeur/marchand génère un QR + code 6 chiffres ; le client paie via SB Pay ou carte. La commission est prélevée sur le montant ; le net est crédité au bénéficiaire.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Commission (%)</label>
+              <input type="number" min="0" max="90" step="0.5" defaultValue={contactless.commission_percent}
+                onBlur={(e) => Number(e.target.value) !== contactless.commission_percent && saveContactless({ commission_percent: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" data-testid="contactless-commission-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Expiration (min)</label>
+              <input type="number" min="1" step="1" defaultValue={contactless.expiry_minutes}
+                onBlur={(e) => Number(e.target.value) !== contactless.expiry_minutes && saveContactless({ expiry_minutes: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" data-testid="contactless-expiry-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Montant max (€)</label>
+              <input type="number" min="1" step="1" defaultValue={contactless.max_amount}
+                onBlur={(e) => Number(e.target.value) !== contactless.max_amount && saveContactless({ max_amount: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" data-testid="contactless-max-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Min carte (€)</label>
+              <input type="number" min="0" step="0.5" defaultValue={contactless.min_card}
+                onBlur={(e) => Number(e.target.value) !== contactless.min_card && saveContactless({ min_card: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm" data-testid="contactless-mincard-input" />
             </div>
           </div>
         </div>

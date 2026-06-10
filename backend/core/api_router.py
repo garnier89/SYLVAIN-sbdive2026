@@ -73,6 +73,7 @@ from routes.uploads import router as uploads_router
 from routes.dispatch_admin import router as dispatch_admin_router
 from routes.push_web import router as push_web_router, admin_router as push_admin_router
 from routes.payouts import router as payouts_router
+from routes.contactless import router as contactless_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -95,6 +96,7 @@ _ROUTERS = [
     dispatch_admin_router,
     push_web_router, push_admin_router,
     payouts_router,
+    contactless_router,
 ]
 
 
