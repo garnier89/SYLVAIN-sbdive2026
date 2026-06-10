@@ -1,19 +1,63 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  UserCircle, FileText, X, VideoCamera, Phone, Siren, Microphone, ShareNetwork,
+  UserCircle, FileText, X, VideoCamera, Phone, Siren, Microphone, ShareNetwork, HandCoins,
 } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 import { useLocale } from '../../contexts/LocaleContext';
 
 /** V3Cube driver ride sub-sheets, extracted from DriverRideFlow for readability. */
 
-export const RideFlowMenu = ({ onClose, onPassengerDetails, onWaybill, onCancel }) => {
+export const RideFlowMenu = ({ onClose, onPassengerDetails, onWaybill, onCancel, onRefundClient }) => {
   const { t } = useLocale();
   return (
     <div className="fixed inset-0 z-[2600] bg-black/40 flex items-start justify-end p-3 pt-14" onClick={onClose} data-testid="ride-flow-menu">
       <div className="bg-white rounded-2xl w-60 overflow-hidden shadow-xl" onClick={(e) => e.stopPropagation()}>
         <button onClick={onPassengerDetails} className="w-full text-left px-4 py-3.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 flex items-center gap-3" data-testid="menu-passenger-details"><UserCircle size={20} /> {t('driver.passenger_details')}</button>
         <button onClick={onWaybill} className="w-full text-left px-4 py-3.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100" data-testid="menu-waybill"><FileText size={20} /> {t('driver.waybill')}</button>
+        <button onClick={onRefundClient} className="w-full text-left px-4 py-3.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100" data-testid="menu-refund-client"><HandCoins size={20} className="text-emerald-600" /> Rembourser le client</button>
         <button onClick={onCancel} className="w-full text-left px-4 py-3.5 text-sm font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3 border-t border-gray-100" data-testid="menu-cancel-trip"><X size={20} /> {t('driver.cancel_trip')}</button>
+      </div>
+    </div>
+  );
+};
+
+export const RefundClientModal = ({ rideId, passengerName, onClose, onDone }) => {
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const num = parseFloat(amount) || 0;
+  const submit = async () => {
+    if (num <= 0) return;
+    setLoading(true);
+    try {
+      const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/rides/${rideId}/refund-client`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: num }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(typeof d.detail === 'string' ? d.detail : 'Remboursement impossible'); setLoading(false); return; }
+      toast.success(`${num.toFixed(2)} € remboursés au client`);
+      onDone?.();
+    } catch { toast.error('Erreur réseau'); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[2700] bg-black/60 flex items-end sm:items-center justify-center p-4" data-testid="refund-client-modal">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-extrabold text-gray-900 flex items-center gap-2"><HandCoins size={20} className="text-emerald-600" weight="duotone" /> Rembourser le client</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="refund-client-close"><X size={14} /></button>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Rembourse {passengerName ? <b>{passengerName}</b> : 'le client'} depuis votre portefeuille (utile s'il a payé en
+          espèces et que vous n'avez pas la monnaie). Le montant est crédité immédiatement. Votre réserve non-retirable est préservée.
+        </p>
+        <label className="text-xs font-semibold text-gray-700 mb-1 block">Montant (€)</label>
+        <input type="number" min="0.5" step="0.5" value={amount} onChange={(e) => setAmount(e.target.value)}
+          placeholder="0.00" autoFocus className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm mb-4" data-testid="refund-client-amount-input" />
+        <button onClick={submit} disabled={loading || num <= 0}
+          className="w-full h-12 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-60" data-testid="refund-client-confirm-btn">
+          {loading ? 'Remboursement…' : `Rembourser ${num.toFixed(2)} €`}
+        </button>
       </div>
     </div>
   );

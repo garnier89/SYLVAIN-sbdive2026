@@ -1,3 +1,14 @@
+## NEW - 2026-06-10 (244) - Courses espèces conditionnées au solde + Remboursement client par le chauffeur (DONE, testé 5/5)
+- **Filtrage courses espèces (cash-gating)** : un chauffeur ne reçoit/voit les courses payées en **espèces** que si son solde portefeuille ≥ **CASH_RIDE_MIN_BALANCE** (défaut **1 €**, override via env `CASH_RIDE_MIN_BALANCE`). Implémenté côté serveur (source de vérité) :
+  - `core/websocket.py::broadcast_to_drivers(message, exclude=...)` (nouveau param d'exclusion).
+  - `routes/rides.py` : helpers `_driver_meets_cash_minimum`, `_cash_exclude_set` ; exclusion appliquée au **broadcast WS** de création (`new_ride_request`), au **web push** (`_push_new_ride_to_drivers`), au **feed** `GET /rides` (filtre AVANT le strip anti-cherry-pick), et **garde-fou dur** dans `POST /rides/{id}/accept` (403 si cash + solde < min).
+  - But métier : la recharge donne une marge de travail au chauffeur ; toutes les courses sont CB/portefeuille, le cash exige ≥ 1 €.
+- **Remboursement client par le chauffeur** : `POST /api/rides/{ride_id}/refund-client` (chauffeur propriétaire de la course) → débite le portefeuille chauffeur **en respectant la réserve non-retirable** (`available = balance - floor - pending`), crédite le **client de la course** instantanément, transactions liées (`ride_refund_out`/`ride_refund_in`, `ride_id`), notif + reçus email aux 2 parties. Immédiat, sans validation. Cas d'usage : paiement espèces sans monnaie.
+  - **Frontend** : item « **Rembourser le client** » dans le menu 3-points du flux course (`RideFlowSheets.jsx` → `RefundClientModal`, branché dans `DriverRideFlow.jsx`).
+- **Vérifié** : pytest `tests/test_iter244_cash_gating_refund.py` 2/2 (feed cache cash si solde bas + accept 403 ; refund respecte réserve, crédite client, rejette négatif/excès) + suite 242/243/244 = **5/5**. Frontend compile.
+- ⚠️ Reste : B (audit menu latéral chauffeur), C (upload documents), détection plaque (clé API SIV), push natif écran verrouillé (Expo). PREVIEW → redéploiement prod.
+
+
 ## NEW - 2026-06-10 (243b) - Emails automatiques de retrait (demande reçue / versement effectué / refusé) (DONE, testé)
 - **Nouveau template** `core/email.py::send_withdrawal_update(to,name,status,amount,ref,eta_hours,reason,wallet_url,method)` — 3 états : `requested` (jaune), `paid` (vert), `rejected` (rouge, montant recrédité).
 - **Hooks** : `misc.py::submit_withdraw_request` → email « demande reçue » (à la soumission) ; `payouts.py` helper `_fire_withdrawal_paid_email` appelé sur **mark-paid**, **send** (MoMo paid) et **refresh-status** (paid) → « versement effectué » ; **reject** → email « refusé » + motif. (L'email « approuvé » existait déjà via `send_wallet_receipt` kind=withdraw.)

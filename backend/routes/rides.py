@@ -14,6 +14,37 @@ from core.zone_alerts import maybe_create_zone_alert
 # Bidirectional bidding: driver counter-offers expire after this many seconds
 OFFER_TTL_SECONDS = 30
 
+# Cash rides are only offered to drivers whose wallet balance is at least this
+# amount (so they can refund change / cover platform fees). Drivers below it
+# simply never receive cash-payment ride requests. Override via env if needed.
+CASH_RIDE_MIN_BALANCE = float(os.environ.get("CASH_RIDE_MIN_BALANCE", "1.0"))
+
+
+async def _driver_meets_cash_minimum(user_id: str) -> bool:
+    """True if the driver's wallet balance is >= the cash-ride minimum."""
+    from core.config import db as _db
+    w = await _db.wallets.find_one({"user_id": user_id}, {"_id": 0, "balance": 1})
+    return bool(w) and float(w.get("balance", 0) or 0) >= CASH_RIDE_MIN_BALANCE
+
+
+async def _cash_exclude_set(ride: dict):
+    """For a CASH ride, return the set of connected driver user-ids to EXCLUDE
+    from the broadcast (those below the minimum balance). None for non-cash."""
+    if (ride.get("payment_method") or "").strip().lower() != "cash":
+        return None
+    from core.websocket import manager as _mgr
+    from core.config import db as _db
+    connected = list(getattr(_mgr, "driver_clients", set()))
+    if not connected:
+        return None
+    eligible = await _db.wallets.find(
+        {"user_id": {"$in": connected}, "balance": {"$gte": CASH_RIDE_MIN_BALANCE}},
+        {"_id": 0, "user_id": 1},
+    ).to_list(5000)
+    eligible_ids = {w["user_id"] for w in eligible}
+    return set(connected) - eligible_ids
+
+
 # Taxi Pool — V3Cube model (Vehicle Type → Pool config):
 #   1st seat = full fare F (no discount). Each additional seat = Pool Percentage % of F.
 #   total(n) = F * (1 + (n-1) * pool_percentage/100). e.g. P=90 → 2 seats = F*1.9.
@@ -728,7 +759,7 @@ async def create_ride(data: RideRequest, request: Request):
             "is_bidding": is_bidding,
             "pool_enabled": ride["pool_enabled"],
             "seats_required": ride["seats_required"],
-        })
+        }, exclude=await _cash_exclude_set(ride))
 
     # Also broadcast to admins watching the live-rides cockpit
     await manager.broadcast_to_admins({
@@ -783,9 +814,13 @@ async def _push_new_ride_to_drivers(ride: dict, instant: bool = True):
                    "type": typ, "data": {"ride_id": ride["id"]}}
         cursor = db.drivers.find({"status": "approved", "is_online": True},
                                  {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1})
+        is_cash_ride = (ride.get("payment_method") or "").strip().lower() == "cash"
         async for d in cursor:
             uid = d.get("user_id")
             if not uid:
+                continue
+            # Cash rides are not pushed to drivers below the minimum balance.
+            if is_cash_ride and not await _driver_meets_cash_minimum(uid):
                 continue
             if instant:
                 loc = manager.get_driver_location(uid) or {}
@@ -1252,6 +1287,15 @@ async def accept_ride(ride_id: str, request: Request):
     ride = await db.rides.find_one({"id": ride_id, "status": "pending"})
     if not ride:
         raise HTTPException(status_code=404, detail="Ride not found or already taken")
+
+    # Cash rides require a minimum wallet balance (the driver may need to refund
+    # change and must cover platform fees). Below it, they cannot take cash rides.
+    if (ride.get("payment_method") or "").strip().lower() == "cash":
+        if not await _driver_meets_cash_minimum(user["id"]):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Solde insuffisant pour une course en espèces. Rechargez votre portefeuille (minimum {CASH_RIDE_MIN_BALANCE:.0f} €) pour recevoir et accepter les courses payées en espèces.",
+            )
 
     # ── Driver sub-category gating: VTC/Taxi gammes are reserved ──
     vtype_doc = await db.vehicle_types.find_one(
@@ -1899,6 +1943,90 @@ async def cancel_ride(ride_id: str, request: Request):
     }
 
 
+@router.post("/{ride_id}/refund-client")
+async def refund_client_from_driver(ride_id: str, request: Request):
+    """A driver refunds/pays the ride's client from their OWN wallet (e.g. paid in
+    cash but no change). Debits the driver while respecting the non-withdrawable
+    reserve, credits the client instantly. Linked to the ride. No admin validation."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not driver:
+        raise HTTPException(status_code=403, detail="Not a driver")
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Course introuvable")
+    if ride.get("driver_id") != driver["id"]:
+        raise HTTPException(status_code=403, detail="Cette course ne vous appartient pas")
+    client_id = ride.get("user_id")
+    if not client_id:
+        raise HTTPException(status_code=400, detail="Client introuvable pour cette course")
+    body = await request.json()
+    try:
+        amount = round(float(body.get("amount", 0)), 2)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Montant invalide")
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Le montant doit être positif")
+
+    from core.wallet_reserve import ensure_reserve_credited
+    floor = await ensure_reserve_credited(user)
+    wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+    balance = float(wallet.get("balance", 0) or 0)
+    pending = float(wallet.get("pending_withdraw", 0) or 0)
+    available = round(balance - floor - pending, 2)
+    if amount > available:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Montant max remboursable {max(0.0, available):.2f} € (réserve de {floor:.0f} € non utilisable).",
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    new_driver_balance = round(balance - amount, 2)
+    await db.wallets.update_one({"user_id": user["id"]}, {"$set": {"balance": new_driver_balance}})
+    cw = await db.wallets.find_one({"user_id": client_id}, {"_id": 0})
+    if not cw:
+        await db.wallets.insert_one({"user_id": client_id, "balance": 0.0, "currency": "EUR", "created_at": now})
+        cw = {"balance": 0.0}
+    new_client_balance = round(float(cw.get("balance", 0) or 0) + amount, 2)
+    await db.wallets.update_one({"user_id": client_id}, {"$set": {"balance": new_client_balance}})
+
+    booking = ride.get("booking_no") or ride_id
+    for tx in (
+        {"user_id": user["id"], "type": "ride_refund_out", "amount": -amount, "balance_after": new_driver_balance,
+         "description": f"Remboursement client — course {booking}"},
+        {"user_id": client_id, "type": "ride_refund_in", "amount": amount, "balance_after": new_client_balance,
+         "description": f"Remboursement chauffeur — course {booking}"},
+    ):
+        await db.wallet_transactions.insert_one({**tx, "id": f"tx_{uuid.uuid4().hex[:12]}", "ride_id": ride_id,
+                                                 "status": "completed", "created_at": now})
+
+    try:
+        from core.notifications import create_notification
+        await create_notification(client_id, "ride_refund", "Remboursement reçu 💶",
+                                  f"Votre chauffeur vous a remboursé {amount:.2f} € pour la course {booking}.",
+                                  data={"url": "/wallet", "amount": amount})
+    except Exception:
+        pass
+    try:
+        from core.email import fire, send_wallet_receipt
+        from core.billing import next_number
+        frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        ref = await next_number("SB-R")
+        client = await db.users.find_one({"id": client_id}, {"_id": 0, "email": 1, "name": 1})
+        if client and client.get("email"):
+            fire(send_wallet_receipt(client["email"], client.get("name", ""), kind="transfer_in", amount=amount,
+                                     balance_after=new_client_balance, ref=ref, wallet_url=f"{frontend}/wallet",
+                                     counterparty=user.get("name", "Chauffeur")))
+        if user.get("email"):
+            fire(send_wallet_receipt(user["email"], user.get("name", ""), kind="transfer_out", amount=amount,
+                                     balance_after=new_driver_balance, ref=ref, wallet_url=f"{frontend}/wallet",
+                                     counterparty=(client or {}).get("name", "Client")))
+    except Exception:
+        pass
+
+    return {"ok": True, "amount": amount, "driver_balance": new_driver_balance, "client_balance": new_client_balance}
+
+
 @router.get("")
 async def list_rides(request: Request, status: Optional[str] = None, limit: int = 20):
     user = await get_current_user(request)
@@ -1939,6 +2067,15 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
                 if r.get("status") != "pending"
                 or r.get("driver_id") == driver_doc_id
                 or driver_sub_allowed(driver_sub, restricted.get(r.get("vehicle_type")))
+            ]
+        # Cash-ride gating: a driver below the minimum balance never sees pending
+        # cash rides (consistent with the WS/push filtering). Done BEFORE the
+        # anti-cherry-pick strip below, while payment_method is still present.
+        if not await _driver_meets_cash_minimum(user["id"]):
+            rides = [
+                r for r in rides
+                if r.get("driver_id") == driver_doc_id
+                or (r.get("payment_method") or "").strip().lower() != "cash"
             ]
         for r in rides:
             await enrich_passenger_info(r)

@@ -6,7 +6,7 @@ import { AirportVipSign } from './AirportVipSign';
 import { decodePolyline } from '../../utils/polyline';
 import { rideAPI } from '../../services/api';
 import RideCompletionFlow from './RideCompletionFlow';
-import { RideFlowMenu, CallTypeSheet, OtpModal } from './RideFlowSheets';
+import { RideFlowMenu, CallTypeSheet, OtpModal, RefundClientModal } from './RideFlowSheets';
 import { SafetyToolsSheet } from '../safety/SafetyToolsSheet';
 import { RideFlowHeader, RideFlowAddressCard, RideFlowMap, RideFlowFooter } from './RideFlowViews';
 import InAppNav from './InAppNav';
@@ -53,6 +53,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const [showSafety, setShowSafety] = useState(false);
   const [showVipSign, setShowVipSign] = useState(false);
   const [showCallType, setShowCallType] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -417,7 +418,18 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
           onClose={() => setShowMenu(false)}
           onPassengerDetails={() => { setShowMenu(false); navigate(`/ride/${ride.id}/chat`); }}
           onWaybill={() => { setShowMenu(false); navigate(`/ride/${ride.id}/waybill`); }}
+          onRefundClient={() => { setShowMenu(false); setShowRefund(true); }}
           onCancel={() => { setShowMenu(false); cancelRide(); }}
+        />
+      )}
+
+      {/* Refund the client from the driver's wallet (e.g. no cash change) */}
+      {showRefund && (
+        <RefundClientModal
+          rideId={ride.id}
+          passengerName={ride.passenger_name}
+          onClose={() => setShowRefund(false)}
+          onDone={() => setShowRefund(false)}
         />
       )}
 

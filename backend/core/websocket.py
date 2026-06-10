@@ -60,12 +60,15 @@ class ConnectionManager:
         """Flag a connected client as a driver (looked up by role on connect)."""
         self.driver_clients.add(client_id)
 
-    async def broadcast_to_drivers(self, message: dict) -> None:
+    async def broadcast_to_drivers(self, message: dict, exclude: Optional[Set[str]] = None) -> None:
         # Reach clients registered as drivers (raw user ids) AND any legacy
         # "driver_"-prefixed client ids, restricted to live connections.
+        # `exclude` (driver user ids) is used e.g. to NOT offer cash rides to
+        # drivers whose wallet is below the cash-ride minimum balance.
+        skip = exclude or set()
         targets = {
             cid for cid in self.active_connections
-            if cid in self.driver_clients or cid.startswith("driver_")
+            if (cid in self.driver_clients or cid.startswith("driver_")) and cid not in skip
         }
         for cid in list(targets):
             await self.send_personal_message(message, cid)
