@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CurrencyEur, TrendUp, Car, Star, CalendarBlank, Clock, MapPin, ArrowRight, Receipt } from '@phosphor-icons/react';
+import { CurrencyEur, TrendUp, Car, Star, CalendarBlank, Clock, MapPin, ArrowRight, Receipt, ArrowLeft } from '@phosphor-icons/react';
 import { driverAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -41,7 +41,12 @@ const DriverEarningsPage = () => {
     <div className="mobile-container min-h-screen bg-gray-950 flex flex-col pb-20" data-testid="driver-earnings-page">
       {/* Header */}
       <div className="px-5 pt-6 pb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white" data-testid="earnings-title">{t('driver.my_earnings')}</h1>
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center flex-shrink-0" data-testid="back-btn" aria-label="Retour">
+            <ArrowLeft size={18} className="text-white" />
+          </button>
+          <h1 className="text-2xl font-bold text-white truncate" data-testid="earnings-title">{t('driver.my_earnings')}</h1>
+        </div>
         <button onClick={() => navigate('/chauffeur/reports')}
           className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-amber-400 text-xs font-semibold px-3 py-2 rounded-xl"
           data-testid="weekly-reports-link">

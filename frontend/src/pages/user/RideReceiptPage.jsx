@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Star, Heart, CheckCircle, Gift, ShareNetwork, X } from '@phosphor-icons/react';
+import { Star, Heart, CheckCircle, Gift, ShareNetwork, X, ArrowLeft } from '@phosphor-icons/react';
 import { rideAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -119,6 +119,9 @@ const RideReceiptPage = () => {
     <div className="mobile-container min-h-screen bg-gray-50 pb-8" data-testid="ride-receipt-page">
       {/* Header with total */}
       <div className="bg-[#0B1426] text-white px-5 pt-10 pb-8 text-center relative">
+        <button onClick={() => navigate(-1)} className="absolute left-4 top-9 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center" data-testid="back-btn" aria-label="Retour">
+          <ArrowLeft size={18} className="text-white" />
+        </button>
         <h1 className="text-base font-bold tracking-wide">Résumé de paiement</h1>
         <p className="text-5xl font-black mt-4 tracking-tight" data-testid="receipt-total">{cur(total)}</p>
         <p className="text-sm text-white/70 mt-2">Merci d&apos;utiliser notre service</p>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { driverAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
-import { Car, MapPin, Clock, CheckCircle, XCircle, ArrowRight } from '@phosphor-icons/react';
+import { Car, MapPin, Clock, CheckCircle, XCircle, ArrowRight, ArrowLeft } from '@phosphor-icons/react';
 
 const ACTIVE_STATUSES = ['accepted', 'arriving', 'in_progress'];
 
@@ -47,7 +47,10 @@ const DriverHistoryPage = () => {
 
   return (
     <div className="mobile-container min-h-screen bg-gray-950 flex flex-col pb-20" data-testid="driver-history-page">
-      <div className="px-5 pt-6 pb-2">
+      <div className="px-5 pt-6 pb-2 flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center flex-shrink-0" data-testid="back-btn" aria-label="Retour">
+          <ArrowLeft size={18} className="text-white" />
+        </button>
         <h1 className="text-2xl font-bold text-white" data-testid="history-title">Mes courses</h1>
       </div>
 

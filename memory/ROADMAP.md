@@ -1,7 +1,7 @@
 # 🔜 BACKLOG PRIORITAIRE (validé avec user, 2026-06-09)
 
 ## Lot 1 — restant
-- **C. Audit boutons retour** (client + chauffeur) : ajouter les retours manquants sur de nombreuses pages.
+- ~~**C. Audit boutons retour** (client + chauffeur)~~ ✅ **FAIT (2026-06-10)** : audit complet. La majorité des sous-pages étaient déjà couvertes (`ServiceListLayout` a déjà un retour). Ajout des retours manquants sur `DriverEarningsPage`, `DriverHistoryPage` et `RideReceiptPage` (tous `navigate(-1)`).
 
 ## Lot 2 — Notifications push PWA (VALIDÉ "2b oui")
 - Notifs système + son à l'arrivée d'une course/commande **même app en arrière-plan / autre onglet / autre site**.
