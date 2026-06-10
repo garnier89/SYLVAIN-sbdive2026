@@ -120,6 +120,34 @@ def test_tier_gating_locks_higher_rewards():
         cli.close()
 
 
+def test_admin_can_edit_rewards_catalog():
+    """Admin PUT of a custom rewards catalog persists and is served to users."""
+    import requests as _rq
+    from pymongo import MongoClient as _MC
+    cli = _MC(MONGO_URL)
+    db = cli[DB_NAME]
+    try:
+        from _creds import ADMIN_EMAIL, ADMIN_PASSWORD
+        tok = _rq.post(f"{API}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15).json()
+        token = tok.get("access_token") or tok.get("token")
+        h = {"Authorization": f"Bearer {token}"}
+        custom = [{"id": "credit_3", "name": "3 € offerts", "cost_points": 250, "type": "wallet_credit",
+                   "value": 3, "min_tier": "silver"}]
+        r = _rq.put(f"{API}/api/loyalty/admin/config", headers=h,
+                    json={"points_per_order": 7, "rewards": custom}, timeout=15)
+        assert r.status_code == 200, r.text
+        cfg = r.json()
+        assert cfg["points_per_order"] == 7
+        assert any(x["id"] == "credit_3" and x["value"] == 3 for x in cfg["rewards"])
+        # Served to a user via the rewards catalog.
+        g = _rq.get(f"{API}/api/loyalty/admin/config", headers=h, timeout=15).json()
+        assert any(x["id"] == "credit_3" for x in g["rewards"])
+    finally:
+        # Reset to defaults so other tests/users are unaffected.
+        db.service_configs.delete_one({"service_key": "loyalty"})
+        cli.close()
+
+
 def test_award_completion_points_multivertical():
     """The helper used by orders/parcels awards configured points to the client."""
     async def scenario():

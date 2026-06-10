@@ -196,7 +196,7 @@ Crédite automatiquement un % du montant payé sur le solde SB Pay, pour tous le
 - **Points de statut préservés** : on dépense `available_points = points − spent_points` ; le palier reste basé sur les points cumulés (lifetime). Anti double-dépense via garde atomique `$expr`.
 - **Coupons-récompense privés** : `coupons.py` filtre les coupons ciblés (`user_id`) → invisibles/inutilisables par les autres.
 - Front : section « Récompenses » dans `LoyaltyPage.jsx` + carte « Encaissé aujourd'hui » (contactless + pourboires) sur `DriverEarningsPage.js` (endpoint `GET /api/contactless/driver/today-summary`). Tests : `backend/tests/test_loyalty_rewards.py`.
-- ⏳ Reste (backlog) : UI admin pour **éditer le catalogue de récompenses** (le backend l'accepte déjà via `PUT /api/loyalty/admin/config` champ `rewards` ; valeurs par défaut sensées en place).
+- ⏳ Reste (backlog) : ~~UI admin pour éditer le catalogue de récompenses~~ ✅ **LIVRÉ** (2026-06-10) — éditeur complet (ajout/suppression/édition : nom, coût, palier min, type crédit SB Pay/coupon, valeur, service) dans `AdminLoyalty.js` ; round-trip `PUT /api/loyalty/admin/config` testé (`test_loyalty_rewards.py` 6/6). Champs `points_per_order`/`points_per_delivery` éditables.
 
 ---
 
