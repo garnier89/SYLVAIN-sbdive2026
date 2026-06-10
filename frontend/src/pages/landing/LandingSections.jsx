@@ -215,6 +215,7 @@ export const LandingFooter = ({ navigate }) => (
           <div className="space-y-2">
             <button onClick={() => navigate('/login')} className="block text-sm text-gray-500 hover:text-white transition-colors">SB Drive Client</button>
             <button onClick={() => navigate('/chauffeur')} className="block text-sm text-gray-500 hover:text-white transition-colors">SB Drive Chauffeur</button>
+            <button onClick={() => navigate('/login/email')} className="block text-sm text-gray-500 hover:text-white transition-colors" data-testid="footer-sb-store-link">SB Store (Commerçant)</button>
             <button onClick={() => navigate('/admin-login')} className="block text-sm text-gray-500 hover:text-white transition-colors">Administration</button>
             <button onClick={() => navigate('/dispatcher')} className="block text-sm text-gray-500 hover:text-white transition-colors">Dispatcher</button>
           </div>

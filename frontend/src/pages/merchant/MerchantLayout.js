@@ -42,7 +42,7 @@ const MerchantLayout = () => {
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} data-testid="mobile-menu-btn">
           <List size={24} />
         </Button>
-        <h1 className="font-bold text-lg">SB Drive Marchand</h1>
+        <h1 className="font-bold text-lg flex items-center gap-2"><img src="/sb-store-logo.jpg" alt="SB Store" className="h-7 w-7 rounded-lg object-cover" /> SB Store</h1>
         <Avatar className="h-8 w-8">
           <AvatarImage src={user?.avatar_url} />
           <AvatarFallback className="bg-orange-100 text-orange-600 text-sm">{user?.name?.charAt(0)}</AvatarFallback>
@@ -58,10 +58,8 @@ const MerchantLayout = () => {
           {/* Logo */}
           <div className="p-6 border-b flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
-                <Storefront size={24} weight="duotone" className="text-white" />
-              </div>
-              <span className="font-bold text-xl">Merchant</span>
+              <img src="/sb-store-logo.jpg" alt="SB Store" className="w-10 h-10 rounded-xl object-cover" />
+              <span className="font-bold text-xl">SB Store</span>
             </div>
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
               <X size={20} />
