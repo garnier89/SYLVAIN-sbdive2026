@@ -436,10 +436,21 @@ async def admin_send_payout(req_id: str, request: Request):
 
     # ── Active safety: auto-verify the beneficiary before sending REAL money ──
     cfg_now = await get_payout_config()
-    blocked = await preflight_verify(method, net_eur, cfg_now.get("mode"), force)
+    mode_now = cfg_now.get("mode")
+    blocked = await preflight_verify(method, net_eur, mode_now, force)
     if blocked:
         return {"id": req_id, "status": "blocked", "blocked": True, "verification": blocked,
                 "message": blocked.get("message")}
+
+    # When the admin forces a live send, capture the verdict being overridden (audit).
+    override_verification = None
+    if force and mode_now == "live":
+        try:
+            override_verification = await verify_recipient(
+                method.get("provider"), (method.get("mobile_number") or "").strip(),
+                method.get("holder_name"), eur_to_xof(net_eur), "live")
+        except PayoutError as e:
+            override_verification = {"verdict": "warning", "message": f"Vérification impossible : {e}", "details": {}}
 
     now = _now()
     await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {"status": "processing"}})
@@ -457,6 +468,29 @@ async def admin_send_payout(req_id: str, request: Request):
         "payout_simulated": result.get("simulated", False), "payout_error": None,
         "payout_attempt_at": now, **({"paid_at": now, "paid_by": admin.get("email", "admin")} if new_status == "paid" else {}),
     }})
+
+    # Audit trail for FORCED sends (compliance: who forced, when, despite which verdict).
+    if force:
+        await db.payout_audit_log.insert_one({
+            "id": f"audit_{uuid.uuid4().hex[:12]}",
+            "withdrawal_id": req_id,
+            "user_id": req["user_id"],
+            "beneficiary_name": method.get("holder_name"),
+            "admin_id": admin.get("id"),
+            "admin_email": admin.get("email", "admin"),
+            "provider": result["provider"],
+            "mobile_number": method.get("mobile_number"),
+            "amount_eur": round(float(net_eur), 2),
+            "amount_xof": result["amount_xof"],
+            "mode": result["mode"],
+            "forced": True,
+            "overridden_verdict": (override_verification or {}).get("verdict"),
+            "verification_message": (override_verification or {}).get("message"),
+            "result_status": new_status,
+            "provider_ref": result["provider_ref"],
+            "created_at": now,
+        })
+
     if new_status == "paid":
         await create_notification(req["user_id"], "withdraw_paid", "Virement effectué 💸",
                                   f"Votre retrait de {req.get('net_amount', req.get('amount')):.2f} € a été versé ({result['provider'].upper()}).",
@@ -492,6 +526,15 @@ async def admin_refresh_payout_status(req_id: str, request: Request):
         await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {
             "status": "approved", "payout_error": "Échec du versement chez l'opérateur"}})
     return {"id": req_id, "status": status}
+
+
+@router.get("/admin/payout-audit")
+async def admin_payout_audit(request: Request):
+    """Compliance audit trail of FORCED Mobile Money payouts (who overrode, when,
+    despite which verification verdict)."""
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    items = await db.payout_audit_log.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"items": items, "count": len(items)}
 
 
 @router.get("/admin/payout-config")

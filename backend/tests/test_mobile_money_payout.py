@@ -270,3 +270,40 @@ def test_admin_send_payout_sandbox_flow():
         db.payout_methods.delete_many({"user_id": uid})
         db.admin_withdraw_requests.delete_many({"id": req_id})
         cli.close()
+
+
+def test_forced_send_writes_audit_log():
+    """A forced send must be recorded in the compliance audit trail."""
+    cli = MongoClient(MONGO_URL)
+    db = cli[DB_NAME]
+    sfx = uuid.uuid4().hex[:8]
+    uid = f"aud_user_{sfx}"
+    req_id = f"wra_{sfx}"
+    db.payout_provider_config.update_one({"id": "default"},
+                                         {"$set": {"id": "default", "mode": "sandbox", "live_enabled": False}}, upsert=True)
+    db.users.insert_one({"id": uid, "email": f"{uid}@x", "name": "Audit User", "role": "driver"})
+    db.payout_methods.insert_one({"id": f"pm_{sfx}", "user_id": uid, "type": "mobile_money",
+                                  "provider": "wave", "mobile_number": "+2250700000000",
+                                  "holder_name": "Audit User", "status": "approved"})
+    db.admin_withdraw_requests.insert_one({"id": req_id, "user_id": uid, "amount": 10.0, "net_amount": 10.0,
+                                           "status": "approved", "created_at": "2026-06-10T00:00:00+00:00"})
+    from _creds import ADMIN_EMAIL, ADMIN_PASSWORD
+    tok = requests.post(f"{API}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15).json()
+    token = tok.get("access_token") or tok.get("token")
+    h = {"Authorization": f"Bearer {token}"}
+    try:
+        r = requests.post(f"{API}/api/payouts/admin/withdrawals/{req_id}/send", headers=h,
+                          json={"force": True}, timeout=30)
+        assert r.status_code == 200 and r.json()["status"] == "paid", r.text
+        audit = requests.get(f"{API}/api/payouts/admin/payout-audit", headers=h, timeout=20).json()
+        entry = next((a for a in audit["items"] if a["withdrawal_id"] == req_id), None)
+        assert entry is not None
+        assert entry["forced"] is True and entry["admin_email"] == ADMIN_EMAIL
+        assert entry["amount_eur"] == 10.0 and entry["provider"] == "wave"
+    finally:
+        db.users.delete_many({"id": uid})
+        db.payout_methods.delete_many({"user_id": uid})
+        db.admin_withdraw_requests.delete_many({"id": req_id})
+        db.payout_audit_log.delete_many({"withdrawal_id": req_id})
+        cli.close()
+

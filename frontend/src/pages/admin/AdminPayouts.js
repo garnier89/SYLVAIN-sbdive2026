@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { HandCoins, IdentificationCard, Star, CheckCircle, XCircle, Money, ShieldCheck, PaperPlaneTilt, ArrowsClockwise, Warning } from '@phosphor-icons/react';
+import { HandCoins, IdentificationCard, Star, CheckCircle, XCircle, Money, ShieldCheck, PaperPlaneTilt, ArrowsClockwise, Warning, ClipboardText } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -19,8 +19,51 @@ const AdminPayouts = () => {
       <div className="flex gap-2 mb-5">
         <TabBtn active={tab === 'withdrawals'} onClick={() => setTab('withdrawals')} icon={HandCoins} label="Demandes de retrait" testid="tab-withdrawals" />
         <TabBtn active={tab === 'methods'} onClick={() => setTab('methods')} icon={IdentificationCard} label="Moyens de retrait (KYC)" testid="tab-methods" />
+        <TabBtn active={tab === 'audit'} onClick={() => setTab('audit')} icon={ClipboardText} label="Audit versements forcés" testid="tab-audit" />
       </div>
-      {tab === 'withdrawals' ? <WithdrawalsTab /> : <MethodsTab />}
+      {tab === 'withdrawals' ? <WithdrawalsTab /> : tab === 'methods' ? <MethodsTab /> : <AuditTab />}
+    </div>
+  );
+};
+
+// ───────────────────────── Forced-payout audit trail ─────────────────────────
+const AuditTab = () => {
+  const [items, setItems] = useState(null);
+  useEffect(() => {
+    fetch(`${API}/api/payouts/admin/payout-audit`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((d) => setItems(d.items || [])).catch(() => setItems([]));
+  }, []);
+
+  if (items === null) return <p className="text-gray-400 text-sm">Chargement…</p>;
+  return (
+    <div data-testid="audit-tab">
+      <p className="text-sm text-gray-500 mb-4 flex items-center gap-2">
+        <ClipboardText size={16} className="text-indigo-500" />
+        Traçabilité des versements <b>forcés</b> malgré un avertissement de vérification du bénéficiaire (conformité).
+      </p>
+      {items.length === 0 ? (
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-400" data-testid="audit-empty">
+          Aucun versement forcé enregistré.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((a) => (
+            <div key={a.id} className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" data-testid={`audit-row-${a.id}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="font-bold text-gray-800">{a.beneficiary_name || a.user_id} · {a.amount_eur?.toFixed(2)} € ({a.amount_xof?.toLocaleString()} XOF)</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${a.result_status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{a.result_status}</span>
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                Forcé par <b>{a.admin_email}</b> · {a.provider?.toUpperCase()} · {a.mode} · {a.created_at ? new Date(a.created_at).toLocaleString('fr-FR') : ''}
+              </div>
+              {a.verification_message && (
+                <div className="text-xs text-red-600 mt-1">⚠️ Verdict contourné : {a.verification_message}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
