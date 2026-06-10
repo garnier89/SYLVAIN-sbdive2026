@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-10 — Report + nouveau n° de vol re-tracké en une étape [DONE, vérifié e2e]
+
+- **Backend** (`PUT /api/rides/{id}/reschedule`) : accepte un `flight_number` optionnel. Pour une course aéroport, met à jour le n° de vol, **relance le Flight Watch** dessus (seed simulé instantané + refresh réel AviationStack en tâche de fond) et réapplique l'ajustement d'heure (retard/avance) sur le nouveau créneau.
+- **Frontend** (`ScheduledRidesPage`) : l'éditeur de re-planification affiche, pour les courses aéroport, un champ **« Nouveau n° de vol (suivi auto) »** (pré-rempli). Toast confirme le re-suivi.
+- Vérifié e2e : ride AF1006 (annulé) → report avec AF1002 → flight_number=AF1002, statut re-tracké `delayed`, pickup auto-ajusté +45 min. 7/7 pytest, eslint clean.
+
+
 ## 2026-06-10 — « Reporter ma course » sur vol annulé [DONE, vérifié e2e]
 
 - **Frontend** (`ScheduledRidesPage`) : si le vol d'une course aéroport planifiée passe `cancelled`, une bannière rouge propose **« Reporter ma course »** → ouvre l'éditeur de re-planification existant pré-rempli (+24h), `PUT /api/rides/{id}/reschedule`. La bannière disparaît une fois `rescheduled_at` posé (le client a agi).

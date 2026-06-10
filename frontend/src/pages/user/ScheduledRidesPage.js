@@ -16,6 +16,7 @@ const ScheduledRidesPage = () => {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [newAt, setNewAt] = useState('');
+  const [newFlight, setNewFlight] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,19 +55,22 @@ const ScheduledRidesPage = () => {
     }
   };
 
-  const saveReschedule = async (id) => {
+  const saveReschedule = async (id, isAirport) => {
     if (!newAt) return;
     try {
+      const payload = { scheduled_at: newAt };
+      if (isAirport) payload.flight_number = (newFlight || '').trim().toUpperCase() || null;
       const r = await fetch(`${API}/api/rides/${id}/reschedule`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduled_at: newAt }),
+        body: JSON.stringify(payload),
       });
       if (r.ok) {
-        toast.success('Course replanifiée');
+        toast.success(isAirport && payload.flight_number ? 'Course replanifiée — nouveau vol suivi ✈️' : 'Course replanifiée');
         setEditingId(null);
         setNewAt('');
+        setNewFlight('');
         load();
       } else {
         toast.error('Replanification impossible');
@@ -158,7 +162,7 @@ const ScheduledRidesPage = () => {
                 </p>
                 <button
                   className="w-full py-2 rounded-lg bg-[#FF5000] text-white text-sm font-bold flex items-center justify-center gap-1.5"
-                  onClick={() => { setEditingId(r.id); setNewAt(suggestReschedule(r.scheduled_at)); }}
+                  onClick={() => { setEditingId(r.id); setNewAt(suggestReschedule(r.scheduled_at)); setNewFlight(r.flight_number || ''); }}
                   data-testid={`reschedule-flight-${r.id}`}
                 >
                   <Calendar size={14} weight="fill" /> Reporter ma course
@@ -178,27 +182,44 @@ const ScheduledRidesPage = () => {
             </div>
 
             {editingId === r.id ? (
-              <div className="mt-3 flex gap-2">
-                <input
-                  type="datetime-local"
-                  value={newAt}
-                  onChange={(e) => setNewAt(e.target.value)}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  min={new Date().toISOString().slice(0, 16)}
-                  data-testid={`reschedule-input-${r.id}`}
-                />
-                <Button size="sm" onClick={() => saveReschedule(r.id)} data-testid={`reschedule-save-${r.id}`}>
-                  Sauver
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setNewAt(''); }}>
-                  Annuler
-                </Button>
+              <div className="mt-3 space-y-2">
+                {r.ride_type === 'airport' && (
+                  <div data-testid={`reschedule-flight-row-${r.id}`}>
+                    <label className="text-[11px] font-semibold text-gray-500 flex items-center gap-1 mb-1">
+                      <AirplaneTilt size={13} weight="fill" className="text-[#0EA5E9]" /> Nouveau n° de vol (suivi auto)
+                    </label>
+                    <input
+                      type="text"
+                      value={newFlight}
+                      onChange={(e) => setNewFlight(e.target.value)}
+                      placeholder="ex: AF1234"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      data-testid={`reschedule-flight-input-${r.id}`}
+                    />
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="datetime-local"
+                    value={newAt}
+                    onChange={(e) => setNewAt(e.target.value)}
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    min={new Date().toISOString().slice(0, 16)}
+                    data-testid={`reschedule-input-${r.id}`}
+                  />
+                  <Button size="sm" onClick={() => saveReschedule(r.id, r.ride_type === 'airport')} data-testid={`reschedule-save-${r.id}`}>
+                    Sauver
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setNewAt(''); setNewFlight(''); }}>
+                    Annuler
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="mt-3 flex gap-2">
                 <button
                   className="flex-1 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 flex items-center justify-center gap-1"
-                  onClick={() => { setEditingId(r.id); setNewAt(r.scheduled_at?.slice(0, 16) || ''); }}
+                  onClick={() => { setEditingId(r.id); setNewAt(r.scheduled_at?.slice(0, 16) || ''); setNewFlight(r.flight_number || ''); }}
                   data-testid={`reschedule-btn-${r.id}`}
                 >
                   <Pencil size={14} /> Modifier
