@@ -284,6 +284,23 @@ async def admin_list_withdrawals(request: Request, status: str = "pending"):
     return {"items": items, "counts": counts}
 
 
+async def _fire_withdrawal_paid_email(req: dict) -> None:
+    """Send the 'payout completed' email once a withdrawal reaches the paid state."""
+    try:
+        owner = await db.users.find_one({"id": req["user_id"]}, {"_id": 0, "email": 1, "name": 1})
+        if owner and owner.get("email"):
+            from core.email import fire, send_withdrawal_update
+            frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+            net = req.get("net_amount", req.get("final_amount", req.get("amount")))
+            fire(send_withdrawal_update(
+                owner["email"], owner.get("name", ""), status="paid", amount=net,
+                ref=req.get("id", ""), wallet_url=f"{frontend}/wallet",
+                method=(req.get("payout_type") or req.get("payout_provider") or "").upper(),
+            ))
+    except Exception:
+        pass
+
+
 @router.post("/admin/withdrawals/{req_id}/approve")
 async def admin_approve_withdrawal(req_id: str, request: Request):
     admin = await require_role(request, ["admin"], permission=_PM_PERM)
@@ -386,6 +403,15 @@ async def admin_reject_withdrawal(req_id: str, request: Request):
     await create_notification(req["user_id"], "withdraw_rejected", "Retrait refusé",
                               f"Votre retrait a été refusé : {reason}. Le montant a été recrédité sur votre solde.",
                               data={"url": "/wallet", "reason": reason})
+    try:
+        owner = await db.users.find_one({"id": req["user_id"]}, {"_id": 0, "email": 1, "name": 1})
+        if owner and owner.get("email"):
+            from core.email import fire, send_withdrawal_update
+            frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+            fire(send_withdrawal_update(owner["email"], owner.get("name", ""), status="rejected",
+                                        amount=amount, ref=req_id, reason=reason, wallet_url=f"{frontend}/wallet"))
+    except Exception:
+        pass
     return {"id": req_id, "status": "rejected", "refunded": amount}
 
 
@@ -404,6 +430,7 @@ async def admin_mark_paid(req_id: str, request: Request):
     await create_notification(req["user_id"], "withdraw_paid", "Virement effectué 💸",
                               f"Votre retrait de {req.get('final_amount', req.get('amount')):.2f} € a été versé.",
                               data={"url": "/wallet"})
+    await _fire_withdrawal_paid_email(req)
     return {"id": req_id, "status": "paid"}
 
 
@@ -515,6 +542,7 @@ async def admin_send_payout(req_id: str, request: Request):
         await create_notification(req["user_id"], "withdraw_paid", "Virement effectué 💸",
                                   f"Votre retrait de {req.get('net_amount', req.get('amount')):.2f} € a été versé ({result['provider'].upper()}).",
                                   data={"url": "/wallet"})
+        await _fire_withdrawal_paid_email(req)
     else:
         await create_notification(req["user_id"], "withdraw_processing", "Versement en cours ⏳",
                                   f"Votre retrait de {req.get('net_amount', req.get('amount')):.2f} € est en cours de versement ({result['provider'].upper()}).",
@@ -542,6 +570,7 @@ async def admin_refresh_payout_status(req_id: str, request: Request):
         await create_notification(req["user_id"], "withdraw_paid", "Virement effectué 💸",
                                   f"Votre retrait de {req.get('net_amount', req.get('amount')):.2f} € a été versé.",
                                   data={"url": "/wallet"})
+        await _fire_withdrawal_paid_email(req)
     elif status == "failed":
         await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {
             "status": "approved", "payout_error": "Échec du versement chez l'opérateur"}})

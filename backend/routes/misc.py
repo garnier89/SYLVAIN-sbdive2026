@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, Response, HTTPException, Query
 import uuid
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -662,5 +663,14 @@ async def submit_withdraw_request(request: Request):
         )
     except Exception:
         pass
+    # Withdrawal "request received" email (non-blocking).
+    if user.get("email"):
+        from core.email import fire, send_withdrawal_update
+        frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        fire(send_withdrawal_update(
+            user["email"], user.get("name", ""), status="requested", amount=net_amount,
+            ref=doc["id"], eta_hours=eta_hours, wallet_url=f"{frontend}/wallet",
+            method=(pm.get("type") or "").upper(),
+        ))
     return doc
 

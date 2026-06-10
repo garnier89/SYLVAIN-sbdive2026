@@ -1,3 +1,10 @@
+## NEW - 2026-06-10 (243b) - Emails automatiques de retrait (demande reçue / versement effectué / refusé) (DONE, testé)
+- **Nouveau template** `core/email.py::send_withdrawal_update(to,name,status,amount,ref,eta_hours,reason,wallet_url,method)` — 3 états : `requested` (jaune), `paid` (vert), `rejected` (rouge, montant recrédité).
+- **Hooks** : `misc.py::submit_withdraw_request` → email « demande reçue » (à la soumission) ; `payouts.py` helper `_fire_withdrawal_paid_email` appelé sur **mark-paid**, **send** (MoMo paid) et **refresh-status** (paid) → « versement effectué » ; **reject** → email « refusé » + motif. (L'email « approuvé » existait déjà via `send_wallet_receipt` kind=withdraw.)
+- **Fix** : `import os` manquant dans `routes/misc.py` (corrigé).
+- **Vérifié** : curl e2e (submit→approve→mark-paid : 3 emails déclenchés, statuts corrects) + pytest `tests/test_iter243_withdrawal_emails.py` 1/1. Donnée de test nettoyée. ⚠️ Resend mode test.
+
+
 ## NEW - 2026-06-10 (243) - FIX portefeuille chauffeur : le retrait ne marchait pas (« on ne pouvait que créditer ») (DONE, testé)
 - **Diagnostic** : `DriverWalletPage.js` `requestPayout` était **factice** (juste un `toast.success` sans appel backend) et le bouton « Retrait » était caché derrière le toggle admin `enable_driver_wallet_withdrawal` → le chauffeur ne pouvait que **recharger**. Le backend `POST /api/wallet/withdraw-request` (misc.py) était pourtant complet (gate moyen de retrait validé RIB/Mobile Money, min, réserve, gel du montant, alerte admin temps réel).
 - **Fix** : bouton « Retrait » affiché dès que le backend autorise (`wallet.can_withdraw`), nouvelle **modale `DriverWithdrawModal`** (montant, retirable, option Express via `/payouts/sla`, ETA, lien « Gérer mon moyen de retrait ») qui appelle le **vrai endpoint** ; gestion d'erreur « moyen de retrait » → redirection vers `/wallet/payout-method` ; affichage du **retrait en attente** (`pending_withdraw`) et du **retirable** réel.

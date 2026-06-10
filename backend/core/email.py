@@ -457,3 +457,45 @@ async def send_account_deleted(to: str, name: str) -> None:
         </p>
         <p style="margin-top:24px;color:#444;font-size:15px;">Merci d'avoir fait partie de l'aventure,<br/>L'équipe SB Drive</p>"""
     await _send(to, "Votre compte SB Drive a été supprimé", _shell("Compte supprimé", "#0a0e1a", body))
+
+
+async def send_withdrawal_update(to: str, name: str, status: str, amount: float,
+                                 ref: str = "", eta_hours: int = 24, reason: str = "",
+                                 wallet_url: str = "", method: str = "") -> None:
+    """Lifecycle email for a wallet withdrawal: requested / paid / rejected."""
+    amount_str = f"{float(amount or 0):.2f} €"
+    method_line = f'<p style="color:#9aa0ac;font-size:12px;margin:2px 0;">Méthode : {method}</p>' if method else ""
+    ref_line = f'<p style="color:#9aa0ac;font-size:12px;margin:2px 0;">Référence : {ref}</p>' if ref else ""
+    cta = (
+        f'<p style="text-align:center;margin:18px 0 4px;"><a href="{wallet_url}" '
+        f'style="background:#0a0e1a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;'
+        f'font-weight:bold;font-size:14px;display:inline-block;">Voir mon portefeuille</a></p>'
+        if wallet_url else ""
+    )
+    if status == "requested":
+        title, accent, subject = "Demande de retrait reçue ⏳", "#f59e0b", "Demande de retrait reçue — SB Drive"
+        intro = (
+            f"Nous avons bien reçu votre demande de retrait de <b>{amount_str}</b>. "
+            f"Elle est <b>en attente de validation</b> par notre équipe. "
+            f"Versement estimé sous <b>~{int(eta_hours)}h</b> après validation."
+        )
+    elif status == "paid":
+        title, accent, subject = "Versement effectué 💸", "#16a34a", "Votre retrait a été versé — SB Drive"
+        intro = (
+            f"Bonne nouvelle ! Votre retrait de <b>{amount_str}</b> a été <b>versé</b> sur votre moyen de paiement. "
+            f"Selon votre banque/opérateur, la réception peut prendre quelques instants à quelques heures."
+        )
+    else:  # rejected
+        title, accent, subject = "Retrait refusé", "#b91c1c", "Votre demande de retrait a été refusée — SB Drive"
+        reason_block = f'<br/><b>Motif :</b> {reason}' if reason else ""
+        intro = (
+            f"Votre demande de retrait de <b>{amount_str}</b> a été <b>refusée</b>.{reason_block}<br/><br/>"
+            f"Le montant a été <b>recrédité sur votre solde</b>. Vous pouvez refaire une demande à tout moment."
+        )
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">{intro}</p>
+        {method_line}{ref_line}
+        {cta}
+        <p style="margin-top:22px;color:#444;font-size:14px;">L'équipe SB Drive</p>"""
+    await _send(to, subject, _shell(title, accent, body))
