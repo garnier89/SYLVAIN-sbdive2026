@@ -187,6 +187,9 @@ async def create_order(data: OrderCreate, request: Request):
     merchant = await db.merchants.find_one({"id": data.merchant_id}, {"_id": 0})
     if not merchant:
         raise HTTPException(status_code=404, detail="Merchant not found")
+    from routes.merchants import _is_paused
+    if _is_paused(merchant):
+        raise HTTPException(status_code=409, detail="Ce commerce est en pause et n'accepte pas de commandes pour le moment.")
 
     items_with_details = []
     subtotal = 0.0
@@ -238,12 +241,22 @@ async def create_order(data: OrderCreate, request: Request):
         "estimated_delivery": (datetime.now(timezone.utc) + timedelta(seconds=ORDER_DELIVERED_SEC)).isoformat()
     }
     await db.orders.insert_one(order)
-    # Notify the merchant of the incoming order (live dashboard)
+    # Notify the merchant of the incoming order (live dashboard + PWA push)
     if merchant.get("user_id"):
         await manager.send_personal_message(
             {"type": "new_order", "order_id": order["id"], "total": order["total"]},
             merchant["user_id"],
         )
+        try:
+            from core.notifications import create_notification
+            await create_notification(
+                merchant["user_id"], "new_order", "Nouvelle commande 🛎️",
+                f"Commande #{order['id'][-6:]} · {order['total']:.2f} € — appuyez pour la traiter.",
+                data={"url": "/merchant/orders", "order_id": order["id"]},
+                push=True,
+            )
+        except Exception:
+            pass
     order.pop("_id", None)
     order["created_at"] = datetime.fromisoformat(order["created_at"])
     order["estimated_delivery"] = datetime.fromisoformat(order["estimated_delivery"])

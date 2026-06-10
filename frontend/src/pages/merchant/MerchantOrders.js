@@ -3,15 +3,23 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { orderAPI } from '../../services/api';
+import { orderAPI, merchantAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { playAlert, unlockAudio } from '../../lib/driverAlert';
+import { subscribeToPush, isPushSupported } from '../../lib/webpush';
 import { toast } from 'sonner';
 import {
-  Package, Clock, CheckCircle, XCircle, Truck, MapPin, BellRinging, BellSlash, WifiHigh, WifiSlash,
+  Package, Clock, CheckCircle, XCircle, Truck, MapPin, BellRinging, BellSlash, WifiHigh, WifiSlash, Pause, Play, DeviceMobile,
 } from '@phosphor-icons/react';
+
+const PAUSE_DURATIONS = [
+  { label: '15 min', mins: 15 },
+  { label: '30 min', mins: 30 },
+  { label: '1 heure', mins: 60 },
+  { label: "Jusqu'à réouverture", mins: null },
+];
 
 const STATUS_FR = {
   pending: 'En attente', accepted: 'Acceptée', preparing: 'En préparation',
@@ -49,6 +57,38 @@ const MerchantOrders = () => {
   const soundRef = useRef(true);
   soundRef.current = soundOn;
   const [busyId, setBusyId] = useState(null);
+  const [accepting, setAccepting] = useState(true);
+  const [pauseUntil, setPauseUntil] = useState(null);
+  const [showPauseMenu, setShowPauseMenu] = useState(false);
+  const [pushOn, setPushOn] = useState(typeof Notification !== 'undefined' && Notification.permission === 'granted');
+
+  // Load store availability (pause state).
+  useEffect(() => {
+    merchantAPI.getMine().then((res) => {
+      setAccepting(res.data.accepting_orders !== false);
+      setPauseUntil(res.data.pause_until || null);
+    }).catch(() => {});
+  }, []);
+
+  const setAvailability = async (acceptingNext, pauseMinutes) => {
+    setShowPauseMenu(false);
+    try {
+      const res = await merchantAPI.setAvailability({ accepting_orders: acceptingNext, pause_minutes: pauseMinutes });
+      setAccepting(res.data.accepting_orders);
+      setPauseUntil(res.data.pause_until || null);
+      toast.success(acceptingNext ? 'Commandes réactivées ✅' : 'Boutique en pause ⏸️');
+    } catch (e) {
+      toast.error('Échec de la mise à jour');
+    }
+  };
+
+  const enablePush = async () => {
+    if (!isPushSupported()) { toast.error("Les notifications ne sont pas supportées sur cet appareil/navigateur."); return; }
+    const res = await subscribeToPush();
+    if (res.ok) { setPushOn(true); toast.success('Notifications activées — vous serez alerté même app fermée.'); }
+    else if (res.reason === 'denied') toast.error('Notifications bloquées. Autorisez-les dans les réglages du navigateur.');
+    else toast.error("Impossible d'activer les notifications.");
+  };
 
   const loadOrders = useCallback(async () => {
     try {
@@ -205,11 +245,55 @@ const MerchantOrders = () => {
             </span>
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={enableSound} data-testid="sound-toggle" className="gap-2">
-          {soundOn ? <BellRinging size={16} className="text-orange-500" /> : <BellSlash size={16} className="text-gray-400" />}
-          {soundOn ? 'Son activé' : 'Son coupé'}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={enablePush} data-testid="push-toggle" className="gap-2">
+            <DeviceMobile size={16} className={pushOn ? 'text-green-500' : 'text-gray-400'} />
+            {pushOn ? 'Alertes activées' : 'Activer les alertes'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={enableSound} data-testid="sound-toggle" className="gap-2">
+            {soundOn ? <BellRinging size={16} className="text-orange-500" /> : <BellSlash size={16} className="text-gray-400" />}
+            {soundOn ? 'Son activé' : 'Son coupé'}
+          </Button>
+          <div className="relative">
+            {accepting ? (
+              <Button variant="outline" size="sm" onClick={() => setShowPauseMenu((v) => !v)} data-testid="pause-toggle"
+                className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50">
+                <Pause size={16} weight="fill" /> Mettre en pause
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => setAvailability(true)} data-testid="resume-btn"
+                style={{ backgroundColor: '#22c55e' }} className="gap-2 text-white">
+                <Play size={16} weight="fill" /> Reprendre
+              </Button>
+            )}
+            {showPauseMenu && accepting && (
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-20" data-testid="pause-menu">
+                <p className="text-xs text-gray-500 px-2 py-1">Suspendre les commandes pendant…</p>
+                {PAUSE_DURATIONS.map((d) => (
+                  <button key={d.label} onClick={() => setAvailability(false, d.mins)}
+                    className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-amber-50 text-gray-700"
+                    data-testid={`pause-${d.mins || 'indef'}`}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {!accepting && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-center gap-3" data-testid="paused-banner">
+          <Pause size={20} weight="fill" className="text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-800">Boutique en pause</p>
+            <p className="text-sm text-amber-700">
+              Vous ne recevez plus de nouvelles commandes{pauseUntil ? ` jusqu'à ${new Date(pauseUntil).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : " jusqu'à réouverture manuelle"}.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => setAvailability(true)} style={{ backgroundColor: '#22c55e' }} className="text-white">Reprendre</Button>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full max-w-md grid-cols-3">

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 
@@ -63,6 +63,24 @@ def _hours_open_now(hours: dict, now=None) -> bool:
     return False
 
 
+def _is_paused(m: dict, now=None) -> bool:
+    """Merchant temporarily not accepting orders (busy/rush mode).
+    A timed pause auto-resumes once `pause_until` is in the past."""
+    if m.get("accepting_orders", True):
+        return False
+    pu = m.get("pause_until")
+    if pu:
+        try:
+            until = datetime.fromisoformat(str(pu).replace("Z", "+00:00"))
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) >= until:
+                return False  # pause window elapsed → accepting again
+        except (TypeError, ValueError):
+            pass
+    return True
+
+
 def _flash_is_active(flash: dict, now=None) -> bool:
     """True if a flash discount window is currently open."""
     if not flash or not flash.get("enabled"):
@@ -119,8 +137,13 @@ def _enrich_merchant(m: dict) -> dict:
     # Structured hours: backfill from legacy 'opening_hours' string when absent.
     if not isinstance(m.get("hours"), dict):
         m["hours"] = _default_hours_from_legacy(m.get("opening_hours", "09:00-22:00"))
-    # Open state: prefer structured hours, fall back to is_active.
-    m["is_open"] = _hours_open_now(m["hours"]) if m.get("is_active", True) else False
+    # Pause / "busy" mode: merchant temporarily not accepting orders.
+    paused = _is_paused(m)
+    m["accepting_orders"] = not paused
+    m["pause_until"] = m.get("pause_until")
+    # Open state: prefer structured hours, fall back to is_active; pause forces closed.
+    base_open = _hours_open_now(m["hours"]) if m.get("is_active", True) else False
+    m["is_open"] = base_open and not paused
     eff, flash_active = compute_effective_discount(m)
     m["effective_discount_pct"] = eff
     m["flash_active"] = flash_active
@@ -269,6 +292,30 @@ async def update_my_merchant(request: Request):
     m = await db.merchants.find_one({"user_id": user["id"]}, {"_id": 0})
     _enrich_merchant(m)
     return m
+
+
+@router.post("/me/availability")
+async def set_my_availability(request: Request):
+    """Pause / resume the store (busy/rush mode).
+    Body: {accepting_orders: bool, pause_minutes?: int}. When pausing with
+    pause_minutes, the store auto-resumes after that delay."""
+    user = await get_current_user(request)
+    body = await request.json()
+    accepting = bool(body.get("accepting_orders", True))
+    update = {"accepting_orders": accepting, "pause_until": None}
+    if not accepting and body.get("pause_minutes"):
+        try:
+            mins = max(1, min(720, int(body["pause_minutes"])))
+            update["pause_until"] = (datetime.now(timezone.utc) + timedelta(minutes=mins)).isoformat()
+        except (TypeError, ValueError):
+            pass
+    res = await db.merchants.update_one({"user_id": user["id"]}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Vous n'êtes pas marchand")
+    m = await db.merchants.find_one({"user_id": user["id"]}, {"_id": 0})
+    _enrich_merchant(m)
+    return {"accepting_orders": m["accepting_orders"], "pause_until": m.get("pause_until"), "is_open": m["is_open"]}
+
 
 
 @router.get("/meta/categories")

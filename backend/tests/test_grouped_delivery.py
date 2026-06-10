@@ -82,8 +82,10 @@ def test_compatible_orders_batched_and_credited(world):
     o1, o2, o3 = world["o"]
     u1, u2 = world["u"][0], world["u"][1]
 
-    formed = _run(try_form_batches())
-    assert formed >= 1
+    # The background grouping loop may also process these on the shared DB; we
+    # assert on the resulting state rather than who formed the batch.
+    _run(try_form_batches())
+    _run(try_form_batches())
 
     r1 = db.orders.find_one({"id": o1})
     r2 = db.orders.find_one({"id": o2})

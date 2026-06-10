@@ -1,0 +1,49 @@
+{
+  "summary": "Iter237 — Merchant App: PWA push notifications + Pause/Busy mode end-to-end testing. Backend pytest 3/3 PASS on tests/test_merchant_availability.py (pause blocks orders 409 → resume 200, _is_paused helper auto-resume after pause_until, is_open reflects pause). Larger regression suite 20/20 stable (test_merchant_availability + test_merchant_stock + test_merchant_bi + test_grouped_delivery). Frontend Playwright UI 100% PASS on /merchant/orders: merchant-orders, push-toggle (clickable, shows graceful 'Notifications bloquées' fallback when context blocks permission — GET /api/push/vapid-public-key returns 200 with valid key), sound-toggle, ws-status='En direct' (WS connected), pause-toggle opens pause-menu containing pause-15/pause-30/pause-60/pause-indef, selecting pause-30 closes the menu + shows paused-banner + swaps button to resume-btn, clicking Reprendre removes banner and restores pause-toggle. Tabs pending/active/completed all navigate correctly. No critical or minor bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_scenarios": [
+    "GET /api/push/vapid-public-key → 200 with publicKey starting with 'BLTnMoIn...' — PASS.",
+    "POST /api/merchants/me/availability {accepting_orders:false,pause_minutes:30} → 200 (pause_until set, is_open false) — PASS (pytest).",
+    "POST /api/orders during pause → 409 'Ce commerce est en pause...' — PASS (pytest).",
+    "POST /api/merchants/me/availability {accepting_orders:true} → 200 (pause_until null) + subsequent order 200 — PASS (pytest).",
+    "_is_paused helper: accepting_orders=True → False; accepting_orders=False+pause_until=null → True; accepting_orders=False+pause_until=future → True; accepting_orders=False+pause_until=past → False (auto-resume) — PASS (pytest).",
+    "GET /api/merchants/{id} after pause: accepting_orders=false, is_open=false — PASS (pytest).",
+    "UI /merchant/orders: merchant-orders root visible after merchant login — PASS.",
+    "UI: push-toggle, sound-toggle, ws-status (text='En direct'), tab-pending/active/completed all visible — PASS.",
+    "UI: initial state shows pause-toggle (accepting). Click pause-toggle → pause-menu visible with pause-15, pause-30, pause-60, pause-indef — PASS.",
+    "UI: Click pause-30 → menu closes, paused-banner appears with 'Boutique en pause', resume-btn replaces pause-toggle — PASS.",
+    "UI: Click resume-btn → paused-banner disappears, pause-toggle returns — PASS.",
+    "UI: push-toggle clickable; in automation context notification permission blocked, app shows graceful toast 'Notifications bloquées. Autorisez-les dans les réglages du navigateur.' — expected behaviour, no crash — PASS.",
+    "UI: Tabs navigation pending → active → completed → pending works — PASS."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_merchant_availability.py",
+    "/app/test_reports/pytest/iter237_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MerchantOrders.js: clean separation of state (accepting, pauseUntil, showPauseMenu, pushOn, soundOn). PAUSE_DURATIONS array drives the menu rendering, mins=0 maps to data-testid='pause-indef' via fallback (d.mins || 'indef') — works correctly.",
+    "Pause menu auto-closes after selection because setAvailability(false, mins) sets accepting=false → the {showPauseMenu && accepting && ...} guard hides it. Good UX.",
+    "routes/merchants.py _is_paused correctly auto-resumes when pause_until elapses (returns False), preventing stuck-pause state.",
+    "routes/orders.py blocks order creation with 409 + clear French error 'Ce commerce est en pause...' — proper status code (not 400/500).",
+    "GET /api/push/vapid-public-key responds publicly without auth — correct for service-worker registration flow.",
+    "Push toast fallback when Notification permission denied — no JS errors; UX preserved.",
+    "WebSocket connection warning in console ('WebSocket is closed before the connection is established') is benign — page reconnects and ws-status shows 'En direct'."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3/3 test_merchant_availability + 20/20 regression bundle)", "frontend": "100% (pause/resume flow + push button + tabs + ws-status)"},
+  "test_credentials": "Merchant: merchant@example.com / Merchant123!",
+  "seed_data_creation": "Pytest fixtures create+cleanup TEST_ merchants/products/orders per test. Manual UI test toggled merchant@example.com pause state on/off and left it RESUMED (final state = accepting orders).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "PWA push + pause/busy feature is fully working end-to-end. Backend endpoint POST /api/merchants/me/availability accepts {accepting_orders:bool, pause_minutes:int?} and persists pause_until (ISO). Order creation checks _is_paused and returns 409 when paused. /api/push/vapid-public-key public, /api/push/subscribe requires auth. Frontend MerchantOrders.js exposes all required data-testids exactly as in the spec. Push permission cannot be granted in headless Playwright by default — UI gracefully shows 'Notifications bloquées' toast, which is acceptable per the review_request guidance.",
+  "rca_of_the_issue": "No bugs. Feature works as specified."
+}
