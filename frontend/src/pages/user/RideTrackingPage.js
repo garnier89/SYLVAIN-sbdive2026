@@ -193,6 +193,34 @@ const RideTrackingPage = () => {
   const prevStatusRef = useRef(null);
   const relanceRef = useRef(0);
 
+  // Card-tip return from Stripe Checkout (?tip_session=...) → confirm + credit driver.
+  const tipConfirmRef = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get('tip_session');
+    if (!sid || tipConfirmRef.current) return;
+    tipConfirmRef.current = true;
+    (async () => {
+      try {
+        const r = await fetch(`${API}/api/phase2/rides/${rideId}/tip/status?session_id=${encodeURIComponent(sid)}`, { credentials: 'include' });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d.payment_status === 'paid') {
+          toast.success(`Merci ! ${Number(d.amount || 0).toFixed(2)} € de pourboire envoyé au chauffeur`);
+        } else if (d.payment_status === 'expired') {
+          toast.error('Paiement du pourboire expiré');
+        } else {
+          toast('Paiement du pourboire en cours de confirmation…');
+        }
+      } catch {
+        toast.error('Impossible de confirmer le pourboire');
+      } finally {
+        // Clean the URL so a refresh doesn't re-trigger the toast.
+        navigate(`/ride/${rideId}`, { replace: true });
+      }
+    })();
+  }, [rideId, navigate]);
+
+
   // Admin-configurable relance cadence & threshold
   useEffect(() => {
     fetch(`${API}/api/config/ride-search`, { credentials: 'include' })

@@ -512,25 +512,207 @@ async def airport_flat_quote(request: Request):
 
 
 # ═══════════ TIPS ═══════════
+# Tips move real money: the client is charged via SB Pay wallet OR Stripe card,
+# and the FULL amount is credited to the driver's unified SB Pay wallet
+# (db.wallets) so it becomes withdrawable. No commission, no cashback, no ceiling.
+
+
+async def _credit_driver_tip(ride: dict, amount: float, method: str, source_ref: str):
+    """Credit the FULL tip to the driver's withdrawable SB Pay wallet (db.wallets)
+    and bump display stats. Caller guarantees this runs at most once per tip."""
+    amount = round(float(amount), 2)
+    now = datetime.now(timezone.utc).isoformat()
+    driver_id = ride.get("driver_id")
+    if not driver_id:
+        return
+    drv = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "user_id": 1})
+    driver_uid = (drv or {}).get("user_id")
+    if driver_uid:
+        await db.wallets.update_one(
+            {"user_id": driver_uid},
+            {"$inc": {"balance": amount}, "$setOnInsert": {"user_id": driver_uid, "currency": "EUR", "created_at": now}},
+            upsert=True,
+        )
+        w = await db.wallets.find_one({"user_id": driver_uid}, {"_id": 0})
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}",
+            "user_id": driver_uid,
+            "type": "Tip",
+            "amount": amount,
+            "balance_after": round((w or {}).get("balance", 0), 2),
+            "description": f"Pourboire course #{ride['id'][:8].upper()} ({'carte' if method == 'card' else 'SB Pay'})",
+            "ride_id": ride["id"],
+            "status": "completed",
+            "created_at": now,
+        })
+        try:
+            from core.notifications import create_notification
+            await create_notification(
+                driver_uid, "earning", "Pourboire reçu 💝",
+                f"+{amount:.2f} € de pourboire pour la course #{ride['id'][:8].upper()}",
+                data={"ride_id": ride["id"], "amount": amount, "kind": "tip"},
+            )
+        except Exception:
+            pass
+    # Display stats (earnings + total_tips counters on the driver profile).
+    await db.drivers.update_one(
+        {"id": driver_id}, {"$inc": {"earnings": amount, "total_tips": amount}}
+    )
+
 
 @router.post("/rides/{ride_id}/tip")
 async def add_tip(ride_id: str, request: Request):
+    """Add a tip to a completed ride. The client picks the payment method:
+      - method=wallet → debit the client's SB Pay balance now, credit the driver now.
+      - method=card   → create a Stripe Checkout session; the driver is credited
+                        once the payment is confirmed (see /tip/status).
+    """
     user = await get_current_user(request)
     ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
     if not ride:
-        raise HTTPException(status_code=404, detail="Ride not found")
+        raise HTTPException(status_code=404, detail="Course introuvable")
     if ride["user_id"] != user["id"]:
-        raise HTTPException(status_code=403, detail="Not your ride")
+        raise HTTPException(status_code=403, detail="Ce n'est pas votre course")
     if ride.get("status") != "completed":
-        raise HTTPException(status_code=400, detail="Ride not completed")
+        raise HTTPException(status_code=400, detail="Course non terminée")
+    if not ride.get("driver_id"):
+        raise HTTPException(status_code=400, detail="Aucun chauffeur sur cette course")
+    if ride.get("tip_status") == "paid":
+        raise HTTPException(status_code=400, detail="Pourboire déjà versé pour cette course")
+
     body = await request.json()
-    amount = float(body.get("amount", 0))
+    try:
+        amount = round(float(body.get("amount", 0)), 2)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Montant invalide")
     if amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid tip amount")
-    await db.rides.update_one({"id": ride_id}, {"$set": {"tip_amount": amount}})
-    if ride.get("driver_id"):
-        await db.drivers.update_one({"id": ride["driver_id"]}, {"$inc": {"earnings": amount, "total_tips": amount}})
-    return {"message": "Tip added", "amount": amount}
+        raise HTTPException(status_code=400, detail="Montant de pourboire invalide")
+    method = (body.get("method") or "wallet").strip().lower()
+    if method in ("sbpay", "sbpaygo", "wallet"):
+        method = "wallet"
+    elif method in ("card", "carte", "stripe", "cb"):
+        method = "card"
+    else:
+        raise HTTPException(status_code=400, detail="Moyen de paiement invalide")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    # ───────── SB Pay wallet ─────────
+    if method == "wallet":
+        res = await db.wallets.update_one(
+            {"user_id": user["id"], "balance": {"$gte": amount}},
+            {"$inc": {"balance": -amount}},
+        )
+        if res.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant pour ce pourboire")
+        w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}",
+            "user_id": user["id"],
+            "type": "Tip",
+            "amount": -amount,
+            "balance_after": round((w or {}).get("balance", 0), 2),
+            "description": f"Pourboire chauffeur course #{ride['id'][:8].upper()}",
+            "ride_id": ride["id"],
+            "status": "completed",
+            "created_at": now,
+        })
+        await db.rides.update_one({"id": ride_id}, {"$set": {
+            "tip_amount": amount, "tip_status": "paid", "tip_method": "wallet", "tip_paid_at": now,
+        }})
+        await _credit_driver_tip(ride, amount, "wallet", ride_id)
+        return {"message": "Pourboire envoyé", "amount": amount, "method": "wallet", "status": "paid"}
+
+    # ───────── Card via Stripe Checkout ─────────
+    if amount < 1:
+        raise HTTPException(status_code=400, detail="Pourboire par carte : minimum 1 €")
+    origin_url = (body.get("origin_url") or "").rstrip("/")
+    if not origin_url:
+        raise HTTPException(status_code=400, detail="origin_url requis pour le paiement par carte")
+
+    import os as _os
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    host_url = str(request.base_url).rstrip("/")
+    stripe = StripeCheckout(api_key=_os.environ.get("STRIPE_API_KEY", ""), webhook_url=f"{host_url}/api/webhook/stripe")
+    success_url = f"{origin_url}/ride/{ride_id}?tip_session={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}/ride/{ride_id}"
+    checkout_req = CheckoutSessionRequest(
+        amount=float(amount),
+        currency="eur",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            "user_id": user["id"],
+            "ride_id": ride_id,
+            "driver_id": ride["driver_id"],
+            "amount": str(amount),
+            "type": "ride_tip",
+        },
+    )
+    session = await stripe.create_checkout_session(checkout_req)
+    await db.payment_transactions.insert_one({
+        "id": f"pay_{uuid.uuid4().hex[:12]}",
+        "session_id": session.session_id,
+        "user_id": user["id"],
+        "ride_id": ride_id,
+        "driver_id": ride["driver_id"],
+        "amount": amount,
+        "currency": "EUR",
+        "type": "ride_tip",
+        "payment_status": "pending",
+        "status": "initiated",
+        "created_at": now,
+        "updated_at": now,
+    })
+    await db.rides.update_one({"id": ride_id}, {"$set": {
+        "tip_amount": amount, "tip_status": "pending", "tip_method": "card", "tip_session_id": session.session_id,
+    }})
+    return {"url": session.url, "session_id": session.session_id, "method": "card", "status": "pending"}
+
+
+@router.get("/rides/{ride_id}/tip/status")
+async def tip_status(ride_id: str, request: Request, session_id: str):
+    """Poll a card-tip Stripe session and credit the driver once paid (idempotent)."""
+    user = await get_current_user(request)
+    tx = await db.payment_transactions.find_one(
+        {"session_id": session_id, "user_id": user["id"], "type": "ride_tip"}, {"_id": 0}
+    )
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction introuvable")
+    if tx.get("payment_status") == "paid":
+        return {"status": "complete", "payment_status": "paid", "amount": tx["amount"]}
+
+    import os as _os
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    host_url = str(request.base_url).rstrip("/")
+    stripe = StripeCheckout(api_key=_os.environ.get("STRIPE_API_KEY", ""), webhook_url=f"{host_url}/api/webhook/stripe")
+    try:
+        status = await stripe.get_checkout_status(session_id)
+    except Exception:
+        return {"status": tx["status"], "payment_status": tx["payment_status"], "amount": tx["amount"]}
+
+    now = datetime.now(timezone.utc).isoformat()
+    if status and status.payment_status == "paid":
+        # Atomic gate so the driver is credited exactly once.
+        res = await db.payment_transactions.update_one(
+            {"session_id": session_id, "payment_status": {"$ne": "paid"}},
+            {"$set": {"payment_status": "paid", "status": "complete", "updated_at": now}},
+        )
+        if res.modified_count > 0:
+            ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+            if ride:
+                await db.rides.update_one({"id": ride_id}, {"$set": {
+                    "tip_status": "paid", "tip_method": "card", "tip_paid_at": now,
+                }})
+                await _credit_driver_tip(ride, tx["amount"], "card", session_id)
+        return {"status": "complete", "payment_status": "paid", "amount": tx["amount"]}
+    elif status and status.status == "expired":
+        await db.payment_transactions.update_one(
+            {"session_id": session_id}, {"$set": {"payment_status": "expired", "status": "expired", "updated_at": now}}
+        )
+        return {"status": "expired", "payment_status": "expired", "amount": tx["amount"]}
+    return {"status": status.status if status else "unknown",
+            "payment_status": status.payment_status if status else "pending", "amount": tx["amount"]}
 
 
 # ═══════════ GIFT CARDS ═══════════

@@ -158,8 +158,16 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 - **Jumelage** de deux comptes (client+marchand) : demande par e-mail/téléphone + confirmation des deux côtés, transfert facilité. Page `/wallet/linked-accounts`.
 - ⏳ Reste : **versements réels** (API Orange Money/MTN/Wave/Stripe Payouts) à brancher avec identifiants (marqués payés manuellement en v1).
 
-### P0.7 — Paiement « sans contact » (Phase D) · ⏳ À FAIRE (P1)
+### Pourboire (Pourboire) — mouvement d'argent réel · ✅ LIVRÉ (2026-06-10, testé pytest 4/4)
+- Le pourboire débitait seulement les stats chauffeur (cosmétique). Désormais : le **client choisit le moyen** (Portefeuille SB Pay OU Carte Stripe).
+  - **SB Pay** : débit immédiat du solde client + crédit immédiat du **db.wallets** chauffeur (100%, retirable). Idempotent (`rides.tip_status`). Solde insuffisant → 400.
+  - **Carte** : `POST /api/phase2/rides/{id}/tip {method:'card', origin_url}` → session Stripe Checkout (redirection). Au retour, `GET /api/phase2/rides/{id}/tip/status?session_id=` confirme et crédite le chauffeur (gate atomique anti-double crédit). Min 1 €.
+- Aucune commission, **aucun cashback**, aucun plafond. Stats chauffeur `earnings`/`total_tips` toujours mises à jour.
+- Front : `TipModal.js` (choix SB Pay/Carte + redirection) + `RideTrackingPage.js` (gère le retour `?tip_session=`). Tests : `backend/tests/test_tip_flow.py`.
+
+### P0.7 — Paiement « sans contact » (Phase D) · ⏳ À FAIRE (P1) — PROCHAINE TÂCHE
 - Le chauffeur saisit un montant dans SB Pay → génère **QR + code 6 chiffres** → le client scanne/saisit, s'authentifie, paie via **solde SB Pay ou carte (Stripe)** → crédité au chauffeur/marchand. (NFC natif reporté à une future app native.)
+- Réutilise l'architecture de débit/crédit du pourboire (helper `_credit_driver_tip` + flux Stripe Checkout).
 
 
 Crédite automatiquement un % du montant payé sur le solde SB Pay, pour tous les services.
