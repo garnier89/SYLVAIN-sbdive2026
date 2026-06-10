@@ -176,10 +176,33 @@ async def order_auto_progress_loop():
                         await manager.send_personal_message(
                             {"type": "order_status", "order_id": o["id"], "status": target}, o["user_id"]
                         )
+                        if target == "delivered":
+                            await _send_order_delivered_email(o["id"])
             await _broadcast_delivery_offers(now)
         except Exception:
             pass
         await asyncio.sleep(10)
+
+
+async def _send_order_delivered_email(order_id: str):
+    """Fire the 'order delivered + review invitation' email once per order."""
+    try:
+        order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+        if not order or order.get("delivered_email_sent"):
+            return
+        await db.orders.update_one({"id": order_id}, {"$set": {"delivered_email_sent": True}})
+        user = await db.users.find_one({"id": order["user_id"]}, {"_id": 0, "email": 1, "name": 1})
+        if not user or not user.get("email"):
+            return
+        merchant = await db.merchants.find_one({"id": order["merchant_id"]}, {"_id": 0, "store_name": 1})
+        from core.email import fire, send_order_delivered
+        frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        review_url = f"{frontend}/order/{order_id}?review=1"
+        fire(send_order_delivered(user["email"], user.get("name", ""), order,
+                                  (merchant or {}).get("store_name", "votre commerce"), review_url))
+    except Exception:
+        pass
+
 
 
 @router.post("", response_model=OrderResponse)
@@ -527,6 +550,8 @@ async def update_order_status(order_id: str, request: Request):
         except Exception:
             pass
     await manager.send_personal_message({"type": "order_status", "order_id": order_id, "status": new_status}, order["user_id"])
+    if new_status == "delivered":
+        await _send_order_delivered_email(order_id)
     return {"message": f"Status updated to {new_status}"}
 
 

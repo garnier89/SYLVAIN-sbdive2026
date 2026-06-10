@@ -151,3 +151,31 @@ async def send_order_confirmation(to: str, customer_name: str, order: dict, stor
         </p>
         <p style="color:#444;font-size:14px;">Bon appétit ! 🍽️<br/>L'équipe SB Store</p>"""
     await _send(to, f"Confirmation de commande {order_no} · {store_name}", _shell("Commande confirmée 🧾", "#FF4500", body))
+
+
+async def send_order_delivered(to: str, customer_name: str, order: dict, store_name: str, review_url: str) -> None:
+    """Sent when an order is delivered — thanks the client + invites a review."""
+    order_no = f"#{str(order.get('id',''))[-6:]}"
+    stars = "".join(
+        f'<a href="{review_url}&rating={n}" style="text-decoration:none;font-size:30px;color:#FFB400;margin:0 3px;">★</a>'
+        for n in range(1, 6)
+    )
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {customer_name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Votre commande <b>{order_no}</b> de chez <b>{store_name}</b> a bien été <b style="color:#16a34a;">livrée</b>. 🎉
+          Nous espérons que tout s'est bien passé !
+        </p>
+        <p style="color:#444;font-size:15px;line-height:1.6;text-align:center;margin-top:24px;">
+          Comment évaluez-vous <b>{store_name}</b> ?
+        </p>
+        <p style="text-align:center;margin:10px 0 22px;">{stars}</p>
+        <p style="text-align:center;margin:0 0 26px;">
+          <a href="{review_url}" style="background:#FF4500;color:#ffffff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+            Laisser un avis
+          </a>
+        </p>
+        <p style="color:#777;font-size:13px;text-align:center;">Votre avis aide les autres clients et soutient ce commerce. Merci !</p>
+        <p style="color:#444;font-size:14px;margin-top:20px;">À bientôt sur SB Store 🧡</p>"""
+    await _send(to, f"Votre commande {order_no} est livrée — donnez votre avis ⭐", _shell("Commande livrée ✅", "#16a34a", body))
