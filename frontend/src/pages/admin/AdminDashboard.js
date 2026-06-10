@@ -9,6 +9,7 @@ import EarningsScheduledPanel from './dashboard/EarningsScheduledPanel';
 import DashboardDeliveryCharts from './dashboard/DashboardDeliveryCharts';
 import DashboardBreakdown from './dashboard/DashboardBreakdown';
 import DashboardServerPanels from './dashboard/DashboardServerPanels';
+import WaitingClientsPanel from './dashboard/WaitingClientsPanel';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -81,6 +82,9 @@ const AdminDashboard = () => {
       <GodsViewPanel analytics={analytics} godsViewTab={godsViewTab} setGodsViewTab={setGodsViewTab} navigate={navigate} />
 
       <EarningsScheduledPanel analytics={analytics} earningsTab={earningsTab} setEarningsTab={setEarningsTab} navigate={navigate} />
+
+      {/* Clients en attente d'un chauffeur (alertes "Me prévenir") par zone */}
+      <WaitingClientsPanel />
 
       {/* Delivery analytics — Store Deliveries + Delivery Genie / Runner */}
       <DashboardDeliveryCharts delivery={delivery} />

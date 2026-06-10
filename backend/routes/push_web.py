@@ -128,6 +128,38 @@ async def read_all(user=Depends(get_current_user)):
     return {"updated": res.modified_count}
 
 
+@admin_router.get("/waiting-clients")
+async def waiting_clients(request: Request):
+    """Active 'notify me when a driver is online' alerts, grouped by zone — helps
+    admins nudge drivers online where demand exists."""
+    await require_role(request, ["admin"])
+    from datetime import datetime, timezone, timedelta
+    from core.deps import calculate_distance
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    alerts = await db.availability_alerts.find({"created_at": {"$gte": cutoff}}, {"_id": 0}).to_list(2000)
+    zones = await db.zones.find({}, {"_id": 0, "id": 1, "name": 1, "lat": 1, "lng": 1, "radius_km": 1}).to_list(500)
+    by_zone, hors = {}, 0
+    for a in alerts:
+        lat, lng = a.get("pickup_lat"), a.get("pickup_lng")
+        matched = None
+        if lat is not None and lng is not None:
+            best = None
+            for z in zones:
+                if z.get("lat") is None or z.get("lng") is None:
+                    continue
+                d = calculate_distance(lat, lng, z["lat"], z["lng"])
+                if d <= (z.get("radius_km") or 0) and (best is None or d < best[1]):
+                    best = (z, d)
+            matched = best[0] if best else None
+        if matched:
+            row = by_zone.setdefault(matched["id"], {"zone_id": matched["id"], "name": matched["name"], "count": 0})
+            row["count"] += 1
+        else:
+            hors += 1
+    rows = sorted(by_zone.values(), key=lambda r: r["count"], reverse=True)
+    return {"total": len(alerts), "by_zone": rows, "hors_zone": hors}
+
+
 @admin_router.get("/settings")
 async def admin_get_settings(request: Request):
     await require_role(request, ["admin"])
