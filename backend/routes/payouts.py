@@ -20,6 +20,10 @@ from core.deps import get_current_user, require_role
 from core.notifications import create_notification
 from core.wallet_reserve import get_user_region
 from core.face_match import verify_face_match
+from core.mobile_money import (
+    execute_payout, check_payout_status, get_payout_config, effective_mode,
+    PayoutError, eur_to_xof,
+)
 
 router = APIRouter(prefix="/payouts", tags=["payouts"])
 
@@ -381,6 +385,107 @@ async def admin_mark_paid(req_id: str, request: Request):
                               f"Votre retrait de {req.get('final_amount', req.get('amount')):.2f} € a été versé.",
                               data={"url": "/wallet"})
     return {"id": req_id, "status": "paid"}
+
+
+# ═══════════════ Mobile Money real payout (disbursement) ═══════════════
+
+@router.post("/admin/withdrawals/{req_id}/send")
+async def admin_send_payout(req_id: str, request: Request):
+    """Trigger the real (or sandbox-simulated) Mobile Money payout for an approved
+    withdrawal. RIB / bank transfers keep using the manual mark-paid flow."""
+    admin = await require_role(request, ["admin"], permission=_PM_PERM)
+    req = await db.admin_withdraw_requests.find_one({"id": req_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+    if req.get("status") == "paid":
+        raise HTTPException(status_code=400, detail="Déjà versé")
+    if req.get("status") not in ("approved", "processing"):
+        raise HTTPException(status_code=400, detail="La demande doit d'abord être approuvée")
+    method = await db.payout_methods.find_one({"user_id": req["user_id"]}, {"_id": 0})
+    if not method:
+        raise HTTPException(status_code=400, detail="Aucun moyen de retrait enregistré")
+    if method.get("type") != "mobile_money":
+        raise HTTPException(status_code=400, detail="Versement automatique réservé au Mobile Money (utilisez « Marquer payé » pour un RIB).")
+
+    now = _now()
+    await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {"status": "processing"}})
+    try:
+        result = await execute_payout(req, method)
+    except PayoutError as e:
+        await db.admin_withdraw_requests.update_one(
+            {"id": req_id}, {"$set": {"status": "approved", "payout_error": str(e), "payout_attempt_at": now}})
+        raise HTTPException(status_code=400, detail=str(e))
+
+    new_status = "paid" if result["status"] == "paid" else "processing"
+    await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {
+        "status": new_status, "provider_ref": result["provider_ref"], "payout_provider": result["provider"],
+        "payout_mode": result["mode"], "payout_amount_xof": result["amount_xof"],
+        "payout_simulated": result.get("simulated", False), "payout_error": None,
+        "payout_attempt_at": now, **({"paid_at": now, "paid_by": admin.get("email", "admin")} if new_status == "paid" else {}),
+    }})
+    if new_status == "paid":
+        await create_notification(req["user_id"], "withdraw_paid", "Virement effectué 💸",
+                                  f"Votre retrait de {req.get('net_amount', req.get('amount')):.2f} € a été versé ({result['provider'].upper()}).",
+                                  data={"url": "/wallet"})
+    else:
+        await create_notification(req["user_id"], "withdraw_processing", "Versement en cours ⏳",
+                                  f"Votre retrait de {req.get('net_amount', req.get('amount')):.2f} € est en cours de versement ({result['provider'].upper()}).",
+                                  data={"url": "/wallet"})
+    return {"id": req_id, "status": new_status, **result}
+
+
+@router.post("/admin/withdrawals/{req_id}/refresh-status")
+async def admin_refresh_payout_status(req_id: str, request: Request):
+    """Poll the provider for a processing Mobile Money payout and finalize it."""
+    admin = await require_role(request, ["admin"], permission=_PM_PERM)
+    req = await db.admin_withdraw_requests.find_one({"id": req_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+    if req.get("status") != "processing" or not req.get("payout_provider"):
+        return {"id": req_id, "status": req.get("status")}
+    try:
+        status = await check_payout_status(req["payout_provider"], req.get("provider_ref"), req.get("payout_mode", "sandbox"))
+    except PayoutError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    now = _now()
+    if status == "paid":
+        await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {
+            "status": "paid", "paid_at": now, "paid_by": admin.get("email", "admin")}})
+        await create_notification(req["user_id"], "withdraw_paid", "Virement effectué 💸",
+                                  f"Votre retrait de {req.get('net_amount', req.get('amount')):.2f} € a été versé.",
+                                  data={"url": "/wallet"})
+    elif status == "failed":
+        await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {
+            "status": "approved", "payout_error": "Échec du versement chez l'opérateur"}})
+    return {"id": req_id, "status": status}
+
+
+@router.get("/admin/payout-config")
+async def admin_get_payout_config(request: Request):
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    cfg = await get_payout_config()
+    return {**cfg, "xof_per_eur": 655.957,
+            "providers_ready": {
+                "wave": bool(__import__("os").environ.get("WAVE_API_KEY")),
+                "mtn": bool(__import__("os").environ.get("MTN_DISBURSEMENT_SUBSCRIPTION_KEY_LIVE")
+                            and __import__("os").environ.get("MTN_API_USER_LIVE")),
+                "orange": bool(__import__("os").environ.get("ORANGE_B2C_BASE_LIVE")),
+            }}
+
+
+@router.put("/admin/payout-config")
+async def admin_update_payout_config(request: Request):
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    body = await request.json()
+    fields = {}
+    if body.get("mode") in ("sandbox", "live"):
+        fields["mode"] = body["mode"]
+    if "live_enabled" in body:
+        fields["live_enabled"] = bool(body["live_enabled"])
+    fields["updated_at"] = _now()
+    from core.mobile_money import CFG_ID
+    await db.payout_provider_config.update_one({"id": CFG_ID}, {"$set": fields}, upsert=True)
+    return await get_payout_config()
 
 
 # ═══════════════════════ Phase C2 — SLA / délais de versement ═══════════════

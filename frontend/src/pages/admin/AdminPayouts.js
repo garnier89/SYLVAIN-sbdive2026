@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { HandCoins, IdentificationCard, Star, CheckCircle, XCircle, Money, ShieldCheck } from '@phosphor-icons/react';
+import { HandCoins, IdentificationCard, Star, CheckCircle, XCircle, Money, ShieldCheck, PaperPlaneTilt, ArrowsClockwise, Warning } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -38,6 +38,15 @@ const WithdrawalsTab = () => {
   const [data, setData] = useState({ items: [], counts: {} });
   const [loading, setLoading] = useState(true);
   const [finals, setFinals] = useState({});
+  const [cfg, setCfg] = useState(null);
+  const [busy, setBusy] = useState(null);
+
+  const loadCfg = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/api/payouts/admin/payout-config`, { credentials: 'include' });
+      if (r.ok) setCfg(await r.json());
+    } catch { /* ignore */ }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,6 +57,18 @@ const WithdrawalsTab = () => {
     } catch { toast.error('Erreur de chargement'); } finally { setLoading(false); }
   }, [status]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadCfg(); }, [loadCfg]);
+
+  const saveCfg = async (patch) => {
+    try {
+      const r = await fetch(`${API}/api/payouts/admin/payout-config`, {
+        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) throw new Error('Échec');
+      setCfg({ ...(await r.json()), providers_ready: cfg?.providers_ready });
+      toast.success('Configuration des versements mise à jour');
+    } catch (e) { toast.error(e.message); }
+  };
 
   const act = async (id, action, body) => {
     try {
@@ -60,13 +81,80 @@ const WithdrawalsTab = () => {
     } catch (e) { toast.error(e.message); }
   };
 
+  const sendPayout = async (id) => {
+    setBusy(id);
+    try {
+      const r = await fetch(`${API}/api/payouts/admin/withdrawals/${id}/send`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Échec du versement');
+      const lbl = d.status === 'paid' ? 'Versé' : 'En cours';
+      toast.success(`${lbl}${d.simulated ? ' (simulation sandbox)' : ''} · ${d.amount_xof?.toLocaleString()} XOF via ${d.provider?.toUpperCase()}`);
+      load();
+    } catch (e) { toast.error(e.message); } finally { setBusy(null); }
+  };
+
+  const refreshStatus = async (id) => {
+    setBusy(id);
+    try {
+      const r = await fetch(`${API}/api/payouts/admin/withdrawals/${id}/refresh-status`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Échec');
+      toast.success(`Statut : ${d.status}`);
+      load();
+    } catch (e) { toast.error(e.message); } finally { setBusy(null); }
+  };
+
+  const isMobileMoney = (w) => w.payout_method && w.payout_method.type === 'mobile_money';
+
   return (
     <div>
+      {/* Payout provider mode banner */}
+      {cfg && (
+        <div className={`rounded-2xl p-4 mb-4 border ${cfg.mode === 'live' && cfg.live_enabled ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`} data-testid="payout-config-banner">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Warning size={18} weight="fill" className={cfg.mode === 'live' && cfg.live_enabled ? 'text-red-500' : 'text-amber-500'} />
+              <span className="text-sm font-bold text-gray-800">
+                Versements Mobile Money : {cfg.mode === 'live' && cfg.live_enabled ? 'MODE LIVE (argent réel) 🔴' : 'Mode Sandbox (simulation, aucun argent réel)'}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+                Mode
+                <select value={cfg.mode} onChange={(e) => saveCfg({ mode: e.target.value })}
+                  className="px-2 py-1 rounded-lg border border-gray-300 text-xs" data-testid="payout-mode-select">
+                  <option value="sandbox">Sandbox</option>
+                  <option value="live">Live</option>
+                </select>
+              </label>
+              {cfg.mode === 'live' && (
+                <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                  <input type="checkbox" checked={!!cfg.live_enabled} onChange={(e) => saveCfg({ live_enabled: e.target.checked })} data-testid="payout-live-enabled-toggle" />
+                  Activer l'argent réel
+                </label>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-[11px] text-gray-500 flex-wrap">
+            <span>Taux fixe : 1 € = {cfg.xof_per_eur} XOF</span>
+            {cfg.providers_ready && (['wave', 'mtn', 'orange'].map((p) => (
+              <span key={p} className={`px-2 py-0.5 rounded-full font-semibold ${cfg.providers_ready[p] ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                {p.toUpperCase()} {cfg.providers_ready[p] ? 'prêt' : 'à configurer'}
+              </span>
+            )))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 mb-4 flex-wrap">
-        {['pending', 'approved', 'paid', 'rejected'].map((s) => (
+        {['pending', 'approved', 'processing', 'paid', 'rejected'].map((s) => (
           <button key={s} onClick={() => setStatus(s)} data-testid={`wd-filter-${s}`}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold ${status === s ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
-            {({ pending: 'En attente', approved: 'Approuvés', paid: 'Versés', rejected: 'Refusés' })[s]} ({data.counts?.[s] ?? 0})
+            {({ pending: 'En attente', approved: 'Approuvés', processing: 'En cours', paid: 'Versés', rejected: 'Refusés' })[s]} ({data.counts?.[s] ?? 0})
           </button>
         ))}
       </div>
@@ -115,8 +203,22 @@ const WithdrawalsTab = () => {
                     </div>
                   )}
                   {w.status === 'approved' && (
-                    <button onClick={() => act(w.id, 'mark-paid')} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-bold flex items-center gap-1 self-center" data-testid={`wd-markpaid-${w.id}`}>
-                      <Money size={15} /> Marquer versé
+                    <div className="flex flex-col gap-2 self-center w-44">
+                      {isMobileMoney(w) && (
+                        <button onClick={() => sendPayout(w.id)} disabled={busy === w.id}
+                          className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-1 disabled:opacity-60" data-testid={`wd-send-${w.id}`}>
+                          <PaperPlaneTilt size={15} weight="fill" /> {busy === w.id ? '…' : 'Envoyer le versement'}
+                        </button>
+                      )}
+                      <button onClick={() => act(w.id, 'mark-paid')} className="px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm font-bold flex items-center justify-center gap-1" data-testid={`wd-markpaid-${w.id}`}>
+                        <Money size={15} /> Marquer versé
+                      </button>
+                    </div>
+                  )}
+                  {w.status === 'processing' && (
+                    <button onClick={() => refreshStatus(w.id)} disabled={busy === w.id}
+                      className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold flex items-center gap-1 self-center disabled:opacity-60" data-testid={`wd-refresh-${w.id}`}>
+                      <ArrowsClockwise size={15} /> {busy === w.id ? '…' : 'Rafraîchir le statut'}
                     </button>
                   )}
                 </div>

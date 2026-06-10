@@ -1,0 +1,66 @@
+{
+  "summary": "Frontend E2E testing of admin Mobile Money payouts page (Phase: REAL Mobile Money payouts). All three requested flows pass: (1) config banner + mode select + provider chips + fixed XOF rate are visible; (2) Sandbox 'Envoyer le versement' on wr_demo_001 triggers toast 'Versé (simulation sandbox) · 9,839 XOF via WAVE', the row leaves 'Approuvés' and appears in 'Versés'; (3) Switching mode to 'Live' reveals the red 'Activer l'argent réel' checkbox and triggers toast 'Configuration des versements mise à jour'. Mode was restored to Sandbox at the end (verified via GET /api/payouts/admin/payout-config -> mode=sandbox, live_enabled=False).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminPayouts.js -> WithdrawalsTab.saveCfg",
+        "issue": "After any mode/live_enabled change, the banner line 'Taux fixe : 1 € =  XOF' loses the numeric rate. The PUT /api/payouts/admin/payout-config response apparently does not echo xof_per_eur, and saveCfg only preserves providers_ready: setCfg({ ...(await r.json()), providers_ready: cfg?.providers_ready }). Suggest also preserving xof_per_eur (e.g., xof_per_eur: cfg?.xof_per_eur) or reloading via loadCfg() after PUT. Cosmetic only — the rate is still applied server-side.",
+        "selector": "[data-testid='payout-config-banner']",
+        "priority": "LOW"
+      },
+      {
+        "component": "AdminPayouts.js -> banner color logic",
+        "issue": "Spec text says 'the banner should turn red-ish' when mode is switched to Live, but the implementation only turns red when BOTH mode==='live' AND live_enabled===true. With just mode=Live (live_enabled false) the banner stays amber AND the title still reads 'Mode Sandbox (simulation, aucun argent réel)'. This is arguably the SAFER behavior (no false sense of being in live mode without explicit enable) but it is a minor mismatch with the literal spec wording. Recommend either updating the spec or making the banner amber+red-tinted (e.g., orange) as soon as mode=Live to signal intent.",
+        "selector": "[data-testid='payout-config-banner']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": {
+    "admin_payouts_page_load": {
+      "route_used": "/admin/withdraw-requests (note: /admin/payouts is NOT a registered route — actual routes are /admin/withdraw-requests and /admin/payout-methods, both mount the AdminPayouts component; the sidebar entry 'Demandes de retrait' links here)",
+      "page_title": "Retraits & Moyens de paiement (KYC)",
+      "payout-config-banner": "visible, text='Versements Mobile Money : Mode Sandbox (simulation, aucun argent réel)'",
+      "payout-mode-select": "present, default value=sandbox, options=[Sandbox, Live]",
+      "provider_chips": "WAVE à configurer (gray), MTN prêt (green), ORANGE à configurer (gray)",
+      "fixed_rate_line": "Taux fixe : 1 € = 655.957 XOF (visible on initial load)",
+      "status_filters": "En attente (4), Approuvés (3), En cours (0), Versés (2), Refusés (5)"
+    },
+    "send_payout_sandbox": {
+      "wd-filter-approved": "clicked, list filtered to approved rows",
+      "wd-row-wr_demo_001": "row visible — name: Awa Diallo region Afrique, amount 15.00 €, provider wave +2250700000000",
+      "wd-send-wr_demo_001": "green 'Envoyer le versement' button present and clickable",
+      "wd-markpaid-wr_demo_001": "'Marquer versé' button also present (as required)",
+      "toast_after_send": "'Versé (simulation sandbox) · 9,839 XOF via WAVE' (15€ × 655.957 ≈ 9839.355 ✓)",
+      "row_leaves_approved": "true (counter Approuvés went 3 → 2)",
+      "row_in_paid_filter": "true (wd-filter-paid -> wd-row-wr_demo_001 visible in Versés (3))"
+    },
+    "mode_toggle": {
+      "select_to_live": "select_option('live') -> toast 'Configuration des versements mise à jour'",
+      "payout-live-enabled-toggle": "red 'Activer l'argent réel' checkbox now visible (per code: rendered when cfg.mode==='live')",
+      "banner_red_tint": "NOT applied while live_enabled=false (banner classes remain bg-amber-50 border-amber-200). Title text also still reads sandbox until live_enabled is checked. We did NOT check live_enabled (safety).",
+      "restore_to_sandbox": "select_option('sandbox') -> toast 'Configuration des versements mise à jour'. API GET /api/payouts/admin/payout-config confirms {mode:'sandbox', live_enabled:false, xof_per_eur:655.957}"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [
+    "LOW: In AdminPayouts.js saveCfg, also preserve xof_per_eur (or call loadCfg()) so the banner keeps showing '1 € = 655.957 XOF' after a mode/live toggle. Currently the rate value blanks out after the PUT.",
+    "LOW (optional): Consider visually tinting the banner red/orange and updating the title as soon as mode is set to Live (even before live_enabled is checked) to better match the spec wording 'banner should turn red-ish'. Current code requires both mode=live AND live_enabled=true."
+  ],
+  "critical_code_review_comments": [
+    "AdminPayouts.js > saveCfg merges the PUT response into cfg state but only preserves providers_ready; xof_per_eur is dropped if the server response omits it, causing the rate to disappear in the UI after every mode/live edit. Safer: setCfg(prev => ({ ...prev, ...(await r.json()) })) to retain unrelated fields.",
+    "AdminPayouts.js > banner color/title only flip to red when BOTH mode==='live' AND live_enabled===true. That is good for safety, but UI could give a stronger visual hint (e.g., orange) the moment the operator selects Live, to signal that one more click ('Activer l'argent réel') would unlock real money.",
+    "The button labels 'Envoyer le versement' and 'Marquer versé' are functionally close — operator could confuse them. Consider moving 'Marquer versé' to a less prominent kebab menu when a Mobile Money provider is configured, to push everyone through the real /send flow."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (3/3 spec items pass)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! — login via POST /api/auth/login worked (HttpOnly cookie + JWT). Used in this run.",
+  "seed_data_creation": "Consumed the pre-seeded wr_demo_001 (Awa Diallo, 15€, Wave) — moved from 'Approuvés' to 'Versés' in sandbox. If next test needs to re-run the /send flow, main agent should re-seed wr_demo_001 back to status=approved (or create a fresh wr_demo_002). Payout config left on {mode:'sandbox', live_enabled:false} — verified via API.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin payouts route is /admin/withdraw-requests (the spec said /admin/payouts but that route does NOT exist — the sidebar item 'Demandes de retrait' under FINANCE leads here, and there is also /admin/payout-methods that mounts the same component). Login via POST /api/auth/login then navigate. Sandbox /send simulates payout deterministically and returns {status:'paid', simulated:true, amount_xof, provider}. The wr_demo_001 demo row has been CONSUMED by this test run — re-seed if you need to test /send again.",
+  "rca of the issue": "Minor cosmetic regression: saveCfg overwrites cfg with the PUT response (which lacks xof_per_eur), so the banner shows '1 € =  XOF'. Fix: setCfg(prev => ({ ...prev, ...response })) instead of replacing. No functional impact — the backend conversion still uses 655.957."
+}
