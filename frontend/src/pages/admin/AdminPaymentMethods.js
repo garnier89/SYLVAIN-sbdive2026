@@ -323,6 +323,7 @@ const AdminPaymentMethods = () => {
                 Regroupe automatiquement les commandes proches → un seul livreur, itinéraire optimisé. La réduction
                 est créditée au client en SB Pay seulement quand la commande est réellement groupée.
               </p>
+              <p className="text-[11px] text-teal-600 mt-1 font-medium">Modifications enregistrées automatiquement à la sortie du champ.</p>
             </div>
             <label className="inline-flex items-center cursor-pointer">
               <input

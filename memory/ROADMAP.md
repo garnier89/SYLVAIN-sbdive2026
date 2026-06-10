@@ -235,6 +235,19 @@ Regroupement automatique des commandes proches → frais de livraison réduits, 
 Tableau de bord intelligent : prévision des ventes, produits populaires, tendances, recommandations de promos, prévision des stocks.
 - Réutilise `weekly_reports.py`, stats marchands.
 
+### P2.2 — Achats groupés intelligents (Module 5) · ✅ LIVRÉ (2026-06-11, testé iter235 — backend 11/11 + 5/5 HTTP, frontend ~100%)
+**Livraison groupée intelligente** (`core/grouping.py`) :
+- Option checkout « Groupée 🌱 » (opt-in) : la commande paie le **tarif plein** ; dès qu'elle est **réellement regroupée** avec une commande compatible, la réduction (**30% configurable**) est **créditée au client sur son SB Pay** (idempotent via `group_savings_ledger`). Si aucune commande compatible dans la fenêtre → **livraison standard tarif plein** (`group_status="solo"`).
+- **Moteur d'appariement géo déterministe** (tâche de fond `grouping_loop`, 20s) : regroupe les commandes proches (rayon marchands 1.5km + dropoff 1.2km, fenêtre 8 min, lot max 3) en `delivery_batches` avec **itinéraire optimisé** (plus proche voisin pickups→dropoffs) + **résumé IA éco** (Gemini, non bloquant).
+- **Courier** : un seul livreur prend tout le lot (claim assigne les commandes sœurs), badge « LOT GROUPÉ ». `GET /api/orders/batch/{id}` expose la route ordonnée.
+- **Admin** : `GET/PUT /api/orders/admin/grouping-config` (enable, discount %, lot max, rayons, fenêtre) + carte « Livraison groupée 🌱 » dans `/admin/payment-methods`. Client : ligne « Économie groupée » sur le suivi de commande. Tests : `backend/tests/test_grouped_delivery.py` (6/6).
+
+### P2.3 — IA Business commerçants (Module 10) · ✅ LIVRÉ (2026-06-11, testé iter235 — backend 5/5, frontend ~100%)
+**Tableau de bord intelligent marchand** (`core/merchant_ai.py`) :
+- **Vraies stats** (remplace les données factices de `MerchantAnalytics.js`) : `GET /api/merchants/me/analytics?period=week|month|year` → revenu + tendance vs période précédente, commandes + tendance, panier moyen, jour le plus actif, série temporelle réelle (7j / 30j / 12 mois), top produits (qté + revenu), stocks faibles/ruptures.
+- **Insights IA** (Gemini 3 Flash, groundé sur les vraies données, fallback déterministe) : `GET /api/merchants/me/ai-insights` → résumé, prévision de ventes, produits phares, recommandations promo, alertes stock.
+- Front : `MerchantAnalytics.js` réécrit (KPIs réels + sélecteur période + graphique + top produits + carte « Insights IA » avec rafraîchissement). Tests : `backend/tests/test_merchant_bi.py` (5/5).
+
 ### P2.4 — Réseau social commerce (Module 11) · **L**
 Publications / Stories / Promos / Événements par commerce ; suivre / liker / commenter / partager (inspiration TikTok Shop & Instagram Shopping).
 - Réutilise `news.py`, `NewsFeedPage`.
