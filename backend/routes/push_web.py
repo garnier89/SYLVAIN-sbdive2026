@@ -113,6 +113,21 @@ async def unread_count(user=Depends(get_current_user)):
     return {"count": n}
 
 
+@router.get("/list")
+async def list_notifications(user=Depends(get_current_user)):
+    items = await db.notifications.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return items
+
+
+@router.post("/read-all")
+async def read_all(user=Depends(get_current_user)):
+    res = await db.notifications.update_many(
+        {"user_id": user["id"], "read": {"$ne": True}}, {"$set": {"read": True}})
+    return {"updated": res.modified_count}
+
+
 @admin_router.get("/settings")
 async def admin_get_settings(request: Request):
     await require_role(request, ["admin"])

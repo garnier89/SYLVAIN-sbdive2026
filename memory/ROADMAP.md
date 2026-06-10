@@ -36,8 +36,9 @@
 ## ✅ Lot 2 (Notifications Push) — COMPLET (Phases 1→4)
 
 ### ✅ Badge notifications non lues (FAIT 2026-06-10)
-- Backend : `GET /api/push/unread-count` (générique, `get_current_user`) → `{count}`. Validé (auth→count, no-auth→401, reflète bien les non-lues).
-- Client : badge rouge `unread-badge` sur le bouton menu de `UserHome` (poll 30s). Chauffeur : badge cloche déjà existant (`DriverHome`).
+- Backend : `GET /api/push/unread-count`, `GET /api/push/list`, `POST /api/push/read-all` (génériques, `get_current_user`). Flux validé (count 2 → list 2 → read-all → count 0).
+- Client : badge rouge `unread-badge` sur le bouton menu de `UserHome` (poll 30s + refetch au focus, animation `bounce` à l'arrivée). Vraie **boîte de réception** dans l'onglet Notifications (`ProfileTabView` → `/profile?tab=notifications`) : liste des notifs reçues + **marquage auto en "lu" à l'ouverture**, au-dessus des préférences.
+- Chauffeur : badge cloche déjà existant + **marquage auto en "lu" à l'ouverture** de `DriverNotificationsPage`.
 
 ## Lot 3 — Refonte modules (specs détaillées fournies par user)
 

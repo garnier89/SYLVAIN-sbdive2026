@@ -47,6 +47,8 @@ const DriverNotificationsPage = () => {
       .then((r) => { if (active) setNotifications(r.data); })
       .catch(() => { if (active) toast.error('Erreur de chargement'); })
       .finally(() => { if (active) setLoading(false); });
+    // Auto-mark everything as read on open (resets the bell badge).
+    driverAPI.markAllNotificationsRead().catch(() => {});
     return () => { active = false; };
   }, []);
 

@@ -181,16 +181,26 @@ const UserHome = () => {
   const [showDeliverySearch, setShowDeliverySearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const prevUnreadRef = useRef(0);
+  const [badgePulse, setBadgePulse] = useState(false);
   useEffect(() => {
     let alive = true;
     const fetchUnread = () => {
       axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/push/unread-count`, { withCredentials: true })
-        .then((r) => { if (alive) setUnreadCount(r.data?.count || 0); })
+        .then((r) => {
+          if (!alive) return;
+          const c = r.data?.count || 0;
+          if (c > prevUnreadRef.current) { setBadgePulse(true); setTimeout(() => setBadgePulse(false), 1200); }
+          prevUnreadRef.current = c;
+          setUnreadCount(c);
+        })
         .catch(() => {});
     };
     fetchUnread();
     const iv = setInterval(fetchUnread, 30000);
-    return () => { alive = false; clearInterval(iv); };
+    const onFocus = () => fetchUnread();
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; clearInterval(iv); window.removeEventListener('focus', onFocus); };
   }, []);
   const [cmsItems, setCmsItems] = useState([]);
   const [sectionOrder, setSectionOrder] = useState(null);
@@ -627,7 +637,7 @@ const UserHome = () => {
             <button className="relative w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0" data-testid="menu-btn" onClick={() => setShowMenu(true)}>
               <List size={20} className="text-[#1F2430]" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5000] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white" data-testid="unread-badge">
+                <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5000] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white ${badgePulse ? 'animate-bounce' : ''}`} data-testid="unread-badge">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}

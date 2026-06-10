@@ -170,10 +170,38 @@ const CurrencyView = () => (
 );
 
 const NotificationsView = () => {
+  const [items, setItems] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
   const [prefs, setPrefs] = useState(() => {
     try { return JSON.parse(localStorage.getItem('sb_notif_prefs')) || { push: true, email: true, sms: false, promos: true }; }
     catch { return { push: true, email: true, sms: false, promos: true }; }
   });
+
+  // Load the inbox and auto-mark everything as read on open (resets the badge).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/push/list`, { credentials: 'include' });
+        const data = res.ok ? await res.json() : [];
+        if (alive) setItems(Array.isArray(data) ? data : []);
+        fetch(`${API}/api/push/read-all`, { method: 'POST', credentials: 'include' }).catch(() => {});
+      } catch { /* ignore */ }
+      finally { if (alive) setLoadingList(false); }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const timeAgo = (iso) => {
+    try {
+      const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+      if (s < 60) return "à l'instant";
+      if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+      if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+      return `il y a ${Math.floor(s / 86400)} j`;
+    } catch { return ''; }
+  };
+
   const toggle = (k) => {
     const next = { ...prefs, [k]: !prefs[k] };
     setPrefs(next);
@@ -186,13 +214,46 @@ const NotificationsView = () => {
     { key: 'promos', label: 'Offres promotionnelles et codes promo' },
   ];
   return (
-    <div className="bg-white rounded-2xl divide-y divide-gray-100 overflow-hidden">
-      {rows.map(r => (
-        <div key={r.key} className="flex items-center justify-between px-4 py-3">
-          <p className="text-sm text-gray-800 pr-3">{r.label}</p>
-          <Switch checked={prefs[r.key]} onCheckedChange={() => toggle(r.key)} data-testid={`notif-${r.key}-toggle`} className="data-[state=checked]:bg-[#FF4500]" />
+    <div className="space-y-5" data-testid="client-notifications-view">
+      {/* Inbox */}
+      <div>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 px-1">Reçues</p>
+        {loadingList ? (
+          <div className="bg-white rounded-2xl p-6 text-center text-sm text-gray-400">Chargement…</div>
+        ) : items.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 text-center" data-testid="notifications-empty">
+            <Bell size={32} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">Aucune notification pour le moment.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl divide-y divide-gray-100 overflow-hidden">
+            {items.map((n, i) => (
+              <div key={n.id || i} className="flex items-start gap-3 px-4 py-3" data-testid="notification-item">
+                <div className="w-9 h-9 rounded-full bg-[#FF4500]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Bell size={18} className="text-[#FF4500]" weight="duotone" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-gray-900 leading-tight">{n.title || 'Notification'}</p>
+                  {n.body && <p className="text-xs text-gray-600 leading-snug mt-0.5">{n.body}</p>}
+                  <p className="text-[10px] text-gray-400 mt-1">{timeAgo(n.created_at)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Preferences */}
+      <div>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 px-1">Préférences</p>
+        <div className="bg-white rounded-2xl divide-y divide-gray-100 overflow-hidden">
+          {rows.map(r => (
+            <div key={r.key} className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm text-gray-800 pr-3">{r.label}</p>
+              <Switch checked={prefs[r.key]} onCheckedChange={() => toggle(r.key)} data-testid={`notif-${r.key}-toggle`} className="data-[state=checked]:bg-[#FF4500]" />
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 };
