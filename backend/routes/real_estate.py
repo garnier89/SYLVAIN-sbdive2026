@@ -290,14 +290,13 @@ async def get_boost_plans(request: Request, country: Optional[str] = None):
 
 @router.get("/boost/payment-methods")
 async def boost_payment_methods(request: Request):
-    """Return the user's available balances for boost payment (wallet + SB PayGo)."""
+    """Return the user's available balance for boost payment (unified SB Pay wallet)."""
     user = await get_current_user(request)
     w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-    sb = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    bal = (w or {}).get("balance", 0.0)
     return {
         "methods": [
-            {"id": "wallet", "label": "Mon portefeuille", "balance": (w or {}).get("balance", 0.0), "currency": (w or {}).get("currency", "EUR")},
-            {"id": "sbpaygo", "label": "SB PayGo", "balance": (sb or {}).get("balance", 0.0), "currency": (sb or {}).get("currency", "EUR")},
+            {"id": "wallet", "label": "SB Pay", "balance": bal, "currency": (w or {}).get("currency", "EUR")},
         ],
     }
 
@@ -308,7 +307,7 @@ async def boost_pay(listing_id: str, request: Request):
     user = await get_current_user(request)
     body = await request.json()
     plan_id = body.get("plan_id")
-    method = body.get("payment_method")  # 'wallet' | 'sbpaygo'
+    method = body.get("payment_method", "wallet")  # 'wallet' (SB Pay) — 'sbpaygo' kept as alias
     if method not in ("wallet", "sbpaygo"):
         raise HTTPException(status_code=400, detail="Méthode de paiement invalide")
 
@@ -325,32 +324,21 @@ async def boost_pay(listing_id: str, request: Request):
     now = datetime.now(timezone.utc)
     ts = now.isoformat()
 
-    # Atomically debit the chosen wallet only if balance is sufficient
-    if method == "wallet":
-        res = await db.wallets.update_one(
-            {"user_id": user["id"], "balance": {"$gte": amount}},
-            {"$inc": {"balance": -amount}},
-        )
-        if res.modified_count == 0:
-            raise HTTPException(status_code=400, detail="Solde portefeuille insuffisant")
-        w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-        new_balance = round(w["balance"], 2)
-        await db.wallet_transactions.insert_one({
-            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
-            "amount": -amount, "balance_after": new_balance,
-            "description": f"Boost annonce — {plan.get('label') or plan['duration_days']+' j'}",
-            "status": "completed", "created_at": ts,
-        })
-    else:  # sbpaygo
-        res = await db.sbpaygo_wallets.update_one(
-            {"user_id": user["id"], "balance": {"$gte": amount}},
-            {"$inc": {"balance": -amount},
-             "$push": {"transactions": {"id": f"tx_{uuid.uuid4().hex[:10]}", "type": "boost", "amount": -amount, "description": "Boost annonce immobilière", "created_at": ts}}},
-        )
-        if res.modified_count == 0:
-            raise HTTPException(status_code=400, detail="Solde SB PayGo insuffisant")
-        sb = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-        new_balance = round(sb["balance"], 2)
+    # Atomically debit the unified SB Pay wallet only if balance is sufficient
+    res = await db.wallets.update_one(
+        {"user_id": user["id"], "balance": {"$gte": amount}},
+        {"$inc": {"balance": -amount}},
+    )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant")
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    new_balance = round(w["balance"], 2)
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
+        "amount": -amount, "balance_after": new_balance,
+        "description": f"Boost annonce — {plan.get('label') or str(plan['duration_days'])+' j'}",
+        "status": "completed", "created_at": ts,
+    })
 
     # Apply the boost
     until = (now + timedelta(days=int(plan["duration_days"]))).isoformat()

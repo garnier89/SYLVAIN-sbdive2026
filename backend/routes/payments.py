@@ -34,15 +34,27 @@ async def create_checkout(request: Request):
     user = await get_current_user(request)
     body = await request.json()
 
-    package_id = str(body.get("package_id", ""))
+    package_id = body.get("package_id")
+    custom_amount = body.get("custom_amount")
     origin_url = body.get("origin_url", "")
 
-    if package_id not in TOPUP_PACKAGES:
-        raise HTTPException(status_code=400, detail="Montant invalide")
     if not origin_url:
         raise HTTPException(status_code=400, detail="Origin URL required")
 
-    amount = TOPUP_PACKAGES[package_id]
+    # Server-side amount resolution — NEVER trust a raw price from the client.
+    if package_id is not None and str(package_id) in TOPUP_PACKAGES:
+        amount = TOPUP_PACKAGES[str(package_id)]
+        package_id = str(package_id)
+    elif custom_amount is not None:
+        try:
+            amount = round(float(custom_amount), 2)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Montant invalide")
+        if amount < 1 or amount > 5000:
+            raise HTTPException(status_code=400, detail="Montant invalide (1 - 5000 €)")
+        package_id = "custom"
+    else:
+        raise HTTPException(status_code=400, detail="Montant invalide")
     success_url = f"{origin_url}/wallet?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin_url}/wallet"
 

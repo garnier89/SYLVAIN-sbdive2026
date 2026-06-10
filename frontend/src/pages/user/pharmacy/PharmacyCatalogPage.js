@@ -8,8 +8,7 @@ import PharmacyMapPicker from './PharmacyMapPicker';
 const fmt = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v || 0);
 const PAYMENTS = [
   { id: 'cash', label: 'Espèces à la livraison' },
-  { id: 'wallet', label: 'Portefeuille' },
-  { id: 'sbpaygo', label: 'SB PayGo' },
+  { id: 'wallet', label: 'SB Pay' },
   { id: 'card', label: 'Carte' },
 ];
 
@@ -69,8 +68,7 @@ const PharmacyCatalogPage = () => {
   };
 
   const rechargeSbpaygo = async () => {
-    try { const r = await pharmacyAPI.sbpaygoSsoLink(); if (r.data?.url) window.location.href = r.data.url; }
-    catch { toast.error('Lien de recharge indisponible'); }
+    navigate('/wallet?action=topup');
   };
 
   // live estimate when coords/cart change in checkout
@@ -200,7 +198,7 @@ const PharmacyCatalogPage = () => {
                 <button key={pm.id} onClick={() => setForm({ ...form, payment_method: pm.id })} data-testid={`pay-${pm.id}`}
                   className={`px-3 py-2 rounded-xl text-xs font-semibold border text-left ${form.payment_method === pm.id ? 'bg-orange-50 border-[#FF4500] text-[#FF4500]' : 'bg-white border-gray-200 text-gray-600'}`}>
                   <div>{pm.label}</div>
-                  {['wallet', 'sbpaygo'].includes(pm.id) && (
+                  {pm.id === 'wallet' && (
                     <div className="text-[10px] font-normal text-gray-400 mt-0.5" data-testid={`balance-${pm.id}`}>Solde : {fmtBal(balances[pm.id])}</div>
                   )}
                 </button>

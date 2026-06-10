@@ -30,7 +30,7 @@ const INTENT_ROUTE = {
   book_parking: '/parking',
   search_marketplace: '/marketplace',
   search_nearby: '/nearby',
-  open_wallet: '/finance',
+  open_wallet: '/wallet',
   view_rides: '/history',
   call_sos: '/safety',
 };

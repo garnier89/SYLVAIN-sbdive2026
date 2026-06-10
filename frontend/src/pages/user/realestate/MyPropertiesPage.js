@@ -68,10 +68,7 @@ const MyPropertiesPage = () => {
     } catch (e) { toast.error(e?.response?.data?.detail || 'Échec du paiement'); } finally { setPaying(false); }
   };
   const rechargeSbpaygo = async () => {
-    try {
-      const r = await realEstateAPI.sbpaygoSsoLink();
-      window.location.href = r.data.url; // SSO redirect to sbpaygo.com
-    } catch { toast.error('Impossible d\'ouvrir SB PayGo'); }
+    navigate('/wallet?action=topup');
   };
 
   return (

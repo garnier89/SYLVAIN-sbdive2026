@@ -5,12 +5,18 @@ import { Button } from '../../components/ui/button';
 import { walletAPI, couponAPI } from '../../services/api';
 import {
   Wallet as WalletIcon, Plus, ArrowLeft,
-  ArrowUp, ArrowDown, Clock, CheckCircle,
-  Gift, Tag, CreditCard, Coins
+  ArrowUp, ArrowDown, Gift, Tag, Coins, PaperPlaneTilt, X, ShieldCheck
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+const TOPUP_PACKAGES = [
+  { id: '10', amount: 10 },
+  { id: '20', amount: 20 },
+  { id: '50', amount: 50 },
+  { id: '100', amount: 100 },
+];
 
 const WalletPage = () => {
   const navigate = useNavigate();
@@ -20,10 +26,12 @@ const WalletPage = () => {
   const [loading, setLoading] = useState(true);
   const [topupLoading, setTopupLoading] = useState(false);
   const [showTopup, setShowTopup] = useState(false);
+  const [showSend, setShowSend] = useState(false);
   const [message, setMessage] = useState('');
   const [coupons, setCoupons] = useState([]);
   const [showCoupons, setShowCoupons] = useState(false);
   const [paymentPolling, setPaymentPolling] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
 
   const loadWallet = useCallback(async () => {
     try {
@@ -41,6 +49,13 @@ const WalletPage = () => {
 
   useEffect(() => { loadWallet(); loadCoupons(); }, [loadWallet, loadCoupons]);
 
+  // Deep-link actions from side menu (?action=topup|send)
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'topup') setShowTopup(true);
+    if (action === 'send') setShowSend(true);
+  }, [searchParams]);
+
   // Poll Stripe payment status when returning from checkout
   const pollPaymentStatus = useCallback(async (sessionId, attempts) => {
     if (attempts >= 8) {
@@ -50,14 +65,12 @@ const WalletPage = () => {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/payments/status/${sessionId}`, {
-        credentials: 'include',
-      });
+      const res = await fetch(`${API_URL}/api/payments/status/${sessionId}`, { credentials: 'include' });
       const data = await res.json();
 
       if (data.payment_status === 'paid') {
         setPaymentPolling(false);
-        setMessage(`+${data.amount} EUR ajouté au portefeuille !`);
+        setMessage(`+${data.amount} EUR ajouté à votre solde SB Pay !`);
         toast.success(`Paiement réussi ! +${data.amount} EUR`);
         setSearchParams({});
         loadWallet();
@@ -85,18 +98,18 @@ const WalletPage = () => {
     }
   }, [searchParams, pollPaymentStatus]);
 
-  const handleStripeTopup = async (packageId) => {
+  const handleStripeTopup = async (packageId, custom) => {
     setTopupLoading(true);
     setMessage('');
     try {
+      const payload = { origin_url: window.location.origin };
+      if (custom != null) payload.custom_amount = custom;
+      else payload.package_id = packageId;
       const res = await fetch(`${API_URL}/api/payments/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          package_id: packageId,
-          origin_url: window.location.origin,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.url) {
@@ -112,20 +125,18 @@ const WalletPage = () => {
     }
   };
 
-  const topupPackages = [
-    { id: '10', amount: 10 },
-    { id: '20', amount: 20 },
-    { id: '50', amount: 50 },
-    { id: '100', amount: 100 },
-  ];
-
-  const getTxIcon = (type) => {
-    if (['Deposit', 'Refund', 'Transfer'].includes(type) ) return ArrowDown;
-    return ArrowUp;
+  const handleCustomTopup = () => {
+    const val = parseFloat(customAmount);
+    if (!val || val < 1 || val > 5000) {
+      toast.error('Montant invalide (1 - 5000 €)');
+      return;
+    }
+    handleStripeTopup(null, Math.round(val * 100) / 100);
   };
 
   const getTxColor = (amount) => amount >= 0 ? 'text-green-600' : 'text-red-600';
   const getTxBg = (amount) => amount >= 0 ? 'bg-green-50' : 'bg-red-50';
+  const getTxIcon = (amount) => amount >= 0 ? ArrowDown : ArrowUp;
 
   return (
     <div className="mobile-container bg-gray-50 min-h-screen pb-20" data-testid="wallet-page">
@@ -135,7 +146,7 @@ const WalletPage = () => {
           <button onClick={() => navigate(-1)} className="p-1" data-testid="wallet-back-btn">
             <ArrowLeft size={22} className="text-gray-700" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">Portefeuille</h1>
+          <h1 className="text-lg font-bold text-gray-900">SB Pay</h1>
         </div>
       </div>
 
@@ -148,28 +159,35 @@ const WalletPage = () => {
         )}
 
         {/* Balance Card */}
-        <div className="bg-gradient-to-br from-gray-900 to-gray-700 rounded-2xl p-6 text-white" data-testid="wallet-balance-card">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-orange-500 rounded-2xl p-6 text-white" data-testid="wallet-balance-card">
+          <div className="flex items-center gap-3 mb-5">
             <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center">
               <WalletIcon size={24} weight="duotone" />
             </div>
             <div>
-              <p className="text-xs text-gray-300">Solde disponible</p>
+              <p className="text-xs text-white/70">Solde SB Pay disponible</p>
               <h2 className="text-3xl font-bold" data-testid="wallet-balance">
-                {loading ? '...' : wallet.balance.toFixed(2)} <span className="text-lg font-normal">EUR</span>
+                {loading ? '...' : (wallet.balance || 0).toFixed(2)} <span className="text-lg font-normal">EUR</span>
               </h2>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <Button
-              className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 rounded-xl h-10 text-sm"
+              className="bg-white/20 hover:bg-white/30 text-white border-0 rounded-xl h-10 text-sm"
               onClick={() => setShowTopup(true)}
               data-testid="topup-btn"
             >
               <Plus size={16} className="mr-1" /> Recharger
             </Button>
             <Button
-              className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 rounded-xl h-10 text-sm"
+              className="bg-white/20 hover:bg-white/30 text-white border-0 rounded-xl h-10 text-sm"
+              onClick={() => setShowSend(true)}
+              data-testid="send-btn"
+            >
+              <PaperPlaneTilt size={16} className="mr-1" /> Envoyer
+            </Button>
+            <Button
+              className="bg-white/20 hover:bg-white/30 text-white border-0 rounded-xl h-10 text-sm"
               onClick={() => setShowCoupons(!showCoupons)}
               data-testid="coupons-btn"
             >
@@ -181,15 +199,20 @@ const WalletPage = () => {
         {/* Topup Sheet */}
         {showTopup && (
           <div className="bg-white rounded-2xl p-4 border border-gray-200" data-testid="topup-sheet">
-            <h3 className="font-semibold text-gray-900 mb-1">Recharger le portefeuille</h3>
-            <p className="text-xs text-gray-400 mb-3">Paiement sécurisé par Stripe</p>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-semibold text-gray-900">Recharger SB Pay</h3>
+              <button onClick={() => setShowTopup(false)} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center" data-testid="topup-close"><X size={14} /></button>
+            </div>
+            <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
+              <ShieldCheck size={14} className="text-emerald-600" /> Paiement sécurisé par Stripe
+            </p>
             <div className="grid grid-cols-2 gap-2">
-              {topupPackages.map(pkg => (
+              {TOPUP_PACKAGES.map(pkg => (
                 <button
                   key={pkg.id}
                   onClick={() => handleStripeTopup(pkg.id)}
                   disabled={topupLoading}
-                  className="h-16 rounded-xl border-2 border-gray-200 hover:border-[#FF4500] hover:bg-orange-50 transition-all flex flex-col items-center justify-center disabled:opacity-50"
+                  className="h-16 rounded-xl border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all flex flex-col items-center justify-center disabled:opacity-50"
                   data-testid={`topup-${pkg.amount}`}
                 >
                   <span className="text-xl font-bold">{pkg.amount}</span>
@@ -197,9 +220,28 @@ const WalletPage = () => {
                 </button>
               ))}
             </div>
+            {/* Custom amount */}
+            <div className="mt-3 flex gap-2">
+              <input
+                type="number" min="1" max="5000" step="1"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="Montant libre (€)"
+                className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+                data-testid="topup-custom-input"
+              />
+              <button
+                onClick={handleCustomTopup}
+                disabled={topupLoading || !customAmount}
+                className="px-4 rounded-xl bg-indigo-600 text-white text-sm font-bold disabled:opacity-50"
+                data-testid="topup-custom-btn"
+              >
+                Payer
+              </button>
+            </div>
             {topupLoading && (
               <div className="flex items-center justify-center gap-2 mt-3 text-sm text-gray-500">
-                <div className="w-4 h-4 border-2 border-[#FF4500]/30 border-t-[#FF4500] rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
                 Redirection vers Stripe...
               </div>
             )}
@@ -265,7 +307,7 @@ const WalletPage = () => {
           ) : (
             <div className="space-y-2">
               {wallet.transactions.map((tx, i) => {
-                const TxIcon = getTxIcon(tx.type);
+                const TxIcon = getTxIcon(tx.amount);
                 return (
                   <div key={tx.id || i} className="bg-white rounded-xl p-3 flex items-center gap-3" data-testid={`tx-${i}`}>
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getTxBg(tx.amount)}`}>
@@ -286,6 +328,104 @@ const WalletPage = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Send modal (P2P) */}
+      {showSend && (
+        <SendModal
+          balance={wallet.balance || 0}
+          onClose={() => { setShowSend(false); if (searchParams.get('action')) setSearchParams({}); }}
+          onDone={() => { setShowSend(false); if (searchParams.get('action')) setSearchParams({}); loadWallet(); }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ============ SendModal (P2P transfer by phone) ============
+const SendModal = ({ balance, onClose, onDone }) => {
+  const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  const numAmount = parseFloat(amount) || 0;
+
+  const submit = async () => {
+    if (!recipient.trim() || numAmount <= 0) return;
+    if (numAmount > balance) { toast.error('Solde insuffisant'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/finance/sbpaygo/send`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_phone: recipient, amount: numAmount, note: note || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'send failed');
+      }
+      const data = await res.json();
+      toast.success(`${numAmount.toFixed(2)} € envoyés${data.recipient_found ? '' : ' (destinataire en attente)'}`);
+      onDone();
+    } catch (e) {
+      toast.error(e.message || 'Envoi échoué');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50" data-testid="send-modal">
+      <div className="w-full max-w-[430px] bg-white rounded-t-3xl sm:rounded-3xl p-6 mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <PaperPlaneTilt size={20} weight="duotone" className="text-orange-600" />
+            Envoyer de l'argent
+          </h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="send-close">
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="mb-4 text-xs text-gray-500">Solde disponible : <b className="text-gray-900">{balance.toFixed(2)} €</b></div>
+
+        <div className="space-y-3 mb-5">
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1 block">Téléphone du destinataire</label>
+            <input
+              type="tel" value={recipient} onChange={(e) => setRecipient(e.target.value)}
+              placeholder="+33 6 12 34 56 78"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              data-testid="send-recipient-input"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1 block">Montant (€)</label>
+            <input
+              type="number" min="0.5" step="0.5" max={balance}
+              value={amount} onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              data-testid="send-amount-input"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1 block">Note (optionnel)</label>
+            <input
+              type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Ex : Remboursement repas"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              data-testid="send-note-input"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={submit}
+          disabled={loading || !recipient.trim() || numAmount <= 0 || numAmount > balance}
+          className="w-full h-12 rounded-xl bg-orange-600 text-white font-bold disabled:opacity-60"
+          data-testid="send-confirm-btn"
+        >
+          {loading ? 'Envoi…' : `Envoyer ${numAmount.toFixed(2)} €`}
+        </button>
       </div>
     </div>
   );

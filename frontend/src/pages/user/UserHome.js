@@ -742,6 +742,34 @@ const UserHome = () => {
             </div>
           </section>
         )}
+        {/* Livraison Instantanée — hero card (always visible, high prominence) */}
+        <section className="px-4 mt-5" data-testid="instant-delivery-hero">
+          <button
+            onClick={() => { recordTap({ id: 'instant-delivery', path: '/parcel' }); navigate('/parcel'); }}
+            data-testid="instant-delivery-btn"
+            className="relative w-full overflow-hidden rounded-[24px] text-left active:scale-[0.99] transition-transform shadow-[0_14px_30px_-16px_rgba(79,70,229,0.7)]"
+            style={{ background: 'linear-gradient(135deg,#4F46E5 0%,#7C3AED 55%,#FF5000 130%)' }}
+          >
+            <span className="absolute -right-6 -top-10 w-40 h-40 rounded-full bg-white/10" />
+            <span className="absolute right-10 bottom-[-34px] w-28 h-28 rounded-full bg-white/10" />
+            <div className="relative p-5 flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0">
+                <Lightning size={38} weight="fill" className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/20 mb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                  <span className="text-[10px] font-extrabold text-white tracking-wider">EXPRESS · DÈS 30 MIN</span>
+                </span>
+                <h3 className={`text-[19px] font-extrabold text-white leading-tight ${HEAD}`}>Livraison Instantanée</h3>
+                <p className={`text-[12px] text-white/85 mt-0.5 leading-snug ${BODY}`}>Envoyez un colis maintenant — un coursier le récupère et le livre en temps réel.</p>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <ArrowRight size={18} weight="bold" className="text-white" />
+              </div>
+            </div>
+          </button>
+        </section>
         {SECTION_ORDER.map((key) => blocks[key])}
       </motion.main>
 

@@ -335,6 +335,27 @@ async def _run_route_migrations():
         {"service_types": "delivery"},
         {"$addToSet": {"service_types": "courier"}},
     )
+    # Migration: unify SB PayGo wallet -> single SB Pay wallet (db.wallets). Idempotent.
+    flag = await db.app_migrations.find_one({"id": "sbpay_unified_v1"})
+    if not flag:
+        async for sw in db.sbpaygo_wallets.find({}):
+            uid = sw.get("user_id")
+            if not uid:
+                continue
+            bal = round(float(sw.get("balance", 0) or 0), 2)
+            if not await db.wallets.find_one({"user_id": uid}):
+                await db.wallets.insert_one({"user_id": uid, "balance": 0.0, "currency": "EUR", "created_at": _now()})
+            if bal > 0:
+                await db.wallets.update_one({"user_id": uid}, {"$inc": {"balance": bal}})
+                await db.wallet_transactions.insert_one({
+                    "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": uid, "type": "Deposit",
+                    "amount": bal, "balance_after": None,
+                    "description": "Migration solde SB PayGo → SB Pay",
+                    "status": "completed", "created_at": _now(),
+                })
+            # Zero the legacy wallet to prevent any double-count if it is ever re-read
+            await db.sbpaygo_wallets.update_one({"user_id": uid}, {"$set": {"balance": 0.0, "migrated": True}})
+        await db.app_migrations.insert_one({"id": "sbpay_unified_v1", "at": _now()})
 
 
 async def _seed_nearby_businesses_and_routes():

@@ -94,7 +94,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
         { icon: Wallet,       label: 'Mon portefeuille',        path: '/wallet',                   color: 'bg-rose-100 text-rose-600' },
         { icon: Plus,         label: "Ajouter de l'argent",     path: '/wallet?action=topup',      color: 'bg-violet-100 text-violet-600' },
         { icon: PaperPlaneTilt, label: "Envoyer de l'argent",   path: '/wallet?action=send',       color: 'bg-pink-100 text-pink-700' },
-        { icon: Bank,         label: 'SB PayGo',                path: '/finance',                  color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true, hidden: !sbpaygoAvailable },
+        { icon: Bank,         label: 'SB Pay',                  path: '/wallet',                   color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true },
       ],
     },
     {
@@ -154,7 +154,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
         { icon: Wallet, label: 'Mon portefeuille', path: '/chauffeur/wallet', color: 'bg-rose-100 text-rose-600' },
         { icon: Bank,   label: 'Coordonnées bancaires', path: '/chauffeur/bank', color: 'bg-indigo-100 text-indigo-600' },
         { icon: ChartBar, label: 'Statistiques gains', path: '/chauffeur/earnings/stats', color: 'bg-emerald-100 text-emerald-700' },
-        { icon: Bank,   label: 'SB PayGo',         path: '/finance',          color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true, hidden: !sbpaygoAvailable },
+        { icon: Bank,   label: 'SB Pay',           path: '/wallet',           color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true },
       ],
     },
     {

@@ -66,50 +66,35 @@ async def _require_admin(request: Request):
 
 
 async def _debit_user(user_id: str, amount: float, method: str, description: str):
-    """Atomically debit the user's wallet or SB PayGo balance. Raises 400 if insufficient."""
+    """Atomically debit the user's unified SB Pay wallet. Raises 400 if insufficient.
+    ('wallet' and 'sbpaygo' are now the same single wallet — db.wallets)."""
     ts = datetime.now(timezone.utc).isoformat()
-    if method == "wallet":
-        res = await db.wallets.update_one(
-            {"user_id": user_id, "balance": {"$gte": amount}},
-            {"$inc": {"balance": -amount}},
-        )
-        if res.modified_count == 0:
-            raise HTTPException(status_code=400, detail="Solde portefeuille insuffisant")
-        w = await db.wallets.find_one({"user_id": user_id}, {"_id": 0})
-        await db.wallet_transactions.insert_one({
-            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user_id, "type": "Booking",
-            "amount": -amount, "balance_after": round(w["balance"], 2),
-            "description": description, "status": "completed", "created_at": ts,
-        })
-    elif method == "sbpaygo":
-        res = await db.sbpaygo_wallets.update_one(
-            {"user_id": user_id, "balance": {"$gte": amount}},
-            {"$inc": {"balance": -amount},
-             "$push": {"transactions": {"id": f"tx_{uuid.uuid4().hex[:10]}", "type": "pharmacy", "amount": -amount, "description": description, "created_at": ts}}},
-        )
-        if res.modified_count == 0:
-            raise HTTPException(status_code=400, detail="Solde SB PayGo insuffisant")
+    res = await db.wallets.update_one(
+        {"user_id": user_id, "balance": {"$gte": amount}},
+        {"$inc": {"balance": -amount}},
+    )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant")
+    w = await db.wallets.find_one({"user_id": user_id}, {"_id": 0})
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user_id, "type": "Booking",
+        "amount": -amount, "balance_after": round(w["balance"], 2),
+        "description": description, "status": "completed", "created_at": ts,
+    })
 
 
 async def _refund_user(user_id: str, amount: float, method: str, description: str):
-    """Credit back the user's wallet / SB PayGo balance (used on cancellation of a paid order)."""
+    """Credit back the user's unified SB Pay wallet (used on cancellation of a paid order)."""
     if amount <= 0:
         return
     ts = datetime.now(timezone.utc).isoformat()
-    if method == "wallet":
-        await db.wallets.update_one({"user_id": user_id}, {"$inc": {"balance": amount}})
-        w = await db.wallets.find_one({"user_id": user_id}, {"_id": 0})
-        await db.wallet_transactions.insert_one({
-            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user_id, "type": "Refund",
-            "amount": amount, "balance_after": round((w or {}).get("balance", 0), 2),
-            "description": description, "status": "completed", "created_at": ts,
-        })
-    elif method == "sbpaygo":
-        await db.sbpaygo_wallets.update_one(
-            {"user_id": user_id},
-            {"$inc": {"balance": amount},
-             "$push": {"transactions": {"id": f"tx_{uuid.uuid4().hex[:10]}", "type": "refund", "amount": amount, "description": description, "created_at": ts}}},
-        )
+    await db.wallets.update_one({"user_id": user_id}, {"$inc": {"balance": amount}}, upsert=True)
+    w = await db.wallets.find_one({"user_id": user_id}, {"_id": 0})
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user_id, "type": "Refund",
+        "amount": amount, "balance_after": round((w or {}).get("balance", 0), 2),
+        "description": description, "status": "completed", "created_at": ts,
+    })
 
 
 def _delivery_fee(settings: dict, pharmacy: Optional[dict], lat: Optional[float], lng: Optional[float], subtotal: float = 0.0) -> float:
@@ -205,16 +190,15 @@ async def _resolve_items(items: List[OrderItem]):
 
 @router.get("/payment-methods")
 async def payment_methods(request: Request):
-    """Return the user's available balances for catalog order payment (wallet + SB PayGo)."""
+    """Return the user's available balances for catalog order payment (SB Pay wallet)."""
     user = await get_current_user(request)
     w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-    sb = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    bal = (w or {}).get("balance", 0.0)
     return {
         "methods": [
             {"id": "cash", "label": "Espèces à la livraison", "balance": None},
             {"id": "card", "label": "Carte à la livraison", "balance": None},
-            {"id": "wallet", "label": "Mon portefeuille", "balance": (w or {}).get("balance", 0.0), "currency": (w or {}).get("currency", "EUR")},
-            {"id": "sbpaygo", "label": "SB PayGo", "balance": (sb or {}).get("balance", 0.0), "currency": (sb or {}).get("currency", "EUR")},
+            {"id": "wallet", "label": "SB Pay", "balance": bal, "currency": "EUR"},
         ],
     }
 

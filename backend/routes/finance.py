@@ -123,22 +123,30 @@ async def finance_status():
 async def finance_balance(request: Request):
     """Return current user's SB PayGo balance + recent transactions (stub)."""
     user = await get_current_user(request)
-    # Pull or create user wallet doc
-    wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    # SB Pay is now the single unified wallet (db.wallets).
+    wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
     if not wallet:
         wallet = {
             "user_id": user["id"],
             "balance": 0.0,
             "currency": "EUR",
-            "transactions": [],
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
-        await db.sbpaygo_wallets.insert_one(wallet)
-        wallet.pop("_id", None)
+        await db.wallets.insert_one(dict(wallet))
+    txs = await db.wallet_transactions.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).limit(10).to_list(10)
+    norm = [{
+        "id": t.get("id"),
+        "type": "credit" if t.get("amount", 0) >= 0 else "debit",
+        "amount": abs(round(t.get("amount", 0), 2)),
+        "label": t.get("description") or t.get("type"),
+        "created_at": t.get("created_at"),
+    } for t in txs]
     return {
-        "balance": wallet.get("balance", 0.0),
+        "balance": round(wallet.get("balance", 0.0), 2),
         "currency": wallet.get("currency", "EUR"),
-        "transactions": wallet.get("transactions", [])[-10:],
+        "transactions": norm,
     }
 
 
@@ -261,32 +269,35 @@ class PayRideBody(BaseModel):
 
 @router.post("/finance/sbpaygo/pay-ride")
 async def sbpaygo_pay_ride(body: PayRideBody, request: Request):
-    """Deduct the ride amount from user's SB PayGo balance and mark the ride as paid."""
+    """Deduct the ride amount from the unified SB Pay wallet and mark the ride as paid."""
     user = await get_current_user(request)
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Montant invalide")
-    wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]})
-    if not wallet or wallet.get("balance", 0) < body.amount:
-        raise HTTPException(status_code=400, detail="Solde SB PayGo insuffisant")
-    now = datetime.now(timezone.utc).isoformat()
-    tx = {
-        "id": f"tx_{uuid.uuid4().hex[:10]}",
-        "type": "debit",
-        "amount": body.amount,
-        "label": f"Paiement course {body.ride_id}",
-        "ride_id": body.ride_id,
-        "created_at": now,
-    }
-    await db.sbpaygo_wallets.update_one(
-        {"user_id": user["id"]},
-        {"$inc": {"balance": -body.amount}, "$push": {"transactions": tx}},
+    amount = round(float(body.amount), 2)
+    res = await db.wallets.update_one(
+        {"user_id": user["id"], "balance": {"$gte": amount}},
+        {"$inc": {"balance": -amount}},
     )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant")
+    now = datetime.now(timezone.utc).isoformat()
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "type": "Booking",
+        "amount": -amount,
+        "balance_after": round(w["balance"], 2),
+        "description": f"Paiement course {body.ride_id}",
+        "ride_id": body.ride_id,
+        "status": "completed",
+        "created_at": now,
+    })
     await db.rides.update_one(
         {"id": body.ride_id, "user_id": user["id"]},
-        {"$set": {"paid_with": "sbpaygo", "paid_at": now}},
+        {"$set": {"paid_with": "sbpay", "paid_at": now}},
     )
-    new_wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-    return {"ok": True, "balance": new_wallet.get("balance", 0.0)}
+    return {"ok": True, "balance": round(w["balance"], 2)}
 
 
 
@@ -298,30 +309,13 @@ class TopUpBody(BaseModel):
 
 @router.post("/finance/sbpaygo/topup")
 async def sbpaygo_topup(body: TopUpBody, request: Request):
-    """Add funds to user's SB PayGo wallet (in-app, no redirect)."""
-    user = await get_current_user(request)
-    if body.amount <= 0 or body.amount > 5000:
-        raise HTTPException(status_code=400, detail="Montant invalide (0 - 5000 €)")
-    now = datetime.now(timezone.utc).isoformat()
-    tx = {
-        "id": f"tx_{uuid.uuid4().hex[:10]}",
-        "type": "credit",
-        "amount": body.amount,
-        "label": f"Recharge via {body.source}",
-        "source": body.source,
-        "created_at": now,
-    }
-    await db.sbpaygo_wallets.update_one(
-        {"user_id": user["id"]},
-        {
-            "$inc": {"balance": body.amount},
-            "$push": {"transactions": tx},
-            "$setOnInsert": {"user_id": user["id"], "currency": "EUR", "created_at": now},
-        },
-        upsert=True,
+    """Deprecated: SB Pay top-up is now handled via secure Stripe checkout
+    (POST /api/payments/checkout). No simulated/fake credits are issued."""
+    await get_current_user(request)
+    raise HTTPException(
+        status_code=400,
+        detail="Rechargez votre solde SB Pay par paiement sécurisé (carte) depuis le portefeuille.",
     )
-    wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-    return {"ok": True, "balance": wallet.get("balance", 0.0), "tx": tx}
 
 
 class SendBody(BaseModel):
@@ -332,50 +326,55 @@ class SendBody(BaseModel):
 
 @router.post("/finance/sbpaygo/send")
 async def sbpaygo_send(body: SendBody, request: Request):
-    """Send funds to another user identified by phone number."""
+    """Send funds from the unified SB Pay wallet to another user (by phone)."""
     user = await get_current_user(request)
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Montant invalide")
-    wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]})
-    if not wallet or wallet.get("balance", 0) < body.amount:
+    amount = round(float(body.amount), 2)
+    res = await db.wallets.update_one(
+        {"user_id": user["id"], "balance": {"$gte": amount}},
+        {"$inc": {"balance": -amount}},
+    )
+    if res.modified_count == 0:
         raise HTTPException(status_code=400, detail="Solde insuffisant")
     now = datetime.now(timezone.utc).isoformat()
-    tx_out = {
-        "id": f"tx_{uuid.uuid4().hex[:10]}",
-        "type": "debit",
-        "amount": body.amount,
-        "label": f"Envoi à {body.recipient_phone}",
+    sender = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    note_suffix = f" — {body.note}" if body.note else ""
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "type": "Transfer",
+        "amount": -amount,
+        "balance_after": round(sender["balance"], 2),
+        "description": f"Envoi à {body.recipient_phone}{note_suffix}",
         "recipient_phone": body.recipient_phone,
-        "note": body.note,
+        "status": "completed",
         "created_at": now,
-    }
-    await db.sbpaygo_wallets.update_one(
-        {"user_id": user["id"]},
-        {"$inc": {"balance": -body.amount}, "$push": {"transactions": tx_out}},
-    )
+    })
     # Credit recipient if found
     recipient = await db.users.find_one({"phone": body.recipient_phone})
     if recipient:
-        tx_in = {
-            "id": f"tx_{uuid.uuid4().hex[:10]}",
-            "type": "credit",
-            "amount": body.amount,
-            "label": f"Reçu de {user.get('name', user.get('email', ''))}",
-            "sender_id": user["id"],
-            "note": body.note,
-            "created_at": now,
-        }
-        await db.sbpaygo_wallets.update_one(
+        await db.wallets.update_one(
             {"user_id": recipient["id"]},
             {
-                "$inc": {"balance": body.amount},
-                "$push": {"transactions": tx_in},
+                "$inc": {"balance": amount},
                 "$setOnInsert": {"user_id": recipient["id"], "currency": "EUR", "created_at": now},
             },
             upsert=True,
         )
-    new_wallet = await db.sbpaygo_wallets.find_one({"user_id": user["id"]}, {"_id": 0})
-    return {"ok": True, "balance": new_wallet.get("balance", 0.0), "recipient_found": bool(recipient)}
+        rw = await db.wallets.find_one({"user_id": recipient["id"]}, {"_id": 0})
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}",
+            "user_id": recipient["id"],
+            "type": "Transfer",
+            "amount": amount,
+            "balance_after": round(rw["balance"], 2),
+            "description": f"Reçu de {user.get('name', user.get('email', ''))}{note_suffix}",
+            "sender_id": user["id"],
+            "status": "completed",
+            "created_at": now,
+        })
+    return {"ok": True, "balance": round(sender["balance"], 2), "recipient_found": bool(recipient)}
 
 
 
