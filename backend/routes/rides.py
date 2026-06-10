@@ -1467,6 +1467,12 @@ async def driver_cancel_booking(ride_id: str, request: Request):
 
 
 
+async def _ride_invoice_number() -> str:
+    from core.billing import next_number
+    return await next_number("SB-C")
+
+
+
 @router.post("/{ride_id}/status")
 async def update_ride_status(ride_id: str, request: Request):
     user = await get_current_user(request)
@@ -1753,6 +1759,31 @@ async def update_ride_status(ride_id: str, request: Request):
             await register_passenger_cancel(ride["user_id"], ride_id)
 
     await db.rides.update_one({"id": ride_id}, {"$set": update_data})
+
+    # ===== Facture de course terminée (email reçu, non bloquant) =====
+    if new_status == "completed":
+        try:
+            invoice_no = ride.get("ride_invoice_number") or await _ride_invoice_number()
+            await db.rides.update_one({"id": ride_id}, {"$set": {"ride_invoice_number": invoice_no}})
+            payer = await db.users.find_one({"id": ride["user_id"]}, {"_id": 0, "email": 1, "name": 1}) if ride.get("user_id") else None
+            if payer and payer.get("email"):
+                driver_name = ""
+                if ride.get("driver_id"):
+                    drv = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "name": 1})
+                    driver_name = (drv or {}).get("name", "")
+                bd = update_data.get("fare_breakdown") or {}
+                from core.email import fire, send_ride_invoice
+                frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+                fire(send_ride_invoice(
+                    payer["email"], payer.get("name", ""), invoice_no=invoice_no,
+                    pickup=ride.get("pickup_address", ""), dropoff=ride.get("dropoff_address", ""),
+                    distance_km=ride.get("distance_km", 0), breakdown=bd,
+                    total=update_data.get("final_fare", 0), driver_name=driver_name,
+                    vehicle_label=bd.get("vehicle_label", ride.get("vehicle_type", "")),
+                    ride_url=f"{frontend}/ride/{ride_id}",
+                ))
+        except Exception:
+            pass
 
     # ===== Passenger-facing lifecycle Web Push (background alert + sound) =====
     if ride.get("user_id") and new_status in ("arriving", "in_progress", "completed"):

@@ -269,3 +269,82 @@ async def send_wallet_receipt(to: str, name: str, *, kind: str, amount: float, b
           Si vous n'êtes pas à l'origine de cette opération, contactez immédiatement le support.
         </p>"""
     await _send(to, meta["subject"], _shell(meta["title"], meta["accent"], body))
+
+
+def _fmt_duration(seconds) -> str:
+    try:
+        s = int(seconds or 0)
+    except (TypeError, ValueError):
+        return "—"
+    m = s // 60
+    if m < 60:
+        return f"{m} min"
+    return f"{m // 60} h {m % 60:02d}"
+
+
+async def send_ride_invoice(to: str, customer_name: str, *, invoice_no: str, pickup: str, dropoff: str,
+                            distance_km, breakdown: dict, total: float, driver_name: str,
+                            vehicle_label: str, ride_url: str) -> None:
+    """Facture de course taxi terminée : trajet, distance, durée, prix, chauffeur."""
+    b = breakdown or {}
+    date_str = datetime.now(timezone.utc).strftime("%d/%m/%Y à %H:%M")
+    dur = _fmt_duration(b.get("time_seconds"))
+
+    def row(label, value, color="#444"):
+        return (f'<tr><td style="padding:4px 0;color:#777;font-size:14px;">{label}</td>'
+                f'<td style="padding:4px 0;color:{color};font-size:14px;text-align:right;">{value}</td></tr>')
+
+    breakdown_rows = ""
+    if b.get("rental"):
+        breakdown_rows += row("Forfait", _money(b.get("package_price", 0)))
+        if b.get("overage_fee"):
+            breakdown_rows += row("Dépassement", _money(b.get("overage_fee", 0)))
+    else:
+        breakdown_rows += row("Prise en charge", _money(b.get("base_fare", 0)))
+        breakdown_rows += row(f"Distance ({b.get('distance_km', distance_km)} km)", _money(b.get("distance_charge", 0)))
+        if b.get("time_charge"):
+            breakdown_rows += row(f"Temps ({dur})", _money(b.get("time_charge", 0)))
+        if b.get("extra_total"):
+            breakdown_rows += row("Frais supplémentaires", _money(b.get("extra_total", 0)))
+        if b.get("loyalty_discount"):
+            breakdown_rows += row("Réduction fidélité", f"-{_money(b.get('loyalty_discount', 0))}", "#16a34a")
+
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {customer_name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Merci d'avoir voyagé avec SB Drive ! Voici la facture de votre course.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f8fa;border-radius:10px;padding:14px 16px;margin:16px 0;">
+          <tr><td style="color:#777;font-size:13px;">Facture n°</td><td style="text-align:right;color:#0a0e1a;font-size:13px;font-weight:bold;">{invoice_no}</td></tr>
+          <tr><td style="color:#777;font-size:13px;">Date</td><td style="text-align:right;color:#444;font-size:13px;">{date_str}</td></tr>
+          <tr><td style="color:#777;font-size:13px;">Chauffeur</td><td style="text-align:right;color:#444;font-size:13px;">{driver_name or '—'}</td></tr>
+          <tr><td style="color:#777;font-size:13px;">Véhicule</td><td style="text-align:right;color:#444;font-size:13px;">{vehicle_label or '—'}</td></tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 14px;">
+          <tr><td style="padding:2px 0;color:#16a34a;font-size:13px;">● Départ</td></tr>
+          <tr><td style="padding:0 0 8px 12px;color:#444;font-size:14px;">{pickup or '—'}</td></tr>
+          <tr><td style="padding:2px 0;color:#FF4500;font-size:13px;">● Arrivée</td></tr>
+          <tr><td style="padding:0 0 4px 12px;color:#444;font-size:14px;">{dropoff or '—'}</td></tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
+          <tr>
+            <td style="text-align:center;padding:8px;background:#f7f8fa;border-radius:8px;"><span style="display:block;color:#0a0e1a;font-weight:bold;font-size:15px;">{b.get('distance_km', distance_km) or '—'} km</span><span style="color:#9aa0ac;font-size:11px;">Distance</span></td>
+            <td width="10"></td>
+            <td style="text-align:center;padding:8px;background:#f7f8fa;border-radius:8px;"><span style="display:block;color:#0a0e1a;font-weight:bold;font-size:15px;">{dur}</span><span style="color:#9aa0ac;font-size:11px;">Durée</span></td>
+          </tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee;margin-top:12px;">
+          {breakdown_rows}
+          <tr><td style="padding:10px 0;color:#0a0e1a;font-size:17px;font-weight:bold;border-top:1px solid #eee;">Total payé</td>
+              <td style="padding:10px 0;color:#FF4500;font-size:17px;font-weight:bold;text-align:right;border-top:1px solid #eee;">{_money(total)}</td></tr>
+        </table>
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;margin:14px 0 0;">
+          SB Drive VTC est une plateforme de mise en relation. La course a été réalisée par le chauffeur partenaire
+          « {driver_name or '—'} » ; cette facture est émise pour son compte.
+        </p>
+        <p style="text-align:center;margin:22px 0 8px;">
+          <a href="{ride_url}" style="background:#FF4500;color:#ffffff;text-decoration:none;
+             padding:12px 24px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">Voir ma course</a>
+        </p>
+        <p style="color:#444;font-size:14px;text-align:center;">Bonne route ! 🚗</p>"""
+    await _send(to, f"Facture course {invoice_no} · SB Drive", _shell("Course terminée 🏁", "#0a0e1a", body))
