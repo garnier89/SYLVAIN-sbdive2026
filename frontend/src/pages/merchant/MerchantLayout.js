@@ -20,14 +20,14 @@ const MerchantLayout = () => {
   };
 
   const navItems = [
-    { icon: House, label: 'Dashboard', path: '/merchant' },
-    { icon: Package, label: 'Orders', path: '/merchant/orders' },
-    { icon: Storefront, label: 'Products', path: '/merchant/products' },
-    { icon: Tag, label: 'Promotions', path: '/merchant/promotions' },
-    { icon: ChartLine, label: 'Analytics', path: '/merchant/analytics' },
-    { icon: Gear, label: 'Settings', path: '/merchant/settings' },
-    { icon: Clock, label: 'Chat Support', path: '/merchant/chat' },
-    { icon: Robot, label: 'Parler en direct', path: '/merchant/live-support' },
+    { icon: House, label: 'Tableau de bord', id: 'dashboard', path: '/merchant' },
+    { icon: Package, label: 'Commandes', id: 'orders', path: '/merchant/orders' },
+    { icon: Storefront, label: 'Produits', id: 'products', path: '/merchant/products' },
+    { icon: Tag, label: 'Promotions', id: 'promotions', path: '/merchant/promotions' },
+    { icon: ChartLine, label: 'Analytics', id: 'analytics', path: '/merchant/analytics' },
+    { icon: Gear, label: 'Réglages', id: 'settings', path: '/merchant/settings' },
+    { icon: Clock, label: 'Support', id: 'chat', path: '/merchant/chat' },
+    { icon: Robot, label: 'Parler en direct', id: 'live-support', path: '/merchant/live-support' },
   ];
 
   const isActive = (path) => {
@@ -80,7 +80,7 @@ const MerchantLayout = () => {
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 }`}
                 onClick={() => setSidebarOpen(false)}
-                data-testid={`nav-${item.label.toLowerCase()}`}
+                data-testid={`nav-${item.id}`}
               >
                 <item.icon size={20} weight={isActive(item.path) ? 'duotone' : 'regular'} />
                 <span className="font-medium">{item.label}</span>

@@ -115,6 +115,12 @@ export const merchantAPI = {
   getProducts: (id) => api.get(`/merchants/${id}/products`),
   addProduct: (data) => api.post('/merchants/products', data),
   updateProduct: (id, data) => api.put(`/merchants/products/${id}`, data),
+  adjustStock: (id, payload) => api.post(`/merchants/products/${id}/stock`, payload),
+  uploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   deleteProduct: (id) => api.delete(`/merchants/products/${id}`),
   getReviews: (id) => api.get(`/merchants/${id}/reviews`),
   addReview: (id, data) => api.post(`/merchants/${id}/reviews`, data),

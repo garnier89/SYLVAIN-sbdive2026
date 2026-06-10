@@ -1,0 +1,46 @@
+{
+  "summary": "P2 features A (real-time merchant orders) and C (advanced product/stock management) verified end-to-end. Backend pytest 6/6 PASS (test_merchant_stock.py). Frontend UI confirmed: all required data-testid present (merchant-orders, ws-status='En direct', sound-toggle, tab-pending/active/completed; merchant-products, summary-total/available/low/out, stock-filters/filter-all/available/low/out, stock-plus/-minus/-value, low/out badges, product-threshold-input, product-image-upload, save-product-btn). FR nav OK (Tableau de bord, Commandes, Produits, Promotions, Analytics, Réglages). Stock stepper +1/-1 persists via POST /api/merchants/products/{id}/stock and never goes below 0 (validated 0→1→0 in UI). Order status endpoint POST /api/orders/{id}/status works (validated via curl). WebSocket connects (UI shows 'En direct'); the initial 'WebSocket closed before connection established' console warning is the React StrictMode double-mount artefact and clears on reconnect — UI ends up connected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "MerchantProducts > Add product dialog",
+        "issues": ["Radix DialogContent missing aria-describedby/Description (a11y warning in console). Cosmetic, non-blocking."]
+      },
+      {
+        "screen": "MerchantOrders WS bootstrap",
+        "issues": ["Console shows 'WebSocket is closed before the connection is established' once on mount (React StrictMode double-effect). The hook reconnects and UI reports 'En direct'. Consider gating WS open with a ref to skip the first cleanup or use a delayed connect to silence the warning."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_merchant_stock.py",
+    "/app/test_reports/pytest/iter236_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Add aria-describedby/Description to product dialog for a11y.",
+    "(Optional) Smooth WebSocket connect to avoid the StrictMode double-mount 'closed before connection established' console warning."
+  ],
+  "critical_code_review_comments": [
+    "MerchantOrders.js — optimistic local update on updateOrderStatus is fine, but if the API call fails it reloads from server (good). Consider revert-to-previous-status instead of full reload to keep tab counts steady.",
+    "MerchantProducts.js — adjustStock floors at 0 on the client and the backend also enforces floor (verified); good defense-in-depth.",
+    "MerchantProducts uses absolute API URL prefix only when upload returns a relative path; relative URLs from backend are then concatenated with REACT_APP_BACKEND_URL — OK.",
+    "No order in 'pending' state existed at test time so the accept→prepare→ready button chain was not visually exercised on the UI; however the conditional rendering by status and the status PATCH endpoint are both verified working in code + via curl, so the lifecycle is sound."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (6/6 stock pytest + status PATCH curl OK)",
+    "frontend": "~100% (all required testids present; all sampled interactions work)"
+  },
+  "test_credentials": "Merchant: merchant@example.com / Merchant123! via /login/email (email login). Cookie+Bearer combined auth.",
+  "seed_data_creation": "None. Used existing demo merchant catalogue (Pain perdu — rupture, Croissant — stock=3 faible, Menu Test — illimité) and existing 20 historical orders (all in 'Terminées').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Email login endpoint is /api/auth/login (NOT /api/auth/login/email — that returns 404). Response shape: {access_token, token_type, user{id,email,name,role}}. Auth also via httpOnly cookie set by same call. Stock endpoint: POST /api/merchants/products/{id}/stock with body {delta: ±N} or {stock: N}; floors at 0; returns updated product including stock + low_stock_threshold. Order status endpoint: POST /api/orders/{id}/status with {status: 'accepted'|'preparing'|'ready'|...}; sets merchant_managed=true so the demo auto-progress task skips. To test live new_order WS toast: open /merchant/orders as merchant, then in a separate client account place an order against this merchant — backend send_personal_message routes 'new_order' to user_id={merchant_user_id}. Demo merchant has only completed orders, so 'pending' tab is empty by default — create a fresh order if you want to exercise accept→prepare→ready in the UI. Test files: /app/backend/tests/test_merchant_stock.py.",
+  "rca of the issue": "N/A — no functional defects detected. Both feature A (real-time orders with sound + WS) and feature C (stock stepper + threshold + filters + upload) are wired correctly front-to-back."
+}

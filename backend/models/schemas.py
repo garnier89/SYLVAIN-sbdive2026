@@ -97,6 +97,7 @@ class ProductCreate(BaseModel):
     image_url: Optional[str] = None
     is_available: bool = True
     stock: Optional[int] = None  # None = stock illimité / non suivi ; 0 = rupture
+    low_stock_threshold: Optional[int] = 5  # alerte « stock faible » quand stock <= seuil
 
 class MerchantReviewCreate(BaseModel):
     rating: int

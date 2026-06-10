@@ -435,6 +435,36 @@ async def update_product(product_id: str, data: ProductCreate, request: Request)
     return {"message": "Product updated"}
 
 
+@router.post("/products/{product_id}/stock")
+async def adjust_product_stock(product_id: str, request: Request):
+    """Quick stock adjustment: body {delta:int} to add/remove, or {stock:int} to set.
+    Stock is never negative; returns the updated stock + low/out-of-stock flags."""
+    user = await get_current_user(request)
+    merchant = await db.merchants.find_one({"user_id": user["id"]})
+    if not merchant:
+        raise HTTPException(status_code=403, detail="Not a merchant")
+    product = await db.products.find_one({"id": product_id, "merchant_id": merchant["id"]}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    body = await request.json()
+    cur = product.get("stock")
+    if body.get("stock") is not None:
+        new_stock = max(0, int(body["stock"]))
+    elif "delta" in body:
+        base = int(cur) if cur is not None else 0
+        new_stock = max(0, base + int(body["delta"]))
+    else:
+        raise HTTPException(status_code=400, detail="delta ou stock requis")
+    await db.products.update_one({"id": product_id}, {"$set": {"stock": new_stock}})
+    threshold = product.get("low_stock_threshold")
+    threshold = 5 if threshold is None else int(threshold)
+    return {
+        "id": product_id, "stock": new_stock,
+        "out_of_stock": new_stock <= 0,
+        "low_stock": 0 < new_stock <= threshold,
+    }
+
+
 @router.delete("/products/{product_id}")
 async def delete_product(product_id: str, request: Request):
     user = await get_current_user(request)

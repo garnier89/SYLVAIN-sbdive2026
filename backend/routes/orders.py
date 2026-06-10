@@ -140,7 +140,8 @@ async def order_auto_progress_loop():
         try:
             now = datetime.now(timezone.utc)
             cursor = db.orders.find(
-                {"status": {"$in": ["pending", "accepted", "preparing", "ready", "picked_up"]}},
+                {"status": {"$in": ["pending", "accepted", "preparing", "ready", "picked_up"]},
+                 "merchant_managed": {"$ne": True}},
                 {"_id": 0, "id": 1, "status": 1, "created_at": 1, "user_id": 1, "payment_method": 1,
                  "driver_id": 1, "delivery_speed": 1, "scheduled_at": 1},
             )
@@ -481,6 +482,10 @@ async def update_order_status(order_id: str, request: Request):
         raise HTTPException(status_code=403, detail="Not authorized")
 
     update_data = {"status": new_status}
+    # A real merchant taking control of the order disables the demo auto-progress
+    # simulation for it (manual accept/prepare/ready becomes authoritative).
+    if user["role"] in ("merchant", "admin", "dispatcher") and new_status in ("accepted", "preparing", "ready", "cancelled"):
+        update_data["merchant_managed"] = True
     if new_status == "delivered":
         update_data["payment_status"] = "completed" if order["payment_method"] != "cash" else "pending"
         from core.cashback import award_cashback
