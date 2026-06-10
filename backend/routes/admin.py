@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timezone, timedelta
 import uuid
+import os
 
 from core.config import db
 from core.deps import require_role
@@ -438,6 +439,18 @@ async def set_merchant_approval(merchant_id: str, request: Request):
                                       data={"url": "/merchant"}, push=True)
     except Exception:
         pass
+    # On approval, send the branded "store approved" email (non-blocking).
+    if action == "approve" and merchant.get("user_id"):
+        try:
+            owner = await db.users.find_one({"id": merchant["user_id"]}, {"_id": 0, "email": 1, "name": 1})
+            if owner and owner.get("email"):
+                from core.email import fire, send_merchant_approved
+                frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+                fire(send_merchant_approved(owner["email"], owner.get("name", ""),
+                                            merchant.get("store_name", "votre boutique"),
+                                            f"{frontend}/merchant"))
+        except Exception:
+            pass
     return {"merchant_id": merchant_id, "approval_status": update["approval_status"]}
 
 

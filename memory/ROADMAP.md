@@ -264,6 +264,15 @@ Tableau de bord intelligent : prévision des ventes, produits populaires, tendan
 - **Push PWA** : à chaque nouvelle commande, le marchand reçoit une notification (même app fermée) via l'infra Web Push/VAPID existante (`create_notification(push=True)` dans `create_order` → `send_web_push_to_user`). Bouton « Activer les alertes » (`subscribeToPush`) sur la page Commandes.
 - **Mode Pause/Occupé** : bouton « Mettre en pause » + menu durées (15/30/60 min / jusqu'à réouverture) → `POST /api/merchants/me/availability` ({accepting_orders, pause_minutes}). Bannière « Boutique en pause » + bouton Reprendre. Pendant la pause, toute commande est bloquée (**409** « Ce commerce est en pause… ») et `is_open=false`. Auto-reprise quand `pause_until` est dépassé (`_is_paused`). Tests : `backend/tests/test_merchant_availability.py` (3/3).
 
+**Espace Pro (hub connexion) + Inscription self-service SB Store** · ✅ LIVRÉ (2026-06-11, testé iter238/239 — backend 5/5, frontend 100%) :
+- **Page hub `/connexion`** (alias /espace-pro, /apps) : grille premium des 6 apps (Client, Chauffeur, SB Store, Kiosk, Admin, Dispatcher) + site web. Bouton « Connexion » du header de la landing branché dessus. Liens footer alignés (SB Store, SB Tab Kiosk, sbdrivevtc.com).
+- **Inscription self-service SB Store** (`SbStoreSignupPage.jsx`, route `/sb-store/inscription`) : formulaire 2 étapes (compte + boutique) → `POST /merchants/signup` (public) crée user role=merchant + boutique `approval_status='pending'`, `is_active=False` (cachée du public), auto-login. Lien « S'inscrire » sur la connexion email.
+- **Validation admin** : `GET /admin/merchants?status=pending|approved|all` + `POST /admin/merchants/{id}/approval {approve|reject}`. UI dans Manage Stores (`/merchants-admin/stores`) : filtre statut + badge « En attente » + boutons Valider/Refuser. Bannière « en attente » côté marchand (`MerchantLayout`). Notification push admin à chaque demande. Tests : `test_merchant_signup.py` (5/5).
+
+**Emails transactionnels Resend (onboarding SB Store)** · ✅ LIVRÉ (2026-06-11) :
+- À l'inscription → email **« Demande reçue »** ; à la validation admin → email **« Boutique validée »** (+ push déjà en place). Helper `core/email.py` (templates HTML FR brandés, non bloquant, ne casse jamais la requête). Branché dans `merchants.py` signup et `admin.py` approval.
+- ⚠️ **Resend en mode test** : la clé fournie ne délivre qu'à l'email vérifié du compte (`somosylv@gmail.com`). Pour envoyer aux vrais commerçants, **vérifier un domaine** sur resend.com/domains et changer `SENDER_EMAIL` vers une adresse de ce domaine.
+
 ### P2.4 — Réseau social commerce (Module 11) · **L**
 Publications / Stories / Promos / Événements par commerce ; suivre / liker / commenter / partager (inspiration TikTok Shop & Instagram Shopping).
 - Réutilise `news.py`, `NewsFeedPage`.

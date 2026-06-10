@@ -204,8 +204,15 @@ async def merchant_signup(data: MerchantSignup, response: Response):
             await create_notification(
                 admin["id"], "merchant_signup", "Nouveau commerçant 🏪",
                 f"« {merchant['store_name']} » demande à rejoindre SB Store — à valider.",
-                data={"url": "/stores-admin", "merchant_id": merchant["id"]}, push=True,
+                data={"url": "/merchants-admin/stores", "merchant_id": merchant["id"]}, push=True,
             )
+    except Exception:
+        pass
+
+    # Confirmation email to the new merchant (non-blocking).
+    try:
+        from core.email import fire, send_merchant_signup_received
+        fire(send_merchant_signup_received(email, user_doc["name"], merchant["store_name"]))
     except Exception:
         pass
 
