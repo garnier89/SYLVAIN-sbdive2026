@@ -22,7 +22,7 @@ from core.wallet_reserve import get_user_region
 from core.face_match import verify_face_match
 from core.mobile_money import (
     execute_payout, check_payout_status, get_payout_config, effective_mode,
-    PayoutError, eur_to_xof,
+    PayoutError, eur_to_xof, verify_recipient,
 )
 
 router = APIRouter(prefix="/payouts", tags=["payouts"])
@@ -388,6 +388,29 @@ async def admin_mark_paid(req_id: str, request: Request):
 
 
 # ═══════════════ Mobile Money real payout (disbursement) ═══════════════
+
+@router.post("/admin/withdrawals/{req_id}/verify-recipient")
+async def admin_verify_recipient(req_id: str, request: Request):
+    """Pre-flight check of the Mobile Money beneficiary before sending real money.
+    Non-mutating; uses the live provider API when mode=live (no live_enabled needed)."""
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    req = await db.admin_withdraw_requests.find_one({"id": req_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+    method = await db.payout_methods.find_one({"user_id": req["user_id"]}, {"_id": 0})
+    if not method or method.get("type") != "mobile_money":
+        raise HTTPException(status_code=400, detail="Vérification disponible uniquement pour le Mobile Money")
+    cfg = await get_payout_config()
+    mode = "live" if cfg.get("mode") == "live" else "sandbox"
+    net_eur = req.get("net_amount", req.get("final_amount", req.get("amount")))
+    try:
+        result = await verify_recipient(
+            method.get("provider"), (method.get("mobile_number") or "").strip(),
+            method.get("holder_name"), eur_to_xof(net_eur), mode)
+    except PayoutError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"id": req_id, "provider": method.get("provider"), "mode": mode, **result}
+
 
 @router.post("/admin/withdrawals/{req_id}/send")
 async def admin_send_payout(req_id: str, request: Request):

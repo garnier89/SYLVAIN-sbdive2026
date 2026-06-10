@@ -135,6 +135,74 @@ def test_execute_payout_rejects_rib():
     run_async(scenario())
 
 
+def test_verify_recipient_wave_name_match():
+    os.environ["WAVE_API_KEY"] = "wave_ci_prod_TESTKEY"
+    os.environ["WAVE_SIGNING_SECRET"] = "wave_ci_AKS_test"
+
+    async def scenario():
+        from core.mobile_money import verify_recipient
+        with respx.mock:
+            route = respx.post("https://api.wave.com/v1/verify_recipient/").mock(
+                return_value=httpx.Response(200, json={"within_limits": True, "name_match": "MATCH",
+                                                       "national_id_match": None}))
+            res = await verify_recipient("wave", "+2250700000000", "Awa Diallo", 6560, "live")
+            assert res["verdict"] == "ok"
+            req = route.calls.last.request
+            assert "Wave-Signature" in req.headers
+    run_async(scenario())
+
+
+def test_verify_recipient_wave_no_match_warns():
+    os.environ["WAVE_API_KEY"] = "wave_ci_prod_TESTKEY"
+
+    async def scenario():
+        from core.mobile_money import verify_recipient
+        with respx.mock:
+            respx.post("https://api.wave.com/v1/verify_recipient/").mock(
+                return_value=httpx.Response(200, json={"within_limits": True, "name_match": "NO_MATCH"}))
+            res = await verify_recipient("wave", "+2250700000000", "Wrong Name", 6560, "live")
+            assert res["verdict"] == "warning"
+    run_async(scenario())
+
+
+def test_verify_recipient_sandbox_simulated():
+    async def scenario():
+        from core.mobile_money import verify_recipient
+        res = await verify_recipient("wave", "+2250700000000", "X", 6560, "sandbox")
+        assert res["verdict"] == "ok" and res["details"].get("simulated") is True
+    run_async(scenario())
+
+
+def test_admin_verify_recipient_sandbox_flow():
+    cli = MongoClient(MONGO_URL)
+    db = cli[DB_NAME]
+    sfx = uuid.uuid4().hex[:8]
+    uid = f"vr_user_{sfx}"
+    req_id = f"wrv_{sfx}"
+    db.payout_provider_config.update_one({"id": "default"},
+                                         {"$set": {"id": "default", "mode": "sandbox", "live_enabled": False}}, upsert=True)
+    db.users.insert_one({"id": uid, "email": f"{uid}@x", "name": "Verif User", "role": "driver"})
+    db.payout_methods.insert_one({"id": f"pm_{sfx}", "user_id": uid, "type": "mobile_money",
+                                  "provider": "mtn", "mobile_number": "+2250700000000",
+                                  "holder_name": "Verif User", "status": "approved"})
+    db.admin_withdraw_requests.insert_one({"id": req_id, "user_id": uid, "amount": 8.0,
+                                           "net_amount": 8.0, "status": "approved",
+                                           "created_at": "2026-06-10T00:00:00+00:00"})
+    from _creds import ADMIN_EMAIL, ADMIN_PASSWORD
+    tok = requests.post(f"{API}/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15).json()
+    token = tok.get("access_token") or tok.get("token")
+    h = {"Authorization": f"Bearer {token}"}
+    try:
+        r = requests.post(f"{API}/api/payouts/admin/withdrawals/{req_id}/verify-recipient", headers=h, json={}, timeout=20)
+        assert r.status_code == 200, r.text
+        assert r.json()["verdict"] == "ok" and r.json()["mode"] == "sandbox"
+    finally:
+        db.users.delete_many({"id": uid})
+        db.payout_methods.delete_many({"user_id": uid})
+        db.admin_withdraw_requests.delete_many({"id": req_id})
+        cli.close()
+
+
 def test_admin_send_payout_sandbox_flow():
     """Full admin flow: approved Mobile Money withdrawal → /send → sandbox simulated paid."""
     cli = MongoClient(MONGO_URL)

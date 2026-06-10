@@ -40,6 +40,7 @@ const WithdrawalsTab = () => {
   const [finals, setFinals] = useState({});
   const [cfg, setCfg] = useState(null);
   const [busy, setBusy] = useState(null);
+  const [verify, setVerify] = useState({});
 
   const loadCfg = useCallback(async () => {
     try {
@@ -93,6 +94,19 @@ const WithdrawalsTab = () => {
       const lbl = d.status === 'paid' ? 'Versé' : 'En cours';
       toast.success(`${lbl}${d.simulated ? ' (simulation sandbox)' : ''} · ${d.amount_xof?.toLocaleString()} XOF via ${d.provider?.toUpperCase()}`);
       load();
+    } catch (e) { toast.error(e.message); } finally { setBusy(null); }
+  };
+
+  const verifyRecipient = async (id) => {
+    setBusy(`v-${id}`);
+    try {
+      const r = await fetch(`${API}/api/payouts/admin/withdrawals/${id}/verify-recipient`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Échec de la vérification');
+      setVerify((v) => ({ ...v, [id]: d }));
+      (d.verdict === 'ok' ? toast.success : d.verdict === 'warning' ? toast.error : toast)(d.message);
     } catch (e) { toast.error(e.message); } finally { setBusy(null); }
   };
 
@@ -204,12 +218,23 @@ const WithdrawalsTab = () => {
                     </div>
                   )}
                   {w.status === 'approved' && (
-                    <div className="flex flex-col gap-2 self-center w-44">
+                    <div className="flex flex-col gap-2 self-center w-48">
                       {isMobileMoney(w) && (
-                        <button onClick={() => sendPayout(w.id)} disabled={busy === w.id}
-                          className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-1 disabled:opacity-60" data-testid={`wd-send-${w.id}`}>
-                          <PaperPlaneTilt size={15} weight="fill" /> {busy === w.id ? '…' : 'Envoyer le versement'}
-                        </button>
+                        <>
+                          <button onClick={() => verifyRecipient(w.id)} disabled={busy === `v-${w.id}`}
+                            className="px-4 py-2 rounded-lg bg-white border border-indigo-200 text-indigo-700 text-sm font-bold flex items-center justify-center gap-1 disabled:opacity-60" data-testid={`wd-verify-${w.id}`}>
+                            <ShieldCheck size={15} /> {busy === `v-${w.id}` ? '…' : 'Vérifier le bénéficiaire'}
+                          </button>
+                          {verify[w.id] && (
+                            <p className={`text-[11px] leading-tight ${verify[w.id].verdict === 'ok' ? 'text-emerald-600' : verify[w.id].verdict === 'warning' ? 'text-red-600' : 'text-gray-500'}`} data-testid={`wd-verify-result-${w.id}`}>
+                              {verify[w.id].message}
+                            </p>
+                          )}
+                          <button onClick={() => sendPayout(w.id)} disabled={busy === w.id}
+                            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-1 disabled:opacity-60" data-testid={`wd-send-${w.id}`}>
+                            <PaperPlaneTilt size={15} weight="fill" /> {busy === w.id ? '…' : 'Envoyer le versement'}
+                          </button>
+                        </>
                       )}
                       <button onClick={() => act(w.id, 'mark-paid')} className="px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm font-bold flex items-center justify-center gap-1" data-testid={`wd-markpaid-${w.id}`}>
                         <Money size={15} /> Marquer versé

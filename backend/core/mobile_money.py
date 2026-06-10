@@ -266,3 +266,80 @@ async def check_payout_status(provider: str, provider_ref: str, mode: str) -> st
     if provider == "mtn":
         return await mtn_status(provider_ref, mode)
     return "processing"
+
+
+# ───────────────────────── Recipient verification ─────────────────────────
+# Confirms the destination account BEFORE sending real money. Wave does not
+# reveal the holder's name (privacy) — it tells us whether the number is a Wave
+# user and whether the KYC name we hold matches Wave's record.
+
+async def wave_verify_recipient(mobile: str, name: str = None, amount_xof: int = None) -> dict:
+    api_key = _env("WAVE_API_KEY")
+    if not api_key:
+        raise PayoutError("WAVE_API_KEY manquante ou incomplète (la clé fournie était tronquée).")
+    base = _env("WAVE_BASE_URL") or "https://api.wave.com"
+    secret = _env("WAVE_SIGNING_SECRET")
+    body_dict = {"mobile": mobile, "currency": "XOF"}
+    if name:
+        body_dict["name"] = name
+    if amount_xof:
+        body_dict["amount"] = str(amount_xof)
+    body = json.dumps(body_dict, separators=(",", ":"), ensure_ascii=False)
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    if secret:
+        ts = int(time.time())
+        sig = hmac.new(secret.encode(), f"{ts}{body}".encode(), hashlib.sha256).hexdigest()
+        headers["Wave-Signature"] = f"t={ts},v1={sig}"
+    async with httpx.AsyncClient(timeout=15.0) as c:
+        r = await c.post(f"{base}/v1/verify_recipient/", headers=headers, content=body)
+    data = r.json() if r.content else {}
+    if r.status_code >= 400:
+        raise PayoutError(data.get("message") or data.get("error_message") or f"Wave erreur HTTP {r.status_code}")
+    return {"name_match": data.get("name_match"), "within_limits": data.get("within_limits")}
+
+
+async def mtn_account_active(mobile: str, mode: str) -> bool:
+    cfg = _mtn_cfg(mode)
+    if not (cfg["sub_key"] and cfg["api_user"] and cfg["api_key"]):
+        raise PayoutError("MTN MoMo : identifiants Disbursement requis (voir .env).")
+    token = await _mtn_token(cfg)
+    async with httpx.AsyncClient(timeout=15.0) as c:
+        r = await c.get(
+            f"{cfg['base']}/disbursement/v1_0/accountholder/msisdn/{mobile.lstrip('+')}/active",
+            headers={"Authorization": f"Bearer {token}", "Ocp-Apim-Subscription-Key": cfg["sub_key"],
+                     "X-Target-Environment": cfg["target"]},
+        )
+    return bool((r.json() or {}).get("result")) if r.status_code < 400 else False
+
+
+async def verify_recipient(provider: str, mobile: str, name: str, amount_xof: int, mode: str) -> dict:
+    """Returns {verdict: ok|warning|info, message, details}. Sandbox is simulated."""
+    provider = (provider or "").lower()
+    if not mobile:
+        return {"verdict": "warning", "message": "Numéro Mobile Money manquant.", "details": {}}
+    if mode == "sandbox":
+        return {"verdict": "ok", "message": "Simulation (sandbox) : bénéficiaire considéré valide.",
+                "details": {"simulated": True}}
+
+    if provider == "wave":
+        res = await wave_verify_recipient(mobile, name, amount_xof)
+        nm = res.get("name_match")
+        if nm == "MATCH":
+            verdict, msg = "ok", "✅ Numéro Wave valide et nom concordant."
+        elif nm == "NO_MATCH":
+            verdict, msg = "warning", "⚠️ Le nom ne concorde PAS avec le compte Wave de ce numéro."
+        elif nm == "NAME_NOT_KNOWN":
+            verdict, msg = "info", "ℹ️ Numéro Wave valide, mais nom non vérifiable (compte non KYC)."
+        else:
+            verdict, msg = "info", "ℹ️ Vérification effectuée."
+        if res.get("within_limits") is False:
+            verdict, msg = "warning", msg + " ⚠️ Montant au-delà des limites du bénéficiaire."
+        return {"verdict": verdict, "message": msg, "details": res}
+
+    if provider == "mtn":
+        active = await mtn_account_active(mobile, mode)
+        return ({"verdict": "ok", "message": "✅ Compte MTN MoMo actif.", "details": {"active": True}}
+                if active else
+                {"verdict": "warning", "message": "⚠️ Compte MTN MoMo inactif ou introuvable.", "details": {"active": False}})
+
+    return {"verdict": "info", "message": "Vérification du bénéficiaire non disponible pour cet opérateur.", "details": {}}
