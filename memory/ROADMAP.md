@@ -134,8 +134,13 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 - ✅ **P2P « Envoyer de l'argent »** + **pay-ride** rebranchés sur `db.wallets`. Pharmacy/Real-Estate `payment-methods` exposent un seul « SB Pay ».
 - ⏳ Backlog : cashback automatique à la commande, libellés docstrings backend « SB PayGo »→« SB Pay » (cosmétique).
 
-### P0.3b — Visibilité Livraison Instantanée (Module 3) · **S** — ✅ LIVRÉ (2026-06-10, testé iter224)
-- Carte héro « Livraison Instantanée » (gradient indigo→orange, badge EXPRESS · DÈS 30 MIN, CTA) montée en haut de l'accueil (`UserHome.js`, `data-testid=instant-delivery-hero`) → `/parcel`. Toujours visible (hors CMS section order).
+### P0.4 — Cashback automatique SB Pay · **S/M** — ✅ LIVRÉ (2026-06-10, testé iter225 — 12/12)
+Crédite automatiquement un % du montant payé sur le solde SB Pay, pour tous les services.
+- Moteur `core/cashback.py` : `get_cashback_config()` + `award_cashback()` idempotent (index unique `cashback_ledger.key = service:ref_id`), buckets `sbpay/card/cash`.
+- **Admin-configurable** : taux (défaut 2 %, clampé 0–50), montant minimum (défaut 5 €), plafond/transaction, moyens éligibles, activer/désactiver — `GET/PUT /api/admin/cashback` + carte `AdminPaymentMethods.js`.
+- Branché sur : complétion course (SB Pay + carte), `pay-ride`, `/wallet/pay`, pharmacie, commandes (food/marketplace), colis/coursier, transport médical. **Espèces exclues.**
+- UX : ligne « Cashback » verte dans l'historique SB Pay, bannière taux sur `/wallet`, carte + toast cashback sur le reçu de course.
+- 🐞 **2 bugs post-unification corrigés** : complétion course + `core/payments.py debit_with_fallback` débitaient encore `sbpaygo_wallets` (vide) → désormais `db.wallets`.
 
 ### P0.4 — Fidélité multi-verticale SB Rewards (Module 9) · **S**
 Cumul de points sur Courses + Livraisons + Marketplace + Parrainage, catalogue de récompenses (réductions, livraison gratuite, bons).
