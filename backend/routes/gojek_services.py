@@ -272,65 +272,7 @@ async def list_parking_reservations(request: Request):
     reservations = await db.parking_reservations.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
     return reservations
 
-# ==========================================
-# GIFT CARDS
-# Tables: gift_cards, gift_card_images
-# ==========================================
-giftcard_router = APIRouter(prefix="/giftcards")
-
-DEMO_GIFTCARD_TEMPLATES = [
-    {"id": "gc_tmpl_1", "name": "Joyeux Anniversaire", "category": "birthday", "image_url": "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=400", "color": "#FF6B6B"},
-    {"id": "gc_tmpl_2", "name": "Merci", "category": "thanks", "image_url": "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=400", "color": "#4ECDC4"},
-    {"id": "gc_tmpl_3", "name": "Bonne Fête", "category": "celebration", "image_url": "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=400", "color": "#FFE66D"},
-    {"id": "gc_tmpl_4", "name": "SB Drive VTC", "category": "brand", "image_url": "https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=400", "color": "#FF4500"},
-    {"id": "gc_tmpl_5", "name": "Joyeuses Fêtes", "category": "holiday", "image_url": "https://images.unsplash.com/photo-1512389098783-66b81f86e199?w=400", "color": "#C44569"},
-]
-
-GIFTCARD_AMOUNTS = [10, 20, 30, 50, 75, 100, 150, 200]
-
-@giftcard_router.get("/templates")
-async def list_giftcard_templates():
-    return {"templates": DEMO_GIFTCARD_TEMPLATES, "amounts": GIFTCARD_AMOUNTS}
-
-@giftcard_router.post("/purchase")
-async def purchase_giftcard(request: Request):
-    user = await get_current_user(request)
-    body = await request.json()
-    card = {
-        "id": f"gc_{uuid.uuid4().hex[:12]}",
-        "purchaser_id": user["id"],
-        "template_id": body["template_id"],
-        "amount": body["amount"],
-        "recipient_name": body.get("recipient_name", ""),
-        "recipient_email": body.get("recipient_email", ""),
-        "message": body.get("message", ""),
-        "code": f"SB-{uuid.uuid4().hex[:8].upper()}",
-        "status": "active",
-        "redeemed": False,
-        "payment_method": body.get("payment_method", "wallet"),
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.gift_cards.insert_one(card)
-    card.pop("_id", None)
-    return card
-
-@giftcard_router.get("/my-cards")
-async def list_my_giftcards(request: Request):
-    user = await get_current_user(request)
-    cards = await db.gift_cards.find({"purchaser_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
-    return cards
-
-@giftcard_router.post("/redeem")
-async def redeem_giftcard(request: Request):
-    user = await get_current_user(request)
-    body = await request.json()
-    code = body.get("code", "")
-    card = await db.gift_cards.find_one({"code": code, "status": "active", "redeemed": False})
-    if not card:
-        raise HTTPException(status_code=404, detail="Invalid or already redeemed gift card")
-    await db.gift_cards.update_one({"code": code}, {"$set": {"redeemed": True, "redeemed_by": user["id"], "status": "redeemed"}})
-    await db.wallets.update_one({"user_id": user["id"]}, {"$inc": {"balance": card["amount"]}})
-    return {"message": f"Carte cadeau de {card['amount']}€ créditée sur votre portefeuille", "amount": card["amount"]}
+# Gift cards are served by routes/giftcards.py (wallet-debited purchase + redeem).
 
 # ==========================================
 # TRACKING SERVICE
@@ -633,6 +575,5 @@ router.include_router(video_router)
 router.include_router(bidding_router)
 router.include_router(intercity_router)
 router.include_router(parking_router)
-router.include_router(giftcard_router)
 router.include_router(tracking_router)
 router.include_router(medical_router)
