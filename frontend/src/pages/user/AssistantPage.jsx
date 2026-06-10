@@ -46,18 +46,22 @@ const AssistantPage = () => {
     setInput('');
     setMessages((m) => [...m, { role: 'user', content: msg }]);
     setLoading(true);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
     try {
       const r = await fetch(`${API}/api/assistant/chat`, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, session_id: sessionId }),
+        signal: controller.signal,
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Erreur');
       setSessionId(d.session_id);
       setMessages((m) => [...m, { role: 'assistant', content: d.reply, products: d.products || [], merchants: d.merchants || [] }]);
     } catch (e) {
-      setMessages((m) => [...m, { role: 'assistant', content: "Désolé, une erreur est survenue. Réessayez." }]);
-    } finally { setLoading(false); }
+      const msgErr = e.name === 'AbortError' ? "L'assistant met trop de temps à répondre. Réessayez." : "Désolé, une erreur est survenue. Réessayez.";
+      setMessages((m) => [...m, { role: 'assistant', content: msgErr }]);
+    } finally { clearTimeout(timer); setLoading(false); }
   };
 
   return (

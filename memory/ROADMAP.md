@@ -221,9 +221,12 @@ Vente/achat entre particuliers, **location de matériel**, services de proximit�
 
 ## 🟣 P2 — Innovation IA (LLM via Emergent Key)
 
-### P2.1 — IA Shopping Assistant (Module 4) · **M**
-Assistant conversationnel : « Trouve une pharmacie ouverte », « Commande une baguette et du lait », « Magasin le moins cher ». Comprend, recherche, compare, génère le panier.
-- Réutilise infra LLM (`chat.py`, `voice.py`).
+### P2.1 — IA Shopping Assistant (Module 4) · ✅ LIVRÉ (2026-06-10, pytest 5/5 + frontend iter233 100%)
+**SB Assistant** (`routes/assistant.py`) — assistant conversationnel **Gemini 3 Flash** via clé Emergent (`gemini-3-flash-preview`).
+- Pattern **grounded** (pas de function-calling natif) : 1) extraction d'intention JSON (intent/keywords/store_type/max_price/open_now/sort) → 2) recherche dans le **vrai catalogue** `db.products`/`db.merchants` (filtres, prix, calcul « ouvert maintenant » via `opening_hours`) → 3) réponse rédigée **uniquement** sur ces résultats (aucune hallucination, vérifié). Nettoyage de stopwords des mots-clés. Sessions multi-tours dans `db.assistant_sessions`.
+- `POST /api/assistant/chat {message, session_id?}` → `{reply, products[], merchants[]}` ; `GET /api/assistant/sessions/{id}`.
+- Front : `AssistantPage.jsx` (route `/assistant`, chat + cartes produits/commerces cliquables → `/food/{merchant_id}`, suggestions, timeout 25s) + bouton flottant « Assistant » sur `FoodPage`. Tests : `backend/tests/test_assistant.py`.
+- Note : catalogue actuel = restaurant/grocery/florist/wine/stationery/construction (pas de pharmacie en données).
 
 ### P2.2 — Achats groupés intelligents (Module 5) · **L**
 Regroupement automatique des commandes proches → frais de livraison réduits, trajets optimisés, empreinte carbone. IA identifie les commandes compatibles.
