@@ -751,6 +751,8 @@ const RideTrackingPage = () => {
             <div className="mt-3 flex justify-center"><PoolBadge ride={ride} /></div>
           )}
 
+          {ride.ride_type === 'airport' && <div className="mt-3"><FlightWatchBanner ride={ride} /></div>}
+
           <div className="mt-4 w-full bg-gray-50 border border-gray-100 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />

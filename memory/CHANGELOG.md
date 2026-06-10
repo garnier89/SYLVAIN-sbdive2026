@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06-10 — Module « Airport Transfer » (P2) [DONE, testé iter222]
+
+- **Backend** : `core/airport.py` (Flight Watch SIMULÉ déterministe, free-wait, bagages, navette, `flight_watch_loop`, `notify_admins`). Schemas enrichis (`airport_id/terminal/flight_arrival_time/luggage_*/shared_shuttle/flight_status/meeting_point/free_wait_minutes`). `create_ride` applique frais bagages + remise navette, résout l'aéroport, seed le statut vol, alerte admins. `phase2.py` : CRUD `airport-zones` étendu, `GET /airports` (public), `GET /admin/airport/reservations`, `POST /rides/{id}/flight-refresh`. Loop enregistrée dans `startup.py`.
+- **Frontend** : panneau aéroport enrichi (`RideChoosePage`), bannière `FlightWatchBanner` (tracking + état recherche), info vol côté chauffeur (`DriverRideFlow`, free-wait 45 min), page admin `/admin/airport` (KPIs + Réservations + CRUD aéroports), chip vol sur `/scheduled-rides`.
+- **Choix user** : flight watch en mode SIMULÉ (option d) — migration vers vraie API de vols quand clé fournie. Tous chauffeurs éligibles. 45 min attente gratuite. Aéroports gérés par admin. Dispatch via agent IA existant.
+- Tests : `backend/tests/test_airport_transfer.py` (3/3) + iter222 (6/6 backend). FE validé (admin + panneau client + booking).
+
+
 ## 2026-06-09 — Fix « la proposition de tarif ne fonctionne pas » (enchères) [DONE, testé]
 
 - **Bug** : à l'acceptation directe d'une course en enchère (« Offrez votre tarif »), le chauffeur acceptait le tarif proposé par le client (ex. 25 €) mais la course retombait sur l'estimation système (ex. 14,38 €) → le tarif proposé/négocié était perdu.

@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Calendar, MapPin, Pencil, X, Clock } from '@phosphor-icons/react';
+import { ArrowLeft, Calendar, MapPin, Pencil, X, Clock, AirplaneTilt } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/button';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -124,6 +124,24 @@ const ScheduledRidesPage = () => {
               </div>
               <p className="font-bold text-gray-900">{r.estimated_fare?.toFixed(2)} €</p>
             </div>
+
+            {r.ride_type === 'airport' && r.flight_number && (
+              <div className="ml-11 mb-2 inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-100 px-2.5 py-1" data-testid={`scheduled-flight-${r.id}`}>
+                <AirplaneTilt size={13} weight="fill" className="text-[#0EA5E9]" />
+                <span className="text-[11px] font-bold text-sky-800">Vol {r.flight_number}{r.airport_terminal ? ` · ${r.airport_terminal}` : ''}</span>
+                {r.flight_status?.status && (
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                    r.flight_status.status === 'delayed' ? 'bg-amber-100 text-amber-700'
+                    : r.flight_status.status === 'cancelled' ? 'bg-red-100 text-red-700'
+                    : r.flight_status.status === 'early' ? 'bg-blue-100 text-blue-700'
+                    : 'bg-emerald-100 text-emerald-700'}`}>
+                    {r.flight_status.status === 'delayed' ? `+${r.flight_status.delay_minutes}min`
+                      : r.flight_status.status === 'cancelled' ? 'Annulé'
+                      : r.flight_status.status === 'early' ? `${r.flight_status.delay_minutes}min` : 'OK'}
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1 text-xs text-gray-600 ml-11">
               <div className="flex items-start gap-1">

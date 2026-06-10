@@ -56,16 +56,15 @@
 
 ## Lot 3 — Refonte modules (specs détaillées fournies par user)
 
-### ✈️ Module "Airport Transfer" (service premium)
-- Réservation immédiate **ou à l'avance**.
-- **Flight Watch** : saisie n° de vol → suivi temps réel (retard/avance/annulation) → **ajustement automatique de l'heure de prise en charge** sans action client/chauffeur.
-- Détection auto aéroport (départ/arrivée) → tarif "Aéroport" **forfaitaire** (pas de surprise).
-- **Attribution prioritaire aux chauffeurs certifiés Aéroport** ; affichage du n° de vol au chauffeur.
-- **Temps d'attente gratuit** après atterrissage (ex. 30–60 min).
-- **Point de rendez-vous précis** dans le terminal (envoi auto au client).
-- Suppléments premium : **accueil pancarte (VIP)**, aide bagages, véhicules haut de gamme, navette partagée (option).
-- **Notifications auto client ↔ chauffeur** + **alerte admin** (suivi réservations VIP).
-- **Dashboard admin dédié transferts aéroport** + historique vols/réservations.
+### ✈️ Module "Airport Transfer" (service premium) — ✅ LIVRÉ (2026-06-10, testé iter222 — backend 6/6, FE ~100%)
+- ✅ Réservation immédiate ou planifiée via `/course?mode=airport` (panneau enrichi : sélection aéroport admin, n° vol, terminal, heure d'arrivée, aide bagages + nb, navette partagée, note "45 min offertes").
+- ✅ **Flight Watch SIMULÉ** (choix user = mode simulé `d`) : `core/airport.simulate_flight_status` déterministe par n° vol (~70% à l'heure / 20% retard / 7% avance / 3% annulé). Boucle de fond `flight_watch_loop` (toutes 120s) → ajuste `scheduled_at` (retard/avance) + notifie client & chauffeur. Endpoint manuel `POST /api/phase2/rides/{id}/flight-refresh`.
+- ✅ Aéroports **gérés par admin** : CRUD `airport_zones` étendu (meeting_point, free_wait_minutes, luggage_fee, shuttle_discount_pct, waiting_rate_per_min) + page admin dédiée `/admin/airport` (KPIs + onglets Réservations / Aéroports). Directory public `GET /api/phase2/airports`.
+- ✅ **Attente gratuite 45 min** (config par aéroport) : `DriverRideFlow` `freeWaitSec = free_wait_minutes*60` → facturation au tarif standard au-delà (via extra_charges.waiting du flux de complétion). Chrono visible client + chauffeur.
+- ✅ **Aide & supplément bagages** (luggage_fee) + **navette partagée** (shuttle_discount_pct) appliqués au tarif à la création.
+- ✅ **Alerte admin** sur chaque réservation aéroport (`notify_admins`) + **notifs client/chauffeur** sur changement de vol.
+- ✅ Affichage chauffeur : badge ✈️ + n° vol + terminal + point de RDV + statut vol (`driver-airport-info`). Affichage client : `FlightWatchBanner` (suivi + état recherche + tracking) + chip vol sur `/scheduled-rides`.
+- ⏳ NON fait (backlog) : attribution prioritaire chauffeurs certifiés (user a choisi "tous éligibles"), accueil pancarte VIP, intégration d'une vraie API de vols (migration depuis le mode simulé quand clé fournie).
 
 ### 🕒 Module "Mise à disposition" (réserver un chauffeur+véhicule pour une durée)
 - Durées : 2h / 4h / 8h / journée / plusieurs jours. Client choisit date, heure début, durée, type véhicule, nb passagers.
