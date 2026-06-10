@@ -215,3 +215,57 @@ async def send_order_delivered(to: str, customer_name: str, order: dict, store_n
         <p style="color:#444;font-size:14px;text-align:center;">Merci de votre confiance 🧡<br/>L'équipe SB Store</p>"""
     await _send(to, f"Facture {invoice_no} · commande {order_no} livrée — votre avis ⭐",
                 _shell("Commande livrée ✅", "#16a34a", body))
+
+
+_WALLET_META = {
+    "recharge":     {"title": "Reçu de rechargement 💳", "accent": "#16a34a", "verb": "Rechargement", "sign": "+", "subject": "Reçu de rechargement SB Pay"},
+    "withdraw":     {"title": "Reçu de retrait 🏦",       "accent": "#FF4500", "verb": "Retrait",      "sign": "-", "subject": "Reçu de retrait SB Pay"},
+    "transfer_out": {"title": "Transfert envoyé ↗",      "accent": "#FF4500", "verb": "Transfert envoyé", "sign": "-", "subject": "Reçu de transfert SB Pay"},
+    "transfer_in":  {"title": "Transfert reçu ↙",        "accent": "#16a34a", "verb": "Transfert reçu",   "sign": "+", "subject": "Vous avez reçu un transfert SB Pay"},
+}
+
+
+async def send_wallet_receipt(to: str, name: str, *, kind: str, amount: float, balance_after: float,
+                              ref: str, wallet_url: str, fee: float = 0.0, counterparty: str = "",
+                              method: str = "") -> None:
+    """Branded financial receipt for an SB Pay wallet operation."""
+    meta = _WALLET_META.get(kind)
+    if not meta:
+        return
+    date_str = datetime.now(timezone.utc).strftime("%d/%m/%Y à %H:%M")
+    lines = [("Opération", meta["verb"]), ("Référence", ref), ("Date", date_str)]
+    if counterparty:
+        lines.append(("Bénéficiaire" if kind == "transfer_out" else "Expéditeur", counterparty))
+    if method:
+        lines.append(("Méthode", method))
+    detail = "".join(
+        f'<tr><td style="padding:5px 0;color:#777;font-size:13px;">{k}</td>'
+        f'<td style="padding:5px 0;color:#0a0e1a;font-size:13px;text-align:right;font-weight:600;">{v}</td></tr>'
+        for k, v in lines
+    )
+    fee_row = (f'<tr><td style="padding:4px 0;color:#777;font-size:14px;">Frais</td>'
+               f'<td style="padding:4px 0;color:#777;font-size:14px;text-align:right;">-{_money(fee)}</td></tr>') if fee and fee > 0 else ""
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">Voici le reçu de votre opération SB Pay.</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f8fa;border-radius:10px;padding:14px 16px;margin:16px 0;">
+          {detail}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee;border-bottom:1px solid #eee;">
+          <tr><td style="padding:10px 0;color:#0a0e1a;font-size:17px;font-weight:bold;">Montant</td>
+              <td style="padding:10px 0;color:{meta['accent']};font-size:17px;font-weight:bold;text-align:right;">{meta['sign']}{_money(amount)}</td></tr>
+          {fee_row}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:8px 0;color:#777;font-size:14px;">Nouveau solde</td>
+              <td style="padding:8px 0;color:#0a0e1a;font-size:15px;font-weight:bold;text-align:right;">{_money(balance_after)}</td></tr>
+        </table>
+        <p style="text-align:center;margin:24px 0;">
+          <a href="{wallet_url}" style="background:{meta['accent']};color:#ffffff;text-decoration:none;
+             padding:12px 24px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">Voir mon portefeuille</a>
+        </p>
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;">
+          SB Drive VTC — plateforme de mise en relation. Reçu généré automatiquement pour votre opération SB Pay.
+          Si vous n'êtes pas à l'origine de cette opération, contactez immédiatement le support.
+        </p>"""
+    await _send(to, meta["subject"], _shell(meta["title"], meta["accent"], body))

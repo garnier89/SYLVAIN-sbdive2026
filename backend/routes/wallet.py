@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
+import os
 from datetime import datetime, timezone
 
 from core.config import db
@@ -83,6 +84,21 @@ async def topup_wallet(request: Request):
     }
     await db.wallet_transactions.insert_one(tx)
     tx.pop("_id", None)
+
+    # Recharge receipt email (non-blocking).
+    if user.get("email"):
+        try:
+            from core.billing import next_number
+            from core.email import fire, send_wallet_receipt
+            ref = await next_number("SB-R")
+            frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+            fire(send_wallet_receipt(
+                user["email"], user.get("name", ""), kind="recharge", amount=amount,
+                balance_after=round(new_balance, 2), ref=ref, wallet_url=f"{frontend}/wallet",
+                method=body.get("payment_method", "card"),
+            ))
+        except Exception:
+            pass
 
     return {"message": "Wallet recharged", "balance": round(new_balance, 2), "transaction": tx}
 
@@ -172,6 +188,23 @@ async def transfer_wallet(request: Request):
     ]:
         tx = {**tx_data, "id": f"tx_{uuid.uuid4().hex[:12]}", "status": "completed", "created_at": now}
         await db.wallet_transactions.insert_one(tx)
+
+    # Transfer receipts to both parties (non-blocking).
+    try:
+        from core.billing import next_number
+        from core.email import fire, send_wallet_receipt
+        frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        ref = await next_number("SB-T")
+        if user.get("email"):
+            fire(send_wallet_receipt(user["email"], user.get("name", ""), kind="transfer_out", amount=amount,
+                                     balance_after=round(new_sender_balance, 2), ref=ref,
+                                     wallet_url=f"{frontend}/wallet", counterparty=receiver.get("name", "")))
+        if receiver.get("email"):
+            fire(send_wallet_receipt(receiver["email"], receiver.get("name", ""), kind="transfer_in", amount=amount,
+                                     balance_after=round(new_receiver_balance, 2), ref=ref,
+                                     wallet_url=f"{frontend}/wallet", counterparty=user.get("name", "")))
+    except Exception:
+        pass
 
     return {"message": "Transfer successful", "balance": round(new_sender_balance, 2)}
 

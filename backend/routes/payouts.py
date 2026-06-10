@@ -17,6 +17,7 @@ import csv
 import io
 from datetime import datetime, timezone
 import uuid
+import os
 
 from core.config import db
 from core.deps import get_current_user, require_role
@@ -334,6 +335,22 @@ async def admin_approve_withdrawal(req_id: str, request: Request):
         + " a été approuvé. Versement en cours.",
         data={"url": "/wallet", "amount": net_final},
     )
+    # Withdrawal receipt email (non-blocking).
+    try:
+        owner = await db.users.find_one({"id": req["user_id"]}, {"_id": 0, "email": 1, "name": 1})
+        if owner and owner.get("email"):
+            wbal = await db.wallets.find_one({"user_id": req["user_id"]}, {"_id": 0, "balance": 1})
+            from core.billing import next_number
+            from core.email import fire, send_wallet_receipt
+            ref = await next_number("SB-W")
+            frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+            fire(send_wallet_receipt(
+                owner["email"], owner.get("name", ""), kind="withdraw", amount=net_final,
+                balance_after=round((wbal or {}).get("balance", 0), 2), ref=ref,
+                wallet_url=f"{frontend}/wallet", fee=fee, method=(req.get("method_label") or req.get("method") or ""),
+            ))
+    except Exception:
+        pass
     return {"id": req_id, "status": "approved", "final_amount": final, "net_amount": net_final, "refunded": diff}
 
 
