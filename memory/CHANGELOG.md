@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-10 — Flight Watch RÉEL via AviationStack [DONE, testé]
+
+- **Intégration AviationStack** (clé user dans `AVIATIONSTACK_API_KEY`) : `core/airport.fetch_aviationstack` (GET `/v1/flights?flight_iata=`, HTTPS, timeout court) + `_map_aviationstack` (flight_status/arrival.delay/scheduled/estimated/actual → on_time/delayed/early/cancelled + adjusted_pickup). `get_flight_status` = appel réel **avec cache 10 min** + **backoff 5 min** sur échec (économise le quota gratuit 100 req/mois) et **fallback automatique** vers `simulate_flight_status` (même format de données → zéro régression).
+- **Booking non bloquant** : `create_ride` seed instantané (simulé) puis tâche de fond `refresh_flight_for_ride` (données réelles, notifie si changement). `flight_watch_loop` et `POST /rides/{id}/flight-refresh` utilisent l'API réelle.
+- Vérifié : clé valide (HTTP 200), mapping 4 cas (retard/avance/annulé/à l'heure), fallback OK, 7/7 pytest. Frontend inchangé (même contrat).
+- Note : egress preview parfois instable (DNS) → le fallback simulé prend le relais ; en prod l'API réelle est utilisée.
+
 ## 2026-06-10 — Module « Airport Transfer » (P2) [DONE, testé iter222]
 
 - **Backend** : `core/airport.py` (Flight Watch SIMULÉ déterministe, free-wait, bagages, navette, `flight_watch_loop`, `notify_admins`). Schemas enrichis (`airport_id/terminal/flight_arrival_time/luggage_*/shared_shuttle/flight_status/meeting_point/free_wait_minutes`). `create_ride` applique frais bagages + remise navette, résout l'aéroport, seed le statut vol, alerte admins. `phase2.py` : CRUD `airport-zones` étendu, `GET /airports` (public), `GET /admin/airport/reservations`, `POST /rides/{id}/flight-refresh`. Loop enregistrée dans `startup.py`.

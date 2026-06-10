@@ -46,6 +46,32 @@ def test_simulate_flight_status_deterministic():
     assert simulate_flight_status("")  is None
 
 
+def test_aviationstack_mapping():
+    """AviationStack record → normalised shape mapping (offline, no network)."""
+    from core.airport import _map_aviationstack
+    delayed = _map_aviationstack(
+        {"flight_status": "active", "flight": {"iata": "AF1234"},
+         "arrival": {"scheduled": "2026-06-15T14:00:00+00:00", "delay": 35}},
+        "AF1234", "2026-06-15T10:00:00")
+    assert delayed["status"] == "delayed" and delayed["delay_minutes"] == 35
+    assert delayed["adjusted_pickup"] == "2026-06-15T10:35:00+00:00"
+    assert delayed["simulated"] is False
+
+    cancelled = _map_aviationstack({"flight_status": "cancelled", "flight": {"iata": "X"}, "arrival": {}}, "X")
+    assert cancelled["status"] == "cancelled"
+
+    early = _map_aviationstack(
+        {"flight_status": "active", "flight": {"iata": "LH10"},
+         "arrival": {"scheduled": "2026-06-15T14:00:00+00:00", "estimated": "2026-06-15T13:38:00+00:00"}},
+        "LH10", "2026-06-15T10:00:00")
+    assert early["status"] == "early" and early["delay_minutes"] == -22
+
+    on_time = _map_aviationstack(
+        {"flight_status": "landed", "flight": {"iata": "BA1"},
+         "arrival": {"scheduled": "2026-06-15T14:00:00+00:00", "delay": 3}}, "BA1")
+    assert on_time["status"] == "on_time"
+
+
 def test_admin_airport_crud_and_public_list():
     tok = _login(ADMIN)
     h = {"Authorization": f"Bearer {tok}"}

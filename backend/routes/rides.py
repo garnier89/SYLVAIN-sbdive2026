@@ -645,8 +645,11 @@ async def create_ride(data: RideRequest, request: Request):
     # ── Airport Transfer: seed flight status + alert admins (P2) ──
     if is_airport:
         try:
-            from core.airport import simulate_flight_status, notify_admins
+            from core.airport import simulate_flight_status, refresh_flight_for_ride, notify_admins
             if ride.get("flight_number"):
+                # Seed instantly with the simulated status so booking is never blocked
+                # by a slow external call; the real AviationStack status is fetched in
+                # the background and replaces it (notifying on change).
                 fs = simulate_flight_status(ride["flight_number"], ride.get("scheduled_at"))
                 if fs:
                     if fs.get("adjusted_pickup"):
@@ -654,6 +657,8 @@ async def create_ride(data: RideRequest, request: Request):
                     ride["flight_status"] = fs
                     await db.rides.update_one({"id": ride["id"]}, {"$set": {
                         "flight_status": fs, "scheduled_at": ride.get("scheduled_at")}})
+                # Background: upgrade to real flight data (best-effort).
+                asyncio.create_task(refresh_flight_for_ride(dict(ride)))
             await notify_admins(
                 "airport_booking", "✈️ Nouvelle course Aéroport",
                 f"{ride.get('airport_name') or 'Aéroport'} · Vol {ride.get('flight_number') or '—'} · {ride['pickup_address'][:40]}",

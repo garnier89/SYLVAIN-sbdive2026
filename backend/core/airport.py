@@ -13,7 +13,10 @@ import asyncio
 import hashlib
 import logging
 import math
+import os
 from datetime import datetime, timezone, timedelta
+
+import httpx
 
 from core.config import db
 
@@ -24,6 +27,14 @@ DEFAULT_LUGGAGE_FEE = 5.0
 DEFAULT_SHUTTLE_DISCOUNT_PCT = 30.0
 DEFAULT_WAIT_RATE_PER_MIN = 0.5
 FLIGHT_WATCH_INTERVAL_SEC = 120
+
+# AviationStack (real flight data) — free tier: HTTP only, 100 req/month.
+AVIATIONSTACK_KEY = os.environ.get("AVIATIONSTACK_API_KEY", "")
+AVIATIONSTACK_URL = "https://api.aviationstack.com/v1/flights"
+FLIGHT_CACHE_TTL_SEC = 600  # 10 min cache per flight to spare the monthly quota
+FLIGHT_FAIL_TTL_SEC = 300   # back off real calls for 5 min after a failure (slow/unreachable)
+_flight_cache: dict[str, tuple[float, dict]] = {}  # flight_number -> (expires_at, status)
+_flight_fail_until: dict[str, float] = {}  # flight_number -> retry-after timestamp
 
 
 def _haversine_km(lat1, lng1, lat2, lng2):
@@ -127,6 +138,115 @@ def simulate_flight_status(flight_number, scheduled_at=None, now=None):
     return out
 
 
+def _parse_iso(s):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
+def _map_aviationstack(record: dict, flight_number: str, scheduled_at=None, now=None):
+    """Map an AviationStack /v1/flights record into our normalised status shape."""
+    now = now or datetime.now(timezone.utc)
+    raw = (record.get("flight_status") or "").lower()
+    arr = record.get("arrival") or {}
+    delay = arr.get("delay")
+    try:
+        delay = int(delay) if delay is not None else None
+    except (ValueError, TypeError):
+        delay = None
+    sched = _parse_iso(arr.get("scheduled"))
+    ref = _parse_iso(arr.get("actual")) or _parse_iso(arr.get("estimated"))
+    if delay is None and sched and ref:
+        delay = int((ref - sched).total_seconds() / 60)
+
+    if raw == "cancelled":
+        status, delay_minutes = "cancelled", 0
+    elif delay is not None and delay >= 10:
+        status, delay_minutes = "delayed", delay
+    elif delay is not None and delay <= -10:
+        status, delay_minutes = "early", delay
+    else:
+        status, delay_minutes = "on_time", (delay or 0)
+
+    out = {
+        "flight_number": flight_number,
+        "status": status,
+        "delay_minutes": delay_minutes,
+        "checked_at": now.isoformat(),
+        "simulated": False,
+        "source": "aviationstack",
+    }
+    if scheduled_at and status in ("delayed", "early"):
+        base = _parse_iso(scheduled_at)
+        if base:
+            if base.tzinfo is None:
+                base = base.replace(tzinfo=timezone.utc)
+            out["adjusted_pickup"] = (base + timedelta(minutes=delay_minutes)).isoformat()
+    return out
+
+
+async def fetch_aviationstack(flight_number, scheduled_at=None):
+    """Query AviationStack for a real flight status. Returns mapped dict or None on any failure."""
+    if not AVIATIONSTACK_KEY:
+        return None
+    fn = (flight_number or "").strip().upper()
+    if not fn:
+        return None
+    params = {"access_key": AVIATIONSTACK_KEY, "flight_iata": fn, "limit": 1}
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(6.0, connect=4.0)) as client:
+            r = await client.get(AVIATIONSTACK_URL, params=params)
+        if r.status_code != 200:
+            logger.info("aviationstack non-200 for %s: %s", fn, r.status_code)
+            return None
+        payload = r.json()
+        if isinstance(payload, dict) and payload.get("error"):
+            logger.info("aviationstack error for %s: %s", fn, payload.get("error"))
+            return None
+        data = (payload or {}).get("data") or []
+        if not data:
+            return None
+        return _map_aviationstack(data[0], fn, scheduled_at)
+    except Exception:
+        logger.warning("aviationstack call failed for %s", fn, exc_info=True)
+        return None
+
+
+async def get_flight_status(flight_number, scheduled_at=None):
+    """Real flight status via AviationStack (cached 10 min) with fallback to simulation.
+
+    Always returns the same shape as `simulate_flight_status`.
+    """
+    fn = (flight_number or "").strip().upper()
+    if not fn:
+        return None
+    import time as _time
+    cached = _flight_cache.get(fn)
+    if cached and cached[0] > _time.time():
+        base = dict(cached[1])
+        # Recompute adjusted_pickup against THIS ride's scheduled_at.
+        if scheduled_at and base.get("status") in ("delayed", "early"):
+            sa = _parse_iso(scheduled_at)
+            if sa:
+                if sa.tzinfo is None:
+                    sa = sa.replace(tzinfo=timezone.utc)
+                base["adjusted_pickup"] = (sa + timedelta(minutes=base.get("delay_minutes", 0))).isoformat()
+        return base
+    # Skip the (slow) real call if it recently failed/was unreachable for this flight.
+    if _flight_fail_until.get(fn, 0) > _time.time():
+        return simulate_flight_status(fn, scheduled_at)
+    real = await fetch_aviationstack(fn, scheduled_at)
+    if real:
+        _flight_cache[fn] = (_time.time() + FLIGHT_CACHE_TTL_SEC, real)
+        return real
+    # Fallback: deterministic simulation (no API / quota / not found). Back off real retries.
+    _flight_fail_until[fn] = _time.time() + FLIGHT_FAIL_TTL_SEC
+    return simulate_flight_status(fn, scheduled_at)
+
+
 def _flight_message(status_doc: dict):
     """(title, body) localised FR for a flight status change."""
     fn = status_doc.get("flight_number", "")
@@ -156,7 +276,7 @@ async def _notify_flight_change(ride: dict, status_doc: dict):
 
 async def refresh_flight_for_ride(ride: dict) -> dict | None:
     """Re-evaluate a ride's flight, persist + notify on change. Returns the new status."""
-    new = simulate_flight_status(ride.get("flight_number"), ride.get("scheduled_at"))
+    new = await get_flight_status(ride.get("flight_number"), ride.get("scheduled_at"))
     if not new:
         return None
     old = ride.get("flight_status") or {}
