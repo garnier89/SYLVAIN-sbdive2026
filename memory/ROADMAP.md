@@ -143,12 +143,19 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 - Retrait : **clients bloqués (403)**, chauffeurs/marchands seulement, jamais sous le plancher, gel du montant en `pending_withdraw`.
 - Admin : `GET/PUT /api/admin/wallet-reserve-config` + carte « Réserve portefeuille SB Pay » dans `/admin/payment-methods`.
 
-### P0.6 — Retraits avancés + KYC paiement (Phase C) · ⏳ À FAIRE (P1)
-- Moyens de retrait : **RIB** (Europe/DOM-TOM, doit appartenir à la personne/société) + **selfie de vérification** + documents → **validation admin** avant tout retrait ; **Mobile Money** (Afrique : Orange Money, MTN, Wave, SBPAYGO, Moov).
-- Demande → en suspens → l'admin examine le compte et **peut ajuster/réduire le montant** (erreurs/réclamations) → validation → débit ; remboursement de la différence si réduit, ou du total si rejeté.
-- **Délais éditables admin** : EU/DOM-TOM marchands 48h / chauffeurs 24h ; Afrique chauffeurs 12h / marchands 24h. **Express 12h** (EU/DOM-TOM) avec **frais 1 € éditables**.
-- Marchands éligibles au retrait ; **jumelage** compte client↔marchand.
-- Versement réel : marqué payé manuellement en v1 (API Orange/MTN/Wave/Stripe Payouts branchables avec identifiants).
+### P0.6 — Retraits + KYC paiement (Phase C1) · ✅ LIVRÉ (2026-06-10, testé iter227 — 17/17)
+- **Moyens de retrait** (`routes/payouts.py`, `core/face_match.py`) : **RIB** (Europe/DOM-TOM, IBAN+BIC, titulaire personne/société) ou **Mobile Money** (Afrique : Orange/MTN/Wave/SBPAYGO/Moov), avec **selfie + pièce d'identité**.
+- **Face-match IA automatique** (gpt-4o via clé Emergent) à la soumission → assiste l'admin ; ne lève jamais d'erreur (dégrade en « uncertain »). **Validation admin obligatoire** avant tout retrait.
+- **Demande de retrait** gâtée : moyen approuvé + conforme à la zone requis ; montant gelé en suspens.
+- **Validation admin** avec **score chauffeur** (note, acceptation, annulation, courses, réclamations), **ajustement du montant** (remboursement de la différence), approuver/refuser/marquer payé.
+- **Alerte admin temps réel** à chaque nouvelle demande (notification + score).
+- Front : page user `PayoutMethodPage` (selfie/CNI), modal de retrait sur `/wallet`, admin `AdminPayouts` (2 onglets : demandes + KYC) sur `/admin/withdraw-requests` & `/admin/payout-methods`.
+
+### P0.6b — Retraits avancés (Phase C2) · ⏳ À FAIRE (P1)
+- **Délais éditables admin** par zone/rôle : EU/DOM-TOM marchand 48h / chauffeur 24h ; Afrique chauffeur 12h / marchand 24h.
+- **Express 12h** (EU/DOM-TOM) avec **frais 1 € éditables**.
+- **Jumelage** : relier deux comptes séparés (client + marchand) pour faciliter les transferts entre eux.
+- **Versements réels** : brancher API Orange Money / MTN / Wave / Stripe Payouts (avec identifiants fournis).
 
 ### P0.7 — Paiement « sans contact » (Phase D) · ⏳ À FAIRE (P1)
 - Le chauffeur saisit un montant dans SB Pay → génère **QR + code 6 chiffres** → le client scanne/saisit, s'authentifie, paie via **solde SB Pay ou carte (Stripe)** → crédité au chauffeur/marchand. (NFC natif reporté à une future app native.)
