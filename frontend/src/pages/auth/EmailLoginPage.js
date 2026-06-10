@@ -36,6 +36,7 @@ const EmailLoginPage = () => {
       if (r === 'admin') navigate('/admin', { replace: true });
       else if (r === 'driver') navigate('/chauffeur/home', { replace: true });
       else if (r === 'merchant') navigate('/merchant/dashboard', { replace: true });
+      else if (r === 'dispatcher') navigate('/dispatcher', { replace: true });
       else navigate('/home', { replace: true });
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Identifiants invalides');

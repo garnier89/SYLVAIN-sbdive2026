@@ -35,7 +35,7 @@ const APPS = [
     tags: ['Supervision', 'Réglages', 'Finances'],
   },
   {
-    id: 'dispatcher', title: 'Dispatcher', to: '/dispatcher', icon: Headset, accent: '#3B82F6',
+    id: 'dispatcher', title: 'Dispatcher', to: '/login/email', icon: Headset, accent: '#3B82F6',
     desc: 'Répartition et coordination des courses en temps réel.',
     tags: ['Répartition', 'Temps réel', 'Support'],
   },
@@ -47,7 +47,7 @@ const ProAccessPage = () => {
 
   useEffect(() => {
     if (user) {
-      const redirects = { user: '/home', driver: '/chauffeur/home', merchant: '/merchant', admin: '/admin', dispatcher: '/dispatch' };
+      const redirects = { user: '/home', driver: '/chauffeur/home', merchant: '/merchant', admin: '/admin', dispatcher: '/dispatcher' };
       navigate(redirects[user.role] || '/home', { replace: true });
     }
   }, [user, navigate]);
