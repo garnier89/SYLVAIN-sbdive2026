@@ -706,6 +706,45 @@ async def admin_credit_user_wallet(user_id: str, request: Request):
     return {"new_balance": new_balance, "amount": amount, "type": tx_type}
 
 
+# ===== WALLET RESERVE (SB Pay floors) =====
+
+@router.get("/wallet-reserve-config")
+async def get_wallet_reserve_config_admin(request: Request):
+    await require_role(request, ["admin"], permission="billing.edit")
+    from core.wallet_reserve import get_reserve_config
+    return await get_reserve_config()
+
+
+@router.put("/wallet-reserve-config")
+async def update_wallet_reserve_config_admin(request: Request):
+    await require_role(request, ["admin"], permission="billing.edit")
+    body = await request.json()
+    from core.wallet_reserve import RESERVE_CFG_ID, get_reserve_config
+    update = {}
+    for k in ("driver_europe", "driver_africa", "merchant", "withdraw_min"):
+        if body.get(k) is not None:
+            try:
+                update[k] = max(0.0, float(body[k]))
+            except (TypeError, ValueError):
+                pass
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.wallet_reserve_config.update_one({"id": RESERVE_CFG_ID}, {"$set": update}, upsert=True)
+    return await get_reserve_config()
+
+
+@router.put("/users/{user_id}/region")
+async def set_user_region(user_id: str, request: Request):
+    await require_role(request, ["admin"], permission="billing.edit")
+    body = await request.json()
+    region = body.get("region")
+    if region not in ("africa", "europe"):
+        raise HTTPException(400, "region doit être 'africa' ou 'europe'")
+    res = await db.users.update_one({"id": user_id}, {"$set": {"region": region}})
+    if res.matched_count == 0:
+        raise HTTPException(404, "User not found")
+    return {"user_id": user_id, "region": region}
+
+
 # ===== ADMIN GENERAL SETTINGS =====
 
 @router.get("/settings")

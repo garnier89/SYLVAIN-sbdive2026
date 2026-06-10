@@ -12,6 +12,13 @@ router = APIRouter(prefix="/wallet", tags=["wallet"])
 async def get_wallet(request: Request):
     """Get user's wallet balance and recent transactions."""
     user = await get_current_user(request)
+    # Auto-credit the platform reserve for active drivers/merchants (idempotent).
+    floor = 0.0
+    try:
+        from core.wallet_reserve import ensure_reserve_credited
+        floor = await ensure_reserve_credited(user)
+    except Exception:
+        pass
     wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
     if not wallet:
         wallet = {
@@ -27,7 +34,20 @@ async def get_wallet(request: Request):
         {"user_id": user["id"]}, {"_id": 0}
     ).sort("created_at", -1).limit(50).to_list(50)
 
-    return {"balance": wallet["balance"], "currency": wallet.get("currency", "EUR"), "transactions": transactions}
+    balance = wallet["balance"]
+    reserve = float(wallet.get("reserve", floor) or 0)
+    pending = float(wallet.get("pending_withdraw", 0) or 0)
+    can_withdraw = user.get("role") in ("driver", "merchant")
+    withdrawable = round(max(0.0, balance - reserve - pending), 2) if can_withdraw else 0.0
+    return {
+        "balance": balance,
+        "currency": wallet.get("currency", "EUR"),
+        "transactions": transactions,
+        "reserve": round(reserve, 2),
+        "pending_withdraw": round(pending, 2),
+        "withdrawable": withdrawable,
+        "can_withdraw": can_withdraw,
+    }
 
 
 @router.post("/topup")

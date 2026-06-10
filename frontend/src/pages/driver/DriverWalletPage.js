@@ -42,6 +42,11 @@ const DriverWalletPage = () => {
       <div className="mx-5 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 p-5 shadow-xl shadow-amber-500/20 mb-5">
         <p className="text-amber-100 text-sm font-medium">Solde disponible</p>
         <p className="text-4xl font-bold text-white mt-1" data-testid="wallet-balance">{(wallet.balance || 0).toFixed(2)} EUR</p>
+        {wallet.reserve > 0 && (
+          <p className="text-amber-100/90 text-xs mt-1" data-testid="driver-reserve-info">
+            Réserve {Number(wallet.reserve).toFixed(0)} € (non retirable) · Retirable {Number(wallet.withdrawable || 0).toFixed(2)} €
+          </p>
+        )}
         <div className="flex gap-2 mt-4">
           {withdrawalEnabled && (
             <Button onClick={requestPayout} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="payout-btn">

@@ -1,0 +1,28 @@
+{
+  "summary": "Iter 226 PHASE A (cashback monthly summary) + PHASE B (SB Pay wallet reserve & region) — all backend (10/10 pytest pass) + frontend (admin reserve card, user cashback monthly counter, merchant reserve info) verified end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter226_reserve_and_summary.py",
+    "/app/test_reports/pytest/iter226_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "core/wallet_reserve.py is clean: idempotency via wallets.reserve_credited flag; non-active drivers/merchants receive only the floor (no gift) until db.drivers.status='approved' / db.merchants profile exists; region derived from country with admin override (users.region). Africa code set covers AOF + key markets.",
+    "routes/wallet.py GET correctly composes withdrawable = max(0, balance-reserve-pending) and reports can_withdraw=False for clients; reserve auto-credit wrapped in try/except so a transient failure won't 500 the endpoint.",
+    "routes/misc.py /wallet/withdraw-request enforces role gate (403 for client), withdraw_min from config (400 if below), reserve floor (400 with explicit 'réserve de N €' message), creates admin_withdraw_requests with role+region, freezes amount into pending_withdraw atomically with $inc.",
+    "routes/admin.py: GET/PUT /wallet-reserve-config require billing.edit permission; PUT clamps to >=0 and ignores non-numeric input. PUT /users/{id}/region validates region∈{africa,europe} and returns 404 if user not found.",
+    "routes/finance.py /finance/cashback/summary delegates to core.cashback.get_cashback_summary which aggregates ledger by ISO month bounds — works for any user_id; returns currency='EUR' (note: currency is hard-coded EUR, fine for now but worth deriving from wallet later if multi-currency support is needed).",
+    "Frontend AdminPaymentMethods.js: reserve-config-card with 4 numeric inputs, onBlur saves via PUT /admin/wallet-reserve-config and shows toast 'Réserve mise à jour'. Tested live ✓.",
+    "Frontend WalletPage.js cashback-monthly-counter (data-testid present) shows uppercased labels 'CASHBACK CE MOIS-CI' and 'TOTAL GAGNÉ' via CSS — visual content correct; raw test would need case-insensitive matching.",
+    "Frontend WalletPage.js wallet-reserve-info renders only for driver/merchant roles — confirmed hidden for client (test2) and visible for merchant ('Réserve 1 € non retirable · Retirable 0.00 €')."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter226_reserve_and_summary.py (new pytest suite — 10 tests, all passing)"],
+  "success_rate": {"backend": "100% (10/10 pass)", "frontend": "100% (admin reserve card + user counter + merchant reserve info verified)"},
+  "test_credentials": "test2@example.com / TestPass123! (user); merchant@example.com / Merchant123! (merchant); jean.dupont@demo.sb / Driver123! (driver, set to status='approved' during tests); admin@superapp.com / SuperAdmin123! (admin). Login UI requires clicking 'Ou choisir une autre option de connexion' → 'Email & mot de passe' (modal) — the default /login page shows phone-number entry.",
+  "seed_data_creation": "During pytest: forced jean.dupont driver.status='approved' for the reserve-gift+withdraw path; admin-credited test2 (€100, summary test) and driver (€80, withdraw test); deleted/recreated merchant & driver wallets at test start for deterministic idempotency assertions; created admin_withdraw_requests entry (pending) and cleaned up at the end (status='pending' rows for the test driver removed); reset wallet_reserve_config to defaults (50/2/1/10) and removed users.region override at module end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend reserve/region engine fully exercised: merchant 1€ gift idempotent (single Reserve tx + balance bump), approved driver 50€ Europe gift idempotent, client gets reserve=0/can_withdraw=false + 403 on withdraw-request, driver withdraw blocks below withdraw_min (10€) and above (balance-reserve-pending), success freezes funds into pending_withdraw + creates admin_withdraw_requests doc with role+region. PUT /admin/users/{id}/region='africa' switches floor to 2€ on next /wallet read; reverted to europe at cleanup. PUT /admin/wallet-reserve-config clamps negatives to 0. Cashback summary endpoint aggregates ledger by ISO month boundary; pay-ride (≥5€) increments both this_month and all_time by 2% of fare. Frontend: reserve-config-card (4 inputs) saves on blur with toast 'Réserve mise à jour'; cashback-monthly-counter visible on wallet for client (uppercased via CSS); wallet-reserve-info visible for merchant, hidden for client. Did NOT test driver wallet UI (no driver-friendly login path through the /login modal — would need /auth or direct backend token). Did NOT test the monthly recap notification side-effect of _process_monthly_cashback / cashback_monthly_loop (background scheduler, time-bound).",
+  "rca of the issue": "No issues found. All acceptance criteria for iter226 (cashback monthly summary + SB Pay reserve & region) met."
+}

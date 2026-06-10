@@ -6,9 +6,13 @@ cap and eligible payment-method buckets. Idempotent per (service, ref_id) so a
 given ride/order/parcel can only ever earn cashback once.
 """
 import uuid
-from datetime import datetime, timezone
+import asyncio
+import logging
+from datetime import datetime, timezone, timedelta
 
 from core.config import db
+
+logger = logging.getLogger(__name__)
 
 CASHBACK_CFG_ID = "default"
 
@@ -119,3 +123,80 @@ async def award_cashback(user_id: str, amount, method: str, service: str,
         "created_at": now,
     })
     return cb
+
+
+# ───────────────────────── Monthly summary & notification ──────────────────
+
+def _month_bounds(period: str):
+    """Return ISO start/end of a 'YYYY-MM' period (end exclusive)."""
+    y, m = map(int, period.split("-"))
+    start = datetime(y, m, 1, tzinfo=timezone.utc)
+    end = datetime(y + 1, 1, 1, tzinfo=timezone.utc) if m == 12 else datetime(y, m + 1, 1, tzinfo=timezone.utc)
+    return start.isoformat(), end.isoformat()
+
+
+async def _sum_cashback(match: dict) -> float:
+    total = 0.0
+    pipeline = [{"$match": match}, {"$group": {"_id": None, "t": {"$sum": "$amount"}}}]
+    async for r in db.cashback_ledger.aggregate(pipeline):
+        total = round(r.get("t", 0) or 0, 2)
+    return total
+
+
+async def get_cashback_summary(user_id: str) -> dict:
+    """This-month and all-time cashback earned by a user."""
+    now = datetime.now(timezone.utc)
+    cur_start, cur_end = _month_bounds(now.strftime("%Y-%m"))
+    this_month = await _sum_cashback({"user_id": user_id, "created_at": {"$gte": cur_start, "$lt": cur_end}})
+    all_time = await _sum_cashback({"user_id": user_id})
+    return {"this_month": this_month, "all_time": all_time, "currency": "EUR"}
+
+
+_MONTH_FR = ["", "janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+             "août", "septembre", "octobre", "novembre", "décembre"]
+
+
+async def _process_monthly_cashback(period: str):
+    """Idempotently notify each user of their cashback earned during `period`
+    ('YYYY-MM'). Records in db.cashback_monthly so a user is notified once/period."""
+    from core.notifications import create_notification
+    start, end = _month_bounds(period)
+    y, m = map(int, period.split("-"))
+    label = f"{_MONTH_FR[m]} {y}"
+    pipeline = [
+        {"$match": {"created_at": {"$gte": start, "$lt": end}}},
+        {"$group": {"_id": "$user_id", "total": {"$sum": "$amount"}}},
+    ]
+    async for row in db.cashback_ledger.aggregate(pipeline):
+        uid = row["_id"]
+        total = round(row.get("total", 0) or 0, 2)
+        if not uid or total <= 0:
+            continue
+        existing = await db.cashback_monthly.find_one({"user_id": uid, "period": period})
+        if existing:
+            continue
+        await db.cashback_monthly.insert_one({
+            "user_id": uid, "period": period, "total": total, "created_at": _now(),
+        })
+        try:
+            await create_notification(
+                uid, "cashback_monthly", "Votre cashback du mois 🎁",
+                f"Vous avez gagné {total:.2f} € de cashback SB Pay en {label}. Continuez à payer avec SB Pay !",
+                data={"url": "/wallet", "amount": total, "period": period},
+            )
+        except Exception:
+            pass
+
+
+async def cashback_monthly_loop():
+    """Hourly check; once a calendar month ends, sends each user their monthly
+    cashback recap notification (idempotent)."""
+    await asyncio.sleep(25)
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            prev_month_last_day = now.replace(day=1) - timedelta(days=1)
+            await _process_monthly_cashback(prev_month_last_day.strftime("%Y-%m"))
+        except Exception as e:
+            logger.error(f"cashback_monthly_loop error: {e}")
+        await asyncio.sleep(3600)

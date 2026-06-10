@@ -18,6 +18,7 @@ const AdminPaymentMethods = () => {
   const [methods, setMethods] = useState([]);
   const [financeMod, setFinanceMod] = useState({ enabled: true, sbpaygo_base_url: '' });
   const [cashback, setCashback] = useState(null);
+  const [reserve, setReserve] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
 
@@ -30,6 +31,8 @@ const AdminPaymentMethods = () => {
       setFinanceMod(data.finance_module || { enabled: true, sbpaygo_base_url: '' });
       const cb = await fetch(`${API}/api/admin/cashback`, { credentials: 'include' });
       if (cb.ok) setCashback(await cb.json());
+      const rv = await fetch(`${API}/api/admin/wallet-reserve-config`, { credentials: 'include' });
+      if (rv.ok) setReserve(await rv.json());
     } catch (e) {
       console.error(e);
       toast.error('Erreur de chargement');
@@ -37,6 +40,22 @@ const AdminPaymentMethods = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const saveReserve = async (patch) => {
+    setSavingId('reserve');
+    try {
+      const res = await fetch(`${API}/api/admin/wallet-reserve-config`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setReserve(await res.json());
+      toast.success('Réserve mise à jour');
+    } catch (e) {
+      toast.error('Échec de la sauvegarde');
+    } finally { setSavingId(null); }
+  };
 
   const saveCashback = async (patch) => {
     setSavingId('cashback');
@@ -231,6 +250,39 @@ const AdminPaymentMethods = () => {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet reserve (SB Pay floors) */}
+      {reserve && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-5" data-testid="reserve-config-card">
+          <div className="flex items-center gap-2 mb-1">
+            <Bank size={20} weight="duotone" className="text-amber-600" />
+            <h2 className="text-base font-bold text-gray-900">Réserve portefeuille SB Pay</h2>
+          </div>
+          <p className="text-xs text-gray-600 mb-4">
+            Montant non-retirable crédité automatiquement à l'activation d'un compte chauffeur/marchand et
+            conservé en permanence (plancher de solde). Les chauffeurs en Afrique ont un plancher réduit.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { k: 'driver_europe', label: 'Chauffeur Europe/DOM-TOM (€)' },
+              { k: 'driver_africa', label: 'Chauffeur Afrique (€)' },
+              { k: 'merchant', label: 'Marchand (€)' },
+              { k: 'withdraw_min', label: 'Retrait minimum (€)' },
+            ].map((f) => (
+              <div key={f.k}>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{f.label}</label>
+                <input
+                  type="number" min="0" step="1"
+                  defaultValue={reserve[f.k]}
+                  onBlur={(e) => Number(e.target.value) !== reserve[f.k] && saveReserve({ [f.k]: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                  data-testid={`reserve-${f.k}-input`}
+                />
+              </div>
+            ))}
           </div>
         </div>
       )}

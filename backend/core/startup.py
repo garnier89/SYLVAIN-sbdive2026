@@ -493,10 +493,12 @@ async def lifespan(app: FastAPI):
     demand_task = asyncio.create_task(demand_automation_loop())
     from core.airport import flight_watch_loop
     flight_task = asyncio.create_task(flight_watch_loop())
+    from core.cashback import cashback_monthly_loop
+    cashback_task = asyncio.create_task(cashback_monthly_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task):
         if task:
             task.cancel()
     client.close()

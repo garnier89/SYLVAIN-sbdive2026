@@ -430,6 +430,14 @@ async def public_cashback_config(request: Request):
     }
 
 
+@router.get("/finance/cashback/summary")
+async def cashback_summary(request: Request):
+    """This-month and all-time cashback earned by the current user."""
+    user = await get_current_user(request)
+    from core.cashback import get_cashback_summary
+    return await get_cashback_summary(user["id"])
+
+
 @router.get("/admin/cashback")
 async def admin_get_cashback(request: Request):
     user = await get_current_user(request)

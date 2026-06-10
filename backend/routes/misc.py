@@ -578,29 +578,47 @@ async def submit_order_help(order_id: str, request: Request):
 @router.post("/wallet/withdraw-request")
 async def submit_withdraw_request(request: Request):
     user = await get_current_user(request)
+    # Only drivers & merchants can withdraw — clients cannot.
+    if user.get("role") not in ("driver", "merchant"):
+        raise HTTPException(status_code=403, detail="Seuls les chauffeurs et marchands peuvent demander un retrait.")
     body = await request.json()
-    amount = float(body.get("amount", 0))
+    try:
+        amount = round(float(body.get("amount", 0)), 2)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Montant invalide")
     iban = (body.get("iban") or "").strip()
-    if amount < 10:
-        raise HTTPException(status_code=400, detail="Minimum 10 EUR")
+
+    from core.wallet_reserve import ensure_reserve_credited, get_reserve_config, get_user_region
+    floor = await ensure_reserve_credited(user)
+    cfg = await get_reserve_config()
+    wmin = float(cfg.get("withdraw_min", 10) or 10)
+    if amount < wmin:
+        raise HTTPException(status_code=400, detail=f"Minimum {wmin:.0f} EUR")
     if not iban:
         raise HTTPException(status_code=400, detail="IBAN required")
-    # Check wallet balance
     wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
-    if (wallet.get("balance", 0) or 0) < amount:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
+    balance = float(wallet.get("balance", 0) or 0)
+    pending = float(wallet.get("pending_withdraw", 0) or 0)
+    available = round(balance - floor - pending, 2)
+    if amount > available:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Montant retirable max {max(0.0, available):.2f} € (réserve de {floor:.0f} € conservée)",
+        )
     doc = {
         "id": f"wr_{uuid.uuid4().hex[:10]}",
         "user_id": user["id"],
         "name": user.get("name", "User"),
         "phone": user.get("phone", ""),
+        "role": user.get("role"),
+        "region": get_user_region(user),
         "amount": amount,
         "iban": iban,
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.admin_withdraw_requests.insert_one(doc)
-    # Freeze amount
+    # Freeze amount (held in suspense until admin validates)
     await db.wallets.update_one({"user_id": user["id"]}, {"$inc": {"balance": -amount, "pending_withdraw": amount}})
     doc.pop("_id", None)
     return doc

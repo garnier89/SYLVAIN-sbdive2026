@@ -33,6 +33,7 @@ const WalletPage = () => {
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
   const [cashbackCfg, setCashbackCfg] = useState(null);
+  const [cashbackSummary, setCashbackSummary] = useState(null);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -54,6 +55,10 @@ const WalletPage = () => {
     fetch(`${API_URL}/api/finance/cashback/config`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d && d.enabled) setCashbackCfg(d); })
+      .catch(() => {});
+    fetch(`${API_URL}/api/finance/cashback/summary`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setCashbackSummary(d); })
       .catch(() => {});
   }, []);
 
@@ -177,6 +182,11 @@ const WalletPage = () => {
               <h2 className="text-3xl font-bold" data-testid="wallet-balance">
                 {loading ? '...' : (wallet.balance || 0).toFixed(2)} <span className="text-lg font-normal">EUR</span>
               </h2>
+              {wallet.can_withdraw && wallet.reserve > 0 && (
+                <p className="text-[11px] text-white/75 mt-1" data-testid="wallet-reserve-info">
+                  Réserve {Number(wallet.reserve).toFixed(0)} € non retirable · Retirable {Number(wallet.withdrawable || 0).toFixed(2)} €
+                </p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -204,16 +214,30 @@ const WalletPage = () => {
           </div>
         </div>
 
-        {/* Cashback advert */}
+        {/* Cashback advert + monthly counter */}
         {cashbackCfg && (
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5 flex items-center gap-3" data-testid="cashback-banner">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-              <Gift size={20} weight="fill" className="text-emerald-600" />
+          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5" data-testid="cashback-banner">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <Gift size={20} weight="fill" className="text-emerald-600" />
+              </div>
+              <p className="text-[13px] text-emerald-800 leading-snug flex-1">
+                Gagnez <b>{cashbackCfg.rate_pct}% de cashback SB Pay</b> sur chaque paiement par SB Pay ou carte
+                {cashbackCfg.min_amount > 0 ? ` (dès ${cashbackCfg.min_amount} €)` : ''}.
+              </p>
             </div>
-            <p className="text-[13px] text-emerald-800 leading-snug">
-              Gagnez <b>{cashbackCfg.rate_pct}% de cashback SB Pay</b> sur chaque paiement par SB Pay ou carte
-              {cashbackCfg.min_amount > 0 ? ` (dès ${cashbackCfg.min_amount} €)` : ''}.
-            </p>
+            {cashbackSummary && (
+              <div className="mt-3 pt-3 border-t border-emerald-100 flex items-center justify-between" data-testid="cashback-monthly-counter">
+                <div>
+                  <p className="text-[11px] text-emerald-700/70 uppercase tracking-wide font-semibold">Cashback ce mois-ci</p>
+                  <p className="text-xl font-extrabold text-emerald-700">{(cashbackSummary.this_month || 0).toFixed(2)} €</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] text-emerald-700/70 uppercase tracking-wide font-semibold">Total gagné</p>
+                  <p className="text-base font-bold text-emerald-600">{(cashbackSummary.all_time || 0).toFixed(2)} €</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
