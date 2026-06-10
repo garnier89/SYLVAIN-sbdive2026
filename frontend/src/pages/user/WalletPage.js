@@ -32,6 +32,7 @@ const WalletPage = () => {
   const [showCoupons, setShowCoupons] = useState(false);
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
+  const [cashbackCfg, setCashbackCfg] = useState(null);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -48,6 +49,13 @@ const WalletPage = () => {
   }, []);
 
   useEffect(() => { loadWallet(); loadCoupons(); }, [loadWallet, loadCoupons]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/finance/cashback/config`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && d.enabled) setCashbackCfg(d); })
+      .catch(() => {});
+  }, []);
 
   // Deep-link actions from side menu (?action=topup|send)
   useEffect(() => {
@@ -195,6 +203,19 @@ const WalletPage = () => {
             </Button>
           </div>
         </div>
+
+        {/* Cashback advert */}
+        {cashbackCfg && (
+          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5 flex items-center gap-3" data-testid="cashback-banner">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+              <Gift size={20} weight="fill" className="text-emerald-600" />
+            </div>
+            <p className="text-[13px] text-emerald-800 leading-snug">
+              Gagnez <b>{cashbackCfg.rate_pct}% de cashback SB Pay</b> sur chaque paiement par SB Pay ou carte
+              {cashbackCfg.min_amount > 0 ? ` (dès ${cashbackCfg.min_amount} €)` : ''}.
+            </p>
+          </div>
+        )}
 
         {/* Topup Sheet */}
         {showTopup && (

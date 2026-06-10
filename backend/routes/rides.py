@@ -1606,30 +1606,40 @@ async def update_ride_status(ride_id: str, request: Request):
                 "currency": "EUR",
             }
         pm = ride.get("payment_method")
-        # === SB PayGo auto-deduction ===
-        if pm == "sbpaygo":
-            wallet = await db.sbpaygo_wallets.find_one({"user_id": ride["user_id"]})
-            if wallet and wallet.get("balance", 0) >= final_fare:
-                tx = {
-                    "id": f"tx_{uuid.uuid4().hex[:10]}",
-                    "type": "debit",
-                    "amount": final_fare,
-                    "label": f"Paiement course {ride['id']}",
+        cashback_earned = 0.0
+        from core.cashback import award_cashback
+        # === SB Pay auto-deduction (unified wallet) ===
+        if pm in ("sbpaygo", "wallet", "sbpay"):
+            amt = round(float(final_fare), 2)
+            res = await db.wallets.update_one(
+                {"user_id": ride["user_id"], "balance": {"$gte": amt}},
+                {"$inc": {"balance": -amt}},
+            )
+            if res.modified_count:
+                w = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0})
+                await db.wallet_transactions.insert_one({
+                    "id": f"tx_{uuid.uuid4().hex[:12]}",
+                    "user_id": ride["user_id"],
+                    "type": "Booking",
+                    "amount": -amt,
+                    "balance_after": round((w or {}).get("balance", 0), 2),
+                    "description": f"Paiement course {ride['id']}",
                     "ride_id": ride["id"],
+                    "status": "completed",
                     "created_at": now,
-                }
-                await db.sbpaygo_wallets.update_one(
-                    {"user_id": ride["user_id"]},
-                    {"$inc": {"balance": -final_fare}, "$push": {"transactions": tx}},
-                )
+                })
                 update_data["payment_status"] = "paid"
-                update_data["paid_with"] = "sbpaygo"
+                update_data["paid_with"] = "sbpay"
                 update_data["paid_at"] = now
+                cashback_earned = await award_cashback(ride["user_id"], amt, "sbpay", "ride", ref_id=ride["id"], label="Cashback course SB Pay")
             else:
                 # Insufficient balance: leave open so user can top-up and pay
                 update_data["payment_status"] = "unpaid_insufficient"
         else:
             update_data["payment_status"] = "completed" if pm != "cash" else "pending_cash"
+            cashback_earned = await award_cashback(ride["user_id"], final_fare, pm or "", "ride", ref_id=ride["id"], label="Cashback course")
+        if cashback_earned > 0:
+            update_data["cashback_earned"] = cashback_earned
         if ride.get("driver_id"):
             d_full = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "taxi_sub": 1, "user_id": 1})
             # ===== Phase 5 loyalty: reduce commission for higher-tier drivers =====

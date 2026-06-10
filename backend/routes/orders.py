@@ -419,6 +419,10 @@ async def update_order_status(order_id: str, request: Request):
     update_data = {"status": new_status}
     if new_status == "delivered":
         update_data["payment_status"] = "completed" if order["payment_method"] != "cash" else "pending"
+        from core.cashback import award_cashback
+        cb = await award_cashback(order["user_id"], order.get("total", 0), order.get("payment_method", ""), "order", ref_id=order_id, label="Cashback commande")
+        if cb > 0:
+            update_data["cashback_earned"] = cb
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
     await manager.send_personal_message({"type": "order_status", "order_id": order_id, "status": new_status}, order["user_id"])
     return {"message": f"Status updated to {new_status}"}

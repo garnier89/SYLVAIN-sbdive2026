@@ -486,7 +486,7 @@ async def create_medical_transport(request: Request):
     # Debit wallet / SB PayGo up-front (before driver search). Cash fallback if short.
     from core.payments import debit_with_fallback
     pay = await debit_with_fallback(user["id"], fare, body.get("payment_method", "cash"),
-                                    f"Transport médical — {amb['name']}")
+                                    f"Transport médical — {amb['name']}", service="medical_transport")
     transport = {
         "id": f"medtr_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],

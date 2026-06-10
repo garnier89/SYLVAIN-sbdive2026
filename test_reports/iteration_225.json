@@ -1,0 +1,35 @@
+{
+  "summary": "P0.4 SB Pay automatic cashback engine + post-unification bugfixes — full backend (12/12 pytest pass) + frontend (admin config card, wallet banner, transaction history) verified end-to-end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter225_cashback.py",
+    "/app/test_reports/pytest/iter225_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "core/cashback.py is clean: idempotency via unique key=service:ref_id on cashback_ledger; methods bucketed via normalize_method; respects enabled, rate (clamped 0-50), min_amount and max_per_tx; credits db.wallets + writes wallet_transactions type='Cashback'. No issues.",
+    "routes/finance.py /admin/cashback PUT correctly clamps rate (0-50), filters methods to {sbpay,card,cash}. Returns full updated config.",
+    "routes/rides.py ride completion (line 1612-1642) now debits db.wallets (NOT sbpaygo_wallets) for sbpaygo|wallet|sbpay payment_method and awards cashback with ref_id=ride.id — bug fix confirmed.",
+    "core/payments.py debit_with_fallback unified on db.wallets and emits cashback when service is supplied — bug fix confirmed. Cash fallback path returns {paid:false, method:'cash'} without raising.",
+    "Frontend AdminPaymentMethods.js: 'cashback-config-card' + sub testids present; rate/min/max use onBlur->saveCashback; toggle triggers immediate save; toast 'Cashback mis à jour' displayed.",
+    "Frontend WalletPage.js: cashback-banner advertises current rate from /finance/cashback/config and respects min_amount; Cashback transactions render green in history."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter225_cashback.py (new pytest suite — 12 tests)"
+  ],
+  "success_rate": {"backend": "100% (12/12 pass)", "frontend": "100% (admin card + wallet banner + history verified)"},
+  "test_credentials": "test2@example.com / TestPass123! (user); admin@superapp.com / SuperAdmin123! (admin). Frontend login is at /login (not /auth) and accepts email+password directly.",
+  "seed_data_creation": "During pytest: admin-credited test2 wallet multiple times (100+50+50+200 EUR) via POST /api/admin/users/{id}/wallet/credit; created several test rides (test_ride_cb_*, test_ride_idem_*, test_ride_below_*, test_ride_disabled_*) via /finance/sbpaygo/pay-ride; created 2 parcels via POST /parcels (one paid via wallet, one falling back to cash). Cashback config restored to enabled=true, rate=2, min=5, methods=[sbpay,card] at end (test_zzz_reset_cashback_default).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Cashback engine fully exercised: rate-percent compute, min_amount gate, enabled gate, methods bucket gate (sbpay/card/cash), idempotency via cashback_ledger unique key, credit to db.wallets with 'Cashback' tx type. pay-ride returns {ok, balance, cashback}. Parcel sbpaygo debits db.wallets correctly and falls back to cash on insufficient balance (verified). Frontend admin card live-saves config and shows 'Cashback mis à jour' toast; user wallet shows green banner with current rate. Receipt cashback card + toast (data-testid='receipt-cashback') was code-reviewed but not live-tested because no real completed ride with cashback_earned exists for test2 (would require full driver dispatch flow); component logic is correct (toast fires once via useRef when ride.cashback_earned>0).",
+  "rca of the issue": "No issues found. All acceptance criteria for iter225 met."
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Toggle, CreditCard, Money, Wallet, DeviceMobile, Waves, Bank, FloppyDisk, Lightning } from '@phosphor-icons/react';
+import { Toggle, CreditCard, Money, Wallet, DeviceMobile, Waves, Bank, FloppyDisk, Lightning, Gift } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -17,6 +17,7 @@ const ICON_MAP = {
 const AdminPaymentMethods = () => {
   const [methods, setMethods] = useState([]);
   const [financeMod, setFinanceMod] = useState({ enabled: true, sbpaygo_base_url: '' });
+  const [cashback, setCashback] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
 
@@ -27,6 +28,8 @@ const AdminPaymentMethods = () => {
       const data = await res.json();
       setMethods(data.methods || []);
       setFinanceMod(data.finance_module || { enabled: true, sbpaygo_base_url: '' });
+      const cb = await fetch(`${API}/api/admin/cashback`, { credentials: 'include' });
+      if (cb.ok) setCashback(await cb.json());
     } catch (e) {
       console.error(e);
       toast.error('Erreur de chargement');
@@ -34,6 +37,28 @@ const AdminPaymentMethods = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const saveCashback = async (patch) => {
+    setSavingId('cashback');
+    try {
+      const res = await fetch(`${API}/api/admin/cashback`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setCashback(await res.json());
+      toast.success('Cashback mis à jour');
+    } catch (e) {
+      toast.error('Échec de la sauvegarde');
+    } finally { setSavingId(null); }
+  };
+
+  const toggleCashbackMethod = (m) => {
+    const cur = cashback.methods || [];
+    const next = cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m];
+    saveCashback({ methods: next.length ? next : ['sbpay'] });
+  };
 
   const updateMethod = async (id, patch) => {
     setSavingId(id);
@@ -127,6 +152,88 @@ const AdminPaymentMethods = () => {
           </div>
         </div>
       </div>
+
+      {/* Cashback SB Pay */}
+      {cashback && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5" data-testid="cashback-config-card">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Gift size={20} weight="duotone" className="text-emerald-600" />
+                <h2 className="text-base font-bold text-gray-900">Cashback SB Pay</h2>
+              </div>
+              <p className="text-xs text-gray-600">
+                Crédite automatiquement un % du montant payé sur le solde SB Pay du client, pour tous les services
+                (courses, livraisons, marketplace, pharmacie). Les paiements en espèces sont exclus.
+              </p>
+            </div>
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!cashback.enabled}
+                onChange={(e) => saveCashback({ enabled: e.target.checked })}
+                disabled={savingId === 'cashback'}
+                className="sr-only peer"
+                data-testid="cashback-enabled-toggle"
+              />
+              <div className="relative w-11 h-6 bg-gray-300 peer-checked:bg-emerald-600 rounded-full peer transition-all after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Taux (%)</label>
+              <input
+                type="number" min="0" max="50" step="0.5"
+                defaultValue={cashback.rate_pct}
+                onBlur={(e) => Number(e.target.value) !== cashback.rate_pct && saveCashback({ rate_pct: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                data-testid="cashback-rate-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Montant min. (€)</label>
+              <input
+                type="number" min="0" step="1"
+                defaultValue={cashback.min_amount}
+                onBlur={(e) => Number(e.target.value) !== cashback.min_amount && saveCashback({ min_amount: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                data-testid="cashback-min-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Plafond / transaction (€, 0 = aucun)</label>
+              <input
+                type="number" min="0" step="1"
+                defaultValue={cashback.max_per_tx}
+                onBlur={(e) => Number(e.target.value) !== cashback.max_per_tx && saveCashback({ max_per_tx: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                data-testid="cashback-max-input"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Moyens de paiement éligibles</label>
+            <div className="flex gap-2">
+              {[{ id: 'sbpay', label: 'SB Pay' }, { id: 'card', label: 'Carte' }].map((opt) => {
+                const active = (cashback.methods || []).includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => toggleCashbackMethod(opt.id)}
+                    disabled={savingId === 'cashback'}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${active ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}
+                    data-testid={`cashback-method-${opt.id}`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment methods table */}
       <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">

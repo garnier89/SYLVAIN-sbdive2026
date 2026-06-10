@@ -102,7 +102,11 @@ async def pay_from_wallet(request: Request):
     await db.wallet_transactions.insert_one(tx)
     tx.pop("_id", None)
 
-    return {"message": "Payment successful", "balance": round(new_balance, 2), "transaction": tx}
+    from core.cashback import award_cashback
+    svc = "ride" if ride_id else ("order" if order_id else "wallet")
+    cb = await award_cashback(user["id"], amount, "sbpay", svc, ref_id=ride_id or order_id)
+    final_wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {"message": "Payment successful", "balance": round((final_wallet or {}).get("balance", new_balance), 2), "transaction": tx, "cashback": cb}
 
 
 @router.post("/transfer")

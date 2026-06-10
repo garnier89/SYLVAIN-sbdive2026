@@ -3,14 +3,14 @@
  * completes: full fare breakdown + payment mode + inline driver rating
  * (stars, favourite toggle, comment, Sauter / Soumettre).
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Star, Heart, CheckCircle, Gift, ShareNetwork, X, ArrowLeft } from '@phosphor-icons/react';
 import { rideAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const PAYMENT_LABELS = { cash: 'Espèces', card: 'Carte', sbpaygo: 'SB PayGo', wallet: 'Portefeuille' };
+const PAYMENT_LABELS = { cash: 'Espèces', card: 'Carte', sbpaygo: 'SB Pay', wallet: 'SB Pay', sbpay: 'SB Pay' };
 
 const Line = ({ label, sub, value, strong }) => (
   <div className="flex items-center justify-between py-2">
@@ -42,6 +42,15 @@ const RideReceiptPage = () => {
     catch { toast.error('Course introuvable'); navigate('/home'); }
   }, [rideId, navigate]);
   useEffect(() => { load(); }, [load]);
+
+  // One-time cashback toast when the receipt loads with earned cashback
+  const cashbackToasted = useRef(false);
+  useEffect(() => {
+    if (ride?.cashback_earned > 0 && !cashbackToasted.current) {
+      cashbackToasted.current = true;
+      toast.success(`+${ride.cashback_earned.toFixed(2)} € de cashback SB Pay gagné 🎁`);
+    }
+  }, [ride]);
 
   // Referral banner data + store-review prompt eligibility (viral / conversion)
   useEffect(() => {
@@ -167,6 +176,19 @@ const RideReceiptPage = () => {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Modes de paiement</p>
           <Line label={PAYMENT_LABELS[ride.payment_method] || ride.payment_method} value={cur(total)} />
         </div>
+
+        {/* Cashback earned */}
+        {ride.cashback_earned > 0 && (
+          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3" data-testid="receipt-cashback">
+            <div className="w-11 h-11 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+              <Gift size={22} weight="fill" className="text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-extrabold text-emerald-700">+{cur(ride.cashback_earned)} de cashback SB Pay 🎁</p>
+              <p className="text-[11px] text-emerald-600/80">Crédité sur votre solde SB Pay.</p>
+            </div>
+          </div>
+        )}
 
         {/* Ride profile / business trip reason (notes de frais) */}
         {ride.ride_profile && (

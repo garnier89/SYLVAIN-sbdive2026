@@ -297,7 +297,12 @@ async def sbpaygo_pay_ride(body: PayRideBody, request: Request):
         {"id": body.ride_id, "user_id": user["id"]},
         {"$set": {"paid_with": "sbpay", "paid_at": now}},
     )
-    return {"ok": True, "balance": round(w["balance"], 2)}
+    from core.cashback import award_cashback
+    cb = await award_cashback(user["id"], amount, "sbpay", "ride", ref_id=body.ride_id, label="Cashback course SB Pay")
+    if cb > 0:
+        await db.rides.update_one({"id": body.ride_id, "user_id": user["id"]}, {"$set": {"cashback_earned": cb}})
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {"ok": True, "balance": round(w["balance"], 2), "cashback": cb}
 
 
 
@@ -406,3 +411,55 @@ async def sbpaygo_sso_link(request: Request):
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"url": sso_url, "expires_in": 300}
+
+
+# ============ CASHBACK (SB Pay) ============
+from core.cashback import get_cashback_config, CASHBACK_CFG_ID
+
+
+@router.get("/finance/cashback/config")
+async def public_cashback_config(request: Request):
+    """PUBLIC — current cashback rate so the wallet UI can advertise it."""
+    await get_current_user(request)
+    cfg = await get_cashback_config()
+    return {
+        "enabled": cfg["enabled"],
+        "rate_pct": cfg["rate_pct"],
+        "min_amount": cfg["min_amount"],
+        "methods": cfg["methods"],
+    }
+
+
+@router.get("/admin/cashback")
+async def admin_get_cashback(request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return await get_cashback_config()
+
+
+class CashbackUpdate(BaseModel):
+    enabled: bool | None = None
+    rate_pct: float | None = None
+    min_amount: float | None = None
+    max_per_tx: float | None = None
+    methods: list[str] | None = None
+
+
+@router.put("/admin/cashback")
+async def admin_update_cashback(body: CashbackUpdate, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    update = {k: v for k, v in body.dict().items() if v is not None}
+    if "rate_pct" in update:
+        update["rate_pct"] = max(0.0, min(float(update["rate_pct"]), 50.0))
+    if "min_amount" in update:
+        update["min_amount"] = max(0.0, float(update["min_amount"]))
+    if "max_per_tx" in update:
+        update["max_per_tx"] = max(0.0, float(update["max_per_tx"]))
+    if "methods" in update:
+        update["methods"] = [m for m in update["methods"] if m in ("sbpay", "card", "cash")] or ["sbpay"]
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.cashback_config.update_one({"id": CASHBACK_CFG_ID}, {"$set": update}, upsert=True)
+    return await get_cashback_config()

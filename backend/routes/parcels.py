@@ -84,12 +84,14 @@ async def create_parcel(data: ParcelCreateRequest, request: Request):
     legs, total_km, total_fare = _compute_legs(data.pickup_lat, data.pickup_lng, data.stops, data.vehicle_type)
     for leg in legs:
         leg["status"] = "pending"  # pending → delivered (per drop-off)
-    # Debit wallet / SB PayGo up-front (before driver search). Cash fallback if short.
+    # Debit wallet / SB Pay up-front (before driver search). Cash fallback if short.
+    pid = f"parcel_{uuid.uuid4().hex[:12]}"
     from core.payments import debit_with_fallback
     pay = await debit_with_fallback(user["id"], total_fare, data.payment_method,
-                                    f"Course coursier/colis — {len(data.stops)} arrêt(s)")
+                                    f"Course coursier/colis — {len(data.stops)} arrêt(s)",
+                                    service="parcel", ref_id=pid)
     parcel = {
-        "id": f"parcel_{uuid.uuid4().hex[:12]}",
+        "id": pid,
         "user_id": user["id"],
         "driver_id": None,
         "vehicle_type": data.vehicle_type,
@@ -213,6 +215,13 @@ async def _settle_parcel_on_completion(parcel: dict):
         except Exception:
             pass
     await db.parcels.update_one({"id": pid}, {"$set": update})
+    # SB Pay cashback (idempotent per parcel). Wallet-paid already earned at booking;
+    # card paid-on-delivery earns here. Cash is excluded by the cashback config.
+    try:
+        from core.cashback import award_cashback
+        await award_cashback(parcel["user_id"], parcel.get("fare", 0), parcel.get("payment_method", ""), "parcel", ref_id=pid, label="Cashback coursier")
+    except Exception:
+        pass
     try:
         await notify_user(parcel["user_id"], "Colis livré ✅",
                           "Votre colis a bien été livré. Merci d'avoir utilisé SB Drive !",

@@ -65,9 +65,10 @@ async def _require_admin(request: Request):
     return user
 
 
-async def _debit_user(user_id: str, amount: float, method: str, description: str):
+async def _debit_user(user_id: str, amount: float, method: str, description: str, ref_id=None):
     """Atomically debit the user's unified SB Pay wallet. Raises 400 if insufficient.
-    ('wallet' and 'sbpaygo' are now the same single wallet — db.wallets)."""
+    ('wallet' and 'sbpaygo' are now the same single wallet — db.wallets).
+    Awards SB Pay cashback when eligible."""
     ts = datetime.now(timezone.utc).isoformat()
     res = await db.wallets.update_one(
         {"user_id": user_id, "balance": {"$gte": amount}},
@@ -81,6 +82,8 @@ async def _debit_user(user_id: str, amount: float, method: str, description: str
         "amount": -amount, "balance_after": round(w["balance"], 2),
         "description": description, "status": "completed", "created_at": ts,
     })
+    from core.cashback import award_cashback
+    await award_cashback(user_id, amount, "sbpay", "pharmacy", ref_id=ref_id, label="Cashback pharmacie")
 
 
 async def _refund_user(user_id: str, amount: float, method: str, description: str):
@@ -355,7 +358,7 @@ async def pay_order(order_id: str, request: Request):
     if method in ("cash", "card"):
         await db.pharmacy_orders.update_one({"id": order_id}, {"$set": {"payment_method": method, "payment_status": "cod"}})
         return {"id": order_id, "payment_status": "cod", "payment_method": method, "total": amount, "cash_on_delivery": True}
-    await _debit_user(user["id"], amount, method, f"Commande pharmacie {order_id}")
+    await _debit_user(user["id"], amount, method, f"Commande pharmacie {order_id}", ref_id=order_id)
     await db.pharmacy_orders.update_one({"id": order_id}, {"$set": {"payment_status": "paid", "payment_method": method}})
     return {"id": order_id, "payment_status": "paid", "payment_method": method, "total": amount}
 

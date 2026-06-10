@@ -60,6 +60,7 @@ async def _create_indexes():
     await db.referrals.create_index("referrer_id")
     await db.referrals.create_index("referred_id", unique=True, sparse=True)
     await db.users.create_index("referral_code_own", unique=True, sparse=True)
+    await db.cashback_ledger.create_index("key", unique=True)
 
 
 async def _seed_admin_and_credentials():
