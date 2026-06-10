@@ -15,9 +15,11 @@
 - Frontend : `src/lib/webpush.js` (permission + subscribe + persist), auto-subscribe après login (AuthContext). SW `sw.js` a déjà push + notificationclick.
 - Tests : `backend/tests/test_webpush_phase1.py` (3 passent).
 
-### 🔜 Phase 2 — Événements + Son
-- Push ciblés : course entrante, réservation planifiée, acceptation client↔chauffeur, nouveau message/appel.
-- Son in-app via `lib/driverAlert.js` (playAlert/startSiren) — synthétisé Web Audio (le vrai arrière-plan utilise le son système, limite Web Push).
+### ✅ Phase 2 — Événements + Son (FAIT 2026-06-10)
+- Push ciblés branchés : **course entrante** → chauffeurs en ligne à proximité (`_push_new_ride_to_drivers`, fire-and-forget) ; **réservation planifiée** → chauffeurs ; **acceptation** → client (déjà via create_notification) ; **cycle de vie** (arrivé/démarré/terminé) → client dans `update_ride_status` ; **messages** course (`phase1.py`) + livraison/transport (`chat.py`) → destinataire.
+- **Son in-app centralisé** : `hooks/useWebSocket.js` joue `playAlert()` sur les types `ride_status_update` (arriving/in_progress/completed), `new_message`, `notification`, `scheduled_reservation`, `driver_nearby`. (Course entrante chauffeur = siren déjà existante.)
+- **Icônes PWA** régénérées avec le logo SB (`icons/icon-{192,512}{,-maskable}.png`, `apple-touch-icon.png`, `favicon.png`) → l'app installée affiche le SB sur l'écran d'accueil.
+- ⚠️ Le son d'**arrière-plan** reste le son système (limite Web Push). Le son custom joue en **foreground**. Livraison push réelle = à vérifier sur device (abonnement navigateur requis).
 
 ### 🔜 Phase 3 — Proximité & Arrivée
 - "Votre chauffeur est là" à 200m (configurable), modale confirmation si "arrivé" hors adresse, notifs cycle de vie (démarrée/terminée/retour en ligne).

@@ -73,6 +73,23 @@ async def send_ride_message(ride_id: str, request: Request):
     await db.ride_messages.insert_one(msg)
     msg.pop("_id", None)
     await manager.send_to_ride_room(ride_id, {"type": "chat_message", "message": msg})
+    # Background push + sound to the other party (works when app backgrounded/locked).
+    try:
+        from core.notifications import create_notification
+        recipient = None
+        if is_passenger and ride.get("driver_id"):
+            d2 = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "user_id": 1})
+            recipient = (d2 or {}).get("user_id")
+        elif is_driver:
+            recipient = ride.get("user_id")
+        if recipient:
+            preview = (text[:80] if text else "📷 Photo")
+            await create_notification(
+                recipient, "new_message", f"💬 {msg['sender_name']}", preview,
+                data={"url": f"/ride/{ride_id}/chat", "ride_id": ride_id},
+            )
+    except Exception:
+        pass
     # Flag the DRIVER in the control tower when their message trips the risk filter.
     if reasons and is_driver:
         try:

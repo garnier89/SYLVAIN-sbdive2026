@@ -3,6 +3,7 @@ import uuid
 import os
 import re
 import math
+import asyncio
 import secrets
 import requests
 from datetime import datetime, timezone, timedelta
@@ -652,7 +653,47 @@ async def create_ride(data: RideRequest, request: Request):
 
     ride.pop("_id", None)
     ride["created_at"] = datetime.fromisoformat(ride["created_at"])
+    # Background Web Push to drivers (instant → nearby online drivers; scheduled →
+    # online drivers' agenda). Fire-and-forget so the booking response isn't delayed.
+    asyncio.create_task(_push_new_ride_to_drivers(dict(ride), instant=not ride.get("scheduled_at")))
     return RideResponse(**ride)
+
+
+async def _push_new_ride_to_drivers(ride: dict, instant: bool = True):
+    """Web Push a new ride/reservation to online drivers (background alert)."""
+    try:
+        from core.webpush import send_web_push_to_user
+        from routes.push_web import get_notif_settings
+        settings = await get_notif_settings()
+        if instant:
+            title = "SB Drive — Nouvelle course"
+            body = settings["messages"].get("new_ride", "Nouvelle course disponible")
+            url, tag, typ = "/chauffeur/home", "new_ride", "new_ride_request"
+        else:
+            title = "SB Drive — Réservation"
+            body = settings["messages"].get("scheduled_reservation", "Nouvelle réservation planifiée")
+            url, tag, typ = "/chauffeur/reservations", "scheduled", "scheduled_reservation"
+        pickup = (ride.get("pickup_address") or "")[:45]
+        payload = {"title": title, "body": f"{body} · {pickup}", "url": url, "tag": tag,
+                   "type": typ, "data": {"ride_id": ride["id"]}}
+        cursor = db.drivers.find({"status": "approved", "is_online": True},
+                                 {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1})
+        async for d in cursor:
+            uid = d.get("user_id")
+            if not uid:
+                continue
+            if instant:
+                loc = manager.get_driver_location(uid) or {}
+                d_lat = loc.get("lat", d.get("current_lat"))
+                d_lng = loc.get("lng", d.get("current_lng"))
+                if d_lat is None or d_lng is None:
+                    continue
+                if calculate_distance(ride["pickup_lat"], ride["pickup_lng"], d_lat, d_lng) > NEARBY_DRIVERS_RADIUS_KM:
+                    continue
+            await send_web_push_to_user(uid, payload)
+    except Exception:
+        import logging
+        logging.getLogger("rides").warning("new ride push failed", exc_info=True)
 
 
 @router.post("/{ride_id}/proposed-fare")
@@ -1570,6 +1611,25 @@ async def update_ride_status(ride_id: str, request: Request):
             await register_passenger_cancel(ride["user_id"], ride_id)
 
     await db.rides.update_one({"id": ride_id}, {"$set": update_data})
+
+    # ===== Passenger-facing lifecycle Web Push (background alert + sound) =====
+    if ride.get("user_id") and new_status in ("arriving", "in_progress", "completed"):
+        try:
+            from routes.push_web import get_notif_settings
+            from core.notifications import create_notification
+            _msgs = (await get_notif_settings())["messages"]
+            _life = {
+                "arriving": ("driver_arrived", "🚗 Chauffeur arrivé"),
+                "in_progress": ("ride_started", "🟢 Course démarrée"),
+                "completed": ("ride_completed", "🏁 Course terminée"),
+            }
+            _key, _title = _life[new_status]
+            await create_notification(
+                ride["user_id"], _key, _title, _msgs.get(_key, _title),
+                data={"url": f"/ride/{ride_id}", "ride_id": ride_id, "status": new_status},
+            )
+        except Exception:
+            pass
 
     # Notify via WebSocket
     ws_message = {

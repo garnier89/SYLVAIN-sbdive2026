@@ -1,6 +1,27 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { playAlert } from '../lib/driverAlert';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+// Event types that should trigger an in-app notification sound when received
+// while the app is in the foreground (background delivery uses the OS sound).
+const SOUND_EVENT_TYPES = new Set([
+  'ride_status_update',
+  'new_message',
+  'notification',
+  'scheduled_reservation',
+  'driver_nearby',
+]);
+
+function maybePlayNotificationSound(data) {
+  try {
+    if (!data || !SOUND_EVENT_TYPES.has(data.type)) return;
+    // For ride status, only chime on meaningful passenger-facing transitions.
+    if (data.type === 'ride_status_update' &&
+        !['arriving', 'in_progress', 'completed'].includes(data.status)) return;
+    playAlert();
+  } catch { /* ignore */ }
+}
 
 export function useWebSocket(userId) {
   const wsRef = useRef(null);
@@ -28,6 +49,7 @@ export function useWebSocket(userId) {
       try {
         const data = JSON.parse(event.data);
         setLastMessage(data);
+        maybePlayNotificationSound(data);
         // Notify type-specific listeners
         const typeListeners = listeners.current.get(data.type);
         if (typeListeners) {

@@ -65,6 +65,18 @@ async def send_message(ref_type: str, ref_id: str, request: Request):
     }
     await db.chat_messages.insert_one(msg)
     msg.pop("_id", None)
+    # Background push + sound to the other participant.
+    try:
+        from core.notifications import create_notification
+        doc = thread["doc"]
+        recipient = doc.get("driver_id") if thread["role"] == "client" else doc.get("user_id")
+        if recipient:
+            await create_notification(
+                recipient, "new_message", f"💬 {msg['sender_name']}", text[:80],
+                data={"url": "/", "ref_type": ref_type, "ref_id": ref_id},
+            )
+    except Exception:
+        pass
     return msg
 
 
