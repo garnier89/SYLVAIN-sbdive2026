@@ -38,6 +38,7 @@
 - Frontend : `RideChoosePage` → modale "Aucun chauffeur disponible" avec bouton **Planifier** (ouvre le calendrier). `TaxiBiddingPage` (proposition de prix) + `RideTrackingPage` (relance) → toast avec le message. Extraction du `detail` objet gérée partout.
 - **"Me prévenir" (FAIT 2026-06-10)** : bouton dans la modale → `POST /api/rides/availability-alert` (stocke pickup, 1 alerte/user). Quand un chauffeur passe en ligne (`/drivers/toggle-online`), `core/availability.notify_waiting_clients` notifie (push) les clients en attente dans un rayon de 15 km (TTL 2 h, alerte consommée). Validé de bout en bout.
 - **Dashboard admin — clients en attente par zone (FAIT 2026-06-10)** : `GET /api/admin/notifications/waiting-clients` (admin) → total + breakdown par zone (matching pickup→zone par centre+radius_km) + hors-zone. Carte `WaitingClientsPanel` sur `AdminDashboard` (refresh 30 s). Validé (2 PAP / 1 hors-zone).
+- **Push ciblé par zone (FAIT 2026-06-10)** : clic sur une zone de la carte → `POST /api/admin/notifications/notify-zone-drivers {zone_id}` → push "📈 Forte demande à {zone}, passez en ligne !" aux chauffeurs **approuvés hors-ligne** dont la dernière position est dans la zone (≤ radius_km). Retourne `{notified, zone}`. Validé (1 notifié, mauvaise zone→404).
 
 ## ✅ Lot 2 (Notifications Push) — COMPLET (Phases 1→4)
 

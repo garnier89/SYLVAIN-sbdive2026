@@ -160,6 +160,39 @@ async def waiting_clients(request: Request):
     return {"total": len(alerts), "by_zone": rows, "hors_zone": hors}
 
 
+@admin_router.post("/notify-zone-drivers")
+async def notify_zone_drivers(request: Request):
+    """Send a 'high demand, go online' push to OFFLINE approved drivers whose last
+    known location falls within the given zone."""
+    await require_role(request, ["admin"])
+    body = await request.json()
+    zone_id = body.get("zone_id")
+    zone = await db.zones.find_one({"id": zone_id}, {"_id": 0, "name": 1, "lat": 1, "lng": 1, "radius_km": 1})
+    if not zone or zone.get("lat") is None or zone.get("lng") is None:
+        raise HTTPException(status_code=404, detail="Zone introuvable")
+    from core.deps import calculate_distance
+    from core.notifications import create_notification
+    radius = zone.get("radius_km") or 15
+    name = zone.get("name")
+    drivers = await db.drivers.find(
+        {"status": "approved", "is_online": False},
+        {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1}).to_list(3000)
+    notified = 0
+    for d in drivers:
+        lat, lng = d.get("current_lat"), d.get("current_lng")
+        if lat is None or lng is None or not d.get("user_id"):
+            continue
+        if calculate_distance(lat, lng, zone["lat"], zone["lng"]) > radius:
+            continue
+        await create_notification(
+            d["user_id"], "demand_alert", "📈 Forte demande",
+            f"Forte demande à {name}, passez en ligne pour prendre des courses !",
+            data={"url": "/chauffeur/home", "zone_id": zone_id},
+        )
+        notified += 1
+    return {"notified": notified, "zone": name}
+
+
 @admin_router.get("/settings")
 async def admin_get_settings(request: Request):
     await require_role(request, ["admin"])

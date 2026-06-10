@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { UsersThree, MapPin } from '@phosphor-icons/react';
+import { UsersThree, MapPin, PaperPlaneTilt } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -9,6 +10,30 @@ const API = process.env.REACT_APP_BACKEND_URL;
  */
 const WaitingClientsPanel = () => {
   const [data, setData] = useState(null);
+  const [sending, setSending] = useState(null);
+
+  const notifyZone = async (zone) => {
+    setSending(zone.zone_id);
+    try {
+      const r = await fetch(`${API}/api/admin/notifications/notify-zone-drivers`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zone_id: zone.zone_id }),
+      });
+      const d = r.ok ? await r.json() : null;
+      if (d) {
+        toast.success(d.notified > 0
+          ? `${d.notified} chauffeur(s) hors-ligne notifié(s) à ${zone.name}`
+          : `Aucun chauffeur hors-ligne localisé à ${zone.name}`);
+      } else {
+        toast.error('Échec de l\'envoi');
+      }
+    } catch {
+      toast.error('Échec de l\'envoi');
+    } finally {
+      setSending(null);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -43,13 +68,25 @@ const WaitingClientsPanel = () => {
       ) : (
         <div className="space-y-2">
           {rows.map((z) => (
-            <div key={z.zone_id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50" data-testid="waiting-zone-row">
+            <button
+              key={z.zone_id}
+              onClick={() => notifyZone(z)}
+              disabled={sending === z.zone_id}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 hover:bg-[#FF5000]/5 transition-colors group disabled:opacity-60"
+              data-testid="waiting-zone-row"
+              title={`Notifier les chauffeurs hors-ligne de ${z.name}`}
+            >
               <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
                 <MapPin size={16} className="text-gray-400 flex-shrink-0" />
                 <span className="truncate">{z.name}</span>
               </span>
-              <span className="text-sm font-bold text-gray-900 bg-white border border-gray-200 rounded-full px-2.5 py-0.5">{z.count}</span>
-            </div>
+              <span className="flex items-center gap-2 flex-shrink-0">
+                <span className="hidden group-hover:flex items-center gap-1 text-[11px] font-bold text-[#FF5000]">
+                  <PaperPlaneTilt size={13} /> {sending === z.zone_id ? 'Envoi…' : 'Notifier'}
+                </span>
+                <span className="text-sm font-bold text-gray-900 bg-white border border-gray-200 rounded-full px-2.5 py-0.5">{z.count}</span>
+              </span>
+            </button>
           ))}
           {data.hors_zone > 0 && (
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50">
@@ -59,7 +96,7 @@ const WaitingClientsPanel = () => {
           )}
         </div>
       )}
-      <p className="text-[11px] text-gray-400 mt-3">Alertes actives (2 dernières heures). Mises à jour toutes les 30 s.</p>
+      <p className="text-[11px] text-gray-400 mt-3">Cliquez une zone pour notifier ses chauffeurs hors-ligne. Alertes actives (2 h), refresh 30 s.</p>
     </div>
   );
 };
