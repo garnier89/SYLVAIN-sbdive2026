@@ -8,7 +8,7 @@ import EnableNotificationsBanner from './components/EnableNotificationsBanner';
 import ActiveRideFlag from './components/ActiveRideFlag';
 import AuthCallback from './components/AuthCallback';
 import VoiceAssistant from './components/VoiceAssistant';
-import { KioskApp } from './routes/pages';
+import { KioskApp, ProAccessPage } from './routes/pages';
 
 const SharedTripPage = React.lazy(() => import('./pages/SharedTripPage'));
 import { clientRoutes } from './routes/clientRoutes';
@@ -46,6 +46,10 @@ const AppRouter = () => {
           {/* ======= SB DRIVE TAB (Kiosk libre-service) ======= */}
           <Route path="/kiosk" element={<KioskApp />} />
           <Route path="/tab" element={<KioskApp />} />
+          {/* ======= Espace Pro — hub de connexion multi-apps ======= */}
+          <Route path="/connexion" element={<ProAccessPage />} />
+          <Route path="/espace-pro" element={<ProAccessPage />} />
+          <Route path="/apps" element={<ProAccessPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* ======= PUBLIC — Suivi de trajet partagé (sécurité, sans login) ======= */}

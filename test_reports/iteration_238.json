@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only test of the new Espace Pro hub page (/connexion, /espace-pro, /apps), the 6 app cards and their navigation, the website link, the back-home button, and the footer 'Espace Pro' link. 21/22 checks pass. Only one functional issue: the Dispatcher card lands on '/' instead of '/dispatcher' because /dispatcher is wrapped in a ProtectedRoute that redirects unauthenticated users to '/'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ProAccessPage / pro-app-dispatcher",
+        "issue": "Clicking pro-app-dispatcher as an unauthenticated user navigates briefly to /dispatcher and is then immediately redirected to / (home) because <Route path='/dispatcher'> is protected (ProtectedRoute allowedRoles=['dispatcher','admin']) and ProtectedRoute does `<Navigate to='/' replace />` when no user. Final URL is '/', so the spec requirement 'cliquer pro-app-dispatcher → /dispatcher' fails. The 5 other cards (client→/login, chauffeur→/chauffeur, store→/login/email, kiosk→/tab, admin→/admin-login) all work correctly.",
+        "selector": "[data-testid='pro-app-dispatcher']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/connexion", "issues": ["Visual layout is clean and on-brand (dark #0a0e1a + orange #FF4500 accent). 6 cards render with logos/icons, descriptions and tags. Header, footer 'Site web officiel' block and back button all visible. No contrast/spacing issues observed."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_238.json"],
+  "action_items": [
+    "Fix the Dispatcher card target: either (a) create a public /dispatcher-login page (like /admin-login) and point pro-app-dispatcher there, or (b) make /dispatcher render a login form when unauthenticated, or (c) change ProtectedRoute to redirect to a login route instead of '/'. Option (a) is most consistent with the existing Admin pattern."
+  ],
+  "critical_code_review_comments": [
+    "ProAccessPage useEffect: while a user is logged-in, the page redirects via role map and the 'dispatcher' key maps to '/dispatch' (with role=dispatcher). However the role map in this component does not include the 'merchant' role redirect to '/merchant' explicitly — there is one ('merchant: /merchant') — OK. Minor: phosphor icon name 'DeviceTabletSpeaker' is unusual; verify long-term import stability across @phosphor-icons/react versions.",
+    "Routes /connexion, /espace-pro, /apps all alias to ProAccessPage — verified working."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "95% (21/22 checks: only dispatcher navigation fails)"},
+  "test_credentials": "Not required — hub is public when unauthenticated.",
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All data-testids exist and resolve: pro-access-page, pro-app-{client|chauffeur|store|kiosk|admin|dispatcher}, pro-website-link (href=https://www.sbdrivevtc.com, target=_blank), pro-back-home, footer-espace-pro-link, footer-sb-store-link, footer-sb-tab-link, footer-website-link. Alias routes /espace-pro and /apps both render the hub. Footer link from / opens /connexion correctly. The only failing requirement is pro-app-dispatcher landing URL — root cause is ProtectedRoute on /dispatcher redirecting unauthenticated users to '/'. Console 401s on /api/auth/me and similar are expected for unauthenticated visit, unrelated to hub functionality.",
+  "rca of the issue": "ProAccessPage navigates to '/dispatcher' on click. In /app/frontend/src/routes/panelRoutes.jsx line 21, <Route path='/dispatcher'> is wrapped in <ProtectedRoute allowedRoles={['dispatcher','admin']}>. ProtectedRoute (/app/frontend/src/components/ProtectedRoute.js line 23) returns <Navigate to='/' replace /> when no user is present. Result: browser ends at '/'. Mitigation: introduce a public /dispatcher-login page (mirror /admin-login) and have pro-app-dispatcher.to = '/dispatcher-login'."
+}

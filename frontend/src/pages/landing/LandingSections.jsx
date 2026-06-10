@@ -213,6 +213,7 @@ export const LandingFooter = ({ navigate }) => (
         <div>
           <h4 className="text-white font-bold text-sm mb-4 uppercase tracking-wide">Applications</h4>
           <div className="space-y-2">
+            <button onClick={() => navigate('/connexion')} className="block text-sm font-semibold text-[#FF4500] hover:text-orange-400 transition-colors" data-testid="footer-espace-pro-link">→ Espace Pro · Toutes les connexions</button>
             <button onClick={() => navigate('/login')} className="block text-sm text-gray-500 hover:text-white transition-colors">SB Drive Client</button>
             <button onClick={() => navigate('/chauffeur')} className="block text-sm text-gray-500 hover:text-white transition-colors">SB Drive Chauffeur</button>
             <button onClick={() => navigate('/login/email')} className="block text-sm text-gray-500 hover:text-white transition-colors" data-testid="footer-sb-store-link">SB Store (Commerçant)</button>
