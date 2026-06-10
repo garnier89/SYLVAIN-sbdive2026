@@ -8,6 +8,7 @@ owner's verified address — production delivery requires verifying a domain.
 import os
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 import resend
 
@@ -154,28 +155,63 @@ async def send_order_confirmation(to: str, customer_name: str, order: dict, stor
 
 
 async def send_order_delivered(to: str, customer_name: str, order: dict, store_name: str, review_url: str) -> None:
-    """Sent when an order is delivered — thanks the client + invites a review."""
+    """Invoice + review invitation, sent when an order is delivered.
+    SB Drive VTC being an intermediation platform, the invoice is issued on
+    behalf of the provider (the merchant)."""
     order_no = f"#{str(order.get('id',''))[-6:]}"
+    invoice_no = order.get("invoice_number") or order_no
+    date_str = datetime.now(timezone.utc).strftime("%d/%m/%Y")
+    rows = ""
+    for it in (order.get("items") or []):
+        name = it.get("name") or it.get("product_name") or "Article"
+        qty = int(it.get("quantity") or 1)
+        line = float(it.get("total") or (it.get("price", 0) * qty))
+        rows += (f'<tr><td style="padding:7px 0;color:#444;font-size:14px;">{qty}× {name}</td>'
+                 f'<td style="padding:7px 0;color:#444;font-size:14px;text-align:right;white-space:nowrap;">{_money(line)}</td></tr>')
+    subtotal = order.get("subtotal", 0)
+    discount = order.get("discount", 0) or 0
+    delivery = order.get("delivery_fee", 0)
+    total = order.get("total", 0)
+    discount_row = (f'<tr><td style="padding:4px 0;color:#16a34a;font-size:14px;">Réduction</td>'
+                    f'<td style="padding:4px 0;color:#16a34a;font-size:14px;text-align:right;">-{_money(discount)}</td></tr>') if discount > 0 else ""
     stars = "".join(
-        f'<a href="{review_url}&rating={n}" style="text-decoration:none;font-size:30px;color:#FFB400;margin:0 3px;">★</a>'
+        f'<a href="{review_url}&rating={n}" style="text-decoration:none;font-size:28px;color:#FFB400;margin:0 2px;">★</a>'
         for n in range(1, 6)
     )
     body = f"""\
         <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {customer_name or ''},</p>
         <p style="color:#444;font-size:15px;line-height:1.6;">
           Votre commande <b>{order_no}</b> de chez <b>{store_name}</b> a bien été <b style="color:#16a34a;">livrée</b>. 🎉
-          Nous espérons que tout s'est bien passé !
+          Voici votre facture.
         </p>
-        <p style="color:#444;font-size:15px;line-height:1.6;text-align:center;margin-top:24px;">
-          Comment évaluez-vous <b>{store_name}</b> ?
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f8fa;border-radius:10px;padding:14px 16px;margin:16px 0;">
+          <tr><td style="color:#777;font-size:13px;">Facture n°</td><td style="text-align:right;color:#0a0e1a;font-size:13px;font-weight:bold;">{invoice_no}</td></tr>
+          <tr><td style="color:#777;font-size:13px;">Date</td><td style="text-align:right;color:#444;font-size:13px;">{date_str}</td></tr>
+          <tr><td style="color:#777;font-size:13px;">Prestataire</td><td style="text-align:right;color:#444;font-size:13px;">{store_name}</td></tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee;border-bottom:1px solid #eee;margin:6px 0 14px;">
+          {rows}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:3px 0;color:#777;font-size:14px;">Sous-total</td><td style="padding:3px 0;color:#777;font-size:14px;text-align:right;">{_money(subtotal)}</td></tr>
+          {discount_row}
+          <tr><td style="padding:3px 0;color:#777;font-size:14px;">Livraison</td><td style="padding:3px 0;color:#777;font-size:14px;text-align:right;">{_money(delivery)}</td></tr>
+          <tr><td style="padding:9px 0;color:#0a0e1a;font-size:17px;font-weight:bold;border-top:1px solid #eee;">Total payé</td>
+              <td style="padding:9px 0;color:#FF4500;font-size:17px;font-weight:bold;text-align:right;border-top:1px solid #eee;">{_money(total)}</td></tr>
+        </table>
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;margin:14px 0 0;">
+          SB Drive VTC est une plateforme de mise en relation. La prestation a été réalisée par le prestataire
+          « {store_name} » ; cette facture est émise pour son compte.
         </p>
-        <p style="text-align:center;margin:10px 0 22px;">{stars}</p>
-        <p style="text-align:center;margin:0 0 26px;">
+        <hr style="border:none;border-top:1px solid #eee;margin:22px 0;" />
+        <p style="color:#444;font-size:15px;line-height:1.6;text-align:center;">Comment évaluez-vous <b>{store_name}</b> ?</p>
+        <p style="text-align:center;margin:8px 0 18px;">{stars}</p>
+        <p style="text-align:center;margin:0 0 22px;">
           <a href="{review_url}" style="background:#FF4500;color:#ffffff;text-decoration:none;
-             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+             padding:12px 24px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
             Laisser un avis
           </a>
         </p>
-        <p style="color:#777;font-size:13px;text-align:center;">Votre avis aide les autres clients et soutient ce commerce. Merci !</p>
-        <p style="color:#444;font-size:14px;margin-top:20px;">À bientôt sur SB Store 🧡</p>"""
-    await _send(to, f"Votre commande {order_no} est livrée — donnez votre avis ⭐", _shell("Commande livrée ✅", "#16a34a", body))
+        <p style="color:#444;font-size:14px;text-align:center;">Merci de votre confiance 🧡<br/>L'équipe SB Store</p>"""
+    await _send(to, f"Facture {invoice_no} · commande {order_no} livrée — votre avis ⭐",
+                _shell("Commande livrée ✅", "#16a34a", body))

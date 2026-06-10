@@ -184,13 +184,30 @@ async def order_auto_progress_loop():
         await asyncio.sleep(10)
 
 
+async def _next_invoice_number() -> str:
+    """Atomic sequential invoice number, format SB-YYYY-000123."""
+    year = datetime.now(timezone.utc).year
+    doc = await db.counters.find_one_and_update(
+        {"id": f"invoice_{year}"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=True,
+    )
+    seq = (doc or {}).get("seq", 1)
+    return f"SB-{year}-{seq:06d}"
+
+
 async def _send_order_delivered_email(order_id: str):
-    """Fire the 'order delivered + review invitation' email once per order."""
+    """Fire the invoice + review-invitation email once per delivered order."""
     try:
         order = await db.orders.find_one({"id": order_id}, {"_id": 0})
         if not order or order.get("delivered_email_sent"):
             return
-        await db.orders.update_one({"id": order_id}, {"$set": {"delivered_email_sent": True}})
+        invoice_number = order.get("invoice_number")
+        if not invoice_number:
+            invoice_number = await _next_invoice_number()
+        await db.orders.update_one({"id": order_id}, {"$set": {"delivered_email_sent": True, "invoice_number": invoice_number}})
+        order["invoice_number"] = invoice_number
         user = await db.users.find_one({"id": order["user_id"]}, {"_id": 0, "email": 1, "name": 1})
         if not user or not user.get("email"):
             return
@@ -202,6 +219,7 @@ async def _send_order_delivered_email(order_id: str):
                                   (merchant or {}).get("store_name", "votre commerce"), review_url))
     except Exception:
         pass
+
 
 
 
