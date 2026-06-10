@@ -107,6 +107,12 @@ async def notif_settings_public(user=Depends(get_current_user)):
     return await get_notif_settings()
 
 
+@router.get("/unread-count")
+async def unread_count(user=Depends(get_current_user)):
+    n = await db.notifications.count_documents({"user_id": user["id"], "read": {"$ne": True}})
+    return {"count": n}
+
+
 @admin_router.get("/settings")
 async def admin_get_settings(request: Request):
     await require_role(request, ["admin"])

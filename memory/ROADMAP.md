@@ -35,6 +35,10 @@
 
 ## ✅ Lot 2 (Notifications Push) — COMPLET (Phases 1→4)
 
+### ✅ Badge notifications non lues (FAIT 2026-06-10)
+- Backend : `GET /api/push/unread-count` (générique, `get_current_user`) → `{count}`. Validé (auth→count, no-auth→401, reflète bien les non-lues).
+- Client : badge rouge `unread-badge` sur le bouton menu de `UserHome` (poll 30s). Chauffeur : badge cloche déjà existant (`DriverHome`).
+
 ## Lot 3 — Refonte modules (specs détaillées fournies par user)
 
 ### ✈️ Module "Airport Transfer" (service premium)

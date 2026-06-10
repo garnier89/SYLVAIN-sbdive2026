@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -179,6 +180,18 @@ const UserHome = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showDeliverySearch, setShowDeliverySearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const fetchUnread = () => {
+      axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/push/unread-count`, { withCredentials: true })
+        .then((r) => { if (alive) setUnreadCount(r.data?.count || 0); })
+        .catch(() => {});
+    };
+    fetchUnread();
+    const iv = setInterval(fetchUnread, 30000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
   const [cmsItems, setCmsItems] = useState([]);
   const [sectionOrder, setSectionOrder] = useState(null);
   const [taxiCats, setTaxiCats] = useState([]);
@@ -611,8 +624,13 @@ const UserHome = () => {
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
-            <button className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0" data-testid="menu-btn" onClick={() => setShowMenu(true)}>
+            <button className="relative w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0" data-testid="menu-btn" onClick={() => setShowMenu(true)}>
               <List size={20} className="text-[#1F2430]" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5000] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white" data-testid="unread-badge">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
             <div className="min-w-0">
               <p className={`text-[11px] text-[#94A3B8] leading-none ${BODY}`}>{greeting}</p>
