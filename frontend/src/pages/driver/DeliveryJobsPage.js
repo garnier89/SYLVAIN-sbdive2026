@@ -159,6 +159,7 @@ const DeliveryJobsPage = () => {
                   <span className="font-bold text-sm truncate">{o.merchant?.name || 'Restaurant'}</span>
                   {o.delivery_speed === 'express' && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700" data-testid={`badge-express-${o.id}`}>⚡ EXPRESS</span>}
                   {o.delivery_speed === 'priority' && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700" data-testid={`badge-priority-${o.id}`}>⭐ PRIORITAIRE</span>}
+                  {o.grouped && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700" data-testid={`badge-grouped-${o.id}`}>🌱 LOT GROUPÉ</span>}
                   <span className="ml-auto font-bold text-[#FF5000]">{o.earning?.toFixed?.(2) ?? o.earning} €</span>
                 </div>
                 <p className="text-xs text-gray-500 truncate"><MapPin size={11} className="inline text-green-500" /> {o.merchant?.address || 'Restaurant'}</p>

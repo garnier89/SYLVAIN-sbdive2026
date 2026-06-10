@@ -262,6 +262,12 @@ const OrderTracking = () => {
                   <span>Livraison</span>
                   <span>{money(order.delivery_fee || 0)}</span>
                 </div>
+                {order.group_savings > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600 font-medium" data-testid="grouped-savings-row">
+                    <span>Économie groupée 🌱</span>
+                    <span>+{money(order.group_savings)} crédités</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-semibold text-gray-900">
                   <span>Total</span>
                   <span>{money(order.total || 0)}</span>

@@ -345,6 +345,11 @@ const CheckoutPage = () => {
                 />
               </div>
             )}
+            {formData.delivery_speed === 'grouped' && (
+              <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-800" data-testid="grouped-eco-hint">
+                🌱 Votre commande sera regroupée avec une commande proche. Vous payez le tarif normal maintenant ; dès qu'elle est groupée, l'économie ({selectedOption?.group_discount_pct ?? 30}% des frais) est <b>créditée sur votre SB Pay</b>. Si aucune commande compatible n'est trouvée, la livraison reste standard.
+              </div>
+            )}
           </CardContent>
         </Card>
 

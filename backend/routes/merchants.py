@@ -316,6 +316,30 @@ async def my_merchant_stats(request: Request):
     }
 
 
+@router.get("/me/analytics")
+async def my_merchant_analytics(request: Request, period: str = "week"):
+    """P2.3 — real business analytics for the merchant dashboard."""
+    user = await get_current_user(request)
+    merchant = await db.merchants.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Vous n'êtes pas marchand")
+    from core.merchant_ai import compute_analytics
+    return await compute_analytics(merchant["id"], period)
+
+
+@router.get("/me/ai-insights")
+async def my_merchant_ai_insights(request: Request, period: str = "week"):
+    """P2.3 — AI business insights (Gemini) grounded on the merchant's real data."""
+    user = await get_current_user(request)
+    merchant = await db.merchants.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Vous n'êtes pas marchand")
+    from core.merchant_ai import compute_analytics, ai_insights
+    analytics = await compute_analytics(merchant["id"], period)
+    insights = await ai_insights(merchant, analytics)
+    return {"period": analytics["period"], "insights": insights}
+
+
 
 @router.get("/{merchant_id}")
 async def get_merchant(merchant_id: str):

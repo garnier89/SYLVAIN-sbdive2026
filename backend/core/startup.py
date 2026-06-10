@@ -61,6 +61,8 @@ async def _create_indexes():
     await db.referrals.create_index("referred_id", unique=True, sparse=True)
     await db.users.create_index("referral_code_own", unique=True, sparse=True)
     await db.cashback_ledger.create_index("key", unique=True)
+    await db.group_savings_ledger.create_index("key", unique=True)
+    await db.orders.create_index([("groupable", 1), ("group_status", 1), ("batch_id", 1)])
 
 
 async def _seed_admin_and_credentials():
@@ -495,10 +497,12 @@ async def lifespan(app: FastAPI):
     flight_task = asyncio.create_task(flight_watch_loop())
     from core.cashback import cashback_monthly_loop
     cashback_task = asyncio.create_task(cashback_monthly_loop())
+    from core.grouping import grouping_loop
+    grouping_task = asyncio.create_task(grouping_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task):
         if task:
             task.cancel()
     client.close()

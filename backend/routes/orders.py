@@ -204,9 +204,10 @@ async def create_order(data: OrderCreate, request: Request):
     if base_delivery_fee is None:
         base_delivery_fee = default_fee
     base_delivery_fee = float(base_delivery_fee)
-    speed = data.delivery_speed if data.delivery_speed in ("standard", "express", "priority", "scheduled") else "standard"
+    speed = data.delivery_speed if data.delivery_speed in ("standard", "express", "priority", "scheduled", "grouped") else "standard"
     surcharge = _speed_surcharge(speed, settings)
     delivery_fee = round(base_delivery_fee + surcharge, 2)
+    is_grouped = speed == "grouped"
     from routes.merchants import compute_effective_discount
     discount_pct, _flash = compute_effective_discount(merchant)
     discount = round(subtotal * discount_pct / 100, 2)
@@ -220,6 +221,10 @@ async def create_order(data: OrderCreate, request: Request):
         "discount_pct": discount_pct, "discount": discount,
         "delivery_fee": delivery_fee, "delivery_speed": speed,
         "delivery_surcharge": surcharge, "priority": speed in ("express", "priority"),
+        "groupable": is_grouped,
+        "group_status": "pending" if is_grouped else None,
+        "batch_id": None,
+        "group_savings": 0.0,
         "scheduled_at": data.scheduled_at if speed == "scheduled" else None,
         "commission_percent": commission_percent,
         "commission": commission, "merchant_payout": merchant_payout,
@@ -275,6 +280,7 @@ async def available_deliveries(request: Request):
             "items_count": sum(int(i.get("quantity", 1)) for i in o.get("items", [])),
             "total": o.get("total"), "earning": o.get("delivery_fee"),
             "delivery_speed": o.get("delivery_speed", "standard"), "priority": bool(o.get("priority")),
+            "batch_id": o.get("batch_id"), "grouped": o.get("group_status") == "grouped",
             "status": o.get("status"), "created_at": o.get("created_at"),
         })
     return out
@@ -323,14 +329,21 @@ async def delivery_options(request: Request):
     """Public delivery-speed options + current surcharges for the checkout."""
     await get_current_user(request)
     cfg = await _delivery_settings()
-    return {
-        "options": [
-            {"id": "standard", "label": "Standard", "surcharge": 0.0, "desc": "Livraison classique"},
-            {"id": "express", "label": "Express", "surcharge": float(cfg["express_surcharge"]), "desc": "Plus rapide, dispatch immédiat"},
-            {"id": "priority", "label": "Prioritaire", "surcharge": float(cfg["priority_surcharge"]), "desc": "En tête de file des livreurs"},
-            {"id": "scheduled", "label": "Programmée", "surcharge": 0.0, "desc": "Choisissez date et heure"},
-        ],
-    }
+    from core.grouping import get_grouping_config
+    gcfg = await get_grouping_config()
+    options = [
+        {"id": "standard", "label": "Standard", "surcharge": 0.0, "desc": "Livraison classique"},
+        {"id": "express", "label": "Express", "surcharge": float(cfg["express_surcharge"]), "desc": "Plus rapide, dispatch immédiat"},
+        {"id": "priority", "label": "Prioritaire", "surcharge": float(cfg["priority_surcharge"]), "desc": "En tête de file des livreurs"},
+        {"id": "scheduled", "label": "Programmée", "surcharge": 0.0, "desc": "Choisissez date et heure"},
+    ]
+    if gcfg.get("enabled"):
+        options.insert(1, {
+            "id": "grouped", "label": "Groupée 🌱", "surcharge": 0.0,
+            "desc": f"Partagée avec une commande proche · jusqu'à -{gcfg['discount_pct']:.0f}% remboursés",
+            "group_discount_pct": gcfg["discount_pct"],
+        })
+    return {"options": options}
 
 
 @router.post("/{order_id}/claim")
@@ -349,7 +362,58 @@ async def claim_order(order_id: str, request: Request):
     if res.modified_count == 0:
         raise HTTPException(status_code=409, detail="Commande déjà prise ou non disponible")
     await manager.send_personal_message({"type": "order_driver_assigned", "order_id": order_id}, order["user_id"])
-    return {"message": "claimed", "order_id": order_id}
+
+    # Grouped delivery: claiming one order of a batch assigns the whole batch to
+    # this courier (single courier delivers several → optimized route).
+    claimed_batch = None
+    if order.get("batch_id"):
+        sibs = await db.orders.update_many(
+            {"batch_id": order["batch_id"], "driver_id": None},
+            {"$set": {"driver_id": driver["id"]}},
+        )
+        await db.delivery_batches.update_one(
+            {"id": order["batch_id"]},
+            {"$set": {"driver_id": driver["id"], "status": "assigned"}},
+        )
+        claimed_batch = order["batch_id"]
+        if sibs.modified_count:
+            batch_doc = await db.delivery_batches.find_one({"id": order["batch_id"]}, {"_id": 0, "order_ids": 1})
+            for oid in (batch_doc or {}).get("order_ids", []):
+                o2 = await db.orders.find_one({"id": oid}, {"_id": 0, "user_id": 1})
+                if o2:
+                    await manager.send_personal_message({"type": "order_driver_assigned", "order_id": oid}, o2["user_id"])
+    return {"message": "claimed", "order_id": order_id, "batch_id": claimed_batch}
+
+
+@router.get("/batch/{batch_id}")
+async def get_delivery_batch(batch_id: str, request: Request):
+    """Optimized multi-stop route + orders for a grouped-delivery batch."""
+    await get_current_user(request)
+    batch = await db.delivery_batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Lot introuvable")
+    orders = await db.orders.find({"id": {"$in": batch.get("order_ids", [])}}, {"_id": 0}).to_list(20)
+    for o in orders:
+        m = await db.merchants.find_one({"id": o["merchant_id"]}, {"_id": 0, "store_name": 1, "address": 1})
+        o["merchant_name"] = (m or {}).get("store_name")
+        o["merchant_address"] = (m or {}).get("address")
+    batch["orders"] = orders
+    return batch
+
+
+@router.get("/admin/grouping-config")
+async def get_grouping_config_admin(request: Request):
+    await require_role(request, ["admin", "dispatcher"], permission="server.settings.edit")
+    from core.grouping import get_grouping_config
+    return await get_grouping_config()
+
+
+@router.put("/admin/grouping-config")
+async def set_grouping_config_admin(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    from core.grouping import update_grouping_config
+    return await update_grouping_config(body)
 
 
 @router.get("/{order_id}/track")

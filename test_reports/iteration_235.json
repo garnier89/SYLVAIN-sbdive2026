@@ -1,0 +1,47 @@
+{
+  "summary": "P2.2 (grouped delivery) and P2.3 (merchant AI BI) verified end-to-end. Backend pytest 11/11 + HTTP smoke 5/5 pass. Frontend UI confirmed for admin grouping-config card (all 5 inputs + toggle), merchant Analytics (real KPIs 196.92€/17/11.58€/Mar) and AI Insights card (real Gemini text in summary/forecast/popular/promos/stock).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminPaymentMethods grouping-config-card",
+        "issue": "No explicit Save button found inside the 'Livraison groupée 🌱' card. Inputs are present and editable but persistence path from UI is unclear — needs either an explicit Save button (e.g. matching the 'Enregistrer' pattern used by the SB PayGo card above) or visible debounced auto-save feedback. Backend PUT works (verified via curl + pytest), so this is purely a UX/persistence-from-UI concern.",
+        "selector": "[data-testid=\"grouping-config-card\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_grouped_delivery.py",
+    "/app/backend/tests/test_merchant_bi.py",
+    "/app/backend/tests/test_p22_p23_http.py",
+    "/app/test_reports/pytest/p22_p23_http.xml"
+  ],
+  "action_items": [
+    "Confirm save mechanism for the admin grouping-config card (add explicit Save button or visible auto-save indicator/test).",
+    "Optional: surface 'Grouped delivery is enabled' confirmation toast after PUT /api/orders/admin/grouping-config completes."
+  ],
+  "critical_code_review_comments": [
+    "merchant_ai.py wraps AI results under {'period','insights':{...}} which differs from rule-fallback flat-shape expectations. Keep consistent unwrapping in /me/ai-insights consumers (frontend handles it, OK).",
+    "AdminPaymentMethods grouping-config-card lacks an explicit save action — relies on a different save trigger not obvious to user/tester.",
+    "Console shows several `401` from initial unauthenticated bootstrap calls before login. Harmless but noisy — consider gating those requests behind auth state."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p22_p23_http.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 unit + 5/5 HTTP)",
+    "frontend": "~95% (Admin & Merchant flows OK; only minor missing UX save button)"
+  },
+  "test_credentials": "admin@superapp.com/SuperAdmin123!, merchant@example.com/Merchant123! — both work via /login/email (email/password). Phone OTP path at /login is the default; email login is at /login/email behind 'Ou choisir une autre option de connexion'.",
+  "seed_data_creation": "None. Used existing demo merchant data (Resto Demo SB — revenue 196.92€).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Auth is httpOnly-cookie based; use page.context.clear_cookies() between role switches. Email login path is /login/email; login response shape is {access_token, token_type, user}. /api/orders/delivery-options requires auth and returns {options:[...]}. /api/orders/admin/grouping-config PUT/GET works. /api/merchants/me/ai-insights returns {period, insights:{summary, forecast, popular, promos, stock_alerts, source}}. Gemini takes ~3-5s; allow ~6s wait in UI tests. The grouping batcher loop runs every ~20s; to observe a real batch, create 2 grouped orders near same area and wait. Tests live in /app/backend/tests/test_grouped_delivery.py, test_merchant_bi.py, test_p22_p23_http.py.",
+  "rca of the issue": "N/A — no functional defects detected. Only minor UX observation about the grouping-config save affordance."
+}

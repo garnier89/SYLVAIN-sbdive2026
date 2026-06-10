@@ -21,6 +21,7 @@ const AdminPaymentMethods = () => {
   const [reserve, setReserve] = useState(null);
   const [sla, setSla] = useState(null);
   const [contactless, setContactless] = useState(null);
+  const [grouping, setGrouping] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
 
@@ -39,6 +40,8 @@ const AdminPaymentMethods = () => {
       if (sl.ok) setSla(await sl.json());
       const cl = await fetch(`${API}/api/contactless/admin/config`, { credentials: 'include' });
       if (cl.ok) setContactless(await cl.json());
+      const gr = await fetch(`${API}/api/orders/admin/grouping-config`, { credentials: 'include' });
+      if (gr.ok) setGrouping(await gr.json());
     } catch (e) {
       console.error(e);
       toast.error('Erreur de chargement');
@@ -95,8 +98,23 @@ const AdminPaymentMethods = () => {
     } finally { setSavingId(null); }
   };
 
-  const saveCashback = async (patch) => {
-    setSavingId('cashback');
+  const saveGrouping = async (patch) => {
+    setSavingId('grouping');
+    try {
+      const res = await fetch(`${API}/api/orders/admin/grouping-config`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setGrouping(await res.json());
+      toast.success('Livraison groupée mise à jour');
+    } catch (e) {
+      toast.error('Échec de la sauvegarde');
+    } finally { setSavingId(null); }
+  };
+
+  const saveCashback = async (patch) => {    setSavingId('cashback');
     try {
       const res = await fetch(`${API}/api/admin/cashback`, {
         method: 'PUT', credentials: 'include',
@@ -287,6 +305,78 @@ const AdminPaymentMethods = () => {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Livraison groupée (P2.2) */}
+      {grouping && (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/40 p-5" data-testid="grouping-config-card">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <SlidersHorizontal size={20} weight="duotone" className="text-teal-600" />
+                <h2 className="text-base font-bold text-gray-900">Livraison groupée 🌱</h2>
+              </div>
+              <p className="text-xs text-gray-600">
+                Regroupe automatiquement les commandes proches → un seul livreur, itinéraire optimisé. La réduction
+                est créditée au client en SB Pay seulement quand la commande est réellement groupée.
+              </p>
+            </div>
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!grouping.enabled}
+                onChange={(e) => saveGrouping({ enabled: e.target.checked })}
+                disabled={savingId === 'grouping'}
+                className="sr-only peer"
+                data-testid="grouping-enabled-toggle"
+              />
+              <div className="relative w-11 h-6 bg-gray-300 peer-checked:bg-teal-600 rounded-full peer transition-all after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Réduction (%)</label>
+              <input
+                type="number" min="0" max="90" step="1"
+                defaultValue={grouping.discount_pct}
+                onBlur={(e) => Number(e.target.value) !== grouping.discount_pct && saveGrouping({ discount_pct: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                data-testid="grouping-discount-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Lot max</label>
+              <input
+                type="number" min="2" max="6" step="1"
+                defaultValue={grouping.max_batch_size}
+                onBlur={(e) => Number(e.target.value) !== grouping.max_batch_size && saveGrouping({ max_batch_size: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                data-testid="grouping-batch-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Rayon marchands (km)</label>
+              <input
+                type="number" min="0.1" step="0.1"
+                defaultValue={grouping.merchant_radius_km}
+                onBlur={(e) => Number(e.target.value) !== grouping.merchant_radius_km && saveGrouping({ merchant_radius_km: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                data-testid="grouping-mradius-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Fenêtre (min)</label>
+              <input
+                type="number" min="1" step="1"
+                defaultValue={grouping.window_minutes}
+                onBlur={(e) => Number(e.target.value) !== grouping.window_minutes && saveGrouping({ window_minutes: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                data-testid="grouping-window-input"
+              />
             </div>
           </div>
         </div>
