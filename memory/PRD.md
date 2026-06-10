@@ -1,3 +1,10 @@
+## NEW - 2026-06-10 (243) - FIX portefeuille chauffeur : le retrait ne marchait pas (« on ne pouvait que créditer ») (DONE, testé)
+- **Diagnostic** : `DriverWalletPage.js` `requestPayout` était **factice** (juste un `toast.success` sans appel backend) et le bouton « Retrait » était caché derrière le toggle admin `enable_driver_wallet_withdrawal` → le chauffeur ne pouvait que **recharger**. Le backend `POST /api/wallet/withdraw-request` (misc.py) était pourtant complet (gate moyen de retrait validé RIB/Mobile Money, min, réserve, gel du montant, alerte admin temps réel).
+- **Fix** : bouton « Retrait » affiché dès que le backend autorise (`wallet.can_withdraw`), nouvelle **modale `DriverWithdrawModal`** (montant, retirable, option Express via `/payouts/sla`, ETA, lien « Gérer mon moyen de retrait ») qui appelle le **vrai endpoint** ; gestion d'erreur « moyen de retrait » → redirection vers `/wallet/payout-method` ; affichage du **retrait en attente** (`pending_withdraw`) et du **retirable** réel.
+- **Vérifié** : curl e2e (wallet GET can_withdraw=true/withdrawable=920.80 ; `withdraw-request` 200 → demande `pending` créée + montant gelé) + screenshot modale. Donnée de test nettoyée. Frontend compile.
+- ⚠️ Le chauffeur doit avoir un **moyen de retrait validé** (KYC) sinon erreur explicite + redirection. PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-10 (242) - App chauffeur : verrou retour pendant course (A) + Véhicules plaque unique globale & transfert par châssis (D) (DONE, testé 4/4 backend + screenshot)
 - **A — Verrou retour pendant une course** (`DriverHome.js`, `RideFlowViews.jsx`) : une fois la course acceptée, **plus de bouton retour** (prop `onMinimize` retirée → `RideFlowHeader.showMinimize=false`, plus de CaretLeft) + **garde d'historique** (`pushState`/`popstate`) qui **bloque le retour navigateur/matériel** tant que `currentRide` est actif. Le chauffeur reste verrouillé sur l'écran de course (déjà persistant après reload via `rideAPI.getActive`).
 - **D — Véhicules** (`routes/driver_pro.py`, `ManageVehiclesPage.js`) : 

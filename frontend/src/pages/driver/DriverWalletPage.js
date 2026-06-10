@@ -4,7 +4,7 @@ import { driverAPI, walletAPI } from '../../services/api';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { DriverBottomNav } from './DriverProfilePage';
 import { Button } from '../../components/ui/button';
-import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur } from '@phosphor-icons/react';
+import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur, X, Bank } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -14,6 +14,7 @@ const DriverWalletPage = () => {
   const { settings } = useAppSettings();
   const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
   const [loading, setLoading] = useState(true);
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -25,12 +26,17 @@ const DriverWalletPage = () => {
 
   useEffect(() => { loadWallet(); }, [loadWallet]);
 
-  const withdrawalEnabled = settings.enable_driver_wallet_withdrawal === true;
-  const minWithdrawal = Number(settings.driver_wallet_withdrawal_restriction_min || 0);
+  // The backend (/wallet) is the source of truth: drivers/merchants can withdraw.
+  const canWithdraw = wallet.can_withdraw === true || settings.enable_driver_wallet_withdrawal === true;
+  const withdrawable = Number(wallet.withdrawable || 0);
+  const pending = Number(wallet.pending_withdraw || 0);
 
-  const requestPayout = async () => {
-    if (wallet.balance < minWithdrawal) { toast.error(`Solde minimum ${minWithdrawal} EUR pour un retrait`); return; }
-    toast.success('Demande de retrait envoyee !');
+  const openWithdraw = () => {
+    if (withdrawable <= 0) {
+      toast.error('Aucun montant retirable pour le moment (réserve conservée).');
+      return;
+    }
+    setShowWithdraw(true);
   };
 
   if (loading) return <div className="mobile-container min-h-screen bg-gray-950 flex items-center justify-center"><div className="w-12 h-12 border-3 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" /></div>;
@@ -44,21 +50,28 @@ const DriverWalletPage = () => {
         <p className="text-4xl font-bold text-white mt-1" data-testid="wallet-balance">{(wallet.balance || 0).toFixed(2)} EUR</p>
         {wallet.reserve > 0 && (
           <p className="text-amber-100/90 text-xs mt-1" data-testid="driver-reserve-info">
-            Réserve {Number(wallet.reserve).toFixed(0)} € (non retirable) · Retirable {Number(wallet.withdrawable || 0).toFixed(2)} €
+            Réserve {Number(wallet.reserve).toFixed(0)} € (non retirable) · Retirable {withdrawable.toFixed(2)} €
+          </p>
+        )}
+        {pending > 0 && (
+          <p className="text-amber-100/90 text-xs mt-1" data-testid="driver-pending-withdraw">
+            Retrait en attente de validation : {pending.toFixed(2)} €
           </p>
         )}
         <div className="flex gap-2 mt-4">
-          {withdrawalEnabled && (
-            <Button onClick={requestPayout} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="payout-btn">
+          {canWithdraw && (
+            <Button onClick={openWithdraw} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="payout-btn">
               <ArrowUp size={16} className="mr-1" /> Retrait
             </Button>
           )}
-          <Button onClick={() => navigate('/wallet')} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl">
+          <Button onClick={() => navigate('/wallet')} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="topup-btn">
             <Plus size={16} className="mr-1" /> Recharger
           </Button>
         </div>
-        {withdrawalEnabled && (
-          <p className="text-amber-100/80 text-[11px] mt-2" data-testid="withdrawal-min-hint">Retrait à partir de {minWithdrawal} EUR.</p>
+        {canWithdraw && (
+          <button onClick={() => navigate('/wallet/payout-method')} className="text-amber-100/90 text-[11px] mt-2 underline" data-testid="driver-manage-payout-method">
+            Gérer mon moyen de retrait (RIB / Mobile Money) →
+          </button>
         )}
       </div>
 
@@ -89,6 +102,100 @@ const DriverWalletPage = () => {
         </div>
       </div>
       <DriverBottomNav />
+      {showWithdraw && (
+        <DriverWithdrawModal
+          withdrawable={withdrawable}
+          reserve={Number(wallet.reserve || 0)}
+          navigate={navigate}
+          onClose={() => setShowWithdraw(false)}
+          onDone={() => { setShowWithdraw(false); loadWallet(); }}
+        />
+      )}
+    </div>
+  );
+};
+
+// Real withdrawal request — freezes the amount until admin validation.
+const DriverWithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => {
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sla, setSla] = useState(null);
+  const [express, setExpress] = useState(false);
+  const num = parseFloat(amount) || 0;
+
+  useEffect(() => {
+    fetch(`${API}/api/payouts/sla`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null)).then(setSla).catch(() => {});
+  }, []);
+
+  const fee = express && sla?.express_available ? (sla.express_fee || 0) : 0;
+  const net = Math.max(0, num - fee);
+  const etaHours = express && sla?.express_available ? sla?.express_hours : sla?.standard_hours;
+
+  const submit = async () => {
+    if (num <= 0) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/wallet/withdraw-request`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: num, express }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg = err.detail || 'Échec du retrait';
+        if (typeof msg === 'string' && msg.includes('moyen de retrait')) {
+          toast.error(msg);
+          onClose();
+          navigate('/wallet/payout-method');
+          return;
+        }
+        throw new Error(typeof msg === 'string' ? msg : 'Échec du retrait');
+      }
+      toast.success(`Demande de retrait de ${net.toFixed(2)} € envoyée (en attente de validation)`);
+      onDone();
+    } catch (e) {
+      toast.error(e.message || 'Échec du retrait');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/60" data-testid="driver-withdraw-modal">
+      <div className="w-full max-w-[430px] bg-white rounded-t-3xl sm:rounded-3xl p-6 mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2"><Bank size={20} weight="duotone" className="text-gray-800" /> Retirer mes gains</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="driver-withdraw-close"><X size={14} /></button>
+        </div>
+        <div className="mb-4 text-xs text-gray-500">
+          Retirable : <b className="text-gray-900">{withdrawable.toFixed(2)} €</b>
+          {reserve > 0 && <span> · réserve {reserve.toFixed(0)} € conservée</span>}
+        </div>
+        <label className="text-xs font-semibold text-gray-700 mb-1 block">Montant (€)</label>
+        <input type="number" min="1" max={withdrawable} step="1" value={amount} onChange={(e) => setAmount(e.target.value)}
+          placeholder="0.00" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm mb-3" data-testid="driver-withdraw-amount-input" />
+
+        {sla?.express_available && (
+          <button onClick={() => setExpress(!express)} data-testid="driver-withdraw-express-toggle"
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border mb-3 transition-colors ${express ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}>
+            <span className="text-sm font-semibold text-gray-800">⚡ Express (~{sla.express_hours}h)</span>
+            <span className="text-xs text-gray-500">+{(sla.express_fee || 0).toFixed(2)} €</span>
+          </button>
+        )}
+
+        <div className="bg-gray-50 rounded-xl p-3 mb-4 text-xs text-gray-600 space-y-1">
+          {etaHours != null && <div>🕒 Versement estimé sous <b className="text-gray-900">~{etaHours}h</b></div>}
+          {fee > 0 && <div>Frais express : −{fee.toFixed(2)} € · vous recevrez <b className="text-gray-900">{net.toFixed(2)} €</b></div>}
+        </div>
+
+        <button onClick={() => { onClose(); navigate('/wallet/payout-method'); }} className="text-xs text-indigo-600 font-semibold mb-4 block" data-testid="driver-manage-payout-method-modal">
+          Gérer mon moyen de retrait (RIB / Mobile Money) →
+        </button>
+        <button onClick={submit} disabled={loading || num <= 0 || num > withdrawable}
+          className="w-full h-12 rounded-xl bg-gray-900 text-white font-bold disabled:opacity-60" data-testid="driver-withdraw-confirm-btn">
+          {loading ? 'Envoi…' : `Demander ${net.toFixed(2)} €`}
+        </button>
+        <p className="text-[11px] text-gray-400 text-center mt-2">Le montant est gelé jusqu'à validation par l'administrateur.</p>
+      </div>
     </div>
   );
 };
