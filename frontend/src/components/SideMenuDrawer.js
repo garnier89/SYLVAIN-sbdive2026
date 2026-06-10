@@ -154,7 +154,6 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
         { icon: Wallet, label: 'Mon portefeuille', path: '/chauffeur/wallet', color: 'bg-rose-100 text-rose-600' },
         { icon: Bank,   label: 'Coordonnées bancaires', path: '/chauffeur/bank', color: 'bg-indigo-100 text-indigo-600' },
         { icon: ChartBar, label: 'Statistiques gains', path: '/chauffeur/earnings/stats', color: 'bg-emerald-100 text-emerald-700' },
-        { icon: Bank,   label: 'SB Pay',           path: '/wallet',           color: 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white', highlight: true },
       ],
     },
     {

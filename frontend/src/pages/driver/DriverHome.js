@@ -6,9 +6,9 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useHeatmap, useDriverHomeFeed, useZoneBonuses } from '../../hooks/driverHome';
 import { toast } from 'sonner';
-import { driverAPI, rideAPI } from '../../services/api';
+import { driverAPI, rideAPI, walletAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
-import { X, Gift, UsersThree, Car, CaretRight } from '@phosphor-icons/react';
+import { X, Gift, UsersThree, Car, CaretRight, WarningCircle } from '@phosphor-icons/react';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 import IncomingRequestSheet from '../../components/driver/IncomingRequestSheet';
@@ -35,6 +35,8 @@ const DriverHome = () => {
   const [driver, setDriver] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
   const [currentRide, setCurrentRide] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [cashBannerDismissed, setCashBannerDismissed] = useState(false);
   const activeRestoredRef = useRef(false);
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [myOffer, setMyOffer] = useState(null); // { rideId, amount, expires_at, ttl_seconds }
@@ -310,6 +312,21 @@ const DriverHome = () => {
     return () => window.removeEventListener('popstate', onPop);
   }, [currentRide]);
 
+  // Wallet balance for the cash-ride banner: below 1 € the driver no longer
+  // receives cash-payment rides, so prompt them to top up.
+  useEffect(() => {
+    let alive = true;
+    const loadBalance = async () => {
+      try {
+        const res = await walletAPI.get();
+        if (alive) setWalletBalance(Number(res.data?.balance ?? 0));
+      } catch { /* ignore */ }
+    };
+    loadBalance();
+    return () => { alive = false; };
+  }, [currentRide]);
+
+
 
   useEffect(() => {
     if (!(isOnline && !currentRide)) return undefined;
@@ -532,6 +549,25 @@ const DriverHome = () => {
 
   return (
     <div className="mobile-container bg-white h-[100dvh] flex flex-col relative pb-20 overflow-hidden" data-testid="driver-home-page">
+      {/* Cash-ride top-up nudge: below 1 € the driver stops receiving cash rides. */}
+      {walletBalance != null && walletBalance < 1 && !cashBannerDismissed && !currentRide && !incomingRequest && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[2450] w-[92%] max-w-md" data-testid="cash-topup-banner">
+          <div className="flex items-center gap-3 bg-amber-500 text-white rounded-2xl shadow-xl px-4 py-2.5">
+            <WarningCircle size={22} weight="fill" className="flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold leading-tight">Rechargez pour recevoir les courses en espèces</p>
+              <p className="text-[11px] text-white/90 leading-tight">Solde {Number(walletBalance).toFixed(2)} € · minimum 1 € requis.</p>
+            </div>
+            <button onClick={() => navigate('/chauffeur/wallet')} className="shrink-0 px-3 py-1.5 rounded-full bg-white text-amber-600 text-xs font-bold" data-testid="cash-topup-recharge-btn">
+              Recharger
+            </button>
+            <button onClick={() => setCashBannerDismissed(true)} className="shrink-0 text-white/80" data-testid="cash-topup-dismiss">
+              <X size={16} weight="bold" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Active zone bonus banner (driver-shortage incentive) */}
       {zoneBonuses.length > 0 && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2400] w-[92%] max-w-md" data-testid="zone-bonus-banner">

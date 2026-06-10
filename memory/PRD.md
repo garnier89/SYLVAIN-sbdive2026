@@ -1,3 +1,9 @@
+## NEW - 2026-06-10 (245) - Bandeau recharge courses espèces + Clarification « 2 portefeuilles » (DONE)
+- **« Pourquoi 2 portefeuilles ? »** → En réalité **UN SEUL** portefeuille (même solde, même `/api/wallet`), mais affiché via 2 entrées de menu : « Mon portefeuille » (`/chauffeur/wallet`) ET « SB Pay » (`/wallet`). Correction : **suppression de l'entrée doublon « SB Pay »** dans le menu latéral chauffeur (`SideMenuDrawer.js`) → une seule entrée portefeuille. (`/chauffeur/wallet` et `/wallet` lisent le même compte ; `/wallet` reste l'écran de recharge/topup.)
+- **Bandeau recharge** (`DriverHome.js`) : quand le solde chauffeur < 1 €, bandeau orange « Rechargez pour recevoir les courses en espèces · Solde X € · minimum 1 € requis » + bouton Recharger (→ `/chauffeur/wallet`) + fermeture. Masqué pendant une course/demande. `walletAPI` importé, solde rechargé à chaque changement de course.
+- **Vérifié** : screenshot bandeau OK (solde 0.50 €), frontend compile. Donnée demo restaurée.
+
+
 ## NEW - 2026-06-10 (244) - Courses espèces conditionnées au solde + Remboursement client par le chauffeur (DONE, testé 5/5)
 - **Filtrage courses espèces (cash-gating)** : un chauffeur ne reçoit/voit les courses payées en **espèces** que si son solde portefeuille ≥ **CASH_RIDE_MIN_BALANCE** (défaut **1 €**, override via env `CASH_RIDE_MIN_BALANCE`). Implémenté côté serveur (source de vérité) :
   - `core/websocket.py::broadcast_to_drivers(message, exclude=...)` (nouveau param d'exclusion).
