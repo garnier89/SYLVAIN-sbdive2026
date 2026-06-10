@@ -151,11 +151,12 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 - **Alerte admin temps réel** à chaque nouvelle demande (notification + score).
 - Front : page user `PayoutMethodPage` (selfie/CNI), modal de retrait sur `/wallet`, admin `AdminPayouts` (2 onglets : demandes + KYC) sur `/admin/withdraw-requests` & `/admin/payout-methods`.
 
-### P0.6b — Retraits avancés (Phase C2) · ⏳ À FAIRE (P1)
-- **Délais éditables admin** par zone/rôle : EU/DOM-TOM marchand 48h / chauffeur 24h ; Afrique chauffeur 12h / marchand 24h.
-- **Express 12h** (EU/DOM-TOM) avec **frais 1 € éditables**.
-- **Jumelage** : relier deux comptes séparés (client + marchand) pour faciliter les transferts entre eux.
-- **Versements réels** : brancher API Orange Money / MTN / Wave / Stripe Payouts (avec identifiants fournis).
+### P0.6b — Retraits avancés (Phase C2) · ✅ LIVRÉ (2026-06-10, testé iter228 — 12/12)
+- **Délais (SLA) éditables admin** par zone/rôle (`withdrawal_sla_config`) : EU/DOM-TOM chauffeur 24h/marchand 48h ; Afrique chauffeur 12h/marchand 24h. Carte « Délais de versement » dans `/admin/payment-methods`.
+- **Délai estimé affiché** dans la modale de retrait (« Versement estimé sous ~Xh »).
+- **Retrait express 12h** (EU/DOM-TOM) avec **frais éditables (1 €) déduits du montant** (demande 30 € → reçoit 29 €). Dégradation gracieuse hors zone.
+- **Jumelage** de deux comptes (client+marchand) : demande par e-mail/téléphone + confirmation des deux côtés, transfert facilité. Page `/wallet/linked-accounts`.
+- ⏳ Reste : **versements réels** (API Orange Money/MTN/Wave/Stripe Payouts) à brancher avec identifiants (marqués payés manuellement en v1).
 
 ### P0.7 — Paiement « sans contact » (Phase D) · ⏳ À FAIRE (P1)
 - Le chauffeur saisit un montant dans SB Pay → génère **QR + code 6 chiffres** → le client scanne/saisit, s'authentifie, paie via **solde SB Pay ou carte (Stripe)** → crédité au chauffeur/marchand. (NFC natif reporté à une future app native.)
