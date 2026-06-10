@@ -352,6 +352,19 @@ DEMO_DRIVERS = [
 ]
 
 
+async def _demo_driver_ids():
+    """driver.id of the demo driver accounts (safe scope for ride cleanup)."""
+    ids = []
+    for email, _, _ in DEMO_DRIVERS:
+        u = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+        if not u:
+            continue
+        d = await db.drivers.find_one({"user_id": u["id"]}, {"_id": 0, "id": 1})
+        if d:
+            ids.append(d["id"])
+    return ids
+
+
 @router.get("/admin/demo/status")
 async def demo_status(request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
@@ -366,7 +379,9 @@ async def demo_status(request: Request):
             d = await db.drivers.find_one({"user_id": u["id"]}, {"_id": 0, "is_online": 1})
             online = bool(d and d.get("is_online"))
         drivers.append({"email": email, "name": u.get("name") if u else None, "online": online, "exists": bool(u)})
-    return {"airports": airports, "drivers": drivers}
+    demo_ids = await _demo_driver_ids()
+    rides_count = await db.rides.count_documents({"driver_id": {"$in": demo_ids}}) if demo_ids else 0
+    return {"airports": airports, "drivers": drivers, "demo_rides_count": rides_count}
 
 
 @router.post("/admin/demo/seed")
@@ -398,8 +413,16 @@ async def demo_seed(request: Request):
 
 @router.post("/admin/demo/reset")
 async def demo_reset(request: Request):
-    """Set the demo drivers offline (airports are kept)."""
+    """Set the demo drivers offline (airports are kept). Optionally clean demo rides.
+
+    Body: {"clean_rides": true} also deletes rides handled by the demo drivers
+    (safe scope — demo drivers never serve real clients).
+    """
     await require_role(request, ["admin"], permission="server.settings.edit")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
     offline = []
     for email, _, _ in DEMO_DRIVERS:
         u = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
@@ -408,7 +431,16 @@ async def demo_reset(request: Request):
         res = await db.drivers.update_one({"user_id": u["id"]}, {"$set": {"is_online": False}})
         if res.matched_count:
             offline.append(email)
-    return {"message": "Démo réinitialisée (aéroports conservés)", "drivers_offline": offline}
+    deleted = 0
+    if body.get("clean_rides"):
+        demo_ids = await _demo_driver_ids()
+        if demo_ids:
+            r = await db.rides.delete_many({"driver_id": {"$in": demo_ids}})
+            deleted = r.deleted_count
+    msg = "Démo réinitialisée (aéroports conservés)"
+    if body.get("clean_rides"):
+        msg += f" · {deleted} course(s) démo supprimée(s)"
+    return {"message": msg, "drivers_offline": offline, "rides_deleted": deleted}
 
 
 @router.get("/config/flat-rates")

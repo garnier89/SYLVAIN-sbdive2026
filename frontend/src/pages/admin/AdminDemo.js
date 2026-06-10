@@ -9,11 +9,12 @@ import { Sparkle, ArrowCounterClockwise, AirplaneTilt, Car, CheckCircle, XCircle
 import { demoAPI } from '../../services/api';
 
 const AdminDemo = () => {
-  const [status, setStatus] = useState({ airports: [], drivers: [] });
+  const [status, setStatus] = useState({ airports: [], drivers: [], demo_rides_count: 0 });
   const [busy, setBusy] = useState(false);
+  const [cleanRides, setCleanRides] = useState(false);
 
   const load = useCallback(() => {
-    demoAPI.status().then((r) => setStatus(r.data || { airports: [], drivers: [] })).catch(() => {});
+    demoAPI.status().then((r) => setStatus(r.data || { airports: [], drivers: [], demo_rides_count: 0 })).catch(() => {});
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -29,8 +30,8 @@ const AdminDemo = () => {
   const reset = async () => {
     setBusy(true);
     try {
-      await demoAPI.reset();
-      toast.success('Chauffeurs démo repassés hors-ligne');
+      const r = await demoAPI.reset(cleanRides);
+      toast.success(cleanRides ? `Réinitialisé · ${r.data.rides_deleted || 0} course(s) démo supprimée(s)` : 'Chauffeurs démo repassés hors-ligne');
       load();
     } catch { toast.error('Échec du reset démo'); }
     finally { setBusy(false); }
@@ -60,6 +61,11 @@ const AdminDemo = () => {
           <p className="text-xs text-gray-500">Chauffeurs hors-ligne · aéroports conservés</p>
         </button>
       </div>
+
+      <label className="flex items-center gap-2 mb-5 cursor-pointer select-none" data-testid="demo-clean-rides-toggle">
+        <input type="checkbox" checked={cleanRides} onChange={(e) => setCleanRides(e.target.checked)} className="w-4 h-4 accent-[#FF5000]" />
+        <span className="text-sm text-gray-700">Lors du reset, <b>supprimer aussi les courses des chauffeurs démo</b> {status.demo_rides_count ? <span className="text-[#FF5000] font-bold">({status.demo_rides_count})</span> : null}</span>
+      </label>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-3">
         <h3 className="font-bold text-sm text-[#0B1426] mb-2 flex items-center gap-1.5"><AirplaneTilt size={16} className="text-[#0EA5E9]" /> Aéroports démo</h3>

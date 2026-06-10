@@ -105,10 +105,12 @@ def test_demo_seed_and_reset():
     assert all(a["exists"] for a in st["airports"])
     assert any(d["online"] for d in st["drivers"])  # at least one demo driver online
 
-    r = requests.post(f"{API}/phase2/admin/demo/reset", headers=h, timeout=20)
+    r = requests.post(f"{API}/phase2/admin/demo/reset", headers=h, json={"clean_rides": True}, timeout=20)
     assert r.status_code == 200, r.text
+    assert "rides_deleted" in r.json()
     st2 = requests.get(f"{API}/phase2/admin/demo/status", headers=h, timeout=15).json()
     assert all(not d["online"] for d in st2["drivers"])  # all demo drivers offline
+    assert st2["demo_rides_count"] == 0  # demo-driver rides cleaned
     # airports kept
     assert all(a["exists"] for a in st2["airports"])
 
