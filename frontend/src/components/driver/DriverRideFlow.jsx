@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AirplaneTilt, MapPin } from '@phosphor-icons/react';
+import { AirplaneTilt, MapPin, IdentificationCard } from '@phosphor-icons/react';
+import { AirportVipSign } from './AirportVipSign';
 import { decodePolyline } from '../../utils/polyline';
 import { rideAPI } from '../../services/api';
 import RideCompletionFlow from './RideCompletionFlow';
@@ -50,6 +51,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const [showMenu, setShowMenu] = useState(false);
   const [showNav, setShowNav] = useState(false);
   const [showSafety, setShowSafety] = useState(false);
+  const [showVipSign, setShowVipSign] = useState(false);
   const [showCallType, setShowCallType] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpInput, setOtpInput] = useState('');
@@ -355,6 +357,15 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
             <p className="text-[12px] text-sky-800 mt-1 flex items-start gap-1"><MapPin size={14} weight="fill" className="mt-0.5 shrink-0 text-[#0EA5E9]" /> {ride.meeting_point}</p>
           )}
           <p className="text-[11px] text-sky-600 mt-0.5">{ride.free_wait_minutes || 45} min d'attente offertes après arrivée.</p>
+          {(isPickupPhase || isArrived) && (
+            <button
+              onClick={() => setShowVipSign(true)}
+              className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#0EA5E9] text-white text-sm font-black active:scale-[0.99]"
+              data-testid="open-vip-sign-btn"
+            >
+              <IdentificationCard size={18} weight="fill" /> Pancarte VIP — accueil client
+            </button>
+          )}
         </div>
       )}
 
@@ -439,6 +450,11 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
           ride={ride}
           onClose={() => setShowSafety(false)}
         />
+      )}
+
+      {/* VIP Airport welcome sign */}
+      {showVipSign && (
+        <AirportVipSign ride={ride} onClose={() => setShowVipSign(false)} />
       )}
 
       {/* OTP modal */}
