@@ -197,6 +197,16 @@ const DriverProfilePage = () => {
 
   const handleLogout = async () => { await logout(); navigate('/chauffeur'); };
 
+  // « Lettre de voiture » = bon de commande du dernier voyage (pas l'historique).
+  const openWaybill = async () => {
+    try {
+      const res = await fetch(`${API}/api/rides?status=completed&limit=1`, { credentials: 'include' });
+      const rides = res.ok ? await res.json() : [];
+      if (Array.isArray(rides) && rides.length) navigate(`/ride/${rides[0].id}/waybill`);
+      else toast.error('Aucune course terminée pour le moment');
+    } catch { toast.error('Impossible de charger la lettre de voiture'); }
+  };
+
   if (loading) {
     return (
       <div className="mobile-container min-h-screen bg-white flex items-center justify-center">
@@ -232,7 +242,7 @@ const DriverProfilePage = () => {
         </div>
         <div className="grid grid-cols-4 gap-2 mt-4">
           {[
-            { icon: ClipboardText, label: 'Les reservations', color: '#3B82F6', path: '/chauffeur/earnings' },
+            { icon: ClipboardText, label: 'Les reservations', color: '#3B82F6', path: '/chauffeur/reservations' },
             { icon: Wallet, label: 'Portefeuille', color: '#EC4899', path: '/chauffeur/wallet' },
             { icon: Plus, label: 'Recharger', color: '#8B5CF6', path: '/chauffeur/wallet' },
             { icon: EnvelopeOpen, label: 'Inviter', color: '#F97316', path: '/referral' },
@@ -257,7 +267,7 @@ const DriverProfilePage = () => {
       <div className="mt-5">
         <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.general_settings')}</p>
         <div className="bg-white">
-          <ProfileRow icon={ClipboardText} color="#3B82F6" label={t('menu.my_bookings')} onClick={() => navigate('/chauffeur/earnings')} />
+          <ProfileRow icon={ClipboardText} color="#3B82F6" label={t('menu.my_bookings')} onClick={() => navigate('/chauffeur/reservations')} />
           <ProfileRow icon={Wrench} color="#F59E0B" label={t('driver.manage_services')} onClick={openServices} />
           <ProfileRow icon={FileText} color="#06B6D4" label={t('menu.manage_documents')} onClick={() => navigate('/chauffeur/documents')} />
           {allowEditProfile && (
@@ -268,7 +278,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={CalendarCheck} color="#A3A3A3" label={t('driver.my_availability')} onClick={() => navigate('/chauffeur/availability')} />
           <ProfileRow icon={ChartBar} color="#22C55E" label={t('driver.statistics')} onClick={() => navigate('/chauffeur/earnings')} />
           <ProfileRow icon={ChatCircleText} color="#06B6D4" label={t('driver.user_comments')} onClick={() => navigate('/chauffeur/reviews')} />
-          <ProfileRow icon={Receipt} color="#78716C" label={t('driver.waybill')} onClick={() => navigate('/chauffeur/history')} />
+          <ProfileRow icon={Receipt} color="#78716C" label={t('driver.waybill')} onClick={openWaybill} />
           <ProfileRow icon={Bell} color="#F97316" label={t('menu.notifications')} onClick={() => navigate('/chauffeur/notifications')} />
           <ProfileRow icon={Newspaper} color="#FF4500" label={t('menu.news')} onClick={() => navigate('/chauffeur/actualites')} badge={newsUnread} />
           <ProfileRow icon={UsersThree} color="#EF4444" label={t('menu.invite_friends')} onClick={() => navigate('/referral')} />

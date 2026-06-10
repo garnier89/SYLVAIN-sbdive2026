@@ -116,7 +116,7 @@ export function clientRoutes(user) {
       <Route path="/assistant" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><AssistantPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
-      <Route path="/referral" element={<ProtectedRoute allowedRoles={['user']}><ReferralPage /></ProtectedRoute>} />
+      <Route path="/referral" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ReferralPage /></ProtectedRoute>} />
       <Route path="/donation" element={<ProtectedRoute allowedRoles={['user']}><DonationPage /></ProtectedRoute>} />
       <Route path="/livechat" element={<ProtectedRoute allowedRoles={['user']}><LiveChatPage /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><SupportPage /></ProtectedRoute>} />

@@ -1,3 +1,10 @@
+## NEW - 2026-06-10 (248) - Audit menu chauffeur — Phase 1 corrections rapides (DONE, vérifié)
+- **#11 Parrainage chauffeur réparé** : la route `/referral` était réservée `allowedRoles=['user']` → bloquée pour les chauffeurs (alors que `ReferralPage` gère déjà `stats.is_driver`). → `['user','driver','merchant']`. Vérifié screenshot (code, stats, filleul affichés).
+- **#5 « Les réservations »/« Mes réservations »** pointaient vers `/chauffeur/earnings` → corrigé vers `/chauffeur/reservations` (DriverProfilePage, carte portefeuille + Réglages généraux).
+- **#9 « Lettre de voiture »** ouvrait l'historique → ouvre désormais le **bon de commande du dernier voyage** (`openWaybill` → fetch dernière course terminée → `/ride/{id}/waybill`).
+- **Reste de l'audit (à planifier)** : #3 « Gérer mon compte » vs « Infos société » (3 entrées ouvrent la même modale société → différencier) ; #2 chiffre d'affaires **NET après commission** (actuellement `get_driver_earnings` somme le brut `estimated_fare`) ; #4 statistiques complètes depuis inscription + export PDF ; #6 docs perso/véhicule vs société ; #7 avis : afficher message écrit + étoiles ; #8 actualités séparées par audience (client/chauffeur/marchand) ; #10 galerie chauffeur (prestations/marketplace si compte actif) ; #12 cohérence paiement avec app client.
+
+
 ## NEW - 2026-06-10 (247) - Portefeuille chauffeur : ajout « Envoyer » (P2P) + confirmation Retrait + Apple/Google Pay (auto) (DONE, testé)
 - **Réponse Apple Pay / Google Pay** : aucun code requis — tous les paiements passent par **Stripe Checkout hébergé** (`emergentintegrations`, payment_methods `['card']`) où Apple Pay/Google Pay s'affichent **automatiquement** sur appareils compatibles. Couvert **toute la plateforme**. Côté user : vérifier qu'ils sont activés dans le Dashboard Stripe (défaut ON) ; pas d'enregistrement de domaine pour le Checkout hébergé. Boutons visibles en prod avec vraie clé.
 - **Retrait chauffeur** : déjà en place (bouton « Retrait » → `POST /api/wallet/withdraw-request`). Confirmé.
