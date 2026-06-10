@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Star, MapPin, ArrowRight, X, Plus } from '@phosphor-icons/react';
 import { CountdownRing } from '../CountdownRing';
 import { useLocale } from '../../contexts/LocaleContext';
@@ -38,16 +38,24 @@ const IncomingRequestSheet = ({
   const [showCounter, setShowCounter] = useState(false);
   const [counterVal, setCounterVal] = useState('');
 
+  // Keep the latest onDecline in a ref so the countdown effect does NOT depend on
+  // its identity. Otherwise an inline onDecline (new ref each parent render) keeps
+  // restarting the timer → it never reaches 0 → the request sheet + siren stay
+  // stuck on screen even after the acceptance window elapses.
+  const onDeclineRef = useRef(onDecline);
+  useEffect(() => { onDeclineRef.current = onDecline; }, [onDecline]);
+
   useEffect(() => {
     if (offerPending) return undefined;
     const started = Date.now();
+    setRemaining(windowSeconds);
     const id = setInterval(() => {
       const left = Math.max(0, windowSeconds - Math.floor((Date.now() - started) / 1000));
       setRemaining(left);
-      if (left <= 0) { clearInterval(id); onDecline?.(); }
+      if (left <= 0) { clearInterval(id); onDeclineRef.current?.(); }
     }, 500);
     return () => clearInterval(id);
-  }, [offerPending, windowSeconds, onDecline]);
+  }, [offerPending, windowSeconds, request.id]);
 
   const price = (request.proposed_fare || request.estimated_fare || 0).toFixed(2);
   // Counter-offer stepper (driver at the wheel → no typing): pre-fill with the
@@ -71,12 +79,12 @@ const IncomingRequestSheet = ({
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/40 flex items-end" data-testid="incoming-request-modal">
-      {/* Large countdown on the dimmed map (behind the sheet) — time left to accept */}
+      {/* Countdown on the dimmed map (behind the sheet) — lowered into the empty
+          space above the sheet so it doesn't cover info; no backdrop circle, just
+          the green spinning ring + its timer. */}
       {!offerPending && (
-        <div className="absolute top-0 left-0 right-0 flex flex-col items-center pt-12 pointer-events-none" data-testid="accept-timer-big">
-          <div className="bg-black/35 backdrop-blur-sm rounded-full p-3 shadow-2xl">
-            <CountdownRing seconds={remaining} total={windowSeconds} size={140} />
-          </div>
+        <div className="absolute top-0 left-0 right-0 flex flex-col items-center pt-28 pointer-events-none" data-testid="accept-timer-big">
+          <CountdownRing seconds={remaining} total={windowSeconds} size={140} />
           <span className="mt-2 text-white text-sm font-bold drop-shadow-lg">Temps pour accepter</span>
         </div>
       )}

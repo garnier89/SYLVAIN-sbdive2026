@@ -35,6 +35,11 @@
 
 ## ✅ Lot 2 (Notifications Push) — COMPLET (Phases 1→4)
 
+### ✅ Demande entrante chauffeur — UI + bug "bloqué" (FAIT 2026-06-10)
+- **Bug corrigé (cause racine)** : dans `IncomingRequestSheet`, le `useEffect` du compte à rebours dépendait de `onDecline` (fonction inline passée par `DriverHome` → nouvelle identité à chaque render). Le timer se réinitialisait en boucle → n'atteignait jamais 0 → la demande + la sirène restaient **bloquées** à l'écran. Fix : `onDecline` mis dans un `ref`, deps stables `[offerPending, windowSeconds, request.id]` → auto-rejet à la fin de la fenêtre.
+- **Annulation client** : `DriverHome` poll la course toutes les 3 s tant que la demande est affichée ; si le statut n'est plus `pending` (client annule / expire / prise par un autre) → fermeture auto + arrêt sirène.
+- **UI** : grand cercle de compte à rebours descendu (`pt-12`→`pt-28`) dans l'espace libre pour ne plus masquer les infos ; retrait du fond rond transparent (`bg-black/35 backdrop-blur`) → seul le cercle vert qui tourne + minuteur restent.
+
 ### ✅ Badge notifications non lues (FAIT 2026-06-10)
 - Backend : `GET /api/push/unread-count`, `GET /api/push/list`, `POST /api/push/read-all` (génériques, `get_current_user`). Flux validé (count 2 → list 2 → read-all → count 0).
 - Client : badge rouge `unread-badge` sur le bouton menu de `UserHome` (poll 30s + refetch au focus, animation `bounce` à l'arrivée). Vraie **boîte de réception** dans l'onglet Notifications (`ProfileTabView` → `/profile?tab=notifications`) : liste des notifs reçues + **marquage auto en "lu" à l'ouverture**, au-dessus des préférences.

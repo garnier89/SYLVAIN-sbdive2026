@@ -325,6 +325,23 @@ const DriverHome = () => {
     }).catch(() => {});
   }, [incomingRequest]);
 
+  // Auto-dismiss the incoming request if it's no longer 'pending' (passenger
+  // cancelled, it expired, or another driver took it) so the sheet + siren never
+  // stay stuck on the driver's screen after the client side has stopped.
+  useEffect(() => {
+    if (!incomingRequest || myOffer || currentRide) return undefined;
+    const poll = setInterval(async () => {
+      try {
+        const res = await rideAPI.get(incomingRequest.id);
+        const st = res?.data?.status;
+        if (st && st !== 'pending') setIncomingRequest(null);
+      } catch (e) {
+        if (e?.response?.status === 404) setIncomingRequest(null);
+      }
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [incomingRequest, myOffer, currentRide]);
+
   // While our counter-offer is pending: tick the countdown + poll the ride.
   // If the passenger picks us, transition straight into the active ride.
   useEffect(() => {
