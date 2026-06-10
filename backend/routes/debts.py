@@ -116,6 +116,28 @@ async def settle_cancellation_fee(user_id, ride_id, fee, owed_to_driver_id=None)
     return {"fee": fee, "debt_created": True, "paid_from_wallet": False, "debt_amount": fee}
 
 
+async def record_ride_balance_debt(user_id, ride_id, amount, owed_to_driver_id=None):
+    """Record an unpaid ride balance — a wallet shortfall, a recalculated extra,
+    or a full cash fare the passenger did not pay — as a debt that follows the
+    passenger's next ride. Reuses the `cancellation_debts` collection so the
+    DebtBanner, carry-forward and settlement logic all apply unchanged.
+
+    `owed_to_driver_id` stays None for ride balances: the driver's earnings ledger
+    is already credited at completion, so the recovered debt reimburses the
+    platform (no double reimbursement)."""
+    amount = round(float(amount or 0), 2)
+    if not user_id or amount <= 0:
+        return None
+    debt = {
+        "id": f"debt_{uuid.uuid4().hex[:12]}", "user_id": user_id, "ride_id": ride_id,
+        "amount": amount, "reason": "ride_balance", "paid": False,
+        "owed_to_driver_id": owed_to_driver_id, "carried_ride_id": None,
+        "created_at": _now(), "paid_at": None,
+    }
+    await db.cancellation_debts.insert_one(debt)
+    return debt
+
+
 async def carry_unpaid_debts_to_ride(user_id, ride_id):
     """Attach ALL the passenger's unpaid debts to a freshly created ride and
     re-point them to that ride. Returns {amount, debt_ids, owed:[...]} (amount 0

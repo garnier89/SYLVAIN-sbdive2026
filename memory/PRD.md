@@ -1,3 +1,16 @@
+## NEW - 2026-06-10 (249) - FIX cartes cadeaux (débit portefeuille) + Paiement Phase 1 (différence en espèces / dette) (DONE backend testé 2/2)
+- **P0 — Cartes cadeaux réparées** : cause racine = **routeur dupliqué** `/giftcards` dans `gojek_services.py` (monté AVANT le nouveau, générait des codes `SB-…` sans débiter). → Supprimé (bloc + `include_router`). Le routeur `routes/giftcards.py` (débit portefeuille + réserve chauffeur + email) prend le relais. **Vérifié curl** : achat 10 € → solde 26 €→16 € → code `GIFT-…`. Donnée de test restaurée.
+- **Paiement Phase 1 (choix user : option a — modèle portefeuille ; pas de pré-autorisation CB réelle car Stripe = Checkout hébergé top-up uniquement)** :
+  - **Complétion course** (`rides.py`, bloc règlement) : pour digital (wallet/sbpaygo/card), on débite ce que le portefeuille couvre ; le **reste = `cash_due_to_driver`** (`payment_status="cash_due"`). Cash → `cash_due_to_driver = montant total`. Couvre la **différence portefeuille insuffisant** ET le **recalcul à la hausse** (20€→22€).
+  - **NOUVEL endpoint** `POST /api/rides/{id}/collect-cash {received}` (chauffeur/admin) : *Reçu* → `payment_status="paid"`, `cash_collected`. *Non reçu* → crée une **dette `ride_balance`** sur le client (report sur la prochaine course, recouvrée plateforme) + `payment_status="debt"` + notif client.
+  - **debts.py** : nouveau helper `record_ride_balance_debt` (réutilise `cancellation_debts` → DebtBanner/carry-forward/settlement inchangés ; `owed_to_driver_id=None`).
+  - **Frontend** : `RideCompletionFlow.jsx` (étape facture → boutons **« Reçu · X € » / « Non reçu »** si `cash_due>0`), `RideChoosePage.js` (notice portefeuille insuffisant + bouton **« Ajouter de l'argent »** + ligne **dette reportée** « Total à régler »), `DebtBanner.jsx` (libellé générique « Montant dû »), `api.js` (`rideAPI.collectCash`).
+- **Vérifié** : pytest `tests/test_iter249_cash_due_collection.py` **2/2** (shortfall→cash_due→Non reçu→dette ; Reçu→paid sans dette). Frontend compile (warnings source-map pré-existants).
+- ⚠️ **À TESTER** : flux e2e frontend (booking portefeuille insuffisant + complétion chauffeur Reçu/Non reçu) — non lancé (nécessite course live complète). Backend = source de vérité, validé.
+- ⚠️ Reste audit menu chauffeur (6 points #470) + emails KYC/marketing. PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-10 (248) - Audit menu chauffeur — Phase 1 corrections rapides (DONE, vérifié)
 - **#11 Parrainage chauffeur réparé** : la route `/referral` était réservée `allowedRoles=['user']` → bloquée pour les chauffeurs (alors que `ReferralPage` gère déjà `stats.is_driver`). → `['user','driver','merchant']`. Vérifié screenshot (code, stats, filleul affichés).
 - **#5 « Les réservations »/« Mes réservations »** pointaient vers `/chauffeur/earnings` → corrigé vers `/chauffeur/reservations` (DriverProfilePage, carte portefeuille + Réglages généraux).

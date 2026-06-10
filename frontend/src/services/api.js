@@ -165,6 +165,7 @@ export const rideAPI = {
   getAvailable: () => api.get('/rides/pending/available'),
   updateRoute: (id, data) => api.post(`/rides/${id}/update-route`, data),
   changePaymentMethod: (id, payment_method) => api.put(`/rides/${id}/payment-method`, { payment_method }),
+  collectCash: (id, received) => api.post(`/rides/${id}/collect-cash`, { received }),
   airports: () => api.get('/phase2/airports'),
   flightRefresh: (id) => api.post(`/phase2/rides/${id}/flight-refresh`),
   // Mise à disposition (rental) — live billing meter

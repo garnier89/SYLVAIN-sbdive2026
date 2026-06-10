@@ -1069,6 +1069,51 @@ async def change_payment_method(ride_id: str, request: Request):
     return {"message": "Moyen de paiement mis à jour", "payment_method": method, **info}
 
 
+@router.post("/{ride_id}/collect-cash")
+async def collect_cash(ride_id: str, request: Request):
+    """Driver confirms whether the cash amount due was actually received.
+    The amount due covers a wallet shortfall, a recalculated extra (fare went up),
+    or a full cash fare. 'Non reçu' records the amount as a carried debt on the
+    passenger (recovered on a future ride or settled from the wallet)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    received = bool(body.get("received"))
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Course introuvable")
+    is_admin = user.get("role") == "admin"
+    if not is_admin:
+        drv = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+        if not drv or ride.get("driver_id") != drv["id"]:
+            raise HTTPException(status_code=403, detail="Non autorisé")
+    cash_due = round(float(ride.get("cash_due_to_driver") or 0), 2)
+    if cash_due <= 0:
+        return {"message": "Aucun montant à percevoir", "cash_due": 0.0, "received": received}
+    now = datetime.now(timezone.utc).isoformat()
+    if received:
+        await db.rides.update_one({"id": ride_id}, {"$set": {
+            "payment_status": "paid", "cash_collected": cash_due,
+            "cash_collected_at": now, "cash_due_to_driver": 0.0,
+        }})
+        return {"message": "Paiement perçu", "received": True, "amount": cash_due}
+    # Not received → carry the unpaid amount as a debt on the passenger.
+    from routes.debts import record_ride_balance_debt
+    await record_ride_balance_debt(ride["user_id"], ride_id, cash_due)
+    await db.rides.update_one({"id": ride_id}, {"$set": {
+        "payment_status": "debt", "cash_unpaid": cash_due, "cash_due_to_driver": 0.0,
+    }})
+    try:
+        from core.notifications import create_notification
+        await create_notification(
+            ride["user_id"], "debt", "Montant dû à régler 💶",
+            f"{cash_due:.2f} € non réglés sur votre course seront ajoutés à votre prochaine commande.",
+            data={"ride_id": ride_id, "amount": cash_due, "kind": "ride_balance"},
+        )
+    except Exception:
+        pass
+    return {"message": "Montant enregistré comme dette du client", "received": False, "amount": cash_due}
+
+
 @router.post("/{ride_id}/convert-to-bidding")
 async def convert_ride_to_bidding(ride_id: str, request: Request):
     """Convert a pending standard ride into bidding mode (keep pickup/dropoff/vehicle),
@@ -1658,35 +1703,52 @@ async def update_ride_status(ride_id: str, request: Request):
         pm = ride.get("payment_method")
         cashback_earned = 0.0
         from core.cashback import award_cashback
-        # === SB Pay auto-deduction (unified wallet) ===
-        if pm in ("sbpaygo", "wallet", "sbpay"):
-            amt = round(float(final_fare), 2)
-            res = await db.wallets.update_one(
-                {"user_id": ride["user_id"], "balance": {"$gte": amt}},
-                {"$inc": {"balance": -amt}},
-            )
-            if res.modified_count:
-                w = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0})
-                await db.wallet_transactions.insert_one({
-                    "id": f"tx_{uuid.uuid4().hex[:12]}",
-                    "user_id": ride["user_id"],
-                    "type": "Booking",
-                    "amount": -amt,
-                    "balance_after": round((w or {}).get("balance", 0), 2),
-                    "description": f"Paiement course {ride['id']}",
-                    "ride_id": ride["id"],
-                    "status": "completed",
-                    "created_at": now,
-                })
+        amt = round(float(final_fare), 2)
+        # === Digital payment settlement (unified SB Pay wallet) ===
+        # Under the wallet model, "card" tops up the wallet then pays from it, so
+        # wallet / sbpaygo / card all settle from the wallet. We charge what the
+        # balance can cover; any shortfall (e.g. the fare was recalculated higher
+        # than the held balance, or the balance was insufficient at booking) is
+        # collected IN CASH by the driver and confirmed via "Reçu / Non reçu".
+        if pm in ("sbpaygo", "wallet", "sbpay", "card"):
+            w = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0, "balance": 1})
+            bal = round(float((w or {}).get("balance", 0.0) or 0.0), 2)
+            charge = round(min(bal, amt), 2)
+            cash_due = round(amt - charge, 2)
+            if charge > 0:
+                res = await db.wallets.update_one(
+                    {"user_id": ride["user_id"], "balance": {"$gte": charge}},
+                    {"$inc": {"balance": -charge}},
+                )
+                if res.modified_count:
+                    w2 = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0})
+                    await db.wallet_transactions.insert_one({
+                        "id": f"tx_{uuid.uuid4().hex[:12]}",
+                        "user_id": ride["user_id"],
+                        "type": "Booking",
+                        "amount": -charge,
+                        "balance_after": round((w2 or {}).get("balance", 0), 2),
+                        "description": f"Paiement course {ride['id']}",
+                        "ride_id": ride["id"],
+                        "status": "completed",
+                        "created_at": now,
+                    })
+                    cashback_earned = await award_cashback(ride["user_id"], charge, "sbpay", "ride", ref_id=ride["id"], label="Cashback course SB Pay")
+                else:
+                    # Race: the balance changed between read and write → all cash due.
+                    cash_due = amt
+            if cash_due > 0:
+                update_data["cash_due_to_driver"] = cash_due
+                update_data["payment_status"] = "cash_due"
+            else:
                 update_data["payment_status"] = "paid"
                 update_data["paid_with"] = "sbpay"
                 update_data["paid_at"] = now
-                cashback_earned = await award_cashback(ride["user_id"], amt, "sbpay", "ride", ref_id=ride["id"], label="Cashback course SB Pay")
-            else:
-                # Insufficient balance: leave open so user can top-up and pay
-                update_data["payment_status"] = "unpaid_insufficient"
         else:
-            update_data["payment_status"] = "completed" if pm != "cash" else "pending_cash"
+            # Cash ride — the whole fare is collected by the driver and confirmed
+            # via "Reçu / Non reçu" (non-payment becomes a carried debt).
+            update_data["payment_status"] = "pending_cash"
+            update_data["cash_due_to_driver"] = amt
             cashback_earned = await award_cashback(ride["user_id"], final_fare, pm or "", "ride", ref_id=ride["id"], label="Cashback course")
         if cashback_earned > 0:
             update_data["cashback_earned"] = cashback_earned

@@ -22,6 +22,7 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
   const [note, setNote] = useState('');
   const [confirmCharges, setConfirmCharges] = useState(false);
   const [breakdown, setBreakdown] = useState(null);
+  const [cashDue, setCashDue] = useState(0);
   const [busy, setBusy] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -41,6 +42,7 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
       await rideAPI.complete(ride.id, extra);
       const fresh = await rideAPI.get(ride.id);
       setBreakdown(fresh.data?.fare_breakdown || null);
+      setCashDue(Number(fresh.data?.cash_due_to_driver) || 0);
       setConfirmCharges(false);
       setStep('invoice');
     } catch (e) {
@@ -58,6 +60,21 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
     } catch { /* non-blocking */ }
     setBusy(false);
     setStep('success');
+  };
+
+  const confirmCash = async (received) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await rideAPI.collectCash(ride.id, received);
+      toast[received ? 'success' : 'info'](
+        received ? 'Paiement perçu ✓' : "Montant ajouté à la dette du client."
+      );
+    } catch {
+      toast.error("Action impossible. Réessayez.");
+    }
+    setBusy(false);
+    setStep('rate');
   };
 
   const extrasTotal = (parseFloat(toll) || 0) + (parseFloat(other) || 0) + (Number(waitingCharge) || 0);
@@ -162,13 +179,28 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
             <Money size={28} weight="fill" />
             <div>
               <p className="text-sm font-bold">{paymentLabel}</p>
-              {collectCash && <p className="text-xs text-white/60">Veuillez percevoir le paiement du passager.</p>}
+              {cashDue > 0 ? (
+                <p className="text-xs text-amber-300">À percevoir en espèces : <b>{cur(cashDue)}</b></p>
+              ) : (
+                collectCash && <p className="text-xs text-white/60">Veuillez percevoir le paiement du passager.</p>
+              )}
             </div>
           </div>
         </div>
-        <button onClick={() => setStep('rate')} className="bg-[#0B0B0B] text-white text-base font-bold py-4 border-t border-white/10" data-testid="collect-payment-btn">
-          COLLECTE DE PAIEMENT
-        </button>
+        {cashDue > 0 ? (
+          <div className="bg-[#0B0B0B] border-t border-white/10 p-4 flex gap-3" data-testid="cash-collect-actions">
+            <button onClick={() => confirmCash(false)} disabled={busy}
+              className="flex-1 py-3.5 rounded-2xl border border-red-400 text-red-300 font-bold disabled:opacity-50"
+              data-testid="cash-not-received-btn">Non reçu</button>
+            <button onClick={() => confirmCash(true)} disabled={busy}
+              className="flex-1 py-3.5 rounded-2xl bg-emerald-500 text-white font-bold disabled:opacity-50"
+              data-testid="cash-received-btn">Reçu · {cur(cashDue)}</button>
+          </div>
+        ) : (
+          <button onClick={() => setStep('rate')} className="bg-[#0B0B0B] text-white text-base font-bold py-4 border-t border-white/10" data-testid="collect-payment-btn">
+            COLLECTE DE PAIEMENT
+          </button>
+        )}
       </div>
     );
   }

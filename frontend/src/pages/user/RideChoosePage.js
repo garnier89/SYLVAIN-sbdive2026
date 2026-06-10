@@ -23,7 +23,7 @@ import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import RideRouteMap from '../../components/RideRouteMap';
 import DynamicIcon from '../../components/DynamicIcon';
-import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI } from '../../services/api';
+import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI, debtsAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 import { getGeocoder } from '../../lib/googleMaps';
 import { useLocale } from '../../contexts/LocaleContext';
@@ -117,6 +117,7 @@ const RideChoosePage = () => {
   const [payment, setPayment] = useState('cash');
   const [payments, setPayments] = useState(DEFAULT_PAYMENTS);
   const [walletBalance, setWalletBalance] = useState(null);
+  const [carriedDebt, setCarriedDebt] = useState(0);
   const [locating, setLocating] = useState(false);
   const [searching, setSearching] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState({ home: null, work: null, recent: [] });
@@ -318,6 +319,9 @@ const RideChoosePage = () => {
     walletAPI.get()
       .then((r) => setWalletBalance(typeof r.data?.balance === 'number' ? r.data.balance : 0))
       .catch((e) => console.warn('wallet load:', e?.message || e));
+    debtsAPI.me()
+      .then((r) => setCarriedDebt(r.data?.has_debt ? Number(r.data.total) || 0 : 0))
+      .catch(() => {});
   }, []);
 
   // Load GLOBAL Pool config (eligible vehicles, payment methods, capacity, max stops).
@@ -776,15 +780,29 @@ const RideChoosePage = () => {
           )}
         </div>
         {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance < displayPrice && (
-          <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 flex items-start gap-2" data-testid="wallet-shortfall-notice">
-            <Wallet size={16} weight="duotone" className="text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-[12px] text-amber-800 leading-snug">
-              Solde portefeuille : <b>{money(Number(walletBalance))}</b>. Insuffisant — la différence de <b>{money(displayPrice - walletBalance)}</b> sera réglée en espèces.
-            </p>
+          <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5" data-testid="wallet-shortfall-notice">
+            <div className="flex items-start gap-2">
+              <Wallet size={16} weight="duotone" className="text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-[12px] text-amber-800 leading-snug">
+                Solde portefeuille : <b>{money(Number(walletBalance))}</b> — insuffisant. Ajoutez de l&apos;argent,
+                ou continuez et payez la différence de <b>{money(displayPrice - walletBalance)}</b> en espèces au chauffeur.
+              </p>
+            </div>
+            <button type="button" onClick={() => navigate('/wallet?action=topup')}
+              className="mt-2 w-full py-2 rounded-xl bg-amber-600 text-white text-[13px] font-bold"
+              data-testid="add-money-btn">Ajouter de l&apos;argent</button>
           </div>
         )}
         {payment === 'wallet' && walletBalance != null && displayPrice != null && walletBalance >= displayPrice && (
           <p className="mt-2 text-[12px] font-semibold text-emerald-700" data-testid="wallet-ok-notice">Solde portefeuille : {Number(walletBalance).toFixed(2)} € · suffisant ✓</p>
+        )}
+        {carriedDebt > 0 && (
+          <div className="mt-2 rounded-xl bg-red-50 border border-red-200 p-2.5" data-testid="carried-debt-notice">
+            <p className="text-[12px] text-red-800 leading-snug">
+              Solde dû précédent : <b>{money(carriedDebt)}</b> sera ajouté à cette course.
+              {displayPrice != null && <> Total à régler : <b>{money(Number(displayPrice) + carriedDebt)}</b>.</>}
+            </p>
+          </div>
         )}
       </>
     );
