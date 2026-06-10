@@ -68,6 +68,31 @@ const AdminNotifSettings = () => {
         <p className="text-xs text-gray-400 mt-1">Le client est notifié « votre chauffeur arrive » à cette distance.</p>
       </section>
 
+      {/* Auto demand alerts (background agent) */}
+      <section className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
+        <h2 className="font-bold text-gray-800 mb-3">Relances automatiques (agent demande)</h2>
+        <label className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+          <input type="checkbox" checked={!!s.auto_demand_alerts}
+            onChange={(e) => num('auto_demand_alerts', e.target.checked)} data-testid="auto-demand-toggle" />
+          Notifier automatiquement les chauffeurs hors-ligne là où des clients attendent
+        </label>
+        <div className="flex gap-4">
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Anti-spam : délai min/zone (min)</label>
+            <input type="number" min="1" value={s.demand_cooldown_min ?? 30}
+              onChange={(e) => num('demand_cooldown_min', parseInt(e.target.value || '30', 10))}
+              className="w-40 border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="demand-cooldown-input" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Seuil : clients en attente</label>
+            <input type="number" min="1" value={s.demand_min_waiting ?? 1}
+              onChange={(e) => num('demand_min_waiting', parseInt(e.target.value || '1', 10))}
+              className="w-40 border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="demand-min-waiting-input" />
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">L'agent analyse la demande toutes les 5 min et relance les chauffeurs hors-ligne de la zone concernée.</p>
+      </section>
+
       {/* Chaining is governed by the dedicated "Prochaine course" (next-job)
           admin config; not duplicated here to avoid conflicting settings. */}
 

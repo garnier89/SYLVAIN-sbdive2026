@@ -27,6 +27,9 @@ DEFAULT_NOTIF_SETTINGS = {
     "chaining_enabled": True,         # allow a 2nd ride while finishing one
     "chaining_time_min": 5,           # offer chained ride within N min of completion
     "chaining_distance_km": 3,        # ...and within N km of the dropoff
+    "auto_demand_alerts": True,       # background agent auto-notifies offline drivers
+    "demand_cooldown_min": 30,        # min minutes between auto-pushes per zone
+    "demand_min_waiting": 1,          # min waiting clients in a zone to trigger
     "messages": {
         "new_ride": "Nouvelle course disponible",
         "scheduled_reservation": "Nouvelle réservation planifiée",
@@ -130,34 +133,17 @@ async def read_all(user=Depends(get_current_user)):
 
 @admin_router.get("/waiting-clients")
 async def waiting_clients(request: Request):
-    """Active 'notify me when a driver is online' alerts, grouped by zone — helps
-    admins nudge drivers online where demand exists."""
+    """Active 'notify me when a driver is online' alerts, grouped by zone, with the
+    last targeted-push history per zone."""
     await require_role(request, ["admin"])
-    from datetime import datetime, timezone, timedelta
-    from core.deps import calculate_distance
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
-    alerts = await db.availability_alerts.find({"created_at": {"$gte": cutoff}}, {"_id": 0}).to_list(2000)
-    zones = await db.zones.find({}, {"_id": 0, "id": 1, "name": 1, "lat": 1, "lng": 1, "radius_km": 1}).to_list(500)
-    by_zone, hors = {}, 0
-    for a in alerts:
-        lat, lng = a.get("pickup_lat"), a.get("pickup_lng")
-        matched = None
-        if lat is not None and lng is not None:
-            best = None
-            for z in zones:
-                if z.get("lat") is None or z.get("lng") is None:
-                    continue
-                d = calculate_distance(lat, lng, z["lat"], z["lng"])
-                if d <= (z.get("radius_km") or 0) and (best is None or d < best[1]):
-                    best = (z, d)
-            matched = best[0] if best else None
-        if matched:
-            row = by_zone.setdefault(matched["id"], {"zone_id": matched["id"], "name": matched["name"], "count": 0})
-            row["count"] += 1
-        else:
-            hors += 1
-    rows = sorted(by_zone.values(), key=lambda r: r["count"], reverse=True)
-    return {"total": len(alerts), "by_zone": rows, "hors_zone": hors}
+    from core.availability import compute_waiting_by_zone, get_zone_push_history
+    summary = await compute_waiting_by_zone()
+    hist = await get_zone_push_history()
+    for z in summary["by_zone"]:
+        h = hist.get(z["zone_id"])
+        z["last_push"] = {"at": h["last_sent_at"], "count": h.get("last_notified_count", 0),
+                          "source": h.get("last_source")} if h else None
+    return summary
 
 
 @admin_router.post("/notify-zone-drivers")
@@ -170,27 +156,10 @@ async def notify_zone_drivers(request: Request):
     zone = await db.zones.find_one({"id": zone_id}, {"_id": 0, "name": 1, "lat": 1, "lng": 1, "radius_km": 1})
     if not zone or zone.get("lat") is None or zone.get("lng") is None:
         raise HTTPException(status_code=404, detail="Zone introuvable")
-    from core.deps import calculate_distance
-    from core.notifications import create_notification
-    radius = zone.get("radius_km") or 15
-    name = zone.get("name")
-    drivers = await db.drivers.find(
-        {"status": "approved", "is_online": False},
-        {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1}).to_list(3000)
-    notified = 0
-    for d in drivers:
-        lat, lng = d.get("current_lat"), d.get("current_lng")
-        if lat is None or lng is None or not d.get("user_id"):
-            continue
-        if calculate_distance(lat, lng, zone["lat"], zone["lng"]) > radius:
-            continue
-        await create_notification(
-            d["user_id"], "demand_alert", "📈 Forte demande",
-            f"Forte demande à {name}, passez en ligne pour prendre des courses !",
-            data={"url": "/chauffeur/home", "zone_id": zone_id},
-        )
-        notified += 1
-    return {"notified": notified, "zone": name}
+    from core.availability import notify_zone_offline_drivers
+    notified = await notify_zone_offline_drivers(
+        zone_id, zone["name"], zone["lat"], zone["lng"], zone.get("radius_km") or 15, source="manual")
+    return {"notified": notified, "zone": zone["name"]}
 
 
 @admin_router.get("/settings")
@@ -209,6 +178,9 @@ async def admin_put_settings(request: Request):
         "chaining_enabled": bool(body.get("chaining_enabled", True)),
         "chaining_time_min": max(0, int(body.get("chaining_time_min", 5))),
         "chaining_distance_km": max(0, float(body.get("chaining_distance_km", 3))),
+        "auto_demand_alerts": bool(body.get("auto_demand_alerts", True)),
+        "demand_cooldown_min": max(1, int(body.get("demand_cooldown_min", 30))),
+        "demand_min_waiting": max(1, int(body.get("demand_min_waiting", 1))),
         "messages": body.get("messages") or {},
     }
     await db.app_settings.update_one(

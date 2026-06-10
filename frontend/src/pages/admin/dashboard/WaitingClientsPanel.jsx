@@ -4,6 +4,16 @@ import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
+const timeAgo = (iso) => {
+  try {
+    const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return "à l'instant";
+    if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+    if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+    return `il y a ${Math.floor(s / 86400)} j`;
+  } catch { return ''; }
+};
+
 /**
  * Dashboard card: clients currently waiting for a driver to come online,
  * grouped by zone — so ops can nudge drivers online where demand exists.
@@ -84,6 +94,11 @@ const WaitingClientsPanel = () => {
                 <span className="hidden group-hover:flex items-center gap-1 text-[11px] font-bold text-[#FF5000]">
                   <PaperPlaneTilt size={13} /> {sending === z.zone_id ? 'Envoi…' : 'Notifier'}
                 </span>
+                {z.last_push?.at && (
+                  <span className="text-[10px] text-gray-400" title={`${z.last_push.count} notifié(s) ${z.last_push.source === 'auto' ? '(auto)' : ''}`}>
+                    {z.last_push.source === 'auto' ? '🤖 ' : ''}{timeAgo(z.last_push.at)}
+                  </span>
+                )}
                 <span className="text-sm font-bold text-gray-900 bg-white border border-gray-200 rounded-full px-2.5 py-0.5">{z.count}</span>
               </span>
             </button>

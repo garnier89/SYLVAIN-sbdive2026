@@ -467,10 +467,12 @@ async def lifespan(app: FastAPI):
     dispatch_task = asyncio.create_task(auto_dispatch_loop())
     weekly_task = asyncio.create_task(weekly_report_loop())
     order_task = asyncio.create_task(order_auto_progress_loop())
+    from core.availability import demand_automation_loop
+    demand_task = asyncio.create_task(demand_automation_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task):
         if task:
             task.cancel()
     client.close()
