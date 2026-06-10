@@ -260,6 +260,10 @@ Tableau de bord intelligent : prévision des ventes, produits populaires, tendan
 - Champ **seuil d'alerte** (`low_stock_threshold` ajouté à `ProductCreate`) + **upload de photo** (`/uploads/image`) en plus de l'URL.
 - Tests : `backend/tests/test_merchant_stock.py` (6/6).
 
+**Notifications push PWA + Mode Pause/Occupé** · ✅ LIVRÉ (2026-06-11, testé iter237 — backend 3/3 + 20/20 régression, frontend 100%) :
+- **Push PWA** : à chaque nouvelle commande, le marchand reçoit une notification (même app fermée) via l'infra Web Push/VAPID existante (`create_notification(push=True)` dans `create_order` → `send_web_push_to_user`). Bouton « Activer les alertes » (`subscribeToPush`) sur la page Commandes.
+- **Mode Pause/Occupé** : bouton « Mettre en pause » + menu durées (15/30/60 min / jusqu'à réouverture) → `POST /api/merchants/me/availability` ({accepting_orders, pause_minutes}). Bannière « Boutique en pause » + bouton Reprendre. Pendant la pause, toute commande est bloquée (**409** « Ce commerce est en pause… ») et `is_open=false`. Auto-reprise quand `pause_until` est dépassé (`_is_paused`). Tests : `backend/tests/test_merchant_availability.py` (3/3).
+
 ### P2.4 — Réseau social commerce (Module 11) · **L**
 Publications / Stories / Promos / Événements par commerce ; suivre / liker / commenter / partager (inspiration TikTok Shop & Instagram Shopping).
 - Réutilise `news.py`, `NewsFeedPage`.
