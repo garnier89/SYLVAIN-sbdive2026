@@ -9,6 +9,7 @@ from typing import Optional
 
 from core.config import db
 from core.push import notify_user
+from core.webpush import send_web_push_to_user
 from core.websocket import manager
 
 
@@ -41,5 +42,18 @@ async def create_notification(
     if push:
         try:
             await notify_user(user_id, title, body, {"type": ntype, **data})
+        except Exception:
+            pass
+        # Web Push (PWA) — reaches the user even when the app is backgrounded,
+        # in another tab, or the phone is locked.
+        try:
+            await send_web_push_to_user(user_id, {
+                "title": title,
+                "body": body,
+                "url": data.get("url") or "/",
+                "tag": ntype,
+                "type": ntype,
+                "data": data,
+            })
         except Exception:
             pass

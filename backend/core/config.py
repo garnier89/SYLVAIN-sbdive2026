@@ -26,3 +26,8 @@ storage_key = None
 
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*")
+
+# Web Push (VAPID) — used by core.webpush to deliver background notifications.
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:admin@sbdrive.com")

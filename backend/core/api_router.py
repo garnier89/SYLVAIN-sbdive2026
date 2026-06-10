@@ -71,6 +71,7 @@ from routes.moderation import router as moderation_router
 from routes.support import router as support_router
 from routes.uploads import router as uploads_router
 from routes.dispatch_admin import router as dispatch_admin_router
+from routes.push_web import router as push_web_router, admin_router as push_admin_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -91,6 +92,7 @@ _ROUTERS = [
     service_trends_router, newsletter_router, kyc_router, zones_router,
     transport_router, trip_share_router, loyalty_router, moderation_router, support_router, uploads_router,
     dispatch_admin_router,
+    push_web_router, push_admin_router,
 ]
 
 

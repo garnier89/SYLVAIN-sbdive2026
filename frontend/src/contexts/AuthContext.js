@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { autoSubscribePush } from '../lib/webpush';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -40,6 +41,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Subscribe this browser to Web Push once a user is authenticated.
+  useEffect(() => {
+    if (user) autoSubscribePush();
+  }, [user]);
 
   const login = async (email, password) => {
     const response = await axios.post(

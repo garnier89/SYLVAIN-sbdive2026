@@ -15,7 +15,7 @@ import {
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
   AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications, AdminPaymentMethods,
   AdminSbPayGoZones, AdminDbBackup, AdminNegotiationGapReport, AdminNoDriverStats,
-  AdminFeaturedListings, AdminNearbyBusinesses, AdminZones, AdminTrendingPinned, AdminMarketplace, AdminTransport, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings,
+  AdminFeaturedListings, AdminNearbyBusinesses, AdminZones, AdminTrendingPinned, AdminMarketplace, AdminTransport, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings, AdminNotifSettings,
   AdminKiosks, AdminACL, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
   AdminPromoBanners, AdminNews, AdminI18n, AdminGeoFence, AdminGiftCards, AdminReferralSettings, AdminLoyalty, AdminModeration, AdminServiceProviders, AdminLiveSupport,
   AdminBanners, AdminNewsletter, AdminKyc, AdminStores, AdminTemplates, AdminWeatherSurcharge,
@@ -103,6 +103,7 @@ export function adminRoutes() {
       <Route path="order-help-requests" element={<AdminOrderHelpRequests />} />
       <Route path="trip-help-requests" element={<AdminTripHelpRequests />} />
       <Route path="push-notifications" element={<AdminPushNotifications />} />
+      <Route path="notif-settings" element={<AdminNotifSettings />} />
       {/* Settings & Utilities extras */}
       <Route path="payment-options" element={<AdminPaymentMethods />} />
       <Route path="payment-methods" element={<AdminPaymentMethods />} />

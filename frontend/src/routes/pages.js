@@ -167,6 +167,7 @@ export const AdminServiceConfig = lazy(() => import('../pages/admin/AdminService
 export const AdminPoolConfig = lazy(() => import('../pages/admin/AdminPoolConfig'));
 export const AdminTaxiRecruitment = lazy(() => import('../pages/admin/AdminTaxiRecruitment'));
 export const AdminAppSettings = lazy(() => import('../pages/admin/AdminAppSettings'));
+export const AdminNotifSettings = lazy(() => import('../pages/admin/AdminNotifSettings'));
 export const AdminRewards = lazy(() => import('../pages/admin/AdminRewards'));
 export const AdminPriorityDrivers = lazy(() => import('../pages/admin/AdminPriorityDrivers'));
 export const AdminTopDriversSettings = lazy(() => import('../pages/admin/AdminTopDriversSettings'));

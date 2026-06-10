@@ -7,7 +7,7 @@ import {
   PersonSimpleRun, Wrench, VideoCamera, Gavel, Tag, FirstAid,
   MapPinArea, Path, CalendarCheck, Star, ChartBar, MapPin, Eye, Fire,
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
-  DeviceMobile, Slideshow, Translate, EnvelopeOpen, ChatCircleText, XCircle,
+  DeviceMobile, Slideshow, Translate, EnvelopeOpen, BellRinging, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
   Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast
 } from '@phosphor-icons/react';
@@ -227,6 +227,7 @@ const sidebarConfig = [
       { icon: MapPin, label: 'Paramètres Maps/Geo', path: '/admin/maps-api' },
       { icon: MagnifyingGlass, label: 'Paramètres SEO', path: '/admin/seo' },
       { icon: EnvelopeOpen, label: 'Notifications push', path: '/admin/push-notifications' },
+      { icon: BellRinging, label: 'Notifications — Réglages', path: '/admin/notif-settings' },
       { icon: Wrench, label: 'Services principaux', path: '/admin/master-services' },
       { icon: Car, label: 'Marques véhicules', path: '/admin/vehicle-makes' },
       { icon: Car, label: 'Modèles véhicules', path: '/admin/vehicle-models' },

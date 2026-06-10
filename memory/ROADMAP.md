@@ -3,9 +3,27 @@
 ## Lot 1 — restant
 - ~~**C. Audit boutons retour** (client + chauffeur)~~ ✅ **FAIT (2026-06-10)** : audit complet. La majorité des sous-pages étaient déjà couvertes (`ServiceListLayout` a déjà un retour). Ajout des retours manquants sur `DriverEarningsPage`, `DriverHistoryPage` et `RideReceiptPage` (tous `navigate(-1)`).
 
-## Lot 2 — Notifications push PWA (VALIDÉ "2b oui")
+## Lot 2 — Notifications push PWA (VALIDÉ "2b oui") — EN COURS
 - Notifs système + son à l'arrivée d'une course/commande **même app en arrière-plan / autre onglet / autre site**.
 - Implémentation : Web Push (service worker + Push API + VAPID), envoi backend. Limite iPhone : nécessite « Ajouter à l'écran d'accueil » (PWA installée) + autorisation notifications.
+
+### ✅ Phase 1 — Socle Push (FAIT 2026-06-10, testé)
+- Backend : clés VAPID (env), `core/webpush.py` (pywebpush, purge 404/410), `routes/push_web.py` :
+  GET `/api/push/vapid-public-key`, POST `/api/push/subscribe|unsubscribe|test`, GET `/api/push/settings`.
+- Web Push branché dans `core/notifications.create_notification` → **tous** les events existants envoient déjà un push.
+- Admin réglages : `GET/PUT /api/admin/notifications/settings` (distance 200m, enchaînement temps/distance, textes) + page `AdminNotifSettings` (/admin/notif-settings).
+- Frontend : `src/lib/webpush.js` (permission + subscribe + persist), auto-subscribe après login (AuthContext). SW `sw.js` a déjà push + notificationclick.
+- Tests : `backend/tests/test_webpush_phase1.py` (3 passent).
+
+### 🔜 Phase 2 — Événements + Son
+- Push ciblés : course entrante, réservation planifiée, acceptation client↔chauffeur, nouveau message/appel.
+- Son in-app via `lib/driverAlert.js` (playAlert/startSiren) — synthétisé Web Audio (le vrai arrière-plan utilise le son système, limite Web Push).
+
+### 🔜 Phase 3 — Proximité & Arrivée
+- "Votre chauffeur est là" à 200m (configurable), modale confirmation si "arrivé" hors adresse, notifs cycle de vie (démarrée/terminée/retour en ligne). Logo flag/bannière (asset à intégrer).
+
+### 🔜 Phase 4 — Enchaînement & Flux actif
+- Chauffeur reçoit d'autres courses même sur pages "terminée" (config admin temps+distance), suppression bouton retour pendant course active (client+chauffeur).
 
 ## Lot 3 — Refonte modules (specs détaillées fournies par user)
 
