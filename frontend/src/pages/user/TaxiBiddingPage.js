@@ -194,7 +194,16 @@ const TaxiBiddingPage = () => {
           ride_type: 'bidding', mode_id: 'bidding',
         }),
       });
-      if (!res.ok) { const t = await res.text(); throw new Error(`ride ${res.status}: ${t}`); }
+      if (!res.ok) {
+        let detail = null;
+        try { detail = (await res.json())?.detail; } catch { /* ignore */ }
+        if (res.status === 409 && detail?.code === 'no_drivers_available') {
+          setSubmitting(false);
+          toast.error(detail.message || 'Aucun chauffeur disponible. Vous pouvez planifier votre course.');
+          return;
+        }
+        throw new Error(`ride ${res.status}`);
+      }
       const ride = await res.json();
       toast.success('Votre tarif a été envoyé aux chauffeurs !');
       // Stay on the interface: enter "searching" mode (no navigation)
@@ -326,7 +335,15 @@ const TaxiBiddingPage = () => {
           vehicle_type: vehicleType, payment_method: 'cash',
         }),
       });
-      if (!res.ok) throw new Error('create standard failed');
+      if (!res.ok) {
+        let detail = null;
+        try { detail = (await res.json())?.detail; } catch { /* ignore */ }
+        if (res.status === 409 && detail?.code === 'no_drivers_available') {
+          toast.error(detail.message || 'Aucun chauffeur disponible. Vous pouvez planifier votre course.');
+          return;
+        }
+        throw new Error('create standard failed');
+      }
       const ride = await res.json();
       setSearching(null); setExpired(false);
       toast.success('Passage au tarif standard');

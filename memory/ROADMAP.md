@@ -33,6 +33,10 @@
 - **Enchaînement** : DÉJÀ implémenté via `next_job` (offre la course suivante près du dropoff, gating distance via `next_job_lead_minutes`). Admin dédié : `/api/config/next-job/admin` (switch global + délai + overrides par zone). Section "enchaînement" retirée du panneau Notifications pour éviter un doublon.
 - **No-back pendant course active** : déjà satisfait — écrans de course active sans bouton retour (client `RideTrackingPage` : retour seulement en phase recherche/annulée ; chauffeur `DriverRideFlow` : seulement "minimiser"). Le flag fournit le retour.
 
+### ✅ Aucun chauffeur en ligne → blocage instantané + planifier (FAIT 2026-06-10)
+- Backend `create_ride` : course **instantanée** (standard + bidding) refusée si `count(drivers approved & is_online)==0` → `409 {code:"no_drivers_available", message, can_schedule:true}`. Les courses planifiées ne sont pas bloquées. Validé (0 en ligne→409, restauration OK).
+- Frontend : `RideChoosePage` → modale "Aucun chauffeur disponible" avec bouton **Planifier** (ouvre le calendrier). `TaxiBiddingPage` (proposition de prix) + `RideTrackingPage` (relance) → toast avec le message. Extraction du `detail` objet gérée partout.
+
 ## ✅ Lot 2 (Notifications Push) — COMPLET (Phases 1→4)
 
 ### ✅ Demande entrante chauffeur — UI + bug "bloqué" (FAIT 2026-06-10)

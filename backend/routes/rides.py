@@ -356,6 +356,17 @@ async def create_ride(data: RideRequest, request: Request):
         if sched_dt > now + timedelta(days=max_days):
             raise HTTPException(status_code=400, detail=f"La course ne peut pas être planifiée au-delà de {max_days} jours.")
 
+    # ── Instant rides need a driver online; otherwise prompt to schedule ──
+    # Applies to standard AND price-proposal (bidding) instant requests.
+    if not getattr(data, "scheduled_at", None):
+        online_count = await db.drivers.count_documents({"status": "approved", "is_online": True})
+        if online_count == 0:
+            raise HTTPException(status_code=409, detail={
+                "code": "no_drivers_available",
+                "message": "Aucun chauffeur n'est disponible pour le moment. Vous pouvez planifier votre course.",
+                "can_schedule": True,
+            })
+
     # Distance through optional intermediate stops: pickup -> stops[] -> dropoff
     stop_points = [(s.get("lat"), s.get("lng")) for s in (data.stops or []) if isinstance(s, dict) and s.get("lat") and s.get("lng")]
     route = [(data.pickup_lat, data.pickup_lng)] + stop_points + [(data.dropoff_lat, data.dropoff_lng)]

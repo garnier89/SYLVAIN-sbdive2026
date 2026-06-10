@@ -128,6 +128,7 @@ const RideChoosePage = () => {
   // Mode-specific state
   const [scheduledAt, setScheduledAt] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [noDrivers, setNoDrivers] = useState(false);
   const [flightNumber, setFlightNumber] = useState('');
   const [rentalPkg, setRentalPkg] = useState('2h_20km');
   const [buddyHours, setBuddyHours] = useState(4);
@@ -537,7 +538,12 @@ const RideChoosePage = () => {
       else navigate(`/ride/${res.data.id}`);
     } catch (e) {
       setSearching(false);
-      toast.error(e?.response?.data?.detail || 'Échec de la demande');
+      const detail = e?.response?.data?.detail;
+      if (e?.response?.status === 409 && detail?.code === 'no_drivers_available') {
+        setNoDrivers(true);
+      } else {
+        toast.error((typeof detail === 'string' ? detail : detail?.message) || 'Échec de la demande');
+      }
     }
   };
 
@@ -574,6 +580,35 @@ const RideChoosePage = () => {
       onConfirm={(iso) => { setScheduledAt(iso); setScheduleLater(true); setCalendarOpen(false); }}
     />
   );
+
+  const noDriversModal = noDrivers ? (
+    <div className="fixed inset-0 z-[1700] bg-black/50 flex items-center justify-center p-6" data-testid="no-drivers-overlay">
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+        <h3 className="text-lg font-extrabold text-gray-900 mb-1">Aucun chauffeur disponible</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Aucun chauffeur n'est en ligne pour le moment. Vous pouvez planifier votre course pour plus tard.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setNoDrivers(false)}
+            className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm"
+            data-testid="no-drivers-close"
+          >
+            Fermer
+          </button>
+          {schedulingAllowed && (
+            <button
+              onClick={() => { setNoDrivers(false); setScheduleLater(true); setCalendarOpen(true); }}
+              className="flex-1 py-2.5 rounded-xl bg-[#FF5000] text-white font-bold text-sm"
+              data-testid="no-drivers-schedule"
+            >
+              Planifier
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   // Fallback descriptions when a vehicle has no admin-set `info`.
   const DEFAULT_VEHICLE_INFO = {
@@ -825,7 +860,7 @@ const RideChoosePage = () => {
           </div>
         </div>
         {vehicleInfoModal}
-        {scheduleModal}
+        {scheduleModal}{noDriversModal}
       </div>
     );
   }
@@ -929,7 +964,7 @@ const RideChoosePage = () => {
         </div>
       ))}
 
-      {scheduleModal}
+      {scheduleModal}{noDriversModal}
     </div>
   );
 };

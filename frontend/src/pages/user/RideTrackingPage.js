@@ -821,7 +821,10 @@ const RideTrackingPage = () => {
         });
         toast.success('Nouvelle recherche lancée');
         navigate(`/ride/${res.data.id}`, { replace: true });
-      } catch (e) { toast.error(e?.response?.data?.detail || 'Impossible de relancer la recherche'); }
+      } catch (e) {
+        const detail = e?.response?.data?.detail;
+        toast.error((typeof detail === 'string' ? detail : detail?.message) || 'Impossible de relancer la recherche');
+      }
     };
     const proposeFare = () => {
       const q = new URLSearchParams({
