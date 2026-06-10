@@ -19,7 +19,7 @@ import {
   ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage, IntercityRidePage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
   ServiceProvidersPage, ServiceProviderDetailPage,
-  ContactlessReceivePage, ContactlessPayPage,
+  ContactlessReceivePage, ContactlessPayPage, AssistantPage,
 } from './pages';
 
 export function clientRoutes(user) {
@@ -109,6 +109,7 @@ export function clientRoutes(user) {
       <Route path="/encaisser" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><ContactlessReceivePage /></ProtectedRoute>} />
       <Route path="/pay" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />
       <Route path="/pay/:id" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />
+      <Route path="/assistant" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><AssistantPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute allowedRoles={['user']}><HistoryPage /></ProtectedRoute>} />
       <Route path="/referral" element={<ProtectedRoute allowedRoles={['user']}><ReferralPage /></ProtectedRoute>} />

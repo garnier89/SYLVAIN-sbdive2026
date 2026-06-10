@@ -89,6 +89,7 @@ export const TopDriversPage = lazy(() => import('../pages/TopDriversPage'));
 export const RideChatPage = lazy(() => import('../pages/RideChatPage'));
 export const ContactlessReceivePage = lazy(() => import('../pages/user/ContactlessReceivePage'));
 export const ContactlessPayPage = lazy(() => import('../pages/user/ContactlessPayPage'));
+export const AssistantPage = lazy(() => import('../pages/user/AssistantPage'));
 
 // SB Drive Chauffeur Pages
 export const ChauffeurWelcome = lazy(() => import('../pages/chauffeur/ChauffeurWelcome'));

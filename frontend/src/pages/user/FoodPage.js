@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { merchantAPI, cartAPI } from '../../services/api';
 import {
   MagnifyingGlass, MapPin, Star, Clock, ArrowLeft, Funnel, User,
-  ShoppingCart, SealPercent, Lightning,
+  ShoppingCart, SealPercent, Lightning, Sparkle,
 } from '@phosphor-icons/react';
 import { SponsoredBanners } from '../../components/SponsoredBanners';
 
@@ -248,6 +248,15 @@ const FoodPage = () => {
           </span>
         </button>
       )}
+
+      {/* SB Assistant — AI shopping helper */}
+      <button
+        onClick={() => navigate('/assistant')}
+        className="fixed bottom-24 right-5 z-40 h-13 px-4 py-3 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold shadow-lg flex items-center gap-2"
+        data-testid="open-assistant-btn"
+      >
+        <Sparkle size={18} weight="fill" /> Assistant
+      </button>
     </div>
   );
 };
