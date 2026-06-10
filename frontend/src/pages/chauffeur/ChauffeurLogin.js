@@ -113,9 +113,7 @@ const ChauffeurLogin = () => {
             <ArrowLeft size={20} className="text-white" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
-              <SteeringWheel size={18} className="text-white" weight="bold" />
-            </div>
+            <img src="/sb-logo-driver.png" alt="SB Drive" className="w-9 h-9 object-contain" data-testid="chauffeur-login-logo" />
             <span className="text-white font-bold text-sm">CHAUFFEUR</span>
           </div>
         </div>

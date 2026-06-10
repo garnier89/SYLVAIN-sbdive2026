@@ -20,7 +20,9 @@
 - Son in-app via `lib/driverAlert.js` (playAlert/startSiren) — synthétisé Web Audio (le vrai arrière-plan utilise le son système, limite Web Push).
 
 ### 🔜 Phase 3 — Proximité & Arrivée
-- "Votre chauffeur est là" à 200m (configurable), modale confirmation si "arrivé" hors adresse, notifs cycle de vie (démarrée/terminée/retour en ligne). Logo flag/bannière (asset à intégrer).
+- "Votre chauffeur est là" à 200m (configurable), modale confirmation si "arrivé" hors adresse, notifs cycle de vie (démarrée/terminée/retour en ligne).
+- **Logo SB chauffeur (FAIT 2026-06-10)** : logo HD détouré (fond blanc → PNG transparent) `public/sb-logo-driver.png` (+256). Intégré sur page de démarrage `ChauffeurWelcome` (splash) et header `ChauffeurLogin`. Source: IMG-20260610-WA0014.
+- **Flag flottant SB (À FAIRE, style réf = XJekPlus)** : bulle ronde transparente avec logo SB, persistante pendant une course active, tap = retour à l'écran de course. À wirer avec l'état course active (Phase 4).
 
 ### 🔜 Phase 4 — Enchaînement & Flux actif
 - Chauffeur reçoit d'autres courses même sur pages "terminée" (config admin temps+distance), suppression bouton retour pendant course active (client+chauffeur).

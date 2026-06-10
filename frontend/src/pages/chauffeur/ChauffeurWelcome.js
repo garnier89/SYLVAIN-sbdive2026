@@ -37,7 +37,7 @@ const ChauffeurWelcome = () => {
     return (
       <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center relative" data-testid="chauffeur-splash">
         <div className="flex flex-col items-center gap-4 animate-fade-in">
-          <img src="/sb-logo-new.jpg" alt="SB Drive" className="w-44 h-44 object-contain" data-testid="chauffeur-splash-logo" />
+          <img src="/sb-logo-driver.png" alt="SB Drive" className="w-44 h-44 object-contain drop-shadow-md" data-testid="chauffeur-splash-logo" />
         </div>
         <div className="absolute bottom-24 flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
