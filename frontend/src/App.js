@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LocaleProvider } from './contexts/LocaleContext';
 import { Toaster } from './components/ui/sonner';
 import InstallPWA from './components/InstallPWA';
+import EnableNotificationsBanner from './components/EnableNotificationsBanner';
 import AuthCallback from './components/AuthCallback';
 import VoiceAssistant from './components/VoiceAssistant';
 import { KioskApp } from './routes/pages';
@@ -80,6 +81,7 @@ function App() {
           <AppRouter />
           <Toaster position="top-center" />
           <InstallPWA />
+          <EnableNotificationsBanner />
         </LocaleProvider>
       </AuthProvider>
     </BrowserRouter>

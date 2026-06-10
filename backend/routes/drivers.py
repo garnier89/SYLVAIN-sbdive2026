@@ -526,6 +526,9 @@ async def update_driver_location(request: Request):
             {"_id": 0, "user_id": 1},
         ):
             await manager.send_personal_message({"type": "driver_location", "lat": lat, "lng": lng}, o["user_id"])
+    # Proximity alert for an active ride pickup ("Votre chauffeur arrive").
+    from core.proximity import maybe_notify_driver_nearby
+    await maybe_notify_driver_nearby(user["id"], lat, lng)
     return {"message": "Location updated"}
 
 

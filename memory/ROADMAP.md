@@ -21,10 +21,12 @@
 - **Icônes PWA** régénérées avec le logo SB (`icons/icon-{192,512}{,-maskable}.png`, `apple-touch-icon.png`, `favicon.png`) → l'app installée affiche le SB sur l'écran d'accueil.
 - ⚠️ Le son d'**arrière-plan** reste le son système (limite Web Push). Le son custom joue en **foreground**. Livraison push réelle = à vérifier sur device (abonnement navigateur requis).
 
-### 🔜 Phase 3 — Proximité & Arrivée
-- "Votre chauffeur est là" à 200m (configurable), modale confirmation si "arrivé" hors adresse, notifs cycle de vie (démarrée/terminée/retour en ligne).
-- **Logo SB chauffeur (FAIT 2026-06-10)** : logo HD détouré (fond blanc → PNG transparent) `public/sb-logo-driver.png` (+256). Intégré sur page de démarrage `ChauffeurWelcome` (splash) et header `ChauffeurLogin`. Source: IMG-20260610-WA0014.
-- **Flag flottant SB (À FAIRE, style réf = XJekPlus)** : bulle ronde transparente avec logo SB, persistante pendant une course active, tap = retour à l'écran de course. À wirer avec l'état course active (Phase 4).
+### ✅ Phase 3 — Proximité & Arrivée (FAIT 2026-06-10)
+- **Proximité "Votre chauffeur arrive"** : `core/proximity.py` notifie le client une seule fois (flag `nearby_notified` atomique) quand le chauffeur entre dans le rayon admin (200m) en route vers le pickup. Branché sur le stream WS (`ws_endpoint`) ET le REST `/drivers/location`. Validé (loin→0, près→1, répétition→1).
+- **Bug corrigé** : le forward de position chauffeur interrogeait `rides.driver_id` avec le `user_id` (alors que `driver_id` = `drivers.id`) → la position n'atteignait jamais le passager. Résolu via lookup `drivers` par `user_id`.
+- **Modale d'arrivée chauffeur** : si le chauffeur glisse "Arrivé" à >200m du pickup, modale "Vous n'êtes pas encore à l'adresse… êtes-vous sûr ?" (le client peut s'être trompé d'adresse), avec override. (`DriverRideFlow.jsx`, mirror du finish-confirm existant.)
+- **Bandeau opt-in** : `EnableNotificationsBanner` (monté global) propose "Activez les notifications" aux users connectés (permission `default`), dismissible.
+- Notifs cycle de vie (arrivé/démarré/terminé) déjà en Phase 2.
 
 ### 🔜 Phase 4 — Enchaînement & Flux actif
 - Chauffeur reçoit d'autres courses même sur pages "terminée" (config admin temps+distance), suppression bouton retour pendant course active (client+chauffeur).

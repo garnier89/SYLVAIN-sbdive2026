@@ -30,9 +30,13 @@ async def _handle_location_update(websocket: WebSocket, client_id: str, data: di
         {"user_id": client_id},
         {"$set": {"current_lat": lat, "current_lng": lng}},
     )
-    # Forward location to passenger only if the driver has an active ride
+    # Resolve the driver's document id (ride.driver_id stores drivers.id, NOT the
+    # user/connection id) so location actually reaches the passenger.
+    drv = await db.drivers.find_one({"user_id": client_id}, {"_id": 0, "id": 1})
+    if not drv:
+        return
     ride = await db.rides.find_one(
-        {"driver_id": client_id, "status": {"$in": _ACTIVE_RIDE_STATUSES}},
+        {"driver_id": drv["id"], "status": {"$in": _ACTIVE_RIDE_STATUSES}},
         {"_id": 0, "id": 1, "user_id": 1},
     )
     if not ride:
@@ -40,6 +44,9 @@ async def _handle_location_update(websocket: WebSocket, client_id: str, data: di
     payload = {"type": "driver_location", "lat": lat, "lng": lng, "ride_id": ride["id"]}
     await manager.send_to_ride_room(ride["id"], payload, exclude=client_id)
     await manager.send_personal_message(payload, ride["user_id"])
+    # Proximity alert: "Votre chauffeur arrive" once within the configured radius.
+    from core.proximity import maybe_notify_driver_nearby
+    await maybe_notify_driver_nearby(client_id, lat, lng)
 
 
 async def _handle_join_ride(websocket: WebSocket, client_id: str, data: dict) -> None:

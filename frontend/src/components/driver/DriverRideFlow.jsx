@@ -64,6 +64,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const [completing, setCompleting] = useState(false);
   const [carIconUrl, setCarIconUrl] = useState('');
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [showArrivalConfirm, setShowArrivalConfirm] = useState(false);
 
   // Load the admin-configured car icon (same as the client's radar cars).
   useEffect(() => {
@@ -169,6 +170,15 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     catch { toast.error('Action impossible. Réessayez.'); }
     finally { setBusy(false); }
   }, [busy, ride.id]);
+
+  // Guard against premature "arrived": if the driver is still far from the
+  // pickup (wrong address / GPS drift happens), ask them to confirm.
+  const requestArriving = useCallback(() => {
+    if (busy) return;
+    const dist = distanceMeters(driverPos, { lat: ride.pickup_lat, lng: ride.pickup_lng });
+    if (dist != null && dist > NEAR_DESTINATION_M) setShowArrivalConfirm(true);
+    else goArriving();
+  }, [busy, driverPos, ride.pickup_lat, ride.pickup_lng, goArriving]);
 
   const applyStarted = useCallback(() => {
     const now = new Date().toISOString();
@@ -352,7 +362,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         inProgress={inProgress}
         busy={busy}
         nearDestination={nearDestination}
-        onArrive={goArriving}
+        onArrive={requestArriving}
         onStart={() => { if (!askOtp) { startTripDirect(); return; } setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }}
         onFinish={handleFinish}
       />
@@ -433,6 +443,32 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
                 data-testid="finish-confirm-ok"
               >
                 {t('driver.yes_finish')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showArrivalConfirm && (
+        <div className="fixed inset-0 z-[1700] bg-black/50 flex items-center justify-center p-6" data-testid="arrival-confirm-overlay">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">Vous n'êtes pas encore à l'adresse</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Vous semblez encore loin du point de prise en charge{distanceMeters(driverPos, { lat: ride.pickup_lat, lng: ride.pickup_lng }) != null ? ` (~${(distanceMeters(driverPos, { lat: ride.pickup_lat, lng: ride.pickup_lng }) / 1000).toFixed(1)} km)` : ''}. Le client peut s'être trompé d'adresse. Êtes-vous sûr d'être arrivé&nbsp;?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowArrivalConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm"
+                data-testid="arrival-confirm-cancel"
+              >
+                {t('ride.cancel')}
+              </button>
+              <button
+                onClick={() => { setShowArrivalConfirm(false); goArriving(); }}
+                className="flex-1 py-2.5 rounded-xl bg-[#FF5000] text-white font-bold text-sm"
+                data-testid="arrival-confirm-ok"
+              >
+                Oui, je suis arrivé
               </button>
             </div>
           </div>
