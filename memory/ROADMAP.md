@@ -272,6 +272,7 @@ Tableau de bord intelligent : prévision des ventes, produits populaires, tendan
 **Emails transactionnels Resend (onboarding SB Store)** · ✅ LIVRÉ (2026-06-11) :
 - À l'inscription → email **« Demande reçue »** ; à la validation admin → email **« Boutique validée »** (+ push déjà en place). Helper `core/email.py` (templates HTML FR brandés, non bloquant, ne casse jamais la requête). Branché dans `merchants.py` signup et `admin.py` approval.
 - ⚠️ **Resend en mode test** : la clé fournie ne délivre qu'à l'email vérifié du compte (`somosylv@gmail.com`). Pour envoyer aux vrais commerçants, **vérifier un domaine** sur resend.com/domains et changer `SENDER_EMAIL` vers une adresse de ce domaine.
+- **Email reçu/confirmation de commande client** (2026-06-11) : à chaque commande passée → email reçu HTML brandé (récap articles, sous-total/réduction/livraison/total, adresse, bouton « Suivre ma commande »). `send_order_confirmation` dans `core/email.py`, branché dans `create_order` (non bloquant). Même limitation mode test Resend.
 
 ### P2.4 — Réseau social commerce (Module 11) · **L**
 Publications / Stories / Promos / Événements par commerce ; suivre / liker / commenter / partager (inspiration TikTok Shop & Instagram Shopping).

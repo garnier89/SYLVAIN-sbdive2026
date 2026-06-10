@@ -99,3 +99,55 @@ async def send_merchant_approved(to: str, owner_name: str, store_name: str, dash
         </p>
         <p style="color:#444;font-size:15px;">Bonnes ventes !<br/>L'équipe SB Store</p>"""
     await _send(to, "🎉 Votre boutique SB Store est validée", _shell("Boutique validée 🎉", "#16a34a", body))
+
+
+def _money(v) -> str:
+    try:
+        return f"{float(v):.2f} €"
+    except (TypeError, ValueError):
+        return "—"
+
+
+async def send_order_confirmation(to: str, customer_name: str, order: dict, store_name: str, tracking_url: str) -> None:
+    """Branded order receipt to the client: items recap + totals + tracking link."""
+    rows = ""
+    for it in (order.get("items") or []):
+        name = it.get("name") or it.get("product_name") or "Article"
+        qty = int(it.get("quantity") or 1)
+        line = float(it.get("total") or (it.get("price", 0) * qty))
+        rows += (f'<tr><td style="padding:8px 0;color:#444;font-size:14px;">{qty}× {name}</td>'
+                 f'<td style="padding:8px 0;color:#444;font-size:14px;text-align:right;white-space:nowrap;">{_money(line)}</td></tr>')
+
+    subtotal = order.get("subtotal", 0)
+    discount = order.get("discount", 0) or 0
+    delivery = order.get("delivery_fee", 0)
+    total = order.get("total", 0)
+    discount_row = (f'<tr><td style="padding:4px 0;color:#16a34a;font-size:14px;">Réduction</td>'
+                    f'<td style="padding:4px 0;color:#16a34a;font-size:14px;text-align:right;">-{_money(discount)}</td></tr>') if discount > 0 else ""
+    addr = order.get("delivery_address") or ""
+    order_no = f"#{str(order.get('id',''))[-6:]}"
+
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {customer_name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Merci pour votre commande chez <b>{store_name}</b> ! Voici votre reçu (commande <b>{order_no}</b>).
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee;border-bottom:1px solid #eee;margin:18px 0;">
+          {rows}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;color:#777;font-size:14px;">Sous-total</td><td style="padding:4px 0;color:#777;font-size:14px;text-align:right;">{_money(subtotal)}</td></tr>
+          {discount_row}
+          <tr><td style="padding:4px 0;color:#777;font-size:14px;">Livraison</td><td style="padding:4px 0;color:#777;font-size:14px;text-align:right;">{_money(delivery)}</td></tr>
+          <tr><td style="padding:10px 0;color:#0a0e1a;font-size:17px;font-weight:bold;border-top:1px solid #eee;">Total</td>
+              <td style="padding:10px 0;color:#FF4500;font-size:17px;font-weight:bold;text-align:right;border-top:1px solid #eee;">{_money(total)}</td></tr>
+        </table>
+        <p style="color:#777;font-size:13px;margin-top:8px;">📍 Livraison à : {addr}</p>
+        <p style="text-align:center;margin:26px 0;">
+          <a href="{tracking_url}" style="background:#FF4500;color:#ffffff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+            Suivre ma commande
+          </a>
+        </p>
+        <p style="color:#444;font-size:14px;">Bon appétit ! 🍽️<br/>L'équipe SB Store</p>"""
+    await _send(to, f"Confirmation de commande {order_no} · {store_name}", _shell("Commande confirmée 🧾", "#FF4500", body))

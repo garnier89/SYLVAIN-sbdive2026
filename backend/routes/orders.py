@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 import uuid
+import os
 import asyncio
 import math
 from datetime import datetime, timezone, timedelta
@@ -255,6 +256,18 @@ async def create_order(data: OrderCreate, request: Request):
                 data={"url": "/merchant/orders", "order_id": order["id"]},
                 push=True,
             )
+        except Exception:
+            pass
+    # Order receipt / confirmation email to the client (non-blocking).
+    if user.get("email"):
+        try:
+            from core.email import fire, send_order_confirmation
+            frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+            fire(send_order_confirmation(
+                user["email"], user.get("name", ""), order,
+                merchant.get("store_name", "votre commerce"),
+                f"{frontend}/order/{order['id']}",
+            ))
         except Exception:
             pass
     order.pop("_id", None)
