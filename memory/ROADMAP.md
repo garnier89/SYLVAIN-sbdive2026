@@ -156,7 +156,13 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 - **Délai estimé affiché** dans la modale de retrait (« Versement estimé sous ~Xh »).
 - **Retrait express 12h** (EU/DOM-TOM) avec **frais éditables (1 €) déduits du montant** (demande 30 € → reçoit 29 €). Dégradation gracieuse hors zone.
 - **Jumelage** de deux comptes (client+marchand) : demande par e-mail/téléphone + confirmation des deux côtés, transfert facilité. Page `/wallet/linked-accounts`.
-- ⏳ Reste : **versements réels** (API Orange Money/MTN/Wave/Stripe Payouts) à brancher avec identifiants (marqués payés manuellement en v1).
+- ✅ **Versements réels Mobile Money LIVRÉS** (2026-06-10, pytest 10/10 + frontend iter231) — `core/mobile_money.py` :
+  - Clients **Wave** (`POST /v1/payout` + signature HMAC + idempotency-key), **MTN MoMo Disbursement** (token + `transfer` 202 async + status), **Orange Money** (OAuth + transfers — *en attente d'activation du produit B2C par Orange*). Conversion EUR→XOF au taux fixe **655,957**.
+  - **Modèle de sécurité** : `mode=sandbox` (par défaut) → versements **SIMULÉS** (aucun argent réel, flux/UI testables) ; `mode=live` → appels réels **uniquement si `live_enabled=true`** (double confirmation). Config DB `payout_provider_config`, endpoints admin `GET/PUT /api/payouts/admin/payout-config`.
+  - Flux admin : `POST /api/payouts/admin/withdrawals/{id}/send` (versement auto Mobile Money, idempotent) + `/refresh-status` (MTN async). Le RIB garde « Marquer versé » manuel. UI : bannière mode + toggle + puces de disponibilité prestataires dans `AdminPayouts`.
+  - Identifiants dans `.env` (jamais en dur). **Blockers avant le live** : (1) **clé Wave complète** (celle fournie était tronquée → `WAVE_API_KEY` vide) ; (2) MTN : confirmer la **clé d'abonnement *Disbursement*** + **whitelist IP** serveur côté MTN ; (3) Orange : **activation produit B2C/disbursement** (clés fournies = Web Payment/encaissement). Tests : `backend/tests/test_mobile_money_payout.py`.
+
+- ⏳ Reste : versements RIB SEPA réels (Stripe Payouts) — optionnel.
 
 ### Pourboire (Pourboire) — mouvement d'argent réel · ✅ LIVRÉ (2026-06-10, testé pytest 4/4)
 - Le pourboire débitait seulement les stats chauffeur (cosmétique). Désormais : le **client choisit le moyen** (Portefeuille SB Pay OU Carte Stripe).

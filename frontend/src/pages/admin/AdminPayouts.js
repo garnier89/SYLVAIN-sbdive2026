@@ -65,7 +65,8 @@ const WithdrawalsTab = () => {
         method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
       });
       if (!r.ok) throw new Error('Échec');
-      setCfg({ ...(await r.json()), providers_ready: cfg?.providers_ready });
+      const resp = await r.json();
+      setCfg((prev) => ({ ...prev, ...resp }));
       toast.success('Configuration des versements mise à jour');
     } catch (e) { toast.error(e.message); }
   };
@@ -114,12 +115,12 @@ const WithdrawalsTab = () => {
     <div>
       {/* Payout provider mode banner */}
       {cfg && (
-        <div className={`rounded-2xl p-4 mb-4 border ${cfg.mode === 'live' && cfg.live_enabled ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`} data-testid="payout-config-banner">
+        <div className={`rounded-2xl p-4 mb-4 border ${cfg.mode === 'live' && cfg.live_enabled ? 'bg-red-50 border-red-200' : cfg.mode === 'live' ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'}`} data-testid="payout-config-banner">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Warning size={18} weight="fill" className={cfg.mode === 'live' && cfg.live_enabled ? 'text-red-500' : 'text-amber-500'} />
+              <Warning size={18} weight="fill" className={cfg.mode === 'live' && cfg.live_enabled ? 'text-red-500' : cfg.mode === 'live' ? 'text-orange-500' : 'text-amber-500'} />
               <span className="text-sm font-bold text-gray-800">
-                Versements Mobile Money : {cfg.mode === 'live' && cfg.live_enabled ? 'MODE LIVE (argent réel) 🔴' : 'Mode Sandbox (simulation, aucun argent réel)'}
+                Versements Mobile Money : {cfg.mode === 'live' && cfg.live_enabled ? 'MODE LIVE (argent réel) 🔴' : cfg.mode === 'live' ? "Mode Live — argent réel NON activé (cochez pour confirmer)" : 'Mode Sandbox (simulation, aucun argent réel)'}
               </span>
             </div>
             <div className="flex items-center gap-3">
