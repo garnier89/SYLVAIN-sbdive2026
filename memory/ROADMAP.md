@@ -165,9 +165,12 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 - Aucune commission, **aucun cashback**, aucun plafond. Stats chauffeur `earnings`/`total_tips` toujours mises à jour.
 - Front : `TipModal.js` (choix SB Pay/Carte + redirection) + `RideTrackingPage.js` (gère le retour `?tip_session=`). Tests : `backend/tests/test_tip_flow.py`.
 
-### P0.7 — Paiement « sans contact » (Phase D) · ⏳ À FAIRE (P1) — PROCHAINE TÂCHE
-- Le chauffeur saisit un montant dans SB Pay → génère **QR + code 6 chiffres** → le client scanne/saisit, s'authentifie, paie via **solde SB Pay ou carte (Stripe)** → crédité au chauffeur/marchand. (NFC natif reporté à une future app native.)
-- Réutilise l'architecture de débit/crédit du pourboire (helper `_credit_driver_tip` + flux Stripe Checkout).
+### P0.7 — Paiement « sans contact » (Phase D) · ✅ LIVRÉ (2026-06-10, testé pytest 7/7 + frontend iter229 100%)
+- Le bénéficiaire (**chauffeur OU marchand**) saisit un montant → `POST /api/contactless/requests` génère **QR + code 6 chiffres** (expire, défaut 15 min). Page `/encaisser` (`ContactlessReceivePage`) : QR + code + compte à rebours + polling du statut.
+- Le client **scanne le QR (caméra html5-qrcode)** ou **saisit le code 6 chiffres** sur `/pay` (`ContactlessPayPage`) → écran `/pay/:id` → paie via **SB Pay** ou **Carte (Stripe Checkout)**.
+- **Encaissement (choix 1a)** : commission plateforme prélevée (admin, défaut **10%**) ; le **net** est crédité au `db.wallets` retirable du bénéficiaire ; le **client gagne le cashback**. Idempotent (lock atomique du statut). Carte : min 1 €, confirmation via `GET /api/contactless/requests/{id}/status`.
+- Admin pilotable : `GET/PUT /api/contactless/admin/config` (commission, expiration, max, min carte, on/off) — carte « Paiement sans contact » dans `/admin/payment-methods`.
+- Entrées UI : boutons « Encaisser un paiement (QR) » (bénéficiaire) + « Payer / Scanner un QR » (tous) sur `/wallet`. Tests : `backend/tests/test_contactless_flow.py`.
 
 
 Crédite automatiquement un % du montant payé sur le solde SB Pay, pour tous les services.
