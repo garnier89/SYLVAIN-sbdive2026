@@ -138,6 +138,7 @@ const RideChoosePage = () => {
   const [luggageCount, setLuggageCount] = useState(1);
   const [sharedShuttle, setSharedShuttle] = useState(false);
   const [rentalPkg, setRentalPkg] = useState('2h_20km');
+  const [rentalStops, setRentalStops] = useState([]);
   const [buddyHours, setBuddyHours] = useState(4);
   const [petsCount, setPetsCount] = useState(1);
   const [petsSize, setPetsSize] = useState('small');
@@ -518,7 +519,7 @@ const RideChoosePage = () => {
       base.luggage_count = luggageAssist ? luggageCount : null;
       base.shared_shuttle = sharedShuttle;
     }
-    if (isRental) { const pkg = RENTAL_PACKAGES.find((p) => p.slug === rentalPkg); base.rental_package = rentalPkg; base.rental_hours = pkg?.hours || 2; }
+    if (isRental) { const pkg = RENTAL_PACKAGES.find((p) => p.slug === rentalPkg); base.rental_package = rentalPkg; base.rental_hours = pkg?.hours || 2; base.stops = rentalStops.filter((s) => s?.lat); }
     if (isBuddy) base.buddy_hours = buddyHours;
     if (mode.id === 'corporate') base.corporate_account_id = corpId || null;
     if (mode.id === 'pets') { base.pets_count = petsCount; base.pets_size = petsSize; }
@@ -587,6 +588,7 @@ const RideChoosePage = () => {
     luggageAssist, setLuggageAssist, luggageCount, setLuggageCount,
     sharedShuttle, setSharedShuttle,
     rentalPkg, setRentalPkg,
+    rentalStops, setRentalStops, taxiOpts,
     buddyHours, setBuddyHours,
     petsCount, setPetsCount, petsSize, setPetsSize,
     assistNeeds, setAssistNeeds,
@@ -1120,16 +1122,43 @@ const ModeSpecificPanel = (p) => {
     );
   }
   if (p.isRental) {
+    const pkg = RENTAL_PACKAGES.find((pk) => pk.slug === p.rentalPkg);
+    const adminPkg = p.taxiOpts?.rental_packages?.packages?.find((x) => x.slug === p.rentalPkg);
+    const hr = adminPkg?.extra_hour_rate ?? 18;
+    const km = adminPkg?.extra_km_rate ?? 0.8;
+    const stops = p.rentalStops || [];
+    const addStop = () => p.setRentalStops([...stops, { address: '', lat: null, lng: null }]);
+    const setStop = (i, val) => p.setRentalStops(stops.map((s, idx) => (idx === i ? val : s)));
+    const removeStop = (i) => p.setRentalStops(stops.filter((_, idx) => idx !== i));
     return (
       <div className={card} data-testid="panel-rental">
         <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-2"><Clock size={18} className="text-[#F59E0B]" /> Forfait</label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {RENTAL_PACKAGES.map((pk) => (
             <button key={pk.slug} onClick={() => p.setRentalPkg(pk.slug)} data-testid={`panel-rental-${pk.slug}`}
               className={`rounded-xl border-2 py-2.5 text-center transition-colors ${p.rentalPkg === pk.slug ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-200'}`}>
               <p className="font-black text-[#0B1426]">{pk.label}</p><p className="text-[10px] text-gray-400">{pk.km} km</p>
             </button>
           ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-100 p-2" data-testid="rental-overage-info">
+          <Info size={14} className="text-amber-600 shrink-0" />
+          <p className="text-[11px] text-amber-800 leading-snug">Inclus : <b>{pkg?.hours}h / {pkg?.km} km</b>. Au-delà : <b>{money(hr)}/h</b> et <b>{money(km)}/km</b> (facturation au compteur).</p>
+        </div>
+        {/* Multi-stop (optional, can also be added live during the ride) */}
+        <div className="mt-3">
+          <p className="text-xs font-bold text-[#0B1426] mb-1.5">Arrêts prévus (optionnel)</p>
+          {stops.map((s, i) => (
+            <div key={i} className="flex items-center gap-2 mb-2" data-testid={`rental-stop-row-${i}`}>
+              <div className="flex-1">
+                <GooglePlacesInput placeholder={`Arrêt ${i + 1}`} value={s?.address || ''} iconColor="#F59E0B" testId={`rental-stop-${i}`} onSelect={(loc) => setStop(i, loc)} />
+              </div>
+              <button onClick={() => removeStop(i)} className="text-red-500 shrink-0" data-testid={`rental-stop-remove-${i}`}><Minus size={18} /></button>
+            </div>
+          ))}
+          <button onClick={addStop} data-testid="rental-add-stop" className="w-full py-2 rounded-lg border border-dashed border-gray-300 text-sm font-semibold text-gray-600 flex items-center justify-center gap-1.5">
+            <Plus size={15} /> Ajouter un arrêt
+          </button>
         </div>
       </div>
     );

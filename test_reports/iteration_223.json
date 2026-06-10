@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 223 — Mise à disposition (rental, P2) end-to-end validation. Backend pytest (test_rental_disposal.py) 2/2 green: rental creation pricing (4h_40km → estimated_fare=72, rental_package_price=72, hours_included=4, km_included=40, extra_hour_rate=18, extra_km_rate=0.8, stops persisted) and full live-meter flow (start → live add-stop → meter readback → end with 55 km for 2h_20km → overage_km=35, overage_fee=28, projected_total=64) + admin completion → final_fare=64 with fare_breakdown.rental=true, package_price=36, overage_fee=28. Frontend client booking panel at /course?mode=rental renders perfectly: panel-rental, all 4 packages (2h_20km / 4h_40km / 8h_80km / journee), rental-overage-info (correct text: '10h / 100 km · 18,00 €/h · 0,80 €/km' for Journée), rental-add-stop adds rental-stop-row-0/1 with GooglePlacesInput testids rental-stop-0/1, estimated fare shown (36,00 € for 2h). Driver flow (RentalDriverFlow) was exercised end-to-end via UI with a real demo driver (jean.dupont@demo.sb) accepting a rental ride: rental-driver-flow, rental-start-btn, rental-timer, rental-add-stop-btn, rental-stop-input/confirm (adds a live stop via /rental/add-stop → stops grew to 1 on backend), rental-end-btn → rental-km-input + rental-end-confirm (filled 55 km, confirmed) completes the ride. Backend ride afterwards: status=completed, final_fare=64, fare_breakdown={rental:true, package_price:36, overage_fee:28, actual_km:55, overage_km:35}. ONE REAL BUG: on the client tracking page (/ride/{id}), the RentalMeterBanner never mounts once a driver is assigned (status in accepted/arriving/in_progress) because RideTrackingPage.js:638 isAssigned early-returns the V3Cube DriverEnRouteView, which does not include <RentalMeterBanner>. Banner is correctly rendered in pending (line 795) and main return (line 964), but the isAssigned path — which is where rentals spend their entire lifetime once accepted — has no banner. DOM check confirmed: document.querySelectorAll('[data-testid=rental-meter-banner]').length === 0 after driver accept + /rental/start.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "RideTrackingPage / RentalMeterBanner",
+        "issue": "When a rental ride is accepted/arriving/in_progress (isAssigned=true), RideTrackingPage early-returns the V3Cube DriverEnRouteView block (lines 638–704) which does NOT render <RentalMeterBanner>. The client never sees the read-only rental meter, included hours/km, live timer (rental-client-timer) or projected total once the driver has accepted — i.e. for the entire active rental lifetime. The banner is correctly mounted on the pending early-return (line 795) and the main return (line 964) only.",
+        "selector": "[data-testid='rental-meter-banner']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_rental_disposal.py",
+    "/app/test_reports/pytest/iter223_rental.xml"
+  ],
+  "action_items": [
+    "Render <RentalMeterBanner ride={ride} /> inside the isAssigned early-return block of RideTrackingPage.js (around line 640, gated on ride.ride_type==='rental') — e.g. as a floating sheet above DriverEnRouteView or in the bottom card area — so rental clients see included hours/km, the live timer (rental-client-timer) and projected total once the driver has accepted.",
+    "[Optional] Same fix pattern as the previous airport FlightWatchBanner gap on the pending path: any banner that should be visible during the active ride must be mounted in the isAssigned branch too, not just the main return."
+  ],
+  "critical_code_review_comments": [
+    "RideTrackingPage has THREE return paths (loading, !ride, cancelled, pending, isAssigned, main return). Banners (RentalMeterBanner, FlightWatchBanner, DebtBanner) are only wired into pending and main return paths. The isAssigned V3Cube path silently drops them — this is a recurring class of bug; consider extracting a 'ride banners' fragment used in all three live paths.",
+    "RENTAL_PACKAGES in taxiHubConstants.js (2h_20km / 4h_40km / 8h_80km / journee) and backend DEFAULTS.rental_packages match (review request listed '6h_60km' which is a typo — implementation uses 8h_80km and the price ladder is consistent: 36 / 72 / 144 / 170 €).",
+    "RentalDriverFlow.jsx exposes the full set of stable data-testids and correctly drives /rental/start, /rental/add-stop, /rental/end — end-to-end UI flow yields the expected final_fare=64 invoice with fare_breakdown.rental=true.",
+    "Rental ride creation API correctly stores rental_package_price, rental_hours_included, rental_km_included, rental_extra_hour_rate, rental_extra_km_rate and the booking-time stops array (verified by pytest).",
+    "POST /api/rides/{id}/rental/end with actual_km triggers the rental invoice override that produces final_fare = package_price + overage_fee (verified by pytest + UI E2E)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (2/2 pytest)",
+    "frontend": "~85% (client booking panel + driver flow E2E green; client meter banner missing on isAssigned path)"
+  },
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123!; demo driver jean.dupont@demo.sb / Driver123!; fresh clients TEST_iter223*@example.com / Client123! (registered via /api/auth/register).",
+  "seed_data_creation": "Multiple TEST_iter223*@example.com clients created via /api/auth/register; rental rides ride_b9fff5848e91, ride_63e36e43d6c9 (E2E driver flow → completed final_fare=64), ride_f7421361d9b5 (status accepted/in_progress, used for client-banner DOM check) — all linked to demo driver jean.dupont. No admin/seed-data side effects.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rental backend + driver UI + client booking are fully wired (E2E proven). Only remaining UI gap is mounting <RentalMeterBanner> inside the isAssigned (V3Cube DriverEnRouteView) early-return of RideTrackingPage.js. Once the main agent renders the banner there, re-test by: (1) register a client, (2) POST /api/rides ride_type=rental, (3) demo driver login + /accept, (4) /rental/start, (5) navigate to /ride/{id} as the client and assert [data-testid='rental-meter-banner'] and [data-testid='rental-client-timer'] are present + non-zero timer.",
+  "rca of the issue": "RideTrackingPage.js line 633 computes `isAssigned = ['accepted','arriving','in_progress'].includes(ride.status) && ride.driver_name`; line 638 returns the DriverEnRouteView-only layout. This bypasses the main return (line 952) where the RentalMeterBanner is rendered at line 964. Rental rides spend essentially all of their active lifetime in this isAssigned state, so the banner is never visible to the client after the driver accepts. Fix: inside the isAssigned return (around line 640–702), add `{ride.ride_type === 'rental' && <RentalMeterBanner ride={ride} />}` — likely as a top sticky strip above DriverEnRouteView or in a card overlay so it doesn't fight the V3Cube full-screen map."
+}

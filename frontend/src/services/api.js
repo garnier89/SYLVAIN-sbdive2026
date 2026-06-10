@@ -157,6 +157,11 @@ export const rideAPI = {
   changePaymentMethod: (id, payment_method) => api.put(`/rides/${id}/payment-method`, { payment_method }),
   airports: () => api.get('/phase2/airports'),
   flightRefresh: (id) => api.post(`/phase2/rides/${id}/flight-refresh`),
+  // Mise à disposition (rental) — live billing meter
+  rentalStart: (id) => api.post(`/rides/${id}/rental/start`),
+  rentalAddStop: (id, stop) => api.post(`/rides/${id}/rental/add-stop`, stop),
+  rentalMeter: (id) => api.get(`/rides/${id}/rental/meter`),
+  rentalEnd: (id, actual_km) => api.post(`/rides/${id}/rental/end`, { actual_km }),
 };
 
 // Airport Transfer admin

@@ -13,6 +13,7 @@ import SideMenuDrawer from '../../components/SideMenuDrawer';
 import EarningsBreakdownModal from '../../components/EarningsBreakdownModal';
 import IncomingRequestSheet from '../../components/driver/IncomingRequestSheet';
 import DriverRideFlow from '../../components/driver/DriverRideFlow';
+import RentalDriverFlow from '../../components/driver/RentalDriverFlow';
 import ScheduledReservationsSheet from '../../components/driver/ScheduledReservationsSheet';
 import TaxiHallModal from '../../components/driver/TaxiHallModal';
 import DriverHomeHeader from '../../components/driver/home/DriverHomeHeader';
@@ -662,15 +663,23 @@ const DriverHome = () => {
         onVehicleInfo={() => navigate('/chauffeur/vehicles')}
       />
 
-        {/* Active ride — full-screen V3Cube flow */}
+        {/* Active ride — full-screen V3Cube flow (rental uses the meter flow) */}
         {currentRide && !rideMinimized && (
-          <DriverRideFlow
-            ride={currentRide}
-            driverPos={mapCenter}
-            askOtp={appSettings.ask_otp_before_start !== false}
-            onFinished={finishRide}
-            onMinimize={() => setRideMinimized(true)}
-          />
+          currentRide.ride_type === 'rental' ? (
+            <RentalDriverFlow
+              ride={currentRide}
+              onFinished={finishRide}
+              onMinimize={() => setRideMinimized(true)}
+            />
+          ) : (
+            <DriverRideFlow
+              ride={currentRide}
+              driverPos={mapCenter}
+              askOtp={appSettings.ask_otp_before_start !== false}
+              onFinished={finishRide}
+              onMinimize={() => setRideMinimized(true)}
+            />
+          )
         )}
 
         {/* Minimized active ride — resume banner so the driver can re-open the flow */}

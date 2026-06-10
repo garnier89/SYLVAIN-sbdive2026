@@ -43,6 +43,7 @@ export const RENTAL_PACKAGES = [
   { slug: '2h_20km', label: '2h', km: 20, hours: 2 },
   { slug: '4h_40km', label: '4h', km: 40, hours: 4 },
   { slug: '8h_80km', label: '8h', km: 80, hours: 8 },
+  { slug: 'journee', label: 'Journée', km: 100, hours: 10 },
 ];
 
 export const ASSIST_OPTIONS = [

@@ -214,7 +214,18 @@ class RideResponse(BaseModel):
     shuttle_discount: float = 0.0
     rental_hours: Optional[int] = None
     rental_package: Optional[str] = None
-    corporate_account_id: Optional[str] = None
+    # Mise à disposition (rental, P2) — live billing meter
+    rental_hours_included: Optional[float] = None
+    rental_km_included: Optional[float] = None
+    rental_extra_hour_rate: Optional[float] = None
+    rental_extra_km_rate: Optional[float] = None
+    rental_package_price: Optional[float] = None
+    rental_started_at: Optional[str] = None
+    rental_ended_at: Optional[str] = None
+    rental_actual_km: Optional[float] = None
+    rental_overage_hours: Optional[float] = None
+    rental_overage_km: Optional[float] = None
+    rental_overage_fee: Optional[float] = None
     corporate_name: Optional[str] = None
     corporate_discount_pct: float = 0.0
     buddy_hours: Optional[int] = None

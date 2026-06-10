@@ -26,6 +26,46 @@ const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 const RELANCE_INTERVAL_SEC = 20;
 const MAX_RELANCES = 3;
 
+// Read-only live rental meter for the client (Mise à disposition).
+const RentalMeterBanner = ({ ride }) => {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (ride?.ride_type !== 'rental') return undefined;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [ride?.ride_type]);
+  if (ride?.ride_type !== 'rental') return null;
+  const hoursInc = Number(ride.rental_hours_included || 0);
+  const kmInc = Number(ride.rental_km_included || 0);
+  const hrRate = Number(ride.rental_extra_hour_rate || 0);
+  const pkgPrice = Number(ride.rental_package_price || ride.estimated_fare || 0);
+  const started = ride.rental_started_at;
+  const elapsedMin = started ? Math.max(0, (Date.now() - new Date(started).getTime()) / 60000) : 0;
+  const overageMin = Math.max(0, elapsedMin - hoursInc * 60);
+  const overageFee = (overageMin / 60) * hrRate;
+  const fmt = (mins) => { const m = Math.floor(mins); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+  return (
+    <div className="mb-4 rounded-2xl bg-amber-50 border border-amber-200 p-3" data-testid="rental-meter-banner">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 font-black text-amber-900 text-sm"><Clock size={18} weight="fill" className="text-[#F59E0B]" /> Mise à disposition</span>
+        <span className="text-[11px] font-bold text-amber-700">{hoursInc}h · {kmInc} km inclus</span>
+      </div>
+      {started ? (
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+          <div><p className="text-[10px] text-amber-600">Temps</p><p className="font-black text-lg tabular-nums text-amber-900" data-testid="rental-client-timer">{fmt(elapsedMin)}</p></div>
+          <div><p className="text-[10px] text-amber-600">Suppl.</p><p className="font-bold text-[#FF5000]">{overageFee.toFixed(2)} €</p></div>
+          <div><p className="text-[10px] text-amber-600">Projeté</p><p className="font-black text-amber-900">{(pkgPrice + overageFee).toFixed(2)} €</p></div>
+        </div>
+      ) : (
+        <p className="text-[12px] text-amber-700 mt-1">En attente du démarrage du compteur par votre chauffeur.</p>
+      )}
+      {(ride.stops || []).length > 0 && (
+        <p className="text-[11px] text-amber-700 mt-2">📍 {ride.stops.length} arrêt(s) prévu(s)</p>
+      )}
+    </div>
+  );
+};
+
 // Flight Watch banner — shows live flight status + meeting point for airport transfers.
 const FlightWatchBanner = ({ ride }) => {
   if (ride?.ride_type !== 'airport' || !ride?.flight_number) return null;
@@ -752,6 +792,7 @@ const RideTrackingPage = () => {
           )}
 
           {ride.ride_type === 'airport' && <div className="mt-3"><FlightWatchBanner ride={ride} /></div>}
+          {ride.ride_type === 'rental' && <div className="mt-3"><RentalMeterBanner ride={ride} /></div>}
 
           <div className="mt-4 w-full bg-gray-50 border border-gray-100 rounded-2xl p-3 text-left" data-testid="ride-searching-route">
             <div className="flex items-center gap-2 mb-1.5">
@@ -920,6 +961,7 @@ const RideTrackingPage = () => {
       <div className="flex-1 bg-white rounded-t-3xl -mt-6 relative z-10 px-4 pt-5 pb-24 overflow-y-auto">
         <DebtBanner />
         <FlightWatchBanner ride={ride} />
+        <RentalMeterBanner ride={ride} />
         {/* Status Progress Bar */}
         {!isCancelled && (
           <div className="flex items-center justify-between mb-5" data-testid="ride-status-bar">

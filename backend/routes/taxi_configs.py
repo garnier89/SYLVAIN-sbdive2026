@@ -15,9 +15,10 @@ public_router = APIRouter(prefix="/config", tags=["taxi-configs-public"])
 DEFAULTS = {
     "rental_packages": {
         "packages": [
-            {"slug": "2h_20km", "label": "2h", "km": 20, "hours": 2, "price": 36},
-            {"slug": "4h_40km", "label": "4h", "km": 40, "hours": 4, "price": 72},
-            {"slug": "8h_80km", "label": "8h", "km": 80, "hours": 8, "price": 144},
+            {"slug": "2h_20km", "label": "2h", "km": 20, "hours": 2, "price": 36, "extra_hour_rate": 18, "extra_km_rate": 0.8},
+            {"slug": "4h_40km", "label": "4h", "km": 40, "hours": 4, "price": 72, "extra_hour_rate": 18, "extra_km_rate": 0.8},
+            {"slug": "8h_80km", "label": "8h", "km": 80, "hours": 8, "price": 144, "extra_hour_rate": 18, "extra_km_rate": 0.8},
+            {"slug": "journee", "label": "Journée", "km": 100, "hours": 10, "price": 170, "extra_hour_rate": 18, "extra_km_rate": 0.8},
         ],
     },
     "personal_driver": {

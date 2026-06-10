@@ -461,6 +461,26 @@ async def create_ride(data: RideRequest, request: Request):
             fare, bool(getattr(data, "luggage_assist", False)), bool(getattr(data, "shared_shuttle", False)), airport_meta_doc,
         )
 
+    # ── Mise à disposition (rental, P2) — package price + live-billing config ──
+    rental_meta = None
+    is_rental = (getattr(data, "ride_type", "") == "rental") or (mode_id == "rental")
+    if is_rental:
+        from routes.taxi_configs import get_taxi_config
+        cfg = await get_taxi_config("rental_packages")
+        pkgs = (cfg or {}).get("packages", [])
+        slug = getattr(data, "rental_package", None)
+        pkg = next((p for p in pkgs if p.get("slug") == slug), None) or {}
+        hours_inc = float(pkg.get("hours") or getattr(data, "rental_hours", None) or 2)
+        rental_meta = {
+            "rental_hours_included": hours_inc,
+            "rental_km_included": float(pkg.get("km") or hours_inc * 10),
+            "rental_extra_hour_rate": float(pkg.get("extra_hour_rate", 18) or 0),
+            "rental_extra_km_rate": float(pkg.get("extra_km_rate", 0.8) or 0),
+            "rental_package_price": float(pkg.get("price") or fare or hours_inc * 18),
+        }
+        # Rental fare = fixed package price (distance-based estimate doesn't apply).
+        fare = rental_meta["rental_package_price"]
+
     # ===== Pack C — Corporate booking validation + discount =====
     corporate_id = None
     corporate_discount_pct = 0.0
@@ -588,6 +608,15 @@ async def create_ride(data: RideRequest, request: Request):
         "flight_status": None,
         "rental_hours": getattr(data, 'rental_hours', None),
         "rental_package": getattr(data, 'rental_package', None),
+        "rental_hours_included": rental_meta["rental_hours_included"] if rental_meta else None,
+        "rental_km_included": rental_meta["rental_km_included"] if rental_meta else None,
+        "rental_extra_hour_rate": rental_meta["rental_extra_hour_rate"] if rental_meta else None,
+        "rental_extra_km_rate": rental_meta["rental_extra_km_rate"] if rental_meta else None,
+        "rental_package_price": rental_meta["rental_package_price"] if rental_meta else None,
+        "rental_started_at": None,
+        "rental_ended_at": None,
+        "rental_actual_km": None,
+        "rental_overage_fee": 0.0,
         "corporate_account_id": corporate_id,
         "corporate_name": corporate_name,
         "corporate_discount_pct": corporate_discount_pct,
@@ -1549,6 +1578,33 @@ async def update_ride_status(ride_id: str, request: Request):
             "total_net": final_fare,
             "currency": "EUR",
         }
+        # ── Mise à disposition: override invoice with package + overage billing ──
+        if ride.get("ride_type") == "rental":
+            meter = _compute_rental_meter(ride, datetime.now(timezone.utc), actual_km=ride.get("rental_actual_km"))
+            final_fare = float(round(meter["projected_total"]))
+            update_data["final_fare"] = final_fare
+            update_data["rental_overage_hours"] = meter["overage_hours"]
+            update_data["rental_overage_km"] = meter["overage_km"]
+            update_data["rental_overage_fee"] = meter["overage_fee"]
+            update_data["fare_breakdown"] = {
+                "vehicle_label": vtype.get("name", ride.get("vehicle_type", "")),
+                "rental": True,
+                "rental_package": ride.get("rental_package"),
+                "package_price": meter["package_price"],
+                "hours_included": meter["hours_included"],
+                "elapsed_minutes": meter["elapsed_minutes"],
+                "overage_hours": meter["overage_hours"],
+                "extra_hour_rate": meter["extra_hour_rate"],
+                "km_included": meter["km_included"],
+                "actual_km": ride.get("rental_actual_km"),
+                "overage_km": meter["overage_km"],
+                "extra_km_rate": meter["extra_km_rate"],
+                "overage_fee": meter["overage_fee"],
+                "subtotal": meter["projected_total"],
+                "total": final_fare,
+                "total_net": final_fare,
+                "currency": "EUR",
+            }
         pm = ride.get("payment_method")
         # === SB PayGo auto-deduction ===
         if pm == "sbpaygo":
@@ -2492,6 +2548,126 @@ async def reschedule_ride(ride_id: str, request: Request):
     if updates.get("no_driver_outcome") == "scheduled":
         await maybe_create_zone_alert(ride.get("pickup_address"), "scheduled")
     return {"message": "Rescheduled", "ride_id": ride_id, "scheduled_at": updates["scheduled_at"], "flight_number": updates.get("flight_number", ride.get("flight_number"))}
+
+
+# ═══════════════════ Mise à disposition (rental) — live billing ═══════════════════
+def _compute_rental_meter(ride: dict, now=None, actual_km=None) -> dict:
+    """Compute the live rental meter: elapsed time, included vs overage (time + km)."""
+    now = now or datetime.now(timezone.utc)
+    started = ride.get("rental_started_at")
+    hours_inc = float(ride.get("rental_hours_included") or 0)
+    km_inc = float(ride.get("rental_km_included") or 0)
+    hr_rate = float(ride.get("rental_extra_hour_rate") or 0)
+    km_rate = float(ride.get("rental_extra_km_rate") or 0)
+    pkg_price = float(ride.get("rental_package_price") or ride.get("estimated_fare") or 0)
+    elapsed_min = 0.0
+    if started:
+        try:
+            s = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+            if s.tzinfo is None:
+                s = s.replace(tzinfo=timezone.utc)
+            elapsed_min = max(0.0, (now - s).total_seconds() / 60)
+        except (ValueError, TypeError):
+            pass
+    elapsed_h = elapsed_min / 60
+    overage_h = max(0.0, elapsed_h - hours_inc)
+    km = actual_km if actual_km is not None else (ride.get("rental_actual_km") or 0)
+    overage_km = max(0.0, float(km or 0) - km_inc)
+    overage_fee = round(overage_h * hr_rate + overage_km * km_rate, 2)
+    return {
+        "started_at": started,
+        "elapsed_minutes": round(elapsed_min, 1),
+        "hours_included": hours_inc,
+        "km_included": km_inc,
+        "extra_hour_rate": hr_rate,
+        "extra_km_rate": km_rate,
+        "package_price": pkg_price,
+        "overage_hours": round(overage_h, 2),
+        "overage_km": round(overage_km, 2),
+        "overage_fee": overage_fee,
+        "projected_total": round(pkg_price + overage_fee, 2),
+        "stops": ride.get("stops") or [],
+        "ended": bool(ride.get("rental_ended_at")),
+    }
+
+
+async def _get_rental_ride(ride_id: str):
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Course introuvable")
+    if ride.get("ride_type") != "rental":
+        raise HTTPException(status_code=400, detail="Ce n'est pas une mise à disposition")
+    return ride
+
+
+@router.post("/{ride_id}/rental/start")
+async def rental_start(ride_id: str, request: Request):
+    """Driver starts the rental meter (→ in_progress)."""
+    await get_current_user(request)
+    ride = await _get_rental_ride(ride_id)
+    if ride.get("rental_started_at"):
+        return {"message": "Déjà démarré", "rental_started_at": ride["rental_started_at"]}
+    now = datetime.now(timezone.utc).isoformat()
+    await db.rides.update_one({"id": ride_id}, {"$set": {
+        "rental_started_at": now, "status": "in_progress", "started_at": now}})
+    from core.notifications import create_notification
+    await create_notification(ride.get("user_id"), "rental",
+                              "⏱️ Mise à disposition démarrée",
+                              "Votre chauffeur a démarré le compteur.",
+                              data={"url": f"/ride/{ride_id}", "ride_id": ride_id})
+    return {"message": "Démarré", "rental_started_at": now}
+
+
+@router.post("/{ride_id}/rental/add-stop")
+async def rental_add_stop(ride_id: str, request: Request):
+    """Add a stop to the rental (at booking or live during the ride)."""
+    await get_current_user(request)
+    ride = await _get_rental_ride(ride_id)
+    body = await request.json()
+    stop = {
+        "address": body.get("address", ""),
+        "lat": body.get("lat"),
+        "lng": body.get("lng"),
+        "added_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if not stop["address"]:
+        raise HTTPException(status_code=400, detail="Adresse requise")
+    stops = ride.get("stops") or []
+    stops.append(stop)
+    await db.rides.update_one({"id": ride_id}, {"$set": {"stops": stops}})
+    return {"message": "Arrêt ajouté", "stops": stops}
+
+
+@router.get("/{ride_id}/rental/meter")
+async def rental_meter(ride_id: str, request: Request):
+    """Live billing meter (client read-only + driver)."""
+    await get_current_user(request)
+    ride = await _get_rental_ride(ride_id)
+    return _compute_rental_meter(ride)
+
+
+@router.post("/{ride_id}/rental/end")
+async def rental_end(ride_id: str, request: Request):
+    """Driver ends the rental: record km + end time, return the final bill preview.
+
+    The driver app then calls the standard completion (POST /{id}/status completed),
+    whose rental-aware branch finalises the invoice (package + overage) and earnings.
+    """
+    await get_current_user(request)
+    ride = await _get_rental_ride(ride_id)
+    if not ride.get("rental_started_at"):
+        raise HTTPException(status_code=400, detail="Le compteur n'a pas démarré")
+    if ride.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="Course déjà terminée")
+    body = await request.json()
+    actual_km = float(body.get("actual_km", ride.get("rental_km_included") or 0) or 0)
+    now = datetime.now(timezone.utc).isoformat()
+    await db.rides.update_one({"id": ride_id}, {"$set": {
+        "rental_ended_at": now, "rental_actual_km": actual_km}})
+    ride["rental_ended_at"] = now
+    ride["rental_actual_km"] = actual_km
+    return {"message": "Compteur arrêté", "meter": _compute_rental_meter(ride, actual_km=actual_km)}
+
 
 
 @router.post("/airport-multipliers")
