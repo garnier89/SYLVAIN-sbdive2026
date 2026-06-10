@@ -670,6 +670,16 @@ async def create_ride(data: RideRequest, request: Request):
     return RideResponse(**ride)
 
 
+@router.post("/availability-alert")
+async def availability_alert(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    from core.availability import register_availability_alert
+    await register_availability_alert(
+        user["id"], body.get("pickup_lat"), body.get("pickup_lng"), body.get("pickup_address"))
+    return {"ok": True}
+
+
 async def _push_new_ride_to_drivers(ride: dict, instant: bool = True):
     """Web Push a new ride/reservation to online drivers (background alert)."""
     try:

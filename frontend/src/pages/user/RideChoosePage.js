@@ -17,7 +17,7 @@ import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
   Money, CreditCard, Wallet, CheckCircle, Lightning, Info,
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
-  CaretDown, MapTrifold,
+  CaretDown, MapTrifold, BellRinging,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
@@ -581,30 +581,51 @@ const RideChoosePage = () => {
     />
   );
 
+  const requestAvailabilityAlert = async () => {
+    try {
+      await rideAPI.availabilityAlert({
+        pickup_lat: pickup?.lat, pickup_lng: pickup?.lng, pickup_address: pickup?.address,
+      });
+      setNoDrivers(false);
+      toast.success('Parfait ! Vous serez prévenu dès qu\'un chauffeur passe en ligne.');
+    } catch {
+      toast.error('Impossible d\'enregistrer l\'alerte. Réessayez.');
+    }
+  };
+
   const noDriversModal = noDrivers ? (
     <div className="fixed inset-0 z-[1700] bg-black/50 flex items-center justify-center p-6" data-testid="no-drivers-overlay">
       <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl">
         <h3 className="text-lg font-extrabold text-gray-900 mb-1">Aucun chauffeur disponible</h3>
         <p className="text-sm text-gray-600 mb-4">
-          Aucun chauffeur n'est en ligne pour le moment. Vous pouvez planifier votre course pour plus tard.
+          Aucun chauffeur n'est en ligne pour le moment. Vous pouvez planifier votre course, ou être alerté dès qu'un chauffeur passe en ligne.
         </p>
-        <div className="flex gap-3">
+        <div className="space-y-2">
           <button
-            onClick={() => setNoDrivers(false)}
-            className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm"
-            data-testid="no-drivers-close"
+            onClick={requestAvailabilityAlert}
+            className="w-full py-2.5 rounded-xl bg-[#0B1426] text-white font-bold text-sm flex items-center justify-center gap-2"
+            data-testid="no-drivers-notify"
           >
-            Fermer
+            <BellRinging size={18} weight="duotone" /> Me prévenir dès qu'un chauffeur est dispo
           </button>
-          {schedulingAllowed && (
+          <div className="flex gap-3">
             <button
-              onClick={() => { setNoDrivers(false); setScheduleLater(true); setCalendarOpen(true); }}
-              className="flex-1 py-2.5 rounded-xl bg-[#FF5000] text-white font-bold text-sm"
-              data-testid="no-drivers-schedule"
+              onClick={() => setNoDrivers(false)}
+              className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm"
+              data-testid="no-drivers-close"
             >
-              Planifier
+              Fermer
             </button>
-          )}
+            {schedulingAllowed && (
+              <button
+                onClick={() => { setNoDrivers(false); setScheduleLater(true); setCalendarOpen(true); }}
+                className="flex-1 py-2.5 rounded-xl bg-[#FF5000] text-white font-bold text-sm"
+                data-testid="no-drivers-schedule"
+              >
+                Planifier
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

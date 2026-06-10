@@ -136,6 +136,7 @@ export const rideAPI = {
   getBestAutoPromo: (amount, service = 'ride', pickup = '') => api.get('/auto-promotions/best', { params: { amount, service, pickup } }),
   validateVoucher: (code, amount, pickup_address = '') => api.post('/vouchers/validate', { code, amount, pickup_address }),
   create: (data) => api.post('/rides', data),
+  availabilityAlert: (data) => api.post('/rides/availability-alert', data),
   get: (id) => api.get(`/rides/${id}`),
   accept: (id) => api.post(`/rides/${id}/accept`),
   decline: (id) => api.post(`/rides/${id}/decline`),
