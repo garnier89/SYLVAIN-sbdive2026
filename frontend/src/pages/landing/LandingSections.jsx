@@ -218,6 +218,7 @@ export const LandingFooter = ({ navigate }) => (
             <button onClick={() => navigate('/login/email')} className="block text-sm text-gray-500 hover:text-white transition-colors" data-testid="footer-sb-store-link">SB Store (Commerçant)</button>
             <button onClick={() => navigate('/admin-login')} className="block text-sm text-gray-500 hover:text-white transition-colors">Administration</button>
             <button onClick={() => navigate('/dispatcher')} className="block text-sm text-gray-500 hover:text-white transition-colors">Dispatcher</button>
+            <button onClick={() => navigate('/tab')} className="block text-sm text-gray-500 hover:text-white transition-colors" data-testid="footer-sb-tab-link">SB Tab (Kiosk)</button>
           </div>
         </div>
         <div>
