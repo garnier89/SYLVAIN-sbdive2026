@@ -20,6 +20,7 @@ const timeAgo = (iso) => {
  */
 const WaitingClientsPanel = () => {
   const [data, setData] = useState(null);
+  const [kpi, setKpi] = useState(null);
   const [sending, setSending] = useState(null);
 
   const notifyZone = async (zone) => {
@@ -52,6 +53,10 @@ const WaitingClientsPanel = () => {
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (alive) setData(d); })
         .catch(() => {});
+      fetch(`${API}/api/admin/notifications/demand-kpi`, { credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (alive) setKpi(d); })
+        .catch(() => {});
     };
     load();
     const iv = setInterval(load, 30000);
@@ -72,6 +77,24 @@ const WaitingClientsPanel = () => {
         </div>
         <span className="text-2xl font-extrabold text-[#FF5000]" data-testid="waiting-clients-total">{data.total || 0}</span>
       </div>
+
+      {/* KPI strip: effectiveness of demand pushes over the last 24h */}
+      {kpi && (
+        <div className="grid grid-cols-3 gap-2 mb-4" data-testid="demand-kpi">
+          <div className="rounded-lg bg-gray-50 px-2 py-2 text-center">
+            <p className="text-lg font-extrabold text-gray-900">{kpi.notified}</p>
+            <p className="text-[10px] text-gray-500 leading-tight">Chauffeurs relancés (24 h)</p>
+          </div>
+          <div className="rounded-lg bg-gray-50 px-2 py-2 text-center">
+            <p className="text-lg font-extrabold text-emerald-600">{kpi.converted}</p>
+            <p className="text-[10px] text-gray-500 leading-tight">Repassés en ligne &lt;10 min</p>
+          </div>
+          <div className="rounded-lg bg-gray-50 px-2 py-2 text-center">
+            <p className="text-lg font-extrabold text-[#FF5000]">{kpi.conversion_rate}%</p>
+            <p className="text-[10px] text-gray-500 leading-tight">Taux de conversion</p>
+          </div>
+        </div>
+      )}
 
       {data.total === 0 ? (
         <p className="text-sm text-gray-400 py-3 text-center">Aucun client en attente actuellement 🎉</p>

@@ -97,12 +97,14 @@ async def compute_waiting_by_zone() -> dict:
 
 async def notify_zone_offline_drivers(zone_id, name, lat, lng, radius_km, source="manual", waiting=None) -> int:
     """Push a 'high demand, go online' alert to offline approved drivers whose last
-    known location is within the zone; record a send-history entry (anti-spam + KPIs)."""
+    known location is within the zone; record send-history + a KPI event (to measure
+    how many notified drivers come back online within 10 min)."""
+    import uuid
     from core.notifications import create_notification
     drivers = await db.drivers.find(
         {"status": "approved", "is_online": False},
         {"_id": 0, "user_id": 1, "current_lat": 1, "current_lng": 1}).to_list(3000)
-    notified = 0
+    notified_ids = []
     for d in drivers:
         dlat, dlng = d.get("current_lat"), d.get("current_lng")
         if dlat is None or dlng is None or not d.get("user_id"):
@@ -113,14 +115,45 @@ async def notify_zone_offline_drivers(zone_id, name, lat, lng, radius_km, source
             d["user_id"], "demand_alert", "📈 Forte demande",
             f"Forte demande à {name}, passez en ligne pour prendre des courses !",
             data={"url": "/chauffeur/home", "zone_id": zone_id})
-        notified += 1
+        notified_ids.append(d["user_id"])
+    notified = len(notified_ids)
     now = datetime.now(timezone.utc).isoformat()
     await db.zone_demand_pushes.update_one(
         {"zone_id": zone_id},
         {"$set": {"zone_id": zone_id, "name": name, "last_sent_at": now,
                   "last_notified_count": notified, "last_source": source, "waiting_at_send": waiting}},
         upsert=True)
+    if notified:
+        await db.demand_push_events.insert_one({
+            "id": str(uuid.uuid4()), "zone_id": zone_id, "name": name, "sent_at": now,
+            "source": source, "waiting_at_send": waiting,
+            "notified_ids": notified_ids, "converted_ids": [],
+        })
     return notified
+
+
+async def record_driver_back_online(driver_user_id: str) -> None:
+    """Mark a conversion if this driver came online within 10 min of being nudged."""
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+        await db.demand_push_events.update_many(
+            {"sent_at": {"$gte": cutoff}, "notified_ids": driver_user_id,
+             "converted_ids": {"$ne": driver_user_id}},
+            {"$addToSet": {"converted_ids": driver_user_id}})
+    except Exception:
+        pass
+
+
+async def compute_demand_kpi(hours: int = 24) -> dict:
+    """Aggregate demand-push effectiveness over the last `hours`."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    events = await db.demand_push_events.find({"sent_at": {"$gte": cutoff}}, {"_id": 0}).to_list(5000)
+    pushes = len(events)
+    notified = sum(len(e.get("notified_ids") or []) for e in events)
+    converted = sum(len(e.get("converted_ids") or []) for e in events)
+    rate = round(100.0 * converted / notified, 1) if notified else 0.0
+    return {"hours": hours, "pushes": pushes, "notified": notified,
+            "converted": converted, "conversion_rate": rate}
 
 
 async def get_zone_push_history() -> dict:

@@ -511,8 +511,9 @@ async def toggle_driver_online(request: Request):
     # When a driver comes online, alert clients who were waiting for availability.
     if new_status:
         import asyncio
-        from core.availability import notify_waiting_clients
+        from core.availability import notify_waiting_clients, record_driver_back_online
         asyncio.create_task(notify_waiting_clients(user["id"]))
+        asyncio.create_task(record_driver_back_online(user["id"]))
     return {"is_online": new_status}
 
 

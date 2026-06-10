@@ -146,6 +146,13 @@ async def waiting_clients(request: Request):
     return summary
 
 
+@admin_router.get("/demand-kpi")
+async def demand_kpi(request: Request):
+    await require_role(request, ["admin"])
+    from core.availability import compute_demand_kpi
+    return await compute_demand_kpi(hours=24)
+
+
 @admin_router.post("/notify-zone-drivers")
 async def notify_zone_drivers(request: Request):
     """Send a 'high demand, go online' push to OFFLINE approved drivers whose last
