@@ -248,6 +248,18 @@ Tableau de bord intelligent : prévision des ventes, produits populaires, tendan
 - **Insights IA** (Gemini 3 Flash, groundé sur les vraies données, fallback déterministe) : `GET /api/merchants/me/ai-insights` → résumé, prévision de ventes, produits phares, recommandations promo, alertes stock.
 - Front : `MerchantAnalytics.js` réécrit (KPIs réels + sélecteur période + graphique + top produits + carte « Insights IA » avec rafraîchissement). Tests : `backend/tests/test_merchant_bi.py` (5/5).
 
+### App marchand — Commandes temps réel (A) + Stock avancé (C) · ✅ LIVRÉ (2026-06-11, testé iter236 — backend 6/6, frontend ~100%)
+**A — Gestion des commandes en temps réel** (`MerchantOrders.js` réécrit) :
+- WebSocket live (`useWebSocket(user.id)`) : événement `new_order` → **son** (`playAlert`) + toast + reload automatique ; `order_status`/`order_driver_assigned` rafraîchissent la file. Indicateur « En direct » + bouton son.
+- Cycle complet en FRANÇAIS : pending → Accepter/Refuser → Commencer la préparation → Marquer prête → « En attente du livreur ». Onglets En attente/En cours/Terminées, badges vitesse + groupée, mise à jour optimiste.
+- Backend : `update_order_status` pose `merchant_managed=True` → l'auto-progress démo **ignore** les commandes pilotées par le marchand (le marchand reprend le contrôle). Menu marchand traduit en FR.
+
+**C — Gestion produits & stock avancée** (`MerchantProducts.js` réécrit) :
+- Cartes de synthèse (Produits / Disponibles / Stock faible / Ruptures) + filtres (Tous/Disponibles/Stock faible/Rupture) + recherche.
+- **Ajustement rapide du stock** (stepper +/- par carte) → `POST /api/merchants/products/{id}/stock` ({delta} ou {stock}, plancher 0, flags low/out). Badges « Stock faible » (amber) / « Rupture » (rouge).
+- Champ **seuil d'alerte** (`low_stock_threshold` ajouté à `ProductCreate`) + **upload de photo** (`/uploads/image`) en plus de l'URL.
+- Tests : `backend/tests/test_merchant_stock.py` (6/6).
+
 ### P2.4 — Réseau social commerce (Module 11) · **L**
 Publications / Stories / Promos / Événements par commerce ; suivre / liker / commenter / partager (inspiration TikTok Shop & Instagram Shopping).
 - Réutilise `news.py`, `NewsFeedPage`.
