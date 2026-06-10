@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Toggle, CreditCard, Money, Wallet, DeviceMobile, Waves, Bank, FloppyDisk, Lightning, Gift } from '@phosphor-icons/react';
+import { Toggle, CreditCard, Money, Wallet, DeviceMobile, Waves, Bank, FloppyDisk, Lightning, Gift, SlidersHorizontal } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -19,6 +19,7 @@ const AdminPaymentMethods = () => {
   const [financeMod, setFinanceMod] = useState({ enabled: true, sbpaygo_base_url: '' });
   const [cashback, setCashback] = useState(null);
   const [reserve, setReserve] = useState(null);
+  const [sla, setSla] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
 
@@ -33,6 +34,8 @@ const AdminPaymentMethods = () => {
       if (cb.ok) setCashback(await cb.json());
       const rv = await fetch(`${API}/api/admin/wallet-reserve-config`, { credentials: 'include' });
       if (rv.ok) setReserve(await rv.json());
+      const sl = await fetch(`${API}/api/payouts/admin/sla-config`, { credentials: 'include' });
+      if (sl.ok) setSla(await sl.json());
     } catch (e) {
       console.error(e);
       toast.error('Erreur de chargement');
@@ -40,6 +43,22 @@ const AdminPaymentMethods = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const saveSla = async (patch) => {
+    setSavingId('sla');
+    try {
+      const res = await fetch(`${API}/api/payouts/admin/sla-config`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setSla(await res.json());
+      toast.success('Délais mis à jour');
+    } catch (e) {
+      toast.error('Échec de la sauvegarde');
+    } finally { setSavingId(null); }
+  };
 
   const saveReserve = async (patch) => {
     setSavingId('reserve');
@@ -283,6 +302,53 @@ const AdminPaymentMethods = () => {
                 />
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Withdrawal SLA / délais */}
+      {sla && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50/40 p-5" data-testid="sla-config-card">
+          <div className="flex items-center gap-2 mb-1">
+            <SlidersHorizontal size={20} weight="duotone" className="text-sky-600" />
+            <h2 className="text-base font-bold text-gray-900">Délais de versement (retraits)</h2>
+          </div>
+          <p className="text-xs text-gray-600 mb-4">Délais estimés affichés au chauffeur/marchand, par zone et rôle. Le retrait express (Europe/DOM-TOM) accélère le versement contre des frais.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { zone: 'europe', k: 'driver_hours', label: 'EU/DOM-TOM chauffeur (h)' },
+              { zone: 'europe', k: 'merchant_hours', label: 'EU/DOM-TOM marchand (h)' },
+              { zone: 'africa', k: 'driver_hours', label: 'Afrique chauffeur (h)' },
+              { zone: 'africa', k: 'merchant_hours', label: 'Afrique marchand (h)' },
+            ].map((f) => (
+              <div key={`${f.zone}-${f.k}`}>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{f.label}</label>
+                <input type="number" min="1" step="1" defaultValue={sla[f.zone]?.[f.k]}
+                  onBlur={(e) => Number(e.target.value) !== sla[f.zone]?.[f.k] && saveSla({ [f.zone]: { [f.k]: Number(e.target.value) } })}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                  data-testid={`sla-${f.zone}-${f.k}-input`} />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-end gap-3 flex-wrap">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={!!sla.express?.enabled}
+                onChange={(e) => saveSla({ express: { enabled: e.target.checked } })}
+                data-testid="sla-express-enabled" />
+              Express activé
+            </label>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Express (h)</label>
+              <input type="number" min="1" step="1" defaultValue={sla.express?.hours}
+                onBlur={(e) => Number(e.target.value) !== sla.express?.hours && saveSla({ express: { hours: Number(e.target.value) } })}
+                className="w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm" data-testid="sla-express-hours-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Frais express (€)</label>
+              <input type="number" min="0" step="0.5" defaultValue={sla.express?.fee}
+                onBlur={(e) => Number(e.target.value) !== sla.express?.fee && saveSla({ express: { fee: Number(e.target.value) } })}
+                className="w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm" data-testid="sla-express-fee-input" />
+            </div>
           </div>
         </div>
       )}

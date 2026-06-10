@@ -614,6 +614,19 @@ async def submit_withdraw_request(request: Request):
             status_code=400,
             detail=f"Montant retirable max {max(0.0, available):.2f} € (réserve de {floor:.0f} € conservée)",
         )
+
+    # Express option + ETA (Phase C2). Express fee is DEDUCTED from the amount.
+    from datetime import timedelta
+    from routes.payouts import withdrawal_quote
+    express = bool(body.get("express"))
+    quote = await withdrawal_quote(user, express=express)
+    fee = round(float(quote.get("fee", 0) or 0), 2)
+    if fee > 0 and amount <= fee:
+        raise HTTPException(status_code=400, detail=f"Le montant doit dépasser les frais express ({fee:.2f} €)")
+    net_amount = round(amount - fee, 2)
+    eta_hours = int(quote.get("hours", 24))
+    eta_at = (datetime.now(timezone.utc) + timedelta(hours=eta_hours)).isoformat()
+
     doc = {
         "id": f"wr_{uuid.uuid4().hex[:10]}",
         "user_id": user["id"],
@@ -622,13 +635,18 @@ async def submit_withdraw_request(request: Request):
         "role": user.get("role"),
         "region": region,
         "amount": amount,
+        "fee": fee,
+        "net_amount": net_amount,
+        "express": bool(quote.get("express")),
+        "eta_hours": eta_hours,
+        "eta_at": eta_at,
         "payout_method_id": pm.get("id"),
         "payout_type": pm.get("type"),
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.admin_withdraw_requests.insert_one(doc)
-    # Freeze amount (held in suspense until admin validates)
+    # Freeze the full amount (fee + net) until admin validates
     await db.wallets.update_one({"user_id": user["id"]}, {"$inc": {"balance": -amount, "pending_withdraw": amount}})
     doc.pop("_id", None)
     # Real-time admin alert with the requester's reliability score

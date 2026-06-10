@@ -296,6 +296,8 @@ async def admin_approve_withdrawal(req_id: str, request: Request):
         raise HTTPException(status_code=400, detail=f"Le montant validé doit être entre 0 et {requested:.2f} €")
 
     diff = round(requested - final, 2)  # refunded to balance
+    fee = round(float(req.get("fee", 0) or 0), 2)
+    net_final = round(max(0.0, final - fee), 2)
     now = _now()
     # Resolve the held amount: clear the full requested from pending_withdraw,
     # refund the (requested - final) difference back to the spendable balance.
@@ -313,18 +315,19 @@ async def admin_approve_withdrawal(req_id: str, request: Request):
         })
     await db.admin_withdraw_requests.update_one(
         {"id": req_id},
-        {"$set": {"status": "approved", "final_amount": final, "adjusted": diff > 0,
-                  "reviewed_by": admin.get("email", "admin"), "reviewed_at": now,
+        {"$set": {"status": "approved", "final_amount": final, "net_amount": net_final,
+                  "adjusted": diff > 0, "reviewed_by": admin.get("email", "admin"), "reviewed_at": now,
                   "admin_note": (body.get("note") or "").strip()[:240]}},
     )
     await create_notification(
         req["user_id"], "withdraw_approved", "Retrait approuvé ✓",
-        f"Votre retrait de {final:.2f} € a été approuvé"
-        + (f" (ajusté depuis {requested:.2f} €)" if diff > 0 else "")
-        + ". Le virement est en cours de traitement.",
-        data={"url": "/wallet", "amount": final},
+        f"Votre retrait de {net_final:.2f} €"
+        + (f" (frais express {fee:.2f} €)" if fee > 0 else "")
+        + (f" — ajusté depuis {requested:.2f} €" if diff > 0 else "")
+        + " a été approuvé. Versement en cours.",
+        data={"url": "/wallet", "amount": net_final},
     )
-    return {"id": req_id, "status": "approved", "final_amount": final, "refunded": diff}
+    return {"id": req_id, "status": "approved", "final_amount": final, "net_amount": net_final, "refunded": diff}
 
 
 @router.post("/admin/withdrawals/{req_id}/reject")
@@ -378,3 +381,184 @@ async def admin_mark_paid(req_id: str, request: Request):
                               f"Votre retrait de {req.get('final_amount', req.get('amount')):.2f} € a été versé.",
                               data={"url": "/wallet"})
     return {"id": req_id, "status": "paid"}
+
+
+# ═══════════════════════ Phase C2 — SLA / délais de versement ═══════════════
+
+SLA_CFG_ID = "default"
+DEFAULT_SLA = {
+    "id": SLA_CFG_ID,
+    "europe": {"driver_hours": 24, "merchant_hours": 48},
+    "africa": {"driver_hours": 12, "merchant_hours": 24},
+    "express": {"enabled": True, "hours": 12, "fee": 1.0},  # express = Europe/DOM-TOM only
+}
+
+
+async def get_sla_config() -> dict:
+    cfg = await db.withdrawal_sla_config.find_one({"id": SLA_CFG_ID}, {"_id": 0})
+    if not cfg:
+        cfg = {**DEFAULT_SLA, "updated_at": _now()}
+        await db.withdrawal_sla_config.insert_one(dict(cfg))
+    merged = {**DEFAULT_SLA, **cfg}
+    for k in ("europe", "africa", "express"):
+        merged[k] = {**DEFAULT_SLA[k], **(cfg.get(k) or {})}
+    return merged
+
+
+def standard_hours(cfg: dict, region: str, role: str) -> int:
+    zone = cfg.get(region if region in ("europe", "africa") else "europe", {})
+    return int(zone.get("merchant_hours" if role == "merchant" else "driver_hours", 24))
+
+
+async def withdrawal_quote(user: dict, express: bool = False) -> dict:
+    """Resolve ETA hours + express fee for a user's withdrawal."""
+    cfg = await get_sla_config()
+    region = get_user_region(user)
+    role = user.get("role")
+    ex = cfg.get("express", {})
+    express_available = bool(ex.get("enabled")) and region == "europe"
+    if express and express_available:
+        return {"hours": int(ex.get("hours", 12)), "fee": float(ex.get("fee", 1) or 0),
+                "express": True, "express_available": True}
+    return {"hours": standard_hours(cfg, region, role), "fee": 0.0, "express": False,
+            "express_available": express_available,
+            "express_hours": int(ex.get("hours", 12)), "express_fee": float(ex.get("fee", 1) or 0)}
+
+
+@router.get("/sla")
+async def my_sla(request: Request):
+    user = await get_current_user(request)
+    cfg = await get_sla_config()
+    region = get_user_region(user)
+    role = user.get("role")
+    ex = cfg.get("express", {})
+    return {
+        "region": region,
+        "role": role,
+        "standard_hours": standard_hours(cfg, region, role),
+        "express_available": bool(ex.get("enabled")) and region == "europe",
+        "express_hours": int(ex.get("hours", 12)),
+        "express_fee": float(ex.get("fee", 1) or 0),
+    }
+
+
+@router.get("/admin/sla-config")
+async def admin_get_sla(request: Request):
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    return await get_sla_config()
+
+
+@router.put("/admin/sla-config")
+async def admin_update_sla(request: Request):
+    await require_role(request, ["admin"], permission=_PM_PERM)
+    body = await request.json()
+    cfg = await get_sla_config()
+    update = {}
+    for zone in ("europe", "africa"):
+        if isinstance(body.get(zone), dict):
+            z = dict(cfg[zone])
+            for k in ("driver_hours", "merchant_hours"):
+                if body[zone].get(k) is not None:
+                    try:
+                        z[k] = max(1, int(float(body[zone][k])))
+                    except (TypeError, ValueError):
+                        pass
+            update[zone] = z
+    if isinstance(body.get("express"), dict):
+        e = dict(cfg["express"])
+        if body["express"].get("enabled") is not None:
+            e["enabled"] = bool(body["express"]["enabled"])
+        for k, cast, lo in (("hours", int, 1), ("fee", float, 0)):
+            if body["express"].get(k) is not None:
+                try:
+                    e[k] = max(lo, cast(float(body["express"][k])))
+                except (TypeError, ValueError):
+                    pass
+        update["express"] = e
+    update["updated_at"] = _now()
+    await db.withdrawal_sla_config.update_one({"id": SLA_CFG_ID}, {"$set": update}, upsert=True)
+    return await get_sla_config()
+
+
+# ═══════════════════════ Phase C2 — Jumelage de comptes ═════════════════════
+
+def _link_view(link: dict, me: str) -> dict:
+    other_is_target = link["requester_id"] == me
+    return {
+        "id": link["id"],
+        "status": link["status"],
+        "direction": "outgoing" if link["requester_id"] == me else "incoming",
+        "other_name": link["target_name"] if other_is_target else link["requester_name"],
+        "other_phone": link["target_phone"] if other_is_target else link["requester_phone"],
+        "other_role": link.get("target_role") if other_is_target else link.get("requester_role"),
+        "created_at": link.get("created_at"),
+    }
+
+
+@router.get("/links")
+async def my_links(request: Request):
+    user = await get_current_user(request)
+    items = await db.account_links.find(
+        {"$or": [{"requester_id": user["id"]}, {"target_id": user["id"]}]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return {"links": [_link_view(x, user["id"]) for x in items]}
+
+
+@router.post("/link/request")
+async def request_link(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    ident = (body.get("identifier") or "").strip()
+    if not ident:
+        raise HTTPException(status_code=400, detail="E-mail ou téléphone requis")
+    target = await db.users.find_one({"$or": [{"email": ident.lower()}, {"phone": ident}]})
+    if not target:
+        raise HTTPException(status_code=404, detail="Aucun compte trouvé avec cet identifiant")
+    if target["id"] == user["id"]:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas vous lier à vous-même")
+    existing = await db.account_links.find_one({"$or": [
+        {"requester_id": user["id"], "target_id": target["id"]},
+        {"requester_id": target["id"], "target_id": user["id"]},
+    ]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Une liaison existe déjà ou est en attente")
+    doc = {
+        "id": f"lnk_{uuid.uuid4().hex[:12]}",
+        "requester_id": user["id"], "requester_name": user.get("name"), "requester_phone": user.get("phone"),
+        "requester_role": user.get("role"),
+        "target_id": target["id"], "target_name": target.get("name"), "target_phone": target.get("phone"),
+        "target_role": target.get("role"),
+        "status": "pending", "created_at": _now(),
+    }
+    await db.account_links.insert_one(doc)
+    await create_notification(target["id"], "account_link", "Demande de jumelage de compte 🔗",
+                              f"{user.get('name', 'Un utilisateur')} souhaite lier votre compte pour faciliter les transferts.",
+                              data={"url": "/wallet/linked-accounts"})
+    return {"id": doc["id"], "status": "pending"}
+
+
+@router.post("/link/{link_id}/accept")
+async def accept_link(link_id: str, request: Request):
+    user = await get_current_user(request)
+    link = await db.account_links.find_one({"id": link_id}, {"_id": 0})
+    if not link:
+        raise HTTPException(status_code=404, detail="Liaison introuvable")
+    if link["target_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Seul le destinataire peut confirmer")
+    await db.account_links.update_one({"id": link_id}, {"$set": {"status": "accepted", "accepted_at": _now()}})
+    await create_notification(link["requester_id"], "account_link", "Jumelage confirmé ✓",
+                              f"{user.get('name', 'Le compte')} a confirmé la liaison. Vous pouvez désormais transférer facilement.",
+                              data={"url": "/wallet/linked-accounts"})
+    return {"id": link_id, "status": "accepted"}
+
+
+@router.post("/link/{link_id}/remove")
+async def remove_link(link_id: str, request: Request):
+    user = await get_current_user(request)
+    link = await db.account_links.find_one({"id": link_id}, {"_id": 0})
+    if not link:
+        raise HTTPException(status_code=404, detail="Liaison introuvable")
+    if user["id"] not in (link["requester_id"], link["target_id"]):
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    await db.account_links.delete_one({"id": link_id})
+    return {"id": link_id, "status": "removed"}

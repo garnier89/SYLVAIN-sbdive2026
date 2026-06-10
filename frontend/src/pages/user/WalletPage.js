@@ -226,6 +226,16 @@ const WalletPage = () => {
           </button>
         )}
 
+        {/* Linked accounts */}
+        <button
+          onClick={() => navigate('/wallet/linked-accounts')}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-white border border-gray-200 text-sm font-semibold text-gray-700"
+          data-testid="linked-accounts-link"
+        >
+          <span>🔗 Comptes liés</span>
+          <span className="text-gray-300">›</span>
+        </button>
+
         {/* Cashback advert + monthly counter */}
         {cashbackCfg && (
           <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5" data-testid="cashback-banner">
@@ -391,6 +401,7 @@ const WalletPage = () => {
       {showSend && (
         <SendModal
           balance={wallet.balance || 0}
+          initialRecipient={searchParams.get('to') || ''}
           onClose={() => { setShowSend(false); if (searchParams.get('action')) setSearchParams({}); }}
           onDone={() => { setShowSend(false); if (searchParams.get('action')) setSearchParams({}); loadWallet(); }}
         />
@@ -414,7 +425,18 @@ const WalletPage = () => {
 const WithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sla, setSla] = useState(null);
+  const [express, setExpress] = useState(false);
   const num = parseFloat(amount) || 0;
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/payouts/sla`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null)).then(setSla).catch(() => {});
+  }, []);
+
+  const fee = express && sla?.express_available ? (sla.express_fee || 0) : 0;
+  const net = Math.max(0, num - fee);
+  const etaHours = express && sla?.express_available ? sla?.express_hours : sla?.standard_hours;
 
   const submit = async () => {
     if (num <= 0) return;
@@ -423,7 +445,7 @@ const WithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => 
       const res = await fetch(`${API_URL}/api/wallet/withdraw-request`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: num }),
+        body: JSON.stringify({ amount: num, express }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -436,7 +458,7 @@ const WithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => 
         }
         throw new Error(msg);
       }
-      toast.success(`Demande de retrait de ${num.toFixed(2)} € envoyée (en attente de validation)`);
+      toast.success(`Demande de retrait de ${net.toFixed(2)} € envoyée (en attente de validation)`);
       onDone();
     } catch (e) {
       toast.error(e.message || 'Échec du retrait');
@@ -457,12 +479,28 @@ const WithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => 
         <label className="text-xs font-semibold text-gray-700 mb-1 block">Montant (€)</label>
         <input type="number" min="1" max={withdrawable} step="1" value={amount} onChange={(e) => setAmount(e.target.value)}
           placeholder="0.00" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm mb-3" data-testid="withdraw-amount-input" />
-        <button onClick={() => navigate('/wallet/payout-method')} className="text-xs text-indigo-600 font-semibold mb-4" data-testid="manage-payout-method">
+
+        {/* Express option */}
+        {sla?.express_available && (
+          <button onClick={() => setExpress(!express)} data-testid="withdraw-express-toggle"
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border mb-3 transition-colors ${express ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}>
+            <span className="text-sm font-semibold text-gray-800">⚡ Express (~{sla.express_hours}h)</span>
+            <span className="text-xs text-gray-500">+{(sla.express_fee || 0).toFixed(2)} €</span>
+          </button>
+        )}
+
+        {/* Estimated delay + net */}
+        <div className="bg-gray-50 rounded-xl p-3 mb-4 text-xs text-gray-600 space-y-1" data-testid="withdraw-eta">
+          {etaHours != null && <div>🕒 Versement estimé sous <b className="text-gray-900">~{etaHours}h</b></div>}
+          {fee > 0 && <div>Frais express : −{fee.toFixed(2)} € · vous recevrez <b className="text-gray-900">{net.toFixed(2)} €</b></div>}
+        </div>
+
+        <button onClick={() => navigate('/wallet/payout-method')} className="text-xs text-indigo-600 font-semibold mb-4 block" data-testid="manage-payout-method">
           Gérer mon moyen de retrait (RIB / Mobile Money) →
         </button>
         <button onClick={submit} disabled={loading || num <= 0 || num > withdrawable}
           className="w-full h-12 rounded-xl bg-gray-900 text-white font-bold disabled:opacity-60" data-testid="withdraw-confirm-btn">
-          {loading ? 'Envoi…' : `Demander ${num.toFixed(2)} €`}
+          {loading ? 'Envoi…' : `Demander ${net.toFixed(2)} €`}
         </button>
         <p className="text-[11px] text-gray-400 text-center mt-2">Le montant est gelé jusqu'à validation par l'administrateur.</p>
       </div>
@@ -471,8 +509,8 @@ const WithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => 
 };
 
 // ============ SendModal (P2P transfer by phone) ============
-const SendModal = ({ balance, onClose, onDone }) => {
-  const [recipient, setRecipient] = useState('');
+const SendModal = ({ balance, initialRecipient, onClose, onDone }) => {
+  const [recipient, setRecipient] = useState(initialRecipient || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);

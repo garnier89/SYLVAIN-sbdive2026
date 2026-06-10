@@ -3,6 +3,7 @@ import { Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import ServiceBookingFlow from '../components/ServiceBookingFlow';
 import PayoutMethodPage from '../pages/user/PayoutMethodPage';
+import LinkedAccountsPage from '../pages/user/LinkedAccountsPage';
 import {
   LandingPage, ClientWelcome, LoginPage, EmailLoginPage, AdminLoginPage,
   UserHome, RideBookingPage, RideChoosePage, RideTrackingPage, RideReceiptPage,
@@ -99,6 +100,7 @@ export function clientRoutes(user) {
       <Route path="/giftcards" element={<ProtectedRoute allowedRoles={['user']}><GiftCardsPage /></ProtectedRoute>} />
       <Route path="/tracking" element={<ProtectedRoute allowedRoles={['user']}><TrackingServicePage /></ProtectedRoute>} />
       <Route path="/wallet/payout-method" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><PayoutMethodPage /></ProtectedRoute>} />
+      <Route path="/wallet/linked-accounts" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><LinkedAccountsPage /></ProtectedRoute>} />
       <Route path="/finance" element={<Navigate to="/wallet" replace />} />
       <Route path="/ride/:rideId/waybill" element={<ProtectedRoute allowedRoles={['user', 'driver']}><WaybillPage /></ProtectedRoute>} />
       <Route path="/ride/:rideId/receipt" element={<ProtectedRoute allowedRoles={['user']}><RideReceiptPage /></ProtectedRoute>} />

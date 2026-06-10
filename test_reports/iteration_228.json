@@ -1,0 +1,28 @@
+{
+  "summary": "Iter 228 PHASE C2 — SLA/ETA + Express withdrawal + Jumelage fully verified: 12/12 backend pytest pass + driver wallet withdraw modal (ETA block + express toggle +1€ + net 29€ + Demander 29.00 €) + linked-accounts page (toast + pending merchant entry) + admin /admin/payment-methods Délais de versement card (all 7 inputs rendered with correct defaults, edit+blur triggers 'Délais mis à jour' toast).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter228_payouts_c2.py",
+    "/app/test_reports/pytest/iter228_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/payouts.py SLA: defaults match spec (europe driver24/merchant48, africa driver12/merchant24, express enabled/12h/1€). get_sla_config() inserts defaults on first call AND merges per-zone keys so partial PUT preserves untouched fields. PUT validation casts driver_hours/merchant_hours to int>=1, express.fee to float>=0, express.hours to int>=1, express.enabled to bool (skips invalid input silently).",
+    "routes/payouts.py withdrawal_quote(): when express requested but region!=europe OR ex.enabled=False, returns standard hours with fee=0 and express=False (graceful degradation, never 4xx).",
+    "routes/misc.py /wallet/withdraw-request: express fee deducted from amount, net_amount = amount - fee; full amount frozen (balance -= amount, pending_withdraw += amount); response includes eta_hours, eta_at (ISO), express bool, fee, net_amount, payout_method_id, payout_type, status='pending'. Verified guard: fee>0 AND amount<=fee → 400.",
+    "routes/payouts.py admin_approve_withdrawal: stores both final_amount AND net_amount=max(0, final-fee); notification text includes net amount and express fee (when fee>0).",
+    "routes/payouts.py reject: refunds the FULL requested amount (incl fee) — refunded == amount, verified by wallet balance delta in test_express_freezes_full_amount.",
+    "routes/payouts.py jumelage: link/request validates self-link (400), duplicate (400 — 'Un lien existe déjà'), unknown identifier (404), notifies target. /links returns direction='outgoing'/'incoming' from caller's perspective. accept restricted to target_id; remove allowed to either party. Notifications sent on each transition.",
+    "Frontend WalletPage withdraw modal: shows 'Retirable : X €' + 'réserve N € conservée' header, withdraw-eta block '🕒 Versement estimé sous ~24h' (updates to ~12h when express toggled), withdraw-express-toggle '⚡ Express (~12h) +1.00 €' that flips active state, and confirm button text updates to 'Demander 29.00 €' (net) when express on. Excellent UX.",
+    "Frontend LinkedAccountsPage: input + 'Lier' button, success toast 'Demande de jumelage envoyée', pending entry shows 'Test Merchant · merchant · En attente de confirmation' with clock+trash icons. Clean.",
+    "Frontend AdminPaymentMethods Délais card: 4 zone-hour inputs (europe/africa × driver/merchant), express-enabled checkbox, express-hours and express-fee inputs all with correct defaults. onBlur saves via PUT /payouts/admin/sla-config with shallow diff payload."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter228_payouts_c2.py (new pytest suite — 12 tests, all passing)"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (driver wallet modal + linked-accounts page + admin SLA card all verified)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; jean.dupont@demo.sb / Driver123! (europe, RIB pm_0a67cb4f3692 approved) ; merchant@example.com / Merchant123!. Backend login returns 'access_token' (not 'token'). Programmatic login via POST /api/auth/login + localStorage.setItem('access_token', ...) bypasses the email/password modal.",
+  "seed_data_creation": "Driver wallet credited ~450€ over the run (200+100+100+50). 5 withdraw_requests created: 1 standard (20€, rejected for cleanup), 1 express (30€, approved+net29 stored), 1 express (25€, rejected to verify full refund), 1 africa attempt. Driver region toggled europe→africa→europe (reverted in finally). SLA config reset to defaults at module start AND teardown (autouse fixture). 1 account_link driver→merchant created via UI and removed in teardown loop; the API test creates+accepts+removes its own.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase C2 fully green. /api/wallet (NOT /api/wallet/balance — that's 404) returns {balance, reserve, pending_withdraw, can_withdraw}. Admin wallet credit endpoint is POST /api/admin/users/{user_id}/wallet/credit with body {amount, note} — requires permission 'billing.edit'. SLA endpoints under /api/payouts/admin/sla-config (GET/PUT, perm billing.withdrawals.approve) accept partial nested dicts and merge with existing config. Express only available when region='europe' AND sla.express.enabled=True; otherwise the response of withdrawal_quote silently falls back to standard (express=False, fee=0). The withdraw_min config is enforced before the express-fee guard, so to test fee guard use amount<min — both error paths return 400. Account links direction is computed per-viewer so the same doc appears as 'outgoing' for requester and 'incoming' for target. SLA defaults restored at end of pytest run via autouse fixture."
+}
