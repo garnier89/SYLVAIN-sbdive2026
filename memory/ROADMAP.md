@@ -64,7 +64,7 @@
 - ✅ **Aide & supplément bagages** (luggage_fee) + **navette partagée** (shuttle_discount_pct) appliqués au tarif à la création.
 - ✅ **Alerte admin** sur chaque réservation aéroport (`notify_admins`) + **notifs client/chauffeur** sur changement de vol.
 - ✅ Affichage chauffeur : badge ✈️ + n° vol + terminal + point de RDV + statut vol (`driver-airport-info`). Affichage client : `FlightWatchBanner` (suivi + état recherche + tracking) + chip vol sur `/scheduled-rides`.
-- ⏳ NON fait (backlog) : attribution prioritaire chauffeurs certifiés (user a choisi "tous éligibles"), accueil pancarte VIP, intégration d'une vraie API de vols (migration depuis le mode simulé quand clé fournie).
+- ⏳ NON fait (backlog) : attribution prioritaire chauffeurs certifiés (user a choisi "tous éligibles"), ~~accueil pancarte VIP~~ ✅ **PANCARTE VIP LIVRÉE (2026-06-11, testé iter234 — backend 4/4, frontend 100%)** : bouton « Pancarte VIP — accueil client » dans la carte aéroport chauffeur (`DriverRideFlow.jsx`, phases accepted/arriving) → écran plein écran fort contraste (`AirportVipSign.jsx`) avec logo SB + message d'accueil personnalisable + nom du client (via `passenger_name` déjà exposé par `enrich_passenger_info`) + sous-titre vol/terminal, tous **éditables** (bouton Modifier), auto-rotation paysage. Test : `backend/tests/test_airport_vip_passenger_name.py`.
 
 ### 🕒 Module "Mise à disposition" (réserver un chauffeur+véhicule pour une durée) — ✅ LIVRÉ (2026-06-10, testé iter223)
 - ✅ Forfaits horaires 2h/4h/8h + **Journée 10h/100km** (configurables admin) avec tarifs de dépassement (heure sup + km sup).

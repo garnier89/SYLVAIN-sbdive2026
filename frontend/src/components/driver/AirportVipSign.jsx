@@ -132,8 +132,8 @@ export const AirportVipSign = ({ ride, onClose }) => {
               </p>
             ) : null}
             <h1
-              className="text-white font-black leading-tight tracking-tight"
-              style={{ fontSize: 'clamp(2.5rem, 11vw, 6rem)', textShadow: '0 2px 24px rgba(255,255,255,0.18)' }}
+              className="text-white font-black leading-tight tracking-tight max-w-[92%] break-words"
+              style={{ fontSize: `clamp(2.25rem, ${name.length > 14 ? 8 : 12}vmin, ${name.length > 14 ? 4.5 : 6}rem)`, textShadow: '0 2px 24px rgba(255,255,255,0.18)' }}
               data-testid="vip-sign-name"
             >
               {name}
