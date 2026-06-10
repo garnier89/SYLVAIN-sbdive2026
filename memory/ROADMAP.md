@@ -125,10 +125,17 @@ Connecter les commandes marketplace au dispatch coursier + suivi temps réel.
 - Réutilise `auto_dispatch.py`, `parcels.py`, tracking WebSocket existant.
 - (Déjà au backlog P3 initial — remonté en P0 car cœur de la Super App.)
 
-### P0.3 — Checkout unifié SB Pay (Module 8) · **S/M**
+### P0.3 — Checkout unifié SB Pay (Module 8) · **S/M** — ✅ LIVRÉ (2026-06-10, testé iter224)
 Paiement marketplace/VTC/livraison via le wallet + cashback + application coupons à la commande.
 - Réutilise `wallet.py`, `payments.py` (Stripe test mappé), `coupons.py`.
 - Ajouts : cashback à la commande, historique unifié.
+- ✅ **UNIFICATION** : `db.wallets` est désormais LE portefeuille unique « SB Pay ». Les soldes `db.sbpaygo_wallets` ont été migrés (`app_migrations.sbpay_unified_v1`). `/finance` redirige vers `/wallet`. Page unique « SB Pay » (`WalletPage.js`).
+- ✅ **Recharge réelle Stripe** : montants fixes 10/20/50/100 € + **montant libre** (validé serveur 1–5000 €) via `POST /api/payments/checkout` (package_id OU custom_amount). Recharge simulée (`/finance/sbpaygo/topup`) désactivée (400).
+- ✅ **P2P « Envoyer de l'argent »** + **pay-ride** rebranchés sur `db.wallets`. Pharmacy/Real-Estate `payment-methods` exposent un seul « SB Pay ».
+- ⏳ Backlog : cashback automatique à la commande, libellés docstrings backend « SB PayGo »→« SB Pay » (cosmétique).
+
+### P0.3b — Visibilité Livraison Instantanée (Module 3) · **S** — ✅ LIVRÉ (2026-06-10, testé iter224)
+- Carte héro « Livraison Instantanée » (gradient indigo→orange, badge EXPRESS · DÈS 30 MIN, CTA) montée en haut de l'accueil (`UserHome.js`, `data-testid=instant-delivery-hero`) → `/parcel`. Toujours visible (hors CMS section order).
 
 ### P0.4 — Fidélité multi-verticale SB Rewards (Module 9) · **S**
 Cumul de points sur Courses + Livraisons + Marketplace + Parrainage, catalogue de récompenses (réductions, livraison gratuite, bons).
