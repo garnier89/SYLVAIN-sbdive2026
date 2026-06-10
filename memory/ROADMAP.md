@@ -134,7 +134,26 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
 - ✅ **P2P « Envoyer de l'argent »** + **pay-ride** rebranchés sur `db.wallets`. Pharmacy/Real-Estate `payment-methods` exposent un seul « SB Pay ».
 - ⏳ Backlog : cashback automatique à la commande, libellés docstrings backend « SB PayGo »→« SB Pay » (cosmétique).
 
-### P0.4 — Cashback automatique SB Pay · **S/M** — ✅ LIVRÉ (2026-06-10, testé iter225 — 12/12)
+### P0.5 — Cashback mensuel + Réserve portefeuille & Zones · ✅ LIVRÉ (2026-06-10, testé iter226 — 10/10)
+**Phase A — Cashback mensuel** : `GET /api/finance/cashback/summary` (this_month/all_time), compteur sur `/wallet`, boucle `cashback_monthly_loop` (notification récap mensuelle idempotente via `db.cashback_monthly`).
+**Phase B — Réserve & Région** (`core/wallet_reserve.py`) :
+- Réserve non-retirable **offerte à l'activation** + plancher permanent : chauffeur **50 € (Europe/DOM-TOM) / 2 € (Afrique)**, marchand **1 €**. Crédit idempotent (`wallets.reserve_credited`).
+- **Région** dérivée du pays (Afrique vs Europe/DOM-TOM) + override admin (`PUT /api/admin/users/{id}/region`).
+- `GET /api/wallet` renvoie `reserve / withdrawable / can_withdraw / pending_withdraw`.
+- Retrait : **clients bloqués (403)**, chauffeurs/marchands seulement, jamais sous le plancher, gel du montant en `pending_withdraw`.
+- Admin : `GET/PUT /api/admin/wallet-reserve-config` + carte « Réserve portefeuille SB Pay » dans `/admin/payment-methods`.
+
+### P0.6 — Retraits avancés + KYC paiement (Phase C) · ⏳ À FAIRE (P1)
+- Moyens de retrait : **RIB** (Europe/DOM-TOM, doit appartenir à la personne/société) + **selfie de vérification** + documents → **validation admin** avant tout retrait ; **Mobile Money** (Afrique : Orange Money, MTN, Wave, SBPAYGO, Moov).
+- Demande → en suspens → l'admin examine le compte et **peut ajuster/réduire le montant** (erreurs/réclamations) → validation → débit ; remboursement de la différence si réduit, ou du total si rejeté.
+- **Délais éditables admin** : EU/DOM-TOM marchands 48h / chauffeurs 24h ; Afrique chauffeurs 12h / marchands 24h. **Express 12h** (EU/DOM-TOM) avec **frais 1 € éditables**.
+- Marchands éligibles au retrait ; **jumelage** compte client↔marchand.
+- Versement réel : marqué payé manuellement en v1 (API Orange/MTN/Wave/Stripe Payouts branchables avec identifiants).
+
+### P0.7 — Paiement « sans contact » (Phase D) · ⏳ À FAIRE (P1)
+- Le chauffeur saisit un montant dans SB Pay → génère **QR + code 6 chiffres** → le client scanne/saisit, s'authentifie, paie via **solde SB Pay ou carte (Stripe)** → crédité au chauffeur/marchand. (NFC natif reporté à une future app native.)
+
+
 Crédite automatiquement un % du montant payé sur le solde SB Pay, pour tous les services.
 - Moteur `core/cashback.py` : `get_cashback_config()` + `award_cashback()` idempotent (index unique `cashback_ledger.key = service:ref_id`), buckets `sbpay/card/cash`.
 - **Admin-configurable** : taux (défaut 2 %, clampé 0–50), montant minimum (défaut 5 €), plafond/transaction, moyens éligibles, activer/désactiver — `GET/PUT /api/admin/cashback` + carte `AdminPaymentMethods.js`.
