@@ -1,6 +1,7 @@
 import React from 'react';
 import { Route } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import AdminPayouts from '../pages/admin/AdminPayouts';
 import {
   AdminLayout, AdminDashboard, AdminUsers, AdminUserEdit, AdminDrivers, AdminRides,
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
@@ -99,7 +100,8 @@ export function adminRoutes() {
       <Route path="sms-templates" element={<AdminSmsTemplates />} />
       <Route path="sos-requests" element={<AdminSosRequests />} />
       <Route path="contact-requests" element={<AdminContactRequests />} />
-      <Route path="withdraw-requests" element={<AdminWithdrawRequests />} />
+      <Route path="withdraw-requests" element={<AdminPayouts />} />
+      <Route path="payout-methods" element={<AdminPayouts />} />
       <Route path="order-help-requests" element={<AdminOrderHelpRequests />} />
       <Route path="trip-help-requests" element={<AdminTripHelpRequests />} />
       <Route path="push-notifications" element={<AdminPushNotifications />} />

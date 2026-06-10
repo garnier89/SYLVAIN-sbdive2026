@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { walletAPI, couponAPI } from '../../services/api';
 import {
   Wallet as WalletIcon, Plus, ArrowLeft,
-  ArrowUp, ArrowDown, Gift, Tag, Coins, PaperPlaneTilt, X, ShieldCheck
+  ArrowUp, ArrowDown, Gift, Tag, Coins, PaperPlaneTilt, X, ShieldCheck, Bank
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -27,6 +27,7 @@ const WalletPage = () => {
   const [topupLoading, setTopupLoading] = useState(false);
   const [showTopup, setShowTopup] = useState(false);
   const [showSend, setShowSend] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
   const [message, setMessage] = useState('');
   const [coupons, setCoupons] = useState([]);
   const [showCoupons, setShowCoupons] = useState(false);
@@ -214,6 +215,17 @@ const WalletPage = () => {
           </div>
         </div>
 
+        {/* Withdraw (drivers & merchants) */}
+        {wallet.can_withdraw && (
+          <button
+            onClick={() => setShowWithdraw(true)}
+            className="w-full h-12 rounded-2xl bg-gray-900 text-white font-bold flex items-center justify-center gap-2"
+            data-testid="open-withdraw-btn"
+          >
+            <Bank size={18} weight="fill" /> Retirer vers mon compte
+          </button>
+        )}
+
         {/* Cashback advert + monthly counter */}
         {cashbackCfg && (
           <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5" data-testid="cashback-banner">
@@ -383,6 +395,77 @@ const WalletPage = () => {
           onDone={() => { setShowSend(false); if (searchParams.get('action')) setSearchParams({}); loadWallet(); }}
         />
       )}
+
+      {/* Withdraw modal (drivers & merchants) */}
+      {showWithdraw && (
+        <WithdrawModal
+          withdrawable={wallet.withdrawable || 0}
+          reserve={wallet.reserve || 0}
+          navigate={navigate}
+          onClose={() => setShowWithdraw(false)}
+          onDone={() => { setShowWithdraw(false); loadWallet(); }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ============ WithdrawModal ============
+const WithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => {
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const num = parseFloat(amount) || 0;
+
+  const submit = async () => {
+    if (num <= 0) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/wallet/withdraw-request`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: num }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        const msg = err.detail || 'Échec';
+        if (msg.includes('moyen de retrait')) {
+          toast.error(msg);
+          onClose();
+          navigate('/wallet/payout-method');
+          return;
+        }
+        throw new Error(msg);
+      }
+      toast.success(`Demande de retrait de ${num.toFixed(2)} € envoyée (en attente de validation)`);
+      onDone();
+    } catch (e) {
+      toast.error(e.message || 'Échec du retrait');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50" data-testid="withdraw-modal">
+      <div className="w-full max-w-[430px] bg-white rounded-t-3xl sm:rounded-3xl p-6 mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold flex items-center gap-2"><Bank size={20} weight="duotone" className="text-gray-800" /> Retirer mes gains</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="withdraw-close"><X size={14} /></button>
+        </div>
+        <div className="mb-4 text-xs text-gray-500">
+          Retirable : <b className="text-gray-900">{withdrawable.toFixed(2)} €</b>
+          {reserve > 0 && <span> · réserve {reserve.toFixed(0)} € conservée</span>}
+        </div>
+        <label className="text-xs font-semibold text-gray-700 mb-1 block">Montant (€)</label>
+        <input type="number" min="1" max={withdrawable} step="1" value={amount} onChange={(e) => setAmount(e.target.value)}
+          placeholder="0.00" className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm mb-3" data-testid="withdraw-amount-input" />
+        <button onClick={() => navigate('/wallet/payout-method')} className="text-xs text-indigo-600 font-semibold mb-4" data-testid="manage-payout-method">
+          Gérer mon moyen de retrait (RIB / Mobile Money) →
+        </button>
+        <button onClick={submit} disabled={loading || num <= 0 || num > withdrawable}
+          className="w-full h-12 rounded-xl bg-gray-900 text-white font-bold disabled:opacity-60" data-testid="withdraw-confirm-btn">
+          {loading ? 'Envoi…' : `Demander ${num.toFixed(2)} €`}
+        </button>
+        <p className="text-[11px] text-gray-400 text-center mt-2">Le montant est gelé jusqu'à validation par l'administrateur.</p>
+      </div>
     </div>
   );
 };

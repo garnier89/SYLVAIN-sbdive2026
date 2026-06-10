@@ -594,8 +594,17 @@ async def submit_withdraw_request(request: Request):
     wmin = float(cfg.get("withdraw_min", 10) or 10)
     if amount < wmin:
         raise HTTPException(status_code=400, detail=f"Minimum {wmin:.0f} EUR")
-    if not iban:
-        raise HTTPException(status_code=400, detail="IBAN required")
+
+    # Require an APPROVED payout method matching the user's region (KYC gate).
+    region = get_user_region(user)
+    pm = await db.payout_methods.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not pm or pm.get("status") != "approved":
+        raise HTTPException(status_code=400, detail="Veuillez enregistrer et faire valider un moyen de retrait avant de demander un retrait.")
+    if region == "europe" and pm.get("type") != "rib":
+        raise HTTPException(status_code=400, detail="Un RIB validé est requis pour cette zone.")
+    if region == "africa" and pm.get("type") != "mobile_money":
+        raise HTTPException(status_code=400, detail="Un compte Mobile Money validé est requis pour cette zone.")
+
     wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
     balance = float(wallet.get("balance", 0) or 0)
     pending = float(wallet.get("pending_withdraw", 0) or 0)
@@ -611,9 +620,10 @@ async def submit_withdraw_request(request: Request):
         "name": user.get("name", "User"),
         "phone": user.get("phone", ""),
         "role": user.get("role"),
-        "region": get_user_region(user),
+        "region": region,
         "amount": amount,
-        "iban": iban,
+        "payout_method_id": pm.get("id"),
+        "payout_type": pm.get("type"),
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -621,5 +631,18 @@ async def submit_withdraw_request(request: Request):
     # Freeze amount (held in suspense until admin validates)
     await db.wallets.update_one({"user_id": user["id"]}, {"$inc": {"balance": -amount, "pending_withdraw": amount}})
     doc.pop("_id", None)
+    # Real-time admin alert with the requester's reliability score
+    try:
+        from routes.payouts import account_score, _notify_admins
+        sc = await account_score(user)
+        await _notify_admins(
+            "Nouvelle demande de retrait 💶",
+            f"{user.get('name', 'Compte')} ({user.get('role')}) demande {amount:.2f} €. "
+            f"Note {sc.get('rating')}, acceptation {sc.get('acceptance_rate')}%, "
+            f"annulation {sc.get('cancellation_rate')}%, réclamations {sc.get('open_complaints')}.",
+            {"url": "/admin/payouts", "type": "withdraw_request"},
+        )
+    except Exception:
+        pass
     return doc
 

@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, BellRinging, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard
 } from '@phosphor-icons/react';
 
 // Dashboard organisé en grandes familles : Pilotage, Membres, Services,
@@ -146,6 +146,7 @@ const sidebarConfig = [
     items: [
       { icon: Wallet, label: 'Demandes portefeuille', path: '/admin/wallet-requests' },
       { icon: HandCoins, label: 'Demandes de retrait', path: '/admin/withdraw-requests' },
+      { icon: IdentificationCard, label: 'Moyens de retrait (KYC)', path: '/admin/payout-methods' },
       { icon: HandCoins, label: 'Versements', path: '/admin/settlements' },
       { icon: ChartBar, label: 'Rapports', key: 'reports', children: [
         { label: 'Rapport des revenus', path: '/admin/revenue' },
