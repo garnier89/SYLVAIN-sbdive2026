@@ -180,9 +180,13 @@ Crédite automatiquement un % du montant payé sur le solde SB Pay, pour tous le
 - UX : ligne « Cashback » verte dans l'historique SB Pay, bannière taux sur `/wallet`, carte + toast cashback sur le reçu de course.
 - 🐞 **2 bugs post-unification corrigés** : complétion course + `core/payments.py debit_with_fallback` débitaient encore `sbpaygo_wallets` (vide) → désormais `db.wallets`.
 
-### P0.4 — Fidélité multi-verticale SB Rewards (Module 9) · **S**
-Cumul de points sur Courses + Livraisons + Marketplace + Parrainage, catalogue de récompenses (réductions, livraison gratuite, bons).
-- Réutilise `loyalty.py`, `referral.py` ; brancher les events marketplace/livraison.
+### P0.4 — Fidélité multi-verticale SB Rewards (Module 9) · ✅ LIVRÉ (2026-06-10, pytest 5/5 + frontend iter230)
+- **Gain de points multi-verticale** : Courses (déjà), **Commandes food/marketplace** (`orders.py`, idempotent `loyalty_awarded`), **Colis/coursier** (`parcels.py`), **Parrainage** (déjà via `referral.py`). Points par verticale configurables (`points_per_order`, `points_per_delivery`).
+- **Catalogue de récompenses** (`loyalty.py`) : `GET /api/loyalty/rewards`, `POST /api/loyalty/redeem`, `GET /api/loyalty/my-redemptions`. Récompenses : **crédit SB Pay** (wallet_credit) ou **coupon personnel** (SBREWARD-xxx). Gating par palier (`min_tier`).
+- **Points de statut préservés** : on dépense `available_points = points − spent_points` ; le palier reste basé sur les points cumulés (lifetime). Anti double-dépense via garde atomique `$expr`.
+- **Coupons-récompense privés** : `coupons.py` filtre les coupons ciblés (`user_id`) → invisibles/inutilisables par les autres.
+- Front : section « Récompenses » dans `LoyaltyPage.jsx` + carte « Encaissé aujourd'hui » (contactless + pourboires) sur `DriverEarningsPage.js` (endpoint `GET /api/contactless/driver/today-summary`). Tests : `backend/tests/test_loyalty_rewards.py`.
+- ⏳ Reste (backlog) : UI admin pour **éditer le catalogue de récompenses** (le backend l'accepte déjà via `PUT /api/loyalty/admin/config` champ `rewards` ; valeurs par défaut sensées en place).
 
 ---
 

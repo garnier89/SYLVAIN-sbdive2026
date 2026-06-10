@@ -90,4 +90,5 @@ def test_contactless_card_confirmation_credits_payee_net_and_is_idempotent():
             await db.contactless_payments.delete_many({"id": req_id})
             await db.payment_transactions.delete_many({"session_id": session_id})
 
-    asyncio.run(scenario())
+    from conftest import run_async
+    run_async(scenario())

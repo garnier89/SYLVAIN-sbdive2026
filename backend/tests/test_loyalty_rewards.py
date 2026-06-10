@@ -139,4 +139,5 @@ def test_award_completion_points_multivertical():
             assert "order_completed" in reasons and "delivery_completed" in reasons
         finally:
             await db.loyalty.delete_many({"user_id": u})
-    asyncio.run(scenario())
+    from conftest import run_async
+    run_async(scenario())
