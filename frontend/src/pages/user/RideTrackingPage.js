@@ -643,6 +643,14 @@ const RideTrackingPage = () => {
             <PoolBadge ride={ride} floating />
           </div>
         )}
+        {(ride.ride_type === 'rental' || ride.ride_type === 'airport') && (
+          <div className="fixed top-2 inset-x-0 z-40 px-3 pointer-events-none" data-testid="active-ride-banners">
+            <div className="max-w-[440px] mx-auto pointer-events-auto">
+              <RentalMeterBanner ride={ride} />
+              <FlightWatchBanner ride={ride} />
+            </div>
+          </div>
+        )}
         <DriverEnRouteView
           ride={ride}
           driverPos={driverPos}

@@ -66,7 +66,11 @@
 - ✅ Affichage chauffeur : badge ✈️ + n° vol + terminal + point de RDV + statut vol (`driver-airport-info`). Affichage client : `FlightWatchBanner` (suivi + état recherche + tracking) + chip vol sur `/scheduled-rides`.
 - ⏳ NON fait (backlog) : attribution prioritaire chauffeurs certifiés (user a choisi "tous éligibles"), accueil pancarte VIP, intégration d'une vraie API de vols (migration depuis le mode simulé quand clé fournie).
 
-### 🕒 Module "Mise à disposition" (réserver un chauffeur+véhicule pour une durée)
+### 🕒 Module "Mise à disposition" (réserver un chauffeur+véhicule pour une durée) — ✅ LIVRÉ (2026-06-10, testé iter223)
+- ✅ Forfaits horaires 2h/4h/8h + **Journée 10h/100km** (configurables admin) avec tarifs de dépassement (heure sup + km sup).
+- ✅ **Arrêts multiples** (au booking + en direct pendant la course via le chauffeur).
+- ✅ **Compteur de facturation temps réel** : chauffeur démarre/termine (saisie km final), chrono live + dépassement projeté ; client suit en lecture seule. Facture finale = forfait + dépassement temps/km.
+- ✅ Flux chauffeur dédié `RentalDriverFlow` ; bannière client `RentalMeterBanner`. Pas d'écran admin (choix user MVP).
 - Durées : 2h / 4h / 8h / journée / plusieurs jours. Client choisit date, heure début, durée, type véhicule, nb passagers.
 - **Tarification forfaitaire** (ex. 2h=60€, 4h=110€, 8h=200€, journée=350€) + **km inclus** + **dépassement km/temps facturé**.
 - **Chauffeur dédié** : reste dispo, attend, multi-arrêts. **Itinéraire flexible** (modif destination/arrêts depuis l'app).

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06-10 — Module « Mise à disposition » (rental, P2) [DONE, testé iter223]
+
+- **Backend** : booking rental = prix forfait fixe + config facturation (`rental_hours_included/km_included/extra_hour_rate/extra_km_rate/package_price`) + `stops`. Endpoints compteur : `POST /rides/{id}/rental/start|add-stop|end`, `GET /rides/{id}/rental/meter` (+ `_compute_rental_meter`). Override de facture à la complétion (rental → forfait + dépassement temps/km). Forfait **« Journée » 10h/100km** + tarifs dépassement (18€/h, 0,80€/km) dans les configs.
+- **Frontend** : panneau rental enrichi (4 forfaits dont Journée, infos dépassement, arrêts multiples au booking via GooglePlacesInput). Nouveau **`RentalDriverFlow`** (chauffeur) : démarrer → chrono live → ajouter arrêt → terminer (saisie km) → facture. Bannière compteur **lecture seule côté client** (`RentalMeterBanner`) sur la page de suivi.
+- Règles user : 1c (arrêts booking+live), 2c (compteur visible des 2 côtés), 3a (heure+km sup admin), 4a (chauffeur démarre/termine), 5a (pas d'écran admin).
+- Tests : `tests/test_rental_disposal.py` (2/2) + iter223 (backend 100%, driver flow E2E, booking panel). Fix bannière client sur le chemin `isAssigned` vérifié in-browser (chrono 00:00, Projeté 72€).
+
+
 ## 2026-06-10 — Report + nouveau n° de vol re-tracké en une étape [DONE, vérifié e2e]
 
 - **Backend** (`PUT /api/rides/{id}/reschedule`) : accepte un `flight_number` optionnel. Pour une course aéroport, met à jour le n° de vol, **relance le Flight Watch** dessus (seed simulé instantané + refresh réel AviationStack en tâche de fond) et réapplique l'ajustement d'heure (retard/avance) sur le nouveau créneau.
