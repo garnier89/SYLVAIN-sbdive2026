@@ -221,6 +221,7 @@ const sidebarConfig = [
         { label: 'Zones restreintes', path: '/admin/restricted' },
         { label: 'Tarification par zone', path: '/admin/location-fare' },
         { label: 'Transferts Aéroport', path: '/admin/airport' },
+        { label: 'Données démo', path: '/admin/demo' },
         { label: 'Pays', path: '/admin/country' },
         { label: 'Régions', path: '/admin/state' },
       ]},

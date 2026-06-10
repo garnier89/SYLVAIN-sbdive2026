@@ -535,6 +535,23 @@ async def update_driver_location(request: Request):
     # Proximity alert for an active ride pickup ("Votre chauffeur arrive").
     from core.proximity import maybe_notify_driver_nearby
     await maybe_notify_driver_nearby(user["id"], lat, lng)
+
+    # Rental (mise à disposition): accumulate GPS distance while the meter runs.
+    if driver and lat is not None and lng is not None:
+        rental = await db.rides.find_one(
+            {"driver_id": driver["id"], "ride_type": "rental", "status": "in_progress",
+             "rental_started_at": {"$ne": None}, "rental_ended_at": None},
+            {"_id": 0, "id": 1, "rental_gps_km": 1, "rental_last_lat": 1, "rental_last_lng": 1},
+        )
+        if rental:
+            from core.airport import _haversine_km
+            upd = {"rental_last_lat": lat, "rental_last_lng": lng}
+            plat, plng = rental.get("rental_last_lat"), rental.get("rental_last_lng")
+            if plat is not None and plng is not None:
+                d = _haversine_km(plat, plng, lat, lng)
+                if 0 < d < 5:  # ignore GPS jumps > 5km between pings
+                    upd["rental_gps_km"] = round(float(rental.get("rental_gps_km") or 0) + d, 2)
+            await db.rides.update_one({"id": rental["id"]}, {"$set": upd})
     return {"message": "Location updated"}
 
 

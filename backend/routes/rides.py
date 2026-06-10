@@ -2586,6 +2586,7 @@ def _compute_rental_meter(ride: dict, now=None, actual_km=None) -> dict:
         "overage_km": round(overage_km, 2),
         "overage_fee": overage_fee,
         "projected_total": round(pkg_price + overage_fee, 2),
+        "gps_km": round(float(ride.get("rental_gps_km") or 0), 2),
         "stops": ride.get("stops") or [],
         "ended": bool(ride.get("rental_ended_at")),
     }
@@ -2609,7 +2610,8 @@ async def rental_start(ride_id: str, request: Request):
         return {"message": "Déjà démarré", "rental_started_at": ride["rental_started_at"]}
     now = datetime.now(timezone.utc).isoformat()
     await db.rides.update_one({"id": ride_id}, {"$set": {
-        "rental_started_at": now, "status": "in_progress", "started_at": now}})
+        "rental_started_at": now, "status": "in_progress", "started_at": now,
+        "rental_gps_km": 0.0, "rental_last_lat": None, "rental_last_lng": None}})
     from core.notifications import create_notification
     await create_notification(ride.get("user_id"), "rental",
                               "⏱️ Mise à disposition démarrée",
@@ -2660,7 +2662,10 @@ async def rental_end(ride_id: str, request: Request):
     if ride.get("status") == "completed":
         raise HTTPException(status_code=400, detail="Course déjà terminée")
     body = await request.json()
-    actual_km = float(body.get("actual_km", ride.get("rental_km_included") or 0) or 0)
+    # Default to the GPS-tracked distance (driver can still adjust at the end).
+    gps_km = float(ride.get("rental_gps_km") or 0)
+    default_km = gps_km if gps_km > 0 else float(ride.get("rental_km_included") or 0)
+    actual_km = float(body.get("actual_km", default_km) or 0)
     now = datetime.now(timezone.utc).isoformat()
     await db.rides.update_one({"id": ride_id}, {"$set": {
         "rental_ended_at": now, "rental_actual_km": actual_km}})

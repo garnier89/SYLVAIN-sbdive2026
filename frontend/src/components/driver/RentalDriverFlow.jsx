@@ -23,6 +23,7 @@ const RentalDriverFlow = ({ ride, onFinished, onMinimize }) => {
   const [addingStop, setAddingStop] = useState(false);
   const [stopText, setStopText] = useState('');
   const [ending, setEnding] = useState(false);
+  const [gpsKm, setGpsKm] = useState(Number(ride.rental_gps_km || 0));
   const [kmInput, setKmInput] = useState(String(ride.rental_km_included || 0));
   const intervalRef = useRef(null);
 
@@ -37,10 +38,24 @@ const RentalDriverFlow = ({ ride, onFinished, onMinimize }) => {
     return () => clearInterval(intervalRef.current);
   }, []);
 
+  // Poll the server meter for the GPS-tracked distance while the meter runs.
+  useEffect(() => {
+    if (!startedAt) return undefined;
+    let active = true;
+    const poll = async () => {
+      try { const r = await rideAPI.rentalMeter(ride.id); if (active && r.data) setGpsKm(Number(r.data.gps_km || 0)); } catch { /* ignore */ }
+    };
+    poll();
+    const id = setInterval(poll, 15000);
+    return () => { active = false; clearInterval(id); };
+  }, [startedAt, ride.id]);
+
   const elapsedMin = startedAt ? Math.max(0, (nowTick - new Date(startedAt).getTime()) / 60000) : 0;
   const overageMin = Math.max(0, elapsedMin - hoursInc * 60);
-  const liveOverageFee = (overageMin / 60) * hrRate; // km overage added at the end
-  const projected = pkgPrice + liveOverageFee;
+  const liveOverageFee = (overageMin / 60) * hrRate;
+  const overageKm = Math.max(0, gpsKm - kmInc);
+  const kmOverageFee = overageKm * kmRate;
+  const projected = pkgPrice + liveOverageFee + kmOverageFee;
 
   const start = async () => {
     setBusy(true);
@@ -114,11 +129,12 @@ const RentalDriverFlow = ({ ride, onFinished, onMinimize }) => {
               <p className="text-xs text-gray-400 font-semibold">Temps écoulé</p>
               <p className={`text-5xl font-black tabular-nums ${overageMin > 0 ? 'text-[#FF5000]' : 'text-[#0B1426]'}`} data-testid="rental-timer">{fmtDuration(elapsedMin)}</p>
               <p className="text-[11px] text-gray-400 mt-1">sur {hoursInc}h inclus{overageMin > 0 ? ` · +${fmtDuration(overageMin)} en supplément` : ''}</p>
-              <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-sm">
-                <div><p className="text-[11px] text-gray-400">Suppl. temps</p><p className="font-bold text-[#FF5000]" data-testid="rental-overage-fee">{money(liveOverageFee)}</p></div>
+              <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-sm">
+                <div><p className="text-[11px] text-gray-400">Km (GPS)</p><p className={`font-bold ${overageKm > 0 ? 'text-[#FF5000]' : 'text-[#0B1426]'}`} data-testid="rental-gps-km">{gpsKm.toFixed(1)}</p><p className="text-[9px] text-gray-400">/ {kmInc} km</p></div>
+                <div><p className="text-[11px] text-gray-400">Suppléments</p><p className="font-bold text-[#FF5000]" data-testid="rental-overage-fee">{money(liveOverageFee + kmOverageFee)}</p></div>
                 <div><p className="text-[11px] text-gray-400">Total projeté</p><p className="font-black" data-testid="rental-projected">{money(projected)}</p></div>
               </div>
-              <p className="text-[10px] text-gray-400 mt-2">+ km supplémentaires ({money(kmRate)}/km au-delà de {kmInc} km) calculés à la clôture.</p>
+              <p className="text-[10px] text-gray-400 mt-2">🛰️ Km suivi automatiquement par GPS · {money(kmRate)}/km au-delà de {kmInc} km.</p>
             </div>
 
             {/* Stops */}
@@ -155,14 +171,14 @@ const RentalDriverFlow = ({ ride, onFinished, onMinimize }) => {
           <div className="bg-white rounded-2xl p-4 text-[#0B1426]" data-testid="rental-end-panel">
             <label className="text-sm font-bold flex items-center gap-1.5 mb-2"><Flag size={16} weight="fill" className="text-[#FF5000]" /> Kilométrage total parcouru</label>
             <input type="number" value={kmInput} onChange={(e) => setKmInput(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" data-testid="rental-km-input" />
-            <p className="text-[11px] text-gray-400 mb-3">{kmInc} km inclus · {money(kmRate)}/km au-delà</p>
+            <p className="text-[11px] text-gray-400 mb-3">🛰️ Pré-rempli par GPS ({gpsKm.toFixed(1)} km), modifiable · {kmInc} km inclus · {money(kmRate)}/km au-delà</p>
             <div className="flex gap-2">
               <button onClick={() => setEnding(false)} className="flex-1 py-3 rounded-xl bg-gray-100 font-bold text-sm">Annuler</button>
               <button onClick={end} disabled={busy} className="flex-1 py-3 rounded-xl bg-[#FF5000] text-white font-black text-sm disabled:opacity-50" data-testid="rental-end-confirm">Terminer & facturer</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setEnding(true)} className="w-full py-4 rounded-2xl bg-[#FF5000] text-white font-black text-lg active:scale-95 transition-transform" data-testid="rental-end-btn">
+          <button onClick={() => { setKmInput(String(gpsKm > 0 ? gpsKm.toFixed(1) : kmInc)); setEnding(true); }} className="w-full py-4 rounded-2xl bg-[#FF5000] text-white font-black text-lg active:scale-95 transition-transform" data-testid="rental-end-btn">
             Terminer la mise à disposition
           </button>
         )}

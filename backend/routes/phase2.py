@@ -340,6 +340,77 @@ async def flight_refresh(ride_id: str, request: Request):
     return {"flight_status": status}
 
 
+# ═══════════════════ Démo seed / reset (admin) ═══════════════════
+DEMO_AIRPORTS = [
+    {"code": "CDG", "name": "Paris-Charles de Gaulle", "lat": 49.0097, "lng": 2.5479, "radius_km": 6, "meeting_point": "Terminal 2E, Porte 5, Niveau Arrivées"},
+    {"code": "ORY", "name": "Paris-Orly", "lat": 48.7262, "lng": 2.3652, "radius_km": 5, "meeting_point": "Orly 4, Niveau Arrivées, Porte A"},
+]
+DEMO_DRIVERS = [
+    ("jean.dupont@demo.sb", 48.8566, 2.3522),
+    ("amadou.diallo@demo.sb", 48.8606, 2.3376),
+    ("sophie.martin@demo.sb", 48.8530, 2.3499),
+]
+
+
+@router.get("/admin/demo/status")
+async def demo_status(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    airports = []
+    for a in DEMO_AIRPORTS:
+        airports.append({"code": a["code"], "exists": bool(await db.airport_zones.find_one({"code": a["code"]}))})
+    drivers = []
+    for email, _, _ in DEMO_DRIVERS:
+        u = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "name": 1})
+        online = False
+        if u:
+            d = await db.drivers.find_one({"user_id": u["id"]}, {"_id": 0, "is_online": 1})
+            online = bool(d and d.get("is_online"))
+        drivers.append({"email": email, "name": u.get("name") if u else None, "online": online, "exists": bool(u)})
+    return {"airports": airports, "drivers": drivers}
+
+
+@router.post("/admin/demo/seed")
+async def demo_seed(request: Request):
+    """Create the demo airports (if missing) and put the demo drivers online."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    created = []
+    for a in DEMO_AIRPORTS:
+        if not await db.airport_zones.find_one({"code": a["code"]}):
+            await db.airport_zones.insert_one({
+                "id": f"az_{uuid.uuid4().hex[:10]}", **a,
+                "free_wait_minutes": 45, "luggage_fee": 5, "shuttle_discount_pct": 30,
+                "waiting_rate_per_min": 0.5, "surcharge_amount": 0, "active": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            created.append(a["code"])
+    online = []
+    for email, lat, lng in DEMO_DRIVERS:
+        u = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+        if not u:
+            continue
+        res = await db.drivers.update_one({"user_id": u["id"]}, {"$set": {
+            "is_online": True, "current_lat": lat, "current_lng": lng,
+            "last_location_at": datetime.now(timezone.utc).isoformat()}})
+        if res.matched_count:
+            online.append(email)
+    return {"message": "Démo activée", "airports_created": created, "drivers_online": online}
+
+
+@router.post("/admin/demo/reset")
+async def demo_reset(request: Request):
+    """Set the demo drivers offline (airports are kept)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    offline = []
+    for email, _, _ in DEMO_DRIVERS:
+        u = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+        if not u:
+            continue
+        res = await db.drivers.update_one({"user_id": u["id"]}, {"$set": {"is_online": False}})
+        if res.matched_count:
+            offline.append(email)
+    return {"message": "Démo réinitialisée (aéroports conservés)", "drivers_offline": offline}
+
+
 @router.get("/config/flat-rates")
 async def list_flat_rates(request: Request):
     await require_role(request, ["admin"], permission="billing.view")

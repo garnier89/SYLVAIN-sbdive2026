@@ -223,6 +223,7 @@ class RideResponse(BaseModel):
     rental_started_at: Optional[str] = None
     rental_ended_at: Optional[str] = None
     rental_actual_km: Optional[float] = None
+    rental_gps_km: Optional[float] = None
     rental_overage_hours: Optional[float] = None
     rental_overage_km: Optional[float] = None
     rental_overage_fee: Optional[float] = None

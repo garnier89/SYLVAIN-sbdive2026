@@ -173,6 +173,13 @@ export const airportAdminAPI = {
   reservations: () => api.get('/phase2/admin/airport/reservations'),
 };
 
+// Démo seed / reset
+export const demoAPI = {
+  status: () => api.get('/phase2/admin/demo/status'),
+  seed: () => api.post('/phase2/admin/demo/seed'),
+  reset: () => api.post('/phase2/admin/demo/reset'),
+};
+
 // Dispatch control tower (admin / dispatcher)
 export const dispatchAdminAPI = {
   overview: () => api.get('/admin/dispatch/overview'),

@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-10 — Km GPS auto (rental) + bouton admin Seed/Reset démo [DONE, testé]
+
+- **🛰️ Km GPS automatique (mise à disposition)** : `POST /drivers/location` cumule la distance (haversine, filtre les sauts >5km) sur la course rental active → `rental_gps_km`. Le meter renvoie `gps_km` ; à la clôture, le km est **pré-rempli par GPS mais modifiable** (choix 1a). `RentalDriverFlow` poll le meter (15s), affiche km live + supplément km projeté. Vérifié : 4 pings Paris → 3,59 km.
+- **🧪 Seed / Reset démo (admin)** : page `/admin/demo` + endpoints `GET/POST /phase2/admin/demo/{status,seed,reset}`. Seed = crée CDG+Orly (si absents) + 3 chauffeurs démo en ligne (Paris) ; Reset = chauffeurs hors-ligne, **aéroports conservés** (choix 2b). 
+- Appliqué aussi **directement en prod** (CDG+Orly + 3 chauffeurs en ligne) lors de la validation déploiement.
+- Tests : `tests/test_rental_disposal.py` (3/3 incl. demo) + airport (4/4) = 7/7. eslint clean.
+- ⚠️ Ces features sont en PREVIEW → **redéployer** pour les pousser en production.
+
+
 ## 2026-06-10 — Module « Mise à disposition » (rental, P2) [DONE, testé iter223]
 
 - **Backend** : booking rental = prix forfait fixe + config facturation (`rental_hours_included/km_included/extra_hour_rate/extra_km_rate/package_price`) + `stops`. Endpoints compteur : `POST /rides/{id}/rental/start|add-stop|end`, `GET /rides/{id}/rental/meter` (+ `_compute_rental_meter`). Override de facture à la complétion (rental → forfait + dépassement temps/km). Forfait **« Journée » 10h/100km** + tarifs dépassement (18€/h, 0,80€/km) dans les configs.

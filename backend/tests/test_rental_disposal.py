@@ -92,7 +92,29 @@ def test_rental_meter_and_completion():
     assert fb.get("rental") is True and fb.get("package_price") == 36.0 and fb.get("overage_fee") == 28.0
 
 
+def test_demo_seed_and_reset():
+    """Admin one-click demo seed (airports + drivers online) and reset (drivers offline)."""
+    admin = _login(ADMIN)
+    h = {"Authorization": f"Bearer {admin}"}
+    r = requests.post(f"{API}/phase2/admin/demo/seed", headers=h, timeout=20)
+    assert r.status_code == 200, r.text
+    seed = r.json()
+    assert "CDG" in [a["code"] for a in requests.get(f"{API}/phase2/airports", timeout=15).json()]
+
+    st = requests.get(f"{API}/phase2/admin/demo/status", headers=h, timeout=15).json()
+    assert all(a["exists"] for a in st["airports"])
+    assert any(d["online"] for d in st["drivers"])  # at least one demo driver online
+
+    r = requests.post(f"{API}/phase2/admin/demo/reset", headers=h, timeout=20)
+    assert r.status_code == 200, r.text
+    st2 = requests.get(f"{API}/phase2/admin/demo/status", headers=h, timeout=15).json()
+    assert all(not d["online"] for d in st2["drivers"])  # all demo drivers offline
+    # airports kept
+    assert all(a["exists"] for a in st2["airports"])
+
+
 if __name__ == "__main__":
     test_rental_creation_pricing()
     test_rental_meter_and_completion()
+    test_demo_seed_and_reset()
     print("ALL RENTAL TESTS PASSED")
