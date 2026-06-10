@@ -203,6 +203,38 @@ def test_admin_verify_recipient_sandbox_flow():
         cli.close()
 
 
+def test_preflight_blocks_live_no_match_and_force_bypasses():
+    os.environ["WAVE_API_KEY"] = "wave_ci_prod_TESTKEY"
+    method = {"type": "mobile_money", "provider": "wave", "mobile_number": "+2250700000000", "holder_name": "Awa"}
+
+    async def scenario():
+        from core.mobile_money import preflight_verify
+        with respx.mock:
+            respx.post("https://api.wave.com/v1/verify_recipient/").mock(
+                return_value=httpx.Response(200, json={"within_limits": True, "name_match": "NO_MATCH"}))
+            # Live + NO_MATCH + not force → BLOCKED.
+            blocked = await preflight_verify(method, 10.0, "live", force=False)
+            assert blocked and blocked["verdict"] == "warning"
+            # Force bypasses the gate.
+            assert await preflight_verify(method, 10.0, "live", force=True) is None
+    run_async(scenario())
+
+
+def test_preflight_allows_live_match_and_sandbox():
+    os.environ["WAVE_API_KEY"] = "wave_ci_prod_TESTKEY"
+    method = {"type": "mobile_money", "provider": "wave", "mobile_number": "+2250700000000", "holder_name": "Awa"}
+
+    async def scenario():
+        from core.mobile_money import preflight_verify
+        # Sandbox never blocks (no real money).
+        assert await preflight_verify(method, 10.0, "sandbox", force=False) is None
+        with respx.mock:
+            respx.post("https://api.wave.com/v1/verify_recipient/").mock(
+                return_value=httpx.Response(200, json={"within_limits": True, "name_match": "MATCH"}))
+            assert await preflight_verify(method, 10.0, "live", force=False) is None
+    run_async(scenario())
+
+
 def test_admin_send_payout_sandbox_flow():
     """Full admin flow: approved Mobile Money withdrawal → /send → sandbox simulated paid."""
     cli = MongoClient(MONGO_URL)

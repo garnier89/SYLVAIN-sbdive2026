@@ -312,6 +312,20 @@ async def mtn_account_active(mobile: str, mode: str) -> bool:
     return bool((r.json() or {}).get("result")) if r.status_code < 400 else False
 
 
+async def preflight_verify(method: dict, net_eur: float, mode: str, force: bool) -> dict:
+    """Active safety gate before a REAL send. Returns the verification dict when
+    the payout should be BLOCKED (verdict 'warning'), else None. Only enforced in
+    live mode; sandbox mode and an explicit admin `force` bypass the gate."""
+    if mode != "live" or force:
+        return None
+    try:
+        v = await verify_recipient(method.get("provider"), (method.get("mobile_number") or "").strip(),
+                                   method.get("holder_name"), eur_to_xof(net_eur), "live")
+    except PayoutError as e:
+        v = {"verdict": "warning", "message": f"Vérification impossible : {e}", "details": {}}
+    return v if v.get("verdict") == "warning" else None
+
+
 async def verify_recipient(provider: str, mobile: str, name: str, amount_xof: int, mode: str) -> dict:
     """Returns {verdict: ok|warning|info, message, details}. Sandbox is simulated."""
     provider = (provider or "").lower()

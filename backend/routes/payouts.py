@@ -22,7 +22,7 @@ from core.wallet_reserve import get_user_region
 from core.face_match import verify_face_match
 from core.mobile_money import (
     execute_payout, check_payout_status, get_payout_config, effective_mode,
-    PayoutError, eur_to_xof, verify_recipient,
+    PayoutError, eur_to_xof, verify_recipient, preflight_verify,
 )
 
 router = APIRouter(prefix="/payouts", tags=["payouts"])
@@ -429,6 +429,17 @@ async def admin_send_payout(req_id: str, request: Request):
         raise HTTPException(status_code=400, detail="Aucun moyen de retrait enregistré")
     if method.get("type") != "mobile_money":
         raise HTTPException(status_code=400, detail="Versement automatique réservé au Mobile Money (utilisez « Marquer payé » pour un RIB).")
+
+    body = await request.json()
+    force = bool(body.get("force"))
+    net_eur = req.get("net_amount", req.get("final_amount", req.get("amount")))
+
+    # ── Active safety: auto-verify the beneficiary before sending REAL money ──
+    cfg_now = await get_payout_config()
+    blocked = await preflight_verify(method, net_eur, cfg_now.get("mode"), force)
+    if blocked:
+        return {"id": req_id, "status": "blocked", "blocked": True, "verification": blocked,
+                "message": blocked.get("message")}
 
     now = _now()
     await db.admin_withdraw_requests.update_one({"id": req_id}, {"$set": {"status": "processing"}})

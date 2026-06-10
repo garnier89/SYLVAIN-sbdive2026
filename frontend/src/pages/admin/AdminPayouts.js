@@ -83,14 +83,22 @@ const WithdrawalsTab = () => {
     } catch (e) { toast.error(e.message); }
   };
 
-  const sendPayout = async (id) => {
+  const sendPayout = async (id, force = false) => {
     setBusy(id);
     try {
       const r = await fetch(`${API}/api/payouts/admin/withdrawals/${id}/send`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'Échec du versement');
+      if (d.blocked) {
+        // Active safety: verification failed (NO_MATCH / out-of-limits). Require explicit override.
+        setVerify((v) => ({ ...v, [id]: d.verification }));
+        const ok = window.confirm(`${d.message}\n\nVoulez-vous FORCER le versement malgré tout ?`);
+        if (ok) { await sendPayout(id, true); }
+        else { toast.error('Versement bloqué par la vérification du bénéficiaire'); }
+        return;
+      }
       const lbl = d.status === 'paid' ? 'Versé' : 'En cours';
       toast.success(`${lbl}${d.simulated ? ' (simulation sandbox)' : ''} · ${d.amount_xof?.toLocaleString()} XOF via ${d.provider?.toUpperCase()}`);
       load();
