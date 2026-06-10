@@ -588,16 +588,27 @@ async def get_driver_earnings(request: Request):
     week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
 
-    # Fetch completed rides for this driver
+    # Fetch completed rides for this driver. Rides store driver_id as the DRIVER
+    # DOC id (e.g. "driver_xxx"); also match the user id for any legacy records.
     all_rides = await db.rides.find(
-        {"driver_id": user["id"], "status": "completed"},
+        {"driver_id": {"$in": [driver["id"], user["id"]]}, "status": "completed"},
         {"_id": 0, "estimated_fare": 1, "created_at": 1, "pickup_address": 1, "dropoff_address": 1, "distance_km": 1}
     ).sort("created_at", -1).to_list(500)
 
-    today_earnings = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= today_start)
-    week_earnings = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= week_start)
-    month_earnings = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= month_start)
-    total_earnings = sum(r.get("estimated_fare", 0) for r in all_rides)
+    # Net earnings = gross fare minus the platform commission (fixed %, admin-set).
+    cfg = await db.service_configs.find_one({"service_key": "general"}, {"_id": 0, "settings": 1}) or {}
+    commission_pct = float((cfg.get("settings") or {}).get("commission_percent", 15.0))
+    net = max(0.0, 1.0 - commission_pct / 100.0)
+
+    today_gross = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= today_start)
+    week_gross = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= week_start)
+    month_gross = sum(r.get("estimated_fare", 0) for r in all_rides if r.get("created_at", "") >= month_start)
+    total_gross = sum(r.get("estimated_fare", 0) for r in all_rides)
+
+    today_earnings = today_gross * net
+    week_earnings = week_gross * net
+    month_earnings = month_gross * net
+    total_earnings = total_gross * net
 
     today_trips = len([r for r in all_rides if r.get("created_at", "") >= today_start])
     week_trips = len([r for r in all_rides if r.get("created_at", "") >= week_start])
@@ -609,6 +620,9 @@ async def get_driver_earnings(request: Request):
         "week": round(week_earnings, 2),
         "month": round(month_earnings, 2),
         "total": round(total_earnings, 2),
+        "commission_percent": commission_pct,
+        "is_net": True,
+        "gross_total": round(total_gross, 2),
         "today_trips": today_trips,
         "week_trips": week_trips,
         "total_trips": driver.get("total_trips", 0),

@@ -459,6 +459,38 @@ async def send_account_deleted(to: str, name: str) -> None:
     await _send(to, "Votre compte SB Drive a été supprimé", _shell("Compte supprimé", "#0a0e1a", body))
 
 
+async def send_gift_card_email(to: str, recipient_name: str, sender_name: str, amount: float,
+                               code: str, message: str = "", redeem_url: str = "") -> None:
+    """Notify a recipient that they received a gift card, with the redeem code."""
+    msg_block = (
+        f'<table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7fb;border-radius:10px;'
+        f'padding:12px 16px;margin:14px 0;"><tr><td style="color:#555;font-size:13px;font-style:italic;">'
+        f'« {message} »</td></tr></table>'
+    ) if message else ""
+    cta = (
+        f'<p style="text-align:center;margin:18px 0 4px;"><a href="{redeem_url}" '
+        f'style="background:#FF4500;color:#fff;text-decoration:none;padding:12px 26px;border-radius:999px;'
+        f'font-weight:bold;font-size:15px;display:inline-block;">Utiliser ma carte</a></p>'
+        if redeem_url else ""
+    )
+    giver = sender_name or "Quelqu'un"
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {recipient_name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          🎁 <b>{giver}</b> vous offre une carte cadeau SB Drive de
+          <b>{float(amount):.2f} €</b> !
+        </p>
+        {msg_block}
+        <p style="color:#444;font-size:14px;text-align:center;margin-top:18px;">Votre code :</p>
+        <div style="text-align:center;margin:10px 0;"><span style="display:inline-block;padding:12px 22px;background:#0a0e1a;color:#fff;font-size:20px;font-weight:bold;letter-spacing:2px;border-radius:10px;font-family:monospace;">{code}</span></div>
+        {cta}
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;margin-top:16px;">
+          Saisissez ce code dans la section « Cartes cadeaux » de l'application pour créditer votre portefeuille.
+        </p>"""
+    await _send(to, f"🎁 Vous avez reçu une carte cadeau de {float(amount):.0f} € — SB Drive",
+                _shell("Une carte cadeau pour vous 🎁", "#FF4500", body))
+
+
 async def send_withdrawal_update(to: str, name: str, status: str, amount: float,
                                  ref: str = "", eta_hours: int = 24, reason: str = "",
                                  wallet_url: str = "", method: str = "") -> None:

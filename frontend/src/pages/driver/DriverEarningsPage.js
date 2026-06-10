@@ -41,8 +41,9 @@ const DriverEarningsPage = () => {
     );
   }
 
-  const earnings = data || { today: 0, week: 0, month: 0, total: 0, today_trips: 0, week_trips: 0, total_trips: 0, rating: 5.0, recent_rides: [] };
+  const earnings = data || { today: 0, week: 0, month: 0, total: 0, today_trips: 0, week_trips: 0, total_trips: 0, rating: 5.0, recent_rides: [], commission_percent: 0 };
   const tabValues = { today: earnings.today, week: earnings.week, month: earnings.month };
+  const netFactor = 1 - (earnings.commission_percent || 0) / 100;
 
   return (
     <div className="mobile-container min-h-screen bg-gray-950 flex flex-col pb-20" data-testid="driver-earnings-page">
@@ -64,7 +65,10 @@ const DriverEarningsPage = () => {
       {/* Earnings Card */}
       <div className="mx-5 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 p-5 shadow-xl shadow-amber-500/20">
         <p className="text-amber-100 text-sm font-medium">{t('driver.total_earnings')}</p>
-        <p className="text-4xl font-bold text-white mt-1" data-testid="total-earnings">{earnings.total.toFixed(2)} &euro;</p>
+        <p className="text-4xl font-bold text-white mt-1" data-testid="total-earnings">{earnings.total.toFixed(2)} &euro; <span className="text-base font-semibold text-amber-100">net ttc</span></p>
+        {earnings.commission_percent != null && (
+          <p className="text-amber-100/85 text-[11px] mt-0.5" data-testid="commission-note">Net après commission plateforme de {earnings.commission_percent}%</p>
+        )}
         <div className="flex items-center gap-4 mt-4">
           <div className="flex items-center gap-1.5">
             <Car size={16} className="text-amber-100" />
@@ -116,7 +120,7 @@ const DriverEarningsPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-gray-400 text-xs uppercase tracking-wide font-medium">{tab === 'today' ? t('driver.earnings_day_title') : tab === 'week' ? t('driver.earnings_week_title') : t('driver.earnings_month_title')}</p>
-            <p className="text-3xl font-bold text-white mt-1" data-testid="tab-earnings">{tabValues[tab].toFixed(2)} &euro;</p>
+            <p className="text-3xl font-bold text-white mt-1" data-testid="tab-earnings">{tabValues[tab].toFixed(2)} &euro; <span className="text-sm font-semibold text-gray-400">net ttc</span></p>
           </div>
           <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
             <TrendUp size={24} className="text-amber-500" />
@@ -153,7 +157,7 @@ const DriverEarningsPage = () => {
                   <p className="text-white text-sm font-medium truncate">{ride.pickup_address || 'Course'}</p>
                   <p className="text-gray-500 text-xs truncate">{ride.dropoff_address || ''}</p>
                 </div>
-                <p className="text-amber-500 font-bold text-sm flex-shrink-0">+{(ride.estimated_fare || 0).toFixed(2)} &euro;</p>
+                <p className="text-amber-500 font-bold text-sm flex-shrink-0">+{((ride.estimated_fare || 0) * netFactor).toFixed(2)} &euro;</p>
               </div>
             ))}
           </div>

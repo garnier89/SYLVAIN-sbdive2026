@@ -46,8 +46,12 @@ const GiftCardsPage = () => {
         const card = await res.json();
         setPurchaseResult(card);
         setMyCards(prev => [card, ...prev]);
+        toast.success(`Carte cadeau de ${selectedAmount} € achetée ✅`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(typeof err.detail === 'string' ? err.detail : 'Achat impossible');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { toast.error('Erreur réseau. Réessayez.'); }
     finally { setLoading(false); }
   };
 
