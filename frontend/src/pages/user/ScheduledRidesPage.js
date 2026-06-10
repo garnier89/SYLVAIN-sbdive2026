@@ -82,6 +82,14 @@ const ScheduledRidesPage = () => {
     return d.toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
+  // Suggest a new pickup ~24h after the original (datetime-local format) for a quick reschedule.
+  const suggestReschedule = (iso) => {
+    const base = iso ? new Date(iso) : new Date();
+    const d = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-20" data-testid="scheduled-rides-page">
       <div className="bg-gradient-to-br from-[#0B1426] to-[#1E293B] text-white px-4 pt-12 pb-6 rounded-b-3xl">
@@ -140,6 +148,21 @@ const ScheduledRidesPage = () => {
                       : r.flight_status.status === 'early' ? `${r.flight_status.delay_minutes}min` : 'OK'}
                   </span>
                 )}
+              </div>
+            )}
+
+            {r.ride_type === 'airport' && r.flight_status?.status === 'cancelled' && !r.rescheduled_at && editingId !== r.id && (
+              <div className="ml-11 mb-2 rounded-lg bg-red-50 border border-red-200 p-2.5" data-testid={`flight-cancelled-banner-${r.id}`}>
+                <p className="text-[12px] text-red-700 font-semibold mb-1.5 leading-snug">
+                  ✈️ Vol {r.flight_number} annulé. Reportez votre course plutôt que de l'annuler — gardez votre chauffeur.
+                </p>
+                <button
+                  className="w-full py-2 rounded-lg bg-[#FF5000] text-white text-sm font-bold flex items-center justify-center gap-1.5"
+                  onClick={() => { setEditingId(r.id); setNewAt(suggestReschedule(r.scheduled_at)); }}
+                  data-testid={`reschedule-flight-${r.id}`}
+                >
+                  <Calendar size={14} weight="fill" /> Reporter ma course
+                </button>
               </div>
             )}
 

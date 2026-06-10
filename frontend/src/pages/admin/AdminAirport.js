@@ -4,10 +4,11 @@
  *   attente gratuite (min), frais bagages, remise navette partagée.
  * - Dashboard : réservations aéroport en cours/terminées avec suivi de vol (Flight Watch).
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { AirplaneTilt, Trash, Plus, FloppyDisk, MapPin } from '@phosphor-icons/react';
 import { airportAdminAPI } from '../../services/api';
+import { playAlert } from '../../lib/driverAlert';
 
 const BLANK = {
   name: '', code: '', lat: '', lng: '', radius_km: 4,
@@ -38,6 +39,8 @@ const AdminAirport = () => {
   const [resv, setResv] = useState({ reservations: [], counts: {} });
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const prevStatusRef = useRef({});   // rideId -> last seen flight status
+  const seededRef = useRef(false);     // skip alerting on the very first load
 
   const loadAirports = useCallback(() => {
     airportAdminAPI.list().then((r) => setAirports(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -45,7 +48,30 @@ const AdminAirport = () => {
   const loadResv = useCallback((silent = false) => {
     if (!silent) setLoading(true);
     airportAdminAPI.reservations()
-      .then((r) => { setResv(r.data || { reservations: [], counts: {} }); setLastUpdated(new Date()); })
+      .then((r) => {
+        const data = r.data || { reservations: [], counts: {} };
+        // Detect flights that just turned delayed/cancelled and alert dispatchers.
+        const prev = prevStatusRef.current;
+        const next = {};
+        const alerts = [];
+        (data.reservations || []).forEach((x) => {
+          const st = x.flight_status?.status || null;
+          next[x.id] = st;
+          if (seededRef.current && (st === 'delayed' || st === 'cancelled') && prev[x.id] !== st) {
+            alerts.push({ st, fn: x.flight_number, delay: x.flight_status?.delay_minutes });
+          }
+        });
+        prevStatusRef.current = next;
+        if (alerts.length) {
+          playAlert();
+          alerts.forEach((a) => toast.warning(
+            a.st === 'cancelled' ? `✈️ Vol ${a.fn || ''} ANNULÉ` : `✈️ Vol ${a.fn || ''} retardé de ${a.delay} min`,
+            { description: 'Course aéroport — anticipez la prise en charge.', duration: 8000 },
+          ));
+        }
+        seededRef.current = true;
+        setResv(data); setLastUpdated(new Date());
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

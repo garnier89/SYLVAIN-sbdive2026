@@ -257,14 +257,17 @@ def _flight_message(status_doc: dict):
     if s == "early":
         return ("✈️ Vol en avance", f"Le vol {fn} est en avance de {abs(d)} min — l'heure de prise en charge a été avancée.")
     if s == "cancelled":
-        return ("✈️ Vol annulé", f"Le vol {fn} est annulé. Vérifiez votre réservation ou annulez la course.")
+        return ("✈️ Vol annulé", f"Le vol {fn} est annulé. Reportez votre course pour garder votre réservation et votre chauffeur.")
     return ("✈️ Vol à l'heure", f"Le vol {fn} est à l'heure.")
 
 
 async def _notify_flight_change(ride: dict, status_doc: dict):
     from core.notifications import create_notification
     title, body = _flight_message(status_doc)
-    data = {"url": f"/ride/{ride['id']}", "ride_id": ride["id"], "flight_status": status_doc}
+    # Cancelled flights deep-link to the scheduled rides list where the client can
+    # tap "Reporter ma course" to reschedule instead of losing the booking.
+    url = "/scheduled-rides" if status_doc.get("status") == "cancelled" else f"/ride/{ride['id']}"
+    data = {"url": url, "ride_id": ride["id"], "flight_status": status_doc}
     # Client
     await create_notification(ride.get("user_id"), "flight_watch", title, body, data=data)
     # Driver (if assigned)
@@ -287,6 +290,14 @@ async def refresh_flight_for_ride(ride: dict) -> dict | None:
     await db.rides.update_one({"id": ride["id"]}, {"$set": updates})
     if changed:
         await _notify_flight_change(ride, new)
+        # Alert dispatchers/admins specifically for disruptive changes.
+        if new["status"] in ("delayed", "cancelled"):
+            title, body = _flight_message(new)
+            await notify_admins(
+                "flight_watch_admin", f"⚠️ {title}",
+                f"Course aéroport #{ride.get('booking_no', '')} · {body}",
+                data={"url": "/admin/airport", "ride_id": ride["id"], "flight_status": new},
+            )
     return new
 
 

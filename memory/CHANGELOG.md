@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-06-10 — « Reporter ma course » sur vol annulé [DONE, vérifié e2e]
+
+- **Frontend** (`ScheduledRidesPage`) : si le vol d'une course aéroport planifiée passe `cancelled`, une bannière rouge propose **« Reporter ma course »** → ouvre l'éditeur de re-planification existant pré-rempli (+24h), `PUT /api/rides/{id}/reschedule`. La bannière disparaît une fois `rescheduled_at` posé (le client a agi).
+- **Backend** (`core/airport`) : la notif client de vol annulé pointe désormais vers `/scheduled-rides` (action directe) et le message invite à reporter plutôt qu'annuler.
+- Vérifié e2e : ride AF1006 → flight cancelled → reschedule OK (scheduled_at MAJ + rescheduled_at posé). 7/7 pytest, eslint clean.
+
+
+## 2026-06-10 — Alerte admin son + push sur vol retardé/annulé [DONE, vérifié]
+
+- **Backend** : `refresh_flight_for_ride` appelle `notify_admins("flight_watch_admin", …)` (in-app + WebSocket + **web push**) quand un vol suivi **passe** à `delayed` ou `cancelled` (uniquement sur changement réel). Vérifié : transition on_time→delayed (AF1002) → +1 notif admin « ⚠️ ✈️ Vol retardé ».
+- **Frontend** (`AdminAirport`) : l'auto-poll 30s compare les statuts ; toute bascule vers retardé/annulé déclenche un **chime (`playAlert`) + toast.warning** (8s). Pas d'alerte au premier chargement (seed). eslint clean.
+
+
 ## 2026-06-10 — Flight Watch RÉEL via AviationStack [DONE, testé]
 
 - **Intégration AviationStack** (clé user dans `AVIATIONSTACK_API_KEY`) : `core/airport.fetch_aviationstack` (GET `/v1/flights?flight_iata=`, HTTPS, timeout court) + `_map_aviationstack` (flight_status/arrival.delay/scheduled/estimated/actual → on_time/delayed/early/cancelled + adjusted_pickup). `get_flight_status` = appel réel **avec cache 10 min** + **backoff 5 min** sur échec (économise le quota gratuit 100 req/mois) et **fallback automatique** vers `simulate_flight_status` (même format de données → zéro régression).
