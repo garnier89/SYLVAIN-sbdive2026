@@ -162,6 +162,7 @@ Paiement marketplace/VTC/livraison via le wallet + cashback + application coupon
   - Flux admin : `POST /api/payouts/admin/withdrawals/{id}/send` (versement auto Mobile Money, idempotent) + `/refresh-status` (MTN async). Le RIB garde « Marquer versé » manuel. UI : bannière mode + toggle + puces de disponibilité prestataires dans `AdminPayouts`.
   - Identifiants dans `.env` (jamais en dur). **Blockers avant le live** : (1) **clé Wave complète** (celle fournie était tronquée → `WAVE_API_KEY` vide) ; (2) MTN : confirmer la **clé d'abonnement *Disbursement*** + **whitelist IP** serveur côté MTN ; (3) Orange : **activation produit B2C/disbursement** (clés fournies = Web Payment/encaissement). Tests : `backend/tests/test_mobile_money_payout.py`.
 
+  - **Pré-vérification du bénéficiaire** (sécurité avant argent réel) : bouton admin « Vérifier le bénéficiaire » → `POST /api/payouts/admin/withdrawals/{id}/verify-recipient`. Wave `POST /v1/verify_recipient/` (renvoie `name_match` MATCH/NO_MATCH/NAME_NOT_KNOWN + `within_limits` — Wave ne divulgue pas le nom) ; MTN `accountholder/.../active`. Sandbox simulé. Verdict ok/warning/info affiché en ligne dans `AdminPayouts`.
 - ⏳ Reste : versements RIB SEPA réels (Stripe Payouts) — optionnel.
 
 ### Pourboire (Pourboire) — mouvement d'argent réel · ✅ LIVRÉ (2026-06-10, testé pytest 4/4)
