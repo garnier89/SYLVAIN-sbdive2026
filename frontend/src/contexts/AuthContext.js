@@ -31,8 +31,10 @@ export const AuthProvider = ({ children }) => {
         withCredentials: true,
       });
       setUser(response.data);
+      return response.data;
     } catch (error) {
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }

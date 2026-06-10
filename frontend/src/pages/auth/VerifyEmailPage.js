@@ -47,9 +47,9 @@ const VerifyEmailPage = () => {
     setLoading(true);
     try {
       await axios.post(`${API_URL}/api/auth/verify-otp`, { code: code.trim() }, { withCredentials: true });
-      await checkAuth?.();
+      const fresh = await checkAuth?.();
       toast.success('Email vérifié avec succès !');
-      navigate(roleHome(user?.role), { replace: true });
+      navigate(roleHome(fresh?.role || user?.role), { replace: true });
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Code invalide');
     } finally {
@@ -63,8 +63,8 @@ const VerifyEmailPage = () => {
       const { data } = await axios.post(`${API_URL}/api/auth/send-verification`, {}, { withCredentials: true });
       if (data.already_verified) {
         toast.success('Votre email est déjà vérifié.');
-        await checkAuth?.();
-        navigate(roleHome(user?.role), { replace: true });
+        const fresh = await checkAuth?.();
+        navigate(roleHome(fresh?.role || user?.role), { replace: true });
         return;
       }
       setCooldown(data.cooldown || 60);
