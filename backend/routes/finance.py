@@ -336,6 +336,15 @@ async def sbpaygo_send(body: SendBody, request: Request):
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Montant invalide")
     amount = round(float(body.amount), 2)
+    # Drivers must keep their non-withdrawable reserve: cap the spendable amount
+    # (consistent with withdrawals and ride refunds).
+    if user.get("role") == "driver":
+        from core.wallet_reserve import ensure_reserve_credited
+        floor = await ensure_reserve_credited(user)
+        w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1, "pending_withdraw": 1}) or {}
+        available = round(float(w.get("balance", 0) or 0) - floor - float(w.get("pending_withdraw", 0) or 0), 2)
+        if amount > available:
+            raise HTTPException(status_code=400, detail=f"Montant max {max(0.0, available):.2f} € (réserve de {floor:.0f} € non utilisable).")
     res = await db.wallets.update_one(
         {"user_id": user["id"], "balance": {"$gte": amount}},
         {"$inc": {"balance": -amount}},

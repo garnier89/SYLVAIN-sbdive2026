@@ -1,3 +1,13 @@
+## NEW - 2026-06-10 (247) - Portefeuille chauffeur : ajout « Envoyer » (P2P) + confirmation Retrait + Apple/Google Pay (auto) (DONE, testé)
+- **Réponse Apple Pay / Google Pay** : aucun code requis — tous les paiements passent par **Stripe Checkout hébergé** (`emergentintegrations`, payment_methods `['card']`) où Apple Pay/Google Pay s'affichent **automatiquement** sur appareils compatibles. Couvert **toute la plateforme**. Côté user : vérifier qu'ils sont activés dans le Dashboard Stripe (défaut ON) ; pas d'enregistrement de domaine pour le Checkout hébergé. Boutons visibles en prod avec vraie clé.
+- **Retrait chauffeur** : déjà en place (bouton « Retrait » → `POST /api/wallet/withdraw-request`). Confirmé.
+- **Envoyer (P2P) ajouté au portefeuille chauffeur** : 
+  - Composant partagé extrait `components/SendMoneyModal.jsx` (réutilisé par `WalletPage.js` client ET `DriverWalletPage.js`) ; prop `maxAmount`/`maxLabel`. WalletPage refactorisé pour l'utiliser (suppression du `SendModal` local).
+  - DriverWalletPage : bouton « Envoyer » (3 actions : Retrait / Recharger / Envoyer), plafonné au **montant retirable (hors réserve)**.
+  - **Backend** : `routes/finance.py::sbpaygo_send` enforce désormais la **réserve non-retirable pour les chauffeurs** (`available = balance - floor - pending`) — cohérent avec retrait et remboursement.
+- **Vérifié** : curl (envoi 5€ OK ; 999999€ → 400 « Montant max 855.80 € réserve 50 € ») + screenshot (3 boutons + modale « hors réserve 860.80 € »). Donnée démo restaurée. Front/back compilent.
+
+
 ## NEW - 2026-06-10 (246) - Unification du portefeuille chauffeur (fin des « 2 wallets ») (DONE, testé screenshot)
 - **Cause des 2 portefeuilles** : le chauffeur atterrissait sur `/wallet` (SB Pay, écran client) en cliquant « Recharger » depuis `/chauffeur/wallet` → 2 écrans de portefeuille distincts (même solde mais perçus comme 2 wallets). + entrée doublon menu (déjà retirée en 245).
 - **Fix — recharge intégrée dans la page chauffeur** (`DriverWalletPage.js`) : le bouton « Recharger » ouvre désormais une **feuille de recharge Stripe in-page** (packages 10/20/50/100 € + montant libre → `POST /api/payments/checkout`) ; **polling du statut de paiement au retour** (reste sur `/chauffeur/wallet`) ; support `?action=topup`.

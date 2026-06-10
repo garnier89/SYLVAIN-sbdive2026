@@ -4,8 +4,9 @@ import { driverAPI, walletAPI } from '../../services/api';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { DriverBottomNav } from './DriverProfilePage';
 import { Button } from '../../components/ui/button';
-import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur, X, Bank, ShieldCheck } from '@phosphor-icons/react';
+import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur, X, Bank, ShieldCheck, PaperPlaneTilt } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { SendMoneyModal } from '../../components/SendMoneyModal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const TOPUP_PACKAGES = [10, 20, 50, 100];
@@ -17,6 +18,7 @@ const DriverWalletPage = () => {
   const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
   const [loading, setLoading] = useState(true);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showSend, setShowSend] = useState(false);
   const [showTopup, setShowTopup] = useState(false);
   const [topupLoading, setTopupLoading] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
@@ -125,6 +127,9 @@ const DriverWalletPage = () => {
           <Button onClick={() => setShowTopup(true)} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="topup-btn">
             <Plus size={16} className="mr-1" /> Recharger
           </Button>
+          <Button onClick={() => setShowSend(true)} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="send-btn">
+            <PaperPlaneTilt size={16} className="mr-1" /> Envoyer
+          </Button>
         </div>
         {canWithdraw && (
           <button onClick={() => navigate('/wallet/payout-method')} className="text-amber-100/90 text-[11px] mt-2 underline" data-testid="driver-manage-payout-method">
@@ -160,6 +165,14 @@ const DriverWalletPage = () => {
         </div>
       </div>
       <DriverBottomNav />
+      {showSend && (
+        <SendMoneyModal
+          maxAmount={withdrawable}
+          maxLabel="Montant disponible (hors réserve)"
+          onClose={() => setShowSend(false)}
+          onDone={() => { setShowSend(false); loadWallet(); }}
+        />
+      )}
       {paymentPolling && (
         <div className="fixed inset-0 z-[3200] bg-black/70 flex items-center justify-center" data-testid="driver-payment-polling">
           <div className="bg-white rounded-2xl px-6 py-5 flex items-center gap-3">

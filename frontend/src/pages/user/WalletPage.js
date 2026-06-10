@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import { walletAPI, couponAPI } from '../../services/api';
+import { SendMoneyModal } from '../../components/SendMoneyModal';
 import {
   Wallet as WalletIcon, Plus, ArrowLeft,
   ArrowUp, ArrowDown, Gift, Tag, Coins, PaperPlaneTilt, X, ShieldCheck, Bank, QrCode
@@ -417,8 +418,8 @@ const WalletPage = () => {
 
       {/* Send modal (P2P) */}
       {showSend && (
-        <SendModal
-          balance={wallet.balance || 0}
+        <SendMoneyModal
+          maxAmount={wallet.balance || 0}
           initialRecipient={searchParams.get('to') || ''}
           onClose={() => { setShowSend(false); if (searchParams.get('action')) setSearchParams({}); }}
           onDone={() => { setShowSend(false); if (searchParams.get('action')) setSearchParams({}); loadWallet(); }}
@@ -521,95 +522,6 @@ const WithdrawModal = ({ withdrawable, reserve, navigate, onClose, onDone }) => 
           {loading ? 'Envoi…' : `Demander ${net.toFixed(2)} €`}
         </button>
         <p className="text-[11px] text-gray-400 text-center mt-2">Le montant est gelé jusqu'à validation par l'administrateur.</p>
-      </div>
-    </div>
-  );
-};
-
-// ============ SendModal (P2P transfer by phone) ============
-const SendModal = ({ balance, initialRecipient, onClose, onDone }) => {
-  const [recipient, setRecipient] = useState(initialRecipient || '');
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(false);
-  const numAmount = parseFloat(amount) || 0;
-
-  const submit = async () => {
-    if (!recipient.trim() || numAmount <= 0) return;
-    if (numAmount > balance) { toast.error('Solde insuffisant'); return; }
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/finance/sbpaygo/send`, {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient_phone: recipient, amount: numAmount, note: note || null }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'send failed');
-      }
-      const data = await res.json();
-      toast.success(`${numAmount.toFixed(2)} € envoyés${data.recipient_found ? '' : ' (destinataire en attente)'}`);
-      onDone();
-    } catch (e) {
-      toast.error(e.message || 'Envoi échoué');
-    } finally { setLoading(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50" data-testid="send-modal">
-      <div className="w-full max-w-[430px] bg-white rounded-t-3xl sm:rounded-3xl p-6 mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <PaperPlaneTilt size={20} weight="duotone" className="text-orange-600" />
-            Envoyer de l'argent
-          </h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="send-close">
-            <X size={14} />
-          </button>
-        </div>
-
-        <div className="mb-4 text-xs text-gray-500">Solde disponible : <b className="text-gray-900">{balance.toFixed(2)} €</b></div>
-
-        <div className="space-y-3 mb-5">
-          <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1 block">Téléphone du destinataire</label>
-            <input
-              type="tel" value={recipient} onChange={(e) => setRecipient(e.target.value)}
-              placeholder="+33 6 12 34 56 78"
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-              data-testid="send-recipient-input"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1 block">Montant (€)</label>
-            <input
-              type="number" min="0.5" step="0.5" max={balance}
-              value={amount} onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-              data-testid="send-amount-input"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1 block">Note (optionnel)</label>
-            <input
-              type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Ex : Remboursement repas"
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-              data-testid="send-note-input"
-            />
-          </div>
-        </div>
-
-        <button
-          onClick={submit}
-          disabled={loading || !recipient.trim() || numAmount <= 0 || numAmount > balance}
-          className="w-full h-12 rounded-xl bg-orange-600 text-white font-bold disabled:opacity-60"
-          data-testid="send-confirm-btn"
-        >
-          {loading ? 'Envoi…' : `Envoyer ${numAmount.toFixed(2)} €`}
-        </button>
       </div>
     </div>
   );
