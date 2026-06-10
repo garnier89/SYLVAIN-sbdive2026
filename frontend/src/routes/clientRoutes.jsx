@@ -6,6 +6,7 @@ import PayoutMethodPage from '../pages/user/PayoutMethodPage';
 import LinkedAccountsPage from '../pages/user/LinkedAccountsPage';
 import {
   LandingPage, ClientWelcome, LoginPage, EmailLoginPage, AdminLoginPage,
+  VerifyEmailPage, ForgotPasswordPage, ResetPasswordPage,
   UserHome, RideBookingPage, RideChoosePage, RideTrackingPage, RideReceiptPage,
   FoodPage, RestaurantDetail, CheckoutPage, OrderTracking, WalletPage, ProfilePage,
   HistoryPage, SupportPage, ParcelPage, ReferralPage, DonationPage, LiveChatPage,
@@ -38,6 +39,9 @@ export function clientRoutes(user) {
       <Route path="/login/email" element={user ? <Navigate to="/home" replace /> : <EmailLoginPage />} />
       <Route path="/admin-login" element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <AdminLoginPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
+      <Route path="/verifier-email" element={<VerifyEmailPage />} />
+      <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
+      <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
 
       {/* Client Protected Routes */}
       <Route path="/ride" element={<ProtectedRoute allowedRoles={['user']}><RideBookingPage /></ProtectedRoute>} />

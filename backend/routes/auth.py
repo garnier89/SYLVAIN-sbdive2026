@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Request, Response, HTTPException
+from fastapi.responses import RedirectResponse
 from datetime import datetime, timezone, timedelta
 import uuid
+import os
+import secrets
+import hashlib
 import httpx
 
-from core.config import db, logger
+from core.config import db, logger, JWT_SECRET
 from core.deps import (
     hash_password, verify_password, create_access_token,
     create_refresh_token, get_current_user
@@ -15,6 +19,51 @@ from models.schemas import (
 from typing import List
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+# ===== Email security: verification (OTP + link) & password reset =====
+VERIFY_TTL_MIN = 1440      # activation code/link valid 24h
+RESET_TTL_MIN = 60         # reset code/link valid 1h
+RESEND_COOLDOWN_SEC = 60
+MAX_CODE_ATTEMPTS = 5
+
+
+def _frontend_base() -> str:
+    return os.environ.get("FRONTEND_URL", "").rstrip("/")
+
+
+def _hash_secret(value: str) -> str:
+    return hashlib.sha256(f"{JWT_SECRET}:{value}".encode()).hexdigest()
+
+
+async def _issue_code(user: dict, purpose: str, ttl_min: int):
+    """Create a 6-digit OTP + link token for the user/purpose (hashed at rest)."""
+    code = f"{secrets.randbelow(900000) + 100000}"
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    await db.auth_codes.delete_many({"user_id": user["id"], "purpose": purpose})
+    await db.auth_codes.insert_one({
+        "user_id": user["id"],
+        "email": user.get("email"),
+        "purpose": purpose,
+        "code_hash": _hash_secret(code),
+        "token_hash": _hash_secret(token),
+        "attempts": 0,
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(minutes=ttl_min)).isoformat(),
+    })
+    return code, token
+
+
+async def _send_verification(user: dict) -> None:
+    """Issue + email a verification code/link. Skips placeholder/empty emails."""
+    email = (user.get("email") or "").strip()
+    if not email or email.endswith("@sbdrive.local") or user.get("is_verified"):
+        return
+    code, token = await _issue_code(user, "verify", VERIFY_TTL_MIN)
+    link = f"{_frontend_base()}/api/auth/verify-email?token={token}"
+    from core.email import fire, send_verification_email
+    fire(send_verification_email(email, user.get("name", ""), code, link))
 
 
 @router.post("/check-phone")
@@ -105,6 +154,8 @@ async def phone_register(data: dict, response: Response):
     if referrer_id:
         await create_pending_referral(referrer_id, user_doc)
 
+    await _send_verification(user_doc)
+
     access_token = create_access_token(user_id, user_doc["email"], "user")
     refresh_token = create_refresh_token(user_id)
     _set_auth_cookies(response, access_token, refresh_token)
@@ -160,6 +211,8 @@ async def register(data: UserRegister, response: Response):
     }
     await db.users.insert_one(user_doc)
     await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "created_at": datetime.now(timezone.utc).isoformat()})
+
+    await _send_verification(user_doc)
 
     access_token = create_access_token(user_id, email, user_doc["role"])
     refresh_token = create_refresh_token(user_id)
@@ -319,6 +372,115 @@ async def change_password(request: Request):
         raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
     await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": hash_password(new_password)}})
     return {"ok": True, "message": "Mot de passe modifié avec succès"}
+
+
+@router.post("/send-verification")
+async def send_verification(request: Request):
+    """Resend the email verification code/link for the current user (60s cooldown)."""
+    user = await get_current_user(request)
+    if user.get("is_verified"):
+        return {"ok": True, "already_verified": True}
+    existing = await db.auth_codes.find_one({"user_id": user["id"], "purpose": "verify"})
+    if existing:
+        elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(existing["created_at"])).total_seconds()
+        if elapsed < RESEND_COOLDOWN_SEC:
+            return {"ok": True, "cooldown": int(RESEND_COOLDOWN_SEC - elapsed)}
+    full = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    await _send_verification(full)
+    return {"ok": True, "cooldown": RESEND_COOLDOWN_SEC}
+
+
+@router.post("/verify-otp")
+async def verify_otp(request: Request):
+    """Verify the 6-digit email code for the current user → flips is_verified."""
+    user = await get_current_user(request)
+    body = await request.json()
+    code = str(body.get("code", "")).strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Code requis")
+    doc = await db.auth_codes.find_one({"user_id": user["id"], "purpose": "verify"})
+    if not doc:
+        raise HTTPException(status_code=400, detail="Aucun code en attente. Demandez un nouveau code.")
+    if datetime.fromisoformat(doc["expires_at"]) < datetime.now(timezone.utc):
+        await db.auth_codes.delete_one({"_id": doc["_id"]})
+        raise HTTPException(status_code=400, detail="Code expiré. Demandez un nouveau code.")
+    if doc.get("attempts", 0) >= MAX_CODE_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Trop de tentatives. Demandez un nouveau code.")
+    if _hash_secret(code) != doc["code_hash"]:
+        await db.auth_codes.update_one({"_id": doc["_id"]}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Code incorrect")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"is_verified": True}})
+    await db.auth_codes.delete_many({"user_id": user["id"], "purpose": "verify"})
+    return {"ok": True, "verified": True}
+
+
+@router.get("/verify-email")
+async def verify_email_link(token: str = ""):
+    """Activation link target: flips is_verified then redirects to the frontend."""
+    base = _frontend_base()
+    doc = await db.auth_codes.find_one({"token_hash": _hash_secret(token), "purpose": "verify"}) if token else None
+    if not doc:
+        return RedirectResponse(url=f"{base}/verifier-email?status=invalid")
+    if datetime.fromisoformat(doc["expires_at"]) < datetime.now(timezone.utc):
+        await db.auth_codes.delete_one({"_id": doc["_id"]})
+        return RedirectResponse(url=f"{base}/verifier-email?status=expired")
+    await db.users.update_one({"id": doc["user_id"]}, {"$set": {"is_verified": True}})
+    await db.auth_codes.delete_many({"user_id": doc["user_id"], "purpose": "verify"})
+    return RedirectResponse(url=f"{base}/verifier-email?status=ok")
+
+
+@router.post("/forgot-password")
+async def forgot_password(request: Request):
+    """Send a password reset code + link. Always returns 200 (anti-enumeration)."""
+    body = await request.json()
+    email = (body.get("email", "") or "").strip().lower()
+    if email:
+        user = await db.users.find_one({"email": email}, {"_id": 0})
+        if user and user.get("password_hash"):
+            code, token = await _issue_code(user, "reset", RESET_TTL_MIN)
+            link = f"{_frontend_base()}/reinitialiser-mot-de-passe?token={token}"
+            from core.email import fire, send_password_reset_email
+            fire(send_password_reset_email(email, user.get("name", ""), code, link))
+    return {"ok": True, "message": "Si un compte existe pour cet email, un code de réinitialisation a été envoyé."}
+
+
+@router.post("/reset-password")
+async def reset_password(request: Request, response: Response):
+    """Reset password via either {token,new_password} or {email,code,new_password}."""
+    body = await request.json()
+    new_password = body.get("new_password", "")
+    if not new_password or len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Nouveau mot de passe trop court (min 6 caractères)")
+    token = (body.get("token", "") or "").strip()
+    email = (body.get("email", "") or "").strip().lower()
+    code = str(body.get("code", "")).strip()
+
+    if token:
+        doc = await db.auth_codes.find_one({"token_hash": _hash_secret(token), "purpose": "reset"})
+        if not doc:
+            raise HTTPException(status_code=400, detail="Lien invalide ou déjà utilisé")
+    elif email and code:
+        doc = await db.auth_codes.find_one({"email": email, "purpose": "reset"})
+        if not doc:
+            raise HTTPException(status_code=400, detail="Code invalide ou expiré")
+        if doc.get("attempts", 0) >= MAX_CODE_ATTEMPTS:
+            raise HTTPException(status_code=429, detail="Trop de tentatives. Demandez un nouveau code.")
+        if _hash_secret(code) != doc["code_hash"]:
+            await db.auth_codes.update_one({"_id": doc["_id"]}, {"$inc": {"attempts": 1}})
+            raise HTTPException(status_code=400, detail="Code incorrect")
+    else:
+        raise HTTPException(status_code=400, detail="Lien ou code requis")
+
+    if datetime.fromisoformat(doc["expires_at"]) < datetime.now(timezone.utc):
+        await db.auth_codes.delete_one({"_id": doc["_id"]})
+        raise HTTPException(status_code=400, detail="Lien ou code expiré. Refaites une demande.")
+
+    await db.users.update_one({"id": doc["user_id"]}, {"$set": {"password_hash": hash_password(new_password)}})
+    await db.auth_codes.delete_many({"user_id": doc["user_id"], "purpose": "reset"})
+    # Invalidate any existing session so the user logs in fresh with the new password.
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+    return {"ok": True, "message": "Mot de passe réinitialisé. Vous pouvez vous connecter."}
 
 
 

@@ -348,3 +348,61 @@ async def send_ride_invoice(to: str, customer_name: str, *, invoice_no: str, pic
         </p>
         <p style="color:#444;font-size:14px;text-align:center;">Bonne route ! 🚗</p>"""
     await _send(to, f"Facture course {invoice_no} · SB Drive", _shell("Course terminée 🏁", "#0a0e1a", body))
+
+
+def _code_block(code: str) -> str:
+    digits = "".join(
+        f'<span style="display:inline-block;min-width:34px;margin:0 3px;padding:10px 0;'
+        f'background:#0a0e1a;color:#ffffff;font-size:24px;font-weight:bold;border-radius:8px;'
+        f'text-align:center;font-family:monospace;">{d}</span>'
+        for d in str(code)
+    )
+    return f'<div style="text-align:center;margin:18px 0;">{digits}</div>'
+
+
+async def send_verification_email(to: str, name: str, code: str, link: str) -> None:
+    """Email verification: 6-digit OTP code + clickable activation link."""
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Bienvenue sur <b>SB Drive</b> ! Pour sécuriser votre compte et activer toutes
+          les fonctionnalités, confirmez votre adresse email.
+        </p>
+        <p style="color:#444;font-size:14px;margin-top:18px;">Votre code de vérification :</p>
+        {_code_block(code)}
+        <p style="color:#9aa0ac;font-size:12px;text-align:center;margin:0 0 18px;">Ce code expire dans 24 heures.</p>
+        <p style="color:#444;font-size:14px;text-align:center;">Ou cliquez simplement sur le bouton ci-dessous :</p>
+        <p style="text-align:center;margin:14px 0 22px;">
+          <a href="{link}" style="background:#FF4500;color:#ffffff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+            Vérifier mon email
+          </a>
+        </p>
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;">
+          Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email.
+        </p>"""
+    await _send(to, "Vérifiez votre email — SB Drive", _shell("Vérifiez votre email ✉️", "#FF4500", body))
+
+
+async def send_password_reset_email(to: str, name: str, code: str, link: str) -> None:
+    """Password reset: 6-digit OTP code + clickable reset link to a dedicated page."""
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Vous avez demandé la réinitialisation de votre mot de passe SB Drive.
+          Utilisez le code ci-dessous ou cliquez sur le bouton.
+        </p>
+        <p style="color:#444;font-size:14px;margin-top:18px;">Votre code de réinitialisation :</p>
+        {_code_block(code)}
+        <p style="color:#9aa0ac;font-size:12px;text-align:center;margin:0 0 18px;">Ce code expire dans 1 heure.</p>
+        <p style="text-align:center;margin:14px 0 22px;">
+          <a href="{link}" style="background:#0a0e1a;color:#ffffff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+            Réinitialiser mon mot de passe
+          </a>
+        </p>
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;">
+          Si vous n'avez pas demandé cette réinitialisation, ignorez cet email — votre mot de passe
+          reste inchangé. Ne communiquez jamais ce code à qui que ce soit.
+        </p>"""
+    await _send(to, "Réinitialisation de votre mot de passe — SB Drive", _shell("Mot de passe oublié 🔐", "#0a0e1a", body))

@@ -108,6 +108,17 @@ const EmailLoginPage = () => {
           </button>
         </form>
 
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => navigate('/mot-de-passe-oublie')}
+            className="text-cyan-400 text-sm font-semibold"
+            data-testid="forgot-password-link"
+          >
+            Mot de passe oublié ?
+          </button>
+        </div>
+
         <div className="mt-6 rounded-2xl bg-[#FF4500]/10 border border-[#FF4500]/20 p-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-white text-sm font-semibold">Vous êtes commerçant ?</p>

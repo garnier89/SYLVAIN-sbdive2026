@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend e2e for Phase 2 email security (OTP verify + forgot/reset password). All 9 scenarios passed against the public preview URL. Recovered OTPs by brute-forcing sha256(JWT_SECRET:code) against MongoDB auth_codes (purpose=verify|reset).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/_otp_helper.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "VerifyEmailPage uses checkAuth?.() chained from useAuth(); confirmed AuthContext exposes it. Works.",
+    "ForgotPasswordPage shows the reset step even for unknown emails — correct anti-enumeration UX.",
+    "Banner is hidden after verify because user state refreshes via checkAuth post verify-otp. Good.",
+    "Minor: VerifyEmailPage navigates to roleHome(user?.role) immediately after checkAuth but user state from useAuth may not be refreshed synchronously; in this run navigation to /home succeeded because role 'user' falls through to default '/home'. For non-user roles this is racy. Consider returning the user object from checkAuth and using the fresh role for redirect.",
+    "Minor: RegisterPage (classic /register) redirects merchant to '/merchant' instead of '/merchant/dashboard' used elsewhere (EmailLoginPage). Not part of this story but inconsistent."
+  ],
+  "updated_files": [
+    "/app/tests/_otp_helper.py (new)"
+  ],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% (9/9 scenarios)"},
+  "test_credentials": "Generated dynamic accounts e.g. e2e_<ts>@example.com / Secret123! ; admin@superapp.com / SuperAdmin123! also available.",
+  "seed_data_creation": "Created two fresh user accounts via POST /api/auth/register: one verified (used for OTP banner flow), one used for forgot-password flow; password changed to NewSecret456!. Safe to leave as orphan test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "OTP recovery helper at /app/tests/_otp_helper.py: usage `python /app/tests/_otp_helper.py <email> <verify|reset>`. It reads MONGO_URL, DB_NAME, JWT_SECRET from /app/backend/.env and brute-forces the 6-digit code against auth_codes.code_hash. Banner is rendered globally via VerifyEmailBanner.jsx and only shows when user.email_verified === false. Forgot-password reveals reset step on submit regardless of email existence — by design (anti-enumeration).",
+  "rca of the issue": "No issues found. All five user-listed scenarios passed: (1) banner shows on /home after register; (2) banner button → /verifier-email with OTP input; (3) correct OTP verifies + redirects + hides banner; (4) forgot link → /mot-de-passe-oublie → reset step → new password works + can login; (5) unknown email returns identical generic success toast (anti-enumeration)."
+}

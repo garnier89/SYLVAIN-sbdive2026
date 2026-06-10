@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/sonner';
 import InstallPWA from './components/InstallPWA';
 import EnableNotificationsBanner from './components/EnableNotificationsBanner';
 import ActiveRideFlag from './components/ActiveRideFlag';
+import VerifyEmailBanner from './components/VerifyEmailBanner';
 import AuthCallback from './components/AuthCallback';
 import VoiceAssistant from './components/VoiceAssistant';
 import { KioskApp, ProAccessPage, SbStoreSignupPage } from './routes/pages';
@@ -91,6 +92,7 @@ function App() {
           <InstallPWA />
           <EnableNotificationsBanner />
           <ActiveRideFlag />
+          <VerifyEmailBanner />
         </LocaleProvider>
       </AuthProvider>
     </BrowserRouter>

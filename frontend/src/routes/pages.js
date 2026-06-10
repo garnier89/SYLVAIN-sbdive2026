@@ -11,6 +11,9 @@ export function lazyWithPreload(factory) {
 // Auth Pages
 export const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 export const EmailLoginPage = lazy(() => import('../pages/auth/EmailLoginPage'));
+export const VerifyEmailPage = lazy(() => import('../pages/auth/VerifyEmailPage'));
+export const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
+export const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage'));
 
 // Landing Page
 export const LandingPage = lazy(() => import('../pages/LandingPage'));
