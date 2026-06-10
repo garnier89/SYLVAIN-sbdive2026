@@ -1,20 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { driverAPI, walletAPI } from '../../services/api';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { DriverBottomNav } from './DriverProfilePage';
 import { Button } from '../../components/ui/button';
-import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur, X, Bank } from '@phosphor-icons/react';
+import { Wallet, Plus, ArrowUp, ArrowDown, Clock, CheckCircle, CurrencyEur, X, Bank, ShieldCheck } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+const TOPUP_PACKAGES = [10, 20, 50, 100];
 
 const DriverWalletPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { settings } = useAppSettings();
   const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
   const [loading, setLoading] = useState(true);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showTopup, setShowTopup] = useState(false);
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
+  const [paymentPolling, setPaymentPolling] = useState(false);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -25,6 +31,58 @@ const DriverWalletPage = () => {
   }, []);
 
   useEffect(() => { loadWallet(); }, [loadWallet]);
+
+  // Open the top-up sheet when arriving via ?action=topup (e.g. the cash banner).
+  useEffect(() => {
+    if (searchParams.get('action') === 'topup') setShowTopup(true);
+  }, [searchParams]);
+
+  // Poll Stripe payment status when returning from checkout (stays on this page).
+  const pollPaymentStatus = useCallback(async (sessionId, attempts) => {
+    if (attempts >= 8) { setPaymentPolling(false); setSearchParams({}); return; }
+    try {
+      const res = await fetch(`${API}/api/payments/status/${sessionId}`, { credentials: 'include' });
+      const data = await res.json();
+      if (data.payment_status === 'paid') {
+        setPaymentPolling(false);
+        toast.success(`Paiement réussi ! +${data.amount} € sur votre portefeuille`);
+        setSearchParams({});
+        loadWallet();
+        return;
+      }
+      if (data.status === 'expired') { setPaymentPolling(false); setSearchParams({}); return; }
+      setTimeout(() => pollPaymentStatus(sessionId, attempts + 1), 2000);
+    } catch { setPaymentPolling(false); setSearchParams({}); }
+  }, [setSearchParams, loadWallet]);
+
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    if (sessionId) { setPaymentPolling(true); pollPaymentStatus(sessionId, 0); }
+  }, [searchParams, pollPaymentStatus]);
+
+  const stripeTopup = async (packageIndex, custom) => {
+    setTopupLoading(true);
+    try {
+      const payload = { origin_url: window.location.origin, return_path: '/chauffeur/wallet' };
+      if (custom != null) payload.custom_amount = custom;
+      else payload.package_id = String(packageIndex);
+      const res = await fetch(`${API}/api/payments/checkout`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else toast.error(data.detail || 'Erreur de paiement');
+    } catch { toast.error('Erreur de connexion au paiement'); }
+    finally { setTopupLoading(false); }
+  };
+
+  const customTopup = () => {
+    const val = parseFloat(customAmount);
+    if (!val || val < 1 || val > 5000) return toast.error('Montant invalide (1 - 5000 €)');
+    stripeTopup(null, Math.round(val * 100) / 100);
+  };
 
   // The backend (/wallet) is the source of truth: drivers/merchants can withdraw.
   const canWithdraw = wallet.can_withdraw === true || settings.enable_driver_wallet_withdrawal === true;
@@ -64,7 +122,7 @@ const DriverWalletPage = () => {
               <ArrowUp size={16} className="mr-1" /> Retrait
             </Button>
           )}
-          <Button onClick={() => navigate('/wallet')} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="topup-btn">
+          <Button onClick={() => setShowTopup(true)} className="flex-1 bg-white/20 hover:bg-white/30 text-white text-sm h-10 rounded-xl" data-testid="topup-btn">
             <Plus size={16} className="mr-1" /> Recharger
           </Button>
         </div>
@@ -102,6 +160,43 @@ const DriverWalletPage = () => {
         </div>
       </div>
       <DriverBottomNav />
+      {paymentPolling && (
+        <div className="fixed inset-0 z-[3200] bg-black/70 flex items-center justify-center" data-testid="driver-payment-polling">
+          <div className="bg-white rounded-2xl px-6 py-5 flex items-center gap-3">
+            <div className="w-6 h-6 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+            <span className="text-sm font-semibold text-gray-800">Vérification du paiement…</span>
+          </div>
+        </div>
+      )}
+      {showTopup && (
+        <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/60" data-testid="driver-topup-sheet">
+          <div className="w-full max-w-[430px] bg-white rounded-t-3xl sm:rounded-3xl p-6 mx-auto">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-bold flex items-center gap-2"><Plus size={20} weight="bold" className="text-amber-600" /> Recharger mon portefeuille</h3>
+              <button onClick={() => setShowTopup(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="driver-topup-close"><X size={14} /></button>
+            </div>
+            <p className="text-xs text-gray-500 flex items-center gap-1 mb-4"><ShieldCheck size={14} className="text-emerald-600" /> Paiement sécurisé par Stripe</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {TOPUP_PACKAGES.map((amt, idx) => (
+                <button key={amt} onClick={() => stripeTopup(idx)} disabled={topupLoading}
+                  className="py-3 rounded-xl border-2 border-amber-200 bg-amber-50 text-amber-700 font-bold disabled:opacity-60" data-testid={`driver-topup-${amt}`}>
+                  {amt} €
+                </button>
+              ))}
+            </div>
+            <label className="text-xs font-semibold text-gray-700 mb-1 block">Autre montant (€)</label>
+            <div className="flex gap-2">
+              <input type="number" min="1" max="5000" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="0.00" className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm" data-testid="driver-topup-custom-input" />
+              <button onClick={customTopup} disabled={topupLoading || !customAmount}
+                className="px-4 rounded-xl bg-gray-900 text-white font-bold text-sm disabled:opacity-60" data-testid="driver-topup-custom-btn">
+                Payer
+              </button>
+            </div>
+            {topupLoading && <p className="text-xs text-gray-500 text-center mt-3">Redirection vers Stripe…</p>}
+          </div>
+        </div>
+      )}
       {showWithdraw && (
         <DriverWithdrawModal
           withdrawable={withdrawable}

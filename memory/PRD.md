@@ -1,3 +1,11 @@
+## NEW - 2026-06-10 (246) - Unification du portefeuille chauffeur (fin des « 2 wallets ») (DONE, testé screenshot)
+- **Cause des 2 portefeuilles** : le chauffeur atterrissait sur `/wallet` (SB Pay, écran client) en cliquant « Recharger » depuis `/chauffeur/wallet` → 2 écrans de portefeuille distincts (même solde mais perçus comme 2 wallets). + entrée doublon menu (déjà retirée en 245).
+- **Fix — recharge intégrée dans la page chauffeur** (`DriverWalletPage.js`) : le bouton « Recharger » ouvre désormais une **feuille de recharge Stripe in-page** (packages 10/20/50/100 € + montant libre → `POST /api/payments/checkout`) ; **polling du statut de paiement au retour** (reste sur `/chauffeur/wallet`) ; support `?action=topup`.
+- **Backend** (`routes/payments.py`) : `create_checkout` accepte `return_path` (validé, défaut `/wallet`) → `success_url`/`cancel_url` configurables. Le chauffeur passe `return_path=/chauffeur/wallet` donc revient sur SA page après Stripe.
+- **Tous les chemins « Recharger » du chauffeur** pointent sur `/chauffeur/wallet` : quick-action menu (`SideMenuDrawer.js`, variant-aware), bandeau cash (`DriverHome.js` → `?action=topup`). Plus aucune redirection vers `/wallet`.
+- **Résultat** : le chauffeur a **UN SEUL** portefeuille (`/chauffeur/wallet`) avec Retrait + Recharge in-page. Vérifié screenshot (feuille recharge + bouton retrait). Frontend/backend compilent.
+
+
 ## NEW - 2026-06-10 (245) - Bandeau recharge courses espèces + Clarification « 2 portefeuilles » (DONE)
 - **« Pourquoi 2 portefeuilles ? »** → En réalité **UN SEUL** portefeuille (même solde, même `/api/wallet`), mais affiché via 2 entrées de menu : « Mon portefeuille » (`/chauffeur/wallet`) ET « SB Pay » (`/wallet`). Correction : **suppression de l'entrée doublon « SB Pay »** dans le menu latéral chauffeur (`SideMenuDrawer.js`) → une seule entrée portefeuille. (`/chauffeur/wallet` et `/wallet` lisent le même compte ; `/wallet` reste l'écran de recharge/topup.)
 - **Bandeau recharge** (`DriverHome.js`) : quand le solde chauffeur < 1 €, bandeau orange « Rechargez pour recevoir les courses en espèces · Solde X € · minimum 1 € requis » + bouton Recharger (→ `/chauffeur/wallet`) + fermeture. Masqué pendant une course/demande. `walletAPI` importé, solde rechargé à chaque changement de course.

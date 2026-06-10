@@ -204,7 +204,7 @@ const SideMenuDrawer = ({ open, onClose, variant = 'user' }) => {
             {[
               { icon: ListChecks,    label: 'Réservations', path: variant === 'driver' ? '/chauffeur/history' : '/history' },
               { icon: Wallet,        label: 'Portefeuille', path: variant === 'driver' ? '/chauffeur/wallet'  : '/wallet' },
-              { icon: Plus,          label: 'Recharger',    path: '/wallet?action=topup' },
+              { icon: Plus,          label: 'Recharger',    path: variant === 'driver' ? '/chauffeur/wallet?action=topup' : '/wallet?action=topup' },
               { icon: ShareNetwork,  label: 'Inviter',      path: '/referral' },
             ].map((a) => (
               <button

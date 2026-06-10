@@ -37,6 +37,10 @@ async def create_checkout(request: Request):
     package_id = body.get("package_id")
     custom_amount = body.get("custom_amount")
     origin_url = body.get("origin_url", "")
+    # Where to return after Stripe (so drivers stay on /chauffeur/wallet, etc.).
+    return_path = body.get("return_path", "/wallet")
+    if not isinstance(return_path, str) or not return_path.startswith("/"):
+        return_path = "/wallet"
 
     if not origin_url:
         raise HTTPException(status_code=400, detail="Origin URL required")
@@ -55,8 +59,9 @@ async def create_checkout(request: Request):
         package_id = "custom"
     else:
         raise HTTPException(status_code=400, detail="Montant invalide")
-    success_url = f"{origin_url}/wallet?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{origin_url}/wallet"
+    sep = "&" if "?" in return_path else "?"
+    success_url = f"{origin_url}{return_path}{sep}session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}{return_path}"
 
     stripe = get_stripe(request)
     checkout_req = CheckoutSessionRequest(

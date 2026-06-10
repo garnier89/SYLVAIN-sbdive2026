@@ -558,7 +558,7 @@ const DriverHome = () => {
               <p className="text-xs font-bold leading-tight">Rechargez pour recevoir les courses en espèces</p>
               <p className="text-[11px] text-white/90 leading-tight">Solde {Number(walletBalance).toFixed(2)} € · minimum 1 € requis.</p>
             </div>
-            <button onClick={() => navigate('/chauffeur/wallet')} className="shrink-0 px-3 py-1.5 rounded-full bg-white text-amber-600 text-xs font-bold" data-testid="cash-topup-recharge-btn">
+            <button onClick={() => navigate('/chauffeur/wallet?action=topup')} className="shrink-0 px-3 py-1.5 rounded-full bg-white text-amber-600 text-xs font-bold" data-testid="cash-topup-recharge-btn">
               Recharger
             </button>
             <button onClick={() => setCashBannerDismissed(true)} className="shrink-0 text-white/80" data-testid="cash-topup-dismiss">
