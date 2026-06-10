@@ -444,6 +444,23 @@ async def create_ride(data: RideRequest, request: Request):
     if intercity_round_trip and not pool_enabled:
         fare = round(fare * INTERCITY_ROUNDTRIP_FACTOR, 2)
 
+    # ── Airport Transfer (P2) — resolve airport, luggage help & shared shuttle ──
+    airport_meta_doc = None
+    airport_luggage_fee = 0.0
+    airport_shuttle_discount = 0.0
+    is_airport = (getattr(data, "ride_type", "") == "airport") or (mode_id == "airport")
+    if is_airport:
+        from core.airport import match_airport, get_airport, airport_meta as _amh, apply_airport_options, simulate_flight_status
+        a_doc = None
+        if getattr(data, "airport_id", None):
+            a_doc = await get_airport(data.airport_id)
+        if not a_doc:
+            a_doc = await match_airport(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng)
+        airport_meta_doc = _amh(a_doc)
+        fare, airport_luggage_fee, airport_shuttle_discount = apply_airport_options(
+            fare, bool(getattr(data, "luggage_assist", False)), bool(getattr(data, "shared_shuttle", False)), airport_meta_doc,
+        )
+
     # ===== Pack C — Corporate booking validation + discount =====
     corporate_id = None
     corporate_discount_pct = 0.0
@@ -555,6 +572,20 @@ async def create_ride(data: RideRequest, request: Request):
         "mode": ride_mode,
         "is_bidding": is_bidding,
         "flight_number": getattr(data, 'flight_number', None),
+        # Airport Transfer (P2)
+        "airport_id": airport_meta_doc["airport_id"] if airport_meta_doc else None,
+        "airport_name": airport_meta_doc["airport_name"] if airport_meta_doc else None,
+        "airport_terminal": getattr(data, 'airport_terminal', None) if is_airport else None,
+        "flight_arrival_time": getattr(data, 'flight_arrival_time', None) if is_airport else None,
+        "meeting_point": airport_meta_doc["meeting_point"] if airport_meta_doc else None,
+        "free_wait_minutes": airport_meta_doc["free_wait_minutes"] if airport_meta_doc else None,
+        "waiting_rate_per_min": airport_meta_doc["waiting_rate_per_min"] if airport_meta_doc else None,
+        "luggage_assist": bool(getattr(data, 'luggage_assist', False)) if is_airport else False,
+        "luggage_count": getattr(data, 'luggage_count', None) if is_airport else None,
+        "luggage_fee": airport_luggage_fee,
+        "shared_shuttle": bool(getattr(data, 'shared_shuttle', False)) if is_airport else False,
+        "shuttle_discount": airport_shuttle_discount,
+        "flight_status": None,
         "rental_hours": getattr(data, 'rental_hours', None),
         "rental_package": getattr(data, 'rental_package', None),
         "corporate_account_id": corporate_id,
@@ -611,7 +642,26 @@ async def create_ride(data: RideRequest, request: Request):
 
     await db.rides.insert_one(ride)
 
-    # Track auto-promotion usage once the booking is persisted
+    # ── Airport Transfer: seed flight status + alert admins (P2) ──
+    if is_airport:
+        try:
+            from core.airport import simulate_flight_status, notify_admins
+            if ride.get("flight_number"):
+                fs = simulate_flight_status(ride["flight_number"], ride.get("scheduled_at"))
+                if fs:
+                    if fs.get("adjusted_pickup"):
+                        ride["scheduled_at"] = fs["adjusted_pickup"]
+                    ride["flight_status"] = fs
+                    await db.rides.update_one({"id": ride["id"]}, {"$set": {
+                        "flight_status": fs, "scheduled_at": ride.get("scheduled_at")}})
+            await notify_admins(
+                "airport_booking", "✈️ Nouvelle course Aéroport",
+                f"{ride.get('airport_name') or 'Aéroport'} · Vol {ride.get('flight_number') or '—'} · {ride['pickup_address'][:40]}",
+                data={"url": "/admin/airport", "ride_id": ride["id"]},
+            )
+        except Exception:
+            import logging
+            logging.getLogger("rides").warning("airport post-create hook failed", exc_info=True)
     if auto_promo_id:
         await db.auto_promotions.update_one({"id": auto_promo_id}, {"$inc": {"usage_count": 1}})
 

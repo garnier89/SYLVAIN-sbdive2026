@@ -7,7 +7,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { rideAPI, tripShareAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
-  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, ArrowLeft, UsersThree,
+  Check, NavigationArrow, Car, Star, Clock, X, Warning, Shield, ArrowLeft, UsersThree, AirplaneTilt,
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
@@ -25,6 +25,32 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 const RELANCE_INTERVAL_SEC = 20;
 const MAX_RELANCES = 3;
+
+// Flight Watch banner — shows live flight status + meeting point for airport transfers.
+const FlightWatchBanner = ({ ride }) => {
+  if (ride?.ride_type !== 'airport' || !ride?.flight_number) return null;
+  const fs = ride.flight_status || {};
+  const map = {
+    on_time: { c: 'bg-emerald-100 text-emerald-700', l: 'À l\'heure' },
+    delayed: { c: 'bg-amber-100 text-amber-700', l: `Retard ${fs.delay_minutes} min` },
+    early: { c: 'bg-blue-100 text-blue-700', l: `Avance ${Math.abs(fs.delay_minutes || 0)} min` },
+    cancelled: { c: 'bg-red-100 text-red-700', l: 'Annulé' },
+  };
+  const badge = map[fs.status] || null;
+  return (
+    <div className="mb-4 rounded-2xl bg-sky-50 border border-sky-200 p-3" data-testid="flight-watch-banner">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 font-black text-sky-900 text-sm">
+          <AirplaneTilt size={18} weight="fill" className="text-[#0EA5E9]" /> Vol {ride.flight_number}
+          {ride.airport_terminal ? <span className="text-xs font-bold text-sky-700">· {ride.airport_terminal}</span> : null}
+        </span>
+        {badge && <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${badge.c}`} data-testid="flight-watch-status">{badge.l}</span>}
+      </div>
+      {ride.meeting_point && <p className="text-[12px] text-sky-800 mt-1">📍 {ride.meeting_point}</p>}
+      <p className="text-[11px] text-sky-600 mt-0.5">{ride.free_wait_minutes || 45} min d'attente offertes · suivi de vol automatique</p>
+    </div>
+  );
+};
 
 // Shared-ride badge — shows "Pool partagé" + live remaining seats on the
 // passenger's tracking screen (updated in real time as co-riders join).
@@ -891,6 +917,7 @@ const RideTrackingPage = () => {
 
       <div className="flex-1 bg-white rounded-t-3xl -mt-6 relative z-10 px-4 pt-5 pb-24 overflow-y-auto">
         <DebtBanner />
+        <FlightWatchBanner ride={ride} />
         {/* Status Progress Bar */}
         {!isCancelled && (
           <div className="flex items-center justify-between mb-5" data-testid="ride-status-bar">

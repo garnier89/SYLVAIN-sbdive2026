@@ -125,6 +125,13 @@ class RideRequest(BaseModel):
     # Pack A — Taxi Avancé (V3Cube parity)
     ride_type: str = "instant"  # instant | scheduled | intercity | airport | rental | buddy_driver | corporate
     flight_number: Optional[str] = None  # for airport pickup
+    # Airport Transfer (P2)
+    airport_id: Optional[str] = None  # selected airport (admin-managed directory)
+    airport_terminal: Optional[str] = None  # terminal / gate entered by client
+    flight_arrival_time: Optional[str] = None  # expected arrival time (ISO or HH:MM)
+    luggage_assist: bool = False  # request luggage help (paid option)
+    luggage_count: Optional[int] = None
+    shared_shuttle: bool = False  # shared shuttle to reduce the fare
     rental_hours: Optional[int] = None  # for rental ride_type
     rental_package: Optional[str] = None  # "2h/20km", "4h/40km", "8h/80km"
     corporate_account_id: Optional[str] = None
@@ -191,6 +198,20 @@ class RideResponse(BaseModel):
     mode: Optional[str] = None
     is_bidding: bool = False
     flight_number: Optional[str] = None
+    # Airport Transfer (P2)
+    airport_id: Optional[str] = None
+    airport_name: Optional[str] = None
+    airport_terminal: Optional[str] = None
+    flight_arrival_time: Optional[str] = None
+    meeting_point: Optional[str] = None
+    free_wait_minutes: Optional[int] = None
+    waiting_rate_per_min: Optional[float] = None
+    flight_status: Optional[dict] = None
+    luggage_assist: bool = False
+    luggage_count: Optional[int] = None
+    luggage_fee: float = 0.0
+    shared_shuttle: bool = False
+    shuttle_discount: float = 0.0
     rental_hours: Optional[int] = None
     rental_package: Optional[str] = None
     corporate_account_id: Optional[str] = None

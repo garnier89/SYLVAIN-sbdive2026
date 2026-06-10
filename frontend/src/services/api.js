@@ -155,6 +155,17 @@ export const rideAPI = {
   getAvailable: () => api.get('/rides/pending/available'),
   updateRoute: (id, data) => api.post(`/rides/${id}/update-route`, data),
   changePaymentMethod: (id, payment_method) => api.put(`/rides/${id}/payment-method`, { payment_method }),
+  airports: () => api.get('/phase2/airports'),
+  flightRefresh: (id) => api.post(`/phase2/rides/${id}/flight-refresh`),
+};
+
+// Airport Transfer admin
+export const airportAdminAPI = {
+  list: () => api.get('/phase2/config/airport-zones'),
+  create: (data) => api.post('/phase2/config/airport-zones', data),
+  update: (id, data) => api.put(`/phase2/config/airport-zones/${id}`, data),
+  remove: (id) => api.delete(`/phase2/config/airport-zones/${id}`),
+  reservations: () => api.get('/phase2/admin/airport/reservations'),
 };
 
 // Dispatch control tower (admin / dispatcher)

@@ -130,6 +130,13 @@ const RideChoosePage = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [noDrivers, setNoDrivers] = useState(false);
   const [flightNumber, setFlightNumber] = useState('');
+  const [airports, setAirports] = useState([]);
+  const [airportId, setAirportId] = useState('');
+  const [airportTerminal, setAirportTerminal] = useState('');
+  const [flightArrivalTime, setFlightArrivalTime] = useState('');
+  const [luggageAssist, setLuggageAssist] = useState(false);
+  const [luggageCount, setLuggageCount] = useState(1);
+  const [sharedShuttle, setSharedShuttle] = useState(false);
   const [rentalPkg, setRentalPkg] = useState('2h_20km');
   const [buddyHours, setBuddyHours] = useState(4);
   const [petsCount, setPetsCount] = useState(1);
@@ -317,6 +324,18 @@ const RideChoosePage = () => {
     configAPI.getPoolConfig().then((r) => r.data && setPoolCfg(r.data)).catch(() => {});
   }, []);
 
+  // Airport directory (admin-managed) — loaded for the Airport Transfer mode.
+  useEffect(() => {
+    if (mode.id !== 'airport') return;
+    rideAPI.airports()
+      .then((r) => {
+        const list = Array.isArray(r.data) ? r.data : [];
+        setAirports(list);
+        if (list.length && !airportId) setAirportId(list[0].id);
+      })
+      .catch(() => {});
+  }, [mode.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Enchère only: average ACCEPTED fare per vehicle (recent rides) → fair-price hint.
   useEffect(() => {
     if (!isBidding) return;
@@ -490,7 +509,15 @@ const RideChoosePage = () => {
       base.scheduled_at = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       if (base.ride_type === 'instant') base.ride_type = 'scheduled';
     }
-    if (mode.id === 'airport') base.flight_number = flightNumber || null;
+    if (mode.id === 'airport') {
+      base.flight_number = flightNumber || null;
+      base.airport_id = airportId || null;
+      base.airport_terminal = airportTerminal || null;
+      base.flight_arrival_time = flightArrivalTime || null;
+      base.luggage_assist = luggageAssist;
+      base.luggage_count = luggageAssist ? luggageCount : null;
+      base.shared_shuttle = sharedShuttle;
+    }
     if (isRental) { const pkg = RENTAL_PACKAGES.find((p) => p.slug === rentalPkg); base.rental_package = rentalPkg; base.rental_hours = pkg?.hours || 2; }
     if (isBuddy) base.buddy_hours = buddyHours;
     if (mode.id === 'corporate') base.corporate_account_id = corpId || null;
@@ -554,6 +581,11 @@ const RideChoosePage = () => {
     scheduleLater, setScheduleLater, schedulingAllowed,
     scheduledAt, setCalendarOpen,
     flightNumber, setFlightNumber,
+    airports, airportId, setAirportId,
+    airportTerminal, setAirportTerminal,
+    flightArrivalTime, setFlightArrivalTime,
+    luggageAssist, setLuggageAssist, luggageCount, setLuggageCount,
+    sharedShuttle, setSharedShuttle,
     rentalPkg, setRentalPkg,
     buddyHours, setBuddyHours,
     petsCount, setPetsCount, petsSize, setPetsSize,
@@ -1032,10 +1064,58 @@ const ModeSpecificPanel = (p) => {
   const card = 'mt-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3';
 
   if (mode.id === 'airport') {
+    const sel = (p.airports || []).find((a) => a.id === p.airportId);
+    const freeWait = sel?.free_wait_minutes || 45;
     return (
       <div className={card} data-testid="panel-flight">
-        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-1.5"><AirplaneTilt size={18} className="text-[#0EA5E9]" /> Numéro de vol</label>
-        <input value={p.flightNumber} onChange={(e) => p.setFlightNumber(e.target.value)} placeholder="ex: AF1234" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-flight-input" />
+        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-1.5"><AirplaneTilt size={18} className="text-[#0EA5E9]" /> Transfert aéroport</label>
+        {(p.airports || []).length > 0 && (
+          <select value={p.airportId} onChange={(e) => p.setAirportId(e.target.value)} data-testid="panel-airport-select"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2">
+            {p.airports.map((a) => <option key={a.id} value={a.id}>{a.name}{a.code ? ` (${a.code})` : ''}</option>)}
+          </select>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <input value={p.flightNumber} onChange={(e) => p.setFlightNumber(e.target.value)} placeholder="N° de vol (ex: AF1234)" className="border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-flight-input" />
+          <input value={p.airportTerminal} onChange={(e) => p.setAirportTerminal(e.target.value)} placeholder="Terminal (ex: T1)" className="border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-flight-terminal" />
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <Clock size={16} className="text-[#0EA5E9] shrink-0" />
+          <input type="time" value={p.flightArrivalTime} onChange={(e) => p.setFlightArrivalTime(e.target.value)} className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="panel-flight-arrival" />
+        </div>
+        {/* Luggage assistance */}
+        <div className="mt-2 flex items-center justify-between">
+          <span className="flex items-center gap-2 text-sm text-gray-700"><Briefcase size={16} className="text-[#0EA5E9]" /> Aide bagages {sel?.luggage_fee ? `(+${money(Number(sel.luggage_fee || 5))})` : ''}</span>
+          <button onClick={() => p.setLuggageAssist(!p.luggageAssist)} data-testid="panel-luggage-toggle"
+            className={`w-11 h-6 rounded-full relative transition-colors ${p.luggageAssist ? 'bg-[#FF5000]' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${p.luggageAssist ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+        {p.luggageAssist && (
+          <div className="mt-2 flex items-center justify-between" data-testid="panel-luggage-count-row">
+            <span className="text-sm text-gray-600">Nombre de bagages</span>
+            <div className="flex items-center gap-3">
+              <button onClick={() => p.setLuggageCount(Math.max(1, p.luggageCount - 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="panel-luggage-minus"><Minus size={14} /></button>
+              <span className="font-black text-lg w-6 text-center" data-testid="panel-luggage-count">{p.luggageCount}</span>
+              <button onClick={() => p.setLuggageCount(p.luggageCount + 1)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" data-testid="panel-luggage-plus"><Plus size={14} /></button>
+            </div>
+          </div>
+        )}
+        {/* Shared shuttle */}
+        <div className="mt-2 flex items-center justify-between">
+          <span className="min-w-0">
+            <span className="flex items-center gap-2 text-sm text-gray-700"><Van size={16} className="text-[#10B981]" /> Navette partagée</span>
+            <span className="text-[11px] text-gray-400 block ml-6">Jusqu'à -{Number(sel?.shuttle_discount_pct || 30)}% en partageant le trajet</span>
+          </span>
+          <button onClick={() => p.setSharedShuttle(!p.sharedShuttle)} data-testid="panel-shuttle-toggle"
+            className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${p.sharedShuttle ? 'bg-[#FF5000]' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${p.sharedShuttle ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+        <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-sky-50 border border-sky-100 p-2.5" data-testid="panel-airport-freewait">
+          <Clock size={15} weight="duotone" className="text-[#0EA5E9] mt-0.5 shrink-0" />
+          <p className="text-[11px] text-sky-800 leading-snug"><b>{freeWait} min d'attente offertes</b> après l'atterrissage. Suivi de vol automatique : l'heure de prise en charge s'ajuste en cas de retard.</p>
+        </div>
       </div>
     );
   }

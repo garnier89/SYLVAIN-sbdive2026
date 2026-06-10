@@ -220,7 +220,7 @@ const sidebarConfig = [
         { label: 'Geofencing', path: '/admin/geo-fence' },
         { label: 'Zones restreintes', path: '/admin/restricted' },
         { label: 'Tarification par zone', path: '/admin/location-fare' },
-        { label: 'Surcharge aéroport', path: '/admin/airport' },
+        { label: 'Transferts Aéroport', path: '/admin/airport' },
         { label: 'Pays', path: '/admin/country' },
         { label: 'Régions', path: '/admin/state' },
       ]},

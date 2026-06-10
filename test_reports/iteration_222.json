@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 222 — Airport Transfer (P2) end-to-end validation. Backend 6/6 pytest green (3 from existing test_airport_transfer.py + 3 new in test_iter222_airport_extras.py covering AF1006 cancelled, flight-refresh 200 on airport ride, 400 on non-airport ride). Frontend admin /admin/airport page renders perfectly with all 4 KPIs, both tabs, working reservations list (8+ existing bookings displayed) and airport create form (TEST FE Airport created, toast 'Aéroport créé', persists in list). Client /course?mode=airport renders the full airport panel — all 9 expected testids present, luggage toggle reveals stepper, shuttle toggle works, '45 min offertes' note shows. API ride creation for the fresh client returns ride with flight_status.status='delayed' for AF1002 plus adjusted_pickup, luggage_fee=5, shuttle_discount>0, meeting_point + free_wait_minutes=45 populated, and the scheduled ride is listed on /scheduled-rides. The only real issue: FlightWatchBanner is NOT rendered while ride.status==='pending' (RideTrackingPage.js:666 early-returns the searching UI before reaching the banner at line 920). The 'airport-kpi-cancelled' testid mismatch is non-existent — the component correctly uses 'airport-kpi-cancelled_flights' matching the counts key.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "RideTrackingPage / FlightWatchBanner",
+        "issue": "When an airport ride is still pending (driver search), the page early-returns the searching UI and the FlightWatchBanner (data-testid='flight-watch-banner') is never mounted. Clients booking an airport transfer cannot see flight number, terminal or status while waiting for a driver.",
+        "selector": "[data-testid='flight-watch-banner']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/scheduled-rides",
+        "issues": ["Card for an airport reservation shows 'Airport · Sb' but does not surface flight number / terminal / flight_status. Nice-to-have to differentiate airport bookings."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_airport_transfer.py",
+    "/app/backend/tests/test_iter222_airport_extras.py",
+    "/app/test_reports/pytest/iter222_results.xml"
+  ],
+  "action_items": [
+    "Render FlightWatchBanner (or a compact variant) inside the pending/searching early-return block of RideTrackingPage.js (~line 685-755) when ride.ride_type==='airport', so airport clients see flight info immediately after booking.",
+    "[Optional] Add flight number + terminal + status badge to the /scheduled-rides card when ride_type==='airport'."
+  ],
+  "critical_code_review_comments": [
+    "core/airport.simulate_flight_status is deterministic (seed = hash of flight_number) — AF1002 reliably returns 'delayed' with adjusted_pickup, AF1006 returns 'cancelled'. ✅",
+    "POST /api/phase2/rides/{id}/flight-refresh correctly returns 200 with flight_status for airport rides and 400 for non-airport rides. ✅",
+    "Admin reservations dashboard counts {active, completed, delayed, cancelled_flights} are accurate; the 4th KPI key is 'cancelled_flights' (review request listed 'cancelled' — implementation aligns to the backend counts shape).",
+    "RideChoosePage airport panel exposes 9 stable data-testids covering all UI states (select, flight input, terminal, arrival, luggage toggle/stepper, shuttle toggle, free-wait note). ✅",
+    "AdminAirport.js create form correctly persists a new airport via POST /api/phase2/config/airport-zones, displays a success toast and refreshes the list. ✅",
+    "Gap: FlightWatchBanner is gated behind the non-pending render path; the pending early-return path lacks the banner — see action item above."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter222_airport_extras.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 pytest)",
+    "frontend": "~90% (admin page + client panel + booking via API all green; FlightWatchBanner not shown while pending)"
+  },
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123!. Fresh clients TEST_iter222_*@example.com & TEST_air_*@example.com / Client123!.",
+  "seed_data_creation": "Backend test created/cleaned an airport zone (Test Airport FDF / Pricing Airport / Iter222 Airport). Frontend test created airport 'TEST FE Airport <ts>' via admin form (left in DB). Several airport rides (AF1002 delayed + AF1006 cancelled) created against the existing 'Aéroport Fort-de-France Aimé Césaire' for verification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Airport Transfer backend + admin UI + client booking panel are fully wired. Only remaining UI gap is mounting FlightWatchBanner inside the pending (driver-search) state on /ride/:id. The /scheduled-rides card could optionally be enriched with flight info. Status simulation is deterministic per flight_number — when testing, prefer AF1002 (delayed+adjusted_pickup) and AF1006 (cancelled).",
+  "rca of the issue": "RideTrackingPage.js executes a full early-return at line 666 `if (ride.status === 'pending')` that renders a dedicated radar/searching layout — this code path never reaches the main body where <FlightWatchBanner ride={ride} /> is mounted (line 920). Fix: also render FlightWatchBanner inside the pending return (above or below the bottom 'ride-searching' sheet) gated on ride.ride_type==='airport'."
+}

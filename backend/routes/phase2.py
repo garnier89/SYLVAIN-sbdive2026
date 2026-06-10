@@ -218,6 +218,19 @@ async def list_airport_zones(request: Request):
     return items
 
 
+@router.get("/airports")
+async def list_airports_public(request: Request):
+    """Public airport directory used by the client booking flow."""
+    items = await db.airport_zones.find({"active": True}, {"_id": 0}).to_list(100)
+    return [{
+        "id": z["id"], "name": z.get("name", "Aéroport"),
+        "lat": z.get("lat"), "lng": z.get("lng"),
+        "code": z.get("code"),
+        "meeting_point": z.get("meeting_point") or "Hall des arrivées, niveau 0",
+        "free_wait_minutes": int(z.get("free_wait_minutes", 45) or 45),
+    } for z in items]
+
+
 @router.post("/config/airport-zones")
 async def create_airport_zone(request: Request):
     await require_role(request, ["admin"], permission="server.geofences.edit")
@@ -225,10 +238,16 @@ async def create_airport_zone(request: Request):
     doc = {
         "id": f"az_{uuid.uuid4().hex[:10]}",
         "name": body.get("name", "Airport"),
+        "code": (body.get("code") or "").strip().upper() or None,
         "lat": float(body.get("lat", 0)),
         "lng": float(body.get("lng", 0)),
         "radius_km": float(body.get("radius_km", 3)),
         "surcharge_amount": float(body.get("surcharge_amount", 0)),
+        "meeting_point": body.get("meeting_point") or "Hall des arrivées, niveau 0",
+        "free_wait_minutes": int(body.get("free_wait_minutes", 45) or 45),
+        "luggage_fee": float(body.get("luggage_fee", 5) or 0),
+        "shuttle_discount_pct": float(body.get("shuttle_discount_pct", 30) or 0),
+        "waiting_rate_per_min": float(body.get("waiting_rate_per_min", 0.5) or 0),
         "active": bool(body.get("active", True)),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -237,11 +256,88 @@ async def create_airport_zone(request: Request):
     return doc
 
 
+@router.put("/config/airport-zones/{zid}")
+async def update_airport_zone(zid: str, request: Request):
+    await require_role(request, ["admin"], permission="server.geofences.edit")
+    body = await request.json()
+    fields = {}
+    for k in ("name", "code", "meeting_point"):
+        if k in body:
+            fields[k] = body[k]
+    for k in ("lat", "lng", "radius_km", "surcharge_amount", "luggage_fee", "shuttle_discount_pct", "waiting_rate_per_min"):
+        if k in body:
+            fields[k] = float(body[k])
+    if "free_wait_minutes" in body:
+        fields["free_wait_minutes"] = int(body["free_wait_minutes"])
+    if "active" in body:
+        fields["active"] = bool(body["active"])
+    if fields:
+        await db.airport_zones.update_one({"id": zid}, {"$set": fields})
+    doc = await db.airport_zones.find_one({"id": zid}, {"_id": 0})
+    return doc or {}
+
+
 @router.delete("/config/airport-zones/{zid}")
 async def delete_airport_zone(zid: str, request: Request):
     await require_role(request, ["admin"], permission="server.geofences.edit")
     await db.airport_zones.delete_one({"id": zid})
     return {"message": "Deleted"}
+
+
+@router.get("/admin/airport/reservations")
+async def airport_reservations(request: Request):
+    """Admin dashboard: list airport-transfer rides with flight info."""
+    await require_role(request, ["admin", "dispatcher"], permission="server.settings.edit")
+    rides = await db.rides.find(
+        {"ride_type": "airport"}, {"_id": 0},
+    ).sort("created_at", -1).to_list(200)
+    out = []
+    active_st = {"pending", "accepted", "arriving", "in_progress"}
+    counts = {"active": 0, "completed": 0, "delayed": 0, "cancelled_flights": 0}
+    for r in rides:
+        fs = r.get("flight_status") or {}
+        if r.get("status") in active_st:
+            counts["active"] += 1
+        if r.get("status") == "completed":
+            counts["completed"] += 1
+        if fs.get("status") == "delayed":
+            counts["delayed"] += 1
+        if fs.get("status") == "cancelled":
+            counts["cancelled_flights"] += 1
+        out.append({
+            "id": r["id"], "booking_no": r.get("booking_no"),
+            "status": r.get("status"),
+            "pickup_address": r.get("pickup_address"),
+            "dropoff_address": r.get("dropoff_address"),
+            "airport_name": r.get("airport_name"),
+            "flight_number": r.get("flight_number"),
+            "flight_arrival_time": r.get("flight_arrival_time"),
+            "airport_terminal": r.get("airport_terminal"),
+            "meeting_point": r.get("meeting_point"),
+            "flight_status": fs or None,
+            "scheduled_at": r.get("scheduled_at"),
+            "luggage_assist": r.get("luggage_assist", False),
+            "shared_shuttle": r.get("shared_shuttle", False),
+            "estimated_fare": r.get("estimated_fare"),
+            "final_fare": r.get("final_fare"),
+            "driver_name": r.get("driver_name"),
+            "created_at": r.get("created_at"),
+        })
+    return {"reservations": out, "counts": counts}
+
+
+@router.post("/rides/{ride_id}/flight-refresh")
+async def flight_refresh(ride_id: str, request: Request):
+    """Re-check a ride's flight status (client/driver/admin can trigger)."""
+    user = await get_current_user(request)
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    if ride.get("ride_type") != "airport" or not ride.get("flight_number"):
+        raise HTTPException(status_code=400, detail="Cette course n'a pas de suivi de vol.")
+    from core.airport import refresh_flight_for_ride
+    status = await refresh_flight_for_ride(ride)
+    return {"flight_status": status}
 
 
 @router.get("/config/flat-rates")

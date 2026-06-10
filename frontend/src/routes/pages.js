@@ -149,6 +149,7 @@ export const AdminManualBooking = lazy(() => import('../pages/admin/AdminManualB
 export const AdminBanners = lazy(() => import('../pages/admin/AdminBanners'));
 export const AdminPayout = lazy(() => import('../pages/admin/AdminPayout'));
 export const AdminGeoFence = lazy(() => import('../pages/admin/AdminGeoFence'));
+export const AdminAirport = lazy(() => import('../pages/admin/AdminAirport'));
 export const AdminGiftCards = lazy(() => import('../pages/admin/AdminGiftCards'));
 export const AdminReferralSettings = lazy(() => import('../pages/admin/AdminReferralSettings'));
 export const AdminLoyalty = lazy(() => import('../pages/admin/AdminLoyalty'));

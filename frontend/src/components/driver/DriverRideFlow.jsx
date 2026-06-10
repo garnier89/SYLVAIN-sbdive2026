@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { AirplaneTilt, MapPin } from '@phosphor-icons/react';
 import { decodePolyline } from '../../utils/polyline';
 import { rideAPI } from '../../services/api';
 import RideCompletionFlow from './RideCompletionFlow';
@@ -40,6 +41,10 @@ const NEAR_DESTINATION_M = 200;
 const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFinished, onMinimize }) => {
   const navigate = useNavigate();
   const { t } = useLocale();
+  // Airport Transfer: longer free-wait window (default 45 min) + airport waiting rate.
+  const isAirport = ride.ride_type === 'airport';
+  const freeWaitSec = isAirport && ride.free_wait_minutes ? ride.free_wait_minutes * 60 : WAITING_GRACE_SEC;
+  const waitRate = ride.waiting_rate_per_min || WAITING_RATE_PER_MIN;
   const [status, setStatus] = useState(() => ride.status);
   const [busy, setBusy] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -118,7 +123,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
 
   // Past the 5-min grace period the wait becomes billable → notify passenger once.
   useEffect(() => {
-    if (status !== 'arriving' || pickupWaitSec < WAITING_GRACE_SEC || pickupBilledRef.current) return;
+    if (status !== 'arriving' || pickupWaitSec < freeWaitSec || pickupBilledRef.current) return;
     pickupBilledRef.current = true;
     toast.warning("Temps d'attente facturé — le passager a été informé.");
     fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
@@ -127,8 +132,8 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     }).catch(() => { /* ignore */ });
   }, [status, pickupWaitSec, ride.id]);
 
-  const pickupBillableSec = Math.max(0, pickupWaitSec - WAITING_GRACE_SEC);
-  const pickupWaitChargeLive = Math.round((pickupBillableSec / 60) * WAITING_RATE_PER_MIN * 100) / 100;
+  const pickupBillableSec = Math.max(0, pickupWaitSec - freeWaitSec);
+  const pickupWaitChargeLive = Math.round((pickupBillableSec / 60) * waitRate * 100) / 100;
 
   const waitingSecs = waitingAccum + waitingNow;
   const waitingCharge = Math.round((waitingSecs / 60) * WAITING_RATE_PER_MIN * 100) / 100;
@@ -185,8 +190,8 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     setStartedAt(now); setStatus('in_progress');
     // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
     const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;
-    const billable = Math.max(0, waitSec - WAITING_GRACE_SEC);
-    const charge = Math.round((billable / 60) * WAITING_RATE_PER_MIN * 100) / 100;
+    const billable = Math.max(0, waitSec - freeWaitSec);
+    const charge = Math.round((billable / 60) * waitRate * 100) / 100;
     setPickupWaitCharge(charge);
     if (pickupBilledRef.current) {
       fetch(`${API}/api/phase1/rides/${ride.id}/waiting`, {
@@ -326,6 +331,34 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
 
       <RideFlowAddressCard label={topLabel} address={topAddress} isPickupPhase={isPickupPhase} />
 
+      {isAirport && (
+        <div className="mx-3 mb-1 rounded-xl bg-sky-50 border border-sky-200 p-2.5" data-testid="driver-airport-info">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-sm font-black text-sky-900">
+              <AirplaneTilt size={18} weight="fill" className="text-[#0EA5E9]" /> Vol {ride.flight_number || '—'}
+              {ride.airport_terminal ? <span className="text-xs font-bold text-sky-700">· {ride.airport_terminal}</span> : null}
+            </span>
+            {ride.flight_status?.status && (
+              <span data-testid="driver-flight-status" className={`text-[11px] font-black px-2 py-0.5 rounded-full ${
+                ride.flight_status.status === 'delayed' ? 'bg-amber-100 text-amber-700'
+                : ride.flight_status.status === 'cancelled' ? 'bg-red-100 text-red-700'
+                : ride.flight_status.status === 'early' ? 'bg-blue-100 text-blue-700'
+                : 'bg-emerald-100 text-emerald-700'}`}>
+                {ride.flight_status.status === 'delayed' ? `Retard ${ride.flight_status.delay_minutes} min`
+                  : ride.flight_status.status === 'cancelled' ? 'Annulé'
+                  : ride.flight_status.status === 'early' ? `Avance ${Math.abs(ride.flight_status.delay_minutes)} min`
+                  : 'À l\'heure'}
+              </span>
+            )}
+          </div>
+          {ride.meeting_point && (
+            <p className="text-[12px] text-sky-800 mt-1 flex items-start gap-1"><MapPin size={14} weight="fill" className="mt-0.5 shrink-0 text-[#0EA5E9]" /> {ride.meeting_point}</p>
+          )}
+          <p className="text-[11px] text-sky-600 mt-0.5">{ride.free_wait_minutes || 45} min d'attente offertes après arrivée.</p>
+        </div>
+      )}
+
+
       <RideFlowMap
         mapCenter={stableCenter}
         driver={driverPos}
@@ -339,7 +372,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         isArrived={isArrived}
         pickupArrivedAt={pickupArrivedAt}
         pickupWaitLabel={fmtClock(pickupWaitSec)}
-        pickupBillable={pickupWaitSec >= WAITING_GRACE_SEC}
+        pickupBillable={pickupWaitSec >= freeWaitSec}
         pickupWaitChargeLabel={pickupWaitChargeLive.toFixed(2)}
         waitingActive={!!waitingStart}
         waitingLabel={waitingStart ? `${fmtClock(waitingSecs)} · ${waitingCharge.toFixed(2)} €` : t('driver.waiting')}
