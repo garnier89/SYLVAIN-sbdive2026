@@ -79,15 +79,6 @@ const IncomingRequestSheet = ({
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/40 flex items-end" data-testid="incoming-request-modal">
-      {/* Countdown on the dimmed map (behind the sheet) — lowered into the empty
-          space above the sheet so it doesn't cover info; no backdrop circle, just
-          the green spinning ring + its timer. */}
-      {!offerPending && (
-        <div className="absolute top-0 left-0 right-0 flex flex-col items-center pt-28 pointer-events-none" data-testid="accept-timer-big">
-          <CountdownRing seconds={remaining} total={windowSeconds} size={140} />
-          <span className="mt-2 text-white text-sm font-bold drop-shadow-lg">Temps pour accepter</span>
-        </div>
-      )}
       <div className="w-full bg-white rounded-t-3xl px-5 pt-3 pb-5 max-h-[92vh] overflow-y-auto">
         <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-3" />
 
@@ -149,6 +140,15 @@ const IncomingRequestSheet = ({
             </div>
           </div>
         </div>
+
+        {/* Countdown timer — placed in the clear space just above the actions so it
+            never covers the order info (price, estimations, pickup/destination). */}
+        {!offerPending && (
+          <div className="flex flex-col items-center mb-4" data-testid="accept-timer-big">
+            <CountdownRing seconds={remaining} total={windowSeconds} size={120} />
+            <span className="mt-1.5 text-sm font-bold text-gray-700">Temps pour accepter</span>
+          </div>
+        )}
 
         {offerPending ? (() => {
           const rem = myOffer.expires_at ? Math.max(0, Math.ceil((new Date(myOffer.expires_at).getTime() - nowTs) / 1000)) : null;

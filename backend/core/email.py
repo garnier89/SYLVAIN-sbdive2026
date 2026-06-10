@@ -406,3 +406,54 @@ async def send_password_reset_email(to: str, name: str, code: str, link: str) ->
           reste inchangé. Ne communiquez jamais ce code à qui que ce soit.
         </p>"""
     await _send(to, "Réinitialisation de votre mot de passe — SB Drive", _shell("Mot de passe oublié 🔐", "#0a0e1a", body))
+
+
+async def send_account_suspended(to: str, name: str, reason: str = "") -> None:
+    """Notify a user that their account has been suspended by an administrator."""
+    reason_block = (
+        f'<table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border:1px solid #fecaca;'
+        f'border-radius:10px;padding:12px 16px;margin:14px 0;"><tr><td style="color:#991b1b;font-size:13px;">'
+        f'<b>Motif :</b> {reason}</td></tr></table>'
+    ) if reason else ""
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Nous vous informons que votre compte SB Drive a été <b style="color:#b91c1c;">suspendu</b>.
+          Pendant cette suspension, vous ne pourrez plus accéder à nos services.
+        </p>
+        {reason_block}
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Si vous pensez qu'il s'agit d'une erreur ou pour obtenir plus d'informations,
+          contactez notre support — nous étudierons votre situation au plus vite.
+        </p>
+        <p style="margin-top:24px;color:#444;font-size:15px;">L'équipe SB Drive</p>"""
+    await _send(to, "Votre compte SB Drive a été suspendu", _shell("Compte suspendu ⛔", "#b91c1c", body))
+
+
+async def send_account_reactivated(to: str, name: str) -> None:
+    """Notify a user that their suspended account has been reactivated."""
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Bonne nouvelle ! Votre compte SB Drive a été <b style="color:#16a34a;">réactivé</b>.
+          Vous pouvez de nouveau profiter de l'ensemble de nos services.
+        </p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">Merci de votre confiance.</p>
+        <p style="margin-top:24px;color:#444;font-size:15px;">À très vite,<br/>L'équipe SB Drive</p>"""
+    await _send(to, "Votre compte SB Drive a été réactivé", _shell("Compte réactivé ✅", "#16a34a", body))
+
+
+async def send_account_deleted(to: str, name: str) -> None:
+    """Confirm to a user that their account has been permanently deleted."""
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Votre compte SB Drive a été <b>définitivement supprimé</b>, ainsi que les données
+          associées à votre profil. Vous ne recevrez plus de communications de notre part.
+        </p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Si vous n'êtes pas à l'origine de cette demande ou si vous souhaitez revenir,
+          vous pouvez à tout moment recréer un compte ou contacter notre support.
+        </p>
+        <p style="margin-top:24px;color:#444;font-size:15px;">Merci d'avoir fait partie de l'aventure,<br/>L'équipe SB Drive</p>"""
+    await _send(to, "Votre compte SB Drive a été supprimé", _shell("Compte supprimé", "#0a0e1a", body))

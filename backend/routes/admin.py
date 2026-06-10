@@ -638,19 +638,36 @@ async def admin_update_user(user_id: str, request: Request):
         updates["phone"] = full or None
     if updates:
         await db.users.update_one({"id": user_id}, {"$set": updates})
+    # Lifecycle email on suspension state change (skip placeholder emails).
+    if "is_suspended" in updates:
+        new_suspended = updates["is_suspended"]
+        was_suspended = bool(user.get("is_suspended", False))
+        email = (user.get("email") or "").strip()
+        if new_suspended != was_suspended and email and not email.endswith("@sbdrive.local"):
+            from core.email import fire, send_account_suspended, send_account_reactivated
+            name = user.get("name") or ""
+            if new_suspended:
+                reason = (body.get("suspension_reason") or body.get("reason") or "").strip()
+                fire(send_account_suspended(email, name, reason))
+            else:
+                fire(send_account_reactivated(email, name))
     return {"updated": True}
 
 
 @router.delete("/users/{user_id}")
 async def admin_delete_user(user_id: str, request: Request):
     await require_role(request, ["admin"], permission="users.delete")
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1, "email": 1, "name": 1})
     if not user:
         raise HTTPException(404, "User not found")
     if user.get("role") == "admin":
         raise HTTPException(400, "Impossible de supprimer un admin via cette route (utilisez /api/acl/admins)")
     await db.users.delete_one({"id": user_id})
     await db.wallets.delete_many({"user_id": user_id})
+    email = (user.get("email") or "").strip()
+    if email and not email.endswith("@sbdrive.local"):
+        from core.email import fire, send_account_deleted
+        fire(send_account_deleted(email, user.get("name") or ""))
     return {"deleted": True}
 
 @router.get("/users/{user_id}/documents")
