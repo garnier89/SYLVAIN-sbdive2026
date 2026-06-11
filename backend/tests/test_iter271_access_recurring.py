@@ -1,7 +1,7 @@
 """Tests SB Access — trajets récurrents automatiques (logique scheduler)."""
 from datetime import datetime, timezone
 
-from routes.sb_access import _recurring_summary, _recurring_due
+from routes.sb_access import _recurring_summary, _recurring_due, _next_occurrence, _occurrence_label
 
 
 def test_summary_weekly_and_daily():
@@ -31,3 +31,26 @@ def test_due_respects_last_run_and_active_flag():
     assert _recurring_due(rec2, thursday_10h) is False  # paused
     rec3 = {"active": True, "frequency": "daily", "time_hhmm": "09:00", "last_run_date": "2026-06-10"}
     assert _recurring_due(rec3, thursday_10h) is True  # ran yesterday, due again today
+
+
+def test_next_occurrence_skips_and_reminder_window():
+    # Thursday 2026-06-11 08:00, weekly Tue(1)+Thu(3) at 09:00
+    thu_8h = datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc)
+    rec = {"active": True, "frequency": "weekly", "days_of_week": [1, 3], "time_hhmm": "09:00", "skip_dates": []}
+    nxt = _next_occurrence(rec, thu_8h)
+    assert nxt.strftime("%Y-%m-%d %H:%M") == "2026-06-11 09:00"  # today, slot not passed
+    # After today's slot passed -> next is Tuesday 2026-06-16
+    thu_10h = datetime(2026, 6, 11, 10, 0, tzinfo=timezone.utc)
+    assert _next_occurrence(rec, thu_10h).strftime("%Y-%m-%d") == "2026-06-16"
+    # Skip that Tuesday -> jumps to Thursday 2026-06-18
+    rec["skip_dates"] = ["2026-06-16"]
+    assert _next_occurrence(rec, thu_10h).strftime("%Y-%m-%d") == "2026-06-18"
+
+
+def test_reminder_is_day_before():
+    # daily at 09:00; "now" is Wed 18:00 -> next occurrence is Thu 09:00 (tomorrow)
+    wed_18h = datetime(2026, 6, 10, 18, 0, tzinfo=timezone.utc)
+    rec = {"active": True, "frequency": "daily", "time_hhmm": "09:00", "skip_dates": []}
+    nxt = _next_occurrence(rec, wed_18h)
+    assert (nxt.date() - wed_18h.date()).days == 1  # day-before reminder should fire
+    assert _occurrence_label(nxt) == "jeudi 11 à 09:00"

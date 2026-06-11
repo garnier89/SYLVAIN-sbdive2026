@@ -196,6 +196,14 @@ export default function SbAccessPage() {
     } catch { toast.error('Suppression impossible'); }
   };
 
+  const skipNext = async (rec) => {
+    try {
+      const r = await accessAPI.skipRecurring(rec.id, {});
+      setRecurring((prev) => prev.map((x) => x.id === rec.id ? r.data : x));
+      toast.success('Prochaine course annulée');
+    } catch { toast.error('Annulation impossible'); }
+  };
+
   const fontScale = largeText ? '1.15rem' : '1rem';
   const cardBorder = highContrast ? '2px solid #111827' : '1px solid #D1D5DB';
 
@@ -308,6 +316,15 @@ export default function SbAccessPage() {
                         <Trash size={16} weight="bold" />
                       </button>
                     </div>
+                    {rec.active && rec.next_occurrence_label && (
+                      <div className="mt-2.5 flex items-center justify-between gap-2 pt-2.5 border-t" style={{ borderColor: highContrast ? '#111827' : '#E5E7EB' }}>
+                        <span className="text-xs text-gray-700 capitalize">Prochaine : {rec.next_occurrence_label}</span>
+                        <button onClick={() => skipNext(rec)} data-testid={`recurring-skip-${rec.id}`}
+                          className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-lg" style={{ border: cardBorder, color: NAVY }}>
+                          Annuler la prochaine
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

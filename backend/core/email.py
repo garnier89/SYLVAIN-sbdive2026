@@ -604,3 +604,32 @@ async def send_campus_digest(to: str, name: str, week_label: str, items: list, u
         {cta}
         <p style="margin-top:22px;color:#8a909c;font-size:12px;">Tu reçois ce récap car tu suis la marketplace étudiante SB Student. Tu peux le désactiver depuis l'écran Alertes.</p>"""
     await _send(to, f"🎓 Top affaires de ton campus — semaine du {week_label}", _shell("Top affaires de ton campus 🎓", accent, body))
+
+
+
+async def send_access_recurring_reminder(to: str, name: str, when_label: str,
+                                         pickup: str, dropoff: str, vehicle: str = "",
+                                         manage_url: str = "") -> None:
+    """Day-before reminder for an SB Drive Access recurring trip, with a manage/cancel link."""
+    accent = "#0A2540"
+    veh = f'<span style="color:#8a909c;font-size:13px;"> · {vehicle}</span>' if vehicle else ""
+    cta = (
+        f'<p style="text-align:center;margin:22px 0 4px;"><a href="{manage_url}" '
+        f'style="background:{accent};color:#fff;text-decoration:none;padding:12px 26px;border-radius:999px;'
+        f'font-weight:bold;font-size:14px;display:inline-block;">Gérer ou annuler ce trajet</a></p>'
+        if manage_url else ""
+    )
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">Votre <b>trajet adapté</b> est confirmé pour <b>{when_label}</b>.{veh}</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;background:#f5f6f8;border-radius:12px;">
+          <tr><td style="padding:14px 16px;">
+            <span style="color:#8a909c;font-size:12px;">Départ</span><br/>
+            <span style="color:#0a0e1a;font-size:15px;font-weight:bold;">{pickup or '—'}</span><br/><br/>
+            <span style="color:#8a909c;font-size:12px;">Destination</span><br/>
+            <span style="color:#0a0e1a;font-size:15px;font-weight:bold;">{dropoff or '—'}</span>
+          </td></tr>
+        </table>
+        {cta}
+        <p style="margin-top:22px;color:#8a909c;font-size:12px;">Si vous n'avez pas besoin de ce trajet, vous pouvez l'annuler en un tap depuis l'application. Vous recevez ce rappel car vous avez un trajet automatique SB Drive Access.</p>"""
+    await _send(to, f"♿ Rappel : votre trajet adapté de {when_label}", _shell("Trajet adapté confirmé", accent, body))

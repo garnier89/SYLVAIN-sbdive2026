@@ -853,6 +853,7 @@ export const accessAPI = {
   createRecurring: (data) => api.post('/access/recurring', data),
   updateRecurring: (id, data) => api.put(`/access/recurring/${id}`, data),
   deleteRecurring: (id) => api.delete(`/access/recurring/${id}`),
+  skipRecurring: (id, data) => api.post(`/access/recurring/${id}/skip`, data || {}),
   // admin
   adminCategories: () => api.get('/access/admin/categories'),
   adminCreateCategory: (data) => api.post('/access/admin/categories', data),

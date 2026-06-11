@@ -14,7 +14,8 @@ Les phases suivantes (IA d'attribution, SB Access Plus, accessibilité avancée 
 trajets médicaux/récurrents auto, centre SOS) viendront s'appuyer sur ces fondations.
 """
 import uuid
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Request, HTTPException
 
@@ -22,6 +23,7 @@ from core.config import db, logger
 from core.deps import require_role, get_current_user
 from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 from core.notifications import create_notification
+from core.email import send_access_recurring_reminder, fire
 
 router = APIRouter(prefix="/access", tags=["sb-access"])
 admin_router = APIRouter(prefix="/access/admin", tags=["sb-access-admin"])
@@ -366,12 +368,57 @@ def _recurring_summary(rec: dict) -> str:
     return f"{labels} à {t}"
 
 
+def _parse_hm(rec: dict):
+    try:
+        h, m = str(rec.get("time_hhmm", "09:00")).split(":")
+        return int(h), int(m)
+    except (ValueError, AttributeError):
+        return 9, 0
+
+
+def _next_occurrence(rec: dict, now_local):
+    """Prochaine date/heure d'exécution (datetime local), en sautant skip_dates."""
+    h, m = _parse_hm(rec)
+    freq = rec.get("frequency")
+    days = rec.get("days_of_week") or []
+    skips = set(rec.get("skip_dates") or [])
+    for offset in range(0, 8):
+        d = now_local + timedelta(days=offset)
+        if freq == "weekly" and d.weekday() not in days:
+            continue
+        cand = d.replace(hour=h, minute=m, second=0, microsecond=0)
+        if offset == 0 and cand < now_local:
+            continue
+        if cand.strftime("%Y-%m-%d") in skips:
+            continue
+        return cand
+    return None
+
+
+def _occurrence_label(dt) -> str:
+    """Ex. 'demain à 09:00' / 'lundi 15 à 09:00'."""
+    if not dt:
+        return ""
+    return f"{DAY_LABELS[dt.weekday()].lower()} {dt.day} à {dt.strftime('%H:%M')}"
+
+
+def _tznow(rec: dict):
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo(rec.get("timezone", DEFAULT_TZ)))
+    except Exception:
+        return datetime.now(timezone.utc)
+
+
 @router.get("/recurring")
 async def list_recurring(request: Request):
     user = await get_current_user(request)
     items = await db.access_recurring.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
     for r in items:
         r["summary"] = _recurring_summary(r)
+        nxt = _next_occurrence(r, _tznow(r))
+        r["next_occurrence"] = nxt.isoformat() if nxt else None
+        r["next_occurrence_label"] = _occurrence_label(nxt)
     return {"items": items}
 
 
@@ -402,7 +449,8 @@ async def create_recurring(request: Request):
 
     rec = {"id": str(uuid.uuid4()), "user_id": user["id"], "frequency": frequency,
            "days_of_week": days, "time_hhmm": time_hhmm, "timezone": DEFAULT_TZ,
-           "active": True, "last_run_date": None, "created_at": _now()}
+           "active": True, "last_run_date": None, "last_reminded_date": None,
+           "skip_dates": [], "created_at": _now()}
     for f in _REC_TRIP_FIELDS:
         if f in body:
             rec[f] = body[f]
@@ -410,6 +458,9 @@ async def create_recurring(request: Request):
     await db.access_recurring.insert_one(dict(rec))
     rec.pop("_id", None)
     rec["summary"] = _recurring_summary(rec)
+    nxt = _next_occurrence(rec, _tznow(rec))
+    rec["next_occurrence"] = nxt.isoformat() if nxt else None
+    rec["next_occurrence_label"] = _occurrence_label(nxt)
     return rec
 
 
@@ -450,6 +501,35 @@ async def delete_recurring(rec_id: str, request: Request):
     return {"message": "deleted"}
 
 
+@router.post("/recurring/{rec_id}/skip")
+async def skip_recurring_occurrence(rec_id: str, request: Request):
+    """Annule en 1 tap UNE occurrence (par défaut la prochaine) sans supprimer l'abonnement."""
+    user = await get_current_user(request)
+    rec = await db.access_recurring.find_one({"id": rec_id, "user_id": user["id"]}, {"_id": 0})
+    if not rec:
+        raise HTTPException(status_code=404, detail="Trajet récurrent introuvable")
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    date_str = body.get("date")
+    if not date_str:
+        nxt = _next_occurrence(rec, _tznow(rec))
+        if not nxt:
+            raise HTTPException(status_code=400, detail="Aucune occurrence à venir")
+        date_str = nxt.strftime("%Y-%m-%d")
+    skips = set(rec.get("skip_dates") or [])
+    skips.add(date_str)
+    await db.access_recurring.update_one({"id": rec_id}, {"$set": {"skip_dates": sorted(skips)}})
+    doc = await db.access_recurring.find_one({"id": rec_id}, {"_id": 0})
+    doc["summary"] = _recurring_summary(doc)
+    nxt = _next_occurrence(doc, _tznow(doc))
+    doc["next_occurrence"] = nxt.isoformat() if nxt else None
+    doc["next_occurrence_label"] = _occurrence_label(nxt)
+    return doc
+
+
 def _recurring_due(rec: dict, now_local) -> bool:
     """Le trajet doit-il être créé maintenant (fenêtre du jour atteinte, pas déjà fait) ?"""
     if not rec.get("active"):
@@ -469,10 +549,30 @@ def _recurring_due(rec: dict, now_local) -> bool:
     return (now_local.hour, now_local.minute) >= (h, m)
 
 
+async def _send_recurring_reminder(rec: dict, occ):
+    """Notif in-app + email J-1 pour une occurrence à venir, avec lien d'annulation."""
+    user = await db.users.find_one({"id": rec["user_id"]}, {"_id": 0, "name": 1, "email": 1})
+    when = _occurrence_label(occ)
+    pickup = (rec.get("pickup") or {}).get("address") or "—"
+    dropoff = (rec.get("dropoff") or {}).get("address") or "—"
+    cat = await db.access_categories.find_one({"key": rec.get("category_key")}, {"_id": 0, "name": 1})
+    vehicle = (cat or {}).get("name", "")
+    await create_notification(
+        rec["user_id"], "access_recurring_reminder",
+        "Trajet adapté de demain confirmé",
+        f"Votre trajet adapté est prévu {when} ({pickup} → {dropoff}). Annulez en 1 tap si besoin.",
+        data={"recurring_id": rec["id"], "occurrence": occ.strftime("%Y-%m-%d"), "action": "manage_recurring"},
+    )
+    email = (user or {}).get("email", "")
+    if email and not email.endswith("@sbdrive.local"):
+        manage_url = f"{os.environ.get('FRONTEND_URL', '').rstrip('/')}/access"
+        fire(send_access_recurring_reminder(
+            email, (user or {}).get("name", ""), when, pickup, dropoff, vehicle, manage_url))
+
+
 async def access_recurring_loop():
-    """Toutes les ~5 min : crée automatiquement les courses des trajets récurrents dus."""
+    """Toutes les ~5 min : rappels J-1 + création automatique des courses dues (skip respecté)."""
     import asyncio
-    from datetime import timedelta
     try:
         from zoneinfo import ZoneInfo
     except ImportError:
@@ -487,9 +587,29 @@ async def access_recurring_loop():
                     now_local = datetime.now(ZoneInfo(tz)) if ZoneInfo else datetime.now(timezone.utc)
                 except Exception:
                     now_local = datetime.now(timezone.utc)
+
+                # (1) Rappel la veille (J-1)
+                try:
+                    nxt = _next_occurrence(rec, now_local)
+                    if nxt and (nxt.date() - now_local.date()).days == 1:
+                        occ_date = nxt.strftime("%Y-%m-%d")
+                        if rec.get("last_reminded_date") != occ_date:
+                            await _send_recurring_reminder(rec, nxt)
+                            await db.access_recurring.update_one(
+                                {"id": rec["id"]}, {"$set": {"last_reminded_date": occ_date}})
+                except Exception as e:
+                    logger.error("access_recurring reminder error: %s", e)
+
+                # (2) Création automatique de la course du jour
                 if not _recurring_due(rec, now_local):
                     continue
                 today = now_local.strftime("%Y-%m-%d")
+                # Occurrence annulée (skip 1-tap) → marque comme traitée sans créer de course
+                if today in (rec.get("skip_dates") or []):
+                    await db.access_recurring.update_one(
+                        {"id": rec["id"]},
+                        {"$set": {"last_run_date": today}, "$pull": {"skip_dates": today}})
+                    continue
                 try:
                     h, m = str(rec.get("time_hhmm", "09:00")).split(":")
                     scheduled = now_local.replace(hour=int(h), minute=int(m), second=0, microsecond=0).isoformat()
