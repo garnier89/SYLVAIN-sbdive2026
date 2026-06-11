@@ -560,11 +560,11 @@ def _conversation_view(conv: dict, my_id: str) -> dict:
     }
 
 
-async def _post_message(conv: dict, sender: dict, text: str, role: str):
+async def _post_message(conv: dict, sender: dict, text: str, role: str, auto: bool = False):
     msg = {
         "id": f"smsg_{uuid.uuid4().hex[:12]}", "conversation_id": conv["id"],
         "sender_id": sender["id"], "sender_name": sender.get("name", "Utilisateur"),
-        "sender_role": role, "text": text[:500], "read": False, "created_at": _now(),
+        "sender_role": role, "text": text[:500], "read": False, "auto": auto, "created_at": _now(),
     }
     await db.student_messages.insert_one(dict(msg))
     inc = {"unread_seller": 1} if role == "buyer" else {"unread_buyer": 1}
@@ -582,6 +582,38 @@ async def _post_message(conv: dict, sender: dict, text: str, role: str):
         pass
     msg.pop("_id", None)
     return msg
+
+
+# ---- Seller away mode (auto-reply) ----
+DEFAULT_AWAY_MESSAGE = "Salut ! Je ne suis pas dispo là, mais je te réponds dès que possible 👍"
+
+
+async def get_seller_settings(user_id: str) -> dict:
+    s = await db.student_seller_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not s:
+        s = {"user_id": user_id, "away_enabled": False, "away_message": DEFAULT_AWAY_MESSAGE}
+        await db.student_seller_settings.insert_one(dict(s))
+        s.pop("_id", None)
+    return {"away_enabled": False, "away_message": DEFAULT_AWAY_MESSAGE, **s}
+
+
+async def _maybe_auto_reply(conv: dict):
+    """Auto-reply from the seller when away mode is on (once per recent burst). Never raises."""
+    try:
+        settings = await get_seller_settings(conv["seller_id"])
+        if not settings.get("away_enabled"):
+            return None
+        # Avoid spamming: skip if an auto reply already exists in the last 30 min.
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        recent_auto = await db.student_messages.find_one(
+            {"conversation_id": conv["id"], "auto": True, "created_at": {"$gte": cutoff}}, {"_id": 1})
+        if recent_auto:
+            return None
+        seller = {"id": conv["seller_id"], "name": conv.get("seller_name", "Vendeur")}
+        fresh = await db.student_conversations.find_one({"id": conv["id"]}, {"_id": 0})
+        return await _post_message(fresh or conv, seller, settings.get("away_message") or DEFAULT_AWAY_MESSAGE, "seller", auto=True)
+    except Exception:
+        return None
 
 
 class ContactBody(BaseModel):
@@ -611,6 +643,7 @@ async def contact_seller(listing_id: str, body: ContactBody, request: Request):
         await db.student_conversations.insert_one(dict(conv))
         conv.pop("_id", None)
     msg = await _post_message(conv, buyer, text, "buyer")
+    await _maybe_auto_reply(conv)
     return {"ok": True, "conversation_id": conv["id"], "message": msg}
 
 
@@ -666,7 +699,82 @@ async def send_conversation_message(cid: str, body: ContactBody, request: Reques
         raise HTTPException(status_code=400, detail="Message vide")
     role = "buyer" if conv.get("buyer_id") == user["id"] else "seller"
     msg = await _post_message(conv, user, text, role)
+    if role == "buyer":
+        await _maybe_auto_reply(conv)
     return {"ok": True, "message": msg}
+
+
+# ---- Seller settings (away mode) ----
+@router.get("/seller-settings")
+async def seller_settings_get(request: Request):
+    user = await get_current_user(request)
+    return await get_seller_settings(user["id"])
+
+
+class SellerSettingsBody(BaseModel):
+    away_enabled: bool | None = None
+    away_message: str | None = None
+
+
+@router.put("/seller-settings")
+async def seller_settings_put(body: SellerSettingsBody, request: Request):
+    user = await get_current_user(request)
+    await get_seller_settings(user["id"])
+    update = {}
+    if body.away_enabled is not None:
+        update["away_enabled"] = bool(body.away_enabled)
+    if body.away_message is not None:
+        update["away_message"] = (body.away_message or "").strip()[:300] or DEFAULT_AWAY_MESSAGE
+    if update:
+        update["updated_at"] = _now()
+        await db.student_seller_settings.update_one({"user_id": user["id"]}, {"$set": update})
+    return await get_seller_settings(user["id"])
+
+
+# ---- AI quick-reply suggestions ----
+_FALLBACK_SUGGEST_BUYER = ["Toujours disponible ?", "Possible de négocier le prix ?", "On se voit où sur le campus ?"]
+_FALLBACK_SUGGEST_SELLER = ["Oui, toujours dispo !", "Je peux faire un petit geste sur le prix.", "On se voit demain sur le campus ?"]
+
+SUGGEST_CHAT_SYS = (
+    "Tu proposes 3 réponses rapides TRÈS courtes (max 6 mots) pour un chat entre étudiants sur une marketplace d'occasion. "
+    "Français, ton amical et naturel, tutoiement. Adapte au rôle (acheteur qui pose des questions / vendeur qui répond) "
+    "et au dernier message. Renvoie UNIQUEMENT un JSON : {\"suggestions\": [\"...\", \"...\", \"...\"]}."
+)
+
+
+class ChatSuggestBody(BaseModel):
+    listing_id: str | None = None
+    conversation_id: str | None = None
+
+
+@router.post("/chat-suggestions")
+async def chat_suggestions(body: ChatSuggestBody, request: Request):
+    user = await get_current_user(request)
+    role, title, last_msgs = "buyer", "", []
+    if body.conversation_id:
+        conv = await db.student_conversations.find_one({"id": body.conversation_id}, {"_id": 0})
+        if conv and user["id"] in (conv.get("buyer_id"), conv.get("seller_id")):
+            role = "buyer" if conv.get("buyer_id") == user["id"] else "seller"
+            title = conv.get("listing_title", "")
+            rows = await db.student_messages.find({"conversation_id": body.conversation_id}, {"_id": 0, "sender_role": 1, "text": 1}).sort("created_at", -1).limit(4).to_list(4)
+            last_msgs = list(reversed(rows))
+    elif body.listing_id:
+        l = await db.student_listings.find_one({"id": body.listing_id}, {"_id": 0, "title": 1})
+        title = (l or {}).get("title", "")
+
+    fallback = _FALLBACK_SUGGEST_BUYER if role == "buyer" else _FALLBACK_SUGGEST_SELLER
+    if not EMERGENT_LLM_KEY:
+        return {"suggestions": fallback}
+    convo = "\n".join(f"{m['sender_role']}: {m['text']}" for m in last_msgs) or "(début de conversation)"
+    article = title or "(article d'occasion)"
+    prompt = f"Annonce : {article}\nRôle de l'utilisateur : {role}\nDerniers messages :\n{convo}\n\nPropose 3 réponses rapides."
+    try:
+        raw = await _ask(f"smkt-chatsug-{uuid.uuid4().hex[:8]}", SUGGEST_CHAT_SYS, prompt)
+        out = _parse_json(raw)
+        sugg = [s.strip() for s in (out.get("suggestions") or []) if isinstance(s, str) and s.strip()][:3]
+    except Exception:
+        sugg = []
+    return {"suggestions": sugg or fallback}
 
 
 # ======================= REVIEWS & SELLER PROFILE =======================

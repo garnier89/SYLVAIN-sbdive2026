@@ -819,6 +819,9 @@ export const studentAPI = {
   mktConversationsUnread: () => api.get('/student/marketplace/conversations/unread-total'),
   mktMessages: (cid, after) => api.get(`/student/marketplace/conversations/${cid}/messages`, { params: after ? { after } : {} }),
   mktSendMessage: (cid, text) => api.post(`/student/marketplace/conversations/${cid}/messages`, { text }),
+  mktSellerSettings: () => api.get('/student/marketplace/seller-settings'),
+  mktUpdateSellerSettings: (data) => api.put('/student/marketplace/seller-settings', data),
+  mktChatSuggestions: (payload) => api.post('/student/marketplace/chat-suggestions', payload),
   mktUploadImage: (file) => {
     const fd = new FormData();
     fd.append('file', file);

@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   CaretLeft, Storefront, MagnifyingGlass, Sparkle, Plus, X, Tag,
   BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera, Star, Coins, Bell, MapPin, ShieldCheck,
-  ChatCircleDots, EnvelopeSimple, PaperPlaneRight,
+  ChatCircleDots, EnvelopeSimple, PaperPlaneRight, Gear, MoonStars,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -522,6 +522,7 @@ const SellSheet = ({ verified, cats, onClose, onCreated, navigate }) => {
 const InboxSheet = ({ onClose }) => {
   const [convs, setConvs] = useState(null);
   const [active, setActive] = useState(null);
+  const [awayOpen, setAwayOpen] = useState(false);
   useEffect(() => { studentAPI.mktConversations().then((r) => setConvs(r.data.conversations || [])).catch(() => setConvs([])); }, []);
   const reload = () => studentAPI.mktConversations().then((r) => setConvs(r.data.conversations || [])).catch(() => {});
   return (
@@ -529,7 +530,10 @@ const InboxSheet = ({ onClose }) => {
       <div className="w-full bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 className="font-black text-gray-900 flex items-center gap-1.5"><EnvelopeSimple size={18} weight="fill" style={{ color: BRAND }} /> Mes messages</h2>
-          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setAwayOpen(true)} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center" data-testid="mkt-away-btn"><Gear size={18} /></button>
+            <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+          </div>
         </div>
         {!convs ? <div className="p-6 text-gray-400 text-sm">Chargement…</div> : convs.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm" data-testid="mkt-inbox-empty"><ChatCircleDots size={36} className="mx-auto mb-2 text-gray-300" />Aucune conversation pour le moment.</div>
@@ -551,6 +555,46 @@ const InboxSheet = ({ onClose }) => {
         )}
       </div>
       {active && <ChatSheet conversation={active} onClose={() => { setActive(null); reload(); }} />}
+      {awayOpen && <AwaySettingsSheet onClose={() => setAwayOpen(false)} />}
+    </div>
+  );
+};
+
+const AwaySettingsSheet = ({ onClose }) => {
+  const [s, setS] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { studentAPI.mktSellerSettings().then((r) => setS(r.data)).catch(() => {}); }, []);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await studentAPI.mktUpdateSellerSettings({ away_enabled: s.away_enabled, away_message: s.away_message });
+      toast.success('Mode absence enregistré');
+      onClose();
+    } catch { toast.error('Échec'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onClose} data-testid="mkt-away-sheet">
+      <div className="w-full bg-white rounded-t-3xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="font-black text-gray-900 flex items-center gap-1.5"><MoonStars size={18} weight="fill" style={{ color: BRAND }} /> Mode absence (vendeur)</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+        </div>
+        {!s ? <p className="text-sm text-gray-400">Chargement…</p> : (
+          <>
+            <p className="text-sm text-gray-500">Quand c'est activé, les acheteurs reçoivent une réponse automatique de ta part.</p>
+            <label className="flex items-center justify-between bg-violet-50 rounded-xl px-3 py-3">
+              <span className="text-sm font-semibold text-gray-800">Activer la réponse automatique</span>
+              <input type="checkbox" checked={!!s.away_enabled} onChange={(e) => setS({ ...s, away_enabled: e.target.checked })} className="w-5 h-5 accent-violet-600" data-testid="away-enabled" />
+            </label>
+            <textarea value={s.away_message} onChange={(e) => setS({ ...s, away_message: e.target.value })} rows={3} maxLength={300}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none resize-none" data-testid="away-message" />
+            <button onClick={save} disabled={busy} className="w-full py-3.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: BRAND }} data-testid="away-save">
+              {busy ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };
@@ -562,7 +606,15 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
   const endRef = useRef(null);
+
+  const loadSuggestions = useCallback(async () => {
+    try {
+      const r = await studentAPI.mktChatSuggestions(cid ? { conversation_id: cid } : { listing_id: listing?.id });
+      setSuggestions(r.data.suggestions || []);
+    } catch { setSuggestions([]); }
+  }, [cid, listing]);
 
   const load = useCallback(async () => {
     if (!cid) return;
@@ -574,6 +626,7 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
   }, [cid]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadSuggestions(); }, [loadSuggestions]);
   useEffect(() => {
     if (!cid) return;
     const t = setInterval(load, 4000);
@@ -581,8 +634,8 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
   }, [cid, load]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
-  const send = async () => {
-    const t = text.trim();
+  const doSend = async (raw) => {
+    const t = (raw ?? text).trim();
     if (!t) return;
     setBusy(true); setText('');
     try {
@@ -594,9 +647,11 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
         const r = await studentAPI.mktSendMessage(cid, t);
         setMsgs((m) => [...m, r.data.message]);
       }
+      loadSuggestions();
     } catch (e) { toast.error(e?.response?.data?.detail || 'Échec de l\'envoi'); setText(t); }
     finally { setBusy(false); }
   };
+  const send = () => doSend();
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white" onClick={(e) => e.stopPropagation()} data-testid="mkt-chat-sheet">
@@ -621,6 +676,16 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
         })}
         <div ref={endRef} />
       </div>
+      {suggestions.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto px-3 py-2 border-t border-gray-50" data-testid="mkt-chat-suggestions">
+          <Sparkle size={16} weight="fill" style={{ color: BRAND }} className="flex-shrink-0 mt-1.5" />
+          {suggestions.map((s, i) => (
+            <button key={i} onClick={() => doSend(s)} disabled={busy}
+              className="whitespace-nowrap text-xs font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
+              style={{ borderColor: BRAND, color: BRAND }} data-testid={`mkt-chat-suggestion-${i}`}>{s}</button>
+          ))}
+        </div>
+      )}
       <div className="flex items-center gap-2 p-3 border-t border-gray-100">
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} maxLength={500}
           placeholder="Votre message…" className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-none" data-testid="mkt-chat-input" />

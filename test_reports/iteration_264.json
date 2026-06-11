@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only validation of SB Student Marketplace AI quick replies + seller away mode (iter_264). All 3 scenarios PASS on mobile 390x844 as test2@example.com (cookie-based login). (1) AI QUICK REPLIES — opened 'QR Manuel histoire' (Eva Vendeuse), Contacter le vendeur → mkt-chat-sheet. mkt-chat-suggestions row visible with exactly 3 chips: 'Salut ! Toujours disponible ?', 'Hello ! Il est en quel état ?', 'Salut ! Possible de négocier ?'. Tapped mkt-chat-suggestion-0 → message sent IMMEDIATELY (right-aligned bubble = chip text), chat stayed open, suggestions refreshed to a new context-aware set ('Toujours dispo ?', 'Possible de le réserver ?', 'Tu es ...'). (2) AWAY MODE — mkt-inbox-btn → mkt-inbox-sheet → mkt-away-btn → mkt-away-sheet with initial toggle OFF and default French message. Toggled ON, edited textarea to 'Absent jusqu au 15 - je reviens vite ! [TEST iter264]', tapped away-save → toast 'Mode absence enregistré' visible, sheet closed. Re-opened gear → toggle ON, custom message persisted. (3) REGRESSION — typed 'Bonjour, regression typed msg ABC' + mkt-chat-send → chat stayed open, input cleared, right-aligned bubble appears. No propagation regression.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ChatSheet.doSend(raw) correctly uses (raw ?? text).trim() so chip-tap path bypasses the input state and sends the chip label as-is — clean implementation at SbMarketplacePage.js:637-653.",
+    "Suggestions auto-refresh is called via loadSuggestions() at end of doSend() (line 650) — good UX; tested and confirmed chips changed after first send.",
+    "AwaySettingsSheet root has its own onClick={onClose} backdrop AND inner onClick={(e)=>e.stopPropagation()} on the white panel (line 578) — correct pattern matching the ChatSheet propagation fix from iter_263.",
+    "Non-blocking: studentAPI.mktSellerSettings() is fetched on every gear-open; for a heavier server this could be cached client-side, but current behavior is correct and ensures fresh state."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped per request", "frontend": "100% — 3/3 scenarios pass"},
+  "test_credentials": "Buyer: test2@example.com / TestPass123! (cookie-based login via /login → 'Ou choisir une autre option de connexion' → 'Email & mot de passe').",
+  "seed_data_creation": "Created a new conversation between test2 (buyer) and Eva Vendeuse on listing 'QR Manuel histoire' with messages: chip-0 'Salut ! Toujours disponible ?' and typed 'Bonjour, regression typed msg ABC'. Persisted test2's seller-settings: away_enabled=true, away_message='Absent jusqu au 15 - je reviens vite ! [TEST iter264]'. NOTE: if subsequent tests need test2 with away_enabled=false they should toggle it OFF first.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "AI quick replies (POST /chat-suggestions via studentAPI.mktChatSuggestions) and away mode (GET/PUT /seller-settings) are fully wired and working on the frontend. Chips refresh on each send. Away settings persist correctly across re-open. ChatSheet propagation fix from iter_263 still holds for the new chip-send path (doSend triggered from chip onClick does not close the sheet). Test left test2's away_enabled=true — toggle off if your scenario requires a non-away buyer/seller.",
+  "rca of the issue": "No bugs found in this iteration. All flows behave per spec."
+}
