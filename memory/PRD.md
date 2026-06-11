@@ -1,4 +1,13 @@
-## NEW - 2026-06-11 (266) - 🧭 Accès direct « SB Student 🎓 » sur l'accueil (découvrabilité marketplace)
+## NEW - 2026-06-11 (270) - ♿ SB Drive Access PHASE 1 : câblage route + entrées + parcours réservation (DONE, testé frontend 100%)
+- **Contexte** : le fork précédent avait créé le backend `routes/sb_access.py` (config, matching véhicules, Safe Ride Night, certif chauffeurs, admin) et la page `SbAccessPage.js` (parcours 5 étapes WCAG « Access Navy »), mais la page était **orpheline** (non exportée/non routée).
+- **Fix livré** : export `SbAccessPage` dans `pages.js` + route `/access` (`clientRoutes.jsx`, ProtectedRoute user) + **2 points d'entrée** : carte « SB Drive Access ♿ » sur `UserHome` (`home-sb-access-entry`, après SB Student) ET dans le Hub Taxi vue grille (`taxi-hub-access-entry`). Icône Phosphor `Wheelchair`. Fix cosmétique : prix confirmation `.toFixed(2)`.
+- **Parcours testé (testing_agent iter270, frontend 100%, AUCUN bug)** : Besoins → Assistance (animal/accompagnateurs/temps) → Trajet (Google Places + type + récurrence) → Véhicule compatible → Confirmation (booking POST). **Règle métier vérifiée** : besoin fauteuil roulant → seuls Access PMR/Van proposés (Standard filtré). Toggles WCAG (grand texte/contraste) persistés localStorage. Les 2 entrées naviguent OK.
+- **Compte test user** : paul.vendeur@example.com / Test1234! (login `/api/auth/login`).
+- **RESTE (en attente validation user avant P2)** : Dashboard Admin SB Access (catégories/tarifs PMR, zones, **Safe Ride Night paramétrable**, certif chauffeurs, stats). Puis P1 trajets médicaux/récurrents dédiés, P1 SOS/Sécurité, P1 IA attribution PMR, P2 SB Access Plus.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 - **Contexte** : l'utilisateur ne trouvait pas la marketplace depuis l'accueil (« AU QUOTIDIEN »). Elle était accessible seulement via Profil → SB Student ou la bannière promo (cachée pour les étudiants déjà vérifiés).
 - **Fix** : carte permanente **« SB Student 🎓 — Marketplace, tarifs étudiants, campus & plus »** ajoutée en haut de `UserHome.js` (juste sous `DebtBanner`), `data-testid="home-sb-student-entry"`, navigue vers `/sb-student` (→ entrée « Marketplace étudiante »). Toujours visible (non conditionnelle). Compile OK.
 - **En attente user** : proposition de **Mode Démo global** (auto-vérif étudiant, crédit portefeuille démo non facturé, bannière MODE DÉMO, intégrations externes en données d'exemple, commutateur admin) — Stripe inchangé/LIVE. À confirmer avant implémentation.

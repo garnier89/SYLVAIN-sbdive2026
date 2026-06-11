@@ -341,7 +341,7 @@ export default function SbAccessPage() {
                 <h2 className="text-2xl font-bold text-gray-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>Réservation confirmée</h2>
                 <div className="p-4 rounded-xl text-left space-y-2" style={{ border: cardBorder, background: '#F3F4F6' }}>
                   <Row k="Véhicule" v={booking.category_name} />
-                  <Row k="Prix estimé" v={`${booking.fare_estimate} €`} />
+                  <Row k="Prix estimé" v={`${Number(booking.fare_estimate).toFixed(2)} €`} />
                   <Row k="Départ" v={booking.pickup?.address || '—'} />
                   <Row k="Destination" v={booking.dropoff?.address || '—'} />
                   {booking.extra_assistance_minutes > 0 && <Row k="Assistance" v={`+${booking.extra_assistance_minutes} min offertes`} />}
