@@ -383,7 +383,7 @@ const AlertsSheet = ({ cats, onClose }) => {
   const save = async () => {
     setBusy(true);
     try {
-      await studentAPI.mktUpdateAlerts({ enabled: prefs.enabled, categories: prefs.categories, zone_ids: prefs.zone_ids });
+      await studentAPI.mktUpdateAlerts({ enabled: prefs.enabled, categories: prefs.categories, zone_ids: prefs.zone_ids, digest_enabled: prefs.digest_enabled !== false });
       toast.success('Préférences enregistrées');
       onClose();
     } catch { toast.error('Échec'); }
@@ -401,6 +401,10 @@ const AlertsSheet = ({ cats, onClose }) => {
             <label className="flex items-center justify-between bg-violet-50 rounded-xl px-3 py-3" data-testid="alerts-enabled">
               <span className="text-sm font-semibold text-gray-800">M'alerter des nouvelles annonces près de mon campus</span>
               <input type="checkbox" checked={!!prefs.enabled} onChange={(e) => setPrefs({ ...prefs, enabled: e.target.checked })} className="w-5 h-5 accent-violet-600" />
+            </label>
+            <label className="flex items-center justify-between bg-violet-50 rounded-xl px-3 py-3" data-testid="alerts-digest">
+              <span className="text-sm font-semibold text-gray-800">Recevoir le récap hebdo « Top affaires » par email</span>
+              <input type="checkbox" checked={prefs.digest_enabled !== false} onChange={(e) => setPrefs({ ...prefs, digest_enabled: e.target.checked })} className="w-5 h-5 accent-violet-600" />
             </label>
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-2">Catégories suivies <span className="text-gray-400">(aucune sélection = toutes)</span></p>

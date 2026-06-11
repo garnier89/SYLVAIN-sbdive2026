@@ -499,6 +499,8 @@ async def lifespan(app: FastAPI):
     cashback_task = asyncio.create_task(cashback_monthly_loop())
     from core.grouping import grouping_loop
     grouping_task = asyncio.create_task(grouping_loop())
+    from routes.student_digest import student_digest_loop
+    student_digest_task = asyncio.create_task(student_digest_loop())
 
     yield
 

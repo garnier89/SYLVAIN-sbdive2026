@@ -462,6 +462,54 @@ const Marketplace = () => {
           </div>
         </div>
       )}
+      <DigestPanel />
+    </div>
+  );
+};
+
+// ===== Weekly digest config + manual trigger =====
+const DigestPanel = () => {
+  const [cfg, setCfg] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const load = useCallback(() => { studentAPI.mktDigestConfig().then((r) => setCfg(r.data)).catch(() => {}); }, []);
+  useEffect(() => { load(); }, [load]);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await studentAPI.mktUpdateDigestConfig({ enabled: cfg.enabled, send_day: Number(cfg.send_day), send_hour: Number(cfg.send_hour), max_items: Number(cfg.max_items) });
+      toast.success('Récap hebdo enregistré'); load();
+    } catch { toast.error('Échec'); }
+    finally { setSaving(false); }
+  };
+  const sendNow = async () => {
+    if (!window.confirm('Envoyer le récap « Top affaires » à tous les étudiants éligibles maintenant ?')) return;
+    setSending(true);
+    try { const r = await studentAPI.mktDigestSendNow(); toast.success(`Récap envoyé (${r.data.sent} étudiant·e·s, ${r.data.skipped} sans annonce)`); }
+    catch { toast.error('Échec de l\'envoi'); }
+    finally { setSending(false); }
+  };
+  const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  if (!cfg) return null;
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4" data-testid="admin-digest">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-slate-800">Récap hebdo « Top affaires de ton campus »</h3>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} data-testid="digest-enabled" /> Activé</label>
+      </div>
+      <div className="flex items-end gap-2 flex-wrap">
+        <div>
+          <label className="block text-xs text-slate-400 mb-0.5">Jour d'envoi</label>
+          <select value={cfg.send_day} onChange={(e) => setCfg({ ...cfg, send_day: e.target.value })} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white" data-testid="digest-day">
+            {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+          </select>
+        </div>
+        <Field label="Heure" value={cfg.send_hour} onChange={(v) => setCfg({ ...cfg, send_hour: v })} />
+        <Field label="Nb max" value={cfg.max_items} onChange={(v) => setCfg({ ...cfg, max_items: v })} />
+        <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold disabled:opacity-50" data-testid="digest-save">{saving ? '…' : 'Enregistrer'}</button>
+        <button onClick={sendNow} disabled={sending} className="px-4 py-2 rounded-lg border border-violet-600 text-violet-700 text-sm font-semibold disabled:opacity-50" data-testid="digest-send-now">{sending ? 'Envoi…' : 'Envoyer maintenant'}</button>
+      </div>
+      <p className="text-xs text-slate-400 mt-2">Envoyé chaque {DAYS[Number(cfg.send_day)] || 'Lundi'} vers {cfg.send_hour}h aux étudiants ayant activé le récap.</p>
     </div>
   );
 };

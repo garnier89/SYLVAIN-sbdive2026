@@ -573,3 +573,34 @@ async def send_document_update(to: str, name: str, status: str, doc_label: str,
         {cta}
         <p style="margin-top:22px;color:#444;font-size:14px;">L'équipe SB Drive</p>"""
     await _send(to, subject, _shell(title, accent, body))
+
+
+
+async def send_campus_digest(to: str, name: str, week_label: str, items: list, url: str = "") -> None:
+    """Weekly 'Top affaires de ton campus' digest for a student. `items` = list of
+    {title, price, category_label, zone_name, boosted}."""
+    accent = "#5B21B6"
+    rows = ""
+    for it in items[:6]:
+        star = '⭐ ' if it.get("boosted") else ""
+        zone = f" · {it['zone_name']}" if it.get("zone_name") else ""
+        rows += (
+            f'<tr><td style="padding:12px 0;border-bottom:1px solid #eee;">'
+            f'<span style="color:#0a0e1a;font-size:15px;font-weight:bold;">{star}{it.get("title","")}</span><br/>'
+            f'<span style="color:#8a909c;font-size:13px;">{it.get("category_label","")}{zone}</span></td>'
+            f'<td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">'
+            f'<span style="color:{accent};font-size:16px;font-weight:bold;">{float(it.get("price",0)):.2f} €</span></td></tr>'
+        )
+    cta = (
+        f'<p style="text-align:center;margin:22px 0 4px;"><a href="{url}" '
+        f'style="background:{accent};color:#fff;text-decoration:none;padding:12px 26px;border-radius:999px;'
+        f'font-weight:bold;font-size:14px;display:inline-block;">Voir la marketplace étudiante</a></p>'
+        if url else ""
+    )
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Salut {name or ''} 👋</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">Voici les <b>meilleures affaires</b> repérées près de ton campus cette semaine :</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">{rows}</table>
+        {cta}
+        <p style="margin-top:22px;color:#8a909c;font-size:12px;">Tu reçois ce récap car tu suis la marketplace étudiante SB Student. Tu peux le désactiver depuis l'écran Alertes.</p>"""
+    await _send(to, f"🎓 Top affaires de ton campus — semaine du {week_label}", _shell("Top affaires de ton campus 🎓", accent, body))

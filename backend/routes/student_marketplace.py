@@ -134,7 +134,7 @@ def _parse_json(raw: str) -> dict:
 
 
 # ======================= CAMPUS DEAL ALERTS =======================
-DEFAULT_ALERT = {"enabled": True, "categories": [], "zone_ids": []}
+DEFAULT_ALERT = {"enabled": True, "categories": [], "zone_ids": [], "digest_enabled": True}
 
 
 async def get_alert_prefs(user_id: str) -> dict:
@@ -206,6 +206,7 @@ class AlertPrefs(BaseModel):
     enabled: bool | None = None
     categories: list[str] | None = None
     zone_ids: list[str] | None = None
+    digest_enabled: bool | None = None
 
 
 @router.put("/alerts/me")
@@ -215,6 +216,8 @@ async def update_my_alerts(body: AlertPrefs, request: Request):
     update = {}
     if body.enabled is not None:
         update["enabled"] = bool(body.enabled)
+    if body.digest_enabled is not None:
+        update["digest_enabled"] = bool(body.digest_enabled)
     if body.categories is not None:
         update["categories"] = [c for c in body.categories if c in CATEGORY_SLUGS]
     if body.zone_ids is not None:

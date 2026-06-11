@@ -1,0 +1,39 @@
+{
+  "summary": "Iter260 — Weekly digest 'Top affaires de ton campus' FRONTEND e2e validated end-to-end on student (mobile 390x844, test2@example.com) and admin (desktop 1920x1080, admin@superapp.com). FULL PASS on all three requested scenarios.\n\n(1) STUDENT bell → AlertsSheet now shows TWO toggles as required: 'alerts-enabled' (M'alerter…) AND 'alerts-digest' (Recevoir le récap hebdo… par email). Both visible with French labels. Initial digest_enabled=true (backend default). Toggled alerts-digest OFF (input.checked false), clicked alerts-save → toast 'Préférences enregistrées'. Re-opened bell → alerts-digest input.checked=false confirmed (PERSISTS). Toggled back ON + Save → success.\n\n(2) ADMIN /admin/student → admin-student-tab-marketplace → admin-digest panel found with all required controls: digest-enabled checkbox, digest-day <select> defaulted to Lundi (0), 2 number inputs (Heure=9, Nb max=6), digest-save and digest-send-now buttons.\n\n(3) Clicked digest-save → toast 'Récap hebdo enregistré' ✓. Clicked digest-send-now → window.confirm dialog 'Envoyer le récap « Top affaires » à tous les étudiants éligibles maintenant ?' → accepted → toast 'Récap envoyé (1 étudiant·e·s, 0 sans annonce)' ✓. No UI errors. Backend integration end-to-end OK via cookie-based session.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Student AlertsSheet (mobile)",
+        "issues": ["(récurrent depuis iter257) Bannière 'Vérifiez votre email' fixed-bottom recouvre partiellement le bouton 'Enregistrer' et les options du bas du sheet sur 390x844. Bypass JS click utilisé pour les tests. Recommandation: z-index 60 sur mkt-alerts-sheet ou repositionner la bannière. NON BLOQUANT."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_259.json",
+    "/app/test_reports/iteration_258.json",
+    "/app/test_reports/iteration_257.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SbMarketplacePage.js L386 — mktUpdateAlerts envoie digest_enabled: prefs.digest_enabled !== false → safe default true si undefined. ✅ Bonne défense en profondeur.",
+    "SbMarketplacePage.js L405-408 — alerts-digest = label > checkbox; checked={prefs.digest_enabled !== false} → cohérent avec la sémantique 'opt-out': absence de valeur = activé. ✅",
+    "AdminStudent.js DigestPanel L471-515 — propre et concis (~45 lignes), useCallback pour load, Number() casting au save (send_day, send_hour, max_items). ✅",
+    "DigestPanel.sendNow utilise window.confirm() natif au lieu d'un AlertDialog shadcn — fonctionne mais moins beau visuellement. À considérer en amélioration UX future, non bloquant.",
+    "DigestPanel ne désactive PAS digest-send-now si cfg.enabled=false — l'admin peut envoyer un récap même quand la planification hebdo est désactivée. Comportement intentionnel probablement (override manuel), à confirmer côté produit.",
+    "Aucun loading skeleton pendant le chargement initial de cfg dans DigestPanel (if (!cfg) return null;) → l'utilisateur peut voir le panel disparaître/réapparaître. Mineur."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (per main agent: pytest 6/6 + 12/12 cumulés iter257-260)",
+    "frontend": "100% — tous les data-testid requis présents et fonctionnels: alerts-enabled, alerts-digest, alerts-save (étudiant) + admin-student-tab-marketplace, admin-digest, digest-enabled, digest-day, digest-save, digest-send-now (admin). Toasts FR conformes. Persistance opt-out OK. Send-now retourne sent=1, skipped=0."
+  },
+  "test_credentials": "Student: test2@example.com / TestPass123! · Admin: admin@superapp.com / SuperAdmin123! · Cookie-based login via 'Email & mot de passe'.",
+  "seed_data_creation": "Aucune nouvelle seed créée. Réutilisé seed existant: zone 'Test Campus' (cz_277b89f0) + annonce 'DEMO Manuel physique' pour le send-now. Préférences digest de test2 toggleées OFF puis ON pendant le test (état final = ON).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 'Récap hebdo Top affaires de ton campus' (digest) entièrement validée côté frontend. Pour la couverture in-app notification 'student_digest' dans la bell header globale, vérifier après digest-send-now que le notifications endpoint /api/drivers/my-notifications retourne un item type='student_digest' pour test2 — non testé ici (backend déjà couvert par pytest 6/6 selon main agent). Bug UI récurrent: bannière 'Vérifiez votre email' fixed-bottom à corriger globalement (z-index ou repositionnement).",
+  "rca of the issue": "Aucun bug détecté. Implémentation conforme au PRD: opt-out digest indépendant des alertes temps-réel, panel admin complet (config + send-now), toasts français corrects, persistance backend confirmée, dialog de confirmation présent avant l'envoi global."
+}

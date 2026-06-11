@@ -805,6 +805,10 @@ export const studentAPI = {
   mktAdminBoostRevenue: () => api.get('/student/marketplace/admin/boost/revenue'),
   mktAlerts: () => api.get('/student/marketplace/alerts/me'),
   mktUpdateAlerts: (data) => api.put('/student/marketplace/alerts/me', data),
+  mktDigestConfig: () => api.get('/student/marketplace/admin/digest/config'),
+  mktUpdateDigestConfig: (data) => api.put('/student/marketplace/admin/digest/config', data),
+  mktDigestSendNow: (testUserId) => api.post('/student/marketplace/admin/digest/send-now', testUserId ? { test_user_id: testUserId } : {}),
+  mktDigestHistory: () => api.get('/student/marketplace/admin/digest/history'),
   mktUploadImage: (file) => {
     const fd = new FormData();
     fd.append('file', file);
