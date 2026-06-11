@@ -89,6 +89,13 @@ const RentalsTab = () => {
     try { await motoRentalAPI.adminReviewLicense(id, { approve }); toast.success(approve ? 'Permis validé' : 'Refusé & remboursé'); load(); }
     catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
   };
+  const [dmg, setDmg] = useState({});
+  const closeRental = async (r) => {
+    const fee = Number(dmg[r.id] || 0);
+    if (!window.confirm(fee ? `Clôturer et retenir ${fee}€ de dommages ? Le reste de la caution est restitué.` : 'Clôturer et restituer toute la caution ?')) return;
+    try { const res = await motoRentalAPI.adminReturn(r.id, { damage_fees: fee }); toast.success(`Clôturée · caution restituée ${res.data.deposit_refunded}€`); setDmg((d) => ({ ...d, [r.id]: '' })); load(); }
+    catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+  };
 
   return (
     <div className="space-y-3 max-w-3xl" data-testid="admin-moto-rentals-tab">
@@ -110,6 +117,15 @@ const RentalsTab = () => {
               <button onClick={() => review(r.id, true)} data-testid={`moto-approve-${r.id}`} className="px-4 py-2 text-sm font-bold text-white rounded-lg" style={{ background: '#16a34a' }}>Valider le permis</button>
               <button onClick={() => review(r.id, false)} data-testid={`moto-reject-${r.id}`} className="px-4 py-2 text-sm font-semibold text-rose-600 rounded-lg border border-rose-200">Refuser</button>
             </div>
+          )}
+          {r.status === 'active' && (
+            <div className="flex items-center gap-2 mt-3" data-testid={`moto-close-row-${r.id}`}>
+              <input type="number" min="0" placeholder="Frais dommages (€)" value={dmg[r.id] || ''} onChange={(e) => setDmg((d) => ({ ...d, [r.id]: e.target.value }))} data-testid={`moto-damage-${r.id}`} className={`${inputCls} max-w-[160px]`} />
+              <button onClick={() => closeRental(r)} data-testid={`moto-close-${r.id}`} className="px-4 py-2 text-sm font-bold text-white rounded-lg" style={{ background: NAVY }}>Clôturer & restituer caution</button>
+            </div>
+          )}
+          {r.status === 'returned' && (
+            <p className="text-[11px] text-slate-500 mt-2">Caution restituée : {money(r.deposit_refunded)}{r.damage_fees ? ` · ${money(r.damage_fees)} dommages retenus` : ''}</p>
           )}
         </div>
       ))}

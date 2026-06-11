@@ -38,6 +38,36 @@ const MotoSelfRentalPage = () => {
   useEffect(() => { motoRentalAPI.fleet().then((r) => setFleet(r.data.motos || [])).catch(() => {}); }, []);
   const loadMine = () => motoRentalAPI.myRentals().then((r) => setMine(r.data.rentals || [])).catch(() => {});
 
+  // Retour depuis Stripe (caution) : poll le statut puis rafraîchit.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sess = params.get('deposit_session');
+    if (!sess) return;
+    let tries = 0;
+    const poll = async () => {
+      tries += 1;
+      try {
+        const r = await motoRentalAPI.depositStatus(sess);
+        if (r.data.payment_status === 'paid') {
+          toast.success('Caution bloquée — votre moto est confirmée 🏍️');
+          window.history.replaceState({}, '', '/moto-location');
+          setStep('mine'); loadMine(); return;
+        }
+        if (r.data.payment_status === 'expired') { toast.error('Paiement de la caution expiré'); return; }
+      } catch { /* keep polling */ }
+      if (tries < 6) setTimeout(poll, 2000);
+    };
+    poll();
+  }, []);
+
+  const payDeposit = async (rental) => {
+    try {
+      const r = await motoRentalAPI.depositCheckout(rental.id, { origin_url: window.location.origin });
+      if (r.data.no_deposit) { toast.success('Aucune caution requise'); loadMine(); return; }
+      if (r.data.url) window.location.href = r.data.url;
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+  };
+
   useEffect(() => {
     if (step === 'book' && moto && startAt && endAt) {
       motoRentalAPI.quote({ moto_id: moto.id, start_at: startAt, end_at: endAt })
@@ -175,6 +205,11 @@ const MotoSelfRentalPage = () => {
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${st.cls}`}>{st.label}</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">{r.days} jour(s) · {money(r.base_price)} · caution {money(r.deposit_amount)}</p>
+                {r.deposit_status === 'held' && <p className="text-[11px] text-emerald-600 mt-0.5">Caution bloquée ✓</p>}
+                {r.deposit_status === 'released' && <p className="text-[11px] text-gray-500 mt-0.5">Caution restituée : {money(r.deposit_refunded)}{r.damage_fees ? ` (${money(r.damage_fees)} dommages)` : ''}</p>}
+                {r.status === 'awaiting_pickup' && r.deposit_status !== 'held' && Number(r.deposit_amount) > 0 && (
+                  <button onClick={() => payDeposit(r)} data-testid={`moto-pay-deposit-${r.id}`} className="mt-2 w-full min-h-[44px] rounded-xl font-bold text-white" style={{ background: ORANGE }}>Payer la caution · {money(r.deposit_amount)}</button>
+                )}
                 {(r.status === 'pending_license' || r.status === 'awaiting_pickup') && (
                   <button onClick={() => cancel(r.id)} data-testid={`moto-cancel-${r.id}`} className="mt-2 text-xs font-semibold text-rose-600">Annuler & être remboursé</button>
                 )}

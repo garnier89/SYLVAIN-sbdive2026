@@ -10,14 +10,25 @@ MVP (défauts validés par l'utilisateur) :
 - Remise / restitution avec photos d'état des lieux (Phase 3b) prévues mais optionnelles ici.
 """
 import uuid
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, HTTPException
+from emergentintegrations.payments.stripe.checkout import (
+    StripeCheckout, CheckoutSessionRequest,
+)
 
 from core.config import db, logger
 from core.deps import require_role, get_current_user
 from core.notifications import create_notification
 from core.airport import notify_admins
+
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+
+
+def _get_stripe(request: Request):
+    host_url = str(request.base_url).rstrip("/")
+    return StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=f"{host_url}/api/webhook/stripe")
 
 router = APIRouter(prefix="/moto-rental", tags=["moto-rental"])
 admin_router = APIRouter(prefix="/moto-rental/admin", tags=["moto-rental-admin"])
@@ -199,6 +210,84 @@ async def cancel_rental(rental_id: str, request: Request):
 
 
 # ============================================================
+#  CAUTION (Stripe Checkout — débitée à la remise, recréditée au retour sur SB Pay)
+# ============================================================
+@router.post("/{rental_id}/deposit-checkout")
+async def deposit_checkout(rental_id: str, request: Request):
+    """Crée une session Stripe Checkout pour la caution (montant fixé côté serveur)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    origin_url = body.get("origin_url")
+    if not origin_url:
+        raise HTTPException(status_code=400, detail="Origin URL requis")
+    rental = await db.moto_self_rentals.find_one({"id": rental_id, "user_id": user["id"]}, {"_id": 0})
+    if not rental:
+        raise HTTPException(status_code=404, detail="Location introuvable")
+    if rental.get("status") != "awaiting_pickup":
+        raise HTTPException(status_code=409, detail="La caution se règle après validation du permis, avant le retrait")
+    if rental.get("deposit_status") == "held":
+        raise HTTPException(status_code=409, detail="Caution déjà réglée")
+    amount = round(float(rental.get("deposit_amount", 0) or 0), 2)
+    if amount <= 0:
+        # Pas de caution requise → on passe directement la moto en "active".
+        await db.moto_self_rentals.update_one({"id": rental_id}, {"$set": {"deposit_status": "none", "status": "active"}})
+        return {"ok": True, "no_deposit": True}
+
+    return_path = "/moto-location"
+    success_url = f"{origin_url}{return_path}?deposit_session={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}{return_path}"
+    stripe = _get_stripe(request)
+    session = await stripe.create_checkout_session(CheckoutSessionRequest(
+        amount=float(amount), currency="eur", success_url=success_url, cancel_url=cancel_url,
+        metadata={"user_id": user["id"], "type": "moto_deposit", "rental_id": rental_id, "amount": str(amount)},
+    ))
+    now = _now()
+    await db.payment_transactions.insert_one({
+        "id": f"pay_{uuid.uuid4().hex[:12]}", "session_id": session.session_id, "user_id": user["id"],
+        "amount": amount, "currency": "EUR", "type": "moto_deposit",
+        "payment_status": "pending", "status": "initiated",
+        "metadata": {"rental_id": rental_id}, "created_at": now, "updated_at": now,
+    })
+    return {"url": session.url, "session_id": session.session_id}
+
+
+@router.get("/deposit-status/{session_id}")
+async def deposit_status(session_id: str, request: Request):
+    """Polling du paiement de la caution ; marque la caution comme bloquée et active la location."""
+    user = await get_current_user(request)
+    tx = await db.payment_transactions.find_one(
+        {"session_id": session_id, "user_id": user["id"], "type": "moto_deposit"}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction introuvable")
+    if tx.get("payment_status") == "paid":
+        return {"payment_status": "paid", "amount": tx["amount"]}
+
+    stripe = _get_stripe(request)
+    try:
+        status = await stripe.get_checkout_status(session_id)
+    except Exception:
+        return {"payment_status": tx["payment_status"], "amount": tx["amount"]}
+
+    now = _now()
+    if status and status.payment_status == "paid":
+        res = await db.payment_transactions.update_one(
+            {"session_id": session_id, "payment_status": {"$ne": "paid"}},
+            {"$set": {"payment_status": "paid", "status": "complete", "updated_at": now}})
+        if res.modified_count > 0:
+            rid = (tx.get("metadata") or {}).get("rental_id")
+            await db.moto_self_rentals.update_one(
+                {"id": rid}, {"$set": {"deposit_status": "held", "deposit_session_id": session_id,
+                                       "deposit_held_amount": tx["amount"], "status": "active",
+                                       "picked_up_at": now}})
+        return {"payment_status": "paid", "amount": tx["amount"]}
+    if status and status.status == "expired":
+        await db.payment_transactions.update_one(
+            {"session_id": session_id}, {"$set": {"payment_status": "expired", "status": "expired", "updated_at": now}})
+        return {"payment_status": "expired", "amount": tx["amount"]}
+    return {"payment_status": status.payment_status if status else "pending", "amount": tx["amount"]}
+
+
+# ============================================================
 #  ADMIN — flotte + locations + validation permis
 # ============================================================
 _FLEET_FIELDS = ("name", "model", "license_class", "price_per_day", "price_per_hour",
@@ -312,3 +401,52 @@ async def admin_review_license(rental_id: str, request: Request):
                               "Votre permis n'a pas pu être validé. La location a été remboursée sur votre SB Pay.",
                               data={"rental_id": rental_id})
     return {"ok": True, "status": "rejected", "refunded": refund}
+
+
+@admin_router.post("/rentals/{rental_id}/return")
+async def admin_return(rental_id: str, request: Request):
+    """Clôture la location : restitue la caution (− frais dommages) sur le portefeuille SB Pay
+    et libère la moto. `damage_fees` (optionnel) est conservé par l'agence."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    rental = await db.moto_self_rentals.find_one({"id": rental_id}, {"_id": 0})
+    if not rental:
+        raise HTTPException(status_code=404, detail="Location introuvable")
+    if rental.get("status") not in ("active", "awaiting_pickup"):
+        raise HTTPException(status_code=409, detail="Cette location ne peut pas être clôturée")
+
+    held = float(rental.get("deposit_held_amount", 0) or 0)
+    try:
+        damage = max(0.0, float(body.get("damage_fees") or 0))
+    except (TypeError, ValueError):
+        damage = 0.0
+    damage = min(damage, held)  # on ne retient jamais plus que la caution bloquée
+    refund = round(held - damage, 2)
+
+    if held > 0 and refund > 0:
+        wallet = await db.wallets.find_one({"user_id": rental["user_id"]})
+        bal = round((wallet.get("balance", 0) if wallet else 0) + refund, 2)
+        await db.wallets.update_one({"user_id": rental["user_id"]}, {"$set": {"balance": bal}}, upsert=True)
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": rental["user_id"], "type": "Refund",
+            "amount": refund, "balance_after": bal,
+            "description": f"Restitution caution moto {rental['moto_name']}"
+                           + (f" (− {damage}€ dommages)" if damage else ""),
+            "status": "completed", "created_at": _now()})
+
+    await db.moto_self_rentals.update_one(
+        {"id": rental_id}, {"$set": {"status": "returned", "returned_at": _now(),
+                                     "damage_fees": damage, "deposit_refunded": refund,
+                                     "deposit_status": "released" if held else rental.get("deposit_status"),
+                                     "return_notes": str(body.get("notes") or "")[:300]}})
+    await db.moto_fleet.update_one({"id": rental["moto_id"]}, {"$set": {"status": "available"}})
+    await create_notification(
+        rental["user_id"], "moto_rental_returned", "Location terminée 🏍️",
+        (f"Caution restituée : {refund}€ sur votre SB Pay" + (f" ({damage}€ retenus pour dommages)." if damage else "."))
+        if held else "Merci d'avoir loué avec SB Drive.",
+        data={"rental_id": rental_id})
+    return {"ok": True, "status": "returned", "deposit_refunded": refund, "damage_fees": damage}

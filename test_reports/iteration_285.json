@@ -1,0 +1,27 @@
+{
+  "summary": "Iter 285 — Phase 3b Stripe deposit flow (caution moto self-drive) — TOUS LES 5 SCÉNARIOS PASS. (1) Paul (mobile 430x900) /login/email -> /moto-location -> moto-mine-btn -> 1 location awaiting_pickup avec bouton 'moto-pay-deposit-mrent_a66207128f' libellé exact 'Payer la caution · 400.00 €'. (2) Clic -> redirection vers Stripe Checkout hébergé (URL = https://checkout.stripe.com/c/pay/cs_test_a1kerzZ4...). Carte test 4242 4242 4242 4242, exp 12/30, CVC 123, postal 12345, email test@example.com, nom Paul Vendeur -> bouton 'hosted-payment-submit-button' cliqué -> redirection back vers /moto-location?deposit_session=cs_test_a1kerzZ4... . (3) Polling deposit-status réussit (~2-4s) -> URL nettoyée vers /moto-location, étape 'mine' affichée, badge 'Caution bloquée ✓' visible + statut 'En cours' (active). (4) Admin (desktop 1920x1080) -> /admin/moto-fleet -> moto-admin-tab-rentals -> location mrent_a66207128f visible avec statut 'active'. Saisi 'moto-damage-mrent_a66207128f' = 50, cliqué 'moto-close-mrent_a66207128f' -> dialog confirm 'Clôturer et retenir 50€ de dommages ? Le reste de la caution est restitué.' accepté -> location passe en statut 'returned' avec mention 'Caution restituée : 350.00 € · 50.00 € dommages retenus'. (5) Paul re-login -> /moto-location -> Mes locations -> Yamaha NMAX 125 'Terminée · 2 jour(s) · 70.00 € · caution 400.00 € · Caution restituée : 350.00 € (50.00 € dommages)'. Tous les flux (Stripe Checkout hébergé réel mode test, polling deposit-status, restitution wallet admin) fonctionnent E2E. Aucune erreur JS bloquante (401 de /api/auth/me avant login normaux). Stripe Checkout effectue bien un vrai paiement test, le backend tag deposit_status=held puis released, et l'UI utilisateur reflète les deux états correctement.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MotoSelfRentalPage.js L42-61: polling deposit-status fait max 6 essais à 2s d'intervalle (12s total). Sur réseaux lents, le webhook Stripe pourrait prendre >12s ; envisager 10 essais ou backoff exponentiel. En pratique sur ce test le polling a réussi en 1-2 essais.",
+    "MotoSelfRentalPage.js L52: toast 'Caution bloquée — votre moto est confirmée 🏍️' OK, mais aucun fallback si payment_status reste 'unpaid' indéfiniment (l'utilisateur ne sait pas que ça a échoué tant qu'il ne reclique pas). Suggérer un toast 'Vérification en cours, votre statut sera mis à jour sous peu' au bout de 12s.",
+    "MotoSelfRentalPage.js L67: window.location.href pour redirection Stripe — fonctionnel mais empêche le back-button de revenir naturellement sur la page (l'URL est remplacée). Acceptable car Stripe Checkout est une page hébergée externe.",
+    "AdminMotoFleet.js L96: closeRental() utilise window.confirm — UX OK mais inconsistant avec un dialog shadcn si présent ailleurs dans l'admin. Le message du confirm est informatif et clair.",
+    "AdminMotoFleet.js L96: toast 'Clôturée · caution restituée 350€' s'affiche correctement mais le montant '350' est interpolé en raw — si caution = 0 ça affichera '0€'. À vérifier le edge case (caution 0).",
+    "Code review général : pas de loader visible sur le bouton 'Payer la caution' pendant l'appel à depositCheckout (entre clic et redirect Stripe ~500ms). Acceptable mais un état 'loading' explicite serait plus rassurant.",
+    "Aucun mockup détecté — la session Stripe est BIEN une vraie session cs_test_ et le paiement test a été traité en live par Stripe (mode test Emergent)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (5/5 scenarios passing)"},
+  "test_credentials": "Paul: paul.vendeur@example.com / Test1234!. Admin: admin@superapp.com / SuperAdmin123!. Stripe test: 4242 4242 4242 4242, exp 12/30, CVC 123, postal 12345, email test@example.com. Login route: /login/email (data-testid='email-login-page', 'email-input', 'password-input', 'email-login-submit-btn').",
+  "seed_data_creation": "Location mrent_a66207128f initialement awaiting_pickup avec deposit_amount=400€ a été (1) chargée caution=held via Stripe Checkout réel, puis (2) clôturée par admin avec damage_fees=50, deposit_status=released, deposit_refunded=350. Pour relancer le test from scratch, recréer une rental awaiting_pickup avec caution>0 pour paul (ou réinitialiser via seed backend).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 3b 100% fonctionnelle. Architecture validée: MotoSelfRentalPage.payDeposit -> POST /moto-rental/{id}/deposit-checkout -> Stripe Session cs_test_ -> redirect Stripe Checkout -> retour /moto-location?deposit_session=X -> useEffect polling GET /moto-rental/deposit-status/{id} (max 6 essais x 2s) -> setStep('mine') + reload -> badge 'Caution bloquée ✓'. AdminMotoFleet.closeRental -> POST /moto-rental/admin/rentals/{id}/return {damage_fees:50} -> backend recrédite (400-50)=350€ sur wallet SB Pay, marque deposit_status=released + status=returned. UI utilisateur affiche correctement 'Caution restituée : 350.00 € (50.00 € dommages)'. Pour info: l'IMPORTANT est que le dialog handler en Playwright doit être un async wrapper (lambda d: asyncio.create_task(handle(d))) sinon le coroutine n'est jamais awaited et le click reste bloqué."
+}
