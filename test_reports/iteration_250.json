@@ -1,0 +1,37 @@
+{
+  "summary": "Backend-only validation of Phase 1 wallet-shortfall cash settlement chain (SB Drive). Existing iter249/iter249b suites kept as regression and all pass (4/4). Added iter250 covering the 3 gaps requested by E1: (A) cash payment_method ride leaves the whole fare as cash_due (no wallet debit); (B) collect-cash 403 guard against non-owner/non-admin; (C) wallet transfer to a debtor auto-settles outstanding ride_balance debt first. Full suite 7/7 passing against the public preview URL.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/rides/{id}/status (completion)", "issue": "Cash rides land in payment_status='pending_cash' while the wallet-shortfall path uses 'cash_due'. Both work correctly with collect-cash, but the dual labels are inconsistent and undocumented — consider unifying to 'cash_due' for both."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter250_cash_due_full_chain.py",
+    "/app/backend/tests/test_iter249_cash_due_collection.py",
+    "/app/backend/tests/test_iter249b_debt_auto_recovery.py",
+    "/app/test_reports/pytest/iter250_results.xml"
+  ],
+  "action_items": [
+    "(Nice-to-have) Harmonize payment_status labels between cash rides ('pending_cash') and wallet-shortfall rides ('cash_due') — same downstream behavior, confusing for analytics/UI."
+  ],
+  "critical_code_review_comments": [
+    "routes/rides.py::collect_cash correctly enforces driver-owner OR admin (drv.id == ride.driver_id). The check uses db.drivers.find_one({user_id: user.id}) so a passenger / merchant / different driver all get 403 as verified.",
+    "routes/rides.py wallet settlement uses atomic $inc with {balance: {$gte: charge}} filter — good race protection; the fallback path sets cash_due=amt on race. Solid.",
+    "routes/wallet.py::transfer calls auto_settle_debts_from_wallet(to_user_id) AFTER crediting the receiver — verified with iter250 case C (7 € debt cleared, 3 € net credited).",
+    "routes/wallet.py::topup returns debt_recovered + balance net of recovery — verified by iter249b (full + partial).",
+    "Minor inconsistency: payment_status='pending_cash' for cash rides vs 'cash_due' for wallet shortfall. Collect-cash branches on cash_due_to_driver value only, so both work, but a unified label would simplify the UI filter.",
+    "collect_cash short-circuits when cash_due<=0 returning 200 + 'Aucun montant à percevoir' — fine but it does NOT enforce authorization in that early-return; low risk since nothing changes, but consider checking auth before the cash_due short-circuit for defense-in-depth."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter250_cash_due_full_chain.py (new — 3 tests)"
+  ],
+  "success_rate": {"backend": "100% (7/7 across iter249 + iter249b + iter250)", "frontend": "skipped per request"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! ; test2@example.com / TestPass123! ; jean.dupont@demo.sb / Driver123! (via /app/backend/tests/_creds.py)",
+  "seed_data_creation": "All test fixtures are created and torn down within each test (ride documents prefixed ride_test_*, debt rows prefixed debt_test_*). Wallet balances are snapshotted and restored. No orphan rows left.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 1 cash settlement is fully covered by 3 files (iter249, iter249b, iter250 = 7 tests). Run them with: TEST_API_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d= -f2) pytest /app/backend/tests/test_iter249*.py /app/backend/tests/test_iter250_cash_due_full_chain.py -v. Tests rely on db.rides + db.cancellation_debts (reason=ride_balance) + db.wallets. SBPAYGO Connect module is feature-flagged off and intentionally skipped per request.",
+  "rca of the issue": "No bugs found in the Phase 1 cash flow. All 7 scenarios (wallet shortfall → cash_due, Reçu → paid, Non reçu → debt with notification, full cash → cash_due, top-up recovery full+partial, transfer recovery, unauthorized collect-cash → 403) behave as specified."
+}
