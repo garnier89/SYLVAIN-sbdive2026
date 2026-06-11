@@ -8,7 +8,7 @@ import SearchOverlay from '../../components/SearchOverlay';
 import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import { useLocale } from '../../contexts/LocaleContext';
-import DynamicIcon, { CategoryGlyph } from '../../components/DynamicIcon';
+import DynamicIcon, { CategoryGlyph, resolveImageUrl, isImgIcon } from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
 import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
@@ -70,6 +70,15 @@ const Visual = ({ service, size = 34 }) => {
   return <service.icon size={size} weight="duotone" className={service.iconColor} />;
 };
 
+// Returns the uploaded-image URL for a tile (so it can fill the whole card),
+// or null when the tile uses an emoji / Phosphor icon.
+const tileImage = (service) => {
+  if ((service.id || '').includes('more')) return null;
+  if (service.imageUrl) return resolveImageUrl(service.imageUrl);
+  if (isImgIcon(service.customIcon)) return resolveImageUrl(service.customIcon);
+  return null;
+};
+
 // ── V3Cube-style service tile (CMS-driven icon / image / colors preserved) ──
 // variant 'below'  → big pastel square, icon inside, bold label below (4-col grids)
 // variant 'inside' → pastel tile with bold label on top + icon below (3-col grids)
@@ -80,6 +89,7 @@ const TileBadge = ({ label }) => (label ? (
 
 const ServiceTile = ({ service, variant = 'below', onSelect }) => {
   const warm = () => prefetchPath((service.path || '').split('?')[0]);
+  const img = tileImage(service);
   if (variant === 'inside') {
     return (
       <motion.button
@@ -107,9 +117,11 @@ const ServiceTile = ({ service, variant = 'below', onSelect }) => {
       data-testid={`service-${service.id}-btn`}
       className="flex flex-col items-center group"
     >
-      <div className={`relative w-full aspect-square rounded-2xl ${service.bg} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)] transition-transform group-hover:-translate-y-0.5`}>
+      <div className={`relative w-full aspect-square rounded-2xl overflow-hidden ${img ? 'bg-white' : service.bg} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)] transition-transform group-hover:-translate-y-0.5`}>
         <TileBadge label={service.badge} />
-        <Visual service={service} size={34} />
+        {img
+          ? <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          : <Visual service={service} size={34} />}
       </div>
       <span className={`text-[11.5px] font-bold text-[#1F2430] text-center leading-[1.15] mt-2 whitespace-pre-line ${HEAD}`}>{service.name}</span>
     </motion.button>
