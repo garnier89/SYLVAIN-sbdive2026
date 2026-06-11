@@ -1,126 +1,151 @@
 {
-  "project_context": {
-    "app_name": "SB Drive VTC",
-    "theme": "Light Theme",
-    "archetype": "4 (Swiss & High-Contrast utility mixed with organic touch targets)",
-    "tone": "Premium, Fast, Reliable, Clean",
-    "core_strategy": "Transform a chaotic 20-section vertical scroll into a scannable, hierarchical mobile super-app. Prioritize 'Daily Drivers' at the top, group secondary services into clean bento grids, and consolidate banners into horizontal discovery lanes."
-  },
+  "project_name": "SB Drive Access",
+  "domain": "Mobility / Accessibility / Medical Transport",
+  "theme": "LIGHT",
+  "archetype": "Archetype 4: Swiss & High-Contrast",
+  "archetype_reasoning": "Extreme clarity, function-first, and high contrast are mandatory for accessibility (WCAG AA/AAA). Avoids decorative distractions in favor of robust, understandable interfaces suitable for users with cognitive or visual impairments.",
   "colors": {
-    "primary": {
-      "base": "#FF5000",
-      "hover": "#E64800",
-      "light": "#FFF0E5",
-      "glass": "rgba(255, 80, 0, 0.1)"
+    "brand_primary": {
+      "hex": "#FF5000",
+      "usage": "Main app branding, global CTAs, selected states. Must be paired with high-contrast text or icons."
     },
-    "secondary": {
-      "base": "#0B1426",
-      "hover": "#16233B",
-      "light": "#E9EBEF"
+    "brand_primary_hover": {
+      "hex": "#E64800",
+      "usage": "Hover/Active state for primary brand elements."
+    },
+    "module_identity": {
+      "hex": "#0A2540",
+      "name": "Access Navy",
+      "usage": "The unique identifying color for the 'Access' module (like the purple for Student). Used for module headers, primary accessibility CTAs, and high-trust elements."
+    },
+    "module_identity_hover": {
+      "hex": "#071A2D",
+      "usage": "Hover/Active state for module identity."
     },
     "background": {
-      "app": "#F8FAFC",
-      "card": "#FFFFFF",
-      "glass": "rgba(255, 255, 255, 0.85)"
+      "hex": "#FFFFFF",
+      "usage": "App background for maximum contrast."
     },
-    "text": {
-      "heading": "#0B1426",
-      "body": "#334155",
-      "muted": "#64748B",
-      "inverse": "#FFFFFF"
+    "surface": {
+      "hex": "#F3F4F6",
+      "usage": "Cards and form fields background."
     },
-    "borders": {
-      "light": "#F1F5F9",
-      "medium": "#E2E8F0"
+    "surface_active": {
+      "hex": "#FFF3ED",
+      "usage": "Selected state background for cards (very light orange tint)."
+    },
+    "border": {
+      "hex": "#D1D5DB",
+      "usage": "1px solid borders for defined surfaces to aid visual boundaries."
+    },
+    "border_focus": {
+      "hex": "#0A2540",
+      "usage": "2px solid border for keyboard/accessibility focus rings."
+    },
+    "text_primary": {
+      "hex": "#111827",
+      "usage": "Main headings and critical body text. Offers 15:1 contrast on white."
+    },
+    "text_secondary": {
+      "hex": "#374151",
+      "usage": "Secondary text and descriptions. Offers 7:1 contrast on white (WCAG AAA)."
+    },
+    "status_error": {
+      "hex": "#DC2626",
+      "usage": "Errors and critical alerts."
+    },
+    "status_success": {
+      "hex": "#059669",
+      "usage": "Confirmation and success indicators."
     }
   },
   "typography": {
     "fonts": {
-      "heading": "Outfit, sans-serif",
-      "body": "Manrope, sans-serif"
+      "headings": "Work Sans",
+      "body": "IBM Plex Sans",
+      "import_instructions": "Import both from Google Fonts."
     },
     "scale": {
-      "h1": "text-2xl font-bold tracking-tight text-[#0B1426]",
-      "h2": "text-xl font-semibold tracking-tight text-[#0B1426]",
-      "h3": "text-lg font-bold text-[#0B1426]",
-      "body": "text-sm font-normal text-[#334155]",
-      "label": "text-xs font-medium text-[#334155]",
-      "tiny": "text-[10px] font-bold uppercase tracking-[0.05em] text-[#64748B]"
-    }
+      "h1": "text-3xl sm:text-4xl font-bold tracking-tight text-gray-900",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900",
+      "h3": "text-xl font-semibold text-gray-900",
+      "body_large": "text-lg text-gray-900",
+      "body": "text-base text-gray-800",
+      "body_small": "text-sm text-gray-700"
+    },
+    "rules": [
+      "No centered text for long paragraphs; strictly left-aligned to aid reading flow.",
+      "Avoid 'Inter' and generic sans-serifs for headings. Used Work Sans for character and IBM Plex Sans for maximum legibility.",
+      "Support dynamic text resizing: use relative units (rem) instead of fixed px where possible."
+    ]
   },
-  "layout_strategy": {
-    "container": "max-w-[430px] mx-auto min-h-screen bg-[#F8FAFC] pb-24 overflow-x-hidden relative shadow-[0_0_40px_rgba(0,0,0,0.05)]",
-    "reorganization_plan": [
-      "1. STICKY HEADER: Glassmorphism top bar containing User Greeting, Address Pill, and a prominent Search Bar.",
-      "2. DAILY DRIVERS (HERO): A 2x2 grid of the 4 absolute most used services (VTC, Food Delivery, Courier, Pharmacy) using distinct, larger tiles.",
-      "3. PROMO CAROUSEL: Auto-rotating horizontal banners directly below the hero section for high-value conversions.",
-      "4. BENTO GRIDS (THE CORE): Group the remaining 15+ arrays into logical cards (e.g., 'Mobilité & Auto', 'Maison & Dépannage', 'Santé & Bien-être'). Each card contains a standard 4-column internal grid of small tiles.",
-      "5. DISCOVERY LANES: Consolidate standalone promotional banners (Real Estate, Parking, Carpool, Genie) into horizontal scrollable sections rather than stacking them vertically."
+  "spacing_and_layout": {
+    "container": "max-w-[430px] mx-auto min-h-screen bg-white shadow-xl overflow-hidden relative pb-20",
+    "padding": "p-6 sm:p-8",
+    "touch_targets": "min-h-[48px] min-w-[48px]",
+    "gap": "gap-4 sm:gap-6",
+    "border_radius": "rounded-xl for cards, rounded-2xl for main modals, rounded-full for icon buttons",
+    "rules": [
+      "Mobile-first app container mimicking a super-app sub-module.",
+      "Generous spacing to prevent accidental mis-taps (vital for motor-impaired users)."
     ]
   },
   "components": {
-    "Header": {
-      "classes": "sticky top-0 z-50 w-full bg-white/85 backdrop-blur-xl border-b border-slate-200/60 pt-4 pb-3 px-4 flex flex-col gap-3",
-      "structure": "Row 1: Flex-between (Left: Avatar + 'Bonjour, User', Right: Notifications). Row 2: Location pill and Search Input (bg-slate-100 rounded-2xl h-12 flex items-center px-4)."
+    "navigation_header": {
+      "design": "Sticky top bar, z-50, solid white background with a 1px bottom border. Contains 'Back' button (min 48x48px), Module Title ('SB Drive Access'), and an accessibility settings toggle.",
+      "test_id": "access-nav-header"
     },
-    "PrimaryHeroTile": {
-      "classes": "bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between aspect-square relative overflow-hidden group active:scale-95 transition-transform",
-      "icon_treatment": "Large 32px Phosphor Duotone icon in the top left. Icon color maps to the brand (Primary #FF5000 or Secondary #0B1426).",
-      "text_treatment": "Bottom left alignment, text-sm font-bold text-[#0B1426] leading-tight.",
-      "background_accent": "Subtle #FFF0E5 radial gradient in the bottom right corner to add depth without clutter."
+    "accessibility_needs_cards": {
+      "design": "Selectable bento-style grid. 1px solid border (#D1D5DB). On selection, border changes to 2px brand_primary (#FF5000) and background to surface_active. Must include clear icons (Phosphor) + Text.",
+      "test_id_prefix": "need-card-"
     },
-    "StandardServiceTile": {
-      "container": "flex flex-col items-center gap-2 w-full active:opacity-70 transition-opacity",
-      "icon_box": "w-[60px] h-[60px] rounded-[20px] flex items-center justify-center bg-slate-50 hover:bg-[#FFF0E5] transition-colors border border-slate-100 shadow-[0_2px_8px_rgba(11,20,38,0.02)]",
-      "icon": "28px Phosphor Duotone, default text-[#0B1426], hover/active text-[#FF5000]",
-      "label": "text-[11px] font-medium text-[#334155] text-center leading-[1.1] line-clamp-2 px-1 w-full"
+    "vehicle_choice_card": {
+      "design": "Horizontal layout. Image/Icon on left, Details on right. Must clearly state vehicle capacity (e.g., '1 Fauteuil, 2 Passagers'). High contrast price tag.",
+      "test_id_prefix": "vehicle-choice-"
     },
-    "SectionCard": {
-      "wrapper": "bg-white rounded-[28px] p-5 mx-4 mb-5 shadow-[0_4px_20px_-4px_rgba(11,20,38,0.05)] border border-slate-100/80",
-      "header": "flex justify-between items-center mb-5",
-      "title": "text-lg font-bold text-[#0B1426] tracking-tight",
-      "action": "text-xs font-bold text-[#FF5000] uppercase tracking-wide",
-      "grid": "grid grid-cols-4 gap-y-6 gap-x-2"
+    "chauffeur_badge": {
+      "design": "Inline tag or pill component. Deep Navy background (#0A2540) with White text and a verified checkmark icon. Represents 'Chauffeur Access Certifié'.",
+      "test_id": "certified-badge"
     },
-    "PromoBanner": {
-      "wrapper": "w-full overflow-x-auto snap-x snap-mandatory no-scrollbar flex gap-4 px-4 pb-2",
-      "card": "snap-center shrink-0 w-[85%] h-36 rounded-3xl p-5 relative overflow-hidden flex flex-col justify-end",
-      "bg_dark": "bg-[#0B1426] text-white",
-      "bg_primary": "bg-[#FF5000] text-white",
-      "overlay": "absolute inset-0 bg-gradient-to-t from-black/60 to-transparent",
-      "text": "relative z-10 text-lg font-bold leading-tight"
+    "booking_stepper": {
+      "design": "Progressive disclosure layout. Large 'Suivant' and 'Précédent' buttons fixed at the bottom of the screen. Step indicators must be purely text + number (e.g., 'Étape 1 sur 4: Besoins').",
+      "test_id": "booking-stepper-container"
     },
-    "BottomNav": {
-      "wrapper": "fixed bottom-0 z-[60] w-full max-w-[430px] left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-lg border-t border-slate-200/60 pb-safe-bottom h-[72px] flex justify-around items-center px-2",
-      "item": "flex flex-col items-center justify-center gap-1 w-16 h-full",
-      "icon_active": "text-[#FF5000] drop-shadow-[0_2px_8px_rgba(255,80,0,0.3)]",
-      "icon_inactive": "text-slate-400",
-      "label_active": "text-[10px] font-bold text-[#FF5000]",
-      "label_inactive": "text-[10px] font-medium text-slate-400"
+    "safety_sos_button": {
+      "design": "Large circular or full-width pill button. Red (#DC2626) background with White text and icon. Placed prominently in the Safety Center.",
+      "test_id": "sos-emergency-button"
     }
   },
-  "animations": {
-    "page_load": "Framer Motion: initial={{ opacity: 0, y: 20 }}, animate={{ opacity: 1, y: 0 }}, transition={{ staggerChildren: 0.05 }}",
-    "tap_state": "Framer Motion: whileTap={{ scale: 0.94 }} for tiles, buttons, and banners.",
-    "carousel": "Native CSS scroll-snap-type: x mandatory with no-scrollbar class."
+  "accessibility_rules": {
+    "contrast": "Strictly minimum 4.5:1 for standard text, 3:1 for UI components. Validated through Archetype 4 principles.",
+    "focus": "All interactive elements MUST have a visible focus state (e.g., focus:ring-2 focus:ring-[#0A2540] focus:ring-offset-2).",
+    "aria_labels": "Buttons with icons only MUST have aria-label. Decorative elements must have aria-hidden='true'.",
+    "color_independence": "Never rely solely on color to convey state. Use icons (e.g., a checkmark) alongside the active color for selected cards.",
+    "data_testids": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
   },
-  "testing": {
-    "rules": "All interactive elements MUST have data-testid attributes formatted as kebab-case role-based strings.",
-    "examples": [
-      "data-testid='header-search-input'",
-      "data-testid='hero-tile-vtc'",
-      "data-testid='service-tile-massage'",
-      "data-testid='bottom-nav-profil'",
-      "data-testid='promo-banner-link'"
-    ]
-  },
-  "instructions_to_main_agent": [
-    "1. PRESERVE CMS COMPATIBILITY: The StandardServiceTile MUST accept dynamic icon names (Phosphor string references) and labels as currently structured in the codebase.",
-    "2. RESTRUCTURE THE PAGE: Do not just style the vertical list. Wrap the categories into SectionCard components (e.g. group 'Entretien Auto' and 'Dépannage' into a single 'Auto & Mobilité' visual section).",
-    "3. MOBILE-FIRST CONSTRAINTS: Wrap the entire UserHome.js root in `max-w-[430px] mx-auto overflow-hidden`.",
-    "4. TYPOGRAPHY: Import and use Outfit for headings and Manrope for body text.",
-    "5. SCROLLING: Use standard Tailwind classes `overflow-x-auto snap-x snap-mandatory` for carousels. Hide scrollbars using custom CSS or tailwind plugin.",
-    "6. ICONS: Standardize on `@phosphor-icons/react` Duotone weight. Set base icon size to 28px in the tiles.",
-    "7. TEST IDS: Inject data-testid into every tile mapping loop (e.g., `data-testid={`service-tile-${item.label_fr.toLowerCase()}`}`)."
-  ]
+  "images": [
+    {
+      "category": "hero_landing",
+      "url": "https://images.unsplash.com/photo-1611239677551-a13ef92c4ed4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwyfHx3aGVlbGNoYWlyJTIwdXNlciUyMGNvbmZpZGVudCUyMG91dGRvb3J8ZW58MHx8fHwxNzgxMTk3ODA0fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Confident wheelchair user outdoors, showing mobility independence."
+    },
+    {
+      "category": "medical_transport",
+      "url": "https://images.unsplash.com/photo-1775031386175-94caeae42d39?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTB8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwdHJhbnNwb3J0JTIwdmVoaWNsZXxlbnwwfHx8fDE3ODExOTc4MDR8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Medical transport vehicle, suitable for specialized rides."
+    },
+    {
+      "category": "senior_user",
+      "url": "https://images.unsplash.com/photo-1758686254056-6cd980b9aaee?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwxfHxzZW5pb3IlMjBzbWlsaW5nJTIwbW9iaWxlJTIwcGhvbmV8ZW58MHx8fHwxNzgxMTk3ODA0fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Elderly couple happily using a mobile phone, representing senior accessibility."
+    }
+  ],
+  "instructions_to_main_agent": {
+    "1": "Use the provided max-w-[430px] container to simulate the mobile-first super-app environment. Center it on desktop with a subtle shadow.",
+    "2": "Integrate @phosphor-icons/react for all iconography. They provide the clear, accessible geometries required.",
+    "3": "Implement a simulated Booking Flow (Stepper) that includes: 1) Profile/Needs (Mobility/Visual/Auditory/Cognitive), 2) Equipment/Companions, 3) Vehicle Selection. Use the bento-grid card styles defined above.",
+    "4": "Ensure every form element, button, and selectable card has a minimum height of 48px.",
+    "5": "Do NOT use default shadcn styles blindly; override them with the high-contrast color tokens and typography defined in this document.",
+    "6": "Ensure all interactive elements have a 'data-testid' property. E.g., 'data-testid=\"select-pmr-vehicle\"'."
+  }
 }
