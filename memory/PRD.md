@@ -1,3 +1,11 @@
+## NEW - 2026-06-11 (282) - 👑 SB Access Plus — abonnement / accès prioritaire (P2, DONE, testé frontend 5/5 + curl e2e)
+- **Demande user (backlog P2, choisi par défaut)** : monétisation du module SB Access via abonnement prioritaire.
+- **Backend** (`routes/sb_access.py`, collections `access_plus_plans` / `access_plus_subscriptions`) : 2 plans par défaut (Mensuel 9.99€/-15%/+10min, Annuel 99.99€/-20%/+15min ; perks : attribution prioritaire chauffeur certifié, priorité SOS). Paiement via portefeuille SB Pay (débit `wallets` + `wallet_transactions`, souscription créée juste après le débit). Endpoints user : `GET /plus/plans`, `GET /plus/subscription`, `POST /plus/subscribe`, `POST /plus/cancel`. Admin : `GET/POST /admin/plus/plans`, `PUT/DELETE /admin/plus/plans/{id}`, `GET /admin/plus/revenue`. Avantages appliqués dans `_build_and_store_booking` : réduction `fare = fare*(1-discount/100)` (stocke `plus_member`, `plus_discount_pct`, `fare_before_discount`) + minutes d'assistance bonus.
+- **Frontend** : usager `SbAccessPage.js` — carte premium landing `access-open-plus-btn` (badge ACTIF), overlay `plus-sheet` (plans `plus-subscribe-*`, panneau actif + résiliation `plus-cancel-btn`). Admin `AdminAccess.js` — onglet '👑 Access Plus' (`PlusAdmin`) : revenus/abonnés + édition des formules (prix/réduction/bonus/actif) + souscriptions récentes.
+- **Testé** : testing_agent iter281 frontend 5/5 PASS + curl e2e (subscribe 100→90.01€, booking abonné -15% 18.8→15.98€, assist 20min, revenu admin active=1/9.99€).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-11 (281) - 📲 SB Access SOS — SMS automatique aux contacts d'urgence (Twilio, FEATURE-FLAGGÉ, DONE, testé pytest 3/3 + path désactivé e2e)
 - **Demande user (validée)** : envoi SMS serveur aux contacts d'urgence lors d'un SOS, pour prévenir les proches même si l'usager ne peut plus toucher l'écran.
 - **Intégration** : SDK `twilio` (9.10.9) installé + `requirements.txt` figé. Nouveau `core/sms.py` : `sms_enabled()` (vrai si ACCOUNT_SID+AUTH_TOKEN+PHONE_NUMBER présents), `to_e164` (normalisation, FR par défaut), `send_sms`/`send_sms_to_many` (appel bloquant Twilio via `asyncio.to_thread`, try/except → JAMAIS d'exception, no-op si désactivé). `.env` : `TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER` (vides = OFF).
