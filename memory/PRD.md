@@ -1,3 +1,11 @@
+## NEW - 2026-06-11 (283) - 💰 SB Access Plus — bandeau d'upsell dynamique (enhancement, DONE, testé frontend 3/3)
+- **Demande user** : levier de conversion Access Plus au moment du paiement pour les non-abonnés.
+- **Backend** (`_build_and_store_booking`) : pour un usager non-abonné, calcule `plus_upsell` = {discount_pct (meilleure formule), would_pay, current_fare, plan_id, plan_name}.
+- **Frontend** (`SbAccessPage.js`, écran de confirmation) : bandeau `plus-upsell-banner` (« Avec Access Plus, ce trajet vous aurait coûté X€ au lieu de Y€ ») + bouton `plus-upsell-cta` « Économiser » → ouvre le panneau d'abonnement. Pour les abonnés : ligne « Access Plus -X% appliqué ✓ ».
+- **Testé** : testing_agent iter282 frontend 3/3 PASS (bandeau affiché 8.13€ vs 10.16€ = -20%, CTA ouvre les formules) + curl (plus_upsell calculé).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-11 (282) - 👑 SB Access Plus — abonnement / accès prioritaire (P2, DONE, testé frontend 5/5 + curl e2e)
 - **Demande user (backlog P2, choisi par défaut)** : monétisation du module SB Access via abonnement prioritaire.
 - **Backend** (`routes/sb_access.py`, collections `access_plus_plans` / `access_plus_subscriptions`) : 2 plans par défaut (Mensuel 9.99€/-15%/+10min, Annuel 99.99€/-20%/+15min ; perks : attribution prioritaire chauffeur certifié, priorité SOS). Paiement via portefeuille SB Pay (débit `wallets` + `wallet_transactions`, souscription créée juste après le débit). Endpoints user : `GET /plus/plans`, `GET /plus/subscription`, `POST /plus/subscribe`, `POST /plus/cancel`. Admin : `GET/POST /admin/plus/plans`, `PUT/DELETE /admin/plus/plans/{id}`, `GET /admin/plus/revenue`. Avantages appliqués dans `_build_and_store_booking` : réduction `fare = fare*(1-discount/100)` (stocke `plus_member`, `plus_discount_pct`, `fare_before_discount`) + minutes d'assistance bonus.
