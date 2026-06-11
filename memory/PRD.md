@@ -1,4 +1,13 @@
-## NEW - 2026-06-11 (253b) - 🎓 SB Student PHASE 2 : Pass Campus + Réservations récurrentes (DONE, testé 100%)
+## NEW - 2026-06-11 (254) - 🎓 SB Student PHASE 3 : Zones universitaires + Campus Share (DONE, testé 100%)
+- **Backend** `routes/student_zones.py` (préfixe /api/student) :
+  - **Zones campus admin CRUD** : `/admin/campus-zones` (type university/residence/library/training_center, lat/lng/radius_m, pays, pickup_points + safe_meeting_points avec id auto, enable/disable). Type invalide 400, guard non-admin 403.
+  - **Zones user** : `/zones/campus?lat&lng` (actives triées par distance_m).
+  - **Détection campus** : `find_campus_zone`/`is_campus_trip` (haversine mètres) → `rides.create_ride` met `student_kind='campus'` si pickup OU dropoff dans une zone → réduction campus (25%).
+  - **Campus Share** : `/campus-share/request` (réservé étudiants vérifiés, 403 sinon ; remplace l'ancienne demande open ; matching autres étudiants même zone dest + ±30min), `/campus-share/matches`, DELETE annule.
+- **Frontend** : `AdminStudent` onglet "Zones campus" (CRUD + toggle). `SbCampusSharePage` (/sb-student/campus-share : départ + géoloc + sélecteur campus + matches + points sûrs + "Réserver en covoiturage" → /course?mode=pool). Entrées sur `SbStudentPage` (student-share-entry, student-recurring-entry). `studentAPI` campusZones/zonesAdmin*/share*.
+- **Tests** : pytest `test_iter254_zones.py` 4/4 + testing_agent `test_iter254_zones_e2e.py` 7/7 + frontend 100%, AUCUN bug.
+
+
 - **Backend** `routes/student_campus.py` (préfixe /api/student/campus) :
   - **Pass Campus** : plans admin (seed Pass Mensuel 19.99€/-25%/+5€ crédits/30j ; Pass Semestriel 89.99€/-30%/+10€ crédits/180j/bonus fidélité 10%). `subscribe` débite le wallet SB Pay → crée la sub → recrédite les crédits inclus (ordre rendu safe : sub créée avant le crédit). Guards : solde insuffisant 400, déjà actif 409. `subscription` (active), `subscription/cancel`. Admin plans CRUD.
   - **Boost réduction** : `student.compute_student_discount` utilise `pct = max(base, sub.discount_pct)` si Pass actif.
