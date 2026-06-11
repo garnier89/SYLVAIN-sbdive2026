@@ -43,6 +43,8 @@ export default function SbAccessPage() {
   const [selectedCat, setSelectedCat] = useState(null);
   const [booking, setBooking] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pastBookings, setPastBookings] = useState([]);
+  const [rebookingId, setRebookingId] = useState(null);
 
   // Réglages d'accessibilité (persistés)
   const [largeText, setLargeText] = useState(() => localStorage.getItem('a11y_large_text') === '1');
@@ -61,6 +63,7 @@ export default function SbAccessPage() {
       setCompanions(p.default_companion_count || 0);
       setExtraTime(!!p.extra_assistance_time);
     }).catch(() => {});
+    accessAPI.myBookings().then((r) => setPastBookings(r.data.items || [])).catch(() => {});
   }, []);
 
   const allNeedOptions = useMemo(() => {
@@ -114,6 +117,28 @@ export default function SbAccessPage() {
       toast.error(e?.response?.data?.detail || 'Échec de la réservation');
     }
     setSubmitting(false);
+  };
+
+  const rebook = async (b) => {
+    if (rebookingId) return;
+    setRebookingId(b.id);
+    try {
+      const distance_km = Number(haversineKm(b.pickup, b.dropoff).toFixed(1));
+      const duration_min = Math.round(distance_km * 2.2);
+      const r = await accessAPI.createBooking({
+        category_key: b.category_key, needs: b.needs || [], equipment: b.equipment || [],
+        assistance_animal: !!b.assistance_animal, companion_count: b.companion_count || 0,
+        extra_assistance_time: !!b.extra_assistance_time,
+        pickup: b.pickup, dropoff: b.dropoff, trip_type: b.trip_type || 'standard',
+        recurrence: b.recurrence || null, distance_km, duration_min,
+      });
+      setBooking(r.data);
+      setPastBookings((prev) => [r.data, ...prev]);
+      setStep(4);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec de la réservation');
+    }
+    setRebookingId(null);
   };
 
   const fontScale = largeText ? '1.15rem' : '1rem';
@@ -172,6 +197,29 @@ export default function SbAccessPage() {
               </div>
             ))}
           </div>
+          {pastBookings.length > 0 && (
+            <div className="px-5 pb-4" data-testid="access-recent-trips">
+              <p className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                <ArrowClockwise size={18} weight="bold" style={{ color: NAVY }} /> Refaire un trajet
+              </p>
+              <p className="text-xs text-gray-600 mb-3">Vos trajets récents — reréservez en un seul tap.</p>
+              <div className="space-y-2">
+                {pastBookings.slice(0, 3).map((b) => (
+                  <div key={b.id} className="p-3 rounded-xl flex items-center gap-3" style={{ border: cardBorder, background: '#fff' }} data-testid={`recent-trip-${b.id}`}>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-gray-900 truncate">{b.pickup?.address || 'Départ'} → {b.dropoff?.address || 'Destination'}</span>
+                      <span className="block text-xs text-gray-600 mt-0.5">{b.category_name}{b.fare_estimate != null ? ` · ${Number(b.fare_estimate).toFixed(2)} €` : ''}</span>
+                    </span>
+                    <button onClick={() => rebook(b)} disabled={!!rebookingId} data-testid={`rebook-btn-${b.id}`}
+                      className="shrink-0 min-h-[40px] px-3 rounded-lg font-semibold text-white text-sm flex items-center gap-1.5 disabled:opacity-50 focus:ring-2 focus:ring-offset-1"
+                      style={{ background: NAVY }}>
+                      <ArrowClockwise size={16} weight="bold" /> {rebookingId === b.id ? 'Réservation…' : 'Refaire'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 p-4 z-40">
             <button onClick={() => setStep(0)} className="w-full min-h-[52px] rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2"
               style={{ background: ORANGE }} data-testid="access-start-btn">

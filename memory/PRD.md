@@ -1,4 +1,11 @@
-## NEW - 2026-06-11 (270) - ♿ SB Drive Access PHASE 1 : câblage route + entrées + parcours réservation (DONE, testé frontend 100%)
+## NEW - 2026-06-11 (271) - ♿ SB Drive Access : « Refaire un trajet » 1-tap (rétention PMR) (DONE, testé screenshot e2e)
+- **Demande user** : bouton « Refaire ce trajet » pour reréserver en 1 tap (usagers PMR = trajets récurrents dialyse/rééducation → +rétention).
+- **Livré** (`SbAccessPage.js`) : chargement des trajets passés (`accessAPI.myBookings`) ; section **« Refaire un trajet »** sur l'écran d'accueil du module (sous les avantages), liste les 3 trajets récents (départ→destination, véhicule, prix). Bouton **« Refaire »** (`rebook-btn-{id}`) → recalcule la distance depuis les coords stockées, recrée la réservation via `createBooking` (mêmes besoins/équipement/véhicule/type) et affiche directement la **confirmation** (1 tap). Garde-fou anti double-clic (`rebookingId`).
+- **Testé** : screenshot e2e (paul.vendeur) — section visible, tap « Refaire » → « Réservation confirmée » Access PMR 16,00 € directement. data-testids : `access-recent-trips`, `recent-trip-{id}`, `rebook-btn-{id}`.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 - **Contexte** : le fork précédent avait créé le backend `routes/sb_access.py` (config, matching véhicules, Safe Ride Night, certif chauffeurs, admin) et la page `SbAccessPage.js` (parcours 5 étapes WCAG « Access Navy »), mais la page était **orpheline** (non exportée/non routée).
 - **Fix livré** : export `SbAccessPage` dans `pages.js` + route `/access` (`clientRoutes.jsx`, ProtectedRoute user) + **2 points d'entrée** : carte « SB Drive Access ♿ » sur `UserHome` (`home-sb-access-entry`, après SB Student) ET dans le Hub Taxi vue grille (`taxi-hub-access-entry`). Icône Phosphor `Wheelchair`. Fix cosmétique : prix confirmation `.toFixed(2)`.
 - **Parcours testé (testing_agent iter270, frontend 100%, AUCUN bug)** : Besoins → Assistance (animal/accompagnateurs/temps) → Trajet (Google Places + type + récurrence) → Véhicule compatible → Confirmation (booking POST). **Règle métier vérifiée** : besoin fauteuil roulant → seuls Access PMR/Van proposés (Standard filtré). Toggles WCAG (grand texte/contraste) persistés localStorage. Les 2 entrées naviguent OK.
