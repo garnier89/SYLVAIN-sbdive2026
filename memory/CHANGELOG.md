@@ -8,7 +8,12 @@ Audit complet (testing_agent iter266) suite au signalement utilisateur « beauco
 - **🍔 « Livraison repas ne fonctionne pas »** : la bannière `VerifyEmailBanner` (`fixed bottom-0 z-[60]`) **recouvrait la barre panier** (`z-50`) sur `RestaurantDetail` → bouton « Voir le panier »/checkout inaccessible. **Fix** : z-index bannière abaissé à `z-30` (les barres d'action fonctionnelles passent au-dessus). Vérifié : bouton « Voir le panier · N articles · X € » visible et cliquable.
 - Compte client de test ajouté : `capture.user@example.com` / `Capture123!`.
 
-### Cohérence + zéro flash des icônes Taxi sur TOUTES les surfaces (suite demande utilisateur)
+### Icônes dashboard étendues à TOUS les services (livraison + à la demande) — suite
+- **Livraison** (`/all-delivery`) : la page ignorait `store_categories.icon` et affichait des icônes Phosphor codées en dur. Désormais `AllDeliveryPage` rend l'icône du dashboard (image/emoji via `CategoryGlyph`, repli sur le visuel par défaut) + cache `cachedStoreCategories`. Admin `AdminStoreCategories` : `onFile` corrigé (upload `/api/uploads/image` au lieu de base64), `isImage`/`StoreCategoryIcon` gèrent `/api/`. Vérifié : emojis 🍴🛒💊💐✏️🍷💧🏬🦺 affichés, badges 18+ conservés ; upload image persiste et s'affiche côté client (test `test_iter268`).
+- **Services à la demande** (`/all-services`) : `AllServicesPage` supporte désormais une icône image (`isImgIcon` → `<img>`) en plus des noms Phosphor, + cache `cachedOnDemandCategories`. Backend `PUT /api/services/admin/ondemand-categories/{slug}` accepte déjà `icon`. Limite connue/acceptée : pas encore d'UI admin d'upload d'image pour ces catégories (noms Phosphor uniquement).
+- Cache partagé `serviceCategoriesCache.js` étendu (service/store/ondemand) → zéro flash d'icône à la navigation sur toutes les surfaces.
+- Validé par testing_agent (iter269) : backend 8/8, frontend 100% sur le périmètre, aucune régression (repas/fleurs/checkout/adresse OK). Tests pytest : iter267, iter268, iter269.
+
 - L'utilisateur a constaté que `/taxi` (grille « Choisissez un service ») montrait encore les icônes Phosphor codées en dur (incohérent avec l'accueil qui montrait les images dashboard) → effet « images qui changent » en passant d'une page à l'autre.
 - **Fix global** :
   - Nouveau cache de session partagé `lib/serviceCategoriesCache.js` (`cachedServiceCategories()` / `loadServiceCategories()`, dé-duplication des fetchs) utilisé par `UserHome`, `TaxiHubPage` et `RideChoosePage` → rendu instantané des bonnes icônes à chaque navigation, revalidation en fond. Supprime le flash sur les 3 surfaces.
