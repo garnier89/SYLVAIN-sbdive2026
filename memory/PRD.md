@@ -1,3 +1,17 @@
+## NEW - 2026-06-11 (252) - 🎓 SB Drive Student (SB School) — PHASE 1 Fondations (DONE, testé 5/5 pytest + 17/17 e2e + frontend 100%)
+- **Demande user** : module mobilité étudiante complet (14 sous-modules) → livré par phases. User a confirmé : pool→"SB School"/Campus Share (Phase 3), vérification = email OTP + document, tarifs 100% admin-configurables, zones/pays/domaines gérés par l'admin (incl. Afrique), IA = oui (Gemini, Phase 6).
+- **Backend** `routes/student.py` (préfixe /api/student) :
+  - Vérification statut : (a) **email universitaire OTP** (`/verify/email/request` + `/confirm`, code 6 chiffres hashé, TTL 15min, cooldown 60s, domaine doit être actif) ; (b) **upload document** (`POST /documents` → statut pending → validation admin).
+  - **Discount engine** cap-aware `compute_student_discount(user_id, fare, kind)` + `record_student_discount_usage` (kinds: ride/advance/campus, plafonds jour/mois). Hooké dans `rides.py::create_ride` après loyalty (champs ride.student_discount_pct/amount/kind) — défensif, n'affecte jamais le pricing si non-étudiant/désactivé.
+  - **Admin** : config GET/PUT (enabled + 3 % + 2 plafonds), domaines CRUD + enable/disable (par pays ISO, seed FR+SN+CI), liste étudiants + approve/reject (+ notifications), stats dashboard. Guards admin (403).
+- **Frontend** :
+  - User `/sb-student` (SbStudentPage.js, violet #5B21B6) : carte statut/badge, avantages, onglets Email OTP + Document. Entrée Profil → "SB Student 🎓" (settings-sb-student-btn).
+  - Admin `/admin/student` (AdminStudent.js) : 4 onglets Dashboard/Tarification/Domaines/Étudiants. Lien sidebar AdminLayout. `studentAPI` dans services/api.js.
+- **Tests** : pytest `test_iter252_student.py` 5/5 (engine+matching+OTP+caps) ; testing_agent `test_iter252_student_e2e.py` 17/17 + frontend 100%, AUCUN bug. Fix appliqué : `PricingField` hoisté top-level (évitait perte de focus inputs).
+- **Défauts config** : ride 20%, advance 15%, campus 25%, plafond 5€/j, 50€/mois.
+- **RESTE (Phases 2-6)** : P2 Pass Campus (abonnements) + réservations récurrentes ; P3 Zones universitaires + Campus Share (réutiliser pool/carpool) ; P4 Sécurité étudiante + Safe Ride Night ; P5 Événements + Récompenses étudiantes ; P6 Marketplace étudiante + IA (Gemini). Campus discount kind='campus' pas encore déclenché (nécessite détection zone universitaire → Phase 3).
+
+
 ## NEW - 2026-06-11 (251) - Emails KYC documents + Audit profil chauffeur Lot 1 (DONE, testé 4/4 pytest + 5/5 frontend)
 - **b) Emails KYC documents (Resend)** : nouveau template `core/email.py::send_document_update(to,name,status,doc_label,reason,docs_url)` — 3 états : `received` (bleu, à l'upload), `approved` (vert), `rejected` (rouge + motif). Hooks : `drivers.py::upload_driver_document` → email « Document reçu » ; `misc.py::admin_set_driver_document_status` → email validé/refusé. Skip emails placeholder `@sbdrive.local`, fire-and-forget. Testé pytest `test_iter251_kyc_document_emails.py` 4/4.
 - **a) Audit profil chauffeur — Lot 1** (testing_agent iteration_251, 5/5 PASS) :

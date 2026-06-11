@@ -60,6 +60,17 @@ const Dashboard = () => {
   );
 };
 
+const PricingField = ({ cfg, setCfg, k, label, suffix }) => (
+  <div>
+    <label className="text-xs font-semibold text-slate-600">{label}</label>
+    <div className="flex items-center gap-2 mt-1">
+      <input type="number" value={cfg[k]} onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })}
+        className="w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm" data-testid={`student-cfg-${k}`} />
+      <span className="text-sm text-slate-400">{suffix}</span>
+    </div>
+  </div>
+);
+
 const Pricing = () => {
   const [cfg, setCfg] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -81,16 +92,6 @@ const Pricing = () => {
     finally { setSaving(false); }
   };
   if (!cfg) return <p className="text-slate-400 text-sm">Chargement…</p>;
-  const Field = ({ k, label, suffix }) => (
-    <div>
-      <label className="text-xs font-semibold text-slate-600">{label}</label>
-      <div className="flex items-center gap-2 mt-1">
-        <input type="number" value={cfg[k]} onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })}
-          className="w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm" data-testid={`student-cfg-${k}`} />
-        <span className="text-sm text-slate-400">{suffix}</span>
-      </div>
-    </div>
-  );
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-lg space-y-4" data-testid="admin-student-pricing">
       <label className="flex items-center gap-2 cursor-pointer">
@@ -98,12 +99,12 @@ const Pricing = () => {
         <span className="text-sm font-semibold text-slate-700">Module SB Student activé</span>
       </label>
       <div className="grid grid-cols-2 gap-4">
-        <Field k="ride_discount_pct" label="Réduction courses" suffix="%" />
-        <Field k="advance_discount_pct" label="Réduction réservation à l'avance" suffix="%" />
-        <Field k="campus_discount_pct" label="Réduction campus ↔ domicile" suffix="%" />
+        <PricingField cfg={cfg} setCfg={setCfg} k="ride_discount_pct" label="Réduction courses" suffix="%" />
+        <PricingField cfg={cfg} setCfg={setCfg} k="advance_discount_pct" label="Réduction réservation à l'avance" suffix="%" />
+        <PricingField cfg={cfg} setCfg={setCfg} k="campus_discount_pct" label="Réduction campus ↔ domicile" suffix="%" />
         <div />
-        <Field k="daily_cap" label="Plafond journalier (0 = illimité)" suffix="€" />
-        <Field k="monthly_cap" label="Plafond mensuel (0 = illimité)" suffix="€" />
+        <PricingField cfg={cfg} setCfg={setCfg} k="daily_cap" label="Plafond journalier (0 = illimité)" suffix="€" />
+        <PricingField cfg={cfg} setCfg={setCfg} k="monthly_cap" label="Plafond mensuel (0 = illimité)" suffix="€" />
       </div>
       <button onClick={save} disabled={saving} className="px-5 py-2.5 rounded-lg font-bold text-white bg-violet-600 disabled:opacity-50" data-testid="student-cfg-save">
         {saving ? 'Enregistrement…' : 'Enregistrer'}

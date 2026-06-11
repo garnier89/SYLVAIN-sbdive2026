@@ -46,6 +46,8 @@ DEFAULT_CONFIG = {
 DEFAULT_DOMAINS = [
     {"domain": "univ-antilles.fr", "label": "Université des Antilles", "country": "FR", "enabled": True},
     {"domain": "etu.univ-antilles.fr", "label": "Université des Antilles (étudiants)", "country": "FR", "enabled": True},
+    {"domain": "ucad.edu.sn", "label": "Université Cheikh Anta Diop (Dakar)", "country": "SN", "enabled": True},
+    {"domain": "univ-cocody.ci", "label": "Université Félix Houphouët-Boigny (Abidjan)", "country": "CI", "enabled": True},
 ]
 
 
