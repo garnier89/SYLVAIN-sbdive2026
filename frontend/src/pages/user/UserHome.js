@@ -42,6 +42,11 @@ const BODY = "font-['Manrope']";
 const TAXI_CAT_RANK = { everyday: 0, time: 1, special: 2 };
 const TAXI_MODE_CAT = MODES.reduce((acc, m) => { acc[m.id] = m.cat; return acc; }, {});
 
+// Module-level cache (per session) so the home content — including the taxi tiles'
+// dashboard icons — renders instantly when navigating back to Home, instead of
+// briefly showing the hardcoded fallback icons before the API resolves.
+const _homeCache = { cmsItems: null, sectionOrder: null, taxiCats: null };
+
 // ── Signature "More Services" 4-coloured-squares mark (V3Cube) ──
 const MoreSquares = () => (
   <div className="grid grid-cols-2 gap-1">
@@ -208,9 +213,9 @@ const UserHome = () => {
     window.addEventListener('focus', onFocus);
     return () => { alive = false; clearInterval(iv); window.removeEventListener('focus', onFocus); };
   }, []);
-  const [cmsItems, setCmsItems] = useState([]);
-  const [sectionOrder, setSectionOrder] = useState(null);
-  const [taxiCats, setTaxiCats] = useState([]);
+  const [cmsItems, setCmsItems] = useState(_homeCache.cmsItems || []);
+  const [sectionOrder, setSectionOrder] = useState(_homeCache.sectionOrder);
+  const [taxiCats, setTaxiCats] = useState(_homeCache.taxiCats || []);
   const [pendingRef, setPendingRef] = useState(null);
 
   useEffect(() => {
@@ -228,13 +233,21 @@ const UserHome = () => {
   useEffect(() => {
     homeCategoriesAPI.public()
       .then((r) => {
-        setCmsItems(r.data.items || []);
-        setSectionOrder(Array.isArray(r.data.section_order) && r.data.section_order.length ? r.data.section_order : null);
+        const items = r.data.items || [];
+        const order = Array.isArray(r.data.section_order) && r.data.section_order.length ? r.data.section_order : null;
+        _homeCache.cmsItems = items;
+        _homeCache.sectionOrder = order;
+        setCmsItems(items);
+        setSectionOrder(order);
       })
       .catch((e) => console.warn('home categories load:', e?.message || e));
     // Taxi services come from "Gérer les catégories" (service_categories) → single source of truth.
     configAPI.getServiceCategories()
-      .then((r) => setTaxiCats(Array.isArray(r.data) ? r.data : (r.data.items || [])))
+      .then((r) => {
+        const cats = Array.isArray(r.data) ? r.data : (r.data.items || []);
+        _homeCache.taxiCats = cats;
+        setTaxiCats(cats);
+      })
       .catch((e) => console.warn('service categories load:', e?.message || e));
     promoBannersAPI.public()
       .then((r) => setPromoBanners(r.data.items || []))
