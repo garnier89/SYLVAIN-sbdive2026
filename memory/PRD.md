@@ -1,3 +1,12 @@
+## NEW - 2026-06-11 (258) - ⭐ Marketplace étudiante : Boost « Top annonce » payant (points OU €) + panneau admin (DONE, testé 6/6 pytest + frontend e2e, AUCUN bug)
+- **Demande user** : mise en avant payante d'annonce étudiante (boost « Top annonce »). Choix : paiement **au choix en points SB OU en € (SB Pay)** ; tarifs par défaut 3j=50 pts/1€, 7j=100 pts/2€ (admin-configurables) ; remontée en tête de catégorie + badge violet ⭐ ; panneau admin (config + revenus).
+- **Backend** `routes/student_marketplace.py` : config singleton `student_market_config` (plans seedés), helper `_is_boosted`, `_public_listing` expose `boosted`/`boosted_until`, tri `list_listings` (boostées actives en tête). Endpoints : `GET /boost/plans` (+ solde points), `POST /listings/{id}/boost {plan_id, method}` (owner-only, débite points via `student_rewards.award_points` OU wallet, **extension cumulée** depuis l'expiration courante, journalise `student_market_boosts`). Admin : `GET/PUT /admin/boost/config`, `GET /admin/boost/revenue` (total boosts, revenu €, points dépensés, boosts actifs, récents). Guards admin 403.
+- **Frontend** : `SbMarketplacePage.js` — badge ⭐ « Top annonce » sur cartes + fiche (boostées en tête), fiche détail = bouton **« Booster »** si propriétaire (sinon « Acheter »), `BoostSheet` (plans + boutons points/€). `useAuth` pour `meId`. `AdminStudent.js` — onglet **« Marketplace »** (stats revenus + édition forfaits + boosts récents). `studentAPI.mktBoost*`/`mktAdminBoost*`.
+- **Tests** : pytest `test_iter258_marketplace_boost.py` 3/3 (+257 = 6/6) ; testing_agent iter258 frontend e2e complet (publication → boost points → badge + remontée → admin config/revenus) — AUCUN bug. Vérifié curl : points 500→450, wallet -2€, revenu admin €2, extension 3j+7j cumulée, guards 403.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-11 (257) - 🎓 SB Student PHASE 6 : Marketplace étudiante (C2C) + IA Gemini (DONE, testé 6/6 backend e2e + frontend + 3/3 pytest, AUCUN bug)
 - **Demande user** : marketplace dédiée étudiants avec catégories Livres/Logement/Coloc/Matériel/Services + IA (Gemini). Choix : (1b) tout le monde peut acheter, **publication réservée aux étudiants vérifiés** ; (2c) **les deux** fonctions IA (prix juste + description auto, ET recherche intelligente) ; (3a) **paiement C2C via SB Pay** (débit acheteur → crédit vendeur, SANS commission étudiante).
 - **Backend** `routes/student_marketplace.py` (préfixe `/api/student/marketplace`, collection isolée `student_listings` / `student_market_orders`) :
