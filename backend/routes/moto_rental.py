@@ -33,6 +33,22 @@ def _get_stripe(request: Request):
 router = APIRouter(prefix="/moto-rental", tags=["moto-rental"])
 admin_router = APIRouter(prefix="/moto-rental/admin", tags=["moto-rental-admin"])
 
+# Nombre minimum de photos d'état des lieux (retrait & retour) pour protéger la caution.
+MIN_INSPECTION_PHOTOS = 2
+
+
+def _clean_photos(value, limit=8):
+    """Garde au plus `limit` URLs de photos non vides."""
+    if not isinstance(value, list):
+        return []
+    out = []
+    for p in value:
+        if isinstance(p, str) and p.strip():
+            out.append(p.strip()[:600])
+        if len(out) >= limit:
+            break
+    return out
+
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
@@ -209,6 +225,25 @@ async def cancel_rental(rental_id: str, request: Request):
     return {"ok": True, "refunded": refund}
 
 
+@router.post("/{rental_id}/pickup-photos")
+async def pickup_photos(rental_id: str, request: Request):
+    """État des lieux au RETRAIT : l'usager téléverse des photos de la moto avant de partir.
+    Obligatoire avant le paiement de la caution / passage en `active` (protège l'usager)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    rental = await db.moto_self_rentals.find_one({"id": rental_id, "user_id": user["id"]}, {"_id": 0})
+    if not rental:
+        raise HTTPException(status_code=404, detail="Location introuvable")
+    if rental.get("status") != "awaiting_pickup":
+        raise HTTPException(status_code=409, detail="Les photos de retrait se prennent après validation du permis, avant le départ")
+    photos = _clean_photos(body.get("photos"))
+    if len(photos) < MIN_INSPECTION_PHOTOS:
+        raise HTTPException(status_code=400, detail=f"Au moins {MIN_INSPECTION_PHOTOS} photos d'état des lieux sont requises")
+    await db.moto_self_rentals.update_one(
+        {"id": rental_id}, {"$set": {"pickup_photos": photos, "pickup_inspected_at": _now()}})
+    return {"ok": True, "pickup_photos": photos}
+
+
 # ============================================================
 #  CAUTION (Stripe Checkout — débitée à la remise, recréditée au retour sur SB Pay)
 # ============================================================
@@ -227,6 +262,8 @@ async def deposit_checkout(rental_id: str, request: Request):
         raise HTTPException(status_code=409, detail="La caution se règle après validation du permis, avant le retrait")
     if rental.get("deposit_status") == "held":
         raise HTTPException(status_code=409, detail="Caution déjà réglée")
+    if len(rental.get("pickup_photos") or []) < MIN_INSPECTION_PHOTOS:
+        raise HTTPException(status_code=400, detail="Photos d'état des lieux (retrait) requises avant de payer la caution")
     amount = round(float(rental.get("deposit_amount", 0) or 0), 2)
     if amount <= 0:
         # Pas de caution requise → on passe directement la moto en "active".
@@ -419,6 +456,10 @@ async def admin_return(rental_id: str, request: Request):
     if rental.get("status") not in ("active", "awaiting_pickup"):
         raise HTTPException(status_code=409, detail="Cette location ne peut pas être clôturée")
 
+    return_pics = _clean_photos(body.get("return_photos"))
+    if len(return_pics) < MIN_INSPECTION_PHOTOS:
+        raise HTTPException(status_code=400, detail=f"Au moins {MIN_INSPECTION_PHOTOS} photos d'état des lieux (retour) sont requises pour clôturer")
+
     held = float(rental.get("deposit_held_amount", 0) or 0)
     try:
         damage = max(0.0, float(body.get("damage_fees") or 0))
@@ -441,6 +482,7 @@ async def admin_return(rental_id: str, request: Request):
     await db.moto_self_rentals.update_one(
         {"id": rental_id}, {"$set": {"status": "returned", "returned_at": _now(),
                                      "damage_fees": damage, "deposit_refunded": refund,
+                                     "return_photos": return_pics,
                                      "deposit_status": "released" if held else rental.get("deposit_status"),
                                      "return_notes": str(body.get("notes") or "")[:300]}})
     await db.moto_fleet.update_one({"id": rental["moto_id"]}, {"$set": {"status": "available"}})

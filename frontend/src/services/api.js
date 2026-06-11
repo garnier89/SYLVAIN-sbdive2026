@@ -904,6 +904,7 @@ export const motoRentalAPI = {
   book: (data) => api.post('/moto-rental/book', data),
   myRentals: () => api.get('/moto-rental/my'),
   cancel: (id) => api.post(`/moto-rental/${id}/cancel`, {}),
+  pickupPhotos: (id, photos) => api.post(`/moto-rental/${id}/pickup-photos`, { photos }),
   depositCheckout: (id, data) => api.post(`/moto-rental/${id}/deposit-checkout`, data),
   depositStatus: (sessionId) => api.get(`/moto-rental/deposit-status/${sessionId}`),
   uploadImage: (file) => {
@@ -918,6 +919,11 @@ export const motoRentalAPI = {
   adminRentals: () => api.get('/moto-rental/admin/rentals'),
   adminReviewLicense: (id, data) => api.post(`/moto-rental/admin/rentals/${id}/license`, data),
   adminReturn: (id, data) => api.post(`/moto-rental/admin/rentals/${id}/return`, data),
+  adminUploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 

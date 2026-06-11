@@ -1,0 +1,31 @@
+{
+  "summary": "Iter 288 — Photos d'état des lieux obligatoires (Moto Self-Drive) : TOUS LES TESTS PASS (backend 5/5 pytest HTTP + frontend user mobile 430px + frontend admin desktop 1920x1080). Backend : pytest /app/backend/tests/test_iter288_moto_inspection_gates.py = 5 passed (deposit-checkout 400 sans pickup_photos, pickup-photos 400 si <2, ok à 2, admin/return 400 sans return_photos, ok à 2, persistence GET /my). Frontend user (Paul, /moto-location, onglet 'Mes locations', rental mrent_9e5771e9ae awaiting_pickup deposit=20€) : (A) moto-pickup-inspect-mrent_9e5771e9ae visible, moto-pay-deposit-mrent_9e5771e9ae absent, moto-pickup-validate disabled. (B) 1 photo uploadée → Valider toujours disabled. (C) 2e photo uploadée → Valider enabled → click → toast 'État des lieux (retrait) enregistré 📸' affiché + moto-pickup-inspect disparaît + moto-pay-deposit-mrent_9e5771e9ae apparaît avec libellé exact 'Payer la caution · 20.00 €'. Frontend admin (/admin/moto-fleet, onglet Locations, rental mrent_02e74d68a3 active deposit=0) : moto-close-row-{id} visible, moto-close-{id} disabled à 0 photos, disabled à 1 photo, enabled à 2 photos, click → dialog confirm 'Clôturer et restituer toute la caution ?' accepté → status passe à 'returned' + 'Caution restituée : 0.00 €' affiché + thumbnails retrait/retour rendus sur la carte. Toutes les data-testid spécifiées (moto-pickup-inspect-{id}, moto-pickup-input-{id}, moto-pickup-validate-{id}, moto-pay-deposit-{id}, moto-close-row-{id}, moto-return-input-{id}, moto-damage-{id}, moto-close-{id}) sont bien présentes et opérationnelles. Aucun bug bloquant détecté.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter288_moto_inspection_gates.py",
+    "/app/test_reports/pytest/iter288.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PickupInspection (MotoSelfRentalPage.js L26-79) et ReturnClose (AdminMotoFleet.js L21-77) dupliquent ~80% de leur logique (state photos[], uploading, busy, addPhotos en boucle, validation ≥2). Envisager un hook useInspectionPhotos commun pour DRY (≥40 lignes dupliquées).",
+    "PickupInspection.addPhotos (L30-42) uploade les fichiers en SÉRIE (for-await). Sur 2-4 photos lourdes (smartphone ≥3 MB), cela ralentit l'UX. Préférer Promise.all pour upload parallèle (cf. ReturnClose qui a le même pattern).",
+    "Backend moto_rental.py L265 : le gate pickup_photos<2 lève 400 'Photos d'état des lieux (retrait) requises avant de payer la caution' — bien. Mais L237 le gate de statut sur pickup-photos exige awaiting_pickup STRICT, donc impossible de re-upload des photos après passage en active (en cas d'erreur côté agent). À considérer une route admin /admin/rentals/{id}/pickup-photos pour correction post-départ.",
+    "Backend L456 : admin/return autorise statut 'awaiting_pickup' OU 'active'. Si l'admin clôture une awaiting_pickup (sans caution payée), held=0 donc deposit_status n'est PAS modifié (ligne 486 conditionnel). C'est cohérent mais le message notification (L491) reste 'Merci d'avoir loué avec SB Drive.' — OK.",
+    "Frontend AdminMotoFleet.js L181-191 : l'affichage des photos retrait+retour sur les locations 'returned' n'a pas de fallback alt ni de mention du nombre de photos — UX minor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter288_moto_inspection_gates.py (créé)"
+  ],
+  "success_rate": { "backend": "100% (5/5 pytest)", "frontend": "100% (8/8 assertions UI)" },
+  "test_credentials": "Paul : paul.vendeur@example.com / Test1234! (user_c6eed0296404). Admin : admin@superapp.com / SuperAdmin123!. Login via /login/email.",
+  "seed_data_creation": "2 motos TEST créées via admin/fleet : (1) TEST_UI_iter288 (deposit=20€) → rental mrent_9e5771e9ae chargé en awaiting_pickup avec 2 pickup_photos après test UI user (caution non encore payée, le test a stoppé avant Stripe). (2) TEST_UI_iter288_active (deposit=0€) → rental mrent_02e74d68a3 passé en 'returned' après test UI admin. Plus 1 rental pytest mrent_xxx (TEST_iter288_fa2371) entièrement returned. Les motos test sont désactivées (active=false) en cleanup pytest, mais celles créées hors pytest restent visibles dans /admin/moto-fleet onglet Flotte. Réutilisables ou à purger via admin si besoin.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "P0 photos d'état des lieux moto self-drive 100% fonctionnel. Endpoints : POST /api/moto-rental/{id}/pickup-photos (user, statut awaiting_pickup, ≥2 URLs), POST /api/moto-rental/{id}/deposit-checkout (gate pickup_photos≥2), POST /api/moto-rental/admin/rentals/{id}/return (gate return_photos≥2 + damage_fees optionnel). Frontend : PickupInspection (MotoSelfRentalPage.js L25-79) côté user et ReturnClose (AdminMotoFleet.js L21-77) côté admin, tous deux verrouillent le bouton tant que photos.length<2. data-testid : moto-pickup-inspect-{id} / moto-pickup-input-{id} / moto-pickup-validate-{id} / moto-pay-deposit-{id} / moto-close-row-{id} / moto-return-input-{id} / moto-damage-{id} / moto-close-{id}. Pour relancer le flux complet from scratch : créer une moto admin avec deposit_amount=20€, faire booker Paul (POST /moto-rental/book), approuver licence (admin/rentals/{id}/license), puis tester UI. Note : test_iter287 du précédent agent a un import 'from routes.moto_rental' qui échoue depuis pytest /app/backend mais marche depuis /app/backend → import path mineur, non bloquant.",
+  "rca of the issue": "N/A — aucune issue. Le flux complet (gates backend + composants UI + intégration upload→validation→déblocage bouton suivant) fonctionne tel que spécifié dans la review_request."
+}

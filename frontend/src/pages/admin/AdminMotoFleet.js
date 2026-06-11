@@ -17,6 +17,65 @@ const Field = ({ label, children }) => (
 
 const emptyMoto = { name: '', model: '', license_class: 'A1/B', price_per_day: 0, price_per_hour: 0, deposit_amount: 0, location_name: 'Agence', plate: '', image_url: '' };
 
+// Clôture admin avec état des lieux (retour) : photos obligatoires (≥2) + frais dommages.
+const ReturnClose = ({ rental, onClosed }) => {
+  const [photos, setPhotos] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [dmg, setDmg] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const addPhotos = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      for (const f of files) {
+        const r = await motoRentalAPI.adminUploadImage(f);
+        if (r.data?.url) setPhotos((p) => [...p, r.data.url]);
+      }
+    } catch { toast.error("Échec de l'upload"); }
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const close = async () => {
+    if (photos.length < 2) { toast.error('Au moins 2 photos de retour requises'); return; }
+    const fee = Number(dmg || 0);
+    if (!window.confirm(fee ? `Clôturer et retenir ${fee}€ de dommages ? Le reste de la caution est restitué.` : 'Clôturer et restituer toute la caution ?')) return;
+    setBusy(true);
+    try {
+      const res = await motoRentalAPI.adminReturn(rental.id, { damage_fees: fee, return_photos: photos });
+      toast.success(`Clôturée · caution restituée ${res.data.deposit_refunded}€`);
+      onClosed();
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 p-3" data-testid={`moto-close-row-${rental.id}`}>
+      <p className="text-xs font-bold text-amber-800">📸 État des lieux (retour) — obligatoire (≥2 photos)</p>
+      {photos.length > 0 && (
+        <div className="flex gap-2 mt-2 flex-wrap">
+          {photos.map((p, i) => (
+            <div key={i} className="relative">
+              <img src={p} alt="" className="w-14 h-14 rounded-lg object-cover" />
+              <button onClick={() => setPhotos((arr) => arr.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white text-xs flex items-center justify-center" aria-label="Retirer">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <label className="px-3 py-2 text-xs font-semibold rounded-lg cursor-pointer bg-white border border-amber-300 text-amber-800">
+          {uploading ? 'Envoi…' : '+ Photos de retour'}
+          <input type="file" accept="image/*" multiple className="hidden" onChange={addPhotos} data-testid={`moto-return-input-${rental.id}`} />
+        </label>
+        <input type="number" min="0" placeholder="Frais dommages (€)" value={dmg} onChange={(e) => setDmg(e.target.value)} data-testid={`moto-damage-${rental.id}`} className={`${inputCls} max-w-[160px]`} />
+        <button onClick={close} disabled={busy || photos.length < 2} data-testid={`moto-close-${rental.id}`} className="px-4 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50" style={{ background: NAVY }}>Clôturer & restituer caution</button>
+      </div>
+    </div>
+  );
+};
+
 const FleetTab = () => {
   const [motos, setMotos] = useState([]);
   const [creating, setCreating] = useState(false);
@@ -89,13 +148,6 @@ const RentalsTab = () => {
     try { await motoRentalAPI.adminReviewLicense(id, { approve }); toast.success(approve ? 'Permis validé' : 'Refusé & remboursé'); load(); }
     catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
   };
-  const [dmg, setDmg] = useState({});
-  const closeRental = async (r) => {
-    const fee = Number(dmg[r.id] || 0);
-    if (!window.confirm(fee ? `Clôturer et retenir ${fee}€ de dommages ? Le reste de la caution est restitué.` : 'Clôturer et restituer toute la caution ?')) return;
-    try { const res = await motoRentalAPI.adminReturn(r.id, { damage_fees: fee }); toast.success(`Clôturée · caution restituée ${res.data.deposit_refunded}€`); setDmg((d) => ({ ...d, [r.id]: '' })); load(); }
-    catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
-  };
 
   return (
     <div className="space-y-3 max-w-3xl" data-testid="admin-moto-rentals-tab">
@@ -108,9 +160,14 @@ const RentalsTab = () => {
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{r.status}</span>
           </div>
           <p className="text-xs text-slate-500 mt-1">{r.days} j · {money(r.base_price)} · caution {money(r.deposit_amount)}</p>
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-2 flex-wrap items-center">
             {r.license_doc_url && <a href={r.license_doc_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-blue-600 underline">Permis</a>}
             {r.id_doc_url && <a href={r.id_doc_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-blue-600 underline">Pièce d'identité</a>}
+            {(r.pickup_photos?.length > 0) && r.status !== 'returned' && (
+              <span className="text-xs text-slate-500">· Retrait :{' '}
+                {r.pickup_photos.map((p, i) => <a key={i} href={p} target="_blank" rel="noreferrer" className="text-emerald-600 underline ml-1">photo {i + 1}</a>)}
+              </span>
+            )}
           </div>
           {r.license_status === 'pending' && (
             <div className="flex gap-2 mt-3">
@@ -119,13 +176,18 @@ const RentalsTab = () => {
             </div>
           )}
           {r.status === 'active' && (
-            <div className="flex items-center gap-2 mt-3" data-testid={`moto-close-row-${r.id}`}>
-              <input type="number" min="0" placeholder="Frais dommages (€)" value={dmg[r.id] || ''} onChange={(e) => setDmg((d) => ({ ...d, [r.id]: e.target.value }))} data-testid={`moto-damage-${r.id}`} className={`${inputCls} max-w-[160px]`} />
-              <button onClick={() => closeRental(r)} data-testid={`moto-close-${r.id}`} className="px-4 py-2 text-sm font-bold text-white rounded-lg" style={{ background: NAVY }}>Clôturer & restituer caution</button>
-            </div>
+            <ReturnClose rental={r} onClosed={load} />
           )}
           {r.status === 'returned' && (
-            <p className="text-[11px] text-slate-500 mt-2">Caution restituée : {money(r.deposit_refunded)}{r.damage_fees ? ` · ${money(r.damage_fees)} dommages retenus` : ''}</p>
+            <div className="mt-2">
+              <p className="text-[11px] text-slate-500">Caution restituée : {money(r.deposit_refunded)}{r.damage_fees ? ` · ${money(r.damage_fees)} dommages retenus` : ''}</p>
+              {(r.pickup_photos?.length || r.return_photos?.length) ? (
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {(r.pickup_photos || []).map((p, i) => <a key={`p${i}`} href={p} target="_blank" rel="noreferrer"><img src={p} alt="retrait" className="w-12 h-12 rounded object-cover ring-1 ring-emerald-300" /></a>)}
+                  {(r.return_photos || []).map((p, i) => <a key={`r${i}`} href={p} target="_blank" rel="noreferrer"><img src={p} alt="retour" className="w-12 h-12 rounded object-cover ring-1 ring-amber-300" /></a>)}
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
       ))}

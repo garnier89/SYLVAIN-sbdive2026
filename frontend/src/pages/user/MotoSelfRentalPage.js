@@ -21,6 +21,63 @@ const STATUS_LABELS = {
   cancelled: { label: 'Annulée', cls: 'bg-slate-100 text-slate-500' },
 };
 
+// État des lieux au RETRAIT : l'usager photographie la moto avant de partir (≥2 photos).
+const PickupInspection = ({ rental, onDone }) => {
+  const [photos, setPhotos] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const addPhotos = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      for (const f of files) {
+        const r = await motoRentalAPI.uploadImage(f);
+        if (r.data?.url) setPhotos((p) => [...p, r.data.url]);
+      }
+    } catch { toast.error("Échec de l'upload"); }
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const validate = async () => {
+    if (photos.length < 2) { toast.error('Ajoutez au moins 2 photos'); return; }
+    setBusy(true);
+    try {
+      await motoRentalAPI.pickupPhotos(rental.id, photos);
+      toast.success('État des lieux enregistré 📸');
+      onDone();
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 p-3" data-testid={`moto-pickup-inspect-${rental.id}`}>
+      <p className="text-xs font-bold text-amber-800 flex items-center gap-1"><Camera size={14} weight="fill" /> État des lieux (retrait) — obligatoire</p>
+      <p className="text-[11px] text-amber-700 mt-0.5">Photographiez la moto sous plusieurs angles (≥2) avant de partir. Cela protège votre caution.</p>
+      {photos.length > 0 && (
+        <div className="flex gap-2 mt-2 flex-wrap">
+          {photos.map((p, i) => (
+            <div key={i} className="relative">
+              <img src={p} alt="" className="w-14 h-14 rounded-lg object-cover" />
+              <button onClick={() => setPhotos((arr) => arr.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center" aria-label="Retirer"><X size={11} weight="bold" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2 mt-2">
+        <label className="flex-1 text-center px-3 py-2 text-xs font-semibold rounded-lg cursor-pointer bg-white border border-amber-300 text-amber-800">
+          {uploading ? 'Envoi…' : '+ Ajouter des photos'}
+          <input type="file" accept="image/*" multiple className="hidden" onChange={addPhotos} data-testid={`moto-pickup-input-${rental.id}`} />
+        </label>
+        <button onClick={validate} disabled={busy || photos.length < 2} data-testid={`moto-pickup-validate-${rental.id}`}
+          className="px-4 py-2 text-xs font-bold text-white rounded-lg disabled:opacity-50" style={{ background: ORANGE }}>{busy ? '…' : 'Valider'}</button>
+      </div>
+    </div>
+  );
+};
+
 const MotoSelfRentalPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState('fleet'); // fleet | book | done | mine
@@ -207,8 +264,17 @@ const MotoSelfRentalPage = () => {
                 <p className="text-xs text-gray-500 mt-1">{r.days} jour(s) · {money(r.base_price)} · caution {money(r.deposit_amount)}</p>
                 {r.deposit_status === 'held' && <p className="text-[11px] text-emerald-600 mt-0.5">Caution bloquée ✓</p>}
                 {r.deposit_status === 'released' && <p className="text-[11px] text-gray-500 mt-0.5">Caution restituée : {money(r.deposit_refunded)}{r.damage_fees ? ` (${money(r.damage_fees)} dommages)` : ''}</p>}
-                {r.status === 'awaiting_pickup' && r.deposit_status !== 'held' && Number(r.deposit_amount) > 0 && (
-                  <button onClick={() => payDeposit(r)} data-testid={`moto-pay-deposit-${r.id}`} className="mt-2 w-full min-h-[44px] rounded-xl font-bold text-white" style={{ background: ORANGE }}>Payer la caution · {money(r.deposit_amount)}</button>
+                {r.status === 'awaiting_pickup' && r.deposit_status !== 'held' && (
+                  (r.pickup_photos?.length >= 2) ? (
+                    <>
+                      <p className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1"><CheckCircle size={12} weight="fill" /> État des lieux (retrait) enregistré</p>
+                      <button onClick={() => payDeposit(r)} data-testid={`moto-pay-deposit-${r.id}`} className="mt-2 w-full min-h-[44px] rounded-xl font-bold text-white" style={{ background: ORANGE }}>
+                        {Number(r.deposit_amount) > 0 ? `Payer la caution · ${money(r.deposit_amount)}` : 'Confirmer le retrait'}
+                      </button>
+                    </>
+                  ) : (
+                    <PickupInspection rental={r} onDone={loadMine} />
+                  )
                 )}
                 {(r.status === 'pending_license' || r.status === 'awaiting_pickup') && (
                   <button onClick={() => cancel(r.id)} data-testid={`moto-cancel-${r.id}`} className="mt-2 text-xs font-semibold text-rose-600">Annuler & être remboursé</button>
