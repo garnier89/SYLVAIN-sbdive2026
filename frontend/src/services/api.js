@@ -809,6 +809,11 @@ export const studentAPI = {
   mktUpdateDigestConfig: (data) => api.put('/student/marketplace/admin/digest/config', data),
   mktDigestSendNow: (testUserId) => api.post('/student/marketplace/admin/digest/send-now', testUserId ? { test_user_id: testUserId } : {}),
   mktDigestHistory: () => api.get('/student/marketplace/admin/digest/history'),
+  mktReview: (orderId, data) => api.post(`/student/marketplace/orders/${orderId}/review`, data),
+  mktGetReview: (orderId) => api.get(`/student/marketplace/orders/${orderId}/review`),
+  mktSeller: (sellerId) => api.get(`/student/marketplace/sellers/${sellerId}`),
+  mktAdminSellerConfig: () => api.get('/student/marketplace/admin/seller-config'),
+  mktUpdateSellerConfig: (data) => api.put('/student/marketplace/admin/seller-config', data),
   mktUploadImage: (file) => {
     const fd = new FormData();
     fd.append('file', file);

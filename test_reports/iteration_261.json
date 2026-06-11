@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend validation of SB Student Marketplace 'Vendeur de confiance' (trusted seller) reputation flow as test2@example.com (buyer) and admin@superapp.com (admin). All 5 acceptance criteria PASS. Listing card rep badge, seller block, seller profile sheet, post-buy rating sheet (4 stars + comment), toast 'Merci pour ton avis', backend persistence (sales count 6→7, new review with comment recorded), and admin trusted-threshold panel (save + persistence after reload) all work end-to-end.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Marketplace listing card", "issues": ["mkt-seller-rep badge: 'Confiance' green pill renders correctly in screenshot (background #16a34a + ShieldCheck icon), star rating 4.5 with amber star. No issue, just confirming visual fidelity."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "MINOR/UX: VerifyEmailBanner (data-testid=verify-email-banner) at z-[60] intercepts clicks on the mkt-buy-btn (and mkt-seller-block) on mobile. test2@example.com is documented as 'verified' but the banner still renders post-login (user.is_verified appears falsy). Either ensure /api/auth/me returns is_verified=true for the seeded test2 user, or raise the bottom-padding of the marketplace content so the buy button isn't covered by the banner. Workaround in tests: dismiss banner via [data-testid=verify-email-banner-dismiss] before clicking buy.",
+    "INFO (not a bug): After submitting the 4★ review, Lea Confiance's rating drops from 4.50 to 4.43 (mean of 5,4,5,5,4,5,4) which falls below the default 4.5 threshold, so the API correctly returns trusted=false for her now. Sales_count went 6→7 as expected."
+  ],
+  "critical_code_review_comments": [
+    "VerifyEmailBanner z-index 60 is higher than the marketplace BottomNav and overlaps the primary CTA (Acheter button) on the detail sheet (z-40). Consider lowering the banner z-index or adding bottom padding to the detail sheet content so the CTA is always reachable without dismissing the banner."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (5/5 acceptance criteria)" },
+  "test_credentials": "Buyer: test2@example.com / TestPass123! ; Admin: admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "None created. Used the seeded 'Lea Confiance' (user_66723a210ec5) + 'DEMO Livre confiance' (slist_04d2c17eb9d8). Test2 successfully purchased the listing (order smo_2743fb1f9fa1) and posted review srev_a13a46813bdc (rating 4, comment 'Vendeur top, livre en parfait état !'). After test, Lea has 7 sales / 7 reviews / 4.43 avg / 0 active listings (the only listing got sold). Admin trusted-config was changed to 3/4.0 then restored to 5/4.5.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Lea Confiance's only active listing (DEMO Livre confiance, 8€) has been sold and her avg rating is now 4.43 (< 4.5 default threshold) so seller.trusted=false. To re-test the trusted badge UI on a listing card again, either (a) re-run the marketplace seed to recreate 'DEMO Livre confiance' and reset Lea's stats, or (b) admin lowers Note min. to 4.0 via /admin/student → Marketplace → admin-seller-rep so trusted=true again. The post-buy rating flow can only be tested once per (buyer, order) pair: a second POST /orders/{id}/review returns 400.",
+  "rca of the issue": "N/A — feature works as expected. The VerifyEmailBanner overlap is a minor UX issue, not a functional defect."
+}

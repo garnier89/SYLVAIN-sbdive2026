@@ -90,6 +90,56 @@ async def get_boost_config() -> dict:
     return cfg
 
 
+# ======================= SELLER REPUTATION =======================
+SELLER_CONFIG_ID = "student_seller_config"
+DEFAULT_SELLER_CONFIG = {"id": SELLER_CONFIG_ID, "trusted_min_sales": 5, "trusted_min_rating": 4.5}
+
+
+async def get_seller_config() -> dict:
+    cfg = await db.student_seller_config.find_one({"id": SELLER_CONFIG_ID}, {"_id": 0})
+    if not cfg:
+        cfg = {**DEFAULT_SELLER_CONFIG, "updated_at": _now()}
+        await db.student_seller_config.insert_one(dict(cfg))
+        cfg.pop("_id", None)
+    return {**DEFAULT_SELLER_CONFIG, **cfg}
+
+
+async def recompute_seller_stats(seller_id: str) -> dict:
+    """Recompute and cache a seller's sales count + rating + trusted badge."""
+    sales_count = await db.student_market_orders.count_documents({"seller_id": seller_id, "status": "paid"})
+    reviews = await db.student_seller_reviews.find({"seller_id": seller_id}, {"_id": 0, "rating": 1}).to_list(5000)
+    rating_count = len(reviews)
+    rating_avg = round(sum(float(r.get("rating", 0)) for r in reviews) / rating_count, 2) if rating_count else 0.0
+    cfg = await get_seller_config()
+    trusted = (sales_count >= int(cfg["trusted_min_sales"])
+               and rating_count >= 1
+               and rating_avg >= float(cfg["trusted_min_rating"]))
+    stats = {"user_id": seller_id, "sales_count": sales_count, "rating_avg": rating_avg,
+             "rating_count": rating_count, "trusted": trusted, "updated_at": _now()}
+    await db.student_seller_stats.update_one({"user_id": seller_id}, {"$set": stats}, upsert=True)
+    return stats
+
+
+async def _attach_seller_stats(cards: list) -> list:
+    seller_ids = list({c["user_id"] for c in cards if c.get("user_id")})
+    if not seller_ids:
+        return cards
+    cfg = await get_seller_config()
+    min_sales, min_rating = int(cfg["trusted_min_sales"]), float(cfg["trusted_min_rating"])
+    rows = await db.student_seller_stats.find({"user_id": {"$in": seller_ids}}, {"_id": 0}).to_list(len(seller_ids))
+    by_id = {r["user_id"]: r for r in rows}
+    for c in cards:
+        s = by_id.get(c.get("user_id"))
+        sales = s.get("sales_count", 0) if s else 0
+        r_avg = s.get("rating_avg", 0.0) if s else 0.0
+        r_cnt = s.get("rating_count", 0) if s else 0
+        c["seller_rating"] = r_avg
+        c["seller_rating_count"] = r_cnt
+        c["seller_sales"] = sales
+        c["seller_trusted"] = bool(sales >= min_sales and r_cnt >= 1 and r_avg >= min_rating)
+    return cards
+
+
 # ======================= WALLET HELPERS =======================
 async def _ensure_wallet(user_id: str) -> dict:
     w = await db.wallets.find_one({"user_id": user_id})
@@ -260,6 +310,7 @@ async def list_listings(
     cards = [_public_listing(r) for r in rows]
     # Boosted listings float to the top of their list (most recent boost first).
     cards.sort(key=lambda c: (c["boosted"], c.get("boosted_until") or "", c.get("created_at") or ""), reverse=True)
+    await _attach_seller_stats(cards)
     return {"listings": cards, "total": total}
 
 
@@ -277,7 +328,9 @@ async def get_listing(listing_id: str, request: Request):
     if not l:
         raise HTTPException(status_code=404, detail="Annonce introuvable")
     await db.student_listings.update_one({"id": listing_id}, {"$inc": {"views": 1}})
-    return _public_listing(l)
+    card = _public_listing(l)
+    await _attach_seller_stats([card])
+    return card
 
 
 class ListingCreate(BaseModel):
@@ -465,6 +518,7 @@ async def buy_listing(listing_id: str, request: Request):
     }
     await db.student_market_orders.insert_one(dict(order))
     await db.student_listings.update_one({"id": listing_id}, {"$set": {"status": "sold", "sold_at": _now()}})
+    await recompute_seller_stats(listing["user_id"])
 
     try:
         await create_notification(
@@ -489,6 +543,77 @@ async def my_sales(request: Request):
     user = await get_current_user(request)
     rows = await db.student_market_orders.find({"seller_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return {"orders": rows}
+
+
+# ======================= REVIEWS & SELLER PROFILE =======================
+class ReviewBody(BaseModel):
+    rating: int
+    comment: str = ""
+
+
+@router.get("/orders/{order_id}/review")
+async def get_order_review(order_id: str, request: Request):
+    user = await get_current_user(request)
+    order = await db.student_market_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order or order.get("buyer_id") != user["id"]:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    review = await db.student_seller_reviews.find_one({"order_id": order_id}, {"_id": 0})
+    return {"order": order, "review": review, "can_review": review is None}
+
+
+@router.post("/orders/{order_id}/review")
+async def review_seller(order_id: str, body: ReviewBody, request: Request):
+    user = await get_current_user(request)
+    order = await db.student_market_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order or order.get("buyer_id") != user["id"]:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    if order.get("status") != "paid":
+        raise HTTPException(status_code=400, detail="Cette commande n'est pas finalisée")
+    if await db.student_seller_reviews.find_one({"order_id": order_id}, {"_id": 1}):
+        raise HTTPException(status_code=400, detail="Vous avez déjà noté cette transaction")
+    rating = int(body.rating)
+    if rating < 1 or rating > 5:
+        raise HTTPException(status_code=400, detail="La note doit être entre 1 et 5")
+    review = {
+        "id": f"srev_{uuid.uuid4().hex[:12]}", "order_id": order_id,
+        "seller_id": order["seller_id"], "seller_name": order.get("seller_name", "Vendeur"),
+        "buyer_id": user["id"], "buyer_name": user.get("name", "Acheteur"),
+        "rating": rating, "comment": (body.comment or "").strip()[:500],
+        "listing_title": order.get("listing_title", ""), "created_at": _now(),
+    }
+    await db.student_seller_reviews.insert_one(dict(review))
+    stats = await recompute_seller_stats(order["seller_id"])
+    try:
+        await create_notification(
+            order["seller_id"], "student_review", "Nouvel avis ⭐",
+            f"{user.get('name', 'Un acheteur')} t'a attribué {rating}/5 — note moyenne {stats['rating_avg']}/5.",
+            data={"order_id": order_id})
+    except Exception:
+        pass
+    review.pop("_id", None)
+    return {"ok": True, "review": review, "stats": stats}
+
+
+@router.get("/sellers/{seller_id}")
+async def seller_profile(seller_id: str, request: Request):
+    await get_current_user(request)
+    stats = await db.student_seller_stats.find_one({"user_id": seller_id}, {"_id": 0})
+    if not stats:
+        stats = await recompute_seller_stats(seller_id)
+    user = await db.users.find_one({"id": seller_id}, {"_id": 0, "name": 1})
+    listings = await db.student_listings.find({"user_id": seller_id, "status": "active"}, {"_id": 0}).sort("created_at", -1).limit(30).to_list(30)
+    reviews = await db.student_seller_reviews.find({"seller_id": seller_id}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
+    cfg = await get_seller_config()
+    trusted = bool(stats.get("sales_count", 0) >= int(cfg["trusted_min_sales"])
+                   and stats.get("rating_count", 0) >= 1
+                   and stats.get("rating_avg", 0.0) >= float(cfg["trusted_min_rating"]))
+    cards = [_public_listing(l) for l in listings]
+    await _attach_seller_stats(cards)
+    return {
+        "seller": {"id": seller_id, "name": (user or {}).get("name", stats.get("seller_name", "Vendeur")), **stats, "trusted": trusted},
+        "listings": cards,
+        "reviews": reviews,
+    }
 
 
 # ======================= AI: price + description =======================
@@ -626,8 +751,6 @@ async def _require_admin(request: Request):
 async def admin_boost_config(request: Request):
     await _require_admin(request)
     return await get_boost_config()
-
-
 class BoostPlan(BaseModel):
     id: str | None = None
     days: int
@@ -676,3 +799,30 @@ async def admin_boost_revenue(request: Request):
         "total_boosts": len(rows), "revenue_eur": total_eur, "points_spent": total_points,
         "active_boosts": active, "recent": recent,
     }
+
+
+
+@router.get("/admin/seller-config")
+async def admin_seller_config(request: Request):
+    await _require_admin(request)
+    return await get_seller_config()
+
+
+class SellerConfigUpdate(BaseModel):
+    trusted_min_sales: int | None = None
+    trusted_min_rating: float | None = None
+
+
+@router.put("/admin/seller-config")
+async def admin_update_seller_config(body: SellerConfigUpdate, request: Request):
+    await _require_admin(request)
+    await get_seller_config()
+    update = {}
+    if body.trusted_min_sales is not None:
+        update["trusted_min_sales"] = max(1, int(body.trusted_min_sales))
+    if body.trusted_min_rating is not None:
+        update["trusted_min_rating"] = max(1.0, min(5.0, round(float(body.trusted_min_rating), 1)))
+    if update:
+        update["updated_at"] = _now()
+        await db.student_seller_config.update_one({"id": SELLER_CONFIG_ID}, {"$set": update}, upsert=True)
+    return await get_seller_config()

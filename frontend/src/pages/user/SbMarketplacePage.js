@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   CaretLeft, Storefront, MagnifyingGlass, Sparkle, Plus, X, Tag,
-  BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera, Star, Coins, Bell, MapPin,
+  BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera, Star, Coins, Bell, MapPin, ShieldCheck,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -142,6 +142,12 @@ const SbMarketplacePage = () => {
                   <p className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight">{l.title}</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">{l.category_label} · {COND_LABELS[l.condition] || l.condition}</p>
                   <p className="font-black text-base mt-1" style={{ color: BRAND }}>{Number(l.price).toFixed(2)} €</p>
+                  {(l.seller_trusted || l.seller_rating_count > 0) && (
+                    <div className="flex items-center gap-1 mt-1" data-testid={`mkt-seller-rep-${l.id}`}>
+                      {l.seller_trusted && <span className="flex items-center gap-0.5 text-[9px] font-bold text-white px-1.5 py-0.5 rounded-full" style={{ background: '#16a34a' }}><ShieldCheck size={9} weight="fill" /> Confiance</span>}
+                      {l.seller_rating_count > 0 && <span className="flex items-center gap-0.5 text-[10px] text-gray-500"><Star size={10} weight="fill" className="text-amber-400" />{Number(l.seller_rating).toFixed(1)}</span>}
+                    </div>
+                  )}
                 </div>
               </button>
             ))}
@@ -164,14 +170,16 @@ const SbMarketplacePage = () => {
 const DetailSheet = ({ listing, meId, onClose, onBought, onBoosted }) => {
   const [busy, setBusy] = useState(false);
   const [boostOpen, setBoostOpen] = useState(false);
+  const [rateOrder, setRateOrder] = useState(null);
+  const [profileId, setProfileId] = useState(null);
   const isOwner = meId && listing.user_id === meId;
   const buy = async () => {
     if (!window.confirm(`Acheter « ${listing.title} » pour ${Number(listing.price).toFixed(2)} € depuis votre SB Pay ?`)) return;
     setBusy(true);
     try {
-      await studentAPI.mktBuy(listing.id);
+      const r = await studentAPI.mktBuy(listing.id);
       toast.success('Achat réussi ! Le vendeur a été notifié.');
-      onBought();
+      setRateOrder(r.data.order);
     } catch (e) { toast.error(e?.response?.data?.detail || 'Échec de l\'achat'); }
     finally { setBusy(false); }
   };
@@ -192,7 +200,24 @@ const DetailSheet = ({ listing, meId, onClose, onBought, onBoosted }) => {
           <p className="text-2xl font-black" style={{ color: BRAND }}>{Number(listing.price).toFixed(2)} €</p>
           {listing.location && <p className="text-xs text-gray-500">📍 {listing.location}</p>}
           {listing.description && <p className="text-sm text-gray-700 whitespace-pre-line">{listing.description}</p>}
-          <p className="text-xs text-gray-400">Vendu par {listing.seller_name}</p>
+
+          {/* Seller reputation block */}
+          <button onClick={() => setProfileId(listing.user_id)} className="w-full flex items-center justify-between bg-gray-50 rounded-xl p-3 mt-2" data-testid="mkt-seller-block">
+            <div className="flex items-center gap-2 text-left">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white" style={{ background: BRAND }}>{(listing.seller_name || 'V')[0].toUpperCase()}</div>
+              <div>
+                <p className="text-sm font-bold text-gray-900 flex items-center gap-1">{listing.seller_name}
+                  {listing.seller_trusted && <span className="flex items-center gap-0.5 text-[9px] font-bold text-white px-1.5 py-0.5 rounded-full" style={{ background: '#16a34a' }}><ShieldCheck size={9} weight="fill" /> Confiance</span>}
+                </p>
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  {listing.seller_rating_count > 0 ? <><Star size={11} weight="fill" className="text-amber-400" />{Number(listing.seller_rating).toFixed(1)} · {listing.seller_rating_count} avis</> : 'Nouveau vendeur'}
+                  {listing.seller_sales > 0 && <> · {listing.seller_sales} vente{listing.seller_sales > 1 ? 's' : ''}</>}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-semibold" style={{ color: BRAND }}>Profil ›</span>
+          </button>
+
           {listing.status === 'sold' ? (
             <div className="w-full py-3 rounded-xl bg-gray-100 text-gray-400 text-center font-bold text-sm" data-testid="mkt-sold">Vendu</div>
           ) : isOwner ? (
@@ -207,6 +232,111 @@ const DetailSheet = ({ listing, meId, onClose, onBought, onBoosted }) => {
         </div>
       </div>
       {boostOpen && <BoostSheet listing={listing} onClose={() => setBoostOpen(false)} onBoosted={onBoosted} />}
+      {rateOrder && <RatingSheet order={rateOrder} onClose={() => { setRateOrder(null); onBought(); }} />}
+      {profileId && <SellerProfileSheet sellerId={profileId} onClose={() => setProfileId(null)} />}
+    </div>
+  );
+};
+
+const StarPicker = ({ value, onChange }) => (
+  <div className="flex items-center gap-1 justify-center" data-testid="rating-stars">
+    {[1, 2, 3, 4, 5].map((n) => (
+      <button key={n} onClick={() => onChange(n)} data-testid={`rating-star-${n}`}>
+        <Star size={34} weight={n <= value ? 'fill' : 'regular'} className={n <= value ? 'text-amber-400' : 'text-gray-300'} />
+      </button>
+    ))}
+  </div>
+);
+
+const RatingSheet = ({ order, onClose }) => {
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await studentAPI.mktReview(order.id, { rating, comment });
+      toast.success('Merci pour ton avis ⭐');
+      onClose();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" data-testid="mkt-rating-sheet">
+      <div className="w-full bg-white rounded-t-3xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="font-black text-gray-900">Note ton vendeur</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+        </div>
+        <p className="text-sm text-gray-500 text-center">Comment s'est passée la transaction avec {order.seller_name} ?</p>
+        <StarPicker value={rating} onChange={setRating} />
+        <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="Un commentaire (optionnel)…"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none resize-none" data-testid="rating-comment" />
+        <button onClick={submit} disabled={busy} className="w-full py-3.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: BRAND }} data-testid="rating-submit">
+          {busy ? 'Envoi…' : 'Envoyer mon avis'}
+        </button>
+        <button onClick={onClose} className="w-full py-2 text-sm text-gray-400" data-testid="rating-skip">Plus tard</button>
+      </div>
+    </div>
+  );
+};
+
+const SellerProfileSheet = ({ sellerId, onClose }) => {
+  const [data, setData] = useState(null);
+  useEffect(() => { studentAPI.mktSeller(sellerId).then((r) => setData(r.data)).catch(() => {}); }, [sellerId]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={onClose} data-testid="mkt-seller-profile">
+      <div className="w-full bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 className="font-black text-gray-900">Profil vendeur</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+        </div>
+        {!data ? <div className="p-6 text-gray-400 text-sm">Chargement…</div> : (
+          <div className="p-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white" style={{ background: BRAND }}>{(data.seller.name || 'V')[0].toUpperCase()}</div>
+              <div>
+                <p className="font-black text-gray-900 flex items-center gap-1.5">{data.seller.name}
+                  {data.seller.trusted && <span className="flex items-center gap-0.5 text-[10px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: '#16a34a' }} data-testid="seller-trusted-badge"><ShieldCheck size={11} weight="fill" /> Vendeur de confiance</span>}
+                </p>
+                <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                  {data.seller.rating_count > 0 ? <><Star size={14} weight="fill" className="text-amber-400" />{Number(data.seller.rating_avg).toFixed(1)} ({data.seller.rating_count} avis)</> : 'Aucun avis'}
+                  · {data.seller.sales_count} vente{data.seller.sales_count > 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-2">Annonces actives ({data.listings.length})</p>
+              <div className="grid grid-cols-3 gap-2">
+                {data.listings.map((l) => (
+                  <div key={l.id} className="bg-gray-50 rounded-xl p-2" data-testid={`seller-listing-${l.id}`}>
+                    <p className="text-[10px] font-bold text-gray-800 line-clamp-2">{l.title}</p>
+                    <p className="text-xs font-black mt-1" style={{ color: BRAND }}>{Number(l.price).toFixed(2)} €</p>
+                  </div>
+                ))}
+                {data.listings.length === 0 && <p className="text-xs text-gray-400 col-span-3">Aucune annonce active.</p>}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-2">Avis reçus</p>
+              <div className="space-y-2">
+                {data.reviews.map((rv) => (
+                  <div key={rv.id} className="bg-gray-50 rounded-xl p-3" data-testid={`seller-review-${rv.id}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-800">{rv.buyer_name}</span>
+                      <span className="flex items-center gap-0.5 text-xs text-amber-500">{[...Array(rv.rating)].map((_, i) => <Star key={i} size={11} weight="fill" />)}</span>
+                    </div>
+                    {rv.comment && <p className="text-xs text-gray-600 mt-1">{rv.comment}</p>}
+                  </div>
+                ))}
+                {data.reviews.length === 0 && <p className="text-xs text-gray-400">Pas encore d'avis.</p>}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

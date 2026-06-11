@@ -463,6 +463,34 @@ const Marketplace = () => {
         </div>
       )}
       <DigestPanel />
+      <SellerRepPanel />
+    </div>
+  );
+};
+
+// ===== Trusted-seller thresholds =====
+const SellerRepPanel = () => {
+  const [cfg, setCfg] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { studentAPI.mktAdminSellerConfig().then((r) => setCfg(r.data)).catch(() => {}); }, []);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await studentAPI.mktUpdateSellerConfig({ trusted_min_sales: Number(cfg.trusted_min_sales), trusted_min_rating: Number(cfg.trusted_min_rating) });
+      toast.success('Seuils enregistrés');
+    } catch { toast.error('Échec'); }
+    finally { setSaving(false); }
+  };
+  if (!cfg) return null;
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4" data-testid="admin-seller-rep">
+      <h3 className="font-bold text-slate-800 mb-3">Badge « Vendeur de confiance »</h3>
+      <div className="flex items-end gap-2 flex-wrap">
+        <Field label="Ventes min." value={cfg.trusted_min_sales} onChange={(v) => setCfg({ ...cfg, trusted_min_sales: v })} />
+        <Field label="Note min." step="0.1" value={cfg.trusted_min_rating} onChange={(v) => setCfg({ ...cfg, trusted_min_rating: v })} />
+        <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold disabled:opacity-50" data-testid="seller-rep-save">{saving ? '…' : 'Enregistrer'}</button>
+      </div>
+      <p className="text-xs text-slate-400 mt-2">Un vendeur obtient le badge à partir de {cfg.trusted_min_sales} ventes ET d'une note moyenne ≥ {cfg.trusted_min_rating}/5.</p>
     </div>
   );
 };
