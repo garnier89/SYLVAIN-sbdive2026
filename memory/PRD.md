@@ -1,4 +1,14 @@
-## NEW - 2026-06-11 (274) - ♿ SB Drive Access : DASHBOARD ADMIN complet + chauffeur certifié dans rappel J-1 (DONE, testé 6/6 pytest + frontend 100%)
+## NEW - 2026-06-11 (275) - ♿ Profil chauffeur certifié (photo + bio + formations) & 🟢 fix WhatsApp /course (DONE, testé 7/7 pytest + frontend 100%)
+- **Demande user (1 — bug prioritaire WhatsApp)** : retirer le GROS bouton « Réserver via WhatsApp » partout, garder seulement le petit badge WhatsApp sur les véhicules ; « je n'arrive pas à commander sur WhatsApp » (`api.whatsapp.com` bloqué sur mobile).
+  - Fix (`RideChoosePage.js`) : gros bouton `ride-choose-whatsapp-btn` SUPPRIMÉ du `renderCta`. Petit badge `vehicle-whatsapp-{slug}` conservé, transformé en bouton appelant `openWhatsApp` → **schéma `whatsapp://send?phone=&text=` sur mobile** (ouvre l'app directement, contourne le blocage `api.whatsapp.com` via `wa.me`), `wa.me` en repli desktop. `buildWaUrl` refactoré en `buildWaMsg` + `openWhatsApp`. Vérifié screenshot : gros bouton absent, badge présent, CTA = « Choisir SB ».
+- **Demande user (2 — enrichissement validé)** : admin upload photo + mini-bio + formations des chauffeurs certifiés, affichées à l'usager.
+  - Backend (`sb_access.py`) : `PUT /api/access/admin/drivers/{id}/profile` (access_photo/access_bio[600]/access_trainings[12]). `GET /drivers` renvoie ces champs. `_build_and_store_booking` enrichit le booking (`matched_driver_photo/bio/trainings`). Rappel J-1 inclut `driver_photo`.
+  - Frontend admin (`AdminAccess.js` onglet Chauffeurs) : éditeur inline photo (upload via `accessAPI.uploadImage` → `/api/uploads/image`), bio, formations (CSV). Frontend usager (`SbAccessPage.js` confirmation) : `certified-driver-card` avec photo/nom/bio/chips formations.
+- **Testé** : pytest `test_iter275_access_driver_profile.py` 7/7 + testing_agent iter275 frontend 100% (upload photo réel via UI + persistance, carte usager, suppression gros bouton WhatsApp + badge présent). AUCUN bug.
+- ⚠️ PREVIEW → redéploiement requis pour pousser en prod (https://gojek-mvp-1.emergent.host).
+
+
+
 - **Demande user (P2 initiale)** : contrôle admin sur catégories/tarifs PMR, zones, **Safe Ride Night entièrement paramétrable**, certification chauffeurs Access. + enrichir le rappel J-1 avec le chauffeur certifié pressenti.
 - **Frontend** : nouvelle page `pages/admin/AdminAccess.js` (route `/admin/access`, lien sidebar « SB Drive Access (PMR) » sous SERVICES) — 5 onglets : **Vue d'ensemble** (stats), **Catégories & tarifs** (CRUD complet : équipements, capacités, tarifs base/km/min/min_fare, zone, actif), **Réglages & Safe Ride Night** (module on/off, priorité chauffeurs certifiés, minutes assistance, zones de dispo, + Safe Ride Night : on/off, heures début/fin, modes, zones — tout paramétrable), **Chauffeurs Access** (certifier/retirer), **Réservations** (table). `ScopeEditor` réutilisable (pays/région/ville).
 - **Backend** : `_send_recurring_reminder` enrichi → cherche un chauffeur certifié Access et l'inclut dans la notif + email J-1 (« Votre chauffeur certifié X vous prendra en charge »). Endpoints admin existaient déjà dans `sb_access.py`.
