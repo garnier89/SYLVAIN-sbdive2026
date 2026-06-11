@@ -12,6 +12,7 @@ import {
   Plus, Minus, Trash, CheckCircle
 } from '@phosphor-icons/react';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
+import GooglePlacesInput from '../../components/GooglePlacesInput';
 import { toast } from 'sonner';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -243,12 +244,19 @@ const CheckoutPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Input
+            <GooglePlacesInput
               placeholder="Saisissez votre adresse de livraison"
               value={formData.delivery_address}
-              onChange={(e) => setFormData({ ...formData, delivery_address: e.target.value })}
-              data-testid="address-input"
+              testId="address-input"
+              onChange={(addr) => setFormData((f) => ({ ...f, delivery_address: addr }))}
+              onSelect={(loc) => setFormData((f) => ({
+                ...f,
+                delivery_address: loc.address,
+                delivery_lat: loc.lat,
+                delivery_lng: loc.lng,
+              }))}
             />
+            <p className="text-xs text-gray-400 mt-1.5">Commencez à taper puis choisissez une suggestion pour localiser précisément la livraison.</p>
           </CardContent>
         </Card>
 
@@ -436,7 +444,7 @@ const CheckoutPage = () => {
       </div>
 
       {/* Place Order Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t z-50">
         <div className="max-w-[430px] mx-auto">
           <Button
             className="w-full h-14 rounded-full text-white text-lg"

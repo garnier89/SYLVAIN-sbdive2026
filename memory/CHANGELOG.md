@@ -8,6 +8,9 @@ Audit complet (testing_agent iter266) suite au signalement utilisateur « beauco
 - **🍔 « Livraison repas ne fonctionne pas »** : la bannière `VerifyEmailBanner` (`fixed bottom-0 z-[60]`) **recouvrait la barre panier** (`z-50`) sur `RestaurantDetail` → bouton « Voir le panier »/checkout inaccessible. **Fix** : z-index bannière abaissé à `z-30` (les barres d'action fonctionnelles passent au-dessus). Vérifié : bouton « Voir le panier · N articles · X € » visible et cliquable.
 - Compte client de test ajouté : `capture.user@example.com` / `Capture123!`.
 
+### Correctif champ adresse checkout (« impossible de saisir l'adresse »)
+- **`CheckoutPage.js`** : le champ adresse était un `<Input>` texte basique **sans autocomplétion ni géocodage** (lat/lng restaient figées sur Paris). Remplacé par **`GooglePlacesInput`** (autocomplétion Google + géocodage → `delivery_lat/lng` réels), cohérent avec le flux course. Le bouton « Commander » (`fixed bottom-0`) recevait aucun z-index → ajout `z-50` pour passer au-dessus de la bannière email (`z-30`). Vérifié e2e sur la verticale Fleurs : adresse "10 Rue de Rivoli, 75004 Paris" → **commande passée et confirmée** (#f77e02, livraison 25-35 min). Verticales courses/vin/papeterie/matériaux partagent le même code.
+
 
 ## 2026-06-10 — Km GPS auto (rental) + bouton admin Seed/Reset démo [DONE, testé]
 
