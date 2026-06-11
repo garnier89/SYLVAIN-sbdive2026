@@ -863,6 +863,12 @@ export const accessAPI = {
   adminUpdateSettings: (data) => api.put('/access/admin/settings', data),
   adminDrivers: () => api.get('/access/admin/drivers'),
   adminCertifyDriver: (id, data) => api.post(`/access/admin/drivers/${id}/certify`, data),
+  adminUpdateDriverProfile: (id, data) => api.put(`/access/admin/drivers/${id}/profile`, data),
+  uploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   adminBookings: () => api.get('/access/admin/bookings'),
   adminStats: () => api.get('/access/admin/stats'),
 };

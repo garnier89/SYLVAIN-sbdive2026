@@ -305,9 +305,10 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
 
     # Priorité aux chauffeurs certifiés Access (matching simple Phase 1)
     matched = None
-    q = {"role": "driver", "access_certified": True}
     if settings.get("priority_certified_drivers", True):
-        matched = await db.users.find_one(q, {"_id": 0, "id": 1, "name": 1})
+        matched = await db.users.find_one(
+            {"role": "driver", "access_certified": True},
+            {"_id": 0, "id": 1, "name": 1, "access_photo": 1, "access_bio": 1, "access_trainings": 1})
 
     extra_time = bool(body.get("extra_assistance_time"))
     booking = {
@@ -329,6 +330,9 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
         "fare_estimate": fare,
         "matched_driver_id": matched["id"] if matched else None,
         "matched_driver_name": matched["name"] if matched else None,
+        "matched_driver_photo": matched.get("access_photo") if matched else None,
+        "matched_driver_bio": matched.get("access_bio") if matched else None,
+        "matched_driver_trainings": matched.get("access_trainings") if matched else [],
         "certified_driver": bool(matched),
         "status": "searching" if not matched else "assigned",
         "recurring_id": recurring_id,
@@ -561,16 +565,18 @@ async def _send_recurring_reminder(rec: dict, occ):
     # Chauffeur certifié pressenti
     settings = await _get_settings()
     driver_name = ""
+    driver_photo = ""
     if settings.get("priority_certified_drivers", True):
-        drv = await db.users.find_one({"role": "driver", "access_certified": True}, {"_id": 0, "name": 1})
+        drv = await db.users.find_one({"role": "driver", "access_certified": True}, {"_id": 0, "name": 1, "access_photo": 1})
         driver_name = (drv or {}).get("name", "")
+        driver_photo = (drv or {}).get("access_photo", "")
     driver_line = f" Votre chauffeur certifié {driver_name} vous prendra en charge." if driver_name else ""
     await create_notification(
         rec["user_id"], "access_recurring_reminder",
         "Trajet adapté de demain confirmé",
         f"Votre trajet adapté est prévu {when} ({pickup} → {dropoff}).{driver_line} Annulez en 1 tap si besoin.",
         data={"recurring_id": rec["id"], "occurrence": occ.strftime("%Y-%m-%d"), "action": "manage_recurring",
-              "driver_name": driver_name},
+              "driver_name": driver_name, "driver_photo": driver_photo},
     )
     email = (user or {}).get("email", "")
     if email and not email.endswith("@sbdrive.local"):
@@ -779,9 +785,35 @@ async def admin_list_drivers(request: Request):
     drivers = await db.users.find(
         {"role": "driver"},
         {"_id": 0, "id": 1, "name": 1, "phone": 1, "vehicle_type": 1,
-         "access_certified": 1, "access_certified_at": 1},
+         "access_certified": 1, "access_certified_at": 1,
+         "access_photo": 1, "access_bio": 1, "access_trainings": 1},
     ).sort("name", 1).to_list(500)
     return {"items": drivers}
+
+
+@admin_router.put("/drivers/{driver_id}/profile")
+async def admin_update_driver_profile(driver_id: str, request: Request):
+    """Photo + mini-bio + formations du chauffeur certifié (affichées à l'usager)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    update = {}
+    if "access_photo" in body:
+        update["access_photo"] = body.get("access_photo") or ""
+    if "access_bio" in body:
+        update["access_bio"] = (body.get("access_bio") or "")[:600]
+    if "access_trainings" in body:
+        tr = body.get("access_trainings") or []
+        update["access_trainings"] = [str(t).strip() for t in tr if str(t).strip()][:12]
+    if not update:
+        raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
+    res = await db.users.update_one({"id": driver_id, "role": "driver"}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Chauffeur introuvable")
+    doc = await db.users.find_one(
+        {"id": driver_id},
+        {"_id": 0, "id": 1, "name": 1, "phone": 1, "vehicle_type": 1, "access_certified": 1,
+         "access_certified_at": 1, "access_photo": 1, "access_bio": 1, "access_trainings": 1})
+    return doc
 
 
 @admin_router.post("/drivers/{driver_id}/certify")

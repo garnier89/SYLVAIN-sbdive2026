@@ -270,24 +270,81 @@ const Settings = () => {
 
 const Drivers = () => {
   const [items, setItems] = useState([]);
+  const [editId, setEditId] = useState(null);
+  const [draft, setDraft] = useState({ access_photo: '', access_bio: '', access_trainings: '' });
+  const [uploading, setUploading] = useState(false);
   const load = useCallback(() => { accessAPI.adminDrivers().then((r) => setItems(r.data.items || [])).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load]);
+
   const certify = async (id, approved) => {
     try { await accessAPI.adminCertifyDriver(id, { approved }); toast.success(approved ? 'Chauffeur certifié' : 'Certification retirée'); load(); }
     catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
   };
+  const openEdit = (d) => {
+    setEditId(d.id);
+    setDraft({ access_photo: d.access_photo || '', access_bio: d.access_bio || '', access_trainings: (d.access_trainings || []).join(', ') });
+  };
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploading(true);
+    try { const r = await accessAPI.uploadImage(file); setDraft((d) => ({ ...d, access_photo: r.data.url })); }
+    catch { toast.error("Échec de l'upload"); }
+    setUploading(false);
+  };
+  const saveProfile = async (id) => {
+    try {
+      await accessAPI.adminUpdateDriverProfile(id, {
+        access_photo: draft.access_photo,
+        access_bio: draft.access_bio,
+        access_trainings: draft.access_trainings.split(',').map((t) => t.trim()).filter(Boolean),
+      });
+      toast.success('Profil enregistré'); setEditId(null); load();
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+  };
+
   return (
     <div data-testid="admin-access-drivers" className="space-y-2">
       {items.length === 0 && <p className="text-slate-400 text-sm">Aucun chauffeur.</p>}
       {items.map((d) => (
-        <div key={d.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3" data-testid={`access-driver-${d.id}`}>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-slate-900">{d.name || 'Chauffeur'} {d.access_certified && <span className="ml-1 text-xs px-2 py-0.5 rounded-full text-white" style={{ background: NAVY }}>Certifié Access</span>}</p>
-            <p className="text-xs text-slate-500">{d.phone || '—'} · {d.vehicle_type || 'véhicule n/c'}</p>
+        <div key={d.id} className="bg-white border border-slate-200 rounded-xl p-4" data-testid={`access-driver-${d.id}`}>
+          <div className="flex items-center gap-3">
+            {d.access_photo
+              ? <img src={d.access_photo} alt={d.name} className="w-11 h-11 rounded-full object-cover shrink-0" data-testid={`access-driver-photo-${d.id}`} />
+              : <div className="w-11 h-11 rounded-full bg-slate-100 shrink-0" />}
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-slate-900">{d.name || 'Chauffeur'} {d.access_certified && <span className="ml-1 text-xs px-2 py-0.5 rounded-full text-white" style={{ background: NAVY }}>Certifié Access</span>}</p>
+              <p className="text-xs text-slate-500">{d.phone || '—'} · {d.vehicle_type || 'véhicule n/c'}</p>
+              {d.access_bio && <p className="text-xs text-slate-600 mt-1 line-clamp-2">{d.access_bio}</p>}
+              {(d.access_trainings || []).length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {d.access_trainings.map((t, i) => <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{t}</span>)}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5 shrink-0">
+              {d.access_certified
+                ? <button onClick={() => certify(d.id, false)} data-testid={`access-revoke-${d.id}`} className="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg">Retirer</button>
+                : <button onClick={() => certify(d.id, true)} data-testid={`access-certify-${d.id}`} className="px-3 py-1.5 text-xs font-bold text-white rounded-lg" style={{ background: NAVY }}>Certifier</button>}
+              <button onClick={() => openEdit(d)} data-testid={`access-edit-driver-${d.id}`} className="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg">Photo & bio</button>
+            </div>
           </div>
-          {d.access_certified
-            ? <button onClick={() => certify(d.id, false)} data-testid={`access-revoke-${d.id}`} className="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg">Retirer</button>
-            : <button onClick={() => certify(d.id, true)} data-testid={`access-certify-${d.id}`} className="px-3 py-1.5 text-xs font-bold text-white rounded-lg" style={{ background: NAVY }}>Certifier</button>}
+          {editId === d.id && (
+            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2" data-testid={`access-driver-edit-${d.id}`}>
+              <div className="flex items-center gap-3">
+                {draft.access_photo && <img src={draft.access_photo} alt="" className="w-14 h-14 rounded-full object-cover" />}
+                <label className="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg cursor-pointer">
+                  {uploading ? 'Envoi…' : 'Choisir une photo'}
+                  <input type="file" accept="image/*" className="hidden" onChange={onPhoto} data-testid={`access-driver-photo-input-${d.id}`} />
+                </label>
+              </div>
+              <Field label="Mini-bio (formation, expérience…)"><textarea className={inputCls} rows={2} value={draft.access_bio} onChange={(e) => setDraft({ ...draft, access_bio: e.target.value })} data-testid={`access-driver-bio-${d.id}`} /></Field>
+              <Field label="Formations / compétences (séparées par des virgules)"><input className={inputCls} placeholder="Langue des signes, Premiers secours, Aide PMR" value={draft.access_trainings} onChange={(e) => setDraft({ ...draft, access_trainings: e.target.value })} data-testid={`access-driver-trainings-${d.id}`} /></Field>
+              <div className="flex gap-2">
+                <button onClick={() => saveProfile(d.id)} data-testid={`access-driver-save-${d.id}`} className="px-4 py-2 text-xs font-bold text-white rounded-lg" style={{ background: NAVY }}>Enregistrer</button>
+                <button onClick={() => setEditId(null)} className="px-4 py-2 text-xs font-semibold border border-slate-300 rounded-lg">Annuler</button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>

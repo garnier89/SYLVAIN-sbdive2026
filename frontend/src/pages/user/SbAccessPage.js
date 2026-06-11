@@ -505,9 +505,22 @@ export default function SbAccessPage() {
                   {booking.extra_assistance_minutes > 0 && <Row k="Assistance" v={`+${booking.extra_assistance_minutes} min offertes`} />}
                   <div className="pt-2">
                     {booking.certified_driver ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-sm font-semibold" style={{ background: NAVY }} data-testid="certified-badge">
-                        <ShieldCheck size={16} weight="fill" /> Chauffeur Access certifié{booking.matched_driver_name ? ` · ${booking.matched_driver_name}` : ''}
-                      </span>
+                      <div className="rounded-xl p-3 flex items-center gap-3" style={{ background: '#fff', border: cardBorder }} data-testid="certified-driver-card">
+                        {booking.matched_driver_photo
+                          ? <img src={booking.matched_driver_photo} alt={booking.matched_driver_name || 'Chauffeur'} className="w-12 h-12 rounded-full object-cover shrink-0" data-testid="certified-driver-photo" />
+                          : <span className="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: NAVY }}><ShieldCheck size={22} weight="fill" /></span>}
+                        <div className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5 text-sm font-bold text-gray-900" data-testid="certified-badge">
+                            <ShieldCheck size={15} weight="fill" style={{ color: NAVY }} /> {booking.matched_driver_name || 'Chauffeur'} · Certifié Access
+                          </span>
+                          {booking.matched_driver_bio && <span className="block text-xs text-gray-600 mt-0.5">{booking.matched_driver_bio}</span>}
+                          {(booking.matched_driver_trainings || []).length > 0 && (
+                            <span className="flex flex-wrap gap-1 mt-1">
+                              {booking.matched_driver_trainings.map((t, i) => <span key={i} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: '#FFF3ED', color: NAVY }}>{t}</span>)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold" style={{ background: '#FFF3ED', color: NAVY }}>
                         <Clock size={16} weight="bold" /> Recherche d'un chauffeur certifié…

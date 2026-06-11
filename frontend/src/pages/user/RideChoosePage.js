@@ -725,12 +725,12 @@ const RideChoosePage = () => {
                   {badgeCfg.enabled && v.slug === bestSlug && (
                     <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide shrink-0 ${BADGE_COLOR_CLASSES[badgeCfg.color] || BADGE_COLOR_CLASSES.Vert}`} data-testid={`best-choice-${v.slug}`}>{badgeCfg.label}</span>
                   )}
-                  {cfg.whatsapp_enabled && cfg.whatsapp_number && v.allow_whatsapp_booking && (
-                    <a href={buildWaUrl(v.slug)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+                  {waActive && v.allow_whatsapp_booking && (
+                    <button type="button" onClick={(e) => openWhatsApp(v.slug, e)}
                       data-testid={`vehicle-whatsapp-${v.slug}`}
                       className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-[#25D366] text-white shrink-0 active:scale-95 transition-transform">
                       <WhatsappLogo size={11} weight="fill" /> WhatsApp
-                    </a>
+                    </button>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -819,12 +819,8 @@ const RideChoosePage = () => {
     );
   };
 
-  // Build a WhatsApp deep-link pre-filled with the current ride details, using the
-  // admin-configured number + message template (config taxi_booking). Returns null
-  // when WhatsApp booking is disabled or no number is set.
-  const buildWaUrl = (vehSlug) => {
-    const num = String(cfg.whatsapp_number || '').replace(/[^0-9]/g, '');
-    if (!cfg.whatsapp_enabled || !num) return null;
+  // Build the pre-filled WhatsApp message (admin-configured template) for a vehicle.
+  const buildWaMsg = (vehSlug) => {
     const slug = vehSlug || selected;
     const veh = effectiveVtypes.find((v) => v.slug === slug);
     const fare = slug ? estimates[slug]?.fare : null;
@@ -832,7 +828,7 @@ const RideChoosePage = () => {
     const when = (scheduleLater && scheduledAt)
       ? new Date(scheduledAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
       : 'Maintenant';
-    const msg = String(cfg.whatsapp_message_template || '')
+    return String(cfg.whatsapp_message_template || '')
       .replace(/{mode}/g, catName || mode.label || '')
       .replace(/{pickup}/g, pickup?.address || '—')
       .replace(/{dropoff}/g, dropoff?.address || '—')
@@ -840,8 +836,25 @@ const RideChoosePage = () => {
       .replace(/{price}/g, fare != null ? money(Number(fare)) : 'à confirmer')
       .replace(/{when}/g, when)
       .replace(/{payment}/g, payLabel || '—');
-    return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
   };
+
+  // Open WhatsApp pre-filled. On mobile we use the `whatsapp://` app scheme which
+  // opens the installed app directly (avoids the `wa.me` → api.whatsapp.com web
+  // redirect that some networks/devices block). On desktop we fall back to wa.me.
+  const openWhatsApp = (vehSlug, e) => {
+    if (e) e.stopPropagation();
+    const num = String(cfg.whatsapp_number || '').replace(/[^0-9]/g, '');
+    if (!cfg.whatsapp_enabled || !num) return;
+    const text = encodeURIComponent(buildWaMsg(vehSlug));
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (isMobile) {
+      window.location.href = `whatsapp://send?phone=${num}&text=${text}`;
+    } else {
+      window.open(`https://wa.me/${num}?text=${text}`, '_blank', 'noopener');
+    }
+  };
+
+  const waActive = !!(cfg.whatsapp_enabled && String(cfg.whatsapp_number || '').replace(/[^0-9]/g, ''));
 
   const renderCta = () => {
     const selName = effectiveVtypes.find((v) => v.slug === selected)?.name_fr || effectiveVtypes.find((v) => v.slug === selected)?.name;
@@ -852,22 +865,13 @@ const RideChoosePage = () => {
         : (showComparison && selName)
           ? `Choisir ${selName}`
           : `${mode.cta || 'Demander'}${displayPrice != null ? ` · ${money(Number(displayPrice))}` : ''}`;
-    const waUrl = buildWaUrl();
     return (
-      <>
-        <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error)) || (isBidding && !selected)}
-          className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
-          style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
-          <Lightning size={20} weight="fill" />
-          {label}
-        </button>
-        {waUrl && (
-          <a href={waUrl} target="_blank" rel="noreferrer" data-testid="ride-choose-whatsapp-btn"
-            className="mt-2 w-full py-3 rounded-xl font-bold text-base flex items-center justify-center gap-2 bg-[#25D366] text-white active:scale-[0.98] transition-transform">
-            <WhatsappLogo size={20} weight="fill" /> Réserver via WhatsApp
-          </a>
-        )}
-      </>
+      <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error)) || (isBidding && !selected)}
+        className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
+        style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
+        <Lightning size={20} weight="fill" />
+        {label}
+      </button>
     );
   };
 
