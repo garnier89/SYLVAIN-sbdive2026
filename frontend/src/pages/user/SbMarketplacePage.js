@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   CaretLeft, Storefront, MagnifyingGlass, Sparkle, Plus, X, Tag,
-  BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera, Star, Coins,
+  BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera, Star, Coins, Bell, MapPin,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,6 +35,7 @@ const SbMarketplacePage = () => {
   // sheets
   const [sellOpen, setSellOpen] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
 
   const loadListings = (cat = activeCat, override) => {
     setLoading(true);
@@ -74,9 +75,12 @@ const SbMarketplacePage = () => {
     <div className="mobile-container min-h-screen bg-[#F5F3FF] pb-24" data-testid="sb-marketplace-page">
       <div className="text-white px-4 pt-6 pb-8 rounded-b-3xl" style={{ background: `linear-gradient(135deg, ${BRAND}, #7C3AED)` }}>
         <button onClick={() => navigate('/sb-student')} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center mb-3" data-testid="mkt-back-btn"><CaretLeft size={20} /></button>
-        <div className="flex items-center gap-2">
-          <Storefront size={28} weight="fill" />
-          <h1 className="text-2xl font-black">Marketplace étudiante</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Storefront size={28} weight="fill" />
+            <h1 className="text-2xl font-black">Marketplace étudiante</h1>
+          </div>
+          <button onClick={() => setAlertsOpen(true)} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="mkt-alerts-btn"><Bell size={20} weight="fill" /></button>
         </div>
         <p className="text-white/80 text-sm mt-1">Achète & vends entre étudiants. Payé via ton SB Pay.</p>
       </div>
@@ -152,6 +156,7 @@ const SbMarketplacePage = () => {
 
       {detail && <DetailSheet listing={detail} meId={user?.id} onClose={() => setDetail(null)} onBought={() => { setDetail(null); loadListings(); }} onBoosted={() => { setDetail(null); loadListings(); }} />}
       {sellOpen && <SellSheet verified={verified} cats={cats} onClose={() => setSellOpen(false)} onCreated={() => { setSellOpen(false); loadListings(); }} navigate={navigate} />}
+      {alertsOpen && <AlertsSheet cats={cats} onClose={() => setAlertsOpen(false)} />}
     </div>
   );
 };
@@ -251,10 +256,12 @@ const BoostSheet = ({ listing, onClose, onBoosted }) => {
 };
 
 const SellSheet = ({ verified, cats, onClose, onCreated, navigate }) => {
-  const [form, setForm] = useState({ category: 'livres', title: '', condition: 'bon', price: '', description: '', location: '', image_url: null });
+  const [form, setForm] = useState({ category: 'livres', title: '', condition: 'bon', price: '', description: '', location: '', image_url: null, zone_id: '' });
+  const [zones, setZones] = useState([]);
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  useEffect(() => { studentAPI.campusZones().then((r) => setZones(r.data.zones || [])).catch(() => {}); }, []);
 
   const aiSuggest = async () => {
     if (!form.title.trim()) return toast.error('Donnez d\'abord un titre');
@@ -341,12 +348,85 @@ const SellSheet = ({ verified, cats, onClose, onCreated, navigate }) => {
             <input value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Lieu (ex. Campus Schœlcher)"
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none" data-testid="mkt-sell-location" />
 
+            <div>
+              <label className="text-xs font-semibold text-gray-500 flex items-center gap-1"><MapPin size={13} /> Zone campus (alerte les étudiants à proximité)</label>
+              <select value={form.zone_id} onChange={(e) => set('zone_id', e.target.value)} className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none bg-white" data-testid="mkt-sell-zone">
+                <option value="">Aucune zone</option>
+                {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
+              </select>
+            </div>
+
             <button onClick={pickImage} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-600" data-testid="mkt-sell-image">
               <Camera size={18} /> {form.image_url ? 'Photo ajoutée ✓ — changer' : 'Ajouter une photo (optionnel)'}
             </button>
 
             <button onClick={submit} disabled={busy} className="w-full py-3.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: BRAND }} data-testid="mkt-sell-submit">
               {busy ? 'Publication…' : 'Publier l\'annonce'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AlertsSheet = ({ cats, onClose }) => {
+  const [prefs, setPrefs] = useState(null);
+  const [zones, setZones] = useState([]);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    studentAPI.mktAlerts().then((r) => setPrefs(r.data)).catch(() => {});
+    studentAPI.campusZones().then((r) => setZones(r.data.zones || [])).catch(() => {});
+  }, []);
+  const toggleCat = (slug) => setPrefs((p) => ({ ...p, categories: p.categories.includes(slug) ? p.categories.filter((c) => c !== slug) : [...p.categories, slug] }));
+  const toggleZone = (id) => setPrefs((p) => ({ ...p, zone_ids: p.zone_ids.includes(id) ? p.zone_ids.filter((z) => z !== id) : [...p.zone_ids, id] }));
+  const save = async () => {
+    setBusy(true);
+    try {
+      await studentAPI.mktUpdateAlerts({ enabled: prefs.enabled, categories: prefs.categories, zone_ids: prefs.zone_ids });
+      toast.success('Préférences enregistrées');
+      onClose();
+    } catch { toast.error('Échec'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-40 flex items-end bg-black/40" onClick={onClose} data-testid="mkt-alerts-sheet">
+      <div className="w-full bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 className="font-black text-gray-900 flex items-center gap-1.5"><Bell size={18} weight="fill" style={{ color: BRAND }} /> Alertes bonnes affaires</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+        </div>
+        {!prefs ? <div className="p-6 text-gray-400 text-sm">Chargement…</div> : (
+          <div className="p-4 space-y-4">
+            <label className="flex items-center justify-between bg-violet-50 rounded-xl px-3 py-3" data-testid="alerts-enabled">
+              <span className="text-sm font-semibold text-gray-800">M'alerter des nouvelles annonces près de mon campus</span>
+              <input type="checkbox" checked={!!prefs.enabled} onChange={(e) => setPrefs({ ...prefs, enabled: e.target.checked })} className="w-5 h-5 accent-violet-600" />
+            </label>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 mb-2">Catégories suivies <span className="text-gray-400">(aucune sélection = toutes)</span></p>
+              <div className="flex flex-wrap gap-2">
+                {cats.map((c) => {
+                  const on = prefs.categories.includes(c.slug);
+                  return <button key={c.slug} onClick={() => toggleCat(c.slug)} data-testid={`alerts-cat-${c.slug}`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? 'text-white' : 'text-gray-600 bg-white border-gray-200'}`}
+                    style={on ? { background: BRAND, borderColor: BRAND } : {}}>{c.label}</button>;
+                })}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 mb-2">Campus suivis <span className="text-gray-400">(aucune sélection = tous)</span></p>
+              <div className="space-y-1.5">
+                {zones.length === 0 && <p className="text-xs text-gray-400">Aucune zone campus configurée.</p>}
+                {zones.map((z) => {
+                  const on = prefs.zone_ids.includes(z.id);
+                  return <label key={z.id} className="flex items-center gap-2 text-sm text-gray-700" data-testid={`alerts-zone-${z.id}`}>
+                    <input type="checkbox" checked={on} onChange={() => toggleZone(z.id)} className="w-4 h-4 accent-violet-600" /> {z.name}
+                  </label>;
+                })}
+              </div>
+            </div>
+            <button onClick={save} disabled={busy} className="w-full py-3.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: BRAND }} data-testid="alerts-save">
+              {busy ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
         )}

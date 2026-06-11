@@ -1,0 +1,44 @@
+{
+  "summary": "Iter259 — Phase 6 'Bonne affaire près de ton campus' deal-alerts FRONTEND e2e validated on mobile 390x844 with test2@example.com (cookie email login). FULL FLOW PASS: (1) /sb-student/marketplace loads sb-marketplace-page; bell button mkt-alerts-btn present in header. (2) Tap bell → mkt-alerts-sheet opens; alerts-enabled toggle present (default checked=true → matches backend default 'enabled-by-default'); 5 category chips rendered (alerts-cat-livres / alerts-cat-logement / alerts-cat-coloc / alerts-cat-materiel / alerts-cat-services); 1 campus checkbox rendered (alerts-zone-cz_277b89f0 'Test Campus') — matches the seeded admin zone. (3) Toggled alerts-cat-livres ON (bg switched from white to #5b21b6 violet) + checked alerts-zone-cz_277b89f0 → alerts-save clicked → toast 'Préférences enregistrées' shown + sheet auto-closed. (4) Re-opened bell → both selections persisted (livres still violet, Test Campus still checked) — PUT /api/student/marketplace/alerts/me persistence confirmed via re-fetch on GET /alerts/me. (5) Sell sheet (mkt-sell-fab → mkt-sell-sheet) opened; mkt-sell-zone <select> populated with options ['Aucune zone' empty val, 'Test Campus' val=cz_277b89f0]. Filled title='TEST_iter259_alerts_<ts>' + price=9 + selected zone Test Campus → mkt-sell-submit → sheet closed, no UI errors, new card visible in grid. Cross-user in-app notification delivery is backend-proven (per request note), front side confirms publishing with zone succeeds.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Global 'Vérifiez votre email' banner (recurring)",
+        "issue": "Fixed-bottom email-verify banner still overlaps mkt-sell-fab and mkt-alerts-btn area on 390x844 — real .click() can be intercepted; bypassed via JS document.querySelector(...).click() in tests. Same issue documented in iter257/iter258. Not blocking but recommend raising z-index of mkt-sell-fab/mkt-alerts-btn above the banner or moving the banner.",
+        "selector": "[data-testid=\"mkt-sell-fab\"], [data-testid=\"mkt-alerts-btn\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_258.json",
+    "/app/test_reports/iteration_257.json"
+  ],
+  "action_items": [
+    "(Mineur, repris de iter257/iter258) Élever z-index du mkt-sell-fab + mkt-alerts-btn ou repositionner la bannière 'Vérifiez votre email' pour éviter l'interception du tap sur mobile.",
+    "(Optionnel UX) Afficher dans AlertsSheet un sous-titre quand 'aucune sélection = tous' est actif → utile pour rappeler à l'utilisateur que sans coche, il reçoit toutes les catégories/zones (déjà mentionné dans le label gris). RAS code-side."
+  ],
+  "critical_code_review_comments": [
+    "SbMarketplacePage.js — AlertsSheet (~65 lignes) propre, double useEffect (mktAlerts + campusZones) en parallèle, gestion d'erreur silencieuse via .catch(() => {}). OK pour MVP. Considerer afficher un message si les zones campus sont vides ('Aucune zone configurée' déjà géré).",
+    "AlertsSheet : toggleCat/toggleZone utilisent setPrefs((p) => ({ ...p, ... })) — bonne pratique React (functional updater). enabled est piloté par checkbox controlé via setPrefs({ ...prefs, enabled }) — non functional updater mais OK car single source.",
+    "studentAPI.mktAlerts() retourne le doc avec defaults backend (enabled=true, categories=[], zone_ids=[]) — confirmé en frontend : alerts-enabled.checked=true au premier ouverture sans persist préalable. Excellent.",
+    "mkt-sell-zone : select natif HTML — cohérent avec le reste du formulaire Sell (input/textarea natifs). Sur mobile iOS le picker natif est UX-friendly. OK.",
+    "BACKWARD COMPAT: l'ancienne publication sans zone reste possible (option 'Aucune zone' val='' → backend resout zone_id=null → pas de _notify_campus_deal). Confirmé visuellement.",
+    "Pas de loading state visible pendant le PUT /alerts/me (busy state existe sur le bouton 'Enregistrement…' uniquement). OK.",
+    "Z-index : mkt-alerts-sheet est z-40, mkt-sell-sheet est aussi z-40 — si jamais les deux s'ouvrent en parallèle, conflit possible (mais flux UI exclusif → OK)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (déjà 9/9 pytest selon main agent)",
+    "frontend": "100% — tous les data-testid demandés présents et fonctionnels (mkt-alerts-btn, mkt-alerts-sheet, alerts-enabled, alerts-cat-livres/logement/coloc/materiel/services, alerts-zone-cz_277b89f0, alerts-save, mkt-sell-zone). Toast 'Préférences enregistrées' OK. Persistance OK. Publication avec zone OK."
+  },
+  "test_credentials": "test2@example.com / TestPass123! (étudiant vérifié). Login email via /login → 'Ou choisir une autre option de connexion' → 'Email & mot de passe' (cookie-based).",
+  "seed_data_creation": "1 annonce TEST_iter259_alerts_<ts> publiée avec zone_id=cz_277b89f0 (Test Campus). Prefs alerts ajustées pour test2 (categories=['livres'], zone_ids=['cz_277b89f0'], enabled=true). Aucune donnée prod modifiée — préfixe TEST_iter259 facilement nettoyable.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 'Bonne affaire près de ton campus' validée 100% côté frontend pour test2@example.com sur mobile 390x844. Pour une couverture cross-user UI, créer un 2e étudiant vérifié à la volée et observer la bell-notification 'Bonne affaire près de …' dans le composant header notifications (endpoint /api/drivers/my-notifications, type='student_deal') — non testé ici car le backend l'a validé via pytest (9/9). Bug UI récurrent : bannière email-verify intercepte les CTAs marketplace en bas — à fixer côté layout global.",
+  "rca of the issue": "Aucun bug bloquant détecté. Tout le flux alertes + zone-tagging fonctionne tel qu'attendu. Seul point récurrent (iter257+iter258+iter259) : la bannière 'Vérifiez votre email' fixed-bottom intercepte mkt-sell-fab et potentiellement mkt-alerts-btn sur mobile. Mitigation testée : document.querySelector(...).click() en bypass JS. Solution code recommandée : z-index:60 sur le FAB et le header bell, ou repositionnement de la bannière en haut."
+}

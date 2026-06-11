@@ -803,6 +803,8 @@ export const studentAPI = {
   mktAdminBoostConfig: () => api.get('/student/marketplace/admin/boost/config'),
   mktAdminUpdateBoostConfig: (data) => api.put('/student/marketplace/admin/boost/config', data),
   mktAdminBoostRevenue: () => api.get('/student/marketplace/admin/boost/revenue'),
+  mktAlerts: () => api.get('/student/marketplace/alerts/me'),
+  mktUpdateAlerts: (data) => api.put('/student/marketplace/alerts/me', data),
   mktUploadImage: (file) => {
     const fd = new FormData();
     fd.append('file', file);

@@ -133,11 +133,96 @@ def _parse_json(raw: str) -> dict:
         return {}
 
 
+# ======================= CAMPUS DEAL ALERTS =======================
+DEFAULT_ALERT = {"enabled": True, "categories": [], "zone_ids": []}
+
+
+async def get_alert_prefs(user_id: str) -> dict:
+    """Return the student's deal-alert prefs, creating an enabled-by-default doc
+    on first access (the 'automatic' behaviour: all categories, all campuses)."""
+    rec = await db.student_market_alerts.find_one({"user_id": user_id}, {"_id": 0})
+    if not rec:
+        rec = {"user_id": user_id, **DEFAULT_ALERT, "created_at": _now()}
+        await db.student_market_alerts.insert_one(dict(rec))
+        rec.pop("_id", None)
+    return rec
+
+
+async def _notify_campus_deal(listing: dict) -> None:
+    """Notify students who follow this category near this campus zone. NEVER raises."""
+    try:
+        zone_id = listing.get("zone_id")
+        if not zone_id:
+            return  # only campus-tagged listings trigger 'near your campus' alerts
+        cat = listing.get("category")
+        q = {
+            "enabled": {"$ne": False},
+            "user_id": {"$ne": listing["user_id"]},
+            "$and": [
+                {"$or": [{"categories": []}, {"categories": cat}]},
+                {"$or": [{"zone_ids": []}, {"zone_ids": zone_id}]},
+            ],
+        }
+        recipients = await db.student_market_alerts.find(q, {"_id": 0, "user_id": 1}).limit(500).to_list(500)
+        if not recipients:
+            return
+        cat_label = CATEGORY_LABELS.get(cat, cat)
+        zone_name = listing.get("zone_name") or "ton campus"
+        title = f"Bonne affaire près de {zone_name} 🎓"
+        body = f"{cat_label} · {listing['title']} — {float(listing['price']):.2f} €"
+        payload = {"type": "student_deal", "title": title, "body": body,
+                   "data": {"listing_id": listing["id"], "category": cat, "url": "/sb-student/marketplace"}}
+        from core.webpush import send_web_push_to_user
+        for r in recipients:
+            uid = r.get("user_id")
+            if not uid:
+                continue
+            await create_notification(uid, "student_deal", title, body,
+                                      data={"listing_id": listing["id"], "category": cat,
+                                            "zone_id": zone_id, "url": "/sb-student/marketplace"})
+            try:
+                await send_web_push_to_user(uid, payload)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+
 # ======================= CATEGORIES =======================
 @router.get("/categories")
 async def categories(request: Request):
     await get_current_user(request)
     return {"categories": CATEGORIES, "conditions": sorted(CONDITIONS)}
+
+
+@router.get("/alerts/me")
+async def get_my_alerts(request: Request):
+    user = await get_current_user(request)
+    return await get_alert_prefs(user["id"])
+
+
+class AlertPrefs(BaseModel):
+    enabled: bool | None = None
+    categories: list[str] | None = None
+    zone_ids: list[str] | None = None
+
+
+@router.put("/alerts/me")
+async def update_my_alerts(body: AlertPrefs, request: Request):
+    user = await get_current_user(request)
+    await get_alert_prefs(user["id"])
+    update = {}
+    if body.enabled is not None:
+        update["enabled"] = bool(body.enabled)
+    if body.categories is not None:
+        update["categories"] = [c for c in body.categories if c in CATEGORY_SLUGS]
+    if body.zone_ids is not None:
+        update["zone_ids"] = list(dict.fromkeys([z for z in body.zone_ids if z]))[:50]
+    if update:
+        update["updated_at"] = _now()
+        await db.student_market_alerts.update_one({"user_id": user["id"]}, {"$set": update})
+    return await get_alert_prefs(user["id"])
 
 
 # ======================= LISTINGS =======================
@@ -150,6 +235,7 @@ def _public_listing(l: dict) -> dict:
         "image_url": l.get("image_url"), "location": l.get("location"), "status": l.get("status"),
         "views": l.get("views", 0), "created_at": l.get("created_at"),
         "boosted": _is_boosted(l), "boosted_until": l.get("boosted_until"),
+        "zone_id": l.get("zone_id"), "zone_name": l.get("zone_name"),
     }
 
 
@@ -199,6 +285,26 @@ class ListingCreate(BaseModel):
     condition: str = "bon"
     image_url: str | None = None
     location: str | None = ""
+    zone_id: str | None = None
+    lat: float | None = None
+    lng: float | None = None
+
+
+async def _resolve_zone(zone_id: str | None, lat, lng):
+    """Resolve the campus zone for a listing: explicit zone_id wins, else geolocate via haversine."""
+    try:
+        if zone_id:
+            z = await db.campus_zones.find_one({"id": zone_id, "enabled": True}, {"_id": 0})
+            if z:
+                return z.get("id"), z.get("name"), z.get("lat"), z.get("lng")
+        if lat is not None and lng is not None:
+            from routes.student_zones import find_campus_zone
+            z = await find_campus_zone(lat, lng)
+            if z:
+                return z.get("id"), z.get("name"), float(lat), float(lng)
+    except Exception:
+        pass
+    return None, None, (float(lat) if lat is not None else None), (float(lng) if lng is not None else None)
 
 
 @router.post("/listings")
@@ -214,6 +320,7 @@ async def create_listing(body: ListingCreate, request: Request):
     if body.price is None or body.price < 0:
         raise HTTPException(status_code=400, detail="Prix invalide")
     condition = body.condition if body.condition in CONDITIONS else "bon"
+    zone_id, zone_name, zlat, zlng = await _resolve_zone(body.zone_id, body.lat, body.lng)
     listing = {
         "id": f"slist_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"], "seller_name": user.get("name", "Étudiant"),
@@ -223,9 +330,11 @@ async def create_listing(body: ListingCreate, request: Request):
         "price": round(float(body.price), 2), "currency": "EUR",
         "condition": condition, "image_url": (body.image_url or None),
         "location": (body.location or "").strip()[:120],
+        "zone_id": zone_id, "zone_name": zone_name, "lat": zlat, "lng": zlng,
         "status": "active", "views": 0, "created_at": _now(),
     }
     await db.student_listings.insert_one(dict(listing))
+    await _notify_campus_deal(listing)
     return {"ok": True, "listing": _public_listing(listing)}
 
 
