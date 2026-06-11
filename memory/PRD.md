@@ -1,3 +1,14 @@
+## NEW - 2026-06-11 (284) - 🏍️ Moto : Location avec chauffeur + Moto-Taxi (Phases 1&2, DONE, testé frontend 4/4 + pytest 2/2)
+- **Demande user** : développer Moto-Taxi (tarif, dispatch moto, sécurité) + location moto avec chauffeur (forfaits moto dédiés) + self-drive (Phase 3 à venir).
+- **Phase 1 — Location moto AVEC chauffeur** : forfaits moto dédiés branchés au flux réel.
+  - Backend `taxi_extra.py` : seed de 4 forfaits moto (`db.rental_packages`, vehicle_type='moto' : 1h/15km/12€, 2h/30km/22€, 4h/60km/40€, Journée 8h/120km/75€) + champs `label`/`extra_hour_rate`/`extra_km_rate`/`with_driver`. `rides.py` bloc rental : résout le forfait par `db.rental_packages` (id) puis repli sur la config plate `taxi_configs` → corrige l'incohérence (moto avait les forfaits voiture). `estimated_fare` = prix du forfait.
+  - Frontend `RideChoosePage.js` : charge les forfaits du véhicule du mode (`configAPI.getRentalPackages(mode.vehicle)`), affiche les forfaits véhicule si présents (sinon RENTAL_PACKAGES), prix + payload (`rental_package`=id). `configAPI.getRentalPackages` ajouté. Régression location voiture OK.
+- **Phase 2 — Moto-Taxi** : tarif moto déjà configurable (vehicle_types : base 1€, /km 0.8€, min 5€). Dispatch : isolation deux-roues (`auto_dispatch._vehicle_compatible` + `rides._vehicle_exclude_set`) → une course moto n'est offerte qu'aux chauffeurs moto, et les courses voiture n'arrivent jamais aux motos (voiture↔voiture reste flexible). Carte sécurité Moto-Taxi (casque fourni, 1 passager, bagage à main).
+- **Testé** : testing_agent iter283 frontend 4/4 PASS (forfaits moto, prix 40€, carte sécurité, régression voiture 36€) + pytest `test_iter283_moto.py` 2/2 + curl e2e.
+- **Phase 3 — Location moto self-drive (libre-service)** : NON commencée (module conséquent : caution, permis, état des lieux, restitution, assurance). À cadrer avec l'utilisateur.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-11 (283) - 💰 SB Access Plus — bandeau d'upsell dynamique (enhancement, DONE, testé frontend 3/3)
 - **Demande user** : levier de conversion Access Plus au moment du paiement pour les non-abonnés.
 - **Backend** (`_build_and_store_booking`) : pour un usager non-abonné, calcule `plus_upsell` = {discount_pct (meilleure formule), would_pay, current_fare, plan_id, plan_name}.
