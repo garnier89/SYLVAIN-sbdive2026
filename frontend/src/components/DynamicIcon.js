@@ -43,4 +43,23 @@ const DynamicIcon = ({ name, imageUrl, size = 28, weight = 'duotone', className 
   return <Cmp size={size} weight={weight} className={className} />;
 };
 
+// True when a service-category `icon` value is an uploaded image rather than an emoji.
+export const isImgIcon = (s) =>
+  typeof s === 'string' && (s.startsWith('http') || s.startsWith('data:') || s.startsWith('/api/'));
+
+/**
+ * CategoryGlyph — renders a service-category icon set from the admin dashboard.
+ * Supports an uploaded image (base64 / url / /api/) OR an emoji string, and
+ * falls back to a Phosphor component when no custom icon is defined.
+ */
+export const CategoryGlyph = ({ icon, Fallback, size = 24, weight = 'duotone', className = '' }) => {
+  if (isImgIcon(icon)) {
+    return <img src={resolveImageUrl(icon)} alt="" style={{ width: size, height: size, objectFit: 'contain' }} className={className} />;
+  }
+  if (typeof icon === 'string' && icon.trim()) {
+    return <span style={{ fontSize: size, lineHeight: 1 }} className={className}>{icon.trim()}</span>;
+  }
+  return Fallback ? <Fallback size={size} weight={weight} className={className} /> : <GridFour size={size} weight={weight} className={className} />;
+};
+
 export default DynamicIcon;

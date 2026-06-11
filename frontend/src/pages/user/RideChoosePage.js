@@ -23,7 +23,7 @@ import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import RideRouteMap from '../../components/RideRouteMap';
 import StudentPromoBanner from '../../components/StudentPromoBanner';
-import DynamicIcon from '../../components/DynamicIcon';
+import DynamicIcon, { CategoryGlyph } from '../../components/DynamicIcon';
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI, debtsAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 import { getGeocoder } from '../../lib/googleMaps';
@@ -955,7 +955,9 @@ const RideChoosePage = () => {
           </div>
         </div>
         <div className="mt-2 inline-flex items-center gap-2 bg-white/15 border border-white/25 rounded-full px-3 py-1" data-testid="ride-choose-mode-chip">
-          {modeCms ? (
+          {activeCat?.icon ? (
+            <CategoryGlyph icon={activeCat.icon} Fallback={ModeIcon} size={15} className="text-white" />
+          ) : modeCms ? (
             <DynamicIcon name={modeCms.icon_name} imageUrl={modeCms.image_url} size={15} weight="duotone" className="text-white" />
           ) : (
             <ModeIcon size={15} weight="duotone" className="text-white" />

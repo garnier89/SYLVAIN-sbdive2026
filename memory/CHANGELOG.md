@@ -8,7 +8,11 @@ Audit complet (testing_agent iter266) suite au signalement utilisateur « beauco
 - **🍔 « Livraison repas ne fonctionne pas »** : la bannière `VerifyEmailBanner` (`fixed bottom-0 z-[60]`) **recouvrait la barre panier** (`z-50`) sur `RestaurantDetail` → bouton « Voir le panier »/checkout inaccessible. **Fix** : z-index bannière abaissé à `z-30` (les barres d'action fonctionnelles passent au-dessus). Vérifié : bouton « Voir le panier · N articles · X € » visible et cliquable.
 - Compte client de test ajouté : `capture.user@example.com` / `Capture123!`.
 
-### Correctif champ adresse checkout (« impossible de saisir l'adresse »)
+### Icônes catégories Taxi pilotées par le dashboard (demande utilisateur)
+- Les icônes des vignettes Taxi (Taxi VTC, Pool, Moto, Électric, Aéroport…) étaient **codées en dur** (`TAXI_VISUAL`/`MODES`) — un commentaire forçait l'icône Phosphor et ignorait l'icône admin. Or les catégories avaient déjà des icônes définies dans `/admin/service-categories` (`service_categories.icon` : images base64/url ou emojis) qui ne s'affichaient QUE dans l'admin.
+- **Fix** : nouveau composant partagé `CategoryGlyph` (+ `isImgIcon`) dans `DynamicIcon.js` qui rend image (base64/url/`/api/`) OU emoji, avec fallback sur l'icône Phosphor codée en dur si aucune icône. Câblé sur 2 surfaces : accueil « Services Taxi » (`UserHome.js` — `Visual` + tuiles `customIcon: c.icon`) et page `/course` (`RideChoosePage.js` — puce de mode priorise `activeCat.icon`). Vérifié e2e : tuiles accueil affichent les voitures uploadées + emoji ✈️ ; `/course` affiche l'icône de la catégorie.
+- **Où remplacer** : Menu admin → Taxi / Transport → **Gérer les catégories** (`/admin/service-categories`) → éditer une catégorie → champ icône (emoji ou image téléversée) → Enregistrer.
+
 - **`CheckoutPage.js`** : le champ adresse était un `<Input>` texte basique **sans autocomplétion ni géocodage** (lat/lng restaient figées sur Paris). Remplacé par **`GooglePlacesInput`** (autocomplétion Google + géocodage → `delivery_lat/lng` réels), cohérent avec le flux course. Le bouton « Commander » (`fixed bottom-0`) recevait aucun z-index → ajout `z-50` pour passer au-dessus de la bannière email (`z-30`). Vérifié e2e sur la verticale Fleurs : adresse "10 Rue de Rivoli, 75004 Paris" → **commande passée et confirmée** (#f77e02, livraison 25-35 min). Verticales courses/vin/papeterie/matériaux partagent le même code.
 
 

@@ -8,7 +8,7 @@ import SearchOverlay from '../../components/SearchOverlay';
 import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import { useLocale } from '../../contexts/LocaleContext';
-import DynamicIcon from '../../components/DynamicIcon';
+import DynamicIcon, { CategoryGlyph } from '../../components/DynamicIcon';
 import DebtBanner from '../../components/DebtBanner';
 import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
@@ -53,6 +53,11 @@ const MoreSquares = () => (
 
 const Visual = ({ service, size = 34 }) => {
   if ((service.id || '').includes('more')) return <MoreSquares />;
+  // Taxi tiles: render the dashboard-defined category icon (image or emoji),
+  // falling back to the hardcoded Phosphor icon when none is set.
+  if (service.customIcon) {
+    return <CategoryGlyph icon={service.customIcon} Fallback={service.icon} size={size} className={service.iconColor} />;
+  }
   if (service.iconName || service.imageUrl) {
     return <DynamicIcon name={service.iconName} imageUrl={service.imageUrl} size={size} className={service.iconColor} />;
   }
@@ -312,9 +317,8 @@ const UserHome = () => {
     if (!home.length) home = active.slice(0, 7);
     const tiles = home.map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
-      // Home taxi tiles always use the clean Phosphor icon (not the uploaded photo)
-      // for a consistent, icon-based look across the app.
-      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
+      // Dashboard-defined icon (image/emoji) drives the tile; v.icon is the fallback.
+      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
     });
     tiles.push({ id: 'more-taxi', name: 'Tous les\nTaxis', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi' });
     return tiles;
