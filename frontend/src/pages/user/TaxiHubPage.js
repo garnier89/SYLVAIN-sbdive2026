@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, MapPin, FlagCheckered, Clock, MapTrifold, CalendarPlus,
   UserPlus, Briefcase, Lightning, Plus, Bell, UsersThree,
-  House, NavigationArrow, Pencil, CaretRight, X, Tag,
+  House, NavigationArrow, Pencil, CaretRight, X, Tag, Wheelchair,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import MapLocationPicker from '../../components/MapLocationPicker';
@@ -473,6 +473,23 @@ const TaxiHubPage = () => {
       </div>
 
       {/* ===== GRID VIEW — only when choosing a service ("Plus de Services") ===== */}
+      {view === 'grid' && (
+        <button
+          onClick={() => navigate('/access')}
+          data-testid="taxi-hub-access-entry"
+          className="mx-4 mb-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform"
+          style={{ background: 'linear-gradient(135deg, #0A2540, #14457a)' }}
+        >
+          <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <Wheelchair size={22} weight="fill" className="text-white" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-white font-black text-sm block leading-tight">SB Drive Access ♿</span>
+            <span className="text-white/85 text-xs block leading-tight">Transport adapté PMR · chauffeurs certifiés</span>
+          </span>
+          <CaretRight size={18} className="text-white shrink-0" />
+        </button>
+      )}
       {view === 'grid' && <TaxiModeGrid catConfig={catConfig} onSelect={selectMode} remindedKeys={remindedKeys} onToggleRemind={toggleRemind} onPublicTransport={() => navigate('/transport-public')} />}
 
       {/* ===== BOOKING VIEW — "Planifiez votre trajet" (no other services shown) ===== */}

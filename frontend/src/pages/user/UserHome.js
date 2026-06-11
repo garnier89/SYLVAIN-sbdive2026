@@ -29,7 +29,7 @@ import {
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
   Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
-  GraduationCap, Storefront,
+  GraduationCap, Storefront, Wheelchair,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -708,7 +708,22 @@ const UserHome = () => {
         </span>
         <CaretRight size={18} className="text-white shrink-0" />
       </button>
-      {/* Désactivé à la demande : bannière grève (mettre true pour réactiver) */}
+      {/* SB Drive Access — transport adapté PMR / handicap (toujours visible) */}
+      <button
+        onClick={() => navigate('/access')}
+        data-testid="home-sb-access-entry"
+        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0A2540, #14457a)' }}
+      >
+        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+          <Wheelchair size={22} weight="fill" className="text-white" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="text-white font-black text-sm block leading-tight">SB Drive Access ♿</span>
+          <span className="text-white/85 text-xs block leading-tight">Transport adapté, chauffeurs certifiés, assistance</span>
+        </span>
+        <CaretRight size={18} className="text-white shrink-0" />
+      </button>
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 
       {/* Referral progress nudge — reminds the referred user how close their reward is */}

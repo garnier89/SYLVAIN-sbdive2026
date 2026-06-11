@@ -21,6 +21,7 @@ export const LandingPage = lazy(() => import('../pages/LandingPage'));
 // SB Drive Client Pages
 export const ClientWelcome = lazy(() => import('../pages/client/ClientWelcome'));
 export const UserHome = lazyWithPreload(() => import('../pages/user/UserHome'));
+export const SbAccessPage = lazy(() => import('../pages/user/SbAccessPage'));
 export const RideBookingPage = lazy(() => import('../pages/user/RideBookingPage'));
 export const RideChoosePage = lazyWithPreload(() => import('../pages/user/RideChoosePage'));
 export const RideTrackingPage = lazyWithPreload(() => import('../pages/user/RideTrackingPage'));
