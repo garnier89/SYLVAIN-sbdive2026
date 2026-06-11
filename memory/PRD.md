@@ -1,3 +1,18 @@
+## NEW - 2026-06-11 (285) - 🏍️ Moto Phase 3 : Location LIBRE-SERVICE (self-drive) (DONE, testé frontend 6/6 + pytest 2/2)
+- **Demande user (défauts validés)** : louer une moto et la conduire soi-même. Paiement SB Pay, caution indicative (non débitée au MVP), permis validé manuellement par l'admin, flotte interne admin.
+- **Backend** nouveau `routes/moto_rental.py` (collections `moto_fleet`, `moto_self_rentals`) :
+  - Flotte : `seed_moto_fleet` (3 motos démo), CRUD admin (`/moto-rental/admin/fleet`), liste/détail user.
+  - Devis `/moto-rental/quote` (jours pleins au tarif/jour + heures restantes au tarif/heure, plafonné au tarif/jour).
+  - Réservation `/moto-rental/book` : exige permis + pièce d'identité, débite SB Pay, status `pending_license`, réserve la moto, notifie admins. `/my`, `/cancel` (remboursement).
+  - Admin `/rentals` + `/rentals/{id}/license` (approve → `awaiting_pickup` ; reject → `rejected` + remboursement + libère la moto).
+  - Cycle : pending_license → awaiting_pickup → active → returned (remise/restitution photos = Phase 3b à venir).
+  - Routers enregistrés dans `core/api_router.py` ; seed branché dans `core/startup.py`.
+- **Frontend** : `MotoSelfRentalPage.js` (route `/moto-location`) — flotte → réservation (dates, devis live, upload permis/pièce, paiement) → confirmation → « Mes locations ». `AdminMotoFleet.js` (route `/admin/moto-fleet`, lien sidebar) — onglets Flotte (CRUD) + Locations (validation permis). `motoRentalAPI` ajouté. Lien « Self-drive » (`moto-selfdrive-link`) depuis /course?mode=moto_rental.
+- **Testé** : testing_agent iter284 frontend 6/6 PASS (flotte, devis 70€/2j, upload docs, réservation, statuts, validation permis admin, point d'entrée) + pytest `test_iter285_moto_selfdrive.py` 2/2 + curl e2e (book→approve).
+- **À venir (Phase 3b)** : remise/restitution avec photos d'état des lieux + calcul frais (km/carburant/dommages) ; caution réelle (Stripe) ; multi-loueurs.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-11 (284) - 🏍️ Moto : Location avec chauffeur + Moto-Taxi (Phases 1&2, DONE, testé frontend 4/4 + pytest 2/2)
 - **Demande user** : développer Moto-Taxi (tarif, dispatch moto, sécurité) + location moto avec chauffeur (forfaits moto dédiés) + self-drive (Phase 3 à venir).
 - **Phase 1 — Location moto AVEC chauffeur** : forfaits moto dédiés branchés au flux réel.
