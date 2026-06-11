@@ -786,6 +786,23 @@ export const studentAPI = {
   eventAdminCreate: (data) => api.post('/student/events/admin', data),
   eventAdminUpdate: (id, data) => api.put(`/student/events/admin/${id}`, data),
   eventAdminDelete: (id) => api.delete(`/student/events/admin/${id}`),
+  // Phase 6 — Marketplace étudiante + IA
+  mktCategories: () => api.get('/student/marketplace/categories'),
+  mktListings: (params = {}) => api.get('/student/marketplace/listings', { params }),
+  mktListing: (id) => api.get(`/student/marketplace/listings/${id}`),
+  mktMyListings: () => api.get('/student/marketplace/my-listings'),
+  mktCreate: (data) => api.post('/student/marketplace/listings', data),
+  mktDelete: (id) => api.delete(`/student/marketplace/listings/${id}`),
+  mktBuy: (id) => api.post(`/student/marketplace/listings/${id}/buy`),
+  mktOrders: () => api.get('/student/marketplace/orders'),
+  mktSales: () => api.get('/student/marketplace/sales'),
+  mktAiSuggest: (data) => api.post('/student/marketplace/ai/suggest', data),
+  mktAiSearch: (query) => api.post('/student/marketplace/ai/search', { query }),
+  mktUploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 export default api;

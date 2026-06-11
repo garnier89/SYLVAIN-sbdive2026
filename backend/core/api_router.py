@@ -83,6 +83,7 @@ from routes.student_zones import router as student_zones_router
 from routes.student_safety import router as student_safety_router
 from routes.student_rewards import router as student_rewards_router
 from routes.student_events import router as student_events_router
+from routes.student_marketplace import router as student_marketplace_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -115,6 +116,7 @@ _ROUTERS = [
     student_safety_router,
     student_rewards_router,
     student_events_router,
+    student_marketplace_router,
 ]
 
 

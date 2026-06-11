@@ -1,0 +1,51 @@
+{
+  "summary": "Iter257 — SB Drive Student Phase 6 (Student Marketplace C2C + Gemini AI). BACKEND e2e HTTP: 6/6 PASS (categories=5 slugs+conditions; create-listing as test2 verified=200, as fresh non-student=403; full buy flow: buyer wallet debited 25€, seller wallet credited 25€ full-amount (NO commission), listing flips status=sold, second buy returns 400 'plus disponible'; AI /ai/suggest returns suggested_price+price_low/high+description+tips via Gemini; AI /ai/search returns French grounded reply + listings — every returned listing has real slist_* id, no hallucinations). FRONTEND mobile: cookie login test2 ok, /sb-student → 'Marketplace étudiante' entry → /sb-student/marketplace loads sb-marketplace-page; 5 mkt-cat-* chips all present; mkt-ai-input + mkt-ai-btn → mkt-ai-reply rendered ('Salut ! J'ai trouvé ces manuels pour toi à 8 € ou 15 €…') — grounded on real catalog; mkt-sell-fab opens mkt-sell-sheet with form (verified=true, no locked screen); mkt-sell-ai-btn fills description via Gemini (148 chars) in <20s; mkt-sell-submit publishes — sheet closes, new listing appears in grid (cards count rose to 6, new listing matched by title); tapping a listing opens mkt-detail-sheet with mkt-buy-btn visible. Cross-account buy from a DIFFERENT account was validated at backend e2e level (test_buy_flow_full passes — fresh buyer, topup, buy succeeds, balances move, listing → sold, second buy 400).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SbMarketplacePage / Sell FAB",
+        "issue": "mkt-sell-fab (z-30) is occasionally covered by the global 'Vérifiez votre email' verification toast (fixed bottom right). On a 390x844 mobile viewport the FAB and the toast overlap → tap on FAB falls on the toast. Real users will hit this on first session after register before email verification. Bypassed in test via JS .click(). Recommend raising FAB z-index above the toast, or repositioning the toast above the FAB, or hiding the FAB when toast is visible.",
+        "selector": "[data-testid=\"mkt-sell-fab\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter257_student_marketplace_e2e.py",
+    "/app/test_reports/pytest/iter257_e2e_results.xml"
+  ],
+  "action_items": [
+    "(Mineur) Élever le z-index du FAB mkt-sell-fab au-dessus de la bannière de vérification d'email (ou repositionner la bannière) pour éviter que le tap sur 'Publier' soit intercepté par le toast 'Vérifiez votre email'."
+  ],
+  "critical_code_review_comments": [
+    "routes/student_marketplace.py (~390 lignes, propre, isolation /api/student/marketplace OK).",
+    "Bonne pratique : C2C wallet transfer atomique-séquentiel (débit buyer puis crédit seller puis flip status). MAIS pas de transaction Mongo : si l'instance crash entre le débit buyer et le crédit seller, l'argent est perdu côté buyer et le vendeur n'est jamais crédité. Pour de la prod, envisager d'utiliser une session Mongo + transaction (client.start_session() with session.start_transaction()) ou au moins un mécanisme de réconciliation (audit ledger + job de rejeu) — non bloquant pour un MVP étudiant.",
+    "buy_listing ne refait pas une lecture sous verrou de l'annonce après le check status — race condition possible : deux acheteurs simultanés peuvent passer le check status='active' avant que update_one ne bascule à 'sold'. Recommander un findOneAndUpdate({id, status:'active'}, {$set:{status:'sold'}}) AVANT de débiter, puis rollback si update_count==0. Risque concret en cas de concurrence (objet rare très demandé).",
+    "AI /ai/search : bonne approche grounded — la réponse Gemini n'a accès qu'au contexte titre/prix/categorie des annonces réelles. _SEARCH_STOPWORDS filtre raisonnablement les requêtes naturelles. Cas limite : si Gemini renvoie un text vide en exception silencieuse (except Exception), le fallback reply 'J'ai trouvé X annonce(s)' est OK.",
+    "AI /ai/suggest : pas d'idempotency / cache — chaque clic re-paye un appel Gemini (latence ~5-10s). Pour réduire le coût, possibilité de cacher par (category|title|condition) court terme.",
+    "DELETE /api/student/marketplace/listings/{id} ne vérifie pas si l'annonce est déjà vendue (status='sold'). Si quelqu'un delete une annonce vendue, l'order reste mais l'annonce disparaît — pas grave en lecture (orders sont autonomes) mais asymétrique. Optionnel.",
+    "Pas de pagination réelle côté UI (limit=60 hardcodé), pas de problème pour MVP mais à prévoir.",
+    "SbMarketplacePage.js (~300 lignes, propre, bons data-testid partout). studentAPI.me() utilisé pour `verified=is_student` — confirmer côté backend que `is_student` reflète bien le statut 'verified' du student_profile et pas juste 'inscrit' (sinon le gate front affichera le formulaire à des non-vérifiés qui se feront ensuite refuser 403 côté serveur — UX dégradée).",
+    "DetailSheet utilise window.confirm() natif — inconsistant avec le reste de l'app (toasts/dialogs shadcn). Non bloquant.",
+    "Sell FAB z-index trop bas vs toast email-verify (cf. ui_bugs)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter257_student_marketplace_e2e.py (nouveau — 6 tests e2e HTTP PASS)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 e2e HTTP)",
+    "frontend": "100% sur tous les data-testid demandés (entry, page, 5 catégories, ai input/btn/reply, sell-fab→sheet, sell-ai-btn fill, submit, listing visible, detail-sheet, buy-btn). 1 problème UX mineur (toast email-verify intercepte le FAB sur 1ère session)."
+  },
+  "test_credentials": "Vendeur vérifié : test2@example.com / TestPass123!. Acheteur : créé à la volée TEST_iter257_buyer_* + topup 200€ via POST /api/wallet/topup.",
+  "seed_data_creation": "Annonces test (préfixe 'TEST_iter257') créées dans student_listings durant les tests : ~5 livres + 1 matériel + 1 publiée via UI. Une annonce a été marquée 'sold' (buy flow). Aucune donnée prod modifiée. Cleanup non effectué (annonces préfixées TEST_iter257 — facilement identifiables).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 6 Student Marketplace 100% validée backend + frontend. Pour itération suivante : (1) si on industrialise le buy flow, ajouter un test de concurrence (deux acheteurs simultanés sur la même annonce → un seul gagne, l'autre 400) — actuellement non testé et race condition existante (findOneAndUpdate sur status atomic à ajouter). (2) Surveiller le z-index du FAB Sell vs les toasts globaux. (3) Le toast 'Vérifiez votre email' apparaît dès qu'on ouvre une session test2 — il faudrait peut-être marquer test2 email_verified=true en seed pour des tests plus propres.",
+  "rca of the issue": "Aucun bug bloquant. Issue mineure UI : data-testid mkt-sell-fab a z-index:30 alors que la bannière email-verify globale (rendue probablement via un Portal/Toast container) est au-dessus → le tap utilisateur sur le FAB est intercepté par la bannière en mobile. Reproduction : login frais avec test2 (email non vérifié) → ouvrir /sb-student/marketplace → tap sur le bouton '+' en bas-droite. Mitigation : (a) augmenter z-index du FAB (z-50 par exemple), (b) ou déplacer la bannière email-verify en haut, (c) ou ne pas afficher la bannière sur les pages de feature gated."
+}
