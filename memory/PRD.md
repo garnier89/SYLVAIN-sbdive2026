@@ -1,3 +1,12 @@
+## NEW - 2026-06-11 (281) - 📲 SB Access SOS — SMS automatique aux contacts d'urgence (Twilio, FEATURE-FLAGGÉ, DONE, testé pytest 3/3 + path désactivé e2e)
+- **Demande user (validée)** : envoi SMS serveur aux contacts d'urgence lors d'un SOS, pour prévenir les proches même si l'usager ne peut plus toucher l'écran.
+- **Intégration** : SDK `twilio` (9.10.9) installé + `requirements.txt` figé. Nouveau `core/sms.py` : `sms_enabled()` (vrai si ACCOUNT_SID+AUTH_TOKEN+PHONE_NUMBER présents), `to_e164` (normalisation, FR par défaut), `send_sms`/`send_sms_to_many` (appel bloquant Twilio via `asyncio.to_thread`, try/except → JAMAIS d'exception, no-op si désactivé). `.env` : `TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER` (vides = OFF).
+- **Câblage** (`routes/sb_access.py` `trigger_sos`) : à la création d'une alerte, si `sms_enabled()` → SMS à tous les contacts d'urgence (message d'alerte + lien maps), `sms_sent`/`sms_total` stockés sur l'alerte ; réponse expose `sms_sent` + `sms_enabled`.
+- **Frontend** (`SbAccessPage.js`) : si `sms_enabled` → toast « X contact(s) prévenu(s) par SMS », plus d'ouverture WhatsApp auto ; sinon repli WhatsApp 1-tap (comportement actuel inchangé).
+- **Testé** : pytest `test_iter281_sms.py` 3/3 (E.164, désactivé=no-op, flag activé) + curl e2e (SOS sans clés → `sms_enabled:false, sms_sent:0`, SOS fonctionne normalement).
+- ⚠️ **EN ATTENTE des 3 clés Twilio** (Account SID / Auth Token / numéro expéditeur) pour activer l'envoi RÉEL. Tant que les vars sont vides → no-op total (aucun impact). En compte d'essai Twilio, livraison vers numéros vérifiés uniquement. PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-11 (280) - ♿🩺 SB Access P1 — Trajets médicaux dédiés (DONE, testé frontend 5/5)
 - **Demande user** : flux UI dédié aux trajets médicaux (dialyse, rééducation, hôpital).
 - **Backend** (`routes/sb_access.py`) : helper `_clean_medical` (motif, heure RDV, aller-retour, mode de retour wait|scheduled, return_time, justificatif). `_build_and_store_booking` stocke `booking.medical` quand `trip_type='medical'`. `create_booking` transmet `medical` + `scheduled_at` (depuis l'heure de RDV → la course est traitée comme programmée → l'IA considère tous les chauffeurs certifiés, pas uniquement en ligne).

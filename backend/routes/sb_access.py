@@ -26,6 +26,7 @@ from core.notifications import create_notification
 from core.email import send_access_recurring_reminder, fire
 from core.websocket import manager
 from core.airport import notify_admins
+from core.sms import send_sms_to_many, sms_enabled
 from core.access_ai import (
     rank_access_drivers, predict_access_demand, demand_narrative, DEFAULT_AI_CONFIG,
 )
@@ -500,11 +501,25 @@ async def trigger_sos(request: Request):
                 data={"alert_id": alert["id"], "lat": lat, "lng": lng},
             )
 
+        # SMS automatique aux contacts d'urgence (Twilio, si configuré).
+        if sms_enabled() and contacts:
+            phones = [c.get("phone") for c in contacts if c.get("phone")]
+            try:
+                sent = await send_sms_to_many(phones, share_message)
+            except Exception as e:
+                logger.error("SOS SMS dispatch error: %s", e)
+                sent = 0
+            await db.access_sos_alerts.update_one(
+                {"id": alert["id"]}, {"$set": {"sms_sent": sent, "sms_total": len(phones)}})
+            alert["sms_sent"] = sent
+
     return {
         "alert": {k: alert.get(k) for k in ("id", "status", "lat", "lng", "created_at", "booking_id", "driver_name")},
         "contacts": contacts,
         "share_message": share_message,
         "maps_link": _maps_link(lat, lng),
+        "sms_sent": alert.get("sms_sent", 0),
+        "sms_enabled": sms_enabled(),
     }
 
 

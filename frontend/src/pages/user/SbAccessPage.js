@@ -100,14 +100,18 @@ export default function SbAccessPage() {
       setSosAlert(alert);
       setSafetyOpen(true);
       if (alert?.id) startLiveTracking(alert.id);
-      // Propose de prévenir les contacts (WhatsApp en 1 tap)
-      const msg = encodeURIComponent(r.data.share_message || 'Alerte SOS SB Access');
-      if ((r.data.contacts || []).length > 0) {
-        const c = r.data.contacts[0];
-        const phone = (c.phone || '').replace(/[^0-9]/g, '');
-        if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+      if (r.data.sms_enabled) {
+        toast.success(`Alerte SOS envoyée · ${r.data.sms_sent || 0} contact(s) prévenu(s) par SMS`);
+      } else {
+        // Pas d'envoi SMS serveur configuré : on propose de prévenir via WhatsApp (1 tap).
+        const msg = encodeURIComponent(r.data.share_message || 'Alerte SOS SB Access');
+        if ((r.data.contacts || []).length > 0) {
+          const c = r.data.contacts[0];
+          const phone = (c.phone || '').replace(/[^0-9]/g, '');
+          if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+        }
+        toast.success('Alerte SOS envoyée au centre de sécurité');
       }
-      toast.success('Alerte SOS envoyée au centre de sécurité');
     } catch {
       toast.error("Échec de l'envoi du SOS");
     }
