@@ -501,10 +501,12 @@ async def lifespan(app: FastAPI):
     grouping_task = asyncio.create_task(grouping_loop())
     from routes.student_digest import student_digest_loop
     student_digest_task = asyncio.create_task(student_digest_loop())
+    from routes.sb_access import access_recurring_loop
+    access_recurring_task = asyncio.create_task(access_recurring_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task):
         if task:
             task.cancel()
     client.close()

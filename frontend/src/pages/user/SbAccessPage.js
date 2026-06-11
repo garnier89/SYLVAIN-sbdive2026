@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Wheelchair, Eye, EarSlash, Brain, PawPrint,
   UsersThree, Clock, Car, Van, CheckCircle, TextAa, ShieldCheck, FirstAid,
-  Plus, Minus, ArrowClockwise, CaretRight,
+  Plus, Minus, ArrowClockwise, CaretRight, CalendarCheck, Trash, X,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
@@ -45,6 +45,12 @@ export default function SbAccessPage() {
   const [submitting, setSubmitting] = useState(false);
   const [pastBookings, setPastBookings] = useState([]);
   const [rebookingId, setRebookingId] = useState(null);
+  const [recurring, setRecurring] = useState([]);
+  const [scheduleTrip, setScheduleTrip] = useState(null); // booking en cours de programmation
+  const [recFreq, setRecFreq] = useState('weekly');
+  const [recDays, setRecDays] = useState([]);
+  const [recTime, setRecTime] = useState('09:00');
+  const [recSaving, setRecSaving] = useState(false);
 
   // Réglages d'accessibilité (persistés)
   const [largeText, setLargeText] = useState(() => localStorage.getItem('a11y_large_text') === '1');
@@ -64,6 +70,7 @@ export default function SbAccessPage() {
       setExtraTime(!!p.extra_assistance_time);
     }).catch(() => {});
     accessAPI.myBookings().then((r) => setPastBookings(r.data.items || [])).catch(() => {});
+    accessAPI.listRecurring().then((r) => setRecurring(r.data.items || [])).catch(() => {});
   }, []);
 
   const allNeedOptions = useMemo(() => {
@@ -141,6 +148,54 @@ export default function SbAccessPage() {
     setRebookingId(null);
   };
 
+  const openSchedule = (b) => {
+    setScheduleTrip(b);
+    setRecFreq('weekly');
+    setRecDays([new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]); // jour courant (Lun=0)
+    setRecTime('09:00');
+  };
+
+  const toggleDay = (d) => setRecDays((arr) => arr.includes(d) ? arr.filter((x) => x !== d) : [...arr, d]);
+
+  const saveRecurring = async () => {
+    if (!scheduleTrip) return;
+    if (recFreq === 'weekly' && recDays.length === 0) { toast.error('Sélectionnez au moins un jour'); return; }
+    setRecSaving(true);
+    try {
+      const b = scheduleTrip;
+      const distance_km = Number(haversineKm(b.pickup, b.dropoff).toFixed(1));
+      const duration_min = Math.round(distance_km * 2.2);
+      const r = await accessAPI.createRecurring({
+        category_key: b.category_key, needs: b.needs || [], equipment: b.equipment || [],
+        assistance_animal: !!b.assistance_animal, companion_count: b.companion_count || 0,
+        extra_assistance_time: !!b.extra_assistance_time,
+        pickup: b.pickup, dropoff: b.dropoff, trip_type: 'recurring',
+        distance_km, duration_min,
+        frequency: recFreq, days_of_week: recFreq === 'weekly' ? recDays : [], time_hhmm: recTime,
+      });
+      setRecurring((prev) => [r.data, ...prev]);
+      setScheduleTrip(null);
+      toast.success('Trajet automatique activé');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec de la programmation');
+    }
+    setRecSaving(false);
+  };
+
+  const toggleRecurring = async (rec) => {
+    try {
+      const r = await accessAPI.updateRecurring(rec.id, { active: !rec.active });
+      setRecurring((prev) => prev.map((x) => x.id === rec.id ? r.data : x));
+    } catch { toast.error('Action impossible'); }
+  };
+
+  const removeRecurring = async (rec) => {
+    try {
+      await accessAPI.deleteRecurring(rec.id);
+      setRecurring((prev) => prev.filter((x) => x.id !== rec.id));
+    } catch { toast.error('Suppression impossible'); }
+  };
+
   const fontScale = largeText ? '1.15rem' : '1rem';
   const cardBorder = highContrast ? '2px solid #111827' : '1px solid #D1D5DB';
 
@@ -205,16 +260,54 @@ export default function SbAccessPage() {
               <p className="text-xs text-gray-600 mb-3">Vos trajets récents — reréservez en un seul tap.</p>
               <div className="space-y-2">
                 {pastBookings.slice(0, 3).map((b) => (
-                  <div key={b.id} className="p-3 rounded-xl flex items-center gap-3" style={{ border: cardBorder, background: '#fff' }} data-testid={`recent-trip-${b.id}`}>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-gray-900 truncate">{b.pickup?.address || 'Départ'} → {b.dropoff?.address || 'Destination'}</span>
-                      <span className="block text-xs text-gray-600 mt-0.5">{b.category_name}{b.fare_estimate != null ? ` · ${Number(b.fare_estimate).toFixed(2)} €` : ''}</span>
-                    </span>
-                    <button onClick={() => rebook(b)} disabled={!!rebookingId} data-testid={`rebook-btn-${b.id}`}
-                      className="shrink-0 min-h-[40px] px-3 rounded-lg font-semibold text-white text-sm flex items-center gap-1.5 disabled:opacity-50 focus:ring-2 focus:ring-offset-1"
-                      style={{ background: NAVY }}>
-                      <ArrowClockwise size={16} weight="bold" /> {rebookingId === b.id ? 'Réservation…' : 'Refaire'}
-                    </button>
+                  <div key={b.id} className="p-3 rounded-xl" style={{ border: cardBorder, background: '#fff' }} data-testid={`recent-trip-${b.id}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-gray-900 truncate">{b.pickup?.address || 'Départ'} → {b.dropoff?.address || 'Destination'}</span>
+                        <span className="block text-xs text-gray-600 mt-0.5">{b.category_name}{b.fare_estimate != null ? ` · ${Number(b.fare_estimate).toFixed(2)} €` : ''}</span>
+                      </span>
+                    </div>
+                    <div className="flex gap-2 mt-2.5">
+                      <button onClick={() => rebook(b)} disabled={!!rebookingId} data-testid={`rebook-btn-${b.id}`}
+                        className="flex-1 min-h-[40px] px-3 rounded-lg font-semibold text-white text-sm flex items-center justify-center gap-1.5 disabled:opacity-50 focus:ring-2 focus:ring-offset-1"
+                        style={{ background: NAVY }}>
+                        <ArrowClockwise size={16} weight="bold" /> {rebookingId === b.id ? 'Réservation…' : 'Refaire'}
+                      </button>
+                      <button onClick={() => openSchedule(b)} data-testid={`schedule-btn-${b.id}`}
+                        className="flex-1 min-h-[40px] px-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5 focus:ring-2 focus:ring-offset-1"
+                        style={{ border: `2px solid ${NAVY}`, color: NAVY }}>
+                        <CalendarCheck size={16} weight="bold" /> Programmer
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {recurring.length > 0 && (
+            <div className="px-5 pb-4" data-testid="access-recurring-trips">
+              <p className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                <CalendarCheck size={18} weight="bold" style={{ color: NAVY }} /> Trajets automatiques
+              </p>
+              <div className="space-y-2">
+                {recurring.map((rec) => (
+                  <div key={rec.id} className="p-3 rounded-xl" style={{ border: cardBorder, background: rec.active ? '#FFF3ED' : '#F3F4F6' }} data-testid={`recurring-${rec.id}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-gray-900 truncate">{rec.pickup?.address || 'Départ'} → {rec.dropoff?.address || 'Destination'}</span>
+                        <span className="block text-xs mt-0.5" style={{ color: NAVY }}>{rec.summary}</span>
+                      </span>
+                      <button onClick={() => toggleRecurring(rec)} data-testid={`recurring-toggle-${rec.id}`}
+                        aria-pressed={rec.active}
+                        className="shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold"
+                        style={rec.active ? { background: NAVY, color: '#fff' } : { border: cardBorder, color: '#374151' }}>
+                        {rec.active ? 'Actif' : 'En pause'}
+                      </button>
+                      <button onClick={() => removeRecurring(rec)} aria-label="Supprimer" data-testid={`recurring-delete-${rec.id}`}
+                        className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-red-600" style={{ border: cardBorder }}>
+                        <Trash size={16} weight="bold" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -427,6 +520,60 @@ export default function SbAccessPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Scheduler — transformer un trajet en récurrent automatique */}
+      {scheduleTrip && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40" onClick={() => setScheduleTrip(null)} data-testid="schedule-sheet-overlay">
+          <div className="w-full max-w-[430px] bg-white rounded-t-2xl p-5 pb-7 space-y-4" onClick={(e) => e.stopPropagation()} data-testid="schedule-sheet">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>Trajet automatique</h2>
+              <button onClick={() => setScheduleTrip(null)} aria-label="Fermer" className="w-9 h-9 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-100"><X size={20} weight="bold" /></button>
+            </div>
+            <p className="text-sm text-gray-700">{scheduleTrip.pickup?.address || 'Départ'} → {scheduleTrip.dropoff?.address || 'Destination'}</p>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-900 mb-2">Fréquence</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[{ k: 'weekly', l: 'Chaque semaine' }, { k: 'daily', l: 'Tous les jours' }].map(({ k, l }) => (
+                  <button key={k} onClick={() => setRecFreq(k)} data-testid={`rec-freq-${k}`} aria-pressed={recFreq === k}
+                    className="min-h-[48px] rounded-xl font-medium transition-colors"
+                    style={{ border: recFreq === k ? `2px solid ${ORANGE}` : cardBorder, background: recFreq === k ? '#FFF3ED' : '#fff', color: '#111827' }}>{l}</button>
+                ))}
+              </div>
+            </div>
+
+            {recFreq === 'weekly' && (
+              <div>
+                <p className="text-sm font-semibold text-gray-900 mb-2">Jours</p>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((lbl, idx) => {
+                    const sel = recDays.includes(idx);
+                    return (
+                      <button key={idx} onClick={() => toggleDay(idx)} data-testid={`rec-day-${idx}`} aria-pressed={sel}
+                        aria-label={['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'][idx]}
+                        className="h-11 rounded-lg text-sm font-bold transition-colors"
+                        style={{ border: sel ? `2px solid ${ORANGE}` : cardBorder, background: sel ? '#FFF3ED' : '#fff', color: sel ? NAVY : '#374151' }}>{lbl}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-1">Heure de prise en charge</label>
+              <input type="time" value={recTime} onChange={(e) => setRecTime(e.target.value)} data-testid="rec-time-input"
+                className="w-full min-h-[48px] px-4 rounded-xl text-gray-900" style={{ border: cardBorder }} />
+            </div>
+
+            <p className="text-xs text-gray-600">Votre course adaptée sera réservée automatiquement à l'heure choisie, avec le même véhicule et la même assistance. Idéal pour la dialyse ou la rééducation.</p>
+
+            <button onClick={saveRecurring} disabled={recSaving} data-testid="rec-save-btn"
+              className="w-full min-h-[52px] rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: ORANGE }}>
+              <CalendarCheck size={20} weight="bold" /> {recSaving ? 'Activation…' : 'Activer le trajet automatique'}
+            </button>
+          </div>
         </div>
       )}
     </div>

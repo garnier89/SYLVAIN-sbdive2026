@@ -849,6 +849,10 @@ export const accessAPI = {
   match: (data) => api.post('/access/match', data),
   createBooking: (data) => api.post('/access/bookings', data),
   myBookings: () => api.get('/access/bookings'),
+  listRecurring: () => api.get('/access/recurring'),
+  createRecurring: (data) => api.post('/access/recurring', data),
+  updateRecurring: (id, data) => api.put(`/access/recurring/${id}`, data),
+  deleteRecurring: (id) => api.delete(`/access/recurring/${id}`),
   // admin
   adminCategories: () => api.get('/access/admin/categories'),
   adminCreateCategory: (data) => api.post('/access/admin/categories', data),

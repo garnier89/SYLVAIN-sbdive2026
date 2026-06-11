@@ -1,4 +1,12 @@
-## NEW - 2026-06-11 (271) - ♿ SB Drive Access : « Refaire un trajet » 1-tap (rétention PMR) (DONE, testé screenshot e2e)
+## NEW - 2026-06-11 (272) - ♿ SB Drive Access : trajets récurrents AUTOMATIQUES (dialyse/rééducation) (DONE, testé 3/3 pytest + curl + e2e)
+- **Demande user** : transformer un trajet « Refaire » en **trajet récurrent automatique** (ex. « tous les lundis 9h ») depuis la liste → fidélisation patients récurrents.
+- **Backend** (`routes/sb_access.py`) : refacto `_build_and_store_booking(user_id, body, recurring_id, scheduled_at, auto)` partagé. Collection `access_recurring`. Endpoints user : `GET/POST/PUT/DELETE /api/access/recurring` (fréquence daily|weekly, days_of_week 0=Lun..6=Dim, time_hhmm normalisée, summary FR, validation weekly sans jours → 400, toggle active/pause). **Scheduler** `access_recurring_loop()` (toutes les 5 min, enregistré dans `core/startup.py` lifespan) : `_recurring_due` (jour+heure atteints, pas déjà fait aujourd'hui via `last_run_date`, respecte timezone Europe/Paris) → crée la course auto (`auto_created=true`, `recurring_id`) + notif `access_recurring`.
+- **Frontend** (`SbAccessPage.js`) : chaque trajet récent a 2 boutons **Refaire** (1-tap) + **Programmer** ; feuille de programmation (`schedule-sheet` : fréquence `rec-freq-*`, jours `rec-day-0..6`, heure `rec-time-input`, `rec-save-btn`) ; section **« Trajets automatiques »** (`access-recurring-trips`) avec toggle Actif/En pause (`recurring-toggle-*`) + suppression (`recurring-delete-*`). `accessAPI.listRecurring/createRecurring/updateRecurring/deleteRecurring`.
+- **Testé** : pytest `test_iter271_access_recurring.py` 3/3 (summary, due-logic jour/heure/last_run/pause) + curl (création, normalisation "9:5"→"09:05", validation 400) + screenshot e2e (programmer → feuille → activation → section + toast).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 - **Demande user** : bouton « Refaire ce trajet » pour reréserver en 1 tap (usagers PMR = trajets récurrents dialyse/rééducation → +rétention).
 - **Livré** (`SbAccessPage.js`) : chargement des trajets passés (`accessAPI.myBookings`) ; section **« Refaire un trajet »** sur l'écran d'accueil du module (sous les avantages), liste les 3 trajets récents (départ→destination, véhicule, prix). Bouton **« Refaire »** (`rebook-btn-{id}`) → recalcule la distance depuis les coords stockées, recrée la réservation via `createBooking` (mêmes besoins/équipement/véhicule/type) et affiche directement la **confirmation** (1 tap). Garde-fou anti double-clic (`rebookingId`).
 - **Testé** : screenshot e2e (paul.vendeur) — section visible, tap « Refaire » → « Réservation confirmée » Access PMR 16,00 € directement. data-testids : `access-recent-trips`, `recent-trip-{id}`, `rebook-btn-{id}`.

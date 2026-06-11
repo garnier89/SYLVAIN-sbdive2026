@@ -18,9 +18,10 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, HTTPException
 
-from core.config import db
+from core.config import db, logger
 from core.deps import require_role, get_current_user
 from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
+from core.notifications import create_notification
 
 router = APIRouter(prefix="/access", tags=["sb-access"])
 admin_router = APIRouter(prefix="/access/admin", tags=["sb-access-admin"])
@@ -284,6 +285,12 @@ def _estimate_fare(cat: dict, distance_km: float, duration_min: float) -> float:
 async def create_booking(request: Request):
     user = await get_current_user(request)
     body = await request.json()
+    booking = await _build_and_store_booking(user["id"], body)
+    return booking
+
+
+async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str = None,
+                                    scheduled_at: str = None, auto: bool = False) -> dict:
     cat_key = body.get("category_key")
     cat = await db.access_categories.find_one({"key": cat_key, "active": True}, {"_id": 0})
     if not cat:
@@ -300,27 +307,30 @@ async def create_booking(request: Request):
     if settings.get("priority_certified_drivers", True):
         matched = await db.users.find_one(q, {"_id": 0, "id": 1, "name": 1})
 
+    extra_time = bool(body.get("extra_assistance_time"))
     booking = {
         "id": str(uuid.uuid4()),
-        "user_id": user["id"],
+        "user_id": user_id,
         "category_key": cat_key,
         "category_name": cat.get("name"),
         "needs": body.get("needs") or [],
         "equipment": body.get("equipment") or [],
         "assistance_animal": bool(body.get("assistance_animal")),
         "companion_count": int(body.get("companion_count") or 0),
-        "extra_assistance_time": bool(body.get("extra_assistance_time")),
-        "extra_assistance_minutes": settings.get("extra_assistance_minutes", 10) if body.get("extra_assistance_time") else 0,
+        "extra_assistance_time": extra_time,
+        "extra_assistance_minutes": settings.get("extra_assistance_minutes", 10) if extra_time else 0,
         "pickup": body.get("pickup") or {},
         "dropoff": body.get("dropoff") or {},
         "trip_type": body.get("trip_type") or "standard",   # standard | medical | recurring
         "recurrence": body.get("recurrence"),                # daily | weekly | monthly | null
-        "scheduled_at": body.get("scheduled_at"),
+        "scheduled_at": scheduled_at or body.get("scheduled_at"),
         "fare_estimate": fare,
         "matched_driver_id": matched["id"] if matched else None,
         "matched_driver_name": matched["name"] if matched else None,
         "certified_driver": bool(matched),
         "status": "searching" if not matched else "assigned",
+        "recurring_id": recurring_id,
+        "auto_created": auto,
         "created_at": _now(),
     }
     await db.access_bookings.insert_one(dict(booking))
@@ -333,6 +343,175 @@ async def list_my_bookings(request: Request):
     user = await get_current_user(request)
     items = await db.access_bookings.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return {"items": items}
+
+
+# ── Trajets récurrents automatiques (dialyse, rééducation…) ──────────────────
+DEFAULT_TZ = "Europe/Paris"
+DAY_LABELS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+_REC_TRIP_FIELDS = (
+    "category_key", "needs", "equipment", "assistance_animal", "companion_count",
+    "extra_assistance_time", "pickup", "dropoff", "trip_type", "distance_km", "duration_min",
+)
+
+
+def _recurring_summary(rec: dict) -> str:
+    t = rec.get("time_hhmm", "09:00")
+    if rec.get("frequency") == "daily":
+        return f"Tous les jours à {t}"
+    days = rec.get("days_of_week") or []
+    if not days:
+        return f"Chaque semaine à {t}"
+    labels = ", ".join(DAY_LABELS[d] for d in sorted(days) if 0 <= d <= 6)
+    return f"{labels} à {t}"
+
+
+@router.get("/recurring")
+async def list_recurring(request: Request):
+    user = await get_current_user(request)
+    items = await db.access_recurring.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    for r in items:
+        r["summary"] = _recurring_summary(r)
+    return {"items": items}
+
+
+@router.post("/recurring")
+async def create_recurring(request: Request):
+    """Transforme un trajet en abonnement récurrent automatique."""
+    user = await get_current_user(request)
+    body = await request.json()
+    cat_key = body.get("category_key")
+    if not await db.access_categories.find_one({"key": cat_key, "active": True}):
+        raise HTTPException(status_code=400, detail="Catégorie de véhicule invalide ou indisponible")
+
+    frequency = body.get("frequency") if body.get("frequency") in ("daily", "weekly") else "weekly"
+    days = body.get("days_of_week") or []
+    try:
+        days = sorted({int(d) for d in days if 0 <= int(d) <= 6})
+    except (TypeError, ValueError):
+        days = []
+    if frequency == "weekly" and not days:
+        raise HTTPException(status_code=400, detail="Sélectionnez au moins un jour de la semaine")
+
+    time_hhmm = str(body.get("time_hhmm") or "09:00")
+    try:
+        h, m = time_hhmm.split(":")
+        time_hhmm = f"{max(0, min(23, int(h))):02d}:{max(0, min(59, int(m))):02d}"
+    except (ValueError, AttributeError):
+        time_hhmm = "09:00"
+
+    rec = {"id": str(uuid.uuid4()), "user_id": user["id"], "frequency": frequency,
+           "days_of_week": days, "time_hhmm": time_hhmm, "timezone": DEFAULT_TZ,
+           "active": True, "last_run_date": None, "created_at": _now()}
+    for f in _REC_TRIP_FIELDS:
+        if f in body:
+            rec[f] = body[f]
+    rec.setdefault("trip_type", "recurring")
+    await db.access_recurring.insert_one(dict(rec))
+    rec.pop("_id", None)
+    rec["summary"] = _recurring_summary(rec)
+    return rec
+
+
+@router.put("/recurring/{rec_id}")
+async def update_recurring(rec_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    update = {}
+    if "active" in body:
+        update["active"] = bool(body["active"])
+    if body.get("frequency") in ("daily", "weekly"):
+        update["frequency"] = body["frequency"]
+    if "days_of_week" in body:
+        try:
+            update["days_of_week"] = sorted({int(d) for d in (body["days_of_week"] or []) if 0 <= int(d) <= 6})
+        except (TypeError, ValueError):
+            pass
+    if "time_hhmm" in body:
+        try:
+            h, m = str(body["time_hhmm"]).split(":")
+            update["time_hhmm"] = f"{max(0, min(23, int(h))):02d}:{max(0, min(59, int(m))):02d}"
+        except (ValueError, AttributeError):
+            pass
+    if not update:
+        raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
+    res = await db.access_recurring.update_one({"id": rec_id, "user_id": user["id"]}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Trajet récurrent introuvable")
+    doc = await db.access_recurring.find_one({"id": rec_id}, {"_id": 0})
+    doc["summary"] = _recurring_summary(doc)
+    return doc
+
+
+@router.delete("/recurring/{rec_id}")
+async def delete_recurring(rec_id: str, request: Request):
+    user = await get_current_user(request)
+    await db.access_recurring.delete_one({"id": rec_id, "user_id": user["id"]})
+    return {"message": "deleted"}
+
+
+def _recurring_due(rec: dict, now_local) -> bool:
+    """Le trajet doit-il être créé maintenant (fenêtre du jour atteinte, pas déjà fait) ?"""
+    if not rec.get("active"):
+        return False
+    today = now_local.strftime("%Y-%m-%d")
+    if rec.get("last_run_date") == today:
+        return False
+    if rec.get("frequency") == "weekly":
+        days = rec.get("days_of_week") or []
+        if now_local.weekday() not in days:
+            return False
+    try:
+        h, m = str(rec.get("time_hhmm", "09:00")).split(":")
+        h, m = int(h), int(m)
+    except (ValueError, AttributeError):
+        h, m = 9, 0
+    return (now_local.hour, now_local.minute) >= (h, m)
+
+
+async def access_recurring_loop():
+    """Toutes les ~5 min : crée automatiquement les courses des trajets récurrents dus."""
+    import asyncio
+    from datetime import timedelta
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        ZoneInfo = None
+    await asyncio.sleep(60)
+    while True:
+        try:
+            recs = await db.access_recurring.find({"active": True}, {"_id": 0}).to_list(1000)
+            for rec in recs:
+                tz = rec.get("timezone", DEFAULT_TZ)
+                try:
+                    now_local = datetime.now(ZoneInfo(tz)) if ZoneInfo else datetime.now(timezone.utc)
+                except Exception:
+                    now_local = datetime.now(timezone.utc)
+                if not _recurring_due(rec, now_local):
+                    continue
+                today = now_local.strftime("%Y-%m-%d")
+                try:
+                    h, m = str(rec.get("time_hhmm", "09:00")).split(":")
+                    scheduled = now_local.replace(hour=int(h), minute=int(m), second=0, microsecond=0).isoformat()
+                except (ValueError, AttributeError):
+                    scheduled = now_local.isoformat()
+                body = {f: rec.get(f) for f in _REC_TRIP_FIELDS if f in rec}
+                try:
+                    booking = await _build_and_store_booking(
+                        rec["user_id"], body, recurring_id=rec["id"], scheduled_at=scheduled, auto=True)
+                    await db.access_recurring.update_one({"id": rec["id"]}, {"$set": {"last_run_date": today}})
+                    await create_notification(
+                        rec["user_id"], "access_recurring",
+                        "Trajet adapté programmé automatiquement",
+                        f"Votre trajet récurrent ({booking.get('category_name')}) a été réservé pour aujourd'hui à {rec.get('time_hhmm')}.",
+                        data={"booking_id": booking["id"], "recurring_id": rec["id"]},
+                    )
+                    logger.info("SB Access recurring: created booking %s for user %s", booking["id"], rec["user_id"])
+                except Exception as e:
+                    logger.error("access_recurring create error: %s", e)
+        except Exception as e:
+            logger.error("access_recurring_loop error: %s", e)
+        await asyncio.sleep(300)
 
 
 # ============================================================
