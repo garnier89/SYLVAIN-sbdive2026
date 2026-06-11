@@ -28,6 +28,7 @@ import {
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
   Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
+  GraduationCap, Storefront,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -676,6 +677,22 @@ const UserHome = () => {
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 
       <DebtBanner />
+      {/* SB Student — accès direct (toujours visible) vers l'espace étudiant + marketplace */}
+      <button
+        onClick={() => navigate('/sb-student')}
+        data-testid="home-sb-student-entry"
+        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}
+      >
+        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+          <GraduationCap size={22} weight="fill" className="text-white" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="text-white font-black text-sm block leading-tight">SB Student 🎓</span>
+          <span className="text-white/85 text-xs block leading-tight flex items-center gap-1"><Storefront size={12} weight="fill" /> Marketplace, tarifs étudiants, campus & plus</span>
+        </span>
+        <CaretRight size={18} className="text-white shrink-0" />
+      </button>
       {/* Désactivé à la demande : bannière grève (mettre true pour réactiver) */}
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 

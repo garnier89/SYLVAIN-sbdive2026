@@ -1,3 +1,10 @@
+## NEW - 2026-06-11 (266) - 🧭 Accès direct « SB Student 🎓 » sur l'accueil (découvrabilité marketplace)
+- **Contexte** : l'utilisateur ne trouvait pas la marketplace depuis l'accueil (« AU QUOTIDIEN »). Elle était accessible seulement via Profil → SB Student ou la bannière promo (cachée pour les étudiants déjà vérifiés).
+- **Fix** : carte permanente **« SB Student 🎓 — Marketplace, tarifs étudiants, campus & plus »** ajoutée en haut de `UserHome.js` (juste sous `DebtBanner`), `data-testid="home-sb-student-entry"`, navigue vers `/sb-student` (→ entrée « Marketplace étudiante »). Toujours visible (non conditionnelle). Compile OK.
+- **En attente user** : proposition de **Mode Démo global** (auto-vérif étudiant, crédit portefeuille démo non facturé, bannière MODE DÉMO, intégrations externes en données d'exemple, commutateur admin) — Stripe inchangé/LIVE. À confirmer avant implémentation.
+
+
+
 ## NEW - 2026-06-11 (265) - 🤝 Marketplace étudiante : offre/négociation de prix intégrée au chat (DONE, testé 3/3 pytest + frontend e2e, AUCUN bug)
 - **Demande user** : « Faire une offre » dans le chat → le vendeur accepte/refuse en un tap → l'achat se règle au prix convenu via SB Pay.
 - **Backend** `routes/student_marketplace.py` : factorisation `_settle_purchase(listing, buyer, price)` (débit/crédit/order/sold/stats/notif) réutilisée par `buy_listing` ET le paiement d'offre. Offres stockées comme messages (`type:"offer"`, `offer_amount`, `offer_status`). Endpoints : `POST /conversations/{cid}/offer` (acheteur ; supersède les offres pending/accepted précédentes en `expired` ; notif vendeur), `POST /offers/{id}/respond {accept|decline}` (vendeur ; message système + notif acheteur), `POST /offers/{id}/pay` (acheteur ; offre **acceptée** requise ; règle au montant convenu via `_settle_purchase` ; statut `paid` + message système). Garde-fous : pay-avant-accept 400, accepter-sa-propre-offre 403, solde insuffisant 400, annonce vendue 400.
