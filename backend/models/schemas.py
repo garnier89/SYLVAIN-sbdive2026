@@ -165,6 +165,7 @@ class RideRequest(BaseModel):
     ride_profile_org_type: Optional[str] = None  # Business | Personal
     business_trip_reason: Optional[str] = None
     mode_id: Optional[str] = None  # TaxiHub mode id (service_categories key) — used to enforce admin on/off
+    safe_ride_night: bool = False  # SB Student — Safe Ride Night (prioritise top-rated drivers + auto trip-share)
 
 class RideResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")

@@ -757,6 +757,16 @@ export const studentAPI = {
   shareRequest: (data) => api.post('/student/campus-share/request', data),
   shareMatches: () => api.get('/student/campus-share/matches'),
   shareCancel: () => api.delete('/student/campus-share/request'),
+  // Phase 4 — Safety + Safe Ride Night
+  safetySettings: () => api.get('/student/safety/settings'),
+  safetyUpdate: (data) => api.put('/student/safety/settings', data),
+  safeRideStart: (rideId) => api.post('/student/safety/safe-ride/start', { ride_id: rideId }),
+  safeRideActive: () => api.get('/student/safety/safe-ride/active'),
+  recommendedDrivers: (lat, lng) => api.get('/student/safety/recommended-drivers', { params: { lat, lng } }),
+  driverTrust: (driverId) => api.get(`/student/safety/driver/${driverId}/trust`),
+  listContacts: () => api.get('/emergency-contacts'),
+  addContact: (data) => api.post('/emergency-contacts', data),
+  removeContact: (id) => api.delete(`/emergency-contacts/${id}`),
 };
 
 export default api;

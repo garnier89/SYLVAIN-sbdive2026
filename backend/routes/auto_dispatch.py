@@ -89,11 +89,11 @@ async def _palette_for(points, points_cfg):
     return "Standard"
 
 
-async def _drivers_in_radius(pickup_lat, pickup_lng, radius_km, allowed_palettes, points_cfg):
+async def _drivers_in_radius(pickup_lat, pickup_lng, radius_km, allowed_palettes, points_cfg, prioritize_rating=False):
     """Find approved online drivers within radius matching allowed palettes."""
     cursor = db.drivers.find(
         {"status": "approved", "is_online": True},
-        {"_id": 0, "id": 1, "user_id": 1, "points": 1, "current_lat": 1, "current_lng": 1, "vehicle_type": 1},
+        {"_id": 0, "id": 1, "user_id": 1, "points": 1, "current_lat": 1, "current_lng": 1, "vehicle_type": 1, "rating": 1},
     )
     matches = []
     async for d in cursor:
@@ -109,7 +109,11 @@ async def _drivers_in_radius(pickup_lat, pickup_lng, radius_km, allowed_palettes
         if palette not in allowed_palettes:
             continue
         matches.append({**d, "distance_km": round(dist, 2), "palette": palette})
-    matches.sort(key=lambda x: x["distance_km"])
+    if prioritize_rating:
+        # Safe Ride Night — best-rated drivers first, then nearest.
+        matches.sort(key=lambda x: (-(float(x.get("rating", 5.0) or 5.0)), x["distance_km"]))
+    else:
+        matches.sort(key=lambda x: x["distance_km"])
     return matches
 
 
@@ -186,7 +190,8 @@ async def _penalize_non_responders(ride: dict, cfg: dict):
 
 async def _escalate_ride(ride, tier, allowed_palettes, radius_km, points_cfg):
     drivers = await _drivers_in_radius(
-        ride["pickup_lat"], ride["pickup_lng"], radius_km, allowed_palettes, points_cfg
+        ride["pickup_lat"], ride["pickup_lng"], radius_km, allowed_palettes, points_cfg,
+        prioritize_rating=bool(ride.get("safe_ride_night")),
     )
     notified_user_ids = [d["user_id"] for d in drivers[:10]]  # cap at 10 per escalation
     payload = {

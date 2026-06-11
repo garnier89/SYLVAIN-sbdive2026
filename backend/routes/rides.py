@@ -636,6 +636,7 @@ async def create_ride(data: RideRequest, request: Request):
         "student_discount_pct": student_discount_pct,
         "student_discount_amount": student_discount_amount,
         "student_discount_kind": student_discount_kind,
+        "safe_ride_night": bool(getattr(data, "safe_ride_night", False)),
         "book_for_name": data.book_for_name,
         "book_for_phone": data.book_for_phone,
         "auto_assign": getattr(data, 'auto_assign', True),

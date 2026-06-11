@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 255 — SB Drive Student Phase 4 (Sécurité étudiante + Safe Ride Night). Backend: 7/7 HTTP e2e tests PASS (settings defaults+persistence, emergency-contacts CRUD via /api/phase1, safe-ride/start owner+foreign 403+missing 404, safe-ride/active, driver/{id}/trust by id and user_id + 404, recommended-drivers sort). Frontend mobile /sb-student/securite: tous les data-testid présents et fonctionnels — Safe Ride Night activation end-to-end OK (course créée + token + flag ride safe_ride_night=true + safe_rides[] active), toggles persistent (auto_share/prefer_top_drivers), bouton 'Près de moi' appelle recommended-drivers. Non-régression /sb-student: student-share-entry, student-recurring-entry, student-safety-entry tous présents. BUG CRITIQUE découvert: studentAPI.listContacts/addContact/removeContact appellent /api/emergency-contacts (404 — endpoint réel /api/phase1/emergency-contacts) → CRUD contacts de confiance CASSÉ depuis la page Sécurité.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Ajout/suppression/listing des contacts de confiance depuis /sb-student/securite",
+        "issue": "studentAPI.listContacts / addContact / removeContact dans src/services/api.js appellent '/emergency-contacts' qui n'existe pas (404). Le router phase1.py monte les endpoints à '/api/phase1/emergency-contacts'. Conséquence: le bouton 'Enregistrer' (contact-save) ne crée jamais le contact ; la liste reste vide ; impossible de supprimer. Le toast 'Contact ajouté' s'affiche quand même car le catch attrape l'erreur axios sans la propager visuellement (et le code appelle loadAll dans try aussi — à vérifier). Console montre des 404 récurrents.",
+        "affected_selectors": ["contact-add-toggle", "contact-save", "contact-name", "contact-phone", "contact-del-*"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter255_safety_e2e.py",
+    "/app/test_reports/pytest/iter255_e2e_results.xml",
+    "/app/backend/tests/test_iter255_safety.py"
+  ],
+  "action_items": [
+    "Corriger src/services/api.js (studentAPI): remplacer '/emergency-contacts' par '/phase1/emergency-contacts' pour listContacts, addContact, removeContact (3 lignes). Alternative: ajouter un alias backend (router sans prefix) qui réexpose /api/emergency-contacts → phase1 emergency-contacts.",
+    "Après correction, re-tester /sb-student/securite: ajouter un contact (TEST_*), vérifier qu'il apparaît avec data-testid='contact-{id}', supprimer via contact-del-{id}. Vérifier aussi que safe-ride/start retourne needs_contact=false et contacts non vide une fois un contact ajouté."
+  ],
+  "critical_code_review_comments": [
+    "routes/student_safety.py (183 lignes) — propre, async, ObjectId exclu, schémas Pydantic typés, haversine pur Python ok pour volumes faibles. Bien fait.",
+    "/api/student/safety/safe-ride/start: la mise à jour de ride (safe_ride_night/share_token) n'effectue aucune vérification du statut de la course (pending/accepted/...). Activer Safe Ride Night sur une course terminée fonctionnerait quand même — envisager un garde sur les statuts terminaux (completed/cancelled).",
+    "share_url construit avec os.environ.get('FRONTEND_URL', '') — si la variable n'est pas définie, l'URL devient '/t/{token}' sans schéma. Documenter ce fallback ou utiliser REACT_APP_BACKEND_URL/host de la requête comme fallback.",
+    "driver/{id}/trust: recharge toutes les ratings (.to_list(500)) — pour un chauffeur très actif, envisager un cache (rating moyen pré-calculé déjà disponible via drv['rating']) avec invalidation sur nouvelle note. Non bloquant.",
+    "studentAPI.* dans frontend/src/services/api.js — listContacts/addContact/removeContact pointent vers le mauvais préfixe (/emergency-contacts au lieu de /phase1/emergency-contacts). BUG CRITIQUE pour la page Sécurité.",
+    "SbSafetyPage.js addContact(): l'appel API échoue silencieusement à cause du préfixe incorrect. Le toast success est dans le try APRÈS le await, donc en réalité l'erreur axios 404 est attrapée par le catch — toast d'erreur doit s'afficher; pourtant le state form se vide aussi (try block). À tester manuellement: le contact ne s'ajoute jamais."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter255_safety_e2e.py (nouveau — 7 tests HTTP e2e)"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 HTTP e2e + 2/2 in-process pytest iter255_safety)",
+    "frontend": "85% — tous les data-testid présents, toggles + Safe Ride Night + recommended-drivers OK ; SEUL le CRUD contacts est cassé (URL API incorrecte)"
+  },
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. Users créés à la volée (prefix safetytest_/sr3_/ec_/set_/sr_*).",
+  "seed_data_creation": "Aucune seed permanente. Users + rides + trip_shares + student_safe_rides + emergency_contacts éphémères créés pendant les tests (non nettoyés, mais préfixes TEST_ et noms générés uuid identifient les données de test).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 4 SB Student (iter255) presque entièrement OK côté backend (7/7 e2e + 2/2 in-process). UN seul bug d'intégration frontend à corriger: studentAPI listContacts/addContact/removeContact appellent '/emergency-contacts' (404) au lieu de '/phase1/emergency-contacts'. Après le fix dans src/services/api.js (3 lignes 767-769), re-tester l'ajout d'un contact via la page /sb-student/securite et vérifier que needs_contact passe à false dans la réponse safe-ride/start. Tous les autres flows fonctionnent: toggles persistent, Safe Ride Night s'active et flag la course + crée trip_share + insère dans student_safe_rides, recommended-drivers retourne liste triée. Tests pytest in-process iter255_safety.py (2/2) déjà verts — NE PAS retester. Fichier e2e: /app/backend/tests/test_iter255_safety_e2e.py.",
+  "rca of the issue": "Bug CRUD contacts: le router phase1 est monté avec prefix='/phase1' dans routes/phase1.py (ligne 10), donc tous ses endpoints sont sous /api/phase1/*. Cependant src/services/api.js:767-769 utilise '/emergency-contacts' sans le prefix. Reproduire: register/login un user, naviguer vers /sb-student/securite, cliquer 'Ajouter', remplir nom+téléphone, cliquer 'Enregistrer' → 404 dans console, contact non créé, liste reste vide. Mitigation: remplacer les 3 lignes par api.get/post/delete sur '/phase1/emergency-contacts'."
+}
