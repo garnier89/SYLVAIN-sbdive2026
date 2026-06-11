@@ -36,6 +36,15 @@ const WalletPage = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [cashbackCfg, setCashbackCfg] = useState(null);
   const [cashbackSummary, setCashbackSummary] = useState(null);
+  const [debt, setDebt] = useState(null);
+  const [payingDebt, setPayingDebt] = useState(false);
+
+  const loadDebt = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/debts/me`, { credentials: 'include' });
+      if (r.ok) setDebt(await r.json());
+    } catch { /* non-blocking */ }
+  }, []);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -51,7 +60,7 @@ const WalletPage = () => {
     } catch (err) { console.error('Failed to load coupons:', err); }
   }, []);
 
-  useEffect(() => { loadWallet(); loadCoupons(); }, [loadWallet, loadCoupons]);
+  useEffect(() => { loadWallet(); loadCoupons(); loadDebt(); }, [loadWallet, loadCoupons, loadDebt]);
 
   useEffect(() => {
     fetch(`${API_URL}/api/finance/cashback/config`, { credentials: 'include' })
@@ -69,7 +78,24 @@ const WalletPage = () => {
     const action = searchParams.get('action');
     if (action === 'topup') setShowTopup(true);
     if (action === 'send') setShowSend(true);
+    if (action === 'debt') {
+      const el = document.querySelector('[data-testid="wallet-debt-card"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }, [searchParams]);
+
+  const payDebtFromBalance = async () => {
+    if (payingDebt) return;
+    setPayingDebt(true);
+    try {
+      const r = await fetch(`${API_URL}/api/debts/pay`, { method: 'POST', credentials: 'include' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(d.detail || 'Solde insuffisant — rechargez votre portefeuille.'); }
+      else { toast.success('Dette réglée — merci !'); localStorage.removeItem('debt_reminded_at'); }
+    } catch { toast.error('Échec du règlement'); }
+    await Promise.all([loadDebt(), loadWallet()]);
+    setPayingDebt(false);
+  };
 
   // Poll Stripe payment status when returning from checkout
   const pollPaymentStatus = useCallback(async (sessionId, attempts) => {
@@ -89,6 +115,7 @@ const WalletPage = () => {
         toast.success(`Paiement réussi ! +${data.amount} EUR`);
         setSearchParams({});
         loadWallet();
+        loadDebt();
         return;
       } else if (data.status === 'expired') {
         setPaymentPolling(false);
@@ -215,6 +242,36 @@ const WalletPage = () => {
             </Button>
           </div>
         </div>
+
+        {/* Outstanding debt — settle from balance or top up to clear it */}
+        {debt?.has_debt && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4" data-testid="wallet-debt-card">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <ArrowUp size={20} weight="fill" className="text-red-600 rotate-45" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-red-700">Montant dû : {Number(debt.total).toFixed(2)} €</p>
+                <p className="text-[12px] text-red-600/80 leading-snug mt-0.5">
+                  Course(s) impayée(s). Réglez depuis votre solde, ou rechargez (le solde dû est déduit automatiquement). Sinon il sera ajouté à votre prochaine course.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              {Number(wallet.balance || 0) >= Number(debt.total) ? (
+                <button onClick={payDebtFromBalance} disabled={payingDebt}
+                  className="flex-1 h-10 rounded-xl bg-red-600 text-white text-sm font-bold disabled:opacity-60" data-testid="wallet-pay-debt-btn">
+                  {payingDebt ? 'Règlement…' : `Régler ${Number(debt.total).toFixed(2)} € depuis le solde`}
+                </button>
+              ) : (
+                <button onClick={() => setShowTopup(true)}
+                  className="flex-1 h-10 rounded-xl bg-red-600 text-white text-sm font-bold flex items-center justify-center gap-1.5" data-testid="wallet-topup-for-debt-btn">
+                  <Plus size={15} weight="bold" /> Recharger pour régler
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Withdraw (drivers & merchants) */}
         {wallet.can_withdraw && (

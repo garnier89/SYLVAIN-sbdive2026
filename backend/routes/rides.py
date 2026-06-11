@@ -1157,15 +1157,26 @@ async def collect_cash(ride_id: str, request: Request):
     if cash_due <= 0:
         return {"message": "Aucun montant à percevoir", "cash_due": 0.0, "received": received}
     now = datetime.now(timezone.utc).isoformat()
+    carried = ride.get("carried_debt")
+    carried_amt = round(float((carried or {}).get("amount", 0) or 0), 2)
     if received:
         await db.rides.update_one({"id": ride_id}, {"$set": {
             "payment_status": "paid", "cash_collected": cash_due,
             "cash_collected_at": now, "cash_due_to_driver": 0.0,
         }})
+        # The driver collected (fare + carried debt) in cash → forward the debt to
+        # the previous driver and notify the collecting driver.
+        if carried_amt > 0:
+            from routes.debts import settle_carried_debts
+            await settle_carried_debts(ride, carried, collected_in_cash=True)
         return {"message": "Paiement perçu", "received": True, "amount": cash_due}
-    # Not received → carry the unpaid amount as a debt on the passenger.
+    # Not received → carry the unpaid amount as a debt on the passenger. Only the
+    # fare portion becomes a NEW debt; the carried debt stays unpaid and follows
+    # the next ride on its own (do not forward it to the previous driver).
     from routes.debts import record_ride_balance_debt
-    await record_ride_balance_debt(ride["user_id"], ride_id, cash_due)
+    fare_unpaid = round(cash_due - carried_amt, 2)
+    if fare_unpaid > 0:
+        await record_ride_balance_debt(ride["user_id"], ride_id, fare_unpaid)
     await db.rides.update_one({"id": ride_id}, {"$set": {
         "payment_status": "debt", "cash_unpaid": cash_due, "cash_due_to_driver": 0.0,
     }})
@@ -1770,7 +1781,18 @@ async def update_ride_status(ride_id: str, request: Request):
         pm = ride.get("payment_method")
         cashback_earned = 0.0
         from core.cashback import award_cashback
-        amt = round(float(final_fare), 2)
+        # Carried debt (unpaid balance from a previous ride) rides along with this
+        # fare: the passenger owes (fare + debt) on this trip.
+        carried = ride.get("carried_debt")
+        carried_amt = round(float((carried or {}).get("amount", 0) or 0), 2)
+        if carried_amt > 0:
+            update_data.setdefault("fare_breakdown", ride.get("fare_breakdown") or {})
+            bd = update_data["fare_breakdown"]
+            bd["carried_debt"] = carried_amt
+            bd["fare_subtotal"] = round(float(bd.get("total", final_fare)), 2)
+            bd["total"] = round(float(bd.get("total", final_fare)) + carried_amt, 2)
+            bd["total_net"] = round(float(bd.get("total_net", final_fare)) + carried_amt, 2)
+        amt = round(float(final_fare) + carried_amt, 2)
         # === Digital payment settlement (unified SB Pay wallet) ===
         # Under the wallet model, "card" tops up the wallet then pays from it, so
         # wallet / sbpaygo / card all settle from the wallet. We charge what the
@@ -1869,11 +1891,16 @@ async def update_ride_status(ride_id: str, request: Request):
             from routes.corporate import record_corporate_charge
             await record_corporate_charge(ride["corporate_account_id"], ride, final_fare)
 
-        # ===== Carried cancellation debt: reimburse the previous driver =====
-        carried = ride.get("carried_debt")
-        if carried and float(carried.get("amount", 0) or 0) > 0:
-            from routes.debts import settle_carried_debts
-            await settle_carried_debts({**ride, "final_fare": final_fare}, carried)
+        # ===== Carried debt: settle to the previous driver =====
+        # Digital payment fully covered → the debt was collected with the wallet/
+        # card charge, settle now (no driver notification). Cash rides (or digital
+        # with a cash shortfall) defer settlement to the "Reçu / Non reçu" step so
+        # we only forward the money once the new driver actually collects it.
+        if carried_amt > 0:
+            digital_fully_paid = pm in ("sbpaygo", "wallet", "sbpay", "card") and round(float(update_data.get("cash_due_to_driver", 0) or 0), 2) == 0
+            if digital_fully_paid:
+                from routes.debts import settle_carried_debts
+                await settle_carried_debts({**ride, "final_fare": final_fare}, carried, collected_in_cash=False)
 
         # ===== Phase 2: advance referral qualification on ride completion =====
         from routes.referral import process_referral_on_ride_completion

@@ -1,4 +1,17 @@
-## NEW - 2026-06-11 (276) - ⭐ Chauffeurs favoris : attribution préférentielle (taxi + livraison) (DONE, testé 10/10 pytest + frontend 100%)
+## NEW - 2026-06-11 (277) - 💸 Dette client : bouton ouvre le portefeuille + facture & règlement multi-paiement corrects (DONE, testé e2e + pytest)
+- **Bug user** : « Payer la dette » n'ouvrait pas le portefeuille (appel direct `/debts/pay` → erreur si solde insuffisant). + flux de règlement à corriger.
+- **Fix bug** : `DebtBanner.jsx` → bouton « Payer la dette » navigue vers `/wallet?action=debt`. Nouvelle **carte dette sur `WalletPage.js`** (`wallet-debt-card`) : « Régler X € depuis le solde » si solde suffisant (`wallet-pay-debt-btn` → `/debts/pay`), sinon « Recharger pour régler » (`wallet-topup-for-debt-btn` ; le top-up auto-règle la dette). Rechargé après top-up.
+- **Correctif financier majeur** (`rides.py`, `debts.py`) : la dette portée est désormais **ajoutée au montant de la course** (`amt = tarif + dette`) et affichée dans la facture chauffeur (`RideCompletionFlow.jsx` ligne « Dette (course précédente impayée) », Total/Total net inclus). Règlement selon le mode :
+  - **Espèces (Reçu)** : chauffeur encaisse tarif+dette ; on débite la dette de SON portefeuille → reversée à l'ancien chauffeur ; dette payée ; **chauffeur notifié** (`debt` / "Dette client reversée 🔁"). Réglé à `collect-cash` (pas à la complétion).
+  - **Espèces (Non reçu)** : dette portée **conservée** (se reporte), seul le tarif devient une nouvelle dette ; ancien chauffeur **non** remboursé.
+  - **Portefeuille / Carte / SBPayGo (couvert)** : passager paie tarif+dette en une fois ; ancien chauffeur remboursé ; **chauffeur actuel NON notifié**. Réglé à la complétion.
+  - `settle_carried_debts(ride, carried, collected_in_cash)` refondu (re-lecture anti double-remboursement).
+- **Testé e2e (curl réels)** : espèces reçu (chauffeur 100→90, ancien 50→60, perçu 30, dette payée, notif ✓) ; portefeuille (paul −30, ancien +10, pas de notif ✓) ; non-reçu (dette 10 conservée + nouvelle dette 20, ancien non remboursé ✓) ; règlement depuis solde (30→17.5). + screenshots (carte portefeuille, bannière→portefeuille). + pytest `test_iter277_debt_settlement.py` 1/1 (régression espèces).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+- **NON FAIT (suggestion en attente)** : badge « ⭐ Votre favori » sur la carte chauffeur + notif « c'est [Nom], votre favori, qui arrive ! ».
+
+
+
 - **Demande user** : favoris **max 2** (déjà en place backend), valables pour **tout transport + livraison**, remplaçables, **+ brancher l'attribution préférentielle** dans le matching ; ajout/changement aussi depuis l'espace client.
 - **Correctif** : la notation (`rides.py rate_ride`) écrivait dans `user.favorite_driver_ids` (≠ collection lue par la page) → corrigé pour upsert dans `db.favorite_drivers` avec max-2.
 - **Attribution préférentielle (head-start exclusif)** : nouveau `core/favorites.py` (`get_favorite_head_start_seconds` clamp 0-60, `online_favorite_drivers`). À la création d'une course (`rides.py`), si un favori est en ligne → la demande lui est proposée **en exclusivité pendant N s** (notif + WS `favorite:true`), broadcast général **retenu** ; libéré par `auto_dispatch._release_favorite_hold` à l'expiration (ou si le favori a accepté, plus de broadcast). Idem livraison (`orders.py _broadcast_delivery_offers`). Délai **réglable admin** `favorite_head_start_seconds` (DEFAULT 20, clamp 0-60 lecture **et** écriture) — champ UI dans `AdminAutoDispatch.js`.

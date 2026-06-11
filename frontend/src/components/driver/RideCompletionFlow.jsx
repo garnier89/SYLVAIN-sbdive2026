@@ -140,11 +140,15 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
   // ── STEP 2: Facture détaillée + Collecte de paiement ────────────────────
   if (step === 'invoice') {
     const b = breakdown || {};
-    const subtotal = b.subtotal ?? b.total ?? ride.final_fare ?? ride.estimated_fare ?? 0;
-    const net = b.total_net ?? b.total ?? subtotal;
+    const carriedDebt = Number(b.carried_debt) || 0;
+    // fare_subtotal = fare+extras (pre-debt). With a carried debt the backend bumps
+    // b.total / b.total_net to include it, so Total & Total net show fare+extras+debt.
+    const subtotalBase = b.fare_subtotal ?? b.subtotal ?? b.total ?? ride.final_fare ?? ride.estimated_fare ?? 0;
+    const subtotal = subtotalBase + carriedDebt;
+    const net = b.total_net ?? subtotal;
     const rounding = b.rounding ?? 0;
     const extra = b.extra_total || 0;
-    const fareOnly = subtotal - extra;
+    const fareOnly = subtotalBase - extra;
     return (
       <div className="fixed inset-0 z-[3000] bg-[#0B0B0B] flex flex-col" data-testid="invoice-screen">
         <div className="text-white text-center pt-4 pb-2 text-lg font-semibold">Facture détaillée</div>
@@ -169,6 +173,7 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
             <p className="text-center text-xl font-extrabold text-gray-900 py-2">{b.vehicle_label || ride.vehicle_type || 'SB'}</p>
             <Row label="Tarif" value={cur(fareOnly)} testId="invoice-fare" />
             {extra > 0 && <Row label="Frais supplémentaires" value={cur(extra)} testId="invoice-extra" />}
+            {carriedDebt > 0 && <Row label="Dette (course précédente impayée)" value={cur(carriedDebt)} testId="invoice-carried-debt" />}
             <Row label="Total" value={cur(subtotal)} testId="invoice-total" />
             <Row label="Arrondir" value={cur(rounding)} testId="invoice-rounding" />
             <Row label="Total net" value={cur(net)} strong testId="invoice-net" />

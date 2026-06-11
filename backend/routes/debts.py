@@ -229,43 +229,58 @@ async def release_carried_debts(ride_id):
     )
 
 
-async def settle_carried_debts(ride, carried):
-    """Settle the debts carried by a completed ride. Re-reads the debts so an
-    already-paid debt (e.g. settled from the wallet meanwhile) is skipped —
-    prevents any double reimbursement."""
+async def settle_carried_debts(ride, carried, collected_in_cash=False):
+    """Redistribute the carried debt to the wronged previous driver(s).
+
+    The debt amount is ALREADY included in this ride's total (fare + debt), so:
+      • collected_in_cash=True  → the NEW driver physically collected (fare + debt)
+        in cash, so we debit the debt from their wallet and forward it to the old
+        driver, AND notify the new driver (they handed over money they collected).
+      • collected_in_cash=False → the passenger paid digitally (the debt was part
+        of the wallet/card charge); we only forward it to the old driver, WITHOUT
+        informing the current driver (they never touched it).
+
+    Re-reads the debts so an already-paid debt (settled from the wallet meanwhile)
+    is skipped — prevents any double reimbursement."""
     debt_ids = (carried or {}).get("debt_ids") or []
     if not debt_ids:
-        return
+        return 0.0
     items = await db.cancellation_debts.find(
         {"id": {"$in": debt_ids}, "paid": False}, {"_id": 0}
     ).to_list(200)
     if not items:
-        return
+        return 0.0
     amount = round(sum(float(i.get("amount", 0) or 0) for i in items), 2)
     if amount <= 0:
-        return
-    pm = ride.get("payment_method")
-    passenger_id = ride.get("user_id")
+        return 0.0
     new_driver_id = ride.get("driver_id")
     ride_id = ride.get("id")
     # 1) Reimburse the wronged previous driver(s)
     for i in items:
         await _reimburse_driver(i.get("owed_to_driver_id"), float(i.get("amount", 0) or 0), ride_id)
-    # 2) Source the funds
-    if pm == "cash":
-        # Passenger paid (fare + debt) in cash to the NEW driver → debit them.
-        if new_driver_id:
-            drv = await db.drivers.find_one({"id": new_driver_id}, {"_id": 0, "user_id": 1})
-            await _debit_wallet((drv or {}).get("user_id"), amount,
-                                "Reversement dette annulation (encaissée en espèces)", ride_id)
-    elif pm == "wallet":
-        await _debit_wallet(passenger_id, amount, "Dette d'annulation réglée avec la course", ride_id)
-    # card / sbpaygo → collected with the digital ride payment (simulated)
+    # 2) Source the funds when the new driver collected them in cash
+    if collected_in_cash and new_driver_id:
+        drv = await db.drivers.find_one({"id": new_driver_id}, {"_id": 0, "user_id": 1})
+        duid = (drv or {}).get("user_id")
+        await _debit_wallet(duid, amount,
+                            "Reversement dette client (encaissée en espèces)", ride_id)
+        if duid:
+            try:
+                from core.notifications import create_notification
+                await create_notification(
+                    duid, "debt",
+                    "Dette client reversée 🔁",
+                    f"{amount:.2f} € encaissés en espèces pour une course impayée d'un précédent chauffeur ont été reversés à ce dernier.",
+                    data={"amount": amount, "ride_id": ride_id, "kind": "debt_forward_cash"},
+                )
+            except Exception:
+                pass
     # 3) Mark these debts paid
     await db.cancellation_debts.update_many(
         {"id": {"$in": [i["id"] for i in items]}},
         {"$set": {"paid": True, "paid_at": _now(), "settled_via_ride_id": ride_id}},
     )
+    return amount
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────
