@@ -1,3 +1,15 @@
+## NEW - 2026-06-11 (286) - 🏍️💳 Moto Phase 3b : Caution Stripe (self-drive) (DONE, testé frontend 5/5 + curl e2e)
+- **Demande user (Option A validée)** : caution via Stripe — débitée à la remise par Stripe Checkout, puis RESTITUÉE sur le portefeuille SB Pay au retour (moins frais de dommages).
+- **Contrainte plateforme** : la lib `emergentintegrations` Stripe ne fait que du Checkout hébergé (pas de pré-autorisation/empreinte ni refund carte). → Caution **débitée** (Checkout) puis **recréditée sur SB Pay** au retour. La vraie empreinte (capture manuelle) nécessiterait la clé Stripe réelle du client (Option B, plus tard).
+- **Backend** (`routes/moto_rental.py`, réutilise STRIPE_API_KEY + pattern payments.py) :
+  - `POST /moto-rental/{id}/deposit-checkout` : crée une session Stripe Checkout du montant de caution (statut awaiting_pickup requis), enregistre `payment_transactions` (type moto_deposit). Si caution=0 → passe direct en active.
+  - `GET /moto-rental/deposit-status/{session_id}` : polling ; au paiement → `deposit_status=held`, location `active` (idempotent).
+  - `POST /moto-rental/admin/rentals/{id}/return` : restitue `caution − damage_fees` sur le wallet SB Pay (Refund), conserve les dommages, libère la moto, statut `returned`, notifie l'usager.
+- **Frontend** : user `MotoSelfRentalPage.js` — bouton « Payer la caution » (awaiting_pickup), redirection Stripe, polling au retour (`?deposit_session=`), badges « Caution bloquée ✓ » / « Caution restituée ». admin `AdminMotoFleet.js` — clôture avec saisie frais dommages (`moto-damage-{id}` + `moto-close-{id}`).
+- **Testé** : testing_agent iter285 frontend 5/5 PASS (Stripe Checkout test réel 4242, polling, clôture admin 50€ dommages → 350€ restitués, reflet user) + curl e2e (session cs_test_… + règlement wallet 350€).
+- ⚠️ PREVIEW → redéploiement requis. STRIPE en mode TEST.
+
+
 ## NEW - 2026-06-11 (285) - 🏍️ Moto Phase 3 : Location LIBRE-SERVICE (self-drive) (DONE, testé frontend 6/6 + pytest 2/2)
 - **Demande user (défauts validés)** : louer une moto et la conduire soi-même. Paiement SB Pay, caution indicative (non débitée au MVP), permis validé manuellement par l'admin, flotte interne admin.
 - **Backend** nouveau `routes/moto_rental.py` (collections `moto_fleet`, `moto_self_rentals`) :
