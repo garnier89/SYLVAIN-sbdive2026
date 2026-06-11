@@ -59,6 +59,11 @@ DEFAULT_CONFIG = {
     # have at least cb_cancel_flag_min cancellations (avoids tiny-sample flags).
     "cb_cancel_flag_pct": 30,
     "cb_cancel_flag_min": 3,
+    # === Favorite drivers (preferential matching) ===
+    # When a customer with online favorite driver(s) books, the request is offered
+    # EXCLUSIVELY to the favorite(s) for this many seconds before the general
+    # broadcast. 0 = disabled (no head-start). Clamped 0..60.
+    "favorite_head_start_seconds": 20,
 }
 
 
@@ -328,6 +333,32 @@ async def _activate_scheduled_ride(ride):
     logger.info(f"AutoDispatch ACTIVATED scheduled ride={ride['id']} (pickup near)")
 
 
+async def _release_favorite_hold(ride):
+    """The favorite head-start window expired without a favorite accepting →
+    broadcast the request to all nearby drivers (was withheld at creation)."""
+    await manager.broadcast_to_drivers({
+        "type": "new_ride_request",
+        "ride_id": ride["id"],
+        "booking_no": ride.get("booking_no"),
+        "pickup_lat": ride.get("pickup_lat"),
+        "pickup_lng": ride.get("pickup_lng"),
+        "pickup_address": ride.get("pickup_address"),
+        "dropoff_address": ride.get("dropoff_address"),
+        "vehicle_type": ride.get("vehicle_type"),
+        "estimated_fare": ride.get("estimated_fare"),
+        "proposed_fare": ride.get("proposed_fare"),
+        "distance_km": ride.get("distance_km"),
+        "duration_mins": ride.get("duration_mins"),
+        "mode": ride.get("mode"),
+        "is_bidding": ride.get("is_bidding"),
+        "pool_enabled": ride.get("pool_enabled"),
+        "seats_required": ride.get("seats_required"),
+    })
+    await db.rides.update_one({"id": ride["id"]}, {"$set": {"favorite_hold_released": True}})
+    ride["favorite_hold_released"] = True
+    logger.info(f"AutoDispatch released favorite head-start for ride={ride['id']}")
+
+
 async def _process_pending_ride(ride: dict, now, cfg, points_cfg):
     """Inspect a single pending ride and trigger escalation / cancellation if due.
 
@@ -336,6 +367,19 @@ async def _process_pending_ride(ride: dict, now, cfg, points_cfg):
       • scheduled ride → (scheduled_at − scheduled_lead_minutes). Before that
         moment the ride waits in the planned pool / driver agenda and is left
         untouched (never escalated, never auto-cancelled)."""
+    # Favorite head-start: while the exclusive window is open, the request is held
+    # for the favorite driver(s) only. Release the general broadcast once it expires.
+    if ride.get("favorite_hold_until") and not ride.get("favorite_hold_released"):
+        try:
+            hu = datetime.fromisoformat(str(ride["favorite_hold_until"]).replace("Z", "+00:00"))
+            if hu.tzinfo is None:
+                hu = hu.replace(tzinfo=timezone.utc)
+        except Exception:
+            hu = now
+        if now < hu:
+            return  # still exclusive to favorite(s) — don't broadcast/escalate yet
+        await _release_favorite_hold(ride)
+
     scheduled_at_iso = ride.get("scheduled_at")
     if scheduled_at_iso:
         try:
@@ -432,6 +476,7 @@ class AutoDispatchConfigUpdate(BaseModel):
     refusal_window_minutes: int | None = None
     cb_cancel_flag_pct: int | None = None
     cb_cancel_flag_min: int | None = None
+    favorite_head_start_seconds: int | None = None
 
 
 @router.put("/config")

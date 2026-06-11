@@ -176,6 +176,22 @@ const AdminAutoDispatch = () => {
         </CardContent>
       </Card>
 
+      {/* Favorite drivers head-start */}
+      <Card>
+        <CardContent className="p-5 space-y-4">
+          <h2 className="font-bold text-gray-800 flex items-center gap-2">
+            <Lightning size={18} weight="fill" className="text-pink-500" /> Chauffeurs favoris — priorité
+          </h2>
+          <NumberField
+            label="Exclusivité favori (secondes)"
+            hint="Si un favori est en ligne, la course/livraison lui est proposée seule pendant ce délai avant diffusion à tous. 0 = désactivé. (max 60s)"
+            value={cfg.favorite_head_start_seconds ?? 20}
+            onChange={(v) => setNum('favorite_head_start_seconds', Math.min(60, parseInt(v) || 0))}
+            testId="favorite-head-start-input"
+          />
+        </CardContent>
+      </Card>
+
       {/* Palettes Card */}
       <Card>
         <CardContent className="p-5 space-y-4">

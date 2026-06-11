@@ -258,6 +258,42 @@ async def remove_favorite_driver(driver_id: str, request: Request):
     return {"message": "Removed"}
 
 
+@router.get("/recent-drivers")
+async def list_recent_drivers(request: Request):
+    """Drivers the customer recently rode with (completed rides), excluding those
+    already favorited — used to add/replace a favorite from the user's space."""
+    user = await get_current_user(request)
+    fav_ids = {f["driver_id"] for f in await db.favorite_drivers.find(
+        {"user_id": user["id"]}, {"_id": 0, "driver_id": 1}).to_list(10)}
+    rides = await db.rides.find(
+        {"user_id": user["id"], "status": "completed", "driver_id": {"$ne": None}},
+        {"_id": 0, "driver_id": 1, "created_at": 1},
+    ).sort("created_at", -1).to_list(60)
+    seen, out = set(), []
+    for r in rides:
+        did = r.get("driver_id")
+        if not did or did in seen or did in fav_ids:
+            continue
+        seen.add(did)
+        d = await db.drivers.find_one({"id": did}, {"_id": 0})
+        if not d:
+            continue
+        u = await db.users.find_one({"id": d["user_id"]}, {"_id": 0, "name": 1, "avatar_url": 1}) or {}
+        out.append({
+            "driver_id": d["id"],
+            "name": u.get("name", "Chauffeur"),
+            "avatar_url": u.get("avatar_url"),
+            "vehicle_model": d.get("vehicle_model"),
+            "vehicle_type": d.get("vehicle_type"),
+            "rating": d.get("rating", 5.0),
+            "total_trips": d.get("total_trips", 0),
+            "last_ride_at": r.get("created_at"),
+        })
+        if len(out) >= 15:
+            break
+    return out
+
+
 # ═══════════ STOPOVERS ═══════════
 
 @router.put("/rides/{ride_id}/stopovers")

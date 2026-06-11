@@ -777,7 +777,7 @@ async def create_ride(data: RideRequest, request: Request):
     # wait in the driver's agenda (home-feed `scheduled_pending`) instead of
     # popping up as an immediate request.
     if not ride.get("scheduled_at"):
-        await manager.broadcast_to_drivers({
+        new_ride_payload = {
             "type": "new_ride_request",
             "ride_id": ride["id"],
             "pickup_lat": ride["pickup_lat"],
@@ -794,7 +794,39 @@ async def create_ride(data: RideRequest, request: Request):
             "is_bidding": is_bidding,
             "pool_enabled": ride["pool_enabled"],
             "seats_required": ride["seats_required"],
-        }, exclude=await _cash_exclude_set(ride))
+        }
+        # Favorite head-start: if the customer has online favorite driver(s), offer
+        # the ride EXCLUSIVELY to them for a short window before broadcasting to all.
+        favorite_held = False
+        try:
+            from core.favorites import get_favorite_head_start_seconds, online_favorite_drivers
+            from core.notifications import create_notification
+            head = await get_favorite_head_start_seconds()
+            favs = await online_favorite_drivers(user["id"]) if head > 0 else []
+            if favs:
+                hold_until = (datetime.now(timezone.utc) + timedelta(seconds=head)).isoformat()
+                await db.rides.update_one({"id": ride["id"]}, {"$set": {
+                    "favorite_hold_until": hold_until,
+                    "favorite_target_driver_ids": [f["driver_id"] for f in favs],
+                    "favorite_hold_released": False,
+                }})
+                for f in favs:
+                    await manager.send_personal_message({**new_ride_payload, "favorite": True}, f["driver_user_id"])
+                    try:
+                        await create_notification(
+                            f["driver_user_id"], "favorite_ride",
+                            "⭐ Course d'un client qui vous a en favori",
+                            f"{ride['pickup_address'][:40]} — réservez avant les autres chauffeurs.",
+                            data={"url": "/chauffeur/home", "ride_id": ride["id"]},
+                        )
+                    except Exception:
+                        pass
+                favorite_held = True
+        except Exception:
+            import logging
+            logging.getLogger("rides").warning("favorite head-start failed", exc_info=True)
+        if not favorite_held:
+            await manager.broadcast_to_drivers(new_ride_payload, exclude=await _cash_exclude_set(ride))
 
     # Also broadcast to admins watching the live-rides cockpit
     await manager.broadcast_to_admins({
@@ -2485,7 +2517,24 @@ async def rate_ride(ride_id: str, request: Request):
     }
     await db.ratings.insert_one(rating)
     if body.get("favorite_driver") and ride.get("driver_id"):
-        await db.users.update_one({"id": user["id"]}, {"$addToSet": {"favorite_driver_ids": ride["driver_id"]}})
+        # Persist into the favorite_drivers collection (same store the favorites
+        # page reads), enforcing the max-2 rule. Silently ignore if already at max.
+        already = await db.favorite_drivers.find_one(
+            {"user_id": user["id"], "driver_id": ride["driver_id"]}, {"_id": 0, "id": 1})
+        if not already and await db.favorite_drivers.count_documents({"user_id": user["id"]}) < 2:
+            drv = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "user_id": 1})
+            drv_user = await db.users.find_one({"id": (drv or {}).get("user_id")}, {"_id": 0, "name": 1}) if drv else None
+            await db.favorite_drivers.update_one(
+                {"user_id": user["id"], "driver_id": ride["driver_id"]},
+                {"$setOnInsert": {
+                    "id": f"fav_{uuid.uuid4().hex[:10]}",
+                    "user_id": user["id"],
+                    "driver_id": ride["driver_id"],
+                    "driver_name": (drv_user or {}).get("name", "Chauffeur"),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }},
+                upsert=True,
+            )
     pipeline = [
         {"$match": {"driver_id": ride["driver_id"]}},
         {"$group": {"_id": None, "avg": {"$avg": "$rating"}}}

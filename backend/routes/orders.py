@@ -103,6 +103,8 @@ async def _broadcast_delivery_offers(now):
     surface them first."""
     cfg = await _delivery_settings()
     radius = float(cfg.get("dispatch_radius_km", 5.0))
+    from core.favorites import get_favorite_head_start_seconds, online_favorite_drivers
+    head = await get_favorite_head_start_seconds()
     cursor = db.orders.find(
         {"driver_id": None, "status": {"$in": ["accepted", "preparing", "ready"]}, "dispatch_notified": {"$ne": True}},
         {"_id": 0},
@@ -113,7 +115,6 @@ async def _broadcast_delivery_offers(now):
         merchant = await db.merchants.find_one({"id": o.get("merchant_id")}, {"_id": 0, "lat": 1, "lng": 1, "store_name": 1})
         if not merchant:
             continue
-        drivers = await _nearby_delivery_drivers(merchant.get("lat"), merchant.get("lng"), radius)
         payload = {
             "type": "new_delivery_offer",
             "order_id": o["id"],
@@ -123,6 +124,28 @@ async def _broadcast_delivery_offers(now):
             "delivery_speed": o.get("delivery_speed", "standard"),
             "priority": bool(o.get("priority")),
         }
+        # Favorite head-start: offer EXCLUSIVELY to online favorite courier(s) first.
+        fav_until = o.get("favorite_hold_until")
+        if head > 0 and not fav_until and not o.get("favorite_notified"):
+            favs = await online_favorite_drivers(o["user_id"])
+            if favs:
+                for f in favs:
+                    await manager.send_personal_message({**payload, "favorite": True}, f["driver_user_id"])
+                await db.orders.update_one({"id": o["id"]}, {"$set": {
+                    "favorite_notified": True,
+                    "favorite_hold_until": (now + timedelta(seconds=head)).isoformat(),
+                }})
+                continue  # withhold general broadcast until the window expires
+        elif fav_until:
+            try:
+                hu = datetime.fromisoformat(str(fav_until).replace("Z", "+00:00"))
+                if hu.tzinfo is None:
+                    hu = hu.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                hu = now
+            if now < hu:
+                continue  # still exclusive to favorite(s)
+        drivers = await _nearby_delivery_drivers(merchant.get("lat"), merchant.get("lng"), radius)
         for uid in drivers[:10]:
             await manager.send_personal_message(payload, uid)
         await db.orders.update_one(
