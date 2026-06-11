@@ -599,7 +599,7 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white" data-testid="mkt-chat-sheet">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white" onClick={(e) => e.stopPropagation()} data-testid="mkt-chat-sheet">
       <div className="flex items-center gap-2 p-3 border-b border-gray-100 text-white" style={{ background: BRAND }}>
         <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="mkt-chat-back"><CaretLeft size={20} /></button>
         <div className="min-w-0">
