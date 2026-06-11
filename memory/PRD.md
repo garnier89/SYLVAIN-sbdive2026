@@ -1,4 +1,14 @@
-## NEW - 2026-06-11 (275) - ♿ Profil chauffeur certifié (photo + bio + formations) & 🟢 fix WhatsApp /course (DONE, testé 7/7 pytest + frontend 100%)
+## NEW - 2026-06-11 (276) - ⭐ Chauffeurs favoris : attribution préférentielle (taxi + livraison) (DONE, testé 10/10 pytest + frontend 100%)
+- **Demande user** : favoris **max 2** (déjà en place backend), valables pour **tout transport + livraison**, remplaçables, **+ brancher l'attribution préférentielle** dans le matching ; ajout/changement aussi depuis l'espace client.
+- **Correctif** : la notation (`rides.py rate_ride`) écrivait dans `user.favorite_driver_ids` (≠ collection lue par la page) → corrigé pour upsert dans `db.favorite_drivers` avec max-2.
+- **Attribution préférentielle (head-start exclusif)** : nouveau `core/favorites.py` (`get_favorite_head_start_seconds` clamp 0-60, `online_favorite_drivers`). À la création d'une course (`rides.py`), si un favori est en ligne → la demande lui est proposée **en exclusivité pendant N s** (notif + WS `favorite:true`), broadcast général **retenu** ; libéré par `auto_dispatch._release_favorite_hold` à l'expiration (ou si le favori a accepté, plus de broadcast). Idem livraison (`orders.py _broadcast_delivery_offers`). Délai **réglable admin** `favorite_head_start_seconds` (DEFAULT 20, clamp 0-60 lecture **et** écriture) — champ UI dans `AdminAutoDispatch.js`.
+- **Espace client** (`FavoriteDriversPage.js`) : compteur X/2, section **« Ajouter un chauffeur »** depuis les courses récentes (`GET /api/phase1/recent-drivers`, exclut déjà-favoris), ajout 1-tap, boutons désactivés à 2/2, remplacement = retirer puis ajouter.
+- **NON couvert (volontaire)** : SB Access utilise un modèle chauffeur distinct (users role=driver, pas `db.drivers`) → favoris non branchés sur SB Access pour éviter un mismatch de données ; SB Access continue de préférer les chauffeurs certifiés.
+- **Testé** : pytest `test_iter276_favorite_dispatch.py` (2/2 helper) + `test_iter276_favorites_api.py` (8/8 HTTP) + testing_agent frontend 100% (add/remove/max2/replace, recent-drivers, champ admin persistant). Dispatch head-start câblé (non e2e car nécessite chauffeur en ligne + WS). Curl : add/remove/max2/replace, clamp 999→60.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 - **Demande user (1 — bug prioritaire WhatsApp)** : retirer le GROS bouton « Réserver via WhatsApp » partout, garder seulement le petit badge WhatsApp sur les véhicules ; « je n'arrive pas à commander sur WhatsApp » (`api.whatsapp.com` bloqué sur mobile).
   - Fix (`RideChoosePage.js`) : gros bouton `ride-choose-whatsapp-btn` SUPPRIMÉ du `renderCta`. Petit badge `vehicle-whatsapp-{slug}` conservé, transformé en bouton appelant `openWhatsApp` → **schéma `whatsapp://send?phone=&text=` sur mobile** (ouvre l'app directement, contourne le blocage `api.whatsapp.com` via `wa.me`), `wa.me` en repli desktop. `buildWaUrl` refactoré en `buildWaMsg` + `openWhatsApp`. Vérifié screenshot : gros bouton absent, badge présent, CTA = « Choisir SB ».
 - **Demande user (2 — enrichissement validé)** : admin upload photo + mini-bio + formations des chauffeurs certifiés, affichées à l'usager.

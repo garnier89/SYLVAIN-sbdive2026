@@ -485,6 +485,8 @@ async def update_auto_dispatch_config(body: AutoDispatchConfigUpdate, request: R
     patch = {k: v for k, v in body.dict().items() if v is not None}
     if not patch:
         raise HTTPException(status_code=400, detail="Rien à mettre à jour")
+    if "favorite_head_start_seconds" in patch:
+        patch["favorite_head_start_seconds"] = max(0, min(60, int(patch["favorite_head_start_seconds"])))
     await db.service_configs.update_one(
         {"service_key": CONFIG_KEY},
         {"$set": {"service_key": CONFIG_KEY, "settings": {**(await get_config()), **patch}}},
