@@ -13,6 +13,7 @@ const TABS = [
   { key: 'zones', label: 'Zones campus' },
   { key: 'rewards', label: 'Récompenses' },
   { key: 'events', label: 'Événements' },
+  { key: 'marketplace', label: 'Marketplace' },
   { key: 'domains', label: 'Domaines email' },
   { key: 'students', label: 'Étudiants' },
 ];
@@ -37,6 +38,7 @@ const AdminStudent = () => {
       {tab === 'zones' && <CampusZones />}
       {tab === 'rewards' && <Rewards />}
       {tab === 'events' && <Events />}
+      {tab === 'marketplace' && <Marketplace />}
       {tab === 'domains' && <Domains />}
       {tab === 'students' && <Students />}
     </div>
@@ -386,5 +388,91 @@ const Students = () => {
     </div>
   );
 };
+
+// ===== Marketplace boost config + revenue =====
+const Marketplace = () => {
+  const [cfg, setCfg] = useState(null);
+  const [rev, setRev] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(() => {
+    studentAPI.mktAdminBoostConfig().then((r) => setCfg(r.data)).catch(() => {});
+    studentAPI.mktAdminBoostRevenue().then((r) => setRev(r.data)).catch(() => {});
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const setPlan = (i, field, value) => {
+    const plans = [...(cfg.plans || [])];
+    plans[i] = { ...plans[i], [field]: value };
+    setCfg({ ...cfg, plans });
+  };
+  const addPlan = () => setCfg({ ...cfg, plans: [...(cfg.plans || []), { days: 1, points: 25, price_eur: 0.5 }] });
+  const removePlan = (i) => setCfg({ ...cfg, plans: cfg.plans.filter((_, j) => j !== i) });
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const plans = (cfg.plans || []).map((p) => ({ id: p.id, days: Number(p.days), points: Number(p.points), price_eur: Number(p.price_eur) }));
+      await studentAPI.mktAdminUpdateBoostConfig({ enabled: cfg.enabled, plans });
+      toast.success('Boost enregistré'); load();
+    } catch { toast.error('Échec'); }
+    finally { setSaving(false); }
+  };
+
+  if (!cfg) return <p className="text-sm text-slate-400">Chargement…</p>;
+  return (
+    <div className="space-y-5" data-testid="admin-mkt-boost">
+      {rev && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="Boosts" value={rev.total_boosts} />
+          <Stat label="Revenu €" value={`${Number(rev.revenue_eur).toFixed(2)} €`} />
+          <Stat label="Points dépensés" value={rev.points_spent} />
+          <Stat label="Boosts actifs" value={rev.active_boosts} />
+        </div>
+      )}
+      <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-slate-800">Forfaits « Top annonce »</h3>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} data-testid="boost-enabled" /> Activé</label>
+        </div>
+        <div className="space-y-2">
+          {(cfg.plans || []).map((p, i) => (
+            <div key={i} className="flex items-end gap-2 flex-wrap" data-testid={`boost-plan-row-${i}`}>
+              <Field label="Jours" value={p.days} onChange={(v) => setPlan(i, 'days', v)} />
+              <Field label="Points" value={p.points} onChange={(v) => setPlan(i, 'points', v)} />
+              <Field label="Prix €" value={p.price_eur} step="0.5" onChange={(v) => setPlan(i, 'price_eur', v)} />
+              <button onClick={() => removePlan(i)} className="text-red-500 text-sm font-semibold pb-2">Suppr.</button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addPlan} className="mt-2 text-sm font-semibold text-violet-700">+ Ajouter un forfait</button>
+        <div className="mt-4">
+          <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold disabled:opacity-50" data-testid="boost-save">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+        </div>
+      </div>
+      {rev?.recent?.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 className="font-bold text-slate-800 mb-2">Boosts récents</h3>
+          <div className="space-y-1 text-sm text-slate-600">
+            {rev.recent.map((b) => (
+              <div key={b.id} className="flex justify-between border-b border-slate-50 py-1">
+                <span>{b.days}j · {b.method === 'points' ? `${b.points} pts` : `${Number(b.amount_eur).toFixed(2)} €`}</span>
+                <span className="text-slate-400">{(b.created_at || '').split('T')[0]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Field = ({ label, value, onChange, step }) => (
+  <div>
+    <label className="block text-xs text-slate-400 mb-0.5">{label}</label>
+    <input type="number" step={step || '1'} value={value} onChange={(e) => onChange(e.target.value)}
+      className="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-sm" />
+  </div>
+);
+
 
 export default AdminStudent;

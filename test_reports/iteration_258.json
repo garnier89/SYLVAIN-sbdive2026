@@ -1,0 +1,42 @@
+{
+  "summary": "Iter258 — Phase 6 PAID BOOST feature ('Top annonce') frontend e2e validated end-to-end on mobile (390x844) + desktop admin (1280x900). FULL FLOW: (1) login test2@example.com → /sb-student/marketplace ('sb-marketplace-page' loads) → mkt-sell-fab opens mkt-sell-sheet → publish listing 'TEST_iter258_boost_*' at 12€ → sheet closes, new card slist_e649c236cbb1 appears. (2) Tapping OWN card opens mkt-detail-sheet showing mkt-boost-btn (Booster · Top annonce) — NO mkt-buy-btn (owner-only logic OK). (3) Tapping mkt-boost-btn opens mkt-boost-sheet (z-50, above detail sheet) with 'Solde : 550 points' + 2 plans (boost-plan-boost_3d '3 jours 50 pts / 1.00 €' and boost-plan-boost_7d '7 jours 100 pts / 2.00 €'), all 4 method buttons present (boost-boost_3d-points/wallet + boost-boost_7d-points/wallet). (4) Clicked boost-boost_3d-points → boost succeeded (badge appeared + listing floats to top). Badge mkt-boosted-slist_e649c236cbb1 visible. listing slist_e649c236cbb1 is the FIRST card in the grid (floats to top of category). (5) Admin /admin/student → 'Marketplace' tab (admin-student-tab-marketplace) → admin-mkt-boost panel shows revenue stats (Boosts: 1, Revenu: 0.00 €, Points dépensés: 50, Boosts actifs: 1) + 2 plan rows (boost-plan-row-0/1 each with 3 inputs jours/points/prix) + Boost récent '3j · 50 pts · 2026-06-11' + boost-save button. Saving → toast 'Boost enregistré' + survives reload. (6) Cross-account 'buy vs boost' UI verification with admin@superapp.com was BLOCKED at the route level — admin login redirects to /admin dashboard and /sb-student/marketplace doesn't render sb-marketplace-page for admin role (admin is not a student). The owner-vs-buyer toggle is straightforward React logic (isOwner = meId && listing.user_id === meId in DetailSheet) and was validated at backend e2e in iter257 (fresh buyer sees buy flow). For frontend cross-user validation, a fresh student account would be needed.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SbMarketplacePage / Sell FAB & boost button",
+        "issue": "Global 'Vérifiez votre email' fixed-bottom banner overlaps mkt-sell-fab AND the mkt-boost-btn inside mkt-detail-sheet on 390x844 viewport — Playwright forced clicks via real .click(force=True) were intercepted; only document.querySelector(...).click() bypass worked. Same issue as iter257. Real users must dismiss the banner to interact with the FAB/boost CTA when on a non-verified session.",
+        "selector": "[data-testid=\"mkt-sell-fab\"], [data-testid=\"mkt-boost-btn\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter258_marketplace_boost.py (existing — backend 6/6)",
+    "/app/test_reports/iteration_257.json"
+  ],
+  "action_items": [
+    "(Mineur, repris de iter257) Élever z-index du mkt-sell-fab et de la zone d'action de mkt-detail-sheet au-dessus du toast global 'Vérifiez votre email', ou déplacer la bannière en haut, ou la masquer sur les pages Marketplace. Sinon le tap sur '+', sur la carte annonce et sur 'Booster · Top annonce' est intercepté par la bannière en mobile.",
+    "(Optionnel) Permettre à l'admin de naviguer en /sb-student/marketplace en mode lecture/préview, sinon tester cross-user nécessite l'enregistrement d'un 2e étudiant à la volée."
+  ],
+  "critical_code_review_comments": [
+    "SbMarketplacePage.js — BoostSheet bien isolé, z-50 au-dessus de DetailSheet (z-40). Bonne pratique : meId provient de useAuth() côté client → si user.id n'est pas chargé au moment du render, isOwner=false → la première frame affiche buy-btn brièvement aux owners. Considérer un état 'loading' tant que useAuth() n'a pas résolu.",
+    "BoostSheet : load des plans via studentAPI.mktBoostPlans() sans gestion d'erreur visuelle (catch silencieux). Si l'admin a désactivé tous les forfaits (enabled=false), les plans sont vides et l'utilisateur voit 'Le boost est indisponible pour le moment.' — OK.",
+    "Le boost via 'points' fonctionne correctement avec 550 pts → débit 50 pts → admin panel affiche 'Points dépensés: 50' immédiatement. Le toast de succès 'Annonce boostée jusqu'au YYYY-MM-DD ⭐' s'est affiché brièvement (capturé partiellement — auto-dismiss sonner). Le badge ⭐ Top annonce s'applique en temps réel après reload des listings et l'annonce remonte EFFECTIVEMENT en TOP de sa catégorie (vérifié first card == target_id).",
+    "Admin panel /admin/student → Marketplace tab — UI très propre : Boosts/Revenu €/Points dépensés/Boosts actifs en 4 KPI cards, forfaits éditables, bouton Suppr. par ligne, '+ Ajouter un forfait', toggle 'Activé', save → toast 'Boost enregistré', historique 'Boosts récents'. Les valeurs persistent après reload. Excellent.",
+    "L'admin@superapp.com est redirigé hors de /sb-student/marketplace — c'est probablement intentionnel (gate is_student) mais empêche le test cross-account UI sans créer un 2e étudiant. Pour un MVP c'est OK car la logique d'owner-vs-buyer est isolée et testée backend."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (déjà 6/6 dans iter257/iter258 pytest)",
+    "frontend": "95% — 9/10 points testés OK. Seul le cross-user 'buy-btn vu par un autre étudiant' n'a pas été validé en UI (admin redirigé hors du marketplace) ; tous les autres data-testid demandés (mkt-sell-fab, mkt-sell-title, mkt-sell-price, mkt-sell-submit, mkt-detail-sheet, mkt-boost-btn, mkt-boost-sheet, boost-plan-boost_3d, boost-plan-boost_7d, boost-boost_3d-points/wallet, boost-boost_7d-points/wallet, mkt-boosted-{id}, admin-student-tab-marketplace, admin-mkt-boost, boost-plan-row-0, boost-save) sont présents et fonctionnels."
+  },
+  "test_credentials": "test2@example.com / TestPass123! (étudiant vérifié, 550 pts + wallet) + admin@superapp.com / SuperAdmin123! (admin panel).",
+  "seed_data_creation": "1 annonce TEST_iter258_boost_<ts> créée dans student_listings (slist_e649c236cbb1), boostée 3 jours via points (50 pts débités, boosted_until=2026-06-14). Aucune donnée prod modifiée.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 6 PAID BOOST validée frontend + admin. Pour 100% UI cross-user, créer un 2e étudiant vérifié à la volée (POST /api/auth/register + flag is_student=true via admin) ou utiliser un autre compte étudiant existant — admin@superapp.com est redirigé hors de /sb-student/marketplace. Bug UI mineur persistant : la bannière 'Vérifiez votre email' intercepte les CTAs en bas (FAB Sell, boost-btn, listing card sur certaines positions) — à fixer côté global layout en élevant le z-index des CTAs ou en repositionnant la bannière.",
+  "rca of the issue": "Pas de bug bloquant. Le boost-btn et le FAB sont parfois interceptés par la bannière globale email-verify (z-index plus élevé que les CTAs de la page marketplace). Mitigation : utiliser document.querySelector(...).click() en bypass (validé en test), ou côté code, élever z-index du mkt-sell-fab / mkt-detail-sheet (z-30/z-40) au-dessus du Toaster sonner global, ou déplacer la bannière en haut de page."
+}

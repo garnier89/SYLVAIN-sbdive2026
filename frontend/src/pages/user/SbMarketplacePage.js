@@ -9,9 +9,10 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   CaretLeft, Storefront, MagnifyingGlass, Sparkle, Plus, X, Tag,
-  BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera,
+  BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera, Star, Coins,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const BRAND = '#5B21B6';
 const CAT_ICONS = { livres: BookOpen, logement: House, coloc: UsersThree, materiel: Laptop, services: Wrench };
@@ -19,6 +20,7 @@ const COND_LABELS = { neuf: 'Neuf', tres_bon: 'Très bon état', bon: 'Bon état
 
 const SbMarketplacePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [cats, setCats] = useState([]);
   const [activeCat, setActiveCat] = useState('');
   const [listings, setListings] = useState([]);
@@ -122,7 +124,12 @@ const SbMarketplacePage = () => {
         ) : (
           <div className="grid grid-cols-2 gap-3" data-testid="mkt-listings">
             {listings.map((l) => (
-              <button key={l.id} onClick={() => setDetail(l)} className="bg-white rounded-2xl overflow-hidden shadow-sm text-left active:scale-[0.98] transition-transform" data-testid={`mkt-listing-${l.id}`}>
+              <button key={l.id} onClick={() => setDetail(l)} className="bg-white rounded-2xl overflow-hidden shadow-sm text-left active:scale-[0.98] transition-transform relative" data-testid={`mkt-listing-${l.id}`}>
+                {l.boosted && (
+                  <div className="absolute top-2 left-2 z-10 flex items-center gap-1 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow" style={{ background: BRAND }} data-testid={`mkt-boosted-${l.id}`}>
+                    <Star size={11} weight="fill" /> Top annonce
+                  </div>
+                )}
                 <div className="h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
                   {l.image_url ? <img src={l.image_url} alt={l.title} className="w-full h-full object-cover" />
                     : React.createElement(CAT_ICONS[l.category] || Tag, { size: 32, className: 'text-gray-300' })}
@@ -143,14 +150,16 @@ const SbMarketplacePage = () => {
         <Plus size={26} weight="bold" />
       </button>
 
-      {detail && <DetailSheet listing={detail} onClose={() => setDetail(null)} onBought={() => { setDetail(null); loadListings(); }} />}
+      {detail && <DetailSheet listing={detail} meId={user?.id} onClose={() => setDetail(null)} onBought={() => { setDetail(null); loadListings(); }} onBoosted={() => { setDetail(null); loadListings(); }} />}
       {sellOpen && <SellSheet verified={verified} cats={cats} onClose={() => setSellOpen(false)} onCreated={() => { setSellOpen(false); loadListings(); }} navigate={navigate} />}
     </div>
   );
 };
 
-const DetailSheet = ({ listing, onClose, onBought }) => {
+const DetailSheet = ({ listing, meId, onClose, onBought, onBoosted }) => {
   const [busy, setBusy] = useState(false);
+  const [boostOpen, setBoostOpen] = useState(false);
+  const isOwner = meId && listing.user_id === meId;
   const buy = async () => {
     if (!window.confirm(`Acheter « ${listing.title} » pour ${Number(listing.price).toFixed(2)} € depuis votre SB Pay ?`)) return;
     setBusy(true);
@@ -169,6 +178,7 @@ const DetailSheet = ({ listing, onClose, onBought }) => {
             {listing.image_url ? <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" />
               : React.createElement(CAT_ICONS[listing.category] || Tag, { size: 48, className: 'text-gray-300' })}
           </div>
+          {listing.boosted && <div className="absolute top-3 left-3 flex items-center gap-1 text-white text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: BRAND }}><Star size={13} weight="fill" /> Top annonce</div>}
           <button onClick={onClose} className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center"><X size={18} /></button>
         </div>
         <div className="p-4 space-y-2">
@@ -180,11 +190,60 @@ const DetailSheet = ({ listing, onClose, onBought }) => {
           <p className="text-xs text-gray-400">Vendu par {listing.seller_name}</p>
           {listing.status === 'sold' ? (
             <div className="w-full py-3 rounded-xl bg-gray-100 text-gray-400 text-center font-bold text-sm" data-testid="mkt-sold">Vendu</div>
+          ) : isOwner ? (
+            <button onClick={() => setBoostOpen(true)} disabled={busy} className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: BRAND }} data-testid="mkt-boost-btn">
+              <Star size={18} weight="fill" /> {listing.boosted ? 'Prolonger le boost' : 'Booster · Top annonce'}
+            </button>
           ) : (
             <button onClick={buy} disabled={busy} className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: BRAND }} data-testid="mkt-buy-btn">
               <Wallet size={18} weight="fill" /> {busy ? 'Achat…' : `Acheter · ${Number(listing.price).toFixed(2)} €`}
             </button>
           )}
+        </div>
+      </div>
+      {boostOpen && <BoostSheet listing={listing} onClose={() => setBoostOpen(false)} onBoosted={onBoosted} />}
+    </div>
+  );
+};
+
+const BoostSheet = ({ listing, onClose, onBoosted }) => {
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState('');
+  useEffect(() => { studentAPI.mktBoostPlans().then((r) => setData(r.data)).catch(() => {}); }, []);
+  const boost = async (planId, method) => {
+    setBusy(`${planId}-${method}`);
+    try {
+      const r = await studentAPI.mktBoost(listing.id, planId, method);
+      toast.success(`Annonce boostée jusqu'au ${(r.data.boosted_until || '').split('T')[0]} ⭐`);
+      onBoosted();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec du boost'); }
+    finally { setBusy(''); }
+  };
+  const plans = data?.plans || [];
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={(e) => { e.stopPropagation(); onClose(); }} data-testid="mkt-boost-sheet">
+      <div className="w-full bg-white rounded-t-3xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 className="font-black text-gray-900 flex items-center gap-1.5"><Star size={18} weight="fill" style={{ color: BRAND }} /> Top annonce</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-sm text-gray-600">Mets ton annonce <b>tout en haut</b> de sa catégorie avec un badge ⭐. Paie en points ou en €.</p>
+          <p className="text-xs text-gray-400">Solde : {data?.points_balance ?? 0} points</p>
+          {plans.length === 0 && <p className="text-sm text-gray-400">Le boost est indisponible pour le moment.</p>}
+          {plans.map((p) => (
+            <div key={p.id} className="border border-gray-100 rounded-xl p-3" data-testid={`boost-plan-${p.id}`}>
+              <p className="font-bold text-gray-900 text-sm">{p.days} jours en Top annonce</p>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => boost(p.id, 'points')} disabled={!!busy} className="flex-1 flex items-center justify-center gap-1.5 border rounded-xl py-2.5 text-sm font-bold disabled:opacity-50" style={{ borderColor: BRAND, color: BRAND }} data-testid={`boost-${p.id}-points`}>
+                  <Coins size={16} weight="fill" /> {busy === `${p.id}-points` ? '…' : `${p.points} pts`}
+                </button>
+                <button onClick={() => boost(p.id, 'wallet')} disabled={!!busy} className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white disabled:opacity-50" style={{ background: BRAND }} data-testid={`boost-${p.id}-wallet`}>
+                  <Wallet size={16} weight="fill" /> {busy === `${p.id}-wallet` ? '…' : `${Number(p.price_eur).toFixed(2)} €`}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -798,6 +798,11 @@ export const studentAPI = {
   mktSales: () => api.get('/student/marketplace/sales'),
   mktAiSuggest: (data) => api.post('/student/marketplace/ai/suggest', data),
   mktAiSearch: (query) => api.post('/student/marketplace/ai/search', { query }),
+  mktBoostPlans: () => api.get('/student/marketplace/boost/plans'),
+  mktBoost: (id, planId, method) => api.post(`/student/marketplace/listings/${id}/boost`, { plan_id: planId, method }),
+  mktAdminBoostConfig: () => api.get('/student/marketplace/admin/boost/config'),
+  mktAdminUpdateBoostConfig: (data) => api.put('/student/marketplace/admin/boost/config', data),
+  mktAdminBoostRevenue: () => api.get('/student/marketplace/admin/boost/revenue'),
   mktUploadImage: (file) => {
     const fd = new FormData();
     fd.append('file', file);

@@ -18,7 +18,7 @@ import os
 import re
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel
@@ -43,6 +43,17 @@ CATEGORY_SLUGS = {c["slug"] for c in CATEGORIES}
 CATEGORY_LABELS = {c["slug"]: c["label"] for c in CATEGORIES}
 CONDITIONS = {"neuf", "tres_bon", "bon", "use"}
 
+BOOST_CONFIG_ID = "student_market_config"
+DEFAULT_BOOST_CONFIG = {
+    "id": BOOST_CONFIG_ID,
+    "enabled": True,
+    "plans": [
+        {"id": "boost_3d", "days": 3, "points": 50, "price_eur": 1.0},
+        {"id": "boost_7d", "days": 7, "points": 100, "price_eur": 2.0},
+    ],
+}
+
+
 _SEARCH_STOPWORDS = {
     "cherche", "chercher", "veux", "voudrais", "besoin", "trouve", "trouver",
     "pour", "avec", "dans", "une", "des", "les", "pas", "cher", "chere",
@@ -58,6 +69,25 @@ def _now() -> str:
 async def _is_verified_student(user_id: str) -> bool:
     p = await db.student_profiles.find_one({"user_id": user_id}, {"_id": 0, "status": 1})
     return bool(p and p.get("status") == "verified")
+
+
+def _is_boosted(listing: dict) -> bool:
+    bu = listing.get("boosted_until")
+    if not bu:
+        return False
+    try:
+        return datetime.fromisoformat(bu) > datetime.now(timezone.utc)
+    except (ValueError, TypeError):
+        return False
+
+
+async def get_boost_config() -> dict:
+    cfg = await db.student_market_config.find_one({"id": BOOST_CONFIG_ID}, {"_id": 0})
+    if not cfg:
+        cfg = {**DEFAULT_BOOST_CONFIG, "updated_at": _now()}
+        await db.student_market_config.insert_one(dict(cfg))
+        cfg.pop("_id", None)
+    return cfg
 
 
 # ======================= WALLET HELPERS =======================
@@ -119,6 +149,7 @@ def _public_listing(l: dict) -> dict:
         "currency": l.get("currency", "EUR"), "condition": l.get("condition"),
         "image_url": l.get("image_url"), "location": l.get("location"), "status": l.get("status"),
         "views": l.get("views", 0), "created_at": l.get("created_at"),
+        "boosted": _is_boosted(l), "boosted_until": l.get("boosted_until"),
     }
 
 
@@ -137,7 +168,10 @@ async def list_listings(
         q["$or"] = [{"title": rx}, {"description": rx}]
     rows = await db.student_listings.find(q, {"_id": 0}).sort("created_at", -1).skip(max(0, skip)).limit(min(limit, 100)).to_list(min(limit, 100))
     total = await db.student_listings.count_documents(q)
-    return {"listings": [_public_listing(r) for r in rows], "total": total}
+    cards = [_public_listing(r) for r in rows]
+    # Boosted listings float to the top of their list (most recent boost first).
+    cards.sort(key=lambda c: (c["boosted"], c.get("boosted_until") or "", c.get("created_at") or ""), reverse=True)
+    return {"listings": cards, "total": total}
 
 
 @router.get("/my-listings")
@@ -202,6 +236,84 @@ async def delete_listing(listing_id: str, request: Request):
     if not r.deleted_count:
         raise HTTPException(status_code=404, detail="Annonce introuvable")
     return {"ok": True}
+
+
+# ======================= BOOST (Top annonce) =======================
+@router.get("/boost/plans")
+async def boost_plans(request: Request):
+    user = await get_current_user(request)
+    cfg = await get_boost_config()
+    balance = 0
+    try:
+        from routes.student_rewards import get_balance
+        balance = await get_balance(user["id"])
+    except Exception:
+        balance = 0
+    return {"enabled": cfg.get("enabled", True), "plans": cfg.get("plans", []), "points_balance": balance}
+
+
+class BoostBody(BaseModel):
+    plan_id: str
+    method: str = "wallet"  # wallet | points
+
+
+@router.post("/listings/{listing_id}/boost")
+async def boost_listing(listing_id: str, body: BoostBody, request: Request):
+    user = await get_current_user(request)
+    listing = await db.student_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    if listing["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Vous n'êtes pas le propriétaire de cette annonce")
+    if listing.get("status") != "active":
+        raise HTTPException(status_code=400, detail="Seules les annonces actives peuvent être boostées")
+    cfg = await get_boost_config()
+    if not cfg.get("enabled", True):
+        raise HTTPException(status_code=400, detail="Le boost est désactivé")
+    plan = next((p for p in cfg.get("plans", []) if p.get("id") == body.plan_id), None)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Forfait de boost introuvable")
+    method = body.method if body.method in ("wallet", "points") else "wallet"
+    days = int(plan.get("days", 0) or 0)
+
+    charged_amount, charged_points = 0.0, 0
+    if method == "points":
+        from routes.student_rewards import get_balance, award_points
+        cost = int(plan.get("points", 0) or 0)
+        bal = await get_balance(user["id"])
+        if bal < cost:
+            raise HTTPException(status_code=400, detail=f"Points insuffisants ({bal}/{cost})")
+        await award_points(user["id"], -cost, f"boost:{listing_id}", None)
+        charged_points = cost
+    else:
+        price = round(float(plan.get("price_eur", 0) or 0), 2)
+        w = await _ensure_wallet(user["id"])
+        if float(w.get("balance", 0)) < price:
+            raise HTTPException(status_code=400, detail="Solde portefeuille insuffisant. Rechargez votre SB Pay.")
+        new_bal = round(float(w["balance"]) - price, 2)
+        await db.wallets.update_one({"user_id": user["id"]}, {"$set": {"balance": new_bal}})
+        await _wallet_tx(user["id"], "Boost annonce", -price, new_bal, f"Top annonce · {listing['title']}")
+        charged_amount = price
+
+    # Extend boost from the later of now / current expiry.
+    base = datetime.now(timezone.utc)
+    if _is_boosted(listing):
+        try:
+            base = max(base, datetime.fromisoformat(listing["boosted_until"]))
+        except (ValueError, TypeError):
+            pass
+    new_until = (base + timedelta(days=days)).isoformat()
+    await db.student_listings.update_one({"id": listing_id}, {"$set": {"boosted_until": new_until, "boosted_at": _now()}})
+
+    await db.student_market_boosts.insert_one({
+        "id": f"sbst_{uuid.uuid4().hex[:12]}", "listing_id": listing_id, "user_id": user["id"],
+        "plan_id": plan["id"], "days": days, "method": method,
+        "amount_eur": charged_amount, "points": charged_points,
+        "boosted_until": new_until, "created_at": _now(),
+    })
+    return {"ok": True, "boosted_until": new_until, "method": method,
+            "amount_eur": charged_amount, "points": charged_points}
+
 
 
 # ======================= BUY (wallet C2C) =======================
@@ -387,3 +499,68 @@ async def ai_search(body: SearchBody, request: Request):
         reply = (f"J'ai trouvé {len(listings)} annonce(s) qui pourraient t'intéresser."
                  if listings else "Je n'ai rien trouvé pour cette recherche. Essaie d'autres mots-clés.")
     return {"reply": reply, "listings": listings, "category": cat}
+
+
+
+# ======================= ADMIN (boost config + revenue) =======================
+async def _require_admin(request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return user
+
+
+@router.get("/admin/boost/config")
+async def admin_boost_config(request: Request):
+    await _require_admin(request)
+    return await get_boost_config()
+
+
+class BoostPlan(BaseModel):
+    id: str | None = None
+    days: int
+    points: int
+    price_eur: float
+
+
+class BoostConfigUpdate(BaseModel):
+    enabled: bool | None = None
+    plans: list[BoostPlan] | None = None
+
+
+@router.put("/admin/boost/config")
+async def admin_update_boost_config(body: BoostConfigUpdate, request: Request):
+    await _require_admin(request)
+    await get_boost_config()
+    update = {}
+    if body.enabled is not None:
+        update["enabled"] = bool(body.enabled)
+    if body.plans is not None:
+        plans = []
+        for p in body.plans:
+            days = max(1, int(p.days))
+            plans.append({
+                "id": p.id or f"boost_{days}d",
+                "days": days,
+                "points": max(0, int(p.points)),
+                "price_eur": max(0.0, round(float(p.price_eur), 2)),
+            })
+        update["plans"] = plans
+    if update:
+        update["updated_at"] = _now()
+        await db.student_market_config.update_one({"id": BOOST_CONFIG_ID}, {"$set": update}, upsert=True)
+    return await get_boost_config()
+
+
+@router.get("/admin/boost/revenue")
+async def admin_boost_revenue(request: Request):
+    await _require_admin(request)
+    rows = await db.student_market_boosts.find({}, {"_id": 0}).to_list(20000)
+    total_eur = round(sum(float(r.get("amount_eur", 0) or 0) for r in rows), 2)
+    total_points = int(sum(int(r.get("points", 0) or 0) for r in rows))
+    active = await db.student_listings.count_documents({"boosted_until": {"$gt": _now()}})
+    recent = await db.student_market_boosts.find({}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
+    return {
+        "total_boosts": len(rows), "revenue_eur": total_eur, "points_spent": total_points,
+        "active_boosts": active, "recent": recent,
+    }
