@@ -1,3 +1,16 @@
+## NEW - 2026-06-11 (257) - 🎓 SB Student PHASE 6 : Marketplace étudiante (C2C) + IA Gemini (DONE, testé 6/6 backend e2e + frontend + 3/3 pytest, AUCUN bug)
+- **Demande user** : marketplace dédiée étudiants avec catégories Livres/Logement/Coloc/Matériel/Services + IA (Gemini). Choix : (1b) tout le monde peut acheter, **publication réservée aux étudiants vérifiés** ; (2c) **les deux** fonctions IA (prix juste + description auto, ET recherche intelligente) ; (3a) **paiement C2C via SB Pay** (débit acheteur → crédit vendeur, SANS commission étudiante).
+- **Backend** `routes/student_marketplace.py` (préfixe `/api/student/marketplace`, collection isolée `student_listings` / `student_market_orders`) :
+  - `GET /categories` (5 slugs + conditions), `GET /listings?category&search` (recherche par mot OR), `GET /listings/{id}` (+views), `GET /my-listings`, `POST /listings` (**gate étudiant vérifié 403 sinon**), `DELETE /listings/{id}`.
+  - `POST /listings/{id}/buy` : débite wallet acheteur (réutilise `db.wallets`), crédite vendeur montant **plein** (pas de commission), passe l'annonce en `sold`, notifie le vendeur. Garde-fous : solde insuffisant 400, propre annonce 400, déjà vendue 400.
+  - `GET /orders` (achats) + `GET /sales` (ventes).
+  - **IA Gemini** (`emergentintegrations` LlmChat `gemini-3-flash-preview`, EMERGENT_LLM_KEY, pattern `assistant.py`) : `POST /ai/suggest` (prix juste + fourchette + description d'annonce + conseil) ; `POST /ai/search` (extraction d'intention → requête catalogue RÉEL → réponse FR ancrée, zéro hallucination).
+- **Frontend** : `SbMarketplacePage.js` (route `/sb-student/marketplace`) — recherche IA, chips catégories, grille d'annonces, fiche détail + achat wallet, feuille "Vendre" (gate vérifié, bouton "Prix & texte IA", upload photo via `/api/uploads/image`). Entrée `student-marketplace-entry` sur `SbStudentPage`. `studentAPI.mkt*` dans api.js.
+- **Tests** : pytest `test_iter257_student_marketplace.py` 3/3 + testing_agent iter257 (backend 6/6 e2e, frontend mobile complet, AUCUN bug). Compte test : `test2@example.com` marqué étudiant vérifié + wallet financé.
+- ⚠️ PREVIEW → redéploiement requis pour la prod. **SB Student module désormais COMPLET (Phases 1→6).**
+
+
+
 ## NEW - 2026-06-11 (256) - 🎓 SB Student PHASE 5 : Événements + Récompenses + toggle Safe Ride Night (DONE, testé 100%)
 - **Récompenses** `routes/student_rewards.py` (/api/student/rewards) : ledger de points, `award_ride_points` (crédité à la complétion d'une course pour étudiant vérifié, **idempotent par ride_id**, hook dans `rides.update_ride_status`), catalogue (course gratuite/bon/réduction partenaire), `redeem` (déduit points + code), admin config + catalogue CRUD + award manuel.
 - **Événements** `routes/student_events.py` (/api/student/events) : admin CRUD (soirée/universitaire/festival + navette + capacité), liste user (seats_left), `reserve` (capacité 409 + double-résa 409), cancel, my-reservations.
