@@ -589,6 +589,13 @@ async def create_ride(data: RideRequest, request: Request):
     try:
         from routes.student import compute_student_discount
         student_kind = "advance" if getattr(data, "scheduled_at", None) else "ride"
+        # Campus trip detection (pickup OR dropoff inside a university zone) → campus rate.
+        try:
+            from routes.student_zones import is_campus_trip
+            if await is_campus_trip(data.pickup_lat, data.pickup_lng, data.dropoff_lat, data.dropoff_lng):
+                student_kind = "campus"
+        except Exception:
+            pass
         sres = await compute_student_discount(user["id"], fare, student_kind)
         if sres.get("amount", 0) > 0:
             student_discount_amount = sres["amount"]

@@ -10,6 +10,7 @@ const TABS = [
   { key: 'dashboard', label: 'Tableau de bord' },
   { key: 'pricing', label: 'Tarification' },
   { key: 'passes', label: 'Pass Campus' },
+  { key: 'zones', label: 'Zones campus' },
   { key: 'domains', label: 'Domaines email' },
   { key: 'students', label: 'Étudiants' },
 ];
@@ -31,6 +32,7 @@ const AdminStudent = () => {
       {tab === 'dashboard' && <Dashboard />}
       {tab === 'pricing' && <Pricing />}
       {tab === 'passes' && <Passes />}
+      {tab === 'zones' && <CampusZones />}
       {tab === 'domains' && <Domains />}
       {tab === 'students' && <Students />}
     </div>
@@ -157,6 +159,63 @@ const PassNum = ({ p, k, label, patch }) => (
     <input type="number" defaultValue={p[k]} onBlur={(e) => Number(e.target.value) !== p[k] && patch(p.id, k, Number(e.target.value))} className="block w-full border border-slate-200 rounded-lg px-2 py-1.5 mt-0.5" data-testid={`pass-${k}-${p.id}`} />
   </div>
 );
+
+const ZONE_TYPES = [
+  { key: 'university', label: 'Université' },
+  { key: 'residence', label: 'Résidence étudiante' },
+  { key: 'library', label: 'Bibliothèque' },
+  { key: 'training_center', label: 'Centre de formation' },
+];
+
+const CampusZones = () => {
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: '', type: 'university', lat: '', lng: '', radius_m: 500, country: '' });
+  const load = useCallback(() => { setLoading(true); studentAPI.zonesAdminList().then((r) => setList(r.data.zones || [])).catch(() => {}).finally(() => setLoading(false)); }, []);
+  useEffect(() => { load(); }, [load]);
+  const add = async () => {
+    if (!form.name.trim() || form.lat === '' || form.lng === '') return toast.error('Nom, latitude et longitude requis');
+    try {
+      await studentAPI.zonesAdminCreate({ ...form, lat: Number(form.lat), lng: Number(form.lng), radius_m: Number(form.radius_m) });
+      toast.success('Zone créée'); setForm({ name: '', type: 'university', lat: '', lng: '', radius_m: 500, country: '' }); load();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+  };
+  const toggle = async (z) => { try { await studentAPI.zonesAdminUpdate(z.id, { enabled: !z.enabled }); load(); } catch { toast.error('Échec'); } };
+  const del = async (z) => { if (!window.confirm(`Supprimer ${z.name} ?`)) return; try { await studentAPI.zonesAdminDelete(z.id); load(); } catch { toast.error('Échec'); } };
+  return (
+    <div className="space-y-4" data-testid="admin-student-zones">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
+        <div><label className="text-xs font-semibold text-slate-600">Nom</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campus Schoelcher" className="block w-44 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="zone-input-name" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="block w-44 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="zone-input-type">{ZONE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select></div>
+        <div><label className="text-xs font-semibold text-slate-600">Latitude</label><input value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} placeholder="14.6097" className="block w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="zone-input-lat" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Longitude</label><input value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} placeholder="-61.0742" className="block w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="zone-input-lng" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Rayon (m)</label><input type="number" value={form.radius_m} onChange={(e) => setForm({ ...form, radius_m: e.target.value })} className="block w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="zone-input-radius" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Pays</label><input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="FR / SN" maxLength={2} className="block w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="zone-input-country" /></div>
+        <button onClick={add} className="px-4 py-2 rounded-lg font-bold text-white bg-violet-600" data-testid="zone-add-btn">Ajouter</button>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Zone</th><th className="text-left px-4 py-2">Type</th><th className="text-left px-4 py-2">Coordonnées</th><th className="text-left px-4 py-2">Rayon</th><th className="text-left px-4 py-2">Points</th><th className="text-left px-4 py-2">Statut</th><th className="px-4 py-2"></th></tr></thead>
+          <tbody>
+            {list.map((z) => (
+              <tr key={z.id} className="border-t border-slate-100" data-testid={`zone-row-${z.id}`}>
+                <td className="px-4 py-2 font-semibold">{z.name} <span className="text-xs text-slate-400">{z.country}</span></td>
+                <td className="px-4 py-2 text-xs">{ZONE_TYPES.find((t) => t.key === z.type)?.label || z.type}</td>
+                <td className="px-4 py-2 text-xs font-mono">{z.lat?.toFixed(4)}, {z.lng?.toFixed(4)}</td>
+                <td className="px-4 py-2 text-xs">{z.radius_m} m</td>
+                <td className="px-4 py-2 text-xs">{(z.pickup_points || []).length} prise · {(z.safe_meeting_points || []).length} sûr</td>
+                <td className="px-4 py-2"><button onClick={() => toggle(z)} className={`px-2 py-1 rounded-full text-xs font-bold ${z.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`} data-testid={`zone-toggle-${z.id}`}>{z.enabled ? 'Actif' : 'Inactif'}</button></td>
+                <td className="px-4 py-2 text-right"><button onClick={() => del(z)} className="text-red-500 text-xs font-semibold" data-testid={`zone-del-${z.id}`}>Supprimer</button></td>
+              </tr>
+            ))}
+            {!loading && list.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Aucune zone campus.</td></tr>}
+            {loading && <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Chargement…</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
 
 const Domains = () => {
   const [list, setList] = useState([]);

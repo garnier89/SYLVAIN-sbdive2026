@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   GraduationCap, CaretLeft, EnvelopeSimple, IdentificationCard, CheckCircle,
-  Clock, XCircle, Sparkle, Percent, ArrowsClockwise, CaretRight, Crown, Check,
+  Clock, XCircle, Sparkle, Percent, ArrowsClockwise, CaretRight, Crown, Check, UsersThree,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
 
@@ -145,6 +145,13 @@ const SbStudentPage = () => {
           <button onClick={() => navigate('/sb-student/recurrents')} className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3" data-testid="student-recurring-entry">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: BRAND + '15' }}><ArrowsClockwise size={20} weight="duotone" style={{ color: BRAND }} /></div>
             <div className="flex-1 text-left"><p className="font-bold text-gray-900 text-sm">Mes trajets récurrents</p><p className="text-xs text-gray-500">Campus → Résidence, Résidence → Gare…</p></div>
+            <CaretRight size={18} className="text-gray-300" />
+          </button>
+
+          {/* Campus Share entry */}
+          <button onClick={() => navigate('/sb-student/campus-share')} className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3" data-testid="student-share-entry">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: BRAND + '15' }}><UsersThree size={20} weight="duotone" style={{ color: BRAND }} /></div>
+            <div className="flex-1 text-left"><p className="font-bold text-gray-900 text-sm">Campus Share</p><p className="text-xs text-gray-500">Covoiturage étudiant — partagez et économisez</p></div>
             <CaretRight size={18} className="text-gray-300" />
           </button>
 

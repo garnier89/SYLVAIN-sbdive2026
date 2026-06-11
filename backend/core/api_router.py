@@ -79,6 +79,7 @@ from routes.assistant import router as assistant_router
 from routes.sbpaygo_connect import router as sbpaygo_connect_router
 from routes.student import router as student_router
 from routes.student_campus import router as student_campus_router
+from routes.student_zones import router as student_zones_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -107,6 +108,7 @@ _ROUTERS = [
     sbpaygo_connect_router,
     student_router,
     student_campus_router,
+    student_zones_router,
 ]
 
 

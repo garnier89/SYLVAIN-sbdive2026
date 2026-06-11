@@ -748,6 +748,15 @@ export const studentAPI = {
   recurringUpdate: (id, data) => api.put(`/student/campus/recurring/${id}`, data),
   recurringDelete: (id) => api.delete(`/student/campus/recurring/${id}`),
   recurringBookNext: (id) => api.get(`/student/campus/recurring/${id}/book-next`),
+  // Campus zones + Campus Share
+  campusZones: (lat, lng) => api.get('/student/zones/campus', { params: (lat != null && lng != null) ? { lat, lng } : {} }),
+  zonesAdminList: () => api.get('/student/admin/campus-zones'),
+  zonesAdminCreate: (data) => api.post('/student/admin/campus-zones', data),
+  zonesAdminUpdate: (id, data) => api.put(`/student/admin/campus-zones/${id}`, data),
+  zonesAdminDelete: (id) => api.delete(`/student/admin/campus-zones/${id}`),
+  shareRequest: (data) => api.post('/student/campus-share/request', data),
+  shareMatches: () => api.get('/student/campus-share/matches'),
+  shareCancel: () => api.delete('/student/campus-share/request'),
 };
 
 export default api;
