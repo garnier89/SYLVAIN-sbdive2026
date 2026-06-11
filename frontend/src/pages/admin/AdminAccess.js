@@ -15,6 +15,7 @@ const TABS = [
   { key: 'settings', label: 'Réglages & Safe Ride Night' },
   { key: 'drivers', label: 'Chauffeurs Access' },
   { key: 'sos', label: '🆘 Centre SOS' },
+  { key: 'plus', label: '👑 Access Plus' },
   { key: 'bookings', label: 'Réservations' },
 ];
 
@@ -47,6 +48,7 @@ const AdminAccess = () => {
       {tab === 'settings' && <Settings />}
       {tab === 'drivers' && <Drivers />}
       {tab === 'sos' && <SosCenter />}
+      {tab === 'plus' && <PlusAdmin />}
       {tab === 'bookings' && <Bookings />}
     </div>
   );
@@ -556,6 +558,75 @@ const SosCenter = () => {
           ))}
         </div>
       </div>
+    </div>
+  );
+};
+
+const PlusAdmin = () => {
+  const [plans, setPlans] = useState([]);
+  const [rev, setRev] = useState(null);
+  const [edits, setEdits] = useState({});
+  const load = useCallback(() => {
+    accessAPI.adminPlusPlans().then((r) => setPlans(r.data.plans || [])).catch(() => {});
+    accessAPI.adminPlusRevenue().then((r) => setRev(r.data)).catch(() => {});
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const setField = (id, field, value) => setEdits((e) => ({ ...e, [id]: { ...e[id], [field]: value } }));
+  const valOf = (p, f) => (edits[p.id]?.[f] !== undefined ? edits[p.id][f] : p[f]);
+  const save = async (p) => {
+    const e = edits[p.id]; if (!e) return;
+    try {
+      await accessAPI.adminPlusUpdatePlan(p.id, {
+        price: e.price !== undefined ? Number(e.price) : p.price,
+        discount_pct: e.discount_pct !== undefined ? Number(e.discount_pct) : p.discount_pct,
+        bonus_assistance_minutes: e.bonus_assistance_minutes !== undefined ? Number(e.bonus_assistance_minutes) : p.bonus_assistance_minutes,
+        enabled: e.enabled !== undefined ? e.enabled : p.enabled,
+      });
+      toast.success('Plan mis à jour'); setEdits((x) => ({ ...x, [p.id]: undefined })); load();
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+  };
+
+  return (
+    <div className="space-y-5 max-w-3xl" data-testid="admin-access-plus">
+      {rev && (
+        <div className="grid grid-cols-3 gap-3" data-testid="plus-revenue">
+          <div className="bg-white border border-slate-200 rounded-xl p-4"><p className="text-xs text-slate-500">Abonnés actifs</p><p className="text-2xl font-black text-slate-900" data-testid="plus-active-subs">{rev.active_subscribers}</p></div>
+          <div className="bg-white border border-slate-200 rounded-xl p-4"><p className="text-xs text-slate-500">Revenu total</p><p className="text-2xl font-black" style={{ color: '#16a34a' }}>{rev.total_revenue}€</p></div>
+          <div className="bg-white border border-slate-200 rounded-xl p-4"><p className="text-xs text-slate-500">Souscriptions</p><p className="text-2xl font-black text-slate-900">{rev.total_subscriptions}</p></div>
+        </div>
+      )}
+      <div className="space-y-3">
+        <h3 className="font-bold text-slate-900">Formules d'abonnement</h3>
+        {plans.map((p) => (
+          <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-4" data-testid={`plus-plan-row-${p.id}`}>
+            <div className="flex items-center justify-between">
+              <p className="font-bold text-slate-900">{p.name} <span className="text-xs font-normal text-slate-500">· {p.type}</span></p>
+              <label className="flex items-center gap-1.5 text-xs text-slate-600"><input type="checkbox" checked={!!valOf(p, 'enabled')} onChange={(e) => setField(p.id, 'enabled', e.target.checked)} data-testid={`plus-enabled-${p.id}`} /> Actif</label>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <Field label="Prix (€)"><input type="number" step="0.01" className={inputCls} value={valOf(p, 'price')} onChange={(e) => setField(p.id, 'price', e.target.value)} data-testid={`plus-price-${p.id}`} /></Field>
+              <Field label="Réduction (%)"><input type="number" className={inputCls} value={valOf(p, 'discount_pct')} onChange={(e) => setField(p.id, 'discount_pct', e.target.value)} data-testid={`plus-discount-${p.id}`} /></Field>
+              <Field label="Min. assist. bonus"><input type="number" className={inputCls} value={valOf(p, 'bonus_assistance_minutes')} onChange={(e) => setField(p.id, 'bonus_assistance_minutes', e.target.value)} data-testid={`plus-bonusmin-${p.id}`} /></Field>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">{(p.perks || []).join(' · ')}</p>
+            {edits[p.id] && <button onClick={() => save(p)} data-testid={`plus-save-${p.id}`} className="mt-3 px-4 py-2 text-sm font-bold text-white rounded-lg" style={{ background: NAVY }}>Enregistrer</button>}
+          </div>
+        ))}
+      </div>
+      {rev && (rev.recent || []).length > 0 && (
+        <div>
+          <h3 className="font-bold text-slate-700 mb-2 text-sm">Souscriptions récentes</h3>
+          <div className="space-y-1.5">
+            {rev.recent.map((s) => (
+              <div key={s.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-3 text-sm" data-testid={`plus-recent-${s.id}`}>
+                <span className="flex-1 min-w-0 truncate">{s.plan_name} · {s.price_paid}€</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{s.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

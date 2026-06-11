@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowRight, Wheelchair, Eye, EarSlash, Brain, PawPrint,
   UsersThree, Clock, Car, Van, CheckCircle, TextAa, ShieldCheck, FirstAid,
   Plus, Minus, ArrowClockwise, CaretRight, CalendarCheck, Trash, X,
-  Siren, Phone, MapPin, ChatCircleText,
+  Siren, Phone, MapPin, ChatCircleText, Crown,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
@@ -62,6 +62,34 @@ export default function SbAccessPage() {
   const [sosAlert, setSosAlert] = useState(null);
   const [sosBusy, setSosBusy] = useState(false);
   const watchRef = useRef(null);
+
+  // SB Access Plus (abonnement)
+  const [plusOpen, setPlusOpen] = useState(false);
+  const [plusSub, setPlusSub] = useState(null);
+  const [plusPlans, setPlusPlans] = useState([]);
+  const [plusBusy, setPlusBusy] = useState(false);
+  const loadPlus = () => {
+    accessAPI.plusSubscription().then((r) => setPlusSub(r.data.subscription || null)).catch(() => {});
+    accessAPI.plusPlans().then((r) => setPlusPlans(r.data.plans || [])).catch(() => {});
+  };
+  useEffect(() => { loadPlus(); }, []);
+
+  const subscribePlus = async (planId) => {
+    setPlusBusy(true);
+    try {
+      const r = await accessAPI.plusSubscribe(planId);
+      setPlusSub(r.data.subscription);
+      toast.success('Access Plus activé ✨');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Échec de la souscription");
+    }
+    setPlusBusy(false);
+  };
+  const cancelPlus = async () => {
+    if (!window.confirm('Résilier votre abonnement Access Plus ?')) return;
+    try { await accessAPI.plusCancel(); setPlusSub(null); toast.success('Abonnement résilié'); }
+    catch { toast.error('Échec'); }
+  };
 
   const loadSafety = () => {
     accessAPI.listContacts().then((r) => setContacts(r.data || [])).catch(() => {});
@@ -388,6 +416,18 @@ export default function SbAccessPage() {
                 <span className="block text-sm text-rose-600/90">Dialyse, rééducation, hôpital — aller-retour & justificatif.</span>
               </span>
               <CaretRight size={20} weight="bold" className="text-rose-400 shrink-0" />
+            </button>
+          </div>
+          <div className="px-5 pb-2" data-testid="access-plus-entry">
+            <button onClick={() => { setPlusOpen(true); loadPlus(); }} data-testid="access-open-plus-btn"
+              className="w-full flex items-center gap-3 p-4 rounded-xl text-left text-white focus:ring-2 focus:ring-offset-1"
+              style={{ background: 'linear-gradient(120deg,#0A2540,#163a5f)' }}>
+              <span className="w-11 h-11 rounded-full flex items-center justify-center shrink-0" style={{ background: ORANGE }} aria-hidden="true"><Crown size={22} weight="fill" color="#0A2540" /></span>
+              <span className="flex-1 min-w-0">
+                <span className="font-bold flex items-center gap-2">SB Access Plus {plusSub && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: ORANGE, color: '#0A2540' }} data-testid="plus-active-badge">ACTIF</span>}</span>
+                <span className="block text-sm text-white/80">{plusSub ? `${plusSub.plan_name} · avantages prioritaires` : 'Réductions, accès prioritaire & assistance bonus.'}</span>
+              </span>
+              <CaretRight size={20} weight="bold" className="text-white/60 shrink-0" />
             </button>
           </div>
           {pastBookings.length > 0 && (
@@ -869,6 +909,59 @@ export default function SbAccessPage() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SB Access Plus — abonnement */}
+      {plusOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50" onClick={() => setPlusOpen(false)} data-testid="plus-sheet-overlay">
+          <div className="w-full max-w-[430px] bg-white rounded-t-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="plus-sheet">
+            <div className="sticky top-0 px-5 py-4 flex items-center justify-between text-white" style={{ background: 'linear-gradient(120deg,#0A2540,#163a5f)' }}>
+              <h2 className="text-xl font-bold flex items-center gap-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                <Crown size={22} weight="fill" color={ORANGE} /> SB Access Plus
+              </h2>
+              <button onClick={() => setPlusOpen(false)} aria-label="Fermer" className="w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:bg-white/10"><X size={20} weight="bold" /></button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {plusSub ? (
+                <div data-testid="plus-active-panel">
+                  <div className="rounded-2xl p-5 text-white" style={{ background: 'linear-gradient(120deg,#0A2540,#163a5f)' }}>
+                    <p className="text-xs uppercase font-bold" style={{ color: ORANGE }}>Abonnement actif</p>
+                    <p className="text-2xl font-black mt-1">{plusSub.plan_name}</p>
+                    <p className="text-sm text-white/80 mt-1">Valable jusqu'au {new Date(plusSub.expires_at).toLocaleDateString('fr-FR')}</p>
+                  </div>
+                  <ul className="mt-4 space-y-2">
+                    {(plusSub.perks || []).map((p, i) => (
+                      <li key={i} className="flex items-center gap-2 text-sm text-gray-800"><CheckCircle size={18} weight="fill" style={{ color: ORANGE }} /> {p}</li>
+                    ))}
+                  </ul>
+                  <button onClick={cancelPlus} data-testid="plus-cancel-btn" className="mt-5 w-full min-h-[44px] rounded-xl font-semibold text-gray-500" style={{ border: cardBorder }}>Résilier l'abonnement</button>
+                </div>
+              ) : (
+                <div className="space-y-4" data-testid="plus-plans-panel">
+                  <p className="text-sm text-gray-600">Voyagez sereinement avec des avantages pensés pour la mobilité réduite — payés depuis votre portefeuille SB Pay.</p>
+                  {plusPlans.map((plan) => (
+                    <div key={plan.id} className="rounded-2xl p-5" style={{ border: '2px solid #0A2540' }} data-testid={`plus-plan-${plan.id}`}>
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-lg font-bold text-gray-900">{plan.name}</p>
+                        <p className="text-2xl font-black" style={{ color: NAVY }}>{plan.price}€<span className="text-xs font-normal text-gray-500">/{plan.type === 'yearly' ? 'an' : 'mois'}</span></p>
+                      </div>
+                      <ul className="mt-3 space-y-1.5">
+                        {(plan.perks || []).map((p, i) => (
+                          <li key={i} className="flex items-center gap-2 text-sm text-gray-700"><CheckCircle size={16} weight="fill" style={{ color: ORANGE }} /> {p}</li>
+                        ))}
+                      </ul>
+                      <button onClick={() => subscribePlus(plan.id)} disabled={plusBusy} data-testid={`plus-subscribe-${plan.id}`}
+                        className="mt-4 w-full min-h-[48px] rounded-xl font-bold text-white disabled:opacity-60" style={{ background: NAVY }}>
+                        {plusBusy ? 'Traitement…' : `Souscrire · ${plan.price}€`}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

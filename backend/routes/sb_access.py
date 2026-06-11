@@ -309,6 +309,44 @@ def _clean_medical(m) -> dict:
     }
 
 
+# ── SB Access Plus — abonnement / accès prioritaire (depuis le portefeuille SB Pay) ──
+_DEFAULT_PLUS_PLANS = [
+    {
+        "id": "access_plus_monthly", "name": "Access Plus Mensuel", "type": "monthly",
+        "price": 9.99, "duration_days": 30,
+        "discount_pct": 15.0, "bonus_assistance_minutes": 10,
+        "priority_dispatch": True, "favorite_guaranteed": True, "priority_sos": True,
+        "enabled": True,
+        "perks": ["-15% sur tous les trajets adaptés", "Attribution prioritaire d'un chauffeur certifié",
+                  "+10 min d'assistance offertes", "Priorité au centre SOS"],
+    },
+    {
+        "id": "access_plus_yearly", "name": "Access Plus Annuel", "type": "yearly",
+        "price": 99.99, "duration_days": 365,
+        "discount_pct": 20.0, "bonus_assistance_minutes": 15,
+        "priority_dispatch": True, "favorite_guaranteed": True, "priority_sos": True,
+        "enabled": True,
+        "perks": ["-20% sur tous les trajets adaptés", "Attribution prioritaire d'un chauffeur certifié",
+                  "+15 min d'assistance offertes", "Priorité au centre SOS", "2 mois offerts vs mensuel"],
+    },
+]
+
+_PLUS_PLAN_FIELDS = ("name", "type", "price", "duration_days", "discount_pct",
+                     "bonus_assistance_minutes", "priority_dispatch", "favorite_guaranteed",
+                     "priority_sos", "enabled", "perks")
+
+
+async def _ensure_plus_seed():
+    if await db.access_plus_plans.count_documents({}) == 0:
+        for p in _DEFAULT_PLUS_PLANS:
+            await db.access_plus_plans.insert_one({**p, "created_at": _now()})
+
+
+async def get_active_plus(user_id: str) -> dict:
+    return await db.access_plus_subscriptions.find_one(
+        {"user_id": user_id, "status": "active", "expires_at": {"$gt": _now()}}, {"_id": 0})
+
+
 @router.post("/bookings")
 async def create_booking(request: Request):
     user = await get_current_user(request)
@@ -328,6 +366,14 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
     distance_km = float(body.get("distance_km") or 0)
     duration_min = float(body.get("duration_min") or 0)
     fare = _estimate_fare(cat, distance_km, duration_min)
+
+    # Avantages SB Access Plus (réduction + min d'assistance bonus + dispatch prioritaire).
+    plus = await get_active_plus(user_id)
+    plus_discount_pct = float(plus.get("discount_pct", 0) or 0) if plus else 0.0
+    fare_before_discount = fare
+    if plus_discount_pct > 0:
+        fare = round(max(fare * (1 - plus_discount_pct / 100), 0), 2)
+    plus_bonus_minutes = int(plus.get("bonus_assistance_minutes", 0) or 0) if plus else 0
 
     # Attribution intelligente (IA) : classement des chauffeurs certifiés Access.
     matched = None
@@ -361,6 +407,7 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
                        "access_bio": doc.get("access_bio"), "access_trainings": doc.get("access_trainings") or []}
 
     extra_time = bool(body.get("extra_assistance_time"))
+    base_minutes = settings.get("extra_assistance_minutes", 10) if extra_time else 0
     booking = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
@@ -371,7 +418,7 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
         "assistance_animal": bool(body.get("assistance_animal")),
         "companion_count": int(body.get("companion_count") or 0),
         "extra_assistance_time": extra_time,
-        "extra_assistance_minutes": settings.get("extra_assistance_minutes", 10) if extra_time else 0,
+        "extra_assistance_minutes": base_minutes + plus_bonus_minutes,
         "pickup": body.get("pickup") or {},
         "dropoff": body.get("dropoff") or {},
         "trip_type": body.get("trip_type") or "standard",   # standard | medical | recurring
@@ -379,6 +426,9 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
         "recurrence": body.get("recurrence"),                # daily | weekly | monthly | null
         "scheduled_at": scheduled_at or body.get("scheduled_at"),
         "fare_estimate": fare,
+        "fare_before_discount": fare_before_discount,
+        "plus_member": bool(plus),
+        "plus_discount_pct": plus_discount_pct,
         "matched_driver_id": matched["id"] if matched else None,
         "matched_driver_name": matched["name"] if matched else None,
         "matched_driver_photo": matched.get("access_photo") if matched else None,
@@ -566,6 +616,81 @@ async def sos_active(request: Request):
     user = await get_current_user(request)
     alert = await db.access_sos_alerts.find_one({"user_id": user["id"], "status": "active"}, {"_id": 0})
     return {"alert": alert}
+
+
+# ============================================================
+#  SB ACCESS PLUS — abonnement / accès prioritaire (SB Pay)
+# ============================================================
+@router.get("/plus/plans")
+async def plus_list_plans(request: Request):
+    await get_current_user(request)
+    await _ensure_plus_seed()
+    plans = await db.access_plus_plans.find({"enabled": True}, {"_id": 0}).to_list(50)
+    return {"plans": plans}
+
+
+@router.get("/plus/subscription")
+async def plus_my_subscription(request: Request):
+    user = await get_current_user(request)
+    sub = await get_active_plus(user["id"])
+    return {"subscription": sub}
+
+
+@router.post("/plus/subscribe")
+async def plus_subscribe(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    await _ensure_plus_seed()
+    plan = await db.access_plus_plans.find_one({"id": body.get("plan_id"), "enabled": True}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Abonnement introuvable")
+    if await get_active_plus(user["id"]):
+        raise HTTPException(status_code=409, detail="Vous avez déjà un abonnement Access Plus actif")
+
+    price = float(plan.get("price", 0) or 0)
+    wallet = await db.wallets.find_one({"user_id": user["id"]})
+    if not wallet or wallet.get("balance", 0) < price:
+        raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant pour souscrire Access Plus")
+
+    new_balance = round(wallet["balance"] - price, 2)
+    await db.wallets.update_one({"user_id": user["id"]}, {"$set": {"balance": new_balance}})
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
+        "amount": -price, "balance_after": new_balance,
+        "description": f"Souscription {plan['name']}", "status": "completed", "created_at": _now(),
+    })
+
+    now = datetime.now(timezone.utc)
+    sub = {
+        "id": f"aps_{uuid.uuid4().hex[:10]}", "user_id": user["id"], "plan_id": plan["id"],
+        "plan_name": plan["name"], "type": plan["type"],
+        "discount_pct": plan.get("discount_pct", 0.0),
+        "bonus_assistance_minutes": plan.get("bonus_assistance_minutes", 0),
+        "priority_dispatch": plan.get("priority_dispatch", False),
+        "favorite_guaranteed": plan.get("favorite_guaranteed", False),
+        "priority_sos": plan.get("priority_sos", False),
+        "perks": plan.get("perks", []),
+        "started_at": now.isoformat(),
+        "expires_at": (now + timedelta(days=int(plan.get("duration_days", 30)))).isoformat(),
+        "status": "active", "price_paid": price, "created_at": now.isoformat(),
+    }
+    await db.access_plus_subscriptions.insert_one(dict(sub))
+    sub.pop("_id", None)
+    await create_notification(user["id"], "access_plus", "Access Plus activé ♿✨",
+                              f"Votre {plan['name']} est actif. Profitez de vos avantages prioritaires !",
+                              data={"plan_id": plan["id"]})
+    return {"ok": True, "subscription": sub, "balance": new_balance}
+
+
+@router.post("/plus/cancel")
+async def plus_cancel(request: Request):
+    user = await get_current_user(request)
+    sub = await get_active_plus(user["id"])
+    if not sub:
+        raise HTTPException(status_code=404, detail="Aucun abonnement actif")
+    await db.access_plus_subscriptions.update_one(
+        {"id": sub["id"]}, {"$set": {"status": "cancelled", "cancelled_at": _now()}})
+    return {"ok": True}
 
 
 # ── Trajets récurrents automatiques (dialyse, rééducation…) ──────────────────
@@ -1144,6 +1269,83 @@ async def admin_resolve_sos(alert_id: str, request: Request):
             "Le centre de sécurité SB Access a traité votre alerte. Restez en sécurité.",
             data={"alert_id": alert_id})
     return {"ok": True, "status": "resolved", "by": actor["id"]}
+
+
+@admin_router.get("/plus/plans")
+async def admin_plus_plans(request: Request):
+    await require_role(request, ["admin"])
+    await _ensure_plus_seed()
+    plans = await db.access_plus_plans.find({}, {"_id": 0}).sort("price", 1).to_list(50)
+    return {"plans": plans}
+
+
+@admin_router.post("/plus/plans")
+async def admin_plus_create_plan(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    plan = {"id": f"plan_{uuid.uuid4().hex[:8]}", "created_at": _now(),
+            "name": str(body.get("name") or "Nouvel abonnement")[:60],
+            "type": str(body.get("type") or "monthly")[:20],
+            "price": max(0.0, float(body.get("price") or 0)),
+            "duration_days": max(1, int(body.get("duration_days") or 30)),
+            "discount_pct": max(0.0, min(100.0, float(body.get("discount_pct") or 0))),
+            "bonus_assistance_minutes": max(0, int(body.get("bonus_assistance_minutes") or 0)),
+            "priority_dispatch": bool(body.get("priority_dispatch", True)),
+            "favorite_guaranteed": bool(body.get("favorite_guaranteed", True)),
+            "priority_sos": bool(body.get("priority_sos", True)),
+            "enabled": bool(body.get("enabled", True)),
+            "perks": [str(x)[:120] for x in (body.get("perks") or [])][:8]}
+    await db.access_plus_plans.insert_one(dict(plan))
+    return {"ok": True, "plan": plan}
+
+
+@admin_router.put("/plus/plans/{plan_id}")
+async def admin_plus_update_plan(plan_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    update = {}
+    for f in _PLUS_PLAN_FIELDS:
+        if f not in body:
+            continue
+        if f in ("price", "discount_pct"):
+            update[f] = max(0.0, float(body[f] or 0))
+        elif f in ("duration_days", "bonus_assistance_minutes"):
+            update[f] = max(0, int(body[f] or 0))
+        elif f in ("priority_dispatch", "favorite_guaranteed", "priority_sos", "enabled"):
+            update[f] = bool(body[f])
+        elif f == "perks":
+            update[f] = [str(x)[:120] for x in (body[f] or [])][:8]
+        else:
+            update[f] = str(body[f])[:60]
+    if update:
+        await db.access_plus_plans.update_one({"id": plan_id}, {"$set": update})
+    plan = await db.access_plus_plans.find_one({"id": plan_id}, {"_id": 0})
+    return {"ok": True, "plan": plan}
+
+
+@admin_router.delete("/plus/plans/{plan_id}")
+async def admin_plus_delete_plan(plan_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    await db.access_plus_plans.update_one({"id": plan_id}, {"$set": {"enabled": False}})
+    return {"ok": True}
+
+
+@admin_router.get("/plus/revenue")
+async def admin_plus_revenue(request: Request):
+    await require_role(request, ["admin"])
+    active = await db.access_plus_subscriptions.count_documents(
+        {"status": "active", "expires_at": {"$gt": _now()}})
+    total_subs = await db.access_plus_subscriptions.count_documents({})
+    agg = await db.access_plus_subscriptions.aggregate([
+        {"$group": {"_id": None, "revenue": {"$sum": "$price_paid"}}}]).to_list(1)
+    revenue = round(agg[0]["revenue"], 2) if agg else 0.0
+    by_plan = await db.access_plus_subscriptions.aggregate([
+        {"$match": {"status": "active", "expires_at": {"$gt": _now()}}},
+        {"$group": {"_id": "$plan_name", "n": {"$sum": 1}}}]).to_list(20)
+    recent = await db.access_plus_subscriptions.find({}, {"_id": 0}).sort("created_at", -1).to_list(15)
+    return {"active_subscribers": active, "total_subscriptions": total_subs,
+            "total_revenue": revenue, "active_by_plan": {b["_id"]: b["n"] for b in by_plan},
+            "recent": recent}
 
 
 @admin_router.get("/stats")
