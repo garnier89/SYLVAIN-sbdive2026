@@ -871,6 +871,8 @@ export const accessAPI = {
   },
   adminBookings: () => api.get('/access/admin/bookings'),
   adminStats: () => api.get('/access/admin/stats'),
+  adminDemandForecast: () => api.get('/access/admin/ai/demand-forecast'),
+  adminAllocationPreview: (data) => api.post('/access/admin/ai/allocation-preview', data),
 };
 
 

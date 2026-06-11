@@ -24,6 +24,9 @@ from core.deps import require_role, get_current_user
 from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 from core.notifications import create_notification
 from core.email import send_access_recurring_reminder, fire
+from core.access_ai import (
+    rank_access_drivers, predict_access_demand, demand_narrative, DEFAULT_AI_CONFIG,
+)
 
 router = APIRouter(prefix="/access", tags=["sb-access"])
 admin_router = APIRouter(prefix="/access/admin", tags=["sb-access-admin"])
@@ -125,6 +128,7 @@ _DEFAULT_SETTINGS = {
     "extra_assistance_minutes": 10,  # temps d'embarquement/débarquement supplémentaire offert
     "no_late_penalty": True,         # pas de pénalité si le client a besoin de plus de temps
     "priority_certified_drivers": True,
+    "ai_allocation": dict(DEFAULT_AI_CONFIG),
     "safe_ride_night": {
         "enabled": True,
         "modes": ["access", "standard"],  # sur quels modes le toggle apparaît
@@ -159,6 +163,7 @@ async def _get_settings() -> dict:
     # merge defaults for forward-compat
     merged = {**_DEFAULT_SETTINGS, **doc}
     merged["safe_ride_night"] = {**_DEFAULT_SETTINGS["safe_ride_night"], **(doc.get("safe_ride_night") or {})}
+    merged["ai_allocation"] = {**DEFAULT_AI_CONFIG, **(doc.get("ai_allocation") or {})}
     return merged
 
 
@@ -303,12 +308,36 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
     duration_min = float(body.get("duration_min") or 0)
     fare = _estimate_fare(cat, distance_km, duration_min)
 
-    # Priorité aux chauffeurs certifiés Access (matching simple Phase 1)
+    # Attribution intelligente (IA) : classement des chauffeurs certifiés Access.
     matched = None
-    if settings.get("priority_certified_drivers", True):
-        matched = await db.users.find_one(
+    match_score = None
+    match_reasons = []
+    allocation_candidates = []
+    if settings.get("priority_certified_drivers", True) and (settings.get("ai_allocation") or {}).get("enabled", True):
+        ranked = await rank_access_drivers(
+            {"pickup": body.get("pickup") or {}, "needs": body.get("needs") or [],
+             "scheduled_at": scheduled_at or body.get("scheduled_at")},
+            settings,
+        )
+        if ranked:
+            top = ranked[0]
+            matched = {"id": top["driver_id"], "name": top["name"], "access_photo": top.get("photo"),
+                       "access_bio": top.get("bio"), "access_trainings": top.get("trainings") or []}
+            match_score = top["score"]
+            match_reasons = top["reasons"]
+            allocation_candidates = [
+                {"driver_id": c["driver_id"], "name": c["name"], "score": c["score"],
+                 "online": c["online"], "distance_km": c["distance_km"]}
+                for c in ranked[:3]
+            ]
+    elif settings.get("priority_certified_drivers", True):
+        # Repli simple si l'IA est désactivée.
+        doc = await db.users.find_one(
             {"role": "driver", "access_certified": True},
             {"_id": 0, "id": 1, "name": 1, "access_photo": 1, "access_bio": 1, "access_trainings": 1})
+        if doc:
+            matched = {"id": doc["id"], "name": doc.get("name"), "access_photo": doc.get("access_photo"),
+                       "access_bio": doc.get("access_bio"), "access_trainings": doc.get("access_trainings") or []}
 
     extra_time = bool(body.get("extra_assistance_time"))
     booking = {
@@ -334,6 +363,9 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
         "matched_driver_bio": matched.get("access_bio") if matched else None,
         "matched_driver_trainings": matched.get("access_trainings") if matched else [],
         "certified_driver": bool(matched),
+        "match_score": match_score,
+        "match_reasons": match_reasons,
+        "allocation_candidates": allocation_candidates,
         "status": "searching" if not matched else "assigned",
         "recurring_id": recurring_id,
         "auto_created": auto,
@@ -754,6 +786,26 @@ async def admin_update_settings(request: Request):
         update["no_late_penalty"] = bool(body["no_late_penalty"])
     if "priority_certified_drivers" in body:
         update["priority_certified_drivers"] = bool(body["priority_certified_drivers"])
+    if "ai_allocation" in body and isinstance(body["ai_allocation"], dict):
+        ai = body["ai_allocation"]
+        cur = (await _get_settings()).get("ai_allocation") or dict(DEFAULT_AI_CONFIG)
+        new_ai = dict(cur)
+        if "enabled" in ai:
+            new_ai["enabled"] = bool(ai["enabled"])
+        if "require_online_for_immediate" in ai:
+            new_ai["require_online_for_immediate"] = bool(ai["require_online_for_immediate"])
+        for wf in ("weight_distance", "weight_rating", "weight_needs", "weight_reliability"):
+            if wf in ai:
+                try:
+                    new_ai[wf] = max(0.0, min(1.0, float(ai[wf])))
+                except (TypeError, ValueError):
+                    pass
+        if "max_radius_km" in ai:
+            try:
+                new_ai["max_radius_km"] = max(1.0, min(200.0, float(ai["max_radius_km"])))
+            except (TypeError, ValueError):
+                pass
+        update["ai_allocation"] = new_ai
     if "safe_ride_night" in body and isinstance(body["safe_ride_night"], dict):
         srn = body["safe_ride_night"]
         cur = (await _get_settings())["safe_ride_night"]
@@ -845,6 +897,33 @@ async def admin_list_bookings(request: Request):
     await require_role(request, ["admin"])
     items = await db.access_bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
     return {"items": items}
+
+
+@admin_router.get("/ai/demand-forecast")
+async def admin_ai_demand_forecast(request: Request):
+    """Prédiction de la demande Access (heatmap jour×heure + recommandation IA)."""
+    await require_role(request, ["admin"])
+    forecast = await predict_access_demand()
+    certified = await db.users.count_documents({"role": "driver", "access_certified": True})
+    narrative = await demand_narrative(forecast, certified)
+    settings = await _get_settings()
+    return {"forecast": forecast, "narrative": narrative, "certified_drivers": certified,
+            "ai_allocation": settings.get("ai_allocation")}
+
+
+@admin_router.post("/ai/allocation-preview")
+async def admin_ai_allocation_preview(request: Request):
+    """Prévisualise le classement IA des chauffeurs pour une demande type
+    (pickup + besoins). Utile pour vérifier la pertinence du matching."""
+    await require_role(request, ["admin"])
+    body = await request.json()
+    settings = await _get_settings()
+    ranked = await rank_access_drivers(
+        {"pickup": body.get("pickup") or {}, "needs": body.get("needs") or [],
+         "scheduled_at": body.get("scheduled_at")},
+        settings, limit=10,
+    )
+    return {"candidates": ranked, "ai_allocation": settings.get("ai_allocation")}
 
 
 @admin_router.get("/stats")

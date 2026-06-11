@@ -10,6 +10,7 @@ import { accessAPI } from '../../services/api';
 const NAVY = '#0A2540';
 const TABS = [
   { key: 'dashboard', label: "Vue d'ensemble" },
+  { key: 'ai', label: 'IA & Attribution' },
   { key: 'categories', label: 'Catégories & tarifs' },
   { key: 'settings', label: 'Réglages & Safe Ride Night' },
   { key: 'drivers', label: 'Chauffeurs Access' },
@@ -40,6 +41,7 @@ const AdminAccess = () => {
         ))}
       </div>
       {tab === 'dashboard' && <Dashboard />}
+      {tab === 'ai' && <AIAllocation />}
       {tab === 'categories' && <Categories />}
       {tab === 'settings' && <Settings />}
       {tab === 'drivers' && <Drivers />}
@@ -80,6 +82,155 @@ const Field = ({ label, children }) => (
   </label>
 );
 const inputCls = 'w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-[#0A2540]';
+
+const HEAT = ['#f1f5f9', '#cfe8ff', '#7cc0ff', '#0A2540'];
+const NEED_OPTS = [
+  { key: 'wheelchair_manual', label: 'Fauteuil manuel' },
+  { key: 'wheelchair_electric', label: 'Fauteuil électrique' },
+  { key: 'blind', label: 'Non-voyant' },
+  { key: 'low_vision', label: 'Malvoyant' },
+  { key: 'deaf', label: 'Sourd' },
+  { key: 'enhanced_assistance', label: 'Assistance renforcée' },
+];
+
+const AIAllocation = () => {
+  const [data, setData] = useState(null);
+  const [cfg, setCfg] = useState(null);
+  const [needs, setNeeds] = useState([]);
+  const [preview, setPreview] = useState(null);
+  const [loadingPrev, setLoadingPrev] = useState(false);
+
+  const load = useCallback(() => {
+    accessAPI.adminDemandForecast().then((r) => {
+      setData(r.data);
+      setCfg(r.data.ai_allocation || {});
+    }).catch(() => {});
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const saveCfg = async () => {
+    try {
+      await accessAPI.adminUpdateSettings({ ai_allocation: {
+        enabled: cfg.enabled,
+        require_online_for_immediate: cfg.require_online_for_immediate,
+        weight_distance: Number(cfg.weight_distance),
+        weight_rating: Number(cfg.weight_rating),
+        weight_needs: Number(cfg.weight_needs),
+        weight_reliability: Number(cfg.weight_reliability),
+        max_radius_km: Number(cfg.max_radius_km),
+      } });
+      toast.success('Réglages IA enregistrés'); load();
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+  };
+
+  const runPreview = async () => {
+    setLoadingPrev(true);
+    try {
+      const r = await accessAPI.adminAllocationPreview({ pickup: {}, needs });
+      setPreview(r.data.candidates || []);
+    } catch { toast.error('Échec de la prévisualisation'); }
+    setLoadingPrev(false);
+  };
+
+  if (!data || !cfg) return <p className="text-slate-400 text-sm">Chargement…</p>;
+  const f = data.forecast || {};
+  const days = f.day_labels || ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  const levels = f.levels || [];
+
+  return (
+    <div className="space-y-5 max-w-3xl" data-testid="admin-access-ai">
+      {/* Recommandation IA */}
+      <div className="rounded-xl p-4 text-white" style={{ background: NAVY }} data-testid="ai-narrative-card">
+        <p className="text-[11px] uppercase font-bold opacity-70 mb-1">🤖 Recommandation IA</p>
+        <p className="text-sm leading-relaxed">{data.narrative}</p>
+        <div className="flex gap-4 mt-3 text-xs opacity-90">
+          <span>Réservations : <b>{f.total_bookings}</b></span>
+          {f.busiest_day && <span>Jour fort : <b>{f.busiest_day}</b></span>}
+          {f.busiest_hour != null && <span>Heure forte : <b>{f.busiest_hour}h</b></span>}
+          <span>Chauffeurs certifiés : <b>{data.certified_drivers}</b></span>
+        </div>
+      </div>
+
+      {/* Heatmap demande */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4" data-testid="ai-heatmap">
+        <h3 className="font-bold text-slate-900 mb-1">Prédiction de la demande (jour × heure)</h3>
+        <p className="text-xs text-slate-500 mb-3">Plus la case est foncée, plus la demande adaptée est élevée sur ce créneau.</p>
+        <div className="overflow-x-auto">
+          <table className="border-collapse">
+            <thead><tr><th className="w-8" />{Array.from({ length: 24 }).map((_, h) => (
+              <th key={h} className="text-[8px] text-slate-400 font-normal w-3.5">{h % 3 === 0 ? h : ''}</th>
+            ))}</tr></thead>
+            <tbody>
+              {days.map((d, wd) => (
+                <tr key={wd}>
+                  <td className="text-[10px] text-slate-500 pr-1 font-semibold">{d.slice(0, 3)}</td>
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <td key={h} title={`${d} ${h}h`} className="w-3.5 h-3.5 border border-white"
+                      style={{ background: HEAT[(levels[wd] && levels[wd][h]) || 0] }} />
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {(f.peaks || []).length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-slate-600 mb-1">Créneaux de pointe</p>
+            <div className="flex flex-wrap gap-1.5">
+              {f.peaks.map((p, i) => (
+                <span key={i} className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">{p.label} · {p.count}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Réglages du moteur IA */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3" data-testid="ai-config-block">
+        <h3 className="font-bold text-slate-900">Moteur d'attribution intelligente</h3>
+        <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} data-testid="ai-enabled-toggle" /> Activer l'attribution IA (sinon attribution simple)</label>
+        <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={!!cfg.require_online_for_immediate} onChange={(e) => setCfg({ ...cfg, require_online_for_immediate: e.target.checked })} data-testid="ai-online-toggle" /> Exiger un chauffeur en ligne pour les courses immédiates</label>
+        <p className="text-xs text-slate-500">Pondérations (0 à 1) des critères de classement :</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Field label="Proximité"><input type="number" step="0.05" min="0" max="1" className={inputCls} value={cfg.weight_distance} onChange={(e) => setCfg({ ...cfg, weight_distance: e.target.value })} data-testid="ai-w-distance" /></Field>
+          <Field label="Note"><input type="number" step="0.05" min="0" max="1" className={inputCls} value={cfg.weight_rating} onChange={(e) => setCfg({ ...cfg, weight_rating: e.target.value })} data-testid="ai-w-rating" /></Field>
+          <Field label="Adéq. besoins"><input type="number" step="0.05" min="0" max="1" className={inputCls} value={cfg.weight_needs} onChange={(e) => setCfg({ ...cfg, weight_needs: e.target.value })} data-testid="ai-w-needs" /></Field>
+          <Field label="Fiabilité"><input type="number" step="0.05" min="0" max="1" className={inputCls} value={cfg.weight_reliability} onChange={(e) => setCfg({ ...cfg, weight_reliability: e.target.value })} data-testid="ai-w-reliability" /></Field>
+        </div>
+        <Field label="Rayon max de recherche (km)"><input type="number" className={`${inputCls} max-w-[140px]`} value={cfg.max_radius_km} onChange={(e) => setCfg({ ...cfg, max_radius_km: e.target.value })} data-testid="ai-max-radius" /></Field>
+        <button onClick={saveCfg} data-testid="ai-config-save" className="px-5 py-2.5 text-sm font-bold text-white rounded-lg" style={{ background: NAVY }}>Enregistrer les réglages IA</button>
+      </div>
+
+      {/* Testeur d'attribution */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3" data-testid="ai-preview-block">
+        <h3 className="font-bold text-slate-900">Tester l'attribution</h3>
+        <p className="text-xs text-slate-500">Sélectionnez des besoins pour voir le classement des chauffeurs certifiés.</p>
+        <div className="flex flex-wrap gap-2">
+          {NEED_OPTS.map((n) => (
+            <button key={n.key} data-testid={`ai-need-${n.key}`} onClick={() => setNeeds(needs.includes(n.key) ? needs.filter((x) => x !== n.key) : [...needs, n.key])}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${needs.includes(n.key) ? 'text-white border-transparent' : 'text-slate-600 border-slate-300'}`}
+              style={needs.includes(n.key) ? { background: NAVY } : {}}>{n.label}</button>
+          ))}
+        </div>
+        <button onClick={runPreview} disabled={loadingPrev} data-testid="ai-preview-run" className="px-5 py-2.5 text-sm font-bold text-white rounded-lg disabled:opacity-50" style={{ background: NAVY }}>{loadingPrev ? 'Calcul…' : 'Prévisualiser le classement'}</button>
+        {preview && (
+          <div className="space-y-2 pt-1" data-testid="ai-preview-results">
+            {preview.length === 0 && <p className="text-sm text-slate-400">Aucun chauffeur certifié disponible.</p>}
+            {preview.map((c, i) => (
+              <div key={c.driver_id} className="border border-slate-200 rounded-lg p-3 flex items-center gap-3" data-testid={`ai-candidate-${i}`}>
+                <span className="text-xs font-black w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: i === 0 ? '#16a34a' : NAVY }}>{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-900 text-sm">{c.name} <span className="text-xs font-normal text-slate-500">· score {c.score}</span></p>
+                  <p className="text-xs text-slate-500">{(c.reasons || []).join(' · ')}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Categories = () => {
   const [items, setItems] = useState([]);

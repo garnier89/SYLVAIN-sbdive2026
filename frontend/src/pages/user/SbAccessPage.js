@@ -519,6 +519,11 @@ export default function SbAccessPage() {
                               {booking.matched_driver_trainings.map((t, i) => <span key={i} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: '#FFF3ED', color: NAVY }}>{t}</span>)}
                             </span>
                           )}
+                          {(booking.match_reasons || []).length > 0 && (
+                            <span className="block text-[11px] text-gray-500 mt-1.5" data-testid="ai-match-reasons">
+                              ✨ Attribution intelligente : {booking.match_reasons.join(' · ')}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ) : (

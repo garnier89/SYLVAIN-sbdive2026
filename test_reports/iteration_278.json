@@ -1,0 +1,27 @@
+{
+  "summary": "Iter 278 — Frontend e2e validation of new P1 'IA d'attribution chauffeurs PMR + prédiction de la demande' on SB Drive Access. All 4 UI scenarios PASS: (1) Admin /admin/access 'IA & Attribution' tab renders ai-narrative-card with non-empty FR Gemini narrative (428 chars, French diacritics + 'Recommandation IA' present), ai-heatmap (175 cells = 7 rows × 24 hours + day labels) with peaks 'Jeudi 18h · 5 / Jeudi 09h · 2 / Jeudi 17h · 2', and ai-config-block with all 4 weights + max-radius. (2) Changing ai-w-distance 0.4 → 0.5 + Enregistrer triggers toast 'Réglages IA enregistrés' and value persists 0.5 after full reload + tab re-click (verified). (3) ai-preview-block selecting 'wheelchair_manual' + 'blind' + Prévisualiser le classement returns ai-preview-results with ai-candidate-0 = 'Ahmed Diallo · score 55.5' with reasons FR 'Note 4.7★ · Formé : manipulation fauteuil / PMR · 5 trajet(s) adapté(s) réalisé(s) · En ligne'. (4) Usager PMR paul.vendeur via rebook-btn flow reaches access-confirmation with certified-driver-card and ai-match-reasons line '✨ Attribution intelligente : À 0.0 km · Note 4.7★ · 5 trajet(s) adapté(s) réalisé(s) · En ligne' — starts exactly with required prefix.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin /admin/access > IA tab (desktop)", "issues": ["Cosmetic: 'À X km' reason absent from preview output because preview-run uses empty pickup={} → distance defaults to 0.0; in the actual booking the line correctly reads 'À 0.0 km'. Consider sending a sample pickup from admin preview block so distance reasons appear in the test panel, or surface a placeholder hint ('utilisez un point de départ pour activer la pondération distance')."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminAccess.js AIAllocation.runPreview() sends pickup:{} → backend core/access_ai.rank_access_drivers gets no lat/lng and the distance score collapses to 0. Resulting 'reasons' lack 'À X km' which is one of the requested reason patterns. Functionally correct (graceful), but the admin preview is less convincing without coordinates. Recommend hardcoding a Paris centroid (e.g. {lat:48.8566,lng:2.3522}) or adding an optional address input.",
+    "SbAccessPage.js line 522-526 — render gated on (booking.match_reasons || []).length > 0; backend always returns reasons array for certified driver matches, so condition is robust. Prefix '✨ Attribution intelligente :' matches problem-statement requirement.",
+    "Heatmap accessibility: <td> cells have title='{day} {h}h' but no aria-label / no keyboard focus; minor a11y nit for screen readers (this is an admin-only panel so acceptable).",
+    "ai-narrative-card relies on Gemini narrative (data.narrative); if generation fails the card would render empty string. Backend currently has fallback text per code review of previous iterations — verified populated here. No retry/staleness UI."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (4/4 scenarios passing)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (admin AI tab) ; paul.vendeur@example.com / Test1234! (PMR user)",
+  "seed_data_creation": "Mutated admin ai_allocation.weight_distance during T2 (0.4 → 0.5 to verify persistence) then RESTORED to 0.4 via second save click before exit. All other weights left as default (rating 0.25, needs 0.25, reliability 0.10, radius 25). No new bookings created beyond the one rebook for paul (uses existing trajet Chatelet → Paris10, Access Standard 8.14 €). Ahmed Diallo profile from iter275 still intact.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All P1 IA flows validated end-to-end. Login flow: hit /login → click 'Ou choisir une autre option de connexion' → click 'Email & mot de passe' (→ /login/email) → fill email + password → submit. Admin UI is desktop (1920×1080); user UI mobile-first (430px). The admin AI tab is at /admin/access > admin-access-tab-ai. The rebook-btn-{id} path on /access is a reliable shortcut to land on access-confirmation without needing Google Places autocomplete. Backend was pre-validated by main agent (demand-forecast total=9, Ahmed Diallo score 78.5 via curl); UI confirms scoring is wired correctly though pickup={} in the admin preview yields score 55.5 (lower because distance contribution = 0).",
+  "rca_of_the_issue": "N/A — no bugs found. Single minor UX nit: admin preview-run sends empty pickup which silently zeroes the distance reason; consider supplying a default coordinate."
+}
