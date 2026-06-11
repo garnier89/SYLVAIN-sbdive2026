@@ -822,6 +822,9 @@ export const studentAPI = {
   mktSellerSettings: () => api.get('/student/marketplace/seller-settings'),
   mktUpdateSellerSettings: (data) => api.put('/student/marketplace/seller-settings', data),
   mktChatSuggestions: (payload) => api.post('/student/marketplace/chat-suggestions', payload),
+  mktMakeOffer: (cid, amount) => api.post(`/student/marketplace/conversations/${cid}/offer`, { amount }),
+  mktRespondOffer: (msgId, action) => api.post(`/student/marketplace/offers/${msgId}/respond`, { action }),
+  mktPayOffer: (msgId) => api.post(`/student/marketplace/offers/${msgId}/pay`),
   mktUploadImage: (file) => {
     const fd = new FormData();
     fd.append('file', file);

@@ -482,34 +482,29 @@ async def boost_listing(listing_id: str, body: BoostBody, request: Request):
 
 
 # ======================= BUY (wallet C2C) =======================
-@router.post("/listings/{listing_id}/buy")
-async def buy_listing(listing_id: str, request: Request):
-    buyer = await get_current_user(request)
-    listing = await db.student_listings.find_one({"id": listing_id}, {"_id": 0})
-    if not listing:
-        raise HTTPException(status_code=404, detail="Annonce introuvable")
+async def _settle_purchase(listing: dict, buyer: dict, price: float) -> dict:
+    """Shared C2C settlement: debit buyer, credit seller, create order, mark sold, stats, notify.
+    Raises HTTPException on guard failure. Returns {order, balance}."""
+    price = round(float(price), 2)
     if listing.get("status") != "active":
         raise HTTPException(status_code=400, detail="Cette annonce n'est plus disponible")
     if listing["user_id"] == buyer["id"]:
         raise HTTPException(status_code=400, detail="Vous ne pouvez pas acheter votre propre annonce")
-    price = round(float(listing["price"]), 2)
     w = await _ensure_wallet(buyer["id"])
     if float(w.get("balance", 0)) < price:
         raise HTTPException(status_code=400, detail="Solde portefeuille insuffisant. Rechargez votre SB Pay.")
 
-    # Debit buyer
     buyer_bal = round(float(w["balance"]) - price, 2)
     await db.wallets.update_one({"user_id": buyer["id"]}, {"$set": {"balance": buyer_bal}})
     await _wallet_tx(buyer["id"], "Achat étudiant", -price, buyer_bal, f"Achat · {listing['title']}")
 
-    # Credit seller (full amount, no commission for students)
     sw = await _ensure_wallet(listing["user_id"])
     seller_bal = round(float(sw["balance"]) + price, 2)
     await db.wallets.update_one({"user_id": listing["user_id"]}, {"$set": {"balance": seller_bal}})
     await _wallet_tx(listing["user_id"], "Vente étudiante", price, seller_bal, f"Vente · {listing['title']}")
 
     order = {
-        "id": f"smo_{uuid.uuid4().hex[:12]}", "listing_id": listing_id,
+        "id": f"smo_{uuid.uuid4().hex[:12]}", "listing_id": listing["id"],
         "listing_title": listing["title"], "category": listing.get("category"),
         "image_url": listing.get("image_url"),
         "buyer_id": buyer["id"], "buyer_name": buyer.get("name", "Acheteur"),
@@ -517,18 +512,27 @@ async def buy_listing(listing_id: str, request: Request):
         "amount": price, "payment_method": "wallet", "status": "paid", "created_at": _now(),
     }
     await db.student_market_orders.insert_one(dict(order))
-    await db.student_listings.update_one({"id": listing_id}, {"$set": {"status": "sold", "sold_at": _now()}})
+    await db.student_listings.update_one({"id": listing["id"]}, {"$set": {"status": "sold", "sold_at": _now()}})
     await recompute_seller_stats(listing["user_id"])
-
     try:
         await create_notification(
             listing["user_id"], "student_marketplace", f"Vente · {listing['title']}",
             f"{buyer.get('name', 'Un étudiant')} a acheté votre annonce. {price:.2f} € crédités sur votre portefeuille.",
-            data={"order_id": order["id"], "listing_id": listing_id})
+            data={"order_id": order["id"], "listing_id": listing["id"]})
     except Exception:
         pass
     order.pop("_id", None)
-    return {"ok": True, "order": order, "balance": buyer_bal}
+    return {"order": order, "balance": buyer_bal}
+
+
+@router.post("/listings/{listing_id}/buy")
+async def buy_listing(listing_id: str, request: Request):
+    buyer = await get_current_user(request)
+    listing = await db.student_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    res = await _settle_purchase(listing, buyer, listing["price"])
+    return {"ok": True, "order": res["order"], "balance": res["balance"]}
 
 
 @router.get("/orders")
@@ -702,6 +706,103 @@ async def send_conversation_message(cid: str, body: ContactBody, request: Reques
     if role == "buyer":
         await _maybe_auto_reply(conv)
     return {"ok": True, "message": msg}
+
+
+# ======================= OFFERS / NEGOTIATION =======================
+class OfferBody(BaseModel):
+    amount: float
+
+
+@router.post("/conversations/{cid}/offer")
+async def make_offer(cid: str, body: OfferBody, request: Request):
+    buyer = await get_current_user(request)
+    conv = await _get_my_conversation(cid, buyer)
+    if conv.get("buyer_id") != buyer["id"]:
+        raise HTTPException(status_code=403, detail="Seul l'acheteur peut faire une offre")
+    listing = await db.student_listings.find_one({"id": conv["listing_id"]}, {"_id": 0})
+    if not listing or listing.get("status") != "active":
+        raise HTTPException(status_code=400, detail="Cette annonce n'est plus disponible")
+    amount = round(float(body.amount), 2)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Montant invalide")
+    # Supersede any earlier pending/accepted offers in this conversation.
+    await db.student_messages.update_many(
+        {"conversation_id": cid, "type": "offer", "offer_status": {"$in": ["pending", "accepted"]}},
+        {"$set": {"offer_status": "expired"}})
+    msg = {
+        "id": f"smsg_{uuid.uuid4().hex[:12]}", "conversation_id": cid,
+        "sender_id": buyer["id"], "sender_name": buyer.get("name", "Acheteur"),
+        "sender_role": "buyer", "type": "offer", "offer_amount": amount, "offer_status": "pending",
+        "text": f"💰 Offre : {amount:.2f} €", "read": False, "auto": False, "created_at": _now(),
+    }
+    await db.student_messages.insert_one(dict(msg))
+    await db.student_conversations.update_one(
+        {"id": cid}, {"$set": {"last_text": msg["text"], "last_at": msg["created_at"], "last_sender_id": buyer["id"]},
+                      "$inc": {"unread_seller": 1}})
+    try:
+        await create_notification(
+            conv["seller_id"], "student_offer", f"💰 Offre de {amount:.2f} €",
+            f"{buyer.get('name', 'Un acheteur')} propose {amount:.2f} € pour {conv.get('listing_title', '')}.",
+            data={"url": "/sb-student/marketplace", "conversation_id": cid})
+    except Exception:
+        pass
+    msg.pop("_id", None)
+    return {"ok": True, "message": msg}
+
+
+class OfferRespondBody(BaseModel):
+    action: str  # accept | decline
+
+
+@router.post("/offers/{message_id}/respond")
+async def respond_offer(message_id: str, body: OfferRespondBody, request: Request):
+    seller = await get_current_user(request)
+    offer = await db.student_messages.find_one({"id": message_id, "type": "offer"}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offre introuvable")
+    conv = await db.student_conversations.find_one({"id": offer["conversation_id"]}, {"_id": 0})
+    if not conv or conv.get("seller_id") != seller["id"]:
+        raise HTTPException(status_code=403, detail="Seul le vendeur peut répondre à l'offre")
+    if offer.get("offer_status") != "pending":
+        raise HTTPException(status_code=400, detail="Cette offre n'est plus en attente")
+    action = body.action
+    if action not in ("accept", "decline"):
+        raise HTTPException(status_code=400, detail="Action invalide")
+    new_status = "accepted" if action == "accept" else "declined"
+    await db.student_messages.update_one({"id": message_id}, {"$set": {"offer_status": new_status}})
+    label = "acceptée ✅" if action == "accept" else "refusée"
+    sys_text = (f"Offre de {offer['offer_amount']:.2f} € {label}."
+                + (" L'acheteur peut désormais régler ce montant." if action == "accept" else ""))
+    await _post_message(conv, {"id": seller["id"], "name": seller.get("name", "Vendeur")}, sys_text, "seller")
+    try:
+        await create_notification(
+            conv["buyer_id"], "student_offer", f"Offre {label}",
+            f"{conv.get('listing_title', '')} · {offer['offer_amount']:.2f} €",
+            data={"url": "/sb-student/marketplace", "conversation_id": conv["id"]})
+    except Exception:
+        pass
+    return {"ok": True, "offer_status": new_status}
+
+
+@router.post("/offers/{message_id}/pay")
+async def pay_offer(message_id: str, request: Request):
+    buyer = await get_current_user(request)
+    offer = await db.student_messages.find_one({"id": message_id, "type": "offer"}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offre introuvable")
+    conv = await db.student_conversations.find_one({"id": offer["conversation_id"]}, {"_id": 0})
+    if not conv or conv.get("buyer_id") != buyer["id"]:
+        raise HTTPException(status_code=403, detail="Seul l'acheteur peut régler l'offre")
+    if offer.get("offer_status") != "accepted":
+        raise HTTPException(status_code=400, detail="L'offre doit d'abord être acceptée par le vendeur")
+    listing = await db.student_listings.find_one({"id": conv["listing_id"]}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    res = await _settle_purchase(listing, buyer, offer["offer_amount"])
+    await db.student_messages.update_one({"id": message_id}, {"$set": {"offer_status": "paid"}})
+    await _post_message(conv, {"id": buyer["id"], "name": buyer.get("name", "Acheteur")},
+                        f"✅ Achat réglé : {offer['offer_amount']:.2f} € via SB Pay.", "buyer")
+    return {"ok": True, "order": res["order"], "balance": res["balance"]}
 
 
 # ---- Seller settings (away mode) ----

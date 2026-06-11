@@ -653,6 +653,40 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
   };
   const send = () => doSend();
 
+  const myRole = header.my_role || 'buyer';
+  const [offerMode, setOfferMode] = useState(false);
+  const [offerAmount, setOfferAmount] = useState('');
+  const submitOffer = async () => {
+    const amt = Number(offerAmount);
+    if (!amt || amt <= 0) return toast.error('Montant invalide');
+    let conversationId = cid;
+    setBusy(true);
+    try {
+      if (!conversationId) {
+        const c = await studentAPI.mktContact(listing.id, `Bonjour, je te propose ${amt.toFixed(2)} € 🙂`);
+        conversationId = c.data.conversation_id; setCid(conversationId);
+      }
+      const r = await studentAPI.mktMakeOffer(conversationId, amt);
+      setMsgs((m) => [...m, r.data.message]);
+      setOfferMode(false); setOfferAmount('');
+      toast.success('Offre envoyée');
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+    finally { setBusy(false); }
+  };
+  const respondOffer = async (m, action) => {
+    setBusy(true);
+    try { await studentAPI.mktRespondOffer(m.id, action); await load(); toast.success(action === 'accept' ? 'Offre acceptée' : 'Offre refusée'); }
+    catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+    finally { setBusy(false); }
+  };
+  const payOffer = async (m) => {
+    if (!window.confirm(`Régler ${Number(m.offer_amount).toFixed(2)} € via SB Pay ?`)) return;
+    setBusy(true);
+    try { await studentAPI.mktPayOffer(m.id); await load(); toast.success('Achat réglé ! 🎉'); }
+    catch (e) { toast.error(e?.response?.data?.detail || 'Échec du paiement'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white" onClick={(e) => e.stopPropagation()} data-testid="mkt-chat-sheet">
       <div className="flex items-center gap-2 p-3 border-b border-gray-100 text-white" style={{ background: BRAND }}>
@@ -666,9 +700,35 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
         {msgs.length === 0 && <p className="text-center text-gray-400 text-sm mt-6">Pose ta question au vendeur 👋</p>}
         {msgs.map((m) => {
           const mine = m.sender_id === user?.id;
+          if (m.type === 'offer') {
+            return (
+              <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                <div className="max-w-[82%] bg-white rounded-2xl shadow-sm border border-violet-100 p-3" data-testid={`offer-${m.id}`}>
+                  <p className="text-xs text-gray-500">{mine ? 'Votre offre' : `Offre de ${m.sender_name}`}</p>
+                  <p className="text-xl font-black" style={{ color: BRAND }}>{Number(m.offer_amount).toFixed(2)} €</p>
+                  {m.offer_status === 'pending' && myRole === 'seller' && (
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => respondOffer(m, 'accept')} disabled={busy} className="flex-1 py-2 rounded-lg text-white text-sm font-bold disabled:opacity-50" style={{ background: '#16a34a' }} data-testid={`offer-accept-${m.id}`}>Accepter</button>
+                      <button onClick={() => respondOffer(m, 'decline')} disabled={busy} className="flex-1 py-2 rounded-lg border text-sm font-bold text-gray-600 disabled:opacity-50" data-testid={`offer-decline-${m.id}`}>Refuser</button>
+                    </div>
+                  )}
+                  {m.offer_status === 'pending' && myRole === 'buyer' && <p className="text-xs text-amber-600 font-semibold mt-1">En attente de réponse…</p>}
+                  {m.offer_status === 'accepted' && myRole === 'buyer' && (
+                    <button onClick={() => payOffer(m)} disabled={busy} className="w-full mt-2 py-2 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ background: BRAND }} data-testid={`offer-pay-${m.id}`}>
+                      <Wallet size={15} weight="fill" /> Payer {Number(m.offer_amount).toFixed(2)} €
+                    </button>
+                  )}
+                  {m.offer_status === 'accepted' && myRole === 'seller' && <p className="text-xs text-green-600 font-semibold mt-1">Acceptée ✅ — en attente de paiement</p>}
+                  {m.offer_status === 'declined' && <p className="text-xs text-gray-400 font-semibold mt-1">Refusée</p>}
+                  {m.offer_status === 'expired' && <p className="text-xs text-gray-400 mt-1">Offre remplacée</p>}
+                  {m.offer_status === 'paid' && <p className="text-xs text-green-600 font-semibold mt-1">Payée ✅</p>}
+                </div>
+              </div>
+            );
+          }
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm ${mine ? 'text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'}`} style={mine ? { background: BRAND } : {}}>
+              <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm ${mine ? 'text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'} ${m.auto ? 'italic opacity-90' : ''}`} style={mine ? { background: BRAND } : {}}>
                 {m.text}
               </div>
             </div>
@@ -676,6 +736,15 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
         })}
         <div ref={endRef} />
       </div>
+      {offerMode && (
+        <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-100 bg-violet-50" data-testid="offer-bar">
+          <span className="text-sm font-semibold text-gray-700">Mon offre :</span>
+          <input value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} type="number" min="0" placeholder="€"
+            className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none" data-testid="offer-amount-input" />
+          <button onClick={submitOffer} disabled={busy} className="text-white text-sm font-bold px-3 py-1.5 rounded-lg disabled:opacity-50" style={{ background: BRAND }} data-testid="offer-submit">Proposer</button>
+          <button onClick={() => setOfferMode(false)} className="text-sm text-gray-400 px-1">Annuler</button>
+        </div>
+      )}
       {suggestions.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-3 py-2 border-t border-gray-50" data-testid="mkt-chat-suggestions">
           <Sparkle size={16} weight="fill" style={{ color: BRAND }} className="flex-shrink-0 mt-1.5" />
@@ -687,6 +756,11 @@ const ChatSheet = ({ listing, conversation, onClose }) => {
         </div>
       )}
       <div className="flex items-center gap-2 p-3 border-t border-gray-100">
+        {myRole === 'buyer' && (
+          <button onClick={() => setOfferMode((v) => !v)} className="w-11 h-11 rounded-full border flex items-center justify-center flex-shrink-0" style={{ borderColor: BRAND, color: BRAND }} data-testid="mkt-offer-btn" title="Faire une offre">
+            <Tag size={18} weight="fill" />
+          </button>
+        )}
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} maxLength={500}
           placeholder="Votre message…" className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-none" data-testid="mkt-chat-input" />
         <button onClick={send} disabled={busy} className="w-11 h-11 rounded-full text-white flex items-center justify-center disabled:opacity-50" style={{ background: BRAND }} data-testid="mkt-chat-send">
