@@ -36,6 +36,23 @@ async def seed_taxi_extra():
             {"id": f"btr_{uuid.uuid4().hex[:10]}", "trip_reason": "Visite client / partenaire", **base, "created_at": datetime.now(timezone.utc).isoformat()},
             {"id": f"btr_{uuid.uuid4().hex[:10]}", "trip_reason": "Trajet aéroport / gare", **base, "created_at": datetime.now(timezone.utc).isoformat()},
         ])
+    # Forfaits Moto « Mise à dispo » dédiés (avec chauffeur) — seed si absents.
+    if await db.rental_packages.count_documents({"vehicle_type": "moto"}) == 0:
+        _now = datetime.now(timezone.utc).isoformat()
+        await db.rental_packages.insert_many([
+            {"id": f"rpkg_{uuid.uuid4().hex[:10]}", "vehicle_type": "moto", "location_name": "Tous les lieux",
+             "label": "1h", "hours": 1, "km": 15, "price": 12, "extra_hour_rate": 10, "extra_km_rate": 0.5,
+             "with_driver": True, "status": "active", "created_at": _now},
+            {"id": f"rpkg_{uuid.uuid4().hex[:10]}", "vehicle_type": "moto", "location_name": "Tous les lieux",
+             "label": "2h", "hours": 2, "km": 30, "price": 22, "extra_hour_rate": 10, "extra_km_rate": 0.5,
+             "with_driver": True, "status": "active", "created_at": _now},
+            {"id": f"rpkg_{uuid.uuid4().hex[:10]}", "vehicle_type": "moto", "location_name": "Tous les lieux",
+             "label": "4h", "hours": 4, "km": 60, "price": 40, "extra_hour_rate": 9, "extra_km_rate": 0.5,
+             "with_driver": True, "status": "active", "created_at": _now},
+            {"id": f"rpkg_{uuid.uuid4().hex[:10]}", "vehicle_type": "moto", "location_name": "Tous les lieux",
+             "label": "Journée 8h", "hours": 8, "km": 120, "price": 75, "extra_hour_rate": 8, "extra_km_rate": 0.4,
+             "with_driver": True, "status": "active", "created_at": _now},
+        ])
 
 
 # ═══════════════════════ Rental Packages (per vehicle) ═══════════════════════
@@ -71,9 +88,13 @@ async def create_rental_package(request: Request):
         "id": f"rpkg_{uuid.uuid4().hex[:10]}",
         "vehicle_type": body["vehicle_type"],
         "location_name": body.get("location_name", "Tous les lieux"),
+        "label": body.get("label") or "",
         "hours": float(body.get("hours", 1)),
         "km": float(body.get("km", 10)),
         "price": float(body.get("price", 0)),
+        "extra_hour_rate": float(body.get("extra_hour_rate", 18) or 0),
+        "extra_km_rate": float(body.get("extra_km_rate", 0.8) or 0),
+        "with_driver": bool(body.get("with_driver", True)),
         "status": body.get("status", "active"),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -86,7 +107,8 @@ async def create_rental_package(request: Request):
 async def update_rental_package(pkg_id: str, request: Request):
     await require_role(request, ["admin"], permission="server.settings.edit")
     body = await request.json()
-    allowed = {f: body[f] for f in ("location_name", "hours", "km", "price", "status") if f in body}
+    allowed = {f: body[f] for f in ("location_name", "label", "hours", "km", "price",
+                                    "extra_hour_rate", "extra_km_rate", "with_driver", "status") if f in body}
     if not allowed:
         raise HTTPException(status_code=400, detail="Rien à mettre à jour")
     res = await db.rental_packages.update_one({"id": pkg_id}, {"$set": allowed})

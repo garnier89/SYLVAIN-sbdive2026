@@ -142,6 +142,22 @@ const RideChoosePage = () => {
   const [sharedShuttle, setSharedShuttle] = useState(false);
   const [rentalPkg, setRentalPkg] = useState('2h_20km');
   const [rentalStops, setRentalStops] = useState([]);
+  const [vehPackages, setVehPackages] = useState([]); // forfaits par véhicule (db.rental_packages)
+
+  // Charge les forfaits dédiés au véhicule du mode (moto, confort…) pour la « Mise à dispo ».
+  useEffect(() => {
+    if (!isRental) { setVehPackages([]); return; }
+    let on = true;
+    configAPI.getRentalPackages(mode.vehicle)
+      .then((r) => {
+        if (!on) return;
+        const list = r.data || [];
+        setVehPackages(list);
+        if (list.length) setRentalPkg(list[0].id);
+      })
+      .catch(() => { if (on) setVehPackages([]); });
+    return () => { on = false; };
+  }, [isRental, mode.vehicle]);
   const [buddyHours, setBuddyHours] = useState(4);
   const [petsCount, setPetsCount] = useState(1);
   const [petsSize, setPetsSize] = useState('small');
@@ -482,10 +498,12 @@ const RideChoosePage = () => {
 
   // ── Pricing helpers ──────────────────────────────────────────────────
   const rentalPrice = useMemo(() => {
+    const veh = vehPackages.find((p) => p.id === rentalPkg);
+    if (veh) return veh.price;
     const pkg = RENTAL_PACKAGES.find((p) => p.slug === rentalPkg);
     const adminPrice = taxiOpts?.rental_packages?.packages?.find((p) => p.slug === rentalPkg)?.price;
     return adminPrice ?? (pkg?.hours || 2) * 18;
-  }, [rentalPkg, taxiOpts]);
+  }, [rentalPkg, taxiOpts, vehPackages]);
   const buddyPrice = useMemo(() => buddyHours * (taxiOpts?.personal_driver?.hourly_rate || 20), [buddyHours, taxiOpts]);
 
   const selectedSlug = isRental || isBuddy ? mode.vehicle : selected;
@@ -526,7 +544,13 @@ const RideChoosePage = () => {
       base.luggage_count = luggageAssist ? luggageCount : null;
       base.shared_shuttle = sharedShuttle;
     }
-    if (isRental) { const pkg = RENTAL_PACKAGES.find((p) => p.slug === rentalPkg); base.rental_package = rentalPkg; base.rental_hours = pkg?.hours || 2; base.stops = rentalStops.filter((s) => s?.lat); }
+    if (isRental) {
+      const veh = vehPackages.find((x) => x.id === rentalPkg);
+      const pkg = RENTAL_PACKAGES.find((x) => x.slug === rentalPkg);
+      base.rental_package = rentalPkg;
+      base.rental_hours = veh?.hours || pkg?.hours || 2;
+      base.stops = rentalStops.filter((s) => s?.lat);
+    }
     if (isBuddy) base.buddy_hours = buddyHours;
     if (mode.id === 'corporate') base.corporate_account_id = corpId || null;
     if (mode.id === 'pets') { base.pets_count = petsCount; base.pets_size = petsSize; }
@@ -596,7 +620,7 @@ const RideChoosePage = () => {
     luggageAssist, setLuggageAssist, luggageCount, setLuggageCount,
     sharedShuttle, setSharedShuttle,
     rentalPkg, setRentalPkg,
-    rentalStops, setRentalStops, taxiOpts,
+    rentalStops, setRentalStops, taxiOpts, vehPackages,
     buddyHours, setBuddyHours,
     petsCount, setPetsCount, petsSize, setPetsSize,
     assistNeeds, setAssistNeeds,
@@ -1070,6 +1094,18 @@ const RideChoosePage = () => {
         {/* Mode-specific panels */}
         <ModePanel {...modePanelProps} />
 
+        {/* Moto-Taxi — sécurité (casque fourni, 1 passager) */}
+        {mode.id === 'moto' && (
+          <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-3.5" data-testid="moto-safety-card">
+            <p className="flex items-center gap-2 text-sm font-bold text-red-600"><Info size={16} weight="fill" /> Sécurité Moto-Taxi</p>
+            <ul className="mt-1.5 space-y-1 text-[12.5px] text-red-700/90">
+              <li>• Casque passager fourni par le chauffeur</li>
+              <li>• 1 passager maximum</li>
+              <li>• Bagage à main uniquement</li>
+            </ul>
+          </div>
+        )}
+
         {/* Choose a ride — vehicles/payment now live on the map step (step 2) for
             destination modes; rental/buddy (no dropoff) keep an inline price + payment. */}
 
@@ -1078,7 +1114,7 @@ const RideChoosePage = () => {
           <div className="mt-5 bg-[#0B1426] text-white p-4 rounded-2xl flex items-center justify-between" data-testid="single-price-card">
             <div>
               <p className="text-[10px] tracking-wider uppercase text-[#FF5000] font-bold">{catName || mode.label}</p>
-              <p className="text-xs text-white/60 mt-0.5">{isRental ? `Forfait ${RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.label}` : `${buddyHours}h de chauffeur dédié`}</p>
+              <p className="text-xs text-white/60 mt-0.5">{isRental ? `Forfait ${(vehPackages.find((p) => p.id === rentalPkg)?.label) || RENTAL_PACKAGES.find((p) => p.slug === rentalPkg)?.label || ''}` : `${buddyHours}h de chauffeur dédié`}</p>
             </div>
             <p className="text-3xl font-black" data-testid="single-price-value">{money(Number(displayPrice))}</p>
           </div>
@@ -1204,24 +1240,35 @@ const ModeSpecificPanel = (p) => {
     );
   }
   if (p.isRental) {
-    const pkg = RENTAL_PACKAGES.find((pk) => pk.slug === p.rentalPkg);
+    const veh = p.vehPackages || [];
+    const usingVeh = veh.length > 0;
+    const selVeh = veh.find((x) => x.id === p.rentalPkg);
+    const pkg = selVeh || RENTAL_PACKAGES.find((pk) => pk.slug === p.rentalPkg);
     const adminPkg = p.taxiOpts?.rental_packages?.packages?.find((x) => x.slug === p.rentalPkg);
-    const hr = adminPkg?.extra_hour_rate ?? 18;
-    const km = adminPkg?.extra_km_rate ?? 0.8;
+    const hr = selVeh?.extra_hour_rate ?? adminPkg?.extra_hour_rate ?? 18;
+    const km = selVeh?.extra_km_rate ?? adminPkg?.extra_km_rate ?? 0.8;
     const stops = p.rentalStops || [];
     const addStop = () => p.setRentalStops([...stops, { address: '', lat: null, lng: null }]);
     const setStop = (i, val) => p.setRentalStops(stops.map((s, idx) => (idx === i ? val : s)));
     const removeStop = (i) => p.setRentalStops(stops.filter((_, idx) => idx !== i));
     return (
       <div className={card} data-testid="panel-rental">
-        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-2"><Clock size={18} className="text-[#F59E0B]" /> Forfait</label>
+        <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-2"><Clock size={18} className="text-[#F59E0B]" /> Forfait{usingVeh ? ` · ${p.mode.label}` : ''}</label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {RENTAL_PACKAGES.map((pk) => (
-            <button key={pk.slug} onClick={() => p.setRentalPkg(pk.slug)} data-testid={`panel-rental-${pk.slug}`}
-              className={`rounded-xl border-2 py-2.5 text-center transition-colors ${p.rentalPkg === pk.slug ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-200'}`}>
-              <p className="font-black text-[#0B1426]">{pk.label}</p><p className="text-[10px] text-gray-400">{pk.km} km</p>
-            </button>
-          ))}
+          {usingVeh
+            ? veh.map((pk) => (
+              <button key={pk.id} onClick={() => p.setRentalPkg(pk.id)} data-testid={`panel-rental-${pk.id}`}
+                className={`rounded-xl border-2 py-2.5 text-center transition-colors ${p.rentalPkg === pk.id ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-200'}`}>
+                <p className="font-black text-[#0B1426]">{pk.label || `${pk.hours}h`}</p>
+                <p className="text-[10px] text-gray-400">{pk.km} km · {money(pk.price)}</p>
+              </button>
+            ))
+            : RENTAL_PACKAGES.map((pk) => (
+              <button key={pk.slug} onClick={() => p.setRentalPkg(pk.slug)} data-testid={`panel-rental-${pk.slug}`}
+                className={`rounded-xl border-2 py-2.5 text-center transition-colors ${p.rentalPkg === pk.slug ? 'border-[#FF5000] bg-[#FFF3EC]' : 'border-gray-200'}`}>
+                <p className="font-black text-[#0B1426]">{pk.label}</p><p className="text-[10px] text-gray-400">{pk.km} km</p>
+              </button>
+            ))}
         </div>
         <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-100 p-2" data-testid="rental-overage-info">
           <Info size={14} className="text-amber-600 shrink-0" />

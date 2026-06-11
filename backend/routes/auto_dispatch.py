@@ -85,6 +85,22 @@ def _haversine_km(lat1, lng1, lat2, lng2):
     return 2 * R * math.asin(math.sqrt(a))
 
 
+_TWO_WHEELERS = {"moto", "moto-taxi", "moto_taxi", "tuktuk", "bike", "scooter"}
+
+
+def _is_two_wheeler(vt):
+    return (vt or "").strip().lower() in _TWO_WHEELERS
+
+
+def _vehicle_compatible(ride_vt, driver_vt):
+    """Two-wheeler isolation: moto rides ↔ moto drivers only; car rides exclude motos.
+    Car-to-car matching stays flexible (any car type)."""
+    if not ride_vt:
+        return True
+    return _is_two_wheeler(ride_vt) == _is_two_wheeler(driver_vt)
+
+
+
 async def _palette_for(points, points_cfg):
     """Map driver points → palette name based on rewards config."""
     palettes = (points_cfg or {}).get("palettes") or []
@@ -94,14 +110,18 @@ async def _palette_for(points, points_cfg):
     return "Standard"
 
 
-async def _drivers_in_radius(pickup_lat, pickup_lng, radius_km, allowed_palettes, points_cfg, prioritize_rating=False):
-    """Find approved online drivers within radius matching allowed palettes."""
+async def _drivers_in_radius(pickup_lat, pickup_lng, radius_km, allowed_palettes, points_cfg, prioritize_rating=False, ride_vehicle_type=None):
+    """Find approved online drivers within radius matching allowed palettes.
+    When `ride_vehicle_type` is given, enforce two-wheeler isolation: a moto ride is
+    only offered to moto drivers, and car rides are never offered to motos."""
     cursor = db.drivers.find(
         {"status": "approved", "is_online": True},
         {"_id": 0, "id": 1, "user_id": 1, "points": 1, "current_lat": 1, "current_lng": 1, "vehicle_type": 1, "rating": 1},
     )
     matches = []
     async for d in cursor:
+        if ride_vehicle_type and not _vehicle_compatible(ride_vehicle_type, d.get("vehicle_type")):
+            continue
         loc = manager.get_driver_location(d["user_id"]) or {}
         lat = loc.get("lat", d.get("current_lat"))
         lng = loc.get("lng", d.get("current_lng"))
@@ -197,6 +217,7 @@ async def _escalate_ride(ride, tier, allowed_palettes, radius_km, points_cfg):
     drivers = await _drivers_in_radius(
         ride["pickup_lat"], ride["pickup_lng"], radius_km, allowed_palettes, points_cfg,
         prioritize_rating=bool(ride.get("safe_ride_night")),
+        ride_vehicle_type=ride.get("vehicle_type"),
     )
     notified_user_ids = [d["user_id"] for d in drivers[:10]]  # cap at 10 per escalation
     payload = {

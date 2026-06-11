@@ -433,6 +433,7 @@ export const configAPI = {
   subscribeServiceReminder: (key) => api.post(`/service-categories/${key}/remind`),
   unsubscribeServiceReminder: (key) => api.delete(`/service-categories/${key}/remind`),
   getTaxiOptions: () => api.get('/config/taxi-options'),
+  getRentalPackages: (vehicleType) => api.get('/config/rental-packages', { params: vehicleType ? { vehicle_type: vehicleType } : {} }),
   getRideProfiles: () => api.get('/config/ride-profiles'),
   getBusinessTripReasons: () => api.get('/config/business-trip-reasons'),
   getTaxiBooking: () => api.get('/config/taxi-booking'),

@@ -45,6 +45,23 @@ async def _cash_exclude_set(ride: dict):
     return set(connected) - eligible_ids
 
 
+async def _vehicle_exclude_set(ride: dict):
+    """Two-wheeler isolation at broadcast: exclude connected drivers whose vehicle_type
+    is incompatible with the ride's vehicle_type (moto ride ↔ moto drivers only)."""
+    rvt = ride.get("vehicle_type")
+    if not rvt:
+        return set()
+    from core.websocket import manager as _mgr
+    from core.config import db as _db
+    from routes.auto_dispatch import _vehicle_compatible
+    connected = list(getattr(_mgr, "driver_clients", set()))
+    if not connected:
+        return set()
+    drivers = await _db.drivers.find(
+        {"user_id": {"$in": connected}}, {"_id": 0, "user_id": 1, "vehicle_type": 1}).to_list(5000)
+    return {d["user_id"] for d in drivers if not _vehicle_compatible(rvt, d.get("vehicle_type"))}
+
+
 # Taxi Pool — V3Cube model (Vehicle Type → Pool config):
 #   1st seat = full fare F (no discount). Each additional seat = Pool Percentage % of F.
 #   total(n) = F * (1 + (n-1) * pool_percentage/100). e.g. P=90 → 2 seats = F*1.9.
@@ -494,13 +511,25 @@ async def create_ride(data: RideRequest, request: Request):
 
     # ── Mise à disposition (rental, P2) — package price + live-billing config ──
     rental_meta = None
-    is_rental = (getattr(data, "ride_type", "") == "rental") or (mode_id == "rental")
+    is_rental = (getattr(data, "ride_type", "") == "rental") or (mode_id in ("rental", "moto_rental"))
     if is_rental:
         from routes.taxi_configs import get_taxi_config
-        cfg = await get_taxi_config("rental_packages")
-        pkgs = (cfg or {}).get("packages", [])
         slug = getattr(data, "rental_package", None)
-        pkg = next((p for p in pkgs if p.get("slug") == slug), None) or {}
+        veh = getattr(data, "vehicle_type", None)
+        # 1) Per-vehicle package (db.rental_packages, managed in AdminRentalPackages) — preferred.
+        pkg = None
+        if slug:
+            pkg = await db.rental_packages.find_one(
+                {"id": slug, "status": "active"}, {"_id": 0})
+        if pkg is None and veh:
+            # fallback: first active package for this vehicle type
+            pkg = await db.rental_packages.find_one(
+                {"vehicle_type": veh, "status": "active"}, {"_id": 0}, sort=[("hours", 1)])
+        # 2) Legacy flat config (taxi_configs.rental_packages) keyed by slug.
+        if pkg is None:
+            cfg = await get_taxi_config("rental_packages")
+            flat = (cfg or {}).get("packages", [])
+            pkg = next((p for p in flat if p.get("slug") == slug), None) or {}
         hours_inc = float(pkg.get("hours") or getattr(data, "rental_hours", None) or 2)
         rental_meta = {
             "rental_hours_included": hours_inc,
@@ -826,7 +855,7 @@ async def create_ride(data: RideRequest, request: Request):
             import logging
             logging.getLogger("rides").warning("favorite head-start failed", exc_info=True)
         if not favorite_held:
-            await manager.broadcast_to_drivers(new_ride_payload, exclude=await _cash_exclude_set(ride))
+            await manager.broadcast_to_drivers(new_ride_payload, exclude=((await _cash_exclude_set(ride) or set()) | await _vehicle_exclude_set(ride)) or None)
 
     # Also broadcast to admins watching the live-rides cockpit
     await manager.broadcast_to_admins({
