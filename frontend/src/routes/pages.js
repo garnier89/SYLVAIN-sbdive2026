@@ -209,6 +209,8 @@ export const SbStudentPage = lazyWithPreload(() => import('../pages/user/SbStude
 export const SbRecurringPage = lazyWithPreload(() => import('../pages/user/SbRecurringPage'));
 export const SbCampusSharePage = lazyWithPreload(() => import('../pages/user/SbCampusSharePage'));
 export const SbSafetyPage = lazyWithPreload(() => import('../pages/user/SbSafetyPage'));
+export const SbRewardsPage = lazyWithPreload(() => import('../pages/user/SbRewardsPage'));
+export const SbEventsPage = lazyWithPreload(() => import('../pages/user/SbEventsPage'));
 export const AdminI18n = lazy(() => import('../pages/admin/AdminI18n'));
 export const AdminGroupsPage = lazy(() => import('../pages/admin/AdminGroupsPage'));
 export const AdminUserEdit = lazy(() => import('../pages/admin/AdminUserEdit'));

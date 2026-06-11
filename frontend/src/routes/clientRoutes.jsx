@@ -20,7 +20,7 @@ import {
   ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage, IntercityRidePage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
   ServiceProvidersPage, ServiceProviderDetailPage,
-  ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage,
+  ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage, SbRewardsPage, SbEventsPage,
 } from './pages';
 
 export function clientRoutes(user) {
@@ -114,6 +114,8 @@ export function clientRoutes(user) {
       <Route path="/sb-student/recurrents" element={<ProtectedRoute allowedRoles={['user']}><SbRecurringPage /></ProtectedRoute>} />
       <Route path="/sb-student/campus-share" element={<ProtectedRoute allowedRoles={['user']}><SbCampusSharePage /></ProtectedRoute>} />
       <Route path="/sb-student/securite" element={<ProtectedRoute allowedRoles={['user']}><SbSafetyPage /></ProtectedRoute>} />
+      <Route path="/sb-student/recompenses" element={<ProtectedRoute allowedRoles={['user']}><SbRewardsPage /></ProtectedRoute>} />
+      <Route path="/sb-student/evenements" element={<ProtectedRoute allowedRoles={['user']}><SbEventsPage /></ProtectedRoute>} />
       <Route path="/encaisser" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><ContactlessReceivePage /></ProtectedRoute>} />
       <Route path="/pay" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />
       <Route path="/pay/:id" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />

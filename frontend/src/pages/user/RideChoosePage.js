@@ -497,6 +497,7 @@ const RideChoosePage = () => {
   }, [isRental, isBuddy, isBidding, rentalPrice, buddyPrice, biddingFare, selected, estimates]);
 
   // ── Submit ───────────────────────────────────────────────────────────
+  const [safeNight, setSafeNight] = useState(false);
   const buildPayload = () => {
     const dest = dropoff || pickup;
     const base = {
@@ -533,6 +534,7 @@ const RideChoosePage = () => {
     if (mode.id === 'pool') { base.pool_enabled = true; base.seats_required = poolSeats; }
     if (isIntercity && roundTrip) { base.round_trip = true; if (scheduledAt) base.return_at = scheduledAt; }
     if (mode.id === 'book_for_someone') { base.book_for_name = bookForName; base.book_for_phone = bookForPhone; }
+    if (safeNight) base.safe_ride_night = true;
     return base;
   };
 
@@ -965,6 +967,19 @@ const RideChoosePage = () => {
 
       <div className="flex-1 bg-gray-50 px-4 pt-4 pb-36 overflow-y-auto">
         <StudentPromoBanner />
+        <button onClick={() => setSafeNight((v) => !v)} data-testid="safe-ride-night-toggle"
+          className={`w-full mb-3 rounded-2xl p-3 flex items-center gap-3 border transition-colors ${safeNight ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white'}`}>
+          <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: safeNight ? '#4F46E5' : '#EEF2FF' }}>
+            <span className={`text-base ${safeNight ? 'text-white' : 'text-indigo-500'}`}>🌙</span>
+          </span>
+          <span className="flex-1 text-left">
+            <span className="text-sm font-bold text-gray-900 block leading-tight">Safe Ride Night</span>
+            <span className="text-[11px] text-gray-500 block leading-tight">Priorité aux chauffeurs les mieux notés + suivi partagé</span>
+          </span>
+          <span className={`w-10 h-6 rounded-full relative shrink-0 transition-colors ${safeNight ? 'bg-indigo-600' : 'bg-gray-200'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${safeNight ? 'left-[18px]' : 'left-0.5'}`} />
+          </span>
+        </button>
         {/* Address card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 space-y-2">
           <div>

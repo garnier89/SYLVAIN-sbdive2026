@@ -767,6 +767,25 @@ export const studentAPI = {
   listContacts: () => api.get('/phase1/emergency-contacts'),
   addContact: (data) => api.post('/phase1/emergency-contacts', data),
   removeContact: (id) => api.delete(`/phase1/emergency-contacts/${id}`),
+  // Phase 5 — Rewards
+  rewardsMe: () => api.get('/student/rewards/me'),
+  rewardsCatalog: () => api.get('/student/rewards/catalog'),
+  rewardsRedeem: (rewardId) => api.post('/student/rewards/redeem', { reward_id: rewardId }),
+  rewardsAdminConfig: () => api.get('/student/rewards/admin/config'),
+  rewardsAdminUpdateConfig: (data) => api.put('/student/rewards/admin/config', data),
+  rewardsAdminCatalog: () => api.get('/student/rewards/admin/catalog'),
+  rewardsAdminCreate: (data) => api.post('/student/rewards/admin/catalog', data),
+  rewardsAdminUpdate: (id, data) => api.put(`/student/rewards/admin/catalog/${id}`, data),
+  rewardsAdminDelete: (id) => api.delete(`/student/rewards/admin/catalog/${id}`),
+  // Phase 5 — Events
+  eventsList: () => api.get('/student/events'),
+  eventsMyReservations: () => api.get('/student/events/my-reservations'),
+  eventReserve: (data) => api.post('/student/events/reserve', data),
+  eventCancelReservation: (id) => api.delete(`/student/events/reserve/${id}`),
+  eventsAdminList: () => api.get('/student/events/admin/list'),
+  eventAdminCreate: (data) => api.post('/student/events/admin', data),
+  eventAdminUpdate: (id, data) => api.put(`/student/events/admin/${id}`, data),
+  eventAdminDelete: (id) => api.delete(`/student/events/admin/${id}`),
 };
 
 export default api;

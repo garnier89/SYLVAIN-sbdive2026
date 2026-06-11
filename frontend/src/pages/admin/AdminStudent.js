@@ -11,6 +11,8 @@ const TABS = [
   { key: 'pricing', label: 'Tarification' },
   { key: 'passes', label: 'Pass Campus' },
   { key: 'zones', label: 'Zones campus' },
+  { key: 'rewards', label: 'Récompenses' },
+  { key: 'events', label: 'Événements' },
   { key: 'domains', label: 'Domaines email' },
   { key: 'students', label: 'Étudiants' },
 ];
@@ -33,6 +35,8 @@ const AdminStudent = () => {
       {tab === 'pricing' && <Pricing />}
       {tab === 'passes' && <Passes />}
       {tab === 'zones' && <CampusZones />}
+      {tab === 'rewards' && <Rewards />}
+      {tab === 'events' && <Events />}
       {tab === 'domains' && <Domains />}
       {tab === 'students' && <Students />}
     </div>
@@ -210,6 +214,90 @@ const CampusZones = () => {
             ))}
             {!loading && list.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Aucune zone campus.</td></tr>}
             {loading && <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Chargement…</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const Rewards = () => {
+  const [cfg, setCfg] = useState(null);
+  const [catalog, setCatalog] = useState([]);
+  const load = useCallback(() => {
+    studentAPI.rewardsAdminConfig().then((r) => setCfg(r.data)).catch(() => {});
+    studentAPI.rewardsAdminCatalog().then((r) => setCatalog(r.data.rewards || [])).catch(() => {});
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const saveCfg = async () => { try { await studentAPI.rewardsAdminUpdateConfig({ enabled: cfg.enabled, points_per_ride: Number(cfg.points_per_ride), points_per_referral: Number(cfg.points_per_referral), signup_bonus: Number(cfg.signup_bonus) }); toast.success('Réglages enregistrés'); } catch { toast.error('Échec'); } };
+  const patch = async (id, field, value) => { try { await studentAPI.rewardsAdminUpdate(id, { [field]: value }); load(); } catch { toast.error('Échec'); } };
+  const del = async (id) => { if (!window.confirm('Supprimer ?')) return; try { await studentAPI.rewardsAdminDelete(id); load(); } catch { toast.error('Échec'); } };
+  const add = async () => { try { await studentAPI.rewardsAdminCreate({ title: 'Nouvelle récompense', type: 'voucher', cost_points: 200, value: 5 }); toast.success('Ajoutée'); load(); } catch { toast.error('Échec'); } };
+  if (!cfg) return <p className="text-slate-400 text-sm">Chargement…</p>;
+  return (
+    <div className="space-y-4" data-testid="admin-student-rewards">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-end gap-4">
+        <label className="flex items-center gap-2"><input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} data-testid="rewards-cfg-enabled" /><span className="text-sm font-semibold">Activé</span></label>
+        <div><label className="text-xs font-semibold text-slate-600">Points / course</label><input type="number" value={cfg.points_per_ride} onChange={(e) => setCfg({ ...cfg, points_per_ride: e.target.value })} className="block w-24 border border-slate-200 rounded-lg px-2 py-1.5 mt-1" data-testid="rewards-cfg-ride" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Points / parrainage</label><input type="number" value={cfg.points_per_referral} onChange={(e) => setCfg({ ...cfg, points_per_referral: e.target.value })} className="block w-24 border border-slate-200 rounded-lg px-2 py-1.5 mt-1" data-testid="rewards-cfg-referral" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Bonus inscription</label><input type="number" value={cfg.signup_bonus} onChange={(e) => setCfg({ ...cfg, signup_bonus: e.target.value })} className="block w-24 border border-slate-200 rounded-lg px-2 py-1.5 mt-1" data-testid="rewards-cfg-signup" /></div>
+        <button onClick={saveCfg} className="px-4 py-2 rounded-lg font-bold text-white bg-violet-600 text-sm" data-testid="rewards-cfg-save">Enregistrer</button>
+      </div>
+      <button onClick={add} className="px-4 py-2 rounded-lg font-bold text-white bg-violet-600 text-sm" data-testid="reward-add-btn">+ Ajouter une récompense</button>
+      {catalog.map((rw) => (
+        <div key={rw.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3" data-testid={`reward-row-${rw.id}`}>
+          <input defaultValue={rw.title} onBlur={(e) => e.target.value !== rw.title && patch(rw.id, 'title', e.target.value)} className="flex-1 font-semibold text-slate-800 border-b border-transparent focus:border-slate-300 outline-none" data-testid={`reward-title-${rw.id}`} />
+          <input type="number" defaultValue={rw.cost_points} onBlur={(e) => Number(e.target.value) !== rw.cost_points && patch(rw.id, 'cost_points', Number(e.target.value))} className="w-24 border border-slate-200 rounded-lg px-2 py-1.5 text-sm" data-testid={`reward-cost-${rw.id}`} />
+          <span className="text-xs text-slate-400">pts</span>
+          <button onClick={() => patch(rw.id, 'enabled', !rw.enabled)} className={`px-2 py-1 rounded-full text-xs font-bold ${rw.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`} data-testid={`reward-toggle-${rw.id}`}>{rw.enabled ? 'Actif' : 'Inactif'}</button>
+          <button onClick={() => del(rw.id)} className="text-red-500 text-xs font-semibold" data-testid={`reward-del-${rw.id}`}>Suppr.</button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const EVENT_TYPES = [{ key: 'party', label: 'Soirée' }, { key: 'university', label: 'Universitaire' }, { key: 'festival', label: 'Festival' }];
+
+const Events = () => {
+  const [list, setList] = useState([]);
+  const [form, setForm] = useState({ title: '', type: 'party', date: '', location: '', shuttle_enabled: true, shuttle_price: 0, capacity: 30 });
+  const load = useCallback(() => { studentAPI.eventsAdminList().then((r) => setList(r.data.events || [])).catch(() => {}); }, []);
+  useEffect(() => { load(); }, [load]);
+  const add = async () => {
+    if (!form.title.trim()) return toast.error('Titre requis');
+    try { await studentAPI.eventAdminCreate({ ...form, shuttle_price: Number(form.shuttle_price), capacity: Number(form.capacity), date: form.date || null }); toast.success('Événement créé'); setForm({ title: '', type: 'party', date: '', location: '', shuttle_enabled: true, shuttle_price: 0, capacity: 30 }); load(); }
+    catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+  };
+  const toggle = async (ev) => { try { await studentAPI.eventAdminUpdate(ev.id, { enabled: !ev.enabled }); load(); } catch { toast.error('Échec'); } };
+  const del = async (ev) => { if (!window.confirm('Supprimer ?')) return; try { await studentAPI.eventAdminDelete(ev.id); load(); } catch { toast.error('Échec'); } };
+  return (
+    <div className="space-y-4" data-testid="admin-student-events">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
+        <div><label className="text-xs font-semibold text-slate-600">Titre</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="block w-48 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="event-input-title" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="block w-40 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="event-input-type">{EVENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select></div>
+        <div><label className="text-xs font-semibold text-slate-600">Date</label><input type="datetime-local" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value ? new Date(e.target.value).toISOString() : '' })} className="block border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="event-input-date" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Lieu</label><input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="block w-40 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="event-input-location" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Prix navette €</label><input type="number" value={form.shuttle_price} onChange={(e) => setForm({ ...form, shuttle_price: e.target.value })} className="block w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="event-input-price" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Capacité</label><input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} className="block w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="event-input-capacity" /></div>
+        <button onClick={add} className="px-4 py-2 rounded-lg font-bold text-white bg-violet-600" data-testid="event-add-btn">Ajouter</button>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Événement</th><th className="text-left px-4 py-2">Type</th><th className="text-left px-4 py-2">Date</th><th className="text-left px-4 py-2">Navette</th><th className="text-left px-4 py-2">Réserv.</th><th className="text-left px-4 py-2">Statut</th><th className="px-4 py-2"></th></tr></thead>
+          <tbody>
+            {list.map((ev) => (
+              <tr key={ev.id} className="border-t border-slate-100" data-testid={`event-row-${ev.id}`}>
+                <td className="px-4 py-2 font-semibold">{ev.title}<div className="text-xs text-slate-400">{ev.location}</div></td>
+                <td className="px-4 py-2 text-xs">{EVENT_TYPES.find((t) => t.key === ev.type)?.label}</td>
+                <td className="px-4 py-2 text-xs">{ev.date ? new Date(ev.date).toLocaleDateString('fr-FR') : '—'}</td>
+                <td className="px-4 py-2 text-xs">{ev.shuttle_enabled ? `${ev.shuttle_price} € / ${ev.capacity || '∞'}` : '—'}</td>
+                <td className="px-4 py-2 text-xs">{ev.seats_taken || 0}</td>
+                <td className="px-4 py-2"><button onClick={() => toggle(ev)} className={`px-2 py-1 rounded-full text-xs font-bold ${ev.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`} data-testid={`event-toggle-${ev.id}`}>{ev.enabled ? 'Actif' : 'Inactif'}</button></td>
+                <td className="px-4 py-2 text-right"><button onClick={() => del(ev)} className="text-red-500 text-xs font-semibold" data-testid={`event-del-${ev.id}`}>Supprimer</button></td>
+              </tr>
+            ))}
+            {list.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Aucun événement.</td></tr>}
           </tbody>
         </table>
       </div>

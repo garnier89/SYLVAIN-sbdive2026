@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 256 — SB Drive Student Phase 5 (Récompenses + Événements navette) + bascule Safe Ride Night sur /course. BACKEND e2e HTTP: 18/18 PASS (rewards: catalog seeded ≥3, /me balance+ledger+redemptions, redeem insuffisant=>400, admin guards 401/403, admin config GET/PUT, admin catalog CRUD complet, admin award crédite user vérifié via /me, redeem après award décrémente le solde et crée redemption avec code; events: admin create party+shuttle, list user avec seats_left calculé correctement, reserve OK + my-reservations, double résa=>409, capacity exceeded=>409, dernière place réservable, cancel, admin update/delete, guard non-admin, event introuvable=>404). FRONTEND mobile /sb-student: les 5 entrées (rewards/events/safety/share/recurring) présentes; /sb-student/recompenses (sb-rewards-page) affiche rewards-balance + 3 reward-redeem-{id}; /sb-student/evenements (sb-events-page) affiche event-reserve-{id}. Toggle 'safe-ride-night-toggle' présent sur /course?mode=moto et son état visuel change au clic (class transition-colors). ADMIN /admin/student onglets 'Récompenses' (admin-student-tab-rewards → admin-student-rewards): tous les rewards-cfg-* + reward-add-btn + 3 reward-row-{id} avec reward-toggle/reward-del présents. Onglet 'Événements' (admin-student-tab-events → admin-student-events): tous les event-input-* + event-add-btn présents. Backend score 100%, frontend score 100% sur les flows demandés. Pytest in-process iter256 (4/4) non re-testé comme demandé.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/sb-student/recompenses — rewards-balance",
+        "issues": ["Affichage du solde sans espace: '0points' au lieu de '0 points' (concat manquant un espace dans SbRewardsPage.js)"]
+      },
+      {
+        "screen": "/admin/student onglet Événements",
+        "issues": ["Le champ Date utilise le picker natif <input type='datetime-local'> au lieu du composant shadcn Calendar. Inconsistance UI avec le reste de l'admin. Non bloquant."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter256_rewards_events_e2e.py",
+    "/app/test_reports/pytest/iter256_e2e_results.xml"
+  ],
+  "action_items": [
+    "(Optionnel/Mineur) Corriger l'affichage du solde sur SbRewardsPage.js: ajouter un espace entre le chiffre et 'points' (rewards-balance). Ex: `{balance} points` au lieu de `{balance}points`.",
+    "(Optionnel/Mineur) Remplacer <input type='datetime-local'> dans AdminStudent.js (event-input-date) par le composant shadcn Calendar pour cohérence UI."
+  ],
+  "critical_code_review_comments": [
+    "routes/student_rewards.py (233 lignes, propre): award_points/award_ride_points jamais raise (catch global) — bonne pratique défensive pour éviter de casser le flux course. Idempotence vérifiée via ride_id+reason='ride'.",
+    "routes/student_events.py (184 lignes, propre): _seats_taken recalcule à chaque appel via aggregate-like (find+sum Python). Pour des événements très peuplés (>5000 résa), envisager un compteur dénormalisé sur student_events. Non bloquant.",
+    "student_events.reserve: bonne logique capacity-check AVANT double-résa check, mais l'inverse serait + rapide (1 lookup index user_id+event_id avant le calcul de seats_taken). Micro-opt, non bloquant.",
+    "student_events.cancel: ne vérifie pas le status courant; cancel d'une résa déjà 'cancelled' retourne ok=true silencieusement. Optionnel: garder l'idempotence ou retourner 410/409.",
+    "SbRewardsPage.js: petit bug d'affichage solde (texte concaténé sans espace).",
+    "AdminStudent.js event-input-date utilise datetime-local natif au lieu du Calendar shadcn — incohérence visuelle.",
+    "Pas de tests de l'attribution réelle de points par flux course (PUT /api/rides/{id}/status=completed) côté HTTP e2e — couvert par pytest in-process iter256 (idempotence verified). Avant prod, ajouter un e2e end-to-end course→complete→points sur un étudiant 'verified'."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter256_rewards_events_e2e.py (nouveau — 18 tests HTTP e2e PASS)"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 e2e HTTP + 4/4 in-process pytest pré-existants non re-testés)",
+    "frontend": "100% sur les flows demandés (toutes les data-testid présentes et fonctionnelles, Safe Ride Night toggle change d'état, navigation admin tabs OK, sub-testids tous présents)"
+  },
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. Users créés à la volée avec préfixe TEST_iter256ui_/TEST_iter256_ et password Test123!@# (auto-login après register).",
+  "seed_data_creation": "Aucune seed permanente. Données de test éphémères créées et nettoyées via fixtures pytest (admin_event_ctx delete, reward_id delete, standalone update/delete event delete). Ledger entries 'TEST_iter256_award' et 'TEST_topup' restent sur des comptes user éphémères (uuid). Aucun impact sur les données admin/prod (config rewards points_per_ride restaurée à sa valeur d'origine en fin de test).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter256 (Phase 5 SB Student: Rewards + Events shuttle + Safe Ride Night toggle) complètement validée. Backend 18/18 + frontend 100%. Pour la prochaine itération: si on touche au flux 'complete ride award points', ajouter un test e2e HTTP qui (1) crée user, (2) crée+approve student_profile status=verified, (3) crée+complete une course, (4) GET /api/student/rewards/me, vérifier balance == points_per_ride. Aujourd'hui couvert seulement par in-process (test_iter256_rewards_events.py::test_award_ride_points_idempotent_for_verified_student).",
+  "rca of the issue": "Aucun bug bloquant détecté. Deux micro-issues UI/design non bloquantes signalées en action_items (espace manquant '0points', date picker natif)."
+}

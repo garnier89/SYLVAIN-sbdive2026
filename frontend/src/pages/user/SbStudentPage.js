@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   GraduationCap, CaretLeft, EnvelopeSimple, IdentificationCard, CheckCircle,
-  Clock, XCircle, Sparkle, Percent, ArrowsClockwise, CaretRight, Crown, Check, UsersThree, ShieldCheck,
+  Clock, XCircle, Sparkle, Percent, ArrowsClockwise, CaretRight, Crown, Check, UsersThree, ShieldCheck, Trophy, Confetti,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
 
@@ -159,6 +159,20 @@ const SbStudentPage = () => {
           <button onClick={() => navigate('/sb-student/securite')} className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3" data-testid="student-safety-entry">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: BRAND + '15' }}><ShieldCheck size={20} weight="duotone" style={{ color: BRAND }} /></div>
             <div className="flex-1 text-left"><p className="font-bold text-gray-900 text-sm">Sécurité & Safe Ride Night</p><p className="text-xs text-gray-500">Partage live, contacts de confiance, trajets de nuit</p></div>
+            <CaretRight size={18} className="text-gray-300" />
+          </button>
+
+          {/* Rewards entry */}
+          <button onClick={() => navigate('/sb-student/recompenses')} className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3" data-testid="student-rewards-entry">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: BRAND + '15' }}><Trophy size={20} weight="duotone" style={{ color: BRAND }} /></div>
+            <div className="flex-1 text-left"><p className="font-bold text-gray-900 text-sm">Mes récompenses</p><p className="text-xs text-gray-500">Gagnez des points, échangez des avantages</p></div>
+            <CaretRight size={18} className="text-gray-300" />
+          </button>
+
+          {/* Events entry */}
+          <button onClick={() => navigate('/sb-student/evenements')} className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3" data-testid="student-events-entry">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: BRAND + '15' }}><Confetti size={20} weight="duotone" style={{ color: BRAND }} /></div>
+            <div className="flex-1 text-left"><p className="font-bold text-gray-900 text-sm">Événements étudiants</p><p className="text-xs text-gray-500">Soirées, festivals & navettes</p></div>
             <CaretRight size={18} className="text-gray-300" />
           </button>
 

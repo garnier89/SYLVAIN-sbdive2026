@@ -1972,6 +1972,14 @@ async def update_ride_status(ride_id: str, request: Request):
         if ride_id in manager.ride_rooms:
             del manager.ride_rooms[ride_id]
 
+    # SB Student rewards — award loyalty points on completed rides (defensive, idempotent).
+    if new_status == "completed" and ride.get("user_id"):
+        try:
+            from routes.student_rewards import award_ride_points
+            await award_ride_points(ride["user_id"], {**ride, **update_data, "id": ride_id})
+        except Exception:
+            pass
+
     return {"message": f"Status updated to {new_status}", "status": new_status}
 
 
