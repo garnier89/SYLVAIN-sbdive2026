@@ -8,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash, ArrowUp, ArrowDown, Eye, EyeSlash, X, Image as ImageIcon, DeviceMobile, PencilSimple, ArrowSquareOut, MagnifyingGlass } from '@phosphor-icons/react';
 import { homeCategoriesAPI, adminAPI } from '../../services/api';
-import DynamicIcon, { ICON_MAP } from '../../components/DynamicIcon';
+import DynamicIcon, { ICON_MAP, resolveImageUrl } from '../../components/DynamicIcon';
+import { ImageUpload } from '../../components/ImageUpload';
 
 // Section keys that render as a tile grid on the Home (taxi + the CMS tile sections).
 const TILE_SECTIONS = new Set(['taxi', 'delivery', 'parcel', 'marketplace', 'ondemand', 'beauty', 'pet', 'carcare', 'towing', 'nearby']);
@@ -22,7 +23,7 @@ const emptyForm = {
   target_route: '/food', visible_home: true, status: 'active', badge: '',
 };
 
-const isImg = (s) => typeof s === 'string' && (s.startsWith('http') || s.startsWith('data:'));
+const isImg = (s) => typeof s === 'string' && (s.startsWith('http') || s.startsWith('data:') || s.startsWith('/api/'));
 
 const PreviewTile = ({ t }) => (
   <div className="flex flex-col items-center gap-1 w-1/4 mb-3 px-0.5">
@@ -30,7 +31,7 @@ const PreviewTile = ({ t }) => (
       {t.iconName
         ? <DynamicIcon name={t.iconName} imageUrl={t.imageUrl} size={22} className={t.color || 'text-[#FF5000]'} />
         : isImg(t.emoji)
-          ? <img src={t.emoji} alt="" className="w-6 h-6 object-contain" />
+          ? <img src={resolveImageUrl(t.emoji)} alt="" className="w-6 h-6 object-contain" />
           : <span className="text-xl leading-none">{t.emoji || '🚕'}</span>}
     </div>
     <span className="text-[9px] text-center leading-tight whitespace-pre-line text-[#1F2430]">{(t.label || '').replace(/\\n/g, '\n')}</span>
@@ -205,14 +206,9 @@ export default function AdminHomeCategories() {
     catch (e) { toast.error('Erreur réordonnancement'); load(); }
   };
 
-  const onImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { toast.error('Image trop volumineuse (max 8 Mo)'); return; }
-    const reader = new FileReader();
-    reader.onload = () => setForm((f) => ({ ...f, image_url: reader.result }));
-    reader.readAsDataURL(file);
-  };
+  // Image upload now goes through <ImageUpload> → POST /api/uploads/image, which
+  // returns a small relative URL stored in form.image_url (no more base64 blobs
+  // that overflowed the request body and silently failed to persist).
 
   // Taxi tiles are now driven by "Catégories de service (Taxi)" (service_categories),
   // not this CMS — exclude the stale taxi section to avoid confusion.
@@ -406,16 +402,15 @@ export default function AdminHomeCategories() {
               </div>
             </div>
 
-            {/* Image upload */}
-            <div className="mt-4 flex items-center gap-3">
-              <label className="text-sm font-medium flex items-center gap-1"><ImageIcon size={16} /> ou image perso</label>
-              <input type="file" accept="image/*" onChange={onImageUpload} className="text-xs" data-testid="cat-image-upload" />
-              {form.image_url && (
-                <div className="flex items-center gap-2">
-                  <img src={form.image_url} alt="" className="w-9 h-9 object-contain rounded" />
-                  <button onClick={() => setForm({ ...form, image_url: null })} className="text-xs text-red-600 underline">retirer</button>
-                </div>
-              )}
+            {/* Image upload (uploads to /api/uploads/image, stores relative URL) */}
+            <div className="mt-4">
+              <label className="text-sm font-medium flex items-center gap-1 mb-1"><ImageIcon size={16} /> ou image perso (remplace l&apos;icône)</label>
+              <ImageUpload
+                value={form.image_url}
+                onChange={(url) => setForm((f) => ({ ...f, image_url: url || null }))}
+                label=""
+                testId="cat-image-upload"
+              />
             </div>
 
             {/* Colors */}

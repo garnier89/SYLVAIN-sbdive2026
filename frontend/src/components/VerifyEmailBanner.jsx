@@ -33,7 +33,7 @@ const VerifyEmailBanner = () => {
 
   return (
     <div
-      className="fixed bottom-0 inset-x-0 z-[60] mx-auto max-w-md px-3 pb-3"
+      className="fixed bottom-0 inset-x-0 z-30 mx-auto max-w-md px-3 pb-3"
       data-testid="verify-email-banner"
     >
       <div className="rounded-2xl bg-[#FF4500] text-white shadow-lg flex items-center gap-3 px-4 py-3">

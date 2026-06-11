@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-11 — Audit fonctionnel + correction 2 bugs racines P0 [DONE, testé]
+
+Audit complet (testing_agent iter266) suite au signalement utilisateur « beaucoup de modifs du dashboard pas visibles côté apps + boutons/actions morts + livraison repas ne marche pas ». Résultat : backend largement fonctionnel (14/16) ; **2 causes racines** identifiées et corrigées :
+
+- **🖼️ Images uploadées dans le dashboard jamais persistées (bug racine)** : `AdminHomeCategories.js` et l'icône de `AdminServiceCategories.js` stockaient l'image en **base64 (data URL)** dans le payload du save → corps de requête trop volumineux → échec silencieux, `image_url` restait null en base (59/60 home_categories vides). **Fix** : passage par `POST /api/uploads/image` (composant `ImageUpload` + `merchantAPI.uploadImage`) qui renvoie une URL relative légère `/api/uploads/{id}`. `DynamicIcon` expose désormais `resolveImageUrl()` pour résoudre les URLs `/api/` ; `isImg`/`isImage`/`ServiceCategoryIcon` reconnaissent `/api/`. Vérifié e2e : upload admin → DB `image_url:/api/uploads/...` → tuile affichée sur l'accueil client. Test régression `tests/test_iter267_image_persistence.py` (passe).
+- **🍔 « Livraison repas ne fonctionne pas »** : la bannière `VerifyEmailBanner` (`fixed bottom-0 z-[60]`) **recouvrait la barre panier** (`z-50`) sur `RestaurantDetail` → bouton « Voir le panier »/checkout inaccessible. **Fix** : z-index bannière abaissé à `z-30` (les barres d'action fonctionnelles passent au-dessus). Vérifié : bouton « Voir le panier · N articles · X € » visible et cliquable.
+- Compte client de test ajouté : `capture.user@example.com` / `Capture123!`.
+
+
 ## 2026-06-10 — Km GPS auto (rental) + bouton admin Seed/Reset démo [DONE, testé]
 
 - **🛰️ Km GPS automatique (mise à disposition)** : `POST /drivers/location` cumule la distance (haversine, filtre les sauts >5km) sur la course rental active → `rental_gps_km`. Le meter renvoie `gps_km` ; à la clôture, le km est **pré-rempli par GPS mais modifiable** (choix 1a). `RentalDriverFlow` poll le meter (15s), affiche km live + supplément km projeté. Vérifié : 4 pings Paris → 3,59 km.

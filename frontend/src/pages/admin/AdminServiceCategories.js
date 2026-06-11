@@ -6,8 +6,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, Clock, Plus, Trash, ArrowUp, ArrowDown, House } from '@phosphor-icons/react';
-import { adminAPI } from '../../services/api';
+import { adminAPI, merchantAPI } from '../../services/api';
 import { ImageUpload } from '../../components/ImageUpload';
+import { resolveImageUrl } from '../../components/DynamicIcon';
 
 const GROUP_LABELS = { everyday: 'Au quotidien', time: 'Temps & Distance', special: 'Spécialisé & Inclusif' };
 const VIEW_TYPES = [{ v: 'icon', l: 'Icône' }, { v: 'banner', l: 'Bannière' }, { v: 'icon_banner', l: 'Icône + Bannière' }];
@@ -19,10 +20,10 @@ const scheduleSummary = (c) => {
   return `${n} plage${n > 1 ? 's' : ''} horaire${n > 1 ? 's' : ''}`;
 };
 
-const isImage = (icon) => typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:'));
+const isImage = (icon) => typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:') || icon.startsWith('/api/'));
 
 const ServiceCategoryIcon = ({ icon }) => {
-  if (isImage(icon)) return <img src={icon} alt="" className="w-10 h-10 object-contain" />;
+  if (isImage(icon)) return <img src={resolveImageUrl(icon)} alt="" className="w-10 h-10 object-contain" />;
   return <span className="text-3xl leading-none">{icon || '🚕'}</span>;
 };
 
@@ -218,13 +219,17 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
   const [description, setDescription] = useState(cat?.description || '');
   const [saving, setSaving] = useState(false);
 
-  const onFile = (e) => {
+  const onFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error('Image trop lourde (max 5 Mo)'); return; }
-    const reader = new FileReader();
-    reader.onload = () => setIcon(reader.result);
-    reader.readAsDataURL(file);
+    try {
+      const r = await merchantAPI.uploadImage(file);
+      setIcon(r.data.url); // relative /api/uploads/{id}
+      toast.success('Icône téléversée');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Échec de l\'upload');
+    }
   };
 
   const save = async () => {
