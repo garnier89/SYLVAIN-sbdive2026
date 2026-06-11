@@ -120,7 +120,7 @@ const ServiceTile = ({ service, variant = 'below', onSelect }) => {
       <div className={`relative w-full aspect-square rounded-2xl overflow-hidden ${img ? 'bg-white' : service.bg} flex items-center justify-center border border-white shadow-[0_6px_16px_-10px_rgba(11,20,38,0.22)] transition-transform group-hover:-translate-y-0.5`}>
         <TileBadge label={service.badge} />
         {img
-          ? <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          ? <img src={img} alt="" className={`absolute inset-0 w-full h-full ${service.imageFit === 'contain' ? 'object-contain p-2' : 'object-cover'}`} />
           : <Visual service={service} size={34} />}
       </div>
       <span className={`text-[11.5px] font-bold text-[#1F2430] text-center leading-[1.15] mt-2 whitespace-pre-line ${HEAD}`}>{service.name}</span>
@@ -311,7 +311,7 @@ const UserHome = () => {
     const cms = cmsItems.filter((i) => i.section === key).sort((a, b) => a.display_order - b.display_order);
     if (!cms.length) return sectionFallback[key] || [];
     const visible = cms.filter((i) => i.visible_home).map((i) => ({
-      id: i.id, name: i.label_fr, iconName: i.icon_name, imageUrl: i.image_url,
+      id: i.id, name: i.label_fr, iconName: i.icon_name, imageUrl: i.image_url, imageFit: i.image_fit,
       bg: i.bg_class, iconColor: i.icon_color_class, path: i.target_route, badge: i.badge || '',
     }));
     if (cms.some((i) => !i.visible_home)) {
@@ -341,7 +341,7 @@ const UserHome = () => {
     const tiles = home.map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
       // Dashboard-defined icon (image/emoji) drives the tile; v.icon is the fallback.
-      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
+      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, imageFit: c.image_fit, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
     });
     tiles.push({ id: 'more-taxi', name: 'Tous les\nTaxis', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi' });
     return tiles;

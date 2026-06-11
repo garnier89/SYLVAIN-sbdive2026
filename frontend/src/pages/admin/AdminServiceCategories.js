@@ -211,6 +211,7 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
   const [name, setName] = useState(cat?.name || '');
   const [nameEn, setNameEn] = useState(cat?.name_en || '');
   const [icon, setIcon] = useState(cat?.icon || '🚕');
+  const [imageFit, setImageFit] = useState(cat?.image_fit || 'cover');
   const [group, setGroup] = useState(cat?.group || 'special');
   const [viewType, setViewType] = useState(cat?.view_type || 'icon');
   const [bannerImage, setBannerImage] = useState(cat?.banner_image || '');
@@ -237,7 +238,7 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
     const payload = {
       name, name_en: nameEn, icon, view_type: viewType,
       banner_image: bannerImage, service_image: serviceImage,
-      list_description: listDesc, description,
+      list_description: listDesc, description, image_fit: imageFit,
     };
     try {
       let r;
@@ -310,6 +311,20 @@ const EditCategoryModal = ({ cat, onClose, onSaved }) => {
                 <input type="file" accept="image/png,image/jpeg" onChange={onFile} data-testid="svc-cat-edit-icon-file" className="text-xs" />
               </div>
             </div>
+            {isImage(icon) && (
+              <div className="mb-3" data-testid="svc-cat-edit-fit">
+                <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Rendu de l&apos;image sur l&apos;accueil</label>
+                <div className="flex gap-2 mt-1">
+                  {[{ v: 'cover', l: 'Remplir (plein cadre)' }, { v: 'contain', l: 'Ajuster (image entière)' }].map((o) => (
+                    <button key={o.v} type="button" onClick={() => setImageFit(o.v)} data-testid={`svc-cat-fit-${o.v}`}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold border ${imageFit === o.v ? 'bg-[#FF5000] text-white border-[#FF5000]' : 'bg-white text-slate-600 border-slate-300'}`}>
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">« Remplir » agrandit l&apos;image bord à bord (peut rogner). « Ajuster » montre toute l&apos;image (peut laisser des marges).</p>
+              </div>
+            )}
           </>
         )}
 

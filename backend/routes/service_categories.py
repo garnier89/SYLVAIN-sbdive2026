@@ -276,7 +276,7 @@ async def admin_update_service_category(key: str, request: Request):
     for f in ("name", "name_en", "icon", "display_order", "active", "visible_home",
               "schedule_enabled", "schedule_windows", "schedule_tz",
               "view_type", "banner_image", "service_image", "list_description",
-              "description", "show_in_services"):
+              "description", "show_in_services", "image_fit"):
         if f in body:
             allowed[f] = body[f]
     if not allowed:
