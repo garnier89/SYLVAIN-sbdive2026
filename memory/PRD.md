@@ -1,4 +1,11 @@
-## NEW - 2026-06-11 (255) - 🎓 SB Student PHASE 4 : Sécurité étudiante + Safe Ride Night (DONE, testé)
+## NEW - 2026-06-11 (256) - 🎓 SB Student PHASE 5 : Événements + Récompenses + toggle Safe Ride Night (DONE, testé 100%)
+- **Récompenses** `routes/student_rewards.py` (/api/student/rewards) : ledger de points, `award_ride_points` (crédité à la complétion d'une course pour étudiant vérifié, **idempotent par ride_id**, hook dans `rides.update_ride_status`), catalogue (course gratuite/bon/réduction partenaire), `redeem` (déduit points + code), admin config + catalogue CRUD + award manuel.
+- **Événements** `routes/student_events.py` (/api/student/events) : admin CRUD (soirée/universitaire/festival + navette + capacité), liste user (seats_left), `reserve` (capacité 409 + double-résa 409), cancel, my-reservations.
+- **Enhancement** : bascule **Safe Ride Night** sur l'écran de réservation (`RideChoosePage` state safeNight → payload.safe_ride_night → priorité chauffeurs dès la recherche).
+- **Frontend** : `SbRewardsPage` (/sb-student/recompenses), `SbEventsPage` (/sb-student/evenements) + entrées sur SbStudentPage. `AdminStudent` onglets "Récompenses" + "Événements". `studentAPI` rewards*/events*.
+- **Tests** : pytest `test_iter256_rewards_events.py` 4/4 + testing_agent 18/18 e2e + frontend 100%, AUCUN bug (fix cosmétique "0 points" appliqué).
+
+
 - **Backend** `routes/student_safety.py` (préfixe /api/student/safety) :
   - **Settings** : auto_share + prefer_top_drivers + min_driver_rating (stockés dans student_profiles.safety).
   - **Safe Ride Night** : `safe-ride/start {ride_id}` crée un token trip-share (réutilise trip_shares), met `ride.safe_ride_night=true` + share_token, retourne share_url (/t/{token}) + contacts de confiance (le client partage le lien via navigator.share/clipboard). Garde-fous : course d'un autre user 403, inexistante 404. `safe-ride/active`.

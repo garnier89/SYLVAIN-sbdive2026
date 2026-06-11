@@ -44,7 +44,7 @@ const SbRewardsPage = () => {
         <p className="text-white/80 text-sm mt-1">Gagnez des points à chaque course et échangez-les.</p>
         <div className="mt-3 bg-white/15 rounded-2xl px-4 py-3 inline-flex items-center gap-2" data-testid="rewards-balance">
           <Trophy size={20} weight="fill" className="text-amber-300" />
-          <span className="text-2xl font-black">{balance}</span><span className="text-sm text-white/80">points</span>
+          <span className="text-2xl font-black">{balance}</span><span className="text-sm text-white/80 ml-1">points</span>
         </div>
       </div>
 
