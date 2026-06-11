@@ -14,7 +14,7 @@ import {
   House, Car, GearSix, Fingerprint, UserCircle, FileText,
   Key, ArrowsLeftRight, Buildings,
   CarSimple, Gift, MapPin, Info, ShieldCheck, Lock, Question,
-  PaperPlaneTilt, Power, Envelope, HandHeart, ChatCircleDots, Newspaper, Storefront
+  PaperPlaneTilt, Power, Envelope, HandHeart, ChatCircleDots, Newspaper, Storefront, GraduationCap
 } from '@phosphor-icons/react';
 
 /* ── reusable section header ── */
@@ -176,6 +176,7 @@ const ProfilePage = () => {
         <MenuItem icon={ShoppingCart} label={t('menu.my_cart')} iconBg="bg-red-500" iconColor="text-white" onClick={() => navigate('/food')} testId="settings-cart-btn" />
         <MenuItem icon={Bell} label={t('menu.notifications')} iconBg="bg-purple-600" iconColor="text-white" onClick={() => navigate('/profile?tab=notifications')} testId="settings-notifications-btn" />
         <MenuItem icon={Newspaper} label={t('menu.news')} iconBg="bg-[#FF4500]" iconColor="text-white" onClick={() => navigate('/actualites')} testId="settings-news-btn" badge={newsUnread} />
+        <MenuItem icon={GraduationCap} label="SB Student 🎓" subtitle="Offres & tarifs étudiants" iconBg="bg-violet-600" iconColor="text-white" onClick={() => navigate('/sb-student')} testId="settings-sb-student-btn" />
         {settings.enable_favorite_driver === true && (
           <MenuItem icon={Heart} label={t('menu.favorite_drivers')} iconBg="bg-yellow-500" iconColor="text-white" onClick={() => navigate('/favorite-drivers')} testId="settings-favourites-btn" />
         )}

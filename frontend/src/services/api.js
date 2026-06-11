@@ -710,4 +710,29 @@ export const kycAPI = {
   adminReject: (id, reason) => api.post(`/kyc/admin/${id}/reject`, { reason }),
 };
 
+export const studentAPI = {
+  me: () => api.get('/student/me'),
+  config: () => api.get('/student/config'),
+  checkDomain: (email) => api.get('/student/domains/check', { params: { email } }),
+  requestEmailOtp: (email) => api.post('/student/verify/email/request', { email }),
+  confirmEmailOtp: (email, code) => api.post('/student/verify/email/confirm', { email, code }),
+  uploadDocument: (file, docType = 'student_card') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post(`/student/documents?doc_type=${encodeURIComponent(docType)}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  quote: (amount, kind = 'ride') => api.get('/student/discount/quote', { params: { amount, kind } }),
+  // admin
+  adminGetConfig: () => api.get('/student/admin/config'),
+  adminUpdateConfig: (data) => api.put('/student/admin/config', data),
+  adminDomains: () => api.get('/student/admin/domains'),
+  adminCreateDomain: (data) => api.post('/student/admin/domains', data),
+  adminUpdateDomain: (id, data) => api.put(`/student/admin/domains/${id}`, data),
+  adminDeleteDomain: (id) => api.delete(`/student/admin/domains/${id}`),
+  adminList: (status = '') => api.get('/student/admin/list', { params: status ? { status } : {} }),
+  adminApprove: (userId) => api.post(`/student/admin/${userId}/approve`),
+  adminReject: (userId, reason) => api.post(`/student/admin/${userId}/reject`, { reason }),
+  adminStats: () => api.get('/student/admin/stats'),
+};
+
 export default api;

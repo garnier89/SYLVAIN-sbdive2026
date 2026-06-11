@@ -582,6 +582,22 @@ async def create_ride(data: RideRequest, request: Request):
     except Exception:
         loyalty_discount_pct, loyalty_discount_amount, loyalty_tier_name = 0.0, 0.0, None
 
+    # ===== SB Student — automatic student discount (cap-aware, verified students only) =====
+    student_discount_amount = 0.0
+    student_discount_pct = 0.0
+    student_discount_kind = None
+    try:
+        from routes.student import compute_student_discount
+        student_kind = "advance" if getattr(data, "scheduled_at", None) else "ride"
+        sres = await compute_student_discount(user["id"], fare, student_kind)
+        if sres.get("amount", 0) > 0:
+            student_discount_amount = sres["amount"]
+            student_discount_pct = sres.get("pct", 0.0)
+            student_discount_kind = sres.get("kind")
+            fare = round(max(fare - student_discount_amount, 0), 2)
+    except Exception:
+        student_discount_amount, student_discount_pct, student_discount_kind = 0.0, 0.0, None
+
     ride = {
         "id": f"ride_{uuid.uuid4().hex[:12]}",
         "booking_no": str(secrets.randbelow(90000000) + 10000000),
@@ -610,6 +626,9 @@ async def create_ride(data: RideRequest, request: Request):
         "loyalty_discount_pct": loyalty_discount_pct,
         "loyalty_discount_amount": loyalty_discount_amount,
         "loyalty_tier_name": loyalty_tier_name,
+        "student_discount_pct": student_discount_pct,
+        "student_discount_amount": student_discount_amount,
+        "student_discount_kind": student_discount_kind,
         "book_for_name": data.book_for_name,
         "book_for_phone": data.book_for_phone,
         "auto_assign": getattr(data, 'auto_assign', True),
@@ -701,6 +720,14 @@ async def create_ride(data: RideRequest, request: Request):
     ride["carried_debt"] = carried if carried.get("amount", 0) > 0 else None
 
     await db.rides.insert_one(ride)
+
+    # Record the granted SB Student discount for daily/monthly cap tracking.
+    if student_discount_amount > 0:
+        try:
+            from routes.student import record_student_discount_usage
+            await record_student_discount_usage(user["id"], student_discount_amount, student_discount_kind or "ride", ride["id"])
+        except Exception:
+            pass
 
     # ── Airport Transfer: seed flight status + alert admins (P2) ──
     if is_airport:

@@ -1,0 +1,197 @@
+/**
+ * AdminStudent — SB Drive Student admin console.
+ * Tabs: Tableau de bord (stats), Tarification (config), Domaines email, Étudiants (review).
+ */
+import React, { useEffect, useState, useCallback } from 'react';
+import { toast } from 'sonner';
+import { studentAPI } from '../../services/api';
+
+const TABS = [
+  { key: 'dashboard', label: 'Tableau de bord' },
+  { key: 'pricing', label: 'Tarification' },
+  { key: 'domains', label: 'Domaines email' },
+  { key: 'students', label: 'Étudiants' },
+];
+
+const AdminStudent = () => {
+  const [tab, setTab] = useState('dashboard');
+  return (
+    <div className="p-6 max-w-5xl" data-testid="admin-student-page">
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">SB Drive Student 🎓</h1>
+      <p className="text-sm text-slate-500 mb-5">Offre de mobilité étudiante — vérification, tarifs, domaines et suivi.</p>
+      <div className="flex gap-2 border-b border-slate-200 mb-5">
+        {TABS.map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} data-testid={`admin-student-tab-${t.key}`}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${tab === t.key ? 'border-violet-600 text-violet-700' : 'border-transparent text-slate-500'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === 'dashboard' && <Dashboard />}
+      {tab === 'pricing' && <Pricing />}
+      {tab === 'domains' && <Domains />}
+      {tab === 'students' && <Students />}
+    </div>
+  );
+};
+
+const Stat = ({ label, value, color = 'text-slate-900' }) => (
+  <div className="bg-white border border-slate-200 rounded-xl p-4">
+    <p className="text-[11px] uppercase font-bold text-slate-400">{label}</p>
+    <p className={`text-2xl font-black mt-1 ${color}`}>{value}</p>
+  </div>
+);
+
+const Dashboard = () => {
+  const [s, setS] = useState(null);
+  useEffect(() => { studentAPI.adminStats().then((r) => setS(r.data)).catch(() => {}); }, []);
+  if (!s) return <p className="text-slate-400 text-sm">Chargement…</p>;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="admin-student-stats">
+      <Stat label="Étudiants inscrits" value={s.enrolled} />
+      <Stat label="Vérifiés" value={s.verified} color="text-emerald-600" />
+      <Stat label="En attente" value={s.pending} color="text-amber-500" />
+      <Stat label="Refusés" value={s.rejected} color="text-red-500" />
+      <Stat label="Courses étudiantes" value={s.student_rides} />
+      <Stat label="Réductions (mois)" value={`${Number(s.discount_used_month).toFixed(2)} €`} />
+      <Stat label="Réductions (total)" value={`${Number(s.discount_used_total).toFixed(2)} €`} />
+      <Stat label="Taux de vérification" value={`${s.verification_rate}%`} />
+    </div>
+  );
+};
+
+const Pricing = () => {
+  const [cfg, setCfg] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { studentAPI.adminGetConfig().then((r) => setCfg(r.data)).catch(() => {}); }, []);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await studentAPI.adminUpdateConfig({
+        enabled: cfg.enabled,
+        ride_discount_pct: Number(cfg.ride_discount_pct),
+        advance_discount_pct: Number(cfg.advance_discount_pct),
+        campus_discount_pct: Number(cfg.campus_discount_pct),
+        daily_cap: Number(cfg.daily_cap),
+        monthly_cap: Number(cfg.monthly_cap),
+      });
+      setCfg(r.data);
+      toast.success('Tarification enregistrée');
+    } catch { toast.error('Échec de l\'enregistrement'); }
+    finally { setSaving(false); }
+  };
+  if (!cfg) return <p className="text-slate-400 text-sm">Chargement…</p>;
+  const Field = ({ k, label, suffix }) => (
+    <div>
+      <label className="text-xs font-semibold text-slate-600">{label}</label>
+      <div className="flex items-center gap-2 mt-1">
+        <input type="number" value={cfg[k]} onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })}
+          className="w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm" data-testid={`student-cfg-${k}`} />
+        <span className="text-sm text-slate-400">{suffix}</span>
+      </div>
+    </div>
+  );
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-lg space-y-4" data-testid="admin-student-pricing">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} data-testid="student-cfg-enabled" />
+        <span className="text-sm font-semibold text-slate-700">Module SB Student activé</span>
+      </label>
+      <div className="grid grid-cols-2 gap-4">
+        <Field k="ride_discount_pct" label="Réduction courses" suffix="%" />
+        <Field k="advance_discount_pct" label="Réduction réservation à l'avance" suffix="%" />
+        <Field k="campus_discount_pct" label="Réduction campus ↔ domicile" suffix="%" />
+        <div />
+        <Field k="daily_cap" label="Plafond journalier (0 = illimité)" suffix="€" />
+        <Field k="monthly_cap" label="Plafond mensuel (0 = illimité)" suffix="€" />
+      </div>
+      <button onClick={save} disabled={saving} className="px-5 py-2.5 rounded-lg font-bold text-white bg-violet-600 disabled:opacity-50" data-testid="student-cfg-save">
+        {saving ? 'Enregistrement…' : 'Enregistrer'}
+      </button>
+    </div>
+  );
+};
+
+const Domains = () => {
+  const [list, setList] = useState([]);
+  const [form, setForm] = useState({ domain: '', label: '', country: '', enabled: true });
+  const load = useCallback(() => { studentAPI.adminDomains().then((r) => setList(r.data.domains || [])).catch(() => {}); }, []);
+  useEffect(() => { load(); }, [load]);
+  const add = async () => {
+    if (!form.domain.trim()) return toast.error('Domaine requis');
+    try { await studentAPI.adminCreateDomain(form); toast.success('Domaine ajouté'); setForm({ domain: '', label: '', country: '', enabled: true }); load(); }
+    catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+  };
+  const toggle = async (d) => { try { await studentAPI.adminUpdateDomain(d.id, { enabled: !d.enabled }); load(); } catch { toast.error('Échec'); } };
+  const del = async (d) => { if (!window.confirm(`Supprimer ${d.domain} ?`)) return; try { await studentAPI.adminDeleteDomain(d.id); load(); } catch { toast.error('Échec'); } };
+  return (
+    <div className="space-y-4" data-testid="admin-student-domains">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
+        <div><label className="text-xs font-semibold text-slate-600">Domaine</label><input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="univ-x.fr" className="block w-44 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="domain-input-domain" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Établissement</label><input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Université X" className="block w-48 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="domain-input-label" /></div>
+        <div><label className="text-xs font-semibold text-slate-600">Pays (ISO)</label><input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="FR / SN / CI" maxLength={2} className="block w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1" data-testid="domain-input-country" /></div>
+        <button onClick={add} className="px-4 py-2 rounded-lg font-bold text-white bg-violet-600" data-testid="domain-add-btn">Ajouter</button>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Domaine</th><th className="text-left px-4 py-2">Établissement</th><th className="text-left px-4 py-2">Pays</th><th className="text-left px-4 py-2">Statut</th><th className="px-4 py-2"></th></tr></thead>
+          <tbody>
+            {list.map((d) => (
+              <tr key={d.id} className="border-t border-slate-100" data-testid={`domain-row-${d.id}`}>
+                <td className="px-4 py-2 font-mono">{d.domain}</td>
+                <td className="px-4 py-2">{d.label || '—'}</td>
+                <td className="px-4 py-2">{d.country || '—'}</td>
+                <td className="px-4 py-2">
+                  <button onClick={() => toggle(d)} className={`px-2 py-1 rounded-full text-xs font-bold ${d.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`} data-testid={`domain-toggle-${d.id}`}>{d.enabled ? 'Actif' : 'Inactif'}</button>
+                </td>
+                <td className="px-4 py-2 text-right"><button onClick={() => del(d)} className="text-red-500 text-xs font-semibold" data-testid={`domain-del-${d.id}`}>Supprimer</button></td>
+              </tr>
+            ))}
+            {list.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Aucun domaine.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const Students = () => {
+  const [list, setList] = useState([]);
+  const [filter, setFilter] = useState('');
+  const load = useCallback(() => { studentAPI.adminList(filter).then((r) => setList(r.data.students || [])).catch(() => {}); }, [filter]);
+  useEffect(() => { load(); }, [load]);
+  const approve = async (uid) => { try { await studentAPI.adminApprove(uid); toast.success('Validé'); load(); } catch { toast.error('Échec'); } };
+  const reject = async (uid) => { const reason = window.prompt('Motif du refus ?') || ''; try { await studentAPI.adminReject(uid, reason); toast.success('Refusé'); load(); } catch { toast.error('Échec'); } };
+  const badge = (s) => s === 'verified' ? 'bg-emerald-100 text-emerald-700' : s === 'pending' ? 'bg-amber-100 text-amber-700' : s === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500';
+  return (
+    <div className="space-y-3" data-testid="admin-student-list">
+      <div className="flex gap-2">
+        {['', 'pending', 'verified', 'rejected'].map((f) => (
+          <button key={f || 'all'} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${filter === f ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500'}`} data-testid={`student-filter-${f || 'all'}`}>{f || 'Tous'}</button>
+        ))}
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left px-4 py-2">Étudiant</th><th className="text-left px-4 py-2">Méthode</th><th className="text-left px-4 py-2">Établissement</th><th className="text-left px-4 py-2">Statut</th><th className="px-4 py-2"></th></tr></thead>
+          <tbody>
+            {list.map((p) => (
+              <tr key={p.user_id} className="border-t border-slate-100" data-testid={`student-row-${p.user_id}`}>
+                <td className="px-4 py-2"><p className="font-semibold text-slate-800">{p.user_name || '—'}</p><p className="text-xs text-slate-400">{p.user_email || p.university_email || ''}</p></td>
+                <td className="px-4 py-2 text-xs">{p.method || '—'}</td>
+                <td className="px-4 py-2 text-xs">{p.university || p.country || '—'}</td>
+                <td className="px-4 py-2"><span className={`px-2 py-1 rounded-full text-xs font-bold ${badge(p.status)}`}>{p.status}</span></td>
+                <td className="px-4 py-2 text-right">
+                  {p.status !== 'verified' && <button onClick={() => approve(p.user_id)} className="text-emerald-600 text-xs font-bold mr-3" data-testid={`student-approve-${p.user_id}`}>Valider</button>}
+                  {p.status !== 'rejected' && <button onClick={() => reject(p.user_id)} className="text-red-500 text-xs font-bold" data-testid={`student-reject-${p.user_id}`}>Refuser</button>}
+                </td>
+              </tr>
+            ))}
+            {list.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Aucun étudiant.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default AdminStudent;

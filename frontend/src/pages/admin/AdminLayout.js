@@ -6,7 +6,7 @@ import {
   BuildingOffice, TreeStructure, Taxi, Package, ShoppingCart, Lightning,
   PersonSimpleRun, Wrench, VideoCamera, Gavel, Tag, FirstAid,
   MapPinArea, Path, CalendarCheck, Star, ChartBar, MapPin, Eye, Fire,
-  Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe,
+  Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe, GraduationCap,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, BellRinging, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
   Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard
@@ -182,6 +182,7 @@ const sidebarConfig = [
       { icon: ShareNetwork, label: 'Parrainage MLM', path: '/admin/referral' },
       { icon: Image, label: 'Bannières publicitaires', path: '/admin/banners' },
       { icon: Newspaper, label: 'Actualités', path: '/admin/actualites' },
+      { icon: GraduationCap, label: 'SB Student', path: '/admin/student' },
       { icon: EnvelopeSimple, label: 'Newsletter', path: '/admin/newsletter' },
     ]
   },

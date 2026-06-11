@@ -204,6 +204,8 @@ export const AdminCorporate = lazy(() => import('../pages/admin/AdminCorporate')
 export const AdminHomeCategories = lazy(() => import('../pages/admin/AdminHomeCategories'));
 export const AdminPromoBanners = lazy(() => import('../pages/admin/AdminPromoBanners'));
 export const AdminNews = lazy(() => import('../pages/admin/AdminNews'));
+export const AdminStudent = lazy(() => import('../pages/admin/AdminStudent'));
+export const SbStudentPage = lazyWithPreload(() => import('../pages/user/SbStudentPage'));
 export const AdminI18n = lazy(() => import('../pages/admin/AdminI18n'));
 export const AdminGroupsPage = lazy(() => import('../pages/admin/AdminGroupsPage'));
 export const AdminUserEdit = lazy(() => import('../pages/admin/AdminUserEdit'));
