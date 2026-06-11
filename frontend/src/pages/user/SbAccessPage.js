@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Wheelchair, Eye, EarSlash, Brain, PawPrint,
   UsersThree, Clock, Car, Van, CheckCircle, TextAa, ShieldCheck, FirstAid,
   Plus, Minus, ArrowClockwise, CaretRight, CalendarCheck, Trash, X,
+  Siren, Phone, MapPin, ChatCircleText,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
@@ -51,6 +52,92 @@ export default function SbAccessPage() {
   const [recDays, setRecDays] = useState([]);
   const [recTime, setRecTime] = useState('09:00');
   const [recSaving, setRecSaving] = useState(false);
+
+  // Centre de sécurité / SOS
+  const [safetyOpen, setSafetyOpen] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [newContact, setNewContact] = useState({ name: '', phone: '', relation: '' });
+  const [sosAlert, setSosAlert] = useState(null);
+  const [sosBusy, setSosBusy] = useState(false);
+  const watchRef = useRef(null);
+
+  const loadSafety = () => {
+    accessAPI.listContacts().then((r) => setContacts(r.data || [])).catch(() => {});
+    accessAPI.sosActive().then((r) => setSosAlert(r.data.alert || null)).catch(() => {});
+  };
+  useEffect(() => { loadSafety(); }, []);
+
+  const getPosition = () => new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
+    );
+  });
+
+  const startLiveTracking = (alertId) => {
+    if (!navigator.geolocation || watchRef.current != null) return;
+    watchRef.current = navigator.geolocation.watchPosition(
+      (p) => { accessAPI.sosLocation(alertId, { lat: p.coords.latitude, lng: p.coords.longitude }).catch(() => {}); },
+      () => {}, { enableHighAccuracy: true, maximumAge: 10000 },
+    );
+  };
+  const stopLiveTracking = () => {
+    if (watchRef.current != null && navigator.geolocation) { navigator.geolocation.clearWatch(watchRef.current); }
+    watchRef.current = null;
+  };
+  useEffect(() => () => stopLiveTracking(), []);
+
+  const triggerSos = async () => {
+    setSosBusy(true);
+    try {
+      const pos = await getPosition();
+      const r = await accessAPI.triggerSos({ ...(pos || {}), booking_id: booking?.id || null });
+      const alert = r.data.alert;
+      setSosAlert(alert);
+      setSafetyOpen(true);
+      if (alert?.id) startLiveTracking(alert.id);
+      // Propose de prévenir les contacts (WhatsApp en 1 tap)
+      const msg = encodeURIComponent(r.data.share_message || 'Alerte SOS SB Access');
+      if ((r.data.contacts || []).length > 0) {
+        const c = r.data.contacts[0];
+        const phone = (c.phone || '').replace(/[^0-9]/g, '');
+        if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+      }
+      toast.success('Alerte SOS envoyée au centre de sécurité');
+    } catch {
+      toast.error("Échec de l'envoi du SOS");
+    }
+    setSosBusy(false);
+  };
+
+  const resolveSos = async () => {
+    if (!sosAlert?.id) return;
+    try {
+      await accessAPI.sosResolve(sosAlert.id);
+      stopLiveTracking();
+      setSosAlert(null);
+      toast.success('Vous êtes signalé(e) en sécurité');
+    } catch { toast.error('Échec'); }
+  };
+
+  const addContact = async () => {
+    if (!newContact.name.trim() || !newContact.phone.trim()) { toast.error('Nom et téléphone requis'); return; }
+    try {
+      await accessAPI.addContact(newContact);
+      setNewContact({ name: '', phone: '', relation: '' });
+      loadSafety(); toast.success('Contact ajouté');
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+  };
+  const removeContact = async (id) => {
+    try { await accessAPI.removeContact(id); loadSafety(); } catch { toast.error('Échec'); }
+  };
+  const notifyContact = (c) => {
+    const msg = encodeURIComponent('🆘 J\'ai besoin d\'aide. Suivez ma position : ' + (sosAlert?.lat ? `https://maps.google.com/?q=${sosAlert.lat},${sosAlert.lng}` : '') + ' (via SB Drive Access)');
+    const phone = (c.phone || '').replace(/[^0-9]/g, '');
+    if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+  };
 
   // Réglages d'accessibilité (persistés)
   const [largeText, setLargeText] = useState(() => localStorage.getItem('a11y_large_text') === '1');
@@ -236,6 +323,16 @@ export default function SbAccessPage() {
         </button>
       </header>
 
+      {/* Bannière SOS active (toujours visible) */}
+      {sosAlert && (
+        <div className="px-4 py-3 flex items-center gap-3" style={{ background: '#FEF2F2', borderBottom: '2px solid #FCA5A5' }} data-testid="sos-active-banner">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+          <p className="flex-1 text-sm font-semibold text-rose-700">Alerte SOS active — le centre de sécurité est prévenu.</p>
+          <button onClick={resolveSos} data-testid="sos-resolve-btn"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: '#16a34a' }}>Je suis en sécurité</button>
+        </div>
+      )}
+
       {/* Landing */}
       {step === -1 && (
         <div data-testid="access-landing">
@@ -330,6 +427,18 @@ export default function SbAccessPage() {
               </div>
             </div>
           )}
+          <div className="px-5 pb-4" data-testid="access-safety-entry">
+            <button onClick={() => { setSafetyOpen(true); loadSafety(); }}
+              className="w-full flex items-center gap-3 p-4 rounded-xl text-left focus:ring-2 focus:ring-offset-1"
+              style={{ border: '2px solid #FCA5A5', background: '#FEF2F2' }} data-testid="access-open-safety-btn">
+              <span className="w-11 h-11 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: '#e11d48' }} aria-hidden="true"><Siren size={22} weight="fill" /></span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-bold text-rose-700">Centre de sécurité</span>
+                <span className="block text-sm text-rose-600/90">Contacts d'urgence, SOS et suivi en direct.</span>
+              </span>
+              <CaretRight size={20} weight="bold" className="text-rose-400 shrink-0" />
+            </button>
+          </div>
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 p-4 z-40">
             <button onClick={() => setStep(0)} className="w-full min-h-[52px] rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2"
               style={{ background: ORANGE }} data-testid="access-start-btn">
@@ -608,6 +717,71 @@ export default function SbAccessPage() {
               className="w-full min-h-[52px] rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: ORANGE }}>
               <CalendarCheck size={20} weight="bold" /> {recSaving ? 'Activation…' : 'Activer le trajet automatique'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Centre de sécurité — contacts d'urgence + SOS */}
+      {safetyOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50" onClick={() => setSafetyOpen(false)} data-testid="safety-sheet-overlay">
+          <div className="w-full max-w-[430px] bg-white rounded-t-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="safety-sheet">
+            <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                <Siren size={22} weight="fill" style={{ color: '#e11d48' }} /> Centre de sécurité
+              </h2>
+              <button onClick={() => setSafetyOpen(false)} aria-label="Fermer" className="w-9 h-9 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-100"><X size={20} weight="bold" /></button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Bouton SOS */}
+              {sosAlert ? (
+                <div className="rounded-2xl p-5 text-center" style={{ background: '#FEF2F2', border: '2px solid #FCA5A5' }} data-testid="safety-active-alert">
+                  <p className="font-bold text-rose-700 flex items-center justify-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" /> Alerte SOS en cours</p>
+                  <p className="text-sm text-rose-600 mt-1">Le centre de sécurité et vos proches peuvent suivre votre position en direct.</p>
+                  <button onClick={resolveSos} data-testid="safety-resolve-btn"
+                    className="mt-4 w-full min-h-[52px] rounded-xl font-bold text-white text-lg" style={{ background: '#16a34a' }}>Je suis en sécurité</button>
+                </div>
+              ) : (
+                <button onClick={triggerSos} disabled={sosBusy} data-testid="safety-sos-btn"
+                  className="w-full min-h-[88px] rounded-2xl font-black text-white text-2xl flex flex-col items-center justify-center gap-1 disabled:opacity-60 focus:ring-4"
+                  style={{ background: '#e11d48' }}>
+                  <Siren size={32} weight="fill" />
+                  {sosBusy ? 'Envoi…' : 'SOS'}
+                </button>
+              )}
+              <p className="text-xs text-gray-500 text-center -mt-2">Un appui alerte le centre de sécurité et partage votre position avec vos contacts.</p>
+
+              {/* Contacts d'urgence */}
+              <div>
+                <p className="font-bold text-gray-900 mb-2">Contacts d'urgence <span className="text-xs font-normal text-gray-500">(max 5)</span></p>
+                <div className="space-y-2" data-testid="safety-contacts-list">
+                  {contacts.length === 0 && <p className="text-sm text-gray-500">Ajoutez un proche à prévenir en cas d'urgence.</p>}
+                  {contacts.map((c) => (
+                    <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ border: cardBorder }} data-testid={`safety-contact-${c.id}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{c.name} {c.relation && <span className="text-xs font-normal text-gray-500">· {c.relation}</span>}</p>
+                        <p className="text-xs text-gray-600">{c.phone}</p>
+                      </div>
+                      <a href={`tel:${c.phone}`} aria-label="Appeler" className="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0" style={{ background: NAVY }} data-testid={`safety-call-${c.id}`}><Phone size={16} weight="fill" /></a>
+                      <button onClick={() => notifyContact(c)} aria-label="Prévenir" className="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0" style={{ background: '#16a34a' }} data-testid={`safety-notify-${c.id}`}><ChatCircleText size={16} weight="fill" /></button>
+                      <button onClick={() => removeContact(c.id)} aria-label="Supprimer" className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 shrink-0" style={{ border: cardBorder }} data-testid={`safety-remove-${c.id}`}><Trash size={16} weight="bold" /></button>
+                    </div>
+                  ))}
+                </div>
+                {contacts.length < 5 && (
+                  <div className="mt-3 space-y-2 p-3 rounded-xl" style={{ background: '#F3F4F6' }}>
+                    <input value={newContact.name} onChange={(e) => setNewContact({ ...newContact, name: e.target.value })} placeholder="Nom" data-testid="safety-contact-name"
+                      className="w-full min-h-[44px] px-3 rounded-lg text-gray-900" style={{ border: cardBorder }} />
+                    <input value={newContact.phone} onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })} placeholder="Téléphone" data-testid="safety-contact-phone"
+                      className="w-full min-h-[44px] px-3 rounded-lg text-gray-900" style={{ border: cardBorder }} />
+                    <input value={newContact.relation} onChange={(e) => setNewContact({ ...newContact, relation: e.target.value })} placeholder="Lien (ex. fille, aidant)" data-testid="safety-contact-relation"
+                      className="w-full min-h-[44px] px-3 rounded-lg text-gray-900" style={{ border: cardBorder }} />
+                    <button onClick={addContact} data-testid="safety-add-contact-btn"
+                      className="w-full min-h-[44px] rounded-lg font-bold text-white flex items-center justify-center gap-1.5" style={{ background: NAVY }}><Plus size={16} weight="bold" /> Ajouter le contact</button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

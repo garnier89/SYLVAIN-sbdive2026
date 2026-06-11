@@ -849,6 +849,14 @@ export const accessAPI = {
   match: (data) => api.post('/access/match', data),
   createBooking: (data) => api.post('/access/bookings', data),
   myBookings: () => api.get('/access/bookings'),
+  // SOS / Sécurité
+  triggerSos: (data) => api.post('/access/sos', data),
+  sosLocation: (id, data) => api.post(`/access/sos/${id}/location`, data),
+  sosResolve: (id) => api.post(`/access/sos/${id}/resolve`, {}),
+  sosActive: () => api.get('/access/sos/active'),
+  listContacts: () => api.get('/phase1/emergency-contacts'),
+  addContact: (data) => api.post('/phase1/emergency-contacts', data),
+  removeContact: (id) => api.delete(`/phase1/emergency-contacts/${id}`),
   listRecurring: () => api.get('/access/recurring'),
   createRecurring: (data) => api.post('/access/recurring', data),
   updateRecurring: (id, data) => api.put(`/access/recurring/${id}`, data),
@@ -870,6 +878,8 @@ export const accessAPI = {
     return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   adminBookings: () => api.get('/access/admin/bookings'),
+  adminSos: () => api.get('/access/admin/sos'),
+  adminResolveSos: (id, data) => api.post(`/access/admin/sos/${id}/resolve`, data || {}),
   adminStats: () => api.get('/access/admin/stats'),
   adminDemandForecast: () => api.get('/access/admin/ai/demand-forecast'),
   adminAllocationPreview: (data) => api.post('/access/admin/ai/allocation-preview', data),

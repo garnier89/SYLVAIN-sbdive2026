@@ -24,6 +24,8 @@ from core.deps import require_role, get_current_user
 from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 from core.notifications import create_notification
 from core.email import send_access_recurring_reminder, fire
+from core.websocket import manager
+from core.airport import notify_admins
 from core.access_ai import (
     rank_access_drivers, predict_access_demand, demand_narrative, DEFAULT_AI_CONFIG,
 )
@@ -381,6 +383,155 @@ async def list_my_bookings(request: Request):
     user = await get_current_user(request)
     items = await db.access_bookings.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return {"items": items}
+
+
+# ============================================================
+#  CENTRE SOS / SÉCURITÉ (alerte d'urgence + suivi temps réel)
+# ============================================================
+def _maps_link(lat, lng) -> str:
+    if lat is None or lng is None:
+        return ""
+    return f"https://maps.google.com/?q={lat},{lng}"
+
+
+def _sos_share_message(name: str, lat, lng) -> str:
+    loc = _maps_link(lat, lng)
+    base = f"🆘 ALERTE SOS — {name or 'Un usager SB Access'} a besoin d'aide."
+    if loc:
+        base += f" Position en direct : {loc}"
+    base += " (envoyé via SB Drive Access)"
+    return base
+
+
+@router.post("/sos")
+async def trigger_sos(request: Request):
+    """Déclenche une alerte SOS : notifie le centre de sécurité (admins), le chauffeur
+    attribué le cas échéant, et renvoie le message + les contacts d'urgence à prévenir
+    (l'app propose ensuite l'appel / WhatsApp / SMS en 1 tap)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    lat = body.get("lat")
+    lng = body.get("lng")
+    try:
+        lat = float(lat) if lat is not None else None
+        lng = float(lng) if lng is not None else None
+    except (TypeError, ValueError):
+        lat = lng = None
+
+    # Réutilise une alerte active s'il y en a déjà une (anti-doublon).
+    existing = await db.access_sos_alerts.find_one(
+        {"user_id": user["id"], "status": "active"}, {"_id": 0})
+
+    booking_id = body.get("booking_id")
+    booking = None
+    if booking_id:
+        booking = await db.access_bookings.find_one({"id": booking_id, "user_id": user["id"]}, {"_id": 0})
+
+    contacts = await db.emergency_contacts.find({"user_id": user["id"]}, {"_id": 0}).to_list(10)
+    share_message = _sos_share_message(user.get("name"), lat, lng)
+
+    if existing:
+        alert = existing
+        upd = {"updated_at": _now()}
+        if lat is not None and lng is not None:
+            upd.update({"lat": lat, "lng": lng})
+        await db.access_sos_alerts.update_one({"id": existing["id"]}, {"$set": upd})
+        alert.update(upd)
+    else:
+        alert = {
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "user_name": user.get("name"),
+            "user_phone": user.get("phone"),
+            "booking_id": booking_id,
+            "driver_id": (booking or {}).get("matched_driver_id"),
+            "driver_name": (booking or {}).get("matched_driver_name"),
+            "status": "active",
+            "lat": lat, "lng": lng,
+            "location_history": ([{"lat": lat, "lng": lng, "at": _now()}] if lat is not None else []),
+            "message": str(body.get("message") or "")[:300],
+            "contacts_count": len(contacts),
+            "created_at": _now(),
+            "updated_at": _now(),
+            "resolved_at": None, "resolved_by": None,
+        }
+        await db.access_sos_alerts.insert_one(dict(alert))
+        alert.pop("_id", None)
+
+        # Centre de sécurité (admins) : in-app + temps réel.
+        await notify_admins(
+            "access_sos",
+            "🆘 SOS SB Access",
+            f"{user.get('name') or 'Un usager'} a déclenché une alerte SOS." + (f" Position : {_maps_link(lat, lng)}" if lat else ""),
+            data={"alert_id": alert["id"], "user_id": user["id"], "lat": lat, "lng": lng, "action": "access_sos"},
+        )
+        try:
+            await manager.broadcast_to_admins({
+                "type": "access_sos", "alert_id": alert["id"], "user_name": user.get("name"),
+                "lat": lat, "lng": lng, "at": alert["created_at"],
+            })
+        except Exception:
+            pass
+        # Chauffeur attribué (le cas échéant).
+        if alert.get("driver_id"):
+            await create_notification(
+                alert["driver_id"], "access_sos_driver",
+                "🆘 Alerte SOS de votre passager",
+                f"{user.get('name') or 'Votre passager'} a déclenché un SOS. Vérifiez sa sécurité immédiatement.",
+                data={"alert_id": alert["id"], "lat": lat, "lng": lng},
+            )
+
+    return {
+        "alert": {k: alert.get(k) for k in ("id", "status", "lat", "lng", "created_at", "booking_id", "driver_name")},
+        "contacts": contacts,
+        "share_message": share_message,
+        "maps_link": _maps_link(lat, lng),
+    }
+
+
+@router.post("/sos/{alert_id}/location")
+async def sos_update_location(alert_id: str, request: Request):
+    """Met à jour la position en direct pendant une alerte active (suivi temps réel)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    try:
+        lat = float(body.get("lat"))
+        lng = float(body.get("lng"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Coordonnées invalides")
+    alert = await db.access_sos_alerts.find_one({"id": alert_id, "user_id": user["id"], "status": "active"}, {"_id": 0})
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerte introuvable ou résolue")
+    history = (alert.get("location_history") or [])[-19:] + [{"lat": lat, "lng": lng, "at": _now()}]
+    await db.access_sos_alerts.update_one(
+        {"id": alert_id}, {"$set": {"lat": lat, "lng": lng, "location_history": history, "updated_at": _now()}})
+    try:
+        await manager.broadcast_to_admins({"type": "access_sos_move", "alert_id": alert_id, "lat": lat, "lng": lng})
+    except Exception:
+        pass
+    return {"ok": True, "maps_link": _maps_link(lat, lng)}
+
+
+@router.post("/sos/{alert_id}/resolve")
+async def sos_resolve(alert_id: str, request: Request):
+    """L'usager signale qu'il est en sécurité (clôture l'alerte)."""
+    user = await get_current_user(request)
+    res = await db.access_sos_alerts.update_one(
+        {"id": alert_id, "user_id": user["id"], "status": "active"},
+        {"$set": {"status": "resolved", "resolved_at": _now(), "resolved_by": "user", "updated_at": _now()}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alerte introuvable")
+    await notify_admins("access_sos_resolved", "SOS clôturé",
+                        f"{user.get('name') or 'Un usager'} a indiqué être en sécurité.",
+                        data={"alert_id": alert_id})
+    return {"ok": True, "status": "resolved"}
+
+
+@router.get("/sos/active")
+async def sos_active(request: Request):
+    user = await get_current_user(request)
+    alert = await db.access_sos_alerts.find_one({"user_id": user["id"], "status": "active"}, {"_id": 0})
+    return {"alert": alert}
 
 
 # ── Trajets récurrents automatiques (dialyse, rééducation…) ──────────────────
@@ -924,6 +1075,41 @@ async def admin_ai_allocation_preview(request: Request):
         settings, limit=10,
     )
     return {"candidates": ranked, "ai_allocation": settings.get("ai_allocation")}
+
+
+@admin_router.get("/sos")
+async def admin_list_sos(request: Request):
+    """Centre de sécurité : alertes SOS (actives en premier)."""
+    await require_role(request, ["admin"])
+    active = await db.access_sos_alerts.find({"status": "active"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    resolved = await db.access_sos_alerts.find({"status": "resolved"}, {"_id": 0}).sort("resolved_at", -1).to_list(50)
+    return {"active": active, "resolved": resolved}
+
+
+@admin_router.post("/sos/{alert_id}/resolve")
+async def admin_resolve_sos(alert_id: str, request: Request):
+    """Le centre de sécurité clôture une alerte (prise en charge / fausse alerte)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    actor = await get_current_user(request)
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    res = await db.access_sos_alerts.update_one(
+        {"id": alert_id, "status": "active"},
+        {"$set": {"status": "resolved", "resolved_at": _now(), "resolved_by": "admin",
+                  "resolution_note": str(body.get("note") or "")[:300], "updated_at": _now()}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alerte introuvable")
+    alert = await db.access_sos_alerts.find_one({"id": alert_id}, {"_id": 0, "user_id": 1})
+    if alert and alert.get("user_id"):
+        await create_notification(
+            alert["user_id"], "access_sos_handled",
+            "Votre alerte SOS a été prise en charge",
+            "Le centre de sécurité SB Access a traité votre alerte. Restez en sécurité.",
+            data={"alert_id": alert_id})
+    return {"ok": True, "status": "resolved", "by": actor["id"]}
 
 
 @admin_router.get("/stats")

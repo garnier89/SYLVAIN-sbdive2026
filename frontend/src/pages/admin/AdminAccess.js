@@ -14,6 +14,7 @@ const TABS = [
   { key: 'categories', label: 'Catégories & tarifs' },
   { key: 'settings', label: 'Réglages & Safe Ride Night' },
   { key: 'drivers', label: 'Chauffeurs Access' },
+  { key: 'sos', label: '🆘 Centre SOS' },
   { key: 'bookings', label: 'Réservations' },
 ];
 
@@ -45,6 +46,7 @@ const AdminAccess = () => {
       {tab === 'categories' && <Categories />}
       {tab === 'settings' && <Settings />}
       {tab === 'drivers' && <Drivers />}
+      {tab === 'sos' && <SosCenter />}
       {tab === 'bookings' && <Bookings />}
     </div>
   );
@@ -498,6 +500,62 @@ const Drivers = () => {
           )}
         </div>
       ))}
+    </div>
+  );
+};
+
+const SosCenter = () => {
+  const [data, setData] = useState({ active: [], resolved: [] });
+  const load = useCallback(() => { accessAPI.adminSos().then((r) => setData(r.data || { active: [], resolved: [] })).catch(() => {}); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
+
+  const resolve = async (id) => {
+    if (!window.confirm('Clôturer cette alerte SOS ?')) return;
+    try { await accessAPI.adminResolveSos(id, { note: 'Prise en charge' }); toast.success('Alerte clôturée'); load(); }
+    catch (err) { toast.error(err?.response?.data?.detail || 'Échec'); }
+  };
+  const when = (s) => { try { return new Date(s).toLocaleString('fr-FR'); } catch { return s; } };
+
+  return (
+    <div className="space-y-5 max-w-3xl" data-testid="admin-access-sos">
+      <div className="rounded-xl p-4 border border-rose-200 bg-rose-50" data-testid="sos-active-block">
+        <h3 className="font-bold text-rose-700 flex items-center gap-2">🆘 Alertes actives <span className="text-xs px-2 py-0.5 rounded-full bg-rose-600 text-white" data-testid="sos-active-count">{data.active.length}</span></h3>
+        {data.active.length === 0 && <p className="text-sm text-slate-500 mt-2">Aucune alerte en cours. Le centre se rafraîchit automatiquement.</p>}
+        <div className="space-y-2 mt-3">
+          {data.active.map((a) => (
+            <div key={a.id} className="bg-white border border-rose-200 rounded-lg p-3" data-testid={`sos-alert-${a.id}`}>
+              <div className="flex items-start gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 mt-1.5 animate-pulse shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-900">{a.user_name || 'Usager'} <span className="text-xs font-normal text-slate-500">· {a.user_phone || '—'}</span></p>
+                  <p className="text-xs text-slate-500">Déclenché : {when(a.created_at)}</p>
+                  {a.driver_name && <p className="text-xs text-slate-600">Chauffeur attribué : {a.driver_name}</p>}
+                  {a.message && <p className="text-xs text-slate-700 mt-1 italic">« {a.message} »</p>}
+                  {a.lat != null && (
+                    <a href={`https://maps.google.com/?q=${a.lat},${a.lng}`} target="_blank" rel="noreferrer"
+                      className="inline-block mt-1 text-xs font-semibold text-blue-600 underline" data-testid={`sos-map-${a.id}`}>📍 Voir la position en direct</a>
+                  )}
+                </div>
+                <button onClick={() => resolve(a.id)} data-testid={`sos-resolve-${a.id}`} className="px-3 py-1.5 text-xs font-bold text-white rounded-lg shrink-0" style={{ background: '#e11d48' }}>Clôturer</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-bold text-slate-700 mb-2 text-sm">Historique récent</h3>
+        <div className="space-y-1.5">
+          {data.resolved.length === 0 && <p className="text-sm text-slate-400">Aucune alerte clôturée.</p>}
+          {data.resolved.map((a) => (
+            <div key={a.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-3 text-sm" data-testid={`sos-resolved-${a.id}`}>
+              <span className="text-emerald-600">✓</span>
+              <span className="flex-1 min-w-0 truncate">{a.user_name || 'Usager'} · clôturé par {a.resolved_by === 'admin' ? 'le centre' : "l'usager"}</span>
+              <span className="text-xs text-slate-400">{when(a.resolved_at)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
