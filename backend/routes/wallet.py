@@ -100,7 +100,14 @@ async def topup_wallet(request: Request):
         except Exception:
             pass
 
-    return {"message": "Wallet recharged", "balance": round(new_balance, 2), "transaction": tx}
+    # Auto-recover any outstanding debt FIRST (before the balance can be spent).
+    from routes.debts import auto_settle_debts_from_wallet
+    recovered = await auto_settle_debts_from_wallet(user["id"])
+    final = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1})
+    final_balance = round(float((final or {}).get("balance", new_balance) or 0), 2)
+
+    return {"message": "Wallet recharged", "balance": final_balance,
+            "debt_recovered": recovered, "transaction": tx}
 
 
 @router.post("/pay")
@@ -205,6 +212,10 @@ async def transfer_wallet(request: Request):
                                      wallet_url=f"{frontend}/wallet", counterparty=user.get("name", "")))
     except Exception:
         pass
+
+    # Auto-recover the receiver's outstanding debt FIRST after receiving funds.
+    from routes.debts import auto_settle_debts_from_wallet
+    await auto_settle_debts_from_wallet(to_user_id)
 
     return {"message": "Transfer successful", "balance": round(new_sender_balance, 2)}
 

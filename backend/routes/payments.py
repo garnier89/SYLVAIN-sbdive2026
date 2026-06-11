@@ -161,6 +161,9 @@ async def get_payment_status(session_id: str, request: Request):
                 "balance_after": new_balance,
                 "created_at": now,
             })
+            # Auto-recover any outstanding debt FIRST after a successful top-up.
+            from routes.debts import auto_settle_debts_from_wallet
+            await auto_settle_debts_from_wallet(user["id"])
 
         return {
             "status": "complete",

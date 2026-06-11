@@ -1,3 +1,11 @@
+## NEW - 2026-06-11 (249b) - Recouvrement AUTO du solde dû à la recharge (DONE, testé 4/4 + régression 7/7)
+- **Demande user** : « dès que le client recharge OU reçoit de l'argent, l'app récupère d'abord le solde dû » + notif transparence.
+- **Backend** (`debts.py`) : nouveau helper `auto_settle_debts_from_wallet(user_id)` — recouvre les dettes impayées (plus ancienne d'abord, **recouvrement partiel autorisé**), rembourse le chauffeur lésé si applicable, notifie le client (« X € de solde dû déduits de votre recharge »). Branché sur **tous les points de crédit client** : `wallet.py` topup (renvoie `debt_recovered` + solde net) & transfer (destinataire), `payments.py` (succès Stripe), `finance.py` sbpaygo/send (destinataire), `giftcards.py` redeem (bénéficiaire).
+- **Vérifié** : pytest `test_iter249b_debt_auto_recovery.py` **2/2** (recouvrement total 10€→dette 6€→solde 4€ ; partiel 5€→reste dette 3€) + `test_iter249` 2/2 + régression dettes/annulation **7/7**.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-10 (249) - FIX cartes cadeaux (débit portefeuille) + Paiement Phase 1 (différence en espèces / dette) (DONE backend testé 2/2)
 - **P0 — Cartes cadeaux réparées** : cause racine = **routeur dupliqué** `/giftcards` dans `gojek_services.py` (monté AVANT le nouveau, générait des codes `SB-…` sans débiter). → Supprimé (bloc + `include_router`). Le routeur `routes/giftcards.py` (débit portefeuille + réserve chauffeur + email) prend le relais. **Vérifié curl** : achat 10 € → solde 26 €→16 € → code `GIFT-…`. Donnée de test restaurée.
 - **Paiement Phase 1 (choix user : option a — modèle portefeuille ; pas de pré-autorisation CB réelle car Stripe = Checkout hébergé top-up uniquement)** :

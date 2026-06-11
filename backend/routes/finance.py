@@ -388,6 +388,9 @@ async def sbpaygo_send(body: SendBody, request: Request):
             "status": "completed",
             "created_at": now,
         })
+        # Auto-recover the recipient's outstanding debt FIRST.
+        from routes.debts import auto_settle_debts_from_wallet
+        await auto_settle_debts_from_wallet(recipient["id"])
     return {"ok": True, "balance": round(sender["balance"], 2), "recipient_found": bool(recipient)}
 
 

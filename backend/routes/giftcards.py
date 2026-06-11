@@ -123,6 +123,9 @@ async def redeem_gift_card(request: Request):
         "type": "credit", "source": "gift_card", "reference": code,
         "description": f"Carte cadeau {code}", "status": "completed", "created_at": now,
     })
+    # Auto-recover any outstanding debt FIRST after receiving funds.
+    from routes.debts import auto_settle_debts_from_wallet
+    await auto_settle_debts_from_wallet(user["id"])
     return {"message": "Carte cadeau créditée sur votre portefeuille", "amount": gc["amount"], "code": code}
 
 

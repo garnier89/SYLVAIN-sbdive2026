@@ -116,6 +116,57 @@ async def settle_cancellation_fee(user_id, ride_id, fee, owed_to_driver_id=None)
     return {"fee": fee, "debt_created": True, "paid_from_wallet": False, "debt_amount": fee}
 
 
+async def auto_settle_debts_from_wallet(user_id):
+    """After the wallet is credited (top-up, P2P transfer, gift card, refund),
+    automatically recover the passenger's outstanding debts FIRST (oldest first),
+    before the balance can be spent elsewhere. Partial recovery is allowed.
+    Returns the total amount recovered. Safe to call from any credit path."""
+    if not user_id:
+        return 0.0
+    items = await db.cancellation_debts.find(
+        {"user_id": user_id, "paid": False}, {"_id": 0}
+    ).sort("created_at", 1).to_list(200)
+    if not items:
+        return 0.0
+    wallet = await db.wallets.find_one({"user_id": user_id})
+    bal = round(float((wallet or {}).get("balance", 0.0) or 0.0), 2)
+    if bal <= 0:
+        return 0.0
+    recovered = 0.0
+    now = _now()
+    for it in items:
+        if bal <= 0:
+            break
+        amt = round(float(it.get("amount", 0) or 0), 2)
+        if amt <= 0:
+            await db.cancellation_debts.update_one({"id": it["id"]}, {"$set": {"paid": True, "paid_at": now}})
+            continue
+        pay = round(min(bal, amt), 2)
+        await _debit_wallet(user_id, pay, "Recouvrement automatique du solde dû", it.get("ride_id"))
+        await _reimburse_driver(it.get("owed_to_driver_id"), pay, it.get("ride_id"))
+        bal = round(bal - pay, 2)
+        recovered = round(recovered + pay, 2)
+        if pay >= amt:
+            await db.cancellation_debts.update_one(
+                {"id": it["id"]}, {"$set": {"paid": True, "paid_at": now, "auto_settled": True}}
+            )
+        else:
+            await db.cancellation_debts.update_one(
+                {"id": it["id"]}, {"$set": {"amount": round(amt - pay, 2)}}
+            )
+    if recovered > 0:
+        try:
+            from core.notifications import create_notification
+            await create_notification(
+                user_id, "debt", "Solde dû déduit 💶",
+                f"{recovered:.2f} € de solde dû ont été déduits de votre recharge.",
+                data={"amount": recovered, "kind": "debt_auto_settle"},
+            )
+        except Exception:
+            pass
+    return recovered
+
+
 async def record_ride_balance_debt(user_id, ride_id, amount, owed_to_driver_id=None):
     """Record an unpaid ride balance — a wallet shortfall, a recalculated extra,
     or a full cash fare the passenger did not pay — as a debt that follows the
