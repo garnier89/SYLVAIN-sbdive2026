@@ -1,4 +1,12 @@
-## NEW - 2026-06-11 (253) - Bandeau promo "-20% étudiant" sur écran de réservation (DONE)
+## NEW - 2026-06-11 (253b) - 🎓 SB Student PHASE 2 : Pass Campus + Réservations récurrentes (DONE, testé 100%)
+- **Backend** `routes/student_campus.py` (préfixe /api/student/campus) :
+  - **Pass Campus** : plans admin (seed Pass Mensuel 19.99€/-25%/+5€ crédits/30j ; Pass Semestriel 89.99€/-30%/+10€ crédits/180j/bonus fidélité 10%). `subscribe` débite le wallet SB Pay → crée la sub → recrédite les crédits inclus (ordre rendu safe : sub créée avant le crédit). Guards : solde insuffisant 400, déjà actif 409. `subscription` (active), `subscription/cancel`. Admin plans CRUD.
+  - **Boost réduction** : `student.compute_student_discount` utilise `pct = max(base, sub.discount_pct)` si Pass actif.
+  - **Réservations récurrentes** : CRUD templates (daily/weekdays/weekly + days_of_week + heure), `_next_occurrences` (calcule prochaines dates, weekly exige des jours → 400 sinon), `book-next` (renvoie occurrence + booking_payload, deep-link vers /course pré-rempli — pas de création auto de course, voulu).
+- **Frontend** : `SbStudentPage` → section CampusPassSection (plans + souscription + sub active) + entrée "Mes trajets récurrents". `SbRecurringPage` (/sb-student/recurrents : form + liste + book-next + toggle). `AdminStudent` → onglet "Pass Campus" (CRUD inline + loading state). `studentAPI` campus*/recurring*.
+- **Tests** : pytest `test_iter253_campus.py` 4/4 + testing_agent `test_iter253_campus_e2e.py` 5/5 + frontend 100%, AUCUN bug. Fixes appliqués (validation weekly, ordre subscribe atomique-ish, loading state admin).
+
+
 - `components/StudentPromoBanner.jsx` : bandeau auto-fetch `/student/me`, affiché UNIQUEMENT si user non vérifié + module activé + ride_discount_pct>0. Cliquable → `/sb-student`, fermable (sessionStorage), violet (#5B21B6). Inséré en haut du contenu de `RideChoosePage.js` (`data-testid=student-promo-banner` / `student-promo-dismiss`).
 - Vérifié : build OK + contrat `/student/me` confirmé (fresh user → is_student=false, enabled=true, pct=20 → banner s'affiche). NB: harness screenshot ne propage pas la session cookie au SPA (limitation outil, pas un bug) ; testing_agent iter252 a déjà validé l'auth cookie + APIs student.
 

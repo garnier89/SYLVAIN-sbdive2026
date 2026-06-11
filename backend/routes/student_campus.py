@@ -98,6 +98,21 @@ async def subscribe(body: SubscribeBody, request: Request):
         "description": f"Souscription {plan['name']}", "status": "completed", "created_at": _now(),
     })
 
+    # Create the subscription right after the debit so the user is never charged
+    # without an active Pass (the credit grant below is a best-effort bonus).
+    now = datetime.now(timezone.utc)
+    sub = {
+        "id": f"sub_{uuid.uuid4().hex[:10]}", "user_id": user["id"], "plan_id": plan["id"],
+        "plan_name": plan["name"], "type": plan["type"], "discount_pct": plan.get("discount_pct", 0.0),
+        "priority_booking": plan.get("priority_booking", False),
+        "loyalty_bonus_pct": plan.get("loyalty_bonus_pct", 0.0),
+        "started_at": now.isoformat(),
+        "expires_at": (now + timedelta(days=int(plan.get("duration_days", 30)))).isoformat(),
+        "status": "active", "credits_granted": 0.0, "price_paid": price, "created_at": now.isoformat(),
+    }
+    await db.campus_subscriptions.insert_one(dict(sub))
+    sub.pop("_id", None)
+
     # Grant included credits back to the wallet.
     credits = float(plan.get("included_credits", 0) or 0)
     if credits > 0:
@@ -109,19 +124,9 @@ async def subscribe(body: SubscribeBody, request: Request):
             "description": f"Crédits inclus {plan['name']}", "status": "completed", "created_at": _now(),
         })
         new_balance = bal2
+        await db.campus_subscriptions.update_one({"id": sub["id"]}, {"$set": {"credits_granted": credits}})
+        sub["credits_granted"] = credits
 
-    now = datetime.now(timezone.utc)
-    sub = {
-        "id": f"sub_{uuid.uuid4().hex[:10]}", "user_id": user["id"], "plan_id": plan["id"],
-        "plan_name": plan["name"], "type": plan["type"], "discount_pct": plan.get("discount_pct", 0.0),
-        "priority_booking": plan.get("priority_booking", False),
-        "loyalty_bonus_pct": plan.get("loyalty_bonus_pct", 0.0),
-        "started_at": now.isoformat(),
-        "expires_at": (now + timedelta(days=int(plan.get("duration_days", 30)))).isoformat(),
-        "status": "active", "credits_granted": credits, "price_paid": price, "created_at": now.isoformat(),
-    }
-    await db.campus_subscriptions.insert_one(dict(sub))
-    sub.pop("_id", None)
     try:
         from core.notifications import create_notification
         await create_notification(user["id"], "student", "Pass Campus activé 🎓",
@@ -210,6 +215,8 @@ async def create_recurring(body: RecurringBody, request: Request):
     user = await get_current_user(request)
     if body.frequency not in VALID_FREQ:
         raise HTTPException(status_code=400, detail="Fréquence invalide")
+    if body.frequency == "weekly" and not body.days_of_week:
+        raise HTTPException(status_code=400, detail="Sélectionnez au moins un jour pour une récurrence hebdomadaire")
     doc = {
         "id": f"rec_{uuid.uuid4().hex[:10]}", "user_id": user["id"], "label": body.label.strip() or "Trajet récurrent",
         "pickup": body.pickup, "dropoff": body.dropoff, "mode": body.mode,

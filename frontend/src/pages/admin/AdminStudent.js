@@ -117,7 +117,8 @@ const Pricing = () => {
 
 const Passes = () => {
   const [plans, setPlans] = useState([]);
-  const load = useCallback(() => { studentAPI.campusAdminPlans().then((r) => setPlans(r.data.plans || [])).catch(() => {}); }, []);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(() => { setLoading(true); studentAPI.campusAdminPlans().then((r) => setPlans(r.data.plans || [])).catch(() => {}).finally(() => setLoading(false)); }, []);
   useEffect(() => { load(); }, [load]);
   const patch = async (id, field, value) => { try { await studentAPI.campusAdminUpdatePlan(id, { [field]: value }); load(); } catch { toast.error('Échec'); } };
   const del = async (id) => { if (!window.confirm('Supprimer ce Pass ?')) return; try { await studentAPI.campusAdminDeletePlan(id); load(); } catch { toast.error('Échec'); } };
@@ -145,7 +146,7 @@ const Passes = () => {
           </div>
         </div>
       ))}
-      {plans.length === 0 && <p className="text-slate-400 text-sm">Aucun Pass.</p>}
+      {loading ? <p className="text-slate-400 text-sm">Chargement…</p> : plans.length === 0 && <p className="text-slate-400 text-sm">Aucun Pass.</p>}
     </div>
   );
 };
