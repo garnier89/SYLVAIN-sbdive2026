@@ -7,7 +7,7 @@
  * the visible "old icon flashes then changes" effect. Initialising state from this
  * cache makes the correct icons render instantly, then we revalidate in background.
  */
-import { configAPI } from '../services/api';
+import { configAPI, servicesAPI } from '../services/api';
 
 let _cache = null;     // last-known categories array (per session)
 let _inflight = null;  // de-dupes concurrent loads
@@ -24,4 +24,24 @@ export function loadServiceCategories() {
     })
     .finally(() => { _inflight = null; });
   return _inflight;
+}
+
+// ── Delivery (store) categories — same flicker-free, dashboard-icon pattern ──
+let _storeCache = null;
+export const cachedStoreCategories = () => _storeCache || [];
+export function loadStoreCategories(location) {
+  return configAPI.getStoreCategories(location)
+    .then((r) => { const d = (r.data || []).filter((c) => c.active); _storeCache = d; return d; });
+}
+
+// ── On-demand service categories ──
+let _onDemandCache = null;
+let _onDemandInflight = null;
+export const cachedOnDemandCategories = () => _onDemandCache || [];
+export function loadOnDemandCategories() {
+  if (_onDemandInflight) return _onDemandInflight;
+  _onDemandInflight = servicesAPI.getOnDemandCategories()
+    .then((r) => { const d = r.data || []; _onDemandCache = d; return d; })
+    .finally(() => { _onDemandInflight = null; });
+  return _onDemandInflight;
 }

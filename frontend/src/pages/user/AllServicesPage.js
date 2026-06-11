@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react';
-import { servicesAPI } from '../../services/api';
 import { resolveIcon } from '../../lib/phosphorIcon';
+import { resolveImageUrl, isImgIcon } from '../../components/DynamicIcon';
+import { cachedOnDemandCategories, loadOnDemandCategories } from '../../lib/serviceCategoriesCache';
 
 // « Tous les autres services » — full grid of on-demand service categories.
 const AllServicesPage = () => {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState(cachedOnDemandCategories());
+  const [loading, setLoading] = useState(cachedOnDemandCategories().length === 0);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     let active = true;
-    servicesAPI.getOnDemandCategories()
-      .then((r) => { if (active) setCategories(r.data || []); })
+    loadOnDemandCategories()
+      .then((cats) => { if (active) setCategories(cats); })
       .catch(() => {})
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -64,7 +65,9 @@ const AllServicesPage = () => {
                 data-testid={`category-${cat.slug}`}
               >
                 <span className={`w-16 h-16 rounded-2xl flex items-center justify-center ${cat.color || 'bg-gray-50'}`}>
-                  <Icon size={28} weight="duotone" className="text-gray-700" />
+                  {isImgIcon(cat.icon)
+                    ? <img src={resolveImageUrl(cat.icon)} alt="" className="w-8 h-8 object-contain" />
+                    : <Icon size={28} weight="duotone" className="text-gray-700" />}
                 </span>
                 <span className="text-[11px] font-medium text-gray-700 text-center leading-tight">{cat.name}</span>
               </button>

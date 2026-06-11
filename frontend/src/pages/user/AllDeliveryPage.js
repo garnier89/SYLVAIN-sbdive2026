@@ -4,8 +4,9 @@ import {
   X, ForkKnife, Storefront, FirstAid, Flower,
   PencilLine, Wine, Drop, Buildings, HardHat, Package
 } from '@phosphor-icons/react';
-import { configAPI } from '../../services/api';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
+import { CategoryGlyph } from '../../components/DynamicIcon';
+import { cachedStoreCategories, loadStoreCategories } from '../../lib/serviceCategoriesCache';
 
 // Static visual identity per delivery vertical (key matches backend store_categories).
 // Admin controls active/name/age; this map only supplies the icon + colors.
@@ -23,15 +24,15 @@ const VISUALS = {
 
 const AllDeliveryPage = () => {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState(cachedStoreCategories());
+  const [loading, setLoading] = useState(cachedStoreCategories().length === 0);
 
   useEffect(() => {
     let alive = true;
     const load = (location) => {
-      configAPI.getStoreCategories(location)
-        .then((r) => { if (alive) setCategories((r.data || []).filter((c) => c.active)); })
-        .catch(() => { if (alive) setCategories([]); })
+      loadStoreCategories(location)
+        .then((cats) => { if (alive) setCategories(cats); })
+        .catch(() => { if (alive) setCategories((prev) => prev); })
         .finally(() => { if (alive) setLoading(false); });
     };
     load();
@@ -60,7 +61,6 @@ const AllDeliveryPage = () => {
           <div className="grid grid-cols-3 gap-4">
             {categories.map((cat) => {
               const visual = VISUALS[cat.key] || { icon: Package, bg: 'bg-gray-50', iconColor: 'text-gray-500' };
-              const Icon = visual.icon;
               return (
                 <button
                   key={cat.key}
@@ -74,7 +74,7 @@ const AllDeliveryPage = () => {
                     </span>
                   )}
                   <div className={`w-20 h-20 rounded-2xl ${visual.bg} flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                    <Icon size={36} weight="duotone" className={visual.iconColor} />
+                    <CategoryGlyph icon={cat.icon} Fallback={visual.icon} size={36} className={visual.iconColor} />
                   </div>
                   <span className="text-xs font-medium text-gray-700 text-center leading-tight">{cat.name}</span>
                 </button>

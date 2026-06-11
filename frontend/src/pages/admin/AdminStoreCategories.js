@@ -8,7 +8,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { MagnifyingGlass, ArrowsClockwise, PencilSimple, X, Check, ArrowUp, ArrowDown, Warning, Truck, MapPin } from '@phosphor-icons/react';
-import { adminAPI } from '../../services/api';
+import { adminAPI, merchantAPI } from '../../services/api';
+import { resolveImageUrl } from '../../components/DynamicIcon';
 import { ZoneScopePicker } from '../../components/admin/ZoneScopePicker';
 
 const scopeLabel = (s) => (!s || !s.country ? '' : [s.city, s.state, s.country_name || s.country].filter(Boolean).join(', '));
@@ -17,10 +18,10 @@ const GROUP_LABELS = { food: 'Restauration', essentials: 'Essentiels', specialty
 const VEHICLE_LABELS = { any: 'Tous véhicules', moto: 'Moto / Scooter', car: 'Voiture / Fourgon' };
 const AGE_OPTIONS = [{ v: 0, l: 'Aucune' }, { v: 18, l: '18 ans et +' }, { v: 21, l: '21 ans et +' }];
 
-const isImage = (icon) => typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:'));
+const isImage = (icon) => typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:') || icon.startsWith('/api/'));
 
 const StoreCategoryIcon = ({ icon }) => {
-  if (isImage(icon)) return <img src={icon} alt="" className="w-10 h-10 object-contain" />;
+  if (isImage(icon)) return <img src={resolveImageUrl(icon)} alt="" className="w-10 h-10 object-contain" />;
   return <span className="text-3xl leading-none">{icon || '🛒'}</span>;
 };
 
@@ -166,13 +167,17 @@ const EditStoreCategoryModal = ({ cat, onClose, onSaved }) => {
   const [scope, setScope] = useState(cat.scope || { country: '', state: '', city: '' });
   const [saving, setSaving] = useState(false);
 
-  const onFile = (e) => {
+  const onFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error('Image trop lourde (max 5 Mo)'); return; }
-    const reader = new FileReader();
-    reader.onload = () => setIcon(reader.result);
-    reader.readAsDataURL(file);
+    try {
+      const r = await merchantAPI.uploadImage(file);
+      setIcon(r.data.url); // relative /api/uploads/{id}
+      toast.success('Icône téléversée');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Échec de l\'upload');
+    }
   };
 
   const save = async () => {

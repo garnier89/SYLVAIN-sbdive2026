@@ -1,0 +1,43 @@
+{
+  "summary": "Iter269 — Tested dashboard icon coherence across taxi (home + /taxi + /course), livraison (/all-delivery), à-la-demande (/all-services), plus admin upload persistence. Backend: 8/8 tests PASS (uploads relative-url contract, service-categories icon GET/PUT propagation, store-categories icon, ondemand-categories endpoint, home_categories image persistence, store_categories icon persistence). Frontend: all 5 surfaces render uploaded images / emojis from the dashboard with no Phosphor-fallback flash on configured tiles.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/services/ondemand-categories", "issue": "Endpoint exists under prefix /api/services/ondemand-categories (not /api/ondemand-categories). Doc/route comment would help; first attempt assumed /api/ondemand-categories and got 404."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Toutes les pages client (fixed bottom banner)", "issues": ["Le toast 'Vérifiez votre email — Vérifier' reste affiché en bas et chevauche le bord du bottom-nav (Accueil/Mes courses/Portefeuille/Profil). Pas bloquant pour les CTA fixes après le fix z-index, mais visuellement chargé. Idéalement déplacer en banner top non-bloquant ou auto-collapse."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter269_icon_coherence.py",
+    "/app/backend/tests/test_iter267_image_persistence.py",
+    "/app/backend/tests/test_iter268_store_category_icon.py",
+    "/app/test_reports/pytest/iter269_results.xml"
+  ],
+  "action_items": [
+    "Aucun bug bloquant trouvé sur ce périmètre. Optionnel: aligner le frontend pour appeler /api/services/ondemand-categories partout (vérifier qu'aucun composant n'appelle l'ancien chemin /api/ondemand-categories).",
+    "Optionnel: déplacer le toast 'Vérifiez votre email' en banner top non-fixe, ou auto-fermable.",
+    "Optionnel (déjà connu/accepté): ajouter un upload d'image (vs Phosphor name only) à AdminOnDemandCategories — actuellement seules les Phosphor names sont supportées côté admin pour /all-services."
+  ],
+  "critical_code_review_comments": [
+    "DynamicIcon.js: bonne factorisation (CategoryGlyph + isImgIcon + resolveImageUrl) — couvre image url, emoji et fallback Phosphor. RAS.",
+    "Backend service-categories: la mise à jour admin propage immédiatement au GET public (testé avec icon='🚖'). RAS.",
+    "Cache serviceCategoriesCache.js: évite le flash d'icône (vérifié visuellement, pas de flicker observable lors de la nav home → /taxi → /course).",
+    "Doublon de schémas d'images entre home_categories (image_url) et service_categories/store_categories (icon) reste fragile à long terme — pas un bug, mais un risque de field-mismatch lors d'évolutions."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter269_icon_coherence.py (nouveau, 6 tests, tous PASS)"
+  ],
+  "success_rate": {"backend": "100% (8/8 incl. iter267 + iter268 + iter269)", "frontend": "100% sur le périmètre testé (taxi/livraison/à-la-demande icônes)"},
+  "test_credentials": "Client capture.user@example.com / Capture123! OK. Admin admin@superapp.com / SuperAdmin123! OK.",
+  "seed_data_creation": "Aucune. Les tests admin restaurent la valeur originale (icon) en fin de test pour éviter de polluer la démo.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Le contrat d'icônes dashboard est verrouillé par 3 tests pytest: (1) iter267 home_categories image_url persistance + propagation /api/home-categories, (2) iter268 store_categories icon persistance + propagation /api/store-categories, (3) iter269 service-categories icon admin PUT → public GET, uploads relative url, ondemand-categories alive. À relancer avant tout changement à DynamicIcon.js, serviceCategoriesCache.js, ou aux routes admin de catégories.",
+  "rca of the issue": "Pas de bug à RCA-er sur ce périmètre. Les fixes de l'agent principal (upload via /api/uploads/image au lieu de base64, CategoryGlyph universel, cache de session pour anti-flash) sont vérifiés et fonctionnels sur taxi (3 surfaces), livraison (/all-delivery: 9 catégories avec emojis), à-la-demande (/all-services: 24 tuiles avec Phosphor par design, search OK)."
+}
