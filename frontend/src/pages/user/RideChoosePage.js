@@ -622,6 +622,7 @@ const RideChoosePage = () => {
     rentalPkg, setRentalPkg,
     rentalStops, setRentalStops, taxiOpts, vehPackages,
     goSelfDrive: () => navigate('/moto-location'),
+    goSelfDriveCar: () => navigate('/location-voiture'),
     buddyHours, setBuddyHours,
     petsCount, setPetsCount, petsSize, setPetsSize,
     assistNeeds, setAssistNeeds,
@@ -1279,6 +1280,13 @@ const ModeSpecificPanel = (p) => {
           <button onClick={p.goSelfDrive} data-testid="moto-selfdrive-link"
             className="mt-2 w-full flex items-center justify-between rounded-xl border-2 border-dashed border-[#FF5000] bg-[#FFF3EC] px-3 py-2.5 text-left">
             <span><span className="block text-sm font-bold text-[#0B1426]">Plutôt sans chauffeur ?</span><span className="block text-[11px] text-gray-500">Louez la moto et conduisez vous-même</span></span>
+            <span className="text-xs font-bold text-[#FF5000]">Self-drive →</span>
+          </button>
+        )}
+        {p.mode.vehicle !== 'moto' && (
+          <button onClick={p.goSelfDriveCar} data-testid="car-selfdrive-link"
+            className="mt-2 w-full flex items-center justify-between rounded-xl border-2 border-dashed border-[#FF5000] bg-[#FFF3EC] px-3 py-2.5 text-left">
+            <span><span className="block text-sm font-bold text-[#0B1426]">Plutôt sans chauffeur ?</span><span className="block text-[11px] text-gray-500">Louez la voiture et conduisez vous-même</span></span>
             <span className="text-xs font-bold text-[#FF5000]">Self-drive →</span>
           </button>
         )}

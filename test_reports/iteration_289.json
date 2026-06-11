@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend e2e testing of car self-drive rental (P1 vertical, iter289). All critical user + admin flows pass with deposit=0 short-circuit (Stripe skipped per instructions). Tested fleet listing, booking with dates/quote/docs, license approval, pickup inspection with 2+ photos gating, deposit-less pickup confirmation, admin closure with 2+ return photos + damage fees field. Mirror parity with iter288 moto self-drive confirmed.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "RideChoosePage car-selfdrive-link entry point couldn't be auto-reached via direct URL '/course?mode=location' (app redirects to default Taxi VTC course standard). Code review confirms the link exists with correct data-testid and onClick navigation, but a smoke check via UI would require selecting rental mode + non-moto vehicle through the actual SuperApp home picker. Non-blocking; main agent can self-verify if needed.",
+    "Frontend uses correct REACT_APP_BACKEND_URL via carRentalAPI service. No hardcoded URLs found.",
+    "All required data-testid attributes are present on interactive elements (car-card-*, car-book, car-start/end, car-quote, car-license-input, car-id-input, car-confirm-btn, car-done, car-mine-list, car-pickup-inspect-*, car-pickup-input-*, car-pickup-validate-*, car-pay-deposit-*, car-add-toggle, car-create-form, car-create-save, car-form-name/ppd/deposit, car-ppd-*, car-save-*, car-approve-*, car-reject-*, car-return-input-*, car-close-*, car-damage-*, admin-car-fleet-tab, admin-car-rentals-tab)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100% (all targeted flows pass)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!  |  paul.vendeur@example.com / Test1234!",
+  "seed_data_creation": "Created admin car 'TEST_AUTO_<ts>' with deposit=0 to bypass Stripe; created one rental crent_* for paul.vendeur, drove it to 'returned' status (license approved → pickup photos uploaded → confirmer le retrait → admin closed with 2 return photos + 0 damages).",
+  "validated_flows": [
+    "USER /location-voiture loads, fleet renders with price+caution+catégorie/boîte/places",
+    "Click car-card opens car-book, car-confirm-btn disabled until dates + license + id uploaded",
+    "car-quote computes live on date entry",
+    "After Réserver → car-done shown; Voir mes locations → car-mine-list shows 'Permis en vérification'",
+    "car-pay-deposit ABSENT for awaiting_pickup without pickup photos; car-pickup-inspect card present",
+    "car-pickup-validate disabled <2 photos, enabled at 2 photos",
+    "After validation with deposit=0, button label becomes 'Confirmer le retrait'; clicking transitions to 'En cours'",
+    "ADMIN /admin/car-fleet Flotte tab: car-add-toggle + car-create-form + car-create-save create new car; car-ppd-{id} + car-save-{id} edit and persist",
+    "ADMIN Locations tab: car-approve-{id} validates license; pending count visible",
+    "ADMIN close requires ≥2 return photos: car-close-{id} disabled at 0 and 1 photo, enabled at 2; car-damage-{id} input present; closure succeeds"
+  ],
+  "untested_or_skipped": [
+    "Stripe deposit checkout flow (per request, used deposit=0 short-circuit; Stripe test card flow not exercised in this run)",
+    "car-selfdrive-link from /course UI (verified by code inspection only; direct URL did not enter rental mode in this run)",
+    "car-reject-{id} refund path",
+    "Backend testing (per request 'frontend only(skip backend)'; iter289 pytest already 6/6 PASS)"
+  ],
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Car self-drive module is feature-complete and mirrors moto self-drive (iter288). When testing Stripe flow, create an admin car with deposit_amount=20€ (don't use the 600/900/1500€ demo cars). Use credentials paul.vendeur@example.com / Test1234! and admin@superapp.com / SuperAdmin123!. The user/.location-voiture page must be tested at 430px width.",
+  "rca of the issue": "n/a — no bugs found"
+}

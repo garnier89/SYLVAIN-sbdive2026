@@ -455,6 +455,8 @@ async def run_all_seeds():
     await seed_taxi_extra()             # ride profiles + business trip reasons
     from routes.moto_rental import seed_moto_fleet
     await seed_moto_fleet()             # flotte moto self-drive (démo)
+    from routes.car_rental import seed_car_fleet
+    await seed_car_fleet()              # flotte voiture self-drive (démo)
     await seed_real_estate_boost_plans()
     await seed_pharmacy()               # pharmacy partners & OTC catalog
     try:

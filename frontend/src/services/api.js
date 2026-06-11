@@ -926,5 +926,34 @@ export const motoRentalAPI = {
   },
 };
 
+export const carRentalAPI = {
+  fleet: () => api.get('/car-rental/fleet'),
+  carDetail: (id) => api.get(`/car-rental/fleet/${id}`),
+  quote: (data) => api.post('/car-rental/quote', data),
+  book: (data) => api.post('/car-rental/book', data),
+  myRentals: () => api.get('/car-rental/my'),
+  cancel: (id) => api.post(`/car-rental/${id}/cancel`, {}),
+  pickupPhotos: (id, photos) => api.post(`/car-rental/${id}/pickup-photos`, { photos }),
+  depositCheckout: (id, data) => api.post(`/car-rental/${id}/deposit-checkout`, data),
+  depositStatus: (sessionId) => api.get(`/car-rental/deposit-status/${sessionId}`),
+  uploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  adminFleet: () => api.get('/car-rental/admin/fleet'),
+  adminCreateCar: (data) => api.post('/car-rental/admin/fleet', data),
+  adminUpdateCar: (id, data) => api.put(`/car-rental/admin/fleet/${id}`, data),
+  adminDeleteCar: (id) => api.delete(`/car-rental/admin/fleet/${id}`),
+  adminRentals: () => api.get('/car-rental/admin/rentals'),
+  adminReviewLicense: (id, data) => api.post(`/car-rental/admin/rentals/${id}/license`, data),
+  adminReturn: (id, data) => api.post(`/car-rental/admin/rentals/${id}/return`, data),
+  adminUploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+};
+
 
 export default api;

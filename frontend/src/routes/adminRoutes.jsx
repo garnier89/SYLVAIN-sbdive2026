@@ -12,7 +12,7 @@ import {
   AdminWithdrawRequests, AdminRewards, AdminPriorityDrivers, AdminTopDriversSettings,
   AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancellationReasonsPage,
   AdminCancelReasons, AdminScheduling, AdminServiceCategories, AdminStoreCategories,
-  AdminDynamicPricing, AdminTaxiConfigs, AdminRentalPackages, AdminMotoFleet, AdminRideProfiles,
+  AdminDynamicPricing, AdminTaxiConfigs, AdminRentalPackages, AdminMotoFleet, AdminCarFleet, AdminRideProfiles,
   AdminEmailTemplates, AdminSmsTemplates, AdminSosRequests, AdminContactRequests,
   AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications, AdminPaymentMethods,
   AdminSbPayGoZones, AdminDbBackup, AdminNegotiationGapReport, AdminNoDriverStats,
@@ -96,6 +96,7 @@ export function adminRoutes() {
       <Route path="taxi-configs" element={<AdminTaxiConfigs />} />
       <Route path="rental-packages" element={<AdminRentalPackages />} />
       <Route path="moto-fleet" element={<AdminMotoFleet />} />
+      <Route path="car-fleet" element={<AdminCarFleet />} />
       <Route path="ride-profiles" element={<AdminRideProfiles />} />
       <Route path="email-templates" element={<AdminEmailTemplates />} />
       <Route path="sms-templates" element={<AdminSmsTemplates />} />

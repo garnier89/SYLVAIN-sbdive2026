@@ -69,6 +69,7 @@ const sidebarConfig = [
         { label: 'Recherche chauffeur (Relances)', path: '/admin/ride-search-config' },
         { label: 'Forfaits de location', path: '/admin/rental-packages' },
         { label: 'Location moto (self-drive)', path: '/admin/moto-fleet' },
+        { label: 'Location voiture (self-drive)', path: '/admin/car-fleet' },
         { label: 'Profils de course', path: '/admin/ride-profiles' },
         { label: 'Configurations Taxi', path: '/admin/taxi-configs' },
         { label: 'Toutes les courses', path: '/admin/rides' },
