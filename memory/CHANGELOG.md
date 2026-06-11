@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06-11 — Bannière « Vérifiez votre email » non bloquante (fix systémique) [DONE, testé]
+La bannière (`fixed bottom-0`) chevauchait les barres d'action basses sur les flux transactionnels (panier, checkout, course). Corrigé une bonne fois :
+- **`VerifyEmailBanner.jsx`** : masquée sur les routes à barre d'action basse (`/course`, `/taxi`, `/checkout`, `/food/` détail, `/bidding`, `/service-providers`, `/rental`) en plus des écrans d'auth. Elle reste visible sur les écrans de navigation (accueil, profil, wallet, listes) où elle ne bloque rien.
+- Fermeture désormais **persistée** par utilisateur (`localStorage`) → ne réapparaît plus après navigation/rechargement une fois fermée.
+- Vérifié : `/home` → bannière visible ; `/course` → bannière absente + bouton « Réserver via WhatsApp » pleinement visible/cliquable.
+
+
 ## 2026-06-11 — Réservation de taxi via WhatsApp (branchement complet) [DONE, testé]
 La config WhatsApp (taxi_booking) était présente côté admin (`whatsapp_enabled`, `whatsapp_number`, `whatsapp_message_template`, flag `allow_whatsapp_booking` par véhicule) mais JAMAIS consommée côté client → l'option ne fonctionnait pas (badge décoratif, aucun bouton).
 - **`RideChoosePage.js`** : helper `buildWaUrl(vehSlug)` qui construit un lien `https://wa.me/{numéro}?text=...` en remplaçant les variables du modèle (`{mode}` `{pickup}` `{dropoff}` `{vehicle}` `{price}` `{when}` `{payment}`) avec les détails réels de la course.

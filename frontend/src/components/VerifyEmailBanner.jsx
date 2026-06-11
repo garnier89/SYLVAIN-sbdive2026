@@ -6,8 +6,15 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Hide the banner on auth / verification screens to avoid redundancy.
-const HIDDEN_PREFIXES = ['/login', '/register', '/verifier-email', '/mot-de-passe-oublie', '/reinitialiser-mot-de-passe', '/auth'];
+// Hide the banner on auth/verification screens AND on transactional flows that have a
+// fixed bottom action bar (so the reminder can never cover a primary CTA). It still
+// shows on home/browse screens (home, profile, wallet, lists) where it blocks nothing.
+const HIDDEN_PREFIXES = [
+  '/login', '/register', '/verifier-email', '/mot-de-passe-oublie', '/reinitialiser-mot-de-passe', '/auth',
+  '/course', '/taxi', '/checkout', '/food/', '/bidding', '/service-providers', '/rental',
+];
+
+const DISMISS_KEY = 'verify_email_dismissed_for';
 
 const VerifyEmailBanner = () => {
   const { user } = useAuth();
@@ -16,11 +23,19 @@ const VerifyEmailBanner = () => {
   const [dismissed, setDismissed] = useState(false);
   const [sending, setSending] = useState(false);
 
-  // Reset the per-session dismiss when the user logs out / changes.
-  useEffect(() => { setDismissed(false); }, [user?.id]);
+  // Restore a persisted dismissal (per user) so closing it sticks across navigations/reloads.
+  useEffect(() => {
+    try { setDismissed(localStorage.getItem(DISMISS_KEY) === (user?.id || '')); }
+    catch { setDismissed(false); }
+  }, [user?.id]);
 
   if (!user || user.is_verified || dismissed) return null;
   if (HIDDEN_PREFIXES.some((p) => location.pathname.startsWith(p))) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem(DISMISS_KEY, user?.id || ''); } catch { /* ignore */ }
+  };
 
   const resend = async () => {
     setSending(true);
@@ -50,7 +65,7 @@ const VerifyEmailBanner = () => {
         >
           {sending ? '...' : 'Vérifier'}
         </button>
-        <button onClick={() => setDismissed(true)} className="shrink-0 text-white/80" data-testid="verify-email-banner-dismiss">
+        <button onClick={dismiss} className="shrink-0 text-white/80" data-testid="verify-email-banner-dismiss">
           <X size={18} />
         </button>
       </div>
