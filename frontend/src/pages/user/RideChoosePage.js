@@ -24,6 +24,7 @@ import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import RideRouteMap from '../../components/RideRouteMap';
 import StudentPromoBanner from '../../components/StudentPromoBanner';
 import DynamicIcon, { CategoryGlyph } from '../../components/DynamicIcon';
+import { cachedServiceCategories, loadServiceCategories } from '../../lib/serviceCategoriesCache';
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI, debtsAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 import { getGeocoder } from '../../lib/googleMaps';
@@ -125,7 +126,7 @@ const RideChoosePage = () => {
   const [taxiOpts, setTaxiOpts] = useState(null);
   const [poolCfg, setPoolCfg] = useState(null); // GLOBAL « Configuration Pool » admin policy
   const [modeCms, setModeCms] = useState(null); // admin CMS override for label/sub/icon
-  const [allCats, setAllCats] = useState([]); // « Catégories » (service_categories) — single source of truth
+  const [allCats, setAllCats] = useState(cachedServiceCategories()); // « Catégories » (service_categories) — single source of truth
 
   // Mode-specific state
   const [scheduledAt, setScheduledAt] = useState('');
@@ -177,8 +178,8 @@ const RideChoosePage = () => {
     // « Catégories de service » (service_categories) = SINGLE SOURCE OF TRUTH for the
     // mode name, shared with the home tiles and the /taxi hub. Fetched once; the active
     // category + its name are derived per-mode below (so SPA mode switches stay correct).
-    configAPI.getServiceCategories()
-      .then((r) => setAllCats(Array.isArray(r.data) ? r.data : (r.data?.items || [])))
+    loadServiceCategories()
+      .then(setAllCats)
       .catch(() => {});
     configAPI.getVehicleTypes()
       .then((res) => {

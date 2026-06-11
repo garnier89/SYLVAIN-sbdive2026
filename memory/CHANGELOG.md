@@ -8,7 +8,13 @@ Audit complet (testing_agent iter266) suite au signalement utilisateur « beauco
 - **🍔 « Livraison repas ne fonctionne pas »** : la bannière `VerifyEmailBanner` (`fixed bottom-0 z-[60]`) **recouvrait la barre panier** (`z-50`) sur `RestaurantDetail` → bouton « Voir le panier »/checkout inaccessible. **Fix** : z-index bannière abaissé à `z-30` (les barres d'action fonctionnelles passent au-dessus). Vérifié : bouton « Voir le panier · N articles · X € » visible et cliquable.
 - Compte client de test ajouté : `capture.user@example.com` / `Capture123!`.
 
-### Flash de l'« ancienne icône » au changement de page (demande utilisateur)
+### Cohérence + zéro flash des icônes Taxi sur TOUTES les surfaces (suite demande utilisateur)
+- L'utilisateur a constaté que `/taxi` (grille « Choisissez un service ») montrait encore les icônes Phosphor codées en dur (incohérent avec l'accueil qui montrait les images dashboard) → effet « images qui changent » en passant d'une page à l'autre.
+- **Fix global** :
+  - Nouveau cache de session partagé `lib/serviceCategoriesCache.js` (`cachedServiceCategories()` / `loadServiceCategories()`, dé-duplication des fetchs) utilisé par `UserHome`, `TaxiHubPage` et `RideChoosePage` → rendu instantané des bonnes icônes à chaque navigation, revalidation en fond. Supprime le flash sur les 3 surfaces.
+  - `TaxiHubPage` : `catConfig` inclut désormais `icon`. `TaxiModeGrid.jsx` rend l'icône dashboard via `CategoryGlyph` (image/emoji) avec repli sur l'icône Phosphor colorée si aucune définie.
+- Vérifié e2e : `/home`, `/taxi` et `/course` affichent les mêmes icônes (images uploadées + emojis), sans flash. Surfaces NON encore unifiées (hors scope, à étendre si besoin) : sections Livraison/marketplace de l'accueil et `/all-delivery`.
+
 - À chaque navigation vers l'accueil, `taxiCats`/`cmsItems` repartaient vides → les vignettes s'affichaient d'abord avec l'icône Phosphor de repli, puis l'API chargeait et les images/emojis du dashboard les remplaçaient (flash visible ~1s).
 - **Fix** : cache mémoire de session `_homeCache` dans `UserHome.js` (pattern `useAppSettings`) — les états sont initialisés depuis le cache et mis à jour à chaque fetch (stale-while-revalidate). Résultat : rendu instantané des bonnes icônes lors des navigations SPA, revalidation en arrière-plan. Vérifié e2e (capture à 250ms après retour Accueil : images du dashboard déjà affichées, aucun flash).
 

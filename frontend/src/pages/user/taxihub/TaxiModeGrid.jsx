@@ -6,6 +6,7 @@
 import React from 'react';
 import { Clock, BellSimple, BellSimpleRinging, Bus, CaretRight } from '@phosphor-icons/react';
 import { MODES, CATS } from './taxiHubConstants';
+import { CategoryGlyph } from '../../../components/DynamicIcon';
 
 const RemindButton = ({ mode, name, reminded, onToggleRemind }) => (
   <span
@@ -54,7 +55,9 @@ export const TaxiModeGrid = ({ catConfig, onSelect, remindedKeys = new Set(), on
               return (
                 <button key={m.id} data-testid={`mode-select-${m.id}`} onClick={() => onSelect(m.id)}
                   className={`px-3.5 py-2 rounded-full text-sm font-semibold flex items-center gap-1.5 border transition-colors bg-white text-[#0B1426] border-[#E2E8F0] ${unavailable ? 'opacity-70' : ''}`}>
-                  <MIcon size={16} style={{ color: m.color }} /> {cfg?.name || m.label}
+                  {cfg?.icon
+                    ? <CategoryGlyph icon={cfg.icon} Fallback={MIcon} size={16} />
+                    : <MIcon size={16} style={{ color: m.color }} />} {cfg?.name || m.label}
                   {unavailable && hint && <span className="text-[9px] font-bold text-amber-600 flex items-center gap-0.5" data-testid={`mode-hint-${m.id}`}><Clock size={9} weight="bold" />{hint.replace('Dispo ', '')}</span>}
                   {unavailable && onToggleRemind && <RemindButton mode={m.id} name={cfg?.name || m.label} reminded={reminded} onToggleRemind={onToggleRemind} />}
                 </button>
@@ -68,7 +71,9 @@ export const TaxiModeGrid = ({ catConfig, onSelect, remindedKeys = new Set(), on
                 ) : m.badge ? (
                   <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF5000] text-[#0B1426]">{m.badge}</span>
                 ) : null}
-                <MIcon size={26} weight={cat.key === 'everyday' ? 'duotone' : 'regular'} style={{ color: m.color }} />
+                {cfg?.icon
+                  ? <CategoryGlyph icon={cfg.icon} Fallback={MIcon} size={26} />
+                  : <MIcon size={26} weight={cat.key === 'everyday' ? 'duotone' : 'regular'} style={{ color: m.color }} />}
                 <div>
                   <p className="font-bold text-sm leading-tight">{cfg?.name || m.label}</p>
                   <p className="text-[10px] text-slate-400">{m.sub}</p>

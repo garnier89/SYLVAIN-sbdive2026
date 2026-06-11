@@ -17,6 +17,23 @@ import GooglePlacesInput from '../../components/GooglePlacesInput';
 import MapLocationPicker from '../../components/MapLocationPicker';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { corporateAPI, couponAPI, placesAPI, configAPI } from '../../services/api';
+import { cachedServiceCategories, loadServiceCategories } from '../../lib/serviceCategoriesCache';
+
+// Build the Taxi Hub grid config (active/availability/name/order + dashboard icon) from raw categories.
+const buildCatConfig = (cats) => {
+  const map = {};
+  (cats || []).forEach((c) => {
+    map[c.key] = {
+      active: c.active !== false,
+      available: c.available_now !== false,
+      hint: c.availability_hint || '',
+      name: c.name,
+      order: c.display_order ?? 99,
+      icon: c.icon,
+    };
+  });
+  return map;
+};
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 import { getGeocoder } from '../../lib/googleMaps';
 import { TaxiModeGrid } from './taxihub/TaxiModeGrid';
@@ -82,7 +99,7 @@ const TaxiHubPage = () => {
   const [mapPicker, setMapPicker] = useState({ open: false, target: 'dropoff' });
   const [schedConfig, setSchedConfig] = useState({ enabled: true, min_advance_minutes: 60, max_advance_days: 30, disabled_modes: ['pool', 'bidding'] });
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [catConfig, setCatConfig] = useState({}); // key -> { active, available, hint, name }
+  const [catConfig, setCatConfig] = useState(() => buildCatConfig(cachedServiceCategories())); // key -> { active, available, hint, name, order, icon }
   const [remindedKeys, setRemindedKeys] = useState(new Set()); // services the user asked to be notified about
   const [taxiOpts, setTaxiOpts] = useState(null); // rental_packages / personal_driver / taxi_bid / ride_profiles
   const [rideProfiles, setRideProfiles] = useState([]); // Business / Personnel
@@ -138,11 +155,7 @@ const TaxiHubPage = () => {
     placesAPI.getSaved().then((r) => setSavedPlaces(r.data || { recent: [] })).catch(() => {});
     detectCurrentLocation(false);
     configAPI.getScheduling().then((r) => r.data && setSchedConfig(r.data)).catch(() => {});
-    configAPI.getServiceCategories().then((r) => {
-      const map = {};
-      (r.data || []).forEach((c) => { map[c.key] = { active: c.active !== false, available: c.available_now !== false, hint: c.availability_hint || '', name: c.name, order: c.display_order ?? 99 }; });
-      setCatConfig(map);
-    }).catch(() => {});
+    loadServiceCategories().then((cats) => setCatConfig(buildCatConfig(cats))).catch(() => {});
     configAPI.getTaxiOptions().then((r) => r.data && setTaxiOpts(r.data)).catch(() => {});
     configAPI.getRideProfiles().then((r) => setRideProfiles(r.data || [])).catch(() => {});
     configAPI.getBusinessTripReasons().then((r) => setBusinessReasons(r.data || [])).catch(() => {});

@@ -13,10 +13,11 @@ import DebtBanner from '../../components/DebtBanner';
 import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
-import { homeCategoriesAPI, promoBannersAPI, configAPI, serviceTrendsAPI, zonesAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
 import { LoyaltyStatusCard } from '../../components/LoyaltyStatusCard';
 import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
+import { cachedServiceCategories, loadServiceCategories } from '../../lib/serviceCategoriesCache';
 import {
   TAXI_DEFAULT, TAXI_VISUAL, taxiServices, deliveryServices, videoCategories,
   onDemandServices, beautyServices, petServices, bidServices, carCareServices,
@@ -45,7 +46,7 @@ const TAXI_MODE_CAT = MODES.reduce((acc, m) => { acc[m.id] = m.cat; return acc; 
 // Module-level cache (per session) so the home content — including the taxi tiles'
 // dashboard icons — renders instantly when navigating back to Home, instead of
 // briefly showing the hardcoded fallback icons before the API resolves.
-const _homeCache = { cmsItems: null, sectionOrder: null, taxiCats: null };
+const _homeCache = { cmsItems: null, sectionOrder: null };
 
 // ── Signature "More Services" 4-coloured-squares mark (V3Cube) ──
 const MoreSquares = () => (
@@ -215,7 +216,7 @@ const UserHome = () => {
   }, []);
   const [cmsItems, setCmsItems] = useState(_homeCache.cmsItems || []);
   const [sectionOrder, setSectionOrder] = useState(_homeCache.sectionOrder);
-  const [taxiCats, setTaxiCats] = useState(_homeCache.taxiCats || []);
+  const [taxiCats, setTaxiCats] = useState(cachedServiceCategories());
   const [pendingRef, setPendingRef] = useState(null);
 
   useEffect(() => {
@@ -241,13 +242,10 @@ const UserHome = () => {
         setSectionOrder(order);
       })
       .catch((e) => console.warn('home categories load:', e?.message || e));
-    // Taxi services come from "Gérer les catégories" (service_categories) → single source of truth.
-    configAPI.getServiceCategories()
-      .then((r) => {
-        const cats = Array.isArray(r.data) ? r.data : (r.data.items || []);
-        _homeCache.taxiCats = cats;
-        setTaxiCats(cats);
-      })
+    // Taxi services come from "Gérer les catégories" (service_categories) → single
+    // source of truth, served from a shared session cache for instant, flicker-free render.
+    loadServiceCategories()
+      .then(setTaxiCats)
       .catch((e) => console.warn('service categories load:', e?.message || e));
     promoBannersAPI.public()
       .then((r) => setPromoBanners(r.data.items || []))
