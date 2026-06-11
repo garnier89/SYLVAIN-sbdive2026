@@ -5,6 +5,8 @@ import { Input } from '../../components/ui/input';
 import { Switch } from '../../components/ui/switch';
 import { Plus, PencilSimple, Trash, X, FloppyDisk, Wrench, Star } from '@phosphor-icons/react';
 import { ImageUpload, GalleryUpload } from '../../components/ImageUpload';
+import { resolveIcon, hasNamedIcon } from '../../lib/phosphorIcon';
+import { isImgIcon, resolveImageUrl } from '../../components/DynamicIcon';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -15,6 +17,7 @@ const AdminServiceProviders = () => {
   const [providers, setProviders] = useState([]);
   const [categories, setCategories] = useState([]);
   const [editing, setEditing] = useState(null); // provider draft or null
+  const [iconCat, setIconCat] = useState(null); // slug of category whose icon is being edited
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -56,6 +59,15 @@ const AdminServiceProviders = () => {
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active }),
     });
     if (res.ok) { setCategories((cs) => cs.map((c) => c.slug === slug ? { ...c, is_active } : c)); }
+  };
+
+  const saveCategoryIcon = async (slug, icon) => {
+    const res = await fetch(`${API}/api/services/admin/ondemand-categories/${slug}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ icon }),
+    });
+    if (res.ok) { setCategories((cs) => cs.map((c) => c.slug === slug ? { ...c, icon } : c)); toast.success('Icône mise à jour'); }
+    else toast.error('Échec de la mise à jour de l\'icône');
   };
 
   // service sub-editor helpers
@@ -115,15 +127,57 @@ const AdminServiceProviders = () => {
       {tab === 'categories' && (
         <Card>
           <CardContent className="p-0 divide-y divide-gray-100">
-            {categories.map((c) => (
-              <div key={c.slug} className="p-4 flex items-center justify-between" data-testid={`category-row-${c.slug}`}>
-                <div>
-                  <p className="font-semibold text-gray-900">{c.name}</p>
-                  <p className="text-xs text-gray-400">{c.slug}</p>
+            {categories.map((c) => {
+              const Ic = resolveIcon(c.icon);
+              const open = iconCat === c.slug;
+              return (
+                <div key={c.slug} className="p-4" data-testid={`category-row-${c.slug}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setIconCat(open ? null : c.slug)}
+                        className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center hover:border-fuchsia-400 transition-colors"
+                        title="Modifier l'icône"
+                        data-testid={`cat-icon-btn-${c.slug}`}
+                      >
+                        {isImgIcon(c.icon)
+                          ? <img src={resolveImageUrl(c.icon)} alt="" className="w-7 h-7 object-contain" />
+                          : hasNamedIcon(c.icon)
+                          ? <Ic size={24} weight="duotone" className="text-gray-700" />
+                          : c.icon
+                          ? <span className="text-2xl leading-none">{c.icon}</span>
+                          : <Ic size={24} weight="duotone" className="text-gray-700" />}
+                      </button>
+                      <div>
+                        <p className="font-semibold text-gray-900">{c.name}</p>
+                        <p className="text-xs text-gray-400">{c.slug}</p>
+                      </div>
+                    </div>
+                    <Switch checked={c.is_active} onCheckedChange={(v) => toggleCategory(c.slug, v)} className="data-[state=checked]:bg-fuchsia-500" data-testid={`toggle-cat-${c.slug}`} />
+                  </div>
+                  {open && (
+                    <div className="mt-3 pl-14 space-y-2" data-testid={`cat-icon-editor-${c.slug}`}>
+                      <ImageUpload
+                        label="Téléverser une image d'icône"
+                        value={isImgIcon(c.icon) ? c.icon : ''}
+                        onChange={(url) => saveCategoryIcon(c.slug, url || '')}
+                        testId={`cat-icon-upload-${c.slug}`}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="ou un emoji (ex. 🧹) — Entrée pour valider"
+                          defaultValue={isImgIcon(c.icon) ? '' : (c.icon || '')}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveCategoryIcon(c.slug, e.target.value.trim()); } }}
+                          className="flex-1"
+                          data-testid={`cat-icon-emoji-${c.slug}`}
+                        />
+                      </div>
+                      <p className="text-[11px] text-gray-400">Une image téléversée a priorité. Sinon, un emoji ou un nom d&apos;icône.</p>
+                    </div>
+                  )}
                 </div>
-                <Switch checked={c.is_active} onCheckedChange={(v) => toggleCategory(c.slug, v)} className="data-[state=checked]:bg-fuchsia-500" data-testid={`toggle-cat-${c.slug}`} />
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}

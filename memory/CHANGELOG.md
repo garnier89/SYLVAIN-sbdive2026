@@ -8,7 +8,12 @@ Audit complet (testing_agent iter266) suite au signalement utilisateur « beauco
 - **🍔 « Livraison repas ne fonctionne pas »** : la bannière `VerifyEmailBanner` (`fixed bottom-0 z-[60]`) **recouvrait la barre panier** (`z-50`) sur `RestaurantDetail` → bouton « Voir le panier »/checkout inaccessible. **Fix** : z-index bannière abaissé à `z-30` (les barres d'action fonctionnelles passent au-dessus). Vérifié : bouton « Voir le panier · N articles · X € » visible et cliquable.
 - Compte client de test ajouté : `capture.user@example.com` / `Capture123!`.
 
-### Icônes dashboard étendues à TOUS les services (livraison + à la demande) — suite
+### Upload d'image pour les icônes des catégories « à la demande » (demande utilisateur)
+- `AdminServiceProviders.js` (route `/admin/service-providers`, onglet « Catégories ») : chaque catégorie a désormais un aperçu d'icône cliquable ouvrant un éditeur avec **upload d'image** (`ImageUpload` → `/api/uploads/image`) + champ emoji/nom (Entrée pour valider), sauvegarde via `PUT /api/services/admin/ondemand-categories/{slug}` (champ `icon` déjà accepté). Aperçu robuste : image → `<img>`, nom Phosphor connu → composant, sinon emoji, sinon repli.
+- `lib/phosphorIcon.js` : ajout `hasNamedIcon()` pour distinguer nom Phosphor vs emoji.
+- `AllServicesPage.js` (client) : rendu robuste image/nom/emoji.
+- Vérifié e2e : upload image sur « Bricoleur » → persiste → affichée sur `/all-services` côté client (icône de test restaurée ensuite). Désormais TOUS les types de catégories (taxi, livraison, à la demande, accueil) acceptent une image uploadée dans le dashboard et l'affichent côté client.
+
 - **Livraison** (`/all-delivery`) : la page ignorait `store_categories.icon` et affichait des icônes Phosphor codées en dur. Désormais `AllDeliveryPage` rend l'icône du dashboard (image/emoji via `CategoryGlyph`, repli sur le visuel par défaut) + cache `cachedStoreCategories`. Admin `AdminStoreCategories` : `onFile` corrigé (upload `/api/uploads/image` au lieu de base64), `isImage`/`StoreCategoryIcon` gèrent `/api/`. Vérifié : emojis 🍴🛒💊💐✏️🍷💧🏬🦺 affichés, badges 18+ conservés ; upload image persiste et s'affiche côté client (test `test_iter268`).
 - **Services à la demande** (`/all-services`) : `AllServicesPage` supporte désormais une icône image (`isImgIcon` → `<img>`) en plus des noms Phosphor, + cache `cachedOnDemandCategories`. Backend `PUT /api/services/admin/ondemand-categories/{slug}` accepte déjà `icon`. Limite connue/acceptée : pas encore d'UI admin d'upload d'image pour ces catégories (noms Phosphor uniquement).
 - Cache partagé `serviceCategoriesCache.js` étendu (service/store/ondemand) → zéro flash d'icône à la navigation sur toutes les surfaces.

@@ -13,3 +13,6 @@ const ICON_MAP = {
 };
 
 export const resolveIcon = (name) => ICON_MAP[name] || GridFour;
+
+// True when the string is a known Phosphor icon name (vs an emoji or image URL).
+export const hasNamedIcon = (name) => typeof name === 'string' && !!ICON_MAP[name];

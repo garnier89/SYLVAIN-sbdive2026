@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react';
-import { resolveIcon } from '../../lib/phosphorIcon';
+import { resolveIcon, hasNamedIcon } from '../../lib/phosphorIcon';
 import { resolveImageUrl, isImgIcon } from '../../components/DynamicIcon';
 import { cachedOnDemandCategories, loadOnDemandCategories } from '../../lib/serviceCategoriesCache';
 
@@ -67,6 +67,10 @@ const AllServicesPage = () => {
                 <span className={`w-16 h-16 rounded-2xl flex items-center justify-center ${cat.color || 'bg-gray-50'}`}>
                   {isImgIcon(cat.icon)
                     ? <img src={resolveImageUrl(cat.icon)} alt="" className="w-8 h-8 object-contain" />
+                    : hasNamedIcon(cat.icon)
+                    ? <Icon size={28} weight="duotone" className="text-gray-700" />
+                    : cat.icon
+                    ? <span className="text-3xl leading-none">{cat.icon}</span>
                     : <Icon size={28} weight="duotone" className="text-gray-700" />}
                 </span>
                 <span className="text-[11px] font-medium text-gray-700 text-center leading-tight">{cat.name}</span>
