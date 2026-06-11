@@ -840,4 +840,27 @@ export const studentAPI = {
   },
 };
 
+// ── SB Drive Access (transport adapté PMR / handicap) ──
+export const accessAPI = {
+  needsCatalog: () => api.get('/access/needs-catalog'),
+  getConfig: (location = '') => api.get('/access/config', { params: location ? { location } : {} }),
+  getProfile: () => api.get('/access/profile'),
+  updateProfile: (data) => api.put('/access/profile', data),
+  match: (data) => api.post('/access/match', data),
+  createBooking: (data) => api.post('/access/bookings', data),
+  myBookings: () => api.get('/access/bookings'),
+  // admin
+  adminCategories: () => api.get('/access/admin/categories'),
+  adminCreateCategory: (data) => api.post('/access/admin/categories', data),
+  adminUpdateCategory: (id, data) => api.put(`/access/admin/categories/${id}`, data),
+  adminDeleteCategory: (id) => api.delete(`/access/admin/categories/${id}`),
+  adminGetSettings: () => api.get('/access/admin/settings'),
+  adminUpdateSettings: (data) => api.put('/access/admin/settings', data),
+  adminDrivers: () => api.get('/access/admin/drivers'),
+  adminCertifyDriver: (id, data) => api.post(`/access/admin/drivers/${id}/certify`, data),
+  adminBookings: () => api.get('/access/admin/bookings'),
+  adminStats: () => api.get('/access/admin/stats'),
+};
+
+
 export default api;

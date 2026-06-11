@@ -1,0 +1,525 @@
+"""SB Drive Access — module de transport adapté (PMR / handicap / seniors).
+
+Couvre la Phase 1 :
+- Profil de besoins d'accessibilité (mobilité / visuel / auditif / cognitif)
+- Catégories de véhicules adaptés (Access Standard / PMR / Van) configurables par l'admin
+  avec tarification PMR et ciblage par zone géographique
+- Certification des chauffeurs "Chauffeur Access" (validation admin, priorité d'attribution)
+- Réservation intelligente : filtre des catégories compatibles avec les besoins déclarés,
+  équipement, animal d'assistance, accompagnateur, temps d'assistance supplémentaire
+- Réglages globaux (zones de disponibilité, "Safe Ride Night" entièrement paramétrable)
+- Tableau de bord admin (statistiques)
+
+Les phases suivantes (IA d'attribution, SB Access Plus, accessibilité avancée de l'app,
+trajets médicaux/récurrents auto, centre SOS) viendront s'appuyer sur ces fondations.
+"""
+import uuid
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Request, HTTPException
+
+from core.config import db
+from core.deps import require_role, get_current_user
+from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
+
+router = APIRouter(prefix="/access", tags=["sb-access"])
+admin_router = APIRouter(prefix="/access/admin", tags=["sb-access-admin"])
+
+SETTINGS_ID = "access_settings"
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ── Catalogue des besoins (référentiel affiché côté client) ──────────────────
+NEEDS_CATALOG = {
+    "mobility": {
+        "label": "Mobilité réduite",
+        "options": [
+            {"key": "wheelchair_manual", "label": "Fauteuil roulant manuel"},
+            {"key": "wheelchair_electric", "label": "Fauteuil roulant électrique"},
+            {"key": "walker", "label": "Déambulateur"},
+            {"key": "cane", "label": "Cannes"},
+            {"key": "stairs_difficulty", "label": "Difficulté à monter des marches"},
+        ],
+    },
+    "visual": {
+        "label": "Handicap visuel",
+        "options": [
+            {"key": "low_vision", "label": "Malvoyant"},
+            {"key": "blind", "label": "Non-voyant"},
+            {"key": "guide_animal", "label": "Chien guide / animal d'assistance"},
+        ],
+    },
+    "auditory": {
+        "label": "Handicap auditif",
+        "options": [
+            {"key": "hard_of_hearing", "label": "Malentendant"},
+            {"key": "deaf", "label": "Sourd"},
+        ],
+    },
+    "cognitive": {
+        "label": "Handicap cognitif",
+        "options": [
+            {"key": "enhanced_assistance", "label": "Besoin d'assistance renforcée"},
+            {"key": "specific_support", "label": "Accompagnement spécifique"},
+        ],
+    },
+}
+
+# Besoins qui exigent un véhicule à capacité fauteuil roulant (rampe/plateforme/ancrage)
+WHEELCHAIR_NEEDS = {"wheelchair_manual", "wheelchair_electric"}
+
+
+# ── Catégories de véhicules par défaut (seed, éditables par l'admin) ─────────
+_SEED_CATEGORIES = [
+    {
+        "key": "access_standard",
+        "name": "Access Standard",
+        "description": "Véhicule spacieux, aide à l'installation, coffre adapté aux équipements médicaux.",
+        "capabilities": {
+            "ramp": False, "lift": False, "wheelchair_anchor": False,
+            "extra_space": True, "medical_trunk": True, "install_help": True,
+        },
+        "capacity_passengers": 4,
+        "capacity_wheelchairs": 0,
+        "base_fare": 4.0, "price_per_km": 1.2, "price_per_min": 0.3, "min_fare": 7.0,
+        "icon": "Car", "active": True, "display_order": 0, "scope": {},
+    },
+    {
+        "key": "access_pmr",
+        "name": "Access PMR",
+        "description": "Rampe d'accès, plateforme élévatrice, système d'ancrage fauteuil roulant, homologation PMR.",
+        "capabilities": {
+            "ramp": True, "lift": True, "wheelchair_anchor": True,
+            "extra_space": True, "medical_trunk": True, "install_help": True,
+        },
+        "capacity_passengers": 3,
+        "capacity_wheelchairs": 1,
+        "base_fare": 6.0, "price_per_km": 1.6, "price_per_min": 0.4, "min_fare": 10.0,
+        "icon": "Wheelchair", "active": True, "display_order": 1, "scope": {},
+    },
+    {
+        "key": "access_van",
+        "name": "Access Van",
+        "description": "Transport de plusieurs fauteuils roulants, familles et groupes.",
+        "capabilities": {
+            "ramp": True, "lift": True, "wheelchair_anchor": True,
+            "extra_space": True, "medical_trunk": True, "install_help": True,
+        },
+        "capacity_passengers": 6,
+        "capacity_wheelchairs": 2,
+        "base_fare": 8.0, "price_per_km": 2.0, "price_per_min": 0.5, "min_fare": 14.0,
+        "icon": "Van", "active": True, "display_order": 2, "scope": {},
+    },
+]
+
+_DEFAULT_SETTINGS = {
+    "id": SETTINGS_ID,
+    "enabled": True,
+    "available_zones": [],          # [] = disponible partout ; sinon liste de scopes
+    "extra_assistance_minutes": 10,  # temps d'embarquement/débarquement supplémentaire offert
+    "no_late_penalty": True,         # pas de pénalité si le client a besoin de plus de temps
+    "priority_certified_drivers": True,
+    "safe_ride_night": {
+        "enabled": True,
+        "modes": ["access", "standard"],  # sur quels modes le toggle apparaît
+        "start_hour": 20,                  # 20h
+        "end_hour": 6,                     # 6h (fenêtre nocturne, passe minuit)
+        "zones": [],                       # [] = toutes zones
+    },
+}
+
+_CAT_FIELDS = (
+    "name", "description", "capabilities", "capacity_passengers", "capacity_wheelchairs",
+    "base_fare", "price_per_km", "price_per_min", "min_fare", "icon", "active", "display_order",
+)
+
+
+async def _ensure_seed():
+    if await db.access_categories.count_documents({}) == 0:
+        for c in _SEED_CATEGORIES:
+            doc = {"id": str(uuid.uuid4()), "created_at": _now(), **c}
+            await db.access_categories.insert_one(doc)
+    if not await db.app_config.find_one({"id": SETTINGS_ID}):
+        await db.app_config.update_one(
+            {"id": SETTINGS_ID}, {"$set": {**_DEFAULT_SETTINGS, "created_at": _now()}}, upsert=True
+        )
+
+
+async def _get_settings() -> dict:
+    await _ensure_seed()
+    doc = await db.app_config.find_one({"id": SETTINGS_ID}, {"_id": 0})
+    if not doc:
+        return dict(_DEFAULT_SETTINGS)
+    # merge defaults for forward-compat
+    merged = {**_DEFAULT_SETTINGS, **doc}
+    merged["safe_ride_night"] = {**_DEFAULT_SETTINGS["safe_ride_night"], **(doc.get("safe_ride_night") or {})}
+    return merged
+
+
+def _safe_night_active_now(srn: dict, zone) -> bool:
+    if not srn.get("enabled"):
+        return False
+    zones = srn.get("zones") or []
+    if zones and not any(scope_matches(z, zone) for z in zones):
+        return False
+    start = int(srn.get("start_hour", 20))
+    end = int(srn.get("end_hour", 6))
+    hour = datetime.now(timezone.utc).hour
+    if start == end:
+        return True
+    if start < end:
+        return start <= hour < end
+    # window crosses midnight (e.g. 20h -> 6h)
+    return hour >= start or hour < end
+
+
+def _category_compatible(cat: dict, needs: list) -> bool:
+    caps = cat.get("capabilities") or {}
+    needs = set(needs or [])
+    # Wheelchair users require a vehicle that can carry a wheelchair
+    if needs & WHEELCHAIR_NEEDS:
+        if not (caps.get("ramp") or caps.get("lift")) or cat.get("capacity_wheelchairs", 0) < 1:
+            return False
+    return True
+
+
+# ============================================================
+#  PUBLIC / USER
+# ============================================================
+@router.get("/needs-catalog")
+async def needs_catalog():
+    return {"catalog": NEEDS_CATALOG}
+
+
+@router.get("/config")
+async def get_config(location: str = ""):
+    """Config publique : disponibilité, catégories actives (filtrées par zone),
+    et état 'Safe Ride Night' calculé pour la zone + l'heure courante."""
+    settings = await _get_settings()
+    zone = resolve_zone_from_text(location) if location else None
+
+    available = True
+    if settings.get("available_zones"):
+        available = any(scope_matches(z, zone) for z in settings["available_zones"]) if zone else True
+
+    cats = await db.access_categories.find({"active": True}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    cats = [c for c in cats if not c.get("scope") or scope_matches(c["scope"], zone)]
+
+    srn = settings.get("safe_ride_night") or {}
+    return {
+        "enabled": settings.get("enabled", True) and available,
+        "categories": cats,
+        "extra_assistance_minutes": settings.get("extra_assistance_minutes", 10),
+        "no_late_penalty": settings.get("no_late_penalty", True),
+        "safe_ride_night": {
+            "enabled": bool(srn.get("enabled")),
+            "modes": srn.get("modes") or [],
+            "active_now": _safe_night_active_now(srn, zone),
+            "start_hour": srn.get("start_hour", 20),
+            "end_hour": srn.get("end_hour", 6),
+        },
+    }
+
+
+@router.get("/profile")
+async def get_profile(request: Request):
+    user = await get_current_user(request)
+    doc = await db.accessibility_profiles.find_one({"user_id": user["id"]}, {"_id": 0})
+    return doc or {
+        "user_id": user["id"], "mobility": [], "visual": [], "auditory": [], "cognitive": [],
+        "equipment": [], "assistance_animal": False, "default_companion_count": 0,
+        "extra_assistance_time": False, "notes": "",
+    }
+
+
+@router.put("/profile")
+async def update_profile(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    allowed = {}
+    for f in ("mobility", "visual", "auditory", "cognitive", "equipment"):
+        if f in body and isinstance(body[f], list):
+            allowed[f] = [str(x) for x in body[f]]
+    if "assistance_animal" in body:
+        allowed["assistance_animal"] = bool(body["assistance_animal"])
+    if "default_companion_count" in body:
+        try:
+            allowed["default_companion_count"] = max(0, int(body["default_companion_count"]))
+        except (TypeError, ValueError):
+            allowed["default_companion_count"] = 0
+    if "extra_assistance_time" in body:
+        allowed["extra_assistance_time"] = bool(body["extra_assistance_time"])
+    if "notes" in body:
+        allowed["notes"] = str(body["notes"])[:1000]
+    allowed["user_id"] = user["id"]
+    allowed["updated_at"] = _now()
+    await db.accessibility_profiles.update_one({"user_id": user["id"]}, {"$set": allowed}, upsert=True)
+    doc = await db.accessibility_profiles.find_one({"user_id": user["id"]}, {"_id": 0})
+    return doc
+
+
+@router.post("/match")
+async def match_vehicles(request: Request):
+    """Renvoie les catégories de véhicules compatibles avec les besoins déclarés."""
+    body = await request.json()
+    needs = body.get("needs") or []
+    location = body.get("location") or ""
+    zone = resolve_zone_from_text(location) if location else None
+    cats = await db.access_categories.find({"active": True}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    cats = [c for c in cats if (not c.get("scope") or scope_matches(c["scope"], zone))]
+    compatible = [c for c in cats if _category_compatible(c, needs)]
+    return {"categories": compatible, "needs": needs}
+
+
+def _estimate_fare(cat: dict, distance_km: float, duration_min: float) -> float:
+    fare = (cat.get("base_fare", 0) + cat.get("price_per_km", 0) * distance_km
+            + cat.get("price_per_min", 0) * duration_min)
+    return round(max(fare, cat.get("min_fare", 0)), 2)
+
+
+@router.post("/bookings")
+async def create_booking(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    cat_key = body.get("category_key")
+    cat = await db.access_categories.find_one({"key": cat_key, "active": True}, {"_id": 0})
+    if not cat:
+        raise HTTPException(status_code=400, detail="Catégorie de véhicule invalide ou indisponible")
+
+    settings = await _get_settings()
+    distance_km = float(body.get("distance_km") or 0)
+    duration_min = float(body.get("duration_min") or 0)
+    fare = _estimate_fare(cat, distance_km, duration_min)
+
+    # Priorité aux chauffeurs certifiés Access (matching simple Phase 1)
+    matched = None
+    q = {"role": "driver", "access_certified": True}
+    if settings.get("priority_certified_drivers", True):
+        matched = await db.users.find_one(q, {"_id": 0, "id": 1, "name": 1})
+
+    booking = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "category_key": cat_key,
+        "category_name": cat.get("name"),
+        "needs": body.get("needs") or [],
+        "equipment": body.get("equipment") or [],
+        "assistance_animal": bool(body.get("assistance_animal")),
+        "companion_count": int(body.get("companion_count") or 0),
+        "extra_assistance_time": bool(body.get("extra_assistance_time")),
+        "extra_assistance_minutes": settings.get("extra_assistance_minutes", 10) if body.get("extra_assistance_time") else 0,
+        "pickup": body.get("pickup") or {},
+        "dropoff": body.get("dropoff") or {},
+        "trip_type": body.get("trip_type") or "standard",   # standard | medical | recurring
+        "recurrence": body.get("recurrence"),                # daily | weekly | monthly | null
+        "scheduled_at": body.get("scheduled_at"),
+        "fare_estimate": fare,
+        "matched_driver_id": matched["id"] if matched else None,
+        "matched_driver_name": matched["name"] if matched else None,
+        "certified_driver": bool(matched),
+        "status": "searching" if not matched else "assigned",
+        "created_at": _now(),
+    }
+    await db.access_bookings.insert_one(dict(booking))
+    booking.pop("_id", None)
+    return booking
+
+
+@router.get("/bookings")
+async def list_my_bookings(request: Request):
+    user = await get_current_user(request)
+    items = await db.access_bookings.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"items": items}
+
+
+# ============================================================
+#  ADMIN
+# ============================================================
+@admin_router.get("/categories")
+async def admin_list_categories(request: Request):
+    await require_role(request, ["admin"])
+    await _ensure_seed()
+    items = await db.access_categories.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    return {"items": items}
+
+
+@admin_router.post("/categories")
+async def admin_create_category(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    key = (body.get("key") or "").strip() or f"cat_{uuid.uuid4().hex[:8]}"
+    if await db.access_categories.find_one({"key": key}):
+        raise HTTPException(status_code=400, detail="Cette clé existe déjà")
+    doc = {
+        "id": str(uuid.uuid4()), "key": key, "created_at": _now(),
+        "name": body.get("name") or "Nouvelle catégorie",
+        "description": body.get("description") or "",
+        "capabilities": body.get("capabilities") or {},
+        "capacity_passengers": int(body.get("capacity_passengers") or 4),
+        "capacity_wheelchairs": int(body.get("capacity_wheelchairs") or 0),
+        "base_fare": float(body.get("base_fare") or 0),
+        "price_per_km": float(body.get("price_per_km") or 0),
+        "price_per_min": float(body.get("price_per_min") or 0),
+        "min_fare": float(body.get("min_fare") or 0),
+        "icon": body.get("icon") or "Wheelchair",
+        "active": bool(body.get("active", True)),
+        "display_order": int(body.get("display_order") or 99),
+        "scope": clean_scope(body.get("scope") or {}),
+    }
+    await db.access_categories.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@admin_router.put("/categories/{cat_id}")
+async def admin_update_category(cat_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    update = {}
+    for f in _CAT_FIELDS:
+        if f in body:
+            update[f] = body[f]
+    for nf in ("capacity_passengers", "capacity_wheelchairs", "display_order"):
+        if nf in update:
+            try:
+                update[nf] = int(update[nf])
+            except (TypeError, ValueError):
+                update.pop(nf)
+    for ff in ("base_fare", "price_per_km", "price_per_min", "min_fare"):
+        if ff in update:
+            try:
+                update[ff] = float(update[ff])
+            except (TypeError, ValueError):
+                update.pop(ff)
+    if "active" in update:
+        update["active"] = bool(update["active"])
+    if "scope" in body:
+        update["scope"] = clean_scope(body["scope"])
+    if not update:
+        raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
+    update["updated_at"] = _now()
+    res = await db.access_categories.update_one({"id": cat_id}, {"$set": update})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+    doc = await db.access_categories.find_one({"id": cat_id}, {"_id": 0})
+    return doc
+
+
+@admin_router.delete("/categories/{cat_id}")
+async def admin_delete_category(cat_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    await db.access_categories.delete_one({"id": cat_id})
+    return {"message": "deleted"}
+
+
+@admin_router.get("/settings")
+async def admin_get_settings(request: Request):
+    await require_role(request, ["admin"])
+    return await _get_settings()
+
+
+@admin_router.put("/settings")
+async def admin_update_settings(request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    update = {}
+    if "enabled" in body:
+        update["enabled"] = bool(body["enabled"])
+    if "available_zones" in body and isinstance(body["available_zones"], list):
+        update["available_zones"] = [clean_scope(z) for z in body["available_zones"]]
+    if "extra_assistance_minutes" in body:
+        try:
+            update["extra_assistance_minutes"] = max(0, int(body["extra_assistance_minutes"]))
+        except (TypeError, ValueError):
+            pass
+    if "no_late_penalty" in body:
+        update["no_late_penalty"] = bool(body["no_late_penalty"])
+    if "priority_certified_drivers" in body:
+        update["priority_certified_drivers"] = bool(body["priority_certified_drivers"])
+    if "safe_ride_night" in body and isinstance(body["safe_ride_night"], dict):
+        srn = body["safe_ride_night"]
+        cur = (await _get_settings())["safe_ride_night"]
+        new_srn = dict(cur)
+        if "enabled" in srn:
+            new_srn["enabled"] = bool(srn["enabled"])
+        if "modes" in srn and isinstance(srn["modes"], list):
+            new_srn["modes"] = [str(m) for m in srn["modes"]]
+        for hf in ("start_hour", "end_hour"):
+            if hf in srn:
+                try:
+                    new_srn[hf] = max(0, min(23, int(srn[hf])))
+                except (TypeError, ValueError):
+                    pass
+        if "zones" in srn and isinstance(srn["zones"], list):
+            new_srn["zones"] = [clean_scope(z) for z in srn["zones"]]
+        update["safe_ride_night"] = new_srn
+    if not update:
+        raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
+    update["updated_at"] = _now()
+    await db.app_config.update_one({"id": SETTINGS_ID}, {"$set": update}, upsert=True)
+    return await _get_settings()
+
+
+@admin_router.get("/drivers")
+async def admin_list_drivers(request: Request):
+    """Liste des chauffeurs avec leur statut de certification Access."""
+    await require_role(request, ["admin"])
+    drivers = await db.users.find(
+        {"role": "driver"},
+        {"_id": 0, "id": 1, "name": 1, "phone": 1, "vehicle_type": 1,
+         "access_certified": 1, "access_certified_at": 1},
+    ).sort("name", 1).to_list(500)
+    return {"items": drivers}
+
+
+@admin_router.post("/drivers/{driver_id}/certify")
+async def admin_certify_driver(driver_id: str, request: Request):
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = await request.json()
+    approved = bool(body.get("approved", True))
+    trainings = body.get("trainings") or []
+    actor = await get_current_user(request)
+    res = await db.users.update_one(
+        {"id": driver_id, "role": "driver"},
+        {"$set": {
+            "access_certified": approved,
+            "access_certified_at": _now() if approved else None,
+        }},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Chauffeur introuvable")
+    await db.access_certifications.insert_one({
+        "id": str(uuid.uuid4()), "driver_id": driver_id,
+        "status": "approved" if approved else "revoked",
+        "trainings": trainings, "validated_by": actor["id"], "created_at": _now(),
+    })
+    return {"driver_id": driver_id, "access_certified": approved}
+
+
+@admin_router.get("/bookings")
+async def admin_list_bookings(request: Request):
+    await require_role(request, ["admin"])
+    items = await db.access_bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
+    return {"items": items}
+
+
+@admin_router.get("/stats")
+async def admin_stats(request: Request):
+    await require_role(request, ["admin"])
+    total = await db.access_bookings.count_documents({})
+    certified_rides = await db.access_bookings.count_documents({"certified_driver": True})
+    certified_drivers = await db.users.count_documents({"role": "driver", "access_certified": True})
+    pmr_categories = await db.access_categories.count_documents({"active": True, "capacity_wheelchairs": {"$gte": 1}})
+    by_type = {}
+    for t in ("standard", "medical", "recurring"):
+        by_type[t] = await db.access_bookings.count_documents({"trip_type": t})
+    return {
+        "total_bookings": total,
+        "certified_ride_rate": round((certified_rides / total * 100), 1) if total else 0,
+        "certified_drivers": certified_drivers,
+        "pmr_categories_available": pmr_categories,
+        "bookings_by_type": by_type,
+    }
