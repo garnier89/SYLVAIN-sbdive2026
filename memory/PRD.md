@@ -1,3 +1,14 @@
+## NEW - 2026-06-11 (251) - Emails KYC documents + Audit profil chauffeur Lot 1 (DONE, testé 4/4 pytest + 5/5 frontend)
+- **b) Emails KYC documents (Resend)** : nouveau template `core/email.py::send_document_update(to,name,status,doc_label,reason,docs_url)` — 3 états : `received` (bleu, à l'upload), `approved` (vert), `rejected` (rouge + motif). Hooks : `drivers.py::upload_driver_document` → email « Document reçu » ; `misc.py::admin_set_driver_document_status` → email validé/refusé. Skip emails placeholder `@sbdrive.local`, fire-and-forget. Testé pytest `test_iter251_kyc_document_emails.py` 4/4.
+- **a) Audit profil chauffeur — Lot 1** (testing_agent iteration_251, 5/5 PASS) :
+  - **#1 « Gérer mon compte » vs « Infos société »** : nouvelle feuille `driver-account-modal` (identité Nom/Email/Téléphone + actions : Infos société & licence, Changer mot de passe, Mes documents). L'engrenage + ligne « Gérer mon compte » ouvrent cette feuille ; la feuille société (`driver-info-modal`) reste séparée. i18n `manage_account` harmonisé → « Gérer mon compte ».
+  - **#2 Export PDF stats** : bouton `download-pdf-btn` sur `/chauffeur/earnings/stats` → fenêtre imprimable (nom, période, total, tableau d'évolution) via window.open+print. Ligne « Statistiques » du profil pointe désormais vers `/chauffeur/earnings/stats`.
+  - **#3 Documents perso vs véhicule** : `DriverDocumentsPage` regroupe en 2 sections (`docs-section-personal` / `docs-section-vehicle`) par heuristique de clé. Backend `build_documents_view` humanise les labels de docs hors-liste (ex. `vtc_card` → « Carte VTC »).
+  - **#5 Actualités par audience** : `news.py` segmente désormais rider/driver/**merchant** (helper `_audience_for_role` + `_eligible_roles` + AUDIENCES). Admin `AdminNews.js` propose l'audience « Marchands ». Vérifié curl (marchand voit news merchant, chauffeur ne les voit pas).
+  - **#4 Commentaires utilisateurs** : DÉJÀ EN PLACE (DriverReviewsPage : texte + étoiles + distribution).
+- **Reste (Lot 2)** : #6 galerie chauffeur → publication sur la marketplace (prestations/DIY) — chantier plus lourd, à scoper séparément. PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-11 (250) - SBPAYGO Connect : fondation côté SB Drive (FEATURE-GATED, DONE, testé 7/7)
 - **Demande user** : sync 3 voies SB Drive ↔ sbpaygo.com (SSO OAuth + charge de secours du solde externe). ⚠️ API externe sbpaygo.com INCOMPLÈTE (pas de cash-out/refund, schémas non doc).
 - **Approche défensive** : nouveau module `routes/sbpaygo_connect.py` **désactivé par défaut** (feature-flag env). Tant que les vars SBPAYGO sont vides, tous les endpoints `/connect/*` renvoient **404** et le helper `attempt_sbpaygo_charge()` est un no-op → **AUCUN impact** sur les flux portefeuille existants.

@@ -145,12 +145,21 @@ async def build_documents_view(driver):
             "uploaded_at": u.get("uploaded_at"), "filename": u.get("filename"),
             "reason": u.get("reason"), "reviewed_at": u.get("reviewed_at"),
         })
+    # Known human labels for doc types that may be uploaded outside the required set.
+    DOC_LABELS = {
+        "permis_b": "Permis B", "permis_moto": "Permis (A/AM)", "carte_grise": "Carte grise",
+        "assurance": "Assurance", "assurance_rc": "Assurance RC", "carte_vtc": "Carte VTC",
+        "vtc_card": "Carte VTC", "macaron_vtc": "Macaron VTC", "carte_pro_taxi": "Carte professionnelle Taxi (ADS)",
+        "carte_pro_taxi_ads": "Carte professionnelle Taxi (ADS)", "piece_identite": "Pièce d'identité",
+        "carte_identite": "Carte d'identité", "rib": "RIB", "kbis": "Extrait Kbis", "photo": "Photo de profil",
+    }
     for doc in uploaded:  # extra uploaded docs not in the required list
         t = doc.get("type")
         if t not in seen:
             seen.add(t)
+            human = DOC_LABELS.get(t) or (t or "").replace("_", " ").strip().capitalize()
             items.append({
-                "key": t, "label": t, "required": False,
+                "key": t, "label": human, "required": False,
                 "status": doc.get("status", "pending"),
                 "uploaded_at": doc.get("uploaded_at"), "filename": doc.get("filename"),
                 "reason": doc.get("reason"), "reviewed_at": doc.get("reviewed_at"),
