@@ -1,0 +1,58 @@
+{
+  "summary": "Iteration 251 — Frontend audit of driver profile (Lot 1). Tested all 4 frontend points + non-regression. Logged in via email (jean.dupont@demo.sb / Driver123!) at /login/email then navigated to /chauffeur/*. All 4 points VALIDATED. One minor French copy inconsistency observed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/chauffeur/profile — section 'Paramètre du compte'",
+        "issues": [
+          "Copy inconsistency: la ligne du menu utilise 'Gérer son compte' (clé i18n menu.manage_account dans lib/i18nBase.js) alors que l'en-tête de la feuille qui s'ouvre dit 'Gérer mon compte' (data-testid='driver-account-modal'). Les deux désignent le même flux — il faut aligner (recommandation: 'Gérer mon compte' partout, conformément à la spec de l'itération).",
+          "Sur /chauffeur/documents, le label du document (data-testid='doc-vtc_card') affiche la clé brute 'vtc_card' au lieu d'un libellé FR ('Carte VTC'). Cosmétique côté backend mais visible côté UI."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Cosmétique) Aligner le libellé du menu chauffeur sur 'Gérer mon compte' (menu.manage_account) pour matcher l'en-tête de la feuille — ou inversement, harmoniser le titre de la feuille avec 'Gérer son compte'.",
+    "(Optionnel) Backend: renvoyer un label FR humain pour les documents (ex: 'Carte VTC') au lieu de la clé brute 'vtc_card' dans /api/drivers/my-documents."
+  ],
+  "critical_code_review_comments": [
+    "DriverProfilePage.js (660 lignes) — fichier proche du seuil 700 lignes; envisager un split (sheets gérées dans des sous-composants AccountSheet/InfoSheet/ServicesSheet) pour la maintenabilité.",
+    "DriverDocumentsPage.js — les sections docs-section-personal/vehicle ne sont rendues que si la sous-liste correspondante est non vide; OK fonctionnellement mais le data-testid 'docs-section-personal' ne sera pas trouvé pour un chauffeur sans document personnel (cas jean.dupont). Comportement attendu pour l'UI mais à documenter pour les tests E2E (utiliser amadou.diallo ou un autre chauffeur avec données pour couvrir les 2 sections)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not retested)", "frontend": "100% (5/5 points)"},
+  "test_credentials": "jean.dupont@demo.sb / Driver123! (login via /login/email). Aussi testé amadou.diallo@demo.sb pour couvrir docs-section-vehicle.",
+  "seed_data_creation": "Aucune (utilisation des comptes démo existants).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login chauffeur via /login/email (pas /chauffeur/login qui demande téléphone). jean.dupont@demo.sb n'a aucun document → docs-section-personal/vehicle absents (normal). Pour tester les 2 sections, utiliser amadou.diallo@demo.sb (a doc vtc_card → section vehicle visible). Endpoint correct: /api/drivers/my-documents (200), pas /api/driver/me/documents (404).",
+  "results_by_point": {
+    "POINT 1 - settings-gear et ligne 'Gérer son compte'": {
+      "status": "PASS",
+      "details": "Engrenage (data-testid='settings-gear') ouvre driver-account-modal. Identity (data-testid='account-identity') affiche Nom/Email/Téléphone = 'Jean Dupont / jean.dupont@demo.sb / +33611111111'. 3 boutons présents: account-company-info, account-change-password, account-documents. Clic sur 'Informations société & licence' ouvre bien driver-info-modal. La ligne du menu (texte 'Gérer son compte') ouvre également driver-account-modal."
+    },
+    "POINT 2 - Export PDF stats": {
+      "status": "PASS",
+      "details": "Bouton data-testid='download-pdf-btn' visible et cliquable sur /chauffeur/earnings/stats. window.open est appelé (called=true), le HTML généré contient le nom 'Jean', les mots 'total' et 'période', la fonction print() est invoquée. HTML length=1487 caractères, structure HTML+CSS imprimable correcte. Aucune erreur JS."
+    },
+    "POINT 3 - Documents perso vs véhicule": {
+      "status": "PASS",
+      "details": "Sections data-testid='docs-section-personal' et 'docs-section-vehicle' rendues conditionnellement (uniquement si la liste correspondante n'est pas vide). Validé avec amadou.diallo@demo.sb : docs-section-vehicle visible, header 'Documents véhicule', doc card data-testid='doc-vtc_card' présente et cliquable."
+    },
+    "POINT 5 - /chauffeur/actualites (non-régression)": {
+      "status": "PASS",
+      "details": "Page charge sans erreur. Contenu visible: 'Bienvenue sur SB Drive VTC' (article audience driver). Aucune erreur console."
+    },
+    "NON-REGRESSION /chauffeur/profile": {
+      "status": "PASS",
+      "details": "Balance portefeuille (1060.80 EUR), section 'Mon activité' (Palette/Points/Acceptation/Annulation/Score/Aujourd'hui/Total/Refus), toutes les lignes de réglages, bottom-nav. 0 erreurs console au rechargement."
+    }
+  }
+}

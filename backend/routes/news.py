@@ -15,7 +15,16 @@ from core.notifications import create_notification
 
 router = APIRouter(prefix="/news", tags=["news"])
 
-AUDIENCES = {"all", "rider", "driver"}
+AUDIENCES = {"all", "rider", "driver", "merchant"}
+
+
+def _audience_for_role(role: str) -> str:
+    """Map a user role to its news audience bucket."""
+    if role == "driver":
+        return "driver"
+    if role == "merchant":
+        return "merchant"
+    return "rider"
 _WRITE_PERM = "content.cms.edit"
 
 
@@ -33,7 +42,7 @@ async def news_feed(request: Request, location: str = ""):
     """In-app feed for the current user (audience derived from role), filtered by
     the request zone resolved from the browser-geocoded `location` (empty = all)."""
     user = await get_current_user(request)
-    audience = "driver" if user.get("role") == "driver" else "rider"
+    audience = _audience_for_role(user.get("role"))
     items = await db.news.find(
         {"status": "published", "audience": {"$in": ["all", audience]}}, {"_id": 0}
     ).to_list(500)
@@ -49,7 +58,7 @@ async def news_unread_count(request: Request, location: str = ""):
     """Number of published articles (audience + zone matched) newer than the user's
     last read timestamp. Also refreshes the user's last_zone (for zone-targeted push)."""
     user = await get_current_user(request)
-    audience = "driver" if user.get("role") == "driver" else "rider"
+    audience = _audience_for_role(user.get("role"))
     last_read = user.get("news_last_read_at") or ""
     items = await db.news.find(
         {"status": "published", "audience": {"$in": ["all", audience]}}, {"_id": 0}
@@ -84,7 +93,9 @@ def _eligible_roles(audience: str):
         return ["user"]
     if audience == "driver":
         return ["driver"]
-    return ["user", "driver"]
+    if audience == "merchant":
+        return ["merchant"]
+    return ["user", "driver", "merchant"]
 
 
 async def _notify_article_published(article: dict):

@@ -531,3 +531,45 @@ async def send_withdrawal_update(to: str, name: str, status: str, amount: float,
         {cta}
         <p style="margin-top:22px;color:#444;font-size:14px;">L'équipe SB Drive</p>"""
     await _send(to, subject, _shell(title, accent, body))
+
+
+
+async def send_document_update(to: str, name: str, status: str, doc_label: str,
+                               reason: str = "", docs_url: str = "") -> None:
+    """KYC lifecycle email for a driver document: received / approved / rejected.
+
+    status ∈ {"received", "approved", "rejected"}.
+    """
+    label = doc_label or "votre document"
+    cta = (
+        f'<p style="text-align:center;margin:18px 0 4px;"><a href="{docs_url}" '
+        f'style="background:#0a0e1a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;'
+        f'font-weight:bold;font-size:14px;display:inline-block;">Voir mes documents</a></p>'
+        if docs_url else ""
+    )
+    if status == "received":
+        title, accent, subject = "Document reçu 📄", "#2563eb", "Document reçu — SB Drive"
+        intro = (
+            f"Nous avons bien reçu votre document <b>« {label} »</b>. "
+            f"Il est <b>en attente de vérification</b> par notre équipe. "
+            f"Vous serez notifié dès qu'il sera traité."
+        )
+    elif status == "approved":
+        title, accent, subject = "Document validé ✅", "#16a34a", "Votre document a été validé — SB Drive"
+        intro = (
+            f"Bonne nouvelle ! Votre document <b>« {label} »</b> a été <b>approuvé</b>. "
+            f"Merci d'avoir complété votre dossier."
+        )
+    else:  # rejected
+        title, accent, subject = "Document refusé", "#b91c1c", "Votre document a été refusé — SB Drive"
+        reason_block = f'<br/><b>Motif :</b> {reason}' if reason else ""
+        intro = (
+            f"Votre document <b>« {label} »</b> a été <b>refusé</b>.{reason_block}<br/><br/>"
+            f"Merci de le soumettre à nouveau depuis votre espace chauffeur pour finaliser votre dossier."
+        )
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">{intro}</p>
+        {cta}
+        <p style="margin-top:22px;color:#444;font-size:14px;">L'équipe SB Drive</p>"""
+    await _send(to, subject, _shell(title, accent, body))

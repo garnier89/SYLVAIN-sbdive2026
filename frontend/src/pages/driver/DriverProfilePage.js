@@ -36,6 +36,7 @@ const DriverProfilePage = () => {
   const [selectedTaxiMode, setSelectedTaxiMode] = useState(null);
   const [taxiPicker, setTaxiPicker] = useState(false);
   const [showInfoEdit, setShowInfoEdit] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
   const [savingInfo, setSavingInfo] = useState(false);
   const [infoForm, setInfoForm] = useState({ company_name: '', license_number: '' });
   const [allowEditProfile, setAllowEditProfile] = useState(true);
@@ -219,7 +220,7 @@ const DriverProfilePage = () => {
     <div className="mobile-container min-h-screen bg-gray-100 flex flex-col pb-28" data-testid="driver-profile-page">
       {/* ===== GREEN HEADER ===== */}
       <div className="px-5 pt-6 pb-5 relative" style={{ background: GREEN }}>
-        <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={openInfoEdit} data-testid="settings-gear">
+        <button className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" onClick={() => setShowAccount(true)} data-testid="settings-gear">
           <Gear size={20} className="text-white" />
         </button>
         <div className="flex items-center gap-4 mt-2">
@@ -276,7 +277,7 @@ const DriverProfilePage = () => {
           <ProfileRow icon={MapPin} color="#EF4444" label={t('driver.manage_workplace')} onClick={() => navigate('/chauffeur/availability')} />
           <ProfileRow icon={Images} color="#8B5CF6" label={t('driver.manage_gallery')} onClick={() => navigate('/chauffeur/gallery')} />
           <ProfileRow icon={CalendarCheck} color="#A3A3A3" label={t('driver.my_availability')} onClick={() => navigate('/chauffeur/availability')} />
-          <ProfileRow icon={ChartBar} color="#22C55E" label={t('driver.statistics')} onClick={() => navigate('/chauffeur/earnings')} />
+          <ProfileRow icon={ChartBar} color="#22C55E" label={t('driver.statistics')} onClick={() => navigate('/chauffeur/earnings/stats')} />
           <ProfileRow icon={ChatCircleText} color="#06B6D4" label={t('driver.user_comments')} onClick={() => navigate('/chauffeur/reviews')} />
           <ProfileRow icon={Receipt} color="#78716C" label={t('driver.waybill')} onClick={openWaybill} />
           <ProfileRow icon={Bell} color="#F97316" label={t('menu.notifications')} onClick={() => navigate('/chauffeur/notifications')} />
@@ -291,7 +292,7 @@ const DriverProfilePage = () => {
         <p className="px-5 text-base font-bold text-gray-800 mb-2">{t('menu.account_settings')}</p>
         <div className="bg-white">
           <ProfileRow icon={Fingerprint} color="#64748B" label={t('menu.enable_faceid')} toggle onToggle={(v) => toast.success(v ? 'Face ID / Touch ID activé' : 'Face ID / Touch ID désactivé')} />
-          <ProfileRow icon={UserCircle} color="#D946EF" label={t('menu.manage_account')} onClick={openInfoEdit} />
+          <ProfileRow icon={UserCircle} color="#D946EF" label={t('menu.manage_account')} onClick={() => setShowAccount(true)} />
           <ProfileRow icon={Key} color="#374151" label={t('menu.change_password')} onClick={() => navigate('/chauffeur/change-password')} />
           {rewardsActive && appSettings.enable_driver_reward_program !== false && (
             <ProfileRow icon={Gift} color="#22C55E" label={t('driver.reward_program')} onClick={() => navigate('/chauffeur/rewards')} />
@@ -429,6 +430,42 @@ const DriverProfilePage = () => {
             >
               {savingServices ? 'Enregistrement…' : 'Enregistrer'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== ACCOUNT SHEET (gérer mon compte — infos personnelles) ===== */}
+      {showAccount && (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50" onClick={() => setShowAccount(false)} data-testid="driver-account-modal">
+          <div className="w-full max-w-[500px] bg-white rounded-t-3xl p-5 pb-8 animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Gérer mon compte</h2>
+            <p className="text-sm text-gray-500 mb-4">Vos informations personnelles et la sécurité de votre compte.</p>
+
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-2 mb-4" data-testid="account-identity">
+              <div className="flex justify-between"><span className="text-xs text-gray-500">Nom</span><span className="text-sm font-semibold text-gray-800">{user?.name || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-500">Email</span><span className="text-sm font-semibold text-gray-800">{user?.email || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-500">Téléphone</span><span className="text-sm font-semibold text-gray-800">{user?.phone || '—'}</span></div>
+            </div>
+
+            <div className="space-y-2">
+              <button onClick={() => { setShowAccount(false); openInfoEdit(); }} className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 active:bg-gray-50" data-testid="account-company-info">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FF500018' }}><IdentificationCard size={18} weight="duotone" style={{ color: GREEN }} /></div>
+                <span className="text-sm text-gray-800 flex-1 text-left">Informations société &amp; licence</span>
+                <CaretRight size={16} className="text-gray-400" />
+              </button>
+              <button onClick={() => { setShowAccount(false); navigate('/chauffeur/change-password'); }} className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 active:bg-gray-50" data-testid="account-change-password">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: '#37415118' }}><Key size={18} weight="duotone" style={{ color: '#374151' }} /></div>
+                <span className="text-sm text-gray-800 flex-1 text-left">Changer le mot de passe</span>
+                <CaretRight size={16} className="text-gray-400" />
+              </button>
+              <button onClick={() => { setShowAccount(false); navigate('/chauffeur/documents'); }} className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 active:bg-gray-50" data-testid="account-documents">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: '#06B6D418' }}><FileText size={18} weight="duotone" style={{ color: '#06B6D4' }} /></div>
+                <span className="text-sm text-gray-800 flex-1 text-left">Mes documents</span>
+                <CaretRight size={16} className="text-gray-400" />
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-4 text-center">Pour modifier votre nom ou téléphone, contactez le support.</p>
           </div>
         </div>
       )}

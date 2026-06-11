@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, File, UploadFile, Query
 import uuid
+import os
 from datetime import datetime, timezone, timedelta
 
 from core.config import db, APP_NAME
@@ -572,6 +573,16 @@ async def upload_driver_document(request: Request, file: UploadFile = File(...),
         "uploaded_at": datetime.now(timezone.utc).isoformat(), "status": "pending"
     }
     await db.drivers.update_one({"user_id": user["id"]}, {"$push": {"documents": doc_record}})
+    # KYC email: confirm we received the document (fire-and-forget, skip placeholder emails).
+    try:
+        to = (user.get("email") or "").strip()
+        if to and not to.endswith("@sbdrive.local"):
+            from core.email import fire, send_document_update
+            label = (doc_type or "").replace("_", " ").strip().capitalize()
+            docs_url = f"{os.environ.get('FRONTEND_URL', '').rstrip('/')}/chauffeur/documents"
+            fire(send_document_update(to, user.get("name", ""), "received", label, docs_url=docs_url))
+    except Exception:
+        pass
     return {"message": "Document uploaded", "path": result["path"]}
 
 

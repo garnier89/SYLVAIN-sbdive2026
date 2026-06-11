@@ -83,6 +83,37 @@ const DriverDocumentsPage = () => {
   const pct = Math.min(100, Math.round((approvedCount / requiredCount) * 100));
   const ds = data?.driver_status;
 
+  // Split documents into PERSONAL vs VEHICLE buckets for clearer organisation.
+  const isVehicleDoc = (doc) => {
+    const k = `${doc.key || ''} ${doc.label || ''}`.toLowerCase();
+    return /grise|assurance|vtc|taxi|macaron|technique|vignette|vehicule|véhicule|immatricul|carte_pro/.test(k);
+  };
+  const personalDocs = documents.filter((d) => !isVehicleDoc(d));
+  const vehicleDocs = documents.filter((d) => isVehicleDoc(d));
+
+  const renderDocCard = (doc) => {
+    const status = statusConfig[doc.status] || statusConfig.not_uploaded;
+    const StatusIcon = status.icon;
+    const DocIcon = iconFor(doc.key);
+    return (
+      <button key={doc.key} onClick={() => handleUpload(doc.key)} className="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-3 hover:bg-gray-800/50 transition-colors" data-testid={`doc-${doc.key}`}>
+        <div className={`w-11 h-11 rounded-xl ${status.bg} flex items-center justify-center flex-shrink-0`}>
+          <DocIcon size={20} className={status.color} />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-white text-sm font-medium">{doc.label} {doc.required && <span className="text-red-400">*</span>}</p>
+          <div className="flex items-center gap-1 mt-0.5">
+            <StatusIcon size={12} className={status.color} />
+            <span className={`text-xs ${status.color}`} data-testid={`doc-status-${doc.key}`}>{status.label}</span>
+            {doc.uploaded_at && <span className="text-xs text-gray-600 ml-2">{(doc.uploaded_at || '').split('T')[0]}</span>}
+          </div>
+          {doc.status === 'rejected' && doc.reason && <p className="text-red-400/70 text-xs mt-1">Motif : {doc.reason}</p>}
+        </div>
+        <CaretRight size={16} className="text-gray-600 flex-shrink-0" />
+      </button>
+    );
+  };
+
   return (
     <div className="mobile-container min-h-screen bg-gray-950 flex flex-col pb-20" data-testid="driver-documents">
       <div className="px-5 pt-6 pb-2 flex items-center gap-3">
@@ -129,28 +160,24 @@ const DriverDocumentsPage = () => {
         {!loading && documents.length === 0 && (
           <p className="text-gray-500 text-center py-10 text-sm">Aucun document requis pour votre catégorie.</p>
         )}
-        {!loading && documents.map((doc) => {
-          const status = statusConfig[doc.status] || statusConfig.not_uploaded;
-          const StatusIcon = status.icon;
-          const DocIcon = iconFor(doc.key);
-          return (
-            <button key={doc.key} onClick={() => handleUpload(doc.key)} className="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-3 hover:bg-gray-800/50 transition-colors" data-testid={`doc-${doc.key}`}>
-              <div className={`w-11 h-11 rounded-xl ${status.bg} flex items-center justify-center flex-shrink-0`}>
-                <DocIcon size={20} className={status.color} />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-white text-sm font-medium">{doc.label} {doc.required && <span className="text-red-400">*</span>}</p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <StatusIcon size={12} className={status.color} />
-                  <span className={`text-xs ${status.color}`} data-testid={`doc-status-${doc.key}`}>{status.label}</span>
-                  {doc.uploaded_at && <span className="text-xs text-gray-600 ml-2">{(doc.uploaded_at || '').split('T')[0]}</span>}
-                </div>
-                {doc.status === 'rejected' && doc.reason && <p className="text-red-400/70 text-xs mt-1">Motif : {doc.reason}</p>}
-              </div>
-              <CaretRight size={16} className="text-gray-600 flex-shrink-0" />
-            </button>
-          );
-        })}
+        {!loading && personalDocs.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 px-1 pt-1 pb-0.5" data-testid="docs-section-personal">
+              <IdentificationCard size={16} className="text-blue-400" />
+              <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Documents personnels</p>
+            </div>
+            {personalDocs.map(renderDocCard)}
+          </>
+        )}
+        {!loading && vehicleDocs.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 px-1 pt-4 pb-0.5" data-testid="docs-section-vehicle">
+              <Car size={16} className="text-amber-400" />
+              <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Documents véhicule</p>
+            </div>
+            {vehicleDocs.map(renderDocCard)}
+          </>
+        )}
       </div>
       <DriverBottomNav />
     </div>

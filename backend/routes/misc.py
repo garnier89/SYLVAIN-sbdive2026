@@ -337,6 +337,17 @@ async def admin_set_driver_document_status(driver_id: str, doc_type: str, reques
     if account_event:
         await create_notification(uid, "account_status", account_event[1], account_event[2],
                                   data={"status": account_event[0]})
+    # KYC email: notify the driver their document was approved/rejected (skip placeholders).
+    if status_value in ("approved", "rejected"):
+        try:
+            duser = await db.users.find_one({"id": uid}, {"_id": 0, "email": 1, "name": 1}) or {}
+            to = (duser.get("email") or "").strip()
+            if to and not to.endswith("@sbdrive.local"):
+                from core.email import fire, send_document_update
+                docs_url = f"{os.environ.get('FRONTEND_URL', '').rstrip('/')}/chauffeur/documents"
+                fire(send_document_update(to, duser.get("name", ""), status_value, label, reason=reason, docs_url=docs_url))
+        except Exception:
+            pass
     return {"message": "Document mis à jour", "driver_status": driver_status, **view}
 
 

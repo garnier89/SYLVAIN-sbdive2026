@@ -15,7 +15,7 @@ const emptyForm = {
   scope: { country: '', state: '', city: '' },
 };
 
-const AUDIENCE_LABEL = { all: 'Tous', rider: 'Clients', driver: 'Chauffeurs' };
+const AUDIENCE_LABEL = { all: 'Tous', rider: 'Clients', driver: 'Chauffeurs', merchant: 'Marchands' };
 const scopeLabel = (s) => (!s || !s.country ? '' : [s.city, s.state, s.country_name || s.country].filter(Boolean).join(', '));
 
 function NewsCard({ n }) {
@@ -139,7 +139,7 @@ export default function AdminNews() {
           <div className="px-4 pb-4 border-t border-slate-100 pt-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-semibold text-slate-500">Audience :</span>
-              {['rider', 'driver'].map((a) => (
+              {['rider', 'driver', 'merchant'].map((a) => (
                 <button key={a} onClick={() => loadPreview(previewZone, a)} data-testid={`news-preview-audience-${a}`}
                   className={`px-3 py-1 rounded-full text-xs font-semibold ${previewAudience === a ? 'bg-[#0B1426] text-white' : 'bg-slate-100 text-slate-500'}`}>
                   {AUDIENCE_LABEL[a]}
@@ -214,6 +214,7 @@ export default function AdminNews() {
                   <option value="all">Tous</option>
                   <option value="rider">Clients</option>
                   <option value="driver">Chauffeurs</option>
+                  <option value="merchant">Marchands</option>
                 </select>
               </div>
               <div>
