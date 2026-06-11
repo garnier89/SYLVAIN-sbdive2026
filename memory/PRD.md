@@ -1,3 +1,13 @@
+## NEW - 2026-06-11 (250) - SBPAYGO Connect : fondation côté SB Drive (FEATURE-GATED, DONE, testé 7/7)
+- **Demande user** : sync 3 voies SB Drive ↔ sbpaygo.com (SSO OAuth + charge de secours du solde externe). ⚠️ API externe sbpaygo.com INCOMPLÈTE (pas de cash-out/refund, schémas non doc).
+- **Approche défensive** : nouveau module `routes/sbpaygo_connect.py` **désactivé par défaut** (feature-flag env). Tant que les vars SBPAYGO sont vides, tous les endpoints `/connect/*` renvoient **404** et le helper `attempt_sbpaygo_charge()` est un no-op → **AUCUN impact** sur les flux portefeuille existants.
+- **Endpoints** (`/api`) : `GET /connect/status`, `POST /connect/oauth/authorize` (URL d'autorisation + state anti-CSRF), `GET /connect/oauth/callback` (public, échange code→tokens, stockage par user), `POST /connect/charge` (proxy débit défensif), `POST /connect/unlink`. OAuth2 Authorization Code (playbook integration_expert), tokens en collection `sbpaygo_tokens`, states TTL 10 min, tous appels httpx en timeout 10 s + try/except.
+- **.env** : ajout `SBPAYGO_ENABLED=false` + `SBPAYGO_CLIENT_ID/SECRET/AUTHORIZE_URL/TOKEN_URL/CHARGE_URL/REDIRECT_URI/SCOPE` (vides = OFF).
+- **Checklist livrée** : `/app/SBPAYGO_CONNECT_CHECKLIST.md` — ce que l'équipe SBPAYGO doit créer (identifiants OAuth, endpoint charge, cash-out, refund, balance, webhooks HMAC, Swagger) + procédure d'activation.
+- **Vérifié** : curl (état désactivé : status configured:false, authorize/charge/callback = 404, unlink ok) + pytest `tests/test_iter250_sbpaygo_connect.py` **7/7** (flag off no-op, configuré, callback token exchange via respx, state invalide, charge succès + log, no_token, erreur partenaire défensive HTTP 500).
+- **Reste** : brancher `attempt_sbpaygo_charge()` en secours dans `rides.py` UNIQUEMENT après activation/livraison de l'API SBPAYGO. PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-11 (249b) - Recouvrement AUTO du solde dû à la recharge (DONE, testé 4/4 + régression 7/7)
 - **Demande user** : « dès que le client recharge OU reçoit de l'argent, l'app récupère d'abord le solde dû » + notif transparence.
 - **Backend** (`debts.py`) : nouveau helper `auto_settle_debts_from_wallet(user_id)` — recouvre les dettes impayées (plus ancienne d'abord, **recouvrement partiel autorisé**), rembourse le chauffeur lésé si applicable, notifie le client (« X € de solde dû déduits de votre recharge »). Branché sur **tous les points de crédit client** : `wallet.py` topup (renvoie `debt_recovered` + solde net) & transfer (destinataire), `payments.py` (succès Stripe), `finance.py` sbpaygo/send (destinataire), `giftcards.py` redeem (bénéficiaire).

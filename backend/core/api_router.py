@@ -76,6 +76,7 @@ from routes.payouts import router as payouts_router
 from routes.contactless import router as contactless_router
 from routes.giftcards import router as giftcards_router
 from routes.assistant import router as assistant_router
+from routes.sbpaygo_connect import router as sbpaygo_connect_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -101,6 +102,7 @@ _ROUTERS = [
     contactless_router,
     assistant_router,
     giftcards_router,
+    sbpaygo_connect_router,
 ]
 
 
