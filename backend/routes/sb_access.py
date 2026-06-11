@@ -290,6 +290,24 @@ def _estimate_fare(cat: dict, distance_km: float, duration_min: float) -> float:
     return round(max(fare, cat.get("min_fare", 0)), 2)
 
 
+_MEDICAL_REASONS = {"Dialyse", "Rééducation", "Consultation", "Examen", "Chimiothérapie", "Autre"}
+
+
+def _clean_medical(m) -> dict:
+    """Normalise les détails d'un trajet médical (motif, RDV, aller-retour, justificatif)."""
+    if not isinstance(m, dict):
+        return None
+    reason = str(m.get("reason") or "").strip()[:60]
+    return {
+        "reason": reason,
+        "appointment_time": str(m.get("appointment_time") or "")[:40],
+        "round_trip": bool(m.get("round_trip")),
+        "return_mode": m.get("return_mode") if m.get("return_mode") in ("wait", "scheduled") else "wait",
+        "return_time": str(m.get("return_time") or "")[:10],
+        "prescription_url": str(m.get("prescription_url") or "")[:600],
+    }
+
+
 @router.post("/bookings")
 async def create_booking(request: Request):
     user = await get_current_user(request)
@@ -356,6 +374,7 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
         "pickup": body.get("pickup") or {},
         "dropoff": body.get("dropoff") or {},
         "trip_type": body.get("trip_type") or "standard",   # standard | medical | recurring
+        "medical": _clean_medical(body.get("medical")) if (body.get("trip_type") == "medical") else None,
         "recurrence": body.get("recurrence"),                # daily | weekly | monthly | null
         "scheduled_at": scheduled_at or body.get("scheduled_at"),
         "fare_estimate": fare,

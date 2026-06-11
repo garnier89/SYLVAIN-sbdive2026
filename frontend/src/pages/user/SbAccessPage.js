@@ -40,6 +40,8 @@ export default function SbAccessPage() {
   const [dropoff, setDropoff] = useState(null);
   const [tripType, setTripType] = useState('standard');
   const [recurrence, setRecurrence] = useState('');
+  const [medical, setMedical] = useState({ reason: '', appointment_time: '', round_trip: false, return_mode: 'wait', return_time: '', prescription_url: '' });
+  const [uploadingRx, setUploadingRx] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [selectedCat, setSelectedCat] = useState(null);
   const [booking, setBooking] = useState(null);
@@ -139,6 +141,19 @@ export default function SbAccessPage() {
     if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
   };
 
+  const uploadPrescription = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingRx(true);
+    try { const r = await accessAPI.uploadImage(file); setMedical((m) => ({ ...m, prescription_url: r.data.url })); toast.success('Justificatif ajouté'); }
+    catch { toast.error("Échec de l'upload"); }
+    setUploadingRx(false);
+  };
+  const startMedicalFlow = () => {
+    setTripType('medical');
+    setRecurrence('');
+    setStep(0);
+  };
+
   // Réglages d'accessibilité (persistés)
   const [largeText, setLargeText] = useState(() => localStorage.getItem('a11y_large_text') === '1');
   const [highContrast, setHighContrast] = useState(() => localStorage.getItem('a11y_high_contrast') === '1');
@@ -196,6 +211,8 @@ export default function SbAccessPage() {
         companion_count: companions, extra_assistance_time: extraTime,
         pickup, dropoff, trip_type: tripType, recurrence: recurrence || null,
         distance_km, duration_min,
+        medical: tripType === 'medical' ? medical : null,
+        scheduled_at: tripType === 'medical' && medical.appointment_time ? medical.appointment_time : null,
       });
       // Sauvegarde silencieuse du profil pour les prochaines fois
       accessAPI.updateProfile({
@@ -356,6 +373,18 @@ export default function SbAccessPage() {
                 <div><p className="font-semibold text-gray-900">{f.t}</p><p className="text-sm text-gray-700">{f.d}</p></div>
               </div>
             ))}
+          </div>
+          <div className="px-5 pb-2 flex gap-3">
+            <button onClick={startMedicalFlow} data-testid="access-medical-entry"
+              className="flex-1 flex items-center gap-3 p-4 rounded-xl text-left focus:ring-2 focus:ring-offset-1"
+              style={{ border: '2px solid #FCA5A5', background: '#FEF2F2' }}>
+              <span className="w-11 h-11 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: '#e11d48' }} aria-hidden="true"><FirstAid size={22} weight="fill" /></span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-bold text-rose-700">Trajet médical</span>
+                <span className="block text-sm text-rose-600/90">Dialyse, rééducation, hôpital — aller-retour & justificatif.</span>
+              </span>
+              <CaretRight size={20} weight="bold" className="text-rose-400 shrink-0" />
+            </button>
           </div>
           {pastBookings.length > 0 && (
             <div className="px-5 pb-4" data-testid="access-recent-trips">
@@ -553,6 +582,53 @@ export default function SbAccessPage() {
                     ))}
                   </div>
                 </div>
+                {tripType === 'medical' && (
+                  <div className="rounded-xl p-4 space-y-3" style={{ border: '2px solid #FCA5A5', background: '#FEF2F2' }} data-testid="access-medical-details">
+                    <p className="flex items-center gap-2 text-sm font-bold text-rose-700"><FirstAid size={18} weight="fill" /> Détails du trajet médical</p>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Motif</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['Dialyse', 'Rééducation', 'Consultation', 'Examen', 'Chimiothérapie', 'Autre'].map((m) => (
+                          <button key={m} onClick={() => setMedical((x) => ({ ...x, reason: m }))} data-testid={`medical-reason-${m}`}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-full border"
+                            style={medical.reason === m ? { background: NAVY, color: '#fff', borderColor: 'transparent' } : { color: '#374151', borderColor: '#D1D5DB' }}>{m}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Heure du rendez-vous</label>
+                      <input type="datetime-local" value={medical.appointment_time} onChange={(e) => setMedical((x) => ({ ...x, appointment_time: e.target.value }))} data-testid="medical-appointment-time"
+                        className="w-full min-h-[44px] px-3 rounded-lg text-gray-900" style={{ border: cardBorder }} />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-gray-800">
+                      <input type="checkbox" checked={medical.round_trip} onChange={(e) => setMedical((x) => ({ ...x, round_trip: e.target.checked }))} data-testid="medical-round-trip" />
+                      Aller-retour (retour à domicile prévu)
+                    </label>
+                    {medical.round_trip && (
+                      <div className="grid grid-cols-2 gap-2" data-testid="medical-return-options">
+                        {[{ k: 'wait', l: 'Le chauffeur attend' }, { k: 'scheduled', l: 'Retour programmé' }].map(({ k, l }) => (
+                          <button key={k} onClick={() => setMedical((x) => ({ ...x, return_mode: k }))} data-testid={`medical-return-${k}`}
+                            className="min-h-[44px] rounded-lg text-xs font-semibold"
+                            style={medical.return_mode === k ? { background: '#FFF3ED', border: `2px solid ${ORANGE}`, color: NAVY } : { border: cardBorder, color: '#374151' }}>{l}</button>
+                        ))}
+                        {medical.return_mode === 'scheduled' && (
+                          <input type="time" value={medical.return_time} onChange={(e) => setMedical((x) => ({ ...x, return_time: e.target.value }))} data-testid="medical-return-time"
+                            className="col-span-2 min-h-[44px] px-3 rounded-lg text-gray-900" style={{ border: cardBorder }} />
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Bon de transport / justificatif (optionnel)</p>
+                      <div className="flex items-center gap-3">
+                        {medical.prescription_url && <img src={medical.prescription_url} alt="" className="w-12 h-12 rounded-lg object-cover" data-testid="medical-rx-preview" />}
+                        <label className="px-3 py-2 text-xs font-semibold rounded-lg cursor-pointer" style={{ border: cardBorder, color: NAVY }}>
+                          {uploadingRx ? 'Envoi…' : (medical.prescription_url ? 'Remplacer' : 'Ajouter une photo')}
+                          <input type="file" accept="image/*" className="hidden" onChange={uploadPrescription} data-testid="medical-rx-input" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <p className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-2"><ArrowClockwise size={18} weight="bold" style={{ color: NAVY }} /> Trajet récurrent (optionnel)</p>
                   <div className="grid grid-cols-4 gap-2">
@@ -611,6 +687,14 @@ export default function SbAccessPage() {
                   <Row k="Prix estimé" v={`${Number(booking.fare_estimate).toFixed(2)} €`} />
                   <Row k="Départ" v={booking.pickup?.address || '—'} />
                   <Row k="Destination" v={booking.dropoff?.address || '—'} />
+                  {booking.trip_type === 'medical' && booking.medical && (
+                    <div className="pt-1 mt-1 border-t" style={{ borderColor: '#E5E7EB' }} data-testid="medical-confirmation">
+                      {booking.medical.reason && <Row k="Motif médical" v={booking.medical.reason} />}
+                      {booking.medical.appointment_time && <Row k="Rendez-vous" v={String(booking.medical.appointment_time).replace('T', ' à ')} />}
+                      {booking.medical.round_trip && <Row k="Retour" v={booking.medical.return_mode === 'wait' ? 'Le chauffeur attend' : `Programmé${booking.medical.return_time ? ` à ${booking.medical.return_time}` : ''}`} />}
+                      {booking.medical.prescription_url && <Row k="Justificatif" v="Joint ✓" />}
+                    </div>
+                  )}
                   {booking.extra_assistance_minutes > 0 && <Row k="Assistance" v={`+${booking.extra_assistance_minutes} min offertes`} />}
                   <div className="pt-2">
                     {booking.certified_driver ? (
