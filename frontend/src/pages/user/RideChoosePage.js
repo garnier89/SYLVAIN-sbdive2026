@@ -22,6 +22,7 @@ import {
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import RideRouteMap from '../../components/RideRouteMap';
+import StudentPromoBanner from '../../components/StudentPromoBanner';
 import DynamicIcon from '../../components/DynamicIcon';
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI, debtsAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
@@ -963,6 +964,7 @@ const RideChoosePage = () => {
       </div>
 
       <div className="flex-1 bg-gray-50 px-4 pt-4 pb-36 overflow-y-auto">
+        <StudentPromoBanner />
         {/* Address card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 space-y-2">
           <div>

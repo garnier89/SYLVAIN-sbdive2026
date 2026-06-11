@@ -1,4 +1,8 @@
-## NEW - 2026-06-11 (252) - 🎓 SB Drive Student (SB School) — PHASE 1 Fondations (DONE, testé 5/5 pytest + 17/17 e2e + frontend 100%)
+## NEW - 2026-06-11 (253) - Bandeau promo "-20% étudiant" sur écran de réservation (DONE)
+- `components/StudentPromoBanner.jsx` : bandeau auto-fetch `/student/me`, affiché UNIQUEMENT si user non vérifié + module activé + ride_discount_pct>0. Cliquable → `/sb-student`, fermable (sessionStorage), violet (#5B21B6). Inséré en haut du contenu de `RideChoosePage.js` (`data-testid=student-promo-banner` / `student-promo-dismiss`).
+- Vérifié : build OK + contrat `/student/me` confirmé (fresh user → is_student=false, enabled=true, pct=20 → banner s'affiche). NB: harness screenshot ne propage pas la session cookie au SPA (limitation outil, pas un bug) ; testing_agent iter252 a déjà validé l'auth cookie + APIs student.
+
+ (DONE, testé 5/5 pytest + 17/17 e2e + frontend 100%)
 - **Demande user** : module mobilité étudiante complet (14 sous-modules) → livré par phases. User a confirmé : pool→"SB School"/Campus Share (Phase 3), vérification = email OTP + document, tarifs 100% admin-configurables, zones/pays/domaines gérés par l'admin (incl. Afrique), IA = oui (Gemini, Phase 6).
 - **Backend** `routes/student.py` (préfixe /api/student) :
   - Vérification statut : (a) **email universitaire OTP** (`/verify/email/request` + `/confirm`, code 6 chiffres hashé, TTL 15min, cooldown 60s, domaine doit être actif) ; (b) **upload document** (`POST /documents` → statut pending → validation admin).

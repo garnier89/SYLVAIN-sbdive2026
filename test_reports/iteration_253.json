@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 253 — SB Drive Student Phase 2 Pass Campus + Récurrents. Backend HTTP e2e (5 tests, 100% PASS) + Frontend e2e (mobile /sb-student et /sb-student/recurrents + desktop /admin/student onglet Pass Campus). Tout fonctionnel: plans seedés (plan_monthly 19.99€/-25% +5€ crédits ; plan_semester 89.99€/-30% +10€ crédits), souscription wallet débit+crédits inclus, 400 sans fonds, 409 déjà actif, cancel→cancelled, GET subscription cohérent. Récurrents CRUD + book-next + toggle actif OK. Admin Pass CRUD (POST/PUT/DELETE) + guard non-admin (401/403) OK. UI 100% FR, violet #5B21B6 cohérent.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter253_campus_e2e.py",
+    "/app/test_reports/pytest/iter253_e2e_results.xml",
+    "/app/backend/tests/test_iter253_campus.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/student_campus.py (345 lignes) — bien structuré, async, ObjectId exclu via {'_id': 0}, gestion d'erreurs HTTP propre (400/404/409/403). Pas de refactor nécessaire.",
+    "subscribe(): la transaction wallet est non-atomique (deux update_one séquentiels: débit puis crédit, plus l'insert sub). Si le serveur crash entre les étapes, l'utilisateur peut être débité sans Pass actif. Recommandation: utiliser une session MongoDB avec transaction OU au moins regrouper le solde net en un seul update et créer la sub avant le tx de crédit. Non bloquant — risque très faible.",
+    "_next_occurrences(): pour frequency='weekly' avec days_of_week=[], retourne 0 occurrences (silencieusement). Validation: refuser weekly sans days_of_week à la création (400) plutôt que de créer une récurrence inerte.",
+    "AdminStudent.js Passes: la liste des plans s'affiche après ~2-3s (deux fetchs successifs visibles dans network car double-render React 18 strict-mode). Fonctionnel mais ajouter un état 'Chargement…' au lieu d'afficher 'Aucun Pass.' tant que l'API n'a pas répondu améliorerait l'UX.",
+    "book-next: ne crée pas de course (volonté: deep-link vers /course pré-rempli). OK mais documenter dans le payload de réponse (commentaire/champ) pour éviter toute confusion future côté front."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter253_campus_e2e.py (nouveau — 5 tests HTTP e2e: plans, subscribe sans/avec fonds, 409, cancel, recurring CRUD + book-next, admin CRUD + guard)"
+  ],
+  "success_rate": {"backend": "100% (5/5 e2e + 4/4 in-process pytest pre-existants)", "frontend": "100% (toutes assertions OK: campus-plans, campus-subscribe-*, campus-active-sub, sb-recurring-page, recurring-add/save/item/book/toggle, admin-student-tab-passes, admin-student-passes, pass-row/price/discount_pct/toggle/del)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. User: créé via POST /api/auth/register (préfixe campus_e2e_/playwright_campus_).",
+  "seed_data_creation": "Aucune seed permanente côté backend. Les Pass Mensuel/Semestriel sont seedés automatiquement par ensure_plans_seeded() au premier appel. Les tests créent des users + wallets + récurrents éphémères. Le test admin crée un Pass TEST_ et le supprime à la fin.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 2 SB Student (iter253) entièrement validée: 1) Backend pytest in-process /app/backend/tests/test_iter253_campus.py (4/4) — discount boost + _next_occurrences. 2) Backend HTTP e2e /app/backend/tests/test_iter253_campus_e2e.py (5/5) — plans, subscribe (400/200/409), cancel, recurring CRUD, book-next, admin CRUD + guard. 3) Frontend e2e validé sur preview URL: /sb-student (CampusPassSection + entrée récurrents) + /sb-student/recurrents (form/save/item/book/toggle) + /admin/student onglet 'Pass Campus' (liste + inline edit + toggle + delete + add). Plans seedés visibles: plan_monthly (19.99€, -25%, 5€ crédits, 30j) + plan_semester (89.99€, -30%, 10€ crédits, 180j). 'Réserver le prochain' renvoie occurrence_at + booking_payload {pickup,dropoff,mode,scheduled_at} — pas de création auto de course (deep-link vers /course pré-rempli, voulu). Wallet topup limité à 200€/op mais l'API accepte les valeurs cumulatives. CORS+cookies session OK avec credentials:'include'.",
+  "rca of the issue": "N/A — aucun bug détecté. Note: lors du premier run frontend admin, l'inspection des pass-row a été faite trop tôt (avant la fin du fetch). Avec un wait de 3s, les 2 plans sont bien rendus avec tous les testids attendus (pass-price-{id}, pass-discount_pct-{id}, pass-toggle-{id}, pass-del-{id})."
+}

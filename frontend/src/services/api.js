@@ -733,6 +733,21 @@ export const studentAPI = {
   adminApprove: (userId) => api.post(`/student/admin/${userId}/approve`),
   adminReject: (userId, reason) => api.post(`/student/admin/${userId}/reject`, { reason }),
   adminStats: () => api.get('/student/admin/stats'),
+  // Pass Campus
+  campusPlans: () => api.get('/student/campus/plans'),
+  campusSubscription: () => api.get('/student/campus/subscription'),
+  campusSubscribe: (planId) => api.post('/student/campus/subscribe', { plan_id: planId }),
+  campusCancel: () => api.post('/student/campus/subscription/cancel'),
+  campusAdminPlans: () => api.get('/student/campus/admin/plans'),
+  campusAdminCreatePlan: (data) => api.post('/student/campus/admin/plans', data),
+  campusAdminUpdatePlan: (id, data) => api.put(`/student/campus/admin/plans/${id}`, data),
+  campusAdminDeletePlan: (id) => api.delete(`/student/campus/admin/plans/${id}`),
+  // Recurring bookings
+  recurringList: () => api.get('/student/campus/recurring'),
+  recurringCreate: (data) => api.post('/student/campus/recurring', data),
+  recurringUpdate: (id, data) => api.put(`/student/campus/recurring/${id}`, data),
+  recurringDelete: (id) => api.delete(`/student/campus/recurring/${id}`),
+  recurringBookNext: (id) => api.get(`/student/campus/recurring/${id}/book-next`),
 };
 
 export default api;

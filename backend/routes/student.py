@@ -124,6 +124,16 @@ async def compute_student_discount(user_id: str, fare: float, kind: str = "ride"
             "campus": cfg.get("campus_discount_pct", 0.0),
         }
         pct = float(pct_map.get(kind, cfg.get("ride_discount_pct", 0.0)) or 0.0)
+        # Pass Campus: an active subscription grants a permanent (usually higher) discount.
+        try:
+            sub = await db.campus_subscriptions.find_one(
+                {"user_id": user_id, "status": "active",
+                 "expires_at": {"$gt": datetime.now(timezone.utc).isoformat()}},
+                {"_id": 0, "discount_pct": 1})
+            if sub and float(sub.get("discount_pct", 0) or 0) > pct:
+                pct = float(sub["discount_pct"])
+        except Exception:
+            pass
         raw = round(float(fare) * pct / 100.0, 2)
         if raw <= 0:
             return {"amount": 0.0, "pct": pct, "kind": kind, "eligible": True}

@@ -9,6 +9,7 @@ import { studentAPI } from '../../services/api';
 const TABS = [
   { key: 'dashboard', label: 'Tableau de bord' },
   { key: 'pricing', label: 'Tarification' },
+  { key: 'passes', label: 'Pass Campus' },
   { key: 'domains', label: 'Domaines email' },
   { key: 'students', label: 'Étudiants' },
 ];
@@ -29,6 +30,7 @@ const AdminStudent = () => {
       </div>
       {tab === 'dashboard' && <Dashboard />}
       {tab === 'pricing' && <Pricing />}
+      {tab === 'passes' && <Passes />}
       {tab === 'domains' && <Domains />}
       {tab === 'students' && <Students />}
     </div>
@@ -112,6 +114,48 @@ const Pricing = () => {
     </div>
   );
 };
+
+const Passes = () => {
+  const [plans, setPlans] = useState([]);
+  const load = useCallback(() => { studentAPI.campusAdminPlans().then((r) => setPlans(r.data.plans || [])).catch(() => {}); }, []);
+  useEffect(() => { load(); }, [load]);
+  const patch = async (id, field, value) => { try { await studentAPI.campusAdminUpdatePlan(id, { [field]: value }); load(); } catch { toast.error('Échec'); } };
+  const del = async (id) => { if (!window.confirm('Supprimer ce Pass ?')) return; try { await studentAPI.campusAdminDeletePlan(id); load(); } catch { toast.error('Échec'); } };
+  const addPlan = async () => {
+    try { await studentAPI.campusAdminCreatePlan({ name: 'Nouveau Pass', type: 'monthly', price: 9.99, duration_days: 30, discount_pct: 15, included_credits: 0, perks: [] }); toast.success('Pass créé'); load(); }
+    catch { toast.error('Échec'); }
+  };
+  return (
+    <div className="space-y-3" data-testid="admin-student-passes">
+      <button onClick={addPlan} className="px-4 py-2 rounded-lg font-bold text-white bg-violet-600 text-sm" data-testid="pass-add-btn">+ Ajouter un Pass</button>
+      {plans.map((p) => (
+        <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-4" data-testid={`pass-row-${p.id}`}>
+          <div className="flex items-center justify-between mb-2">
+            <input defaultValue={p.name} onBlur={(e) => e.target.value !== p.name && patch(p.id, 'name', e.target.value)} className="font-bold text-slate-800 border-b border-transparent focus:border-slate-300 outline-none" data-testid={`pass-name-${p.id}`} />
+            <div className="flex items-center gap-3">
+              <button onClick={() => patch(p.id, 'enabled', !p.enabled)} className={`px-2 py-1 rounded-full text-xs font-bold ${p.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`} data-testid={`pass-toggle-${p.id}`}>{p.enabled ? 'Actif' : 'Inactif'}</button>
+              <button onClick={() => del(p.id)} className="text-red-500 text-xs font-semibold" data-testid={`pass-del-${p.id}`}>Suppr.</button>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-3 text-xs">
+            <PassNum p={p} k="price" label="Prix €" patch={patch} />
+            <PassNum p={p} k="duration_days" label="Durée (j)" patch={patch} />
+            <PassNum p={p} k="discount_pct" label="Réduc %" patch={patch} />
+            <PassNum p={p} k="included_credits" label="Crédits €" patch={patch} />
+          </div>
+        </div>
+      ))}
+      {plans.length === 0 && <p className="text-slate-400 text-sm">Aucun Pass.</p>}
+    </div>
+  );
+};
+
+const PassNum = ({ p, k, label, patch }) => (
+  <div>
+    <label className="text-[11px] font-semibold text-slate-500">{label}</label>
+    <input type="number" defaultValue={p[k]} onBlur={(e) => Number(e.target.value) !== p[k] && patch(p.id, k, Number(e.target.value))} className="block w-full border border-slate-200 rounded-lg px-2 py-1.5 mt-0.5" data-testid={`pass-${k}-${p.id}`} />
+  </div>
+);
 
 const Domains = () => {
   const [list, setList] = useState([]);

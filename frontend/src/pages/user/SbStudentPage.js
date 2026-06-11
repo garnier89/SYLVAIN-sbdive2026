@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   GraduationCap, CaretLeft, EnvelopeSimple, IdentificationCard, CheckCircle,
-  Clock, XCircle, Sparkle, Percent,
+  Clock, XCircle, Sparkle, Percent, ArrowsClockwise, CaretRight, Crown, Check,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
 
@@ -138,6 +138,16 @@ const SbStudentPage = () => {
             </div>
           )}
 
+          {/* Pass Campus */}
+          <CampusPassSection navigate={navigate} onChange={load} />
+
+          {/* Recurring bookings entry */}
+          <button onClick={() => navigate('/sb-student/recurrents')} className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3" data-testid="student-recurring-entry">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: BRAND + '15' }}><ArrowsClockwise size={20} weight="duotone" style={{ color: BRAND }} /></div>
+            <div className="flex-1 text-left"><p className="font-bold text-gray-900 text-sm">Mes trajets récurrents</p><p className="text-xs text-gray-500">Campus → Résidence, Résidence → Gare…</p></div>
+            <CaretRight size={18} className="text-gray-300" />
+          </button>
+
           {/* Verification (hidden once verified) */}
           {!verified && (
             <div className="bg-white rounded-2xl p-4 shadow-sm" data-testid="student-verify-card">
@@ -198,6 +208,65 @@ const SbStudentPage = () => {
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+const CampusPassSection = ({ navigate, onChange }) => {
+  const [plans, setPlans] = useState([]);
+  const [sub, setSub] = useState(null);
+  const [busy, setBusy] = useState('');
+  const load = () => {
+    studentAPI.campusPlans().then((r) => setPlans(r.data.plans || [])).catch(() => {});
+    studentAPI.campusSubscription().then((r) => setSub(r.data.subscription)).catch(() => {});
+  };
+  useEffect(() => { load(); }, []);
+  const subscribe = async (planId) => {
+    setBusy(planId);
+    try {
+      await studentAPI.campusSubscribe(planId);
+      toast.success('Pass Campus activé 🎓');
+      load(); onChange && onChange();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec de la souscription'); }
+    finally { setBusy(''); }
+  };
+  const cancel = async () => {
+    if (!window.confirm('Résilier votre Pass Campus ?')) return;
+    try { await studentAPI.campusCancel(); toast.success('Pass résilié'); load(); } catch { toast.error('Échec'); }
+  };
+
+  if (sub) {
+    return (
+      <div className="bg-white rounded-2xl p-4 shadow-sm" data-testid="campus-active-sub">
+        <div className="flex items-center gap-2 mb-1"><Crown size={20} weight="fill" className="text-amber-500" /><p className="font-bold text-gray-900">{sub.plan_name} actif</p></div>
+        <p className="text-xs text-gray-500">Réduction permanente -{sub.discount_pct}% · Expire le {(sub.expires_at || '').split('T')[0]}</p>
+        <button onClick={cancel} className="mt-2 text-xs text-red-500 font-semibold" data-testid="campus-cancel-btn">Résilier le Pass</button>
+      </div>
+    );
+  }
+  if (plans.length === 0) return null;
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow-sm" data-testid="campus-plans">
+      <div className="flex items-center gap-2 mb-1"><Crown size={20} weight="fill" className="text-amber-500" /><p className="font-bold text-gray-900">Pass Campus</p></div>
+      <p className="text-xs text-gray-500 mb-3">Abonnez-vous pour des réductions permanentes et des crédits inclus.</p>
+      <div className="space-y-3">
+        {plans.map((p) => (
+          <div key={p.id} className="border border-gray-100 rounded-xl p-3" data-testid={`campus-plan-${p.id}`}>
+            <div className="flex items-center justify-between">
+              <div><p className="font-bold text-gray-900 text-sm">{p.name}</p><p className="text-xs text-gray-400">{p.type === 'semester' ? 'Semestriel' : 'Mensuel'} · -{p.discount_pct}%</p></div>
+              <p className="font-black text-gray-900">{Number(p.price).toFixed(2)} €</p>
+            </div>
+            {(p.perks || []).length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {p.perks.map((perk, i) => <li key={i} className="flex items-center gap-1.5 text-xs text-gray-600"><Check size={13} className="text-emerald-500" />{perk}</li>)}
+              </ul>
+            )}
+            <button onClick={() => subscribe(p.id)} disabled={busy === p.id} className="w-full mt-3 py-2.5 rounded-xl font-bold text-white disabled:opacity-50" style={{ background: BRAND }} data-testid={`campus-subscribe-${p.id}`}>
+              {busy === p.id ? 'Souscription…' : 'Souscrire'}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
