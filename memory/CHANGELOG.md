@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-06-11 — Réservation de taxi via WhatsApp (branchement complet) [DONE, testé]
+La config WhatsApp (taxi_booking) était présente côté admin (`whatsapp_enabled`, `whatsapp_number`, `whatsapp_message_template`, flag `allow_whatsapp_booking` par véhicule) mais JAMAIS consommée côté client → l'option ne fonctionnait pas (badge décoratif, aucun bouton).
+- **`RideChoosePage.js`** : helper `buildWaUrl(vehSlug)` qui construit un lien `https://wa.me/{numéro}?text=...` en remplaçant les variables du modèle (`{mode}` `{pickup}` `{dropoff}` `{vehicle}` `{price}` `{when}` `{payment}`) avec les détails réels de la course.
+  - **Bouton « Réserver via WhatsApp »** (vert) ajouté dans `renderCta`, visible quand `whatsapp_enabled` + numéro configurés.
+  - **Badge WhatsApp cliquable par véhicule** : sur chaque carte véhicule ayant `allow_whatsapp_booking`, ouvre WhatsApp pré-rempli pour CE véhicule (stopPropagation pour ne pas sélectionner).
+  - Import `WhatsappLogo`. Barres CTA étape 1 passées `z-20 → z-40` (au-dessus de la bannière email z-30).
+- Vérifié e2e (préview, config déjà active : n° 33767532661, véhicules SB+Moto) : bouton principal présent avec lien correct `wa.me/33767532661?text=Bonjour SB Drive…`, 2 badges véhicule cliquables. `RideMapStep.jsx` (composant orphelin non rendu) laissé tel quel.
+- **Où activer** : Admin → config taxi (whatsapp_enabled + numéro + modèle de message) ; flag par véhicule dans AdminVehicleTypes (`allow_whatsapp_booking`).
+
+
 ## 2026-06-11 — Audit fonctionnel + correction 2 bugs racines P0 [DONE, testé]
 
 Audit complet (testing_agent iter266) suite au signalement utilisateur « beaucoup de modifs du dashboard pas visibles côté apps + boutons/actions morts + livraison repas ne marche pas ». Résultat : backend largement fonctionnel (14/16) ; **2 causes racines** identifiées et corrigées :

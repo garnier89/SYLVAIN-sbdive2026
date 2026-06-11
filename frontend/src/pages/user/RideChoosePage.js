@@ -17,7 +17,7 @@ import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
   Money, CreditCard, Wallet, CheckCircle, Lightning, Info,
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
-  CaretDown, MapTrifold, BellRinging,
+  CaretDown, MapTrifold, BellRinging, WhatsappLogo,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
@@ -725,6 +725,13 @@ const RideChoosePage = () => {
                   {badgeCfg.enabled && v.slug === bestSlug && (
                     <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide shrink-0 ${BADGE_COLOR_CLASSES[badgeCfg.color] || BADGE_COLOR_CLASSES.Vert}`} data-testid={`best-choice-${v.slug}`}>{badgeCfg.label}</span>
                   )}
+                  {cfg.whatsapp_enabled && cfg.whatsapp_number && v.allow_whatsapp_booking && (
+                    <a href={buildWaUrl(v.slug)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+                      data-testid={`vehicle-whatsapp-${v.slug}`}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-[#25D366] text-white shrink-0 active:scale-95 transition-transform">
+                      <WhatsappLogo size={11} weight="fill" /> WhatsApp
+                    </a>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {est.loading ? <div className="h-5 w-14 bg-gray-100 rounded animate-pulse" />
@@ -812,6 +819,30 @@ const RideChoosePage = () => {
     );
   };
 
+  // Build a WhatsApp deep-link pre-filled with the current ride details, using the
+  // admin-configured number + message template (config taxi_booking). Returns null
+  // when WhatsApp booking is disabled or no number is set.
+  const buildWaUrl = (vehSlug) => {
+    const num = String(cfg.whatsapp_number || '').replace(/[^0-9]/g, '');
+    if (!cfg.whatsapp_enabled || !num) return null;
+    const slug = vehSlug || selected;
+    const veh = effectiveVtypes.find((v) => v.slug === slug);
+    const fare = slug ? estimates[slug]?.fare : null;
+    const payLabel = payments.find((p) => p.id === payment)?.label || payment;
+    const when = (scheduleLater && scheduledAt)
+      ? new Date(scheduledAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+      : 'Maintenant';
+    const msg = String(cfg.whatsapp_message_template || '')
+      .replace(/{mode}/g, catName || mode.label || '')
+      .replace(/{pickup}/g, pickup?.address || '—')
+      .replace(/{dropoff}/g, dropoff?.address || '—')
+      .replace(/{vehicle}/g, veh?.name_fr || veh?.name || veh?.slug || '—')
+      .replace(/{price}/g, fare != null ? money(Number(fare)) : 'à confirmer')
+      .replace(/{when}/g, when)
+      .replace(/{payment}/g, payLabel || '—');
+    return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+  };
+
   const renderCta = () => {
     const selName = effectiveVtypes.find((v) => v.slug === selected)?.name_fr || effectiveVtypes.find((v) => v.slug === selected)?.name;
     const label = searching
@@ -821,13 +852,22 @@ const RideChoosePage = () => {
         : (showComparison && selName)
           ? `Choisir ${selName}`
           : `${mode.cta || 'Demander'}${displayPrice != null ? ` · ${money(Number(displayPrice))}` : ''}`;
+    const waUrl = buildWaUrl();
     return (
-      <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error)) || (isBidding && !selected)}
-        className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
-        style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
-        <Lightning size={20} weight="fill" />
-        {label}
-      </button>
+      <>
+        <button onClick={onRequest} disabled={searching || (showComparison && (!selected || estimates[selected]?.loading || estimates[selected]?.error)) || (isBidding && !selected)}
+          className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50"
+          style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="ride-choose-request-btn">
+          <Lightning size={20} weight="fill" />
+          {label}
+        </button>
+        {waUrl && (
+          <a href={waUrl} target="_blank" rel="noreferrer" data-testid="ride-choose-whatsapp-btn"
+            className="mt-2 w-full py-3 rounded-xl font-bold text-base flex items-center justify-center gap-2 bg-[#25D366] text-white active:scale-[0.98] transition-transform">
+            <WhatsappLogo size={20} weight="fill" /> Réserver via WhatsApp
+          </a>
+        )}
+      </>
     );
   };
 
@@ -1046,13 +1086,13 @@ const RideChoosePage = () => {
 
       {/* Sticky bottom bar */}
       {needsDropoff && bothSet ? (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-20">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-40">
           <button onClick={() => setShowMap(true)} className="w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform" style={{ backgroundColor: '#FF5000', color: '#0B1426' }} data-testid="continue-to-map-btn">
             <NavigationArrow size={20} weight="fill" /> Continuer · Voir les tarifs
           </button>
         </div>
       ) : (!needsDropoff && bothSet && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-20">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 p-4 z-40">
           {renderCta()}
         </div>
       ))}
