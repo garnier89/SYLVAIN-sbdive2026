@@ -550,24 +550,34 @@ def _recurring_due(rec: dict, now_local) -> bool:
 
 
 async def _send_recurring_reminder(rec: dict, occ):
-    """Notif in-app + email J-1 pour une occurrence à venir, avec lien d'annulation."""
+    """Notif in-app + email J-1 pour une occurrence à venir, avec lien d'annulation
+    et le chauffeur certifié Access pressenti (rassure les usagers PMR récurrents)."""
     user = await db.users.find_one({"id": rec["user_id"]}, {"_id": 0, "name": 1, "email": 1})
     when = _occurrence_label(occ)
     pickup = (rec.get("pickup") or {}).get("address") or "—"
     dropoff = (rec.get("dropoff") or {}).get("address") or "—"
     cat = await db.access_categories.find_one({"key": rec.get("category_key")}, {"_id": 0, "name": 1})
     vehicle = (cat or {}).get("name", "")
+    # Chauffeur certifié pressenti
+    settings = await _get_settings()
+    driver_name = ""
+    if settings.get("priority_certified_drivers", True):
+        drv = await db.users.find_one({"role": "driver", "access_certified": True}, {"_id": 0, "name": 1})
+        driver_name = (drv or {}).get("name", "")
+    driver_line = f" Votre chauffeur certifié {driver_name} vous prendra en charge." if driver_name else ""
     await create_notification(
         rec["user_id"], "access_recurring_reminder",
         "Trajet adapté de demain confirmé",
-        f"Votre trajet adapté est prévu {when} ({pickup} → {dropoff}). Annulez en 1 tap si besoin.",
-        data={"recurring_id": rec["id"], "occurrence": occ.strftime("%Y-%m-%d"), "action": "manage_recurring"},
+        f"Votre trajet adapté est prévu {when} ({pickup} → {dropoff}).{driver_line} Annulez en 1 tap si besoin.",
+        data={"recurring_id": rec["id"], "occurrence": occ.strftime("%Y-%m-%d"), "action": "manage_recurring",
+              "driver_name": driver_name},
     )
     email = (user or {}).get("email", "")
     if email and not email.endswith("@sbdrive.local"):
         manage_url = f"{os.environ.get('FRONTEND_URL', '').rstrip('/')}/access"
+        veh_label = f"{vehicle} · Chauffeur certifié {driver_name}" if driver_name else vehicle
         fire(send_access_recurring_reminder(
-            email, (user or {}).get("name", ""), when, pickup, dropoff, vehicle, manage_url))
+            email, (user or {}).get("name", ""), when, pickup, dropoff, veh_label, manage_url))
 
 
 async def access_recurring_loop():

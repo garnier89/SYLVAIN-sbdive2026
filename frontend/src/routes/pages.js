@@ -206,6 +206,7 @@ export const AdminHomeCategories = lazy(() => import('../pages/admin/AdminHomeCa
 export const AdminPromoBanners = lazy(() => import('../pages/admin/AdminPromoBanners'));
 export const AdminNews = lazy(() => import('../pages/admin/AdminNews'));
 export const AdminStudent = lazy(() => import('../pages/admin/AdminStudent'));
+export const AdminAccess = lazy(() => import('../pages/admin/AdminAccess'));
 export const SbStudentPage = lazyWithPreload(() => import('../pages/user/SbStudentPage'));
 export const SbRecurringPage = lazyWithPreload(() => import('../pages/user/SbRecurringPage'));
 export const SbCampusSharePage = lazyWithPreload(() => import('../pages/user/SbCampusSharePage'));

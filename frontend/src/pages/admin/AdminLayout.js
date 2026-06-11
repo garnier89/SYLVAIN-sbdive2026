@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe, GraduationCap,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, BellRinging, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard, Wheelchair
 } from '@phosphor-icons/react';
 
 // Dashboard organisé en grandes familles : Pilotage, Membres, Services,
@@ -118,6 +118,7 @@ const sidebarConfig = [
       { icon: Bus, label: 'Transports publics', key: 'transport', children: [
         { label: 'Arrêts & lignes', path: '/admin/transport' },
       ]},
+      { icon: Wheelchair, label: 'SB Drive Access (PMR)', path: '/admin/access' },
     ]
   },
   {
