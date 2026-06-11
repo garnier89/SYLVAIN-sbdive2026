@@ -26,6 +26,8 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
   const [busy, setBusy] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [partialMode, setPartialMode] = useState(false);
+  const [partialAmount, setPartialAmount] = useState('');
 
   const cur = (n) => `${(Number(n) || 0).toFixed(2)} €`;
 
@@ -62,17 +64,19 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
     setStep('success');
   };
 
-  const confirmCash = async (received) => {
+  const confirmCash = async (payload) => {
     if (busy) return;
     setBusy(true);
     try {
-      await rideAPI.collectCash(ride.id, received);
-      toast[received ? 'success' : 'info'](
-        received ? 'Paiement perçu ✓' : "Montant ajouté à la dette du client."
-      );
+      const res = await rideAPI.collectCash(ride.id, payload);
+      const d = res?.data || {};
+      if (d.received) toast.success('Paiement perçu ✓');
+      else if (Number(d.amount) > 0) toast.info(`Paiement partiel : ${cur(d.amount)} reçu · ${cur(d.shortfall)} ajouté à la dette du client.`);
+      else toast.info("Montant ajouté à la dette du client.");
     } catch {
       toast.error("Action impossible. Réessayez.");
     }
+    setPartialMode(false);
     setBusy(false);
     setStep('rate');
   };
@@ -193,14 +197,35 @@ const RideCompletionFlow = ({ ride, waitingCharge = 0, onDone }) => {
           </div>
         </div>
         {cashDue > 0 ? (
-          <div className="bg-[#0B0B0B] border-t border-white/10 p-4 flex gap-3" data-testid="cash-collect-actions">
-            <button onClick={() => confirmCash(false)} disabled={busy}
-              className="flex-1 py-3.5 rounded-2xl border border-red-400 text-red-300 font-bold disabled:opacity-50"
-              data-testid="cash-not-received-btn">Non reçu</button>
-            <button onClick={() => confirmCash(true)} disabled={busy}
-              className="flex-1 py-3.5 rounded-2xl bg-emerald-500 text-white font-bold disabled:opacity-50"
-              data-testid="cash-received-btn">Reçu · {cur(cashDue)}</button>
-          </div>
+          partialMode ? (
+            <div className="bg-[#0B0B0B] border-t border-white/10 p-4 space-y-3" data-testid="cash-partial-panel">
+              <p className="text-xs text-white/70">Montant réellement reçu en espèces (le reste devient une dette du client).</p>
+              <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-3">
+                <span className="text-gray-500 font-bold">€</span>
+                <input type="number" step="0.50" min="0" max={cashDue} value={partialAmount}
+                  onChange={(e) => setPartialAmount(e.target.value)} placeholder="0.00" autoFocus
+                  className="flex-1 outline-none text-base font-semibold" data-testid="cash-partial-input" />
+                <button onClick={() => setPartialAmount(String(cashDue))} className="text-xs font-bold text-[#FF5000]" data-testid="cash-partial-max">Max</button>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setPartialMode(false); setPartialAmount(''); }} disabled={busy}
+                  className="flex-1 py-3 rounded-2xl border border-white/30 text-white/80 font-bold disabled:opacity-50" data-testid="cash-partial-cancel">Annuler</button>
+                <button onClick={() => confirmCash({ received: false, amount_received: parseFloat(partialAmount) || 0 })} disabled={busy}
+                  className="flex-1 py-3 rounded-2xl bg-amber-500 text-white font-bold disabled:opacity-50" data-testid="cash-partial-confirm">
+                  Valider {(parseFloat(partialAmount) || 0) > 0 ? `· ${cur(parseFloat(partialAmount) || 0)}` : ''}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-[#0B0B0B] border-t border-white/10 p-4 flex gap-3" data-testid="cash-collect-actions">
+              <button onClick={() => setPartialMode(true)} disabled={busy}
+                className="flex-1 py-3.5 rounded-2xl border border-red-400 text-red-300 font-bold disabled:opacity-50"
+                data-testid="cash-not-received-btn">Non / partiel</button>
+              <button onClick={() => confirmCash({ received: true })} disabled={busy}
+                className="flex-1 py-3.5 rounded-2xl bg-emerald-500 text-white font-bold disabled:opacity-50"
+                data-testid="cash-received-btn">Reçu · {cur(cashDue)}</button>
+            </div>
+          )
         ) : (
           <button onClick={() => setStep('rate')} className="bg-[#0B0B0B] text-white text-base font-bold py-4 border-t border-white/10" data-testid="collect-payment-btn">
             COLLECTE DE PAIEMENT

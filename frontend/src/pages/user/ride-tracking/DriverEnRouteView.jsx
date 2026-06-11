@@ -140,6 +140,11 @@ const DriverEnRouteView = ({ ride, driverPos, connected, onBack, onCall, onChat,
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xl font-extrabold text-gray-900 leading-tight truncate" data-testid="enroute-driver-name">{ride.driver_name || 'Chauffeur'}</p>
+          {ride.favorite_driver_assigned && (
+            <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold" data-testid="favorite-driver-badge">
+              <Star size={11} weight="fill" /> Votre favori
+            </span>
+          )}
           {ride.driver_vehicle_number && <p className="text-sm text-gray-500 font-medium">{ride.driver_vehicle_number}</p>}
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0 max-w-[42%]">
