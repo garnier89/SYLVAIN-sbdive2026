@@ -4,12 +4,13 @@
  * AI smart search, and (verified students only) publish a listing with an
  * AI-suggested fair price + auto-generated description.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   CaretLeft, Storefront, MagnifyingGlass, Sparkle, Plus, X, Tag,
   BookOpen, House, UsersThree, Laptop, Wrench, ShoppingBag, Wallet, Camera, Star, Coins, Bell, MapPin, ShieldCheck,
+  ChatCircleDots, EnvelopeSimple, PaperPlaneRight,
 } from '@phosphor-icons/react';
 import { studentAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,6 +37,9 @@ const SbMarketplacePage = () => {
   const [sellOpen, setSellOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const refreshUnread = () => studentAPI.mktConversationsUnread().then((r) => setUnread(r.data.unread || 0)).catch(() => {});
 
   const loadListings = (cat = activeCat, override) => {
     setLoading(true);
@@ -48,6 +52,7 @@ const SbMarketplacePage = () => {
   useEffect(() => {
     studentAPI.mktCategories().then((r) => setCats(r.data.categories || [])).catch(() => {});
     studentAPI.me().then((r) => setVerified(!!r.data.is_student)).catch(() => {});
+    refreshUnread();
     loadListings('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -80,7 +85,13 @@ const SbMarketplacePage = () => {
             <Storefront size={28} weight="fill" />
             <h1 className="text-2xl font-black">Marketplace étudiante</h1>
           </div>
-          <button onClick={() => setAlertsOpen(true)} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="mkt-alerts-btn"><Bell size={20} weight="fill" /></button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => { setInboxOpen(true); }} className="relative w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="mkt-inbox-btn">
+              <EnvelopeSimple size={20} weight="fill" />
+              {unread > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center" data-testid="mkt-inbox-badge">{unread}</span>}
+            </button>
+            <button onClick={() => setAlertsOpen(true)} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="mkt-alerts-btn"><Bell size={20} weight="fill" /></button>
+          </div>
         </div>
         <p className="text-white/80 text-sm mt-1">Achète & vends entre étudiants. Payé via ton SB Pay.</p>
       </div>
@@ -163,6 +174,7 @@ const SbMarketplacePage = () => {
       {detail && <DetailSheet listing={detail} meId={user?.id} onClose={() => setDetail(null)} onBought={() => { setDetail(null); loadListings(); }} onBoosted={() => { setDetail(null); loadListings(); }} />}
       {sellOpen && <SellSheet verified={verified} cats={cats} onClose={() => setSellOpen(false)} onCreated={() => { setSellOpen(false); loadListings(); }} navigate={navigate} />}
       {alertsOpen && <AlertsSheet cats={cats} onClose={() => setAlertsOpen(false)} />}
+      {inboxOpen && <InboxSheet onClose={() => { setInboxOpen(false); refreshUnread(); }} />}
     </div>
   );
 };
@@ -172,6 +184,7 @@ const DetailSheet = ({ listing, meId, onClose, onBought, onBoosted }) => {
   const [boostOpen, setBoostOpen] = useState(false);
   const [rateOrder, setRateOrder] = useState(null);
   const [profileId, setProfileId] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const isOwner = meId && listing.user_id === meId;
   const buy = async () => {
     if (!window.confirm(`Acheter « ${listing.title} » pour ${Number(listing.price).toFixed(2)} € depuis votre SB Pay ?`)) return;
@@ -229,11 +242,17 @@ const DetailSheet = ({ listing, meId, onClose, onBought, onBoosted }) => {
               <Wallet size={18} weight="fill" /> {busy ? 'Achat…' : `Acheter · ${Number(listing.price).toFixed(2)} €`}
             </button>
           )}
+          {!isOwner && (
+            <button onClick={() => setChatOpen(true)} className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 border" style={{ borderColor: BRAND, color: BRAND }} data-testid="mkt-contact-btn">
+              <ChatCircleDots size={18} weight="fill" /> Contacter le vendeur
+            </button>
+          )}
         </div>
       </div>
       {boostOpen && <BoostSheet listing={listing} onClose={() => setBoostOpen(false)} onBoosted={onBoosted} />}
       {rateOrder && <RatingSheet order={rateOrder} onClose={() => { setRateOrder(null); onBought(); }} />}
       {profileId && <SellerProfileSheet sellerId={profileId} onClose={() => setProfileId(null)} />}
+      {chatOpen && <ChatSheet listing={listing} onClose={() => setChatOpen(false)} />}
     </div>
   );
 };
@@ -495,6 +514,119 @@ const SellSheet = ({ verified, cats, onClose, onCreated, navigate }) => {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const InboxSheet = ({ onClose }) => {
+  const [convs, setConvs] = useState(null);
+  const [active, setActive] = useState(null);
+  useEffect(() => { studentAPI.mktConversations().then((r) => setConvs(r.data.conversations || [])).catch(() => setConvs([])); }, []);
+  const reload = () => studentAPI.mktConversations().then((r) => setConvs(r.data.conversations || [])).catch(() => {});
+  return (
+    <div className="fixed inset-0 z-40 flex items-end bg-black/40" onClick={onClose} data-testid="mkt-inbox-sheet">
+      <div className="w-full bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 className="font-black text-gray-900 flex items-center gap-1.5"><EnvelopeSimple size={18} weight="fill" style={{ color: BRAND }} /> Mes messages</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"><X size={18} /></button>
+        </div>
+        {!convs ? <div className="p-6 text-gray-400 text-sm">Chargement…</div> : convs.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm" data-testid="mkt-inbox-empty"><ChatCircleDots size={36} className="mx-auto mb-2 text-gray-300" />Aucune conversation pour le moment.</div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {convs.map((c) => (
+              <button key={c.id} onClick={() => setActive(c)} className="w-full flex items-center gap-3 p-3 text-left" data-testid={`mkt-conv-${c.id}`}>
+                <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {c.listing_image ? <img src={c.listing_image} alt="" className="w-full h-full object-cover" /> : <ChatCircleDots size={20} className="text-gray-300" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">{c.other_name} · <span className="text-gray-400 font-normal">{c.listing_title}</span></p>
+                  <p className="text-xs text-gray-500 truncate">{c.last_text || '—'}</p>
+                </div>
+                {c.unread > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{c.unread}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {active && <ChatSheet conversation={active} onClose={() => { setActive(null); reload(); }} />}
+    </div>
+  );
+};
+
+const ChatSheet = ({ listing, conversation, onClose }) => {
+  const { user } = useAuth();
+  const [cid, setCid] = useState(conversation?.id || null);
+  const [header, setHeader] = useState(conversation || (listing ? { other_name: listing.seller_name, listing_title: listing.title } : {}));
+  const [msgs, setMsgs] = useState([]);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const endRef = useRef(null);
+
+  const load = useCallback(async () => {
+    if (!cid) return;
+    try {
+      const r = await studentAPI.mktMessages(cid);
+      setMsgs(r.data.messages || []);
+      if (r.data.conversation) setHeader(r.data.conversation);
+    } catch { /* noop */ }
+  }, [cid]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!cid) return;
+    const t = setInterval(load, 4000);
+    return () => clearInterval(t);
+  }, [cid, load]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
+
+  const send = async () => {
+    const t = text.trim();
+    if (!t) return;
+    setBusy(true); setText('');
+    try {
+      if (!cid) {
+        const r = await studentAPI.mktContact(listing.id, t);
+        setCid(r.data.conversation_id);
+        setMsgs((m) => [...m, r.data.message]);
+      } else {
+        const r = await studentAPI.mktSendMessage(cid, t);
+        setMsgs((m) => [...m, r.data.message]);
+      }
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec de l\'envoi'); setText(t); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-white" data-testid="mkt-chat-sheet">
+      <div className="flex items-center gap-2 p-3 border-b border-gray-100 text-white" style={{ background: BRAND }}>
+        <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="mkt-chat-back"><CaretLeft size={20} /></button>
+        <div className="min-w-0">
+          <p className="font-bold truncate">{header.other_name || 'Vendeur'}</p>
+          <p className="text-xs text-white/70 truncate">{header.listing_title}</p>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#F5F3FF]" data-testid="mkt-chat-messages">
+        {msgs.length === 0 && <p className="text-center text-gray-400 text-sm mt-6">Pose ta question au vendeur 👋</p>}
+        {msgs.map((m) => {
+          const mine = m.sender_id === user?.id;
+          return (
+            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm ${mine ? 'text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'}`} style={mine ? { background: BRAND } : {}}>
+                {m.text}
+              </div>
+            </div>
+          );
+        })}
+        <div ref={endRef} />
+      </div>
+      <div className="flex items-center gap-2 p-3 border-t border-gray-100">
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} maxLength={500}
+          placeholder="Votre message…" className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-none" data-testid="mkt-chat-input" />
+        <button onClick={send} disabled={busy} className="w-11 h-11 rounded-full text-white flex items-center justify-center disabled:opacity-50" style={{ background: BRAND }} data-testid="mkt-chat-send">
+          <PaperPlaneRight size={18} weight="fill" />
+        </button>
       </div>
     </div>
   );

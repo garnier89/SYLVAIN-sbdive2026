@@ -545,6 +545,130 @@ async def my_sales(request: Request):
     return {"orders": rows}
 
 
+
+# ======================= MESSAGING (buyer ↔ seller) =======================
+def _conversation_view(conv: dict, my_id: str) -> dict:
+    is_buyer = conv.get("buyer_id") == my_id
+    return {
+        "id": conv.get("id"), "listing_id": conv.get("listing_id"),
+        "listing_title": conv.get("listing_title"), "listing_image": conv.get("listing_image"),
+        "my_role": "buyer" if is_buyer else "seller",
+        "other_name": conv.get("seller_name") if is_buyer else conv.get("buyer_name"),
+        "other_id": conv.get("seller_id") if is_buyer else conv.get("buyer_id"),
+        "last_text": conv.get("last_text", ""), "last_at": conv.get("last_at"),
+        "unread": conv.get("unread_buyer", 0) if is_buyer else conv.get("unread_seller", 0),
+    }
+
+
+async def _post_message(conv: dict, sender: dict, text: str, role: str):
+    msg = {
+        "id": f"smsg_{uuid.uuid4().hex[:12]}", "conversation_id": conv["id"],
+        "sender_id": sender["id"], "sender_name": sender.get("name", "Utilisateur"),
+        "sender_role": role, "text": text[:500], "read": False, "created_at": _now(),
+    }
+    await db.student_messages.insert_one(dict(msg))
+    inc = {"unread_seller": 1} if role == "buyer" else {"unread_buyer": 1}
+    await db.student_conversations.update_one(
+        {"id": conv["id"]},
+        {"$set": {"last_text": text[:120], "last_at": msg["created_at"], "last_sender_id": sender["id"]},
+         "$inc": inc})
+    recipient = conv["seller_id"] if role == "buyer" else conv["buyer_id"]
+    try:
+        await create_notification(
+            recipient, "student_message", f"💬 {msg['sender_name']}",
+            f"{text[:80]} · {conv.get('listing_title', '')}",
+            data={"url": "/sb-student/marketplace", "conversation_id": conv["id"]})
+    except Exception:
+        pass
+    msg.pop("_id", None)
+    return msg
+
+
+class ContactBody(BaseModel):
+    text: str
+
+
+@router.post("/listings/{listing_id}/contact")
+async def contact_seller(listing_id: str, body: ContactBody, request: Request):
+    buyer = await get_current_user(request)
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Message vide")
+    listing = await db.student_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    if listing["user_id"] == buyer["id"]:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas vous contacter vous-même")
+    conv = await db.student_conversations.find_one({"listing_id": listing_id, "buyer_id": buyer["id"]}, {"_id": 0})
+    if not conv:
+        conv = {
+            "id": f"sconv_{uuid.uuid4().hex[:12]}", "listing_id": listing_id,
+            "listing_title": listing.get("title"), "listing_image": listing.get("image_url"),
+            "seller_id": listing["user_id"], "seller_name": listing.get("seller_name", "Vendeur"),
+            "buyer_id": buyer["id"], "buyer_name": buyer.get("name", "Acheteur"),
+            "last_text": "", "last_at": _now(), "unread_buyer": 0, "unread_seller": 0, "created_at": _now(),
+        }
+        await db.student_conversations.insert_one(dict(conv))
+        conv.pop("_id", None)
+    msg = await _post_message(conv, buyer, text, "buyer")
+    return {"ok": True, "conversation_id": conv["id"], "message": msg}
+
+
+@router.get("/conversations")
+async def list_conversations(request: Request):
+    user = await get_current_user(request)
+    rows = await db.student_conversations.find(
+        {"$or": [{"buyer_id": user["id"]}, {"seller_id": user["id"]}]}, {"_id": 0}
+    ).sort("last_at", -1).to_list(100)
+    return {"conversations": [_conversation_view(c, user["id"]) for c in rows]}
+
+
+@router.get("/conversations/unread-total")
+async def conversations_unread_total(request: Request):
+    user = await get_current_user(request)
+    rows = await db.student_conversations.find(
+        {"$or": [{"buyer_id": user["id"]}, {"seller_id": user["id"]}]},
+        {"_id": 0, "buyer_id": 1, "unread_buyer": 1, "unread_seller": 1}).to_list(200)
+    total = sum((c.get("unread_buyer", 0) if c.get("buyer_id") == user["id"] else c.get("unread_seller", 0)) for c in rows)
+    return {"unread": total}
+
+
+async def _get_my_conversation(cid: str, user: dict) -> dict:
+    conv = await db.student_conversations.find_one({"id": cid}, {"_id": 0})
+    if not conv or user["id"] not in (conv.get("buyer_id"), conv.get("seller_id")):
+        raise HTTPException(status_code=404, detail="Conversation introuvable")
+    return conv
+
+
+@router.get("/conversations/{cid}/messages")
+async def list_conversation_messages(cid: str, request: Request, after: str = Query("")):
+    user = await get_current_user(request)
+    conv = await _get_my_conversation(cid, user)
+    q = {"conversation_id": cid}
+    if after:
+        q["created_at"] = {"$gt": after}
+    msgs = await db.student_messages.find(q, {"_id": 0}).sort("created_at", 1).to_list(500)
+    # mark the other party's messages as read + reset my unread counter
+    await db.student_messages.update_many(
+        {"conversation_id": cid, "sender_id": {"$ne": user["id"]}, "read": False}, {"$set": {"read": True}})
+    field = "unread_buyer" if conv.get("buyer_id") == user["id"] else "unread_seller"
+    await db.student_conversations.update_one({"id": cid}, {"$set": {field: 0}})
+    conv[field] = 0
+    return {"messages": msgs, "conversation": _conversation_view(conv, user["id"])}
+
+
+@router.post("/conversations/{cid}/messages")
+async def send_conversation_message(cid: str, body: ContactBody, request: Request):
+    user = await get_current_user(request)
+    conv = await _get_my_conversation(cid, user)
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Message vide")
+    role = "buyer" if conv.get("buyer_id") == user["id"] else "seller"
+    msg = await _post_message(conv, user, text, role)
+    return {"ok": True, "message": msg}
+
+
 # ======================= REVIEWS & SELLER PROFILE =======================
 class ReviewBody(BaseModel):
     rating: int
