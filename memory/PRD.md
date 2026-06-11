@@ -1,4 +1,13 @@
-## NEW - 2026-06-11 (254) - 🎓 SB Student PHASE 3 : Zones universitaires + Campus Share (DONE, testé 100%)
+## NEW - 2026-06-11 (255) - 🎓 SB Student PHASE 4 : Sécurité étudiante + Safe Ride Night (DONE, testé)
+- **Backend** `routes/student_safety.py` (préfixe /api/student/safety) :
+  - **Settings** : auto_share + prefer_top_drivers + min_driver_rating (stockés dans student_profiles.safety).
+  - **Safe Ride Night** : `safe-ride/start {ride_id}` crée un token trip-share (réutilise trip_shares), met `ride.safe_ride_night=true` + share_token, retourne share_url (/t/{token}) + contacts de confiance (le client partage le lien via navigator.share/clipboard). Garde-fous : course d'un autre user 403, inexistante 404. `safe-ride/active`.
+  - **Vérification chauffeur renforcée** : `driver/{id}/trust` (note moyenne, nb avis, total courses, docs approuvés, member_since, enhanced_verified). **Chauffeurs recommandés** : `recommended-drivers?lat&lng` (en ligne, triés note↓ puis distance).
+  - **Priorisation dispatch** : `RideRequest.safe_ride_night` stocké sur la course ; `auto_dispatch._drivers_in_radius(prioritize_rating)` + `_escalate_ride` trient par note↓ pour les courses Safe Ride Night.
+- **Frontend** : `SbSafetyPage` (/sb-student/securite) — carte Safe Ride Night + activation, toggles réglages, contacts de confiance (CRUD), chauffeurs recommandés (géoloc). Entrée 'student-safety-entry' dans SbStudentPage. `studentAPI` safety* + contacts.
+- **Tests** : pytest `test_iter255_safety.py` 2/2 (tri note dispatch + haversine) + testing_agent 7/7 e2e + frontend. **BUG corrigé** : endpoints contacts pointaient sur `/emergency-contacts` (404) → corrigé en `/phase1/emergency-contacts` (vérifié curl 200).
+
+
 - **Backend** `routes/student_zones.py` (préfixe /api/student) :
   - **Zones campus admin CRUD** : `/admin/campus-zones` (type university/residence/library/training_center, lat/lng/radius_m, pays, pickup_points + safe_meeting_points avec id auto, enable/disable). Type invalide 400, guard non-admin 403.
   - **Zones user** : `/zones/campus?lat&lng` (actives triées par distance_m).

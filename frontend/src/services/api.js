@@ -764,9 +764,9 @@ export const studentAPI = {
   safeRideActive: () => api.get('/student/safety/safe-ride/active'),
   recommendedDrivers: (lat, lng) => api.get('/student/safety/recommended-drivers', { params: { lat, lng } }),
   driverTrust: (driverId) => api.get(`/student/safety/driver/${driverId}/trust`),
-  listContacts: () => api.get('/emergency-contacts'),
-  addContact: (data) => api.post('/emergency-contacts', data),
-  removeContact: (id) => api.delete(`/emergency-contacts/${id}`),
+  listContacts: () => api.get('/phase1/emergency-contacts'),
+  addContact: (data) => api.post('/phase1/emergency-contacts', data),
+  removeContact: (id) => api.delete(`/phase1/emergency-contacts/${id}`),
 };
 
 export default api;
