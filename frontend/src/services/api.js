@@ -955,5 +955,30 @@ export const carRentalAPI = {
   },
 };
 
+export const hotelsAPI = {
+  cities: () => api.get('/hotels/cities'),
+  list: (params) => api.get('/hotels', { params }),
+  detail: (id, params) => api.get(`/hotels/${id}`, { params }),
+  quote: (data) => api.post('/hotels/quote', data),
+  book: (data) => api.post('/hotels/book', data),
+  myBookings: () => api.get('/hotels/bookings/my'),
+  cancel: (id) => api.post(`/hotels/bookings/${id}/cancel`, {}),
+  // admin
+  adminHotels: () => api.get('/hotels/admin/hotels'),
+  adminCreateHotel: (data) => api.post('/hotels/admin/hotels', data),
+  adminUpdateHotel: (id, data) => api.put(`/hotels/admin/hotels/${id}`, data),
+  adminDeleteHotel: (id) => api.delete(`/hotels/admin/hotels/${id}`),
+  adminRooms: (hotelId) => api.get(`/hotels/admin/hotels/${hotelId}/rooms`),
+  adminCreateRoom: (hotelId, data) => api.post(`/hotels/admin/hotels/${hotelId}/rooms`, data),
+  adminUpdateRoom: (id, data) => api.put(`/hotels/admin/rooms/${id}`, data),
+  adminDeleteRoom: (id) => api.delete(`/hotels/admin/rooms/${id}`),
+  adminBookings: () => api.get('/hotels/admin/bookings'),
+  uploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+};
+
 
 export default api;

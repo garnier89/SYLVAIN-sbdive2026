@@ -89,6 +89,7 @@ from routes.student_digest import router as student_digest_router
 from routes.sb_access import router as sb_access_router, admin_router as sb_access_admin_router
 from routes.moto_rental import router as moto_rental_router, admin_router as moto_rental_admin_router
 from routes.car_rental import router as car_rental_router, admin_router as car_rental_admin_router
+from routes.hotels import router as hotels_router, admin_router as hotels_admin_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -130,6 +131,8 @@ _ROUTERS = [
     moto_rental_admin_router,
     car_rental_router,
     car_rental_admin_router,
+    hotels_router,
+    hotels_admin_router,
 ]
 
 

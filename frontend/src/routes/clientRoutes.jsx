@@ -24,6 +24,7 @@ import {
   SbAccessPage,
   MotoSelfRentalPage,
   CarSelfRentalPage,
+  HotelsPage,
 } from './pages';
 
 export function clientRoutes(user) {
@@ -123,6 +124,7 @@ export function clientRoutes(user) {
       <Route path="/access" element={<ProtectedRoute allowedRoles={['user']}><SbAccessPage /></ProtectedRoute>} />
       <Route path="/moto-location" element={<ProtectedRoute allowedRoles={['user']}><MotoSelfRentalPage /></ProtectedRoute>} />
       <Route path="/location-voiture" element={<ProtectedRoute allowedRoles={['user']}><CarSelfRentalPage /></ProtectedRoute>} />
+      <Route path="/hotels" element={<ProtectedRoute allowedRoles={['user']}><HotelsPage /></ProtectedRoute>} />
       <Route path="/encaisser" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><ContactlessReceivePage /></ProtectedRoute>} />
       <Route path="/pay" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />
       <Route path="/pay/:id" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />

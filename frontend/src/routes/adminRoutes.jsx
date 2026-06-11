@@ -7,7 +7,7 @@ import {
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
   AdminMonitoring, AdminLiveRides, AdminAutoDispatch, AdminDispatch, AdminManageAdmins, AdminGroupsPage,
   AdminVehicles, AdminDriverCategories, AdminRequests, AdminDocumentsCrud, AdminCompany,
-  AdminHotels, AdminOrganization, AdminVehicleTypes, AdminOrders, AdminServiceConfig, AdminPoolConfig, AdminTaxiRecruitment,
+  AdminHotelsManager, AdminOrganization, AdminVehicleTypes, AdminOrders, AdminServiceConfig, AdminPoolConfig, AdminTaxiRecruitment,
   AdminManualBooking, AdminPayoutsCrud, AdminSettlementsCrud, AdminDisputesCrud,
   AdminWithdrawRequests, AdminRewards, AdminPriorityDrivers, AdminTopDriversSettings,
   AdminVehicleMakes, AdminVehicleModels, AdminMasterServices, AdminCancellationReasonsPage,
@@ -58,7 +58,7 @@ export function adminRoutes() {
       <Route path="requests" element={<AdminRequests />} />
       <Route path="documents" element={<AdminDocumentsCrud />} />
       <Route path="company" element={<AdminCompany />} />
-      <Route path="hotels" element={<AdminHotels />} />
+      <Route path="hotels" element={<AdminHotelsManager />} />
       <Route path="organization" element={<AdminOrganization />} />
       <Route path="vehicle-types" element={<AdminVehicleTypes />} />
       <Route path="parcels" element={<AdminOrders />} />
