@@ -896,5 +896,26 @@ export const accessAPI = {
   adminAllocationPreview: (data) => api.post('/access/admin/ai/allocation-preview', data),
 };
 
+// SB Drive — Location moto self-drive (libre-service)
+export const motoRentalAPI = {
+  fleet: () => api.get('/moto-rental/fleet'),
+  motoDetail: (id) => api.get(`/moto-rental/fleet/${id}`),
+  quote: (data) => api.post('/moto-rental/quote', data),
+  book: (data) => api.post('/moto-rental/book', data),
+  myRentals: () => api.get('/moto-rental/my'),
+  cancel: (id) => api.post(`/moto-rental/${id}/cancel`, {}),
+  uploadImage: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  adminFleet: () => api.get('/moto-rental/admin/fleet'),
+  adminCreateMoto: (data) => api.post('/moto-rental/admin/fleet', data),
+  adminUpdateMoto: (id, data) => api.put(`/moto-rental/admin/fleet/${id}`, data),
+  adminDeleteMoto: (id) => api.delete(`/moto-rental/admin/fleet/${id}`),
+  adminRentals: () => api.get('/moto-rental/admin/rentals'),
+  adminReviewLicense: (id, data) => api.post(`/moto-rental/admin/rentals/${id}/license`, data),
+};
+
 
 export default api;

@@ -621,6 +621,7 @@ const RideChoosePage = () => {
     sharedShuttle, setSharedShuttle,
     rentalPkg, setRentalPkg,
     rentalStops, setRentalStops, taxiOpts, vehPackages,
+    goSelfDrive: () => navigate('/moto-location'),
     buddyHours, setBuddyHours,
     petsCount, setPetsCount, petsSize, setPetsSize,
     assistNeeds, setAssistNeeds,
@@ -1274,6 +1275,13 @@ const ModeSpecificPanel = (p) => {
           <Info size={14} className="text-amber-600 shrink-0" />
           <p className="text-[11px] text-amber-800 leading-snug">Inclus : <b>{pkg?.hours}h / {pkg?.km} km</b>. Au-delà : <b>{money(hr)}/h</b> et <b>{money(km)}/km</b> (facturation au compteur).</p>
         </div>
+        {p.mode.vehicle === 'moto' && (
+          <button onClick={p.goSelfDrive} data-testid="moto-selfdrive-link"
+            className="mt-2 w-full flex items-center justify-between rounded-xl border-2 border-dashed border-[#FF5000] bg-[#FFF3EC] px-3 py-2.5 text-left">
+            <span><span className="block text-sm font-bold text-[#0B1426]">Plutôt sans chauffeur ?</span><span className="block text-[11px] text-gray-500">Louez la moto et conduisez vous-même</span></span>
+            <span className="text-xs font-bold text-[#FF5000]">Self-drive →</span>
+          </button>
+        )}
         {/* Multi-stop (optional, can also be added live during the ride) */}
         <div className="mt-3">
           <p className="text-xs font-bold text-[#0B1426] mb-1.5">Arrêts prévus (optionnel)</p>

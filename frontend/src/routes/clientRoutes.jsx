@@ -22,6 +22,7 @@ import {
   ServiceProvidersPage, ServiceProviderDetailPage,
   ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage, SbRewardsPage, SbEventsPage, SbMarketplacePage,
   SbAccessPage,
+  MotoSelfRentalPage,
 } from './pages';
 
 export function clientRoutes(user) {
@@ -119,6 +120,7 @@ export function clientRoutes(user) {
       <Route path="/sb-student/evenements" element={<ProtectedRoute allowedRoles={['user']}><SbEventsPage /></ProtectedRoute>} />
       <Route path="/sb-student/marketplace" element={<ProtectedRoute allowedRoles={['user']}><SbMarketplacePage /></ProtectedRoute>} />
       <Route path="/access" element={<ProtectedRoute allowedRoles={['user']}><SbAccessPage /></ProtectedRoute>} />
+      <Route path="/moto-location" element={<ProtectedRoute allowedRoles={['user']}><MotoSelfRentalPage /></ProtectedRoute>} />
       <Route path="/encaisser" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><ContactlessReceivePage /></ProtectedRoute>} />
       <Route path="/pay" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />
       <Route path="/pay/:id" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />
