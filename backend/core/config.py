@@ -31,3 +31,27 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:admin@sbdrive.com")
+
+
+
+# ---- Global Demo Mode flag (admin-toggleable). Stripe payments stay LIVE. ----
+DEMO_CONFIG_ID = "demo_mode"
+
+
+async def is_demo_mode() -> bool:
+    """True when the global Demo Mode is enabled (relaxes student verification,
+    enables non-charged wallet credit, shows the MODE DÉMO banner). Never raises."""
+    try:
+        doc = await db.app_config.find_one({"id": DEMO_CONFIG_ID}, {"_id": 0, "enabled": 1})
+        return bool(doc and doc.get("enabled"))
+    except Exception:
+        return False
+
+
+async def get_demo_config() -> dict:
+    doc = await db.app_config.find_one({"id": DEMO_CONFIG_ID}, {"_id": 0})
+    if not doc:
+        doc = {"id": DEMO_CONFIG_ID, "enabled": False, "wallet_credit": 100.0}
+        await db.app_config.insert_one(dict(doc))
+        doc.pop("_id", None)
+    return {"id": DEMO_CONFIG_ID, "enabled": False, "wallet_credit": 100.0, **doc}

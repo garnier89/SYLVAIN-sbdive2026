@@ -191,6 +191,14 @@ export const demoAPI = {
   reset: (clean_rides = false) => api.post('/phase2/admin/demo/reset', { clean_rides }),
 };
 
+// Global Demo Mode flag (admin-toggleable; Stripe stays LIVE)
+export const demoModeAPI = {
+  status: () => api.get('/demo-mode/status'),
+  getConfig: () => api.get('/demo-mode/config'),
+  updateConfig: (data) => api.put('/demo-mode/config', data),
+  walletCredit: () => api.post('/demo-mode/wallet-credit'),
+};
+
 // Dispatch control tower (admin / dispatcher)
 export const dispatchAdminAPI = {
   overview: () => api.get('/admin/dispatch/overview'),

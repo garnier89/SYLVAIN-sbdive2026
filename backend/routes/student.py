@@ -189,10 +189,14 @@ async def my_student(request: Request):
     profile = await get_or_create_profile(user["id"])
     cfg = await get_config()
     used_today, used_month = await _usage_totals(user["id"])
+    from core.config import is_demo_mode
+    demo = await is_demo_mode()
+    verified = _is_verified(profile) or demo
     return {
-        "status": profile.get("status", "none"),
-        "is_student": _is_verified(profile),
-        "badge": _is_verified(profile),
+        "status": ("verified" if (demo and not _is_verified(profile)) else profile.get("status", "none")),
+        "is_student": verified,
+        "badge": verified,
+        "demo_mode": demo,
         "email_status": profile.get("email_status", "none"),
         "university_email": profile.get("university_email"),
         "university": profile.get("university"),

@@ -67,6 +67,9 @@ def _now() -> str:
 
 
 async def _is_verified_student(user_id: str) -> bool:
+    from core.config import is_demo_mode
+    if await is_demo_mode():
+        return True
     p = await db.student_profiles.find_one({"user_id": user_id}, {"_id": 0, "status": 1})
     return bool(p and p.get("status") == "verified")
 

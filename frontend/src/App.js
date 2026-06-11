@@ -7,6 +7,7 @@ import InstallPWA from './components/InstallPWA';
 import EnableNotificationsBanner from './components/EnableNotificationsBanner';
 import ActiveRideFlag from './components/ActiveRideFlag';
 import VerifyEmailBanner from './components/VerifyEmailBanner';
+import DemoBanner from './components/DemoBanner';
 import AuthCallback from './components/AuthCallback';
 import VoiceAssistant from './components/VoiceAssistant';
 import { KioskApp, ProAccessPage, SbStoreSignupPage } from './routes/pages';
@@ -88,6 +89,7 @@ function App() {
       <AuthProvider>
         <LocaleProvider>
           <AppRouter />
+          <DemoBanner />
           <Toaster position="top-center" />
           <InstallPWA />
           <EnableNotificationsBanner />
