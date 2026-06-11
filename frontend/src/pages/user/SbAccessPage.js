@@ -740,6 +740,22 @@ export default function SbAccessPage() {
                     </div>
                   )}
                   {booking.extra_assistance_minutes > 0 && <Row k="Assistance" v={`+${booking.extra_assistance_minutes} min offertes`} />}
+                  {booking.plus_member && booking.plus_discount_pct > 0 && (
+                    <Row k="Access Plus" v={`-${booking.plus_discount_pct}% appliqué ✓`} />
+                  )}
+                  {!booking.plus_member && booking.plus_upsell && (
+                    <div className="mt-3 rounded-xl p-3.5 text-left text-white flex items-center gap-3" style={{ background: 'linear-gradient(120deg,#0A2540,#163a5f)' }} data-testid="plus-upsell-banner">
+                      <Crown size={26} weight="fill" color={ORANGE} className="shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold leading-snug">
+                          Avec <b>Access Plus</b>, ce trajet vous aurait coûté <b style={{ color: ORANGE }}>{Number(booking.plus_upsell.would_pay).toFixed(2)} €</b> au lieu de {Number(booking.plus_upsell.current_fare).toFixed(2)} €.
+                        </p>
+                        <p className="text-[11px] text-white/70 mt-0.5">Économisez sur chaque trajet adapté.</p>
+                      </div>
+                      <button onClick={() => { setPlusOpen(true); loadPlus(); }} data-testid="plus-upsell-cta"
+                        className="px-3 py-2 rounded-lg text-xs font-bold shrink-0" style={{ background: ORANGE, color: '#0A2540' }}>Économiser</button>
+                    </div>
+                  )}
                   <div className="pt-2">
                     {booking.certified_driver ? (
                       <div className="rounded-xl p-3 flex items-center gap-3" style={{ background: '#fff', border: cardBorder }} data-testid="certified-driver-card">

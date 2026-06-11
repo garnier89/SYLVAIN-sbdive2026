@@ -375,6 +375,19 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
         fare = round(max(fare * (1 - plus_discount_pct / 100), 0), 2)
     plus_bonus_minutes = int(plus.get("bonus_assistance_minutes", 0) or 0) if plus else 0
 
+    # Upsell : pour les non-abonnés, calcule l'économie potentielle avec la meilleure formule.
+    plus_upsell = None
+    if not plus:
+        await _ensure_plus_seed()
+        best = await db.access_plus_plans.find_one(
+            {"enabled": True}, {"_id": 0}, sort=[("discount_pct", -1)])
+        if best and float(best.get("discount_pct", 0) or 0) > 0:
+            disc = float(best["discount_pct"])
+            would = round(max(fare * (1 - disc / 100), 0), 2)
+            if would < fare:
+                plus_upsell = {"discount_pct": disc, "would_pay": would, "current_fare": fare,
+                               "plan_id": best["id"], "plan_name": best["name"]}
+
     # Attribution intelligente (IA) : classement des chauffeurs certifiés Access.
     matched = None
     match_score = None
@@ -429,6 +442,7 @@ async def _build_and_store_booking(user_id: str, body: dict, recurring_id: str =
         "fare_before_discount": fare_before_discount,
         "plus_member": bool(plus),
         "plus_discount_pct": plus_discount_pct,
+        "plus_upsell": plus_upsell,
         "matched_driver_id": matched["id"] if matched else None,
         "matched_driver_name": matched["name"] if matched else None,
         "matched_driver_photo": matched.get("access_photo") if matched else None,
