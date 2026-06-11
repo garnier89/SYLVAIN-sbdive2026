@@ -1,0 +1,77 @@
+{
+  "summary": "Audit fonctionnel complet (5 audits) — backend largement fonctionnel (14/16 tests OK), bug racine confirmé sur home_categories (image_url vide en DB) et sur le checkout repas côté UI (overlay 'Vérifiez votre email' qui cache la barre panier/CTA).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/home-categories (collection DB)",
+        "issue": "59/60 documents ont image_url vide → l'admin (AdminHomeCategories.js) ne persiste PAS les images uploadées. L'upload /api/uploads/image fonctionne, et le PUT /api/home-categories/admin/{id} avec {image_url:'/api/uploads/xxx'} fonctionne en direct API. Donc le bug est dans le composant React: soit il appelle un mauvais endpoint, soit il n'envoie pas image_url dans le payload du save, soit l'upload result n'est pas wiré dans state avant submit. À vérifier ligne par ligne dans /app/frontend/src/pages/admin/AdminHomeCategories.js (fonction save + handler upload).",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/orders",
+        "issue": "Le schéma OrderCreate exige order_type, delivery_address (str), delivery_lat, delivery_lng. Le frontend CheckoutPage.js envoie tous ces champs correctement → backend OK (201 en test direct). Documenter dans la doc swagger pour éviter confusion."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "RestaurantDetail (food)",
+        "issue": "Après ajout au panier, AUCUN bouton 'Voir le panier'/'Commander' visible en bas de page. La bannière persistante 'Vérifiez votre email — Vérifier' (toast bottom) recouvre probablement la barre CTA panier. C'est très probablement LA cause utilisateur de 'livraison repas ne fonctionne pas': le client clique Ajouter mais ne peut jamais accéder au checkout.",
+        "selector": "page basée sur /food/{merchantId} — chercher composant CartBar / .fixed.bottom-0",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "AdminHomeCategories",
+        "issue": "Upload d'image visuellement OK mais image_url=null en DB pour 59/60 entries. À vérifier: handler onChange de l'ImageUpload, state image_url, payload du PUT /api/home-categories/admin/{id}.",
+        "selector": "AdminHomeCategories edit modal — image upload field",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Propagation images home → client (RideChoosePage)",
+        "issue": "RideChoosePage.js ligne 959 lit modeCms.image_url depuis homeCategoriesAPI.public. Comme image_url est vide en DB, aucune image custom ne s'affiche — c'est la conséquence du bug AdminHomeCategories ci-dessus.",
+        "affected_selectors": ["/api/home-categories", "homeCategoriesAPI.public"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Toutes pages client",
+        "issues": [
+          "Toast 'Vérifiez votre email' est positionné en bas de l'écran et NON refermable proprement: bloque les CTA fixes (panier checkout, etc). À transformer en banner top ou en sticky non-bloquant."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter266_audit.py",
+    "/app/test_reports/pytest/iter266_audit.xml"
+  ],
+  "action_items": [
+    "[P0] Debug AdminHomeCategories.js save → vérifier que image_url est bien dans le payload PUT /api/home-categories/admin/{id} et que le retour de /api/uploads/image (url) est setté dans le state avant save.",
+    "[P0] Corriger l'overlay 'Vérifiez votre email' qui masque le CTA panier sur RestaurantDetail (et probablement d'autres pages avec bottom-bar). Vérifier z-index ou repositionner en top banner.",
+    "[P1] Reseeder/migrer les 59 home_categories existants pour leur attribuer un image_url par défaut (sinon UI client reste vide même après fix du save).",
+    "[P2] Clarifier la doc OrderCreate: order_type est requis."
+  ],
+  "critical_code_review_comments": [
+    "service_categories et home_categories sont deux collections avec des schémas d'images différents (icon/banner_image/service_image vs icon_name/image_url). Il faut documenter dans le code admin laquelle pilote quelle tuile client, sinon confusion garantie.",
+    "Le check upload côté client devrait toaster un succès/erreur explicite après l'upload de l'image dans AdminHomeCategories (actuellement utilisateur ne sait pas si l'image est attachée).",
+    "Pattern: utiliser un SEUL champ d'image_url générique sur toutes les collections CMS pour réduire les bugs de field mismatch."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter266_audit.py (nouveau test d'audit complet, 14/16 passent)"
+  ],
+  "success_rate": {
+    "backend": "87% (14/16 — 2 echecs sont mes erreurs d'endpoint, pas des bugs)",
+    "frontend": "60% (login OK, food list OK, restaurant detail+add OK; checkout bloqué par overlay; admin upload non persisté)"
+  },
+  "test_credentials": "Client capture.user@example.com/Capture123! OK. Admin admin@superapp.com/SuperAdmin123! OK. Driver jean.dupont@demo.sb/Driver123! OK.",
+  "seed_data_creation": "Aucune nouvelle donnée seedée. Tests utilisent les marchands existants (Burger Palace).",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Pour valider les fixes: (1) Vérifier qu'après upload d'image dans AdminHomeCategories puis save, GET /api/home-categories renvoie bien image_url non-vide pour l'entrée éditée. (2) Vérifier sur /food/{merchantId} après ajout d'un produit, le bouton 'Voir le panier' ou 'Commander' est visible et cliquable (pas caché par le toast email). (3) Le flow checkout backend POST /api/orders avec order_type='food', delivery_address (str), delivery_lat/lng — déjà validé 200.",
+  "rca of the issue": "Bug 'livraison repas ne fonctionne pas': le backend POST /api/orders fonctionne (201). La cause utilisateur visible est probablement l'overlay 'Vérifiez votre email' bottom qui cache la CTA panier sur la page RestaurantDetail — l'utilisateur ne peut donc pas atteindre le CheckoutPage. Bug 'images uploadées invisibles côté client': l'endpoint /api/uploads/image fonctionne, et le PUT /api/home-categories/admin/{id} {image_url:...} persiste correctement quand appelé en direct, MAIS le composant AdminHomeCategories.js ne transmet pas image_url au save (ou n'attache pas l'URL retournée par l'upload au state avant submit). Reproduction: connecter admin → /admin/home → éditer une catégorie → uploader image → save → recharger → image disparue, et GET /api/home-categories renvoie image_url=null."
+}
