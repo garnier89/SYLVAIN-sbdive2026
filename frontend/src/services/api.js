@@ -222,6 +222,7 @@ export const orderAPI = {
   updateStatus: (id, status) => api.post(`/orders/${id}/status`, { status }),
   assignDriver: (id, driverId) => api.post(`/orders/${id}/assign-driver`, { driver_id: driverId }),
   list: (params) => api.get('/orders', { params }),
+  lastDelivery: () => api.get('/orders/last-delivery'),
   rate: (id, data) => api.post(`/orders/${id}/rate`, data),
   // Food delivery — driver jobs + live tracking
   availableDeliveries: () => api.get('/orders/available-deliveries'),

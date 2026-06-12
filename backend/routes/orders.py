@@ -507,6 +507,42 @@ async def set_grouping_config_admin(request: Request):
     return await update_grouping_config(body)
 
 
+@router.get("/last-delivery")
+async def last_delivery(request: Request):
+    """Dernière commande de livraison de l'usager (pour la tuile « Reprendre » de l'accueil).
+    Retourne la commande la plus récente avec ses articles ré-commandables + le commerce."""
+    user = await get_current_user(request)
+    order = await db.orders.find_one(
+        {"user_id": user["id"]},
+        {"_id": 0},
+        sort=[("created_at", -1)],
+    )
+    if not order:
+        return {"has_order": False}
+    merchant = await db.merchants.find_one({"id": order.get("merchant_id")}, {"_id": 0, "store_name": 1, "logo": 1, "image": 1})
+    if not merchant:
+        return {"has_order": False}
+    items = order.get("items") or []
+    # Articles au format panier { id, name, price, quantity } pour la re-commande 1-tap.
+    cart_items = [
+        {"id": it.get("product_id"), "name": it.get("name"), "price": it.get("price"), "quantity": it.get("quantity", 1)}
+        for it in items if it.get("product_id")
+    ]
+    return {
+        "has_order": True,
+        "order_id": order["id"],
+        "merchant_id": order.get("merchant_id"),
+        "merchant_name": merchant.get("store_name"),
+        "merchant_logo": merchant.get("logo") or merchant.get("image"),
+        "order_type": order.get("order_type") or "food",
+        "item_count": sum(int(it.get("quantity", 1)) for it in items),
+        "total": order.get("total"),
+        "created_at": order.get("created_at"),
+        "items": cart_items,
+    }
+
+
+
 @router.get("/{order_id}/track")
 async def track_order(order_id: str, request: Request):
     await get_current_user(request)

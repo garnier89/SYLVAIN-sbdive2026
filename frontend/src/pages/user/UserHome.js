@@ -13,7 +13,7 @@ import DebtBanner from '../../components/DebtBanner';
 import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
-import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
 import { LoyaltyStatusCard } from '../../components/LoyaltyStatusCard';
 import { OffresDuMoment } from '../../components/OffresDuMoment';
@@ -28,7 +28,7 @@ import {
   House, MapPin, Wallet, User,
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
   MagnifyingGlass, GridFour, List, ClipboardText,
-  VideoCamera, FirstAid, ArrowRight, Lightning,
+  VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
   GraduationCap, Storefront, Wheelchair,
 } from '@phosphor-icons/react';
@@ -231,6 +231,33 @@ const UserHome = () => {
   const [sectionOrder, setSectionOrder] = useState(_homeCache.sectionOrder);
   const [taxiCats, setTaxiCats] = useState(cachedServiceCategories());
   const [pendingRef, setPendingRef] = useState(null);
+  const [lastDelivery, setLastDelivery] = useState(null);
+
+  // Dernière commande de livraison → tuile « Reprendre » (réachat 1-tap).
+  useEffect(() => {
+    let alive = true;
+    orderAPI.lastDelivery()
+      .then((r) => { if (alive && r.data?.has_order) setLastDelivery(r.data); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Reprise de commande : reconstruit le panier puis ouvre le paiement (1 tap).
+  const resumeLastDelivery = useCallback(async () => {
+    if (!lastDelivery?.merchant_id) return;
+    const items = lastDelivery.items || [];
+    try {
+      if (items.length) {
+        await cartAPI.save(lastDelivery.merchant_id, items);
+        navigate(`/checkout/${lastDelivery.merchant_id}`);
+      } else {
+        navigate(`/food/${lastDelivery.merchant_id}`);
+      }
+    } catch {
+      navigate(`/food/${lastDelivery.merchant_id}`);
+    }
+  }, [lastDelivery, navigate]);
+
 
   useEffect(() => {
     fetch(`${API}/api/referral/my-pending`, { credentials: 'include' })
@@ -432,6 +459,22 @@ const UserHome = () => {
     delivery: (
       <section key="delivery" className="px-4 mt-6">
         <SectionHeader title="Livraison & Coursier" sub="Repas, colis, courses & coursiers — tout au même endroit." />
+        {lastDelivery && (
+          <motion.button whileTap={{ scale: 0.98 }} onClick={resumeLastDelivery} data-testid="resume-delivery-btn"
+            className="w-full mb-3 rounded-2xl p-3 flex items-center gap-3 text-left shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #FF5000, #FF7A3D)' }}>
+            <span className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center overflow-hidden shrink-0">
+              {lastDelivery.merchant_logo
+                ? <img src={resolveImageUrl(lastDelivery.merchant_logo)} alt="" className="w-full h-full object-cover" />
+                : <ArrowClockwise size={24} weight="bold" className="text-white" />}
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className={`text-white font-extrabold text-sm block leading-tight ${HEAD}`}>Reprendre votre commande</span>
+              <span className="text-white/90 text-xs block truncate">{lastDelivery.merchant_name}{lastDelivery.item_count ? ` · ${lastDelivery.item_count} article${lastDelivery.item_count > 1 ? 's' : ''}` : ''}</span>
+            </span>
+            <span className="shrink-0 px-3 py-1.5 rounded-full bg-white text-[#FF5000] text-xs font-extrabold">Reprendre</span>
+          </motion.button>
+        )}
         <div className="grid grid-cols-4 gap-3" data-testid="delivery-coursier-section">
           {(() => {
             const merged = [

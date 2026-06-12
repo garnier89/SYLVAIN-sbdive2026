@@ -1,3 +1,12 @@
+## NEW - 2026-06-12 (299) - 🔁 Tuile « Reprendre » (réachat livraison 1-tap) dans « Livraison & Coursier » (DONE, testé e2e + pytest 2/2)
+- **Demande user (amélioration validée)** : afficher une tuile dynamique « Reprendre » dans la section Livraison & Coursier pour re-commander la dernière commande en 1 tap (dans la lignée du « Refaire ce trajet » des courses).
+- **Backend** `routes/orders.py` : `GET /api/orders/last-delivery` (placé avant les routes dynamiques) → dernière commande `db.orders` de l'usager + commerce (store_name/logo), articles au format panier `{id,name,price,quantity}`, `item_count`, `total`. Renvoie `{has_order:false}` si aucune commande / commerce supprimé.
+- **Frontend** `UserHome.js` : fetch au montage (`orderAPI.lastDelivery`), bannière `resume-delivery-btn` (gradient SB orange, logo commerce + nom + nb articles + CTA « Reprendre ») affichée en haut de la section UNIQUEMENT s'il existe une commande. Tap → `cartAPI.save(merchant_id, items)` puis navigation `/checkout/{merchant_id}` (panier reconstruit, paiement en 1 tap) ; repli `/food/{merchant_id}` si pas d'articles. `orderAPI.lastDelivery` ajouté à `api.js`.
+- **Testé** : e2e (login paul → tuile présente → clic → /checkout/merchant_burger_palace avec « Burger Classique » dans le panier) + pytest `test_iter298_last_delivery.py` 2/2 (forme de la réponse + auth requise).
+- ⚠️ Périmètre : commandes de type repas/commerce (`db.orders`). Reprise parcel/runner = backlog. PREVIEW → redéploiement requis.
+
+
+
 ## NEW - 2026-06-12 (298) - 🛵 Accueil : regroupement des services de livraison en UNE section (DONE, testé E2E)
 - **Demande user (choix 1a + 2c + oui)** : regrouper sur l'écran d'accueil les services de livraison éparpillés (ex. « livraison de colis avec génie delivery ») en UNE seule section, incluant TOUS les services de livraison, Delivery Genie & Delivery Runner compris.
 - **Frontend** (`UserHome.js`, frontend uniquement) :
