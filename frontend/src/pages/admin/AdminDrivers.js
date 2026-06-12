@@ -386,6 +386,7 @@ const AddDriverModal = ({ onClose, onCreated }) => {
           <button onClick={submit} disabled={saving} className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2" data-testid="add-driver-submit">
             <Plus size={16} weight="bold" />{saving ? 'Création…' : 'Créer le chauffeur'}
           </button>
+          <p className="text-[11px] text-gray-400 mt-2 text-center">Un e-mail d'invitation (identifiant + mot de passe + lien) sera envoyé au chauffeur.</p>
         </div>
       </div>
     </div>

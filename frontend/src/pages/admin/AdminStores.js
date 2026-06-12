@@ -99,6 +99,7 @@ const AddMerchantModal = ({ onClose, onCreated }) => {
           <Button onClick={submit} disabled={saving} className="w-full bg-orange-500 hover:bg-orange-600 text-white" data-testid="add-merchant-submit">
             <Plus size={16} weight="bold" className="mr-2" />{saving ? 'Création…' : 'Créer la boutique'}
           </Button>
+          <p className="text-[11px] text-gray-400 mt-2 text-center">Un e-mail d'invitation (identifiant + mot de passe + lien) sera envoyé au marchand.</p>
         </div>
       </div>
     </div>

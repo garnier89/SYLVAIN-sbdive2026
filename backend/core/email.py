@@ -363,6 +363,41 @@ async def send_ride_invoice(to: str, customer_name: str, *, invoice_no: str, pic
     await _send(to, f"Facture course {invoice_no} · SB Drive", _shell("Course terminée 🏁", "#0a0e1a", body))
 
 
+async def send_account_invite(to: str, name: str, *, role_label: str, login_email: str,
+                              temp_password: str, login_url: str) -> None:
+    """Invitation email for an admin-created account (driver/merchant): login id +
+    temporary password + sign-in link. Non-blocking (via fire())."""
+    pwd_box = (
+        f'<div style="text-align:center;margin:8px 0 18px;">'
+        f'<span style="display:inline-block;padding:12px 20px;background:#0a0e1a;color:#ffffff;'
+        f'font-size:20px;font-weight:bold;border-radius:10px;font-family:monospace;letter-spacing:1px;">'
+        f'{temp_password}</span></div>'
+    )
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Un compte <b>{role_label}</b> vient d'être créé pour vous sur <b>SB Drive</b>.
+          Voici vos identifiants de connexion :
+        </p>
+        <p style="color:#444;font-size:14px;margin:14px 0 4px;">Identifiant (email) :</p>
+        <p style="color:#0a0e1a;font-size:15px;font-weight:bold;margin:0 0 12px;">{login_email}</p>
+        <p style="color:#444;font-size:14px;margin:0 0 4px;">Mot de passe temporaire :</p>
+        {pwd_box}
+        <p style="color:#b45309;font-size:13px;line-height:1.5;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;">
+          ⚠️ Pour votre sécurité, modifiez ce mot de passe dès votre première connexion.
+        </p>
+        <p style="text-align:center;margin:18px 0 22px;">
+          <a href="{login_url}" style="background:#FF4500;color:#ffffff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+            Me connecter
+          </a>
+        </p>
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;">
+          Si vous pensez avoir reçu cet email par erreur, ignorez-le ou contactez le support.
+        </p>"""
+    await _send(to, f"Votre compte {role_label} SB Drive est prêt", _shell("Bienvenue sur SB Drive 🚀", "#FF4500", body))
+
+
 def _code_block(code: str) -> str:
     digits = "".join(
         f'<span style="display:inline-block;min-width:34px;margin:0 3px;padding:10px 0;'

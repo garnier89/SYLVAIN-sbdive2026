@@ -591,6 +591,16 @@ async def _create_driver_internal(body, *, password: str):
     }
     await db.drivers.insert_one(driver)
     driver.pop("_id", None)
+    # Invitation email (best-effort, never blocks/aborts creation or import).
+    try:
+        from core.email import fire, send_account_invite
+        frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        if email and not email.endswith("@sbdrive.local"):
+            fire(send_account_invite(email, user_doc["name"], role_label="Chauffeur",
+                                     login_email=email, temp_password=password,
+                                     login_url=f"{frontend}/login"))
+    except Exception:
+        pass
     return {"driver": driver,
             "user": {k: user_doc[k] for k in ("id", "email", "name", "phone", "role")},
             "password": password}
@@ -662,6 +672,16 @@ async def _create_merchant_internal(body, *, password: str):
     }
     await db.merchants.insert_one(merchant)
     merchant.pop("_id", None)
+    # Invitation email (best-effort).
+    try:
+        from core.email import fire, send_account_invite
+        frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        if email and not email.endswith("@sbdrive.local"):
+            fire(send_account_invite(email, name, role_label="Marchand",
+                                     login_email=email, temp_password=password,
+                                     login_url=f"{frontend}/login"))
+    except Exception:
+        pass
     return {"merchant": merchant, "user": {"id": user_id, "email": email, "name": name}, "password": password}
 
 

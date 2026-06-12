@@ -97,7 +97,7 @@ export const CsvImportModal = ({
                 <UploadSimple size={16} /> {fileName || 'Choisir un fichier CSV…'}
               </button>
             </div>
-            <p className="text-[11px] text-gray-400">Les mots de passe sont générés automatiquement (sauf si une colonne « password » est fournie). Les lignes invalides sont ignorées et listées dans le rapport.</p>
+            <p className="text-[11px] text-gray-400">Les mots de passe sont générés automatiquement (sauf si une colonne « password » est fournie). Les lignes invalides sont ignorées et listées dans le rapport. Un e-mail d'invitation (identifiant + mot de passe + lien de connexion) est envoyé à chaque compte créé.</p>
             <button onClick={runImport} disabled={importing || !csvText.trim()} className={`w-full py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 ${accentBtn}`} data-testid={`${testIdPrefix}-submit`}>
               {importing ? 'Import en cours…' : 'Importer'}
             </button>
