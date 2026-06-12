@@ -1,3 +1,13 @@
+## NEW - 2026-06-12 (326) - ✅ Audit parité menu prod (LOCATION + PROMOTIONS) + P1 QR/Stripe + fix parité Zones réglementées
+- **Demande user** (captures menu prod sbdrivevtc.com/admin69) : vérifier la parité des sections LOCATION & PROMOTIONS, puis traiter P1 « QR paiement sans contact chauffeurs » + « Stripe 3-D Secure ».
+- **Audit parité** : les 10 écrans prod existent déjà dans notre admin → Geofencing (`/admin/geo-fence`), Zones restreintes (`/admin/restricted`), Tarification par zone (`/admin/location-fare`), Transferts Aéroport (`/admin/airport`), Pays (`/admin/country`), Régions (`/admin/state`), Vue d'ensemble/Point de vue de Dieu (`/admin/gods-view`, carte live), Vue thermique (`/admin/heat-view`, heatmap), Codes promo (`/admin/promocodes`), Cartes cadeaux (`/admin/giftcards`). **testing_agent iter317 : 10/10 render PASS, 0 erreur, cartes Google Maps OK.**
+- **P1 QR sans contact chauffeurs = DÉJÀ LIVRÉ** (`routes/contactless.py` + front `/encaisser` chauffeur, `/pay/:id` payeur). Vérifié e2e curl : chauffeur génère QR+code 6 chiffres → client paie via SB Pay (ou carte Stripe Checkout) → commission 10 % → net crédité au portefeuille retirable + cashback payeur. (25 € → 22,50 € encaissés.) Front vérifié iter318 (QR généré, page payeur OK).
+- **P1 Stripe 3-D Secure = DÉJÀ COUVERT** : le flux carte utilise **Stripe Checkout hébergé** qui applique 3DS/SCA automatiquement. Option non retenue pour l'instant : refonte PaymentIntent + capture manuelle (caution/pré-autorisation) — à faire plus tard avec clés live (en attente décision user).
+- **Fix parité** : `/admin/restricted` était un alias de `/admin/geo-fence` (même composant). Ajout d'un prop `mode='restricted'` à `AdminGeoFence` → page distincte « Zones réglementées » (filtre type restricted, heading/CTA dédiés) + ajout d'une 2e zone restreinte démo. `/admin/geo-fence` garde la liste complète. **Vérifié iter318 : 2 pages bien distinctes (4/4 PASS).**
+- ⚠️ Stripe key = test key du pod (env `STRIPE_API_KEY`). ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (325) - 🗜️ Bouton « Tout exporter (ZIP) » dans le Centre de Rapports (DONE, testé)
 - **Demande user** : télécharger les 9 rapports d'un coup pour les bilans comptables de fin de mois.
 - **Backend** (`routes/reports_admin.py`) : `GET /admin/reports/export-zip?date_from=&date_to=` → itère `REPORT_FUNCS`, génère 1 CSV par rapport (bloc Indicateurs + table, BOM Excel, format identique à `exportUtils`), renvoie un `application/zip` (`rapports_{from}_{to}.zip`). Erreur par rapport isolée (fichier `_ERREUR.txt`).
