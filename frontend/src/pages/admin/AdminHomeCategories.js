@@ -139,7 +139,7 @@ export default function AdminHomeCategories() {
     const next = [...secLayout];
     [next[idx], next[j]] = [next[j], next[idx]];
     setSecLayout(next);
-    try { await homeCategoriesAPI.reorderSections(next.map((s) => s.key)); }
+    try { await homeCategoriesAPI.reorderSections(next.map((s) => s.key)); toast.success('Ordre des sections mis à jour'); }
     catch { toast.error('Échec du classement'); load(); }
   };
 
@@ -202,7 +202,7 @@ export default function AdminHomeCategories() {
       const others = prev.filter((p) => p.section !== sectionItems[0].section);
       return [...others, ...reordered];
     });
-    try { await homeCategoriesAPI.reorder(reordered.map((x) => x.id)); }
+    try { await homeCategoriesAPI.reorder(reordered.map((x) => x.id)); toast.success('Ordre mis à jour'); }
     catch (e) { toast.error('Erreur réordonnancement'); load(); }
   };
 
@@ -332,8 +332,8 @@ export default function AdminHomeCategories() {
                   <p className="text-xs text-gray-400 truncate">{it.target_route}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => move(sec.list, idx, -1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500" title="Monter"><ArrowUp size={15} /></button>
-                  <button onClick={() => move(sec.list, idx, 1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500" title="Descendre"><ArrowDown size={15} /></button>
+                  <button onClick={() => move(sec.list, idx, -1)} disabled={idx === 0} className="p-1.5 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30" title="Monter" data-testid={`category-up-${it.id}`}><ArrowUp size={15} /></button>
+                  <button onClick={() => move(sec.list, idx, 1)} disabled={idx === sec.list.length - 1} className="p-1.5 rounded hover:bg-gray-100 text-gray-500 disabled:opacity-30" title="Descendre" data-testid={`category-down-${it.id}`}><ArrowDown size={15} /></button>
                   <button onClick={() => toggleVisible(it)} className={`p-1.5 rounded hover:bg-gray-100 ${it.visible_home ? 'text-emerald-600' : 'text-gray-400'}`} title="Visible accueil" data-testid={`toggle-visible-${it.id}`}>
                     {it.visible_home ? <Eye size={16} /> : <EyeSlash size={16} />}
                   </button>

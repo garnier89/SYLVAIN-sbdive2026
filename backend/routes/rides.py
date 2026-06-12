@@ -1173,6 +1173,18 @@ async def switch_to_cash_if_needed(ride: dict, driver_user_id: str, now: str):
     if driver_user_id:
         await manager.send_personal_message(flash, driver_user_id)
     await manager.send_to_ride_room(ride["id"], flash, exclude=ride.get("user_id"))
+    # Warn the RIDER in real time so they prepare cash and avoid friction at drop-off.
+    rider_id = ride.get("user_id")
+    if rider_id:
+        await manager.send_personal_message({
+            "type": "payment_switched_to_cash",
+            "ride_id": ride["id"],
+            "amount": round(fare, 2),
+            "role": "rider",
+            "message": (f"Solde insuffisant — préparez le paiement en espèces "
+                        f"({fare:.2f} €) auprès du chauffeur."),
+            "timestamp": now,
+        }, rider_id)
     try:
         from core.notifications import create_notification
         if driver_user_id:
@@ -1180,6 +1192,13 @@ async def switch_to_cash_if_needed(ride: dict, driver_user_id: str, now: str):
                 driver_user_id, "payment", "Paiement basculé en espèces 💵",
                 f"La carte / le portefeuille du client ne couvre pas la course "
                 f"({fare:.2f} €). Encaissez le montant en espèces.",
+                data={"ride_id": ride["id"], "amount": round(fare, 2), "kind": "payment_switch"},
+            )
+        if rider_id:
+            await create_notification(
+                rider_id, "payment", "Préparez le paiement en espèces 💵",
+                f"Votre solde SB Pay ne couvre pas la course ({fare:.2f} €). "
+                f"Le paiement se fera en espèces auprès du chauffeur.",
                 data={"ride_id": ride["id"], "amount": round(fare, 2), "kind": "payment_switch"},
             )
     except Exception:

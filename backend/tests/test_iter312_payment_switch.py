@@ -37,15 +37,16 @@ async def _seed_and_run(balance, fare, pm="wallet"):
     flash = await switch_to_cash_if_needed(ride, drv_user, _now())
     updated = await db.rides.find_one({"id": ride_id}, {"_id": 0})
     notif = await db.notifications.find_one({"user_id": drv_user, "type": "payment"}, {"_id": 0})
+    rider_notif = await db.notifications.find_one({"user_id": rider_id, "type": "payment"}, {"_id": 0})
     # cleanup
     await db.wallets.delete_one({"user_id": rider_id})
     await db.rides.delete_one({"id": ride_id})
-    await db.notifications.delete_many({"user_id": drv_user})
-    return flash, updated, notif
+    await db.notifications.delete_many({"user_id": {"$in": [drv_user, rider_id]}})
+    return flash, updated, notif, rider_notif
 
 
 def test_insufficient_wallet_switches_to_cash_and_flashes():
-    flash, updated, notif = asyncio.get_event_loop().run_until_complete(_seed_and_run(balance=2.0, fare=12.0))
+    flash, updated, notif, rider_notif = asyncio.get_event_loop().run_until_complete(_seed_and_run(balance=2.0, fare=12.0))
     assert flash is not None
     assert flash["type"] == "payment_switched_to_cash"
     assert flash["amount"] == 12.0
@@ -53,16 +54,17 @@ def test_insufficient_wallet_switches_to_cash_and_flashes():
     assert updated["payment_switched_to_cash"] is True
     assert updated["original_payment_method"] == "wallet"
     assert notif is not None  # driver got a persistent notification
+    assert rider_notif is not None  # rider was warned to prepare cash
 
 
 def test_sufficient_wallet_does_not_switch():
-    flash, updated, notif = asyncio.get_event_loop().run_until_complete(_seed_and_run(balance=50.0, fare=12.0))
+    flash, updated, notif, rider_notif = asyncio.get_event_loop().run_until_complete(_seed_and_run(balance=50.0, fare=12.0))
     assert flash is None
     assert updated["payment_method"] == "wallet"
     assert not updated.get("payment_switched_to_cash")
 
 
 def test_cash_ride_untouched():
-    flash, updated, notif = asyncio.get_event_loop().run_until_complete(_seed_and_run(balance=0.0, fare=12.0, pm="cash"))
+    flash, updated, notif, rider_notif = asyncio.get_event_loop().run_until_complete(_seed_and_run(balance=0.0, fare=12.0, pm="cash"))
     assert flash is None
     assert updated["payment_method"] == "cash"

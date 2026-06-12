@@ -556,6 +556,14 @@ const RideTrackingPage = () => {
       });
       fetchRide();
     });
+    const unsubPaySwitch = on('payment_switched_to_cash', (msg) => {
+      if (msg.ride_id && msg.ride_id !== rideId) return;
+      setRide((prev) => (prev ? { ...prev, payment_method: 'cash', payment_switched_to_cash: true, difference_in_cash: true } : prev));
+      toast.warning(
+        msg.message || `Solde insuffisant — préparez le paiement en espèces (${money(Number(msg.amount || 0))}).`,
+        { duration: 14000, id: `pay-switch-${msg.ride_id}` },
+      );
+    });
     return () => {
       unsub1();
       unsubStarted();
@@ -564,6 +572,7 @@ const RideTrackingPage = () => {
       unsub3();
       unsub4();
       unsubPool();
+      unsubPaySwitch();
     };
   }, [on, rideId, navigate, fetchRide]);
 
