@@ -17,8 +17,6 @@ const AdminUsers = () => {
   const [selected, setSelected] = useState(new Set());
   const [bulkAction, setBulkAction] = useState('');
   const [creditTarget, setCreditTarget] = useState(null);
-  const [creditAmount, setCreditAmount] = useState('');
-  const [creditNote, setCreditNote] = useState('');
   const [creditSaving, setCreditSaving] = useState(false);
   const [docsTarget, setDocsTarget] = useState(null);
   const [docsData, setDocsData] = useState(null);
@@ -126,14 +124,12 @@ const AdminUsers = () => {
     } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
   };
 
-  const saveCredit = async () => {
-    const amt = parseFloat(creditAmount);
-    if (isNaN(amt) || amt === 0) { toast.error('Montant requis (différent de 0)'); return; }
+  const saveCredit = async (signedAmount, noteText) => {
     setCreditSaving(true);
     try {
-      const r = await adminAPI.creditUserWallet(creditTarget.id, amt, creditNote);
+      const r = await adminAPI.creditUserWallet(creditTarget.id, signedAmount, noteText);
       toast.success(`Solde mis à jour : ${r.data.new_balance.toFixed(2)} €`);
-      setCreditTarget(null); setCreditAmount(''); setCreditNote('');
+      setCreditTarget(null);
       load();
     } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
     setCreditSaving(false);
@@ -275,8 +271,8 @@ const AdminUsers = () => {
                   <span className="inline-flex items-center gap-1.5">
                     <Wallet size={14} className="text-emerald-500" />
                     <span className="text-gray-700">{(u.wallet_balance != null ? u.wallet_balance : 0).toFixed(2)} €</span>
-                    <button onClick={() => { setCreditTarget(u); setCreditAmount(''); setCreditNote(''); }}
-                      className="text-emerald-500 hover:text-emerald-700" title="Créditer l'utilisateur" data-testid={`credit-user-${u.id}`}>
+                    <button onClick={() => { setCreditTarget(u); }}
+                      className="text-emerald-500 hover:text-emerald-700" title="Créditer / Débiter" data-testid={`credit-user-${u.id}`}>
                       <PlusCircle size={18} weight="fill" />
                     </button>
                   </span>
@@ -308,14 +304,12 @@ const AdminUsers = () => {
         {!loading && rows.length === 0 && <div className="p-8 text-center text-gray-400">Aucun utilisateur</div>}
       </div>
 
-      {/* Add Balance Modal */}
+      {/* Wallet adjust Modal */}
       <CreditModal
         target={creditTarget}
-        amount={creditAmount} setAmount={setCreditAmount}
-        note={creditNote} setNote={setCreditNote}
         saving={creditSaving}
         onClose={() => setCreditTarget(null)}
-        onSave={saveCredit}
+        onSubmit={saveCredit}
       />
 
       {/* Documents Modal */}

@@ -1,3 +1,11 @@
+## NEW - 2026-06-12 (328) - 💚 Crédit/Débit manuel portefeuille : modale Créditer/Débiter + bouton dans CRM Chauffeurs
+- **Demande user** : « comment on crédite/débite les utilisateurs, chauffeurs, marchands en mode manuel » → existait déjà (`POST /admin/users/{id}/wallet/credit`, montant +/− , types `admin_credit`/`admin_debit`) via la page Utilisateurs (liste tous rôles). Vérifié e2e curl (+15→15€, −5→10€).
+- **Amélioration (a)** : bouton portefeuille 💚 ajouté dans le CRM Chauffeurs (`AdminDrivers.js`, colonne Action) — `openWallet(d)` récupère le solde réel via `adminAPI.getUser(d.user_id)` puis ouvre la modale ; crédit via user_id.
+- **Amélioration (b)** : `CreditModal` (`users/AdminUserModals.jsx`) refactorée — autonome (state interne mode/amount/note), toggle explicite **Créditer (vert) / Débiter (rouge)**, montant toujours positif, **aperçu nouveau solde en direct**, contrat `onSubmit(signedAmount, note)`. `AdminUsers.js` adapté (suppression state amount/note obsolète).
+- **Vérifié** : screenshot (modale « Ajuster le solde » sur chauffeur, toggle Débiter, aperçu −12,50 €, 0 page error). Frontend compile OK. ⚠️ Page CRM Marchands dédiée inexistante — marchands gérés via la liste Utilisateurs (qui les inclut).
+
+
+
 ## NEW - 2026-06-12 (327) - 🔄 Fix ChunkLoadError (icônes phosphor) + durcissement chargement chunks
 - **Symptôme user** (capture) : « Uncaught runtime errors: Loading chunk vendors-…phosphor-icons…Gear_es_js failed (timeout) / ChunkLoadError ».
 - **Diagnostic** : transitoire — le chunk se recharge en HTTP 200 (0,24s). CRA + phosphor-icons v2 produit des **centaines de mini-chunks par icône** ; l'un a expiré (recompilation dev / passerelle preview froide).

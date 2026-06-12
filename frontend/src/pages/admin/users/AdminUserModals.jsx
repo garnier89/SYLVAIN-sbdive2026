@@ -1,35 +1,78 @@
-import React from 'react';
-import { X, FileText, Trash, UploadSimple } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react';
+import { X, FileText, Trash, UploadSimple, PlusCircle, MinusCircle } from '@phosphor-icons/react';
 
-/** "Add balance" wallet credit modal. State is owned by the parent. */
-export const CreditModal = ({ target, amount, setAmount, note, setNote, saving, onClose, onSave }) => {
+/**
+ * Wallet adjustment modal — explicit CRÉDITER / DÉBITER mode (amount stays
+ * positive; the sign is derived from the chosen mode). Self-contained state.
+ * Reusable across the Users CRM and the Drivers CRM.
+ *   onSubmit(signedAmount: number, note: string)
+ */
+export const CreditModal = ({ target, saving, onClose, onSubmit }) => {
+  const [mode, setMode] = useState('credit'); // 'credit' | 'debit'
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (target) { setMode('credit'); setAmount(''); setNote(''); }
+  }, [target]);
+
   if (!target) return null;
+  const isDebit = mode === 'debit';
+  const current = target.wallet_balance != null ? target.wallet_balance : 0;
+  const amt = parseFloat(amount);
+  const preview = !isNaN(amt) && amt > 0 ? current + (isDebit ? -amt : amt) : current;
+
+  const submit = () => {
+    const v = parseFloat(amount);
+    if (isNaN(v) || v <= 0) return;
+    onSubmit(isDebit ? -Math.abs(v) : Math.abs(v), note);
+  };
+
   return (
     <div className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()} data-testid="credit-modal">
         <div className="bg-gray-900 text-white px-5 py-4 flex items-center justify-between">
-          <h2 className="text-base font-bold">Ajouter solde</h2>
+          <h2 className="text-base font-bold">Ajuster le solde</h2>
           <button onClick={onClose} className="bg-white text-gray-900 rounded-full w-7 h-7 flex items-center justify-center" data-testid="credit-close-x">
             <X size={14} weight="bold" />
           </button>
         </div>
         <div className="p-5">
-          <p className="text-sm text-gray-700 mb-4">
-            Le montant saisi sera <strong>directement ajouté</strong> au compte de <strong>{target.name || target.email}</strong>.
-            <br />
-            <span className="text-xs text-gray-500">Solde actuel : {(target.wallet_balance != null ? target.wallet_balance : 0).toFixed(2)} €</span>
+          <p className="text-sm text-gray-700 mb-1">
+            <strong>{target.name || target.email}</strong>
+            {target.role ? <span className="text-xs text-gray-400"> · {target.role}</span> : null}
           </p>
+          <p className="text-xs text-gray-500 mb-4">Solde actuel : <strong>{current.toFixed(2)} €</strong></p>
+
+          {/* Mode toggle */}
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <button type="button" onClick={() => setMode('credit')} data-testid="mode-credit"
+              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${!isDebit ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+              <PlusCircle size={16} weight="fill" /> Créditer
+            </button>
+            <button type="button" onClick={() => setMode('debit')} data-testid="mode-debit"
+              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${isDebit ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+              <MinusCircle size={16} weight="fill" /> Débiter
+            </button>
+          </div>
+
           <label className="block text-sm font-semibold text-gray-800 mb-1.5">Montant (€)</label>
-          <input type="number" step="0.01" autoFocus value={amount} onChange={(e) => setAmount(e.target.value)}
-            placeholder="ex: 10.00 (négatif pour débiter)" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-3" data-testid="credit-amount" />
-          <label className="block text-sm font-semibold text-gray-800 mb-1.5">Note <span className="font-normal text-xs text-gray-400">(optionnel)</span></label>
+          <input type="number" step="0.01" min="0" autoFocus value={amount} onChange={(e) => setAmount(e.target.value)}
+            placeholder="ex: 10.00" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-1" data-testid="credit-amount" />
+          {!isNaN(amt) && amt > 0 && (
+            <p className="text-xs mb-3" data-testid="credit-preview">
+              Nouveau solde : <strong className={preview < 0 ? 'text-red-600' : 'text-emerald-700'}>{preview.toFixed(2)} €</strong>
+            </p>
+          )}
+          <label className="block text-sm font-semibold text-gray-800 mb-1.5 mt-2">Note <span className="font-normal text-xs text-gray-400">(optionnel)</span></label>
           <input type="text" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)}
-            placeholder="Raison du crédit" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" data-testid="credit-note" />
+            placeholder={isDebit ? 'Raison du débit' : 'Raison du crédit'} className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" data-testid="credit-note" />
         </div>
         <div className="flex items-center justify-end gap-2 px-5 pb-5">
           <button onClick={onClose} className="px-5 py-2.5 rounded-full border border-gray-300 text-sm font-semibold text-gray-700" data-testid="credit-close-btn">Fermer</button>
-          <button onClick={onSave} disabled={saving || !amount} className="px-6 py-2.5 rounded-full bg-gray-900 text-white text-sm font-semibold disabled:opacity-50" data-testid="credit-save-btn">
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
+          <button onClick={submit} disabled={saving || !amount || parseFloat(amount) <= 0}
+            className={`px-6 py-2.5 rounded-full text-white text-sm font-semibold disabled:opacity-50 ${isDebit ? 'bg-red-600' : 'bg-emerald-600'}`} data-testid="credit-save-btn">
+            {saving ? 'Enregistrement...' : (isDebit ? 'Débiter' : 'Créditer')}
           </button>
         </div>
       </div>

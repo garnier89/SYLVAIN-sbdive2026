@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
-import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload, Wrench, Plus, Trash, FileCsv } from '@phosphor-icons/react';
+import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload, Wrench, Plus, Trash, FileCsv, Wallet } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import CsvImportModal from '../../components/admin/CsvImportModal';
+import { CreditModal } from './users/AdminUserModals';
 
 const DRIVER_CSV_HEADERS = ['first_name', 'last_name', 'email', 'phone', 'service_types', 'taxi_sub', 'taxi_mode', 'company_name', 'vehicle_type', 'vehicle_number', 'vehicle_model', 'license_number', 'status'];
 const DRIVER_CSV_EXAMPLE = {
@@ -413,6 +414,29 @@ const AdminDrivers = () => {
   const [servicesDriver, setServicesDriver] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [creditTarget, setCreditTarget] = useState(null);
+  const [creditSaving, setCreditSaving] = useState(false);
+
+  const openWallet = async (d) => {
+    if (!d.user_id) { toast.error('Compte utilisateur introuvable pour ce chauffeur'); return; }
+    try {
+      const r = await adminAPI.getUser(d.user_id);
+      setCreditTarget({ ...r.data, role: 'chauffeur' });
+    } catch {
+      // Fallback: open with what we know (balance unknown).
+      setCreditTarget({ id: d.user_id, name: d.user?.name || 'Chauffeur', wallet_balance: 0, role: 'chauffeur' });
+    }
+  };
+
+  const saveCredit = async (signedAmount, noteText) => {
+    setCreditSaving(true);
+    try {
+      const r = await adminAPI.creditUserWallet(creditTarget.id, signedAmount, noteText);
+      toast.success(`Solde mis à jour : ${r.data.new_balance.toFixed(2)} €`);
+      setCreditTarget(null);
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+    setCreditSaving(false);
+  };
 
   const deleteDriver = async (d) => {
     if (!window.confirm(`Supprimer définitivement le chauffeur « ${d.user?.name || ''} » et son compte ?`)) return;
@@ -584,6 +608,9 @@ const AdminDrivers = () => {
                         <button className="w-7 h-7 rounded bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors" data-testid={`view-${i}`} title="View Details">
                           <Gear size={14} />
                         </button>
+                        <button onClick={() => openWallet(d)} className="w-7 h-7 rounded bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-colors" data-testid={`wallet-${i}`} title="Créditer / Débiter le portefeuille">
+                          <Wallet size={14} weight="fill" />
+                        </button>
                         <button onClick={() => deleteDriver(d)} className="w-7 h-7 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors" data-testid={`delete-${i}`} title="Supprimer">
                           <Trash size={14} />
                         </button>
@@ -599,6 +626,7 @@ const AdminDrivers = () => {
         </>
       )}
       {docDriver && <DriverDocsModal driver={docDriver} onClose={() => setDocDriver(null)} onChanged={loadDrivers} />}
+      <CreditModal target={creditTarget} saving={creditSaving} onClose={() => setCreditTarget(null)} onSubmit={saveCredit} />
       {servicesDriver && <DriverServicesModal driver={servicesDriver} onClose={() => setServicesDriver(null)} onChanged={loadDrivers} />}
       {showAdd && <AddDriverModal onClose={() => setShowAdd(false)} onCreated={loadDrivers} />}
       {showImport && (
