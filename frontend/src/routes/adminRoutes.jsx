@@ -3,6 +3,7 @@ import { Route } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import AdminPayouts from '../pages/admin/AdminPayouts';
 import AdminCarpoolConfig from '../pages/admin/AdminCarpoolConfig';
+import AdminCarpoolRevenue from '../pages/admin/AdminCarpoolRevenue';
 import {
   AdminLayout, AdminDashboard, AdminUsers, AdminUserEdit, AdminDrivers, AdminRides,
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
@@ -121,6 +122,7 @@ export function adminRoutes() {
       <Route path="maps-api" element={<AdminServiceConfig serviceKey="maps-api" />} />
       <Route path="pool-config" element={<AdminPoolConfig />} />
       <Route path="carpool-config" element={<AdminCarpoolConfig />} />
+      <Route path="carpool-revenue" element={<AdminCarpoolRevenue />} />
       <Route path="taxi-recruitment" element={<AdminTaxiRecruitment />} />
       <Route path="ride-search-config" element={<AdminServiceConfig serviceKey="ride_search" />} />
       <Route path="taxi-booking-config" element={<AdminServiceConfig serviceKey="taxi_booking" />} />

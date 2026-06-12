@@ -164,16 +164,124 @@ async def carpool_admin_get(request: Request):
     return await get_carpool_config()
 
 
+def _clamp(v, lo, hi, default, *, cast=float):
+    try:
+        x = cast(v)
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(hi, x))
+
+
 @router.put("/admin/config")
 async def carpool_admin_set(request: Request):
     await require_role(request, ["admin"])
     body = await request.json()
     update = {"service_key": CARPOOL_CONFIG_KEY}
-    for k in ("enabled", "commission_percent", "max_seats_per_booking", "max_seats_per_ride", "auto_release_hours", "currency"):
-        if k in body:
-            update[k] = body[k]
+    if "enabled" in body:
+        update["enabled"] = bool(body["enabled"])
+    if "commission_percent" in body:
+        update["commission_percent"] = _clamp(body["commission_percent"], 0, 100, 15.0)
+    if "max_seats_per_booking" in body:
+        update["max_seats_per_booking"] = _clamp(body["max_seats_per_booking"], 1, 8, 4, cast=int)
+    if "max_seats_per_ride" in body:
+        update["max_seats_per_ride"] = _clamp(body["max_seats_per_ride"], 1, 8, 8, cast=int)
+    if "auto_release_hours" in body:
+        update["auto_release_hours"] = _clamp(body["auto_release_hours"], 1, 168, 12, cast=int)
+    if "currency" in body:
+        update["currency"] = str(body["currency"] or "EUR").upper()[:3]
     await db.service_configs.update_one({"service_key": CARPOOL_CONFIG_KEY}, {"$set": update}, upsert=True)
     return await get_carpool_config()
+
+
+# ── Tableau de bord admin : revenus covoiturage ─────────────────────────────
+@router.get("/admin/revenue")
+async def carpool_admin_revenue(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    """Agrège les revenus de la plateforme issus du covoiturage (commissions 15 %).
+
+    Renvoie : KPIs (commission totale, brut encaissé, reversé chauffeurs, trajets
+    terminés, places vendues, panier moyen), top chauffeurs, et série quotidienne
+    pour le graphique.
+    """
+    await require_role(request, ["admin"])
+    cfg = await get_carpool_config()
+
+    def _in_range(iso: str) -> bool:
+        if not (date_from or date_to):
+            return True
+        d = (iso or "")[:10]
+        if date_from and d < date_from:
+            return False
+        if date_to and d > date_to:
+            return False
+        return True
+
+    completed = await db.carpool_rides.find({"status": "completed"}, {"_id": 0}).to_list(100000)
+    completed = [r for r in completed if _in_range(r.get("completed_at") or r.get("departure_date") or "")]
+
+    total_commission = total_gross = total_payout = 0.0
+    seats_sold = 0
+    drivers = {}  # driver_id -> stats
+    day_series = {}  # 'YYYY-MM-DD' -> {commission, rides}
+
+    for r in completed:
+        commission = round(float(r.get("total_commission") or 0), 2)
+        gross = round(sum(float(p.get("amount_paid") or 0)
+                          for p in r.get("passengers", []) if p.get("status") in ("completed", "booked")), 2)
+        payout = round(gross - commission, 2)
+        seats = sum(int(p.get("seats") or 0) for p in r.get("passengers", []) if p.get("status") in ("completed", "booked"))
+        total_commission += commission
+        total_gross += gross
+        total_payout += payout
+        seats_sold += seats
+
+        did = r.get("driver_id")
+        d = drivers.setdefault(did, {"driver_id": did, "driver_name": r.get("driver_name") or "—",
+                                     "commission": 0.0, "gross": 0.0, "rides": 0, "seats": 0})
+        d["commission"] = round(d["commission"] + commission, 2)
+        d["gross"] = round(d["gross"] + gross, 2)
+        d["rides"] += 1
+        d["seats"] += seats
+
+        day = (r.get("completed_at") or r.get("departure_date") or "")[:10]
+        if day:
+            ds = day_series.setdefault(day, {"date": day, "commission": 0.0, "rides": 0})
+            ds["commission"] = round(ds["commission"] + commission, 2)
+            ds["rides"] += 1
+
+    # Enrichit les top chauffeurs avec leur note moyenne (réutilise les agrégats user).
+    ids = [d for d in drivers if d]
+    if ids:
+        udocs = await db.users.find(
+            {"id": {"$in": ids}},
+            {"_id": 0, "id": 1, "cp_driver_rating_sum": 1, "cp_driver_rating_count": 1}).to_list(len(ids))
+        um = {u["id"]: u for u in udocs}
+        for did, d in drivers.items():
+            u = um.get(did) or {}
+            cnt = int(u.get("cp_driver_rating_count") or 0)
+            s = float(u.get("cp_driver_rating_sum") or 0)
+            d["rating"] = round(s / cnt, 1) if cnt else None
+            d["ratings_count"] = cnt
+
+    top_drivers = sorted(drivers.values(), key=lambda x: x["commission"], reverse=True)[:10]
+    daily = sorted(day_series.values(), key=lambda x: x["date"])[-30:]
+    rides_count = len(completed)
+    active_drivers = len([d for d in drivers if d])
+
+    return {
+        "currency": cfg["currency"],
+        "commission_percent": cfg["commission_percent"],
+        "kpis": {
+            "total_commission": round(total_commission, 2),
+            "total_gross": round(total_gross, 2),
+            "total_payout": round(total_payout, 2),
+            "rides_completed": rides_count,
+            "seats_sold": seats_sold,
+            "active_drivers": active_drivers,
+            "avg_commission_per_ride": round(total_commission / rides_count, 2) if rides_count else 0.0,
+        },
+        "top_drivers": top_drivers,
+        "daily": daily,
+    }
 
 
 # ── Publier un trajet ───────────────────────────────────────────────────────
@@ -209,12 +317,87 @@ async def create_carpool_ride(request: Request):
         "id": f"carpool_{uuid.uuid4().hex[:12]}",
         "driver_id": user["id"], "driver_name": user.get("name"), "driver_phone": user.get("phone"),
         "pickup_address": pickup, "dropoff_address": dropoff, "departure_date": departure,
+        "pickup_lat": body.get("pickup_lat"), "pickup_lng": body.get("pickup_lng"),
+        "dropoff_lat": body.get("dropoff_lat"), "dropoff_lng": body.get("dropoff_lng"),
+        "distance_km": (round(float(body["distance_km"]), 1) if body.get("distance_km") not in (None, "") else None),
+        "notes": str(body.get("notes") or "").strip()[:200],
         "available_seats": seats, "seats_taken": 0, "price_per_seat": price, "currency": cfg["currency"],
         "status": "open", "passengers": [], "escrow_total": 0.0, "total_commission": 0.0,
         "created_at": _now(),
     }
     await db.carpool_rides.insert_one(dict(ride))
+
+    # Matching inversé : si le trajet répond à une demande passager, on la clôt et on le prévient.
+    req_id = str(body.get("request_id") or "")
+    if req_id:
+        req = await db.carpool_requests.find_one({"id": req_id, "status": "open"})
+        if req:
+            await db.carpool_requests.update_one(
+                {"id": req_id}, {"$set": {"status": "fulfilled", "ride_id": ride["id"], "fulfilled_at": _now()}})
+            await create_notification(
+                req["passenger_id"], "carpool_request_fulfilled", "Un chauffeur propose votre trajet 🚗",
+                f"{user.get('name') or 'Un chauffeur'} propose {pickup} → {dropoff} à {price}€/place. Réservez votre place !",
+                data={"ride_id": ride["id"], "request_id": req_id})
     return _public_ride(ride, reveal_contact=True)
+
+
+# ── Demandes de trajet (matching inversé : le passager publie, le chauffeur propose) ──
+@router.post("/requests")
+async def create_carpool_request(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    pickup = str(body.get("pickup_address") or "").strip()
+    dropoff = str(body.get("dropoff_address") or "").strip()
+    departure = str(body.get("departure_date") or "").strip()
+    if not pickup or not dropoff:
+        raise HTTPException(status_code=400, detail="Départ et destination requis")
+    try:
+        seats = max(1, min(8, int(body.get("seats_needed", 1))))
+    except (TypeError, ValueError):
+        seats = 1
+    try:
+        max_price = round(float(body.get("max_price")), 2) if body.get("max_price") not in (None, "") else None
+    except (TypeError, ValueError):
+        max_price = None
+    req = {
+        "id": f"cpreq_{uuid.uuid4().hex[:12]}",
+        "passenger_id": user["id"], "passenger_name": user.get("name"),
+        "pickup_address": pickup, "dropoff_address": dropoff,
+        "pickup_lat": body.get("pickup_lat"), "pickup_lng": body.get("pickup_lng"),
+        "dropoff_lat": body.get("dropoff_lat"), "dropoff_lng": body.get("dropoff_lng"),
+        "departure_date": departure, "seats_needed": seats, "max_price": max_price,
+        "notes": str(body.get("notes") or "").strip()[:200],
+        "status": "open", "created_at": _now(),
+    }
+    await db.carpool_requests.insert_one(dict(req))
+    return {k: v for k, v in req.items() if k != "_id"}
+
+
+@router.get("/requests")
+async def list_carpool_requests(pickup: Optional[str] = None, dropoff: Optional[str] = None, limit: int = 30):
+    query = {"status": "open"}
+    if pickup:
+        query["pickup_address"] = {"$regex": pickup, "$options": "i"}
+    if dropoff:
+        query["dropoff_address"] = {"$regex": dropoff, "$options": "i"}
+    return await db.carpool_requests.find(query, {"_id": 0}).sort("departure_date", 1).limit(int(limit)).to_list(int(limit))
+
+
+@router.get("/my-requests")
+async def my_carpool_requests(request: Request):
+    user = await get_current_user(request)
+    return await db.carpool_requests.find(
+        {"passenger_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+
+
+@router.post("/requests/{req_id}/cancel")
+async def cancel_carpool_request(req_id: str, request: Request):
+    user = await get_current_user(request)
+    req = await db.carpool_requests.find_one({"id": req_id})
+    if not req or req["passenger_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+    await db.carpool_requests.update_one({"id": req_id}, {"$set": {"status": "cancelled", "cancelled_at": _now()}})
+    return {"ok": True}
 
 
 # ── Rechercher des trajets ──────────────────────────────────────────────────

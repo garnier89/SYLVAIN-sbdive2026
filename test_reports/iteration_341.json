@@ -1,0 +1,49 @@
+{
+  "summary": "Iter341/342 — Full carpool test pass. Backend: created new test_iter342_carpool_requests.py covering reverse-matching CRUD (requests create/list/my/cancel), fulfill flow (ride with request_id flips request->'fulfilled' + sends 'carpool_request_fulfilled' notification), and admin/revenue auth gating (401 anon / 403 user / 200 admin). 4/4 PASS. Re-verified pre-existing test_iter341_carpool_revenue.py (3/3) and test_iter338_carpool.py (5/5) — all pass individually (running them together still triggers the documented per-file asyncio loop conflict). HTTP smoke via public REACT_APP_BACKEND_URL also PASS for /api/carpool/admin/revenue, /api/carpool/requests CRUD with real auth tokens. Frontend: /admin/carpool-revenue renders fully (admin-carpool-revenue container + 7 KPI cards kpi-{commission,gross,payout,rides,seats,drivers,avg} + 4 presets all/7d/30d/90d + chart + top-drivers) and preset switching reloads without error. /carpool composer publishes a new ride (toast + ride appears in 'Mes trajets'), Demandes tab opens RequestComposer, creates a request that appears in the list with fulfill-request button visible. Mes trajets tab loads correctly. Only nit: 'publish-preview' is conditional on from/to state being set via GooglePlacesInput onChange — in headless without Places autocomplete, the wrapper.fill() doesn't propagate state, so the preview block is not rendered (expected per spec note); the ride itself still publishes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_scenarios": [
+    "GET /api/carpool/admin/revenue anon -> 401 (HTTP smoke).",
+    "GET /api/carpool/admin/revenue user-token -> 403 'Insufficient permissions' (HTTP smoke).",
+    "GET /api/carpool/admin/revenue admin-token -> 200 with full schema {currency, commission_percent, kpis{...7 keys}, top_drivers[], daily[]} (HTTP smoke + pytest).",
+    "GET /api/carpool/admin/revenue?date_from=&date_to= filters work (200, rides=0 when out-of-range, pytest also asserts driver excluded for ancient range).",
+    "POST /api/carpool/requests (auth) creates demand with id cpreq_*, status=open (HTTP + pytest).",
+    "POST /api/carpool/requests with empty pickup/dropoff -> 400 (pytest).",
+    "GET /api/carpool/requests lists open ones (HTTP + pytest), supports pickup/dropoff regex filters.",
+    "GET /api/carpool/my-requests returns caller's incl. cancelled (pytest).",
+    "POST /api/carpool/requests/{id}/cancel by non-owner -> 404; by owner -> {ok:true}; cancelled doc disappears from open list (pytest + HTTP).",
+    "POST /api/carpool/rides {request_id:<open>} -> request becomes status='fulfilled' with ride_id+fulfilled_at AND notifications collection gets a 'carpool_request_fulfilled' entry for the passenger with data{ride_id,request_id} (pytest).",
+    "Frontend /admin/carpool-revenue: 'admin-carpool-revenue' + all 7 KPI testids + 4 preset chips + carpool-revenue-chart + carpool-revenue-top-drivers all rendered; clicking carpool-revenue-preset-7d reloads and doesn't crash. Empty-state messaging ('Pas encore de trajet terminé sur cette période.', 'Aucun chauffeur sur cette période.') displays correctly when no completed rides.",
+    "Frontend /carpool: tab-search/tab-requests/tab-mine all present; publish-trip-btn opens publish-modal with header 'Publiez en quelques taps' and all expected testids (publish-from/to/my-location/seats/price/+/-/net/notes/submit + 3 slot chips + 4 seat buttons). Filling text + slot + price+, clicking publish-submit produces success toast and new ride visible in tab-mine.",
+    "Frontend Demandes tab: post-request-btn opens request-modal with all expected testids; submit creates demand visible as request-cpreq_* card with fulfill-request-cpreq_* button."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter342_carpool_requests.py",
+    "/app/backend/tests/test_iter341_carpool_revenue.py",
+    "/app/backend/tests/test_iter338_carpool.py",
+    "/app/test_reports/pytest/iter342_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/carpool.py — requests endpoints clean: id prefixed 'cpreq_', _id projection excluded, max_price normalised, notes capped at 200 chars, seats clamped 1..8.",
+    "create_carpool_ride correctly handles request_id: looks up status='open' first, then sets status='fulfilled' + ride_id + fulfilled_at, and dispatches notification with structured data{ride_id,request_id}. Good idempotency: only fulfills if currently open (no double-fulfill).",
+    "cancel_carpool_request uses 404 for both 'not found' and 'not owner' — good (avoids leaking existence).",
+    "carpool_admin_revenue: clean aggregation in Python on completed rides; gracefully handles missing completed_at by falling back to departure_date for date filtering; commission_percent + currency surfaced from config; top_drivers limited to 10, daily limited to last 30 — good defaults.",
+    "Composer publish-preview only renders when (from && to) are non-empty strings. With GooglePlacesInput the state is set via its onChange callback; tests using raw input.fill() on the wrapper won't update React state, hence preview missing in headless. Not a bug — publish still works.",
+    "Pre-existing harness limitation: running multiple carpool pytest files in one invocation fails with 'attached to a different loop' (motor binds client to first loop). Each file uses its own _LOOP via asyncio.set_event_loop. Running individually -> all pass. Consider migrating to pytest-asyncio with anyio loop scope or a single shared loop fixture in conftest for cleaner CI."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter342_carpool_requests.py (NEW, 4/4 PASS)"
+  ],
+  "success_rate": {"backend": "100% (4/4 iter342 + 3/3 iter341 + 5/5 iter338, run individually)", "frontend": "100% (admin revenue dashboard + publish composer + requests composer)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. Client: client@test.sb / Client123!. Note: login API returns access_token (not 'token').",
+  "seed_data_creation": "Backend pytest creates and cleans TEST_ carpool_requests, carpool_rides, notifications for test_pax_req/test_pax_req2/test_drv_req via explicit _cleanup() before/after each test. UI test left one 'TEST_UI_From_FdF -> TEST_UI_To_StPierre' open ride owned by client@test.sb (visible in Mes trajets) and one 'TEST_UI_REQ_From -> TEST_UI_REQ_To' open request — both harmless test artifacts; can be deleted by client through UI ('Annuler le trajet') or via direct DB cleanup if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Carpool reverse-matching + admin revenue dashboard are fully working end-to-end. Backend collections: carpool_rides, carpool_requests (new), carpool_commissions, carpool_ratings, notifications. Run each carpool pytest FILE individually (loop conflict known). Frontend route is /carpool (NOT /covoiturage); admin dashboard at /admin/carpool-revenue. Login API returns {access_token, user} — frontend stores access_token in localStorage. Composer's publish-preview only renders when from/to state is set via GooglePlacesInput.onChange — headless raw .fill() will not trigger it; publishing still works.",
+  "rca_of_the_issue": "N/A — no issues found. Implementation matches spec; all happy paths and error paths verified."
+}
