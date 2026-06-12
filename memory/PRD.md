@@ -1,4 +1,11 @@
-## NEW - 2026-06-12 (314) - 👥 Admin CRM : Ajout/Suppression Chauffeur & Marchand + refonte onboarding chauffeur (DONE, testé)
+## NEW - 2026-06-12 (315) - 📥 Import CSV en masse Chauffeurs & Marchands (admin) (DONE, testé)
+- **Demande user** : importer en masse chauffeurs ET marchands via CSV. Choix : mots de passe **générés auto** (export téléchargeable), lignes en erreur **ignorées + rapport détaillé**, **modèle CSV téléchargeable** dans l'UI.
+- **Backend** (`routes/admin.py`) : refacto des créations en helpers réutilisables `_create_driver_internal(body, *, password)` / `_create_merchant_internal(...)` (les endpoints unitaires `POST /admin/drivers|merchants` délèguent désormais). Nouveau `_generate_password` (secrets), `_read_csv_rows` (csv.DictReader), `_split_multi` (services `taxi|delivery`). Endpoints : `POST /api/admin/import/drivers` & `POST /api/admin/import/merchants` (body `{csv}`) → créent ligne par ligne, **ignorent les lignes invalides** (email existant, champ manquant, règle flotte VTC/Taxi) et renvoient `{created, skipped, total, results:[{line,status,email,name,password,reason}]}`. Mot de passe généré sauf colonne `password` fournie.
+- **Frontend** : composant réutilisable `components/admin/CsvImportModal.jsx` (téléchargement modèle CSV avec en-têtes+exemple, sélection fichier, import, **rapport visuel créés/ignorés + téléchargement du rapport CSV avec mots de passe**). Branché dans `AdminDrivers.js` (`import-drivers-btn`) et `AdminStores.js` (`import-merchants-btn`). `adminAPI.importDrivers/importMerchants`.
+- **Testé** : pytest `test_iter314_admin_crm.py` **5/5** (dont import : 2 créés/1 ignoré flotte côté chauffeurs, 1 créé/1 ignoré nom manquant côté marchands ; login d'un compte importé OK = hash + mdp généré valides) + curl e2e + screenshot UI (modal d'import rendu, table avec chauffeur importé). 
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 - **Demande user (option c = tout faire)** : l'admin doit pouvoir ajouter/supprimer n'importe quel compte (Client déjà fait, + Chauffeur + Marchand) ; onboarding chauffeur distinguant société/flotte (Taxi/VTC = nom de société requis) vs Particulier, avec ordre strict.
 - **Backend** (`routes/admin.py`) — auth bcrypt via `core.deps.hash_password` (playbook integration_expert confirmé) :
   - `POST /api/admin/drivers` : crée user (role=driver, mot de passe hashé) + profil chauffeur. **Règle flotte** : `taxi_sub ∈ {vtc, taxi}` → `company_name` requis (400 sinon) ; Particulier non. Statut `approved` par défaut.

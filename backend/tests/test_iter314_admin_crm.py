@@ -66,6 +66,38 @@ def test_particulier_no_company_required():
     s.delete(f"{API}/admin/drivers/{did}", timeout=20)
 
 
+def test_csv_import_drivers_skips_invalid_rows():
+    s = _admin_session()
+    r = uuid.uuid4().hex[:8]
+    csv = "first_name,last_name,email,service_types,taxi_sub,taxi_mode,company_name,vehicle_type,status\n"
+    csv += f"Alpha,One,impa_{r}@demo.sb,delivery|courier,particulier,,,velo,approved\n"
+    csv += f"Beta,Two,impb_{r}@demo.sb,taxi,vtc,car,,Berline,approved\n"  # VTC w/o company -> skip
+    csv += f"Gamma,Three,impc_{r}@demo.sb,taxi,vtc,car,Flotte ABC,Berline,approved\n"
+    res = s.post(f"{API}/admin/import/drivers", json={"csv": csv}, timeout=30)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["created"] == 2 and data["skipped"] == 1
+    skipped = [x for x in data["results"] if x["status"] == "skipped"][0]
+    assert "société" in skipped["reason"] or "flotte" in skipped["reason"]
+    # A created account uses the generated password.
+    created = [x for x in data["results"] if x["status"] == "created"][0]
+    assert created.get("password")
+    login = requests.post(f"{API}/auth/login", json={"email": created["email"], "password": created["password"]}, timeout=20)
+    assert login.status_code == 200
+
+
+def test_csv_import_merchants_reports():
+    s = _admin_session()
+    r = uuid.uuid4().hex[:8]
+    csv = "name,email,store_name,store_type,address\n"
+    csv += f"Marie,m1_{r}@demo.sb,Boutique Un,restaurant,Fort-de-France\n"
+    csv += f",m2_{r}@demo.sb,Sans Nom,shop,FDF\n"  # missing name -> skip
+    res = s.post(f"{API}/admin/import/merchants", json={"csv": csv}, timeout=30)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["created"] == 1 and data["skipped"] == 1
+
+
 def test_merchant_create_and_delete():
     s = _admin_session()
     em = f"store_{uuid.uuid4().hex[:8]}@demo.sb"

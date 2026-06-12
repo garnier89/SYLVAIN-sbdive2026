@@ -2,12 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning, Plus, Trash } from '@phosphor-icons/react';
+import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning, Plus, Trash, FileCsv } from '@phosphor-icons/react';
 import { ImageUpload } from '../../components/ImageUpload';
 import { adminAPI } from '../../services/api';
+import CsvImportModal from '../../components/admin/CsvImportModal';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+const MERCHANT_CSV_HEADERS = ['name', 'email', 'phone', 'store_name', 'store_type', 'address', 'description'];
+const MERCHANT_CSV_EXAMPLE = {
+  name: 'Marie Durand', email: 'marie@boutique.com', phone: '+596696000002',
+  store_name: 'Burger Palace', store_type: 'restaurant', address: 'Fort-de-France', description: 'Burgers maison',
+};
 
 const EMPTY_MERCHANT = {
   name: '', email: '', password: '', phone: '',
@@ -107,6 +114,7 @@ const AdminStores = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [pendingCount, setPendingCount] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const deleteStore = async (store) => {
     if (!window.confirm(`Supprimer définitivement « ${store.store_name} » et son compte propriétaire ?`)) return;
@@ -191,9 +199,14 @@ const AdminStores = () => {
           <h1 className="text-2xl font-bold text-gray-800">Manage Stores</h1>
           <p className="text-sm text-gray-500 mt-1">{stores.length} marchands enregistrés</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="add-merchant-btn">
-          <Plus size={16} weight="bold" className="mr-1.5" /> Ajouter une boutique
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowImport(true)} variant="outline" className="border-gray-300" data-testid="import-merchants-btn">
+            <FileCsv size={16} className="mr-1.5" /> Importer CSV
+          </Button>
+          <Button onClick={() => setShowAdd(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="add-merchant-btn">
+            <Plus size={16} weight="bold" className="mr-1.5" /> Ajouter une boutique
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-5">
@@ -343,6 +356,20 @@ const AdminStores = () => {
         </div>
       )}
       {showAdd && <AddMerchantModal onClose={() => setShowAdd(false)} onCreated={loadStores} />}
+      {showImport && (
+        <CsvImportModal
+          title="Importer des boutiques (CSV)"
+          label="Importez plusieurs marchands d'un coup. Chaque boutique est créée validée et active."
+          accent="orange"
+          templateHeaders={MERCHANT_CSV_HEADERS}
+          templateExample={MERCHANT_CSV_EXAMPLE}
+          templateName="modele-marchands.csv"
+          onImport={(csv) => adminAPI.importMerchants(csv).then((r) => r.data)}
+          onClose={() => setShowImport(false)}
+          onDone={loadStores}
+          testIdPrefix="import-merchants"
+        />
+      )}
     </div>
   );
 };

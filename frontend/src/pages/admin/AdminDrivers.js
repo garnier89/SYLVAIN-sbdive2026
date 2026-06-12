@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
-import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload, Wrench, Plus, Trash } from '@phosphor-icons/react';
+import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload, Wrench, Plus, Trash, FileCsv } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import CsvImportModal from '../../components/admin/CsvImportModal';
+
+const DRIVER_CSV_HEADERS = ['first_name', 'last_name', 'email', 'phone', 'service_types', 'taxi_sub', 'taxi_mode', 'company_name', 'vehicle_type', 'vehicle_number', 'vehicle_model', 'license_number', 'status'];
+const DRIVER_CSV_EXAMPLE = {
+  first_name: 'Jean', last_name: 'Dupont', email: 'jean.dupont@example.com', phone: '+596696000001',
+  service_types: 'taxi|delivery', taxi_sub: 'vtc', taxi_mode: 'car', company_name: 'Antilles VTC SARL',
+  vehicle_type: 'Berline', vehicle_number: 'AB-123-CD', vehicle_model: 'Toyota Camry', license_number: '12AB34567', status: 'approved',
+};
 
 const DOC_STATUS = {
   approved: { label: 'Approuvé', cls: 'bg-green-100 text-green-700', Icon: CheckCircle },
@@ -403,6 +411,7 @@ const AdminDrivers = () => {
   const [docDriver, setDocDriver] = useState(null);
   const [servicesDriver, setServicesDriver] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const deleteDriver = async (d) => {
     if (!window.confirm(`Supprimer définitivement le chauffeur « ${d.user?.name || ''} » et son compte ?`)) return;
@@ -477,6 +486,9 @@ const AdminDrivers = () => {
         <button className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
         <button onClick={handleReset} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
         <button className="ml-auto border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="export-btn">EXPORT</button>
+        <button onClick={() => setShowImport(true)} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5" data-testid="import-drivers-btn">
+          <FileCsv size={14} /> Importer CSV
+        </button>
         <button onClick={() => setShowAdd(true)} className="border border-emerald-500 bg-emerald-500 text-white rounded px-4 py-1.5 text-sm font-bold flex items-center gap-1.5 hover:bg-emerald-600" data-testid="add-driver-btn">
           <Plus size={14} weight="bold" /> Ajouter
         </button>
@@ -588,6 +600,20 @@ const AdminDrivers = () => {
       {docDriver && <DriverDocsModal driver={docDriver} onClose={() => setDocDriver(null)} onChanged={loadDrivers} />}
       {servicesDriver && <DriverServicesModal driver={servicesDriver} onClose={() => setServicesDriver(null)} onChanged={loadDrivers} />}
       {showAdd && <AddDriverModal onClose={() => setShowAdd(false)} onCreated={loadDrivers} />}
+      {showImport && (
+        <CsvImportModal
+          title="Importer des chauffeurs (CSV)"
+          label="Importez plusieurs chauffeurs d'un coup. Pour les statuts VTC/Taxi, la colonne company_name est obligatoire."
+          accent="emerald"
+          templateHeaders={DRIVER_CSV_HEADERS}
+          templateExample={DRIVER_CSV_EXAMPLE}
+          templateName="modele-chauffeurs.csv"
+          onImport={(csv) => adminAPI.importDrivers(csv).then((r) => r.data)}
+          onClose={() => setShowImport(false)}
+          onDone={loadDrivers}
+          testIdPrefix="import-drivers"
+        />
+      )}
     </div>
   );
 };
