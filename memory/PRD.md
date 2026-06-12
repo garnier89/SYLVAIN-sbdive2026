@@ -1,3 +1,14 @@
+## NEW - 2026-06-12 (294) - 🏠 Intégration de SB Travel dans la grille de l'accueil (DONE, vérifié e2e)
+- **Demande user** (capture d'écran) : intégrer la section voyage DANS la grille de l'accueil (look V3Cube, comme « Colis & Coursier » / « Acheter, Vendre & Louer »), Taxi restant en premier.
+- **Frontend uniquement** (`UserHome.js`) :
+  - Nouveau bloc keyé `travel` = `<section>` « SB Travel » (SectionHeader + sous-titre) avec 4 tuiles ServiceTile : Billets d'avion (/vols), Hôtels (/hotels), Forfaits Vol+Hôtel (/forfaits, badge PROMO), SB Travel (/sb-travel hub) + le carrousel `OffresDuMoment` en dessous.
+  - Inséré dans l'ordre des sections juste après `marketplace` (et garanti via `ORDERED_SECTIONS` même si l'admin a un ordre personnalisé). Taxi reste premier.
+  - Ancienne bannière gradient « SB Travel » + carrousel autonome (iter293) SUPPRIMÉS (remplacés par la section intégrée).
+  - `DynamicIcon.js` : ajout de l'icône `Suitcase` (pour la tuile Forfaits).
+- **Vérifié** : smoke test e2e — section présente, 4 tuiles + carrousel, navigation tuile→/vols OK. Aucun changement backend.
+- ⚠️ PREVIEW → redéploiement requis.
+
+
 ## NEW - 2026-06-12 (293) - 🌍 SB Travel hub + carrousel « Offres du moment » (DONE, vérifié e2e)
 - **Demande user (a+d)** : regrouper les entrées voyage en un hub « SB Travel » + section « Offres du moment » sur l'accueil avec deep-link vers le forfait.
 - **Frontend uniquement** (réutilise les endpoints déjà testés) :

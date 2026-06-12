@@ -30,7 +30,7 @@ import {
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
   Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
-  GraduationCap, Storefront, Wheelchair, Suitcase,
+  GraduationCap, Storefront, Wheelchair,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -453,6 +453,22 @@ const UserHome = () => {
         </div>
       </section>
     ),
+    travel: (
+      <section key="travel" className="mt-6" data-testid="home-travel-section">
+        <div className="px-4">
+          <SectionHeader title="SB Travel" sub="Vols, hôtels & forfaits voyage — réservez en quelques secondes." />
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              { id: 'travel-flights', name: 'Billets\nd\u2019avion', iconName: 'AirplaneTilt', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/vols' },
+              { id: 'travel-hotels', name: 'Hôtels', iconName: 'Bed', bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/hotels' },
+              { id: 'travel-packages', name: 'Forfaits\nVol+Hôtel', iconName: 'Suitcase', bg: 'bg-violet-50', iconColor: 'text-violet-600', path: '/forfaits', badge: 'PROMO' },
+              { id: 'travel-all', name: 'SB Travel', iconName: 'GridFour', bg: 'bg-slate-100', iconColor: 'text-gray-600', path: '/sb-travel' },
+            ].map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
+          </div>
+        </div>
+        <OffresDuMoment className="mt-4" />
+      </section>
+    ),
     beauty: (
       <section key="beauty" className="px-4 mt-6">
         <SectionHeader title="Services Beauté" />
@@ -651,11 +667,20 @@ const UserHome = () => {
   // Section order/visibility is admin-configurable (home_sections); fall back to the
   // curated default order, and only render blocks we actually have.
   const DEFAULT_SECTION_ORDER = [
-    'taxi', 'promo', 'delivery', 'parcel', 'marketplace', 'beauty', 'medical',
+    'taxi', 'promo', 'delivery', 'parcel', 'marketplace', 'travel', 'beauty', 'medical',
     'ondemand', 'bid', 'carcare', 'towing',
     'genie', 'video', 'pet', 'parking', 'giftcards', 'carpool', 'tracking', 'nearby',
   ];
   const SECTION_ORDER = sectionOrder && sectionOrder.length ? sectionOrder : DEFAULT_SECTION_ORDER;
+  // Garantit que la section SB Travel apparaît même si l'admin a un ordre personnalisé
+  // qui ne la connaît pas encore (insérée juste après "Acheter, Vendre & Louer").
+  const ORDERED_SECTIONS = (() => {
+    if (SECTION_ORDER.includes('travel')) return SECTION_ORDER;
+    const out = [...SECTION_ORDER];
+    const mp = out.indexOf('marketplace');
+    if (mp >= 0) out.splice(mp + 1, 0, 'travel'); else out.push('travel');
+    return out;
+  })();
 
   return (
     <div className={`mobile-container min-h-screen pb-36 bg-white text-[#1F2430] ${BODY}`}>
@@ -737,24 +762,6 @@ const UserHome = () => {
         </span>
         <CaretRight size={18} className="text-white shrink-0" />
       </button>
-      {/* SB Travel — hub voyage (Vols · Hôtels · Forfaits) */}
-      <button
-        onClick={() => navigate('/sb-travel')}
-        data-testid="home-sbtravel-entry"
-        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0A2540, #1D4ED8)' }}
-      >
-        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-          <Suitcase size={22} weight="fill" className="text-white" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="text-white font-black text-sm block leading-tight">SB Travel ✈️🏨</span>
-          <span className="text-white/85 text-xs block leading-tight">Vols, hôtels & forfaits voyage à prix réduit</span>
-        </span>
-        <CaretRight size={18} className="text-white shrink-0" />
-      </button>
-      {/* Carrousel des meilleures offres forfaits */}
-      <OffresDuMoment className="mt-4" />
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 
       {/* Referral progress nudge — reminds the referred user how close their reward is */}
@@ -848,7 +855,7 @@ const UserHome = () => {
             </div>
           </button>
         </section>
-        {SECTION_ORDER.map((key) => blocks[key])}
+        {ORDERED_SECTIONS.map((key) => blocks[key])}
       </motion.main>
 
       {/* ===== BOTTOM NAVIGATION (floating dark pill) ===== */}

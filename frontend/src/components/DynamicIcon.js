@@ -13,7 +13,7 @@ import {
   GasPump, BatteryFull, Plug, Coffee, Wine, Stethoscope, FirstAid,
   VideoCamera, GridFour, Wallet, Buildings, Star, MapPin,
   GraduationCap, Scales, Moon, Bank, Bed, Tree, MusicNotes, BookOpen,
-  Confetti, SteeringWheel, Snowflake,
+  Confetti, SteeringWheel, Snowflake, Suitcase,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -32,7 +32,7 @@ export const ICON_MAP = {
   GasPump, BatteryFull, Plug, Coffee, Wine, Stethoscope, FirstAid,
   VideoCamera, GridFour, Wallet, Buildings, Star, MapPin,
   GraduationCap, Scales, Moon, Bank, Bed, Tree, MusicNotes, BookOpen,
-  Confetti, SteeringWheel, Snowflake,
+  Confetti, SteeringWheel, Snowflake, Suitcase,
 };
 
 const DynamicIcon = ({ name, imageUrl, size = 28, weight = 'duotone', className = '' }) => {
