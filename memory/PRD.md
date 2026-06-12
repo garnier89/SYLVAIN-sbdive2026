@@ -1,3 +1,11 @@
+## NEW - 2026-06-12 (292) - 🧳 Forfaits combinés Vol + Hôtel (DONE, testé frontend 100% + pytest 5/5)
+- **Demande user** : packages voyage à prix réduit (levier de conversion n°1 des agences) en assemblant les modules Vols + Hôtels existants.
+- **Backend** `routes/travel_packages.py` (collections `travel_packages`, `travel_bookings` ; réutilise helpers de `hotels.py` et `flights.py`) : l'admin compose un forfait (vol + hôtel/chambre + nuits + remise %), `GET /travel-packages` (+ détail/quote), `POST /{id}/book` (paiement SB Pay UNIQUE remisé qui crée AUSSI un `flight_booking` + `hotel_booking` sous-jacents taggés `package_booking_id` → stocks décrémentés + visibles dans Mes vols/Mes séjours), `POST /bookings/{id}/cancel` (annulation groupée + remboursement total remisé). Admin : `/admin/options` (dropdowns vol/hôtel/chambre), CRUD packages, bookings. Seed 1 forfait démo (Escapade Paris -15%).
+- **Frontend** : user `TravelPackagesPage.js` (route `/forfaits`), admin `AdminTravelPackages.js` (route `/admin/travel-packages`, sidebar 'Forfaits Vol+Hôtel'). Entrée accueil `home-packages-entry` (badge PROMO). `travelPackagesAPI`.
+- **Testé** : testing_agent iter292 frontend 100% (incl. propagation vol+hôtel + cascade annulation) + pytest `test_iter292_travel_packages.py` 5/5. AUCUN bug.
+- ⚠️ Paiement SB Pay. PREVIEW → redéploiement requis.
+
+
 ## NEW - 2026-06-12 (291) - ✈️ VERTICALE Billets d'avion / agence de voyage (DONE, testé frontend 100% + pytest 4/4)
 - **Demande user (a→b→c→d validée)** : 4ᵉ verticale d'expansion. Modèle inventaire ADMIN (sans API tierce type Amadeus, validé par défaut).
 - **Backend** `routes/flights.py` (collections `flight_offers`, `flight_bookings`) : recherche par départ/arrivée/date (`GET /flights`, `/flights/airports`, `/flights/{id}`), réservation multi-passagers (`POST /flights/book` — débit SB Pay, sièges décrémentés via comptage des résas confirmées), `GET /flights/bookings/my`, annulation+remboursement avant départ (`POST /flights/bookings/{id}/cancel`). Admin : CRUD vols (`/flights/admin/flights`) + réservations. Seed 3 vols démo (Air Caraïbes, Air France, Corsair).
