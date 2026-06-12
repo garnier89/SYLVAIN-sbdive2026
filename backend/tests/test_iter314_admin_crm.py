@@ -98,6 +98,39 @@ def test_csv_import_merchants_reports():
     assert data["created"] == 1 and data["skipped"] == 1
 
 
+def test_sequential_dispatch_flow():
+    s = _admin_session()
+    import time as _t
+    ph = '+59669' + str(uuid.uuid4().int)[:7]
+    mr = s.post(f"{API}/admin/bookings/manual-ride", json={
+        "pickup_address": "A", "dropoff_address": "B", "pickup_lat": 14.6, "pickup_lng": -61.07,
+        "dropoff_lat": 14.61, "dropoff_lng": -60.99, "customer_phone": ph, "customer_name": "Disp Test",
+    }, timeout=20)
+    assert mr.status_code == 200, mr.text
+    rid = mr.json()["ride"]["id"]
+    try:
+        ad = s.post(f"{API}/admin/bookings/ride/{rid}/auto-dispatch", timeout=20)
+        # If no online drivers in this env, endpoint returns 400 — skip gracefully.
+        if ad.status_code == 400:
+            return
+        assert ad.status_code == 200, ad.text
+        sess = ad.json()["session"]
+        assert sess["status"] == "offering" and len(sess["chain"]) >= 1
+        assert sess["current_driver_id"]
+        # Decline -> advance (only if chain has >1 driver)
+        if len(sess["chain"]) > 1:
+            dr = s.post(f"{API}/admin/bookings/ride/{rid}/offer-respond", json={"accept": False}, timeout=20).json()
+            assert dr["session"]["index"] == 1
+        # Accept -> ride assigned
+        ac = s.post(f"{API}/admin/bookings/ride/{rid}/offer-respond", json={"accept": True}, timeout=20)
+        assert ac.status_code == 200 and ac.json()["accepted"] is True
+        st = s.get(f"{API}/admin/bookings/ride/{rid}/dispatch-status", timeout=20).json()["session"]
+        assert st["status"] == "accepted"
+    finally:
+        s.post(f"{API}/admin/bookings/ride/{rid}/dispatch-cancel", timeout=20)
+        s.post(f"{API}/admin/bookings/ride/{rid}/cancel", json={"reason": "cleanup"}, timeout=20)
+
+
 def test_onboarding_dashboard_and_remind():
     s = _admin_session()
     # Create a pending (just-invited) driver.

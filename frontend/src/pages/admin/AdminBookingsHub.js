@@ -5,6 +5,7 @@ import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { ManualRideModal, ManualOrderModal } from '../../components/admin/ManualBookingModals';
 import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
 import { NearbyDriversModal } from '../../components/admin/NearbyDriversModal';
+import { DispatchControl } from '../../components/admin/DispatchControl';
 import {
   Car, Package, ClockCountdown, CheckCircle, XCircle, CurrencyEur, ChartLineUp,
   Plus, MagnifyingGlass, DownloadSimple, FilePdf, ArrowsClockwise, CalendarBlank, UserSwitch,
@@ -202,7 +203,8 @@ const AdminBookingsHub = () => {
                 <Pay m={sel.payment_method} />
                 <Badge s={sel.status} />
                 <span className="text-xs text-gray-600">{sel.driver_name || 'Non assigné'}</span>
-                <div className="ml-auto flex gap-2">
+                <div className="ml-auto flex gap-2 items-center">
+                  {!sel.driver_id && <DispatchControl ride={sel} onChange={refresh} />}
                   {!sel.driver_id && <button onClick={() => reassign(sel)} className="text-xs font-bold text-blue-600 border border-blue-200 rounded-lg px-2.5 py-1.5" data-testid="map-reassign-btn">Affecter</button>}
                   {!['completed', 'cancelled'].includes(sel.status) && <button onClick={() => cancelRide(sel.id)} className="text-xs font-bold text-red-600 border border-red-200 rounded-lg px-2.5 py-1.5" data-testid="map-cancel-btn">Annuler</button>}
                   <button onClick={() => setSelectedRide(null)} className="text-xs text-gray-500 px-2">Fermer</button>

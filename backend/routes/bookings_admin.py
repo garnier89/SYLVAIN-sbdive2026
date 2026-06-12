@@ -11,6 +11,7 @@ All endpoints are mounted under /api/admin/bookings.
 """
 import uuid
 import secrets
+import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -386,24 +387,13 @@ async def create_manual_order(request: Request):
 
 
 # ───────────────────────── RIDE ACTIONS ─────────────────────────
-@router.get("/ride/{ride_id}/nearby-drivers")
-async def nearby_drivers(ride_id: str, request: Request, limit: int = 3):
-    """Suggest the closest ONLINE drivers to a ride's pickup, with distance & ETA,
-    so the dispatcher can reassign in one click from the map."""
-    await require_role(request, ["admin", "dispatcher"])
-    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "vehicle_type": 1})
-    if not ride:
-        raise HTTPException(404, "Course introuvable")
-    p_lat, p_lng = ride.get("pickup_lat") or 0, ride.get("pickup_lng") or 0
-    if not p_lat:
-        raise HTTPException(400, "La course n'a pas de coordonnées de départ")
-
+async def _compute_nearby(p_lat, p_lng, limit=3):
+    """Closest ONLINE+approved drivers to a point, sorted by distance, with ETA."""
     drivers = await db.drivers.find(
         {"is_online": True, "status": "approved"},
         {"_id": 0, "id": 1, "user_id": 1, "current_lat": 1, "current_lng": 1,
          "vehicle_type": 1, "vehicle_model": 1, "rating": 1, "company_name": 1},
     ).limit(500).to_list(500)
-
     candidates = []
     for d in drivers:
         loc = manager.get_driver_location(d["id"])
@@ -426,7 +416,188 @@ async def nearby_drivers(ride_id: str, request: Request, limit: int = 3):
         u = umap.get(c["user_id"], {})
         c["name"] = u.get("name") or "Chauffeur"
         c["phone"] = u.get("phone")
-    return {"drivers": top, "total_online": len(candidates)}
+    return top, len(candidates)
+
+
+@router.get("/ride/{ride_id}/nearby-drivers")
+async def nearby_drivers(ride_id: str, request: Request, limit: int = 3):
+    """Suggest the closest ONLINE drivers to a ride's pickup, with distance & ETA,
+    so the dispatcher can reassign in one click from the map."""
+    await require_role(request, ["admin", "dispatcher"])
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "vehicle_type": 1})
+    if not ride:
+        raise HTTPException(404, "Course introuvable")
+    p_lat, p_lng = ride.get("pickup_lat") or 0, ride.get("pickup_lng") or 0
+    if not p_lat:
+        raise HTTPException(400, "La course n'a pas de coordonnées de départ")
+    top, total = await _compute_nearby(p_lat, p_lng, limit)
+    return {"drivers": top, "total_online": total}
+
+
+# ───────────────────── SEQUENTIAL DISPATCH (offer + countdown + escalation) ─────────────────────
+OFFER_SECONDS = 15          # countdown per driver before escalating
+DISPATCH_CHAIN = 3          # top-N closest drivers tried in cascade
+DISPATCH_MAX_ROUNDS = 3     # restart from the 1st driver up to N rounds, then alert admin
+
+
+async def _assign_ride_to_driver(ride_id, driver_id, *, via="dispatch"):
+    driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "id": 1, "user_id": 1})
+    if not driver:
+        raise HTTPException(404, "Chauffeur introuvable")
+    du = await db.users.find_one({"id": driver.get("user_id")}, {"_id": 0, "name": 1, "phone": 1})
+    await db.rides.update_one({"id": ride_id}, {"$set": {
+        "driver_id": driver_id, "driver_user_id": driver.get("user_id"),
+        "driver_name": (du or {}).get("name"), "driver_phone": (du or {}).get("phone"),
+        "status": "accepted", "accepted_at": _now().isoformat(), "assigned_by": via,
+    }})
+    try:
+        if driver.get("user_id"):
+            await manager.send_personal_message({"type": "ride_assigned", "ride_id": ride_id}, driver["user_id"])
+        ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "user_id": 1})
+        if ride and ride.get("user_id"):
+            await manager.send_personal_message({"type": "driver_assigned", "ride_id": ride_id}, ride["user_id"])
+        await manager.broadcast_to_admins({"type": "dispatch_assigned", "ride_id": ride_id, "driver_id": driver_id})
+    except Exception:
+        pass
+    return du or {}
+
+
+async def _send_offer(session):
+    """Push the current offer to the targeted driver + notify admins (for the live UI)."""
+    chain, idx = session["chain"], session["index"]
+    cur = chain[idx]
+    expires = (_now() + timedelta(seconds=OFFER_SECONDS)).isoformat()
+    await db.dispatch_sessions.update_one({"id": session["id"]}, {"$set": {
+        "current_driver_id": cur["driver_id"], "current_user_id": cur["user_id"],
+        "expires_at": expires, "updated_at": _now().isoformat(),
+    }})
+    ride = await db.rides.find_one({"id": session["ride_id"]}, {"_id": 0})
+    try:
+        if cur.get("user_id"):
+            await manager.send_personal_message({
+                "type": "ride_offer", "ride_id": session["ride_id"], "expires_at": expires,
+                "offer_seconds": OFFER_SECONDS, "round": session["round"],
+                "pickup_address": (ride or {}).get("pickup_address"),
+                "dropoff_address": (ride or {}).get("dropoff_address"),
+                "estimated_fare": (ride or {}).get("estimated_fare"),
+            }, cur["user_id"])
+        await manager.broadcast_to_admins({"type": "dispatch_offer", "ride_id": session["ride_id"],
+                                           "driver_id": cur["driver_id"], "driver_name": cur.get("name"),
+                                           "expires_at": expires, "round": session["round"]})
+    except Exception:
+        pass
+    return expires
+
+
+async def _advance_dispatch(session):
+    """Move to the next driver; loop rounds; after MAX_ROUNDS, give up + alert admin."""
+    declined = list(set((session.get("declined") or []) + [session.get("current_driver_id")]))
+    idx, rnd, chain = session["index"] + 1, session["round"], session["chain"]
+    if idx >= len(chain):
+        rnd += 1
+        idx = 0
+        declined = []
+        if rnd > DISPATCH_MAX_ROUNDS:
+            await db.dispatch_sessions.update_one({"id": session["id"]}, {"$set": {
+                "status": "exhausted", "updated_at": _now().isoformat(), "expires_at": None}})
+            try:
+                await manager.broadcast_to_admins({"type": "dispatch_exhausted", "ride_id": session["ride_id"]})
+            except Exception:
+                pass
+            return
+    await db.dispatch_sessions.update_one({"id": session["id"]}, {"$set": {
+        "index": idx, "round": rnd, "declined": declined, "updated_at": _now().isoformat()}})
+    session.update({"index": idx, "round": rnd, "declined": declined})
+    await _send_offer(session)
+
+
+@router.post("/ride/{ride_id}/auto-dispatch")
+async def start_auto_dispatch(ride_id: str, request: Request):
+    """Start a sequential offer chain to the closest online drivers (15s each, escalating)."""
+    await require_role(request, ["admin", "dispatcher"])
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "status": 1, "driver_id": 1})
+    if not ride:
+        raise HTTPException(404, "Course introuvable")
+    if ride.get("driver_id"):
+        raise HTTPException(400, "Course déjà assignée")
+    if ride.get("status") in DONE_STATUSES:
+        raise HTTPException(400, "Course terminée/annulée")
+    p_lat, p_lng = ride.get("pickup_lat") or 0, ride.get("pickup_lng") or 0
+    if not p_lat:
+        raise HTTPException(400, "La course n'a pas de coordonnées de départ")
+    chain, total = await _compute_nearby(p_lat, p_lng, DISPATCH_CHAIN)
+    if not chain:
+        raise HTTPException(400, "Aucun chauffeur en ligne à proximité")
+    # Replace any previous session for this ride.
+    await db.dispatch_sessions.delete_many({"ride_id": ride_id})
+    session = {
+        "id": f"disp_{uuid.uuid4().hex[:12]}", "ride_id": ride_id, "chain": chain,
+        "index": 0, "round": 1, "declined": [], "status": "offering",
+        "offer_seconds": OFFER_SECONDS, "current_driver_id": None, "current_user_id": None,
+        "expires_at": None, "created_at": _now().isoformat(), "updated_at": _now().isoformat(),
+    }
+    await db.dispatch_sessions.insert_one(session)
+    await _send_offer(session)
+    fresh = await db.dispatch_sessions.find_one({"id": session["id"]}, {"_id": 0})
+    return {"session": fresh, "total_online": total}
+
+
+@router.get("/ride/{ride_id}/dispatch-status")
+async def dispatch_status(ride_id: str, request: Request):
+    await require_role(request, ["admin", "dispatcher"])
+    s = await db.dispatch_sessions.find_one({"ride_id": ride_id}, {"_id": 0})
+    return {"session": s}
+
+
+@router.post("/ride/{ride_id}/dispatch-cancel")
+async def dispatch_cancel(ride_id: str, request: Request):
+    await require_role(request, ["admin", "dispatcher"])
+    await db.dispatch_sessions.update_one({"ride_id": ride_id, "status": "offering"},
+                                          {"$set": {"status": "cancelled", "expires_at": None, "updated_at": _now().isoformat()}})
+    return {"cancelled": True}
+
+
+@router.post("/ride/{ride_id}/offer-respond")
+async def offer_respond(ride_id: str, request: Request):
+    """Driver (or dispatcher simulating) accepts/declines the current offer."""
+    await require_role(request, ["admin", "dispatcher", "driver"])
+    body = await request.json()
+    accept = bool(body.get("accept"))
+    s = await db.dispatch_sessions.find_one({"ride_id": ride_id, "status": "offering"}, {"_id": 0})
+    if not s:
+        raise HTTPException(404, "Aucune offre active")
+    driver_id = (body.get("driver_id") or s.get("current_driver_id"))
+    if accept:
+        await _assign_ride_to_driver(ride_id, driver_id, via="dispatch")
+        await db.dispatch_sessions.update_one({"id": s["id"]}, {"$set": {
+            "status": "accepted", "accepted_driver_id": driver_id, "expires_at": None, "updated_at": _now().isoformat()}})
+        return {"accepted": True, "driver_id": driver_id}
+    await _advance_dispatch(s)
+    nxt = await db.dispatch_sessions.find_one({"id": s["id"]}, {"_id": 0})
+    return {"declined": True, "session": nxt}
+
+
+async def sequential_dispatch_loop():
+    """Background sweeper: expire offers with no response and escalate to the next driver."""
+    import logging
+    log = logging.getLogger("seq_dispatch")
+    log.info("Sequential dispatch loop started")
+    while True:
+        try:
+            now_iso = _now().isoformat()
+            expired = await db.dispatch_sessions.find(
+                {"status": "offering", "expires_at": {"$ne": None, "$lt": now_iso}}, {"_id": 0}
+            ).to_list(100)
+            for s in expired:
+                # Skip if the ride got assigned/cancelled meanwhile.
+                ride = await db.rides.find_one({"id": s["ride_id"]}, {"_id": 0, "driver_id": 1, "status": 1})
+                if not ride or ride.get("driver_id") or ride.get("status") in DONE_STATUSES:
+                    await db.dispatch_sessions.update_one({"id": s["id"]}, {"$set": {"status": "cancelled", "expires_at": None}})
+                    continue
+                await _advance_dispatch(s)
+        except Exception as e:  # noqa: BLE001
+            log.error(f"seq dispatch loop error: {e}")
+        await asyncio.sleep(3)
 
 
 @router.post("/ride/{ride_id}/cancel")
