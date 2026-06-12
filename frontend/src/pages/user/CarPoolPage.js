@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Users, MapPin, Plus, X, SteeringWheel, Phone, CheckCircle, ShieldCheck, Star } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Users, MapPin, Plus, X, SteeringWheel, Phone, CheckCircle, ShieldCheck, Star, SealCheck, CaretRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { carpoolAPI } from '../../services/api';
 
@@ -18,6 +18,12 @@ const StarBadge = ({ rating, count }) => (
       <Star size={12} weight="fill" /> {rating} <span className="text-gray-400 font-normal">({count})</span>
     </span>
   ) : <span className="text-[11px] text-gray-400">Nouveau ✦</span>
+);
+
+const SuperBadge = () => (
+  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 px-1.5 py-0.5 rounded-full" data-testid="super-driver-badge">
+    <SealCheck size={10} weight="fill" /> Super chauffeur
+  </span>
 );
 
 const RIDE_STATUS = {
@@ -45,6 +51,7 @@ const CarPoolPage = () => {
   const [mine, setMine] = useState({ as_driver: [], as_passenger: [] });
   const [busy, setBusy] = useState(null);
   const [rateTarget, setRateTarget] = useState(null); // {rideId, ratee_id, name, role}
+  const [reviewsDriver, setReviewsDriver] = useState(null); // {id, name}
 
   const load = useCallback(() => {
     setLoading(true);
@@ -150,11 +157,16 @@ const CarPoolPage = () => {
                       <div className="flex items-center gap-2">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center text-white font-bold">{(t.driver_name || '?').charAt(0)}</div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900">{t.driver_name}</p>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-bold text-gray-900">{t.driver_name}</p>
+                            {t.driver_super && <SuperBadge />}
+                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); if (t.driver_id) setReviewsDriver({ id: t.driver_id, name: t.driver_name }); }}
+                            data-testid={`open-reviews-${t.id}`} className="flex items-center gap-2">
                             <p className="text-[11px] text-gray-400">{fmtDate(t.departure_date)}</p>
                             <StarBadge rating={t.driver_rating} count={t.driver_ratings_count} />
-                          </div>
+                            {t.driver_ratings_count > 0 && <CaretRight size={10} className="text-gray-300" />}
+                          </button>
                         </div>
                       </div>
                       <div className="text-right">
@@ -276,6 +288,60 @@ const CarPoolPage = () => {
       {showPublish && <PublishTripModal onClose={() => setShowPublish(false)} onPublished={() => { setShowPublish(false); load(); }} />}
       {bookTrip && <BookSeatModal trip={bookTrip} maxSeats={maxSeats} onClose={() => setBookTrip(null)} onBooked={() => { setBookTrip(null); load(); }} />}
       {rateTarget && <RateModal target={rateTarget} onClose={() => setRateTarget(null)} onRated={() => { setRateTarget(null); loadMine(); }} />}
+      {reviewsDriver && <DriverReviewsModal driver={reviewsDriver} onClose={() => setReviewsDriver(null)} />}
+    </div>
+  );
+};
+
+const DriverReviewsModal = ({ driver, onClose }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    carpoolAPI.driverReviews(driver.id)
+      .then((r) => setData(r.data))
+      .catch(() => setData({ reviews: [], count: 0 }))
+      .finally(() => setLoading(false));
+  }, [driver.id]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center sm:justify-center" onClick={onClose} data-testid="reviews-modal">
+      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-gray-900">Avis · {driver.name}</h3>
+          <button onClick={onClose} className="text-gray-400" data-testid="reviews-close"><X size={22} /></button>
+        </div>
+        {loading ? (
+          <div className="flex justify-center py-10"><div className="w-7 h-7 border-2 border-amber-200 border-t-amber-500 rounded-full animate-spin" /></div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="text-center">
+                <p className="text-3xl font-black text-amber-500" data-testid="reviews-avg">{data.rating ?? '—'}</p>
+                <div className="flex items-center gap-0.5 justify-center">
+                  {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={12} weight="fill" className={data.rating && n <= Math.round(data.rating) ? 'text-amber-400' : 'text-gray-200'} />)}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5">{data.count} avis</p>
+              </div>
+              {data.is_super_driver && <SuperBadge />}
+            </div>
+            {(!data.reviews || data.reviews.length === 0) ? (
+              <p className="text-sm text-gray-400 text-center py-6">Aucun avis pour l'instant.</p>
+            ) : (
+              <div className="space-y-3">
+                {data.reviews.map((rv, i) => (
+                  <div key={i} className="border-b border-gray-100 pb-2 last:border-b-0" data-testid={`review-${i}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-800">{rv.rater_name || 'Passager'}</span>
+                      <span className="flex items-center gap-0.5 text-amber-500 text-xs font-bold"><Star size={11} weight="fill" />{rv.stars}</span>
+                    </div>
+                    {rv.comment && <p className="text-xs text-gray-500 mt-0.5">{rv.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

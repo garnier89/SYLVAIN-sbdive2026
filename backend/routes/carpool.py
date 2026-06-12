@@ -23,6 +23,8 @@ from core.notifications import create_notification
 router = APIRouter(prefix="/carpool", tags=["carpool"])
 
 CARPOOL_CONFIG_KEY = "carpool"
+SUPER_DRIVER_MIN_RATING = 4.7
+SUPER_DRIVER_MIN_COUNT = 5
 CARPOOL_DEFAULTS = {
     "enabled": True,
     "commission_percent": 15.0,
@@ -72,9 +74,30 @@ async def _attach_driver_ratings(rides: list) -> list:
         u = m.get(r.get("driver_id")) or {}
         cnt = int(u.get("cp_driver_rating_count") or 0)
         s = float(u.get("cp_driver_rating_sum") or 0)
-        r["driver_rating"] = round(s / cnt, 1) if cnt else None
+        avg = round(s / cnt, 1) if cnt else None
+        r["driver_rating"] = avg
         r["driver_ratings_count"] = cnt
+        r["driver_super"] = bool(cnt >= SUPER_DRIVER_MIN_COUNT and avg and avg >= SUPER_DRIVER_MIN_RATING)
     return rides
+
+
+@router.get("/drivers/{driver_id}/reviews")
+async def driver_reviews(driver_id: str):
+    """Avis détaillés reçus par un chauffeur + note moyenne + badge Super chauffeur."""
+    u = await db.users.find_one(
+        {"id": driver_id}, {"_id": 0, "name": 1, "cp_driver_rating_sum": 1, "cp_driver_rating_count": 1}) or {}
+    cnt = int(u.get("cp_driver_rating_count") or 0)
+    s = float(u.get("cp_driver_rating_sum") or 0)
+    avg = round(s / cnt, 1) if cnt else None
+    reviews = await db.carpool_ratings.find(
+        {"ratee_id": driver_id, "ratee_role": "driver"},
+        {"_id": 0, "stars": 1, "comment": 1, "rater_name": 1, "created_at": 1}
+    ).sort("created_at", -1).limit(30).to_list(30)
+    return {
+        "driver_name": u.get("name"), "rating": avg, "count": cnt,
+        "is_super_driver": bool(cnt >= SUPER_DRIVER_MIN_COUNT and avg and avg >= SUPER_DRIVER_MIN_RATING),
+        "reviews": reviews,
+    }
 
 
 def _public_ride(ride: dict, *, reveal_contact: bool = False) -> dict:

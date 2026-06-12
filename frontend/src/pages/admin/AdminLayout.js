@@ -112,6 +112,7 @@ const sidebarConfig = [
       ]},
       { icon: UsersThree, label: 'Covoiturage', key: 'rideshare', children: [
         { label: 'Paramètres', path: '/admin/rideshare' },
+        { label: 'Config paiement (escrow)', path: '/admin/carpool-config' },
       ]},
       { icon: MapPinArea, label: 'À proximité', key: 'nearby', children: [
         { label: 'Paramètres', path: '/admin/nearby' },
