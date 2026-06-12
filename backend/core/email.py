@@ -65,6 +65,19 @@ def fire(coro) -> None:
         asyncio.run(coro)
 
 
+async def send_fraud_alert_email(to: str, title: str, lines: list) -> None:
+    """E-mail d'alerte fraude (événement critique) vers un administrateur."""
+    rows = "".join(
+        f'<p style="color:#444;font-size:14px;line-height:1.6;margin:4px 0;">{line}</p>' for line in lines
+    )
+    body = f"""\
+        <p style="color:#b91c1c;font-weight:bold;font-size:15px;">🚨 Alerte de sécurité — action requise</p>
+        {rows}
+        <p style="margin-top:18px;"><a href="#" style="background:#dc2626;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;">Ouvrir le tableau de bord anti-fraude</a></p>
+    """
+    await _send(to, f"[Fraude] {title}", _shell(title, "#dc2626", body))
+
+
 async def send_merchant_signup_received(to: str, owner_name: str, store_name: str) -> None:
     body = f"""\
         <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {owner_name or ''},</p>

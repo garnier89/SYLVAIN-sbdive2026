@@ -715,6 +715,7 @@ export const fraudAPI = {
   alerts: (params) => api.get('/fraud/alerts', { params }),
   resolveAlert: (id, note) => api.post(`/fraud/alerts/${id}/resolve`, { note }),
   walletRisk: () => api.get('/fraud/wallet-risk'),
+  declareChargeback: (payload) => api.post('/fraud/chargeback', payload),
   blockUser: (userId, reason) => api.post(`/fraud/users/${userId}/block`, { reason }),
   unblockUser: (userId) => api.post(`/fraud/users/${userId}/unblock`, {}),
 };

@@ -1,3 +1,16 @@
+## NEW - 2026-06-12 (307) - 🚨 Alertes fraude temps réel + gestion des chargebacks Stripe (DONE, testé 7/7 + UI)
+- **Demande user** : (1) alerte temps réel sur événement critique ; (2) problème métier réel = des clients rechargent par carte, dépensent, puis font une **opposition bancaire (chargeback)** → Stripe récupère les fonds malgré les preuves.
+- **Alertes temps réel** : `core/fraud.record_fraud_event` déclenche `notify_critical_fraud` sur tout événement `critical` → notification in-app à tous les admins (`core.airport.notify_admins`) + **e-mail Resend** (`core/email.send_fraud_alert_email`, best-effort via `fire()`).
+- **Gestion chargeback** : `core/fraud.process_chargeback` → débite le portefeuille (peut devenir négatif = dette, `$inc`), trace une transaction `Chargeback`, incrémente `chargeback_count`, **bloque automatiquement au 2ᵉ chargeback** (récidiviste), émet un `fraud_event` critique.
+  - Endpoint admin `POST /api/fraud/chargeback` (par email/user_id/session_id ; rapproche via `payment_transactions`).
+  - Webhook `routes/webhooks.py` : détecte les événements de type *dispute* Stripe → `process_chargeback` si rapprochable, sinon `fraud_event` critique « chargeback_unmapped » pour traitement manuel. (Non testable avec la clé Stripe de test partagée → endpoint admin = voie principale testée.)
+- **Frontend** `AdminFraud.js` : bouton « Déclarer un chargeback » + modal (email/montant/motif) ; `fraudAPI.declareChargeback`.
+- **Intégration** : consultée via `integration_expert` (emergentintegrations expose `event_type` ; lib centrée sessions → voie admin retenue).
+- **Testé** : pytest `test_iter300_fraud.py` **7/7** (incl. chargeback débite + blocage récidive + alerte critique + admin-only) + UI (modal → traitement, 90 notifs admin créées, 0 erreur).
+- ⚠️ PREVIEW → redéploiement requis. Le webhook dispute s'activera en prod (Stripe live) ; configurer l'endpoint dispute dans le dashboard Stripe.
+
+
+
 ## NEW - 2026-06-12 (306) - 🔐 Sécurité & Fraude — Phase 1 (audit + corrections critiques + dashboard admin) DONE, testé 5/5 + UI
 - **Demande user** : sécurité & fraude sur les 6 domaines (paiement/wallet, comptes, chauffeurs, promos/parrainage, données/accès, sécurité trajets) → audit + implémentation + dashboard admin.
 - **Audit** : `/app/memory/SECURITY_AUDIT.md` (constats priorisés par domaine). Base déjà solide (anti-bruteforce login email+tel, bcrypt, JWT, ACL, audit logs).

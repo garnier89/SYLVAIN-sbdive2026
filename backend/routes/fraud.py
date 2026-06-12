@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 
 from core.config import db
 from core.permissions import require_permission
-from core.fraud import record_fraud_event
+from core.fraud import record_fraud_event, process_chargeback
 from routes.audit_logs import log_action
 
 router = APIRouter(prefix="/fraud", tags=["fraud"])
@@ -92,6 +92,45 @@ async def wallet_risk(current_user: dict = Depends(require_permission("super.fra
             "refunds": round(r["refunds"], 2), "deposits": round(r["deposits"], 2),
         })
     return {"items": out, "window_days": 7}
+
+
+@router.post("/chargeback")
+async def declare_chargeback(request: Request,
+                            current_user: dict = Depends(require_permission("super.fraud.manage"))):
+    """Déclarer manuellement un chargeback/litige Stripe (l'admin l'apprend via Stripe).
+    Débite le portefeuille du client, le signale et bloque au 2e chargeback.
+    Body: { user_id | session_id, amount?, reason? }."""
+    body = await request.json()
+    user_id = body.get("user_id")
+    amount = body.get("amount")
+    reason = body.get("reason") or "Chargeback déclaré par l'admin"
+    session_id = body.get("session_id")
+
+    # Rapprochement via la transaction Stripe si session_id fourni
+    if session_id:
+        tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+        if not tx:
+            raise HTTPException(404, "Transaction Stripe introuvable pour cette session")
+        user_id = user_id or tx.get("user_id")
+        amount = amount if amount is not None else tx.get("amount")
+
+    if not user_id:
+        # Permettre la saisie par e-mail
+        email = body.get("email")
+        if email:
+            u = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+            user_id = (u or {}).get("id")
+    if not user_id:
+        raise HTTPException(400, "user_id, email ou session_id requis")
+    if not amount or float(amount) <= 0:
+        raise HTTPException(400, "Montant invalide")
+
+    result = await process_chargeback(user_id=user_id, amount=float(amount), reference=reason,
+                                      source="admin", actor_id=current_user["id"])
+    await log_action(actor_id=current_user["id"], actor_role="admin", action="fraud.chargeback",
+                     target_type="user", target_id=user_id, reason=reason,
+                     payload_after={"amount": amount, "auto_blocked": result["auto_blocked"]})
+    return result
 
 
 @router.post("/users/{user_id}/block")

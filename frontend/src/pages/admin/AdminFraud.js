@@ -27,6 +27,9 @@ export default function AdminFraud() {
   const [risk, setRisk] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('alerts');
+  const [cbOpen, setCbOpen] = useState(false);
+  const [cb, setCb] = useState({ email: '', amount: '', reason: '' });
+  const [cbBusy, setCbBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -62,6 +65,17 @@ export default function AdminFraud() {
     catch (e) { toast.error(e.response?.data?.detail || 'Erreur'); }
   };
 
+  const submitChargeback = async () => {
+    if (!cb.email || !cb.amount) { toast.error('E-mail et montant requis'); return; }
+    setCbBusy(true);
+    try {
+      const r = await fraudAPI.declareChargeback({ email: cb.email.trim(), amount: parseFloat(cb.amount), reason: cb.reason });
+      toast.success(`Chargeback enregistré · solde ${r.data.new_balance} EUR${r.data.auto_blocked ? ' · compte bloqué (récidive)' : ''}`);
+      setCbOpen(false); setCb({ email: '', amount: '', reason: '' }); load();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Erreur'); }
+    finally { setCbBusy(false); }
+  };
+
   return (
     <div className="p-6" data-testid="admin-fraud-page">
       <div className="flex items-center justify-between mb-6">
@@ -71,6 +85,13 @@ export default function AdminFraud() {
         <button onClick={load} disabled={loading} data-testid="fraud-refresh-btn"
           className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50">
           <ArrowsClockwise size={16} className={loading ? 'animate-spin' : ''} /> Actualiser
+        </button>
+      </div>
+
+      <div className="mb-5">
+        <button onClick={() => setCbOpen(true)} data-testid="declare-chargeback-btn"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+          <ShieldWarning size={16} weight="fill" /> Déclarer un chargeback
         </button>
       </div>
 
@@ -185,6 +206,33 @@ export default function AdminFraud() {
               {risk.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">Aucune activité wallet sur 7 jours</td></tr>}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {cbOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" data-testid="chargeback-modal">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+              <ShieldWarning size={20} weight="fill" className="text-red-600" /> Déclarer un chargeback
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">Le portefeuille du client sera débité du montant. Au 2ᵉ chargeback, le compte est bloqué automatiquement.</p>
+            <label className="text-xs font-semibold text-gray-600">E-mail du client</label>
+            <input value={cb.email} onChange={(e) => setCb({ ...cb, email: e.target.value })} data-testid="chargeback-email"
+              placeholder="client@example.com" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3 mt-1" />
+            <label className="text-xs font-semibold text-gray-600">Montant (EUR)</label>
+            <input value={cb.amount} onChange={(e) => setCb({ ...cb, amount: e.target.value })} data-testid="chargeback-amount"
+              type="number" placeholder="50" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3 mt-1" />
+            <label className="text-xs font-semibold text-gray-600">Motif (optionnel)</label>
+            <input value={cb.reason} onChange={(e) => setCb({ ...cb, reason: e.target.value })} data-testid="chargeback-reason"
+              placeholder="Litige carte bancaire" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4 mt-1" />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setCbOpen(false)} className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold">Annuler</button>
+              <button onClick={submitChargeback} disabled={cbBusy} data-testid="chargeback-submit"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50">
+                {cbBusy ? 'Traitement…' : 'Enregistrer le chargeback'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
