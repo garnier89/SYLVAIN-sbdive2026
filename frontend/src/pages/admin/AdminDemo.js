@@ -5,18 +5,40 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Sparkle, ArrowCounterClockwise, AirplaneTilt, Car, CheckCircle, XCircle } from '@phosphor-icons/react';
-import { demoAPI } from '../../services/api';
+import { Sparkle, ArrowCounterClockwise, AirplaneTilt, Car, CheckCircle, XCircle, Flask } from '@phosphor-icons/react';
+import { demoAPI, demoModeAPI } from '../../services/api';
 
 const AdminDemo = () => {
   const [status, setStatus] = useState({ airports: [], drivers: [], demo_rides_count: 0 });
   const [busy, setBusy] = useState(false);
   const [cleanRides, setCleanRides] = useState(false);
+  const [demoCfg, setDemoCfg] = useState(null);
+  const [savingCfg, setSavingCfg] = useState(false);
 
   const load = useCallback(() => {
     demoAPI.status().then((r) => setStatus(r.data || { airports: [], drivers: [], demo_rides_count: 0 })).catch(() => {});
+    demoModeAPI.getConfig().then((r) => setDemoCfg(r.data)).catch(() => {});
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const toggleGlobal = async (enabled) => {
+    setSavingCfg(true);
+    try {
+      const r = await demoModeAPI.updateConfig({ enabled });
+      setDemoCfg(r.data);
+      toast.success(enabled ? 'Mode Démo global ACTIVÉ' : 'Mode Démo global désactivé');
+    } catch { toast.error('Échec de la mise à jour'); }
+    finally { setSavingCfg(false); }
+  };
+  const saveCredit = async (val) => {
+    setSavingCfg(true);
+    try {
+      const r = await demoModeAPI.updateConfig({ wallet_credit: val });
+      setDemoCfg(r.data);
+      toast.success('Crédit démo mis à jour');
+    } catch { toast.error('Échec'); }
+    finally { setSavingCfg(false); }
+  };
 
   const seed = async () => {
     setBusy(true);
@@ -48,6 +70,37 @@ const AdminDemo = () => {
         <h1 className="text-xl font-black text-[#0B1426]">Données de démonstration</h1>
       </div>
       <p className="text-sm text-gray-500 mb-5">Activez un jeu de démarrage (aéroports + chauffeurs en ligne) pour vos démos, en un clic.</p>
+
+      {/* Global Demo Mode toggle */}
+      <div className="bg-white rounded-2xl border-2 border-amber-200 p-4 mb-5" data-testid="global-demo-card">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <Flask size={22} weight="fill" className="text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-black text-[#0B1426]">Mode Démo global</h3>
+              <p className="text-xs text-gray-500">Bannière MODE DÉMO + crédit portefeuille non facturé + vérification étudiante auto. Stripe reste en LIVE.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => toggleGlobal(!demoCfg?.enabled)} disabled={savingCfg || !demoCfg}
+            data-testid="global-demo-toggle"
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50 ${demoCfg?.enabled ? 'bg-amber-500' : 'bg-gray-300'}`}>
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${demoCfg?.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        {demoCfg?.enabled && (
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-amber-100" data-testid="global-demo-credit-row">
+            <label className="text-sm text-gray-700">Montant du crédit démo (€) :</label>
+            <input type="number" min="1" max="1000" defaultValue={demoCfg?.wallet_credit || 100}
+              onBlur={(e) => { const v = Number(e.target.value); if (v && v !== demoCfg.wallet_credit) saveCredit(v); }}
+              data-testid="global-demo-credit-input"
+              className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+            <span className="text-xs text-gray-400">appliqué au bouton « Crédit démo » de la bannière.</span>
+          </div>
+        )}
+      </div>
 
       <div className="grid sm:grid-cols-2 gap-3 mb-5">
         <button onClick={seed} disabled={busy} className="rounded-2xl bg-[#FF5000] text-white p-4 text-left active:scale-[0.98] transition-transform disabled:opacity-50" data-testid="demo-seed-btn">

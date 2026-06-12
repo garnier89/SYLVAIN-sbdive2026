@@ -201,6 +201,21 @@ export const demoModeAPI = {
   walletCredit: () => api.post('/demo-mode/wallet-credit'),
 };
 
+// Safety audio recordings (driver-side)
+export const safetyAudioAPI = {
+  upload: (blob, { ride_id, kind = 'ride', duration_sec = 0 } = {}) => {
+    const fd = new FormData();
+    const ext = (blob.type || 'audio/webm').includes('ogg') ? 'ogg' : 'webm';
+    fd.append('file', blob, `safety_${Date.now()}.${ext}`);
+    if (ride_id) fd.append('ride_id', ride_id);
+    fd.append('kind', kind);
+    fd.append('duration_sec', String(duration_sec));
+    return api.post('/safety/audio/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  listForRide: (rideId) => api.get(`/safety/audio/ride/${rideId}`),
+  adminList: (params) => api.get('/admin/safety/recordings', { params }),
+};
+
 // Dispatch control tower (admin / dispatcher)
 export const dispatchAdminAPI = {
   overview: () => api.get('/admin/dispatch/overview'),
@@ -321,6 +336,12 @@ export const adminAPI = {
   dispatchCancel: (id) => api.post(`/admin/bookings/ride/${id}/dispatch-cancel`),
   offerRespond: (id, accept, driver_id) => api.post(`/admin/bookings/ride/${id}/offer-respond`, { accept, driver_id }),
   report: (kind, params) => api.get(`/admin/reports/${kind}`, { params }),
+  listReportSchedules: () => api.get('/admin/reports/schedules'),
+  createReportSchedule: (body) => api.post('/admin/reports/schedules', body),
+  updateReportSchedule: (id, body) => api.put(`/admin/reports/schedules/${id}`, body),
+  deleteReportSchedule: (id) => api.delete(`/admin/reports/schedules/${id}`),
+  sendReportScheduleNow: (id, test_email) => api.post(`/admin/reports/schedules/${id}/send-now`, test_email ? { test_email } : {}),
+  reportScheduleRuns: (limit = 50) => api.get('/admin/reports/schedule-runs', { params: { limit } }),
   suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),
   unsuspendUser: (id) => api.post(`/admin/users/${id}/unsuspend`),
   revenue: () => api.get('/admin/revenue'),

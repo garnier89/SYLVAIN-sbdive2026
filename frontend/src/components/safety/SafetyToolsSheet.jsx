@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Phone, Siren, Microphone, ShareNetwork, X, WhatsappLogo, ChatText, Copy } from '@phosphor-icons/react';
+import { Phone, Siren, ShareNetwork, X, WhatsappLogo, ChatText, Copy } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { tripShareAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { SafetyRecorder } from '../SafetyRecorder';
 
 /**
  * Outils de sécurité — IDENTICAL sheet used by both the client and driver ride
@@ -12,6 +14,8 @@ import { tripShareAPI } from '../../services/api';
 export const SafetyToolsSheet = ({ ride, onClose }) => {
   const [shareUrl, setShareUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const isDriver = user?.role === 'driver';
 
   const genShare = async () => {
     if (!ride?.id) { toast.error('Course indisponible'); return; }
@@ -51,9 +55,9 @@ export const SafetyToolsSheet = ({ ride, onClose }) => {
             <button onClick={() => toast.success('Message SOS envoyé à vos contacts et au support.')} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="safety-sos-message">
               <Siren size={22} weight="fill" className="text-red-600" /> Envoyer un message SOS
             </button>
-            <button onClick={() => toast.info('Enregistrement audio démarré.')} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 mb-3 font-bold text-gray-800" data-testid="safety-audio">
-              <Microphone size={22} weight="fill" /> Enregistrement audio
-            </button>
+            {isDriver ? (
+              <div className="mb-3"><SafetyRecorder rideId={ride?.id} kind="ride" /></div>
+            ) : null}
             <button onClick={genShare} disabled={loading} className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-violet-50 font-bold text-violet-700 disabled:opacity-60" data-testid="safety-share">
               <ShareNetwork size={22} weight="fill" /> {loading ? 'Génération du lien…' : 'Partager mon trajet (sécurité)'}
             </button>

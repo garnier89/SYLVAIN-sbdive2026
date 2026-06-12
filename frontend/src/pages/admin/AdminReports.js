@@ -2,7 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { adminAPI } from '../../services/api';
 import { toast } from 'sonner';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
-import { ChartBar, CreditCard, Warning, Prohibit, Files, DownloadSimple, FilePdf } from '@phosphor-icons/react';
+import { ReportChart } from '../../components/admin/ReportChart';
+import { ReportSchedules } from '../../components/admin/ReportSchedules';
+import { ChartBar, CreditCard, Warning, Prohibit, Files, DownloadSimple, FilePdf, EnvelopeSimple } from '@phosphor-icons/react';
 
 const REPORTS = [
   { key: 'results', label: 'Rapport sur les résultats', icon: ChartBar },
@@ -21,6 +23,7 @@ const PRESETS = [
 ];
 
 const AdminReports = () => {
+  const [tab, setTab] = useState('reports'); // 'reports' | 'schedules'
   const [kind, setKind] = useState('results');
   const [preset, setPreset] = useState('30d');
   const [from, setFrom] = useState(iso(new Date(Date.now() - 30 * 864e5)));
@@ -58,6 +61,18 @@ const AdminReports = () => {
         <p className="text-sm text-gray-500 mt-1">Analyses financières et opérationnelles, filtrables par période et exportables.</p>
       </div>
 
+      <div className="flex gap-2 mb-5 border-b border-gray-200">
+        <button onClick={() => setTab('reports')} data-testid="tab-reports"
+          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${tab === 'reports' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Consultation
+        </button>
+        <button onClick={() => setTab('schedules')} data-testid="tab-schedules"
+          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px flex items-center gap-1.5 ${tab === 'schedules' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          <EnvelopeSimple size={16} /> Planification e-mail
+        </button>
+      </div>
+
+      {tab === 'schedules' ? <ReportSchedules /> : (
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left nav */}
         <div className="lg:w-64 shrink-0 space-y-1">
@@ -98,6 +113,9 @@ const AdminReports = () => {
                 ))}
               </div>
 
+              {/* Chart */}
+              {data?.chart && <ReportChart chart={data.chart} />}
+
               {/* Table */}
               <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                 {(data?.rows || []).length === 0 ? (
@@ -123,6 +141,7 @@ const AdminReports = () => {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

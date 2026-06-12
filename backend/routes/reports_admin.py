@@ -9,14 +9,21 @@ Every endpoint accepts ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD and returns a
 uniform shape { kpis:[{label,value,color?}], columns:[{key,label}], rows:[...] }
 so the frontend renders + exports (CSV/PDF) generically.
 """
+import os
+import uuid
+import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Request
+import resend
+from fastapi import APIRouter, Request, HTTPException
 from typing import Optional
 
 from core.config import db
 from core.deps import require_role
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/reports", tags=["admin-reports"])
 
 COMMISSION_RATE = 0.15
@@ -55,7 +62,10 @@ async def _names(user_ids):
 @router.get("/results")
 async def report_results(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
     await require_role(request, ["admin", "dispatcher"])
-    start, end = _range(date_from, date_to)
+    return await _compute_results(*_range(date_from, date_to))
+
+
+async def _compute_results(start, end):
     flt = {"created_at": {"$gte": start, "$lte": end}}
     rides = await db.rides.find(flt, {"_id": 0, "status": 1, "created_at": 1, "final_fare": 1, "estimated_fare": 1}).to_list(20000)
     orders = await db.orders.find(flt, {"_id": 0, "status": 1, "created_at": 1, "total": 1}).to_list(20000)
@@ -78,8 +88,17 @@ async def report_results(request: Request, date_from: Optional[str] = None, date
         elif r.get("status") == "cancelled":
             d["cancelled"] += 1
     rows = sorted(daily.values(), key=lambda x: x["date"], reverse=True)
+    chart_data = sorted(daily.values(), key=lambda x: x["date"])
 
     return {
+        "chart": {
+            "type": "line", "x": "date", "title": "Tendance CA & courses",
+            "series": [
+                {"key": "revenue", "label": "CA (€)", "color": "#0891B2"},
+                {"key": "courses", "label": "Courses", "color": "#2563EB"},
+            ],
+            "data": chart_data,
+        },
         "kpis": [
             {"label": "Courses totales", "value": len(rides), "color": "#2563EB"},
             {"label": "Terminées", "value": len(completed), "color": "#059669"},
@@ -103,7 +122,10 @@ async def report_results(request: Request, date_from: Optional[str] = None, date
 @router.get("/payments")
 async def report_payments(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
     await require_role(request, ["admin", "dispatcher"])
-    start, end = _range(date_from, date_to)
+    return await _compute_payments(*_range(date_from, date_to))
+
+
+async def _compute_payments(start, end):
     flt = {"created_at": {"$gte": start, "$lte": end}, "status": "completed"}
     rides = await db.rides.find(flt, {"_id": 0, "payment_method": 1, "final_fare": 1, "estimated_fare": 1, "created_at": 1}).to_list(20000)
     oflt = {"created_at": {"$gte": start, "$lte": end}, "status": "delivered"}
@@ -131,6 +153,11 @@ async def report_payments(request: Request, date_from: Optional[str] = None, dat
     commission = round(grand_total * COMMISSION_RATE, 2)
 
     return {
+        "chart": {
+            "type": "bar", "x": "method", "title": "Encaissements par moyen de paiement",
+            "series": [{"key": "total", "label": "Montant (€)", "color": "#0891B2"}],
+            "data": rows,
+        },
         "kpis": [
             {"label": "Encaissements totaux", "value": f"{grand_total} €", "color": "#0891B2"},
             {"label": "Espèces", "value": f"{cash_total} €", "color": "#EA580C"},
@@ -150,7 +177,10 @@ async def report_payments(request: Request, date_from: Optional[str] = None, dat
 @router.get("/exceptional")
 async def report_exceptional(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
     await require_role(request, ["admin", "dispatcher"])
-    start, end = _range(date_from, date_to)
+    return await _compute_exceptional(*_range(date_from, date_to))
+
+
+async def _compute_exceptional(start, end):
     flt = {"created_at": {"$gte": start, "$lte": end}}
     total = await db.rides.count_documents(flt)
     no_driver = await db.rides.count_documents({**flt, "no_driver_outcome": {"$in": ["bidding", "scheduled"]}})
@@ -179,6 +209,15 @@ async def report_exceptional(request: Request, date_from: Optional[str] = None, 
                      "status": a.get("status"), "pickup": a.get("pickup_address"), "date": _day(a.get("created_at"))})
 
     return {
+        "chart": {
+            "type": "bar", "x": "label", "title": "Répartition des anomalies",
+            "series": [{"key": "value", "label": "Nombre", "color": "#EA580C"}],
+            "data": [
+                {"label": "Sans chauffeur", "value": no_driver},
+                {"label": "Annulées", "value": cancelled},
+                {"label": "Basculées espèces", "value": switched_cash},
+            ],
+        },
         "kpis": [
             {"label": "Courses (période)", "value": total, "color": "#2563EB"},
             {"label": "Sans chauffeur", "value": no_driver, "color": "#EA580C"},
@@ -198,7 +237,10 @@ async def report_exceptional(request: Request, date_from: Optional[str] = None, 
 @router.get("/refused-cancelled")
 async def report_refused_cancelled(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
     await require_role(request, ["admin", "dispatcher"])
-    start, end = _range(date_from, date_to)
+    return await _compute_refused_cancelled(*_range(date_from, date_to))
+
+
+async def _compute_refused_cancelled(start, end):
     flt = {"created_at": {"$gte": start, "$lte": end}, "status": "cancelled"}
     rides = await db.rides.find(flt, {"_id": 0, "id": 1, "booking_no": 1, "user_id": 1, "driver_name": 1,
                                       "cancel_reason": 1, "cancelled_by": 1, "created_at": 1,
@@ -220,6 +262,16 @@ async def report_refused_cancelled(request: Request, date_from: Optional[str] = 
 
     ACTOR = {"user": "Client", "driver": "Chauffeur", "admin": "Admin", "system": "Système", "inconnu": "Inconnu"}
     return {
+        "chart": {
+            "type": "bar", "x": "label", "title": "Annulations par responsable",
+            "series": [{"key": "value", "label": "Annulations", "color": "#DC2626"}],
+            "data": [
+                {"label": "Client", "value": by_actor.get("user", 0)},
+                {"label": "Chauffeur", "value": by_actor.get("driver", 0)},
+                {"label": "Admin", "value": by_actor.get("admin", 0)},
+                {"label": "Système", "value": by_actor.get("system", 0)},
+            ],
+        },
         "kpis": [
             {"label": "Courses annulées", "value": len(rides), "color": "#DC2626"},
             {"label": "Par le client", "value": by_actor.get("user", 0), "color": "#EA580C"},
@@ -240,7 +292,10 @@ async def report_refused_cancelled(request: Request, date_from: Optional[str] = 
 @router.get("/other")
 async def report_other(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
     await require_role(request, ["admin", "dispatcher"])
-    start, end = _range(date_from, date_to)
+    return await _compute_other(*_range(date_from, date_to))
+
+
+async def _compute_other(start, end):
     flt = {"created_at": {"$gte": start, "$lte": end}}
     new_users = await db.users.count_documents({**flt, "role": "user"})
     new_drivers = await db.drivers.count_documents(flt)
@@ -256,6 +311,11 @@ async def report_other(request: Request, date_from: Optional[str] = None, date_t
     } for d in top_drivers]
 
     return {
+        "chart": {
+            "type": "bar", "x": "driver", "title": "Top chauffeurs (courses)",
+            "series": [{"key": "trips", "label": "Courses", "color": "#059669"}],
+            "data": rows[:10],
+        },
         "kpis": [
             {"label": "Nouveaux clients", "value": new_users, "color": "#2563EB"},
             {"label": "Nouveaux chauffeurs", "value": new_drivers, "color": "#059669"},
@@ -267,3 +327,264 @@ async def report_other(request: Request, date_from: Optional[str] = None, date_t
         ],
         "rows": rows,
     }
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  SCHEDULED EMAIL REPORTS — auto-send the reports above on a cadence
+# ════════════════════════════════════════════════════════════════════════
+
+# Registry: report key -> (label, compute fn)
+REPORT_FUNCS = {
+    "results": ("Rapport sur les résultats", _compute_results),
+    "payments": ("Rapport de paiement", _compute_payments),
+    "exceptional": ("Rapport exceptionnel", _compute_exceptional),
+    "refused-cancelled": ("Alertes refusées / annulées", _compute_refused_cancelled),
+    "other": ("Autres rapports", _compute_other),
+}
+
+WINDOW_LABELS = {
+    "yesterday": "Hier",
+    "last_7d": "7 derniers jours",
+    "last_30d": "30 derniers jours",
+    "last_month": "Mois précédent",
+}
+
+FREQ_LABELS = {"daily": "Quotidien", "weekly": "Hebdomadaire", "monthly": "Mensuel"}
+
+
+def _window_range(window: str, ref: datetime = None):
+    """Return (date_from, date_to) YYYY-MM-DD strings for the report window."""
+    now = (ref or datetime.now(timezone.utc)).date()
+    if window == "yesterday":
+        d = now - timedelta(days=1)
+        return d.isoformat(), d.isoformat()
+    if window == "last_7d":
+        return (now - timedelta(days=7)).isoformat(), now.isoformat()
+    if window == "last_month":
+        first_this = now.replace(day=1)
+        last_prev = first_this - timedelta(days=1)
+        first_prev = last_prev.replace(day=1)
+        return first_prev.isoformat(), last_prev.isoformat()
+    # default last_30d
+    return (now - timedelta(days=30)).isoformat(), now.isoformat()
+
+
+async def build_report(kind: str, date_from: str, date_to: str):
+    fn = REPORT_FUNCS.get(kind)
+    if not fn:
+        raise HTTPException(status_code=404, detail="Rapport inconnu")
+    return await fn[1](*_range(date_from, date_to))
+
+
+def _report_html_block(label: str, payload: dict) -> str:
+    """Render one report (KPIs + table) as an HTML block for the email."""
+    kpis = "".join(
+        f'<td style="padding:10px 12px;border:1px solid #eef0f3;border-radius:8px;">'
+        f'<div style="font-size:11px;color:#64748b">{k["label"]}</div>'
+        f'<div style="font-size:17px;font-weight:bold;color:{k.get("color") or "#111827"}">{k["value"]}</div></td>'
+        for k in payload.get("kpis", [])
+    )
+    cols = payload.get("columns", [])
+    head = "".join(f'<th style="text-align:left;padding:7px 9px;background:#f8fafc;font-size:11px;color:#64748b;text-transform:uppercase">{c["label"]}</th>' for c in cols)
+    body_rows = ""
+    for r in payload.get("rows", [])[:30]:
+        cells = "".join(f'<td style="padding:7px 9px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#334155">{r.get(c["key"]) if r.get(c["key"]) is not None else "—"}</td>' for c in cols)
+        body_rows += f"<tr>{cells}</tr>"
+    if not body_rows:
+        body_rows = f'<tr><td colspan="{len(cols)}" style="padding:14px;color:#94a3b8;font-size:13px">Aucune donnée sur cette période.</td></tr>'
+    return f"""
+    <h2 style="font-size:16px;color:#0f172a;margin:26px 0 10px">{label}</h2>
+    <table cellpadding="0" cellspacing="6" style="width:100%;border-collapse:separate"><tr>{kpis}</tr></table>
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:10px">
+      <thead><tr>{head}</tr></thead><tbody>{body_rows}</tbody>
+    </table>
+    """
+
+
+def _email_html(schedule: dict, blocks: str, window_label: str, range_label: str) -> str:
+    return f"""
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:760px;margin:0 auto;color:#0f172a">
+  <div style="background:#0f172a;color:#fff;padding:22px 24px;border-radius:10px 10px 0 0">
+    <h1 style="margin:0;font-size:20px">📊 {schedule.get('name') or 'Rapport automatique'}</h1>
+    <p style="margin:6px 0 0;opacity:.8;font-size:13px">{FREQ_LABELS.get(schedule.get('frequency'), '')} · {window_label} · {range_label}</p>
+  </div>
+  <div style="border:1px solid #e5e7eb;border-top:none;padding:18px 24px;border-radius:0 0 10px 10px">
+    {blocks}
+    <p style="margin-top:28px;font-size:11px;color:#94a3b8">Rapport généré automatiquement par SB Marketplace. Pour modifier la planification, rendez-vous dans Admin → Rapports → Planification.</p>
+  </div>
+</div>
+"""
+
+
+async def _run_schedule(schedule: dict, *, test_email: str = None):
+    """Compute the configured reports and email them. Returns a result dict."""
+    date_from, date_to = _window_range(schedule.get("window", "last_7d"))
+    kinds = schedule.get("kinds") or ["results"]
+    blocks = ""
+    for k in kinds:
+        fn = REPORT_FUNCS.get(k)
+        if not fn:
+            continue
+        payload = await fn[1](*_range(date_from, date_to))
+        blocks += _report_html_block(fn[0], payload)
+
+    window_label = WINDOW_LABELS.get(schedule.get("window", "last_7d"), "")
+    range_label = f"{date_from} → {date_to}"
+    html = _email_html(schedule, blocks, window_label, range_label)
+    recipients = [test_email] if test_email else [e for e in (schedule.get("recipients") or []) if e]
+    if not recipients:
+        return {"sent": 0, "failed": 0, "error": "Aucun destinataire"}
+
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    sender = f"SB Marketplace <{os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')}>"
+    subject = f"{schedule.get('name') or 'Rapport automatique'} — {range_label}"
+    status, email_id, err = "sent", None, None
+    if not api_key:
+        status, err = "failed", "Clé API Resend manquante (RESEND_API_KEY)"
+    else:
+        try:
+            resend.api_key = api_key
+            res = await asyncio.to_thread(
+                resend.Emails.send,
+                {"from": sender, "to": recipients, "subject": subject, "html": html},
+            )
+            email_id = (res or {}).get("id")
+        except Exception as e:
+            status, err = "failed", str(e)
+            logger.warning("Scheduled report send failed: %s", e)
+
+    await db.report_schedule_runs.insert_one({
+        "id": f"srun_{uuid.uuid4().hex[:12]}",
+        "schedule_id": schedule.get("id"),
+        "name": schedule.get("name"),
+        "recipients": recipients,
+        "kinds": kinds,
+        "range": range_label,
+        "subject": subject,
+        "status": status,
+        "email_id": email_id,
+        "error": err,
+        "is_test": bool(test_email),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"sent": 1 if status == "sent" else 0, "failed": 0 if status == "sent" else 1,
+            "status": status, "email_id": email_id, "error": err, "range": range_label}
+
+
+# ---------------- Schedule CRUD ----------------
+def _clean_schedule(body: dict) -> dict:
+    kinds = [k for k in (body.get("kinds") or []) if k in REPORT_FUNCS] or ["results"]
+    recipients = [str(e).strip() for e in (body.get("recipients") or []) if str(e).strip()]
+    freq = body.get("frequency") if body.get("frequency") in FREQ_LABELS else "weekly"
+    window = body.get("window") if body.get("window") in WINDOW_LABELS else "last_7d"
+    return {
+        "name": (body.get("name") or "Rapport automatique").strip(),
+        "kinds": kinds,
+        "recipients": recipients,
+        "frequency": freq,
+        "window": window,
+        "send_hour": max(0, min(23, int(body.get("send_hour", 8)))),
+        "send_day": int(body.get("send_day", 0)),       # weekly: 0=Mon..6=Sun ; monthly: 1..28
+        "timezone": body.get("timezone") or "America/Martinique",
+        "enabled": bool(body.get("enabled", True)),
+    }
+
+
+@router.get("/schedules")
+async def list_schedules(request: Request):
+    await require_role(request, ["admin"])
+    docs = await db.report_schedules.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return docs
+
+
+@router.post("/schedules")
+async def create_schedule(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    doc = _clean_schedule(body)
+    doc["id"] = f"sch_{uuid.uuid4().hex[:12]}"
+    doc["created_at"] = datetime.now(timezone.utc).isoformat()
+    doc["last_run_marker"] = None
+    await db.report_schedules.insert_one({**doc})
+    return doc
+
+
+@router.put("/schedules/{sid}")
+async def update_schedule(sid: str, request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    if not await db.report_schedules.find_one({"id": sid}):
+        raise HTTPException(status_code=404, detail="Planification introuvable")
+    upd = _clean_schedule(body)
+    upd["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.report_schedules.update_one({"id": sid}, {"$set": upd})
+    return await db.report_schedules.find_one({"id": sid}, {"_id": 0})
+
+
+@router.delete("/schedules/{sid}")
+async def delete_schedule(sid: str, request: Request):
+    await require_role(request, ["admin"])
+    await db.report_schedules.delete_one({"id": sid})
+    return {"ok": True}
+
+
+@router.post("/schedules/{sid}/send-now")
+async def send_schedule_now(sid: str, request: Request):
+    await require_role(request, ["admin"])
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    sch = await db.report_schedules.find_one({"id": sid}, {"_id": 0})
+    if not sch:
+        raise HTTPException(status_code=404, detail="Planification introuvable")
+    return await _run_schedule(sch, test_email=body.get("test_email"))
+
+
+@router.get("/schedule-runs")
+async def list_schedule_runs(request: Request, limit: int = 50):
+    await require_role(request, ["admin"])
+    docs = await db.report_schedule_runs.find({}, {"_id": 0}).sort("created_at", -1).limit(int(limit)).to_list(int(limit))
+    return docs
+
+
+# ---------------- Scheduler loop ----------------
+def _is_due(sch: dict, now_local: datetime) -> bool:
+    if now_local.hour != int(sch.get("send_hour", 8)):
+        return False
+    freq = sch.get("frequency", "weekly")
+    if freq == "daily":
+        marker = now_local.strftime("%Y-%m-%d")
+    elif freq == "weekly":
+        if now_local.weekday() != int(sch.get("send_day", 0)):
+            return False
+        monday = now_local - timedelta(days=now_local.weekday())
+        marker = monday.strftime("%Y-W%U")
+    else:  # monthly
+        if now_local.day != max(1, min(28, int(sch.get("send_day", 1) or 1))):
+            return False
+        marker = now_local.strftime("%Y-%m")
+    return sch.get("last_run_marker") != marker, marker
+
+
+async def report_schedule_loop():
+    """Every 30 min, fire any due schedule (idempotent via last_run_marker)."""
+    await asyncio.sleep(45)
+    while True:
+        try:
+            async for sch in db.report_schedules.find({"enabled": True}):
+                tz = sch.get("timezone", "America/Martinique")
+                try:
+                    now_local = datetime.now(ZoneInfo(tz))
+                except Exception:
+                    now_local = datetime.now(timezone.utc)
+                due = _is_due(sch, now_local)
+                if isinstance(due, tuple) and due[0]:
+                    marker = due[1]
+                    logger.info("Report schedule '%s' firing (marker %s)", sch.get("name"), marker)
+                    await _run_schedule(sch)
+                    await db.report_schedules.update_one({"id": sch["id"]}, {"$set": {"last_run_marker": marker}})
+        except Exception as e:
+            logger.error("report_schedule_loop error: %s", e)
+        await asyncio.sleep(1800)

@@ -18,7 +18,7 @@ import {
   AdminSbPayGoZones, AdminDbBackup, AdminNegotiationGapReport, AdminNoDriverStats,
   AdminFeaturedListings, AdminNearbyBusinesses, AdminZones, AdminTrendingPinned, AdminMarketplace, AdminTransport, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings, AdminNotifSettings,
   AdminKiosks, AdminACL, AdminFraud, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
-  AdminPromoBanners, AdminNews, AdminStudent, AdminAccess, AdminI18n, AdminGeoFence, AdminAirport, AdminDemo, AdminGiftCards, AdminReferralSettings, AdminLoyalty, AdminModeration, AdminServiceProviders, AdminLiveSupport,
+  AdminPromoBanners, AdminNews, AdminStudent, AdminAccess, AdminI18n, AdminGeoFence, AdminAirport, AdminDemo, AdminSafetyAudio, AdminGiftCards, AdminReferralSettings, AdminLoyalty, AdminModeration, AdminServiceProviders, AdminLiveSupport,
   AdminBanners, AdminNewsletter, AdminKyc, AdminStores, AdminTemplates, AdminWeatherSurcharge,
   AdminPersonalDriver, AdminAutoPromotions, AdminVouchers, AdminFaqs, AdminHelpArticles,
   AdminDonations, AdminWeeklyReports,
@@ -156,6 +156,7 @@ export function adminRoutes() {
       <Route path="location-fare" element={<AdminServiceConfig serviceKey="location-fare" />} />
       <Route path="airport" element={<AdminAirport />} />
       <Route path="demo" element={<AdminDemo />} />
+      <Route path="safety-audio" element={<AdminSafetyAudio />} />
       <Route path="country" element={<AdminServiceConfig serviceKey="country" />} />
       <Route path="state" element={<AdminServiceConfig serviceKey="state" />} />
       <Route path="giftcards" element={<AdminGiftCards />} />

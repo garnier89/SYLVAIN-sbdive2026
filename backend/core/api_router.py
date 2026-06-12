@@ -96,6 +96,7 @@ from routes.favorites import router as favorites_router
 from routes.fraud import router as fraud_router
 from routes.bookings_admin import router as bookings_admin_router
 from routes.reports_admin import router as reports_admin_router
+from routes.safety_audio import router as safety_audio_router, admin_router as safety_audio_admin_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -147,6 +148,8 @@ _ROUTERS = [
     fraud_router,
     bookings_admin_router,
     reports_admin_router,
+    safety_audio_router,
+    safety_audio_admin_router,
 ]
 
 
