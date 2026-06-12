@@ -1,3 +1,12 @@
+## NEW - 2026-06-12 (338) - 🚗 Covoiturage : paiement SB Pay sécurisé en séquestre (escrow) + e-mail bouton transfert
+- **Demande user** : « configure l'autre pool, mets à jour tout le système complet ». Audit : le « Pool taxi » (taxi partagé) était déjà sécurisé ; le **Covoiturage** (CarPool) n'avait AUCUN paiement → sécurisé.
+- **Choix** : escrow (débit à la réservation, conservé par la plateforme), commission 15 %, remboursement intégral avant départ, SB Pay uniquement.
+- **Backend** `routes/carpool.py` (réécriture) : book = réservation atomique des sièges + débit SB Pay (rollback si solde insuffisant), cancel/refund passager, complete = libération escrow au chauffeur −15 %, cancel-ride = remboursement total, config admin, boucle libération auto (départ+12h). `core/startup.py` branché.
+- **Frontend** `CarPoolPage.js` (réécriture) : onglets Rechercher/Mes trajets, modal réservation (places+total+séquestre), actions passager/chauffeur + contacts. `carpoolAPI`.
+- **E-mail vol** : bouton « Réserver mon taxi SB Drive » (deep-link mode Aéroport) ajouté à la confirmation pour aéroports desservis.
+- **Testé** : pytest 4/4 + e2e 100% (book 40€, complete +34€/6€ commission, annulation remboursée, rollback solde insuffisant, refus auto-réservation).
+
+
 ## NEW - 2026-06-12 (337) - 🛫 Transfert aéroport SB Drive en mode « Aéroport » dédié (suivi de vol + tarif fixe)
 - **Demande user** : utiliser le mode « Aéroport » de SB Drive (au lieu du standard) pour que le chauffeur voie le n° de vol et ajuste l'heure en cas de retard.
 - **Backend** : `core/airport.py seed_airport_zones()` (FDF/PTP/CAY/SXM/ORY/CDG, idempotent), appelé au démarrage. `/api/phase2/airports` renvoie la liste.

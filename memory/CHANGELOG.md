@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-06-12 — Covoiturage : paiement SB Pay sécurisé en séquestre (escrow) [DONE, testé 100%]
+Le covoiturage (page CarPool) n'avait AUCUN paiement (le prix était décoratif). Refonte complète avec paiement sécurisé. Choix : escrow + commission 15 % + remboursement intégral avant départ + SB Pay uniquement.
+- **`routes/carpool.py`** (réécriture) : `GET /carpool/config`, `GET/PUT /carpool/admin/config` (commission, max sièges), `POST /rides` (validation stricte, date future, bornes), `GET /rides` (seats_left), `POST /rides/{id}/book` (**réservation atomique des sièges via $expr puis débit SB Pay ; rollback des sièges si solde insuffisant** → 400 clair), `POST /rides/{id}/cancel` (remboursement passager avant départ), `POST /rides/{id}/complete` (libère le séquestre au chauffeur − 15 % commission), `POST /rides/{id}/cancel-ride` (rembourse tous les passagers), `GET /my-rides`. Boucle `carpool_autorelease_loop` (libération auto après départ + 12 h). Notifications à chaque étape, contacts révélés après réservation.
+- **`core/startup.py`** : `carpool_task` branché au lifespan.
+- **`CarPoolPage.js`** (réécriture) : onglets Rechercher / Mes trajets ; `BookSeatModal` (sélecteur de places + total + mention séquestre) ; section passager (statut, appel chauffeur, annuler/rembourser) ; section chauffeur (passagers + contacts, « Terminer/encaisser », « Annuler le trajet »). `carpoolAPI` ajouté.
+- **Testé** : pytest `test_iter338_carpool.py` 4/4 + e2e 100% (book 40€ débité, complete +34€ chauffeur / 6€ commission, annulation remboursée, rollback solde insuffisant, refus auto-réservation). Doublon `carpoolAPI` (reliquat) retiré par l'agent de test.
+- ℹ️ Le « Pool taxi » (taxi partagé instantané) était déjà sécurisé via le flux course (SB Pay, commission, dispatch) — audité, aucun changement requis.
+
+## 2026-06-12 — E-mail confirmation vol : bouton « Réserver mon taxi SB Drive » [DONE]
+Ajout dans l'e-mail de confirmation de vol d'un/deux bouton(s) deep-link vers le transfert aéroport (mode Aéroport) pour les aéroports desservis. `core/email.py _sbdrive_transfer_html()` (utilise `FRONTEND_URL` + coords aéroports), inséré dans `send_flight_confirmation`. Vérifié : FDF/ORY → 2 boutons avec n° de vol + heure ; aéroports non desservis → aucun bouton.
+
+
+
 ## 2026-06-12 — Transfert aéroport SB Drive en mode « Aéroport » dédié (suivi de vol + tarif fixe) [DONE, testé 100%]
 Évolution du cross-sell : les boutons transfert ouvrent désormais le **mode « Aéroport »** de SB Drive (au lieu du mode standard) avec aéroport + n° de vol + heure pré-remplis → le chauffeur voit le vol, profite du suivi de retard et des minutes d'attente offertes.
 - **`core/airport.py`** : `seed_airport_zones()` idempotent (FDF, PTP, CAY, SXM, ORY, CDG) ; **`core/startup.py`** l'appelle au démarrage (PTP/CAY/SXM créés, FDF/ORY/CDG conservés).
