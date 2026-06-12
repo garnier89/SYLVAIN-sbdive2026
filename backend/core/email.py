@@ -398,6 +398,31 @@ async def send_account_invite(to: str, name: str, *, role_label: str, login_emai
     await _send(to, f"Votre compte {role_label} SB Drive est prêt", _shell("Bienvenue sur SB Drive 🚀", "#FF4500", body))
 
 
+async def send_account_reminder(to: str, name: str, *, role_label: str,
+                                login_email: str, login_url: str) -> None:
+    """Reminder/relance email for an admin-created account that hasn't been activated yet.
+    For security we never store the temp password in clear, so this email re-sends the
+    login id + sign-in link and points to 'mot de passe oublié' if needed."""
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Petit rappel : un compte <b>{role_label}</b> vous attend sur <b>SB Drive</b>.
+          Connectez-vous pour finaliser votre activation et commencer à recevoir des opportunités.
+        </p>
+        <p style="color:#444;font-size:14px;margin:14px 0 4px;">Votre identifiant :</p>
+        <p style="color:#0a0e1a;font-size:15px;font-weight:bold;margin:0 0 14px;">{login_email}</p>
+        <p style="text-align:center;margin:18px 0 14px;">
+          <a href="{login_url}" style="background:#FF4500;color:#ffffff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+            Me connecter
+          </a>
+        </p>
+        <p style="color:#9aa0ac;font-size:12px;line-height:1.5;text-align:center;">
+          Mot de passe oublié ? Utilisez le lien « Mot de passe oublié » sur la page de connexion.
+        </p>"""
+    await _send(to, f"Rappel : activez votre compte {role_label} SB Drive", _shell("On vous attend 👋", "#FF4500", body))
+
+
 def _code_block(code: str) -> str:
     digits = "".join(
         f'<span style="display:inline-block;min-width:34px;margin:0 3px;padding:10px 0;'

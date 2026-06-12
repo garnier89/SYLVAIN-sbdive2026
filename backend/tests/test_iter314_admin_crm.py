@@ -98,6 +98,34 @@ def test_csv_import_merchants_reports():
     assert data["created"] == 1 and data["skipped"] == 1
 
 
+def test_onboarding_dashboard_and_remind():
+    s = _admin_session()
+    # Create a pending (just-invited) driver.
+    em = f"onb_{uuid.uuid4().hex[:8]}@demo.sb"
+    ok = s.post(f"{API}/admin/drivers", json={
+        "first_name": "Onb", "last_name": "Test", "email": em, "password": "Driver123!",
+        "service_types": ["delivery"], "taxi_sub": "particulier", "vehicle_type": "velo",
+    }, timeout=20)
+    assert ok.status_code == 200, ok.text
+    did = ok.json()["driver"]["id"]
+
+    ob = s.get(f"{API}/admin/onboarding", timeout=30)
+    assert ob.status_code == 200, ob.text
+    data = ob.json()
+    assert "drivers" in data and "merchants" in data
+    for k in ("total", "activated", "pending", "activation_rate", "pending_list"):
+        assert k in data["drivers"]
+    # Our brand-new driver is in the pending list (0 trips = not activated).
+    assert any(p["id"] == did for p in data["drivers"]["pending_list"])
+
+    # Individual remind (best-effort send to a non-verified address -> counts as sent attempt or failed, but 200).
+    r = s.post(f"{API}/admin/onboarding/remind", json={"kind": "driver", "ids": [did]}, timeout=30)
+    assert r.status_code == 200, r.text
+    assert r.json()["total"] == 1
+
+    s.delete(f"{API}/admin/drivers/{did}", timeout=20)
+
+
 def test_merchant_create_and_delete():
     s = _admin_session()
     em = f"store_{uuid.uuid4().hex[:8]}@demo.sb"

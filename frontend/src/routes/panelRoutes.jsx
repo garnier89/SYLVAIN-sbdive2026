@@ -12,6 +12,7 @@ import {
   AdminUsers, AdminReferralSettings, AdminNewsletter, AdminBanners, AdminContactRequests,
   AdminOrderHelpRequests, AdminTopDriversSettings, AdminDocumentsCrud, AdminRequests, AdminRewards,
   AdminStores, AdminCompany, AdminHotels, AdminKiosks, AdminOrders, AdminFeaturedListings,
+  AdminOnboarding,
 } from './pages';
 
 export function panelRoutes() {
@@ -95,6 +96,7 @@ export function panelRoutes() {
         <Route path="rewards" element={<AdminRewards />} />
         <Route path="rewards-reports" element={<AdminRewards />} />
         <Route path="rides" element={<AdminRides />} />
+        <Route path="onboarding" element={<AdminOnboarding />} />
       </Route>
       {/* MERCHANTS ADMIN (CRM Marchands) */}
       <Route path="/merchants-admin" element={<ProtectedRoute allowedRoles={['admin']}><PanelLayout panelKey="merchants_admin" /></ProtectedRoute>}>
@@ -106,6 +108,7 @@ export function panelRoutes() {
         <Route path="store-orders" element={<AdminOrders />} />
         <Route path="parcels" element={<AdminOrders />} />
         <Route path="featured-listings" element={<AdminFeaturedListings />} />
+        <Route path="onboarding" element={<AdminOnboarding />} />
       </Route>
     </>
   );

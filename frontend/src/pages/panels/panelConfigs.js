@@ -175,6 +175,9 @@ export const PANEL_CONFIGS = {
         { icon: ChartLine, label: 'Rapports', path: '/drivers-admin/rewards-reports' },
         { icon: Path, label: 'Courses chauffeurs', path: '/drivers-admin/rides' },
       ]},
+      { title: 'ACTIVATION', items: [
+        { icon: SealCheck, label: 'Onboarding', path: '/drivers-admin/onboarding' },
+      ]},
     ],
   },
 
@@ -202,6 +205,9 @@ export const PANEL_CONFIGS = {
       ]},
       { title: 'SPONSORING', items: [
         { icon: Star, label: 'Mise en avant', path: '/merchants-admin/featured-listings' },
+      ]},
+      { title: 'ACTIVATION', items: [
+        { icon: SealCheck, label: 'Onboarding', path: '/merchants-admin/onboarding' },
       ]},
     ],
   },
