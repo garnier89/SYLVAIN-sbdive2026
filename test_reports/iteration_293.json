@@ -1,0 +1,39 @@
+{
+  "summary": "E2E frontend test of Hubs (Vehicles/Shopping/RealEstate), Favoris (property + marketplace), persistance du coeur, and Edition d'annonces. Hubs + Favoris cycle complet OK. Edition non testable car paul.vendeur n'a aucune annonce existante et la création de nouvelle annonce immobiliere ne s'effectue pas (le formulaire ne soumet pas, probablement bloqué par 'Vérifiez votre email').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PropertyCard (RealEstatePage)", "issue": "Nested <button> hydration error: la carte entière est un <button data-testid='property-card-{id}'> et contient un <button data-testid='fav-btn-{id}'> à l'intérieur. Cela produit l'erreur console 'In HTML, <button> cannot be a descendant of <button>'. Risque d'événements imbriqués et de comportement inattendu sur mobile.", "selector": "[data-testid^='property-card-'] [data-testid^='fav-btn-']", "priority": "HIGH"},
+      {"component": "PostPropertyPage (/real-estate/post)", "issue": "Le clic sur [data-testid='post-submit-btn'] avec tous les champs requis (titre, description, prix, chambres, sdb, surface, adresse, type=sale, cat=residential, subtype index 1) ne déclenche aucune navigation ni feedback visible. URL reste /real-estate/post et /real-estate/my reste vide. Aucun message d'erreur affiché à l'utilisateur. Probable blocage silencieux par exigence de vérification email (banner 'Vérifiez votre email' visible).", "selector": "[data-testid='post-submit-btn']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Édition annonce immobilier", "issue": "Non testable: /real-estate/my affiche 'Vous n'avez aucune annonce' pour paul.vendeur@example.com. Soit le seed manque, soit les annonces sont stockées dans une autre collection.", "affected_selectors": ["/real-estate/my"]},
+      {"flow": "Édition annonce marketplace", "issue": "Non testable: /ma-galerie affiche 'Mes annonces (0)' pour paul.vendeur. Pourtant 'Canapé cuir, 300 EUR' apparaît dans /marketplace (peut-être ancien student_marketplace), donc divergence entre 'Mes' et 'Tout'.", "affected_selectors": ["/ma-galerie"]}
+    ],
+    "design_issues": [
+      {"screen": "Tous les écrans (verify email banner)", "issues": ["Le banner 'Vérifiez votre email' couvre les boutons en bas (bottom action bar) sur 430px - peut masquer le bouton 'Publier l'article' / submit"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Corriger l'imbrication <button> dans PropertyCard: remplacer le wrapper extérieur par un <div role='button' onClick> et garder le FavoriteButton avec stopPropagation pour éviter la double-action et l'erreur d'hydratation React.",
+    "Corriger PostPropertyPage: afficher une erreur claire si la création échoue (ex 403 email non vérifié) et/ou autoriser la création même sans email vérifié pour permettre les tests E2E.",
+    "Seed: paul.vendeur@example.com doit réellement posséder au moins 1 annonce immobilier et 1 annonce marketplace selon la spec (sinon mettre à jour le contexte de test).",
+    "Optionnel: ajouter data-testid='edit-property-{id}' sur la carte 'Mes biens' pour faciliter le test d'édition."
+  ],
+  "critical_code_review_comments": [
+    "VehiclesHub.js et RealEstateHub.js: bons data-testid, gradients propres, mobile-first OK (max-w-[430px]).",
+    "Routes /vehicules, /shopping, /immobilier, /favoris correctement enregistrées dans clientRoutes.jsx (lignes 138-141).",
+    "Deep-links ?type=rent et ?type=sale fonctionnent et activent les bons filtres dans /marketplace/cars, /marketplace/items, /real-estate (visible: la pastille 'À louer' est sélectionnée par défaut).",
+    "FavoriteButton: GET /api/favorites/ids fonctionne — état du coeur persistant après reload (vérifié sur prop_cfe366d8fa67: aria-label passe de 'Ajouter aux favoris' à 'Retirer des favoris' et reste après F5).",
+    "MyFavoritesPage: data-testid='favorites-page', fav-tab-property, fav-tab-marketplace, fav-item-{id}, fav-remove-{id} tous présents et fonctionnels."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "75% (Hubs + Favoris OK; Édition non testable faute de seed)"},
+  "test_credentials": "paul.vendeur@example.com / Test1234! — connexion OK mais aucune annonce existante. admin@superapp.com / SuperAdmin123! non utilisé.",
+  "seed_data_creation": "Tentative création d'une property TEST_AppartEdit Original Title via /real-estate/post : ÉCHEC (submit sans effet, voir bug).",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Hubs (Vehicles/Shopping/RealEstate) + deep-links ?type= + Favoris (add/persist/list/remove sur property et marketplace) sont fonctionnels et validés. Reste à tester: (1) Édition annonce immobilier — requiert un user qui possède des annonces ou réparer le formulaire /real-estate/post (le submit n'a pas de feedback et ne crée rien). (2) Édition annonce marketplace via /ma-galerie — idem, requiert listings existants. (3) Le bug React 'nested button' sur PropertyCard doit être corrigé en priorité. Le banner 'Vérifiez votre email' couvre potentiellement le bouton submit en bas du formulaire de post-property.",
+  "rca of the issue": "Property creation submit silent failure: hypothèse 1 = backend renvoie 403 (email_not_verified) sans que le frontend affiche le message; hypothèse 2 = validation client échoue silencieusement (subtype select index 1 peut être invalide). À investiguer en regardant Network tab + backend logs lors d'un POST /api/real-estate. Le banner 'Vérifiez votre email' suggère que paul.vendeur n'a pas validé son email — il faut soit lever cette contrainte, soit pré-vérifier le compte de test dans le seed."
+}
