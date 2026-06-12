@@ -1,4 +1,12 @@
-## NEW - 2026-06-12 (311) - 📧 Rapports hebdo automatiques étendus (relevé individuel Taxi/VTC + rapport global HTML chauffeurs/livreurs/commerçants) DONE, testé 7/7
+## NEW - 2026-06-12 (312) - ⚡💵 Flash temps réel « Paiement basculé en espèces » au chauffeur si la carte/portefeuille échoue en cours de course (P0, DONE testé 3/3)
+- **Demande user** : si la carte/le portefeuille du client échoue **pendant la course**, flasher en temps réel au chauffeur que le paiement est passé en **espèces**.
+- **Backend** (`routes/rides.py`) : helper `switch_to_cash_if_needed(ride, driver_user_id, now)` — au **démarrage** de la course, si `payment_method ∈ {wallet, sbpay, sbpaygo}` et que le solde SB Pay du client < tarif → bascule la course en `cash` (`payment_switched_to_cash=True`, `original_payment_method`, `payment_shortfall`), **envoie un événement WS `payment_switched_to_cash`** au chauffeur (`send_personal_message` + `send_to_ride_room`) et crée une notification persistante. Branché sur les 2 chemins de démarrage : OTP chauffeur (`phase1.verify_start_otp`) + force-start admin (`rides.py` branche `in_progress`).
+- **Frontend** : `useWebSocket` joue un son sur `payment_switched_to_cash` ; `DriverHome.js` écoute l'événement → **toast warning 16 s** + bascule `currentRide.payment_method='cash'` + **bannière rouge pulsante** persistante (`payment-switched-banner`).
+- **Testé** : pytest `test_iter312_payment_switch.py` 3/3 (solde insuffisant → bascule cash + notif ; solde suffisant → pas de bascule ; course cash inchangée). Frontend compile OK.
+- ⚠️ Détection basée sur le solde SB Pay au démarrage (signal concret/testable). La vraie carte Stripe (3-D Secure + capture manuelle) reste la tâche P1. ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+ (relevé individuel Taxi/VTC + rapport global HTML chauffeurs/livreurs/commerçants) DONE, testé 7/7
 - **Demande user** : (1) envoyer le relevé d'activité par e-mail **chaque semaine** aux chauffeurs **Taxi/VTC** ; (2) un **rapport global** de tous les chauffeurs/livreurs ET **commerçants** envoyé chaque semaine par e-mail **en fichier HTML**.
 - **Base** : le moteur `routes/weekly_reports.py` existait déjà (calcul + envoi Resend par chauffeur HTML+PDF + global aux admins, planificateur configurable). **Étendu** plutôt que recréé.
 - **Relevé individuel gaté** : `compute_report` ajoute `taxi_sub`/`export_allowed` à chaque ligne chauffeur ; `run_weekly_send` n'envoie le relevé individuel qu'aux chauffeurs **Taxi/VTC (ou autorisés admin)** quand `restrict_driver_email_to_authorized=True` (défaut, choix user a). Toggle ajouté dans Admin → Rapports hebdomadaires.

@@ -223,7 +223,16 @@ const DriverHome = () => {
       else if (msg?.status === 'rejected') toast.error(msg.body || 'Document refusé', { duration: 8000 });
       else toast.info(msg?.body || 'Document mis à jour');
     });
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); };
+    const unsub8 = on('payment_switched_to_cash', (msg) => {
+      if (currentRide && msg.ride_id && msg.ride_id !== currentRide.id) return;
+      setCurrentRide((prev) => (prev ? { ...prev, payment_method: 'cash', payment_switched_to_cash: true } : prev));
+      try { unlockAudio(); } catch { /* ignore */ }
+      toast.warning(
+        msg.message || `💳➡️💵 Paiement basculé en espèces — encaissez ${Number(msg.amount || 0).toFixed(2)} € en espèces.`,
+        { duration: 16000, id: `pay-switch-${msg.ride_id}`, important: true },
+      );
+    });
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); };
   }, [on, currentRide, isOnline]);
 
   // Audible "turn-signal" siren + vibration while an incoming request is on screen.
@@ -549,6 +558,19 @@ const DriverHome = () => {
 
   return (
     <div className="mobile-container bg-white h-[100dvh] flex flex-col relative pb-20 overflow-hidden" data-testid="driver-home-page">
+      {/* Real-time payment-switch banner: the rider's card/wallet failed, the
+          ride is now CASH and the driver must collect cash. */}
+      {currentRide?.payment_switched_to_cash && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[2500] w-[92%] max-w-md" data-testid="payment-switched-banner">
+          <div className="flex items-center gap-3 bg-red-600 text-white rounded-2xl shadow-xl px-4 py-2.5 animate-pulse">
+            <WarningCircle size={22} weight="fill" className="flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-extrabold leading-tight">💳➡️💵 Paiement basculé en ESPÈCES</p>
+              <p className="text-[11px] text-white/90 leading-tight">Le client ne peut pas payer par carte — encaissez le montant en espèces.</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Cash-ride top-up nudge: below 1 € the driver stops receiving cash rides. */}
       {walletBalance != null && walletBalance < 1 && !cashBannerDismissed && !currentRide && !incomingRequest && (
         <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[2450] w-[92%] max-w-md" data-testid="cash-topup-banner">

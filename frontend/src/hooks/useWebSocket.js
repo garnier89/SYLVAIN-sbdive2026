@@ -11,6 +11,7 @@ const SOUND_EVENT_TYPES = new Set([
   'notification',
   'scheduled_reservation',
   'driver_nearby',
+  'payment_switched_to_cash',
 ]);
 
 function maybePlayNotificationSound(data) {

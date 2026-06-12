@@ -1135,6 +1135,58 @@ async def _payment_feasibility(user_id: str, method: str, fare: float):
     return {"sufficient": True, "balance": None, "shortfall": 0.0, "difference_in_cash": False}
 
 
+async def switch_to_cash_if_needed(ride: dict, driver_user_id: str, now: str):
+    """Mid-ride payment guard. When a ride paid via the SB Pay wallet starts but
+    the rider's balance can't cover the fare (card/wallet effectively failed), the
+    ride is switched to CASH and the driver is FLASHED in real time so they collect
+    cash instead. Returns the flash payload (or None when no switch was needed)."""
+    pm = (ride.get("payment_method") or "").strip().lower()
+    if pm not in ("wallet", "sbpay", "sbpaygo"):
+        return None
+    fare = float(ride.get("final_fare") or ride.get("estimated_fare") or 0)
+    if fare <= 0:
+        return None
+    wallet = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0, "balance": 1})
+    bal = float((wallet or {}).get("balance", 0) or 0)
+    if bal >= fare:
+        return None
+    shortfall = round(fare - bal, 2)
+    await db.rides.update_one({"id": ride["id"]}, {"$set": {
+        "payment_method": "cash",
+        "payment_switched_to_cash": True,
+        "payment_switch_reason": "insufficient_wallet",
+        "original_payment_method": pm,
+        "payment_shortfall": shortfall,
+        "difference_in_cash": True,
+        "payment_switched_at": now,
+    }})
+    flash = {
+        "type": "payment_switched_to_cash",
+        "ride_id": ride["id"],
+        "amount": round(fare, 2),
+        "shortfall": shortfall,
+        "from_method": pm,
+        "message": (f"💳➡️💵 Paiement basculé en espèces : le portefeuille du client "
+                    f"ne couvre pas la course. Encaissez {fare:.2f} € en espèces."),
+        "timestamp": now,
+    }
+    if driver_user_id:
+        await manager.send_personal_message(flash, driver_user_id)
+    await manager.send_to_ride_room(ride["id"], flash, exclude=ride.get("user_id"))
+    try:
+        from core.notifications import create_notification
+        if driver_user_id:
+            await create_notification(
+                driver_user_id, "payment", "Paiement basculé en espèces 💵",
+                f"La carte / le portefeuille du client ne couvre pas la course "
+                f"({fare:.2f} €). Encaissez le montant en espèces.",
+                data={"ride_id": ride["id"], "amount": round(fare, 2), "kind": "payment_switch"},
+            )
+    except Exception:
+        pass
+    return flash
+
+
 @router.put("/{ride_id}/payment-method")
 async def change_payment_method(ride_id: str, request: Request):
     """Change a ride's payment method at any time before completion. For wallet
@@ -1740,6 +1792,13 @@ async def update_ride_status(ride_id: str, request: Request):
 
     elif new_status == "in_progress":
         update_data["started_at"] = now
+        # Mid-ride payment guard (admin force-start path): switch to cash & flash
+        # the driver if the rider's wallet can't cover the fare.
+        try:
+            _drv = await db.drivers.find_one({"id": ride.get("driver_id")}, {"_id": 0, "user_id": 1}) if ride.get("driver_id") else None
+            await switch_to_cash_if_needed(ride, (_drv or {}).get("user_id"), now)
+        except Exception:
+            pass
 
     elif new_status == "completed":
         update_data["completed_at"] = now
