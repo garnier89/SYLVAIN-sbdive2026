@@ -12,6 +12,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 const HIDDEN_PREFIXES = [
   '/login', '/register', '/verifier-email', '/mot-de-passe-oublie', '/reinitialiser-mot-de-passe', '/auth',
   '/course', '/taxi', '/checkout', '/food/', '/bidding', '/service-providers', '/rental',
+  '/real-estate/post', '/real-estate/edit', '/marketplace/sell-vehicle', '/ma-galerie',
 ];
 
 const DISMISS_KEY = 'verify_email_dismissed_for';

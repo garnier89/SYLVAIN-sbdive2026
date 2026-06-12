@@ -7,8 +7,10 @@ import { LISTING_TYPES, CATEGORIES, fmtPrice, catLabel, rentSuffix } from './rea
 import { FavoriteButton } from '../../../components/FavoriteButton';
 
 const PropertyCard = ({ p, onClick, favorited, onFavChange }) => (
-  <button onClick={onClick} data-testid={`property-card-${p.id}`}
-    className="w-full text-left bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
+  <div role="button" tabIndex={0} onClick={onClick}
+    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+    data-testid={`property-card-${p.id}`}
+    className="w-full text-left bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow cursor-pointer">
     <div className="relative h-40 bg-gray-100">
       {p.thumbnail
         ? <img src={p.thumbnail} alt={p.title} className="w-full h-full object-cover" />
@@ -33,7 +35,7 @@ const PropertyCard = ({ p, onClick, favorited, onFavChange }) => (
         {p.area_sqm != null && <span className="flex items-center gap-1"><Ruler size={13} /> {p.area_sqm} m²</span>}
       </div>
     </div>
-  </button>
+  </div>
 );
 
 const RealEstatePage = () => {

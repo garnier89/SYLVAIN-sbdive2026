@@ -143,7 +143,9 @@ const MarketplacePage = () => {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map(l => (
-              <button key={l.id} onClick={() => setSelected(l)} className={`bg-white rounded-2xl overflow-hidden border text-left hover:shadow-md transition-shadow relative ${l.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`} data-testid={`listing-${l.id}`}>
+              <div key={l.id} role="button" tabIndex={0} onClick={() => setSelected(l)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(l); } }}
+                className={`bg-white rounded-2xl overflow-hidden border text-left hover:shadow-md transition-shadow relative cursor-pointer ${l.is_featured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-100'}`} data-testid={`listing-${l.id}`}>
                 {l.is_featured && (
                   <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shadow" data-testid={`sponsored-${l.id}`}>
                     ★ Sponsorisé
@@ -172,7 +174,7 @@ const MarketplacePage = () => {
                   {l.location && <p className="text-[10px] text-gray-500 mt-0.5 truncate">{l.location}</p>}
                   <span className={`inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${l.listing_type === 'rent' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{rentLabel(l)}</span>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}

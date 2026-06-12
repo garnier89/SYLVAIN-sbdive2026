@@ -1,0 +1,28 @@
+{
+  "summary": "Re-test ciblé après corrections iter293. Les 2 bugs HIGH sont CORRIGÉS et les 5 scénarios passent. Édition immobilier OK (titre+prix persistés après reload), création immobilier OK (bouton submit non recouvert, toast 'Annonce publiée !', redirection /real-estate/my, 2 annonces visibles), édition marketplace OK via modale (edit-title/edit-price → 'Canapé cuir 3 places (TEST) MODIFIÉ' / 350 EUR persistés), aucune erreur console 'nested button' sur /real-estate ni /marketplace, clic carte ouvre détail, clic coeur n'ouvre PAS le détail (stopPropagation), favoris affichent l'annonce modifiée.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PropertyCard est désormais un <div role='button' tabIndex='0'> (vérifié via DOM: tag='div', role='button') — l'erreur React 'In HTML, <button> cannot be a descendant of <button>' a totalement disparu sur /real-estate ET /marketplace (0 erreur dans les logs console).",
+    "VerifyEmailBanner: HIDDEN_PREFIXES correctement étendu — le banner n'est plus visible sur /real-estate/post, /real-estate/edit/:id, /ma-galerie (vérifié: banner_count=0 sur ces routes), ce qui débloque le bouton post-submit-btn.",
+    "Edition immobilier: form pré-rempli correctement (post-title, post-price, post-description, post-bedrooms, post-bathrooms, post-area, post-address, post-city, post-owner-name, post-owner-phone tous présents avec valeurs). PUT /api/real-estate/listings/{id} renvoie 200 → toast 'Annonce mise à jour' + redirection /real-estate/my + persistance après reload (titre 'Appartement T3 lumineux (TEST) MODIFIÉ' et prix '199 000 €').",
+    "Création immobilier: POST /api/real-estate fonctionne (plus de submit silencieux). Toast 'Annonce publiée !' + redirection /real-estate/my, Mes biens (2). Banner email hidden permet d'atteindre le submit.",
+    "Édition marketplace (modale Sheet/Dialog): data-testid='edit-title', 'edit-price', 'edit-description', 'edit-purchasable' bien présents et pré-remplis. Save → toast 'Annonce mise à jour' + persistance (350 EUR + ' MODIFIÉ' après reload).",
+    "Cards: clic [data-testid='property-card-{id}'] navigue vers /real-estate/{id}; clic [data-testid='fav-btn-{id}'] reste sur la page (stopPropagation correctement implémenté).",
+    "Favoris: /favoris affiche bien 'Appartement T3 lumineux (TEST) MODIFIÉ — 199 000 EUR' avec tabs fav-tab-property/fav-tab-marketplace et fav-remove-{id}."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (5/5 scénarios validés)"},
+  "test_credentials": "paul.vendeur@example.com / Test1234! — possède prop_0a5c07698325 (édité→199 000 €+MODIFIÉ) + une nouvelle 'Maison TEST Créée' (250 000 €) créée pendant le test + listing_14a2f429450c (édité→350 EUR+MODIFIÉ).",
+  "seed_data_creation": "Pendant le test, j'ai créé en plus 'Maison TEST Créée' (Résidentiel, 250 000 €, Paris) pour valider la création. Les données d'édition modifient les seeds existants: paul.vendeur a maintenant 2 propriétés immo (1 originale modifiée + 1 nouvelle) et 1 annonce marketplace modifiée.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Tous les flux d'édition/création immobilier+marketplace, le fix nested button, et la non-couverture du submit par la bannière sont validés en preview. Si besoin de nettoyer: paul.vendeur possède désormais 2 propriétés (prop_0a5c07698325 modifié, et une 'Maison TEST Créée' supplémentaire). Le titre + prix d'origine ont été altérés. La seed peut être ré-exécutée pour repartir d'un état propre.",
+  "rca of the issue": "N/A — les corrections d'iter293 sont vérifiées. (1) PropertyCard/MarketplaceCard utilisent <div role='button'> au lieu de <button> imbriqué → DOM nesting valide, plus d'erreur console. (2) VerifyEmailBanner masqué sur les routes de publication/édition → le bouton submit n'est plus recouvert visuellement et fonctionnellement, ce qui expliquait le 'submit silencieux' précédent."
+}
