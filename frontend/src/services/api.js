@@ -592,6 +592,7 @@ export const homeCategoriesAPI = {
   adminSections: () => api.get('/home-categories/admin/sections'),
   reorderSections: (orderedKeys) => api.post('/home-categories/admin/sections/reorder', { ordered_keys: orderedKeys }),
   toggleSection: (key) => api.post(`/home-categories/admin/sections/${key}/toggle`),
+  updateSection: (key, data) => api.put(`/home-categories/admin/sections/${key}`, data),
 };
 
 export const promoBannersAPI = {

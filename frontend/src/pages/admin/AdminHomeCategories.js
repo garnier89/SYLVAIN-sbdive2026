@@ -143,6 +143,21 @@ export default function AdminHomeCategories() {
     catch { toast.error('Échec du classement'); load(); }
   };
 
+  const [editingSecKey, setEditingSecKey] = useState(null);
+  const [editingSecTitle, setEditingSecTitle] = useState('');
+  const startEditSection = (s) => { setEditingSecKey(s.key); setEditingSecTitle(s.title_fr || ''); };
+  const cancelEditSection = () => { setEditingSecKey(null); setEditingSecTitle(''); };
+  const saveSectionTitle = async (key) => {
+    const title = editingSecTitle.trim();
+    if (!title) { toast.error('Le titre ne peut pas être vide'); return; }
+    try {
+      await homeCategoriesAPI.updateSection(key, { title_fr: title });
+      setSecLayout((prev) => prev.map((s) => (s.key === key ? { ...s, title_fr: title } : s)));
+      toast.success('Titre mis à jour');
+      cancelEditSection();
+    } catch { toast.error('Échec de la mise à jour'); }
+  };
+
   // Show/hide an entire home section.
   const toggleSection = async (key) => {
     try {
@@ -293,7 +308,20 @@ export default function AdminHomeCategories() {
               return (
               <div key={s.key} className={`flex items-center gap-3 p-2.5 ${!s.visible ? 'opacity-50' : ''}`} data-testid={`section-layout-row-${s.key}`}>
                 <span className="text-xs font-mono text-gray-400 w-6 text-center">{idx + 1}</span>
-                <span className="flex-1 font-semibold text-sm text-gray-800">{s.title_fr}</span>
+                {editingSecKey === s.key ? (
+                  <div className="flex-1 flex items-center gap-1.5">
+                    <input autoFocus value={editingSecTitle} onChange={(e) => setEditingSecTitle(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveSectionTitle(s.key); if (e.key === 'Escape') cancelEditSection(); }}
+                      className="flex-1 border rounded px-2 py-1 text-sm" data-testid={`section-title-input-${s.key}`} />
+                    <button onClick={() => saveSectionTitle(s.key)} className="text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded px-2 py-1" data-testid={`section-title-save-${s.key}`}>OK</button>
+                    <button onClick={cancelEditSection} className="text-xs text-gray-500 px-1"><X size={14} /></button>
+                  </div>
+                ) : (
+                  <span className="flex-1 flex items-center gap-1.5 font-semibold text-sm text-gray-800">
+                    {s.title_fr}
+                    <button onClick={() => startEditSection(s)} title="Renommer le titre" className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-indigo-600" data-testid={`section-rename-${s.key}`}><Pencil size={13} /></button>
+                  </span>
+                )}
                 {(manageable || hasPage) ? (
                   <button onClick={() => goManage(s.key)} title={manageable ? 'Ajouter / modifier les services' : 'Gérer sur sa page dédiée'}
                     className="flex items-center gap-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md px-2 py-1" data-testid={`section-manage-${s.key}`}>

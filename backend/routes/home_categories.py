@@ -73,6 +73,25 @@ HOME_BLOCKS = [
 ]
 
 
+
+# Canonical default section titles as shown on the client Home (UserHome.js).
+# Admin overrides (home_sections.title_overridden) take precedence over these.
+DEFAULT_SECTION_TITLES = {
+    "taxi": "Services Taxi",
+    "delivery": "Livraison & Coursier",
+    "marketplace": "Acheter, Vendre & Louer",
+    "travel": "SB Travel",
+    "beauty": "Services Beauté",
+    "medical": "Services Médicaux",
+    "ondemand": "Services à la demande",
+    "carcare": "Entretien Auto",
+    "towing": "Dépannage & Remorquage",
+    "pet": "Services Animaux",
+    "tracking": "Suivi Famille & Employés",
+    "nearby": "Commerces Proches",
+}
+
+
 async def seed_home_sections():
     """Idempotent: insert any missing home-section layout entry (preserves admin order/visibility)."""
     for i, b in enumerate(HOME_BLOCKS):
@@ -95,6 +114,11 @@ async def _section_layout(visible_only: bool = True):
     extra = [{"key": b["key"], "title_fr": b["title_fr"], "display_order": 1000 + i, "visible": True}
              for i, b in enumerate(HOME_BLOCKS) if b["key"] not in known]
     rows = sorted(rows + extra, key=lambda r: r.get("display_order", 0))
+    # Effective title: admin override wins, else the canonical default shown on the
+    # client home (keeps admin editor and client perfectly in sync).
+    for r in rows:
+        if not r.get("title_overridden"):
+            r["title_fr"] = DEFAULT_SECTION_TITLES.get(r["key"], r.get("title_fr"))
     if visible_only:
         rows = [r for r in rows if r.get("visible", True)]
     return rows
@@ -227,7 +251,12 @@ async def list_public(section: str = None):
         q["section"] = section
     items = await db.home_categories.find(q, {"_id": 0}).sort("display_order", 1).to_list(1000)
     layout = await _section_layout(visible_only=True)
-    return {"sections": SECTIONS, "items": items, "section_order": [r["key"] for r in layout]}
+    return {
+        "sections": SECTIONS,
+        "items": items,
+        "section_order": [r["key"] for r in layout],
+        "section_titles": {r["key"]: r["title_fr"] for r in layout},
+    }
 
 
 @router.get("/icons")
@@ -352,3 +381,25 @@ async def admin_toggle_section(key: str, current_user: dict = Depends(require_pe
         {"$set": {"visible": new_visible, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
     return {"key": key, "visible": new_visible}
+
+
+@router.put("/admin/sections/{key}")
+async def admin_update_section(key: str, request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    """Rename a home section title (reflected live on the client Home)."""
+    await seed_home_sections()
+    body = await request.json()
+    title = (body.get("title_fr") or "").strip()
+    if not title:
+        raise HTTPException(400, "Le titre ne peut pas être vide")
+    now = datetime.now(timezone.utc).isoformat()
+    row = await db.home_sections.find_one({"key": key})
+    if not row:
+        await db.home_sections.insert_one({
+            "key": key, "title_fr": title, "title_overridden": True,
+            "display_order": 999, "visible": True, "created_at": now,
+        })
+    else:
+        await db.home_sections.update_one(
+            {"key": key}, {"$set": {"title_fr": title, "title_overridden": True, "updated_at": now}}
+        )
+    return {"message": "Titre mis à jour", "key": key, "title_fr": title}

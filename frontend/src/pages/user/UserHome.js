@@ -230,6 +230,7 @@ const UserHome = () => {
   }, []);
   const [cmsItems, setCmsItems] = useState(_homeCache.cmsItems || []);
   const [sectionOrder, setSectionOrder] = useState(_homeCache.sectionOrder);
+  const [sectionTitles, setSectionTitles] = useState(_homeCache.sectionTitles || null);
   const [taxiCats, setTaxiCats] = useState(cachedServiceCategories());
   const [pendingRef, setPendingRef] = useState(null);
   const [lastDelivery, setLastDelivery] = useState(null);
@@ -291,10 +292,13 @@ const UserHome = () => {
       .then((r) => {
         const items = r.data.items || [];
         const order = Array.isArray(r.data.section_order) && r.data.section_order.length ? r.data.section_order : null;
+        const titles = r.data.section_titles || null;
         _homeCache.cmsItems = items;
         _homeCache.sectionOrder = order;
+        _homeCache.sectionTitles = titles;
         setCmsItems(items);
         setSectionOrder(order);
+        setSectionTitles(titles);
       })
       .catch((e) => console.warn('home categories load:', e?.message || e));
     // Taxi services come from "Gérer les catégories" (service_categories) → single
@@ -409,10 +413,12 @@ const UserHome = () => {
   })();
 
   // ── Section render blocks (keyed) so we can order them declaratively ──
+  // Section titles are admin-editable (home_sections); fall back to defaults.
+  const st = (key, def) => (sectionTitles && sectionTitles[key]) || def;
   const blocks = {
     taxi: (
       <section key="taxi" className="px-4 mt-6">
-        <SectionHeader title="Services Taxi" />
+        <SectionHeader title={st('taxi', "Services Taxi")} />
         <div className="grid grid-cols-4 gap-3">
           {(taxiTiles || displayFor('taxi')).map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
@@ -473,7 +479,7 @@ const UserHome = () => {
     ),
     delivery: (
       <section key="delivery" className="px-4 mt-6">
-        <SectionHeader title="Livraison & Coursier" sub="Repas, colis, courses & coursiers — tout au même endroit." />
+        <SectionHeader title={st('delivery', "Livraison & Coursier")} sub="Repas, colis, courses & coursiers — tout au même endroit." />
         {lastDelivery && (() => {
           const active = lastDelivery.mode === 'active';
           let etaLabel = '';
@@ -544,7 +550,7 @@ const UserHome = () => {
     ),
     marketplace: (
       <section key="marketplace" className="px-4 mt-6">
-        <SectionHeader title="Acheter, Vendre & Louer" />
+        <SectionHeader title={st('marketplace', "Acheter, Vendre & Louer")} />
         <div className="grid grid-cols-4 gap-3">
           {displayFor('marketplace').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
@@ -553,7 +559,7 @@ const UserHome = () => {
     travel: (
       <section key="travel" className="mt-6" data-testid="home-travel-section">
         <div className="px-4">
-          <SectionHeader title="SB Travel" sub="Vols, hôtels & forfaits voyage — réservez en quelques secondes." />
+          <SectionHeader title={st('travel', "SB Travel")} sub="Vols, hôtels & forfaits voyage — réservez en quelques secondes." />
           <div className="grid grid-cols-4 gap-3">
             {[
               { id: 'travel-flights', name: 'Billets\nd\u2019avion', iconName: 'AirplaneTilt', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/vols' },
@@ -568,7 +574,7 @@ const UserHome = () => {
     ),
     beauty: (
       <section key="beauty" className="px-4 mt-6">
-        <SectionHeader title="Services Beauté" />
+        <SectionHeader title={st('beauty', "Services Beauté")} />
         <div className="grid grid-cols-4 gap-3">
           {displayFor('beauty').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
@@ -576,7 +582,7 @@ const UserHome = () => {
     ),
     medical: (
       <section key="medical" className="px-4 mt-6">
-        <SectionHeader title="Services Médicaux" />
+        <SectionHeader title={st('medical', "Services Médicaux")} />
         <div className="grid grid-cols-2 gap-3" data-testid="medical-services-section">
           <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate('/medical/appointment')} className="row-span-2 rounded-[20px] bg-blue-50/70 border border-blue-100 p-4 flex flex-col text-left" data-testid="medical-appointment-btn">
             <h4 className={`text-[15px] font-extrabold text-[#1F2430] ${HEAD}`}>Prendre Rendez-vous</h4>
@@ -612,7 +618,7 @@ const UserHome = () => {
     ),
     ondemand: (
       <section key="ondemand" className="px-4 mt-6">
-        <SectionHeader title="Services à la demande" />
+        <SectionHeader title={st('ondemand', "Services à la demande")} />
         <div className="grid grid-cols-4 gap-3">
           {displayFor('ondemand').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
@@ -639,7 +645,7 @@ const UserHome = () => {
     ),
     carcare: (
       <section key="carcare" className="px-4 mt-6">
-        <SectionHeader title="Entretien Auto" />
+        <SectionHeader title={st('carcare', "Entretien Auto")} />
         <div className="grid grid-cols-4 gap-3">
           {displayFor('carcare').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
@@ -647,7 +653,7 @@ const UserHome = () => {
     ),
     towing: (
       <section key="towing" className="px-4 mt-6">
-        <SectionHeader title="Dépannage & Remorquage" sub="Assistance routière 24/7 — pneu crevé, démarrage, panne sèche et plus." />
+        <SectionHeader title={st('towing', "Dépannage & Remorquage")} sub="Assistance routière 24/7 — pneu crevé, démarrage, panne sèche et plus." />
         <div className="grid grid-cols-3 gap-3" data-testid="towing-grid">
           {displayFor('towing').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={go} />)}
         </div>
@@ -676,7 +682,7 @@ const UserHome = () => {
     ),
     pet: (
       <section key="pet" className="px-4 mt-6">
-        <SectionHeader title="Services Animaux" />
+        <SectionHeader title={st('pet', "Services Animaux")} />
         <div className="grid grid-cols-3 gap-3">
           {displayFor('pet').map((s) => <ServiceTile key={s.id} service={s} variant="inside" onSelect={go} />)}
         </div>
@@ -717,7 +723,7 @@ const UserHome = () => {
     ),
     tracking: (
       <section key="tracking" className="px-4 mt-6">
-        <SectionHeader title="Suivi Famille & Employés" />
+        <SectionHeader title={st('tracking', "Suivi Famille & Employés")} />
         <div className="grid grid-cols-2 gap-3" data-testid="tracking-section">
           <motion.button whileTap={{ scale: 0.96 }} className="rounded-[20px] bg-rose-50/60 border border-rose-100 p-4 flex flex-col items-center text-center" data-testid="track-family-btn" onClick={() => navigate('/tracking')}>
             <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mb-2 shadow-sm"><UsersFour size={32} weight="duotone" className="text-rose-500" /></div>
@@ -734,7 +740,7 @@ const UserHome = () => {
     ),
     nearby: (
       <section key="nearby" className="px-4 mt-6 mb-4">
-        <SectionHeader title="Commerces Proches" />
+        <SectionHeader title={st('nearby', "Commerces Proches")} />
         <div className="grid grid-cols-4 gap-3">
           {displayFor('nearby').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
