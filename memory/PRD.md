@@ -1,3 +1,19 @@
+## NEW - 2026-06-12 (303) - 🗺️ BUG FIX : adresse/géolocalisation des livraisons unifiées sur l'expérience taxi (DONE, testé 6/6)
+- **Bug user** : dans les livraisons (Colis surtout), impossible de taper une adresse, pas de géolocalisation comme le taxi, et carte différente.
+- **Cause** : `ParcelPage` utilisait Leaflet/OpenStreetMap avec sélection par clic sur la carte (aucune saisie d'adresse, aucune géoloc), alors que le taxi utilise Google Maps + autocomplétion + géoloc.
+- **Correctif (choix user : unifier toutes les livraisons)** :
+  - Nouveau helper `lib/googleMaps.js → getCurrentLocation()` (géoloc navigateur + reverse-geocoding).
+  - `ParcelPage.js` : étape adresses entièrement réécrite — Leaflet SUPPRIMÉ, remplacé par `GooglePlacesInput` (ramassage + dépôts) + bouton « Ma position » + bouton « Choisir sur la carte » → `MapLocationPicker` (carte Google). Layout en colonne + barre d'action fixe.
+  - `MapLocationPicker.js` : props additives `showTargetToggle` (défaut true ; false pour le colis) et `title`.
+  - `CheckoutPage.js` (repas) : bouton « Utiliser ma position actuelle » sous le champ adresse.
+  - `RunnerPage.js` (coursier) : bouton « Ma position » sous le ramassage.
+  - `VerifyEmailBanner.jsx` : `/parcel` et `/runner` ajoutés à `HIDDEN_PREFIXES` (la bannière ne recouvre plus les boutons d'action).
+- **Testé** : testing_agent iter296 6/6 PASS (autocomplétion Google, géoloc « Ma position », carte Google picker sans toggle, flux Colis complet estimate→confirm, repas & coursier, bannière masquée). 0 erreur console.
+- ⚠️ Note backlog : Google déprécie `places.Autocomplete` (legacy) → migrer vers `PlaceAutocompleteElement` à terme (fonctionne aujourd'hui, préavis 12 mois). Concerne toute l'app.
+- ⚠️ PREVIEW → redéploiement requis pour la prod. ⏳ Amélioration ETA (« Livraison vers 19h45 ») reportée, à faire ensuite.
+
+
+
 ## NEW - 2026-06-12 (302) - 📊 Barre de progression « façon Uber Eats » dans la bannière live (DONE, testé e2e)
 - **Demande user (amélioration validée)** : ajouter une barre de progression visuelle (Reçue → Préparation → En route → Livrée) dans la bannière de livraison live, couplée au temps réel WebSocket.
 - **Backend** `GET /api/orders/last-delivery` (mode active) renvoie `step` (0-3) + `steps` `["Reçue","Préparation","En route","Livrée"]`. Mapping : pending/accepted/assigned→0, preparing/ready→1, picked_up→2, delivered→3.
