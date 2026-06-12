@@ -242,9 +242,15 @@ const UserHome = () => {
     return () => { alive = false; };
   }, []);
 
-  // Reprise de commande : reconstruit le panier puis ouvre le paiement (1 tap).
+  // Reprise de commande : reconstruit le panier puis ouvre le paiement (1 tap),
+  // OU ouvre le suivi si une livraison est en cours.
   const resumeLastDelivery = useCallback(async () => {
-    if (!lastDelivery?.merchant_id) return;
+    if (!lastDelivery) return;
+    if (lastDelivery.mode === 'active') {
+      navigate(`/order/${lastDelivery.order_id}`);
+      return;
+    }
+    if (!lastDelivery.merchant_id) return;
     const items = lastDelivery.items || [];
     try {
       if (items.length) {
@@ -459,22 +465,35 @@ const UserHome = () => {
     delivery: (
       <section key="delivery" className="px-4 mt-6">
         <SectionHeader title="Livraison & Coursier" sub="Repas, colis, courses & coursiers — tout au même endroit." />
-        {lastDelivery && (
-          <motion.button whileTap={{ scale: 0.98 }} onClick={resumeLastDelivery} data-testid="resume-delivery-btn"
-            className="w-full mb-3 rounded-2xl p-3 flex items-center gap-3 text-left shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #FF5000, #FF7A3D)' }}>
-            <span className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center overflow-hidden shrink-0">
-              {lastDelivery.merchant_logo
-                ? <img src={resolveImageUrl(lastDelivery.merchant_logo)} alt="" className="w-full h-full object-cover" />
-                : <ArrowClockwise size={24} weight="bold" className="text-white" />}
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className={`text-white font-extrabold text-sm block leading-tight ${HEAD}`}>Reprendre votre commande</span>
-              <span className="text-white/90 text-xs block truncate">{lastDelivery.merchant_name}{lastDelivery.item_count ? ` · ${lastDelivery.item_count} article${lastDelivery.item_count > 1 ? 's' : ''}` : ''}</span>
-            </span>
-            <span className="shrink-0 px-3 py-1.5 rounded-full bg-white text-[#FF5000] text-xs font-extrabold">Reprendre</span>
-          </motion.button>
-        )}
+        {lastDelivery && (() => {
+          const active = lastDelivery.mode === 'active';
+          return (
+            <motion.button whileTap={{ scale: 0.98 }} onClick={resumeLastDelivery} data-testid="resume-delivery-btn"
+              data-mode={active ? 'active' : 'reorder'}
+              className="w-full mb-3 rounded-2xl p-3 flex items-center gap-3 text-left shadow-sm"
+              style={{ background: active ? 'linear-gradient(135deg, #0A2540, #2563EB)' : 'linear-gradient(135deg, #FF5000, #FF7A3D)' }}>
+              <span className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center overflow-hidden shrink-0">
+                {lastDelivery.merchant_logo
+                  ? <img src={resolveImageUrl(lastDelivery.merchant_logo)} alt="" className="w-full h-full object-cover" />
+                  : (active ? <Lightning size={24} weight="fill" className="text-white" /> : <ArrowClockwise size={24} weight="bold" className="text-white" />)}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className={`text-white font-extrabold text-sm flex items-center gap-1.5 leading-tight ${HEAD}`}>
+                  {active && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
+                  {active ? 'Livraison en cours' : 'Reprendre votre commande'}
+                </span>
+                <span className="text-white/90 text-xs block truncate">
+                  {active
+                    ? lastDelivery.status_label
+                    : `${lastDelivery.merchant_name}${lastDelivery.item_count ? ` · ${lastDelivery.item_count} article${lastDelivery.item_count > 1 ? 's' : ''}` : ''}`}
+                </span>
+              </span>
+              <span className="shrink-0 px-3 py-1.5 rounded-full bg-white text-xs font-extrabold" style={{ color: active ? '#0A2540' : '#FF5000' }}>
+                {active ? 'Suivre' : 'Reprendre'}
+              </span>
+            </motion.button>
+          );
+        })()}
         <div className="grid grid-cols-4 gap-3" data-testid="delivery-coursier-section">
           {(() => {
             const merged = [

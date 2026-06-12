@@ -18,19 +18,23 @@ def _h(t):
 
 
 def test_last_delivery_shape():
-    """L'endpoint renvoie has_order + (si commande) les champs ré-commandables."""
+    """L'endpoint renvoie has_order + mode + champs selon le mode (active/reorder)."""
     t = _login(USER_EMAIL, USER_PASSWORD)
     r = requests.get(f"{BASE_URL}/api/orders/last-delivery", headers=_h(t), timeout=15)
     assert r.status_code == 200
     data = r.json()
     assert "has_order" in data
     if data["has_order"]:
-        # Champs requis pour la tuile + la reconstruction du panier (1-tap)
-        for key in ("order_id", "merchant_id", "merchant_name", "item_count", "items"):
-            assert key in data, f"champ manquant: {key}"
-        assert isinstance(data["items"], list)
-        for it in data["items"]:
-            assert it.get("id") and "price" in it and "quantity" in it
+        assert data.get("mode") in ("active", "reorder")
+        assert data.get("order_id") and data.get("merchant_id")
+        if data["mode"] == "active":
+            # Suivi live : statut + libellé pour la bannière
+            assert data.get("status") and data.get("status_label")
+        else:
+            # Re-commande 1-tap : articles au format panier
+            assert isinstance(data["items"], list)
+            for it in data["items"]:
+                assert it.get("id") and "price" in it and "quantity" in it
 
 
 def test_last_delivery_requires_auth():

@@ -509,27 +509,62 @@ async def set_grouping_config_admin(request: Request):
 
 @router.get("/last-delivery")
 async def last_delivery(request: Request):
-    """Dernière commande de livraison de l'usager (pour la tuile « Reprendre » de l'accueil).
-    Retourne la commande la plus récente avec ses articles ré-commandables + le commerce."""
+    """Tuile « Livraison » de l'accueil : point d'entrée unique.
+    - S'il y a une livraison EN COURS → mode 'active' (statut live + lien de suivi).
+    - Sinon, dernière commande livrée → mode 'reorder' (articles ré-commandables 1-tap)."""
     user = await get_current_user(request)
+    ACTIVE_STATUSES = ["pending", "accepted", "assigned", "preparing", "ready", "picked_up"]
+    STATUS_LABELS = {
+        "pending": "Commande reçue",
+        "accepted": "Confirmée par le commerce",
+        "assigned": "Coursier assigné",
+        "preparing": "En préparation",
+        "ready": "Prête — en attente du coursier",
+        "picked_up": "En route vers vous — votre commande arrive",
+    }
+
+    async def _merchant(mid):
+        return await db.merchants.find_one({"id": mid}, {"_id": 0, "store_name": 1, "logo": 1, "image": 1})
+
+    # 1) Livraison en cours (la plus récente non terminée)
+    active = await db.orders.find_one(
+        {"user_id": user["id"], "status": {"$in": ACTIVE_STATUSES}},
+        {"_id": 0}, sort=[("created_at", -1)],
+    )
+    if active:
+        m = await _merchant(active.get("merchant_id")) or {}
+        return {
+            "has_order": True,
+            "mode": "active",
+            "order_id": active["id"],
+            "status": active.get("status"),
+            "status_label": STATUS_LABELS.get(active.get("status"), "Livraison en cours"),
+            "merchant_id": active.get("merchant_id"),
+            "merchant_name": m.get("store_name"),
+            "merchant_logo": m.get("logo") or m.get("image"),
+            "order_type": active.get("order_type") or "food",
+            "total": active.get("total"),
+            "created_at": active.get("created_at"),
+        }
+
+    # 2) Sinon : dernière commande livrée → re-commande 1-tap
     order = await db.orders.find_one(
-        {"user_id": user["id"]},
-        {"_id": 0},
-        sort=[("created_at", -1)],
+        {"user_id": user["id"], "status": "delivered"},
+        {"_id": 0}, sort=[("created_at", -1)],
     )
     if not order:
         return {"has_order": False}
-    merchant = await db.merchants.find_one({"id": order.get("merchant_id")}, {"_id": 0, "store_name": 1, "logo": 1, "image": 1})
+    merchant = await _merchant(order.get("merchant_id"))
     if not merchant:
         return {"has_order": False}
     items = order.get("items") or []
-    # Articles au format panier { id, name, price, quantity } pour la re-commande 1-tap.
     cart_items = [
         {"id": it.get("product_id"), "name": it.get("name"), "price": it.get("price"), "quantity": it.get("quantity", 1)}
         for it in items if it.get("product_id")
     ]
     return {
         "has_order": True,
+        "mode": "reorder",
         "order_id": order["id"],
         "merchant_id": order.get("merchant_id"),
         "merchant_name": merchant.get("store_name"),

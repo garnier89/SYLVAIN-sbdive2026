@@ -1,3 +1,14 @@
+## NEW - 2026-06-12 (300) - 📡 Bannière livraison « point d'entrée unique » : suivi live OU réachat (DONE, testé e2e + pytest 2/2)
+- **Demande user (amélioration validée)** : la bannière de la section « Livraison & Coursier » doit afficher le statut EN DIRECT si une livraison est en cours (« Votre commande arrive — Suivre ») et basculer en re-commande seulement une fois la commande livrée.
+- **Backend** `GET /api/orders/last-delivery` (réécrit) renvoie désormais un `mode` :
+  - `mode='active'` si commande non terminée (statuts pending/accepted/assigned/preparing/ready/picked_up) → `status`, `status_label` (libellés FR), `order_id` pour le suivi.
+  - `mode='reorder'` sinon, dernière commande `delivered` → articles ré-commandables (panier 1-tap).
+- **Frontend** `UserHome.js` : bannière conditionnelle. Actif = dégradé bleu nuit + point vert pulsant + « Livraison en cours / {status_label} / Suivre » → `/order/{id}`. Réachat = dégradé orange + « Reprendre votre commande / {commerce · N articles} / Reprendre » → reconstruit le panier + `/checkout/{merchant}`. `data-mode` exposé pour les tests.
+- **Testé** : e2e les 2 modes (actif → `/order/order_...` ; réachat → `/checkout/merchant_burger_palace` panier rempli) + pytest `test_iter298_last_delivery.py` 2/2 (forme par mode + auth). Note : la boucle d'auto-progression fait évoluer les commandes ; testé en figeant via `merchant_managed`.
+- ⚠️ Périmètre : commandes repas/commerce (`db.orders`). PREVIEW → redéploiement requis.
+
+
+
 ## NEW - 2026-06-12 (299) - 🔁 Tuile « Reprendre » (réachat livraison 1-tap) dans « Livraison & Coursier » (DONE, testé e2e + pytest 2/2)
 - **Demande user (amélioration validée)** : afficher une tuile dynamique « Reprendre » dans la section Livraison & Coursier pour re-commander la dernière commande en 1 tap (dans la lignée du « Refaire ce trajet » des courses).
 - **Backend** `routes/orders.py` : `GET /api/orders/last-delivery` (placé avant les routes dynamiques) → dernière commande `db.orders` de l'usager + commerce (store_name/logo), articles au format panier `{id,name,price,quantity}`, `item_count`, `total`. Renvoie `{has_order:false}` si aucune commande / commerce supprimé.
