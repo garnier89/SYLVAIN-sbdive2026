@@ -459,14 +459,6 @@ export const favoritesAPI = {
   list: (itemType) => api.get('/favorites', { params: itemType ? { item_type: itemType } : {} }),
 };
 
-// Carpool APIs
-export const carpoolAPI = {
-  createRide: (data) => api.post('/carpool/rides', data),
-  searchRides: (params) => api.get('/carpool/rides', { params }),
-  bookSeat: (rideId) => api.post(`/carpool/rides/${rideId}/book`),
-  myRides: () => api.get('/carpool/my-rides'),
-};
-
 // Services APIs
 export const servicesAPI = {
   getCategories: () => api.get('/services/categories'),
@@ -1056,6 +1048,18 @@ export const hotelsAPI = {
     return api.post('/uploads/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
 };
+
+export const carpoolAPI = {
+  config: () => api.get('/carpool/config'),
+  search: (params) => api.get('/carpool/rides', { params }),
+  create: (data) => api.post('/carpool/rides', data),
+  book: (id, seats) => api.post(`/carpool/rides/${id}/book`, { seats }),
+  cancelBooking: (id) => api.post(`/carpool/rides/${id}/cancel`, {}),
+  complete: (id) => api.post(`/carpool/rides/${id}/complete`, {}),
+  cancelRide: (id) => api.post(`/carpool/rides/${id}/cancel-ride`, {}),
+  myRides: () => api.get('/carpool/my-rides'),
+};
+
 
 export const flightsAPI = {
   airports: () => api.get('/flights/airports'),
