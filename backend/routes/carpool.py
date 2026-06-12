@@ -59,6 +59,24 @@ def _seats_left(ride: dict) -> int:
     return max(0, int(ride.get("available_seats", 0)) - int(ride.get("seats_taken", 0)))
 
 
+async def _attach_driver_ratings(rides: list) -> list:
+    """Ajoute driver_rating (moyenne ★) + driver_ratings_count à chaque trajet."""
+    ids = list({r.get("driver_id") for r in rides if r.get("driver_id")})
+    if not ids:
+        return rides
+    docs = await db.users.find(
+        {"id": {"$in": ids}},
+        {"_id": 0, "id": 1, "cp_driver_rating_sum": 1, "cp_driver_rating_count": 1}).to_list(len(ids))
+    m = {d["id"]: d for d in docs}
+    for r in rides:
+        u = m.get(r.get("driver_id")) or {}
+        cnt = int(u.get("cp_driver_rating_count") or 0)
+        s = float(u.get("cp_driver_rating_sum") or 0)
+        r["driver_rating"] = round(s / cnt, 1) if cnt else None
+        r["driver_ratings_count"] = cnt
+    return rides
+
+
 def _public_ride(ride: dict, *, reveal_contact: bool = False) -> dict:
     out = {k: v for k, v in ride.items() if k != "_id"}
     out["seats_left"] = _seats_left(ride)
@@ -188,7 +206,9 @@ async def search_carpool_rides(pickup: Optional[str] = None, dropoff: Optional[s
     if date:
         query["departure_date"] = {"$regex": f"^{date}"}
     rides = await db.carpool_rides.find(query).sort("departure_date", 1).limit(limit).to_list(limit)
-    return [_public_ride(r) for r in rides]
+    out = [_public_ride(r) for r in rides]
+    await _attach_driver_ratings(out)
+    return out
 
 
 # ── Réserver des places (avec séquestre SB Pay) ─────────────────────────────
@@ -380,13 +400,80 @@ async def cancel_carpool_ride(ride_id: str, request: Request):
 @router.get("/my-rides")
 async def my_carpool_rides(request: Request):
     user = await get_current_user(request)
-    as_driver = await db.carpool_rides.find({"driver_id": user["id"]}).sort("departure_date", -1).to_list(50)
-    as_passenger = await db.carpool_rides.find(
-        {"passengers.user_id": user["id"]}).sort("departure_date", -1).to_list(50)
-    return {
-        "as_driver": [_public_ride(r, reveal_contact=True) for r in as_driver],
-        "as_passenger": [_public_ride(r, reveal_contact=True) for r in as_passenger],
-    }
+    as_driver = [_public_ride(r, reveal_contact=True) for r in
+                 await db.carpool_rides.find({"driver_id": user["id"]}).sort("departure_date", -1).to_list(50)]
+    as_passenger = [_public_ride(r, reveal_contact=True) for r in
+                    await db.carpool_rides.find({"passengers.user_id": user["id"]}).sort("departure_date", -1).to_list(50)]
+    await _attach_driver_ratings(as_driver)
+    await _attach_driver_ratings(as_passenger)
+
+    # « can_rate » : qui le user peut encore noter sur ses trajets terminés.
+    completed_ids = [r["id"] for r in (as_driver + as_passenger) if r.get("status") == "completed"]
+    given = await db.carpool_ratings.find(
+        {"rater_id": user["id"], "ride_id": {"$in": completed_ids}},
+        {"_id": 0, "ride_id": 1, "ratee_id": 1}).to_list(500) if completed_ids else []
+    given_set = {(g["ride_id"], g["ratee_id"]) for g in given}
+    for r in as_driver:
+        r["can_rate"] = ([{"user_id": p["user_id"], "name": p.get("name"), "role": "passenger"}
+                          for p in r.get("passengers", [])
+                          if p.get("status") == "completed" and (r["id"], p["user_id"]) not in given_set]
+                         if r.get("status") == "completed" else [])
+    for r in as_passenger:
+        if r.get("status") == "completed" and (r["id"], r.get("driver_id")) not in given_set:
+            r["can_rate"] = [{"user_id": r.get("driver_id"), "name": r.get("driver_name"), "role": "driver"}]
+        else:
+            r["can_rate"] = []
+    return {"as_driver": as_driver, "as_passenger": as_passenger}
+
+
+# ── Noter (★) chauffeur ↔ passager après un trajet terminé ──────────────────
+@router.post("/rides/{ride_id}/rate")
+async def rate_carpool(ride_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    try:
+        stars = int(body.get("stars", 0))
+    except (TypeError, ValueError):
+        stars = 0
+    if not (1 <= stars <= 5):
+        raise HTTPException(status_code=400, detail="Note entre 1 et 5 étoiles")
+    ratee_id = str(body.get("ratee_id") or "")
+    comment = str(body.get("comment") or "").strip()[:300]
+
+    ride = await db.carpool_rides.find_one({"id": ride_id})
+    if not ride:
+        raise HTTPException(status_code=404, detail="Trajet introuvable")
+    if ride.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Vous pourrez noter une fois le trajet terminé")
+
+    pax_ids = [p["user_id"] for p in ride.get("passengers", []) if p.get("status") == "completed"]
+    if ride["driver_id"] == user["id"]:
+        if ratee_id not in pax_ids:
+            raise HTTPException(status_code=400, detail="Passager introuvable sur ce trajet")
+        ratee_role, field = "passenger", "cp_pax_rating"
+        ratee_name = next((p.get("name") for p in ride["passengers"] if p["user_id"] == ratee_id), "")
+    elif user["id"] in pax_ids:
+        if ratee_id != ride["driver_id"]:
+            raise HTTPException(status_code=400, detail="Vous ne pouvez noter que le chauffeur")
+        ratee_role, field = "driver", "cp_driver_rating"
+        ratee_name = ride.get("driver_name")
+    else:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas participé à ce trajet")
+
+    if await db.carpool_ratings.find_one({"ride_id": ride_id, "rater_id": user["id"], "ratee_id": ratee_id}):
+        raise HTTPException(status_code=400, detail="Vous avez déjà noté cette personne")
+
+    await db.carpool_ratings.insert_one({
+        "id": f"rt_{uuid.uuid4().hex[:10]}", "ride_id": ride_id, "rater_id": user["id"],
+        "rater_name": user.get("name"), "ratee_id": ratee_id, "ratee_role": ratee_role,
+        "stars": stars, "comment": comment, "created_at": _now()})
+    await db.users.update_one(
+        {"id": ratee_id}, {"$inc": {f"{field}_sum": stars, f"{field}_count": 1}})
+    await create_notification(
+        ratee_id, "carpool_rating", "Nouvelle évaluation ⭐",
+        f"{user.get('name') or 'Un membre'} vous a attribué {stars}/5 sur un trajet covoiturage.",
+        data={"ride_id": ride_id})
+    return {"ok": True, "ratee_name": ratee_name, "stars": stars}
 
 
 # ── Libération automatique du séquestre après le départ (filet de sécurité) ─

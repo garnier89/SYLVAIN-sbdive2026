@@ -125,3 +125,38 @@ def test_cannot_book_own_ride():
         await DB.carpool_rides.delete_one({"id": rid})
 
     run(body())
+
+
+def test_rating_flow_and_average():
+    async def body():
+        await _set_balance(PAX["id"], 100.0)
+        await DB.users.update_one(
+            {"id": DRIVER["id"]},
+            {"$set": {"id": DRIVER["id"], "email": "test_drv_cp@unit.test"},
+             "$unset": {"cp_driver_rating_sum": "", "cp_driver_rating_count": ""}}, upsert=True)
+        await DB.users.update_one(
+            {"id": PAX["id"]}, {"$set": {"id": PAX["id"], "email": "test_pax_cp@unit.test"}}, upsert=True)
+        await DB.carpool_ratings.delete_many({"ratee_id": {"$in": [DRIVER["id"], PAX["id"]]}})
+        ride = await carpool.create_carpool_ride(FakeReq(DRIVER, {
+            "pickup_address": "R1", "dropoff_address": "R2",
+            "departure_date": "2027-02-01T09:00", "available_seats": 2, "price_per_seat": 10}))
+        rid = ride["id"]
+        await carpool.book_carpool_seat(rid, FakeReq(PAX, {"seats": 1}))
+        # Notation interdite avant complétion
+        with pytest.raises(Exception):
+            await carpool.rate_carpool(rid, FakeReq(PAX, {"ratee_id": DRIVER["id"], "stars": 5}))
+        await carpool.complete_carpool_ride(rid, FakeReq(DRIVER))
+        # Passager note le chauffeur 4★
+        out = await carpool.rate_carpool(rid, FakeReq(PAX, {"ratee_id": DRIVER["id"], "stars": 4}))
+        assert out["ok"] and out["stars"] == 4
+        # Doublon refusé
+        with pytest.raises(Exception):
+            await carpool.rate_carpool(rid, FakeReq(PAX, {"ratee_id": DRIVER["id"], "stars": 2}))
+        # La note apparaît dans la recherche (driver_rating == 4.0)
+        u = await DB.users.find_one({"id": DRIVER["id"]}, {"_id": 0, "cp_driver_rating_sum": 1, "cp_driver_rating_count": 1})
+        assert u["cp_driver_rating_count"] == 1 and u["cp_driver_rating_sum"] == 4
+        await DB.carpool_rides.delete_one({"id": rid})
+        await DB.carpool_ratings.delete_many({"ride_id": rid})
+
+    run(body())
+

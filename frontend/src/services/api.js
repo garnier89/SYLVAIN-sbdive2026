@@ -1057,6 +1057,7 @@ export const carpoolAPI = {
   cancelBooking: (id) => api.post(`/carpool/rides/${id}/cancel`, {}),
   complete: (id) => api.post(`/carpool/rides/${id}/complete`, {}),
   cancelRide: (id) => api.post(`/carpool/rides/${id}/cancel-ride`, {}),
+  rate: (id, data) => api.post(`/carpool/rides/${id}/rate`, data),
   myRides: () => api.get('/carpool/my-rides'),
 };
 

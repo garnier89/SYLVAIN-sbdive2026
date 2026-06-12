@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Users, MapPin, Plus, X, SteeringWheel, Phone, CheckCircle, ShieldCheck } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Users, MapPin, Plus, X, SteeringWheel, Phone, CheckCircle, ShieldCheck, Star } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { carpoolAPI } from '../../services/api';
 
@@ -11,6 +11,14 @@ const fmtDate = (iso) => {
   return d.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
 };
 const money = (n) => `${Number(n || 0).toFixed(2)}€`;
+
+const StarBadge = ({ rating, count }) => (
+  count > 0 ? (
+    <span className="flex items-center gap-0.5 text-[11px] text-amber-500 font-bold" data-testid="driver-rating">
+      <Star size={12} weight="fill" /> {rating} <span className="text-gray-400 font-normal">({count})</span>
+    </span>
+  ) : <span className="text-[11px] text-gray-400">Nouveau ✦</span>
+);
 
 const RIDE_STATUS = {
   open: { label: 'Ouvert', cls: 'bg-emerald-100 text-emerald-700' },
@@ -36,6 +44,7 @@ const CarPoolPage = () => {
   const [maxSeats, setMaxSeats] = useState(4);
   const [mine, setMine] = useState({ as_driver: [], as_passenger: [] });
   const [busy, setBusy] = useState(null);
+  const [rateTarget, setRateTarget] = useState(null); // {rideId, ratee_id, name, role}
 
   const load = useCallback(() => {
     setLoading(true);
@@ -142,7 +151,10 @@ const CarPoolPage = () => {
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center text-white font-bold">{(t.driver_name || '?').charAt(0)}</div>
                         <div>
                           <p className="text-sm font-bold text-gray-900">{t.driver_name}</p>
-                          <p className="text-[11px] text-gray-400">{fmtDate(t.departure_date)}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[11px] text-gray-400">{fmtDate(t.departure_date)}</p>
+                            <StarBadge rating={t.driver_rating} count={t.driver_ratings_count} />
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
@@ -201,6 +213,13 @@ const CarPoolPage = () => {
                       </button>
                     )}
                   </div>
+                  {(t.can_rate || []).map((c) => (
+                    <button key={c.user_id} onClick={() => setRateTarget({ rideId: t.id, ratee_id: c.user_id, name: c.name, role: c.role })}
+                      data-testid={`rate-driver-${t.id}`}
+                      className="mt-2 w-full py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold flex items-center justify-center gap-1">
+                      <Star size={13} weight="fill" /> Noter {c.name}
+                    </button>
+                  ))}
                 </div>
               );
             })}
@@ -240,6 +259,13 @@ const CarPoolPage = () => {
                       </button>
                     </div>
                   )}
+                  {(t.can_rate || []).map((c) => (
+                    <button key={c.user_id} onClick={() => setRateTarget({ rideId: t.id, ratee_id: c.user_id, name: c.name, role: c.role })}
+                      data-testid={`rate-pax-${t.id}-${c.user_id}`}
+                      className="mt-2 w-full py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold flex items-center justify-center gap-1">
+                      <Star size={13} weight="fill" /> Noter {c.name}
+                    </button>
+                  ))}
                 </div>
               );
             })}
@@ -249,6 +275,47 @@ const CarPoolPage = () => {
 
       {showPublish && <PublishTripModal onClose={() => setShowPublish(false)} onPublished={() => { setShowPublish(false); load(); }} />}
       {bookTrip && <BookSeatModal trip={bookTrip} maxSeats={maxSeats} onClose={() => setBookTrip(null)} onBooked={() => { setBookTrip(null); load(); }} />}
+      {rateTarget && <RateModal target={rateTarget} onClose={() => setRateTarget(null)} onRated={() => { setRateTarget(null); loadMine(); }} />}
+    </div>
+  );
+};
+
+const RateModal = ({ target, onClose, onRated }) => {
+  const [stars, setStars] = useState(5);
+  const [comment, setComment] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await carpoolAPI.rate(target.rideId, { ratee_id: target.ratee_id, stars, comment });
+      toast.success('Merci pour votre évaluation ⭐');
+      onRated();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center sm:justify-center" onClick={onClose} data-testid="rate-modal">
+      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-gray-900">Noter {target.name}</h3>
+          <button onClick={onClose} className="text-gray-400" data-testid="rate-close"><X size={22} /></button>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">{target.role === 'driver' ? 'Comment s\'est passé votre trajet avec ce chauffeur ?' : 'Comment s\'est passé le trajet avec ce passager ?'}</p>
+        <div className="flex items-center justify-center gap-2 mb-4">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} onClick={() => setStars(n)} data-testid={`rate-star-${n}`} aria-label={`${n} étoiles`}>
+              <Star size={36} weight={n <= stars ? 'fill' : 'regular'} className={n <= stars ? 'text-amber-400' : 'text-gray-300'} />
+            </button>
+          ))}
+        </div>
+        <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Commentaire (optionnel)" maxLength={300}
+          data-testid="rate-comment" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3 resize-none" rows={3} />
+        <button onClick={submit} disabled={saving} data-testid="rate-submit" className="w-full py-3 rounded-xl bg-amber-500 text-white font-bold disabled:opacity-50">
+          {saving ? 'Envoi…' : `Envoyer ${stars} ★`}
+        </button>
+      </div>
     </div>
   );
 };
