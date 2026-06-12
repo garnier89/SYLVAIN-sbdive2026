@@ -30,6 +30,11 @@ DEFAULT_CONFIG = {
     "client_ban_hours": 2,
     "driver_abusive_penalty_eur": 2.0,
     "driver_release_penalty_eur": 1.0,
+    # Anti-disintermediation (scheduled-ride "course au black") controls.
+    "release_penalty_tiers_eur": [2.0, 5.0, 10.0],  # escalating, by prior count
+    "release_suspend_after": 2,   # prior scheduled releases before a suspension kicks in
+    "release_suspend_days": 7,    # scheduled-ride suspension duration
+    "contact_reveal_minutes": 30, # reveal scheduled client phone within X min of pickup
 }
 
 
@@ -150,38 +155,60 @@ async def register_passenger_cancel(user_id: str, ride_id: str = None) -> dict:
 
 
 # ── Driver penalties ──────────────────────────────────────────────────────
-async def apply_driver_penalty(driver_id: str, kind: str, ride_id: str = None) -> dict:
+async def apply_driver_penalty(driver_id: str, kind: str, ride_id: str = None,
+                               is_scheduled: bool = False) -> dict:
     """Debit the driver's wallet for an abusive cancel ('abusive_cancel') or for
-    accepting then releasing a booking ('accept_release'). Returns {amount}."""
+    accepting then releasing a booking ('accept_release'). For SCHEDULED-ride
+    releases the penalty escalates and, past a threshold, suspends the driver
+    from scheduled bookings (anti 'course au black'). Returns {amount, suspended}."""
     cfg = await get_moderation_config()
     if not cfg.get("enabled", True) or not driver_id:
         return {"amount": 0.0}
-    if kind == "abusive_cancel":
-        amount = round(float(cfg.get("driver_abusive_penalty_eur", 2.0) or 0), 2)
-        label = "Pénalité — annulation abusive"
-    else:
-        amount = round(float(cfg.get("driver_release_penalty_eur", 1.0) or 0), 2)
-        label = "Pénalité — réservation relâchée"
-    if amount <= 0:
-        return {"amount": 0.0}
-    drv = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "user_id": 1})
+    drv = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "user_id": 1, "accept_release_count": 1})
     duid = (drv or {}).get("user_id")
     if not duid:
         return {"amount": 0.0}
-    from routes.debts import _debit_wallet
-    await _debit_wallet(duid, amount, label, ride_id)
+
+    suspended_until = None
+    if kind == "abusive_cancel":
+        amount = round(float(cfg.get("driver_abusive_penalty_eur", 2.0) or 0), 2)
+        label = "Pénalité — annulation abusive"
+    elif is_scheduled:
+        # Escalating tiers based on prior releases (count not yet incremented here).
+        prior = int((drv or {}).get("accept_release_count") or 0)
+        tiers = cfg.get("release_penalty_tiers_eur") or [2.0, 5.0, 10.0]
+        amount = round(float(tiers[min(prior, len(tiers) - 1)]), 2)
+        label = "Pénalité — réservation planifiée relâchée"
+        suspend_after = int(cfg.get("release_suspend_after", 2))
+        if prior >= suspend_after:
+            days = int(cfg.get("release_suspend_days", 7))
+            suspended_until = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+            await db.drivers.update_one({"id": driver_id}, {"$set": {"scheduled_suspended_until": suspended_until}})
+    else:
+        amount = round(float(cfg.get("driver_release_penalty_eur", 1.0) or 0), 2)
+        label = "Pénalité — réservation relâchée"
+
+    if amount <= 0 and not suspended_until:
+        return {"amount": 0.0, "suspended": bool(suspended_until)}
+    if amount > 0:
+        from routes.debts import _debit_wallet
+        await _debit_wallet(duid, amount, label, ride_id)
     await _log_event("driver_penalty", driver_id=driver_id, user_id=duid,
-                     ride_id=ride_id, kind=kind, amount=amount)
+                     ride_id=ride_id, kind=kind, amount=amount,
+                     is_scheduled=is_scheduled, suspended_until=suspended_until)
     try:
         from core.notifications import create_notification
+        msg = f"-{amount:.2f} € — {label.split('— ')[-1]}."
+        if suspended_until:
+            msg += " Réservations planifiées suspendues 7 jours."
         await create_notification(
-            duid, "moderation", "Pénalité appliquée",
-            f"-{amount:.2f} € — {label.split('— ')[-1]}.",
-            push=True, data={"kind": "penalty", "amount": amount, "ride_id": ride_id},
+            duid, "moderation", "Pénalité appliquée", msg,
+            push=True, data={"kind": "penalty", "amount": amount, "ride_id": ride_id,
+                             "suspended_until": suspended_until},
         )
     except Exception:
         pass
-    return {"amount": amount}
+    return {"amount": amount, "suspended": bool(suspended_until)}
 
 
 # ── Call logging (no audio, just who/when) ───────────────────────────────

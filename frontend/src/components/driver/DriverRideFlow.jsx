@@ -265,8 +265,12 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     setShowCallType(false);
     fetch(`${API}/api/moderation/call-log`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ride_id: ride.id }) }).catch(() => {});
     if (ride.passenger_phone) window.location.href = `tel:${ride.passenger_phone}`;
+    else if (ride.passenger_phone_hidden) {
+      const at = ride.passenger_phone_reveal_at ? new Date(ride.passenger_phone_reveal_at).toLocaleString('fr-FR') : null;
+      toast.info(at ? `Numéro disponible à partir de ${at}. En attendant, utilisez le chat in-app.` : 'Le numéro sera visible à l\'approche de la prise en charge. Utilisez le chat in-app.');
+    }
     else toast.info('Numéro du passager indisponible.');
-  }, [ride.passenger_phone, ride.id]);
+  }, [ride.passenger_phone, ride.passenger_phone_hidden, ride.passenger_phone_reveal_at, ride.id]);
 
   const openNav = useCallback((app) => {
     setShowNav(false);

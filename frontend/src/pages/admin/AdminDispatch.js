@@ -479,6 +479,9 @@ const AdminDispatch = () => {
                     {d.status === 'suspended'
                       ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">Suspendu</span>
                       : <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${d.is_online ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{d.is_online ? 'En ligne' : 'Hors-ligne'}</span>}
+                    {d.scheduled_suspended && (
+                      <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700" title={`Réservations planifiées suspendues jusqu'au ${new Date(d.scheduled_suspended_until).toLocaleString('fr-FR')}`} data-testid={`sched-suspended-${d.id}`}>⏸ Planifiées bloquées</span>
+                    )}
                   </td>
                   <td className="p-3 text-center">{d.accept_release_count}</td>
                   <td className="p-3 text-center">{d.accept_release_cb_count}</td>

@@ -11,6 +11,21 @@ const statusCards = [
   { label: 'Way to Dropoff', color: 'border-purple-400', countKey: 'to_dropoff', emoji: 'D' },
 ];
 
+// A driver can offer several services at once, so the tabs use membership
+// (does the driver OFFER this service?) rather than exclusive classification.
+const SERVICE_RE = {
+  rides: /taxi|moto|vtc|ride|course|standard|economic|berline|van|sb|car/,
+  deliveries: /deliver|livr|food|colis|repas|courier|coursier|eat/,
+  jobs: /job|mission|presta|task|handy|menage|ménage|travaux/,
+};
+const OFFERS = (d, service) => {
+  const hay = [...(d.service_types || []), d.vehicle_type, d.taxi_mode].map((s) => String(s || '').toLowerCase()).join(',');
+  if (SERVICE_RE[service].test(hay)) return true;
+  // A driver with no recognizable service marker is shown under "rides".
+  if (service === 'rides') return !SERVICE_RE.deliveries.test(hay) && !SERVICE_RE.jobs.test(hay);
+  return false;
+};
+
 const AdminGodsView = () => {
   const [tab, setTab] = useState('rides');
   const [drivers, setDrivers] = useState([]);
@@ -30,17 +45,22 @@ const AdminGodsView = () => {
     finally { setLoading(false); }
   };
 
+  // Real-time filter by service (a driver appears in every service they offer).
+  const tabbed = drivers.filter((d) => OFFERS(d, tab));
+
   const counts = {
-    available: drivers.filter(d => d.is_online && !d.current_ride_id).length,
-    unavailable: drivers.filter(d => !d.is_online).length,
-    to_pickup: drivers.filter(d => d.current_ride_id && d.status === 'arriving').length,
-    arrived: drivers.filter(d => d.current_ride_id && d.status === 'arrived').length,
-    to_dropoff: drivers.filter(d => d.current_ride_id && d.status === 'in_progress').length,
+    available: tabbed.filter(d => d.is_online && !d.current_ride_id).length,
+    unavailable: tabbed.filter(d => !d.is_online).length,
+    to_pickup: tabbed.filter(d => d.current_ride_id && d.status === 'arriving').length,
+    arrived: tabbed.filter(d => d.current_ride_id && d.status === 'arrived').length,
+    to_dropoff: tabbed.filter(d => d.current_ride_id && d.status === 'in_progress').length,
   };
+  const onlineCount = tabbed.filter(d => d.is_online).length;
+  const offlineCount = tabbed.filter(d => !d.is_online).length;
 
   const filteredDrivers = search
-    ? drivers.filter(d => (d.user_name || '').toLowerCase().includes(search.toLowerCase()))
-    : drivers;
+    ? tabbed.filter(d => (d.user_name || '').toLowerCase().includes(search.toLowerCase()))
+    : tabbed;
 
   return (
     <div className="p-6" data-testid="admin-gods-view">
@@ -58,6 +78,19 @@ const AdminGodsView = () => {
         </div>
       </div>
       <hr className="border-gray-200 mb-5" />
+
+      {/* Live online / offline counters (current service) */}
+      <div className="flex flex-wrap items-center gap-3 mb-5" data-testid="gods-view-counters">
+        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold" data-testid="count-online">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" /> En ligne : {onlineCount}
+        </span>
+        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 border border-gray-200 text-gray-500 text-sm font-bold" data-testid="count-offline">
+          <span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Hors ligne : {offlineCount}
+        </span>
+        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-bold" data-testid="count-total">
+          Total {tab === 'rides' ? 'VTC/Taxi' : tab === 'deliveries' ? 'Livraison' : 'Missions'} : {tabbed.length}
+        </span>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Panel - Driver List */}
@@ -126,14 +159,14 @@ const AdminGodsView = () => {
               zoom={12}
               showTraffic
               mapType="roadmap"
-              markers={drivers
+              markers={tabbed
                 .filter((d) => d.current_lat && d.current_lng)
                 .map((d) => ({
                   id: d.id || d.user_id,
                   lat: d.current_lat,
                   lng: d.current_lng,
                   label: (d.user_name || 'D')[0].toUpperCase(),
-                  color: d.is_online && !d.current_ride_id ? '#22C55E' : '#F59E0B',
+                  color: !d.is_online ? '#9CA3AF' : (d.current_ride_id ? '#F59E0B' : '#22C55E'),
                   onClick: () => setSelectedDriver(d),
                 }))}
             />

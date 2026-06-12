@@ -553,7 +553,7 @@ async def driver_behavior(request: Request):
     drv_docs = await db.drivers.find(
         {}, {"_id": 0, "id": 1, "user_id": 1, "user_name": 1, "status": 1, "is_online": 1,
              "points": 1, "accept_release_count": 1, "accept_release_cb_count": 1,
-             "refusal_log": 1, "chat_flags_count": 1},
+             "refusal_log": 1, "chat_flags_count": 1, "scheduled_suspended_until": 1},
     ).to_list(2000)
     missing = list({d["user_id"] for d in drv_docs if not d.get("user_name") and d.get("user_id")})
     namemap = {}
@@ -566,8 +566,15 @@ async def driver_behavior(request: Request):
         cb_ratio = round(cb / total * 100, 1) if total else 0.0
         recent_refusals = len([r for r in (d.get("refusal_log") or []) if (_parse_dt(r.get("at")) or now) >= cutoff])
         chat_flags = int(d.get("chat_flags_count") or 0)
-        flagged = (total >= flag_min and cb_ratio >= flag_pct) or chat_flags > 0
-        if total == 0 and cb == 0 and recent_refusals == 0 and chat_flags == 0 and d.get("status") != "suspended":
+        sched_susp = d.get("scheduled_suspended_until")
+        sched_suspended = False
+        if sched_susp:
+            try:
+                sched_suspended = (_parse_dt(sched_susp) or now) > now
+            except Exception:
+                sched_suspended = False
+        flagged = (total >= flag_min and cb_ratio >= flag_pct) or chat_flags > 0 or sched_suspended
+        if total == 0 and cb == 0 and recent_refusals == 0 and chat_flags == 0 and not sched_suspended and d.get("status") != "suspended":
             continue  # only surface drivers with some signal (or suspended ones)
         items.append({
             "id": d["id"], "name": d.get("user_name") or namemap.get(d.get("user_id")) or "Chauffeur",
@@ -576,6 +583,8 @@ async def driver_behavior(request: Request):
             "accept_release_count": total, "accept_release_cb_count": cb,
             "cb_cancel_ratio": cb_ratio, "recent_refusals": recent_refusals,
             "chat_flags": chat_flags,
+            "scheduled_suspended": sched_suspended,
+            "scheduled_suspended_until": sched_susp if sched_suspended else None,
             "flagged": flagged,
         })
     items.sort(key=lambda x: (not x["flagged"], -x["chat_flags"], -x["cb_cancel_ratio"], -x["accept_release_count"]))
@@ -612,7 +621,7 @@ async def reinstate_driver(driver_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Chauffeur introuvable")
     await db.drivers.update_one(
         {"id": driver_id},
-        {"$set": {"status": "approved"}, "$unset": {"suspended_at": ""}},
+        {"$set": {"status": "approved"}, "$unset": {"suspended_at": "", "scheduled_suspended_until": ""}},
     )
     try:
         from core.notifications import create_notification

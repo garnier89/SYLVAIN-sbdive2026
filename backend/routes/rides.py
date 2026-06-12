@@ -181,9 +181,35 @@ VALID_TRANSITIONS = {
 }
 
 
+CONTACT_REVEAL_MINUTES = 30  # reveal a scheduled ride's client phone only within X min of pickup
+
+
+def _client_phone_revealed(ride: dict) -> bool:
+    """Anti-disintermediation gate: decide whether the driver may see the
+    client's real phone number. Prevents 'accept early → harvest number →
+    release → do the ride off-platform (au black)' on scheduled bookings."""
+    status = ride.get("status")
+    if status in ("in_progress", "completed"):
+        return True
+    if status != "accepted":
+        return False  # pending / offered / cancelled → never reveal
+    # Accepted: instant rides need the number now; scheduled rides only near pickup.
+    sched = ride.get("scheduled_at")
+    if not sched or ride.get("ride_mode") != "scheduled":
+        return True
+    try:
+        sdt = datetime.fromisoformat(str(sched).replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) >= sdt - timedelta(minutes=CONTACT_REVEAL_MINUTES)
+    except Exception:
+        return True
+
+
 async def enrich_passenger_info(ride: dict) -> dict:
     """Attach passenger display info (name, rating, phone, avatar) so the driver
-    app can render the V3Cube request/ride cards. Safe no-op if ride is empty."""
+    app can render the V3Cube request/ride cards. Safe no-op if ride is empty.
+
+    The real phone number is masked until contact is legitimately needed
+    (see _client_phone_revealed) to fight off-platform poaching."""
     if not ride or not ride.get("user_id"):
         return ride
     u = await db.users.find_one(
@@ -192,7 +218,20 @@ async def enrich_passenger_info(ride: dict) -> dict:
     )
     ride["passenger_id"] = ride["user_id"]
     ride["passenger_name"] = ride.get("book_for_name") or (u or {}).get("name") or "Passager"
-    ride["passenger_phone"] = ride.get("book_for_phone") or (u or {}).get("phone")
+    real_phone = ride.get("book_for_phone") or (u or {}).get("phone")
+    if _client_phone_revealed(ride):
+        ride["passenger_phone"] = real_phone
+        ride["passenger_phone_hidden"] = False
+    else:
+        ride["passenger_phone"] = None
+        ride["passenger_phone_hidden"] = True
+        sched = ride.get("scheduled_at")
+        if sched:
+            try:
+                sdt = datetime.fromisoformat(str(sched).replace("Z", "+00:00"))
+                ride["passenger_phone_reveal_at"] = (sdt - timedelta(minutes=CONTACT_REVEAL_MINUTES)).isoformat()
+            except Exception:
+                pass
     ride["passenger_avatar"] = (u or {}).get("avatar")
     ride["passenger_rating"] = round(float((u or {}).get("passenger_rating", 5.0) or 5.0), 1)
     return ride
@@ -1524,6 +1563,23 @@ async def accept_ride(ride_id: str, request: Request):
     if not ride:
         raise HTTPException(status_code=404, detail="Ride not found or already taken")
 
+    # Anti-disintermediation: a driver suspended from scheduled bookings (for
+    # repeatedly accepting then releasing scheduled rides) cannot take them.
+    if ride.get("ride_mode") == "scheduled":
+        susp = driver.get("scheduled_suspended_until")
+        if susp:
+            try:
+                until = datetime.fromisoformat(str(susp).replace("Z", "+00:00"))
+                if datetime.now(timezone.utc) < until:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Réservations planifiées temporairement suspendues suite à des relâchements répétés.",
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
     # Cash rides require a minimum wallet balance (the driver may need to refund
     # change and must cover platform fees). Below it, they cannot take cash rides.
     if (ride.get("payment_method") or "").strip().lower() == "cash":
@@ -1716,9 +1772,11 @@ async def driver_cancel_booking(ride_id: str, request: Request):
         "released_at": now,
     }})
 
-    # Phase 3 — €1 penalty for accepting then releasing a booking.
+    # Phase 3 — escalating penalty for accepting then releasing a booking
+    # (scheduled rides escalate + can suspend, to stop off-platform poaching).
     from routes.moderation import apply_driver_penalty
-    await apply_driver_penalty(driver["id"], "accept_release", ride_id)
+    await apply_driver_penalty(driver["id"], "accept_release", ride_id,
+                               is_scheduled=(ride.get("ride_mode") == "scheduled"))
 
     # Phase 4 — track accept-then-cancel for the dispatch control tower (flags
     # drivers who dump CARD rides). Best-effort.
