@@ -10,6 +10,9 @@ uniform shape { kpis:[{label,value,color?}], columns:[{key,label}], rows:[...] }
 so the frontend renders + exports (CSV/PDF) generically.
 """
 import os
+import io
+import csv
+import zipfile
 import uuid
 import asyncio
 import logging
@@ -17,7 +20,7 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 import resend
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Response
 from typing import Optional
 
 from core.config import db
@@ -548,6 +551,48 @@ async def _compute_insurance(start, end):
         "rows": rows,
     }
 
+
+
+# ───────────────────── EXPORT ALL (ZIP of CSVs) ─────────────────────
+def _payload_to_csv(label, payload) -> str:
+    """Serialize a report payload (KPIs block + table) to a CSV string with BOM."""
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow([label])
+    w.writerow([])
+    # KPIs block
+    if payload.get("kpis"):
+        w.writerow(["Indicateurs"])
+        for k in payload["kpis"]:
+            w.writerow([k.get("label"), k.get("value")])
+        w.writerow([])
+    # Table
+    cols = payload.get("columns", [])
+    if cols:
+        w.writerow([c["label"] for c in cols])
+        for r in payload.get("rows", []):
+            w.writerow(["" if r.get(c["key"]) is None else r.get(c["key"]) for c in cols])
+    return "\ufeff" + out.getvalue()
+
+
+@router.get("/export-zip")
+async def export_all_zip(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    """Download every report (all REPORT_FUNCS) as a ZIP of CSV files."""
+    await require_role(request, ["admin", "dispatcher"])
+    start, end = _range(date_from, date_to)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for key, (label, fn) in REPORT_FUNCS.items():
+            try:
+                payload = await fn(start, end)
+                z.writestr(f"{key}.csv", _payload_to_csv(label, payload))
+            except Exception as e:
+                logger.warning("export-zip: %s failed: %s", key, e)
+                z.writestr(f"{key}_ERREUR.txt", f"Echec de génération: {e}")
+    stamp = f"{(date_from or 'debut')}_{(date_to or 'fin')}"
+    fname = f"rapports_{stamp}.zip"
+    return Response(content=buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename={fname}"})
 
 
 # ════════════════════════════════════════════════════════════════════════

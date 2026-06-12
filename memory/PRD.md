@@ -1,3 +1,11 @@
+## NEW - 2026-06-12 (325) - 🗜️ Bouton « Tout exporter (ZIP) » dans le Centre de Rapports (DONE, testé)
+- **Demande user** : télécharger les 9 rapports d'un coup pour les bilans comptables de fin de mois.
+- **Backend** (`routes/reports_admin.py`) : `GET /admin/reports/export-zip?date_from=&date_to=` → itère `REPORT_FUNCS`, génère 1 CSV par rapport (bloc Indicateurs + table, BOM Excel, format identique à `exportUtils`), renvoie un `application/zip` (`rapports_{from}_{to}.zip`). Erreur par rapport isolée (fichier `_ERREUR.txt`).
+- **Frontend** (`AdminReports.js`) : bouton « Tout (ZIP) » (`report-export-zip`) dans la barre d'export, téléchargement blob authentifié. `adminAPI.exportAllReports`.
+- **Testé** : curl (zip 9 CSV, 10.9 Ko) + pytest `test_iter316` (test_export_all_zip : 9 fichiers + BOM) PASS 5/5. Frontend compile OK. ⚠️ PREVIEW → redéploiement requis.
+
+
+
 ## NEW - 2026-06-12 (324) - 📑 Centre de Rapports : 4 rapports prod en plus (parrainage MLM, portefeuille, récompenses, assurance) (DONE, testé)
 - **Demande user** (capture du menu prod sbdrivevtc.com/admin69 « Rapports ») : compléter le centre de rapports pour matcher la prod — Rapport de parrainage MLM, Rapport sur le portefeuille, Rapport sur les récompenses des utilisateurs, Rapport d'assurance. (« Voyage annulé » = déjà couvert par « Alertes refusées/annulées ».)
 - **Backend** (`routes/reports_admin.py`) — 4 nouvelles fonctions calculables + endpoints, même forme uniforme {chart, kpis, columns, rows}, ajoutées au registre `REPORT_FUNCS` (donc aussi planifiables par e-mail) :

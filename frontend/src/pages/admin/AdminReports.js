@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { ReportChart } from '../../components/admin/ReportChart';
 import { ReportSchedules } from '../../components/admin/ReportSchedules';
-import { ChartBar, CreditCard, Warning, Prohibit, Files, DownloadSimple, FilePdf, EnvelopeSimple, UsersThree, Wallet, Gift, ShieldCheck } from '@phosphor-icons/react';
+import { ChartBar, CreditCard, Warning, Prohibit, Files, DownloadSimple, FilePdf, EnvelopeSimple, UsersThree, Wallet, Gift, ShieldCheck, FileZip } from '@phosphor-icons/react';
 
 const REPORTS = [
   { key: 'results', label: 'Rapport sur les résultats', icon: ChartBar },
@@ -34,6 +34,7 @@ const AdminReports = () => {
   const [to, setTo] = useState(iso(new Date()));
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [zipping, setZipping] = useState(false);
 
   const applyPreset = (p) => {
     setPreset(p.key);
@@ -56,6 +57,19 @@ const AdminReports = () => {
     const title = `${current.label} (${from} → ${to})`;
     if (type === 'csv') exportCSV(`${kind}-${from}_${to}.csv`, data.columns, data.rows);
     else exportPDF(title, data.columns, data.rows);
+  };
+
+  const exportAllZip = async () => {
+    setZipping(true);
+    try {
+      const res = await adminAPI.exportAllReports({ date_from: from, date_to: to });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url; a.download = `rapports_${from}_${to}.zip`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Tous les rapports exportés (ZIP)');
+    } catch (e) { toast.error('Échec de l\'export ZIP'); }
+    finally { setZipping(false); }
   };
 
   return (
@@ -102,6 +116,7 @@ const AdminReports = () => {
             <div className="ml-auto flex gap-2">
               <button onClick={() => doExport('csv')} className="flex items-center gap-1.5 border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-testid="report-export-csv"><DownloadSimple size={15} /> CSV</button>
               <button onClick={() => doExport('pdf')} className="flex items-center gap-1.5 border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50" data-testid="report-export-pdf"><FilePdf size={15} /> PDF</button>
+              <button onClick={exportAllZip} disabled={zipping} className="flex items-center gap-1.5 bg-gray-900 text-white rounded-lg px-3 py-1.5 text-sm font-semibold hover:bg-gray-800 disabled:opacity-50" data-testid="report-export-zip"><FileZip size={15} /> {zipping ? '…' : 'Tout (ZIP)'}</button>
             </div>
           </div>
 

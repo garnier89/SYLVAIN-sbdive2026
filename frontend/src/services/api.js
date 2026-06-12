@@ -336,6 +336,7 @@ export const adminAPI = {
   dispatchCancel: (id) => api.post(`/admin/bookings/ride/${id}/dispatch-cancel`),
   offerRespond: (id, accept, driver_id) => api.post(`/admin/bookings/ride/${id}/offer-respond`, { accept, driver_id }),
   report: (kind, params) => api.get(`/admin/reports/${kind}`, { params }),
+  exportAllReports: (params) => api.get('/admin/reports/export-zip', { params, responseType: 'blob' }),
   listReportSchedules: () => api.get('/admin/reports/schedules'),
   createReportSchedule: (body) => api.post('/admin/reports/schedules', body),
   updateReportSchedule: (id, body) => api.put(`/admin/reports/schedules/${id}`, body),

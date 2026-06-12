@@ -80,6 +80,21 @@ def test_report_schedule_crud_and_send():
     assert d.status_code == 200
 
 
+def test_export_all_zip():
+    import io, zipfile
+    s = _session(ADMIN)
+    r = s.get(f"{API}/admin/reports/export-zip", params={"date_from": "2026-05-01", "date_to": "2026-06-12"}, timeout=60)
+    assert r.status_code == 200, r.text
+    assert r.headers.get("content-type") == "application/zip"
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    names = set(z.namelist())
+    for kind in ("results", "payments", "exceptional", "refused-cancelled", "other",
+                 "referral", "wallet", "rewards", "insurance"):
+        assert f"{kind}.csv" in names, f"missing {kind}.csv in zip"
+    # CSV starts with BOM
+    assert z.read("results.csv").startswith("\ufeff".encode("utf-8"))
+
+
 def test_demo_mode_toggle():
     s = _session(ADMIN)
     on = s.put(f"{API}/demo-mode/config", json={"enabled": True, "wallet_credit": 120}, timeout=20)
