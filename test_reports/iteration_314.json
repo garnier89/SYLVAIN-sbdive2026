@@ -1,0 +1,35 @@
+{
+  "summary": "Iter 314 — Admin CRM (manual driver/merchant add+delete) + Driver onboarding refactor (4-step fleet-aware flow). Backend pytest 3/3 PASS. Frontend E2E: admin login (email), AdminDrivers create+delete with VTC fleet rule, AdminStores create+delete all PASS. DriverRegisterPage structural checks PASS (4-step header, conditional company-name-input visibility for VTC/Taxi, particulier-hint for Particulier); deep multi-step traversal blocked by an overlay (email-verification toast banner) preventing reliable next-step click in Playwright.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "DriverRegisterPage (/driver/register)", "issues": ["The persistent 'Vérifiez votre email' bottom toast/banner overlaps the sticky 'next-step-btn' / 'submit-btn' CTA on mobile (390x844), which can block real users from advancing the multi-step form. Consider hiding the email-verification banner on the onboarding flow, anchoring it above the CTA, or adding bottom padding to the page so the action button is not occluded."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter314_admin_crm.py",
+    "/app/test_reports/pytest/iter314_results.xml"
+  ],
+  "action_items": [
+    "Optional: ensure the email-verification banner does not overlap the sticky CTA on /driver/register (z-index / bottom-padding adjustment).",
+    "Optional: in AdminDrivers add-driver modal, consider visually showing the pre-selected Taxi/VTC service button on initial open so the default selection is obvious (currently the button is gray even though service_types=['taxi'] by default)."
+  ],
+  "critical_code_review_comments": [
+    "AdminDrivers AddDriverModal initial state has service_types:['taxi'] but the corresponding 'Taxi/VTC' button does not visually appear as selected (style condition checks form.service_types.includes('taxi') which is true, so styling should apply — confirm CSS class isn't being overridden). Worth a quick visual check.",
+    "DriverRegisterPage CTA can be hidden behind the global email-verification banner toast on mobile; the banner has high z-index and floats over the sticky button.",
+    "Backend admin/drivers fleet rule (VTC/Taxi require company_name) correctly returns 400 — verified via pytest."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (email login via 'Ou choisir une autre option de connexion'); fresh test user created at runtime user_test_*@demo.sb / User1234!",
+  "seed_data_creation": "Test-only drivers/merchants created during run were cleaned up via the in-app delete action (drivers) or left as Resto Ouvert tagged rows that were also deleted via store-delete-*.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All admin CRM CRUD endpoints (POST/DELETE /api/admin/drivers, POST/DELETE /api/admin/merchants) and UI flows on /drivers-admin/drivers and /merchants-admin/stores are working. Use email login by clicking 'Ou choisir une autre option de connexion'. In AddDriverModal the form.service_types defaults to ['taxi'] — DO NOT click the 'Taxi/VTC' service button at modal open or you will toggle it OFF and the taxi_sub select disappears. Native window.confirm is used for delete, so register a page.on('dialog', ...) handler that auto-accepts. DriverRegisterPage default mobile flow is hindered by the 'Vérifiez votre email' banner — main agent should resolve overlay before doing full multi-step E2E.",
+  "rca of the issue": "No backend issue. Frontend overlay caveat documented above."
+}

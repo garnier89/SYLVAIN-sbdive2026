@@ -503,6 +503,172 @@ async def update_merchant_settings(merchant_id: str, request: Request):
     return {"message": "Merchant updated", "updated": update}
 
 
+# ===== ADMIN MANUAL DRIVER CREATION / DELETION (CRM) =====
+
+DRIVER_TAXI_SUBS = {"particulier", "vtc", "taxi"}
+DRIVER_SERVICES = {"taxi", "delivery", "courier"}
+
+
+def _derive_vehicle_class(vehicle_type, taxi_mode):
+    """Best-effort vehicle class from the chosen type / taxi mode."""
+    vt = (vehicle_type or "").lower()
+    if taxi_mode == "moto" or any(k in vt for k in ("moto", "scooter", "bike")):
+        return "moto"
+    if any(k in vt for k in ("velo", "vélo", "bicy", "cycle")):
+        return "velo"
+    return "car"
+
+
+@router.post("/drivers")
+async def admin_create_driver(request: Request):
+    """Admin manually creates a driver account: a user (role=driver, bcrypt-hashed
+    password) + a driver profile. Fleet rule: Taxi/VTC sub-categories require a
+    company/fleet name; a Particulier driver does not."""
+    await require_role(request, ["admin"], permission="drivers.approve")
+    from core.deps import hash_password
+    body = await request.json()
+    first_name = (body.get("first_name") or "").strip()
+    last_name = (body.get("last_name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+    if not first_name or not email or not password:
+        raise HTTPException(400, "Prénom, email et mot de passe sont requis")
+    if len(password) < 6:
+        raise HTTPException(400, "Le mot de passe doit contenir au moins 6 caractères")
+    await _assert_email_available(email)
+    phone_code = (body.get("phone_code") or "").strip()
+    full_phone = _compose_full_phone(body.get("phone"), phone_code)
+    await _assert_phone_available(full_phone)
+
+    service_types = [s for s in (body.get("service_types") or []) if s in DRIVER_SERVICES] or ["taxi"]
+    taxi_sub = (body.get("taxi_sub") or "").strip().lower() or None
+    if taxi_sub and taxi_sub not in DRIVER_TAXI_SUBS:
+        raise HTTPException(400, "Sous-catégorie invalide (particulier, vtc ou taxi)")
+    taxi_mode = None
+    if "taxi" in service_types:
+        taxi_mode = (body.get("taxi_mode") or "car").strip().lower()
+        if taxi_mode not in {"car", "moto"}:
+            raise HTTPException(400, "Mode taxi invalide (car ou moto)")
+    company_name = (body.get("company_name") or "").strip()
+    # Fleet rule: Taxi/VTC require a company/fleet name.
+    if taxi_sub in {"vtc", "taxi"} and not company_name:
+        raise HTTPException(400, "Le nom de la société/flotte est requis pour un chauffeur Taxi/VTC")
+
+    vehicle_type = (body.get("vehicle_type") or "").strip()
+    vehicle_class = _derive_vehicle_class(vehicle_type, taxi_mode)
+    status = (body.get("status") or "approved").strip().lower()
+    if status not in {"approved", "pending"}:
+        status = "approved"
+
+    now = datetime.now(timezone.utc).isoformat()
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    user_doc = {
+        "id": user_id, "email": email, "password_hash": hash_password(password),
+        "first_name": first_name, "last_name": last_name,
+        "name": f"{first_name} {last_name}".strip() or email,
+        "phone": full_phone or None, "phone_code": phone_code or None,
+        "role": "driver", "is_verified": True, "is_suspended": False,
+        "avatar_url": body.get("avatar_url"), "created_at": now,
+    }
+    await db.users.insert_one(user_doc)
+    await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "currency": "EUR", "created_at": now})
+
+    driver = {
+        "id": f"driver_{uuid.uuid4().hex[:12]}", "user_id": user_id,
+        "vehicle_type": vehicle_type, "vehicle_class": vehicle_class,
+        "vehicle_number": (body.get("vehicle_number") or "").strip(),
+        "vehicle_model": (body.get("vehicle_model") or "").strip(),
+        "license_number": (body.get("license_number") or "").strip(),
+        "company_name": company_name, "service_types": service_types,
+        "taxi_mode": taxi_mode, "taxi_sub": taxi_sub,
+        "status": status, "is_online": False,
+        "current_lat": None, "current_lng": None,
+        "rating": 5.0, "total_trips": 0, "earnings": 0.0,
+        "documents": [], "created_by": "admin", "created_at": now,
+    }
+    await db.drivers.insert_one(driver)
+    driver.pop("_id", None)
+    return {"driver": driver,
+            "user": {k: user_doc[k] for k in ("id", "email", "name", "phone", "role")}}
+
+
+@router.delete("/drivers/{driver_id}")
+async def admin_delete_driver(driver_id: str, request: Request):
+    await require_role(request, ["admin"], permission="drivers.reject")
+    driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "user_id": 1})
+    if not driver:
+        raise HTTPException(404, "Driver not found")
+    await db.drivers.delete_one({"id": driver_id})
+    uid = driver.get("user_id")
+    if uid:
+        u = await db.users.find_one({"id": uid}, {"_id": 0, "role": 1})
+        # Safety: only delete the linked account if it is actually a driver account.
+        if u and u.get("role") == "driver":
+            await db.users.delete_one({"id": uid})
+            await db.wallets.delete_many({"user_id": uid})
+    return {"deleted": True, "driver_id": driver_id}
+
+
+# ===== ADMIN MANUAL MERCHANT CREATION / DELETION (CRM) =====
+
+@router.post("/merchants")
+async def admin_create_merchant(request: Request):
+    """Admin manually creates a merchant account: a user (role=merchant, bcrypt-hashed
+    password) + a store, active and approved immediately (no self-service pending state)."""
+    await require_role(request, ["admin"], permission="merchants.activate")
+    from core.deps import hash_password
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+    store_name = (body.get("store_name") or "").strip()
+    if not name or not email or not password or not store_name:
+        raise HTTPException(400, "Nom, email, mot de passe et nom de boutique sont requis")
+    if len(password) < 6:
+        raise HTTPException(400, "Le mot de passe doit contenir au moins 6 caractères")
+    await _assert_email_available(email)
+    full_phone = _compose_full_phone(body.get("phone"), body.get("phone_code"))
+    await _assert_phone_available(full_phone)
+    now = datetime.now(timezone.utc).isoformat()
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    await db.users.insert_one({
+        "id": user_id, "email": email, "password_hash": hash_password(password),
+        "name": name, "phone": full_phone or None, "role": "merchant",
+        "is_verified": True, "avatar_url": None, "created_at": now,
+    })
+    await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "currency": "EUR", "created_at": now})
+    merchant = {
+        "id": f"merchant_{uuid.uuid4().hex[:12]}", "user_id": user_id,
+        "store_name": store_name, "store_type": (body.get("store_type") or "restaurant").strip(),
+        "address": (body.get("address") or "").strip(),
+        "lat": body.get("lat"), "lng": body.get("lng"),
+        "description": (body.get("description") or "").strip(),
+        "rating": 5.0, "review_count": 0, "total_orders": 0,
+        "approval_status": "approved", "is_active": True, "accepting_orders": True,
+        "opening_hours": "09:00-22:00", "image_url": None,
+        "created_by": "admin", "created_at": now,
+    }
+    await db.merchants.insert_one(merchant)
+    merchant.pop("_id", None)
+    return merchant
+
+
+@router.delete("/merchants/{merchant_id}")
+async def admin_delete_merchant(merchant_id: str, request: Request):
+    await require_role(request, ["admin"], permission="merchants.activate")
+    m = await db.merchants.find_one({"id": merchant_id}, {"_id": 0, "user_id": 1})
+    if not m:
+        raise HTTPException(404, "Merchant not found")
+    await db.merchants.delete_one({"id": merchant_id})
+    uid = m.get("user_id")
+    if uid:
+        u = await db.users.find_one({"id": uid}, {"_id": 0, "role": 1})
+        if u and u.get("role") == "merchant":
+            await db.users.delete_one({"id": uid})
+            await db.wallets.delete_many({"user_id": uid})
+    return {"deleted": True, "merchant_id": merchant_id}
+
+
 @router.get("/stats")
 async def get_admin_stats(request: Request):
     await require_role(request, ["admin"])

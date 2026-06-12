@@ -2,11 +2,101 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning } from '@phosphor-icons/react';
+import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning, Plus, Trash } from '@phosphor-icons/react';
 import { ImageUpload } from '../../components/ImageUpload';
+import { adminAPI } from '../../services/api';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+const EMPTY_MERCHANT = {
+  name: '', email: '', password: '', phone: '',
+  store_name: '', store_type: 'restaurant', address: '', description: '',
+};
+
+const AddMerchantModal = ({ onClose, onCreated }) => {
+  const [form, setForm] = useState(EMPTY_MERCHANT);
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    if (!form.name.trim() || !form.email.trim() || !form.password || !form.store_name.trim()) {
+      toast.error('Nom, email, mot de passe et nom de boutique sont requis');
+      return;
+    }
+    setSaving(true);
+    try {
+      await adminAPI.createMerchant(form);
+      toast.success('Boutique créée ✅');
+      onCreated();
+      onClose();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec de la création');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[2800] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="add-merchant-modal">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 sticky top-0 bg-white">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2"><Storefront size={18} className="text-orange-500" />Nouvelle boutique</h3>
+          <button onClick={onClose} className="text-gray-400" data-testid="add-merchant-close"><X size={22} /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Compte propriétaire</p>
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Nom du propriétaire *</label>
+            <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Ex : Marie Durand" data-testid="add-merchant-name" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Email *</label>
+              <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="email@exemple.com" data-testid="add-merchant-email" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Téléphone</label>
+              <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+596…" data-testid="add-merchant-phone" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Mot de passe * (min. 6)</label>
+            <Input type="text" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="••••••" data-testid="add-merchant-password" />
+          </div>
+          <p className="text-xs font-semibold text-gray-500 uppercase pt-2 border-t border-gray-100">Boutique</p>
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Nom de la boutique *</label>
+            <Input value={form.store_name} onChange={(e) => set('store_name', e.target.value)} placeholder="Ex : Burger Palace" data-testid="add-merchant-store-name" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Type</label>
+              <select value={form.store_type} onChange={(e) => set('store_type', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" data-testid="add-merchant-type">
+                <option value="restaurant">Restaurant</option>
+                <option value="grocery">Épicerie</option>
+                <option value="pharmacy">Pharmacie</option>
+                <option value="shop">Boutique</option>
+                <option value="other">Autre</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Adresse</label>
+              <Input value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="Ville, rue…" data-testid="add-merchant-address" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Description</label>
+            <Input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="Courte description" data-testid="add-merchant-description" />
+          </div>
+        </div>
+        <div className="p-4 border-t border-gray-100">
+          <Button onClick={submit} disabled={saving} className="w-full bg-orange-500 hover:bg-orange-600 text-white" data-testid="add-merchant-submit">
+            <Plus size={16} weight="bold" className="mr-2" />{saving ? 'Création…' : 'Créer la boutique'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminStores = () => {
   const [stores, setStores] = useState([]);
@@ -16,6 +106,18 @@ const AdminStores = () => {
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [pendingCount, setPendingCount] = useState(0);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const deleteStore = async (store) => {
+    if (!window.confirm(`Supprimer définitivement « ${store.store_name} » et son compte propriétaire ?`)) return;
+    try {
+      await adminAPI.deleteMerchant(store.id);
+      toast.success('Boutique supprimée');
+      loadStores();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec de la suppression');
+    }
+  };
 
   useEffect(() => { loadStores(); }, [statusFilter]);
 
@@ -89,6 +191,9 @@ const AdminStores = () => {
           <h1 className="text-2xl font-bold text-gray-800">Manage Stores</h1>
           <p className="text-sm text-gray-500 mt-1">{stores.length} marchands enregistrés</p>
         </div>
+        <Button onClick={() => setShowAdd(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="add-merchant-btn">
+          <Plus size={16} weight="bold" className="mr-1.5" /> Ajouter une boutique
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-5">
@@ -162,6 +267,9 @@ const AdminStores = () => {
                       <Button size="sm" variant="ghost" onClick={() => toggleStatus(store.id, store.status || 'active')} data-testid={`store-toggle-${store.id}`}>
                         {store.status === 'suspended' ? <CheckCircle size={16} className="text-green-500" /> : <XCircle size={16} className="text-red-500" />}
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteStore(store)} data-testid={`store-delete-${store.id}`}>
+                        <Trash size={16} className="text-red-500" />
+                      </Button>
                     </>
                   )}
                 </td>
@@ -234,6 +342,7 @@ const AdminStores = () => {
           </div>
         </div>
       )}
+      {showAdd && <AddMerchantModal onClose={() => setShowAdd(false)} onCreated={loadStores} />}
     </div>
   );
 };

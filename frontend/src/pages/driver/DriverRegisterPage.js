@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { driverAPI } from '../../services/api';
-import { Car, Motorcycle, Bicycle, ArrowRight, ArrowLeft, Upload, CheckCircle, Package, Taxi, Lightning } from '@phosphor-icons/react';
+import { Car, Motorcycle, Bicycle, ArrowRight, ArrowLeft, Upload, CheckCircle, Package, Taxi, Lightning, Buildings, IdentificationCard } from '@phosphor-icons/react';
 
 const SERVICE_OPTIONS = [
   { value: 'taxi', label: 'Taxi', desc: 'Transport de personnes', Icon: Taxi },
@@ -20,6 +20,10 @@ const TAXI_SUBS = [
   { value: 'taxi', label: 'Taxi', desc: 'Licence / ADS' },
 ];
 
+// Vehicle documents (registration / insurance) vs personal documents (ID / licence / pro cards)
+const VEHICLE_DOC_RE = /(carte.?grise|grise|assurance|insurance|immatric|contr[oô]le.?technique|vignette|registration)/i;
+const isVehicleDoc = (doc) => VEHICLE_DOC_RE.test(`${doc.key} ${doc.label}`);
+
 const DriverRegisterPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -28,6 +32,7 @@ const DriverRegisterPage = () => {
   const [services, setServices] = useState([]);          // ['taxi','delivery','courier']
   const [vehicleClass, setVehicleClass] = useState('');  // 'velo' | 'moto' | 'car'
   const [taxiSub, setTaxiSub] = useState('');            // 'particulier' | 'vtc' | 'taxi'
+  const [companyName, setCompanyName] = useState('');
   const [info, setInfo] = useState({ vehicle_number: '', vehicle_model: '', license_number: '' });
   const [documents, setDocuments] = useState({});
 
@@ -46,23 +51,27 @@ const DriverRegisterPage = () => {
 
   const taxiSelected = services.includes('taxi');
   const veloAllowed = !taxiSelected; // taxi (transport de personnes) ne peut pas se faire à vélo
+  // Fleet rule: a VTC/Taxi (licensed) driver must declare a company/fleet name; a Particulier does not.
+  const isFleet = taxiSelected && vehicleClass === 'car' && ['vtc', 'taxi'].includes(taxiSub);
 
   const toggleService = (val) => {
     setServices((prev) => {
       const has = prev.includes(val);
       const next = has ? prev.filter((s) => s !== val) : [...prev, val];
-      // selecting taxi while on a bike resets the vehicle (taxi needs moto/voiture)
       if (val === 'taxi' && !has && vehicleClass === 'velo') { setVehicleClass(''); setTaxiSub(''); }
-      if (val === 'taxi' && has) setTaxiSub('');
+      if (val === 'taxi' && has) { setTaxiSub(''); setCompanyName(''); }
       return next;
     });
   };
   const selectVehicle = (val) => {
     setVehicleClass(val);
-    if (val !== 'car') setTaxiSub(''); // sous-catégorie taxi seulement en voiture
+    if (val !== 'car') { setTaxiSub(''); setCompanyName(''); }
+  };
+  const selectTaxiSub = (val) => {
+    setTaxiSub(val);
+    if (!['vtc', 'taxi'].includes(val)) setCompanyName('');
   };
 
-  // Build the V3Cube category leaf ids from the selections
   const computeCategoryIds = () => {
     const ids = [];
     services.forEach((s) => {
@@ -86,26 +95,34 @@ const DriverRegisterPage = () => {
     return docs;
   };
 
-  const needsVehicleInfo = vehicleClass && vehicleClass !== 'velo';
+  const docs = requiredDocs();
+  const hasVehicleSteps = vehicleClass && vehicleClass !== 'velo';
+  // For a bike, everything is a personal document; no vehicle steps.
+  const persoDocs = docs.filter((d) => !hasVehicleSteps || !isVehicleDoc(d));
+  const vehicleDocs = hasVehicleSteps ? docs.filter(isVehicleDoc) : [];
+  const needsVehicleInfo = hasVehicleSteps;
+
+  const totalSteps = hasVehicleSteps ? 4 : 2;
+
   const step1Valid = (
     services.length > 0 &&
     !!vehicleClass &&
     (!taxiSelected || vehicleClass !== 'velo') &&
     (!(taxiSelected && vehicleClass === 'car') || !!taxiSub) &&
-    (!needsVehicleInfo || (info.vehicle_number && info.vehicle_model && info.license_number))
+    (!isFleet || !!companyName.trim())
   );
+  const persoDocsValid = persoDocs.length === 0 || persoDocs.every((d) => documents[d.key]);
+  const vehicleInfoValid = !needsVehicleInfo || (info.vehicle_number && info.vehicle_model && info.license_number);
+  const vehicleDocsValid = vehicleDocs.length === 0 || vehicleDocs.every((d) => documents[d.key]);
 
-  const docs = requiredDocs();
-  const allDocsUploaded = docs.length > 0 && docs.every((d) => documents[d.key]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const submitRegistration = async () => {
     const ids = computeCategoryIds();
     if (ids.length === 0) { toast.error('Sélection incomplète'); return; }
     setLoading(true);
     try {
       await driverAPI.register({
         categories: ids,
+        company_name: isFleet ? companyName.trim() : '',
         vehicle_number: info.vehicle_number,
         vehicle_model: info.vehicle_model,
         license_number: info.license_number,
@@ -113,13 +130,31 @@ const DriverRegisterPage = () => {
       for (const d of docs) {
         if (documents[d.key]) await driverAPI.uploadDocument(documents[d.key], d.key);
       }
-      setStep(3);
+      setStep(99); // success
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Échec de l'inscription");
     } finally { setLoading(false); }
   };
 
-  if (step === 3) {
+  const goNext = () => {
+    if (step === 1) { if (step1Valid) setStep(2); return; }
+    if (step === 2) {
+      if (!persoDocsValid) return;
+      if (hasVehicleSteps) setStep(3); else submitRegistration();
+      return;
+    }
+    if (step === 3) { if (vehicleInfoValid) setStep(4); return; }
+    if (step === 4) { if (vehicleDocsValid) submitRegistration(); }
+  };
+
+  const goBack = () => {
+    if (step === 1) { navigate('/chauffeur/home'); return; }
+    setStep((s) => s - 1);
+  };
+
+  const STEP_LABELS = { 1: 'Activité & statut', 2: 'Documents personnels', 3: 'Ajout du véhicule', 4: 'Documents du véhicule' };
+
+  if (step === 99) {
     return (
       <div className="mobile-container min-h-screen bg-gray-950 flex items-center justify-center p-6" data-testid="driver-register-success">
         <div className="text-center space-y-6">
@@ -129,7 +164,7 @@ const DriverRegisterPage = () => {
           <div>
             <h2 className="text-2xl font-bold text-white">Demande envoyée !</h2>
             <p className="text-gray-400 mt-2 max-w-xs mx-auto">
-              Votre demande de chauffeur est en cours de vérification. Vous serez notifié une fois approuvé.
+              Votre dossier est complet et a été transmis à l&apos;administrateur. Vous serez notifié dès qu&apos;il sera approuvé.
             </p>
           </div>
           <button onClick={() => navigate('/chauffeur/home')}
@@ -142,28 +177,62 @@ const DriverRegisterPage = () => {
     );
   }
 
+  const primaryLabel = (step === totalSteps) ? (loading ? 'Envoi…' : 'Soumettre pour approbation') : 'Continuer';
+  const primaryDisabled = (
+    (step === 1 && !step1Valid) ||
+    (step === 2 && !persoDocsValid) ||
+    (step === 3 && !vehicleInfoValid) ||
+    (step === 4 && (!vehicleDocsValid || loading))
+  );
+
+  const DocUpload = ({ doc }) => (
+    <div key={doc.key}>
+      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">{doc.label}</label>
+      <div className="relative">
+        <input type="file" accept="image/*,.pdf"
+          onChange={(e) => setDocuments({ ...documents, [doc.key]: e.target.files[0] })}
+          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+          data-testid={`upload-${doc.key}`} />
+        <div className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${documents[doc.key] ? 'border-amber-500 bg-amber-500/5' : 'border-gray-700 bg-gray-900'}`}>
+          {documents[doc.key] ? (
+            <div className="flex items-center justify-center gap-2 text-amber-500">
+              <CheckCircle size={20} weight="fill" />
+              <span className="font-medium text-sm truncate max-w-[200px]">{documents[doc.key].name}</span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-gray-500">
+              <Upload size={24} />
+              <span className="text-xs">Cliquez pour télécharger</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="mobile-container min-h-screen bg-gray-950 flex flex-col" data-testid="driver-register-page">
       <div className="px-4 pt-5 flex items-center gap-3">
-        <button onClick={() => (step === 1 ? navigate('/chauffeur/home') : setStep(1))}
+        <button onClick={goBack}
           className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center" data-testid="back-btn">
           <ArrowLeft size={20} className="text-white" />
         </button>
         <div>
           <h1 className="text-lg font-bold text-white">Devenir chauffeur</h1>
-          <p className="text-gray-500 text-xs">Étape {step} sur 2 — {step === 1 ? 'Activité & véhicule' : 'Documents'}</p>
+          <p className="text-gray-500 text-xs">Étape {step} sur {totalSteps} — {STEP_LABELS[step]}</p>
         </div>
       </div>
 
       <div className="flex gap-2 px-5 mt-4">
-        <div className={`h-1 rounded-full flex-1 ${step >= 1 ? 'bg-amber-500' : 'bg-gray-800'}`} />
-        <div className={`h-1 rounded-full flex-1 ${step >= 2 ? 'bg-amber-500' : 'bg-gray-800'}`} />
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <div key={i} className={`h-1 rounded-full flex-1 ${step >= i + 1 ? 'bg-amber-500' : 'bg-gray-800'}`} />
+        ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col px-5 mt-6 pb-8">
+      <div className="flex-1 flex flex-col px-5 mt-6 pb-8">
+        {/* STEP 1 — Activité & statut */}
         {step === 1 && (
           <div className="space-y-6 flex-1">
-            {/* Services */}
             <div>
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Je veux faire</label>
               <p className="text-[10px] text-gray-500 mb-2">Sélectionnez un ou plusieurs services</p>
@@ -185,7 +254,6 @@ const DriverRegisterPage = () => {
               </div>
             </div>
 
-            {/* Vehicle class */}
             {services.length > 0 && (
               <div data-testid="vehicle-class-section">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Mon véhicule</label>
@@ -209,18 +277,17 @@ const DriverRegisterPage = () => {
               </div>
             )}
 
-            {/* Taxi sub-category (only car taxi) */}
             {taxiSelected && vehicleClass === 'car' && (
               <div data-testid="taxi-sub-section">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Vous êtes (Taxi voiture)</label>
-                <p className="text-[10px] text-gray-500 mb-2">Chaque catégorie a ses documents</p>
+                <p className="text-[10px] text-gray-500 mb-2">Chaque statut a ses documents et obligations</p>
                 <div className="grid grid-cols-3 gap-3">
                   {TAXI_SUBS.map((s) => {
                     const active = taxiSub === s.value;
                     return (
                       <button key={s.value} type="button"
                         className={`p-3 rounded-xl border-2 flex flex-col items-center gap-1 transition-all ${active ? 'border-amber-500 bg-amber-500/10' : 'border-gray-800 bg-gray-900 hover:border-gray-700'}`}
-                        onClick={() => setTaxiSub(s.value)}
+                        onClick={() => selectTaxiSub(s.value)}
                         data-testid={`taxi-sub-${s.value}`}>
                         <span className={`text-xs font-semibold ${active ? 'text-amber-400' : 'text-gray-300'}`}>{s.label}</span>
                         <span className="text-[10px] text-gray-500 leading-tight text-center">{s.desc}</span>
@@ -231,91 +298,105 @@ const DriverRegisterPage = () => {
               </div>
             )}
 
-            {/* Vehicle info (not needed for bike) */}
-            {needsVehicleInfo && (
-              <div className="space-y-4" data-testid="vehicle-info-section">
-                <div>
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">Immatriculation</label>
-                  <input value={info.vehicle_number}
-                    onChange={(e) => setInfo({ ...info, vehicle_number: e.target.value })}
-                    placeholder="AB-123-CD"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-amber-500 transition-colors placeholder:text-gray-500"
-                    data-testid="vehicle-number-input" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">Modèle</label>
-                  <input value={info.vehicle_model}
-                    onChange={(e) => setInfo({ ...info, vehicle_model: e.target.value })}
-                    placeholder="Toyota Camry 2022"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-amber-500 transition-colors placeholder:text-gray-500"
-                    data-testid="vehicle-model-input" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">N° permis de conduire</label>
-                  <input value={info.license_number}
-                    onChange={(e) => setInfo({ ...info, license_number: e.target.value })}
-                    placeholder="12AB34567"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-amber-500 transition-colors placeholder:text-gray-500"
-                    data-testid="license-number-input" />
-                </div>
+            {/* Fleet / company name — required for VTC & Taxi (licensed) */}
+            {isFleet && (
+              <div data-testid="company-section">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                  <Buildings size={14} className="text-amber-500" /> Société / Flotte
+                </label>
+                <p className="text-[10px] text-amber-500/80 mb-2">Requis pour les chauffeurs {taxiSub.toUpperCase()} — nom de la société ou de la flotte rattachée.</p>
+                <input value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Ex : SARL Antilles Transport"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-amber-500 transition-colors placeholder:text-gray-500"
+                  data-testid="company-name-input" />
               </div>
             )}
-
-            <div className="mt-auto pt-4">
-              <button type="button" onClick={() => setStep(2)} disabled={!step1Valid}
-                className="w-full h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
-                data-testid="next-step-btn">
-                Continuer <ArrowRight size={20} />
-              </button>
-            </div>
+            {taxiSelected && vehicleClass === 'car' && taxiSub === 'particulier' && (
+              <p className="text-[11px] text-gray-500" data-testid="particulier-hint">
+                Chauffeur Particulier — aucun nom de société requis.
+              </p>
+            )}
           </div>
         )}
 
+        {/* STEP 2 — Documents personnels */}
         {step === 2 && (
           <div className="space-y-5 flex-1">
-            <p className="text-xs text-gray-400">Documents requis pour vos catégories sélectionnées</p>
-            {docs.length === 0 ? (
-              <p className="text-sm text-gray-500" data-testid="no-docs">Revenez à l&apos;étape 1 pour compléter votre sélection.</p>
-            ) : docs.map((doc) => (
-              <div key={doc.key}>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">{doc.label}</label>
-                <div className="relative">
-                  <input type="file" accept="image/*,.pdf"
-                    onChange={(e) => setDocuments({ ...documents, [doc.key]: e.target.files[0] })}
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                    data-testid={`upload-${doc.key}`} />
-                  <div className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${documents[doc.key] ? 'border-amber-500 bg-amber-500/5' : 'border-gray-700 bg-gray-900'}`}>
-                    {documents[doc.key] ? (
-                      <div className="flex items-center justify-center gap-2 text-amber-500">
-                        <CheckCircle size={20} weight="fill" />
-                        <span className="font-medium text-sm truncate max-w-[200px]">{documents[doc.key].name}</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-2 text-gray-500">
-                        <Upload size={24} />
-                        <span className="text-xs">Cliquez pour télécharger</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+            <div className="flex items-center gap-2 text-gray-300">
+              <IdentificationCard size={20} className="text-amber-500" />
+              <p className="text-sm font-semibold">Vos documents personnels</p>
+            </div>
+            <p className="text-xs text-gray-500">Identité, permis et cartes professionnelles.</p>
+            {persoDocs.length === 0 ? (
+              <p className="text-sm text-gray-500" data-testid="no-perso-docs">Aucun document personnel requis pour cette sélection.</p>
+            ) : persoDocs.map((doc) => <DocUpload key={doc.key} doc={doc} />)}
+          </div>
+        )}
 
-            <div className="mt-auto pt-4 flex gap-3">
-              <button type="button" onClick={() => setStep(1)}
-                className="flex-1 h-14 rounded-xl border border-gray-700 text-gray-300 font-bold transition-colors hover:bg-gray-800"
-                data-testid="back-step-btn">
-                Retour
-              </button>
-              <button type="submit" disabled={loading || !allDocsUploaded}
-                className="flex-1 h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold transition-colors disabled:opacity-40"
-                data-testid="submit-btn">
-                {loading ? 'Envoi...' : 'Soumettre'}
-              </button>
+        {/* STEP 3 — Ajout du véhicule */}
+        {step === 3 && (
+          <div className="space-y-5 flex-1" data-testid="vehicle-info-section">
+            <div className="flex items-center gap-2 text-gray-300">
+              <Car size={20} className="text-amber-500" />
+              <p className="text-sm font-semibold">Informations du véhicule</p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">Immatriculation</label>
+              <input value={info.vehicle_number}
+                onChange={(e) => setInfo({ ...info, vehicle_number: e.target.value })}
+                placeholder="AB-123-CD"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-amber-500 transition-colors placeholder:text-gray-500"
+                data-testid="vehicle-number-input" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">Modèle</label>
+              <input value={info.vehicle_model}
+                onChange={(e) => setInfo({ ...info, vehicle_model: e.target.value })}
+                placeholder="Toyota Camry 2022"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-amber-500 transition-colors placeholder:text-gray-500"
+                data-testid="vehicle-model-input" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">N° permis de conduire</label>
+              <input value={info.license_number}
+                onChange={(e) => setInfo({ ...info, license_number: e.target.value })}
+                placeholder="12AB34567"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-base outline-none focus:border-amber-500 transition-colors placeholder:text-gray-500"
+                data-testid="license-number-input" />
             </div>
           </div>
         )}
-      </form>
+
+        {/* STEP 4 — Documents du véhicule */}
+        {step === 4 && (
+          <div className="space-y-5 flex-1">
+            <div className="flex items-center gap-2 text-gray-300">
+              <Car size={20} className="text-amber-500" />
+              <p className="text-sm font-semibold">Documents du véhicule</p>
+            </div>
+            <p className="text-xs text-gray-500">Carte grise, assurance et pièces du véhicule.</p>
+            {vehicleDocs.length === 0 ? (
+              <p className="text-sm text-gray-500" data-testid="no-vehicle-docs">Aucun document véhicule requis.</p>
+            ) : vehicleDocs.map((doc) => <DocUpload key={doc.key} doc={doc} />)}
+          </div>
+        )}
+
+        <div className="mt-auto pt-4 flex gap-3">
+          {step > 1 && (
+            <button type="button" onClick={goBack}
+              className="flex-1 h-14 rounded-xl border border-gray-700 text-gray-300 font-bold transition-colors hover:bg-gray-800"
+              data-testid="back-step-btn">
+              Retour
+            </button>
+          )}
+          <button type="button" onClick={goNext} disabled={primaryDisabled}
+            className="flex-1 h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+            data-testid={step === totalSteps ? 'submit-btn' : 'next-step-btn'}>
+            {primaryLabel} {step !== totalSteps && <ArrowRight size={20} />}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

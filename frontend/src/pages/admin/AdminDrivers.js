@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
-import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload, Wrench } from '@phosphor-icons/react';
+import { CaretUp, CaretDown, Check, X, Eye, Gear, FileText, CheckCircle, XCircle, Clock, Upload, Wrench, Plus, Trash } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const DOC_STATUS = {
@@ -245,6 +245,146 @@ const DriverServicesModal = ({ driver, onClose, onChanged }) => {
 };
 
 
+const EMPTY_DRIVER = {
+  first_name: '', last_name: '', email: '', password: '', phone: '',
+  service_types: ['taxi'], taxi_sub: 'particulier', taxi_mode: 'car',
+  company_name: '', vehicle_type: '', vehicle_number: '', vehicle_model: '', license_number: '',
+  status: 'approved',
+};
+
+const AddDriverModal = ({ onClose, onCreated }) => {
+  const [form, setForm] = useState(EMPTY_DRIVER);
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const toggleService = (v) => setForm((f) => ({
+    ...f, service_types: f.service_types.includes(v) ? f.service_types.filter((x) => x !== v) : [...f.service_types, v],
+  }));
+
+  const isTaxi = form.service_types.includes('taxi');
+  const isFleet = ['vtc', 'taxi'].includes(form.taxi_sub);
+
+  const submit = async () => {
+    if (!form.first_name.trim() || !form.email.trim() || !form.password) {
+      toast.error('Prénom, email et mot de passe sont requis'); return;
+    }
+    if (form.service_types.length === 0) { toast.error('Sélectionnez au moins un service'); return; }
+    if (isFleet && !form.company_name.trim()) {
+      toast.error('Le nom de la société/flotte est requis pour un chauffeur Taxi/VTC'); return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      if (!isTaxi) { payload.taxi_mode = null; }
+      await adminAPI.createDriver(payload);
+      toast.success('Chauffeur créé ✅');
+      onCreated(); onClose();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec de la création');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[2800] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="add-driver-modal">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <h3 className="font-bold text-gray-900">Nouveau chauffeur</h3>
+          <button onClick={onClose} className="text-gray-400" data-testid="add-driver-close"><X size={22} /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Identité & compte</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Prénom *</label>
+              <input value={form.first_name} onChange={(e) => set('first_name', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-firstname" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Nom</label>
+              <input value={form.last_name} onChange={(e) => set('last_name', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-lastname" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Email *</label>
+              <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-email" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Téléphone</label>
+              <input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+596…" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-phone" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Mot de passe * (min. 6)</label>
+            <input type="text" value={form.password} onChange={(e) => set('password', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-password" />
+          </div>
+
+          <p className="text-xs font-semibold text-gray-500 uppercase pt-2 border-t border-gray-100">Services & statut</p>
+          <div className="flex flex-wrap gap-2">
+            {[{ v: 'taxi', l: 'Taxi/VTC' }, { v: 'delivery', l: 'Livraison' }, { v: 'courier', l: 'Coursier' }].map((s) => (
+              <button key={s.v} type="button" onClick={() => toggleService(s.v)} data-testid={`add-driver-service-${s.v}`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold border-2 ${form.service_types.includes(s.v) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600'}`}>
+                {s.l}
+              </button>
+            ))}
+          </div>
+          {isTaxi && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Statut chauffeur</label>
+                <select value={form.taxi_sub} onChange={(e) => set('taxi_sub', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" data-testid="add-driver-taxisub">
+                  <option value="particulier">Particulier</option>
+                  <option value="vtc">VTC</option>
+                  <option value="taxi">Taxi (licence)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Mode taxi</label>
+                <select value={form.taxi_mode} onChange={(e) => set('taxi_mode', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" data-testid="add-driver-taximode">
+                  <option value="car">Voiture</option>
+                  <option value="moto">Moto</option>
+                </select>
+              </div>
+            </div>
+          )}
+          {isTaxi && isFleet && (
+            <div data-testid="add-driver-fleet-block">
+              <label className="text-xs font-medium text-gray-600 block mb-1">Nom de la société / flotte * <span className="text-amber-600">(requis Taxi/VTC)</span></label>
+              <input value={form.company_name} onChange={(e) => set('company_name', e.target.value)} placeholder="Ex : SARL Antilles Transport" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-company" />
+            </div>
+          )}
+
+          <p className="text-xs font-semibold text-gray-500 uppercase pt-2 border-t border-gray-100">Véhicule</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Type de véhicule</label>
+              <input value={form.vehicle_type} onChange={(e) => set('vehicle_type', e.target.value)} placeholder="Ex : Berline, Scooter…" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-vehicletype" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Immatriculation</label>
+              <input value={form.vehicle_number} onChange={(e) => set('vehicle_number', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-vehiclenumber" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Modèle</label>
+              <input value={form.vehicle_model} onChange={(e) => set('vehicle_model', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-vehiclemodel" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">N° de licence/permis</label>
+              <input value={form.license_number} onChange={(e) => set('license_number', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="add-driver-license" />
+            </div>
+          </div>
+        </div>
+        <div className="p-4 border-t border-gray-100 sticky bottom-0 bg-white">
+          <button onClick={submit} disabled={saving} className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2" data-testid="add-driver-submit">
+            <Plus size={16} weight="bold" />{saving ? 'Création…' : 'Créer le chauffeur'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const SortIcon = ({ field, sortField, sortDir, onSort }) => (
   <span className="inline-flex flex-col ml-1 cursor-pointer" onClick={() => onSort(field)}>
     <CaretUp size={8} className={sortField === field && sortDir === 'asc' ? 'text-gray-800' : 'text-gray-300'} />
@@ -262,6 +402,18 @@ const AdminDrivers = () => {
   const [sortDir, setSortDir] = useState('asc');
   const [docDriver, setDocDriver] = useState(null);
   const [servicesDriver, setServicesDriver] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const deleteDriver = async (d) => {
+    if (!window.confirm(`Supprimer définitivement le chauffeur « ${d.user?.name || ''} » et son compte ?`)) return;
+    try {
+      await adminAPI.deleteDriver(d.id);
+      toast.success('Chauffeur supprimé');
+      loadDrivers();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec de la suppression');
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -325,6 +477,9 @@ const AdminDrivers = () => {
         <button className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="search-btn">SEARCH</button>
         <button onClick={handleReset} className="border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="reset-btn">RESET</button>
         <button className="ml-auto border border-gray-300 rounded px-4 py-1.5 text-sm font-bold text-gray-700 hover:bg-gray-50" data-testid="export-btn">EXPORT</button>
+        <button onClick={() => setShowAdd(true)} className="border border-emerald-500 bg-emerald-500 text-white rounded px-4 py-1.5 text-sm font-bold flex items-center gap-1.5 hover:bg-emerald-600" data-testid="add-driver-btn">
+          <Plus size={14} weight="bold" /> Ajouter
+        </button>
       </div>
 
       {/* Table */}
@@ -416,6 +571,9 @@ const AdminDrivers = () => {
                         <button className="w-7 h-7 rounded bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors" data-testid={`view-${i}`} title="View Details">
                           <Gear size={14} />
                         </button>
+                        <button onClick={() => deleteDriver(d)} className="w-7 h-7 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors" data-testid={`delete-${i}`} title="Supprimer">
+                          <Trash size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -429,6 +587,7 @@ const AdminDrivers = () => {
       )}
       {docDriver && <DriverDocsModal driver={docDriver} onClose={() => setDocDriver(null)} onChanged={loadDrivers} />}
       {servicesDriver && <DriverServicesModal driver={servicesDriver} onClose={() => setServicesDriver(null)} onChanged={loadDrivers} />}
+      {showAdd && <AddDriverModal onClose={() => setShowAdd(false)} onCreated={loadDrivers} />}
     </div>
   );
 };
