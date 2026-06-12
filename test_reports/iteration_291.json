@@ -1,0 +1,55 @@
+{
+  "summary": "Frontend E2E testing of new Flights vertical (P1). User flow on /vols and admin flow on /admin/flights fully validated, including the seat-exhaustion / 409 over-book rule. All listed data-testid hooks work; UI matches spec.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": {
+    "user_flow_/vols": {
+      "login_paul.vendeur": "PASS",
+      "flights-page loads with 3 seeded demo flights": "PASS (Air Caraïbes FDF→ORY 480€, Air France FDF→CDG 1450€, Corsair PTP→MIA 320€, all show seats/price/route/duration/class)",
+      "flights-origin filter (FDF)": "PASS (2 cards)",
+      "flight-card click opens flight-book screen": "PASS",
+      "flight-book-btn disabled when no pax name (label 'Saisissez un passager')": "PASS",
+      "flight-add-pax + flight-pax-name-{i} + flight-pax-type-{i}": "PASS",
+      "total updates with pax count (1 pax→480€, 2 pax→960€)": "PASS",
+      "booking debits wallet → flight-done screen": "PASS",
+      "Voir mes vols → flights-mine-list shows Confirmé booking": "PASS",
+      "flight-cancel-{id} → wallet refund toast 'Annulé · remboursé 960.00 €' and status flips to Annulé": "PASS",
+      "home-flights-entry data-testid present in UserHome.js → /vols": "PASS (code inspected lines 757-758)"
+    },
+    "admin_flow_/admin/flights": {
+      "admin-flights-page loads with tab 'Vols' active": "PASS",
+      "existing flight rows listed (4 incl. seeded demo)": "PASS",
+      "flight-add-toggle → flight-create-form opens": "PASS",
+      "flight-create-save creates new flight (TEST_iter291 SoloAir, 2 seats)": "PASS",
+      "flight-price-{id} & flight-seats-{id} edit → flight-save-{id} 'Enregistré' toast": "PASS",
+      "flight-admin-tab-bookings → admin-flight-bookings-tab list (3 bookings shown)": "PASS"
+    },
+    "seat_exhaustion_rule": {
+      "booking N=2 on 2-seat flight succeeds and reduces seats_available to 0": "PASS",
+      "card displays '0 siège(s) dispo' after exhaustion": "PASS",
+      "attempting another booking returns 409 + toast 'Plus que 0 siège(s) disponible(s) sur ce vol'": "PASS"
+    }
+  },
+  "test_report_links": ["/app/backend/tests/test_iter291_flights.py (backend pytest 4/4 PASS – pre-existing)"],
+  "action_items": [
+    "Optional: clean up TEST_iter291 SoloAir flight + TEST_09c35 demo bookings persisted from prior testing iterations (admin can delete via flight-remove-{id})."
+  ],
+  "critical_code_review_comments": [
+    "FlightsPage.js – `border` style is reused as both border string and arg name; fine but could collide; not a bug.",
+    "FlightsPage.js – `window.confirm` is used for cancellation; consider an in-app modal for mobile UX consistency (other verticals already use it).",
+    "AdminFlights.js – `flight-form-airline` is the only flight-form input with a data-testid for the 'N° de vol' field; consider adding `flight-form-number` testid for completeness, though not currently required by spec.",
+    "FlightsPage.js – on seats=0 the card remains clickable and reveals the booking screen; the 409 toast is shown only after attempting to book. Could pre-disable card or hide button when seats_available===0 to prevent dead-clicks."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "user paul.vendeur@example.com/Test1234! (wallet credited +2000€ via POST /api/admin/users/{user_id}/wallet/credit – note: spec mentioned /api/admin/wallet/credit which returns 404; correct path is /api/admin/users/{user_id}/wallet/credit). Admin admin@superapp.com/SuperAdmin123!.",
+  "seed_data_creation": "Created admin flight 'TEST_iter291 SoloAir' (flight_421eb137b2, TestOrigin→TestDest, 2026-08-15) used to validate seat exhaustion + 409. 1 confirmed-then-cancelled booking on Air Caraïbes by Paul (refunded 960€).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Flights vertical (iter291) fully working end-to-end (user + admin + seat-exhaustion). Wallet credit endpoint is /api/admin/users/{user_id}/wallet/credit (path in original spec was wrong). Demo flights persist with future dates (juil/août 2026). One leftover TEST flight in admin list can be removed if state cleanup needed.",
+  "rca of the issue": "No issues found."
+}

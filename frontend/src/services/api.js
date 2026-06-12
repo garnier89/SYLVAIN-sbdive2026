@@ -980,5 +980,20 @@ export const hotelsAPI = {
   },
 };
 
+export const flightsAPI = {
+  airports: () => api.get('/flights/airports'),
+  search: (params) => api.get('/flights', { params }),
+  detail: (id) => api.get(`/flights/${id}`),
+  book: (data) => api.post('/flights/book', data),
+  myBookings: () => api.get('/flights/bookings/my'),
+  cancel: (id) => api.post(`/flights/bookings/${id}/cancel`, {}),
+  // admin
+  adminFlights: () => api.get('/flights/admin/flights'),
+  adminCreateFlight: (data) => api.post('/flights/admin/flights', data),
+  adminUpdateFlight: (id, data) => api.put(`/flights/admin/flights/${id}`, data),
+  adminDeleteFlight: (id) => api.delete(`/flights/admin/flights/${id}`),
+  adminBookings: () => api.get('/flights/admin/bookings'),
+};
+
 
 export default api;

@@ -29,7 +29,7 @@ import {
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
   Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
-  GraduationCap, Storefront, Wheelchair, Bed, Car,
+  GraduationCap, Storefront, Wheelchair, Bed, AirplaneTilt,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -749,6 +749,22 @@ const UserHome = () => {
         <span className="min-w-0 flex-1">
           <span className="text-white font-black text-sm block leading-tight">Hôtels 🏨</span>
           <span className="text-white/85 text-xs block leading-tight">Réservez votre séjour · meilleurs tarifs</span>
+        </span>
+        <CaretRight size={18} className="text-white shrink-0" />
+      </button>
+      {/* SB Travel — Vols (billets d'avion) */}
+      <button
+        onClick={() => navigate('/vols')}
+        data-testid="home-flights-entry"
+        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)' }}
+      >
+        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+          <AirplaneTilt size={22} weight="fill" className="text-white" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="text-white font-black text-sm block leading-tight">Billets d'avion ✈️</span>
+          <span className="text-white/85 text-xs block leading-tight">Recherchez et réservez vos vols</span>
         </span>
         <CaretRight size={18} className="text-white shrink-0" />
       </button>
