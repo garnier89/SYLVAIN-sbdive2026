@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning, Plus, Trash, FileCsv } from '@phosphor-icons/react';
+import { Storefront, MagnifyingGlass, Star, CheckCircle, XCircle, PencilSimple, X, FloppyDisk, SealPercent, Lightning, Plus, Trash, FileCsv, Wallet } from '@phosphor-icons/react';
 import { ImageUpload } from '../../components/ImageUpload';
 import { adminAPI } from '../../services/api';
+import { CreditModal } from './users/AdminUserModals';
 import CsvImportModal from '../../components/admin/CsvImportModal';
 import { toast } from 'sonner';
 
@@ -116,6 +117,28 @@ const AdminStores = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [creditTarget, setCreditTarget] = useState(null);
+  const [creditSaving, setCreditSaving] = useState(false);
+
+  const openWallet = async (store) => {
+    if (!store.user_id) { toast.error('Compte propriétaire introuvable'); return; }
+    try {
+      const r = await adminAPI.getUser(store.user_id);
+      setCreditTarget({ ...r.data, name: r.data.name || store.owner_name || store.store_name, role: 'marchand' });
+    } catch {
+      setCreditTarget({ id: store.user_id, name: store.owner_name || store.store_name, wallet_balance: 0, role: 'marchand' });
+    }
+  };
+
+  const saveCredit = async (signedAmount, noteText) => {
+    setCreditSaving(true);
+    try {
+      const r = await adminAPI.creditUserWallet(creditTarget.id, signedAmount, noteText);
+      toast.success(`Solde mis à jour : ${r.data.new_balance.toFixed(2)} €`);
+      setCreditTarget(null);
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+    setCreditSaving(false);
+  };
 
   const deleteStore = async (store) => {
     if (!window.confirm(`Supprimer définitivement « ${store.store_name} » et son compte propriétaire ?`)) return;
@@ -281,6 +304,9 @@ const AdminStores = () => {
                       <Button size="sm" variant="ghost" onClick={() => toggleStatus(store.id, store.status || 'active')} data-testid={`store-toggle-${store.id}`}>
                         {store.status === 'suspended' ? <CheckCircle size={16} className="text-green-500" /> : <XCircle size={16} className="text-red-500" />}
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => openWallet(store)} data-testid={`store-wallet-${store.id}`} title="Créditer / Débiter le portefeuille">
+                        <Wallet size={16} weight="fill" className="text-emerald-500" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => deleteStore(store)} data-testid={`store-delete-${store.id}`}>
                         <Trash size={16} className="text-red-500" />
                       </Button>
@@ -371,6 +397,8 @@ const AdminStores = () => {
           testIdPrefix="import-merchants"
         />
       )}
+
+      <CreditModal target={creditTarget} saving={creditSaving} onClose={() => setCreditTarget(null)} onSubmit={saveCredit} />
     </div>
   );
 };
