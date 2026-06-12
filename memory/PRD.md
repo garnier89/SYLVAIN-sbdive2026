@@ -1,3 +1,11 @@
+## NEW - 2026-06-12 (305) - ⏱️ ETA « livraison vers HHhMM » dans la bannière live (DONE, testé)
+- **Backend** `GET /api/orders/last-delivery` (mode active) renvoie `eta` (ISO) = réf (programmé sinon création) + `ORDER_DELIVERED_SEC` (durée du cycle).
+- **Frontend** `UserHome.js` : la bannière active affiche « {statut} · livraison vers HHhMM » (formaté en heure locale via `toLocaleTimeString('fr-FR')`, ':' → 'h'). Se met à jour en temps réel avec le statut (WS).
+- **Testé** : curl (eta renvoyée) + screenshot (« En préparation · livraison vers 06h58 »). pytest iter298 inchangé.
+- ⚠️ PREVIEW → redéploiement requis.
+
+
+
 ## NEW - 2026-06-12 (304) - ⭐ Adresses enregistrées/récentes « 1 tap » dans les livraisons (DONE, testé 5/5 + pytest 2/2)
 - **Demande user (amélioration validée)** : proposer Maison/Travail + adresses récentes en « 1 tap » au-dessus du champ d'adresse dans toutes les livraisons (déjà présent en taxi). Choix : enregistrement auto des récentes + Maison/Travail définissables depuis les puces, sur tous les écrans.
 - **Réutilisation backend existant** : `routes/places.py` (collection `user_places`) — GET `/api/places/saved`, PUT/DELETE `/api/places/saved/{home|work}`, POST `/api/places/recent`. Déjà consommé par le taxi (`RideChoosePage`).

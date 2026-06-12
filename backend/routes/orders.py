@@ -539,6 +539,16 @@ async def last_delivery(request: Request):
     )
     if active:
         m = await _merchant(active.get("merchant_id")) or {}
+        # ETA estimée : réf (programmé ou création) + durée totale du cycle démo
+        eta_iso = None
+        ref_iso = active.get("scheduled_at") if active.get("delivery_speed") == "scheduled" else active.get("created_at")
+        try:
+            ref = datetime.fromisoformat(str(ref_iso).replace("Z", "+00:00"))
+            if ref.tzinfo is None:
+                ref = ref.replace(tzinfo=timezone.utc)
+            eta_iso = (ref + timedelta(seconds=ORDER_DELIVERED_SEC)).isoformat()
+        except (ValueError, TypeError):
+            eta_iso = None
         return {
             "has_order": True,
             "mode": "active",
@@ -547,6 +557,7 @@ async def last_delivery(request: Request):
             "status_label": STATUS_LABELS.get(active.get("status"), "Livraison en cours"),
             "step": STATUS_STEP.get(active.get("status"), 0),
             "steps": ["Reçue", "Préparation", "En route", "Livrée"],
+            "eta": eta_iso,
             "merchant_id": active.get("merchant_id"),
             "merchant_name": m.get("store_name"),
             "merchant_logo": m.get("logo") or m.get("image"),

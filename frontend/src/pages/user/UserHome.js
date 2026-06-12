@@ -476,6 +476,13 @@ const UserHome = () => {
         <SectionHeader title="Livraison & Coursier" sub="Repas, colis, courses & coursiers — tout au même endroit." />
         {lastDelivery && (() => {
           const active = lastDelivery.mode === 'active';
+          let etaLabel = '';
+          if (active && lastDelivery.eta) {
+            try {
+              const d = new Date(lastDelivery.eta);
+              if (!isNaN(d)) etaLabel = `vers ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}`;
+            } catch { /* ignore */ }
+          }
           return (
             <motion.button whileTap={{ scale: 0.98 }} onClick={resumeLastDelivery} data-testid="resume-delivery-btn"
               data-mode={active ? 'active' : 'reorder'}
@@ -494,7 +501,7 @@ const UserHome = () => {
                   </span>
                   <span className="text-white/90 text-xs block truncate">
                     {active
-                      ? lastDelivery.status_label
+                      ? `${lastDelivery.status_label}${etaLabel ? ` · livraison ${etaLabel}` : ''}`
                       : `${lastDelivery.merchant_name}${lastDelivery.item_count ? ` · ${lastDelivery.item_count} article${lastDelivery.item_count > 1 ? 's' : ''}` : ''}`}
                   </span>
                 </span>
