@@ -152,7 +152,7 @@ export function adminRoutes() {
       <Route path="i18n" element={<AdminI18n />} />
       <Route path="store-orders" element={<AdminOrders />} />
       <Route path="geo-fence" element={<AdminGeoFence />} />
-      <Route path="restricted" element={<AdminGeoFence />} />
+      <Route path="restricted" element={<AdminGeoFence mode="restricted" />} />
       <Route path="location-fare" element={<AdminServiceConfig serviceKey="location-fare" />} />
       <Route path="airport" element={<AdminAirport />} />
       <Route path="demo" element={<AdminDemo />} />

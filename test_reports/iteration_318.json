@@ -1,0 +1,45 @@
+{
+  "summary": "Iter318 — Frontend-only render verification of (1) Driver /encaisser (contactless receive), (2) /pay entry (contactless pay), (3) admin parity fix /admin/restricted vs /admin/geo-fence. All 3 pages render correctly and the restricted-zones page is now visually distinct from the full geofence page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "per_page_results": [
+    {
+      "route": "/encaisser (driver sophie.martin@demo.sb)",
+      "status": "PASS",
+      "evidence": "data-testid=contactless-receive-page rendered. Title 'Encaisser un paiement'. Amount input + 'Générer le QR + code' button present. After submitting 12.50 €, backend returned a request -> QR card (receive-qr-card), QRCodeSVG (receive-qr), 6-digit code (receive-code='963877'), displayed amount '12.50 €', countdown 'expire dans 14:56', Nouveau/Annuler buttons all present. End-to-end contactless creation via POST /api/contactless/requests succeeded from the UI."
+    },
+    {
+      "route": "/pay (entry)",
+      "status": "PASS",
+      "evidence": "data-testid=contactless-pay-entry rendered. Title 'Payer un commerçant'. 'Scanner le QR code' button (pay-scan-btn) + 6-digit input (pay-code-input) + 'Continuer' button (pay-code-submit) all present. No crash."
+    },
+    {
+      "route": "/admin/restricted (admin)",
+      "status": "PASS (parity fix verified)",
+      "evidence": "data-testid=admin-restricted-zones is present (admin-geofence is NOT). H1 page heading 'Zones réglementées'. Subtitle '2 zone(s) réglementée(s) — circulation/prise en charge restreinte'. Only restricted zones shown: ['Zone Restreinte Test','Hyper-centre piéton'] (2 rows). CTA renamed to 'Ajouter une zone réglementée'."
+    },
+    {
+      "route": "/admin/geo-fence (admin)",
+      "status": "PASS (parity fix verified)",
+      "evidence": "data-testid=admin-geofence is present (admin-restricted-zones is NOT). H1 'Geo Fence Locations'. Subtitle '5 zones configurees'. Full list shown: ['Paris Centre','Fort-de-France','Aeroport CDG','Zone Restreinte Test','Hyper-centre piéton']. CTA 'Ajouter une zone'. Two pages are visibly distinct as required."
+    }
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminGeoFence still uses local React useState seed data (5 hardcoded zones). When /admin/restricted creates a new restricted zone via 'Ajouter', the new zone is only in the restricted page's local state — it will NOT appear in /admin/geo-fence (and vice versa) since both routes mount separate component instances. If product expects shared persistence, lift state to a context or persist to the backend.",
+    "Minor: in AdminGeoFence.js the unused import `Circle` from '@phosphor-icons/react' is still present (already noted in earlier iterations) — dead import."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (4/4 routes render with correct testids/titles/content; 0 pageerrors)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123!  ;  sophie.martin@demo.sb / Driver123!",
+  "seed_data_creation": "1 contactless request created (code 963877, 12.50 €) — short-lived, will auto-expire in 15 min.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login flow used: /login -> click 'Ou choisir une autre option de connexion' text -> click [data-testid=login-email-btn] -> fill input[type=email]/input[type=password] -> Enter. Driver lands at /chauffeur/home; admin lands at /admin. Then page.goto each target URL. Mobile viewport (390x844) is appropriate for /encaisser and /pay (mobile-container layout); desktop (1280x900) for /admin pages. The restricted-zones parity fix is confirmed: /admin/restricted now renders <AdminGeoFence mode='restricted'/> with its own h1 'Zones réglementées' and filters to type==='restricted' only.",
+  "rca of the issue": "Not applicable — render verification only. Previous parity issue (both routes showing identical 'Geo Fence Locations' list) is now resolved by the mode='restricted' prop wiring in adminRoutes.jsx + the conditional render block in AdminGeoFence.js (different h1, different testid, filtered visibleZones)."
+}

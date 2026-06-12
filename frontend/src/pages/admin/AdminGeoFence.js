@@ -4,36 +4,43 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { MapPin, Plus, Trash, PencilSimple, Circle } from '@phosphor-icons/react';
 
-const AdminGeoFence = () => {
+const AdminGeoFence = ({ mode }) => {
+  const restrictedOnly = mode === 'restricted';
   const [zones, setZones] = useState([
     { id: 'gz_1', name: 'Paris Centre', type: 'service_area', lat: 48.8566, lng: 2.3522, radius_km: 15, status: 'active', surge_multiplier: 1.0 },
     { id: 'gz_2', name: 'Fort-de-France', type: 'service_area', lat: 14.6161, lng: -61.0588, radius_km: 20, status: 'active', surge_multiplier: 1.0 },
     { id: 'gz_3', name: 'Aeroport CDG', type: 'airport', lat: 49.0097, lng: 2.5479, radius_km: 5, status: 'active', surge_multiplier: 1.5 },
     { id: 'gz_4', name: 'Zone Restreinte Test', type: 'restricted', lat: 48.87, lng: 2.35, radius_km: 1, status: 'inactive', surge_multiplier: 0 },
+    { id: 'gz_5', name: 'Hyper-centre piéton', type: 'restricted', lat: 14.6042, lng: -61.0667, radius_km: 0.5, status: 'active', surge_multiplier: 0 },
   ]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', type: 'service_area', lat: '', lng: '', radius_km: '10', surge_multiplier: '1.0' });
+  const [form, setForm] = useState({ name: '', type: restrictedOnly ? 'restricted' : 'service_area', lat: '', lng: '', radius_km: '10', surge_multiplier: restrictedOnly ? '0' : '1.0' });
 
   const typeColors = { service_area: 'bg-green-100 text-green-700', airport: 'bg-blue-100 text-blue-700', restricted: 'bg-red-100 text-red-700', surge: 'bg-amber-100 text-amber-700' };
+  const visibleZones = restrictedOnly ? zones.filter(z => z.type === 'restricted') : zones;
 
   const handleAdd = () => {
     setZones(prev => [...prev, { ...form, id: `gz_${Date.now()}`, lat: parseFloat(form.lat), lng: parseFloat(form.lng), radius_km: parseFloat(form.radius_km), surge_multiplier: parseFloat(form.surge_multiplier), status: 'active' }]);
     setShowForm(false);
-    setForm({ name: '', type: 'service_area', lat: '', lng: '', radius_km: '10', surge_multiplier: '1.0' });
+    setForm({ name: '', type: restrictedOnly ? 'restricted' : 'service_area', lat: '', lng: '', radius_km: '10', surge_multiplier: restrictedOnly ? '0' : '1.0' });
   };
 
   const toggleStatus = (id) => setZones(prev => prev.map(z => z.id === id ? { ...z, status: z.status === 'active' ? 'inactive' : 'active' } : z));
   const handleDelete = (id) => setZones(prev => prev.filter(z => z.id !== id));
 
   return (
-    <div className="p-6" data-testid="admin-geofence">
+    <div className="p-6" data-testid={restrictedOnly ? 'admin-restricted-zones' : 'admin-geofence'}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Geo Fence Locations</h1>
-          <p className="text-sm text-gray-500 mt-1">{zones.length} zones configurees</p>
+          <h1 className="text-2xl font-bold text-gray-800">{restrictedOnly ? 'Zones réglementées' : 'Geo Fence Locations'}</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {restrictedOnly
+              ? `${visibleZones.length} zone(s) réglementée(s) — circulation/prise en charge restreinte`
+              : `${visibleZones.length} zones configurees`}
+          </p>
         </div>
         <Button className="bg-[#3b82f6] text-white" onClick={() => setShowForm(!showForm)} data-testid="add-zone-btn">
-          <Plus size={16} className="mr-1" /> Ajouter une zone
+          <Plus size={16} className="mr-1" /> {restrictedOnly ? 'Ajouter une zone réglementée' : 'Ajouter une zone'}
         </Button>
       </div>
 
@@ -60,7 +67,7 @@ const AdminGeoFence = () => {
       )}
 
       <div className="space-y-3">
-        {zones.map(zone => (
+        {visibleZones.map(zone => (
           <div key={zone.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4" data-testid={`zone-${zone.id}`}>
             <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
               <MapPin size={20} className="text-blue-500" weight="fill" />
