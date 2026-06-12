@@ -1,3 +1,10 @@
+## NEW - 2026-06-12 (339) - ⭐ Covoiturage : notation chauffeur ↔ passager + note moyenne en recherche
+- **Demande user** : ajouter une note/évaluation (★) après chaque trajet covoiturage et afficher la note moyenne du chauffeur (la confiance booste les réservations).
+- **Backend** `routes/carpool.py` : `POST /rides/{id}/rate` (anti-doublon, trajet terminé requis, $inc agrégats sur le user), `_attach_driver_ratings` (search + my-rides), `can_rate` dans my-rides.
+- **Frontend** `CarPoolPage.js` : `StarBadge` sur les cartes (« Nouveau ✦ » si aucune note), `RateModal` (★ + commentaire), boutons « Noter » passager & chauffeur. `carpoolAPI.rate`.
+- **Testé** : pytest 5/5 + e2e 100% (5★ chauffeur, 4★ passager, doublon bloqué, note « ★ 5 (1) » en recherche).
+
+
 ## NEW - 2026-06-12 (338) - 🚗 Covoiturage : paiement SB Pay sécurisé en séquestre (escrow) + e-mail bouton transfert
 - **Demande user** : « configure l'autre pool, mets à jour tout le système complet ». Audit : le « Pool taxi » (taxi partagé) était déjà sécurisé ; le **Covoiturage** (CarPool) n'avait AUCUN paiement → sécurisé.
 - **Choix** : escrow (débit à la réservation, conservé par la plateforme), commission 15 %, remboursement intégral avant départ, SB Pay uniquement.

@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-12 — Covoiturage : notation (★) chauffeur ↔ passager + note moyenne en recherche [DONE, testé 100%]
+Après un trajet covoiturage TERMINÉ, le passager note le chauffeur et le chauffeur note le passager (1-5 ★ + commentaire). La note moyenne du chauffeur s'affiche sur chaque trajet en recherche → renforce la confiance et les réservations.
+- **`routes/carpool.py`** : `POST /rides/{id}/rate` (valide participation + trajet terminé + anti-doublon ; `$inc` `cp_driver_rating_*` / `cp_pax_rating_*` sur l'utilisateur noté ; notification). `_attach_driver_ratings()` enrichit search + my-rides avec `driver_rating` + `driver_ratings_count`. `my-rides` renvoie `can_rate` (personnes encore à noter).
+- **`CarPoolPage.js`** : `StarBadge` (note sur les cartes de recherche, « Nouveau ✦ » si aucune), `RateModal` (sélecteur ★ + commentaire), boutons « Noter » côté passager et côté chauffeur (disparaissent une fois noté).
+- **`services/api.js`** : `carpoolAPI.rate`.
+- **Testé** : pytest `test_iter338_carpool.py` 5/5 (dont `test_rating_flow_and_average`) + e2e 100% (passager note 5★, chauffeur note 4★, doublon bloqué, notation avant complétion bloquée, note affichée en recherche « ★ 5 (1) »).
+
+
+
 ## 2026-06-12 — Covoiturage : paiement SB Pay sécurisé en séquestre (escrow) [DONE, testé 100%]
 Le covoiturage (page CarPool) n'avait AUCUN paiement (le prix était décoratif). Refonte complète avec paiement sécurisé. Choix : escrow + commission 15 % + remboursement intégral avant départ + SB Pay uniquement.
 - **`routes/carpool.py`** (réécriture) : `GET /carpool/config`, `GET/PUT /carpool/admin/config` (commission, max sièges), `POST /rides` (validation stricte, date future, bornes), `GET /rides` (seats_left), `POST /rides/{id}/book` (**réservation atomique des sièges via $expr puis débit SB Pay ; rollback des sièges si solde insuffisant** → 400 clair), `POST /rides/{id}/cancel` (remboursement passager avant départ), `POST /rides/{id}/complete` (libère le séquestre au chauffeur − 15 % commission), `POST /rides/{id}/cancel-ride` (rembourse tous les passagers), `GET /my-rides`. Boucle `carpool_autorelease_loop` (libération auto après départ + 12 h). Notifications à chaque étape, contacts révélés après réservation.
