@@ -1,3 +1,8 @@
+## NEW - 2026-06-12 (295) - 🧹 Suppression tuile « Hotel » legacy de l'accueil (DONE, vérifié)
+- Suppression de la catégorie d'accueil legacy `home_categories` id `hcat_16b364abd5` (label « Hotel », section marketplace, `target_route: "Hotel"` cassée) — doublon du nouveau module Hôtels désormais dans la section SB Travel.
+- « Acheter, Vendre & Louer » ne contient plus que Immobilier, Véhicules, Articles Divers. Vérifié e2e (capture). Aucun changement de code.
+
+
 ## NEW - 2026-06-12 (294) - 🏠 Intégration de SB Travel dans la grille de l'accueil (DONE, vérifié e2e)
 - **Demande user** (capture d'écran) : intégrer la section voyage DANS la grille de l'accueil (look V3Cube, comme « Colis & Coursier » / « Acheter, Vendre & Louer »), Taxi restant en premier.
 - **Frontend uniquement** (`UserHome.js`) :
