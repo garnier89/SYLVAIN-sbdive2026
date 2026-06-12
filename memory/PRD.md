@@ -1,3 +1,11 @@
+## NEW - 2026-06-12 (329) - 🏪 Bouton portefeuille CRM Marchands + vérification complète dashboard (100% propre)
+- **Contexte user** : a uploadé 12 captures de référence prod **XJEKPLUS** (V3Cube) — apprécie le « God's View » large. Demandes : vérifier toutes images/fonctionnalités, retirer toute icône phosphor cassée, page CRM Marchands avec bouton portefeuille (confirmé).
+- **CRM Marchands** : la page dédiée existait déjà (**Boutiques** = `AdminStores.js`, créer/supprimer/importer marchands). Ajout du **bouton portefeuille 💚** (Créditer/Débiter) par ligne → `openWallet(store)` récupère le solde via `adminAPI.getUser(store.user_id)` puis ouvre la `CreditModal`. Clients + Chauffeurs + Marchands désormais tous couverts pour l'ajustement manuel de solde.
+- **Vérification complète** (testing_agent iter319) : **18/18 pages admin propres** — 0 image cassée, **0 icône phosphor manquante/cassée, 0 ChunkLoadError**, 0 erreur console/runtime. 9/9 rapports OK (charts+ZIP+planif). Crédit/Débit OK sur Clients (crédit+débit), Chauffeurs, Marchands. Cartes gods-view/heat-view OK. → Le souci « images phosphore » est **résolu**.
+- **En attente user** : précision sur « permettre à l'administrateur de tout modifier » (quoi rendre éditable : widgets dashboard / paramètres métier / fiches membres ?).
+
+
+
 ## NEW - 2026-06-12 (328) - 💚 Crédit/Débit manuel portefeuille : modale Créditer/Débiter + bouton dans CRM Chauffeurs
 - **Demande user** : « comment on crédite/débite les utilisateurs, chauffeurs, marchands en mode manuel » → existait déjà (`POST /admin/users/{id}/wallet/credit`, montant +/− , types `admin_credit`/`admin_debit`) via la page Utilisateurs (liste tous rôles). Vérifié e2e curl (+15→15€, −5→10€).
 - **Amélioration (a)** : bouton portefeuille 💚 ajouté dans le CRM Chauffeurs (`AdminDrivers.js`, colonne Action) — `openWallet(d)` récupère le solde réel via `adminAPI.getUser(d.user_id)` puis ouvre la modale ; crédit via user_id.
