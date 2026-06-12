@@ -1,3 +1,12 @@
+## NEW - 2026-06-12 (301) - 🟢 Bannière livraison TEMPS RÉEL via WebSocket (DONE, testé e2e live)
+- **Demande user (amélioration validée)** : la bannière de suivi doit se mettre à jour en temps réel via le WebSocket existant (événement `order_status` déjà émis par le backend), sans recharger l'accueil.
+- **Frontend** `UserHome.js` : branchement du hook `useWebSocket(user?.id)`. La logique de fetch a été extraite dans `refetchLastDelivery` (useCallback) ; un `useEffect` enregistre `on('order_status', () => refetchLastDelivery())`. À chaque transition de statut poussée par le backend, la bannière se rafraîchit (statut + libellé + mode active/reorder).
+- **Backend** : aucun changement — l'événement `{type:'order_status', order_id, status}` était déjà émis vers l'usager par `order_auto_progress_loop` (et par les chauffeurs/commerces).
+- **Testé** : e2e live — page d'accueil ouverte, statut passé automatiquement de « Confirmée par le commerce » → « En préparation » SANS rechargement (déclenché par WS). pytest iter298 inchangé (2/2).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (300) - 📡 Bannière livraison « point d'entrée unique » : suivi live OU réachat (DONE, testé e2e + pytest 2/2)
 - **Demande user (amélioration validée)** : la bannière de la section « Livraison & Coursier » doit afficher le statut EN DIRECT si une livraison est en cours (« Votre commande arrive — Suivre ») et basculer en re-commande seulement une fois la commande livrée.
 - **Backend** `GET /api/orders/last-delivery` (réécrit) renvoie désormais un `mode` :

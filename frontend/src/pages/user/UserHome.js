@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
 import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
@@ -232,15 +233,23 @@ const UserHome = () => {
   const [taxiCats, setTaxiCats] = useState(cachedServiceCategories());
   const [pendingRef, setPendingRef] = useState(null);
   const [lastDelivery, setLastDelivery] = useState(null);
+  const { on: onWsEvent } = useWebSocket(user?.id);
 
-  // Dernière commande de livraison → tuile « Reprendre » (réachat 1-tap).
-  useEffect(() => {
-    let alive = true;
+  // Dernière commande de livraison → bannière (suivi live OU réachat 1-tap).
+  const refetchLastDelivery = useCallback(() => {
     orderAPI.lastDelivery()
-      .then((r) => { if (alive && r.data?.has_order) setLastDelivery(r.data); })
+      .then((r) => setLastDelivery(r.data?.has_order ? r.data : null))
       .catch(() => {});
-    return () => { alive = false; };
   }, []);
+
+  useEffect(() => { refetchLastDelivery(); }, [refetchLastDelivery]);
+
+  // Mise à jour temps réel : à chaque changement de statut de commande (WebSocket),
+  // on rafraîchit la bannière → « En préparation » → « En route » sans recharger l'accueil.
+  useEffect(() => {
+    if (!onWsEvent) return undefined;
+    return onWsEvent('order_status', () => refetchLastDelivery());
+  }, [onWsEvent, refetchLastDelivery]);
 
   // Reprise de commande : reconstruit le panier puis ouvre le paiement (1 tap),
   // OU ouvre le suivi si une livraison est en cours.
