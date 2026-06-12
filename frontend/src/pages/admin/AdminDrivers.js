@@ -152,6 +152,25 @@ const SERVICE_OPTIONS = [
 const DriverServicesModal = ({ driver, onClose, onChanged }) => {
   const [selected, setSelected] = useState((driver.service_types || []).filter((s) => SERVICE_OPTIONS.some((o) => o.value === s)));
   const [saving, setSaving] = useState(false);
+  const [exportInfo, setExportInfo] = useState(null);
+  const [exportSaving, setExportSaving] = useState(false);
+
+  useEffect(() => {
+    adminAPI.getDriverReportExport(driver.id).then((r) => setExportInfo(r.data)).catch(() => {});
+  }, [driver.id]);
+
+  const toggleExport = async () => {
+    if (!exportInfo) return;
+    const next = !exportInfo.report_export_allowed;
+    setExportSaving(true);
+    try {
+      await adminAPI.setDriverReportExport(driver.id, next);
+      setExportInfo({ ...exportInfo, report_export_allowed: next });
+      toast.success(next ? 'Téléchargement du relevé autorisé' : 'Autorisation retirée');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Échec');
+    } finally { setExportSaving(false); }
+  };
 
   const toggle = (v) => setSelected((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
 
@@ -197,6 +216,28 @@ const DriverServicesModal = ({ driver, onClose, onChanged }) => {
           <button onClick={save} disabled={saving} className="w-full mt-2 py-2.5 rounded-xl bg-[#3b82f6] text-white font-bold text-sm disabled:opacity-50" data-testid="admin-services-save">
             {saving ? 'Sauvegarde...' : 'Sauvegarder'}
           </button>
+
+          {/* Report statement download authorization */}
+          <div className="mt-3 pt-3 border-t border-gray-100" data-testid="admin-report-export-section">
+            <p className="text-xs font-semibold text-gray-700 mb-1.5">Téléchargement du relevé (PDF/CSV)</p>
+            {exportInfo?.auto_allowed ? (
+              <p className="text-[11px] text-green-600" data-testid="admin-report-export-auto">
+                ✓ Autorisé automatiquement (chauffeur {(exportInfo.taxi_sub || '').toUpperCase()})
+              </p>
+            ) : (
+              <button onClick={toggleExport} disabled={exportSaving || !exportInfo}
+                data-testid="admin-report-export-toggle"
+                className={`w-full flex items-center justify-between rounded-xl border-2 p-3 text-left transition-colors ${exportInfo?.report_export_allowed ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white'}`}>
+                <span className="text-sm font-medium text-gray-800">
+                  {exportInfo?.report_export_allowed ? 'Autorisé (Particulier/Livreur)' : 'Autoriser (Particulier/Livreur)'}
+                </span>
+                <span className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors ${exportInfo?.report_export_allowed ? 'bg-emerald-500 justify-end' : 'bg-gray-300 justify-start'}`}>
+                  <span className="w-5 h-5 rounded-full bg-white shadow" />
+                </span>
+              </button>
+            )}
+            <p className="text-[11px] text-gray-400 mt-1">Taxi/VTC : autorisé d'office. Particulier/Livreur : sur autorisation.</p>
+          </div>
         </div>
       </div>
     </div>

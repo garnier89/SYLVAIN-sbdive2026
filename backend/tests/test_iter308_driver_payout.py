@@ -55,3 +55,16 @@ def test_wallet_exposes_non_withdrawable():
     # withdrawable never exceeds balance - reserve - pending - non_withdrawable
     expected = max(0.0, w["balance"] - w.get("reserve", 0) - w.get("pending_withdraw", 0) - w.get("non_withdrawable", 0))
     assert abs(w["withdrawable"] - round(expected, 2)) < 0.02
+
+
+def test_report_exposes_export_gate():
+    t = _login(DRIVER_EMAIL, DRIVER_PWD)
+    r = requests.get(f"{BASE_URL}/api/drivers/report", headers=_h(t), timeout=20)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert "export_allowed" in d
+    # A non Taxi/VTC (and non-authorized) driver must be blocked from export.
+    if not d["export_allowed"]:
+        ex = requests.get(f"{BASE_URL}/api/drivers/report/export?format=csv", headers=_h(t), timeout=20)
+        assert ex.status_code == 403, ex.text
+

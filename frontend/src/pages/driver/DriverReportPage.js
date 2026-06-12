@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, CurrencyEur, Coins, Money, CreditCard, Receipt, Wallet,
-  XCircle, TrendUp, Car, CalendarBlank,
+  XCircle, TrendUp, Car, CalendarBlank, FilePdf, FileCsv, LockSimple,
 } from '@phosphor-icons/react';
 import { driverAPI } from '../../services/api';
 
@@ -24,6 +24,8 @@ const DriverReportPage = () => {
   const [preset, setPreset] = useState('all');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState('');
+  const [dlError, setDlError] = useState('');
 
   const load = useCallback(async (f, t) => {
     setLoading(true);
@@ -49,6 +51,28 @@ const DriverReportPage = () => {
   const applyCustom = () => {
     setPreset('custom');
     load(from, to);
+  };
+
+  const downloadStatement = async (format) => {
+    setDlError('');
+    setDownloading(format);
+    try {
+      const res = await driverAPI.exportReport(format, from || undefined, to || undefined);
+      const mime = format === 'csv' ? 'text/csv' : 'application/pdf';
+      const blob = new Blob([res.data], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `releve_activite.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setDlError("Téléchargement indisponible pour votre compte. Contactez l'administrateur.");
+    } finally {
+      setDownloading('');
+    }
   };
 
   const d = data || {};
@@ -139,6 +163,39 @@ const DriverReportPage = () => {
             <button onClick={() => navigate('/chauffeur/wallet')} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold py-3 rounded-xl" data-testid="report-go-wallet-btn">
               Aller au portefeuille
             </button>
+          </div>
+
+          {/* Download statement (gated: Taxi/VTC = allowed ; Particulier/Livreur = admin-authorized) */}
+          <div className="mx-5 mt-4 rounded-2xl bg-gray-900 border border-gray-800 p-5" data-testid="report-download-card">
+            <div className="flex items-center gap-2 mb-3">
+              <Receipt size={18} className="text-amber-400" />
+              <p className="text-white text-sm font-bold">Télécharger mon relevé</p>
+            </div>
+            {d.export_allowed ? (
+              <>
+                <div className="flex gap-2">
+                  <button onClick={() => downloadStatement('pdf')} disabled={!!downloading}
+                    className="flex-1 flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-sm font-bold py-3 rounded-xl"
+                    data-testid="report-download-pdf">
+                    <FilePdf size={18} weight="fill" /> {downloading === 'pdf' ? '...' : 'PDF'}
+                  </button>
+                  <button onClick={() => downloadStatement('csv')} disabled={!!downloading}
+                    className="flex-1 flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-bold py-3 rounded-xl"
+                    data-testid="report-download-csv">
+                    <FileCsv size={18} weight="fill" /> {downloading === 'csv' ? '...' : 'CSV'}
+                  </button>
+                </div>
+                <p className="text-gray-600 text-[11px] mt-2">Pour votre comptabilité et vos déclarations.</p>
+                {dlError && <p className="text-rose-400 text-xs mt-2" data-testid="report-download-error">{dlError}</p>}
+              </>
+            ) : (
+              <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 flex items-start gap-3" data-testid="report-download-locked">
+                <LockSimple size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-gray-400 text-xs leading-relaxed">
+                  {d.export_reason || "Le téléchargement du relevé est réservé aux chauffeurs Taxi et VTC. Les comptes Particulier et Livreur nécessitent l'autorisation de l'administrateur."}
+                </p>
+              </div>
+            )}
           </div>
 
           <p className="text-gray-600 text-[11px] text-center px-8 mt-4">

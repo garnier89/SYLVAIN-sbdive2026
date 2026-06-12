@@ -112,6 +112,52 @@ async def admin_list_users(request: Request, role: Optional[str] = None, limit: 
     return {"users": users, "total": total}
 
 
+@router.put("/admin/drivers/{driver_id}/report-export")
+async def admin_set_driver_report_export(driver_id: str, request: Request):
+    """ADMIN authorization for statement download (PDF/CSV). Taxi/VTC drivers may
+    always export; Particulier & Livreur accounts require this explicit grant."""
+    actor = await require_role(request, ["admin"], permission="drivers.approve")
+    body = await request.json()
+    allowed = bool(body.get("allowed"))
+    d = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "id": 1, "user_id": 1})
+    if not d:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    await db.drivers.update_one({"id": driver_id}, {"$set": {"report_export_allowed": allowed}})
+    try:
+        from routes.audit_logs import log_action
+        await log_action(actor_id=actor["id"], actor_role=actor["role"],
+                         action=f"driver.report_export.{'grant' if allowed else 'revoke'}",
+                         target_type="driver", target_id=driver_id,
+                         ip_address=request.client.host if request.client else None)
+    except Exception:
+        pass
+    try:
+        from core.notifications import create_notification
+        title = "Relevé téléchargeable ✓" if allowed else "Téléchargement du relevé désactivé"
+        msg = ("Vous pouvez désormais télécharger votre relevé d'activité (PDF/CSV)."
+               if allowed else "L'autorisation de télécharger votre relevé a été retirée.")
+        await create_notification(d["user_id"], "report_export", title, msg,
+                                  data={"allowed": allowed})
+    except Exception:
+        pass
+    return {"message": "Autorisation mise à jour", "driver_id": driver_id, "report_export_allowed": allowed}
+
+
+@router.get("/admin/drivers/{driver_id}/report-export")
+async def admin_get_driver_report_export(driver_id: str, request: Request):
+    await require_role(request, ["admin"], permission="drivers.view")
+    d = await db.drivers.find_one({"id": driver_id}, {"_id": 0, "report_export_allowed": 1, "taxi_sub": 1})
+    if not d:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    sub = (d.get("taxi_sub") or "").strip().lower()
+    return {
+        "driver_id": driver_id,
+        "report_export_allowed": bool(d.get("report_export_allowed")),
+        "taxi_sub": d.get("taxi_sub"),
+        "auto_allowed": sub in ("vtc", "taxi"),
+    }
+
+
 @router.get("/admin/drivers")
 async def admin_list_drivers(request: Request, status: Optional[str] = None, limit: int = 50, skip: int = 0):
     await require_role(request, ["admin"], permission="drivers.view")

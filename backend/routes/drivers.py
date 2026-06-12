@@ -651,21 +651,25 @@ async def get_driver_earnings(request: Request):
     }
 
 
-@router.get("/report")
-async def driver_activity_report(request: Request):
-    """Driver activity report over a date range (default = all-time).
-    Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD. Returns the global figures the driver
-    sees at the end of the day: gross revenue, commission, net, cash received,
-    card (digital) received, cancellation fees, current balance & withdrawable."""
-    user = await get_current_user(request)
-    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver profile not found")
+def _report_export_decision(driver: dict):
+    """Who may DOWNLOAD their activity statement (PDF/CSV).
+    Allowed by default for professional Taxi (licence) and VTC drivers.
+    Particulier and pure Livreur/Coursier accounts are blocked unless the admin
+    has granted an explicit per-driver authorization (`report_export_allowed`)."""
+    if driver.get("report_export_allowed"):
+        return True, None
+    sub = (driver.get("taxi_sub") or "").strip().lower()
+    if sub in ("vtc", "taxi"):
+        return True, None
+    return False, (
+        "Le téléchargement du relevé est réservé aux chauffeurs Taxi et VTC. "
+        "Les comptes Particulier et Livreur nécessitent l'autorisation de l'administrateur."
+    )
 
-    qp = request.query_params
-    start = (qp.get("from") or "")[:10]
-    end = (qp.get("to") or "")[:10]
 
+async def _compute_driver_report(driver: dict, user: dict, start: str, end: str):
+    """Aggregate the driver's activity figures for a date range (shared by the
+    JSON report endpoint and the PDF/CSV export)."""
     def in_range(iso):
         if not iso:
             return False
@@ -694,7 +698,6 @@ async def driver_activity_report(request: Request):
         trips += 1
     net = gross - commission_total
 
-    # Cancellation fees earned (wallet credits flagged "annulation").
     cxl_txs = await db.wallet_transactions.find(
         {"user_id": user["id"]}, {"_id": 0, "amount": 1, "description": 1, "created_at": 1, "type": 1}
     ).to_list(5000)
@@ -730,6 +733,128 @@ async def driver_activity_report(request: Request):
         "withdrawable": withdrawable,
         "currency": "EUR",
     }
+
+
+@router.get("/report")
+async def driver_activity_report(request: Request):
+    """Driver activity report over a date range (default = all-time).
+    Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD. Returns the global figures the driver
+    sees at the end of the day: gross revenue, commission, net, cash received,
+    card (digital) received, cancellation fees, current balance & withdrawable.
+    Also exposes whether the driver may download the statement (export gate)."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    qp = request.query_params
+    start = (qp.get("from") or "")[:10]
+    end = (qp.get("to") or "")[:10]
+    report = await _compute_driver_report(driver, user, start, end)
+    export_allowed, export_reason = _report_export_decision(driver)
+    report["export_allowed"] = export_allowed
+    report["export_reason"] = export_reason
+    report["taxi_sub"] = driver.get("taxi_sub")
+    return report
+
+
+@router.get("/report/export")
+async def driver_activity_report_export(request: Request):
+    """Download the activity statement as CSV or PDF (?format=csv|pdf).
+    Gated: Taxi/VTC allowed; Particulier/Livreur require admin authorization."""
+    from fastapi import Response
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+    allowed, reason = _report_export_decision(driver)
+    if not allowed:
+        raise HTTPException(status_code=403, detail=reason)
+
+    qp = request.query_params
+    fmt = (qp.get("format") or "pdf").strip().lower()
+    start = (qp.get("from") or "")[:10]
+    end = (qp.get("to") or "")[:10]
+    r = await _compute_driver_report(driver, user, start, end)
+    _to_label = end or "aujourd'hui"
+    period = f"{start or 'début'} → {_to_label}"
+    rows = [
+        ("Courses terminées", str(r["trips"])),
+        ("Chiffre global (brut)", f"{r['gross']:.2f} €"),
+        ("Commission plateforme", f"-{r['commission']:.2f} €"),
+        ("Revenu net", f"{r['net']:.2f} €"),
+        ("Espèces reçues (gardées en main)", f"{r['cash_received']:.2f} €"),
+        ("Paiements CB / SB Pay (encaissé)", f"{r['card_received']:.2f} €"),
+        ("Frais d'annulation (non retirable)", f"{r['cancellation_fees']:.2f} €"),
+        ("Solde actuel", f"{r['balance']:.2f} €"),
+        ("Réserve conservée", f"{r['reserve']:.2f} €"),
+        ("En attente de retrait", f"{r['pending_withdraw']:.2f} €"),
+        ("Non retirable", f"{r['non_withdrawable']:.2f} €"),
+        ("Montant retirable", f"{r['withdrawable']:.2f} €"),
+    ]
+    name = user.get("name") or "Chauffeur"
+    fname_base = f"releve_{(start or 'tout')}_{(end or 'tout')}"
+
+    if fmt == "csv":
+        import csv, io
+        buf = io.StringIO()
+        buf.write("\ufeff")  # BOM for Excel/accents
+        wcsv = csv.writer(buf, delimiter=";")
+        wcsv.writerow(["Relevé d'activité", name])
+        wcsv.writerow(["Période", period])
+        wcsv.writerow([])
+        wcsv.writerow(["Libellé", "Montant"])
+        for label, val in rows:
+            wcsv.writerow([label, val])
+        return Response(
+            content=buf.getvalue(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{fname_base}.csv"'},
+        )
+
+    # PDF (reportlab)
+    import io
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=20 * mm, bottomMargin=20 * mm)
+    styles = getSampleStyleSheet()
+    elems = [
+        Paragraph(f"<b>{APP_NAME} — Relevé d'activité chauffeur</b>", styles["Title"]),
+        Paragraph(f"Chauffeur : {name}", styles["Normal"]),
+        Paragraph(f"Période : {period}", styles["Normal"]),
+        Paragraph(f"Catégorie : {(driver.get('taxi_sub') or '—').upper()}", styles["Normal"]),
+        Spacer(1, 8 * mm),
+    ]
+    data = [["Libellé", "Montant"]] + [[label, val] for label, val in rows]
+    table = Table(data, colWidths=[110 * mm, 50 * mm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f59e0b")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7f7f7")]),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    elems.append(table)
+    elems.append(Spacer(1, 6 * mm))
+    elems.append(Paragraph(
+        "<font size=8 color='#888888'>Les espèces perçues vous appartiennent (déjà en votre possession). "
+        "Seuls les paiements numériques nets de commission sont retirables. Document généré automatiquement.</font>",
+        styles["Normal"]))
+    doc.build(elems)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{fname_base}.pdf"'},
+    )
+
 
 
 
