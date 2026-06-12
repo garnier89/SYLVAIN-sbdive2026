@@ -1,4 +1,11 @@
-## NEW - 2026-06-12 (319) - 🗺️ Carte dispatching temps réel + Paiement & adresses A/B (hub) (DONE, vérifié)
+## NEW - 2026-06-12 (320) - 🎯 Réaffectation intelligente : 3 chauffeurs les plus proches (1 clic) (DONE, vérifié)
+- **Demande user** : cliquer sur une course non assignée propose les 3 chauffeurs en ligne les plus proches (distance + ETA) pour réaffecter en 1 clic.
+- **Backend** (`bookings_admin.py`) : `GET /api/admin/bookings/ride/{ride_id}/nearby-drivers?limit=3` → chauffeurs `is_online+approved` triés par distance au point de départ (position live via `manager.driver_locations`, fallback `current_lat/lng`), avec `distance_km`, `eta_mins` (~30 km/h), `live`, nom, véhicule, note. Renvoie `total_online`.
+- **Frontend** : `components/admin/NearbyDriversModal.jsx` (liste top 3, badge LIVE, distance/ETA/note, bouton « Affecter » → `reassignBookingRide`). Remplace l'ancien prompt de réaffectation : les boutons « Affecter » (carte + table) ouvrent désormais le sélecteur intelligent. `adminAPI.nearbyDrivers`.
+- **Vérifié** : curl (200, 3 chauffeurs triés, 17 en ligne) + screenshot (modal s'ouvre, en-tête course, gestion gracieuse du cas sans coordonnées). 
+- ⚠️ Données de seed : chauffeurs localisés en Europe vs courses Martinique → distances élevées en test (logique correcte). PREVIEW → redéploiement requis pour la prod.
+
+
 - **Demande user** : carte temps réel dans l'onglet « En cours » (positions GPS chauffeurs + courses, réaffectation visuelle) + afficher le **mode de paiement** et les **adresses A et B**.
 - **Frontend** (`AdminBookingsHub.js`) : intégration de `AdminGoogleMap` (Google Maps + couche trafic) dans l'onglet En cours — marqueurs chauffeurs (bleu) et courses en attente (ambre, A), **auto-refresh 12s**, clic sur une ligne/marqueur → sélection (centre carte + tracé A→B + barre détail avec Affecter/Annuler). Nouvelle colonne **Paiement** (Espèces/Carte/SB Pay) sur les tables courses ET commandes ; colonne **Trajet (A → B)** avec repères verts/rouges. Paiement ajouté à l'export CSV/PDF.
 - **Vérifié** : screenshot — carte Martinique avec trafic + marqueurs, barre de sélection (N°, client, A/B, paiement, statut, chauffeur, boutons Affecter/Annuler/Fermer), table avec colonne PAIEMENT (Espèces, SB Pay) et A/B. Backend `/admin/bookings/live` renvoie déjà coords + payment_method (testé iter315).

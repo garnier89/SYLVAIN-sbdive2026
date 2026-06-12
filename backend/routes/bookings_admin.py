@@ -386,6 +386,49 @@ async def create_manual_order(request: Request):
 
 
 # ───────────────────────── RIDE ACTIONS ─────────────────────────
+@router.get("/ride/{ride_id}/nearby-drivers")
+async def nearby_drivers(ride_id: str, request: Request, limit: int = 3):
+    """Suggest the closest ONLINE drivers to a ride's pickup, with distance & ETA,
+    so the dispatcher can reassign in one click from the map."""
+    await require_role(request, ["admin", "dispatcher"])
+    ride = await db.rides.find_one({"id": ride_id}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "vehicle_type": 1})
+    if not ride:
+        raise HTTPException(404, "Course introuvable")
+    p_lat, p_lng = ride.get("pickup_lat") or 0, ride.get("pickup_lng") or 0
+    if not p_lat:
+        raise HTTPException(400, "La course n'a pas de coordonnées de départ")
+
+    drivers = await db.drivers.find(
+        {"is_online": True, "status": "approved"},
+        {"_id": 0, "id": 1, "user_id": 1, "current_lat": 1, "current_lng": 1,
+         "vehicle_type": 1, "vehicle_model": 1, "rating": 1, "company_name": 1},
+    ).limit(500).to_list(500)
+
+    candidates = []
+    for d in drivers:
+        loc = manager.get_driver_location(d["id"])
+        lat = (loc or {}).get("lat") or d.get("current_lat")
+        lng = (loc or {}).get("lng") or d.get("current_lng")
+        if not lat or not lng:
+            continue
+        dist = calculate_distance(p_lat, p_lng, lat, lng)
+        candidates.append({
+            "driver_id": d["id"], "user_id": d.get("user_id"),
+            "vehicle_type": d.get("vehicle_type"), "vehicle_model": d.get("vehicle_model"),
+            "rating": d.get("rating") or 5.0, "company_name": d.get("company_name"),
+            "distance_km": round(dist, 2), "eta_mins": max(1, round(dist / 30 * 60)),
+            "live": bool(loc), "lat": lat, "lng": lng,
+        })
+    candidates.sort(key=lambda c: c["distance_km"])
+    top = candidates[:max(1, min(limit, 10))]
+    umap = await _user_map([c["user_id"] for c in top])
+    for c in top:
+        u = umap.get(c["user_id"], {})
+        c["name"] = u.get("name") or "Chauffeur"
+        c["phone"] = u.get("phone")
+    return {"drivers": top, "total_online": len(candidates)}
+
+
 @router.post("/ride/{ride_id}/cancel")
 async def admin_cancel_ride(ride_id: str, request: Request):
     await require_role(request, ["admin", "dispatcher"])

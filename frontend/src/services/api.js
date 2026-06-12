@@ -315,6 +315,7 @@ export const adminAPI = {
   cancelBookingRide: (id, reason) => api.post(`/admin/bookings/ride/${id}/cancel`, { reason }),
   rescheduleBookingRide: (id, scheduled_at) => api.post(`/admin/bookings/ride/${id}/reschedule`, { scheduled_at }),
   reassignBookingRide: (id, driver_id) => api.post(`/admin/bookings/ride/${id}/reassign`, { driver_id }),
+  nearbyDrivers: (id, limit = 3) => api.get(`/admin/bookings/ride/${id}/nearby-drivers`, { params: { limit } }),
   suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),
   unsuspendUser: (id) => api.post(`/admin/users/${id}/unsuspend`),
   revenue: () => api.get('/admin/revenue'),

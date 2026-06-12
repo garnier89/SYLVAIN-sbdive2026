@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { ManualRideModal, ManualOrderModal } from '../../components/admin/ManualBookingModals';
 import AdminGoogleMap from '../../components/admin/AdminGoogleMap';
+import { NearbyDriversModal } from '../../components/admin/NearbyDriversModal';
 import {
   Car, Package, ClockCountdown, CheckCircle, XCircle, CurrencyEur, ChartLineUp,
   Plus, MagnifyingGlass, DownloadSimple, FilePdf, ArrowsClockwise, CalendarBlank, UserSwitch,
@@ -54,6 +55,7 @@ const AdminBookingsHub = () => {
   const [showRide, setShowRide] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
   const [selectedRide, setSelectedRide] = useState(null);
+  const [reassignRide, setReassignRide] = useState(null);
 
   const loadOverview = useCallback(() => { adminAPI.bookingsOverview().then((r) => setOverview(r.data)).catch(() => {}); }, []);
 
@@ -91,12 +93,7 @@ const AdminBookingsHub = () => {
     try { await adminAPI.rescheduleBookingRide(id, new Date(v.replace(' ', 'T')).toISOString()); toast.success('Replanifiée'); refresh(); }
     catch (e) { toast.error(e?.response?.data?.detail || 'Date invalide'); }
   };
-  const reassign = async (id) => {
-    const v = window.prompt('ID du chauffeur à affecter (driver_xxx)');
-    if (!v) return;
-    try { await adminAPI.reassignBookingRide(id, v.trim()); toast.success('Chauffeur affecté'); refresh(); }
-    catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
-  };
+  const reassign = (ride) => setReassignRide(ride);
 
   const exportTrips = (kind) => {
     const cols = [
@@ -206,7 +203,7 @@ const AdminBookingsHub = () => {
                 <Badge s={sel.status} />
                 <span className="text-xs text-gray-600">{sel.driver_name || 'Non assigné'}</span>
                 <div className="ml-auto flex gap-2">
-                  {!sel.driver_id && <button onClick={() => reassign(sel.id)} className="text-xs font-bold text-blue-600 border border-blue-200 rounded-lg px-2.5 py-1.5" data-testid="map-reassign-btn">Affecter</button>}
+                  {!sel.driver_id && <button onClick={() => reassign(sel)} className="text-xs font-bold text-blue-600 border border-blue-200 rounded-lg px-2.5 py-1.5" data-testid="map-reassign-btn">Affecter</button>}
                   {!['completed', 'cancelled'].includes(sel.status) && <button onClick={() => cancelRide(sel.id)} className="text-xs font-bold text-red-600 border border-red-200 rounded-lg px-2.5 py-1.5" data-testid="map-cancel-btn">Annuler</button>}
                   <button onClick={() => setSelectedRide(null)} className="text-xs text-gray-500 px-2">Fermer</button>
                 </div>
@@ -245,7 +242,7 @@ const AdminBookingsHub = () => {
                     <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {!['completed', 'cancelled'].includes(r.status) && (
                         <>
-                          {!r.driver_id && <button onClick={() => reassign(r.id)} title="Affecter un chauffeur" className="text-blue-600 p-1" data-testid={`reassign-${r.id}`}><UserSwitch size={16} /></button>}
+                          {!r.driver_id && <button onClick={() => reassign(r)} title="Affecter un chauffeur" className="text-blue-600 p-1" data-testid={`reassign-${r.id}`}><UserSwitch size={16} /></button>}
                           {tab === 'scheduled' && <button onClick={() => reschedule(r.id)} title="Replanifier" className="text-indigo-600 p-1" data-testid={`reschedule-${r.id}`}><ClockCountdown size={16} /></button>}
                           <button onClick={() => cancelRide(r.id)} title="Annuler" className="text-red-500 p-1" data-testid={`cancel-${r.id}`}><XCircle size={16} /></button>
                         </>
@@ -272,6 +269,7 @@ const AdminBookingsHub = () => {
 
       {showRide && <ManualRideModal onClose={() => setShowRide(false)} onCreated={refresh} />}
       {showOrder && <ManualOrderModal onClose={() => setShowOrder(false)} onCreated={refresh} />}
+      {reassignRide && <NearbyDriversModal ride={reassignRide} onClose={() => setReassignRide(null)} onAssigned={refresh} />}
     </div>
   );
 };
