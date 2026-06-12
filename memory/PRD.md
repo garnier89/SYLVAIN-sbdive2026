@@ -1,3 +1,31 @@
+## NEW - 2026-06-12 (291) - ✈️ VERTICALE Billets d'avion / agence de voyage (DONE, testé frontend 100% + pytest 4/4)
+- **Demande user (a→b→c→d validée)** : 4ᵉ verticale d'expansion. Modèle inventaire ADMIN (sans API tierce type Amadeus, validé par défaut).
+- **Backend** `routes/flights.py` (collections `flight_offers`, `flight_bookings`) : recherche par départ/arrivée/date (`GET /flights`, `/flights/airports`, `/flights/{id}`), réservation multi-passagers (`POST /flights/book` — débit SB Pay, sièges décrémentés via comptage des résas confirmées), `GET /flights/bookings/my`, annulation+remboursement avant départ (`POST /flights/bookings/{id}/cancel`). Admin : CRUD vols (`/flights/admin/flights`) + réservations. Seed 3 vols démo (Air Caraïbes, Air France, Corsair).
+- **Frontend** : user `FlightsPage.js` (route `/vols`, recherche → liste → passagers → réservation → Mes vols), admin `AdminFlights.js` (route `/admin/flights`, sidebar 'Vols (agence)'). Entrée accueil `home-flights-entry`. `flightsAPI`.
+- **Testé** : testing_agent iter291 frontend 100% (incl. épuisement sièges 409) + pytest `test_iter291_flights.py` 4/4. AUCUN bug.
+- ⚠️ Paiement SB Pay. PREVIEW → redéploiement requis.
+
+## NEW - 2026-06-12 (290) - 🏨 VERTICALE Hôtels (réservation de chambres) (DONE, testé frontend 100% + pytest 5/5)
+- **Backend** `routes/hotels.py` (collections `hotel_listings`, `hotel_rooms`, `hotel_bookings`) : recherche par ville/texte (`GET /hotels`, `/hotels/cities`), détail + dispo selon chevauchement de dates (`GET /hotels/{id}`), devis (`/hotels/quote`), réservation (`POST /hotels/book` — débit SB Pay, contrôle stock unités), `GET /hotels/bookings/my`, annulation+remboursement avant arrivée. Admin : CRUD hôtels + chambres (stock/tarifs) + réservations. Seed 2 hôtels démo (Martinique).
+- **Frontend** : user `HotelsPage.js` (route `/hotels`), admin `AdminHotelsManager.js` (route `/admin/hotels` — remplace l'ancien placeholder CRUD ; gestion hôtels + chambres dépliables). Entrée accueil `home-hotels-entry`. `hotelsAPI`.
+- **Testé** : testing_agent iter290 frontend 100% + pytest `test_iter290_hotels.py` 5/5 (list/cities, dispo, quote, épuisement 409, book→cancel→remboursement→re-book). AUCUN bug.
+- ⚠️ Paiement SB Pay. PREVIEW → redéploiement requis.
+
+## NEW - 2026-06-12 (289) - 🚗 VERTICALE Location de voiture self-drive (DONE, testé frontend 100% + pytest 6/6)
+- **Contexte** : la location voiture AVEC chauffeur existe déjà (forfaits flux courses). Ajout du LIBRE-SERVICE (self-drive), miroir exact du module moto (caution Stripe TEST + photos d'état des lieux retrait/retour dès le départ).
+- **Backend** `routes/car_rental.py` (collections `car_fleet`, `car_self_rentals`) : flotte (champs voiture : marque/modèle/année/boîte/places/carburant/catégorie), devis, réservation (débit SB Pay + docs permis/identité), pickup-photos (≥2), caution Stripe Checkout, validation permis admin, clôture avec return-photos (≥2) + remboursement caution − dommages. Seed 3 voitures démo.
+- **Frontend** : user `CarSelfRentalPage.js` (route `/location-voiture`), admin `AdminCarFleet.js` (route `/admin/car-fleet`). Lien `car-selfdrive-link` depuis le flux location voiture. `carRentalAPI`.
+- **Testé** : testing_agent iter289 frontend 100% + pytest `test_iter289_car_rental.py` 6/6 (flux e2e complet incl. gates photos). AUCUN bug.
+- ⚠️ Stripe TEST. PREVIEW → redéploiement requis.
+
+## NEW - 2026-06-12 (288) - 🏍️📸 Moto Self-Drive : photos d'état des lieux OBLIGATOIRES (DONE, testé frontend 8/8 + pytest 5/5)
+- **Demande user** : photos avant/après pour protéger la caution Stripe (400€) en cas de litige dommages.
+- **Backend** `routes/moto_rental.py` : `POST /moto-rental/{id}/pickup-photos` (user, statut awaiting_pickup, ≥2 photos) ; `deposit-checkout` bloqué (400) tant que <2 pickup_photos ; `admin/rentals/{id}/return` bloqué (400) tant que <2 return_photos. Helper `_clean_photos` + `MIN_INSPECTION_PHOTOS=2`.
+- **Frontend** : user `PickupInspection` (MotoSelfRentalPage.js — verrouille 'Payer la caution' tant que <2 photos) ; admin `ReturnClose` (AdminMotoFleet.js — verrouille la clôture tant que <2 photos de retour) + affichage des photos retrait/retour.
+- **Testé** : testing_agent iter288 frontend 8/8 + pytest `test_iter288_moto_inspection_gates.py` 5/5 + `test_iter287_*` 4/4. AUCUN bug.
+- ⚠️ Stripe TEST. PREVIEW → redéploiement requis.
+
+
 ## NEW - 2026-06-11 (286) - 🏍️💳 Moto Phase 3b : Caution Stripe (self-drive) (DONE, testé frontend 5/5 + curl e2e)
 - **Demande user (Option A validée)** : caution via Stripe — débitée à la remise par Stripe Checkout, puis RESTITUÉE sur le portefeuille SB Pay au retour (moins frais de dommages).
 - **Contrainte plateforme** : la lib `emergentintegrations` Stripe ne fait que du Checkout hébergé (pas de pré-autorisation/empreinte ni refund carte). → Caution **débitée** (Checkout) puis **recréditée sur SB Pay** au retour. La vraie empreinte (capture manuelle) nécessiterait la clé Stripe réelle du client (Option B, plus tard).
