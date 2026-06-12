@@ -1,0 +1,36 @@
+{
+  "summary": "Backend anti-fraud driver payout (Iter309) — 7/7 new tests pass + iter308/iter249 regressions green. Found and FIXED a critical P0 Python scoping bug in misc.submit_withdraw_request that returned HTTP 500 for EVERY driver withdrawal request (UnboundLocalError on 'timedelta'). Anti-fraud invariants verified end-to-end: (a) insufficient passenger wallet → driver wallet NOT credited the fare (digital_captured_fare=0, payment_status='cash_due', no Earning tx), (b) fully-paid wallet ride → driver credited fare*(1-commission) with Earning tx, (c) cash ride → no wallet credit at completion nor after /collect-cash {received:true} — only cash_collected is recorded, (d) withdrawable excludes non_withdrawable (cashback / P2P inbound), (e) dormant driver (>6 months no completed ride) blocked with 403, recently-active driver not blocked by inactivity rule, (f) /api/drivers/report shape correct with net=gross-commission.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/wallet/withdraw-request", "issue": "UnboundLocalError: 'timedelta' due to duplicate local import shadowing the module-level import — every driver got HTTP 500 instead of the inactivity-403 (or success). FIXED by removing the local `from datetime import timedelta` at routes/misc.py:654.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter309_driver_payout_antifraud.py",
+    "/app/test_reports/pytest/iter309.xml"
+  ],
+  "action_items": [
+    "Verify the misc.py:654 fix in code review (the local `from datetime import timedelta` was shadowing the module-level import and breaking the 6-month inactivity check entirely). Main agent may want to add a CI lint rule for shadow-imports.",
+    "Consider adding an integration test that exercises the FULL ride lifecycle through API (book → accept → arrive → OTP-start → complete) instead of seeding rides at 'in_progress' via Mongo — current tests rely on direct DB seeding, which bypasses dispatch/OTP logic."
+  ],
+  "critical_code_review_comments": [
+    "routes/misc.py had a Python scoping bug (local import shadowing) that fully broke driver withdrawals — this is a classic gotcha; module-level import is sufficient.",
+    "routes/rides.py completion logic looks correct: digital_captured tracks captured wallet charge; fare_captured_digital=min(digital_captured, final_fare); driver_earnings=fare_captured_digital*(1-commission); wallet credited only when total_credit>0. Earnings field on db.drivers is also $inc'd by total_credit — consistent with anti-fraud invariant.",
+    "routes/drivers.py /report: card_received is read from ride.digital_captured_fare which is only populated by the NEW code path — historical rides will under-report card_received as 0. Document this in the report or backfill via a one-off migration.",
+    "routes/wallet.py /transfer: increments non_withdrawable correctly on receiver side. Sender side does NOT decrement non_withdrawable — acceptable (sender's non-earned credits remain locked) but worth a code comment.",
+    "routes/misc.py /withdraw-request: 183-day cutoff (rather than exactly 6*30=180). Acceptable as a slightly more generous window but worth documenting (6 months ≈ 183 days)."
+  ],
+  "updated_files": [
+    "/app/backend/routes/misc.py (removed shadowing local `from datetime import timedelta` at line 654 — module-level import already provides it)",
+    "/app/backend/tests/test_iter309_driver_payout_antifraud.py (new — 7 tests)"
+  ],
+  "success_rate": {"backend": "100% (7/7 new, 5/5 regression)", "frontend": "n/a (backend-only run)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! + Driver jean.dupont@demo.sb / Driver123! (from /app/backend/tests/_creds.py)",
+  "seed_data_creation": "Test rides seeded directly via pymongo with prefix 'ride_t309_' and cleaned up in finally blocks. Wallet balances pinned per test then restored. No persistent test data left behind.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter309 suite at /app/backend/tests/test_iter309_driver_payout_antifraud.py covers all 6 anti-fraud invariants. Backend bug found: misc.py had `from datetime import timedelta` inside submit_withdraw_request shadowing module-level import → UnboundLocalError 500. Removed. If the main agent re-introduces a local import inside that function, the 6-month inactivity check will break again silently (500 instead of 403). Tests for inactivity rely on jean.dupont@demo.sb driver having a Mongo driver record linked by user_id — confirmed present at run time. The ride completion tests seed rides at status='in_progress' and POST /api/rides/{id}/status as admin, which skips OTP/dispatch but exercises the financial logic (the focus of the P0 fix). For future end-to-end coverage, consider a full book→accept→start-otp→complete test.",
+  "rca of the issue": "Bug: POST /api/wallet/withdraw-request always returned 500 (UnboundLocalError: 'timedelta'). Reproduction: login as any driver → POST /api/wallet/withdraw-request {amount:20,...} → 500. Root cause: routes/misc.py line 654 had `from datetime import timedelta` inside submit_withdraw_request. Python's compile-time scoping then treated `timedelta` as a local for the WHOLE function, so the earlier use at line 607 (`datetime.now(...) - timedelta(days=183)`) raised UnboundLocalError because the local hadn't been bound yet. The function exited with 500 BEFORE the inactivity check could fire — meaning the 6-month anti-fraud block was effectively dead code and ALL legitimate withdrawals were broken in this preview. Mitigation: removed the redundant local import (module already imports timedelta at line 4). Verified by 7/7 passing tests including the dormant-driver 403 path."
+}

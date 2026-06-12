@@ -37,9 +37,9 @@ async def _credit_wallet(user_id, amount, description, ride_id=None):
     bal = float((wallet or {}).get("balance", 0.0) or 0.0)
     new_bal = round(bal + amount, 2)
     if wallet:
-        await db.wallets.update_one({"user_id": user_id}, {"$set": {"balance": new_bal}})
+        await db.wallets.update_one({"user_id": user_id}, {"$set": {"balance": new_bal}, "$inc": {"non_withdrawable": amount}})
     else:
-        await db.wallets.insert_one({"user_id": user_id, "balance": new_bal, "currency": "EUR", "created_at": _now()})
+        await db.wallets.insert_one({"user_id": user_id, "balance": new_bal, "non_withdrawable": amount, "currency": "EUR", "created_at": _now()})
     await db.wallet_transactions.insert_one({
         "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user_id,
         "type": "credit", "amount": amount, "balance_after": new_bal,

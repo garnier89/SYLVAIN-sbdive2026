@@ -651,6 +651,88 @@ async def get_driver_earnings(request: Request):
     }
 
 
+@router.get("/report")
+async def driver_activity_report(request: Request):
+    """Driver activity report over a date range (default = all-time).
+    Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD. Returns the global figures the driver
+    sees at the end of the day: gross revenue, commission, net, cash received,
+    card (digital) received, cancellation fees, current balance & withdrawable."""
+    user = await get_current_user(request)
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    qp = request.query_params
+    start = (qp.get("from") or "")[:10]
+    end = (qp.get("to") or "")[:10]
+
+    def in_range(iso):
+        if not iso:
+            return False
+        d = str(iso)[:10]
+        if start and d < start:
+            return False
+        if end and d > end:
+            return False
+        return True
+
+    ids = [driver["id"], user["id"]]
+    rides = await db.rides.find(
+        {"driver_id": {"$in": ids}, "status": "completed"}, {"_id": 0}
+    ).to_list(5000)
+    rides = [r for r in rides if in_range(r.get("completed_at") or r.get("created_at"))]
+
+    gross = commission_total = cash_received = card_received = 0.0
+    trips = 0
+    for r in rides:
+        fare = float(r.get("final_fare") or r.get("estimated_fare") or 0)
+        comm_pct = float(r.get("commission_percent", 10) or 0)
+        gross += fare
+        commission_total += fare * comm_pct / 100.0
+        cash_received += float(r.get("cash_collected") or 0)
+        card_received += float(r.get("digital_captured_fare") or 0)
+        trips += 1
+    net = gross - commission_total
+
+    # Cancellation fees earned (wallet credits flagged "annulation").
+    cxl_txs = await db.wallet_transactions.find(
+        {"user_id": user["id"]}, {"_id": 0, "amount": 1, "description": 1, "created_at": 1, "type": 1}
+    ).to_list(5000)
+    cancellation_fees = sum(
+        float(t.get("amount") or 0)
+        for t in cxl_txs
+        if in_range(t.get("created_at")) and "annulation" in (t.get("description") or "").lower()
+        and float(t.get("amount") or 0) > 0
+    )
+
+    from core.wallet_reserve import ensure_reserve_credited
+    floor = await ensure_reserve_credited(user)
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
+    balance = float(w.get("balance", 0) or 0)
+    pending = float(w.get("pending_withdraw", 0) or 0)
+    non_wd = float(w.get("non_withdrawable", 0) or 0)
+    withdrawable = round(max(0.0, balance - floor - pending - non_wd), 2)
+
+    return {
+        "from": start or None,
+        "to": end or None,
+        "trips": trips,
+        "gross": round(gross, 2),
+        "commission": round(commission_total, 2),
+        "net": round(net, 2),
+        "cash_received": round(cash_received, 2),
+        "card_received": round(card_received, 2),
+        "cancellation_fees": round(cancellation_fees, 2),
+        "balance": round(balance, 2),
+        "reserve": round(floor, 2),
+        "pending_withdraw": round(pending, 2),
+        "non_withdrawable": round(non_wd, 2),
+        "withdrawable": withdrawable,
+        "currency": "EUR",
+    }
+
+
+
 @router.get("/ride-history")
 async def get_driver_ride_history(request: Request):
     user = await get_current_user(request)

@@ -39,14 +39,16 @@ async def get_wallet(request: Request):
     balance = wallet["balance"]
     reserve = float(wallet.get("reserve", floor) or 0)
     pending = float(wallet.get("pending_withdraw", 0) or 0)
+    non_withdrawable = float(wallet.get("non_withdrawable", 0) or 0)
     can_withdraw = user.get("role") in ("driver", "merchant")
-    withdrawable = round(max(0.0, balance - reserve - pending), 2) if can_withdraw else 0.0
+    withdrawable = round(max(0.0, balance - reserve - pending - non_withdrawable), 2) if can_withdraw else 0.0
     return {
         "balance": balance,
         "currency": wallet.get("currency", "EUR"),
         "transactions": transactions,
         "reserve": round(reserve, 2),
         "pending_withdraw": round(pending, 2),
+        "non_withdrawable": round(non_withdrawable, 2),
         "withdrawable": withdrawable,
         "can_withdraw": can_withdraw,
     }
@@ -208,7 +210,11 @@ async def transfer_wallet(request: Request):
         receiver_wallet = {"balance": 0.0}
 
     new_receiver_balance = receiver_wallet["balance"] + amount
-    await db.wallets.update_one({"user_id": to_user_id}, {"$set": {"balance": round(new_receiver_balance, 2)}})
+    await db.wallets.update_one(
+        {"user_id": to_user_id},
+        {"$set": {"balance": round(new_receiver_balance, 2)},
+         "$inc": {"non_withdrawable": amount}},
+    )
 
     # Create transactions for both
     for tx_data in [

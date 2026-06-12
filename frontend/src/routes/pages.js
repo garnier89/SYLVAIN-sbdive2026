@@ -114,6 +114,7 @@ export const DriverBookingsPage = lazyWithPreload(() => import('../pages/driver/
 export const DriverRegisterPage = lazy(() => import('../pages/driver/DriverRegisterPage'));
 export const DriverEarningsPage = lazyWithPreload(() => import('../pages/driver/DriverEarningsPage'));
 export const DriverWeeklyReportsPage = lazy(() => import('../pages/driver/DriverWeeklyReportsPage'));
+export const DriverReportPage = lazy(() => import('../pages/driver/DriverReportPage'));
 export const DriverHistoryPage = lazy(() => import('../pages/driver/DriverHistoryPage'));
 export const DriverProfilePage = lazyWithPreload(() => import('../pages/driver/DriverProfilePage'));
 export const DriverSupportPage = lazy(() => import('../pages/driver/DriverSupportPage'));

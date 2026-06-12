@@ -10,6 +10,7 @@ import {
   DriverAvailabilityPage, DriverReviewsPage, DriverChangePasswordPage,
   DriverRegisterPage,
 } from './pages';
+const DriverReportPage = React.lazy(() => import('../pages/driver/DriverReportPage'));
 
 export function driverRoutes(user) {
   return (
@@ -21,6 +22,7 @@ export function driverRoutes(user) {
       <Route path="/chauffeur/reservations" element={<ProtectedRoute allowedRoles={['driver']}><DriverBookingsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/earnings" element={<ProtectedRoute allowedRoles={['driver']}><DriverEarningsPage /></ProtectedRoute>} />
       <Route path="/chauffeur/reports" element={<ProtectedRoute allowedRoles={['driver']}><DriverWeeklyReportsPage /></ProtectedRoute>} />
+      <Route path="/chauffeur/rapport" element={<ProtectedRoute allowedRoles={['driver']}><DriverReportPage /></ProtectedRoute>} />
       <Route path="/chauffeur/history" element={<ProtectedRoute allowedRoles={['driver']}><DriverHistoryPage /></ProtectedRoute>} />
       <Route path="/chauffeur/profile" element={<ProtectedRoute allowedRoles={['driver']}><DriverProfilePage /></ProtectedRoute>} />
       <Route path="/chauffeur/rewards" element={<ProtectedRoute allowedRoles={['driver']}><DriverRewardsPage /></ProtectedRoute>} />

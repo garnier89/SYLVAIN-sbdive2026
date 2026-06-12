@@ -55,11 +55,18 @@ const DriverEarningsPage = () => {
           </button>
           <h1 className="text-2xl font-bold text-white truncate" data-testid="earnings-title">{t('driver.my_earnings')}</h1>
         </div>
-        <button onClick={() => navigate('/chauffeur/reports')}
-          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-amber-400 text-xs font-semibold px-3 py-2 rounded-xl"
-          data-testid="weekly-reports-link">
-          <Receipt size={16} /> {t('driver.weekly_reports')}
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={() => navigate('/chauffeur/rapport')}
+            className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-xs font-semibold px-3 py-2 rounded-xl"
+            data-testid="report-link">
+            <Receipt size={16} /> Rapport
+          </button>
+          <button onClick={() => navigate('/chauffeur/reports')}
+            className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-amber-400 text-xs font-semibold px-3 py-2 rounded-xl"
+            data-testid="weekly-reports-link">
+            <Receipt size={16} /> {t('driver.weekly_reports')}
+          </button>
+        </div>
       </div>
 
       {/* Earnings Card */}

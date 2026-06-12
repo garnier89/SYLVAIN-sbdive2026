@@ -1839,6 +1839,10 @@ async def update_ride_status(ride_id: str, request: Request):
             }
         pm = ride.get("payment_method")
         cashback_earned = 0.0
+        # Anti-fraud payout: track how much of the fare was ACTUALLY captured
+        # digitally (from the passenger's wallet/card). The driver is only ever
+        # credited for this captured portion — never for money still due in cash.
+        digital_captured = 0.0
         from core.cashback import award_cashback
         # Carried debt (unpaid balance from a previous ride) rides along with this
         # fare: the passenger owes (fare + debt) on this trip.
@@ -1869,6 +1873,7 @@ async def update_ride_status(ride_id: str, request: Request):
                     {"$inc": {"balance": -charge}},
                 )
                 if res.modified_count:
+                    digital_captured = charge
                     w2 = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0})
                     await db.wallet_transactions.insert_one({
                         "id": f"tx_{uuid.uuid4().hex[:12]}",
@@ -1909,7 +1914,13 @@ async def update_ride_status(ride_id: str, request: Request):
             commission = base_commission * (1 - loyalty_disc / 100)
             if loyalty_disc > 0:
                 update_data["loyalty_commission_discount_pct"] = loyalty_disc
-            driver_earnings = final_fare * (1 - commission)
+            # The wallet/card charge pays the FARE first (then any carried debt),
+            # so the fare portion captured digitally is min(charge, final_fare).
+            # The driver earns commission-net only on this captured fare; the cash
+            # part is settled (and stays with the driver) at the "Reçu" step.
+            fare_captured_digital = round(min(digital_captured, final_fare), 2)
+            update_data["digital_captured_fare"] = fare_captured_digital
+            driver_earnings = round(fare_captured_digital * (1 - commission), 2)
             # ===== Sub-category bonus (Particulier / VTC / Taxi licence) =====
             sub = (d_full or {}).get("taxi_sub")
             subcat_bonus = 0.0
@@ -1928,11 +1939,31 @@ async def update_ride_status(ride_id: str, request: Request):
                 {"id": ride["driver_id"]},
                 {"$inc": {"total_trips": 1, "earnings": total_credit}}
             )
+            # ===== Credit the driver's WITHDRAWABLE SB Pay wallet for the part
+            # actually captured digitally (+ any platform bonus). Anti-fraud rule:
+            # the platform never pays out money it did not collect. Cash collected
+            # stays physically with the driver and is reported separately. =====
+            duid = (d_full or {}).get("user_id")
+            if duid and total_credit > 0:
+                await db.wallets.update_one(
+                    {"user_id": duid},
+                    {"$inc": {"balance": total_credit},
+                     "$setOnInsert": {"user_id": duid, "currency": "EUR", "created_at": now}},
+                    upsert=True,
+                )
+                _wd = await db.wallets.find_one({"user_id": duid}, {"_id": 0, "balance": 1})
+                await db.wallet_transactions.insert_one({
+                    "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": duid,
+                    "type": "Earning", "amount": total_credit,
+                    "balance_after": round((_wd or {}).get("balance", 0), 2),
+                    "description": f"Gain course #{ride['id'][:8].upper()} (paiement encaissé)",
+                    "ride_id": ride["id"], "status": "completed", "created_at": now,
+                })
             # ===== Activity journal: earnings notification =====
-            if (d_full or {}).get("user_id"):
+            if duid and total_credit > 0:
                 from core.notifications import create_notification
                 await create_notification(
-                    d_full["user_id"], "earning", "Course terminée 💸",
+                    duid, "earning", "Course terminée 💸",
                     f"+{total_credit:.2f} € pour la course #{ride['id'][:8].upper()}",
                     data={"ride_id": ride["id"], "amount": total_credit, "kind": "ride"},
                 )

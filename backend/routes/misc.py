@@ -600,6 +600,23 @@ async def submit_withdraw_request(request: Request):
         raise HTTPException(status_code=400, detail="Montant invalide")
     iban = (body.get("iban") or "").strip()
 
+    # Anti-fraud: a driver inactive for more than 6 months cannot withdraw until
+    # they complete a new ride (prevents draining dormant/abandoned accounts).
+    if user.get("role") == "driver":
+        drv = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=183)).isoformat()
+        ids = [user["id"]] + ([drv["id"]] if drv else [])
+        recent = await db.rides.find_one({
+            "driver_id": {"$in": ids}, "status": "completed",
+            "$or": [{"completed_at": {"$gte": cutoff}}, {"created_at": {"$gte": cutoff}}],
+        })
+        if not recent:
+            raise HTTPException(
+                status_code=403,
+                detail="Compte inactif depuis plus de 6 mois : le retrait est bloqué. "
+                       "Effectuez une nouvelle course pour réactiver les retraits.",
+            )
+
     from core.wallet_reserve import ensure_reserve_credited, get_reserve_config, get_user_region
     floor = await ensure_reserve_credited(user)
     cfg = await get_reserve_config()
@@ -620,15 +637,20 @@ async def submit_withdraw_request(request: Request):
     wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0}) or {}
     balance = float(wallet.get("balance", 0) or 0)
     pending = float(wallet.get("pending_withdraw", 0) or 0)
-    available = round(balance - floor - pending, 2)
+    non_withdrawable = float(wallet.get("non_withdrawable", 0) or 0)
+    # Withdrawable excludes non-earned credits (P2P transfers received, cashback,
+    # cancellation reimbursements). Cash collected on rides never enters the wallet
+    # (it stays physically with the driver), so it is not withdrawable either.
+    available = round(balance - floor - pending - non_withdrawable, 2)
     if amount > available:
         raise HTTPException(
             status_code=400,
-            detail=f"Montant retirable max {max(0.0, available):.2f} € (réserve de {floor:.0f} € conservée)",
+            detail=f"Montant retirable max {max(0.0, available):.2f} € "
+                   f"(réserve {floor:.0f} € conservée ; transferts reçus, cashback "
+                   f"et remboursements non retirables)",
         )
 
     # Express option + ETA (Phase C2). Express fee is DEDUCTED from the amount.
-    from datetime import timedelta
     from routes.payouts import withdrawal_quote
     express = bool(body.get("express"))
     quote = await withdrawal_quote(user, express=express)

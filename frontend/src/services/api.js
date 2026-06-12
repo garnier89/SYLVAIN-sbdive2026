@@ -80,6 +80,7 @@ export const driverAPI = {
   getWorkBase: () => api.get('/drivers/work-base'),
   setWorkBase: (data) => api.put('/drivers/work-base', data),
   getEarnings: () => api.get('/drivers/earnings'),
+  getReport: (from, to) => api.get('/drivers/report', { params: { from, to } }),
   getWeeklyReport: () => api.get('/driver/weekly-reports/current'),
   getWeeklyReportHistory: () => api.get('/driver/weekly-reports/history'),
   getRideHistory: () => api.get('/drivers/ride-history'),

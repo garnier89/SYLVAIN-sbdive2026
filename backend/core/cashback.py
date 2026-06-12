@@ -105,7 +105,7 @@ async def award_cashback(user_id: str, amount, method: str, service: str,
     now = _now()
     await db.wallets.update_one(
         {"user_id": user_id},
-        {"$inc": {"balance": cb},
+        {"$inc": {"balance": cb, "non_withdrawable": cb},
          "$setOnInsert": {"user_id": user_id, "currency": "EUR", "created_at": now}},
         upsert=True,
     )
