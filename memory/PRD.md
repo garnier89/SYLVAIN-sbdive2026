@@ -1,3 +1,10 @@
+## NEW - 2026-06-12 (337) - 🛫 Transfert aéroport SB Drive en mode « Aéroport » dédié (suivi de vol + tarif fixe)
+- **Demande user** : utiliser le mode « Aéroport » de SB Drive (au lieu du standard) pour que le chauffeur voie le n° de vol et ajuste l'heure en cas de retard.
+- **Backend** : `core/airport.py seed_airport_zones()` (FDF/PTP/CAY/SXM/ORY/CDG, idempotent), appelé au démarrage. `/api/phase2/airports` renvoie la liste.
+- **Frontend** : `FlightsPage.js` deep-link `mode=airport&acode&flight(&farr)` + coords ; `RideChoosePage.js` lit `flight/term/farr`, pré-sélectionne l'aéroport via `acode`, désactive l'auto-advance pour afficher le panneau vol.
+- **Testé** : e2e 100% (iter337) après correctif du bug « aller à l'aéroport » (panneau vol sauté). Les deux sens OK : aéroport pré-sélectionné, n° de vol + heure pré-remplis, bandeau suivi de vol.
+
+
 ## NEW - 2026-06-12 (335) - 🚗 Transfert aéroport SB Drive sur vols confirmés (cross-sell)
 - **Demande user** : relier la réservation de vol à une course SB Drive (transfert aéroport). Choix : les deux sens + écran confirmation & « Mes vols » + adresse ville vide. Vols NON limités à FDF→Paris (Duffel = mondial ; « Offres SB » = démo admin seulement).
 - **Frontend** `FlightsPage.js` : `SbDriveTransfer` + `AIRPORT_PLACES` (FDF/PTP/CAY/SXM/ORY/CDG, coords en dur). Boutons « Aller à l'aéroport » / « Me récupérer à l'arrivée » (aéroports desservis uniquement). Deep-link via params URL natifs de RideChoosePage (dlat/dlng/daddr, plat/plng/paddr).

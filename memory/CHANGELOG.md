@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-12 — Transfert aéroport SB Drive en mode « Aéroport » dédié (suivi de vol + tarif fixe) [DONE, testé 100%]
+Évolution du cross-sell : les boutons transfert ouvrent désormais le **mode « Aéroport »** de SB Drive (au lieu du mode standard) avec aéroport + n° de vol + heure pré-remplis → le chauffeur voit le vol, profite du suivi de retard et des minutes d'attente offertes.
+- **`core/airport.py`** : `seed_airport_zones()` idempotent (FDF, PTP, CAY, SXM, ORY, CDG) ; **`core/startup.py`** l'appelle au démarrage (PTP/CAY/SXM créés, FDF/ORY/CDG conservés).
+- **`FlightsPage.js`** `SbDriveTransfer` : URLs `mode=airport&acode=<code>&flight=<n°>` + `dlat/dlng/daddr` (aller) ou `&farr=<HH:MM>&plat/plng/paddr` (arrivée).
+- **`RideChoosePage.js`** : init `flightNumber/airportTerminal/flightArrivalTime` depuis les params `flight/term/farr` ; sélection auto de l'aéroport par `acode` (matché à `/api/phase2/airports`) ; auto-advance désactivé quand deep-link aéroport présent (sinon le panneau vol était sauté).
+- **Bug corrigé** (iter336→337) : en « aller à l'aéroport », l'auto-localisation du départ + destination déjà remplie sautait le panneau vol → garde `airportDeepLink`. Validé 3/3 : panneau vol monté, aéroport sélectionné, n° de vol + heure pré-remplis, bandeau « 45 min offertes · suivi de vol automatique ».
+
+
+
 ## 2026-06-12 — Transfert aéroport SB Drive sur vols confirmés (cross-sell) [DONE, testé 100%]
 Sur un vol confirmé, le client peut commander une course SB Drive avec l'aéroport déjà pré-rempli (choix user : les deux sens + écran confirmation & « Mes vols » + adresse ville laissée vide).
 - **`FlightsPage.js`** : composant `SbDriveTransfer` + map `AIRPORT_PLACES` (FDF, PTP, CAY, SXM, ORY, CDG avec coordonnées en dur). Deux boutons : « Aller à l'aéroport (CODE) » et « Me récupérer à l'arrivée (CODE) », affichés uniquement pour les aéroports desservis. Rendu sur l'écran succès (confirmé) et dans « Mes vols ».
