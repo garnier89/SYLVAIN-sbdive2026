@@ -8,6 +8,10 @@ const REPORT_KINDS = [
   { key: 'payments', label: 'Paiement' },
   { key: 'exceptional', label: 'Exceptionnel' },
   { key: 'refused-cancelled', label: 'Refusées / annulées' },
+  { key: 'referral', label: 'Parrainage MLM' },
+  { key: 'wallet', label: 'Portefeuille' },
+  { key: 'rewards', label: 'Récompenses' },
+  { key: 'insurance', label: 'Assurance' },
   { key: 'other', label: 'Autres' },
 ];
 const FREQS = [

@@ -35,7 +35,8 @@ def _wav_bytes():
 
 def test_reports_include_chart():
     s = _session(ADMIN)
-    for kind in ("results", "payments", "exceptional", "refused-cancelled", "other"):
+    for kind in ("results", "payments", "exceptional", "refused-cancelled", "other",
+                 "referral", "wallet", "rewards", "insurance"):
         r = s.get(f"{API}/admin/reports/{kind}", params={"date_from": "2026-05-01", "date_to": "2026-06-12"}, timeout=30)
         assert r.status_code == 200, r.text
         body = r.json()
@@ -44,6 +45,7 @@ def test_reports_include_chart():
         assert ch["type"] in ("line", "bar")
         assert isinstance(ch.get("series"), list) and ch["series"]
         assert "data" in ch
+        assert isinstance(body.get("kpis"), list) and body["kpis"], f"{kind} missing kpis"
 
 
 def test_report_schedule_crud_and_send():

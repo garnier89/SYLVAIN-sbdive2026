@@ -4,13 +4,17 @@ import { toast } from 'sonner';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { ReportChart } from '../../components/admin/ReportChart';
 import { ReportSchedules } from '../../components/admin/ReportSchedules';
-import { ChartBar, CreditCard, Warning, Prohibit, Files, DownloadSimple, FilePdf, EnvelopeSimple } from '@phosphor-icons/react';
+import { ChartBar, CreditCard, Warning, Prohibit, Files, DownloadSimple, FilePdf, EnvelopeSimple, UsersThree, Wallet, Gift, ShieldCheck } from '@phosphor-icons/react';
 
 const REPORTS = [
   { key: 'results', label: 'Rapport sur les résultats', icon: ChartBar },
   { key: 'payments', label: 'Rapport de paiement', icon: CreditCard },
   { key: 'exceptional', label: 'Rapport exceptionnel', icon: Warning },
   { key: 'refused-cancelled', label: 'Alertes refusées / annulées', icon: Prohibit },
+  { key: 'referral', label: 'Rapport de parrainage MLM', icon: UsersThree },
+  { key: 'wallet', label: 'Rapport sur le portefeuille', icon: Wallet },
+  { key: 'rewards', label: 'Récompenses des utilisateurs', icon: Gift },
+  { key: 'insurance', label: "Rapport d'assurance", icon: ShieldCheck },
   { key: 'other', label: 'Autres rapports', icon: Files },
 ];
 

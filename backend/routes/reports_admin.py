@@ -329,6 +329,227 @@ async def _compute_other(start, end):
     }
 
 
+# ───────────────────── REFERRAL / MLM ─────────────────────
+@router.get("/referral")
+async def report_referral(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    await require_role(request, ["admin", "dispatcher"])
+    return await _compute_referral(*_range(date_from, date_to))
+
+
+async def _compute_referral(start, end):
+    flt = {"created_at": {"$gte": start, "$lte": end}}
+    refs = await db.referrals.find(flt, {"_id": 0, "referrer_id": 1, "referred_id": 1, "referred_name": 1,
+                                         "amount_earned": 1, "status": 1, "created_at": 1}).to_list(20000)
+    total = len(refs)
+    rewarded = [r for r in refs if r.get("status") in ("completed", "rewarded", "credited")]
+    total_paid = round(sum(float(r.get("amount_earned") or 0) for r in refs), 2)
+
+    by_ref = {}
+    for r in refs:
+        rid = r.get("referrer_id")
+        if not rid:
+            continue
+        b = by_ref.setdefault(rid, {"referrer_id": rid, "count": 0, "earned": 0.0, "last": ""})
+        b["count"] += 1
+        b["earned"] = round(b["earned"] + float(r.get("amount_earned") or 0), 2)
+        b["last"] = max(b["last"], _day(r.get("created_at")))
+    names = await _names(list(by_ref.keys()))
+    rows = [{"referrer": names.get(k) or "—", "count": v["count"], "earned": v["earned"], "last": v["last"]}
+            for k, v in by_ref.items()]
+    rows.sort(key=lambda x: -x["count"])
+
+    return {
+        "chart": {
+            "type": "bar", "x": "referrer", "title": "Top parrains (filleuls)",
+            "series": [{"key": "count", "label": "Filleuls", "color": "#7C3AED"}],
+            "data": rows[:10],
+        },
+        "kpis": [
+            {"label": "Parrainages totaux", "value": total, "color": "#7C3AED"},
+            {"label": "Validés / récompensés", "value": len(rewarded), "color": "#059669"},
+            {"label": "Récompenses versées", "value": f"{total_paid} €", "color": "#0891B2"},
+            {"label": "Parrains actifs", "value": len(by_ref), "color": "#2563EB"},
+        ],
+        "columns": [
+            {"key": "referrer", "label": "Parrain"}, {"key": "count", "label": "Filleuls"},
+            {"key": "earned", "label": "Gains (€)"}, {"key": "last", "label": "Dernier"},
+        ],
+        "rows": rows,
+    }
+
+
+# ───────────────────── WALLET ─────────────────────
+@router.get("/wallet")
+async def report_wallet(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    await require_role(request, ["admin", "dispatcher"])
+    return await _compute_wallet(*_range(date_from, date_to))
+
+
+async def _compute_wallet(start, end):
+    # Snapshot of current balances across all wallets.
+    wallets = await db.wallets.find({}, {"_id": 0, "balance": 1, "reserve": 1, "non_withdrawable": 1, "pending": 1}).to_list(50000)
+    total_balance = round(sum(float(w.get("balance") or 0) for w in wallets), 2)
+    total_reserve = round(sum(float(w.get("reserve") or 0) for w in wallets), 2)
+    total_non_wd = round(sum(float(w.get("non_withdrawable") or 0) for w in wallets), 2)
+    active = sum(1 for w in wallets if float(w.get("balance") or 0) > 0)
+
+    # Transactions over the period, grouped by type.
+    flt = {"created_at": {"$gte": start, "$lte": end}}
+    txs = await db.wallet_transactions.find(flt, {"_id": 0, "type": 1, "amount": 1}).to_list(50000)
+    by_type = {}
+    for t in txs:
+        ty = t.get("type") or "Autre"
+        b = by_type.setdefault(ty, {"type": ty, "count": 0, "total": 0.0})
+        b["count"] += 1
+        b["total"] = round(b["total"] + float(t.get("amount") or 0), 2)
+    rows = sorted(by_type.values(), key=lambda x: -abs(x["total"]))
+
+    return {
+        "chart": {
+            "type": "bar", "x": "type", "title": "Mouvements du portefeuille par type",
+            "series": [{"key": "total", "label": "Montant (€)", "color": "#0891B2"}],
+            "data": rows,
+        },
+        "kpis": [
+            {"label": "Solde total (SB Pay)", "value": f"{total_balance} €", "color": "#0891B2"},
+            {"label": "Réserves bloquées", "value": f"{total_reserve} €", "color": "#EA580C"},
+            {"label": "Non retirable", "value": f"{total_non_wd} €", "color": "#7C3AED"},
+            {"label": "Portefeuilles actifs", "value": active, "color": "#059669"},
+            {"label": "Transactions (période)", "value": len(txs), "color": "#2563EB"},
+        ],
+        "columns": [
+            {"key": "type", "label": "Type de mouvement"}, {"key": "count", "label": "Transactions"},
+            {"key": "total", "label": "Montant (€)"},
+        ],
+        "rows": rows,
+    }
+
+
+# ───────────────────── USER REWARDS ─────────────────────
+@router.get("/rewards")
+async def report_rewards(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    await require_role(request, ["admin", "dispatcher"])
+    return await _compute_rewards(*_range(date_from, date_to))
+
+
+async def _compute_rewards(start, end):
+    flt = {"created_at": {"$gte": start, "$lte": end}}
+    # Cashback paid over the period.
+    cashbacks = await db.cashback_ledger.find(flt, {"_id": 0, "amount": 1}).to_list(50000)
+    cashback_total = round(sum(float(c.get("amount") or 0) for c in cashbacks), 2)
+    # Loyalty redemptions over the period.
+    redemptions = await db.loyalty_redemptions.find(flt, {"_id": 0, "user_id": 1, "reward_name": 1, "cost_points": 1, "created_at": 1}).sort("created_at", -1).to_list(20000)
+    points_spent = sum(int(r.get("cost_points") or 0) for r in redemptions)
+    # Gift cards issued over the period.
+    gift_cards = await db.gift_cards.find(flt, {"_id": 0, "amount": 1, "redeemed": 1}).to_list(20000)
+    gc_value = round(sum(float(g.get("amount") or 0) for g in gift_cards), 2)
+    gc_redeemed = sum(1 for g in gift_cards if g.get("redeemed"))
+    # Outstanding loyalty points (snapshot).
+    loyalty = await db.loyalty.find({}, {"_id": 0, "points": 1}).to_list(50000)
+    points_outstanding = sum(int(l.get("points") or 0) for l in loyalty)
+
+    names = await _names([r.get("user_id") for r in redemptions])
+    rows = [{
+        "user": names.get(r.get("user_id")) or "—",
+        "reward": r.get("reward_name") or "—",
+        "points": int(r.get("cost_points") or 0),
+        "date": _day(r.get("created_at")),
+    } for r in redemptions[:500]]
+
+    return {
+        "chart": {
+            "type": "bar", "x": "label", "title": "Récompenses distribuées (période)",
+            "series": [{"key": "value", "label": "Volume", "color": "#059669"}],
+            "data": [
+                {"label": "Cashback (€)", "value": cashback_total},
+                {"label": "Échanges fidélité", "value": len(redemptions)},
+                {"label": "Cartes cadeaux", "value": len(gift_cards)},
+            ],
+        },
+        "kpis": [
+            {"label": "Cashback versé", "value": f"{cashback_total} €", "color": "#0891B2"},
+            {"label": "Échanges fidélité", "value": len(redemptions), "color": "#7C3AED"},
+            {"label": "Points dépensés", "value": points_spent, "color": "#EA580C"},
+            {"label": "Cartes cadeaux émises", "value": len(gift_cards), "color": "#2563EB"},
+            {"label": "Valeur cartes cadeaux", "value": f"{gc_value} €", "color": "#0891B2"},
+            {"label": "Cartes utilisées", "value": gc_redeemed, "color": "#059669"},
+            {"label": "Points en circulation", "value": points_outstanding, "color": "#DC2626"},
+        ],
+        "columns": [
+            {"key": "user", "label": "Utilisateur"}, {"key": "reward", "label": "Récompense"},
+            {"key": "points", "label": "Points"}, {"key": "date", "label": "Date"},
+        ],
+        "rows": rows,
+    }
+
+
+# ───────────────────── INSURANCE (driver coverage) ─────────────────────
+INSURANCE_DOC_TYPES = {"assurance", "assurance_rc", "insurance"}
+
+
+@router.get("/insurance")
+async def report_insurance(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
+    await require_role(request, ["admin", "dispatcher"])
+    return await _compute_insurance(*_range(date_from, date_to))
+
+
+async def _compute_insurance(start, end):
+    """Driver insurance-document coverage (real data from embedded driver docs)."""
+    drivers = await db.drivers.find({}, {"_id": 0, "id": 1, "user_id": 1, "documents": 1, "status": 1}).to_list(50000)
+    names = await _names([d.get("user_id") for d in drivers])
+
+    approved = pending = missing = 0
+    rows = []
+    for d in drivers:
+        ins = None
+        for doc in (d.get("documents") or []):
+            if str(doc.get("type", "")).lower() in INSURANCE_DOC_TYPES:
+                ins = doc
+                break
+        if not ins:
+            status = "Manquante"
+            missing += 1
+            uploaded = ""
+        elif ins.get("status") == "approved":
+            status = "Valide"
+            approved += 1
+            uploaded = _day(ins.get("uploaded_at"))
+        else:
+            status = "En attente"
+            pending += 1
+            uploaded = _day(ins.get("uploaded_at"))
+        rows.append({"driver": names.get(d.get("user_id")) or "—", "status": status,
+                     "driver_status": d.get("status") or "—", "uploaded": uploaded or "—"})
+    rows.sort(key=lambda x: {"Manquante": 0, "En attente": 1, "Valide": 2}.get(x["status"], 3))
+    total = len(drivers)
+    coverage = round(approved / total * 100, 1) if total else 0
+
+    return {
+        "chart": {
+            "type": "bar", "x": "label", "title": "Couverture assurance des chauffeurs",
+            "series": [{"key": "value", "label": "Chauffeurs", "color": "#2563EB"}],
+            "data": [
+                {"label": "Valide", "value": approved},
+                {"label": "En attente", "value": pending},
+                {"label": "Manquante", "value": missing},
+            ],
+        },
+        "kpis": [
+            {"label": "Chauffeurs", "value": total, "color": "#2563EB"},
+            {"label": "Assurance valide", "value": approved, "color": "#059669"},
+            {"label": "En attente", "value": pending, "color": "#EA580C"},
+            {"label": "Manquante", "value": missing, "color": "#DC2626"},
+            {"label": "Taux de couverture", "value": f"{coverage}%", "color": "#0891B2"},
+        ],
+        "columns": [
+            {"key": "driver", "label": "Chauffeur"}, {"key": "status", "label": "Assurance"},
+            {"key": "driver_status", "label": "Statut chauffeur"}, {"key": "uploaded", "label": "Déposée le"},
+        ],
+        "rows": rows,
+    }
+
+
+
 # ════════════════════════════════════════════════════════════════════════
 #  SCHEDULED EMAIL REPORTS — auto-send the reports above on a cadence
 # ════════════════════════════════════════════════════════════════════════
@@ -340,6 +561,10 @@ REPORT_FUNCS = {
     "exceptional": ("Rapport exceptionnel", _compute_exceptional),
     "refused-cancelled": ("Alertes refusées / annulées", _compute_refused_cancelled),
     "other": ("Autres rapports", _compute_other),
+    "referral": ("Rapport de parrainage MLM", _compute_referral),
+    "wallet": ("Rapport sur le portefeuille", _compute_wallet),
+    "rewards": ("Récompenses des utilisateurs", _compute_rewards),
+    "insurance": ("Rapport d'assurance", _compute_insurance),
 }
 
 WINDOW_LABELS = {

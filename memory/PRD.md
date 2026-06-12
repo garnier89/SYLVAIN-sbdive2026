@@ -1,3 +1,16 @@
+## NEW - 2026-06-12 (324) - 📑 Centre de Rapports : 4 rapports prod en plus (parrainage MLM, portefeuille, récompenses, assurance) (DONE, testé)
+- **Demande user** (capture du menu prod sbdrivevtc.com/admin69 « Rapports ») : compléter le centre de rapports pour matcher la prod — Rapport de parrainage MLM, Rapport sur le portefeuille, Rapport sur les récompenses des utilisateurs, Rapport d'assurance. (« Voyage annulé » = déjà couvert par « Alertes refusées/annulées ».)
+- **Backend** (`routes/reports_admin.py`) — 4 nouvelles fonctions calculables + endpoints, même forme uniforme {chart, kpis, columns, rows}, ajoutées au registre `REPORT_FUNCS` (donc aussi planifiables par e-mail) :
+  - `/admin/reports/referral` : agrège `referrals` par parrain (nb filleuls, gains, dernier). KPIs parrainages totaux/validés/récompenses versées/parrains actifs. Données réelles (21 sur la période).
+  - `/admin/reports/wallet` : snapshot `wallets` (solde total 7874.6 €, réserves, non retirable, actifs) + `wallet_transactions` groupées par type sur la période.
+  - `/admin/reports/rewards` : `cashback_ledger` (versé), `loyalty_redemptions` (échanges + points), `gift_cards` (émises/valeur/utilisées), points fidélité en circulation.
+  - `/admin/reports/insurance` : couverture assurance des chauffeurs depuis leurs documents embarqués (type assurance/assurance_rc) → Valide/En attente/Manquante + taux de couverture (48 chauffeurs).
+- **Frontend** (`AdminReports.js`) : 4 entrées de nav ajoutées (icônes UsersThree/Wallet/Gift/ShieldCheck) → rendu générique existant (KPIs + graphique + table + export CSV/PDF). `ReportSchedules.jsx` : 4 types ajoutés aux chips de planification.
+- **Testé** : curl (4/4 endpoints 200 avec données réelles + chart) + pytest `test_iter316` étendu (9 rapports vérifiés chart+kpis) PASS. Frontend compile OK.
+- ⚠️ Le menu prod complet contient peut-être d'autres rapports (la capture montre un défilement + section LOCATION) — à compléter sur demande. ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (323) - 📊📧🧪🎙️ Lot P2 : graphiques rapports + planification e-mail + Mode Démo global + audio sécurité chauffeur (DONE, testé)
 - **Demande user** (FR) : « P2 : graphiques (courbes) dans les rapports, planification d'envoi auto des rapports par e-mail, enregistrements audio sécurité (Trips/Jobs), Mode Démo global ». Ordre choisi : a → b → d → c. Audio = côté **chauffeur**.
 - **(a) Graphiques rapports** : chaque rapport admin (`routes/reports_admin.py`) renvoie désormais un champ `chart` {type: line|bar, x, title, series:[{key,label,color}], data}. results = courbe CA+courses ; payments/exceptional/refused-cancelled/other = barres. Frontend : nouveau `components/admin/ReportChart.jsx` (recharts 3.8.1) affiché entre KPIs et table dans `AdminReports.js`. Vérifié curl (5/5 charts) + testing_agent (5/5 rapports affichent report-chart).
