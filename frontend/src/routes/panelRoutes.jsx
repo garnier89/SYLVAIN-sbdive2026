@@ -6,7 +6,7 @@ import {
   AdminDrivers, AdminPriorityDrivers, AdminRides, AdminSosRequests, AdminTripHelpRequests,
   AdminDisputesCrud, AdminRevenue, AdminSettlementsCrud, AdminPayoutsCrud, AdminWithdrawRequests,
   AdminPromocodes, AdminGiftCards, AdminPaymentMethods, AdminServiceConfig,
-  AdminNegotiationGapReport, AdminNoDriverStats, AdminDbBackup, AdminSettings, AdminGeoFence,
+  AdminNegotiationGapReport, AdminNoDriverStats, AdminReports, AdminDbBackup, AdminSettings, AdminGeoFence,
   AdminSbPayGoZones, AdminEmailTemplates, AdminSmsTemplates, AdminPushNotifications,
   AdminVehicleMakes, AdminVehicleModels, AdminVehicleTypes, AdminMasterServices, AdminCancelReasons,
   AdminUsers, AdminReferralSettings, AdminNewsletter, AdminBanners, AdminContactRequests,
@@ -50,6 +50,7 @@ export function panelRoutes() {
         <Route path="currency" element={<AdminServiceConfig serviceKey="currency" />} />
         <Route path="reports/negotiation-gap" element={<AdminNegotiationGapReport />} />
         <Route path="reports/no-driver-stats" element={<AdminNoDriverStats />} />
+        <Route path="reports" element={<AdminReports />} />
       </Route>
       {/* SERVER (SysAdmin) */}
       <Route path="/server" element={<ProtectedRoute allowedRoles={['admin']}><PanelLayout panelKey="server" /></ProtectedRoute>}>

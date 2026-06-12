@@ -320,6 +320,7 @@ export const adminAPI = {
   dispatchStatus: (id) => api.get(`/admin/bookings/ride/${id}/dispatch-status`),
   dispatchCancel: (id) => api.post(`/admin/bookings/ride/${id}/dispatch-cancel`),
   offerRespond: (id, accept, driver_id) => api.post(`/admin/bookings/ride/${id}/offer-respond`, { accept, driver_id }),
+  report: (kind, params) => api.get(`/admin/reports/${kind}`, { params }),
   suspendUser: (id) => api.post(`/admin/users/${id}/suspend`),
   unsuspendUser: (id) => api.post(`/admin/users/${id}/unsuspend`),
   revenue: () => api.get('/admin/revenue'),

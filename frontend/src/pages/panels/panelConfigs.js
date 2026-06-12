@@ -72,6 +72,9 @@ export const PANEL_CONFIGS = {
       { title: 'CONFIGURATION', items: [
         { icon: Wallet, label: 'Méthodes paiement', path: '/billing/payment-methods' },
         { icon: SealCheck, label: 'Devise', path: '/billing/currency' },
+      ]},
+      { title: 'RAPPORTS', items: [
+        { icon: ChartLine, label: 'Centre de rapports', path: '/billing/reports' },
         { icon: FileText, label: 'Rapport écart négociation', path: '/billing/reports/negotiation-gap' },
       ]},
     ],
