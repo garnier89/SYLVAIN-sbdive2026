@@ -1,3 +1,9 @@
+## NEW - 2026-06-12 (335) - 🚗 Transfert aéroport SB Drive sur vols confirmés (cross-sell)
+- **Demande user** : relier la réservation de vol à une course SB Drive (transfert aéroport). Choix : les deux sens + écran confirmation & « Mes vols » + adresse ville vide. Vols NON limités à FDF→Paris (Duffel = mondial ; « Offres SB » = démo admin seulement).
+- **Frontend** `FlightsPage.js` : `SbDriveTransfer` + `AIRPORT_PLACES` (FDF/PTP/CAY/SXM/ORY/CDG, coords en dur). Boutons « Aller à l'aéroport » / « Me récupérer à l'arrivée » (aéroports desservis uniquement). Deep-link via params URL natifs de RideChoosePage (dlat/dlng/daddr, plat/plng/paddr).
+- **Testé** : e2e 100% (iter335) — pré-remplissage destination/départ OK, visibilité correcte (FDF/ORY oui, LHR/JFK non). Aucune modif backend.
+
+
 ## NEW - 2026-06-12 (333) - 📧 E-mail de confirmation vol (Resend) + e-billet PDF en pièce jointe
 - **Demande user** : rassurer le voyageur et réduire les tickets support → e-mail auto avec PNR + e-billet PDF dès qu'un vol est confirmé.
 - **Backend** : `core/email.py` (`_send_with_attachments` base64 + `send_flight_confirmation`). Déclenché (non bloquant via `fire()`) dans `routes/flights.py` `live_book` et `live_pay`, avec PDF `_build_eticket_pdf`.

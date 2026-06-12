@@ -277,7 +277,7 @@ const FlightsPage = () => {
             <div className="grid grid-cols-2 gap-2">
               <label className="block text-xs font-semibold text-gray-600">Passagers
                 <select value={lPaxCount} onChange={(e) => setLPaxCount(Number(e.target.value))} data-testid="live-pax-count" className="w-full min-h-[44px] px-2 rounded-lg text-gray-900 mt-1" style={{ border }}>
-                  {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n} passager{n > 1 ? 's' : ''}</option>)}
+                  {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{`${n} passager${n > 1 ? 's' : ''}`}</option>)}
                 </select></label>
               <label className="block text-xs font-semibold text-gray-600">Classe
                 <select value={lCabin} onChange={(e) => setLCabin(e.target.value)} data-testid="live-cabin" className="w-full min-h-[44px] px-2 rounded-lg text-gray-900 mt-1" style={{ border }}>

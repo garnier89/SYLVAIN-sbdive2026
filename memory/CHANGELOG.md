@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06-12 — Transfert aéroport SB Drive sur vols confirmés (cross-sell) [DONE, testé 100%]
+Sur un vol confirmé, le client peut commander une course SB Drive avec l'aéroport déjà pré-rempli (choix user : les deux sens + écran confirmation & « Mes vols » + adresse ville laissée vide).
+- **`FlightsPage.js`** : composant `SbDriveTransfer` + map `AIRPORT_PLACES` (FDF, PTP, CAY, SXM, ORY, CDG avec coordonnées en dur). Deux boutons : « Aller à l'aéroport (CODE) » et « Me récupérer à l'arrivée (CODE) », affichés uniquement pour les aéroports desservis. Rendu sur l'écran succès (confirmé) et dans « Mes vols ».
+- Deep-link via **paramètres d'URL natifs** de RideChoosePage (`dlat/dlng/daddr` pour destination, `plat/plng/paddr` pour départ) → pré-remplissage déterministe, sans géocodage texte ni écrasement par la géoloc.
+- Itération 1 (iter334) : géocodage texte renvoyait « France » + pickup écrasé → corrigé en iter335 par les params d'URL + coords en dur. Validé 3/3 (destination = « Aéroport Aimé Césaire », départ = « Orly », visibilité correcte FDF/ORY vs LHR/JFK).
+
+
+
 ## 2026-06-12 — E-mail de confirmation vol (Resend) + e-billet PDF en pièce jointe [DONE, testé]
 Dès qu'un vol est confirmé (réservation instantanée OU paiement d'un « hold »), un e-mail brandé est envoyé au contact avec le PNR, l'itinéraire, les passagers, le total, et **l'e-billet PDF en pièce jointe**.
 - **`core/email.py`** : nouveau `_send_with_attachments` (attachements Resend en base64) + `send_flight_confirmation(to, name, booking, pdf_bytes)`.
