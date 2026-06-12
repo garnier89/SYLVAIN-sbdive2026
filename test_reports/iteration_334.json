@@ -1,0 +1,60 @@
+{
+  "summary": "Iter334 — Frontend E2E validation of SB Drive airport transfer cross-sell on /vols. Login as client@test.sb → /vols → 'Mes vols'. Verified: (1) Among 10 confirmed Duffel bookings, exactly the 4 FDF→ORY ones render the sbdrive-transfer block with BOTH buttons (sbdrive-to-airport-<id> 'Aller à l'aéroport (FDF) avec SB Drive' + sbdrive-from-airport-<id> 'Me récupérer à l'arrivée (ORY)'). (2) LHR→JFK bookings correctly show NO transfer block (not desservi). (3) Click 'Aller à l'aéroport' → navigate('/course?mode=standard') confirmed (URL: /course?mode=standard, RideChoosePage loaded with 'Taxi VTC · Course standard' header). (4) Click 'Me récupérer à l'arrivée' → also navigates to /course?mode=standard. Core navigation flow PASSES — meets the explicit minimum acceptance criterion in the request ('valider AU MINIMUM la navigation vers /course?mode=standard').",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Pre-fill géocodage de l'aéroport sur /course après deep-link",
+        "issue": "Le géocodage Google Maps du nom complet d'aéroport (ex. 'Aéroport Martinique Aimé Césaire, Le Lamentin, France') retourne un résultat trop générique : pour le bouton TO-AIRPORT, le champ DESTINATION affiche 'France' (résultat de Google Geocoder fallback) au lieu de l'aéroport précis. Pour le bouton FROM-AIRPORT, le champ DÉPART (pickup) n'est PAS écrasé du tout — il garde la position courante de l'utilisateur ('Council Bluffs, Iowa, United States' dans notre test). La navigation et le mode 'standard' fonctionnent correctement, mais le pré-remplissage utile (l'aéroport en clair) ne se matérialise pas.",
+        "affected_selectors": ["[data-testid=sbdrive-to-airport-*]", "[data-testid=sbdrive-from-airport-*]", "RideChoosePage input pickup/dropoff"],
+        "priority": "MEDIUM",
+        "root_cause_hypothesis": "applyVoicePrefill (RideChoosePage.js L245-280) appelle geocoder.geocode({ address: 'Aéroport Martinique Aimé Césaire, Le Lamentin, France' }) — Google Geocoder ne matche pas un POI aéroportuaire textuel exact et renvoie le pays comme meilleur résultat. Solution recommandée : utiliser PlacesService.findPlaceFromQuery() ou Place Autocomplete API (avec champ types:['airport']) au lieu de Geocoder, OU mapper directement vers les coordonnées lat/lng connues des 6 aéroports (FDF/PTP/CAY/SXM/ORY/CDG) plutôt que faire un géocodage texte. Le champ pickup n'est pas mis à jour côté FROM-AIRPORT — vérifier que applyVoicePrefill gère bien la branche 'pickup' identiquement à 'dropoff' (la position courante semble écraser la valeur après applyVoicePrefill)."
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "/vols (live search form)",
+        "issues": ["Pré-existant depuis iter320/332 : React hydration warning '<span> cannot be a child of <option>' sur le <select> live-pax-count (FlightsPage.js L276). Non bloquant, non introduit par cette itération."]
+      }
+    ]
+  },
+  "tests_executed": {
+    "frontend_playwright": {
+      "login": "PASS — client@test.sb logged in, redirected to /home",
+      "navigate_to_vols_mes_vols": "PASS — /vols loads, 'Mes vols' tab clicked, 10 bookings visible",
+      "transfer_block_visibility": "PASS — 4 sbdrive-transfer-<id> blocks present (matches exactly the 4 FDF→ORY confirmed bookings: fbk_ee4ba7ea84, fbk_19729a2004, fbk_00b691fda0, fbk_c1951350f2). The 6 LHR→JFK bookings (and held one) correctly do NOT render the block.",
+      "both_buttons_render": "PASS — for fbk_ee4ba7ea84: sbdrive-to-airport text=\"Aller à l'aéroport (FDF) avec SB Drive\", sbdrive-from-airport text=\"Me récupérer à l'arrivée (ORY)\"",
+      "no_transfer_for_unserved": "PASS — fbk_d27be38979 (LHR→JFK confirmed) shows no sbdrive-transfer block",
+      "deep_link_to_airport": "PASS (navigation) — click sbdrive-to-airport-fbk_ee4ba7ea84 → URL=/course?mode=standard, RideChoosePage rendered (Taxi VTC · Course standard header).",
+      "deep_link_to_airport_prefill": "PARTIAL — DESTINATION input got set to 'France' (geocoder fallback), not the actual airport name. Acceptable per task spec since navigation is the minimum criterion.",
+      "deep_link_from_airport": "PASS (navigation) — click sbdrive-from-airport-fbk_ee4ba7ea84 → URL=/course?mode=standard",
+      "deep_link_from_airport_prefill": "FAIL (best-effort) — DÉPART (pickup) input remained 'Council Bluffs, Iowa, United States' (user's current location). Prefill did not override pickup. Minor since per task spec only navigation is required."
+    }
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Remplacer le géocodage textuel de l'aéroport dans applyVoicePrefill (RideChoosePage.js L245-280) par une recherche Places API typée 'airport', OU mapper les 6 IATA codes vers des coordonnées lat/lng en dur dans AIRPORT_PLACES (FlightsPage.js L34-41) et passer un objet { lat, lng, address } au prefill plutôt qu'une simple string. Cela évitera le fallback Geocoder qui renvoie 'France'.",
+    "Vérifier la branche prefill.pickup dans applyVoicePrefill : actuellement le champ DÉPART semble écrasé par la géolocalisation courante après le prefill (ordre des effets ou condition manquante). S'assurer que routerLocation.state.source==='voice' + prefill.pickup remplace inconditionnellement la position courante.",
+    "[Optionnel — pré-existant] Nettoyer FlightsPage.js L276 : enlever le wrapper <span> à l'intérieur du <option> pour silencer le warning hydration."
+  ],
+  "critical_code_review_comments": [
+    "Good (FlightsPage.js L34-72): AIRPORT_PLACES map propre, SbDriveTransfer minimal et bien isolé, return null si aucun aéroport desservi (early return correct). data-testid stable basé sur booking.id.",
+    "Good (FlightsPage.js L469-474, L514): Composant rendu à la fois sur l'écran 'done' (confirmation post-réservation) et dans la liste 'Mes vols' pour status==='confirmed' — couvre les deux flows demandés.",
+    "Good: navigate('/course?mode=standard', { state: { source:'voice', prefill } }) — le mode=standard force le bon RideChoosePage et source:'voice' déclenche applyVoicePrefill. Pattern de deep-link cohérent avec celui utilisé par l'assistant vocal (réutilisation maline).",
+    "Issue MEDIUM (RideChoosePage.js applyVoicePrefill L245-280 — non vérifié par lecture directe mais inféré du comportement) : le géocodage texte d'un nom d'aéroport renvoie 'France' au lieu de l'aéroport. Préférer Places API (findPlaceFromQuery avec fields=['name','formatted_address','geometry'] et types=['airport']), ou un dictionnaire IATA→{lat,lng} en dur.",
+    "Issue MEDIUM : le prefill pickup ne fonctionne pas (la position courante écrase la valeur). Bug d'ordre/effets dans applyVoicePrefill à vérifier — peut-être que getCurrentPosition() s'exécute APRÈS le prefill et écrase l'input.",
+    "Good: LHR→JFK (non desservi) ne montre AUCUN bouton — comportement attendu (volonté produit confirmée dans le brief)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (skipped per request)",
+    "frontend": "85% — navigation + visibilité parfaites (5/5 critères structurels), pre-fill géocodage défaillant (2/5 critères optionnels). La spec dit 'valider AU MINIMUM la navigation' → critère minimal atteint."
+  },
+  "test_credentials": "client@test.sb / Client123! (utilisé). 10 vols Duffel existants dont 4 FDF→ORY confirmés + 5 LHR→JFK confirmés/held — couverture parfaite des deux cas (desservi / non desservi).",
+  "seed_data_creation": "Aucune — données existantes (iter332) suffisantes.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Le bloc SbDriveTransfer fonctionne au niveau UI (testids + navigation). Le bug restant est dans RideChoosePage.applyVoicePrefill : (a) géocodage texte d'aéroport renvoie 'France' générique, (b) la branche prefill.pickup ne semble pas appliquer la valeur (écrasée par géoloc courante). Pour retester après fix : se logger client@test.sb, /vols → Mes vols, cliquer sbdrive-to-airport-fbk_ee4ba7ea84, attendre 5s, vérifier que l'input DESTINATION contient 'Martinique' ou 'Lamentin' (pas seulement 'France'). Idem pour sbdrive-from-airport, vérifier que l'input DÉPART contient 'Orly'. Aucun vol confirmé PTP/CAY/SXM/CDG dans la DB — si on veut tester ces 4 codes, créer une réservation Duffel mock vers ces destinations ou ajouter des seeds backend.",
+  "rca of the issue": "Pre-fill géocodage : applyVoicePrefill géocode une string texte ('Aéroport ... , France'). Google Geocoder ne reconnaît pas le POI textuel et renvoie le composant administratif le plus large qui matche → 'France'. Solution propre : passer un objet structuré {lat,lng} en dur ou utiliser PlacesService.findPlaceFromQuery / textSearch avec type='airport'. Pour le pickup, hypothèse : un useEffect de géolocalisation (getCurrentPosition) tourne en parallèle et set pickup APRÈS applyVoicePrefill — il faut soit court-circuiter la géoloc quand state.source==='voice' && state.prefill.pickup, soit s'assurer que le prefill s'applique APRÈS la résolution de géoloc."
+}

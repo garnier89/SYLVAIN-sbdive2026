@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, AirplaneTilt, CheckCircle, X, ShieldCheck,
-  ArrowRight, Clock, Suitcase, User, Lightning, Storefront, DownloadSimple, Ticket,
+  ArrowRight, Clock, Suitcase, User, Lightning, Storefront, DownloadSimple, Ticket, Car,
 } from '@phosphor-icons/react';
 import { flightsAPI } from '../../services/api';
 
@@ -29,6 +29,47 @@ const STATUS_LABELS = {
 };
 
 const fmtDeadline = (s) => { try { return new Date(s).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
+
+// Aéroports desservis par SB Drive (Antilles-Guyane + Paris) → transfert taxi pré-rempli.
+const AIRPORT_PLACES = {
+  FDF: 'Aéroport Martinique Aimé Césaire, Le Lamentin',
+  PTP: 'Aéroport Pointe-à-Pitre Le Raizet, Les Abymes',
+  CAY: 'Aéroport Cayenne Félix Éboué, Matoury',
+  SXM: 'Aéroport de Grand-Case Espérance, Saint-Martin',
+  ORY: 'Aéroport de Paris-Orly',
+  CDG: 'Aéroport Paris-Charles de Gaulle, Roissy',
+};
+
+// Boutons « transfert aéroport » : ouvre la commande SB Drive (/course) avec
+// l'aéroport déjà rempli. « Aller » = course vers l'aéroport de départ (dropoff),
+// « Arrivée » = récupération à l'aéroport d'arrivée (pickup). N'apparaît que pour
+// les aéroports desservis par SB Drive.
+const SbDriveTransfer = ({ booking, navigate }) => {
+  const dep = booking.origin_code;
+  const arr = booking.destination_code;
+  const depPlace = AIRPORT_PLACES[dep];
+  const arrPlace = AIRPORT_PLACES[arr];
+  if (!depPlace && !arrPlace) return null;
+  const go = (prefill) => navigate('/course?mode=standard', { state: { source: 'voice', prefill } });
+  return (
+    <div className="mt-2 flex flex-col gap-1.5" data-testid={`sbdrive-transfer-${booking.id}`}>
+      {depPlace && (
+        <button onClick={() => go({ dropoff: depPlace })} data-testid={`sbdrive-to-airport-${booking.id}`}
+          className="w-full min-h-[40px] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5"
+          style={{ background: '#0B1426', color: '#fff' }}>
+          <Car size={15} weight="fill" /> Aller à l'aéroport ({dep}) avec SB Drive
+        </button>
+      )}
+      {arrPlace && (
+        <button onClick={() => go({ pickup: arrPlace })} data-testid={`sbdrive-from-airport-${booking.id}`}
+          className="w-full min-h-[40px] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5"
+          style={{ border: '1.5px solid #0B1426', color: '#0B1426' }}>
+          <Car size={15} weight="fill" /> Me récupérer à l'arrivée ({arr})
+        </button>
+      )}
+    </div>
+  );
+};
 
 const FlightsPage = () => {
   const navigate = useNavigate();
@@ -425,6 +466,12 @@ const FlightsPage = () => {
                   <DownloadSimple size={18} weight="bold" /> Télécharger l'e-billet
                 </button>
               )}
+              {lDone?.id && lDone?.status === 'confirmed' && (
+                <div className="mt-4 text-left">
+                  <p className="text-[11px] font-semibold text-gray-400 mb-1">Transfert aéroport SB Drive</p>
+                  <SbDriveTransfer booking={lDone} navigate={navigate} />
+                </div>
+              )}
             </>
           )}
           <button onClick={() => { setStep('mine'); loadMine(); setLDone(null); }} className="mt-3 w-full min-h-[48px] rounded-xl font-bold text-white" style={{ background: NAVY }} data-testid="flight-see-mine">Voir mes vols</button>
@@ -464,6 +511,7 @@ const FlightsPage = () => {
                     <button onClick={() => cancel(b.id)} data-testid={`flight-cancel-${b.id}`} className="text-xs font-semibold text-rose-600">Annuler</button>
                   )}
                 </div>
+                {b.status === 'confirmed' && <SbDriveTransfer booking={b} navigate={navigate} />}
               </div>
             );
           })}
