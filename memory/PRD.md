@@ -1,3 +1,14 @@
+## NEW - 2026-06-12 (304) - ⭐ Adresses enregistrées/récentes « 1 tap » dans les livraisons (DONE, testé 5/5 + pytest 2/2)
+- **Demande user (amélioration validée)** : proposer Maison/Travail + adresses récentes en « 1 tap » au-dessus du champ d'adresse dans toutes les livraisons (déjà présent en taxi). Choix : enregistrement auto des récentes + Maison/Travail définissables depuis les puces, sur tous les écrans.
+- **Réutilisation backend existant** : `routes/places.py` (collection `user_places`) — GET `/api/places/saved`, PUT/DELETE `/api/places/saved/{home|work}`, POST `/api/places/recent`. Déjà consommé par le taxi (`RideChoosePage`).
+- **Nouveau composant** `components/SavedAddressChips.jsx` (réutilisable) : puces Maison 🏠 / Travail 💼 / 3 récentes (placesAPI.getSaved) + boutons « Enregistrer cette adresse : Maison/Travail » (placesAPI.setSaved) quand une adresse fraîche est choisie. Props `onSelect`, `selected`, `accent`, `testIdPrefix`.
+- **Intégration** : `CheckoutPage` (repas), `ParcelPage` (ramassage), `RunnerPage` (ramassage). Enregistrement auto des récentes (`placesAPI.addRecent`) sur sélection Google + géoloc + destination coursier.
+- **Synergie** : comme le backend `/places` est partagé, une adresse enregistrée en livraison apparaît aussi en taxi (et inversement) — vérifié e2e (Maison sauvée sur /checkout → visible sur /parcel, /runner et /course `ride-choose-fav-home`).
+- **Testé** : testing_agent iter297 5/5 PASS (puces, récentes auto, save Maison/Travail, propagation inter-écrans, coexistence avec « Ma position ») + pytest `test_iter299_saved_places.py` 2/2.
+- ⚠️ PREVIEW → redéploiement requis. Backlog : gestion dédiée « Mes adresses » dans le Profil (3b).
+
+
+
 ## NEW - 2026-06-12 (303) - 🗺️ BUG FIX : adresse/géolocalisation des livraisons unifiées sur l'expérience taxi (DONE, testé 6/6)
 - **Bug user** : dans les livraisons (Colis surtout), impossible de taper une adresse, pas de géolocalisation comme le taxi, et carte différente.
 - **Cause** : `ParcelPage` utilisait Leaflet/OpenStreetMap avec sélection par clic sur la carte (aucune saisie d'adresse, aucune géoloc), alors que le taxi utilise Google Maps + autocomplétion + géoloc.
