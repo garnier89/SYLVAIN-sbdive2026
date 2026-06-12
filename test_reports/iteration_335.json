@@ -1,0 +1,39 @@
+{
+  "summary": "Iter335 — Re-test SB Drive airport transfer pre-fill after the deep-link rewrite (URL-native params plat/plng/paddr + dlat/dlng/daddr with hardcoded airport coordinates in AIRPORT_PLACES). All 3 acceptance criteria PASS. (1) Click sbdrive-to-airport-fbk_ee4ba7ea84 (FDF) → URL=/course?mode=standard&dlat=14.591&dlng=-61.0032&daddr=Aéroport%20Martinique%20Aimé%20Césaire%2C%20Le%20Lamentin AND the DESTINATION area on RideChoosePage displays 'Aéroport Martinique Aimé Césaire, Le Lamentin' (ride-choose-dropoff-display). NO 'France' fallback — bug from iter334 fixed. (2) Click sbdrive-from-airport-fbk_ee4ba7ea84 (ORY) → URL=/course?mode=standard&plat=48.7233&plng=2.3794&paddr=Aéroport%20de%20Paris-Orly AND the DÉPART input (data-testid=ride-choose-pickup) value='Aéroport de Paris-Orly' — NOT overwritten by user current geolocation (autoLocate is correctly skipped when pickup is pre-filled via URL params, see RideChoosePage L233). (3) Regression: 10 confirmed Duffel bookings — exactly the 4 FDF→ORY ones (fbk_ee4ba7ea84, fbk_19729a2004, fbk_00b691fda0, fbk_c1951350f2) render sbdrive-transfer block with BOTH sbdrive-to-airport-* and sbdrive-from-airport-* buttons; the other 6 (LHR→JFK and held) render NO block. Visibility logic in SbDriveTransfer (AIRPORT_PLACES lookup) is correct.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      { "screen": "/vols (live search form)", "issues": ["Pré-existant (iter320/332/334) : React hydration warning '<span> cannot be a child of <option>' — FlightsPage.js L280 (sélecteur live-pax-count, le wrapper <span> dans <option>). Non bloquant. Suggestion : remplacer le texte interpolé contenant un wrapper par une string simple."] }
+    ]
+  },
+  "tests_executed": {
+    "login": "PASS — client@test.sb / Client123! via /login → other-login-options-btn → login-email-btn → email-input/password-input → submit-btn → /home",
+    "navigate_to_mes_vols": "PASS — /vols + flights-mine-btn rend 10 cards flight-booking-*",
+    "regression_visibility": "PASS — 4 cards (FDF→ORY confirmed) ont sbdrive-transfer + 2 boutons (to+from). 6 cards (LHR→JFK / held) n'ont aucun bouton. Aucun faux positif.",
+    "deep_link_to_airport_url": "PASS — URL exacte attendue: /course?mode=standard&dlat=14.591&dlng=-61.0032&daddr=A%C3%A9roport%20Martinique%20Aim%C3%A9%20C%C3%A9saire%2C%20Le%20Lamentin",
+    "deep_link_to_airport_prefill": "PASS — ride-choose-dropoff-display.innerText = 'Aéroport Martinique Aimé Césaire, Le Lamentin'. Le bug 'France' d'iter334 est résolu.",
+    "deep_link_from_airport_url": "PASS — URL: /course?mode=standard&plat=48.7233&plng=2.3794&paddr=A%C3%A9roport%20de%20Paris-Orly",
+    "deep_link_from_airport_prefill": "PASS — input[data-testid=ride-choose-pickup].value = 'Aéroport de Paris-Orly'. La géolocalisation auto ne l'écrase PLUS (autoLocate sauté quand pickup déjà set, RideChoosePage L233). Screenshot confirme : 'DÉPART · Aéroport de Paris-Orly' + 'DESTINATION · Où allez-vous?'."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "[Optionnel, pré-existant non lié à cette itération] Nettoyer FlightsPage.js L280 (wrapper <span> dans <option>) pour silencer le warning React hydration."
+  ],
+  "critical_code_review_comments": [
+    "Good (FlightsPage.js L37-44): AIRPORT_PLACES avec coordonnées hardcodées pour les 6 aéroports desservis — approche déterministe, robuste, pas de dépendance au Geocoder ni à la latence réseau.",
+    "Good (FlightsPage.js L56-57): deep-link via paramètres URL natifs (plat/plng/paddr, dlat/dlng/daddr) — réutilise le chemin d'init standard de RideChoosePage (L98-111), pas de chemin custom à maintenir.",
+    "Good (RideChoosePage.js L98-104 + L105-111 + L233): pickup/dropoff useState init lit les query params; autoLocate skip si pickup déjà set → aucune course-condition entre prefill URL et géoloc. Solution propre, déterministe, testable.",
+    "Minor: encodeURIComponent du nom complet dans daddr/paddr fonctionne; pas d'observation négative.",
+    "Pre-existing (non-blocking): FlightsPage.js L280 React hydration warning — déjà signalé iter320/332/334."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped per request)", "frontend": "100% — 3/3 acceptance criteria PASS (URL params + DEST text + PICKUP value + regression visibility)" },
+  "test_credentials": "client@test.sb / Client123! (utilisé)",
+  "seed_data_creation": "Aucune — données existantes (4 FDF→ORY confirmés + 6 LHR→JFK) suffisantes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug iter334 (pre-fill géocodage renvoyait 'France' et pickup écrasé par géoloc) entièrement résolu via l'approche URL params + autoLocate skip. Si nouveau test sur PTP/CAY/SXM/CDG souhaité, créer des seeds Duffel ; les 4 FDF→ORY existants couvrent les deux flows (to+from).",
+  "rca of the issue": "N/A — bug iter334 résolu. La nouvelle approche (paramètres URL natifs + hardcoded coordinates dans AIRPORT_PLACES + autoLocate-skip-if-pickup-set) est déterministe et n'a aucune dépendance au Google Geocoder. Pattern à généraliser pour tous les deep-links vers /course."
+}

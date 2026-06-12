@@ -31,37 +31,41 @@ const STATUS_LABELS = {
 const fmtDeadline = (s) => { try { return new Date(s).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 
 // Aéroports desservis par SB Drive (Antilles-Guyane + Paris) → transfert taxi pré-rempli.
+// Coordonnées en dur : on utilise le deep-link par paramètres d'URL de RideChoosePage
+// (plat/plng/paddr, dlat/dlng/daddr) — lus à l'init, donc aucun géocodage et la géoloc
+// auto ne vient pas écraser le départ.
 const AIRPORT_PLACES = {
-  FDF: 'Aéroport Martinique Aimé Césaire, Le Lamentin',
-  PTP: 'Aéroport Pointe-à-Pitre Le Raizet, Les Abymes',
-  CAY: 'Aéroport Cayenne Félix Éboué, Matoury',
-  SXM: 'Aéroport de Grand-Case Espérance, Saint-Martin',
-  ORY: 'Aéroport de Paris-Orly',
-  CDG: 'Aéroport Paris-Charles de Gaulle, Roissy',
+  FDF: { name: 'Aéroport Martinique Aimé Césaire, Le Lamentin', lat: 14.5910, lng: -61.0032 },
+  PTP: { name: 'Aéroport Pointe-à-Pitre Le Raizet, Les Abymes', lat: 16.2653, lng: -61.5314 },
+  CAY: { name: 'Aéroport Cayenne Félix Éboué, Matoury', lat: 4.8198, lng: -52.3604 },
+  SXM: { name: "Aéroport de Grand-Case Espérance, Saint-Martin", lat: 18.0999, lng: -63.0472 },
+  ORY: { name: 'Aéroport de Paris-Orly', lat: 48.7233, lng: 2.3794 },
+  CDG: { name: 'Aéroport Paris-Charles de Gaulle, Roissy', lat: 49.0097, lng: 2.5479 },
 };
 
 // Boutons « transfert aéroport » : ouvre la commande SB Drive (/course) avec
-// l'aéroport déjà rempli. « Aller » = course vers l'aéroport de départ (dropoff),
-// « Arrivée » = récupération à l'aéroport d'arrivée (pickup). N'apparaît que pour
-// les aéroports desservis par SB Drive.
+// l'aéroport déjà rempli via deep-link URL. « Aller » = course vers l'aéroport de
+// départ (destination), « Arrivée » = récupération à l'aéroport d'arrivée (départ).
+// N'apparaît que pour les aéroports desservis par SB Drive.
 const SbDriveTransfer = ({ booking, navigate }) => {
   const dep = booking.origin_code;
   const arr = booking.destination_code;
   const depPlace = AIRPORT_PLACES[dep];
   const arrPlace = AIRPORT_PLACES[arr];
   if (!depPlace && !arrPlace) return null;
-  const go = (prefill) => navigate('/course?mode=standard', { state: { source: 'voice', prefill } });
+  const toAirport = (a) => navigate(`/course?mode=standard&dlat=${a.lat}&dlng=${a.lng}&daddr=${encodeURIComponent(a.name)}`);
+  const fromAirport = (a) => navigate(`/course?mode=standard&plat=${a.lat}&plng=${a.lng}&paddr=${encodeURIComponent(a.name)}`);
   return (
     <div className="mt-2 flex flex-col gap-1.5" data-testid={`sbdrive-transfer-${booking.id}`}>
       {depPlace && (
-        <button onClick={() => go({ dropoff: depPlace })} data-testid={`sbdrive-to-airport-${booking.id}`}
+        <button onClick={() => toAirport(depPlace)} data-testid={`sbdrive-to-airport-${booking.id}`}
           className="w-full min-h-[40px] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5"
           style={{ background: '#0B1426', color: '#fff' }}>
           <Car size={15} weight="fill" /> Aller à l'aéroport ({dep}) avec SB Drive
         </button>
       )}
       {arrPlace && (
-        <button onClick={() => go({ pickup: arrPlace })} data-testid={`sbdrive-from-airport-${booking.id}`}
+        <button onClick={() => fromAirport(arrPlace)} data-testid={`sbdrive-from-airport-${booking.id}`}
           className="w-full min-h-[40px] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5"
           style={{ border: '1.5px solid #0B1426', color: '#0B1426' }}>
           <Car size={15} weight="fill" /> Me récupérer à l'arrivée ({arr})
