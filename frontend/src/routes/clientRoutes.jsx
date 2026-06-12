@@ -27,6 +27,7 @@ import {
   HotelsPage,
   FlightsPage,
   TravelPackagesPage,
+  SbTravelHub,
 } from './pages';
 
 export function clientRoutes(user) {
@@ -129,6 +130,7 @@ export function clientRoutes(user) {
       <Route path="/hotels" element={<ProtectedRoute allowedRoles={['user']}><HotelsPage /></ProtectedRoute>} />
       <Route path="/vols" element={<ProtectedRoute allowedRoles={['user']}><FlightsPage /></ProtectedRoute>} />
       <Route path="/forfaits" element={<ProtectedRoute allowedRoles={['user']}><TravelPackagesPage /></ProtectedRoute>} />
+      <Route path="/sb-travel" element={<ProtectedRoute allowedRoles={['user']}><SbTravelHub /></ProtectedRoute>} />
       <Route path="/encaisser" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><ContactlessReceivePage /></ProtectedRoute>} />
       <Route path="/pay" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />
       <Route path="/pay/:id" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><ContactlessPayPage /></ProtectedRoute>} />

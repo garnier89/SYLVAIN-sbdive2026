@@ -1,3 +1,14 @@
+## NEW - 2026-06-12 (293) - 🌍 SB Travel hub + carrousel « Offres du moment » (DONE, vérifié e2e)
+- **Demande user (a+d)** : regrouper les entrées voyage en un hub « SB Travel » + section « Offres du moment » sur l'accueil avec deep-link vers le forfait.
+- **Frontend uniquement** (réutilise les endpoints déjà testés) :
+  - `components/OffresDuMoment.jsx` : carrousel horizontal des forfaits triés par remise décroissante (top 6), clic → `/forfaits?pkg=ID` (deep-link). Affiché sur l'accueil ET le hub.
+  - `pages/user/SbTravelHub.js` (route `/sb-travel`) : header SB Travel + carrousel + 3 cartes service (Vols `/vols`, Hôtels `/hotels`, Forfaits `/forfaits`).
+  - `UserHome.js` : les 3 anciennes entrées (home-hotels/flights/packages-entry) remplacées par UNE entrée `home-sbtravel-entry` → `/sb-travel`, + carrousel `OffresDuMoment` sous l'entrée.
+  - `TravelPackagesPage.js` : lit `?pkg=ID` et ouvre directement l'écran de réservation du forfait.
+- **Vérifié** : smoke test e2e (accueil entrée+carrousel, hub 3 services, deep-link ouvre l'étape book) — tout passe. Aucun changement backend.
+- ⚠️ PREVIEW → redéploiement requis.
+
+
 ## NEW - 2026-06-12 (292) - 🧳 Forfaits combinés Vol + Hôtel (DONE, testé frontend 100% + pytest 5/5)
 - **Demande user** : packages voyage à prix réduit (levier de conversion n°1 des agences) en assemblant les modules Vols + Hôtels existants.
 - **Backend** `routes/travel_packages.py` (collections `travel_packages`, `travel_bookings` ; réutilise helpers de `hotels.py` et `flights.py`) : l'admin compose un forfait (vol + hôtel/chambre + nuits + remise %), `GET /travel-packages` (+ détail/quote), `POST /{id}/book` (paiement SB Pay UNIQUE remisé qui crée AUSSI un `flight_booking` + `hotel_booking` sous-jacents taggés `package_booking_id` → stocks décrémentés + visibles dans Mes vols/Mes séjours), `POST /bookings/{id}/cancel` (annulation groupée + remboursement total remisé). Admin : `/admin/options` (dropdowns vol/hôtel/chambre), CRUD packages, bookings. Seed 1 forfait démo (Escapade Paris -15%).

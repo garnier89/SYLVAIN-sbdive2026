@@ -39,6 +39,16 @@ const TravelPackagesPage = () => {
     setCheckIn((p.flight?.arrival_at || '').slice(0, 10)); setStep('book');
   };
 
+  // Deep-link : /forfaits?pkg=ID ouvre directement le forfait (carrousel « Offres du moment »)
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('pkg');
+    if (!id) return;
+    travelPackagesAPI.detail(id)
+      .then((r) => { openPkg(r.data); window.history.replaceState({}, '', '/forfaits'); })
+      .catch(() => {});
+    // eslint-disable-next-line
+  }, []);
+
   const validPax = passengers.filter((x) => x.name.trim());
   useEffect(() => {
     if (step === 'book' && pkg) {

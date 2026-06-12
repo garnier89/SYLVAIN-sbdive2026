@@ -16,6 +16,7 @@ import { prefetchPath } from '../../routes/useRoutePrefetch';
 import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
 import { LoyaltyStatusCard } from '../../components/LoyaltyStatusCard';
+import { OffresDuMoment } from '../../components/OffresDuMoment';
 import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
 import { cachedServiceCategories, loadServiceCategories } from '../../lib/serviceCategoriesCache';
 import {
@@ -29,7 +30,7 @@ import {
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
   Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
-  GraduationCap, Storefront, Wheelchair, Bed, AirplaneTilt, Suitcase,
+  GraduationCap, Storefront, Wheelchair, Suitcase,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -736,54 +737,24 @@ const UserHome = () => {
         </span>
         <CaretRight size={18} className="text-white shrink-0" />
       </button>
-      {/* SB Travel — Hôtels (réservation de séjours) */}
+      {/* SB Travel — hub voyage (Vols · Hôtels · Forfaits) */}
       <button
-        onClick={() => navigate('/hotels')}
-        data-testid="home-hotels-entry"
+        onClick={() => navigate('/sb-travel')}
+        data-testid="home-sbtravel-entry"
         className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0E7490, #0891B2)' }}
-      >
-        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-          <Bed size={22} weight="fill" className="text-white" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="text-white font-black text-sm block leading-tight">Hôtels 🏨</span>
-          <span className="text-white/85 text-xs block leading-tight">Réservez votre séjour · meilleurs tarifs</span>
-        </span>
-        <CaretRight size={18} className="text-white shrink-0" />
-      </button>
-      {/* SB Travel — Vols (billets d'avion) */}
-      <button
-        onClick={() => navigate('/vols')}
-        data-testid="home-flights-entry"
-        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)' }}
-      >
-        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-          <AirplaneTilt size={22} weight="fill" className="text-white" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="text-white font-black text-sm block leading-tight">Billets d'avion ✈️</span>
-          <span className="text-white/85 text-xs block leading-tight">Recherchez et réservez vos vols</span>
-        </span>
-        <CaretRight size={18} className="text-white shrink-0" />
-      </button>
-      {/* SB Travel — Forfaits Vol + Hôtel (package à prix réduit) */}
-      <button
-        onClick={() => navigate('/forfaits')}
-        data-testid="home-packages-entry"
-        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #7C3AED, #9333EA)' }}
+        style={{ background: 'linear-gradient(135deg, #0A2540, #1D4ED8)' }}
       >
         <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
           <Suitcase size={22} weight="fill" className="text-white" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="text-white font-black text-sm block leading-tight">Forfaits Vol + Hôtel 🧳</span>
-          <span className="text-white/85 text-xs block leading-tight">Packages voyage tout compris · prix réduit</span>
+          <span className="text-white font-black text-sm block leading-tight">SB Travel ✈️🏨</span>
+          <span className="text-white/85 text-xs block leading-tight">Vols, hôtels & forfaits voyage à prix réduit</span>
         </span>
-        <span className="text-[10px] font-black px-2 py-1 rounded-full bg-[#FF5000] text-white shrink-0">PROMO</span>
+        <CaretRight size={18} className="text-white shrink-0" />
       </button>
+      {/* Carrousel des meilleures offres forfaits */}
+      <OffresDuMoment className="mt-4" />
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 
       {/* Referral progress nudge — reminds the referred user how close their reward is */}

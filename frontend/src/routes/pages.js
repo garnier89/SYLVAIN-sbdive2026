@@ -27,6 +27,7 @@ export const CarSelfRentalPage = lazy(() => import('../pages/user/CarSelfRentalP
 export const HotelsPage = lazy(() => import('../pages/user/HotelsPage'));
 export const FlightsPage = lazy(() => import('../pages/user/FlightsPage'));
 export const TravelPackagesPage = lazy(() => import('../pages/user/TravelPackagesPage'));
+export const SbTravelHub = lazy(() => import('../pages/user/SbTravelHub'));
 export const RideBookingPage = lazy(() => import('../pages/user/RideBookingPage'));
 export const RideChoosePage = lazyWithPreload(() => import('../pages/user/RideChoosePage'));
 export const RideTrackingPage = lazyWithPreload(() => import('../pages/user/RideTrackingPage'));
