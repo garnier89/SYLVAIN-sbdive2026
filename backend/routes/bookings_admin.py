@@ -237,11 +237,18 @@ async def _resolve_customer(body):
     if not phone and not email:
         raise HTTPException(400, "Renseignez un client existant ou son téléphone/email")
     guest_id = f"user_{uuid.uuid4().hex[:12]}"
-    await db.users.insert_one({
-        "id": guest_id, "name": name, "phone": phone or None, "email": email or None,
+    guest_doc = {
+        "id": guest_id, "name": name,
         "role": "user", "is_verified": False, "is_guest": True,
         "created_by": "admin", "created_at": _now().isoformat(),
-    })
+    }
+    # The users collection has a unique (non-sparse) index on `email` (and on
+    # `phone`), so we always populate them with a unique placeholder when the
+    # admin has not supplied a real value — otherwise the second guest hits
+    # E11000 duplicate-key on `email: null`.
+    guest_doc["email"] = email or f"guest+{guest_id}@sb.local"
+    guest_doc["phone"] = phone or f"guest+{guest_id}"
+    await db.users.insert_one(guest_doc)
     return guest_id, name, phone
 
 

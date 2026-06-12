@@ -2,7 +2,7 @@ import React from 'react';
 import { Route } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import {
-  DispatcherPanel, PanelLayout, PanelHome, AdminLiveRides, AdminAutoDispatch, AdminMonitoring,
+  DispatcherPanel, PanelLayout, PanelHome, AdminLiveRides, AdminAutoDispatch, AdminMonitoring, AdminBookingsHub,
   AdminDrivers, AdminPriorityDrivers, AdminRides, AdminSosRequests, AdminTripHelpRequests,
   AdminDisputesCrud, AdminRevenue, AdminSettlementsCrud, AdminPayoutsCrud, AdminWithdrawRequests,
   AdminPromocodes, AdminGiftCards, AdminPaymentMethods, AdminServiceConfig,
@@ -25,6 +25,7 @@ export function panelRoutes() {
       {/* DISPATCH */}
       <Route path="/dispatch" element={<ProtectedRoute allowedRoles={['admin']}><PanelLayout panelKey="dispatch" /></ProtectedRoute>}>
         <Route index element={<PanelHome panelKey="dispatch" />} />
+        <Route path="bookings" element={<AdminBookingsHub />} />
         <Route path="live-rides" element={<AdminLiveRides />} />
         <Route path="auto-dispatch" element={<AdminAutoDispatch />} />
         <Route path="monitoring" element={<AdminMonitoring />} />

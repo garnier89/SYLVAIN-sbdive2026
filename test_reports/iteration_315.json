@@ -1,0 +1,38 @@
+{
+  "summary": "Iter315 — Admin Réservations & Commandes hub: validated overview/live/scheduled/rides/orders endpoints + manual ride/order creation + cancel/reschedule/reassign. Full UI smoke pass (KPIs, 4 tabs, 2 modals, export/filter, AdminRides regression). One CRITICAL backend bug found & FIXED: manual-ride / manual-order returned 500 because _resolve_customer inserted users with email:null, conflicting with the non-sparse unique email_1 index on users (DuplicateKeyError after the very first guest). Fixed by assigning a per-guest unique placeholder email/phone.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/bookings/manual-{ride,order}", "issue": "Guest customers now get synthetic email/phone (guest+<id>@sb.local). Cleaner long-term solution would be to make the users.email/phone indexes sparse instead of injecting fake values."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter315_bookings_hub.py",
+    "/app/test_reports/pytest/iter315_results.xml"
+  ],
+  "action_items": [
+    "Confirm the placeholder email/phone strategy for admin-created guest customers is acceptable, or alternatively make users.email_1 / phone_1 sparse unique indexes (and remove the placeholder in /app/backend/routes/bookings_admin.py:_resolve_customer)."
+  ],
+  "critical_code_review_comments": [
+    "bookings_admin.py:_resolve_customer originally wrote {email: null} into users with a non-sparse unique email_1 index — would break after the first guest. Same risk on phone_1. Now mitigated with synthetic ids; consider sparse indexes instead.",
+    "AdminBookingsHub.js — reschedule prompt parses 'AAAA-MM-JJ HH:MM' with new Date(v.replace(' ','T')); locale-dependent and silently produces Invalid Date — please replace by datetime-local input.",
+    "bookings_admin.py /scheduled endpoint applies the display_status filter AFTER limit(200), so a status filter may yield <200 even when more matches exist; sort + filter should run server-side.",
+    "exportTrips builds 'trips-jobs.csv/pdf' against current page rows (max 300) only — no warning if data is truncated."
+  ],
+  "updated_files": [
+    "/app/backend/routes/bookings_admin.py (fix DuplicateKeyError on email/phone:null for guest customers)",
+    "/app/backend/tests/test_iter315_bookings_hub.py (new pytest covering 11 cases)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (smoke: KPIs + 4 tabs + 2 modals + regression page all green)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123!  (via login-email-btn flow)",
+  "seed_data_creation": "Several TEST_* guest users + a couple of TEST rides/orders created via API/UI flows; minimal and identifiable by TEST_ / guest+ prefixes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend hub endpoints are stable; if the main agent migrates users.email/phone to sparse indexes, remove the synthetic placeholders in _resolve_customer and re-run test_iter315_bookings_hub.py.",
+  "rca of the issue": "Symptom: POST /api/admin/bookings/manual-ride and /manual-order returned 500 for every fresh guest. Root cause: db.users has a (legacy) non-sparse unique index 'email_1' (and similarly 'phone_1'); _resolve_customer inserted {email: None}, which collides with any other null-email document. Fix: each guest now receives a deterministic synthetic email (guest+<id>@sb.local) and phone (guest+<id>) so the unique constraint is satisfied; the real phone is still stored on the booking via book_for_phone."
+}

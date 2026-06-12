@@ -28,6 +28,7 @@ export const PANEL_CONFIGS = {
     sidebar: [
       { title: 'OPÉRATIONS', items: [
         { icon: SquaresFour, label: 'Vue d\'ensemble', path: '/dispatch' },
+        { icon: Path, label: 'Réservations & Commandes', path: '/dispatch/bookings' },
         { icon: Path, label: 'Courses en direct', path: '/dispatch/live-rides' },
         { icon: Lightning, label: 'Auto-dispatch', path: '/dispatch/auto-dispatch' },
         { icon: ChartLine, label: 'Monitoring', path: '/dispatch/monitoring' },
