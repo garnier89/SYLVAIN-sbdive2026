@@ -72,6 +72,7 @@ export function clientRoutes(user) {
       <Route path="/service-providers/:slug" element={<ProtectedRoute allowedRoles={['user']}><ServiceProvidersPage /></ProtectedRoute>} />
       <Route path="/service-provider/:id" element={<ProtectedRoute allowedRoles={['user']}><ServiceProviderDetailPage /></ProtectedRoute>} />
       <Route path="/carpool" element={<ProtectedRoute allowedRoles={['user']}><CarPoolPage /></ProtectedRoute>} />
+      <Route path="/covoiturage" element={<ProtectedRoute allowedRoles={['user']}><CarPoolPage /></ProtectedRoute>} />
       <Route path="/marketplace" element={<ProtectedRoute allowedRoles={['user']}><MarketplacePage /></ProtectedRoute>} />
       <Route path="/marketplace/orders" element={<ProtectedRoute allowedRoles={['user']}><MyOrdersPage /></ProtectedRoute>} />
       <Route path="/marketplace/order/success" element={<ProtectedRoute allowedRoles={['user']}><OrderSuccessPage /></ProtectedRoute>} />

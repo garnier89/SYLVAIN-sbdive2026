@@ -69,7 +69,7 @@ const AdminCarpoolConfig = () => {
         {/* Toggle activation */}
         <button onClick={() => setField('enabled', !cfg.enabled)} data-testid="carpool-enabled-toggle" className="flex items-center gap-2">
           {cfg.enabled ? <CheckCircle size={22} className="text-emerald-500" weight="fill" /> : <Circle size={22} className="text-gray-300" />}
-          <span className="text-sm font-semibold text-gray-700">Covoiturage activé</span>
+          <span className="text-sm font-semibold text-gray-700">{cfg.enabled ? 'Covoiturage activé' : 'Covoiturage désactivé'}</span>
         </button>
 
         {NUMBER_FIELDS.map((f) => (

@@ -1,3 +1,11 @@
+## NEW - 2026-06-12 (340) - 🛠️ Covoiturage : UI admin config + avis détaillés chauffeur + badge Super chauffeur
+- **Demande user** : 3 items backlog → page admin config covoiturage, avis détaillés du chauffeur, badge « Super chauffeur » au-delà d'un seuil.
+- **Admin** : `AdminCarpoolConfig.js` (/admin/carpool-config) → `GET/PUT /carpool/admin/config` (commission, sièges, libération auto, activation, devise ; admin only).
+- **Avis** : `GET /carpool/drivers/{id}/reviews` (note, count, is_super_driver, avis détaillés). Frontend `DriverReviewsModal` (zone note cliquable sur chaque trajet).
+- **Badge Super chauffeur** : note ≥ 4.7 sur ≥ 5 avis → `driver_super` (cartes recherche + modale). Polish : libellé toggle activé/désactivé, alias route `/covoiturage`.
+- **Testé** : pytest 5/5 + e2e 100% (config persiste, 403 non-admin, badge + modale avis).
+
+
 ## NEW - 2026-06-12 (339) - ⭐ Covoiturage : notation chauffeur ↔ passager + note moyenne en recherche
 - **Demande user** : ajouter une note/évaluation (★) après chaque trajet covoiturage et afficher la note moyenne du chauffeur (la confiance booste les réservations).
 - **Backend** `routes/carpool.py` : `POST /rides/{id}/rate` (anti-doublon, trajet terminé requis, $inc agrégats sur le user), `_attach_driver_ratings` (search + my-rides), `can_rate` dans my-rides.
