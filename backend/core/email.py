@@ -736,6 +736,56 @@ def _fmt_flight_dt(s) -> str:
         return str(s or "—")
 
 
+def _sbdrive_transfer_html(booking: dict) -> str:
+    """Boutons « Réserver mon taxi SB Drive » (deep-link mode aéroport) pour les
+    aéroports desservis (départ et/ou arrivée). Vide si aucun aéroport desservi."""
+    import os
+    from urllib.parse import quote
+    from core.airport import DEFAULT_AIRPORT_ZONES
+
+    base = (os.environ.get("FRONTEND_URL") or "").rstrip("/")
+    if not base:
+        return ""
+    zones = {z["code"]: z for z in DEFAULT_AIRPORT_ZONES}
+    dep, arr = booking.get("origin_code"), booking.get("destination_code")
+    flight = booking.get("flight_number") or ""
+    fl = f"&flight={quote(flight)}" if flight else ""
+    arr_raw = booking.get("arrival_at")
+    arr_time = str(arr_raw)[11:16] if arr_raw and len(str(arr_raw)) >= 16 else ""
+
+    btns = []
+    if dep in zones:
+        z = zones[dep]
+        url = (f"{base}/course?mode=airport&acode={dep}{fl}"
+               f"&dlat={z['lat']}&dlng={z['lng']}&daddr={quote(z['name'])}")
+        btns.append((f"Aller à l'aéroport ({dep})", url, "#0B1426", "#ffffff"))
+    if arr in zones:
+        z = zones[arr]
+        url = (f"{base}/course?mode=airport&acode={arr}{fl}"
+               f"{('&farr=' + arr_time) if arr_time else ''}"
+               f"&plat={z['lat']}&plng={z['lng']}&paddr={quote(z['name'])}")
+        btns.append((f"Me récupérer à l'arrivée ({arr})", url, "#FF5000", "#0B1426"))
+    if not btns:
+        return ""
+
+    rows = ""
+    for label, url, bg, fg in btns:
+        rows += (
+            f'<tr><td style="padding:5px 0;"><a href="{url}" '
+            f'style="display:block;text-align:center;padding:12px 18px;background:{bg};color:{fg};'
+            f'text-decoration:none;border-radius:10px;font-weight:bold;font-size:14px;">'
+            f'&#128661; {label}</a></td></tr>'
+        )
+    return f"""
+        <div style="margin-top:20px;padding:16px;background:#f0f4f8;border-radius:12px;">
+          <p style="margin:0 0 8px;color:#0a0e1a;font-size:14px;font-weight:bold;">Besoin d'un taxi ? &#128661;</p>
+          <p style="margin:0 0 10px;color:#555;font-size:13px;line-height:1.5;">
+            R&eacute;servez votre transfert SB Drive en 1 clic (suivi de vol automatique, l'heure s'ajuste en cas de retard) :
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0">{rows}</table>
+        </div>"""
+
+
 async def send_flight_confirmation(to: str, name: str, booking: dict, pdf_bytes: bytes = None) -> None:
     """Email de confirmation de vol : PNR + itinéraire + passagers, e-billet PDF en pièce jointe."""
     accent = "#0A2540"
