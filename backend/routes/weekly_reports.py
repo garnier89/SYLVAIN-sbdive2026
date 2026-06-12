@@ -48,6 +48,7 @@ DEFAULT_CONFIG = {
     "send_to_drivers": True,
     "send_to_providers": True,
     "send_to_couriers": True,
+    "restrict_driver_email_to_authorized": True,  # only Taxi/VTC (+admin-authorized) receive their individual statement
     "last_sent_week": None,
 }
 
@@ -98,15 +99,23 @@ def previous_week_bounds(tz_name: str, ref: datetime = None):
 
 
 async def _driver_email_map(driver_ids):
-    """Map driver_id -> {email, name} via drivers->users."""
+    """Map driver_id -> {email, name, taxi_sub, report_export_allowed} via drivers->users."""
     out = {}
-    drivers = await db.drivers.find({"id": {"$in": list(driver_ids)}}, {"_id": 0, "id": 1, "user_id": 1}).to_list(None)
+    drivers = await db.drivers.find(
+        {"id": {"$in": list(driver_ids)}},
+        {"_id": 0, "id": 1, "user_id": 1, "taxi_sub": 1, "report_export_allowed": 1},
+    ).to_list(None)
     user_ids = [d["user_id"] for d in drivers if d.get("user_id")]
     users = await db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "email": 1, "name": 1}).to_list(None)
     umap = {u["id"]: u for u in users}
     for d in drivers:
         u = umap.get(d.get("user_id"), {})
-        out[d["id"]] = {"email": u.get("email"), "name": u.get("name", "Chauffeur")}
+        out[d["id"]] = {
+            "email": u.get("email"),
+            "name": u.get("name", "Chauffeur"),
+            "taxi_sub": d.get("taxi_sub"),
+            "report_export_allowed": bool(d.get("report_export_allowed")),
+        }
     return out
 
 
@@ -168,10 +177,14 @@ async def compute_report(start_iso: str, end_iso: str, config: dict):
         amount_on_app = round(net - cash_collected, 2)
         transfer = round(max(0.0, amount_on_app - floor), 2)
         info = email_map.get(did, {})
+        sub = str(info.get("taxi_sub") or "").strip().lower()
+        export_allowed = sub in ("vtc", "taxi") or bool(info.get("report_export_allowed"))
         driver_rows.append({
             "driver_id": did,
             "name": info.get("name", "Chauffeur"),
             "email": info.get("email"),
+            "taxi_sub": info.get("taxi_sub"),
+            "export_allowed": export_allowed,
             "completed": d["completed"],
             "cancelled": d["cancelled"],
             "refused": d["refused"],
@@ -189,6 +202,37 @@ async def compute_report(start_iso: str, end_iso: str, config: dict):
 
     driver_rows.sort(key=lambda x: x["gross"], reverse=True)
 
+    # ---- Merchants (commerçants): revenue from their orders (goods subtotal) ----
+    merchant_agg = {}
+    async for o in db.orders.find(date_q, {"_id": 0, "merchant_id": 1, "status": 1, "subtotal": 1, "total": 1}):
+        if o.get("status") not in {"delivered", "completed", "done"}:
+            continue
+        mid = o.get("merchant_id")
+        if not mid:
+            continue
+        m = merchant_agg.setdefault(mid, {"orders": 0, "revenue": 0.0})
+        m["orders"] += 1
+        m["revenue"] += float(o.get("subtotal") or 0)
+
+    merchant_rows = []
+    if merchant_agg:
+        mdocs = await db.merchants.find(
+            {"id": {"$in": list(merchant_agg.keys())}}, {"_id": 0, "id": 1, "store_name": 1, "user_id": 1}
+        ).to_list(None)
+        muids = [m["user_id"] for m in mdocs if m.get("user_id")]
+        musers = {u["id"]: u for u in await db.users.find({"id": {"$in": muids}}, {"_id": 0, "id": 1, "email": 1}).to_list(None)}
+        mname = {m["id"]: (m.get("store_name") or "Commerçant", musers.get(m.get("user_id"), {}).get("email")) for m in mdocs}
+        for mid, agg in merchant_agg.items():
+            rev = round(agg["revenue"], 2)
+            comm = round(rev * commission_rate, 2)
+            name, email = mname.get(mid, (mid, None))
+            merchant_rows.append({
+                "merchant_id": mid, "name": name, "email": email,
+                "orders": agg["orders"], "revenue": rev,
+                "commission": comm, "net": round(rev - comm, 2),
+            })
+        merchant_rows.sort(key=lambda x: x["revenue"], reverse=True)
+
     revenue_by_service = [
         {"service": k, "revenue": round(v["revenue"], 2), "count": v["count"]}
         for k, v in global_services.items()
@@ -203,6 +247,10 @@ async def compute_report(start_iso: str, end_iso: str, config: dict):
         "total_transfers": round(sum(r["transfer"] for r in driver_rows), 2),
         "active_drivers": len(driver_rows),
         "drivers": driver_rows,
+        "merchants": merchant_rows,
+        "active_merchants": len(merchant_rows),
+        "total_merchant_revenue": round(sum(m["revenue"] for m in merchant_rows), 2),
+        "total_merchant_commission": round(sum(m["commission"] for m in merchant_rows), 2),
     }
 
 
@@ -249,26 +297,67 @@ def _global_email_html(report, week_label, sender_name):
         f"<td style='padding:8px;border-bottom:1px solid #f0f0f0;text-align:right'>{_money(s['revenue'])}</td></tr>"
         for s in report["revenue_by_service"]
     )
+    driver_rows = "".join(
+        f"<tr><td style='padding:6px 8px;border-bottom:1px solid #f5f5f5'>{d['name']}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{d['completed']}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{_money(d['gross'])}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{_money(d['commission'])}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{_money(d['transfer'])}</td></tr>"
+        for d in report.get("drivers", [])
+    ) or "<tr><td colspan='5' style='padding:8px;color:#9ca3af'>Aucune activité chauffeur/livreur</td></tr>"
+    merch_rows = "".join(
+        f"<tr><td style='padding:6px 8px;border-bottom:1px solid #f5f5f5'>{m['name']}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{m['orders']}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{_money(m['revenue'])}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{_money(m['commission'])}</td>"
+        f"<td style='padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right'>{_money(m['net'])}</td></tr>"
+        for m in report.get("merchants", [])
+    ) or "<tr><td colspan='5' style='padding:8px;color:#9ca3af'>Aucune activité commerçant</td></tr>"
     return f"""
-<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#1f2937">
+<div style="font-family:Arial,sans-serif;max-width:760px;margin:0 auto;color:#1f2937">
   <div style="background:#111827;color:#fff;padding:20px;border-radius:8px 8px 0 0">
-    <h2 style="margin:0">Rapport global — {sender_name}</h2>
-    <p style="margin:4px 0 0;opacity:.85">Semaine du {week_label}</p>
+    <h2 style="margin:0">Rapport global d'activité — {sender_name}</h2>
+    <p style="margin:4px 0 0;opacity:.85">Semaine du {week_label} · Chauffeurs, livreurs & commerçants</p>
   </div>
   <div style="border:1px solid #e5e7eb;border-top:none;padding:20px;border-radius:0 0 8px 8px">
     <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px">
       <tr><th style="text-align:left;padding:8px;background:#f9fafb">Service</th><th style="text-align:right;padding:8px;background:#f9fafb">Commandes</th><th style="text-align:right;padding:8px;background:#f9fafb">Revenu</th></tr>
       {svc_rows}
-      <tr style="background:#eff6ff"><td style="padding:10px 8px"><b>Total</b></td><td style="padding:10px 8px;text-align:right"><b></b></td><td style="padding:10px 8px;text-align:right"><b>{_money(report['total_revenue'])}</b></td></tr>
+      <tr style="background:#eff6ff"><td style="padding:10px 8px"><b>Total</b></td><td style="padding:10px 8px;text-align:right"></td><td style="padding:10px 8px;text-align:right"><b>{_money(report['total_revenue'])}</b></td></tr>
     </table>
-    <table style="width:100%;border-collapse:collapse;font-size:14px">
-      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Chauffeurs/prestataires actifs</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right">{report['active_drivers']}</td></tr>
-      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Commissions encaissées</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right;color:#059669">{_money(report['total_commission'])}</td></tr>
-      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Virements à effectuer (total)</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right">{_money(report['total_transfers'])}</td></tr>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px">
+      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Chauffeurs/livreurs actifs</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right">{report['active_drivers']}</td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Commerçants actifs</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right">{report.get('active_merchants', 0)}</td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Commissions chauffeurs</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right;color:#059669">{_money(report['total_commission'])}</td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Commissions commerçants</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right;color:#059669">{_money(report.get('total_merchant_commission', 0))}</td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Virements chauffeurs à effectuer</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right">{_money(report['total_transfers'])}</td></tr>
+    </table>
+    <h3 style="font-size:14px;color:#111827;margin:0 0 6px">Détail chauffeurs / livreurs</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
+      <tr><th style="text-align:left;padding:6px 8px;background:#10b981;color:#fff">Nom</th><th style="text-align:right;padding:6px 8px;background:#10b981;color:#fff">Term.</th><th style="text-align:right;padding:6px 8px;background:#10b981;color:#fff">Brut</th><th style="text-align:right;padding:6px 8px;background:#10b981;color:#fff">Comm.</th><th style="text-align:right;padding:6px 8px;background:#10b981;color:#fff">Virement</th></tr>
+      {driver_rows}
+    </table>
+    <h3 style="font-size:14px;color:#111827;margin:0 0 6px">Détail commerçants</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr><th style="text-align:left;padding:6px 8px;background:#f59e0b;color:#fff">Boutique</th><th style="text-align:right;padding:6px 8px;background:#f59e0b;color:#fff">Commandes</th><th style="text-align:right;padding:6px 8px;background:#f59e0b;color:#fff">Revenu</th><th style="text-align:right;padding:6px 8px;background:#f59e0b;color:#fff">Comm.</th><th style="text-align:right;padding:6px 8px;background:#f59e0b;color:#fff">Net</th></tr>
+      {merch_rows}
     </table>
   </div>
 </div>
 """
+
+
+def _global_html_document(report, week_label, sender_name):
+    """Standalone HTML file (attachment) of the global report."""
+    return ("<!DOCTYPE html><html lang='fr'><head><meta charset='utf-8'>"
+            f"<title>Rapport global — {week_label}</title></head>"
+            "<body style='margin:0;background:#f3f4f6;padding:24px'>"
+            f"{_global_email_html(report, week_label, sender_name)}"
+            "</body></html>")
+
+
+def _html_attachment(html_str, filename):
+    return {"filename": filename, "content": list(html_str.encode("utf-8")), "content_type": "text/html"}
 
 
 # ---------------- PDF rendering ----------------
@@ -372,6 +461,20 @@ def _global_pdf_bytes(report, week_label, sender_name):
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
         ]))
         el.append(t3)
+    if report.get("merchants"):
+        el += [Spacer(1, 6 * mm), Paragraph("Détail commerçants", st["Sec"])]
+        mrows = [["Boutique", "Cmd.", "Revenu", "Comm.", "Net"]]
+        for m in report["merchants"]:
+            mrows.append([m["name"], str(m["orders"]), _money(m["revenue"]), _money(m["commission"]), _money(m["net"])])
+        t4 = Table(mrows, colWidths=[64 * mm, 18 * mm, 30 * mm, 26 * mm, 30 * mm])
+        t4.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f59e0b")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 8.5), ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4), ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#fffbeb")]),
+        ]))
+        el.append(t4)
     doc.build(el)
     return buf.getvalue()
 
@@ -419,8 +522,11 @@ async def run_weekly_send(config: dict, test_email: str = None):
         status, email_id, err = "sent", None, None
         try:
             pdf = _global_pdf_bytes(report, week_label, sender_name)
-            res = await _send(api_key, sender, global_to, subject, html,
-                              [_pdf_attachment(pdf, f"rapport-global-{week_label.split(' ')[0].replace('/', '-')}.pdf")])
+            datestamp = week_label.split(' ')[0].replace('/', '-')
+            res = await _send(api_key, sender, global_to, subject, html, [
+                _pdf_attachment(pdf, f"rapport-global-{datestamp}.pdf"),
+                _html_attachment(_global_html_document(report, week_label, sender_name), f"rapport-global-{datestamp}.html"),
+            ])
             email_id = (res or {}).get("id")
             sent += 1
         except Exception as e:
@@ -433,9 +539,12 @@ async def run_weekly_send(config: dict, test_email: str = None):
                         "email_id": email_id, "error": err, "is_test": is_test,
                         "snapshot": report})
 
-    # Per-driver reports
+    # Per-driver reports — restricted to Taxi/VTC (+admin-authorized) per the export gate.
     if config.get("send_to_drivers", True):
+        restrict = config.get("restrict_driver_email_to_authorized", True)
         for row in report["drivers"]:
+            if restrict and not row.get("export_allowed"):
+                continue
             to = test_email or row.get("email")
             if not to:
                 continue

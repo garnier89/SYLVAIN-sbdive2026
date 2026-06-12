@@ -212,6 +212,11 @@ const AdminWeeklyReports = () => {
             </label>
           ))}
         </div>
+        <label className="flex items-start gap-2 text-sm text-gray-700 pt-2" data-testid="toggle-restrict_driver_email">
+          <input type="checkbox" className="mt-0.5" checked={!!cfg.restrict_driver_email_to_authorized}
+            onChange={(e) => set('restrict_driver_email_to_authorized', e.target.checked)} />
+          <span>Limiter le relevé individuel aux chauffeurs <b>Taxi/VTC</b> (et Particulier/Livreur autorisés par l'admin). Le rapport global couvre tout le monde.</span>
+        </label>
       </div>
 
       {/* Actions */}
