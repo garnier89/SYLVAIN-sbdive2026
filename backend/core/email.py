@@ -35,6 +35,26 @@ async def _send(to: str, subject: str, html: str) -> None:
         logger.warning("Resend email failed for %s: %s", to, e)
 
 
+async def _send_with_attachments(to: str, subject: str, html: str, attachments: list) -> None:
+    """Comme _send mais avec pièces jointes Resend.
+    `attachments` = [{"filename": str, "content": bytes}] (encodées en base64)."""
+    if not RESEND_API_KEY or not to:
+        return
+    import base64
+    try:
+        att = [
+            {"filename": a["filename"], "content": base64.b64encode(a["content"]).decode("ascii")}
+            for a in (attachments or []) if a.get("content")
+        ]
+        payload = {"from": FROM, "to": [to], "subject": subject, "html": html}
+        if att:
+            payload["attachments"] = att
+        await asyncio.to_thread(resend.Emails.send, payload)
+        logger.info("Resend email (+%d attachment) sent to %s (%s)", len(att), to, subject)
+    except Exception as e:
+        logger.warning("Resend email w/ attachment failed for %s: %s", to, e)
+
+
 def _shell(title: str, accent: str, body_html: str) -> str:
     """Minimal table-based, inline-CSS responsive email shell (SB Store brand)."""
     return f"""\
@@ -706,3 +726,79 @@ async def send_access_recurring_reminder(to: str, name: str, when_label: str,
         {cta}
         <p style="margin-top:22px;color:#8a909c;font-size:12px;">Si vous n'avez pas besoin de ce trajet, vous pouvez l'annuler en un tap depuis l'application. Vous recevez ce rappel car vous avez un trajet automatique SB Drive Access.</p>"""
     await _send(to, f"♿ Rappel : votre trajet adapté de {when_label}", _shell("Trajet adapté confirmé", accent, body))
+
+
+
+def _fmt_flight_dt(s) -> str:
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00")).strftime("%d/%m/%Y à %H:%M")
+    except Exception:
+        return str(s or "—")
+
+
+async def send_flight_confirmation(to: str, name: str, booking: dict, pdf_bytes: bytes = None) -> None:
+    """Email de confirmation de vol : PNR + itinéraire + passagers, e-billet PDF en pièce jointe."""
+    accent = "#0A2540"
+    pnr = booking.get("pnr") or "—"
+    airline = booking.get("airline") or ""
+    flight_no = booking.get("flight_number") or ""
+    currency = booking.get("currency") or "EUR"
+    try:
+        total = f"{float(booking.get('total_price') or 0):.2f} {currency}"
+    except (TypeError, ValueError):
+        total = "—"
+
+    slices = booking.get("slices") or [{
+        "origin_code": booking.get("origin_code"), "origin_name": booking.get("origin"),
+        "destination_code": booking.get("destination_code"), "destination_name": booking.get("destination"),
+        "departing_at": booking.get("departure_at"), "arriving_at": booking.get("arrival_at"),
+    }]
+    seg_rows = ""
+    for i, sl in enumerate(slices):
+        seg_rows += f"""
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;border-radius:12px;margin:8px 0;">
+          <tr><td style="padding:14px 16px;">
+            <span style="color:#8a909c;font-size:11px;font-weight:bold;letter-spacing:1px;">{'ALLER' if i == 0 else 'RETOUR'}</span>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;">
+              <tr>
+                <td style="color:#0a0e1a;font-size:20px;font-weight:bold;">{sl.get('origin_code') or '—'}</td>
+                <td style="text-align:center;color:#FF5000;font-size:13px;">&#9992;</td>
+                <td style="color:#0a0e1a;font-size:20px;font-weight:bold;text-align:right;">{sl.get('destination_code') or '—'}</td>
+              </tr>
+              <tr>
+                <td style="color:#8a909c;font-size:12px;">{_fmt_flight_dt(sl.get('departing_at'))}</td>
+                <td></td>
+                <td style="color:#8a909c;font-size:12px;text-align:right;">{_fmt_flight_dt(sl.get('arriving_at'))}</td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>"""
+
+    pax_rows = "".join(
+        f'<tr><td style="padding:4px 0;color:#444;font-size:14px;">&bull; {p.get("name")}</td></tr>'
+        for p in (booking.get("passengers") or [])
+    )
+
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Votre vol <b>{airline} {flight_no}</b> est <b style="color:#16a34a;">confirmé</b> ! &#127881;
+          Votre e-billet est joint à cet email (PDF).
+        </p>
+        <div style="text-align:center;margin:18px 0;">
+          <span style="display:inline-block;padding:12px 22px;background:#0a0e1a;color:#fff;font-size:20px;
+                 font-weight:bold;letter-spacing:3px;border-radius:10px;font-family:monospace;">PNR {pnr}</span>
+        </div>
+        {seg_rows}
+        <p style="color:#0a0e1a;font-size:14px;font-weight:bold;margin:18px 0 4px;">Passagers</p>
+        <table width="100%" cellpadding="0" cellspacing="0">{pax_rows}</table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee;margin-top:14px;">
+          <tr><td style="padding:10px 0;color:#0a0e1a;font-size:17px;font-weight:bold;">Total pay&eacute;</td>
+              <td style="padding:10px 0;color:#FF5000;font-size:17px;font-weight:bold;text-align:right;">{total}</td></tr>
+        </table>
+        <p style="color:#9aa0ac;font-size:12px;line-height:1.5;margin-top:16px;">
+          Pr&eacute;sentez votre e-billet (en pi&egrave;ce jointe) et une pi&egrave;ce d'identit&eacute; &agrave; l'enregistrement. Bon voyage ! &#9992;
+        </p>"""
+    html = _shell("Vol confirmé ✈️", accent, body)
+    attachments = [{"filename": f"eticket-{pnr}.pdf", "content": pdf_bytes}] if pdf_bytes else []
+    await _send_with_attachments(to, f"✈️ Vol confirmé · PNR {pnr} — SB Travel", html, attachments)

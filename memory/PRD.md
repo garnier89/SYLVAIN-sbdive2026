@@ -1,3 +1,10 @@
+## NEW - 2026-06-12 (333) - 📧 E-mail de confirmation vol (Resend) + e-billet PDF en pièce jointe
+- **Demande user** : rassurer le voyageur et réduire les tickets support → e-mail auto avec PNR + e-billet PDF dès qu'un vol est confirmé.
+- **Backend** : `core/email.py` (`_send_with_attachments` base64 + `send_flight_confirmation`). Déclenché (non bloquant via `fire()`) dans `routes/flights.py` `live_book` et `live_pay`, avec PDF `_build_eticket_pdf`.
+- **Testé** : pytest `test_iter333_flight_email.py` 2/2 + envoi réel confirmé (PNR RG6LRC, +1 attachment).
+- ⚠️ Resend mode test : délivre uniquement à l'adresse vérifiée (`somosylv@gmail.com`). Prod → vérifier un domaine sur resend.com/domains + ajuster `SENDER_EMAIL`.
+
+
 ## NEW - 2026-06-12 (332) - ⏳ Mode « Hold order » Duffel — bloquer un tarif sans payer
 - **Demande user** : booster la conversion sur vols chers (Affaires/Première) en permettant de bloquer un tarif quelques heures sans payer. Choix : 1a (débit SB Pay uniquement au paiement) + 2b (notif ~2h avant + expiration auto).
 - **Backend** : `core/duffel.py` (`create_hold_order`, `create_payment`). `routes/flights.py` : offre expose `hold_available` ; `POST /flights/live/hold` (statut `held`, PNR, **aucun débit**) ; `POST /flights/live/bookings/{id}/pay` (vérif échéance+solde → paiement Duffel → débit → `confirmed`) ; `flight_hold_loop` (rappel 2h + expiration). `core/startup.py` : tâche branchée au lifespan.

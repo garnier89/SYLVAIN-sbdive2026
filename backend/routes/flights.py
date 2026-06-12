@@ -21,6 +21,7 @@ from core.deps import require_role, get_current_user
 from core.notifications import create_notification
 from core.airport import notify_admins
 from core import duffel
+from core.email import send_flight_confirmation, fire
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 admin_router = APIRouter(prefix="/flights/admin", tags=["flights-admin"])
@@ -427,6 +428,8 @@ async def live_book(request: Request):
     await create_notification(user["id"], "flight_booking", "Vol réservé ✈️",
                               f"PNR {pnr} · {booking['origin_code']} → {booking['destination_code']}. E-billet disponible.",
                               data={"booking_id": booking["id"]})
+    if booking.get("contact_email"):
+        fire(send_flight_confirmation(booking["contact_email"], user.get("name"), booking, _build_eticket_pdf(booking)))
     return {"ok": True, "booking": booking, "balance": new_balance}
 
 
@@ -554,6 +557,8 @@ async def live_pay(booking_id: str, request: Request):
                               f"PNR {pnr} · {bk.get('origin_code')} → {bk.get('destination_code')}. E-billet disponible.",
                               data={"booking_id": booking_id})
     bk.update({"status": "confirmed", "payment_status": "paid", "pnr": pnr, "total_price": price, "currency": currency})
+    if bk.get("contact_email"):
+        fire(send_flight_confirmation(bk["contact_email"], user.get("name"), bk, _build_eticket_pdf(bk)))
     return {"ok": True, "booking": bk, "balance": new_balance}
 
 

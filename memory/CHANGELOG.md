@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06-12 — E-mail de confirmation vol (Resend) + e-billet PDF en pièce jointe [DONE, testé]
+Dès qu'un vol est confirmé (réservation instantanée OU paiement d'un « hold »), un e-mail brandé est envoyé au contact avec le PNR, l'itinéraire, les passagers, le total, et **l'e-billet PDF en pièce jointe**.
+- **`core/email.py`** : nouveau `_send_with_attachments` (attachements Resend en base64) + `send_flight_confirmation(to, name, booking, pdf_bytes)`.
+- **`routes/flights.py`** : `fire(send_flight_confirmation(...))` (non bloquant) déclenché dans `live_book` et `live_pay` à la confirmation, avec le PDF généré par `_build_eticket_pdf`.
+- **Testé** : pytest `test_iter333_flight_email.py` 2/2 + envoi réel vérifié (`Resend email (+1 attachment) sent to somosylv@gmail.com`, PNR RG6LRC).
+- ⚠️ Limitation Resend : en mode test (domaine non vérifié), seuls les e-mails vers l'adresse vérifiée du compte (`somosylv@gmail.com`) sont délivrés. Pour livrer à tous les clients en prod → vérifier un domaine sur resend.com/domains et adapter `SENDER_EMAIL`.
+
+
+
 ## 2026-06-12 — Mode « Hold order » Duffel : bloquer un tarif sans payer [DONE, testé 10/10 + e2e]
 Pour booster la conversion sur les vols chers (Affaires/Première), le client peut bloquer un tarif quelques heures sans payer. Choix user : 1a (débit SB Pay uniquement au paiement) + 2b (notif ~2h avant échéance + expiration auto).
 - **`core/duffel.py`** : `create_hold_order` (type `hold`, sans paiement), `create_payment` (POST /air/payments, balance).
