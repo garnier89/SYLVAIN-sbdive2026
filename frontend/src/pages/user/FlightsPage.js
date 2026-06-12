@@ -43,29 +43,35 @@ const AIRPORT_PLACES = {
   CDG: { name: 'Aéroport Paris-Charles de Gaulle, Roissy', lat: 49.0097, lng: 2.5479 },
 };
 
-// Boutons « transfert aéroport » : ouvre la commande SB Drive (/course) avec
-// l'aéroport déjà rempli via deep-link URL. « Aller » = course vers l'aéroport de
-// départ (destination), « Arrivée » = récupération à l'aéroport d'arrivée (départ).
-// N'apparaît que pour les aéroports desservis par SB Drive.
+// Boutons « transfert aéroport » : ouvre la commande SB Drive en mode « Aéroport »
+// (suivi de vol + tarif fixe) avec aéroport + n° de vol pré-remplis via deep-link URL.
+// « Aller » = course vers l'aéroport de départ (destination), « Arrivée » =
+// récupération à l'aéroport d'arrivée (départ) avec heure d'arrivée du vol.
 const SbDriveTransfer = ({ booking, navigate }) => {
   const dep = booking.origin_code;
   const arr = booking.destination_code;
+  const flight = booking.flight_number || '';
   const depPlace = AIRPORT_PLACES[dep];
   const arrPlace = AIRPORT_PLACES[arr];
   if (!depPlace && !arrPlace) return null;
-  const toAirport = (a) => navigate(`/course?mode=standard&dlat=${a.lat}&dlng=${a.lng}&daddr=${encodeURIComponent(a.name)}`);
-  const fromAirport = (a) => navigate(`/course?mode=standard&plat=${a.lat}&plng=${a.lng}&paddr=${encodeURIComponent(a.name)}`);
+  const arrTime = (booking.arrival_at && String(booking.arrival_at).length >= 16)
+    ? String(booking.arrival_at).slice(11, 16) : '';
+  const fl = flight ? `&flight=${encodeURIComponent(flight)}` : '';
+  const toAirport = (code, a) =>
+    navigate(`/course?mode=airport&acode=${code}${fl}&dlat=${a.lat}&dlng=${a.lng}&daddr=${encodeURIComponent(a.name)}`);
+  const fromAirport = (code, a) =>
+    navigate(`/course?mode=airport&acode=${code}${fl}${arrTime ? `&farr=${arrTime}` : ''}&plat=${a.lat}&plng=${a.lng}&paddr=${encodeURIComponent(a.name)}`);
   return (
     <div className="mt-2 flex flex-col gap-1.5" data-testid={`sbdrive-transfer-${booking.id}`}>
       {depPlace && (
-        <button onClick={() => toAirport(depPlace)} data-testid={`sbdrive-to-airport-${booking.id}`}
+        <button onClick={() => toAirport(dep, depPlace)} data-testid={`sbdrive-to-airport-${booking.id}`}
           className="w-full min-h-[40px] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5"
           style={{ background: '#0B1426', color: '#fff' }}>
           <Car size={15} weight="fill" /> Aller à l'aéroport ({dep}) avec SB Drive
         </button>
       )}
       {arrPlace && (
-        <button onClick={() => fromAirport(arrPlace)} data-testid={`sbdrive-from-airport-${booking.id}`}
+        <button onClick={() => fromAirport(arr, arrPlace)} data-testid={`sbdrive-from-airport-${booking.id}`}
           className="w-full min-h-[40px] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5"
           style={{ border: '1.5px solid #0B1426', color: '#0B1426' }}>
           <Car size={15} weight="fill" /> Me récupérer à l'arrivée ({arr})

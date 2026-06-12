@@ -487,6 +487,12 @@ async def run_all_seeds():
     except Exception as e:
         logger.error(f"Transport seed failed: {e}")
     try:
+        from core.airport import seed_airport_zones
+        await seed_airport_zones()      # zones aéroport par défaut (Antilles-Guyane + Paris)
+        logger.info("Airport zones seeded")
+    except Exception as e:
+        logger.error(f"Airport zones seed failed: {e}")
+    try:
         import asyncio as _asyncio
         from routes.transport import ensure_gtfs_imported
         _asyncio.create_task(ensure_gtfs_imported())   # GTFS Martinique (real data, one-time)

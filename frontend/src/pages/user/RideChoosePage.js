@@ -132,11 +132,11 @@ const RideChoosePage = () => {
   const [scheduledAt, setScheduledAt] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [noDrivers, setNoDrivers] = useState(false);
-  const [flightNumber, setFlightNumber] = useState('');
+  const [flightNumber, setFlightNumber] = useState(() => params.get('flight') || '');
   const [airports, setAirports] = useState([]);
   const [airportId, setAirportId] = useState('');
-  const [airportTerminal, setAirportTerminal] = useState('');
-  const [flightArrivalTime, setFlightArrivalTime] = useState('');
+  const [airportTerminal, setAirportTerminal] = useState(() => params.get('term') || '');
+  const [flightArrivalTime, setFlightArrivalTime] = useState(() => params.get('farr') || '');
   const [luggageAssist, setLuggageAssist] = useState(false);
   const [luggageCount, setLuggageCount] = useState(1);
   const [sharedShuttle, setSharedShuttle] = useState(false);
@@ -354,7 +354,11 @@ const RideChoosePage = () => {
       .then((r) => {
         const list = Array.isArray(r.data) ? r.data : [];
         setAirports(list);
-        if (list.length && !airportId) setAirportId(list[0].id);
+        // Deep-link: pré-sélectionne l'aéroport par code (acode) si fourni.
+        const acode = (params.get('acode') || '').toUpperCase();
+        const match = acode ? list.find((a) => (a.code || '').toUpperCase() === acode) : null;
+        if (match) setAirportId(match.id);
+        else if (list.length && !airportId) setAirportId(list[0].id);
       })
       .catch(() => {});
   }, [mode.id]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -49,6 +49,44 @@ def _haversine_km(lat1, lng1, lat2, lng2):
 
 
 # ── Airport directory (admin-managed) ───────────────────────────────────
+# Référentiel par défaut (Antilles-Guyane + Paris) pour le mode « Transfert
+# aéroport ». Seed idempotent au démarrage : seuls les codes manquants sont créés.
+DEFAULT_AIRPORT_ZONES = [
+    {"code": "FDF", "name": "Aéroport Martinique Aimé Césaire", "lat": 14.591, "lng": -61.003, "radius_km": 4,
+     "meeting_point": "Terminal Arrivées, niveau 0, sortie B"},
+    {"code": "PTP", "name": "Aéroport Pointe-à-Pitre Le Raizet", "lat": 16.2653, "lng": -61.5314, "radius_km": 4,
+     "meeting_point": "Hall Arrivées, niveau RDC, sortie principale"},
+    {"code": "CAY", "name": "Aéroport Cayenne Félix Éboué", "lat": 4.8198, "lng": -52.3604, "radius_km": 4,
+     "meeting_point": "Hall Arrivées, sortie principale"},
+    {"code": "SXM", "name": "Aéroport de Grand-Case Espérance", "lat": 18.0999, "lng": -63.0472, "radius_km": 3,
+     "meeting_point": "Terminal Arrivées, sortie principale"},
+    {"code": "ORY", "name": "Paris-Orly", "lat": 48.7262, "lng": 2.3652, "radius_km": 5,
+     "meeting_point": "Orly 4, Niveau Arrivées, Porte A"},
+    {"code": "CDG", "name": "Paris-Charles de Gaulle", "lat": 49.0097, "lng": 2.5479, "radius_km": 6,
+     "meeting_point": "Terminal 2E, Porte 5, Niveau Arrivées"},
+]
+
+
+async def seed_airport_zones():
+    """Idempotent : crée les zones aéroport par défaut manquantes (par code)."""
+    import uuid
+    created = []
+    for a in DEFAULT_AIRPORT_ZONES:
+        if await db.airport_zones.find_one({"code": a["code"]}):
+            continue
+        await db.airport_zones.insert_one({
+            "id": f"az_{uuid.uuid4().hex[:10]}", **a,
+            "free_wait_minutes": DEFAULT_FREE_WAIT_MIN, "luggage_fee": DEFAULT_LUGGAGE_FEE,
+            "shuttle_discount_pct": DEFAULT_SHUTTLE_DISCOUNT_PCT, "waiting_rate_per_min": DEFAULT_WAIT_RATE_PER_MIN,
+            "surcharge_amount": 0.0, "active": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        created.append(a["code"])
+    if created:
+        logger.info("Airport zones seeded: %s", ", ".join(created))
+    return created
+
+
 async def list_airports(active_only=True):
     q = {"active": True} if active_only else {}
     return await db.airport_zones.find(q, {"_id": 0}).to_list(100)
