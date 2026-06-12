@@ -1,3 +1,18 @@
+## NEW - 2026-06-12 (306) - 🔐 Sécurité & Fraude — Phase 1 (audit + corrections critiques + dashboard admin) DONE, testé 5/5 + UI
+- **Demande user** : sécurité & fraude sur les 6 domaines (paiement/wallet, comptes, chauffeurs, promos/parrainage, données/accès, sécurité trajets) → audit + implémentation + dashboard admin.
+- **Audit** : `/app/memory/SECURITY_AUDIT.md` (constats priorisés par domaine). Base déjà solide (anti-bruteforce login email+tel, bcrypt, JWT, ACL, audit logs).
+- **2 failles CRITIQUES fermées (wallet)** :
+  - `POST /api/wallet/refund` créditait le wallet de n'importe quel user (auto-remboursement illimité) → désormais **admin-only** + crédite un `target_user_id` + audit log ; tentative non-admin → 403 + `fraud_event` critique.
+  - `POST /api/wallet/topup` créditait sans paiement vérifié → **admin-only** (grand public via Stripe `/payments/checkout`) ; tentative non-admin → 403 + `fraud_event` critique.
+- **Moteur anti-fraude** `core/fraud.py` : `record_fraud_event`, `ensure_not_blocked` (appliqué à wallet pay/transfer), `check_wallet_velocity` (transferts 24h → fraud_event).
+- **Blocage de compte** : admin bloque/débloque (`is_blocked`) ; un admin ne peut pas être bloqué ; un compte bloqué ne peut plus payer/transférer.
+- **Dashboard admin** `routes/fraud.py` (perms `super.fraud.view/manage`) + page `/admin/fraud` (`AdminFraud.js`, entrée menu « Sécurité & Fraude ») : cartes résumé, onglet Alertes (résoudre/bloquer), onglet Risque Wallet (top vélocité 7j, bloquer/débloquer). `fraudAPI` dans api.js.
+- **Testé** : pytest `test_iter300_fraud.py` 5/5 (refund/topup/dashboard 403 user, cycle block/unblock, admin non-bloquable) + curl + UI (résolution alerte 6→5, onglet risque, blocage).
+- ⏭️ Phases suivantes proposées : P1 abus promos/parrainage multi-comptes + plafonds cashback ; P1 fraude chauffeurs (GPS/cohérence trajet) ; P2 verrou anti double-dépense wallet + lockout complet à la connexion des comptes bloqués (auth → integration_expert).
+- ⚠️ PREVIEW → redéploiement requis.
+
+
+
 ## NEW - 2026-06-12 (305) - ⏱️ ETA « livraison vers HHhMM » dans la bannière live (DONE, testé)
 - **Backend** `GET /api/orders/last-delivery` (mode active) renvoie `eta` (ISO) = réf (programmé sinon création) + `ORDER_DELIVERED_SEC` (durée du cycle).
 - **Frontend** `UserHome.js` : la bannière active affiche « {statut} · livraison vers HHhMM » (formaté en heure locale via `toLocaleTimeString('fr-FR')`, ':' → 'h'). Se met à jour en temps réel avec le statut (WS).

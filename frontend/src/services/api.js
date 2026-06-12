@@ -710,6 +710,16 @@ export const placesAPI = {
   addRecent: (place) => api.post('/places/recent', place),
 };
 
+export const fraudAPI = {
+  summary: () => api.get('/fraud/summary'),
+  alerts: (params) => api.get('/fraud/alerts', { params }),
+  resolveAlert: (id, note) => api.post(`/fraud/alerts/${id}/resolve`, { note }),
+  walletRisk: () => api.get('/fraud/wallet-risk'),
+  blockUser: (userId, reason) => api.post(`/fraud/users/${userId}/block`, { reason }),
+  unblockUser: (userId) => api.post(`/fraud/users/${userId}/unblock`, {}),
+};
+
+
 export const geoAPI = {
   ipLocate: () => api.get('/geo/ip-locate'),
   getCountries: () => api.get('/geo/countries'),

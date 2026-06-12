@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from core.config import db
 from core.deps import get_current_user
+from core.fraud import record_fraud_event, ensure_not_blocked, check_wallet_velocity
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 
@@ -53,10 +54,20 @@ async def get_wallet(request: Request):
 
 @router.post("/topup")
 async def topup_wallet(request: Request):
-    """Add money to wallet (Cash/Card/Stripe)."""
+    """Crédit manuel (recharge en espèces par un agent/admin).
+    La recharge grand public passe par le paiement Stripe vérifié (/api/payments/checkout).
+    Cet endpoint ne crédite PAS sans vérification : il est réservé aux administrateurs."""
     user = await get_current_user(request)
     body = await request.json()
     amount = body.get("amount", 0)
+
+    # Faille fermée : seul un admin peut créditer sans passage par Stripe.
+    if user.get("role") != "admin":
+        await record_fraud_event(
+            event_type="wallet.topup_unauthorized", severity="critical", user_id=user["id"],
+            amount=amount, description="Tentative de rechargement wallet sans paiement vérifié (endpoint réservé admin)",
+        )
+        raise HTTPException(status_code=403, detail="Rechargement direct non autorisé. Utilisez le paiement sécurisé.")
 
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Le montant doit etre positif")
@@ -114,6 +125,7 @@ async def topup_wallet(request: Request):
 async def pay_from_wallet(request: Request):
     """Deduct money from wallet for a ride/order."""
     user = await get_current_user(request)
+    await ensure_not_blocked(user)
     body = await request.json()
     amount = body.get("amount", 0)
     ride_id = body.get("ride_id")
@@ -156,6 +168,7 @@ async def pay_from_wallet(request: Request):
 async def transfer_wallet(request: Request):
     """Transfer money between wallets."""
     user = await get_current_user(request)
+    await ensure_not_blocked(user)
     body = await request.json()
     to_user_id = body.get("to_user_id")
     amount = body.get("amount", 0)
@@ -172,6 +185,15 @@ async def transfer_wallet(request: Request):
     receiver = await db.users.find_one({"id": to_user_id})
     if not receiver:
         raise HTTPException(status_code=404, detail="Utilisateur non trouve")
+
+    # Anti-fraude : détection de vélocité (n'interrompt pas un transfert légitime).
+    try:
+        for sev, msg in await check_wallet_velocity(user["id"], "transfer", float(amount)):
+            await record_fraud_event(event_type="wallet.transfer_velocity", severity=sev,
+                                     user_id=user["id"], amount=amount, description=msg,
+                                     metadata={"to_user_id": to_user_id})
+    except Exception:
+        pass
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -222,34 +244,53 @@ async def transfer_wallet(request: Request):
 
 @router.post("/refund")
 async def refund_to_wallet(request: Request):
-    """Refund money back to wallet (admin or system)."""
+    """Refund money back to a wallet — réservé aux administrateurs/système.
+    Faille fermée : un utilisateur ne peut plus s'auto-créditer."""
     user = await get_current_user(request)
     body = await request.json()
     amount = body.get("amount", 0)
     reason = body.get("reason", "Remboursement")
 
+    if user.get("role") != "admin":
+        await record_fraud_event(
+            event_type="wallet.refund_unauthorized", severity="critical", user_id=user["id"],
+            amount=amount, description="Tentative d'auto-remboursement wallet (endpoint réservé admin)",
+        )
+        raise HTTPException(status_code=403, detail="Remboursement non autorisé.")
+
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Le montant doit etre positif")
 
-    wallet = await db.wallets.find_one({"user_id": user["id"]})
+    # L'admin crédite un utilisateur cible (sinon lui-même par défaut).
+    target_id = body.get("target_user_id") or user["id"]
+    wallet = await db.wallets.find_one({"user_id": target_id})
     if not wallet:
-        wallet = {"user_id": user["id"], "balance": 0.0, "currency": "EUR", "created_at": datetime.now(timezone.utc).isoformat()}
+        wallet = {"user_id": target_id, "balance": 0.0, "currency": "EUR", "created_at": datetime.now(timezone.utc).isoformat()}
         await db.wallets.insert_one(wallet)
 
     new_balance = wallet["balance"] + amount
-    await db.wallets.update_one({"user_id": user["id"]}, {"$set": {"balance": round(new_balance, 2)}})
+    await db.wallets.update_one({"user_id": target_id}, {"$set": {"balance": round(new_balance, 2)}})
 
     tx = {
         "id": f"tx_{uuid.uuid4().hex[:12]}",
-        "user_id": user["id"],
+        "user_id": target_id,
         "type": "Refund",
         "amount": amount,
         "balance_after": round(new_balance, 2),
         "description": reason,
         "status": "completed",
+        "refunded_by": user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.wallet_transactions.insert_one(tx)
     tx.pop("_id", None)
+
+    try:
+        from routes.audit_logs import log_action
+        await log_action(actor_id=user["id"], actor_role="admin", action="wallet.refund",
+                         target_type="user", target_id=target_id, reason=reason,
+                         payload_after={"amount": amount})
+    except Exception:
+        pass
 
     return {"message": "Refund processed", "balance": round(new_balance, 2), "transaction": tx}

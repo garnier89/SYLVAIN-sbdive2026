@@ -17,7 +17,7 @@ import {
   AdminOrderHelpRequests, AdminTripHelpRequests, AdminPushNotifications, AdminPaymentMethods,
   AdminSbPayGoZones, AdminDbBackup, AdminNegotiationGapReport, AdminNoDriverStats,
   AdminFeaturedListings, AdminNearbyBusinesses, AdminZones, AdminTrendingPinned, AdminMarketplace, AdminTransport, AdminRealEstate, AdminPharmacy, AdminServiceSettings, AdminAppSettings, AdminNotifSettings,
-  AdminKiosks, AdminACL, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
+  AdminKiosks, AdminACL, AdminFraud, AdminAuditLogs, AdminOrganizations, AdminCorporate, AdminHomeCategories,
   AdminPromoBanners, AdminNews, AdminStudent, AdminAccess, AdminI18n, AdminGeoFence, AdminAirport, AdminDemo, AdminGiftCards, AdminReferralSettings, AdminLoyalty, AdminModeration, AdminServiceProviders, AdminLiveSupport,
   AdminBanners, AdminNewsletter, AdminKyc, AdminStores, AdminTemplates, AdminWeatherSurcharge,
   AdminPersonalDriver, AdminAutoPromotions, AdminVouchers, AdminFaqs, AdminHelpArticles,
@@ -140,6 +140,7 @@ export function adminRoutes() {
       <Route path="app-settings" element={<AdminAppSettings />} />
       <Route path="kiosks" element={<AdminKiosks />} />
       <Route path="acl" element={<AdminACL />} />
+      <Route path="fraud" element={<AdminFraud />} />
       <Route path="audit-logs" element={<AdminAuditLogs />} />
       <Route path="organizations" element={<AdminOrganizations />} />
       <Route path="corporate" element={<AdminCorporate />} />

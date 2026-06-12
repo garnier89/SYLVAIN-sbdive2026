@@ -244,6 +244,7 @@ const sidebarConfig = [
       { icon: FileText, label: 'Documents', path: '/admin/documents' },
       { icon: Shield, label: 'Vérification vendeurs (KYC)', path: '/admin/kyc' },
       { icon: Shield, label: 'ACL — Rôles & Permissions', path: '/admin/acl' },
+      { icon: Shield, label: 'Sécurité & Fraude', path: '/admin/fraud' },
       { icon: FileText, label: 'Audit Logs', path: '/admin/audit-logs' },
       { icon: Buildings, label: 'Organisations (multi-tenant)', path: '/admin/organizations' },
       { icon: Translate, label: 'Traductions i18n', path: '/admin/i18n' },

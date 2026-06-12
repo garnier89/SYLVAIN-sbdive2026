@@ -209,6 +209,7 @@ export const AdminDisputes = lazy(() => import('../pages/admin/AdminDisputes'));
 export const AdminWalletRequests = lazy(() => import('../pages/admin/AdminWalletRequests'));
 export const AdminSettlements = lazy(() => import('../pages/admin/AdminSettlements'));
 export const AdminACL = lazy(() => import('../pages/admin/AdminACL'));
+export const AdminFraud = lazy(() => import('../pages/admin/AdminFraud'));
 export const AdminAuditLogs = lazy(() => import('../pages/admin/AdminAuditLogs'));
 export const AdminOrganizations = lazy(() => import('../pages/admin/AdminOrganizations'));
 export const AdminCorporate = lazy(() => import('../pages/admin/AdminCorporate'));
