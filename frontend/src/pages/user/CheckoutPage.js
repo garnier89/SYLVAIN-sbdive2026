@@ -13,6 +13,8 @@ import {
 } from '@phosphor-icons/react';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import { getCurrentLocation } from '../../lib/googleMaps';
+import { NavigationArrow } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -39,6 +41,18 @@ const CheckoutPage = () => {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState(null);
   const [deliveryOptions, setDeliveryOptions] = useState([]);
+  const [locating, setLocating] = useState(false);
+
+  const useMyLocation = async () => {
+    setLocating(true);
+    try {
+      const loc = await getCurrentLocation();
+      setFormData((f) => ({ ...f, delivery_address: loc.address || f.delivery_address, delivery_lat: loc.lat, delivery_lng: loc.lng }));
+      toast.success('Position actuelle détectée');
+    } catch (e) {
+      toast.error("Impossible d'obtenir votre position. Autorisez la géolocalisation ou saisissez l'adresse.");
+    } finally { setLocating(false); }
+  };
 
   const [formData, setFormData] = useState({
     delivery_address: '',
@@ -256,6 +270,11 @@ const CheckoutPage = () => {
                 delivery_lng: loc.lng,
               }))}
             />
+            <button type="button" onClick={useMyLocation} disabled={locating}
+              className="mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-red-200 bg-red-50 text-red-600 text-xs font-semibold disabled:opacity-60"
+              data-testid="checkout-mylocation-btn">
+              <NavigationArrow size={15} weight="fill" /> {locating ? 'Localisation…' : 'Utiliser ma position actuelle'}
+            </button>
             <p className="text-xs text-gray-400 mt-1.5">Commencez à taper puis choisissez une suggestion pour localiser précisément la livraison.</p>
           </CardContent>
         </Card>

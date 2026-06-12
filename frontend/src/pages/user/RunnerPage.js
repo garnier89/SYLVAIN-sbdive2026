@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Package, Plus, Trash, Lightning, MapPin, Bag } from '@phosphor-icons/react';
+import { ArrowLeft, Package, Plus, Trash, Lightning, MapPin, Bag, NavigationArrow } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import { getCurrentLocation } from '../../lib/googleMaps';
 import { parcelAPI } from '../../services/api';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 
@@ -34,6 +35,18 @@ const RunnerPage = () => {
   const [mode, setMode] = useState('simple');
   const [pickup, setPickup] = useState(null);
   const [pickupNote, setPickupNote] = useState('');
+  const [locating, setLocating] = useState(false);
+
+  const useMyLocationForPickup = async () => {
+    setLocating(true);
+    try {
+      const loc = await getCurrentLocation();
+      setPickup({ address: loc.address || 'Position actuelle', lat: loc.lat, lng: loc.lng });
+      toast.success('Position actuelle détectée');
+    } catch (e) {
+      toast.error("Impossible d'obtenir votre position. Autorisez la géolocalisation ou saisissez l'adresse.");
+    } finally { setLocating(false); }
+  };
   const [packageType, setPackageType] = useState('document');
   const [submitting, setSubmitting] = useState(false);
   const [estimatedFare, setEstimatedFare] = useState(0);
@@ -176,6 +189,11 @@ const RunnerPage = () => {
             testId="runner-pickup"
             onSelect={(r) => setPickup({ address: r.address, lat: r.lat, lng: r.lng })}
           />
+          <button type="button" onClick={useMyLocationForPickup} disabled={locating}
+            className="mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold disabled:opacity-60"
+            data-testid="runner-pickup-mylocation-btn">
+            <NavigationArrow size={15} weight="fill" /> {locating ? 'Localisation…' : 'Ma position'}
+          </button>
           <input
             type="text"
             placeholder="Note pour le coursier (ex: étage, code...)"

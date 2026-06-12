@@ -10,7 +10,7 @@ import { GMAPS_LOADER_OPTIONS, getGeocoder } from '../lib/googleMaps';
 
 const DEFAULT_CENTER = { lat: 48.8566, lng: 2.3522 }; // Paris
 
-const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClose }) => {
+const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClose, showTargetToggle = true, title = 'Définir sur la carte' }) => {
   const mapRef = useRef(null);
   const mapObj = useRef(null);
   const { isLoaded } = useJsApiLoader(GMAPS_LOADER_OPTIONS);
@@ -55,18 +55,20 @@ const MapLocationPicker = ({ open, initial, target = 'dropoff', onConfirm, onClo
       {/* Header */}
       <div className="bg-[#0B1426] text-white px-4 pt-12 pb-3 flex items-center gap-3">
         <button onClick={onClose} data-testid="map-picker-close"><X size={24} /></button>
-        <h2 className="text-lg font-bold flex-1">Définir sur la carte</h2>
+        <h2 className="text-lg font-bold flex-1">{title}</h2>
       </div>
 
       {/* Target toggle */}
-      <div className="flex gap-2 px-4 py-2 bg-gray-50 border-b">
-        {[{ k: 'pickup', l: 'Départ' }, { k: 'dropoff', l: 'Destination' }].map((t) => (
-          <button key={t.k} onClick={() => setPickTarget(t.k)} data-testid={`map-target-${t.k}`}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${pickTarget === t.k ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}>
-            {t.l}
-          </button>
-        ))}
-      </div>
+      {showTargetToggle && (
+        <div className="flex gap-2 px-4 py-2 bg-gray-50 border-b">
+          {[{ k: 'pickup', l: 'Départ' }, { k: 'dropoff', l: 'Destination' }].map((t) => (
+            <button key={t.k} onClick={() => setPickTarget(t.k)} data-testid={`map-target-${t.k}`}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${pickTarget === t.k ? 'bg-[#0B1426] text-white border-transparent' : 'bg-white text-[#0B1426] border-[#E2E8F0]'}`}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Map + center pin */}
       <div className="relative flex-1">

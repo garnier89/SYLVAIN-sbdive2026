@@ -6,29 +6,14 @@ import { Button } from '../../components/ui/button';
 import { parcelAPI } from '../../services/api';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import {
-  ArrowLeft, Package, Motorcycle, CaretRight, Plus, Trash, MapPin, FlagCheckered, CheckCircle
+  ArrowLeft, Package, Motorcycle, CaretRight, Plus, Trash, MapPin, FlagCheckered, CheckCircle, NavigationArrow, MapTrifold
 } from '@phosphor-icons/react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
-const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
-
-const LocationSelector = ({ onSelect }) => {
-  useMapEvents({ click(e) { onSelect({ lat: e.latlng.lat, lng: e.latlng.lng }); } });
-  return null;
-};
+import GooglePlacesInput from '../../components/GooglePlacesInput';
+import MapLocationPicker from '../../components/MapLocationPicker';
+import { getCurrentLocation } from '../../lib/googleMaps';
 
 let stopSeq = 0;
-const emptyStop = () => ({ _id: ++stopSeq, lat: null, lng: null, recipient_name: '', recipient_phone: '' });
+const emptyStop = () => ({ _id: ++stopSeq, lat: null, lng: null, address: '', recipient_name: '', recipient_phone: '' });
 
 const ParcelPage = () => {
   const { money } = useLocale();
@@ -36,24 +21,40 @@ const ParcelPage = () => {
   const [step, setStep] = useState('choose');
   const [deliveryMode, setDeliveryMode] = useState(null); // single | multi
   const [vehicleType, setVehicleType] = useState(null); // box | moto
-  const [pickup, setPickup] = useState({ lat: null, lng: null });
+  const [pickup, setPickup] = useState({ lat: null, lng: null, address: '' });
   const [stops, setStops] = useState([emptyStop()]); // drop-off points
-  const [selecting, setSelecting] = useState(null); // 'pickup' | number(index)
+  const [mapPicker, setMapPicker] = useState(null); // null | { kind:'pickup' } | { kind:'stop', index }
+  const [locating, setLocating] = useState(false);
   const [estimation, setEstimation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
 
   const startDelivery = (mode, vehicle) => {
     setDeliveryMode(mode); setVehicleType(vehicle);
-    setPickup({ lat: null, lng: null });
+    setPickup({ lat: null, lng: null, address: '' });
     setStops([emptyStop()]);
     setStep('map');
   };
 
-  const handleLocationSelect = (coords) => {
-    if (selecting === 'pickup') setPickup(coords);
-    else if (typeof selecting === 'number') setStops((s) => s.map((st, i) => (i === selecting ? { ...st, ...coords } : st)));
-    setSelecting(null);
+  // Saisie/sélection d'une adresse (autocomplétion Google, géoloc ou carte)
+  const applyPickup = (loc) => setPickup({ lat: loc.lat, lng: loc.lng, address: loc.address || '' });
+  const applyStop = (idx, loc) => setStops((s) => s.map((st, i) => (i === idx ? { ...st, lat: loc.lat, lng: loc.lng, address: loc.address || st.address } : st)));
+
+  const useMyLocationForPickup = async () => {
+    setLocating(true);
+    try {
+      const loc = await getCurrentLocation();
+      applyPickup(loc);
+      toast.success('Position actuelle détectée');
+    } catch (e) {
+      toast.error("Impossible d'obtenir votre position. Autorisez la géolocalisation ou saisissez l'adresse.");
+    } finally { setLocating(false); }
+  };
+
+  const onMapConfirm = (loc) => {
+    if (mapPicker?.kind === 'pickup') applyPickup(loc);
+    else if (mapPicker?.kind === 'stop') applyStop(mapPicker.index, loc);
+    setMapPicker(null);
   };
 
   const addStop = () => setStops((s) => [...s, emptyStop()]);
@@ -156,39 +157,61 @@ const ParcelPage = () => {
           <button onClick={() => setStep('choose')} data-testid="parcel-map-back-btn"><ArrowLeft size={24} className="text-white" /></button>
           <h1 className="text-white font-bold text-lg">{isMulti ? 'Livraison Multiple' : 'Livraison Simple'} — {vehicleType === 'box' ? 'Box' : 'Moto'}</h1>
         </div>
-        <div className="flex-1 relative min-h-[240px]">
-          <MapContainer center={[48.8566, 2.3522]} zoom={13} className="w-full h-full" style={{ height: '100%', minHeight: '240px' }} zoomControl={false}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {selecting !== null && <LocationSelector onSelect={handleLocationSelect} />}
-            {pickup.lat && <Marker position={[pickup.lat, pickup.lng]} icon={greenIcon} />}
-            {stops.map((s) => (s.lat ? <Marker key={s._id} position={[s.lat, s.lng]} icon={redIcon} /> : null))}
-          </MapContainer>
-          {selecting !== null && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 text-white text-xs font-semibold px-3 py-1.5 rounded-full" data-testid="parcel-map-hint">
-              Touchez la carte pour placer {selecting === 'pickup' ? 'le ramassage' : `le dépôt ${selecting + 1}`}
-            </div>
-          )}
-        </div>
 
-        <div className="bg-white rounded-t-3xl p-5 space-y-3 shadow-[0_-8px_30px_rgba(0,0,0,0.1)] max-h-[55vh] overflow-y-auto">
+        <div className="flex-1 p-5 space-y-4 overflow-y-auto">
           {/* Pickup */}
-          <button className={`w-full flex items-center gap-3 p-3 rounded-xl border ${selecting === 'pickup' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`} onClick={() => setSelecting('pickup')} data-testid="parcel-pickup-btn">
-            <MapPin size={18} weight="fill" className="text-green-500" />
-            <span className={pickup.lat ? 'text-gray-900 text-sm' : 'text-gray-400 text-sm'}>{pickup.lat ? `Ramassage · ${pickup.lat.toFixed(4)}, ${pickup.lng.toFixed(4)}` : 'Adresse de ramassage'}</span>
-          </button>
+          <div className="space-y-2" data-testid="parcel-pickup-section">
+            <div className="flex items-center gap-2">
+              <MapPin size={18} weight="fill" className="text-green-500" />
+              <span className="text-sm font-bold text-gray-900">Adresse de ramassage</span>
+            </div>
+            <GooglePlacesInput
+              placeholder="Saisissez l'adresse de ramassage"
+              value={pickup.address}
+              testId="parcel-pickup-input"
+              iconColor="#16a34a"
+              onChange={(addr) => setPickup((p) => ({ ...p, address: addr }))}
+              onSelect={(loc) => applyPickup(loc)}
+            />
+            <div className="flex gap-2">
+              <button type="button" onClick={useMyLocationForPickup} disabled={locating}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold disabled:opacity-60"
+                data-testid="parcel-pickup-mylocation-btn">
+                <NavigationArrow size={15} weight="fill" /> {locating ? 'Localisation…' : 'Ma position'}
+              </button>
+              <button type="button" onClick={() => setMapPicker({ kind: 'pickup' })}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 text-xs font-semibold"
+                data-testid="parcel-pickup-map-btn">
+                <MapTrifold size={15} weight="fill" /> Choisir sur la carte
+              </button>
+            </div>
+          </div>
 
           {/* Drop-offs */}
           {stops.map((s, i) => (
-            <div key={s._id} className="border border-gray-200 rounded-xl p-3" data-testid={`parcel-stop-${i}`}>
-              <div className="flex items-center justify-between mb-2">
-                <button className={`flex-1 flex items-center gap-2 ${selecting === i ? 'text-red-600 font-semibold' : 'text-gray-700'}`} onClick={() => setSelecting(i)} data-testid={`parcel-stop-place-${i}`}>
+            <div key={s._id} className="space-y-2 border-t border-gray-100 pt-4" data-testid={`parcel-stop-${i}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <FlagCheckered size={16} weight="fill" className="text-red-500" />
-                  <span className="text-sm">{s.lat ? `Dépôt ${i + 1} · ${s.lat.toFixed(4)}, ${s.lng.toFixed(4)}` : `Placer le dépôt ${i + 1}`}</span>
-                </button>
+                  <span className="text-sm font-bold text-gray-900">Dépôt {i + 1}</span>
+                </div>
                 {isMulti && stops.length > 1 && (
                   <button onClick={() => removeStop(i)} className="text-rose-500 p-1" data-testid={`parcel-stop-remove-${i}`}><Trash size={16} /></button>
                 )}
               </div>
+              <GooglePlacesInput
+                placeholder={`Adresse du dépôt ${i + 1}`}
+                value={s.address}
+                testId={`parcel-stop-input-${i}`}
+                iconColor="#ef4444"
+                onChange={(addr) => setStopField(i, 'address', addr)}
+                onSelect={(loc) => applyStop(i, loc)}
+              />
+              <button type="button" onClick={() => setMapPicker({ kind: 'stop', index: i })}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 text-xs font-semibold"
+                data-testid={`parcel-stop-map-btn-${i}`}>
+                <MapTrifold size={15} weight="fill" /> Choisir sur la carte
+              </button>
               {isMulti && (
                 <div className="grid grid-cols-2 gap-2">
                   <input value={s.recipient_name} onChange={(e) => setStopField(i, 'recipient_name', e.target.value)} placeholder="Destinataire" className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm" data-testid={`parcel-stop-name-${i}`} />
@@ -203,11 +226,22 @@ const ParcelPage = () => {
               <Plus size={16} weight="bold" /> Ajouter un point de dépôt
             </button>
           )}
+        </div>
 
+        <div className="p-4 border-t border-gray-100 bg-white">
           <Button className="w-full rounded-2xl h-12 bg-[#FF4500] hover:bg-[#E03D00] text-white font-semibold" disabled={!canEstimate || loading} onClick={getEstimate} data-testid="parcel-estimate-btn">
             {loading ? 'Calcul...' : `Estimer le prix${isMulti ? ` · ${stops.length} dépôt${stops.length > 1 ? 's' : ''}` : ''}`}
           </Button>
         </div>
+
+        <MapLocationPicker
+          open={!!mapPicker}
+          showTargetToggle={false}
+          title={mapPicker?.kind === 'pickup' ? 'Ramassage' : 'Point de dépôt'}
+          initial={mapPicker?.kind === 'pickup' ? pickup : (mapPicker?.kind === 'stop' ? stops[mapPicker.index] : null)}
+          onConfirm={onMapConfirm}
+          onClose={() => setMapPicker(null)}
+        />
       </div>
     );
   }

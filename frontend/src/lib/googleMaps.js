@@ -43,3 +43,39 @@ export async function getGeocoder() {
   }
   return null;
 }
+
+/**
+ * Détecte la position actuelle de l'utilisateur (comme le taxi) puis fait un
+ * reverse-geocoding pour obtenir une adresse lisible.
+ * Retourne { lat, lng, address }. Rejette si la géolocalisation est refusée/indispo.
+ */
+export function getCurrentLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Géolocalisation non supportée par ce navigateur.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        let address = '';
+        try {
+          const geocoder = await getGeocoder();
+          if (geocoder) {
+            await new Promise((res) => {
+              geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+                if (status === 'OK' && results?.[0]) address = results[0].formatted_address;
+                res();
+              });
+            });
+          }
+        } catch (e) { /* adresse facultative */ }
+        resolve({ lat, lng, address });
+      },
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  });
+}
+

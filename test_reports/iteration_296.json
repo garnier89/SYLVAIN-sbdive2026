@@ -1,0 +1,25 @@
+{
+  "summary": "Validated unified Google Maps/autocomplete + 'Ma position' experience across Parcel (Colis), Runner (Coursier) and Checkout (Repas) per review request iter296. All 6 review scenarios PASS on mobile 430px with logged-in paul.vendeur@example.com. Leaflet successfully removed from Parcel; replaced with GooglePlacesInput + MapLocationPicker (Google). showTargetToggle=false on Parcel map picker as required. Verify-email banner correctly hidden on /parcel and /runner.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ParcelPage.js step='map' is well structured: GooglePlacesInput controlled via applyPickup/applyStop, getCurrentLocation() helper used for 'Ma position', MapLocationPicker re-used with showTargetToggle=false and dynamic title. No Leaflet/Leaflet container detected in the DOM (.leaflet-container/.leaflet-tile-pane absent).",
+    "MapLocationPicker correctly defaults showTargetToggle=true; ParcelPage passes false so the Depart/Destination toggle is hidden on parcel flow (verified DOM textContent didn't contain both labels).",
+    "Minor warning (pre-existing, not blocking): Google logs deprecation 'google.maps.places.Autocomplete is not available to new customers, use PlaceAutocompleteElement'. Functional today but should be tracked for migration before discontinuation (12 months notice).",
+    "Verified VerifyEmailBanner HIDDEN_PREFIXES include /parcel and /runner — banner not rendered on these routes (DOM query returned []). It still appears on /food (verify-email-banner testid visible) which is expected per the spec."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only as requested)", "frontend": "6/6 scenarios PASS"},
+  "test_credentials": "paul.vendeur@example.com / Test1234! (login: /login -> 'Ou choisir une autre option de connexion' -> 'Email' -> data-testid email-input/password-input -> submit). Geolocation must be granted in test context (Paris 48.8566, 2.3522).",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Detailed evidence per scenario (Playwright run): (1) /parcel -> single-box-btn -> parcel-pickup-input present (Google PAC), parcel-pickup-mylocation-btn + parcel-pickup-map-btn present, parcel-stop-input-0 + parcel-stop-map-btn-0 present. Typing '5 avenue' shows 5 .pac-item suggestions; ArrowDown+Enter selects and fills 'fortifies pickup with '5 Av. Albert de Mun, 75116 Paris' and lat/lng is set (Estimer button transitions from disabled to ENABLED after both pickup+stop selected). (2) 'Ma position' button: with geoloc=Paris, pickup populated with '4 Place Louis Armand, 75004 Paris, France' and toast 'Position actuelle détectée' shown. (3) MapLocationPicker on parcel: opens with data-testid='map-picker', title='Ramassage', no Depart/Destination toggle, reverse-geocoded address shown, map-picker-confirm enabled, clicking it populates pickup. (4) /runner: runner-pickup + runner-pickup-mylocation-btn present, typing returns 5 PAC suggestions. (5) /checkout/{merchant} (reached via /food -> open merchant card (sushi_master open) -> add-prod_* -> view-cart-btn -> /checkout/merchant_sushi_master): checkout-mylocation-btn + address-input both present, typing returns 5 suggestions, clicking mylocation fills '10 Rue de Rivoli, 75004 Paris'. (6) verify-email-banner DOM-absent on /parcel and /runner (only visible on /food etc.). 0 console errors except expected 401 for /api/auth/me before login and the WS warning.",
+  "rca of the issue": "No issue: the bug fix is correctly implemented. Note for future agents: when scripting Google Places via Playwright, use keyboard ArrowDown+Enter to fire place_changed and set lat/lng; programmatic .click() / dispatchEvent on .pac-item fills the visible text but does NOT trigger Google's internal place_changed listener (the Estimer button stays disabled until lat/lng is set). This is a Playwright test pattern, not an application bug."
+}
