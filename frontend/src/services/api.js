@@ -1064,6 +1064,10 @@ export const flightsAPI = {
   book: (data) => api.post('/flights/book', data),
   myBookings: () => api.get('/flights/bookings/my'),
   cancel: (id) => api.post(`/flights/bookings/${id}/cancel`, {}),
+  // vols en direct (Duffel — temps réel)
+  liveSearch: (params) => api.get('/flights/live/search', { params }),
+  liveBook: (data) => api.post('/flights/live/book', data),
+  eticket: (id) => api.get(`/flights/bookings/${id}/eticket`, { responseType: 'blob' }),
   // admin
   adminFlights: () => api.get('/flights/admin/flights'),
   adminCreateFlight: (data) => api.post('/flights/admin/flights', data),

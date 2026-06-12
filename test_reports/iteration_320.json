@@ -1,0 +1,67 @@
+{
+  "summary": "Iter320 — Full E2E validation of new Duffel real-flights integration (backend + frontend). Created /app/backend/tests/test_iter331_duffel_flights.py with 13 pytest cases covering /live/search, /live/book, /bookings/{id}/eticket and regression on legacy mock endpoints. ALL 13 backend tests passed (100%). Frontend e2e on /vols also passed: client login -> 'Vols en direct' toggle -> FDF/ORY/2026-09-15 search returned 4 real Duffel offers -> selecting first offer, filling 1 passenger (Jean Dupont 1990-05-15) + contact email + phone +33612345678 -> booking succeeded with real PNR '3TQTED' -> success screen shows 'Télécharger l'e-billet' button -> 'Mes vols' lists the new Duffel reservation (Duffel Airways ZZ0403 · PNR 3TQTED · 264.76 EUR) with E-billet button. No critical issues found.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Generic (all pages)", "issues": ["Console hydration warning: '<span> cannot be a child of <option>'. Source = an AppRouter-wrapped <select> somewhere (not blocking, pre-existing, not specific to /vols). Worth fixing in a future iteration."]}
+    ]
+  },
+  "tests_executed": {
+    "backend_pytest": {
+      "file": "/app/backend/tests/test_iter331_duffel_flights.py",
+      "junit_xml": "/app/test_reports/pytest/iter331_duffel.xml",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "cases": [
+        "TestLiveSearch::test_live_search_valid (LHR->JFK 2026-09-15, >=1 offer with id/total_amount/total_currency/airline/slices/segments)",
+        "TestLiveSearch::test_live_search_invalid_iata (origin=XX -> 400)",
+        "TestLiveSearch::test_live_search_missing_date (no date -> 422 FastAPI validation)",
+        "TestLiveBook::test_book_success (real PNR returned, wallet debited)",
+        "TestLiveBook::test_book_missing_born_on -> 400",
+        "TestLiveBook::test_book_bad_email -> 400",
+        "TestLiveBook::test_book_bad_phone -> 400 (non international)",
+        "TestEticket::test_eticket_pdf (Content-Type=application/pdf, magic '%PDF', size>500)",
+        "TestEticket::test_eticket_404 (nonexistent id)",
+        "TestMockRegression::test_airports (200, origins+destinations)",
+        "TestMockRegression::test_mock_search (200, flights list)",
+        "TestMockRegression::test_mock_bookings_my (200, bookings list)",
+        "TestMockRegression::test_mock_book (200 with seeded wallet)"
+      ]
+    },
+    "frontend_playwright": {
+      "login_flow": "PASS — Ou choisir une autre option -> Email -> client@test.sb / Client123! -> /home",
+      "vols_live_toggle": "PASS — [data-testid=flights-mode-live] click switches to live form",
+      "live_search_form": "PASS — FDF/ORY/2026-09-15/1 passager/Économique -> 4 offers shown with [data-testid^=live-offer-]",
+      "live_book_flow": "PASS — passenger Jean Dupont 1990-05-15, jean@example.com, +33612345678 -> success screen with PNR '3TQTED'",
+      "done_eticket_btn": "PASS — [data-testid=done-eticket-btn] visible on success",
+      "mes_vols_list": "PASS — booking appears at top: 'Duffel Airways ZZ0403 · Fort-de-France -> Paris · 15 sept., 10:50 · 1 passager(s) · 264.76 EUR · PNR 3TQTED · E-billet' (2 Duffel eticket buttons total visible)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter331_duffel_flights.py",
+    "/app/test_reports/pytest/iter331_duffel.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Good: backend properly normalises Duffel offer/slice/segment via _norm_offer/_norm_slice and stores offer_request with passenger_ids for later matching.",
+    "Good: wallet debit is atomic with order creation (insufficient balance is checked before Duffel create_order; if Duffel call fails after price check, no debit happens because debit is performed only after order success — verified in the code path lines 386-393).",
+    "Minor: in /live/book, the price is read from a fresh duffel.get_offer() so wallet check uses the live amount (correct). However if Duffel returns a different currency than EUR while wallet is EUR, code still debits the wallet's EUR balance with the foreign-currency amount (no FX conversion). Today routes return EUR for tested pairs (LHR/JFK and FDF/ORY both EUR) but worth a TODO comment in code for non-EUR offers.",
+    "Minor: the /vols select dropdown produces a hydration warning ('<span> cannot be a child of <option>') — not caused by Duffel work, pre-existing. Could fix by removing inner <span>/icon inside <option> elements.",
+    "Minor: /live/search currently caps offers at top 40 (offers[:40]) — fine for UX; consider exposing total count in response for pagination if needed later.",
+    "Observation: duffel.create_offer_request uses max_connections=1 (good for relevance), supplier_timeout=20000ms (reasonable). Token lives in backend/.env DUFFEL_API_KEY (test mode), never exposed to frontend — correct.",
+    "Observation: PDF generation via reportlab works (2.4KB+) with proper layout (navy header, orange PNR, slice cards, passengers list)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter331_duffel_flights.py (new)"
+  ],
+  "success_rate": { "backend": "100% (13/13)", "frontend": "100% (login + toggle + live search + live book + Mes vols all pass)" },
+  "test_credentials": "Client: client@test.sb / Client123! (wallet topped up via admin POST /api/admin/users/{id}/wallet/credit amount=2000 in fixture). Admin: admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Topped up client@test.sb wallet by 2000 EUR via admin endpoint to ensure sufficient balance for Duffel booking (264-480 EUR per offer). Real Duffel test bookings created with PNRs: 3TQTED (FDF->ORY), 4CB2OT (LHR->JFK) plus the legacy mock TX540 booking.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_iter331_duffel_flights.py — uses requests + pytest, fixtures auto-login client and top up wallet via admin. Duffel offers expire within ~30s so each book test re-runs /live/search. Frontend selectors confirmed: flights-mode-live, live-origin, live-destination, live-date, live-pax-count (a <select>, use page.select_option not fill), live-search-btn, live-offer-<id>, live-pax-given-0, live-pax-family-0, live-pax-born-0, live-contact-email, live-contact-phone, live-book-btn, done-pnr, done-eticket-btn, flight-eticket-<bookingId>. Login flow: /login -> click text 'Ou choisir une autre option de connexion' -> click [data-testid=login-email-btn] -> fill email+password -> Enter. The e-ticket button likely triggers a direct download (no popup), backend PDF endpoint validated independently.",
+  "rca of the issue": "Not applicable — no issues. Duffel integration is fully working end-to-end (real Duffel test PNRs returned, wallet debited, PDF generated)."
+}
