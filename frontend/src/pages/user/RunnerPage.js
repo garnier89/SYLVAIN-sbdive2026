@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Package, Plus, Trash, Lightning, MapPin, Bag, NavigationArrow } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import SavedAddressChips from '../../components/SavedAddressChips';
 import { getCurrentLocation } from '../../lib/googleMaps';
-import { parcelAPI } from '../../services/api';
+import { parcelAPI, placesAPI } from '../../services/api';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 
 // Coursier Express runs on the tested "parcels" engine (live driver dispatch + tracking).
@@ -42,6 +43,7 @@ const RunnerPage = () => {
     try {
       const loc = await getCurrentLocation();
       setPickup({ address: loc.address || 'Position actuelle', lat: loc.lat, lng: loc.lng });
+      if (loc.address && loc.lat != null) placesAPI.addRecent({ address: loc.address, lat: loc.lat, lng: loc.lng }).catch(() => {});
       toast.success('Position actuelle détectée');
     } catch (e) {
       toast.error("Impossible d'obtenir votre position. Autorisez la géolocalisation ou saisissez l'adresse.");
@@ -183,11 +185,18 @@ const RunnerPage = () => {
           <label className="text-xs font-semibold text-gray-600 block mb-1 flex items-center gap-1">
             <MapPin size={12} className="text-green-500" /> Lieu de ramassage
           </label>
+          <SavedAddressChips
+            accent="#16a34a"
+            testIdPrefix="runner-pickup-addr"
+            selected={pickup?.lat != null ? pickup : null}
+            onSelect={(loc) => setPickup({ address: loc.address, lat: loc.lat, lng: loc.lng })}
+            className="mb-2"
+          />
           <GooglePlacesInput
             placeholder="Adresse de ramassage"
             value={pickup?.address || ''}
             testId="runner-pickup"
-            onSelect={(r) => setPickup({ address: r.address, lat: r.lat, lng: r.lng })}
+            onSelect={(r) => { setPickup({ address: r.address, lat: r.lat, lng: r.lng }); placesAPI.addRecent({ address: r.address, lat: r.lat, lng: r.lng }).catch(() => {}); }}
           />
           <button type="button" onClick={useMyLocationForPickup} disabled={locating}
             className="mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold disabled:opacity-60"
@@ -214,7 +223,7 @@ const RunnerPage = () => {
               placeholder="Adresse de livraison"
               value={drop?.address || ''}
               testId="runner-drop"
-              onSelect={(r) => setDrop({ address: r.address, lat: r.lat, lng: r.lng })}
+              onSelect={(r) => { setDrop({ address: r.address, lat: r.lat, lng: r.lng }); placesAPI.addRecent({ address: r.address, lat: r.lat, lng: r.lng }).catch(() => {}); }}
             />
             <div className="grid grid-cols-2 gap-2 mt-2">
               <input type="text" placeholder="Nom destinataire" value={dropContact.name}

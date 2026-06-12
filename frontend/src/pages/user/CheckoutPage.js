@@ -13,8 +13,10 @@ import {
 } from '@phosphor-icons/react';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import SavedAddressChips from '../../components/SavedAddressChips';
 import { getCurrentLocation } from '../../lib/googleMaps';
 import { NavigationArrow } from '@phosphor-icons/react';
+import { placesAPI } from '../../services/api';
 import { toast } from 'sonner';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -48,6 +50,7 @@ const CheckoutPage = () => {
     try {
       const loc = await getCurrentLocation();
       setFormData((f) => ({ ...f, delivery_address: loc.address || f.delivery_address, delivery_lat: loc.lat, delivery_lng: loc.lng }));
+      if (loc.address) placesAPI.addRecent({ address: loc.address, lat: loc.lat, lng: loc.lng }).catch(() => {});
       toast.success('Position actuelle détectée');
     } catch (e) {
       toast.error("Impossible d'obtenir votre position. Autorisez la géolocalisation ou saisissez l'adresse.");
@@ -258,17 +261,22 @@ const CheckoutPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <SavedAddressChips
+              accent="#ef4444"
+              testIdPrefix="checkout-addr"
+              selected={{ address: formData.delivery_address, lat: formData.delivery_address ? formData.delivery_lat : null, lng: formData.delivery_lng }}
+              onSelect={(loc) => setFormData((f) => ({ ...f, delivery_address: loc.address, delivery_lat: loc.lat, delivery_lng: loc.lng }))}
+              className="mb-3"
+            />
             <GooglePlacesInput
               placeholder="Saisissez votre adresse de livraison"
               value={formData.delivery_address}
               testId="address-input"
               onChange={(addr) => setFormData((f) => ({ ...f, delivery_address: addr }))}
-              onSelect={(loc) => setFormData((f) => ({
-                ...f,
-                delivery_address: loc.address,
-                delivery_lat: loc.lat,
-                delivery_lng: loc.lng,
-              }))}
+              onSelect={(loc) => {
+                setFormData((f) => ({ ...f, delivery_address: loc.address, delivery_lat: loc.lat, delivery_lng: loc.lng }));
+                placesAPI.addRecent({ address: loc.address, lat: loc.lat, lng: loc.lng }).catch(() => {});
+              }}
             />
             <button type="button" onClick={useMyLocation} disabled={locating}
               className="mt-2 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-red-200 bg-red-50 text-red-600 text-xs font-semibold disabled:opacity-60"

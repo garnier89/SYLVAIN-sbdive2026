@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend-only validation of iter297 (puces d'adresses enregistrées via SavedAddressChips dans /checkout, /parcel, /runner + propagation backend partagée /api/places). All 5 review scenarios PASS on mobile 430px logged-in as paul.vendeur@example.com. The reusable component appears with correct testIdPrefix on each screen, coexists with 'Ma position' buttons without layout breaks, Google autocomplete still works (ArrowDown+Enter), recent/save/home propagation all verified end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter299_saved_places.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SavedAddressChips component (90 lines) is clean: small, single-responsibility, uses placesAPI properly with try/catch + sonner toasts, exposes onSelect/selected/accent/testIdPrefix props. Conditional render `if (!hasChips && selected?.lat == null) return null;` correctly hides component when nothing to show.",
+    "Save buttons only appear when selected address differs from existing home/work (canSaveHome/canSaveWork). This prevents redundant saves and works as expected (verified: save-home disappears after click, home chip updates to new value).",
+    "Recent chips correctly limited to .slice(0,3) and filtered for valid lat. Format shortens addresses to 22 chars with ellipsis — good UX for narrow 430px viewport.",
+    "Backend propagation works perfectly: saving Maison='25 Av. des Champs-Élysées' on /checkout immediately surfaces on /parcel parcel-pickup-addr-home, /runner runner-pickup-addr-home, and /course (RideChoosePage) ride-choose-fav-home with the exact same address. Verified via direct GET /api/places/saved => 200 {home:{address:'25 Av. des Champs-Élysées, 75008 Paris'}}.",
+    "Note (already flagged iter296, not blocking): Google Places Autocomplete deprecation warning persists; track future migration to PlaceAutocompleteElement.",
+    "RideChoosePage (1442 lines) is large and should ideally be split into mode-specific sub-components for maintainability — not a regression for this iter, just observational."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only as requested)", "frontend": "5/5 scenarios PASS"},
+  "test_credentials": "paul.vendeur@example.com / Test1234! (already has Maison+Travail+recents). Login flow: /login -> 'Ou choisir une autre option de connexion' -> click 'Email & mot de passe' (NOT 'Email' alone) -> data-testid email-input/password-input -> submit. Geolocation Paris 48.8566,2.3522 granted.",
+  "seed_data_creation": "None (the test mutated paul's Maison via the save flow on /checkout to '25 Av. des Champs-Élysées, 75008 Paris' — previous value before run was '99 Rue Test Pytest, 75001 Paris' which was already a test artifact).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Detailed evidence per scenario: (1) /checkout/merchant_burger_palace reached via home -> resume-delivery-btn (demo cart). DOM checks PASS: checkout-addr-chips visible, checkout-addr-home=true, checkout-addr-work=true, checkout-mylocation-btn coexists. Typed '25 avenue des Champs' -> 5 .pac-item suggestions -> ArrowDown+Enter -> address-input='25 Av. des Champs-Élysées, 75008 Paris' AND checkout-addr-recent-0 appeared AND checkout-addr-save-home + checkout-addr-save-work both visible. Click save-home -> sonner toast 'Enregistré comme Maison 🏠' rendered, checkout-addr-home persists. Click home chip after wiping input ('zzz') -> address-input refilled to '25 Av. des Champs-Élysées, 75008 Paris' instantly. (2) /parcel -> single-box-btn: parcel-pickup-addr-chips/home/work all visible + parcel-pickup-mylocation-btn coexists; click parcel-pickup-addr-home fills parcel-pickup-input ('' -> '99 Rue Test Pytest, 75001 Paris' on first run, then '25 Av...' after propagation). (3) /runner: runner-pickup-addr-chips/home/work visible + runner-pickup-mylocation-btn coexists; click runner-pickup-addr-home fills runner-pickup ('' -> address). (4) Propagation: after saving Maison on /checkout, both /parcel and /runner show parcel-pickup-addr-home / runner-pickup-addr-home = true, AND RideChoosePage (reached via home -> 'Taxi VTC' card -> /course?mode=standard, NOT /ride-choose which redirects to /home) shows ride-choose-favourites container with ride-choose-fav-home AND ride-choose-fav-work both displaying the new Maison/Travail addresses. (5) Geolocation: each *-mylocation-btn coexists with chips without layout breakage. NOTE for next agent: do NOT navigate directly to /ride-choose (it redirects to /home); use 'Taxi VTC' card from home or equivalent.",
+  "rca of the issue": "No issue — feature works as specified. Initial test script ambiguity: /ride-choose route alone redirects to /home (no mode in URL). Correct entry path is via 'Taxi VTC' / 'Pool-partage' / etc cards on home which navigate to /course?mode=<id> where RideChoosePage renders. Once entered correctly, ride-choose-fav-home renders the Maison saved from /checkout flow, confirming full cross-flow propagation through the shared /api/places backend."
+}

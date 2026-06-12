@@ -3,12 +3,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
-import { parcelAPI } from '../../services/api';
+import { parcelAPI, placesAPI } from '../../services/api';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import {
   ArrowLeft, Package, Motorcycle, CaretRight, Plus, Trash, MapPin, FlagCheckered, CheckCircle, NavigationArrow, MapTrifold
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
+import SavedAddressChips from '../../components/SavedAddressChips';
 import MapLocationPicker from '../../components/MapLocationPicker';
 import { getCurrentLocation } from '../../lib/googleMaps';
 
@@ -37,8 +38,14 @@ const ParcelPage = () => {
   };
 
   // Saisie/sélection d'une adresse (autocomplétion Google, géoloc ou carte)
-  const applyPickup = (loc) => setPickup({ lat: loc.lat, lng: loc.lng, address: loc.address || '' });
-  const applyStop = (idx, loc) => setStops((s) => s.map((st, i) => (i === idx ? { ...st, lat: loc.lat, lng: loc.lng, address: loc.address || st.address } : st)));
+  const applyPickup = (loc) => {
+    setPickup({ lat: loc.lat, lng: loc.lng, address: loc.address || '' });
+    if (loc.address && loc.lat != null) placesAPI.addRecent({ address: loc.address, lat: loc.lat, lng: loc.lng }).catch(() => {});
+  };
+  const applyStop = (idx, loc) => {
+    setStops((s) => s.map((st, i) => (i === idx ? { ...st, lat: loc.lat, lng: loc.lng, address: loc.address || st.address } : st)));
+    if (loc.address && loc.lat != null) placesAPI.addRecent({ address: loc.address, lat: loc.lat, lng: loc.lng }).catch(() => {});
+  };
 
   const useMyLocationForPickup = async () => {
     setLocating(true);
@@ -165,6 +172,12 @@ const ParcelPage = () => {
               <MapPin size={18} weight="fill" className="text-green-500" />
               <span className="text-sm font-bold text-gray-900">Adresse de ramassage</span>
             </div>
+            <SavedAddressChips
+              accent="#16a34a"
+              testIdPrefix="parcel-pickup-addr"
+              selected={pickup.lat != null ? pickup : null}
+              onSelect={(loc) => setPickup({ lat: loc.lat, lng: loc.lng, address: loc.address || '' })}
+            />
             <GooglePlacesInput
               placeholder="Saisissez l'adresse de ramassage"
               value={pickup.address}
