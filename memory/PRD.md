@@ -1,3 +1,20 @@
+## NEW - 2026-06-12 (314) - 👥 Admin CRM : Ajout/Suppression Chauffeur & Marchand + refonte onboarding chauffeur (DONE, testé)
+- **Demande user (option c = tout faire)** : l'admin doit pouvoir ajouter/supprimer n'importe quel compte (Client déjà fait, + Chauffeur + Marchand) ; onboarding chauffeur distinguant société/flotte (Taxi/VTC = nom de société requis) vs Particulier, avec ordre strict.
+- **Backend** (`routes/admin.py`) — auth bcrypt via `core.deps.hash_password` (playbook integration_expert confirmé) :
+  - `POST /api/admin/drivers` : crée user (role=driver, mot de passe hashé) + profil chauffeur. **Règle flotte** : `taxi_sub ∈ {vtc, taxi}` → `company_name` requis (400 sinon) ; Particulier non. Statut `approved` par défaut.
+  - `DELETE /api/admin/drivers/{id}` : supprime le profil + le compte user lié (si role=driver) + wallet.
+  - `POST /api/admin/merchants` : crée user (role=merchant, hashé) + boutique `approved`/`is_active=true` immédiatement.
+  - `DELETE /api/admin/merchants/{id}` : supprime boutique + compte lié + wallet.
+- **Frontend** :
+  - `AdminDrivers.js` (`/drivers-admin/drivers`) : bouton **Ajouter** (`add-driver-btn`) + `AddDriverModal` (services, statut taxi, **champ société conditionnel VTC/Taxi** `add-driver-fleet-block`, véhicule) ; action **Supprimer** (`delete-{i}`, confirm).
+  - `AdminStores.js` (`/merchants-admin/stores`) : bouton **Ajouter une boutique** (`add-merchant-btn`) + `AddMerchantModal` ; action **Supprimer** (`store-delete-{id}`).
+  - `services/api.js` : `adminAPI.createDriver/deleteDriver/createMerchant/deleteMerchant`.
+- **Refonte onboarding** (`DriverRegisterPage.js`, route `/driver/register`) : flux ordonné **1 Activité & Statut → 2 Documents personnels → 3 Ajout du véhicule → 4 Documents du véhicule → succès (en attente approbation admin)**. Nom de société (`company-name-input`) affiché/requis UNIQUEMENT pour VTC/Taxi (hint Particulier sinon). Classification auto des docs perso (permis/pièce/cartes pro) vs véhicule (carte grise/assurance). Vélo = 2 étapes seulement (pas d'étape véhicule). `company_name` transmis à `driverAPI.register`.
+- **Fix UX** : `/driver/register` ajouté à `VerifyEmailBanner HIDDEN_PREFIXES` (la bannière ne recouvre plus le bouton d'action).
+- **Testé** : pytest `backend/tests/test_iter314_admin_crm.py` 3/3 (règle flotte, login des comptes créés = hash OK, suppression) + testing_agent iter314 (backend 100%, frontend 90% : Ajout/Suppression chauffeur & marchand OK, structure onboarding 4 étapes + société conditionnelle OK). Aucun bug critique/mineur.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
 ## NEW - 2026-06-12 (313) - 👤 Avertissement client + Édition admin des titres de section + confirmation réordonnancement (DONE, testé)
 - **Avertissement CLIENT temps réel** : `switch_to_cash_if_needed` (rides.py) envoie aussi au **passager** un WS `payment_switched_to_cash` (role=rider) + notification (« Solde insuffisant — préparez le paiement en espèces ») en même temps que le chauffeur. Frontend `RideTrackingPage.js` écoute l'événement → toast 14 s + bascule `payment_method='cash'`. Testé `test_iter312` 3/3 (assert notif chauffeur + passager).
 - **Boutons ↑↓ « Catégories de l'accueil »** : confirmés fonctionnels (test API : permutation persistée). Ajout d'un **toast « Ordre mis à jour »** (items + sections) + data-testids (`category-up/down-{id}`, `section-up/down-{key}`), boutons désactivés aux extrémités.
