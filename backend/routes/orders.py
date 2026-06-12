@@ -522,6 +522,12 @@ async def last_delivery(request: Request):
         "ready": "Prête — en attente du coursier",
         "picked_up": "En route vers vous — votre commande arrive",
     }
+    # Étapes visuelles (barre de progression « façon Uber Eats ») : 0=Reçue 1=Préparation 2=En route 3=Livrée
+    STATUS_STEP = {
+        "pending": 0, "accepted": 0, "assigned": 0,
+        "preparing": 1, "ready": 1,
+        "picked_up": 2, "delivered": 3,
+    }
 
     async def _merchant(mid):
         return await db.merchants.find_one({"id": mid}, {"_id": 0, "store_name": 1, "logo": 1, "image": 1})
@@ -539,6 +545,8 @@ async def last_delivery(request: Request):
             "order_id": active["id"],
             "status": active.get("status"),
             "status_label": STATUS_LABELS.get(active.get("status"), "Livraison en cours"),
+            "step": STATUS_STEP.get(active.get("status"), 0),
+            "steps": ["Reçue", "Préparation", "En route", "Livrée"],
             "merchant_id": active.get("merchant_id"),
             "merchant_name": m.get("store_name"),
             "merchant_logo": m.get("logo") or m.get("image"),

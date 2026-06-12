@@ -1,3 +1,12 @@
+## NEW - 2026-06-12 (302) - 📊 Barre de progression « façon Uber Eats » dans la bannière live (DONE, testé e2e)
+- **Demande user (amélioration validée)** : ajouter une barre de progression visuelle (Reçue → Préparation → En route → Livrée) dans la bannière de livraison live, couplée au temps réel WebSocket.
+- **Backend** `GET /api/orders/last-delivery` (mode active) renvoie `step` (0-3) + `steps` `["Reçue","Préparation","En route","Livrée"]`. Mapping : pending/accepted/assigned→0, preparing/ready→1, picked_up→2, delivered→3.
+- **Frontend** `UserHome.js` : bannière active réorganisée en colonne ; sous l'en-tête, une barre 4 étapes (`data-testid=delivery-progress`) avec segments verts pour les étapes franchies, segment courant pulsant, labels sous chaque étape. Se met à jour en temps réel via le WS `order_status` déjà branché.
+- **Testé** : curl (mode active step=1 « En préparation ») + screenshot (barre rendue : Reçue ✓ / Préparation ✓ en cours / En route & Livrée en attente) + pytest `test_iter298_last_delivery.py` 2/2 (assertions step/steps).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (301) - 🟢 Bannière livraison TEMPS RÉEL via WebSocket (DONE, testé e2e live)
 - **Demande user (amélioration validée)** : la bannière de suivi doit se mettre à jour en temps réel via le WebSocket existant (événement `order_status` déjà émis par le backend), sans recharger l'accueil.
 - **Frontend** `UserHome.js` : branchement du hook `useWebSocket(user?.id)`. La logique de fetch a été extraite dans `refetchLastDelivery` (useCallback) ; un `useEffect` enregistre `on('order_status', () => refetchLastDelivery())`. À chaque transition de statut poussée par le backend, la bannière se rafraîchit (statut + libellé + mode active/reorder).

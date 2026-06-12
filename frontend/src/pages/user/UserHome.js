@@ -479,27 +479,43 @@ const UserHome = () => {
           return (
             <motion.button whileTap={{ scale: 0.98 }} onClick={resumeLastDelivery} data-testid="resume-delivery-btn"
               data-mode={active ? 'active' : 'reorder'}
-              className="w-full mb-3 rounded-2xl p-3 flex items-center gap-3 text-left shadow-sm"
+              className="w-full mb-3 rounded-2xl p-3 flex flex-col gap-2.5 text-left shadow-sm"
               style={{ background: active ? 'linear-gradient(135deg, #0A2540, #2563EB)' : 'linear-gradient(135deg, #FF5000, #FF7A3D)' }}>
-              <span className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center overflow-hidden shrink-0">
-                {lastDelivery.merchant_logo
-                  ? <img src={resolveImageUrl(lastDelivery.merchant_logo)} alt="" className="w-full h-full object-cover" />
-                  : (active ? <Lightning size={24} weight="fill" className="text-white" /> : <ArrowClockwise size={24} weight="bold" className="text-white" />)}
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className={`text-white font-extrabold text-sm flex items-center gap-1.5 leading-tight ${HEAD}`}>
-                  {active && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
-                  {active ? 'Livraison en cours' : 'Reprendre votre commande'}
+              <span className="flex items-center gap-3 w-full">
+                <span className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center overflow-hidden shrink-0">
+                  {lastDelivery.merchant_logo
+                    ? <img src={resolveImageUrl(lastDelivery.merchant_logo)} alt="" className="w-full h-full object-cover" />
+                    : (active ? <Lightning size={24} weight="fill" className="text-white" /> : <ArrowClockwise size={24} weight="bold" className="text-white" />)}
                 </span>
-                <span className="text-white/90 text-xs block truncate">
-                  {active
-                    ? lastDelivery.status_label
-                    : `${lastDelivery.merchant_name}${lastDelivery.item_count ? ` · ${lastDelivery.item_count} article${lastDelivery.item_count > 1 ? 's' : ''}` : ''}`}
+                <span className="flex-1 min-w-0">
+                  <span className={`text-white font-extrabold text-sm flex items-center gap-1.5 leading-tight ${HEAD}`}>
+                    {active && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
+                    {active ? 'Livraison en cours' : 'Reprendre votre commande'}
+                  </span>
+                  <span className="text-white/90 text-xs block truncate">
+                    {active
+                      ? lastDelivery.status_label
+                      : `${lastDelivery.merchant_name}${lastDelivery.item_count ? ` · ${lastDelivery.item_count} article${lastDelivery.item_count > 1 ? 's' : ''}` : ''}`}
+                  </span>
+                </span>
+                <span className="shrink-0 px-3 py-1.5 rounded-full bg-white text-xs font-extrabold" style={{ color: active ? '#0A2540' : '#FF5000' }}>
+                  {active ? 'Suivre' : 'Reprendre'}
                 </span>
               </span>
-              <span className="shrink-0 px-3 py-1.5 rounded-full bg-white text-xs font-extrabold" style={{ color: active ? '#0A2540' : '#FF5000' }}>
-                {active ? 'Suivre' : 'Reprendre'}
-              </span>
+              {active && Array.isArray(lastDelivery.steps) && (
+                <span className="flex items-end gap-2 w-full pt-0.5" data-testid="delivery-progress">
+                  {lastDelivery.steps.map((label, i) => {
+                    const done = i <= (lastDelivery.step ?? 0);
+                    const current = i === (lastDelivery.step ?? 0);
+                    return (
+                      <span key={label} className="flex-1 flex flex-col gap-1">
+                        <span className={`h-1.5 rounded-full transition-colors ${done ? 'bg-emerald-400' : 'bg-white/25'} ${current ? 'animate-pulse' : ''}`} />
+                        <span className={`text-[9px] leading-none ${done ? 'text-white font-semibold' : 'text-white/50'}`}>{label}</span>
+                      </span>
+                    );
+                  })}
+                </span>
+              )}
             </motion.button>
           );
         })()}

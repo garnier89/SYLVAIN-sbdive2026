@@ -28,8 +28,10 @@ def test_last_delivery_shape():
         assert data.get("mode") in ("active", "reorder")
         assert data.get("order_id") and data.get("merchant_id")
         if data["mode"] == "active":
-            # Suivi live : statut + libellé pour la bannière
+            # Suivi live : statut + libellé + barre de progression
             assert data.get("status") and data.get("status_label")
+            assert isinstance(data.get("step"), int) and 0 <= data["step"] <= 3
+            assert data.get("steps") == ["Reçue", "Préparation", "En route", "Livrée"]
         else:
             # Re-commande 1-tap : articles au format panier
             assert isinstance(data["items"], list)
