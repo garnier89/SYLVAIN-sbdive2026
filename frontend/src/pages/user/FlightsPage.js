@@ -23,8 +23,12 @@ const AIRPORTS = [
 
 const STATUS_LABELS = {
   confirmed: { label: 'Confirmé', cls: 'bg-emerald-100 text-emerald-700' },
+  held: { label: 'En attente de paiement', cls: 'bg-amber-100 text-amber-700' },
+  expired: { label: 'Expiré', cls: 'bg-rose-100 text-rose-600' },
   cancelled: { label: 'Annulé', cls: 'bg-slate-100 text-slate-500' },
 };
+
+const fmtDeadline = (s) => { try { return new Date(s).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { return s; } };
 
 const FlightsPage = () => {
   const navigate = useNavigate();
@@ -120,6 +124,39 @@ const FlightsPage = () => {
       });
       setLDone(r.data.booking); setStep('done'); loadMine();
     } catch (err) { toast.error(err?.response?.data?.detail || 'Échec de la réservation'); }
+    setBusy(false);
+  };
+
+  const validateLivePax = () => {
+    for (const p of lPax) {
+      if (!p.given_name.trim() || !p.family_name.trim() || !p.born_on) { toast.error('Complétez tous les passagers (nom, prénom, date de naissance)'); return false; }
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail)) { toast.error('E-mail de contact valide requis'); return false; }
+    if (!/^\+\d{6,15}$/.test(contactPhone)) { toast.error('Téléphone international requis (ex. +596696...)'); return false; }
+    return true;
+  };
+
+  const liveHoldNow = async () => {
+    if (!validateLivePax()) return;
+    setBusy(true);
+    try {
+      const r = await flightsAPI.liveHold({
+        offer_request_id: lReqId, offer_id: lOffer.id,
+        contact_email: contactEmail, contact_phone: contactPhone, passengers: lPax,
+      });
+      setLDone(r.data.booking); setStep('done'); loadMine();
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec du blocage'); }
+    setBusy(false);
+  };
+
+  const payHeld = async (id) => {
+    setBusy(true);
+    try {
+      const r = await flightsAPI.payHeld(id);
+      toast.success(`Vol confirmé · PNR ${r.data.booking?.pnr || ''}`);
+      if (lDone?.id === id) setLDone(r.data.booking);
+      loadMine();
+    } catch (err) { toast.error(err?.response?.data?.detail || 'Échec du paiement'); }
     setBusy(false);
   };
 
@@ -357,19 +394,38 @@ const FlightsPage = () => {
       {/* DONE */}
       {step === 'done' && (
         <div className="p-6 text-center" data-testid="flight-done">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto"><CheckCircle size={36} weight="fill" className="text-emerald-500" /></div>
-          <h2 className="text-xl font-bold text-gray-900 mt-4">Vol réservé ✈️</h2>
-          {lDone?.pnr && (
-            <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100">
-              <Ticket size={18} style={{ color: ORANGE }} />
-              <span className="font-black tracking-widest text-gray-900" data-testid="done-pnr">PNR {lDone.pnr}</span>
-            </div>
-          )}
-          <p className="text-sm text-gray-500 mt-3">Votre réservation est confirmée. Retrouvez-la dans « Mes vols ».</p>
-          {lDone?.id && (
-            <button onClick={() => downloadEticket(lDone.id, lDone.pnr)} data-testid="done-eticket-btn" className="mt-4 w-full min-h-[48px] rounded-xl font-bold text-white flex items-center justify-center gap-2" style={{ background: ORANGE }}>
-              <DownloadSimple size={18} weight="bold" /> Télécharger l'e-billet
-            </button>
+          {lDone?.status === 'held' ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto"><Clock size={36} weight="fill" className="text-amber-500" /></div>
+              <h2 className="text-xl font-bold text-gray-900 mt-4">Tarif bloqué ⏳</h2>
+              {lDone?.pnr && (
+                <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100">
+                  <Ticket size={18} style={{ color: ORANGE }} />
+                  <span className="font-black tracking-widest text-gray-900" data-testid="done-pnr">PNR {lDone.pnr}</span>
+                </div>
+              )}
+              <p className="text-sm text-gray-500 mt-3">Aucun débit pour l'instant. Payez avant le <b>{fmtDeadline(lDone.payment_required_by)}</b> pour confirmer et débloquer l'e-billet.</p>
+              <button onClick={() => payHeld(lDone.id)} disabled={busy} data-testid="done-pay-btn" className="mt-4 w-full min-h-[48px] rounded-xl font-bold text-white disabled:opacity-50" style={{ background: ORANGE }}>
+                {busy ? 'Paiement…' : `Payer maintenant · ${money(lDone.total_price, lDone.currency)}`}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto"><CheckCircle size={36} weight="fill" className="text-emerald-500" /></div>
+              <h2 className="text-xl font-bold text-gray-900 mt-4">Vol réservé ✈️</h2>
+              {lDone?.pnr && (
+                <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100">
+                  <Ticket size={18} style={{ color: ORANGE }} />
+                  <span className="font-black tracking-widest text-gray-900" data-testid="done-pnr">PNR {lDone.pnr}</span>
+                </div>
+              )}
+              <p className="text-sm text-gray-500 mt-3">Votre réservation est confirmée. Retrouvez-la dans « Mes vols ».</p>
+              {lDone?.id && (
+                <button onClick={() => downloadEticket(lDone.id, lDone.pnr)} data-testid="done-eticket-btn" className="mt-4 w-full min-h-[48px] rounded-xl font-bold text-white flex items-center justify-center gap-2" style={{ background: ORANGE }}>
+                  <DownloadSimple size={18} weight="bold" /> Télécharger l'e-billet
+                </button>
+              )}
+            </>
           )}
           <button onClick={() => { setStep('mine'); loadMine(); setLDone(null); }} className="mt-3 w-full min-h-[48px] rounded-xl font-bold text-white" style={{ background: NAVY }} data-testid="flight-see-mine">Voir mes vols</button>
         </div>
@@ -390,8 +446,16 @@ const FlightsPage = () => {
                 <p className="text-xs text-gray-500 mt-1">{b.origin} → {b.destination} · {fmtTime(b.departure_at)}</p>
                 <p className="text-xs text-gray-500">{b.seats_count} passager(s) · {money(b.total_price, b.currency)}</p>
                 {b.pnr && <p className="text-[11px] font-bold mt-1 tracking-widest" style={{ color: ORANGE }}>PNR {b.pnr}</p>}
+                {b.status === 'held' && b.payment_required_by && (
+                  <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1"><Clock size={12} weight="bold" /> À payer avant le {fmtDeadline(b.payment_required_by)}</p>
+                )}
                 <div className="flex items-center gap-3 mt-2">
-                  {b.source === 'duffel' && (
+                  {b.status === 'held' && (
+                    <button onClick={() => payHeld(b.id)} disabled={busy} data-testid={`flight-pay-${b.id}`} className="text-xs font-bold text-white px-3 py-1.5 rounded-lg disabled:opacity-50" style={{ background: ORANGE }}>
+                      Payer maintenant · {money(b.total_price, b.currency)}
+                    </button>
+                  )}
+                  {b.source === 'duffel' && b.status === 'confirmed' && (
                     <button onClick={() => downloadEticket(b.id, b.pnr)} data-testid={`flight-eticket-${b.id}`} className="text-xs font-semibold flex items-center gap-1" style={{ color: NAVY }}>
                       <DownloadSimple size={14} weight="bold" /> E-billet
                     </button>
@@ -419,12 +483,19 @@ const FlightsPage = () => {
 
       {/* CTA — mode Live */}
       {mode === 'live' && step === 'book' && lOffer && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 p-4 z-40">
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-2"><ShieldCheck size={14} className="text-emerald-500" /> Paiement via SB Pay · e-billet PNR immédiat</div>
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 p-4 z-40 space-y-2">
+          <div className="flex items-center gap-2 text-[11px] text-gray-500"><ShieldCheck size={14} className="text-emerald-500" /> Paiement via SB Pay · e-billet PNR immédiat</div>
           <button onClick={liveBookNow} disabled={busy}
             data-testid="live-book-btn" className="w-full min-h-[52px] rounded-xl font-bold text-white text-lg disabled:opacity-50" style={{ background: ORANGE }}>
-            {busy ? 'Réservation…' : `Réserver · ${money(liveTotal, lOffer.total_currency)}`}
+            {busy ? 'Réservation…' : `Réserver maintenant · ${money(liveTotal, lOffer.total_currency)}`}
           </button>
+          {lOffer.hold_available && (
+            <button onClick={liveHoldNow} disabled={busy}
+              data-testid="live-hold-btn" className="w-full min-h-[48px] rounded-xl font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ border: `2px solid ${NAVY}`, color: NAVY }}>
+              <Clock size={16} weight="bold" /> Bloquer le tarif (sans payer)
+            </button>
+          )}
         </div>
       )}
     </div>

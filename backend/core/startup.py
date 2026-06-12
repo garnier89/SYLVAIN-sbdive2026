@@ -519,10 +519,12 @@ async def lifespan(app: FastAPI):
     seq_dispatch_task = asyncio.create_task(sequential_dispatch_loop())
     from routes.reports_admin import report_schedule_loop
     report_schedule_task = asyncio.create_task(report_schedule_loop())
+    from routes.flights import flight_hold_loop
+    flight_hold_task = asyncio.create_task(flight_hold_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task, flight_hold_task):
         if task:
             task.cancel()
     client.close()

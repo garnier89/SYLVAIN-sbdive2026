@@ -277,6 +277,7 @@ def _norm_slice(sl):
 
 def _norm_offer(offer):
     owner = offer.get("owner") or {}
+    pr = offer.get("payment_requirements") or {}
     return {
         "id": offer.get("id"),
         "total_amount": offer.get("total_amount"),
@@ -284,6 +285,9 @@ def _norm_offer(offer):
         "airline": owner.get("name"),
         "airline_logo": owner.get("logo_symbol_url"),
         "cabin_class": offer.get("cabin_class"),
+        "hold_available": not bool(pr.get("requires_instant_payment", True)),
+        "payment_required_by": pr.get("payment_required_by"),
+        "price_guarantee_expires_at": pr.get("price_guarantee_expires_at"),
         "slices": [_norm_slice(s) for s in (offer.get("slices") or [])],
     }
 
@@ -424,6 +428,134 @@ async def live_book(request: Request):
                               f"PNR {pnr} · {booking['origin_code']} → {booking['destination_code']}. E-billet disponible.",
                               data={"booking_id": booking["id"]})
     return {"ok": True, "booking": booking, "balance": new_balance}
+
+
+@router.post("/live/hold")
+async def live_hold(request: Request):
+    """Bloque un tarif (commande Duffel « hold ») sans débiter le portefeuille."""
+    user = await get_current_user(request)
+    if not duffel.duffel_enabled():
+        raise HTTPException(status_code=503, detail="API vols en direct non configurée")
+    body = await request.json()
+    oreq = await db.flight_offer_requests.find_one({"id": body.get("offer_request_id")}, {"_id": 0})
+    if not oreq:
+        raise HTTPException(status_code=404, detail="Recherche expirée, relancez la recherche")
+    passenger_ids = oreq.get("passenger_ids") or []
+    contact_email = str(body.get("contact_email") or user.get("email") or "").strip()[:120]
+    contact_phone = str(body.get("contact_phone") or "").strip()[:20]
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", contact_email):
+        raise HTTPException(status_code=400, detail="E-mail de contact valide requis")
+    if not re.match(r"^\+\d{6,15}$", contact_phone):
+        raise HTTPException(status_code=400, detail="Téléphone au format international requis (ex. +596...)")
+
+    try:
+        offer = await duffel.get_offer(body.get("offer_id"))
+    except duffel.DuffelError:
+        raise HTTPException(status_code=409, detail="Cette offre n'est plus disponible, relancez la recherche")
+    pr = offer.get("payment_requirements") or {}
+    if pr.get("requires_instant_payment", True):
+        raise HTTPException(status_code=409, detail="Cette offre n'autorise pas le blocage de tarif")
+    amount, currency = offer.get("total_amount"), offer.get("total_currency")
+    if not amount:
+        raise HTTPException(status_code=409, detail="Offre indisponible, relancez la recherche")
+    price = round(float(amount), 2)
+
+    passengers = _clean_live_passengers(body.get("passengers"), len(passenger_ids), passenger_ids)
+    for p in passengers:
+        p["email"] = contact_email
+        p["phone_number"] = contact_phone
+
+    try:
+        order = await duffel.create_hold_order(body.get("offer_id"), passengers)
+    except duffel.DuffelError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+    ps = order.get("payment_status") or {}
+    deadline = ps.get("payment_required_by") or pr.get("payment_required_by")
+    slices = [_norm_slice(s) for s in (order.get("slices") or [])]
+    first, last = (slices[0] if slices else {}), (slices[-1] if slices else {})
+    booking = {
+        "id": f"fbk_{uuid.uuid4().hex[:10]}", "user_id": user["id"], "user_name": user.get("name"),
+        "source": "duffel", "duffel_order_id": order.get("id"), "pnr": order.get("booking_reference") or "",
+        "airline": order.get("owner", {}).get("name"),
+        "flight_number": slices[0]["segments"][0]["flight_number"] if slices and slices[0]["segments"] else "",
+        "origin": first.get("origin_name"), "origin_code": first.get("origin_code"),
+        "destination": (first.get("destination_name") if len(slices) <= 1 else last.get("destination_name")),
+        "destination_code": (first.get("destination_code") if len(slices) <= 1 else last.get("destination_code")),
+        "departure_at": first.get("departing_at"), "arrival_at": first.get("arriving_at"),
+        "cabin_class": offer.get("cabin_class"),
+        "passengers": [{"name": f"{p['given_name']} {p['family_name']}", "type": "adult"} for p in passengers],
+        "slices": slices, "seats_count": len(passengers),
+        "total_price": price, "currency": currency,
+        "contact_email": contact_email, "contact_phone": contact_phone,
+        "status": "held", "payment_status": "awaiting_payment",
+        "payment_required_by": deadline, "deadline_notified": False, "created_at": _now(),
+    }
+    await db.flight_bookings.insert_one(dict(booking))
+    booking.pop("_id", None)
+    await notify_admins("flight_hold_new", "Tarif vol bloqué (hold)",
+                        f"{user.get('name') or 'Un client'} a bloqué un tarif · {booking['airline']} · {price} {currency}",
+                        data={"booking_id": booking["id"]})
+    await create_notification(user["id"], "flight_hold", "Tarif bloqué ⏳",
+                              f"{booking['origin_code']} → {booking['destination_code']} · {price} {currency}. Payez avant l'échéance pour confirmer.",
+                              data={"booking_id": booking["id"]})
+    return {"ok": True, "booking": booking}
+
+
+@router.post("/live/bookings/{booking_id}/pay")
+async def live_pay(booking_id: str, request: Request):
+    """Confirme une réservation « hold » : débite SB Pay puis paie la commande Duffel."""
+    user = await get_current_user(request)
+    if not duffel.duffel_enabled():
+        raise HTTPException(status_code=503, detail="API vols en direct non configurée")
+    bk = await db.flight_bookings.find_one(
+        {"id": booking_id, "user_id": user["id"], "source": "duffel", "status": "held"}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Réservation à payer introuvable")
+
+    deadline = _parse_dt(bk.get("payment_required_by"))
+    now = datetime.now(timezone.utc)
+    if deadline is not None and deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+    if deadline is not None and deadline <= now:
+        await db.flight_bookings.update_one({"id": booking_id}, {"$set": {"status": "expired", "payment_status": "expired"}})
+        raise HTTPException(status_code=409, detail="Délai de paiement dépassé, le tarif n'est plus garanti")
+
+    try:
+        order = await duffel.get_order(bk["duffel_order_id"])
+    except duffel.DuffelError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    amount, currency = order.get("total_amount") or str(bk.get("total_price")), order.get("total_currency") or bk.get("currency")
+    price = round(float(amount), 2)
+
+    wallet = await db.wallets.find_one({"user_id": user["id"]})
+    if not wallet or wallet.get("balance", 0) < price:
+        raise HTTPException(status_code=400, detail=f"Solde SB Pay insuffisant ({price} {currency})")
+
+    try:
+        await duffel.create_payment(bk["duffel_order_id"], amount, currency)
+    except duffel.DuffelError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+    order = await duffel.get_order(bk["duffel_order_id"])
+    pnr = order.get("booking_reference") or bk.get("pnr") or ""
+    new_balance = round(wallet["balance"] - price, 2)
+    await db.wallets.update_one({"user_id": user["id"]}, {"$set": {"balance": new_balance}})
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
+        "amount": -price, "balance_after": new_balance,
+        "description": f"Vol {bk.get('airline', '')} · PNR {pnr}",
+        "status": "completed", "created_at": _now()})
+    await db.flight_bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": "confirmed", "payment_status": "paid", "pnr": pnr, "total_price": price,
+                  "currency": currency, "paid_at": _now()}})
+    await create_notification(user["id"], "flight_booking", "Vol confirmé ✈️",
+                              f"PNR {pnr} · {bk.get('origin_code')} → {bk.get('destination_code')}. E-billet disponible.",
+                              data={"booking_id": booking_id})
+    bk.update({"status": "confirmed", "payment_status": "paid", "pnr": pnr, "total_price": price, "currency": currency})
+    return {"ok": True, "booking": bk, "balance": new_balance}
+
 
 
 @router.get("/bookings/{booking_id}/eticket")
@@ -598,3 +730,46 @@ async def admin_bookings(request: Request):
     await require_role(request, ["admin"])
     items = await db.flight_bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
     return {"bookings": items}
+
+
+
+# ============================================================
+#  BACKGROUND — expiration des tarifs bloqués (hold) + relance
+# ============================================================
+async def flight_hold_loop():
+    """Toutes les 10 min : notifie ~2 h avant l'échéance des « hold » non payés,
+    et marque « expired » ceux dont le délai de paiement est dépassé."""
+    import asyncio
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            cursor = db.flight_bookings.find(
+                {"source": "duffel", "status": "held"},
+                {"_id": 0, "id": 1, "user_id": 1, "payment_required_by": 1, "deadline_notified": 1,
+                 "origin_code": 1, "destination_code": 1, "total_price": 1, "currency": 1})
+            async for bk in cursor:
+                deadline = _parse_dt(bk.get("payment_required_by"))
+                if deadline is None:
+                    continue
+                if deadline.tzinfo is None:
+                    deadline = deadline.replace(tzinfo=timezone.utc)
+                if deadline <= now:
+                    await db.flight_bookings.update_one(
+                        {"id": bk["id"]}, {"$set": {"status": "expired", "payment_status": "expired"}})
+                    await create_notification(
+                        bk["user_id"], "flight_hold_expired", "Tarif expiré ⌛",
+                        f"Le tarif bloqué {bk.get('origin_code')} → {bk.get('destination_code')} a expiré. Relancez une recherche.",
+                        data={"booking_id": bk["id"]})
+                elif not bk.get("deadline_notified") and (deadline - now).total_seconds() <= 2 * 3600:
+                    await db.flight_bookings.update_one({"id": bk["id"]}, {"$set": {"deadline_notified": True}})
+                    await create_notification(
+                        bk["user_id"], "flight_hold_reminder", "Payez votre vol ⏳",
+                        f"Votre tarif {bk.get('origin_code')} → {bk.get('destination_code')} ({bk.get('total_price')} {bk.get('currency')}) expire dans moins de 2 h. Payez pour confirmer.",
+                        data={"booking_id": bk["id"]})
+        except Exception as e:  # noqa: BLE001
+            try:
+                from core.config import logger
+                logger.error(f"flight_hold_loop error: {e}")
+            except Exception:
+                pass
+        await asyncio.sleep(600)

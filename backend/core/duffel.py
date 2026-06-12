@@ -99,6 +99,27 @@ async def create_order(offer_id: str, passengers: list, amount: str, currency: s
     return data.get("data", {})
 
 
+async def create_hold_order(offer_id: str, passengers: list) -> dict:
+    """Crée une commande « hold » (tarif bloqué, sans paiement immédiat)."""
+    payload = {
+        "type": "hold",
+        "selected_offers": [offer_id],
+        "passengers": passengers,
+    }
+    data = await _request("POST", "/air/orders", json_body={"data": payload})
+    return data.get("data", {})
+
+
+async def create_payment(order_id: str, amount: str, currency: str) -> dict:
+    """Paie une commande « hold » avec le solde Duffel (mode test)."""
+    payload = {
+        "order_id": order_id,
+        "payment": {"type": "balance", "amount": amount, "currency": currency},
+    }
+    data = await _request("POST", "/air/payments", json_body={"data": payload})
+    return data.get("data", {})
+
+
 async def get_order(order_id: str) -> dict:
     data = await _request("GET", f"/air/orders/{order_id}")
     return data.get("data", {})

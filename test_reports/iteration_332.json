@@ -1,0 +1,69 @@
+{
+  "summary": "Iter332 — Full E2E validation of Duffel HOLD ORDER flow (block fare without paying). Backend pytest 10/10 passed + 1 skipped (no instant-payment-only offer returned by Duffel — code path verified by inspection). Frontend Playwright E2E PASSED: client login -> /vols -> Vols en direct -> LHR/JFK/2026-09-15/Business search -> 40 offers, first offer shows BOTH 'Bloquer le tarif' (data-testid=live-hold-btn) AND 'Réserver maintenant' (data-testid=live-book-btn). Filling 1 passenger + contact -> click HOLD -> 'Tarif bloqué' screen with PNR UNISZP and 'Payer maintenant · 1339.72 EUR' button visible. In 'Mes vols': held booking shows 'En attente de paiement' badge + deadline + 'Payer maintenant' button (data-testid=flight-pay-<bookingId>). Click pay -> booking switches to 'Confirmé' with PNR & E-billet button.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vols live form", "issues": ["Persistent React hydration warning: '<span> cannot be a child of <option>' from FlightsPage line 235 (live-pax-count <select> options wrapping numbers in <span>). Pre-existing from iter320, not blocking, but should be cleaned: render plain {n} in <option> not <span>{n}</span>."]}
+    ]
+  },
+  "tests_executed": {
+    "backend_pytest": {
+      "file": "/app/backend/tests/test_iter332_duffel_hold.py",
+      "junit_xml": "/app/test_reports/pytest/iter332_hold.xml",
+      "total": 11,
+      "passed": 10,
+      "skipped": 1,
+      "failed": 0,
+      "cases": [
+        "TestSearchHoldMetadata::test_business_offers_expose_hold_fields PASS (hold_available/payment_required_by/price_guarantee_expires_at all present, ≥1 hold-eligible business offer)",
+        "TestLiveHold::test_hold_success_no_debit PASS (status=held, PNR present, payment_required_by present, wallet balance unchanged before vs after hold)",
+        "TestLiveHold::test_hold_on_non_eligible_offer_returns_409 SKIPPED (Duffel test env returned all-hold-eligible offers; 409 path verified by code review of routes/flights.py line 456-457)",
+        "TestLivePay::test_pay_held_booking_confirms_and_debits PASS (held->confirmed, payment_status=paid, PNR preserved, wallet debited by total_price ±0.5€)",
+        "TestLivePay::test_pay_already_paid_returns_404 PASS",
+        "TestLivePay::test_pay_nonexistent_returns_404 PASS",
+        "TestLivePay::test_pay_insufficient_balance_returns_400 PASS (drained wallet via admin debit -> /pay returns 400)",
+        "TestRegression::test_live_book_still_works PASS (instant booking with PNR)",
+        "TestRegression::test_eticket_pdf PASS (application/pdf, %PDF magic bytes)",
+        "TestRegression::test_mock_airports PASS",
+        "TestRegression::test_mock_search PASS"
+      ]
+    },
+    "frontend_playwright": {
+      "login_flow": "PASS — client@test.sb logged in via email option",
+      "live_business_search": "PASS — LHR->JFK 2026-09-15 business -> 40 offers with [data-testid^=live-offer-]",
+      "passenger_screen_hold_btn": "PASS — live-hold-btn AND live-book-btn both visible on passenger screen",
+      "hold_action": "PASS — click live-hold-btn -> 'Tarif bloqué ⏳' screen with PNR UNISZP, 'Payer maintenant · 1339.72 EUR' (done-pay-btn) + 'Voir mes vols'",
+      "mes_vols_held": "PASS — held booking shows 'En attente de paiement' badge + 'À payer avant le 15 juin, 18:59' + 'Payer maintenant · 1334.13 EUR' (flight-pay-<id>)",
+      "pay_from_mes_vols": "PASS — clicking flight-pay-<id> confirms the booking (badge shows Confirmé, PNR visible, E-billet button appears)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter332_duffel_hold.py",
+    "/app/test_reports/pytest/iter332_hold.xml"
+  ],
+  "action_items": [
+    "Optional cleanup: remove inner <span> wrapper inside <option> in /app/frontend/src/pages/user/FlightsPage.js around the live-pax-count <select> (line 235) to silence pre-existing hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "Good: /live/hold correctly does NOT debit the wallet at hold time (choix 1a) — verified by checking wallet balance before & after; code path lines 433-502 of routes/flights.py never touches db.wallets on hold.",
+    "Good: /live/bookings/{id}/pay performs deadline check (lines 516-522), wallet sufficiency check before calling Duffel /air/payments (lines 531-533), then atomic order pay + wallet debit + booking update — order of operations is correct (Duffel paid before local debit; if Duffel fails, no debit).",
+    "Good: _norm_offer (line 278) properly exposes hold_available = not requires_instant_payment, payment_required_by, price_guarantee_expires_at on every offer.",
+    "Good: /live/hold validates the offer's payment_requirements.requires_instant_payment and returns 409 if not eligible — clear error path.",
+    "Good: flight_hold_loop background task (every 10 min) handles expiration (status->expired, notifies user) and ~2h reminder (deadline_notified flag prevents duplicates).",
+    "Minor: in /live/pay, if Duffel.create_payment fails AFTER the deadline check passed but BEFORE wallet debit, no debit happens — correct. However if Duffel.get_order at line 540 (post-payment refresh) fails, debit still occurs — could log+catch this to avoid orphan state. Low priority since payment already succeeded.",
+    "Minor: currency assumption EUR — pay uses order.total_currency but debits the wallet's EUR balance regardless. Pre-existing concern flagged in iter320.",
+    "Minor: pre-existing React hydration warning on FlightsPage live-pax-count <select> (span inside option) — not introduced by this iteration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter332_duffel_hold.py (new — 11 tests, 10 pass / 1 skip)"
+  ],
+  "success_rate": { "backend": "100% (10/10 pass, 1 skip — non-blocking)", "frontend": "100% (all flows green: search→hold→success→Mes vols held→pay→confirmed)" },
+  "test_credentials": "client@test.sb / Client123! (wallet credited to 5000 EUR via admin POST /api/admin/users/{id}/wallet/credit). admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Topped up client@test.sb wallet by 5000 EUR (Business fares ~1300 EUR). Created multiple Duffel test bookings: held PNRs UNISZP & CT52N6 (then paid), instant PNRs OQF5NO/7B6WKF/ZIPEJR, and several Confirmé bookings. All in Duffel test mode (no real charge).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_iter332_duffel_hold.py (uses REACT_APP_BACKEND_URL env var; default fallback present). Duffel offers expire in ~30s — each test re-runs /live/search. The 409 'non-eligible offer' path could not be exercised in the Duffel test env (all returned offers were hold-eligible) — verified by code inspection of routes/flights.py:455-457. To test 409 path, mock the Duffel offer with requires_instant_payment=True, or hit a route that is known to return instant-only offers (depends on Duffel test airline catalog). Frontend selectors confirmed: live-hold-btn, live-book-btn, done-pay-btn, flight-pay-<bookingId>, STATUS_LABELS held=>'En attente de paiement'. The 'Verify email' toast at bottom does not block clicks (set with pointer-events). Pre-existing select hydration warning unrelated to hold feature.",
+  "rca of the issue": "Not applicable — all hold/pay flows pass E2E. The single skipped test is due to Duffel test env returning only hold-eligible offers; the 409 logic itself (routes/flights.py:455-457) is straightforward and validated by code review."
+}
