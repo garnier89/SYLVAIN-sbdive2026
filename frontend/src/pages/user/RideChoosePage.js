@@ -456,13 +456,17 @@ const RideChoosePage = () => {
   // Auto-advance to the map step ONCE both points are set (2-step flow). A ref
   // guards re-entry so the back button (← → form) is not immediately overridden;
   // re-entry from the form then uses the explicit « Continuer » button.
+  // Exception: deep-link transfert aéroport (mode=airport&acode=...) — on reste sur
+  // le formulaire pour que l'utilisateur voie/confirme le panneau vol (n° de vol,
+  // heure) avant de continuer, même si départ + destination sont déjà remplis.
   const autoAdvancedRef = useRef(false);
+  const airportDeepLink = mode.id === 'airport' && !!params.get('acode');
   useEffect(() => {
-    if (needsDropoff && bothSet && !autoAdvancedRef.current) {
+    if (needsDropoff && bothSet && !autoAdvancedRef.current && !airportDeepLink) {
       autoAdvancedRef.current = true;
       Promise.resolve().then(() => setShowMap(true));
     }
-  }, [needsDropoff, bothSet]);
+  }, [needsDropoff, bothSet, airportDeepLink]);
 
   // On the map step, poll online drivers near the pickup to reassure the rider
   // ('Chauffeur à ~X min') and drop car markers on the map.

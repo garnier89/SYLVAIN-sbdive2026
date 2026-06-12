@@ -1,0 +1,38 @@
+{
+  "summary": "Iter337 — Re-test of TO AIRPORT fix (iter336 critical bug). RESULT: FIX VERIFIED. All 3 scenarios PASS. (1) TO AIRPORT (FDF) deep-link /course?mode=airport&acode=FDF&flight=ZZ0403&dlat=14.591&dlng=-61.0032&daddr=Aéroport%20Martinique%20Aimé%20Césaire : panel-flight VISIBLE, panel-airport-select='Aéroport Fort-de-France Aimé Césaire (FDF)', panel-flight-input='ZZ0403', panel-airport-freewait visible with text '45 min d'attente offertes après l'atterrissage. Suivi de vol automatique : l'heure de prise en charge s'ajuste en cas de retard.', continue-to-map-btn visible. Auto-advance is correctly disabled by airportDeepLink guard (RideChoosePage.js L462-469). Visual confirmation: header 'SB DRIVE · SE DÉPLACER · Aéroport', destination input pré-rempli 'Aéroport Martinique Aimé Césaire'. (2) FROM AIRPORT (ORY) regression /course?mode=airport&acode=ORY&flight=ZZ0403&farr=14:30&plat=48.7233&plng=2.3794&paddr=Aéroport%20de%20Paris-Orly : panel-flight VISIBLE, panel-flight-input='ZZ0403', panel-flight-arrival='14:30'. Still works as in iter336. (3) /vols Mes vols regression: 4 sbdrive-to-airport-* buttons + 4 sbdrive-from-airport-* buttons present, 0 LHR, 0 JFK (only confirmed FDF<->ORY). Click on real sbdrive-to-airport-fbk_ee4ba7ea84 from Mes vols → /course?...mode=airport&acode=FDF&... → panel-flight visible + continue-to-map-btn visible. End-to-end SB Drive transfer flow OK.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": {
+    "login_client": "PASS — client@test.sb / Client123! via /login → other-login-options-btn → login-email-btn → email-input/password-input → email-login-submit-btn (viewport 430x932 required to avoid 'outside of viewport' click error on modal CTAs).",
+    "deep_link_TO_FDF_panel_flight": "PASS — [data-testid=panel-flight] visible <2s.",
+    "deep_link_TO_FDF_airport_select": "PASS — text='Aéroport Fort-de-France Aimé Césaire (FDF)'.",
+    "deep_link_TO_FDF_flight_input": "PASS — value='ZZ0403'.",
+    "deep_link_TO_FDF_freewait_banner": "PASS — visible, text contient '45 min d'attente offertes' + 'Suivi de vol automatique'.",
+    "deep_link_TO_FDF_dropoff_display": "PASS visual — destination pré-remplie 'Aéroport Martinique Aimé Césaire' (screenshot). Note: l'input read via [data-testid=ride-choose-dropoff] input retourne None — le testid n'est pas un wrapper de l'<input>, mais la valeur est bien rendue dans GooglePlacesInput.",
+    "deep_link_TO_FDF_continue_btn": "PASS — [data-testid=continue-to-map-btn] visible.",
+    "deep_link_FROM_ORY_panel_flight": "PASS — [data-testid=panel-flight] visible.",
+    "deep_link_FROM_ORY_flight_input": "PASS — value='ZZ0403'.",
+    "deep_link_FROM_ORY_arrival": "PASS — value='14:30'.",
+    "mes_vols_visibility": "PASS — 4 boutons sbdrive-to-airport-*, 4 boutons sbdrive-from-airport-*, 0 LHR, 0 JFK.",
+    "mes_vols_click_TO_AIRPORT_e2e": "PASS — click sbdrive-to-airport-fbk_ee4ba7ea84 → /course?mode=airport&acode=FDF&...&daddr=Aéroport Martinique Aimé Césaire, Le Lamentin → panel-flight visible + continue-to-map-btn visible. End-to-end OK."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix correct & minimal (RideChoosePage.js L462-469): airportDeepLink = mode.id==='airport' && !!params.get('acode') ; le useEffect d'auto-advance ne setShowMap(true) que si !airportDeepLink. Maintient la non-régression du flux standard (auto-advance) tout en garantissant que l'utilisateur voit le panneau vol pour confirmer N°/heure avant 'Continuer'.",
+    "Mineur (pré-existant, non-bloquant) : la lecture programmatique de la valeur input via [data-testid=ride-choose-pickup/dropoff] input renvoie '' alors que GooglePlacesInput affiche bien la valeur — ajouter data-testid sur l'<input> interne faciliterait les tests futurs.",
+    "Mineur (pré-existant, déjà signalé iter320/332/334/335) : warning React hydration '<span> cannot be a child of <option>' dans FlightsPage.js."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped)", "frontend": "100% — 3/3 critères PASS : TO AIRPORT (correctif iter336) ✓, FROM AIRPORT (non-régression) ✓, visibilité boutons /vols + click e2e ✓." },
+  "test_credentials": "client@test.sb / Client123! validé. NB: viewport doit être ≥430px de large pour clic 'login-email-btn' sans erreur 'outside of viewport'.",
+  "seed_data_creation": "Aucune.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Correctif iter336 VALIDÉ. Le scénario TO AIRPORT (mode=airport&acode=FDF + dlat/dlng/daddr sans plat/plng) monte maintenant correctement le panneau vol grâce au guard airportDeepLink (L462-469) qui désactive l'auto-advance. Le scénario FROM AIRPORT continue de marcher. Aucune action requise.",
+  "rca of the issue": "RCA iter336 confirmé: l'auto-advance (autoAdvancedRef + setShowMap(true) à L464-469) se déclenchait dès que bothSet=true, ce qui était immédiatement le cas en TO AIRPORT (pickup auto-localisé + dropoff pré-rempli via dlat/dlng/daddr) — le user sautait à l'étape carte sans jamais voir panel-flight. Correctif appliqué: const airportDeepLink = mode.id === 'airport' && !!params.get('acode'); ajouté en dépendance, et la condition du useEffect devient (needsDropoff && bothSet && !autoAdvancedRef.current && !airportDeepLink). En FROM AIRPORT acode=ORY, le guard s'active aussi (donc plus d'auto-advance même quand plat/plng pré-remplis), mais c'est OK car l'intention est de toujours montrer le panneau vol pour les deep-links aéroport — l'utilisateur clique 'Continuer · Voir les tarifs' explicitement."
+}
