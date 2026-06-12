@@ -1,0 +1,61 @@
+{
+  "summary": "Frontend E2E testing of new Travel Packages vertical (Vol+Hôtel forfaits, iter292). Full user flow on /forfaits (list → book → done → mine → cancel) AND admin flow on /admin/travel-packages (Forfaits + Réservations tabs) fully validated. Critical propagation rule verified: a package booking creates underlying flight + hotel bookings (linked via package_booking_id) that show up in /vols 'Mes vols' and /hotels 'Mes séjours'; cancelling the package cascades to both underlying bookings and refunds the discounted total in one wallet transaction.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": {
+    "user_flow_/forfaits": {
+      "home-packages-entry on UserHome → /forfaits": "PASS (route + testid present)",
+      "travel-packages-page lists seeded 'Escapade Paris — Hôtel La Pagerie' with -15% badge, base_total 1320€ struck-through → final_total 1122€ + 'Économisez 198€'": "PASS",
+      "pkg-card-{id} click → pkg-book screen with récap vol (Air Caraïbes FDF→Paris 15 juil.) + hôtel (La Pagerie 4★, Chambre Double Standard, 7 nuits)": "PASS",
+      "pkg-checkin (date) + pkg-rooms-count editable; default check-in pre-filled from arrival_at": "PASS",
+      "pkg-quote shows base 1320€ struck, -15% −198€, total 1122€ for 1 pax; updates to base 1800€ / -270€ / total 1530€ for 2 pax/1 room": "PASS",
+      "pkg-book-btn disabled w/o pax name (label 'Saisissez un voyageur' before quote / 'Réserver · {total}' shown after quote with disabled state)": "PASS",
+      "pkg-add-pax + pkg-pax-name-{i} enable the button; total updates dynamically": "PASS",
+      "Booking debits wallet ONCE (1530€) → pkg-done confirmation screen → pkg-see-mine → pkg-mine-list shows 'Confirmé' booking with vol + hôtel + économie": "PASS"
+    },
+    "propagation_to_/vols_and_/hotels": {
+      "Underlying flight booking fbk_d11632f246 created (confirmed, 2 pax, 960€, package_booking_id=tvb_b6b8a031c1)": "PASS",
+      "Underlying hotel booking hbk_17c5719f66 created (confirmed, 7 nuits, 840€, package_booking_id=tvb_b6b8a031c1)": "PASS",
+      "/vols flights-mine-list contains the new flight reservation (Paul Vendeur + Marie Test, 960€)": "PASS",
+      "/hotels hotels-mine-list contains the new 'Hôtel La Pagerie' reservation": "PASS"
+    },
+    "grouped_cancellation": {
+      "pkg-cancel-{id} → confirm → toast 'Annulé · remboursé 1530.00 €'": "PASS",
+      "Package booking status flips to 'Annulé' in pkg-mine-list": "PASS",
+      "Underlying fbk_d11632f246 → status=cancelled": "PASS",
+      "Underlying hbk_17c5719f66 → status=cancelled": "PASS",
+      "Wallet: single 'Refund' tx of +1530€ recorded (after single 'Booking' tx of -1530€)": "PASS"
+    },
+    "admin_flow_/admin/travel-packages": {
+      "Sidebar 'Forfaits Vol+Hôtel' link navigates to /admin/travel-packages": "PASS",
+      "admin-packages-page loads with 'Forfaits' tab active (admin-packages-tab visible)": "PASS",
+      "pkg-row-{id} list shows existing seeded 'Escapade Paris' package with discount badge and prix indicatif (base struck → final)": "PASS",
+      "pkg-add-toggle → pkg-create-form opens; fields pkg-form-title/flight/hotel/room/nights/discount/image present": "PASS",
+      "pkg-form-room is dependent on pkg-form-hotel (rooms filtered by hotel_id)": "PASS",
+      "pkg-create-save creates 'TEST_iter292 Forfait' (-20%, Air Caraïbes + La Pagerie, 3 nuits) and toast 'Forfait créé' shown; new row appears with prix 840€ → 672€": "PASS",
+      "pkg-admin-tab-bookings → admin-package-bookings-tab lists package bookings (title · user_name · status · 'origin → destination · hotel_name · pax · total_price')": "PASS"
+    }
+  },
+  "test_report_links": ["/app/backend/tests/test_iter292_travel_packages.py (backend pytest 5/5 PASS – pre-existing)"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TravelPackagesPage.js – `validPax` is read inside useEffect deps via `passengers`, which is fine, but the eslint-disable comment hides that `validPax`'s `length` is the actual signal. Consider depending on `validPax.length` explicitly or memoising.",
+    "TravelPackagesPage.js – uses native `window.confirm` for cancellation; other verticals (hotels/flights) already do too, so consistent, but consider a shared in-app modal for mobile UX.",
+    "TravelPackagesPage.js – when `quote.available === false`, the CTA is correctly disabled, but the card list does not surface availability ahead of opening pkg-book; user only finds out on the booking screen. Consider an 'Indisponible' badge on pkg-card-{id} when packageOptions report unavailability.",
+    "AdminTravelPackages.js – PackagesTab uses index-based `Field` children without unique keys for option lists where `f.id` is empty (currently never empty in seed but defensive); also discount input does not clamp on blur (UI accepts >90 then server may reject).",
+    "AdminTravelPackages.js – when admin changes pkg-form-hotel, pkg-form-room is reset to '' correctly, but if a previously selected room belongs to the new hotel by id collision (rare) the user could re-select; minor.",
+    "Test-id naming inconsistency: spec mentions `admin-packages-tab` and `admin-package-bookings-tab` as the tab buttons, but code uses these as the panel containers and the tab buttons are `pkg-admin-tab-packages` / `pkg-admin-tab-bookings`. Both sets work, but main agent may want to align with spec naming for downstream automation."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "User paul.vendeur@example.com / Test1234! (wallet credited +2000€ via POST /api/admin/users/user_c6eed0296404/wallet/credit → balance 4278€ → 2748€ after booking → 4278€ after refund). Admin admin@superapp.com / SuperAdmin123!. Note: spec mentioned POST /api/admin/wallet/credit which returns 404; correct path is /api/admin/users/{user_id}/wallet/credit (same caveat as iter291).",
+  "seed_data_creation": "Created admin package 'TEST_iter292 Forfait' (pkg_d1beb921fa) and deleted it after admin test via DELETE /api/travel-packages/admin/packages/pkg_d1beb921fa (200 ok). One Paul package booking tvb_b6b8a031c1 (confirmed → cancelled, refund 1530€) and its underlying fbk_d11632f246 + hbk_17c5719f66 (both cancelled) remain in history.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Travel Packages vertical (iter292) fully working end-to-end (user + admin + grouped cancellation + cascade to /vols + /hotels). Backend pytest 5/5 (test_iter292_travel_packages.py). Wallet credit endpoint is /api/admin/users/{user_id}/wallet/credit. The seeded demo forfait 'Escapade Paris — Hôtel La Pagerie' (pkg_ed2681cffe) is still available. The dev-server console emits a hydration warning about `<span>` inside `<option>` — this comes from the visual-editor instrumentation (x-ve-dynamic spans injected for hot reload), NOT real product code, and disappears in production build. Safe to ignore.",
+  "rca of the issue": "No issues found. Feature is production-ready."
+}

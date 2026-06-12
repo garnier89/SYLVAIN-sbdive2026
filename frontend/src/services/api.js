@@ -995,5 +995,21 @@ export const flightsAPI = {
   adminBookings: () => api.get('/flights/admin/bookings'),
 };
 
+export const travelPackagesAPI = {
+  list: () => api.get('/travel-packages'),
+  detail: (id) => api.get(`/travel-packages/${id}`),
+  quote: (id, data) => api.post(`/travel-packages/${id}/quote`, data),
+  book: (id, data) => api.post(`/travel-packages/${id}/book`, data),
+  myBookings: () => api.get('/travel-packages/bookings/my'),
+  cancel: (id) => api.post(`/travel-packages/bookings/${id}/cancel`, {}),
+  // admin
+  adminOptions: () => api.get('/travel-packages/admin/options'),
+  adminPackages: () => api.get('/travel-packages/admin/packages'),
+  adminCreatePackage: (data) => api.post('/travel-packages/admin/packages', data),
+  adminUpdatePackage: (id, data) => api.put(`/travel-packages/admin/packages/${id}`, data),
+  adminDeletePackage: (id) => api.delete(`/travel-packages/admin/packages/${id}`),
+  adminBookings: () => api.get('/travel-packages/admin/bookings'),
+};
+
 
 export default api;

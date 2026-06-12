@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe, GraduationCap,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, BellRinging, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard, Wheelchair, AirplaneTilt
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard, Wheelchair, AirplaneTilt, Suitcase
 } from '@phosphor-icons/react';
 
 // Dashboard organisé en grandes familles : Pilotage, Membres, Services,
@@ -49,6 +49,7 @@ const sidebarConfig = [
         { label: 'Bornes SB Drive Tab', path: '/admin/kiosks' },
       ]},
       { icon: AirplaneTilt, label: 'Vols (agence)', path: '/admin/flights' },
+      { icon: Suitcase, label: 'Forfaits Vol+Hôtel', path: '/admin/travel-packages' },
       { icon: TreeStructure, label: 'Organisation', path: '/admin/organization' },
       { icon: Briefcase, label: 'Comptes Entreprise', path: '/admin/corporate' },
     ]

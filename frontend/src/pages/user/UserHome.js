@@ -29,7 +29,7 @@ import {
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
   Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
-  GraduationCap, Storefront, Wheelchair, Bed, AirplaneTilt,
+  GraduationCap, Storefront, Wheelchair, Bed, AirplaneTilt, Suitcase,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -767,6 +767,22 @@ const UserHome = () => {
           <span className="text-white/85 text-xs block leading-tight">Recherchez et réservez vos vols</span>
         </span>
         <CaretRight size={18} className="text-white shrink-0" />
+      </button>
+      {/* SB Travel — Forfaits Vol + Hôtel (package à prix réduit) */}
+      <button
+        onClick={() => navigate('/forfaits')}
+        data-testid="home-packages-entry"
+        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #7C3AED, #9333EA)' }}
+      >
+        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+          <Suitcase size={22} weight="fill" className="text-white" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="text-white font-black text-sm block leading-tight">Forfaits Vol + Hôtel 🧳</span>
+          <span className="text-white/85 text-xs block leading-tight">Packages voyage tout compris · prix réduit</span>
+        </span>
+        <span className="text-[10px] font-black px-2 py-1 rounded-full bg-[#FF5000] text-white shrink-0">PROMO</span>
       </button>
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 

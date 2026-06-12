@@ -26,6 +26,7 @@ export const MotoSelfRentalPage = lazy(() => import('../pages/user/MotoSelfRenta
 export const CarSelfRentalPage = lazy(() => import('../pages/user/CarSelfRentalPage'));
 export const HotelsPage = lazy(() => import('../pages/user/HotelsPage'));
 export const FlightsPage = lazy(() => import('../pages/user/FlightsPage'));
+export const TravelPackagesPage = lazy(() => import('../pages/user/TravelPackagesPage'));
 export const RideBookingPage = lazy(() => import('../pages/user/RideBookingPage'));
 export const RideChoosePage = lazyWithPreload(() => import('../pages/user/RideChoosePage'));
 export const RideTrackingPage = lazyWithPreload(() => import('../pages/user/RideTrackingPage'));
@@ -232,6 +233,7 @@ export const AdminMotoFleet = lazy(() => import('../pages/admin/AdminMotoFleet')
 export const AdminCarFleet = lazy(() => import('../pages/admin/AdminCarFleet'));
 export const AdminHotelsManager = lazy(() => import('../pages/admin/AdminHotelsManager'));
 export const AdminFlights = lazy(() => import('../pages/admin/AdminFlights'));
+export const AdminTravelPackages = lazy(() => import('../pages/admin/AdminTravelPackages'));
 export const AdminRideProfiles = lazy(() => import('../pages/admin/AdminRideProfiles'));
 export const AdminKiosks = lazy(() => import('../pages/admin/AdminKiosks'));
 
