@@ -846,6 +846,7 @@ async def send_flight_confirmation(to: str, name: str, booking: dict, pdf_bytes:
           <tr><td style="padding:10px 0;color:#0a0e1a;font-size:17px;font-weight:bold;">Total pay&eacute;</td>
               <td style="padding:10px 0;color:#FF5000;font-size:17px;font-weight:bold;text-align:right;">{total}</td></tr>
         </table>
+        {_sbdrive_transfer_html(booking)}
         <p style="color:#9aa0ac;font-size:12px;line-height:1.5;margin-top:16px;">
           Pr&eacute;sentez votre e-billet (en pi&egrave;ce jointe) et une pi&egrave;ce d'identit&eacute; &agrave; l'enregistrement. Bon voyage ! &#9992;
         </p>"""
