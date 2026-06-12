@@ -1,0 +1,35 @@
+{
+  "summary": "Iter317 — Frontend-only smoke/render parity check for 10 admin pages (LOCATION + PROMOTIONS sections). All 10 routes render correctly after admin login. Zero JS pageerrors, no error boundaries, no blank screens. Google Maps load on /admin/gods-view and /admin/heat-view.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "per_page_results": [
+    {"route": "/admin/geo-fence", "status": "PASS", "evidence": "Heading 'Geo Fence Locations', 4 zones configurees (Paris Centre, Fort-de-France, Aeroport CDG, Zone Restreinte Test), 'Ajouter une zone' button visible."},
+    {"route": "/admin/restricted", "status": "PASS", "evidence": "Same AdminGeoFence component (aliased route) — renders identical Geo Fence Locations UI without crash."},
+    {"route": "/admin/location-fare", "status": "PASS", "evidence": "AdminServiceConfig(serviceKey='location-fare') renders with main heading; 0 pageerrors."},
+    {"route": "/admin/airport", "status": "PASS", "evidence": "AdminAirport renders with main heading; 0 pageerrors."},
+    {"route": "/admin/country", "status": "PASS", "evidence": "AdminServiceConfig(serviceKey='country') renders with main heading; 0 pageerrors."},
+    {"route": "/admin/state", "status": "PASS", "evidence": "Heading 'State / Region Settings', 'Region par defaut' = Martinique, 'Regions actives' = Ile-de-France, Martinique, Guadeloupe, Sauvegarder button."},
+    {"route": "/admin/gods-view", "status": "PASS", "evidence": "Heading \"God's View\", tabs Rides/Deliveries/Jobs, status counters A(17)/N(0)/P(0)/R(0)/D(0), live Google Map with traffic layer renders, driver list (Ahmed Diallo, Sophie Lefevre, Pierre Dupont...). map elements detected=19."},
+    {"route": "/admin/heat-view", "status": "PASS", "evidence": "Heading 'Heat View', 'Densite (17 points) — actualise toutes les 30s', Toggle Heatmap button, Plan/Satellite controls, Google Map renders. map elements detected=4."},
+    {"route": "/admin/promocodes", "status": "PASS", "evidence": "AdminPromocodes renders with main heading; 0 pageerrors."},
+    {"route": "/admin/giftcards", "status": "PASS", "evidence": "Heading 'Gift Cards Management', '4 templates disponibles' (Classique, Anniversaire, Felicitations, Merci) all 'Active'."}
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Route alias note: /admin/restricted reuses AdminGeoFence (same component as /admin/geo-fence). If product expects a distinct 'restricted zones only' filter, consider passing a prop like <AdminGeoFence mode='restricted' /> so the two menu items show different lists.",
+    "Heat View shows a hardcoded-looking 'Densite (17 points)' label even though the data is dynamic — consider showing the actual count returned by the API to avoid stale 17 when no points are available."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (10/10 admin pages render with main content; 0 pageerrors; both Google Map pages load tiles)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "None — read-only navigation only.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login flow: /login -> click 'Ou choisir une autre option de connexion' -> click [data-testid=login-email-btn] -> fill input[type=email]/input[type=password] -> Enter -> lands on /admin. Then page.goto each /admin/<slug> works. Map pages need ~6s wait for Google Maps tiles. /admin/restricted is currently an alias of /admin/geo-fence (same AdminGeoFence component). The 401s in console come from background fetches before auth context is hydrated and do NOT cause pageerror events or blank screens.",
+  "rca of the issue": "No issues found."
+}
