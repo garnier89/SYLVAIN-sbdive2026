@@ -1,3 +1,15 @@
+## NEW - 2026-06-12 (296→297) - 🏬 Service Hubs + Favoris + Édition annonces (Phase 1&2) — FINALISÉ & testé E2E 100%
+- **Demande user** : « Créer les hubs pour tout » (regrouper les services par activité) + audit/amélioration des verticales Immobilier & Marketplace.
+- **Phase 2 — Service Hubs** (`VehiclesHub.js` = Véhicules `/vehicules` + Shopping `/shopping`, `RealEstateHub.js` = Immobilier `/immobilier`, `SbTravelHub.js` = `/sb-travel`) avec deep-links `?type=rent|sale` qui pré-filtrent `/marketplace/cars`, `/marketplace/items`, `/real-estate`. Routes enregistrées (clientRoutes.jsx 138-141). Bouton ❤️ → `/favoris`.
+- **Phase 1 — Favoris** (`routes/favorites.py`, collection `favorites`) : POST `/api/favorites/toggle`, GET `/api/favorites/ids`, GET `/api/favorites` (enrichi). `FavoriteButton.jsx` (cœur contrôlé, stopPropagation), page `MyFavoritesPage.js` (`/favoris`, onglets Immobilier/Marketplace). + Édition d'annonces (immobilier `/real-estate/edit/:id`, marketplace modale `/ma-galerie`) + Boost payant admin.
+- **2 bugs HIGH corrigés** (trouvés iter293) :
+  1. `<button>` imbriqué dans PropertyCard (RealEstatePage) + carte MarketplacePage → remplacés par `<div role="button" tabIndex={0}>` (erreur React 'nested button' éliminée).
+  2. La bannière « Vérifiez votre email » (`VerifyEmailBanner.jsx`, fixed bottom-0) recouvrait le bouton de soumission des formulaires de publication → `HIDDEN_PREFIXES` étendu à `/real-estate/post`, `/real-estate/edit`, `/marketplace/sell-vehicle`, `/ma-galerie`.
+- **Testé** : testing_agent iter293 (Hubs+Favoris 100%) + iter294 (édition immo+marketplace, création immo, fix nested button, régression favoris — 5/5 100%) + pytest `test_iter296_marketplace_phase1.py` 5/5. AUCUN bug restant.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (295) - 🧹 Suppression tuile « Hotel » legacy de l'accueil (DONE, vérifié)
 - Suppression de la catégorie d'accueil legacy `home_categories` id `hcat_16b364abd5` (label « Hotel », section marketplace, `target_route: "Hotel"` cassée) — doublon du nouveau module Hôtels désormais dans la section SB Travel.
 - « Acheter, Vendre & Louer » ne contient plus que Immobilier, Véhicules, Articles Divers. Vérifié e2e (capture). Aucun changement de code.
