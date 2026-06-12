@@ -1,0 +1,77 @@
+{
+  "summary": "Iter319 — Frontend-only end-to-end verification of the SB Marketplace / SBDrive VTC admin dashboard. (1) Broken-icons sweep on all 18 admin/billing routes, (2) maps verification on /admin/gods-view & /admin/heat-view, (3) full reports verification on /billing/reports including all 9 charts + ZIP + schedule tab, (4) wallet credit/debit flow on Users, Drivers, and Merchants. ALL TESTS PASSED with 0 console errors, 0 page errors, 0 broken images, 0 empty/unrendered phosphor icons, and 0 ChunkLoadError occurrences.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "icon_image_sweep": {
+    "routes_tested": [
+      "/admin", "/admin/gods-view", "/admin/heat-view", "/billing/reports",
+      "/admin/users", "/admin/drivers", "/admin/stores", "/admin/bookings",
+      "/admin/demo", "/admin/safety-audio", "/admin/geo-fence", "/admin/restricted",
+      "/admin/location-fare", "/admin/airport", "/admin/country", "/admin/state",
+      "/admin/promocodes", "/admin/giftcards"
+    ],
+    "broken_imgs_total": 0,
+    "empty_phosphor_icons_total": 0,
+    "chunk_load_errors": 0,
+    "console_errors_total": 0,
+    "pageerrors_total": 0,
+    "404_pages": 0,
+    "all_http_200": true,
+    "evidence": "Programmatic sweep: every <img> reported naturalWidth > 0; every <svg> with phosphor signatures had child paths; no 'ChunkLoadError' / 'Loading chunk' text anywhere in body; no React pageerror events fired during the entire sweep. Visual screenshots confirmed (e.g. /admin/giftcards shows 4 fully-rendered Gift-icon tiles; /admin dashboard shows all sidebar phosphor icons and KPI tiles)."
+  },
+  "maps_verification": {
+    "gods-view": "PASS — Google Map rendered: 16 map tile <img>s loaded, gm-style div present, drivers list (Ahmed Diallo, Sophie Lefèvre, …) + status counters (A:17, N:0, P:0, R:0, D:0) all visible.",
+    "heat-view": "PASS — Google Map rendered: 15 tile <img>s loaded, gm-style div present, 'Densité (17 points) — actualisé toutes les 30s' header, 'Toggle Heatmap' + Plan/Satellite toggle present."
+  },
+  "reports_verification": {
+    "page": "/billing/reports",
+    "nav_buttons_present": 9,
+    "nav_buttons": ["report-nav-results","report-nav-payments","report-nav-exceptional","report-nav-refused-cancelled","report-nav-referral","report-nav-wallet","report-nav-rewards","report-nav-insurance","report-nav-other"],
+    "per_report_chart_height_px": 326,
+    "all_render_chart_and_table": true,
+    "report_export_zip_button": "present (data-testid=report-export-zip)",
+    "tab_schedules": "present and clickable (data-testid=tab-schedules)",
+    "kpis_visible_in_screenshot": "Yes — e.g. 'Courses totales 757', 'Terminées 49', 'Annulées 655', 'CA courses 11015.69 €', 'Commission 1652.35 €', 'Panier moyen 224.81 €', 'Tendance CA & courses' line chart."
+  },
+  "wallet_credit_debit_verification": {
+    "users": {
+      "credit_buttons_count": 500,
+      "modal_opened": true,
+      "mode_credit_and_debit_toggles_present": true,
+      "credit_5_eur": "PASS — preview 'Nouveau solde : 5.00 €', toast 'Solde mis à jour : 5.00 €', POST /api/admin/users/{user_id}/wallet/credit -> 200",
+      "debit_2_eur": "PASS — preview 'Nouveau solde : 3.00 €' (5-2), toast 'Solde mis à jour : 3.00 €', POST 200"
+    },
+    "drivers": {
+      "wallet_buttons_count": 48,
+      "modal_opened": true,
+      "modal_role_label": "'Profile Test Driver · chauffeur' — correct (uses real getUser data)",
+      "credit_3_eur": "PASS — toast 'Solde mis à jour : 3.00 €', POST 200"
+    },
+    "merchants": {
+      "store_wallet_buttons_count": 19,
+      "modal_opened": true,
+      "modal_role_label": "'Marie · marchand' — correct",
+      "credit_4_eur": "PASS — toast 'Solde mis à jour : 4.00 €', POST 200"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: react-hot-toast renders both an aria-live mirror and the visible toast — querySelectorAll('[role=status],[class*=toast]') picks up both, so the captured text appears duplicated ('Solde mis à jour : 5.00 € | Solde mis à jour : 5.00 €'). This is purely a test-artifact, not a UI bug.",
+    "Minor (no impact this iteration): /admin/users currently renders 500 'credit-user-<id>' buttons (one per row in the table). If the user list grows large, consider virtualisation to keep DOM cheap.",
+    "Observation: the auto-reload chunk-recovery (/app/frontend/src/lib/chunkRecovery.js) was not triggered during this run — no ChunkLoadError appeared on any of the 18 routes, including freshly-loaded ones, confirming the recent phosphor-icons fix is stable.",
+    "Observation: /admin/bookings route resolves to a normal admin page (no 404 / no broken state), even though the spec listed it as 'if exists'. Confirmed exists and renders."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% — 18/18 pages clean, 9/9 reports render, 3/3 wallet flows (Users credit, Users debit, Drivers credit, Merchants credit) successful with 200 responses." },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Wrote real wallet balances via POST /api/admin/users/{id}/wallet/credit: +5 then -2 on a test user, +3 on driver user_a0f25548a9e7, +4 on merchant user_d926d28c4bd3. Amounts are intentionally small per spec.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login: /login -> click text 'Ou choisir une autre option de connexion' -> click [data-testid=login-email-btn] -> fill email/password -> Enter. Admin lands on /admin. Programmatic broken-icon detection used: count <img> with complete=true && naturalWidth===0 (non-data URLs), and <svg> elements whose class contains 'ph' OR which have the 'weight' attribute but zero children. Both metrics returned 0 on every page. Maps require ~4-5s wait after navigation for tile load. Wallet modal selectors: [data-testid=credit-modal], mode-credit, mode-debit, credit-amount, credit-preview, credit-save-btn, credit-user-<id> (Users), wallet-<index> (Drivers), store-wallet-<merchant_id> (Stores). All three pages share the same CreditModal in AdminUserModals.jsx — confirmed identical behaviour and backend endpoint.",
+  "rca of the issue": "Not applicable — no issues to RCA. The previously-reported phosphor ChunkLoadError has not re-occurred in this iteration; auto-reload recovery handler in /app/frontend/src/lib/chunkRecovery.js was not needed during the entire 18-route sweep."
+}
