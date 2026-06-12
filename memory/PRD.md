@@ -1,3 +1,11 @@
+## NEW - 2026-06-12 (331) - ✈️ Intégration API Vols RÉELLE Duffel (mode test) — recherche temps réel + e-billet PNR
+- **Demande user** : remplacer les vols mockés (offres admin) par de vrais vols + e-billets PDF/PNR. Choix : Duffel. Token `duffel_test_...` fourni par l'utilisateur (Somo babatak Sylvain, org « SB drive vtc »).
+- **Backend** : `core/duffel.py` (client httpx Duffel v2 : offer_requests / get_offer / create_order paiement `balance`). `routes/flights.py` : `GET /flights/live/search` (IATA, A/R, passagers, classe), `POST /flights/live/book` (re-fetch prix → vérif solde SB Pay → commande Duffel → débit → booking PNR), `GET /flights/bookings/{id}/eticket` (PDF reportlab).
+- **Frontend** : `FlightsPage.js` toggle « Vols en direct » (Duffel) / « Offres SB » (mock conservé) ; saisie passagers complète + e-billet téléchargeable ; PNR affiché dans « Mes vols ».
+- **Testé** : pytest `test_iter331_duffel_flights.py` **13/13** + e2e frontend 100% (PNR réels `3TQTED`, `4CB2OT` ; e-billet PDF). Non-régression offres SB OK. ⚠️ PREVIEW → redéploiement requis pour prod. Statut bloqueur Duffel (token introuvable) → RÉSOLU.
+- TODO mineur : pas de conversion FX si une offre Duffel revient en devise ≠ EUR (portefeuille en €).
+
+
 ## NEW - 2026-06-12 (330) - 🛡️ Anti-contournement « course au black » (3 couches) + God's View enrichi
 - **Demande user** : sur les courses planifiées, un chauffeur accepte → récupère le n° du client → relâche → fait la course au black. + enrichir le God's View (filtre service + chauffeurs en ligne/hors ligne). Choix : 1a + 2a + 3 oui + godview oui.
 - **Couche 1 — Masquage du n° client** (`rides.py`) : nouveau `_client_phone_revealed(ride)` + `enrich_passenger_info` masque `passenger_phone` (→ `null` + `passenger_phone_hidden` + `passenger_phone_reveal_at`) pour les courses **planifiées** tant qu'on n'est pas à ≤30 min de l'heure prévue ; révélé pour instantanées/in_progress. Front chauffeur (`DriverRideFlow.jsx`) : message clair « numéro dispo à partir de … utilisez le chat in-app ».

@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-06-12 — Intégration API Vols RÉELLE (Duffel, mode test) [DONE, testé 13/13 backend + e2e]
+Remplacement des vols mockés par une vraie recherche temps réel + e-billet PNR via l'API Duffel (token `duffel_test_...` dans `backend/.env` → `DUFFEL_API_KEY`).
+- **`backend/core/duffel.py`** (nouveau) : client httpx Duffel v2 — `create_offer_request`, `get_offer`, `create_order` (paiement `balance` en mode test), gestion d'erreurs lisibles (`DuffelError`).
+- **`backend/routes/flights.py`** : nouveaux endpoints `GET /api/flights/live/search` (codes IATA, normalisation offre/slice/segment, stockage `flight_offer_requests` avec passenger_ids), `POST /api/flights/live/book` (re-fetch prix live → vérif solde SB Pay → commande Duffel → débit portefeuille → booking avec PNR), `GET /api/flights/bookings/{id}/eticket` (PDF reportlab : en-tête navy, PNR orange, cartes itinéraire, passagers).
+- **`frontend/FlightsPage.js`** : toggle « Vols en direct » / « Offres SB ». Mode live = formulaire IATA + dates A/R + passagers + classe ; liste d'offres réelles (logo compagnie) ; saisie passagers (civilité, nom/prénom, date naissance, genre) + contact ; écran succès avec PNR + bouton « Télécharger l'e-billet » ; « Mes vols » affiche le PNR et le bouton e-billet.
+- **`frontend/services/api.js`** : `flightsAPI.liveSearch`, `liveBook`, `eticket` (blob PDF).
+- Validé : recherche FDF→ORY = offres réelles ; réservation → PNR réels `3TQTED` / `4CB2OT` (Duffel Airways ZZ en test) ; e-billet PDF généré ; non-régression des offres SB mockées OK.
+- Note : le portefeuille est en € ; Duffel renvoie EUR pour les paires testées. Pas de conversion FX si une offre revient dans une autre devise (TODO futur).
+
+
+
 ## 2026-06-11 — Bannière « Vérifiez votre email » non bloquante (fix systémique) [DONE, testé]
 La bannière (`fixed bottom-0`) chevauchait les barres d'action basses sur les flux transactionnels (panier, checkout, course). Corrigé une bonne fois :
 - **`VerifyEmailBanner.jsx`** : masquée sur les routes à barre d'action basse (`/course`, `/taxi`, `/checkout`, `/food/` détail, `/bidding`, `/service-providers`, `/rental`) en plus des écrans d'auth. Elle reste visible sur les écrans de navigation (accueil, profil, wallet, listes) où elle ne bloque rien.
