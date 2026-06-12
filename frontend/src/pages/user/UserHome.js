@@ -433,12 +433,18 @@ const UserHome = () => {
       <section key="delivery" className="px-4 mt-6">
         <SectionHeader title="Livraison & Coursier" sub="Repas, colis, courses & coursiers — tout au même endroit." />
         <div className="grid grid-cols-4 gap-3" data-testid="delivery-coursier-section">
-          {[
-            ...displayFor('delivery').filter((s) => !(s.id || '').includes('more')),
-            ...displayFor('parcel').filter((s) => !(s.id || '').includes('more')),
-            { id: 'delivery-genie', name: 'Delivery\nGenie', iconName: 'Bag', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/runner?mode=genie' },
-            { id: 'delivery-runner', name: 'Delivery\nRunner', iconName: 'Lightning', bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/runner' },
-          ].map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
+          {(() => {
+            const merged = [
+              ...displayFor('delivery').filter((s) => !(s.id || '').includes('more')),
+              ...displayFor('parcel').filter((s) => !(s.id || '').includes('more')),
+              { id: 'delivery-genie', name: 'Delivery\nGenie', iconName: 'Bag', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/runner?mode=genie' },
+              { id: 'delivery-runner', name: 'Delivery\nRunner', iconName: 'Lightning', bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/runner' },
+            ];
+            const seen = new Set();
+            return merged
+              .filter((s) => { const k = (s.path || s.name || s.id); if (seen.has(k)) return false; seen.add(k); return true; })
+              .map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />);
+          })()}
         </div>
       </section>
     ),

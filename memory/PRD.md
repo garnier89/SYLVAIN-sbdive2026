@@ -1,3 +1,14 @@
+## NEW - 2026-06-12 (298) - 🛵 Accueil : regroupement des services de livraison en UNE section (DONE, testé E2E)
+- **Demande user (choix 1a + 2c + oui)** : regrouper sur l'écran d'accueil les services de livraison éparpillés (ex. « livraison de colis avec génie delivery ») en UNE seule section, incluant TOUS les services de livraison, Delivery Genie & Delivery Runner compris.
+- **Frontend** (`UserHome.js`, frontend uniquement) :
+  - Les 3 anciennes sections séparées (`delivery` « Services de Livraison », `parcel` « Colis & Coursier », `genie` « Livraison Genie & Runner ») fusionnées en UNE section **« Livraison & Coursier »** (`data-testid=delivery-coursier-section`, grid 4 colonnes, sous-titre « Repas, colis, courses & coursiers — tout au même endroit. »).
+  - Contenu fusionné = `displayFor('delivery')` + `displayFor('parcel')` + tuiles Delivery Genie (`/runner?mode=genie`) & Delivery Runner (`/runner`), avec **déduplication par path** (évite le doublon « Livraison Colis » présent dans 2 groupes CMS et le doublon `/runner` Coursier Express ↔ Delivery Runner).
+  - Blocs `parcel` & `genie` supprimés ; retirés de `DEFAULT_SECTION_ORDER`. Import `Bag` nettoyé.
+- **Testé** : testing_agent iter295 (4/4 scénarios : section unifiée, anciennes sections supprimées, navigation des tuiles, ordre accueil — 0 erreur console) + correctif dedup re-vérifié par capture (5 tuiles uniques : Repas, Courses, Coursier Express, Colis, Genie ; aucun doublon).
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (296→297) - 🏬 Service Hubs + Favoris + Édition annonces (Phase 1&2) — FINALISÉ & testé E2E 100%
 - **Demande user** : « Créer les hubs pour tout » (regrouper les services par activité) + audit/amélioration des verticales Immobilier & Marketplace.
 - **Phase 2 — Service Hubs** (`VehiclesHub.js` = Véhicules `/vehicules` + Shopping `/shopping`, `RealEstateHub.js` = Immobilier `/immobilier`, `SbTravelHub.js` = `/sb-travel`) avec deep-links `?type=rent|sale` qui pré-filtrent `/marketplace/cars`, `/marketplace/items`, `/real-estate`. Routes enregistrées (clientRoutes.jsx 138-141). Bouton ❤️ → `/favoris`.
