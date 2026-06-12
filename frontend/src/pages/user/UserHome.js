@@ -29,7 +29,7 @@ import {
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
   MagnifyingGlass, GridFour, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning,
-  Stethoscope, UsersFour, Briefcase, Bag, Pill, Gift, CaretRight as ChevR,
+  Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
   GraduationCap, Storefront, Wheelchair,
 } from '@phosphor-icons/react';
 
@@ -431,17 +431,14 @@ const UserHome = () => {
     ),
     delivery: (
       <section key="delivery" className="px-4 mt-6">
-        <SectionHeader title="Services de Livraison" />
-        <div className="grid grid-cols-4 gap-3">
-          {displayFor('delivery').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
-        </div>
-      </section>
-    ),
-    parcel: (
-      <section key="parcel" className="px-4 mt-6">
-        <SectionHeader title="Colis & Coursier" />
-        <div className="grid grid-cols-4 gap-3">
-          {displayFor('parcel').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
+        <SectionHeader title="Livraison & Coursier" sub="Repas, colis, courses & coursiers — tout au même endroit." />
+        <div className="grid grid-cols-4 gap-3" data-testid="delivery-coursier-section">
+          {[
+            ...displayFor('delivery').filter((s) => !(s.id || '').includes('more')),
+            ...displayFor('parcel').filter((s) => !(s.id || '').includes('more')),
+            { id: 'delivery-genie', name: 'Delivery\nGenie', iconName: 'Bag', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/runner?mode=genie' },
+            { id: 'delivery-runner', name: 'Delivery\nRunner', iconName: 'Lightning', bg: 'bg-rose-50', iconColor: 'text-rose-600', path: '/runner' },
+          ].map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
@@ -556,23 +553,6 @@ const UserHome = () => {
         </div>
       </section>
     ),
-    genie: (
-      <section key="genie" className="px-4 mt-6">
-        <SectionHeader title="Livraison Genie & Runner" />
-        <div className="grid grid-cols-2 gap-3" data-testid="genie-runner-section">
-          <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/runner?mode=genie')} className="rounded-[20px] bg-indigo-50/60 border border-indigo-100 p-4 flex flex-col text-left h-[200px]" data-testid="delivery-genie-btn">
-            <h4 className={`text-sm font-extrabold text-[#1F2430] ${HEAD}`}>Delivery Genie</h4>
-            <p className={`text-[11px] text-[#475569] mt-1 leading-relaxed flex-1 ${BODY}`}>Engagez un Genie pour ACHETER des articles à votre place dans le magasin de votre choix.</p>
-            <div className="flex justify-center mt-2"><div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-sm"><Bag size={32} weight="duotone" className="text-blue-600" /></div></div>
-          </motion.button>
-          <motion.button whileTap={{ scale: 0.96 }} onClick={() => navigate('/runner')} className="rounded-[20px] bg-rose-50/60 border border-rose-100 p-4 flex flex-col text-left h-[200px]" data-testid="delivery-runner-btn">
-            <h4 className={`text-sm font-extrabold text-[#1F2430] ${HEAD}`}>Delivery Runner</h4>
-            <p className={`text-[11px] text-[#475569] mt-1 leading-relaxed flex-1 ${BODY}`}>Engagez des Coursiers pour récupérer et livrer de petits articles en ville.</p>
-            <div className="flex justify-center mt-2"><div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-sm"><Lightning size={32} weight="duotone" className="text-rose-600" /></div></div>
-          </motion.button>
-        </div>
-      </section>
-    ),
     video: (
       <div key="video" className="px-4 mt-6">
         <div className="rounded-[20px] overflow-hidden bg-gradient-to-br from-orange-600 to-orange-700 p-5" data-testid="video-consulting-section">
@@ -667,9 +647,9 @@ const UserHome = () => {
   // Section order/visibility is admin-configurable (home_sections); fall back to the
   // curated default order, and only render blocks we actually have.
   const DEFAULT_SECTION_ORDER = [
-    'taxi', 'promo', 'delivery', 'parcel', 'marketplace', 'travel', 'beauty', 'medical',
+    'taxi', 'promo', 'delivery', 'marketplace', 'travel', 'beauty', 'medical',
     'ondemand', 'bid', 'carcare', 'towing',
-    'genie', 'video', 'pet', 'parking', 'giftcards', 'carpool', 'tracking', 'nearby',
+    'video', 'pet', 'parking', 'giftcards', 'carpool', 'tracking', 'nearby',
   ];
   const SECTION_ORDER = sectionOrder && sectionOrder.length ? sectionOrder : DEFAULT_SECTION_ORDER;
   // Garantit que la section SB Travel apparaît même si l'admin a un ordre personnalisé

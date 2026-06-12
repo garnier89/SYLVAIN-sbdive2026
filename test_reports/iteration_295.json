@@ -1,0 +1,32 @@
+{
+  "summary": "Tested unified 'Livraison & Coursier' section on UserHome (mobile 430px) per review request. All 4 review scenarios pass: (1) unique section data-testid='delivery-coursier-section' present with 'Livraison & Coursier' title; (2) old sections 'Services de Livraison', 'Colis & Coursier', 'Livraison Genie & Runner' and data-testid='genie-runner-section' fully removed; (3) tile navigation works: Delivery Genie -> /runner?mode=genie, Delivery Runner -> /runner, Livraison Colis -> /parcel, Livraison Repas -> /food; (4) section order is correct: Taxi -> Livraison & Coursier -> Acheter Vendre & Louer -> SB Travel -> ... ; 0 console errors. ONE MINOR ISSUE FOUND: the section contains 7 tiles instead of expected ~6 because 'Livraison Colis' appears TWICE (hcat_018df7c45a from displayFor('delivery') AND hcat_bf41959b97 from displayFor('parcel')) — both navigate to /parcel. This duplication is created by ...displayFor('delivery') + ...displayFor('parcel') merging without dedup when backend categorises Colis under both groups.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "UserHome.js / delivery-coursier-section",
+        "issue": "'Livraison Colis' tile appears 2x (hcat_018df7c45a + hcat_bf41959b97), both linking to /parcel. The merge `...displayFor('delivery') + ...displayFor('parcel')` does not deduplicate categories that exist in both groups.",
+        "selector": "[data-testid='delivery-coursier-section'] [data-testid^='service-hcat_']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Deduplicate tiles in the unified delivery section: when merging displayFor('delivery') with displayFor('parcel'), filter by tile id/name so 'Livraison Colis' appears only once (suggest using a Map keyed on s.id or s.name and skip duplicates, or exclude 'parcel'-category items from the 'delivery' list before merging)."
+  ],
+  "critical_code_review_comments": [
+    "UserHome.js L436-441: the merge `[...displayFor('delivery').filter(...), ...displayFor('parcel').filter(...), genie, runner]` works but causes visible duplicate 'Livraison Colis' tiles because backend categorisation places the parcel tile under both groups. Add a dedup step (e.g. Object.values(Map(...)) keyed on tile.id) before .map.",
+    "Aside from the dup, the unified section spec is correctly implemented: 'Livraison & Coursier' title via SectionHeader, grid-cols-4, Genie path '/runner?mode=genie' and Runner path '/runner' both wired through the ServiceTile -> go(s.path) flow, ORDERED_SECTIONS no longer contains 'parcel' or 'genie', and the legacy data-testid 'genie-runner-section' is gone from the codebase (grep returned 0 matches)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "Spec compliance 4/4 scenarios pass; 1 medium UX dup to fix"},
+  "test_credentials": "paul.vendeur@example.com / Test1234! (login flow: /login -> click 'Ou choisir une autre option de connexion' -> click 'Email & mot de passe' in modal -> fill email-input + password-input)",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Section unifiée 'Livraison & Coursier' (data-testid=delivery-coursier-section) opérationnelle avec 7 tuiles ordonnées: Livraison Repas, Livraison Courses, Coursier Express, Livraison Colis (x2 - bug), Delivery Genie, Delivery Runner. Tous les paths sont OK. Ordre des sections accueil: Header/Promo -> Services Taxi -> Livraison & Coursier -> Acheter Vendre & Louer -> SB Travel -> Services Beaute -> Services Medicaux -> Services a la demande -> Encheres -> Entretien Auto -> Depannage -> Consultation Video. 0 erreurs console. Apres fix dedup, re-tester pour valider 6 tuiles uniques (sans doublon Livraison Colis).",
+  "rca of the issue": "The unified section is built by spreading two arrays: `[...displayFor('delivery').filter(no-more), ...displayFor('parcel').filter(no-more), genie, runner]`. The backend (home_categories) currently returns the 'Livraison Colis' category under BOTH the 'delivery' group and the 'parcel' group (hcat_018df7c45a vs hcat_bf41959b97 — different ids but same name+path '/parcel'). Naive concatenation therefore produces two identical-looking tiles. Mitigation: dedup by tile path OR by name before mapping, e.g. `const seen = new Set(); tiles.filter(t => { const k = t.path||t.name; if(seen.has(k))return false; seen.add(k); return true; })`."
+}
