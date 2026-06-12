@@ -1,0 +1,43 @@
+{
+  "summary": "Iter313 — End-to-end FR VTC standard ride flow (estimate → create → accept → arriving → start-OTP request/verify → completed) tested via the PUBLIC HTTP API with payment & security invariants. 9/9 new e2e backend tests pass + iter308 + iter312 regression pass. Frontend smoke: landing page booking form (Google Places autocomplete, pickup/dropoff testids) renders correctly and gates booking to /login via redirect. No 500s observed across the full lifecycle.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/auth/me", "issue": "Returns 401 on the public landing page (no token) — surfaces as a console error in dev tools. Acceptable but noisy; consider not calling /me when no token is stored."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Open /taxi?mode=standard directly (no auth)", "issue": "URL is rewritten to '/' (landing page) instead of redirecting to /login?redirect=/taxi?mode=standard. The landing booking widget still works, but the request explicitly cites /taxi?mode=standard as the target route — confirm intended behavior or implement an auth-aware redirect so /taxi keeps its query string after login.", "affected_selectors": []},
+      {"flow": "Login UI", "issue": "Login page (/login) exposes phone-only auth (testid='phone-input', placeholder '6 12 34 56 78'). Email/password rider accounts created via POST /api/auth/register cannot complete sign-in from the UI — only phone-login is available. If email auth for riders is intended, the UI is missing the email/password fields.", "affected_selectors": ["[data-testid='phone-input']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter313_vtc_e2e.py",
+    "/app/test_reports/pytest/iter313.xml"
+  ],
+  "action_items": [
+    "Confirm whether /taxi?mode=standard should be a distinct route or aliased to /. Currently it lands on the marketing/booking landing.",
+    "Decide on rider email/password login UI: backend /api/auth/login works for email/password but the /login screen only exposes phone-login.",
+    "(Optional) Suppress /api/auth/me 401 on the public landing when no token is stored to keep the browser console clean."
+  ],
+  "critical_code_review_comments": [
+    "routes/rides.py: payment settlement flow (lines 1918-2039) correctly implements the anti-fraud invariant: digital_captured_fare = min(charge, final_fare); driver wallet credited ONLY on the captured digital amount; cash rides emit payment_status='pending_cash' with cash_due_to_driver and never credit the driver wallet. Verified end-to-end through the API.",
+    "routes/phase1.py /start-otp/verify: correctly rejects empty OTP, wrong OTP, and only allows status transitions from {accepted, arriving} → in_progress. switch_to_cash_if_needed is invoked AFTER status update — good, cash-switch flash now reaches both driver and rider.",
+    "routes/rides.py switch_to_cash_if_needed: persists original_payment_method, payment_shortfall, payment_switched_to_cash; sends WS flash to driver+rider AND persists Notification rows for both — meeting the request's real-time + persistent requirements.",
+    "routes/phase1.py /start-otp/request is mounted at /api/phase1/rides/{id}/start-otp/request (not /api/rides/...). The review request references /api/rides/{id}/start-otp/request which does NOT exist — the actual path is under /phase1. Worth aliasing or documenting.",
+    "Frontend login page only exposes phone-based auth — if a rider self-registers with email/password (which the API allows), they cannot sign in from the UI."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter313_vtc_e2e.py (new — 9 e2e tests)"
+  ],
+  "success_rate": {"backend": "100% (9/9 new e2e + 7/7 regression on iter308 & iter312)", "frontend": "smoke-only: booking form loads, autocomplete works, gates to /login"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123!, Driver jean.dupont@demo.sb / Driver123!. Riders are freshly self-registered per test (TEST_rider_<uuid>@example.com / TestRider123!).",
+  "seed_data_creation": "Fresh rider per test via /api/auth/register (email prefixed TEST_). Driver wallet balance read/written only for delta assertions; demo driver flipped online via direct Mongo (status=approved, is_online=true, current location at PICKUP). Rider wallets credited via direct Mongo (the admin credit endpoint requires the admin path which is out of scope; using direct write keeps the test hermetic).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter313 suite at /app/backend/tests/test_iter313_vtc_e2e.py is the full VTC-standard end-to-end API harness (book→accept→arriving→OTP→complete→settle, plus cash variants, OTP-security, /api/wallet shape, cancel, rate). It uses the public REACT_APP_BACKEND_URL. Path nuance to remember: OTP endpoints live under /api/phase1/rides/{id}/start-otp/{request,verify} — NOT /api/rides/.... Driver demo password is 'Driver123!' (helper tries 'Driver1234!' as fallback). Tests are hermetic: every rider is freshly registered with a TEST_ prefix. Frontend note: /login page exposes phone-login only; the URL /taxi?mode=standard is rewritten to / on the unauthenticated path.",
+  "rca of the issue": "No bug to RCA this iteration — the previously-fixed iter309 'timedelta' shadowing is verified by /wallet/withdraw-request not returning 500 (returns 200/4xx per state). The anti-fraud invariant (driver never credited for un-captured money) is reproved end-to-end in TestE2ESwitchToCash."
+}
