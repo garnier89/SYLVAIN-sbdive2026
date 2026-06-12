@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, Depends
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from core.config import db
@@ -221,8 +221,9 @@ async def list_listings(
             {"description": {"$regex": search, "$options": "i"}}
         ]
 
+    await _expire_mp_featured()
     listings = await db.marketplace_listings.find(query, {"_id": 0}).sort(
-        [("is_featured", -1), ("created_at", -1)]).skip(skip).limit(limit).to_list(limit)
+        [("is_featured", -1), ("featured_priority", -1), ("created_at", -1)]).skip(skip).limit(limit).to_list(limit)
     total = await db.marketplace_listings.count_documents(query)
     return {"listings": listings, "total": total}
 
@@ -266,6 +267,106 @@ async def set_purchasable(listing_id: str, request: Request):
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Listing not found")
     return {"ok": True, **update}
+
+
+@router.put("/listings/{listing_id}")
+async def update_listing(listing_id: str, request: Request):
+    """Owner (or admin) edits an existing vehicle/product listing."""
+    user = await get_current_user(request)
+    listing = await db.marketplace_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    if listing["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    body = await request.json()
+    update = {}
+    for f in ("title", "description", "currency", "category", "location", "rent_period"):
+        if f in body and body[f] is not None:
+            update[f] = body[f]
+    if "price" in body and body["price"] is not None:
+        update["price"] = float(body["price"])
+    if "purchasable" in body:
+        update["purchasable"] = bool(body["purchasable"])
+    if "listing_type" in body and body["listing_type"] in ("sell", "rent"):
+        update["listing_type"] = body["listing_type"]
+        if body["listing_type"] == "rent" and not (body.get("rent_period") or listing.get("rent_period")):
+            update["rent_period"] = "day"
+    if "kind" in body:
+        kind = _norm_kind(body["kind"])
+        update["kind"] = kind
+        update["type"] = "cars" if kind == "vehicle" else "items"
+    if "vehicle" in body and (update.get("kind", listing.get("kind")) == "vehicle"):
+        update["vehicle"] = body["vehicle"] or {}
+    if "images" in body:
+        imgs = body["images"] or []
+        update["images"] = imgs
+        update["image"] = imgs[0] if imgs else ""
+    if update:
+        update["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.marketplace_listings.update_one({"id": listing_id}, {"$set": update})
+    return {**listing, **update}
+
+
+# ===== Boost / mise en avant payante (parité avec l'immobilier) ==========
+DEFAULT_COUNTRY = "default"
+
+
+async def _expire_mp_featured():
+    now = datetime.now(timezone.utc).isoformat()
+    await db.marketplace_listings.update_many(
+        {"is_featured": True, "featured_until": {"$ne": None, "$lt": now}},
+        {"$set": {"is_featured": False, "featured_priority": 0}},
+    )
+
+
+@router.get("/boost-plans")
+async def mp_boost_plans(request: Request, country: Optional[str] = None):
+    await get_current_user(request)
+    plans = []
+    if country:
+        plans = await db.marketplace_boost_plans.find({"country": country, "active": True}, {"_id": 0}).sort("duration_days", 1).to_list(50)
+    if not plans:
+        plans = await db.marketplace_boost_plans.find({"country": DEFAULT_COUNTRY, "active": True}, {"_id": 0}).sort("duration_days", 1).to_list(50)
+    return plans
+
+
+@router.post("/listings/{listing_id}/boost/pay")
+async def mp_boost_pay(listing_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    plan = await db.marketplace_boost_plans.find_one({"id": body.get("plan_id"), "active": True}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan de boost introuvable")
+    listing = await db.marketplace_listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Annonce introuvable")
+    if listing["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    amount = round(float(plan["price"]), 2)
+    now = datetime.now(timezone.utc)
+    ts = now.isoformat()
+    res = await db.wallets.update_one(
+        {"user_id": user["id"], "balance": {"$gte": amount}}, {"$inc": {"balance": -amount}})
+    if res.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant")
+    w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    new_balance = round(w["balance"], 2)
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
+        "amount": -amount, "balance_after": new_balance,
+        "description": f"Boost annonce — {plan.get('label') or str(plan['duration_days'])+' j'}",
+        "status": "completed", "created_at": ts})
+    until = (now + timedelta(days=int(plan["duration_days"]))).isoformat()
+    await db.marketplace_listings.update_one(
+        {"id": listing_id},
+        {"$set": {"is_featured": True, "featured_until": until, "featured_priority": int(plan.get("priority", 5))}})
+    await db.payment_transactions.insert_one({
+        "id": f"pay_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "amount": amount,
+        "currency": str(plan["currency"]).upper(), "type": "marketplace_boost",
+        "payment_method": "wallet", "payment_status": "paid", "status": "complete",
+        "metadata": {"listing_id": listing_id, "plan_id": plan["id"], "duration_days": plan["duration_days"]},
+        "created_at": ts, "updated_at": ts})
+    return {"success": True, "listing_id": listing_id, "balance": new_balance}
 
 
 # ===== Buy / pay flow =====================================================
@@ -362,6 +463,79 @@ async def admin_set_settings(request: Request, current_user: dict = Depends(requ
         await db.marketplace_settings.update_one({"id": "singleton"}, {"$set": update}, upsert=True)
     s = await get_mp_settings()
     return {"commission_pct": s.get("commission_pct", 10.0), "delivery_fee": s.get("delivery_fee", 5.0)}
+
+
+# ===== Admin: boost plans CRUD (parité immobilier) =======================
+@router.get("/admin/boost-plans")
+async def mp_admin_boost_plans(current_user: dict = Depends(require_permission("content.manage"))):
+    return await db.marketplace_boost_plans.find({}, {"_id": 0}).sort([("country", 1), ("duration_days", 1)]).to_list(200)
+
+
+@router.post("/admin/boost-plans")
+async def mp_admin_create_plan(request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    body = await request.json()
+    plan = {"id": f"mboost_{uuid.uuid4().hex[:10]}",
+            "country": str(body.get("country") or "default"), "country_label": body.get("country_label"),
+            "currency": str(body.get("currency") or "EUR"), "duration_days": max(1, int(body.get("duration_days") or 7)),
+            "price": max(0.0, float(body.get("price") or 0)), "priority": int(body.get("priority") or 5),
+            "label": body.get("label"), "active": bool(body.get("active", True)),
+            "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.marketplace_boost_plans.insert_one(dict(plan))
+    return {"ok": True, "plan": plan}
+
+
+@router.put("/admin/boost-plans/{plan_id}")
+async def mp_admin_update_plan(plan_id: str, request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    body = await request.json()
+    update = {}
+    for f in ("country", "country_label", "currency", "label"):
+        if f in body:
+            update[f] = body[f]
+    if "duration_days" in body:
+        update["duration_days"] = max(1, int(body["duration_days"]))
+    if "price" in body:
+        update["price"] = max(0.0, float(body["price"]))
+    if "priority" in body:
+        update["priority"] = int(body["priority"])
+    if "active" in body:
+        update["active"] = bool(body["active"])
+    if update:
+        await db.marketplace_boost_plans.update_one({"id": plan_id}, {"$set": update})
+    plan = await db.marketplace_boost_plans.find_one({"id": plan_id}, {"_id": 0})
+    return {"ok": True, "plan": plan}
+
+
+@router.post("/admin/boost-plans/{plan_id}/toggle")
+async def mp_admin_toggle_plan(plan_id: str, current_user: dict = Depends(require_permission("content.manage"))):
+    plan = await db.marketplace_boost_plans.find_one({"id": plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan introuvable")
+    val = not plan.get("active", True)
+    await db.marketplace_boost_plans.update_one({"id": plan_id}, {"$set": {"active": val}})
+    return {"ok": True, "active": val}
+
+
+@router.delete("/admin/boost-plans/{plan_id}")
+async def mp_admin_delete_plan(plan_id: str, current_user: dict = Depends(require_permission("content.manage"))):
+    await db.marketplace_boost_plans.delete_one({"id": plan_id})
+    return {"ok": True}
+
+
+_MP_SEED_COUNTRIES = [("FR", "France 🇫🇷"), ("MQ", "Martinique 🇲🇶"), ("GP", "Guadeloupe 🇬🇵"), ("GF", "Guyane 🇬🇫"), ("default", "Par défaut (tous)")]
+_MP_SEED_TIERS = [(7, 3.99, 5, "Boost 7 jours"), (15, 6.99, 7, "Boost 15 jours"), (30, 11.99, 9, "Boost 30 jours · visibilité max")]
+
+
+async def seed_marketplace_boost_plans():
+    if await db.marketplace_boost_plans.count_documents({}) > 0:
+        return
+    docs = []
+    for code, label in _MP_SEED_COUNTRIES:
+        for days, price, priority, plan_label in _MP_SEED_TIERS:
+            docs.append({"id": f"mboost_{uuid.uuid4().hex[:10]}", "country": code, "country_label": label,
+                         "currency": "EUR", "duration_days": days, "price": price, "priority": priority,
+                         "label": plan_label, "active": True, "created_at": datetime.now(timezone.utc).isoformat()})
+    if docs:
+        await db.marketplace_boost_plans.insert_many(docs)
 
 
 async def _ensure_wallet(user_id):

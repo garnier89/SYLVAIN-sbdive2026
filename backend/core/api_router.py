@@ -92,6 +92,7 @@ from routes.car_rental import router as car_rental_router, admin_router as car_r
 from routes.hotels import router as hotels_router, admin_router as hotels_admin_router
 from routes.flights import router as flights_router, admin_router as flights_admin_router
 from routes.travel_packages import router as travel_packages_router, admin_router as travel_packages_admin_router
+from routes.favorites import router as favorites_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -139,6 +140,7 @@ _ROUTERS = [
     flights_admin_router,
     travel_packages_router,
     travel_packages_admin_router,
+    favorites_router,
 ]
 
 

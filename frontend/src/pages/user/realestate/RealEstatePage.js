@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { realEstateAPI } from '../../../services/api';
-import { ArrowLeft, MagnifyingGlass, Plus, Bed, Bathtub, Ruler, MapPin, Buildings, Star, ListBullets } from '@phosphor-icons/react';
+import { realEstateAPI, favoritesAPI } from '../../../services/api';
+import { ArrowLeft, MagnifyingGlass, Plus, Bed, Bathtub, Ruler, MapPin, Buildings, Star, ListBullets, Heart } from '@phosphor-icons/react';
 import { LISTING_TYPES, CATEGORIES, fmtPrice, catLabel, rentSuffix } from './realEstateConstants';
+import { FavoriteButton } from '../../../components/FavoriteButton';
 
-const PropertyCard = ({ p, onClick }) => (
+const PropertyCard = ({ p, onClick, favorited, onFavChange }) => (
   <button onClick={onClick} data-testid={`property-card-${p.id}`}
     className="w-full text-left bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
     <div className="relative h-40 bg-gray-100">
@@ -17,7 +18,10 @@ const PropertyCard = ({ p, onClick }) => (
           <Star size={11} weight="fill" /> Sponsorisé
         </span>
       )}
-      <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/70 text-white">{catLabel(p.category)}</span>
+      <span className="absolute bottom-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/70 text-white">{catLabel(p.category)}</span>
+      <div className="absolute top-1.5 right-1.5 z-20" onClick={(e) => e.stopPropagation()}>
+        <FavoriteButton itemType="property" itemId={p.id} favorited={favorited} onChange={onFavChange} size={17} />
+      </div>
     </div>
     <div className="p-3">
       <p className="text-lg font-extrabold text-[#FF5000] leading-tight">{fmtPrice(p.price)}<span className="text-xs font-medium text-gray-400">{p.listing_type === 'rent' ? ` ${rentSuffix(p.rent_period)}` : ''}</span></p>
@@ -35,15 +39,23 @@ const PropertyCard = ({ p, onClick }) => (
 const RealEstatePage = () => {
   const navigate = useNavigate();
   const [listingType, setListingType] = useState('sale');
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const t = searchParams.get('type');
+    if (t === 'rent' || t === 'sale') setListingType(t);
+  }, [searchParams]);
   const [category, setCategory] = useState(null);
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);
+  const [favIds, setFavIds] = useState(new Set());
 
   useEffect(() => {
     realEstateAPI.myUnreadCount?.().then((r) => setUnread(r.data?.count || 0)).catch(() => {});
+    favoritesAPI.ids('property').then((r) => setFavIds(new Set(r.data.ids || []))).catch(() => {});
   }, []);
+  const onFavChange = (id, fav) => setFavIds((prev) => { const n = new Set(prev); if (fav) n.add(id); else n.delete(id); return n; });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +76,7 @@ const RealEstatePage = () => {
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/home')} className="text-white" data-testid="re-back-btn"><ArrowLeft size={22} /></button>
           <h1 className="text-white font-bold text-lg flex-1">Immobilier</h1>
+          <button onClick={() => navigate('/favoris')} className="text-white mr-1" data-testid="re-favorites-btn" title="Mes favoris"><Heart size={20} weight="fill" /></button>
           <button onClick={() => navigate('/real-estate/my')} className="text-white flex items-center gap-1 text-xs font-semibold relative" data-testid="re-my-btn">
             <ListBullets size={18} /> Mes annonces
             {unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-white text-[#FF5000] text-[9px] font-bold flex items-center justify-center" data-testid="re-my-unread">{unread}</span>}
@@ -99,7 +112,7 @@ const RealEstatePage = () => {
       <div className="px-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
         {loading && <p className="col-span-full text-center text-gray-400 py-10">Chargement...</p>}
         {!loading && items.length === 0 && <p className="col-span-full text-center text-gray-400 py-10" data-testid="re-empty">Aucune annonce pour ces critères.</p>}
-        {!loading && items.map((p) => <PropertyCard key={p.id} p={p} onClick={() => navigate(`/real-estate/${p.id}`)} />)}
+        {!loading && items.map((p) => <PropertyCard key={p.id} p={p} favorited={favIds.has(p.id)} onFavChange={onFavChange} onClick={() => navigate(`/real-estate/${p.id}`)} />)}
       </div>
 
       {/* FAB Post a listing */}

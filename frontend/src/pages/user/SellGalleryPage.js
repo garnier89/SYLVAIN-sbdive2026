@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, IdentificationCard, House, ShieldCheck, Hourglass, XCircle, Camera, Plus, Trash, Tag } from '@phosphor-icons/react';
+import { ArrowLeft, IdentificationCard, House, ShieldCheck, Hourglass, XCircle, Camera, Plus, Trash, Tag, PencilSimple, Rocket } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { kycAPI, marketplaceAPI } from '../../services/api';
 
@@ -105,6 +105,45 @@ const SellGalleryPage = () => {
     catch { toast.error('Suppression impossible'); }
   };
 
+  // ---- Édition d'annonce ----
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({ title: '', price: '', description: '', purchasable: true });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const openEdit = (l) => {
+    setEditTarget(l);
+    setEditForm({ title: l.title || '', price: l.price ?? '', description: l.description || '', purchasable: l.purchasable !== false });
+  };
+  const saveEdit = async () => {
+    if (!editForm.title.trim() || editForm.price === '') { toast.error('Titre et prix requis'); return; }
+    setSavingEdit(true);
+    try {
+      await marketplaceAPI.updateListing(editTarget.id, {
+        title: editForm.title.trim(), price: Number(editForm.price),
+        description: editForm.description, purchasable: !!editForm.purchasable,
+      });
+      toast.success('Annonce mise à jour'); setEditTarget(null); reload();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+    finally { setSavingEdit(false); }
+  };
+
+  // ---- Boost payant ----
+  const [boostTarget, setBoostTarget] = useState(null);
+  const [boostPlans, setBoostPlans] = useState([]);
+  const [boosting, setBoosting] = useState(false);
+  const openBoost = async (l) => {
+    setBoostTarget(l);
+    try { const r = await marketplaceAPI.boostPlans('MQ'); setBoostPlans(r.data || []); }
+    catch { setBoostPlans([]); }
+  };
+  const doBoost = async (planId) => {
+    setBoosting(true);
+    try {
+      await marketplaceAPI.boostPay(boostTarget.id, planId);
+      toast.success('Annonce boostée — mise en avant 🚀'); setBoostTarget(null); reload();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec du boost'); }
+    finally { setBoosting(false); }
+  };
+
   const status = kyc?.status || 'none';
 
   return (
@@ -161,13 +200,19 @@ const SellGalleryPage = () => {
             ) : (
               <div className="space-y-2" data-testid="my-listings">
                 {myListings.map((l) => (
-                  <div key={l.id} className="bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3" data-testid={`my-listing-${l.id}`}>
-                    {l.images?.[0] ? <img src={l.images[0]} alt={l.title} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" /> : <div className="w-12 h-12 rounded-lg bg-gray-100 flex-shrink-0" />}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-gray-900 truncate">{l.title}</p>
-                      <p className="text-xs text-emerald-600 font-semibold">{l.price} {l.currency || 'EUR'}</p>
+                  <div key={l.id} className="bg-white rounded-2xl p-3 shadow-sm" data-testid={`my-listing-${l.id}`}>
+                    <div className="flex items-center gap-3">
+                      {l.images?.[0] ? <img src={l.images[0]} alt={l.title} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" /> : <div className="w-12 h-12 rounded-lg bg-gray-100 flex-shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-gray-900 truncate">{l.title} {l.is_featured && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 align-middle">★ BOOST</span>}</p>
+                        <p className="text-xs text-emerald-600 font-semibold">{l.price} {l.currency || 'EUR'}{l.listing_type === 'rent' ? ` / ${l.rent_period === 'month' ? 'mois' : 'jour'}` : ''}</p>
+                      </div>
+                      <button onClick={() => removeListing(l.id)} className="text-gray-300 hover:text-red-500" data-testid={`delete-listing-${l.id}`}><Trash size={18} /></button>
                     </div>
-                    <button onClick={() => removeListing(l.id)} className="text-gray-300 hover:text-red-500" data-testid={`delete-listing-${l.id}`}><Trash size={18} /></button>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => openEdit(l)} data-testid={`edit-listing-${l.id}`} className="flex-1 text-xs font-semibold text-gray-700 border border-gray-200 rounded-lg py-1.5 flex items-center justify-center gap-1"><PencilSimple size={13} /> Modifier</button>
+                      <button onClick={() => openBoost(l)} data-testid={`boost-listing-${l.id}`} className="flex-1 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-1.5 flex items-center justify-center gap-1"><Rocket size={13} weight="fill" /> {l.is_featured ? 'Prolonger' : 'Booster'}</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -218,6 +263,50 @@ const SellGalleryPage = () => {
           </>
         )}
       </div>
+
+      {/* Modal édition */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setEditTarget(null)} data-testid="edit-modal">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-3">Modifier l'annonce</h3>
+            <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder="Titre" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-2" data-testid="edit-title" />
+            <div className="relative mb-2">
+              <Tag size={15} className="absolute left-3 top-3 text-gray-400" />
+              <input type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="Prix (€)" className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2.5 text-sm" data-testid="edit-price" />
+            </div>
+            <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="Description" rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-2" data-testid="edit-description" />
+            <label className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2.5 mb-3 cursor-pointer">
+              <input type="checkbox" checked={editForm.purchasable} onChange={(e) => setEditForm({ ...editForm, purchasable: e.target.checked })} className="w-4 h-4 accent-emerald-600" data-testid="edit-purchasable" />
+              <span className="text-xs text-gray-700">Achetable en ligne (prix fixe)</span>
+            </label>
+            <div className="flex gap-2">
+              <button onClick={() => setEditTarget(null)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600">Annuler</button>
+              <button onClick={saveEdit} disabled={savingEdit} className="flex-1 bg-emerald-600 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-50" data-testid="edit-save-btn">{savingEdit ? '…' : 'Enregistrer'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal boost */}
+      {boostTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setBoostTarget(null)} data-testid="boost-modal">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Rocket size={20} weight="fill" className="text-amber-500" /> Booster l'annonce</h3>
+            <p className="text-xs text-gray-500 mt-1 mb-3">Mettez « {boostTarget.title} » en avant en tête de liste. Payé via SB Pay.</p>
+            <div className="space-y-2">
+              {boostPlans.length === 0 && <p className="text-sm text-gray-400">Aucun plan disponible.</p>}
+              {boostPlans.map((p) => (
+                <button key={p.id} onClick={() => doBoost(p.id)} disabled={boosting} data-testid={`boost-plan-${p.id}`}
+                  className="w-full flex items-center justify-between border border-gray-200 rounded-xl px-4 py-3 hover:border-amber-300 disabled:opacity-50">
+                  <span className="text-sm font-semibold text-gray-800">{p.label || `Boost ${p.duration_days} jours`}<span className="block text-[11px] text-gray-400">{p.duration_days} jours en avant</span></span>
+                  <span className="font-black text-amber-600">{Number(p.price).toFixed(2)} {p.currency || 'EUR'}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setBoostTarget(null)} className="w-full mt-3 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-600">Fermer</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

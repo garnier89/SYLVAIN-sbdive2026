@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle, ChatCircleText, Phone, Plus, GasPump, Calendar, Gauge } from '@phosphor-icons/react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, MagnifyingGlass, Buildings, Car, ShoppingBag, CheckCircle, ChatCircleText, Phone, Plus, GasPump, Calendar, Gauge, Heart } from '@phosphor-icons/react';
 import { toast } from 'sonner';
-import { marketplaceAPI } from '../../services/api';
+import { marketplaceAPI, favoritesAPI } from '../../services/api';
 import { useLocale } from '../../contexts/LocaleContext';
 import { BuyModal } from './marketplace/BuyModal';
+import { FavoriteButton } from '../../components/FavoriteButton';
 import { SponsoredBanners } from '../../components/SponsoredBanners';
 
 const CATEGORIES = {
@@ -12,16 +13,35 @@ const CATEGORIES = {
   items: { label: 'Articles', icon: ShoppingBag, kind: 'item' },
 };
 
+const TYPE_FILTERS = [
+  { key: 'all', label: 'Tout' },
+  { key: 'sell', label: 'À vendre' },
+  { key: 'rent', label: 'À louer' },
+];
+
 const MarketplacePage = () => {
   const navigate = useNavigate();
   const { money } = useLocale();
   const params = useParams();
+  const [searchParams] = useSearchParams();
   const activeCat = params.category && CATEGORIES[params.category] ? params.category : null;
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [buying, setBuying] = useState(null);
+  const [favIds, setFavIds] = useState(new Set());
+  const [typeFilter, setTypeFilter] = useState('all');
+
+  useEffect(() => {
+    const t = searchParams.get('type');
+    if (t === 'rent' || t === 'sell') setTypeFilter(t);
+  }, [searchParams]);
+
+  useEffect(() => {
+    favoritesAPI.ids('marketplace').then((r) => setFavIds(new Set(r.data.ids || []))).catch(() => {});
+  }, []);
+  const onFavChange = (id, fav) => setFavIds((prev) => { const n = new Set(prev); if (fav) n.add(id); else n.delete(id); return n; });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,7 +56,9 @@ const MarketplacePage = () => {
 
   const filtered = listings.filter(l => {
     const q = search.trim().toLowerCase();
-    return !q || (l.title || '').toLowerCase().includes(q) || (l.location || '').toLowerCase().includes(q);
+    const matchQ = !q || (l.title || '').toLowerCase().includes(q) || (l.location || '').toLowerCase().includes(q);
+    const matchType = typeFilter === 'all' || (l.listing_type || 'sell') === typeFilter;
+    return matchQ && matchType;
   });
 
   const cat = activeCat ? CATEGORIES[activeCat] : null;
@@ -68,6 +90,9 @@ const MarketplacePage = () => {
           <button onClick={() => navigate('/marketplace/messages')} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white" data-testid="marketplace-messages-btn" title="Mes messages">
             <ChatCircleText size={20} weight="fill" />
           </button>
+          <button onClick={() => navigate('/favoris')} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white" data-testid="marketplace-favorites-btn" title="Mes favoris">
+            <Heart size={20} weight="fill" />
+          </button>
           <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-white/20 text-white">{filtered.length}</span>
         </div>
         <div className="relative">
@@ -94,6 +119,14 @@ const MarketplacePage = () => {
         )}
       </div>
 
+      {/* Filtre activité : À vendre / À louer (location de véhicules & produits) */}
+      <div className="px-4 pt-2 flex gap-2" data-testid="type-filter-row">
+        {TYPE_FILTERS.map((t) => (
+          <button key={t.key} onClick={() => setTypeFilter(t.key)} data-testid={`type-filter-${t.key}`}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold transition-colors ${typeFilter === t.key ? 'bg-[#0A2540] text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>{t.label}</button>
+        ))}
+      </div>
+
       {/* Sponsored banners (admin-managed) */}
       <SponsoredBanners surface="marketplace" accent="#FF4500" />
 
@@ -117,10 +150,13 @@ const MarketplacePage = () => {
                   </span>
                 )}
                 {l.seller_verified && (
-                  <span className="absolute top-2 right-2 z-10 inline-flex items-center gap-0.5 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow" data-testid={`verified-seller-${l.id}`} title="Vendeur vérifié">
+                  <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-0.5 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow" style={{ top: l.is_featured ? '1.75rem' : '0.5rem' }} data-testid={`verified-seller-${l.id}`} title="Vendeur vérifié">
                     <CheckCircle size={10} weight="fill" /> Vérifié
                   </span>
                 )}
+                <div className="absolute top-1.5 right-1.5 z-20" onClick={(e) => e.stopPropagation()}>
+                  <FavoriteButton itemType="marketplace" itemId={l.id} favorited={favIds.has(l.id)} onChange={onFavChange} size={16} className="!w-8 !h-8" />
+                </div>
                 {l.image && (
                   <div className="w-full h-28 bg-gray-100">
                     <img src={l.image} alt={l.title} className="w-full h-full object-cover" loading="lazy" />

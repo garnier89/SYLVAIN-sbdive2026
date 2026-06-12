@@ -371,6 +371,9 @@ export const marketplaceAPI = {
   getListing: (id) => api.get(`/marketplace/listings/${id}`),
   myListings: () => api.get('/marketplace/my-listings'),
   deleteListing: (id) => api.delete(`/marketplace/listings/${id}`),
+  updateListing: (id, data) => api.put(`/marketplace/listings/${id}`, data),
+  boostPlans: (country) => api.get('/marketplace/boost-plans', { params: country ? { country } : {} }),
+  boostPay: (id, planId) => api.post(`/marketplace/listings/${id}/boost/pay`, { plan_id: planId }),
   startThread: (listingId) => api.post('/marketplace/threads', { listing_id: listingId }),
   myThreads: () => api.get('/marketplace/threads'),
   threadMessages: (threadId) => api.get(`/marketplace/threads/${threadId}/messages`),
@@ -392,6 +395,19 @@ export const marketplaceAPI = {
   adminFeatureListing: (id) => api.post(`/marketplace/admin/listings/${id}/feature`),
   adminGetSettings: () => api.get('/marketplace/admin/settings'),
   adminSetSettings: (data) => api.put('/marketplace/admin/settings', data),
+  // admin boost plans
+  adminBoostPlans: () => api.get('/marketplace/admin/boost-plans'),
+  adminCreateBoostPlan: (data) => api.post('/marketplace/admin/boost-plans', data),
+  adminUpdateBoostPlan: (id, data) => api.put(`/marketplace/admin/boost-plans/${id}`, data),
+  adminToggleBoostPlan: (id) => api.post(`/marketplace/admin/boost-plans/${id}/toggle`),
+  adminDeleteBoostPlan: (id) => api.delete(`/marketplace/admin/boost-plans/${id}`),
+};
+
+// Favoris (Immobilier + Marketplace)
+export const favoritesAPI = {
+  toggle: (itemType, itemId) => api.post('/favorites/toggle', { item_type: itemType, item_id: itemId }),
+  ids: (itemType) => api.get('/favorites/ids', { params: itemType ? { item_type: itemType } : {} }),
+  list: (itemType) => api.get('/favorites', { params: itemType ? { item_type: itemType } : {} }),
 };
 
 // Carpool APIs

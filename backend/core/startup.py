@@ -463,6 +463,8 @@ async def run_all_seeds():
     await seed_flights()                # vols (démo)
     from routes.travel_packages import seed_travel_packages
     await seed_travel_packages()        # forfaits vol+hôtel (démo)
+    from routes.marketplace import seed_marketplace_boost_plans
+    await seed_marketplace_boost_plans()  # plans de boost marketplace (démo)
     await seed_real_estate_boost_plans()
     await seed_pharmacy()               # pharmacy partners & OTC catalog
     try:
