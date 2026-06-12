@@ -55,6 +55,29 @@ let webpackConfig = {
       if (config.enableHealthCheck && healthPluginInstance) {
         webpackConfig.plugins.push(healthPluginInstance);
       }
+
+      // PRODUCTION ONLY: consolidate the hundreds of tiny per-icon
+      // @phosphor-icons chunks into ONE reliable chunk. This avoids transient
+      // "Loading chunk … failed" (ChunkLoadError) caused by a single per-icon
+      // chunk timing out on a cold/flaky CDN. Left untouched in dev to keep HMR.
+      if (process.env.NODE_ENV === "production") {
+        webpackConfig.optimization = webpackConfig.optimization || {};
+        const sc = webpackConfig.optimization.splitChunks || {};
+        webpackConfig.optimization.splitChunks = {
+          ...sc,
+          cacheGroups: {
+            ...(sc.cacheGroups || {}),
+            phosphor: {
+              test: /[\\/]node_modules[\\/]@phosphor-icons[\\/]/,
+              name: "phosphor-icons",
+              chunks: "all",
+              priority: 40,
+              enforce: true,
+              reuseExistingChunk: true,
+            },
+          },
+        };
+      }
       return webpackConfig;
     },
   },

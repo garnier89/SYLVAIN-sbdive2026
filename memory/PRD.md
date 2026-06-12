@@ -1,3 +1,14 @@
+## NEW - 2026-06-12 (327) - 🔄 Fix ChunkLoadError (icônes phosphor) + durcissement chargement chunks
+- **Symptôme user** (capture) : « Uncaught runtime errors: Loading chunk vendors-…phosphor-icons…Gear_es_js failed (timeout) / ChunkLoadError ».
+- **Diagnostic** : transitoire — le chunk se recharge en HTTP 200 (0,24s). CRA + phosphor-icons v2 produit des **centaines de mini-chunks par icône** ; l'un a expiré (recompilation dev / passerelle preview froide).
+- **Note URL** : le bon préview est `gojek-clone-41.preview.emergentagent.com` (= REACT_APP_BACKEND_URL). Les screenshots précédents échouaient car URL erronée utilisée.
+- **Fix 1 — auto-récupération** : `src/lib/chunkRecovery.js` (handlers `error` + `unhandledrejection` détectant ChunkLoadError → `window.location.reload()` une fois, garde anti-boucle sessionStorage 12s) branché dans `src/index.js`. Dev + prod.
+- **Fix 2 — consolidation** : `craco.config.js`, **build production uniquement**, cacheGroup `phosphor` regroupe tous les modules `@phosphor-icons` en 1 chunk fiable (réduit les centaines de requêtes fragiles). Dev/HMR intacts.
+- **Vérifié** : app `/billing/reports` se charge avec **0 page error** (screenshot) — graphique, 9 rapports, onglet planification, bouton ZIP tous OK. Frontend compile OK.
+- ⏸️ **En attente user** : vraies clés Stripe (`sk_test_…`+`pk_test_…` ou live) pour construire la pré-autorisation/caution PaymentIntent + capture manuelle (placeholder `sk_test_emergent` ne supporte que Checkout).
+
+
+
 ## NEW - 2026-06-12 (326) - ✅ Audit parité menu prod (LOCATION + PROMOTIONS) + P1 QR/Stripe + fix parité Zones réglementées
 - **Demande user** (captures menu prod sbdrivevtc.com/admin69) : vérifier la parité des sections LOCATION & PROMOTIONS, puis traiter P1 « QR paiement sans contact chauffeurs » + « Stripe 3-D Secure ».
 - **Audit parité** : les 10 écrans prod existent déjà dans notre admin → Geofencing (`/admin/geo-fence`), Zones restreintes (`/admin/restricted`), Tarification par zone (`/admin/location-fare`), Transferts Aéroport (`/admin/airport`), Pays (`/admin/country`), Régions (`/admin/state`), Vue d'ensemble/Point de vue de Dieu (`/admin/gods-view`, carte live), Vue thermique (`/admin/heat-view`, heatmap), Codes promo (`/admin/promocodes`), Cartes cadeaux (`/admin/giftcards`). **testing_agent iter317 : 10/10 render PASS, 0 erreur, cartes Google Maps OK.**
