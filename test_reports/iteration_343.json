@@ -1,0 +1,36 @@
+{
+  "summary": "Iter343 — Carpool habitual driver routes + auto-alert matching. Backend pytest (4/4 PASS) and live HTTP smoke against public URL (CRUD, text match, geo match, inactive route, 404 on unknown delete, drivers_notified counter, in-app notification 'carpool_request_match' visible via /api/drivers/my-notifications) — all PASS. Frontend (mobile 390x844) verified: deep-link /carpool?tab=requests auto-selects Demandes tab, habitual-routes section with add-route-btn opens route-modal, GooglePlacesInput route-from/route-to/day chips/route-time/route-submit creates a route, route-<id> shows publish-today (opens publish-modal with prefilled from/to) and delete (removes route + 'Trajet habituel supprimé' toast). Empty state copy 'Soyez alerté des demandes sur votre trajet' present. No critical issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "DriverRouteModal", "issues": ["Google Places legacy Autocomplete deprecation warnings in console (informational; same as rest of app). PAC dropdown can intercept clicks on the day chips/submit — workaround in tests by pressing Escape after typing; UX-wise consider closing pac-container on blur or migrating to PlaceAutocompleteElement."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter343_carpool_routes.py",
+    "/app/backend/tests/test_iter343_http.py",
+    "/app/test_reports/pytest/iter343_results.xml",
+    "/app/test_reports/pytest/iter343_http.xml"
+  ],
+  "action_items": [
+    "(Optional UX) Auto-hide google.maps PAC container on blur/Escape in GooglePlacesInput, to avoid the dropdown overlaying day chips / route-submit on small screens. Tests work around it by pressing Escape."
+  ],
+  "critical_code_review_comments": [
+    "carpool.py driver-routes endpoints are clean, ownership-checked, and reuse _notify_matching_drivers correctly; drivers_notified is returned from POST /carpool/requests.",
+    "_request_matches_route correctly enforces text token>=4 chars on BOTH pickup AND dropoff, OR haversine <=15km on BOTH endpoints. Inactive routes are filtered. Driver==passenger excluded.",
+    "Notifications use shared create_notification (db.notifications + WS + web push) — consistent.",
+    "Frontend CarPoolPage routes section uses correct testids; URLSearchParams deep-link guard restricts to known tabs."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter343_http.py (new — HTTP smoke against public URL)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "client@test.sb / Client123!, driver@test.sb / Driver123!, admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "Test routes/requests are cleaned up by both pytest fixture (_cleanup) and the Playwright run (delete loop). HTTP smoke also toggles+deletes its own route.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Notifications endpoint for an end-user is GET /api/drivers/my-notifications (not /api/notifications). Driver-routes list returns a bare list (not wrapped). GooglePlacesInput renders the testid directly on the <input>, so use [data-testid=route-from] (not nested input). Route IDs use prefix 'cproute_<hex>' so any regex matching must allow underscores.",
+  "rca of the issue": "N/A — feature works end-to-end."
+}

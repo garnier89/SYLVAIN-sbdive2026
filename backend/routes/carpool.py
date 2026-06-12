@@ -370,7 +370,10 @@ async def create_carpool_request(request: Request):
         "status": "open", "created_at": _now(),
     }
     await db.carpool_requests.insert_one(dict(req))
-    return {k: v for k, v in req.items() if k != "_id"}
+    matched = await _notify_matching_drivers(req)
+    out = {k: v for k, v in req.items() if k != "_id"}
+    out["drivers_notified"] = matched
+    return out
 
 
 @router.get("/requests")
@@ -397,6 +400,124 @@ async def cancel_carpool_request(req_id: str, request: Request):
     if not req or req["passenger_id"] != user["id"]:
         raise HTTPException(status_code=404, detail="Demande introuvable")
     await db.carpool_requests.update_one({"id": req_id}, {"$set": {"status": "cancelled", "cancelled_at": _now()}})
+    return {"ok": True}
+
+
+# ── Trajets habituels du chauffeur + alerte automatique sur demande correspondante ──
+import math  # noqa: E402
+import re  # noqa: E402
+
+MATCH_RADIUS_KM = 15.0  # rayon de correspondance géographique (départ ET destination)
+
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    try:
+        lat1, lng1, lat2, lng2 = float(lat1), float(lng1), float(lat2), float(lng2)
+    except (TypeError, ValueError):
+        return None
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _tokens(s):
+    """Mots significatifs (≥ 4 lettres) d'une adresse, en minuscules sans accents simples."""
+    s = (s or "").lower()
+    for a, b in (("é", "e"), ("è", "e"), ("ê", "e"), ("à", "a"), ("ô", "o"), ("î", "i"), ("ç", "c")):
+        s = s.replace(a, b)
+    return {w for w in re.split(r"[^a-z0-9]+", s) if len(w) >= 4}
+
+
+def _endpoints_match(req_addr, req_lat, req_lng, route_addr, route_lat, route_lng):
+    """Une extrémité (départ ou destination) correspond si : géo ≤ rayon (si coords des
+    deux côtés), sinon partage d'au moins un mot significatif (ville)."""
+    if req_lat and req_lng and route_lat and route_lng:
+        d = _haversine_km(req_lat, req_lng, route_lat, route_lng)
+        if d is not None:
+            return d <= MATCH_RADIUS_KM
+    return bool(_tokens(req_addr) & _tokens(route_addr))
+
+
+def _request_matches_route(req: dict, route: dict) -> bool:
+    return (
+        _endpoints_match(req.get("pickup_address"), req.get("pickup_lat"), req.get("pickup_lng"),
+                         route.get("pickup_address"), route.get("pickup_lat"), route.get("pickup_lng"))
+        and
+        _endpoints_match(req.get("dropoff_address"), req.get("dropoff_lat"), req.get("dropoff_lng"),
+                         route.get("dropoff_address"), route.get("dropoff_lat"), route.get("dropoff_lng"))
+    )
+
+
+async def _notify_matching_drivers(req: dict) -> int:
+    """Prévient les chauffeurs dont un trajet habituel actif correspond à la demande."""
+    notified = set()
+    routes = await db.carpool_driver_routes.find({"active": True}).to_list(2000)
+    for route in routes:
+        did = route.get("driver_id")
+        if not did or did == req.get("passenger_id") or did in notified:
+            continue
+        if _request_matches_route(req, route):
+            notified.add(did)
+            await create_notification(
+                did, "carpool_request_match", "Demande sur votre trajet habituel 🚗🔔",
+                f"{req.get('passenger_name') or 'Un passager'} cherche {req['pickup_address']} → {req['dropoff_address']}"
+                f"{' · ' + str(req['max_price']) + '€ max' if req.get('max_price') is not None else ''}. Proposez votre trajet !",
+                data={"request_id": req["id"], "url": "/carpool?tab=requests"})
+    return len(notified)
+
+
+@router.post("/driver-routes")
+async def create_driver_route(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    pickup = str(body.get("pickup_address") or "").strip()
+    dropoff = str(body.get("dropoff_address") or "").strip()
+    if not pickup or not dropoff:
+        raise HTTPException(status_code=400, detail="Départ et destination requis")
+    days = body.get("days") or []
+    if not isinstance(days, list):
+        days = []
+    route = {
+        "id": f"cproute_{uuid.uuid4().hex[:12]}",
+        "driver_id": user["id"], "driver_name": user.get("name"),
+        "pickup_address": pickup, "dropoff_address": dropoff,
+        "pickup_lat": body.get("pickup_lat"), "pickup_lng": body.get("pickup_lng"),
+        "dropoff_lat": body.get("dropoff_lat"), "dropoff_lng": body.get("dropoff_lng"),
+        "days": [int(d) for d in days if str(d).isdigit() and 0 <= int(d) <= 6][:7],
+        "time": str(body.get("time") or "").strip()[:5],  # 'HH:MM'
+        "active": True, "created_at": _now(),
+    }
+    await db.carpool_driver_routes.insert_one(dict(route))
+    return {k: v for k, v in route.items() if k != "_id"}
+
+
+@router.get("/driver-routes")
+async def list_driver_routes(request: Request):
+    user = await get_current_user(request)
+    return await db.carpool_driver_routes.find(
+        {"driver_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+
+
+@router.post("/driver-routes/{route_id}/toggle")
+async def toggle_driver_route(route_id: str, request: Request):
+    user = await get_current_user(request)
+    route = await db.carpool_driver_routes.find_one({"id": route_id, "driver_id": user["id"]})
+    if not route:
+        raise HTTPException(status_code=404, detail="Trajet habituel introuvable")
+    new_active = not route.get("active", True)
+    await db.carpool_driver_routes.update_one({"id": route_id}, {"$set": {"active": new_active}})
+    return {"ok": True, "active": new_active}
+
+
+@router.delete("/driver-routes/{route_id}")
+async def delete_driver_route(route_id: str, request: Request):
+    user = await get_current_user(request)
+    res = await db.carpool_driver_routes.delete_one({"id": route_id, "driver_id": user["id"]})
+    if not res.deleted_count:
+        raise HTTPException(status_code=404, detail="Trajet habituel introuvable")
     return {"ok": True}
 
 

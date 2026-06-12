@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Users, MapPin, Plus, X, SteeringWheel, Phone, CheckCircle, ShieldCheck, Star, SealCheck, CaretRight, Sparkle, HandWaving } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Users, MapPin, Plus, X, SteeringWheel, Phone, CheckCircle, ShieldCheck, Star, SealCheck, CaretRight, Sparkle, HandWaving, Bell } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { carpoolAPI } from '../../services/api';
-import { PublishComposer, RequestComposer } from '../../components/carpool/CarpoolComposer';
+import { PublishComposer, RequestComposer, DriverRouteModal } from '../../components/carpool/CarpoolComposer';
 
 const fmtDate = (iso) => {
   if (!iso) return '';
@@ -42,12 +42,17 @@ const PAX_STATUS = {
 
 const CarPoolPage = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState('search');
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return ['search', 'requests', 'mine'].includes(t) ? t : 'search';
+  });
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showPublish, setShowPublish] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
+  const [showRoute, setShowRoute] = useState(false);
+  const [routes, setRoutes] = useState([]);
   const [publishPrefill, setPublishPrefill] = useState(null); // {prefill, requestId}
   const [bookTrip, setBookTrip] = useState(null);
   const [cfg, setCfg] = useState({ max_seats_per_booking: 4, commission_percent: 15 });
@@ -69,6 +74,9 @@ const CarPoolPage = () => {
   const loadRequests = useCallback(() => {
     carpoolAPI.listRequests().then((r) => setRequests(Array.isArray(r.data) ? r.data : [])).catch(() => setRequests([]));
   }, []);
+  const loadRoutes = useCallback(() => {
+    carpoolAPI.listDriverRoutes().then((r) => setRoutes(Array.isArray(r.data) ? r.data : [])).catch(() => setRoutes([]));
+  }, []);
 
   useEffect(() => {
     load();
@@ -77,10 +85,28 @@ const CarPoolPage = () => {
       commission_percent: r.data?.commission_percent ?? 15,
     })).catch(() => {});
   }, [load]);
-  useEffect(() => { if (tab === 'mine') loadMine(); }, [tab, loadMine]);
+  useEffect(() => { if (tab === 'mine') { loadMine(); loadRoutes(); } }, [tab, loadMine, loadRoutes]);
   useEffect(() => { if (tab === 'requests') loadRequests(); }, [tab, loadRequests]);
 
   const openPublish = (prefill = null, requestId = null) => { setPublishPrefill({ prefill, requestId }); setShowPublish(true); };
+  const publishRouteToday = (route) => {
+    const now = new Date();
+    const [h, m] = (route.time || '08:00').split(':');
+    now.setHours(parseInt(h) || 8, parseInt(m) || 0, 0, 0);
+    const off = now.getTimezoneOffset();
+    const when = new Date(now.getTime() - off * 60000).toISOString().slice(0, 16);
+    openPublish({
+      pickup_address: route.pickup_address, dropoff_address: route.dropoff_address,
+      pickup_lat: route.pickup_lat, pickup_lng: route.pickup_lng,
+      dropoff_lat: route.dropoff_lat, dropoff_lng: route.dropoff_lng,
+      departure_date: when,
+    }, null);
+  };
+  const deleteRoute = async (id) => {
+    if (!window.confirm('Supprimer ce trajet habituel et son alerte ?')) return;
+    try { await carpoolAPI.deleteDriverRoute(id); loadRoutes(); toast.success('Trajet habituel supprimé'); }
+    catch (e) { toast.error('Échec'); }
+  };
 
   const filtered = trips.filter((t) =>
     !search.trim() ||
@@ -309,6 +335,40 @@ const CarPoolPage = () => {
             })}
           </section>
 
+          <section data-testid="habitual-routes">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-bold text-gray-400 uppercase">Trajets habituels & alertes 🔔</h2>
+              <button onClick={() => setShowRoute(true)} data-testid="add-route-btn" className="text-xs font-bold text-violet-600 flex items-center gap-1">
+                <Plus size={13} weight="bold" /> Ajouter
+              </button>
+            </div>
+            {routes.length === 0 ? (
+              <div className="bg-violet-50 border border-violet-100 rounded-2xl p-4 text-center">
+                <Bell size={28} className="mx-auto text-violet-400 mb-1.5" weight="fill" />
+                <p className="text-sm font-semibold text-gray-700">Soyez alerté des demandes sur votre trajet</p>
+                <p className="text-xs text-gray-500 mt-0.5">Enregistrez un itinéraire récurrent et recevez une notif dès qu'un passager le cherche.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {routes.map((rt) => (
+                  <div key={rt.id} className="bg-white rounded-2xl border border-gray-100 p-3" data-testid={`route-${rt.id}`}>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Bell size={14} className={rt.active ? 'text-violet-500' : 'text-gray-300'} weight="fill" />
+                      <p className="font-semibold text-gray-800 truncate flex-1">{rt.pickup_address} → {rt.dropoff_address}</p>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-[11px] text-gray-400">{rt.time || '—'} · {(rt.days || []).length} jour(s)</span>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => publishRouteToday(rt)} data-testid={`route-publish-today-${rt.id}`} className="text-xs font-bold text-emerald-600">Publier aujourd'hui</button>
+                        <button onClick={() => deleteRoute(rt.id)} data-testid={`route-delete-${rt.id}`} className="text-xs font-semibold text-rose-500">Supprimer</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section>
             <h2 className="text-xs font-bold text-gray-400 uppercase mb-2">Je conduis (chauffeur)</h2>
             {mine.as_driver.length === 0 ? (
@@ -363,6 +423,7 @@ const CarPoolPage = () => {
         onClose={() => { setShowPublish(false); setPublishPrefill(null); }}
         onPublished={() => { setShowPublish(false); setPublishPrefill(null); load(); if (tab === 'requests') loadRequests(); }} />}
       {showRequest && <RequestComposer onClose={() => setShowRequest(false)} onCreated={() => { setShowRequest(false); loadRequests(); }} />}
+      {showRoute && <DriverRouteModal onClose={() => setShowRoute(false)} onSaved={() => { setShowRoute(false); loadRoutes(); }} />}
       {bookTrip && <BookSeatModal trip={bookTrip} maxSeats={maxSeats} onClose={() => setBookTrip(null)} onBooked={() => { setBookTrip(null); load(); }} />}
       {rateTarget && <RateModal target={rateTarget} onClose={() => setRateTarget(null)} onRated={() => { setRateTarget(null); loadMine(); }} />}
       {reviewsDriver && <DriverReviewsModal driver={reviewsDriver} onClose={() => setReviewsDriver(null)} />}

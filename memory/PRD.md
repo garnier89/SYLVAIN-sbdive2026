@@ -1,3 +1,13 @@
+## NEW - 2026-06-12 (341-342) - 📊 Dashboard « Revenus Covoiturage » + ✨ Publication innovante & matching inversé (DONE, testé 100%)
+- **Demande user** : (1) finir le tableau de bord admin des revenus covoiturage (commissions 15 %) ; (2) « un client qui publie un trajet, les chauffeurs aussi… il faut innover, pas du copier-coller ».
+- **Dashboard Revenus** : backend `GET /carpool/admin/revenue` (admin-only, agrège `carpool_rides` terminés → KPIs commission/brut/reversé/trajets/places/chauffeurs actifs/panier moyen, top 10 chauffeurs avec note, série quotidienne). Page `AdminCarpoolRevenue.js` (route `/admin/carpool-revenue`, menu Covoiturage > « Revenus covoiturage ») : KPIs, graphique AreaChart recharts, table top chauffeurs (badge Super), presets Tout/7j/30j/90j. Validation/clamp ajoutée à `PUT /carpool/admin/config` (commission 0-100, sièges 1-8, libération 1-168).
+- **Publication innovante** (`components/carpool/CarpoolComposer.jsx`) : composer plein écran `PublishComposer` — adresses Google autocomplete (`GooglePlacesInput`) + « Ma position », **distance estimée (Haversine ×1.3)** → **prix conseillé intelligent** (1,5€ + 0,12€/km), sélecteur de places visuel (sièges), créneaux rapides (Ce soir/Demain/Samedi), **gain net en direct** après commission, **aperçu live de l'annonce** côté passager, note optionnelle.
+- **Matching inversé** : collection `carpool_requests` + endpoints `POST/GET /carpool/requests`, `GET /carpool/my-requests`, `POST /carpool/requests/{id}/cancel`. `create_carpool_ride` accepte `request_id` (clôt la demande → `fulfilled` + notifie le passager) et stocke les coords/distance/notes. Onglet **« Demandes »** dans `CarPoolPage.js` (`RequestComposer` pour publier un besoin ; bouton « Proposer ce trajet » côté chauffeur → ouvre le composer pré-rempli). Ancien `PublishTripModal` (champs texte bruts) supprimé.
+- **Testé** : pytest `test_iter341_carpool_revenue.py` 3/3 + `test_iter342_carpool_requests.py` 4/4 (créé par testing_agent) + non-régression `test_iter338` 5/5 (exécution par fichier — conflit de boucle asyncio inter-fichiers connu). testing_agent iter341 **backend 100% + frontend 100%**, 0 bug, 0 action item (dashboard KPIs/presets, composer publie, demandes CRUD + fulfill).
+- ⚠️ PREVIEW → redéploiement requis pour la prod (`gojek-mvp-1.emergent.host`).
+
+
+
 ## NEW - 2026-06-12 (340) - 🛠️ Covoiturage : UI admin config + avis détaillés chauffeur + badge Super chauffeur
 - **Demande user** : 3 items backlog → page admin config covoiturage, avis détaillés du chauffeur, badge « Super chauffeur » au-delà d'un seuil.
 - **Admin** : `AdminCarpoolConfig.js` (/admin/carpool-config) → `GET/PUT /carpool/admin/config` (commission, sièges, libération auto, activation, devise ; admin only).

@@ -1067,6 +1067,10 @@ export const carpoolAPI = {
   createRequest: (data) => api.post('/carpool/requests', data),
   myRequests: () => api.get('/carpool/my-requests'),
   cancelRequest: (id) => api.post(`/carpool/requests/${id}/cancel`, {}),
+  listDriverRoutes: () => api.get('/carpool/driver-routes'),
+  createDriverRoute: (data) => api.post('/carpool/driver-routes', data),
+  toggleDriverRoute: (id) => api.post(`/carpool/driver-routes/${id}/toggle`, {}),
+  deleteDriverRoute: (id) => api.delete(`/carpool/driver-routes/${id}`),
 };
 
 

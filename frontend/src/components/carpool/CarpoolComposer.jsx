@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   X, NavigationArrow, ArrowRight, Star, ShieldCheck, Sparkle, Armchair,
-  CalendarBlank, CurrencyEur, MapPin, CheckCircle,
+  CalendarBlank, CurrencyEur, MapPin, CheckCircle, Bell,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import GooglePlacesInput from '../GooglePlacesInput';
@@ -232,6 +232,79 @@ export const PublishComposer = ({ onClose, onPublished, commissionPercent = 15, 
         <button onClick={submit} disabled={saving} data-testid="publish-submit"
           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-base disabled:opacity-50 flex items-center justify-center gap-2 sticky bottom-3 shadow-lg shadow-emerald-200">
           {saving ? 'Publication…' : <><CheckCircle size={20} weight="fill" /> Publier le trajet</>}
+        </button>
+      </div>
+    </Sheet>
+  );
+};
+
+/**
+ * Modal « Trajet habituel » (chauffeur) : enregistre un itinéraire récurrent.
+ * Les passagers qui publient une demande correspondante alertent ce chauffeur.
+ */
+export const DriverRouteModal = ({ onClose, onSaved }) => {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [fromGeo, setFromGeo] = useState(null);
+  const [toGeo, setToGeo] = useState(null);
+  const [days, setDays] = useState([1, 2, 3, 4, 5]); // lun-ven (JS getDay)
+  const [time, setTime] = useState('07:30');
+  const [saving, setSaving] = useState(false);
+
+  const DAYS = [
+    { v: 1, l: 'L' }, { v: 2, l: 'M' }, { v: 3, l: 'M' }, { v: 4, l: 'J' },
+    { v: 5, l: 'V' }, { v: 6, l: 'S' }, { v: 0, l: 'D' },
+  ];
+  const toggleDay = (v) => setDays((d) => d.includes(v) ? d.filter((x) => x !== v) : [...d, v]);
+
+  const submit = async () => {
+    if (!from.trim() || !to.trim()) { toast.error('Renseignez départ et destination'); return; }
+    setSaving(true);
+    try {
+      await carpoolAPI.createDriverRoute({
+        pickup_address: from.trim(), dropoff_address: to.trim(),
+        pickup_lat: fromGeo?.lat, pickup_lng: fromGeo?.lng,
+        dropoff_lat: toGeo?.lat, dropoff_lng: toGeo?.lng,
+        days, time,
+      });
+      toast.success('Trajet habituel enregistré 🔔 Vous serez alerté des demandes correspondantes');
+      onSaved();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+    setSaving(false);
+  };
+
+  return (
+    <Sheet onClose={onClose} testid="route-modal">
+      <div className="bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white px-5 pt-5 pb-6 rounded-t-3xl relative">
+        <button onClick={onClose} className="absolute right-4 top-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center" data-testid="route-close"><X size={18} /></button>
+        <div className="flex items-center gap-2 mb-1"><Bell size={18} weight="fill" /><span className="text-xs font-bold uppercase tracking-wide text-white/80">Alerte demande</span></div>
+        <h3 className="text-2xl font-black">Votre trajet habituel</h3>
+        <p className="text-xs text-white/80 mt-1">Soyez alerté dès qu'un passager cherche ce trajet.</p>
+      </div>
+      <div className="p-5 space-y-4 -mt-3 bg-gray-50 rounded-t-3xl">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+          <GooglePlacesInput placeholder="Départ habituel" value={from} iconColor="#7c3aed" testId="route-from"
+            onChange={setFrom} onSelect={(r) => { setFrom(r.address); setFromGeo({ lat: r.lat, lng: r.lng }); }} />
+          <div className="flex items-center justify-center text-violet-300"><ArrowRight size={16} className="rotate-90" /></div>
+          <GooglePlacesInput placeholder="Destination habituelle" value={to} iconColor="#c026d3" testId="route-to"
+            onChange={setTo} onSelect={(r) => { setTo(r.address); setToGeo({ lat: r.lat, lng: r.lng }); }} />
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Jours</label>
+          <div className="flex gap-1.5" data-testid="route-days">
+            {DAYS.map((d, i) => (
+              <button key={i} onClick={() => toggleDay(d.v)} data-testid={`route-day-${d.v}`}
+                className={`w-9 h-9 rounded-full text-sm font-bold transition-colors ${days.includes(d.v) ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                {d.l}
+              </button>
+            ))}
+          </div>
+          <label className="text-xs font-bold text-gray-500 uppercase mt-4 mb-1 block">Heure habituelle</label>
+          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} data-testid="route-time" className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <button onClick={submit} disabled={saving} data-testid="route-submit"
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+          {saving ? 'Enregistrement…' : <><CheckCircle size={20} weight="fill" /> Activer l'alerte</>}
         </button>
       </div>
     </Sheet>
