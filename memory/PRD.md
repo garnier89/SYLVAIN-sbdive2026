@@ -1,3 +1,10 @@
+## NEW - 2026-06-12 (332) - ⏳ Mode « Hold order » Duffel — bloquer un tarif sans payer
+- **Demande user** : booster la conversion sur vols chers (Affaires/Première) en permettant de bloquer un tarif quelques heures sans payer. Choix : 1a (débit SB Pay uniquement au paiement) + 2b (notif ~2h avant + expiration auto).
+- **Backend** : `core/duffel.py` (`create_hold_order`, `create_payment`). `routes/flights.py` : offre expose `hold_available` ; `POST /flights/live/hold` (statut `held`, PNR, **aucun débit**) ; `POST /flights/live/bookings/{id}/pay` (vérif échéance+solde → paiement Duffel → débit → `confirmed`) ; `flight_hold_loop` (rappel 2h + expiration). `core/startup.py` : tâche branchée au lifespan.
+- **Frontend** `FlightsPage.js` : bouton « Bloquer le tarif (sans payer) », écran « Tarif bloqué » + « Payer maintenant », « Mes vols » avec badges held/expired + paiement.
+- **Testé** : pytest `test_iter332_duffel_hold.py` **10/10** (+1 skip env) + e2e 100% (hold `UNISZP` sans débit → paiement → confirmé). ⚠️ PREVIEW → redéploiement requis pour prod.
+
+
 ## NEW - 2026-06-12 (331) - ✈️ Intégration API Vols RÉELLE Duffel (mode test) — recherche temps réel + e-billet PNR
 - **Demande user** : remplacer les vols mockés (offres admin) par de vrais vols + e-billets PDF/PNR. Choix : Duffel. Token `duffel_test_...` fourni par l'utilisateur (Somo babatak Sylvain, org « SB drive vtc »).
 - **Backend** : `core/duffel.py` (client httpx Duffel v2 : offer_requests / get_offer / create_order paiement `balance`). `routes/flights.py` : `GET /flights/live/search` (IATA, A/R, passagers, classe), `POST /flights/live/book` (re-fetch prix → vérif solde SB Pay → commande Duffel → débit → booking PNR), `GET /flights/bookings/{id}/eticket` (PDF reportlab).

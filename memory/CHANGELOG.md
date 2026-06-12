@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-06-12 — Mode « Hold order » Duffel : bloquer un tarif sans payer [DONE, testé 10/10 + e2e]
+Pour booster la conversion sur les vols chers (Affaires/Première), le client peut bloquer un tarif quelques heures sans payer. Choix user : 1a (débit SB Pay uniquement au paiement) + 2b (notif ~2h avant échéance + expiration auto).
+- **`core/duffel.py`** : `create_hold_order` (type `hold`, sans paiement), `create_payment` (POST /air/payments, balance).
+- **`routes/flights.py`** : `_norm_offer` expose `hold_available` / `payment_required_by` / `price_guarantee_expires_at`. `POST /flights/live/hold` (commande hold, statut `held`, PNR immédiat, **aucun débit**). `POST /flights/live/bookings/{id}/pay` (vérif échéance + solde → paiement Duffel → débit SB Pay → statut `confirmed`). `flight_hold_loop` (boucle 10 min) : notif rappel ~2h avant + passage `expired` à l'échéance.
+- **`core/startup.py`** : `flight_hold_task` ajouté au lifespan.
+- **`FlightsPage.js`** : bouton secondaire « Bloquer le tarif (sans payer) » sur les offres éligibles ; écran succès « Tarif bloqué » avec échéance + « Payer maintenant » ; « Mes vols » affiche badge « En attente de paiement »/« Expiré », échéance et bouton « Payer maintenant ».
+- Validé : hold Affaires `UNISZP`/`CT52N6` sans débit, puis paiement → confirmé + e-billet ; 409 si échéance dépassée ; 400 si solde insuffisant. ⚠️ PREVIEW → redéploiement requis pour prod.
+
+
+
 ## 2026-06-12 — Intégration API Vols RÉELLE (Duffel, mode test) [DONE, testé 13/13 backend + e2e]
 Remplacement des vols mockés par une vraie recherche temps réel + e-billet PNR via l'API Duffel (token `duffel_test_...` dans `backend/.env` → `DUFFEL_API_KEY`).
 - **`backend/core/duffel.py`** (nouveau) : client httpx Duffel v2 — `create_offer_request`, `get_offer`, `create_order` (paiement `balance` en mode test), gestion d'erreurs lisibles (`DuffelError`).
