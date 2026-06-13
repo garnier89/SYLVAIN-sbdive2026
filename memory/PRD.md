@@ -7,7 +7,14 @@
 - Reste à faire (Phase 4+) : `rides.py` reste volumineux ; extraction possible des groupes d'endpoints leaf (rental, bidding, rating) en sous-routeurs.
 
 
-## NEW - 2026-06-13 (374) - 🧪 Tests pytest dédiés sous-routeurs rides_bidding + rides_rental (DONE, 17/17)
+## NEW - 2026-06-13 (375) - 🚦 Garde-fou de pré-déploiement (script pytest flux critiques) (DONE)
+- **Demande user (suite iter374)** : script à lancer avant chaque redéploiement pour éviter les régressions en prod.
+- **Fait** : `scripts/predeploy_check.sh` (+ `scripts/README.md`) — exécute **12 suites critiques / 69 tests** contre l'ingress public (`REACT_APP_BACKEND_URL`) : courses (enchères iter374/210/215, mise à disposition iter374, paiements/cash/dettes iter312/244/249/250 + debt carry + driver flow) et SB Ferry (iter365 + commission iter368). Bannière FR, exit 0 = déploiement sûr / exit ≠0 = ne pas déployer.
+- **Testé** : exécution réelle **69/69 passent en ~22 s, exit 0**.
+- **Usage** : `bash /app/scripts/predeploy_check.sh`. Liste maintenable via le tableau `CRITICAL_TESTS`.
+
+
+
 - **Demande user (suite iter373)** : verrouiller les flux des nouveaux sous-routeurs contre les régressions.
 - **Fait** : 2 fichiers de tests HTTP E2E :
   - `tests/test_iter374_rides_bidding.py` (9 tests) : contre-offre (ajout/visibilité, driver-only 403, montant invalide 400, remplacement de l'offre pending du même chauffeur), accept-offre (assignation chauffeur + tarif, offre inconnue 404), reject-offre (statut rejected, course reste pending, offre inconnue 404), avg-fares (forme + auth).
