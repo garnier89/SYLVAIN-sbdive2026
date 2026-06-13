@@ -1,0 +1,56 @@
+{
+  "summary": "Frontend testing of SB Événement — Espace Organisateur (Phase 2). All 8 PRD test cases verified PASS on mobile viewport (390x844) using credentials organizer@test.com / Organizer123!. Login → /events → organizer-entry-btn → /organizer (auto-redirect for existing organizer) → /organizer/dashboard. Full CRUD on events, attendees modal with CSV export, boost modal with day selector and SB Pay payment (402 Solde insuffisant returned as expected), edit + delete all work. Toast feedback is correct ('Événement enregistré', 'Supprimé', 'Solde insuffisant').",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "BoostModal (OrganizerDashboard.js L190-227)",
+        "issue": "When SB Pay payment fails with 402 (Solde insuffisant), the boost modal stays open and blocks pointer events on the dashboard underneath. The toast error appears but the user must manually click the X (close) button to dismiss. There is no Escape-key handler. Acceptable UX, but ideally the modal could auto-close on hard failure or the inner card could be made dismissible via backdrop click.",
+        "selector": "[data-testid=boost-modal]",
+        "priority": "LOW"
+      },
+      {
+        "component": "OrganizerDashboard – Stat tiles",
+        "issue": "Stats showing 0,00 € are rendered as the word 'Gratuit' (via fmtPrice(0)). On a finance dashboard ('Recette nette', 'Recette brute', 'Commission', 'Net per event'), displaying 'Gratuit' for a 0 € revenue figure is semantically misleading — recommend forcing '0,00 €' inside the organizer stat tiles even when fmtPrice would otherwise return 'Gratuit'.",
+        "selector": "Stat / MiniStat in OrganizerDashboard.js",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "OrganizerDashboard header (gradient)",
+        "issues": [
+          "Email verification banner ('Vérifiez votre email') overlaps the bottom of the dashboard and the boost-modal's Pay button on mobile (390x844). Consider hiding this banner inside organizer pages or adding bottom padding on the modals."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional/LOW) Auto-close BoostModal on hard payment failure (or wire Escape/backdrop click) so a 402 doesn't trap the user behind an overlay.",
+    "(Optional/LOW) In organizer dashboard stats, render 0 € as '0,00 €' instead of 'Gratuit' to avoid misleading wording on financial KPIs.",
+    "(Optional) Suppress the 'Vérifiez votre email' bottom banner on /organizer routes so it doesn't overlap the modal CTAs."
+  ],
+  "critical_code_review_comments": [
+    "OrganizerDashboard.js (231 lines): well within size budget, clean structure, good use of data-testid across all interactive elements (create-event-btn, attendees-{id}, boost-{id}, edit-{id}, del-{id}, boost-plus/minus/pay-btn).",
+    "OrganizerSpace.js correctly auto-redirects existing organizers (organizerAPI.me().then -> navigate('/organizer/dashboard', {replace:true})) — verified by visiting /organizer with the seeded organizer account.",
+    "EventFormModal.js properly serialises starts_at/ends_at via toISOString() and casts price/quantity to Number — safe payload for backend.",
+    "Routes (clientRoutes.jsx L90-91) correctly gate /organizer and /organizer/dashboard with ProtectedRoute allowedRoles=['user'].",
+    "BoostModal swallows the error in catch{} without resetting paying state on success path — minor: `setPaying(false)` is in finally so OK. But no close-on-error UX (see action items)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "n/a (skipped per request)",
+    "frontend": "100% (8/8 PRD cases pass)"
+  },
+  "test_credentials": "organizer@test.com / Organizer123! (used for the entire flow; account is pre-registered as organizer 'SB Live Productions', so /organizer auto-redirects to /organizer/dashboard, which is the PRD-expected behavior)",
+  "seed_data_creation": "Created event 'TEST_Concert_Boost_AutoQA' (concert, 15 June 2026 20:00, 1 tier Standard €25 x50), edited to '...EDITED', then deleted. Dashboard back to no-events state after test. No residual seed data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All PRD test cases for Phase 2 Espace Organisateur are passing. The 402 'Solde insuffisant' on boost is the documented happy-path behavior because organizer@test.com's wallet has insufficient balance — not a bug. If the main agent wants to validate a successful boost end-to-end, top-up the SB Pay wallet for organizer@test.com first. The mobile viewport (390x844) is the right test viewport (mobile-container layout).",
+  "rca of the issue": "No blocking issue. Minor UX note: BoostModal does not auto-close on 402 error, so subsequent dashboard clicks (edit/del) are intercepted by the overlay until the user clicks the X. Repro: open boost modal on any event when SB Pay wallet < cost → click 'Payer X € avec SB Pay' → toast 'Solde insuffisant' appears but modal stays open. Mitigation: add `onClose()` (or set boostFor=null) inside the catch block of BoostModal.boost(), or make the backdrop click close the modal."
+}

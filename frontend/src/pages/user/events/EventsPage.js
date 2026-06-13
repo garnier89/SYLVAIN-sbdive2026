@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Ticket, CalendarBlank, MapPin, Star } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Ticket, CalendarBlank, MapPin, Star, Megaphone } from '@phosphor-icons/react';
 import { eventsAPI } from '../../../services/api';
 import { EVENT_CATEGORIES, catMeta, fmtEventDate, fmtPrice, minPrice } from './eventsShared';
 
@@ -49,6 +49,18 @@ const EventsPage = () => {
           />
         </div>
       </div>
+
+      {/* Organizer entry */}
+      <button onClick={() => navigate('/organizer')} className="mx-4 mt-4 w-[calc(100%-2rem)] flex items-center gap-3 bg-white border border-orange-100 rounded-2xl p-3 shadow-sm text-left" data-testid="organizer-entry-btn">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#B91C1C] to-[#FF4500] flex items-center justify-center shrink-0">
+          <Megaphone size={20} weight="fill" className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-gray-900">Vous organisez un événement ?</p>
+          <p className="text-[11px] text-gray-500">Vendez vos billets et boostez votre visibilité</p>
+        </div>
+        <span className="text-[#B91C1C] text-xs font-bold shrink-0">Ouvrir →</span>
+      </button>
 
       {/* Categories */}
       <div className="px-4 pt-4 flex gap-2 overflow-x-auto scrollbar-hide pb-1">

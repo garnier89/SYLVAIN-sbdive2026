@@ -66,6 +66,8 @@ export const NearbyBusinessPage = lazy(() => import('../pages/user/NearbyBusines
 export const EventsPage = lazy(() => import('../pages/user/events/EventsPage'));
 export const EventDetailPage = lazy(() => import('../pages/user/events/EventDetailPage'));
 export const MyEventTicketsPage = lazy(() => import('../pages/user/events/MyEventTicketsPage'));
+export const OrganizerSpace = lazy(() => import('../pages/user/events/OrganizerSpace'));
+export const OrganizerDashboard = lazy(() => import('../pages/user/events/OrganizerDashboard'));
 export const BeautyServicesPage = lazy(() => import('../pages/user/BeautyServicesPage'));
 export const PetServicesPage = lazy(() => import('../pages/user/PetServicesPage'));
 export const CarCarePage = lazy(() => import('../pages/user/CarCarePage'));
