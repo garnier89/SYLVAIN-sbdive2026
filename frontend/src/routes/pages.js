@@ -22,6 +22,7 @@ export const LandingPage = lazy(() => import('../pages/LandingPage'));
 export const ClientWelcome = lazy(() => import('../pages/client/ClientWelcome'));
 export const UserHome = lazyWithPreload(() => import('../pages/user/UserHome'));
 export const SbAccessPage = lazy(() => import('../pages/user/SbAccessPage'));
+export const FerryPage = lazy(() => import('../pages/user/FerryPage'));
 export const MotoSelfRentalPage = lazy(() => import('../pages/user/MotoSelfRentalPage'));
 export const CarSelfRentalPage = lazy(() => import('../pages/user/CarSelfRentalPage'));
 export const HotelsPage = lazy(() => import('../pages/user/HotelsPage'));

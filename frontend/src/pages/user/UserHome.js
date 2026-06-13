@@ -499,9 +499,9 @@ const UserHome = () => {
     if (!home.length) home = active.slice(0, 8);
     const tiles = home.map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
-      // SB Access (catégorie 'assist') ouvre la page dédiée SB Drive Access (/access),
-      // pas le formulaire de course direct.
-      const path = c.key === 'assist' ? '/access' : `/course?mode=${c.key}`;
+      // SB Access (catégorie 'assist') ouvre la page dédiée SB Drive Access (/access).
+      // SB Ferry (catégorie 'access') ouvre la billetterie maritime (/ferry).
+      const path = c.key === 'assist' ? '/access' : c.key === 'access' ? '/ferry' : `/course?mode=${c.key}`;
       // Dashboard-defined icon (image/emoji) drives the tile; v.icon is the fallback.
       return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, imageFit: c.image_fit, bg: v.bg, iconColor: v.iconColor, path };
     });

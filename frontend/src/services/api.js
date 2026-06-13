@@ -722,6 +722,24 @@ export const homeBannersAPI = {
   reorder: (orderedIds) => api.post('/admin/home-banners/reorder', { ordered_ids: orderedIds }),
 };
 
+// SB Ferry — billetterie maritime (Antilles) + correspondance VTC
+export const ferryAPI = {
+  ports: () => api.get('/ferry/ports'),
+  routes: (params) => api.get('/ferry/routes', { params }),
+  route: (id) => api.get(`/ferry/routes/${id}`),
+  book: (data) => api.post('/ferry/bookings', data),
+  myBookings: () => api.get('/ferry/bookings'),
+  booking: (id) => api.get(`/ferry/bookings/${id}`),
+  adminRoutes: () => api.get('/admin/ferry/routes'),
+  createRoute: (d) => api.post('/admin/ferry/routes', d),
+  updateRoute: (id, d) => api.put(`/admin/ferry/routes/${id}`, d),
+  toggleRoute: (id) => api.patch(`/admin/ferry/routes/${id}/toggle`),
+  deleteRoute: (id) => api.delete(`/admin/ferry/routes/${id}`),
+  adminPorts: () => api.get('/admin/ferry/ports'),
+  adminCompanies: () => api.get('/admin/ferry/companies'),
+  adminBookings: () => api.get('/admin/ferry/bookings'),
+};
+
 export const newsAPI = {
   feed: (location) => api.get('/news/feed', { params: location ? { location } : {} }),
   unreadCount: (location) => api.get('/news/unread-count', { params: location ? { location } : {} }),

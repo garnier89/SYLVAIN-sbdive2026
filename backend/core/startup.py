@@ -475,6 +475,8 @@ async def run_all_seeds():
     await seed_assist_types()           # SB Access assistance types (admin-editable)
     from routes.home_banners import seed_home_banners
     await seed_home_banners()           # home feature banners CMS (admin-editable)
+    from routes.ferry import seed_ferry
+    await seed_ferry()                  # SB Ferry routes/ports/companies (Antilles)
     try:
         from core.ondemand_seed import seed_ondemand
         await seed_ondemand()           # on-demand service categories + demo providers

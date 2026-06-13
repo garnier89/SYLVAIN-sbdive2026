@@ -22,6 +22,7 @@ import {
   ServiceProvidersPage, ServiceProviderDetailPage,
   ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage, SbRewardsPage, SbEventsPage, SbMarketplacePage,
   SbAccessPage,
+  FerryPage,
   MotoSelfRentalPage,
   CarSelfRentalPage,
   HotelsPage,
@@ -130,6 +131,7 @@ export function clientRoutes(user) {
       <Route path="/sb-student/evenements" element={<ProtectedRoute allowedRoles={['user']}><SbEventsPage /></ProtectedRoute>} />
       <Route path="/sb-student/marketplace" element={<ProtectedRoute allowedRoles={['user']}><SbMarketplacePage /></ProtectedRoute>} />
       <Route path="/access" element={<ProtectedRoute allowedRoles={['user']}><SbAccessPage /></ProtectedRoute>} />
+      <Route path="/ferry" element={<ProtectedRoute allowedRoles={['user']}><FerryPage /></ProtectedRoute>} />
       <Route path="/moto-location" element={<ProtectedRoute allowedRoles={['user']}><MotoSelfRentalPage /></ProtectedRoute>} />
       <Route path="/location-voiture" element={<ProtectedRoute allowedRoles={['user']}><CarSelfRentalPage /></ProtectedRoute>} />
       <Route path="/hotels" element={<ProtectedRoute allowedRoles={['user']}><HotelsPage /></ProtectedRoute>} />
