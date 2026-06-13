@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend E2E verified for SB Ferry commission model. User payment-method selector exposes all 3 options (SB Pay, Espèces au port, Carte bancaire). Cash booking creates ticket with QR + ref (SBF-7854878A). Card path is gracefully gated with French toast (no charge, no broken page). Admin /admin/ferry shows commission panel (global + per-company), all save buttons trigger success toasts, revenue panel shows totals, per-company, by-method, and 'Compagnies doivent à SB Drive' = 5.16 € (cash bookings reflected).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/ferry — Revenus & règlements > PAR COMPAGNIE", "issues": ["One revenue row displays company name as '—' (6 billets · CA 519.00 €). Likely legacy bookings missing company_id mapping. Non-blocking but main agent may want to backfill or label as 'Non attribué'."]},
+      {"screen": "/admin/ferry — toast stacking", "issues": ["Successive save toasts visually stack/concatenate ('Commission compagnie enregistrée\\nCommission globale enregistrée'). Cosmetic; multiple toasts not dismissed between actions."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter368_ferry_commission.py"],
+  "action_items": [
+    "Optional: backfill or label company_id='None' rows in /admin/ferry revenue 'PAR COMPAGNIE' so they don't appear as '—'.",
+    "Optional cosmetic: ensure toast queue dismisses prior toast before adding next on rapid saves."
+  ],
+  "critical_code_review_comments": [
+    "FerryPage.js gating for card payment correctly handled at 503 response from /ferry/bookings/stripe-checkout — toast text matches spec.",
+    "Admin commission save sequence (per-company then global) works, but toasts overlap visually; consider replacing instead of appending.",
+    "All required data-testid attributes are present and stable (ferry-payment-method, ferry-pay-sbpay/cash/card, ferry-pay-btn, ferry-ticket-page, ferry-success, ferry-qr, ferry-ref, ferry-commission-panel, ferry-global-commission(-save), ferry-company-row-/commission-/save-, ferry-revenue-panel, ferry-platform-owes, ferry-company-owes, ferry-revenue-by-company, ferry-revenue-by-method)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123!  User test2@example.com / TestPass123!",
+  "seed_data_creation": "Created 1 cash booking (ref SBF-7854878A, Val'Ferry Fort-de-France→Les Trois-Îlets 7.00 €) during testing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All ferry commission/payment-method flows verified end-to-end on mobile (user) and desktop (admin). Card path correctly returns 503 from stripe-checkout and FerryPage renders the expected French toast 'Paiement par carte bientôt disponible. Utilisez SB Pay ou payez en espèces au port.' Cash booking creates ticket without wallet balance. Admin revenue figures populated: CA 562 €, commission SB Drive 5.16 €, revenu compagnies 37.84 €, Compagnies doivent à SB Drive 5.16 € (from cash bookings), by-method SB Pay 6·519 € / Espèces 3·43 €.",
+  "rca of the issue": "n/a — no blocking issues found."
+}

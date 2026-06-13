@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   ArrowLeft, Boat, ArrowsDownUp, CalendarBlank, Minus, Plus, Clock,
-  ArrowRight, Ticket, CheckCircle, Car, Anchor, CircleNotch, Users,
+  ArrowRight, Ticket, CheckCircle, Car, Anchor, CircleNotch, Users, Coins, CreditCard,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ferryAPI } from '../../services/api';
@@ -40,9 +40,27 @@ export default function FerryPage() {
   const [pick, setPick] = useState({ route: null, time: '' });
   const [booking, setBooking] = useState(null);
   const [paying, setPaying] = useState(false);
+  const [payMethod, setPayMethod] = useState('sbpay'); // sbpay | cash | card
   const [myTickets, setMyTickets] = useState(null); // null=hidden, [] or list when shown
 
   useEffect(() => { ferryAPI.ports().then((r) => setPorts(r.data.ports || [])).catch(() => {}); }, []);
+
+  // Return from Stripe Checkout (?ferry_session=...) → confirm and show the ticket.
+  useEffect(() => {
+    const sid = new URLSearchParams(window.location.search).get('ferry_session');
+    if (!sid) return;
+    setPaying(true);
+    ferryAPI.stripeStatus(sid)
+      .then((r) => {
+        if (r.data?.payment_status === 'paid' && r.data?.booking) {
+          setBooking(r.data.booking); setStep('ticket');
+        } else {
+          toast.error('Paiement non confirmé.');
+        }
+      })
+      .catch(() => toast.error('Paiement non confirmé.'))
+      .finally(() => { setPaying(false); window.history.replaceState({}, '', '/ferry'); });
+  }, []);
 
   const portName = useCallback((id) => {
     const p = ports.find((x) => x.id === id);
@@ -71,9 +89,19 @@ export default function FerryPage() {
   const confirm = async () => {
     setPaying(true);
     try {
+      if (payMethod === 'card') {
+        const r = await ferryAPI.stripeCheckout({
+          route_id: pick.route.id, adults: form.adults, children: form.children,
+          travel_date: form.date, departure_time: pick.time,
+          origin_url: window.location.origin,
+        });
+        if (r.data?.url) { window.location.href = r.data.url; return; }
+        toast.error('Paiement carte indisponible');
+        return;
+      }
       const r = await ferryAPI.book({
         route_id: pick.route.id, adults: form.adults, children: form.children,
-        travel_date: form.date, departure_time: pick.time, payment_method: 'sbpay',
+        travel_date: form.date, departure_time: pick.time, payment_method: payMethod,
       });
       setBooking(r.data);
       setStep('ticket');
@@ -231,16 +259,37 @@ export default function FerryPage() {
             <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between font-extrabold"><span>Total</span><span style={{ color: SEA }}>{total.toFixed(2)} €</span></div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-3" data-testid="ferry-payment-method">
-            <span className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center"><CheckCircle size={20} weight="fill" className="text-emerald-500" /></span>
-            <div className="flex-1"><p className="font-bold text-slate-800 text-sm">SB Pay</p><p className="text-xs text-slate-400">Paiement depuis votre portefeuille</p></div>
+          <div className="bg-white rounded-2xl shadow-sm p-4" data-testid="ferry-payment-method">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-3">Mode de paiement</p>
+            <div className="space-y-2">
+              {[
+                { id: 'sbpay', label: 'SB Pay', desc: 'Paiement depuis votre portefeuille', testid: 'ferry-pay-sbpay' },
+                { id: 'cash', label: 'Espèces au port', desc: 'Réservez maintenant, payez à l\u2019embarcadère', testid: 'ferry-pay-cash' },
+                { id: 'card', label: 'Carte bancaire', desc: 'Paiement sécurisé par carte', testid: 'ferry-pay-card' },
+              ].map((m) => {
+                const active = payMethod === m.id;
+                return (
+                  <button key={m.id} onClick={() => setPayMethod(m.id)} data-testid={m.testid}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-left ${active ? 'border-sky-500 bg-sky-50' : 'border-slate-100'}`}>
+                    <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${active ? 'text-white' : 'bg-slate-100 text-slate-400'}`} style={active ? { background: SEA } : {}}>
+                      {m.id === 'sbpay' ? <CheckCircle size={18} weight="fill" /> : m.id === 'cash' ? <Coins size={18} weight="fill" /> : <CreditCard size={18} weight="fill" />}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-bold text-slate-800 text-sm">{m.label}</span>
+                      <span className="block text-xs text-slate-400">{m.desc}</span>
+                    </span>
+                    <span className={`w-4 h-4 rounded-full border-2 shrink-0 ${active ? 'border-sky-500 bg-sky-500' : 'border-slate-300'}`} />
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] p-4 bg-white border-t border-slate-100 z-40">
           <button onClick={confirm} disabled={paying} data-testid="ferry-pay-btn"
             className="w-full py-3.5 rounded-xl text-white font-bold flex items-center justify-center gap-2 active:scale-[0.99]" style={{ background: SEA }}>
-            {paying ? <CircleNotch size={18} className="animate-spin" /> : `Payer ${total.toFixed(2)} €`}
+            {paying ? <CircleNotch size={18} className="animate-spin" /> : (payMethod === 'cash' ? `Réserver · ${total.toFixed(2)} € à payer au port` : payMethod === 'card' ? `Payer par carte ${total.toFixed(2)} €` : `Payer ${total.toFixed(2)} €`)}
           </button>
         </div>
       </div>

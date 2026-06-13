@@ -728,6 +728,8 @@ export const ferryAPI = {
   routes: (params) => api.get('/ferry/routes', { params }),
   route: (id) => api.get(`/ferry/routes/${id}`),
   book: (data) => api.post('/ferry/bookings', data),
+  stripeCheckout: (data) => api.post('/ferry/bookings/stripe-checkout', data),
+  stripeStatus: (sessionId) => api.get(`/ferry/stripe-status/${sessionId}`),
   myBookings: () => api.get('/ferry/bookings'),
   booking: (id) => api.get(`/ferry/bookings/${id}`),
   adminRoutes: () => api.get('/admin/ferry/routes'),
@@ -737,7 +739,12 @@ export const ferryAPI = {
   deleteRoute: (id) => api.delete(`/admin/ferry/routes/${id}`),
   adminPorts: () => api.get('/admin/ferry/ports'),
   adminCompanies: () => api.get('/admin/ferry/companies'),
+  updateCompany: (id, d) => api.put(`/admin/ferry/companies/${id}`, d),
+  adminConfig: () => api.get('/admin/ferry/config'),
+  updateConfig: (d) => api.put('/admin/ferry/config', d),
+  adminRevenue: (params) => api.get('/admin/ferry/revenue', { params }),
   adminBookings: () => api.get('/admin/ferry/bookings'),
+  settleBooking: (id) => api.post(`/admin/ferry/bookings/${id}/settle`),
 };
 
 export const newsAPI = {
