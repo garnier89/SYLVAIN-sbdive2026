@@ -1,3 +1,18 @@
+## NEW - 2026-06-13 (349b) - 🛡️ Centre Qualité & Sécurité « Santé du code » — 4 modules (DONE, testé)
+- **Demande user** : étendre le dashboard « Santé du code » → (1) couverture réelle pytest --cov on-demand, (2) bouton correction = rapport seulement (2a), (3) anti-corruption + anti-duplication + scripts suspects, (4) garde anti-surfacturation Google Maps. Ordre validé : 1 → 4a → 3 → 2a.
+- **Backend** `core/code_audit.py` (moteur statique read-only) + 5 endpoints dans `routes/code_health.py` (admin-only) :
+  - `GET /security` → **intégrité** (compile AST de chaque .py → corruption ; sha256 + dérive vs baseline), **duplication** (fenêtre glissante 6 lignes signif. → clusters de clones, ratio), **suspects** (eval/exec/os.system/shell=True, secrets en dur — regex durcie « valeur sans espaces » pour éviter les libellés i18n).
+  - `POST /integrity/baseline` → snapshot des hash (détection de modifs inattendues).
+  - `GET /maps-guard` → **audit coûts Google Maps** : loaders JS, appels REST facturés par type (Geocoding/Directions/DistanceMatrix/Places/StaticMaps avec file:line), risque « appel Maps dans fichier à setInterval » (boucle de fond facturée), loader à clé en dur hors `GMAPS_LOADER_OPTIONS` (=double facturation). Statut ok/warn/danger.
+  - `GET /coverage` + `POST /coverage/run` → **couverture RÉELLE** pytest --cov en tâche de fond. **Découverte clé** : la suite complète (234 fichiers) est e2e/réseau (>10 min, 95% d'attente I/O) + conflits asyncio inter-fichiers → non viable. Solution : ne cibler que les **tests unitaires** (45 fichiers, exclusion auto de ceux faisant du réseau via regex `requests`/`REACT_APP_BACKEND_URL`/`httpx`) avec `--timeout=15 --timeout-method=signal`. Résultat **22,7% réel** (5985/26393 lignes) en **~20s**. Garde anti-orphelin : un run « running » périmé (reload serveur) bascule en `stale`.
+- **Frontend** `pages/admin/AdminCodeHealth.js` (réécrit en 4 onglets) : Métriques · Couverture réelle (bouton « Lancer l'analyse » + polling + % réel vs proxy) · Sécurité & Intégrité (KPIs + corruption + duplication + suspects + bouton baseline) · Garde Google Maps (statut + risques coût + appels REST). `adminAPI.codeSecurity/codeMapsGuard/codeCoverage/codeCoverageRun/codeSetBaseline`.
+- **Note 2a** : « correction du code » livrée en **rapport seulement** (onglet Sécurité). 2b (auto-fix sûr ruff/black avec aperçu) et 4b (moniteur runtime Maps) = phase 2 si souhaité.
+- **Déps** : pytest-cov 7.1.0, coverage 7.14.1, pytest-timeout 2.4.0 (ajoutées à requirements.txt).
+- **Testé** : pytest `test_iter349b_code_audit.py` 5/5 + curl e2e (security/maps/coverage run done 22,7% 127✅/72❌ en 20,7s) + screenshot 4 onglets rendus (Maps : 12 fichiers, 10 loaders, 6 REST, 2 risques medium). ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-13 (349) - 📊 Tableau de bord admin « Santé du code » (DONE, testé)
 - **Demande user** : visualiser la dette technique au fil du découpage de `rides.py` (lignes par module, couverture).
 - **Backend** : `routes/code_health.py` — `GET /api/admin/code-health` (admin-only via `get_current_user` + check role). Scan filesystem read-only du tree backend : KPIs (fichiers .py, lignes, endpoints, fonctions, fichiers de tests, nb tests, fichiers >400/>800 lignes), lignes par dossier, top 25 plus gros fichiers (niveaux ok/warn/danger seuils 400/800), **proxy de couverture statique** (un module routes/core est « testé » si son nom dotté est référencé dans un fichier de tests). Aucune exécution pytest (option A choisie).

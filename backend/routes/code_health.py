@@ -148,3 +148,50 @@ async def code_health(request: Request):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
     return _build_report()
+
+
+async def _require_admin(request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    return user
+
+
+@router.get("/security")
+async def code_security(request: Request):
+    """Integrity (AST corruption + baseline drift), duplication, suspicious patterns."""
+    await _require_admin(request)
+    from core.code_audit import scan_security
+    return await scan_security()
+
+
+@router.post("/integrity/baseline")
+async def set_baseline(request: Request):
+    """Snapshot current file hashes as the integrity baseline for drift detection."""
+    await _require_admin(request)
+    from core.code_audit import set_integrity_baseline
+    return await set_integrity_baseline()
+
+
+@router.get("/maps-guard")
+async def maps_guard(request: Request):
+    """Google Maps usage audit — loaders, billable REST calls, polling-in-interval."""
+    await _require_admin(request)
+    from core.code_audit import scan_maps_guard
+    return scan_maps_guard()
+
+
+@router.get("/coverage")
+async def coverage_status(request: Request):
+    """Last real pytest --cov run result."""
+    await _require_admin(request)
+    from core.code_audit import get_coverage_run
+    return await get_coverage_run()
+
+
+@router.post("/coverage/run")
+async def coverage_run(request: Request):
+    """Kick off a real pytest --cov analysis in the background."""
+    await _require_admin(request)
+    from core.code_audit import start_coverage_run
+    return await start_coverage_run()
