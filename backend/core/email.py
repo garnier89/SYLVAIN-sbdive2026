@@ -853,3 +853,35 @@ async def send_flight_confirmation(to: str, name: str, booking: dict, pdf_bytes:
     html = _shell("Vol confirmé ✈️", accent, body)
     attachments = [{"filename": f"eticket-{pnr}.pdf", "content": pdf_bytes}] if pdf_bytes else []
     await _send_with_attachments(to, f"✈️ Vol confirmé · PNR {pnr} — SB Travel", html, attachments)
+
+
+
+# ── Booking / debt transactional emails (NO phone numbers disclosed) ────────
+async def send_booking_confirmation(to: str, *, ref: str, when: str, pickup: str, dropoff: str):
+    body = f"""
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;margin:0 0 12px;">
+          Votre r&eacute;servation <strong>#{ref}</strong> est confirm&eacute;e.</p>
+        <table style="width:100%;font-size:14px;color:#2b3040;border-collapse:collapse;">
+          <tr><td style="padding:6px 0;color:#9aa0ac;">Quand</td><td style="padding:6px 0;text-align:right;font-weight:600;">{when}</td></tr>
+          <tr><td style="padding:6px 0;color:#9aa0ac;">D&eacute;part</td><td style="padding:6px 0;text-align:right;">{pickup}</td></tr>
+          <tr><td style="padding:6px 0;color:#9aa0ac;">Arriv&eacute;e</td><td style="padding:6px 0;text-align:right;">{dropoff}</td></tr>
+        </table>
+        <p style="color:#9aa0ac;font-size:12px;margin-top:16px;">Vous recevrez une notification d&egrave;s qu'un chauffeur accepte. La mise en relation se fait dans l'application.</p>"""
+    await _send(to, f"✅ R&eacute;servation confirm&eacute;e · #{ref}", _shell("Réservation confirmée ✅", "#16a34a", body))
+
+
+async def send_driver_accepted(to: str, *, ref: str, driver_name: str, when: str):
+    body = f"""
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;margin:0 0 12px;">
+          Bonne nouvelle ! <strong>{driver_name}</strong> a accept&eacute; votre r&eacute;servation <strong>#{ref}</strong>.</p>
+        <p style="color:#2b3040;font-size:14px;">Pr&eacute;vue : <strong>{when}</strong></p>
+        <p style="color:#9aa0ac;font-size:12px;margin-top:16px;">Contactez votre chauffeur directement depuis l'application (appel et messagerie s&eacute;curis&eacute;s, sans partage de num&eacute;ro).</p>"""
+    await _send(to, f"🚗 Chauffeur confirm&eacute; · #{ref}", _shell("Chauffeur confirmé 🚗", "#2563eb", body))
+
+
+async def send_debt_reminder(to: str, *, name: str, total: float, days: int):
+    body = f"""
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;margin:0 0 12px;">Bonjour {name},</p>
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;">Vous avez un solde d&ucirc; de <strong>{total:.2f} &euro;</strong> depuis plus de {days} jours.</p>
+        <p style="color:#2b3040;font-size:14px;">Merci de le r&eacute;gler depuis votre portefeuille pour continuer &agrave; r&eacute;server.</p>"""
+    await _send(to, f"💶 Solde d&ucirc; &agrave; r&eacute;gler · {total:.2f} €", _shell("Solde dû à régler 💶", "#e11d48", body))

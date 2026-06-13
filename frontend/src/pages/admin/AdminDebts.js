@@ -1,24 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   HandCoins, Users, Receipt, ArrowClockwise, CurrencyEur, BellRinging,
-  XCircle, Wallet, CheckCircle, X,
+  XCircle, Wallet, CheckCircle, X, GearSix,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { adminAPI } from '../../services/api';
+import DateRangePicker from '../../components/admin/DateRangePicker';
 
 const money = (n) => `${Number(n || 0).toFixed(2)} €`;
-const PRESETS = [
-  { key: 'all', label: 'Tout' },
-  { key: '7d', label: '7 jours' },
-  { key: '30d', label: '30 jours' },
-  { key: '90d', label: '90 jours' },
-];
 const isoDay = (d) => d.toISOString().slice(0, 10);
-const rangeFor = (p) => {
-  if (p === 'all') return {};
-  const days = { '7d': 7, '30d': 30, '90d': 90 }[p] || 30;
-  return { date_from: isoDay(new Date(Date.now() - days * 86400000)), date_to: isoDay(new Date()) };
-};
+const initialRange = () => ({
+  date_from: isoDay(new Date(Date.now() - 30 * 86400000)),
+  date_to: isoDay(new Date()),
+});
 
 const KpiCard = ({ icon: Icon, label, value, accent, testid }) => (
   <div className="bg-white rounded-2xl border border-gray-100 p-4" data-testid={testid}>
@@ -101,17 +95,54 @@ const DetailModal = ({ uid, onClose, onChanged }) => {
   );
 };
 
+const PolicyCard = () => {
+  const [pol, setPol] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { adminAPI.debtPolicyGet().then((r) => setPol(r.data)); }, []);
+  const save = () => {
+    setSaving(true);
+    adminAPI.debtPolicySet(pol).then(() => toast.success('Politique enregistrée')).catch(() => toast.error('Échec')).finally(() => setSaving(false));
+  };
+  if (!pol) return null;
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6" data-testid="debt-policy-card">
+      <div className="flex items-center gap-2 mb-3">
+        <GearSix size={18} className="text-gray-500" weight="fill" />
+        <h2 className="text-sm font-bold text-gray-700">Automatisation des relances &amp; blocage</h2>
+      </div>
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input type="checkbox" checked={pol.enabled} onChange={(e) => setPol({ ...pol, enabled: e.target.checked })} data-testid="policy-enabled" className="w-4 h-4 accent-rose-600" />
+          Actif
+        </label>
+        <div>
+          <p className="text-xs text-gray-400 mb-1">Relance après (jours)</p>
+          <input type="number" min="0" value={pol.reminder_days} onChange={(e) => setPol({ ...pol, reminder_days: Number(e.target.value) })} data-testid="policy-reminder-days" className="w-24 px-2 py-1.5 rounded-lg border border-gray-200 text-sm" />
+        </div>
+        <div>
+          <p className="text-xs text-gray-400 mb-1">Blocage réservation après (jours)</p>
+          <input type="number" min="0" value={pol.block_days} onChange={(e) => setPol({ ...pol, block_days: Number(e.target.value) })} data-testid="policy-block-days" className="w-24 px-2 py-1.5 rounded-lg border border-gray-200 text-sm" />
+        </div>
+        <button onClick={save} disabled={saving} data-testid="policy-save" className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50">
+          {saving ? '…' : 'Enregistrer'}
+        </button>
+      </div>
+      <p className="text-[11px] text-gray-400 mt-2">Relance auto (notif + e-mail) dès qu'une dette dépasse X jours · nouvelle réservation bloquée tant qu'un solde dû dépasse Y jours.</p>
+    </div>
+  );
+};
+
 const AdminDebts = () => {
-  const [preset, setPreset] = useState('30d');
+  const [range, setRange] = useState(initialRange);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openUid, setOpenUid] = useState(null);
 
-  const load = useCallback((p) => {
+  const load = useCallback((r) => {
     setLoading(true);
-    adminAPI.debtsOverview(rangeFor(p)).then((r) => setData(r.data)).catch(() => toast.error('Chargement impossible')).finally(() => setLoading(false));
+    adminAPI.debtsOverview(r).then((res) => setData(res.data)).catch(() => toast.error('Chargement impossible')).finally(() => setLoading(false));
   }, []);
-  useEffect(() => { load(preset); }, [preset, load]);
+  useEffect(() => { load(range); }, [range, load]);
 
   const k = data?.kpis || {};
   return (
@@ -126,19 +157,16 @@ const AdminDebts = () => {
             <p className="text-sm text-gray-500">Soldes dus (annulations &amp; courses impayées) · recouvrement &amp; gestion</p>
           </div>
         </div>
-        <button onClick={() => load(preset)} data-testid="debts-refresh" className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
+        <button onClick={() => load(range)} data-testid="debts-refresh" className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
           <ArrowClockwise size={18} />
         </button>
       </div>
 
       <div className="flex gap-2 mb-5">
-        {PRESETS.map((p) => (
-          <button key={p.key} onClick={() => setPreset(p.key)} data-testid={`debts-preset-${p.key}`}
-            className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${preset === p.key ? 'bg-rose-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            {p.label}
-          </button>
-        ))}
+        <DateRangePicker value={range} onChange={setRange} accent="rose" testid="debts-range" />
       </div>
+
+      <PolicyCard />
 
       {loading ? (
         <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-rose-200 border-t-rose-500 rounded-full animate-spin" /></div>
@@ -195,7 +223,7 @@ const AdminDebts = () => {
         </>
       )}
 
-      {openUid && <DetailModal uid={openUid} onClose={() => setOpenUid(null)} onChanged={() => load(preset)} />}
+      {openUid && <DetailModal uid={openUid} onClose={() => setOpenUid(null)} onChanged={() => load(range)} />}
     </div>
   );
 };

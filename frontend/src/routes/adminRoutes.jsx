@@ -7,6 +7,7 @@ import AdminCarpoolRevenue from '../pages/admin/AdminCarpoolRevenue';
 import AdminCodeHealth from '../pages/admin/AdminCodeHealth';
 import AdminDebts from '../pages/admin/AdminDebts';
 import AdminDriverActivity from '../pages/admin/AdminDriverActivity';
+import AdminTripTimings from '../pages/admin/AdminTripTimings';
 import {
   AdminLayout, AdminDashboard, AdminUsers, AdminUserEdit, AdminDrivers, AdminRides,
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
@@ -129,6 +130,7 @@ export function adminRoutes() {
       <Route path="code-health" element={<AdminCodeHealth />} />
       <Route path="debts" element={<AdminDebts />} />
       <Route path="driver-activity" element={<AdminDriverActivity />} />
+      <Route path="trip-timings" element={<AdminTripTimings />} />
       <Route path="taxi-recruitment" element={<AdminTaxiRecruitment />} />
       <Route path="ride-search-config" element={<AdminServiceConfig serviceKey="ride_search" />} />
       <Route path="taxi-booking-config" element={<AdminServiceConfig serviceKey="taxi_booking" />} />

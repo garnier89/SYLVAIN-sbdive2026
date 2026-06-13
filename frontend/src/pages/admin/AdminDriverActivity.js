@@ -5,22 +5,18 @@ import {
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { adminAPI } from '../../services/api';
+import DateRangePicker from '../../components/admin/DateRangePicker';
 
 const money = (n) => `${Number(n || 0).toFixed(2)} €`;
 const hm = (min) => {
   const m = Math.round(Number(min || 0));
   return m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m}min`;
 };
-const PRESETS = [
-  { key: '7d', label: '7 jours' },
-  { key: '30d', label: '30 jours' },
-  { key: '90d', label: '90 jours' },
-];
 const isoDay = (d) => d.toISOString().slice(0, 10);
-const rangeFor = (p) => {
-  const days = { '7d': 7, '30d': 30, '90d': 90 }[p] || 30;
-  return { date_from: isoDay(new Date(Date.now() - days * 86400000)), date_to: isoDay(new Date()) };
-};
+const initialRange = () => ({
+  date_from: isoDay(new Date(Date.now() - 30 * 86400000)),
+  date_to: isoDay(new Date()),
+});
 
 const KpiCard = ({ icon: Icon, label, value, accent, testid }) => (
   <div className="bg-white rounded-2xl border border-gray-100 p-4" data-testid={testid}>
@@ -40,16 +36,16 @@ const COLS = [
 ];
 
 const AdminDriverActivity = () => {
-  const [preset, setPreset] = useState('30d');
+  const [range, setRange] = useState(initialRange);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
 
-  const load = useCallback((p) => {
+  const load = useCallback((r) => {
     setLoading(true);
-    adminAPI.driverActivity(rangeFor(p)).then((r) => setData(r.data)).catch(() => toast.error('Chargement impossible')).finally(() => setLoading(false));
+    adminAPI.driverActivity(r).then((res) => setData(res.data)).catch(() => toast.error('Chargement impossible')).finally(() => setLoading(false));
   }, []);
-  useEffect(() => { load(preset); }, [preset, load]);
+  useEffect(() => { load(range); }, [range, load]);
 
   const rows = (data?.drivers || []).filter((d) =>
     !q || d.name.toLowerCase().includes(q.toLowerCase()) || (d.phone || '').includes(q));
@@ -62,7 +58,7 @@ const AdminDriverActivity = () => {
     const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `activite-chauffeurs-${preset}.csv`;
+    a.download = `activite-chauffeurs-${range.date_from}_${range.date_to}.csv`;
     a.click();
   };
 
@@ -82,19 +78,14 @@ const AdminDriverActivity = () => {
           <button onClick={exportCsv} data-testid="activity-export" className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700">
             <DownloadSimple size={16} weight="bold" /> CSV
           </button>
-          <button onClick={() => load(preset)} data-testid="activity-refresh" className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
+          <button onClick={() => load(range)} data-testid="activity-refresh" className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
             <ArrowClockwise size={18} />
           </button>
         </div>
       </div>
 
       <div className="flex items-center gap-2 mb-5 flex-wrap">
-        {PRESETS.map((p) => (
-          <button key={p.key} onClick={() => setPreset(p.key)} data-testid={`activity-preset-${p.key}`}
-            className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${preset === p.key ? 'bg-sky-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            {p.label}
-          </button>
-        ))}
+        <DateRangePicker value={range} onChange={setRange} accent="sky" testid="activity-range" />
         <div className="relative ml-auto">
           <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={q} onChange={(e) => setQ(e.target.value)} data-testid="activity-search" placeholder="Rechercher un chauffeur…"

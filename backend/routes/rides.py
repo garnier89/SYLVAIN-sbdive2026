@@ -318,6 +318,10 @@ async def create_ride(data: RideRequest, request: Request):
     from routes.moderation import check_passenger_ban
     await check_passenger_ban(user["id"])
 
+    # Block new bookings while an old unpaid debt is unsettled (admin policy).
+    from routes.debts import check_debt_block
+    await check_debt_block(user["id"])
+
     # ── Service availability (admin can disable a Taxi mode / set a schedule without redeploy) ──
     mode_id = getattr(data, "mode_id", None)
     if mode_id:
@@ -772,6 +776,30 @@ async def create_ride(data: RideRequest, request: Request):
                 ride["deposit_status"] = "held"
 
     await db.rides.insert_one(ride)
+
+    # ── Scheduled booking → confirmation (notif + email). No phone disclosed. ──
+    if ride.get("scheduled_at"):
+        try:
+            from core.notifications import create_notification
+            from core.email import send_booking_confirmation
+            ref = ride["id"][:8].upper()
+            try:
+                _sd = datetime.fromisoformat(str(ride["scheduled_at"]).replace("Z", "+00:00"))
+                when = _sd.strftime("%d/%m/%Y à %H:%M")
+            except (ValueError, TypeError):
+                when = str(ride.get("scheduled_at"))
+            await create_notification(
+                user["id"], "ride", "Réservation confirmée ✅",
+                f"Votre réservation #{ref} pour le {when} est confirmée. "
+                f"Vous serez notifié dès qu'un chauffeur accepte.",
+                data={"ride_id": ride["id"], "kind": "booking_confirmed", "url": f"/ride/{ride['id']}"})
+            if user.get("email"):
+                await send_booking_confirmation(
+                    user["email"], ref=ref, when=when,
+                    pickup=ride.get("pickup_address") or "—",
+                    dropoff=ride.get("dropoff_address") or "—")
+        except Exception:
+            pass
 
     # Record the granted SB Student discount for daily/monthly cap tracking.
     if student_discount_amount > 0:
@@ -1578,6 +1606,28 @@ async def accept_ride(ride_id: str, request: Request):
         )
     except Exception:
         pass
+
+    # ===== Scheduled reservation accepted → confirm the client (notif + email) =====
+    if ride.get("scheduled_at") and ride.get("user_id"):
+        try:
+            from core.notifications import create_notification
+            from core.email import send_driver_accepted
+            ref = ride_id[:8].upper()
+            dname = accept_fields.get("driver_name") or "Votre chauffeur"
+            try:
+                _sd = datetime.fromisoformat(str(ride["scheduled_at"]).replace("Z", "+00:00"))
+                when = _sd.strftime("%d/%m/%Y à %H:%M")
+            except (ValueError, TypeError):
+                when = str(ride.get("scheduled_at"))
+            await create_notification(
+                ride["user_id"], "ride", "Chauffeur confirmé 🚗",
+                f"{dname} a accepté votre réservation #{ref} prévue le {when}.",
+                data={"ride_id": ride_id, "kind": "reservation_accepted", "url": f"/ride/{ride_id}"})
+            cu = await db.users.find_one({"id": ride["user_id"]}, {"_id": 0, "email": 1})
+            if cu and cu.get("email"):
+                await send_driver_accepted(cu["email"], ref=ref, driver_name=dname, when=when)
+        except Exception:
+            pass
 
     # ===== POINTS: award for accepted ride =====
     from routes.drivers import _get_rewards_points_config, _ensure_driver_stats, _recompute_rates

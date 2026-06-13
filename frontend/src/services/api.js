@@ -306,6 +306,10 @@ export const adminAPI = {
   debtsRemind: (uid) => api.post(`/admin/debts/user/${uid}/remind`),
   // Rapport activité chauffeur
   driverActivity: (params) => api.get('/admin/driver-activity', { params }),
+  // Politique dettes + timing trajets
+  debtPolicyGet: () => api.get('/admin/debts/policy'),
+  debtPolicySet: (body) => api.put('/admin/debts/policy', body),
+  tripTimings: (params) => api.get('/admin/trip-timings', { params }),
   codeHealth: () => api.get('/admin/code-health'),
   codeSecurity: () => api.get('/admin/code-health/security'),
   codeMapsGuard: () => api.get('/admin/code-health/maps-guard'),

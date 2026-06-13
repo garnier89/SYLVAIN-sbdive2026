@@ -17,6 +17,24 @@ from routes.audit_logs import log_action
 router = APIRouter(prefix="/admin/debts", tags=["admin-debts"])
 
 
+@router.get("/policy")
+async def get_policy(request: Request):
+    await require_role(request, ["admin"])
+    from routes.debts import get_debt_policy
+    return await get_debt_policy()
+
+
+@router.put("/policy")
+async def update_policy(request: Request, body: dict):
+    admin = await require_role(request, ["admin"])
+    from routes.debts import set_debt_policy
+    saved = await set_debt_policy(body)
+    await log_action(actor_id=admin["id"], actor_role=admin.get("role", "admin"),
+                     action="debt_policy_update", target_type="config", target_id="debt_policy",
+                     payload_after=saved)
+    return saved
+
+
 def _now():
     return datetime.now(timezone.utc).isoformat()
 

@@ -343,3 +343,100 @@ async def pay_debts(request: Request):
     )
     new_bal = round(bal - total, 2)
     return {"message": "Dette réglée", "paid": True, "total": total, "balance": new_bal}
+
+
+
+# ── Debt policy: auto-reminder + booking block (admin-configurable) ─────────
+import asyncio
+import logging
+from datetime import timedelta
+
+_debt_logger = logging.getLogger("debts")
+DEBT_POLICY_DEFAULTS = {"enabled": True, "reminder_days": 3, "block_days": 7}
+
+
+async def get_debt_policy() -> dict:
+    doc = await db.service_configs.find_one({"service_key": "debt_policy"}, {"_id": 0})
+    s = (doc or {}).get("settings") or {}
+    return {**DEBT_POLICY_DEFAULTS, **s}
+
+
+async def set_debt_policy(settings: dict) -> dict:
+    clean = {
+        "enabled": bool(settings.get("enabled", True)),
+        "reminder_days": max(0, int(settings.get("reminder_days", 3) or 0)),
+        "block_days": max(0, int(settings.get("block_days", 7) or 0)),
+    }
+    await db.service_configs.update_one(
+        {"service_key": "debt_policy"},
+        {"$set": {"service_key": "debt_policy", "settings": clean, "updated_at": _now()}},
+        upsert=True,
+    )
+    return clean
+
+
+async def check_debt_block(user_id: str):
+    """Raise 403 if the passenger has an unpaid debt older than `block_days`.
+    Enforced at booking time so a balance can't be dodged off-platform."""
+    pol = await get_debt_policy()
+    if not pol.get("enabled") or pol.get("block_days", 0) <= 0:
+        return
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=pol["block_days"])).isoformat()
+    old = await db.cancellation_debts.find_one(
+        {"user_id": user_id, "paid": False, "created_at": {"$lte": cutoff}}, {"_id": 0, "id": 1})
+    if old:
+        total = await get_unpaid_debt_total(user_id)
+        raise HTTPException(
+            status_code=403,
+            detail=f"Réservation bloquée : vous avez {total:.2f} € de solde dû depuis plus de "
+                   f"{pol['block_days']} jours. Réglez-le depuis votre portefeuille pour continuer.")
+
+
+async def _send_debt_reminder(user_id: str, total: float, days: int):
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
+    if not u:
+        return
+    from core.notifications import create_notification
+    await create_notification(
+        user_id, "debt", "Solde dû à régler 💶",
+        f"Vous avez {total:.2f} € de solde dû depuis plus de {days} jours. "
+        f"Réglez-le depuis votre portefeuille pour continuer à réserver.",
+        data={"amount": total, "action": "pay_debt", "url": "/wallet?action=debt"})
+    if u.get("email"):
+        try:
+            from core.email import send_debt_reminder
+            await send_debt_reminder(u["email"], name=u.get("name") or "", total=total, days=days)
+        except Exception:
+            pass
+
+
+async def debt_reminder_loop():
+    """Hourly: remind passengers whose unpaid debt is older than `reminder_days`,
+    at most once per 24h (stamped on their debts)."""
+    while True:
+        try:
+            pol = await get_debt_policy()
+            if pol.get("enabled") and pol.get("reminder_days", 0) >= 0:
+                now = datetime.now(timezone.utc)
+                cutoff = (now - timedelta(days=pol["reminder_days"])).isoformat()
+                remind_after = (now - timedelta(hours=24)).isoformat()
+                pipeline = [
+                    {"$match": {"paid": False, "created_at": {"$lte": cutoff},
+                                "$or": [{"last_reminded_at": {"$exists": False}},
+                                        {"last_reminded_at": None},
+                                        {"last_reminded_at": {"$lte": remind_after}}]}},
+                    {"$group": {"_id": "$user_id", "total": {"$sum": "$amount"}}},
+                    {"$limit": 500},
+                ]
+                groups = await db.cancellation_debts.aggregate(pipeline).to_list(500)
+                for g in groups:
+                    uid = g["_id"]
+                    await _send_debt_reminder(uid, round(g["total"], 2), pol["reminder_days"])
+                    await db.cancellation_debts.update_many(
+                        {"user_id": uid, "paid": False},
+                        {"$set": {"last_reminded_at": now.isoformat()}})
+                if groups:
+                    _debt_logger.info("Debt reminders sent to %d passengers", len(groups))
+        except Exception as e:
+            _debt_logger.error("debt_reminder_loop error: %s", e)
+        await asyncio.sleep(3600)

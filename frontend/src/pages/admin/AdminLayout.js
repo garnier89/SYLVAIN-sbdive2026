@@ -161,6 +161,7 @@ const sidebarConfig = [
         { label: 'Rapport des versements', path: '/admin/payout' },
         { label: 'Versements', path: '/admin/settlements' },
         { label: 'Activité des chauffeurs', path: '/admin/driver-activity' },
+        { label: 'Timing des trajets', path: '/admin/trip-timings' },
       ]},
       { icon: EnvelopeSimple, label: 'Rapports hebdomadaires', path: '/admin/weekly-reports' },
       { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-methods' },
