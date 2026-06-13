@@ -173,6 +173,8 @@ async def create_booking(request: Request):
     departure_time = (body.get("departure_time") or "").strip()
     if not travel_date or not departure_time:
         raise HTTPException(status_code=400, detail="Date et horaire requis")
+    if travel_date < datetime.now(timezone.utc).date().isoformat():
+        raise HTTPException(status_code=400, detail="La date de voyage est déjà passée")
     if departure_time not in (route.get("departure_times") or []):
         raise HTTPException(status_code=400, detail="Horaire indisponible")
 
