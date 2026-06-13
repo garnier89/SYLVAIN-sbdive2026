@@ -1,3 +1,13 @@
+## NEW - 2026-06-13 (349) - 📊 Tableau de bord admin « Santé du code » (DONE, testé)
+- **Demande user** : visualiser la dette technique au fil du découpage de `rides.py` (lignes par module, couverture).
+- **Backend** : `routes/code_health.py` — `GET /api/admin/code-health` (admin-only via `get_current_user` + check role). Scan filesystem read-only du tree backend : KPIs (fichiers .py, lignes, endpoints, fonctions, fichiers de tests, nb tests, fichiers >400/>800 lignes), lignes par dossier, top 25 plus gros fichiers (niveaux ok/warn/danger seuils 400/800), **proxy de couverture statique** (un module routes/core est « testé » si son nom dotté est référencé dans un fichier de tests). Aucune exécution pytest (option A choisie).
+- **Frontend** : `pages/admin/AdminCodeHealth.js` (route `/admin/code-health`, sidebar CONFIGURATION > « Santé du code », icône Code). KPIs, barres lignes/dossier, jauge couverture colorée + chips modules non testés, barres top fichiers colorées par niveau. `adminAPI.codeHealth`.
+- **Mesures actuelles** : 139 fichiers / 48 998 lignes / 1 158 endpoints / 2 035 fn ; 236 fichiers de tests / 1 567 tests ; **13 fichiers >800 lignes** ; couverture proxy **30,5 %** (39/128). Top dette : `rides.py` 3222, `admin.py` 2107, `phase2.py` 1464, `sb_access.py` 1381.
+- **Testé** : curl admin (KPIs + coverage OK), gating 401 anonyme, screenshot page rendue complète. ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-13 (348) - ♻️ Refactor rides.py Phase 2 : extraction cancel_policy + rental_meter (DONE, testé)
 - **Demande user** : poursuivre le découpage de `rides.py` (Phase 2 uniquement).
 - **Extraction** : `_cancel_policy` + `_compute_cancel_fee` → **`core/cancel_policy.py`** (autonome, dépend de `db`) ; `_compute_rental_meter` → **`core/rental_meter.py`** (fonction pure, stdlib). `rides.py` les ré-importe (ré-exportés → tests/imports internes intacts).

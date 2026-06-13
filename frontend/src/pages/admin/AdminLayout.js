@@ -9,7 +9,7 @@ import {
   Ticket, Gift, ShareNetwork, Image, Newspaper, EnvelopeSimple, Globe, GraduationCap,
   DeviceMobile, Slideshow, Translate, EnvelopeOpen, BellRinging, ChatCircleText, XCircle,
   Gear, MagnifyingGlass, CaretDown, CaretUp, List, Warning, FileText, Power, Clock,
-  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard, Wheelchair, AirplaneTilt, Suitcase
+  Bed, SealCheck, Binoculars, Trophy, Wallet, HandCoins, Shield, Briefcase, SlidersHorizontal, Bus, Headset, Broadcast, IdentificationCard, Wheelchair, AirplaneTilt, Suitcase, Code
 } from '@phosphor-icons/react';
 
 // Dashboard organisé en grandes familles : Pilotage, Membres, Services,
@@ -252,6 +252,7 @@ const sidebarConfig = [
       { icon: Buildings, label: 'Organisations (multi-tenant)', path: '/admin/organizations' },
       { icon: Translate, label: 'Traductions i18n', path: '/admin/i18n' },
       { icon: FileText, label: 'Sauvegarde BDD', path: '/admin/db-backup' },
+      { icon: Code, label: 'Santé du code', path: '/admin/code-health' },
     ]
   },
 ];

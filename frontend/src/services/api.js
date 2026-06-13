@@ -298,6 +298,7 @@ export const adminAPI = {
   deleteMerchant: (id) => api.delete(`/admin/merchants/${id}`),
   importMerchants: (csv) => api.post('/admin/import/merchants', { csv }),
   getOnboarding: () => api.get('/admin/onboarding'),
+  codeHealth: () => api.get('/admin/code-health'),
   remindOnboarding: (data) => api.post('/admin/onboarding/remind', data),
   approveDriver: (id) => api.post(`/admin/drivers/${id}/approve`),
   rejectDriver: (id, reason) => api.post(`/admin/drivers/${id}/reject`, { reason }),
