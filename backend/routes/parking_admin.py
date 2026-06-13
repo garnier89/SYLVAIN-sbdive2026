@@ -30,12 +30,18 @@ def _clean(body: dict) -> dict:
         "lat": float(body.get("lat") or 0),
         "lng": float(body.get("lng") or 0),
         "price_per_hour": float(body.get("price_per_hour") or 0),
+        "price_per_hour_night": float(body.get("price_per_hour_night") or body.get("price_per_hour") or 0),
         "total_spots": int(body.get("total_spots") or 0),
         "available_spots": int(body.get("available_spots") or 0),
         "rating": float(body.get("rating") or 0),
         "features": feats if isinstance(feats, list) else [],
         "image_url": (body.get("image_url") or "").strip(),
         "active": bool(body.get("active", True)),
+        "open_24h": bool(body.get("open_24h", True)),
+        "open_time": (body.get("open_time") or "06:00").strip(),
+        "close_time": (body.get("close_time") or "23:00").strip(),
+        "night_start": (body.get("night_start") or "20:00").strip(),
+        "night_end": (body.get("night_end") or "06:00").strip(),
     }
     if "display_order" in body and body.get("display_order") is not None:
         out["display_order"] = int(body["display_order"])

@@ -1,0 +1,33 @@
+{
+  "summary": "Iter357 — Parking horaires + tarif jour/nuit + distance/tri + prix serveur + décrément availability. Backend pytest 6/6 PASS (public /spots distance+tri+is_open+backfill defaults; without geo no distance and no error; POST /parking/reservations price=9.0€ (4.5 day x 2h) + available_spots décrémenté 200->199 puis restauré 45; admin POST/PUT persiste price_per_hour_night/open_24h/open_time/close_time/night_start/night_end et PUT modifie; parking fermé window 00:00-00:01 -> 400 'fermé'; available_spots=0 -> 400 'Plus de place'). Frontend E2E PASS: admin login (email mode) -> /admin/parking renders, parking-add-btn ouvre modale, decoche parking-open24h fait APPARAÎTRE parking-open-time + parking-close-time (count 0->1), saisie des champs nuit/horaires, parking-save crée la carte, ré-édition recharge price-night=2.75, night-start=21:00, open-time=08:00, close-time=22:00, suppression nettoie. Client (compte créé via /api/auth/register) /parking se charge sans géoloc (4 cartes, 4 badges 'Ouvert'), clic spot -> parking-booking, plate AA-123-QA, duration-2, confirm label='Réserver - 9.00€', clic -> parking-success affiché. Reservation prix serveur reflété dans l'UI.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter357_parking_e2e.py",
+    "/app/test_reports/pytest/iter357_parking.xml",
+    "/app/backend/tests/test_iter356_parking_pricing.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "compute_parking_price() est correctement autoritative côté serveur — le client envoie total_price=999.99, l'API renvoie 9.0€ basé sur price_per_hour=4.5 x 2h en journée (test_reservation_price_is_server_side_and_decrements_availability).",
+    "Décrément concurrent-safe: update_one({available_spots: {$gt: 0}}, $inc: -1) garantit qu'on ne descend pas sous 0; à associer idéalement à une transaction si plusieurs requêtes simultanées et un compteur dynamique réservé/relâché à l'expiration.",
+    "_apply_defaults backfill correctement les anciennes places sans price_per_hour_night/open_24h (vérifié sur park_1..park_4 demo).",
+    "Sur /parking client, hourlyNow() est une estimation locale uniquement pour l'affichage; le prix réel est recalculé par /parking/reservations -> aucune fraude possible.",
+    "Géolocalisation côté client gérée proprement avec timeout 5s + onError -> fallback fetchSpots() sans paramètres; aucune exception dans la console headless (le badge Ouvert/Fermé + le tri par distance restent fonctionnels sur le path no-geo, simplement sans distance_km affichée).",
+    "Réservation ne libère PAS automatiquement la place à la fin (pas de scheduler/cron observé qui décrémente la durée pour ré-incrémenter available_spots). Suggestion: en finir avec un job périodique qui ré-incrémente available_spots quand end_time <= now. À considérer pour une future itération."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter357_parking_e2e.py (new — 6 HTTP tests couvrant horaires, tarif nuit, prix serveur, décrément, fermé/plein, CRUD admin)"
+  ],
+  "success_rate": {"backend": "100% (6/6 new HTTP + 6/6 iter356 helpers + 4/4 iter355 admin CRUD)", "frontend": "100% (admin modale horaires+nuit OK + reload OK + client booking succès avec prix 9.00€)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! OK; client de test créé via /api/auth/register au runtime (qa_pk_ui_*@test.com / AccessQA123!).",
+  "seed_data_creation": "Une carte 'TEST_QA_E2E_*' créée puis supprimée via l'UI admin (symétrique). Spots admin 'TEST_iter357_*' créés/supprimés par les fixtures du backend test. park_1.available_spots restauré à 45 (valeur demo) après tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public URL: https://gojek-clone-41.preview.emergentagent.com. Run: pytest backend/tests/test_iter357_parking_e2e.py -v (~1.8s, 6 pass). Login form: la page /login démarre en mode TÉLÉPHONE — cliquer 'Continuer avec l'e-mail' avant de remplir email+password, puis bouton 'Se connecter'. Admin /admin/parking testids: parking-add-btn, parking-modal, parking-open24h, parking-open-time, parking-close-time, parking-night-start, parking-night-end, parking-price, parking-price-night, parking-save, parking-edit-{id}, parking-delete-{id} (window.confirm). Client /parking testids: parking-page, spot-{id} (button), spot-open-{id} (badge Ouvert/Fermé), spot-distance-{id} (visible uniquement si geoloc), parking-booking, vehicle-plate, duration-{1,2,4,8,24}, confirm-parking-booking, parking-success, parking-book-error. /api/parking/spots accepte lat/lng optionnels et trie par distance croissante.",
+  "rca of the issue": "Aucun bug détecté. Toute la chaîne horaires/tarif nuit/distance/prix serveur/décrément/CRUD admin fonctionne de bout en bout. UI admin et UI client cohérentes avec le backend; le calcul du prix est verrouillé côté serveur même en cas de tentative de fraude par le client. Note: prévoir un job de libération automatique des places à end_time."
+}

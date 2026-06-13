@@ -13,15 +13,38 @@ const ParkingPage = () => {
   const [form, setForm] = useState({ vehicle_plate: '', duration_hours: 2, start_time: '' });
   const [loading, setLoading] = useState(true);
   const [bookingDone, setBookingDone] = useState(false);
+  const [bookErr, setBookErr] = useState('');
 
   useEffect(() => {
-    fetch(`${API}/api/parking/spots`, { credentials: 'include' })
-      .then(r => r.json()).then(d => { setSpots(d.spots || []); setLoading(false); })
-      .catch(() => setLoading(false));
+    const fetchSpots = (lat, lng) => {
+      const qs = (lat != null && lng != null) ? `?lat=${lat}&lng=${lng}` : '';
+      fetch(`${API}/api/parking/spots${qs}`, { credentials: 'include' })
+        .then(r => r.json()).then(d => { setSpots(d.spots || []); setLoading(false); })
+        .catch(() => setLoading(false));
+    };
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => fetchSpots(pos.coords.latitude, pos.coords.longitude),
+        () => fetchSpots(),
+        { timeout: 5000 }
+      );
+    } else {
+      fetchSpots();
+    }
   }, []);
+
+  // Tarif horaire nuit-conscient pour l'heure courante (estimation, le serveur fait foi).
+  const hourlyNow = (spot) => {
+    const h = new Date().getHours();
+    const ns = parseInt((spot.night_start || '20:00').split(':')[0], 10);
+    const ne = parseInt((spot.night_end || '06:00').split(':')[0], 10);
+    const isNight = ns < ne ? (h >= ns && h < ne) : (h >= ns || h < ne);
+    return isNight && spot.price_per_hour_night ? spot.price_per_hour_night : spot.price_per_hour;
+  };
 
   const handleBook = async () => {
     if (!selectedSpot) return;
+    setBookErr('');
     try {
       const now = new Date();
       const startTime = form.start_time || now.toISOString();
@@ -32,11 +55,12 @@ const ParkingPage = () => {
           spot_id: selectedSpot.id, spot_name: selectedSpot.name,
           vehicle_plate: form.vehicle_plate, start_time: startTime, end_time: endTime,
           duration_hours: form.duration_hours,
-          total_price: (selectedSpot.price_per_hour * form.duration_hours).toFixed(2)
         })
       });
-      if (res.ok) setBookingDone(true);
-    } catch (e) { console.error(e); }
+      if (res.ok) { setBookingDone(true); return; }
+      const d = await res.json().catch(() => ({}));
+      setBookErr(d.detail || 'Réservation impossible. Réessayez.');
+    } catch (e) { setBookErr('Erreur réseau. Réessayez.'); }
   };
 
   if (bookingDone) {
@@ -57,7 +81,9 @@ const ParkingPage = () => {
   }
 
   if (selectedSpot) {
-    const totalPrice = (selectedSpot.price_per_hour * form.duration_hours).toFixed(2);
+    const rate = hourlyNow(selectedSpot);
+    const totalPrice = (rate * form.duration_hours).toFixed(2);
+    const closed = selectedSpot.is_open === false;
     return (
       <div className="mobile-container min-h-screen bg-white" data-testid="parking-booking">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 z-10">
@@ -102,15 +128,18 @@ const ParkingPage = () => {
 
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{selectedSpot.price_per_hour}€/h x {form.duration_hours}h</span>
+              <span className="text-gray-500">{rate}€/h x {form.duration_hours}h{hourlyNow(selectedSpot) === selectedSpot.price_per_hour_night && selectedSpot.price_per_hour_night !== selectedSpot.price_per_hour ? ' (tarif nuit)' : ''}</span>
               <span className="font-bold text-gray-900">{money(Number(totalPrice))}</span>
             </div>
+            <p className="text-[10px] text-gray-400 mt-1">Montant final calculé selon les heures jour/nuit.</p>
           </div>
 
-          <button onClick={handleBook}
-            className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors"
+          {bookErr && <p className="text-sm text-red-500" data-testid="parking-book-error">{bookErr}</p>}
+
+          <button onClick={handleBook} disabled={closed}
+            className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50"
             data-testid="confirm-parking-booking">
-            Réserver - {totalPrice}€
+            {closed ? 'Parking fermé actuellement' : `Réserver - ${totalPrice}€`}
           </button>
         </div>
       </div>
@@ -148,6 +177,12 @@ const ParkingPage = () => {
               <div className="flex items-center gap-3 mt-2">
                 <span className="flex items-center gap-1 text-[10px]"><Star size={10} weight="fill" className="text-amber-400" />{spot.rating}</span>
                 <span className="text-[10px] text-green-600">{spot.available_spots}/{spot.total_spots} places</span>
+                {spot.distance_km != null && (
+                  <span className="text-[10px] text-gray-500 flex items-center gap-0.5" data-testid={`spot-distance-${spot.id}`}><MapPin size={10} />{spot.distance_km} km</span>
+                )}
+                <span className={`text-[10px] font-semibold ml-auto ${spot.is_open === false ? 'text-red-500' : 'text-emerald-600'}`} data-testid={`spot-open-${spot.id}`}>
+                  {spot.is_open === false ? 'Fermé' : 'Ouvert'}
+                </span>
               </div>
               <div className="flex flex-wrap gap-1 mt-2">
                 {spot.features?.slice(0, 3).map((f, i) => (

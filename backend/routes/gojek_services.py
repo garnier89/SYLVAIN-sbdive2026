@@ -4,7 +4,7 @@ Extracted from V3Cube SQL schema (beta24.sql) and Android source structure.
 """
 from fastapi import APIRouter, Request, HTTPException
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from core.config import db
@@ -242,48 +242,148 @@ async def seed_parking_spots():
     for i, s in enumerate(DEMO_PARKING_SPOTS):
         await db.parking_space.insert_one({
             **s, "active": True, "display_order": i,
+            "open_24h": True, "open_time": "06:00", "close_time": "23:00",
+            "price_per_hour_night": s["price_per_hour"],
+            "night_start": "20:00", "night_end": "06:00",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
 
 
+def _hm_to_min(hm: str, default: int) -> int:
+    try:
+        h, m = str(hm).split(":")
+        return int(h) * 60 + int(m)
+    except Exception:
+        return default
+
+
+def _is_night_hour(spot: dict, hour: int) -> bool:
+    """True if the given hour (0-23) falls within the night window of the spot."""
+    start = _hm_to_min(spot.get("night_start", "20:00"), 1200) // 60
+    end = _hm_to_min(spot.get("night_end", "06:00"), 360) // 60
+    if start == end:
+        return False
+    if start < end:           # e.g. 01:00 -> 06:00
+        return start <= hour < end
+    return hour >= start or hour < end   # overnight, e.g. 20:00 -> 06:00
+
+
+def _is_open_now(spot: dict) -> bool:
+    if spot.get("open_24h", True):
+        return True
+    now_min = datetime.now(timezone.utc).hour * 60 + datetime.now(timezone.utc).minute
+    o = _hm_to_min(spot.get("open_time", "06:00"), 360)
+    c = _hm_to_min(spot.get("close_time", "23:00"), 1380)
+    if o == c:
+        return True
+    if o < c:
+        return o <= now_min < c
+    return now_min >= o or now_min < c   # overnight opening
+
+
+def _apply_defaults(s: dict) -> dict:
+    """Backfill pricing/hours defaults for spots created before this feature."""
+    s.setdefault("open_24h", True)
+    s.setdefault("open_time", "06:00")
+    s.setdefault("close_time", "23:00")
+    s.setdefault("price_per_hour_night", s.get("price_per_hour", 0))
+    s.setdefault("night_start", "20:00")
+    s.setdefault("night_end", "06:00")
+    return s
+
+
+def compute_parking_price(spot: dict, start_iso: str, duration_hours: float) -> float:
+    """Hour-by-hour price using day/night rates (authoritative, server-side)."""
+    _apply_defaults(spot)
+    day = float(spot.get("price_per_hour", 0))
+    night = float(spot.get("price_per_hour_night", day))
+    try:
+        start = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
+    except Exception:
+        start = datetime.now(timezone.utc)
+    total = 0.0
+    full = int(duration_hours)
+    for i in range(full):
+        hour = (start + timedelta(hours=i)).hour
+        total += night if _is_night_hour(spot, hour) else day
+    frac = float(duration_hours) - full
+    if frac > 0:
+        hour = (start + timedelta(hours=full)).hour
+        total += (night if _is_night_hour(spot, hour) else day) * frac
+    return round(total, 2)
+
+
 @parking_router.get("/spots")
 async def list_parking_spots(lat: Optional[float] = None, lng: Optional[float] = None):
-    """Active parking spots (admin-managed). Falls back to demo list if not seeded."""
+    """Active parking spots (admin-managed), enriched with open status + distance.
+    When lat/lng are provided, results are sorted by proximity."""
     spots = await db.parking_space.find(
         {"active": {"$ne": False}}, {"_id": 0}).sort("display_order", 1).to_list(200)
     if not spots:
-        spots = DEMO_PARKING_SPOTS
+        spots = [dict(s) for s in DEMO_PARKING_SPOTS]
+    for s in spots:
+        _apply_defaults(s)
+        s["is_open"] = _is_open_now(s)
+        if lat is not None and lng is not None and s.get("lat"):
+            s["distance_km"] = round(calculate_distance(lat, lng, s["lat"], s["lng"]), 1)
+    if lat is not None and lng is not None:
+        spots.sort(key=lambda x: x.get("distance_km", 1e9))
     return {"spots": spots}
 
 @parking_router.get("/spots/{spot_id}")
 async def get_parking_spot(spot_id: str):
     s = await db.parking_space.find_one({"id": spot_id}, {"_id": 0})
-    if s:
-        return s
-    for d in DEMO_PARKING_SPOTS:
-        if d["id"] == spot_id:
-            return d
-    raise HTTPException(status_code=404, detail="Parking spot not found")
+    if not s:
+        for d in DEMO_PARKING_SPOTS:
+            if d["id"] == spot_id:
+                s = dict(d)
+                break
+    if not s:
+        raise HTTPException(status_code=404, detail="Parking spot not found")
+    _apply_defaults(s)
+    s["is_open"] = _is_open_now(s)
+    return s
 
 @parking_router.post("/reservations")
 async def create_parking_reservation(request: Request):
     user = await get_current_user(request)
     body = await request.json()
+    spot = await db.parking_space.find_one({"id": body["spot_id"]}, {"_id": 0})
+    if not spot:
+        for d in DEMO_PARKING_SPOTS:
+            if d["id"] == body["spot_id"]:
+                spot = dict(d)
+                break
+    if not spot:
+        raise HTTPException(status_code=404, detail="Parking introuvable")
+    _apply_defaults(spot)
+    if not _is_open_now(spot):
+        raise HTTPException(status_code=400, detail="Ce parking est actuellement fermé")
+    if int(spot.get("available_spots", 0)) <= 0:
+        raise HTTPException(status_code=400, detail="Plus de place disponible dans ce parking")
+    duration = float(body.get("duration_hours", 1) or 1)
+    start_time = body.get("start_time") or datetime.now(timezone.utc).isoformat()
+    # Authoritative server-side price (day/night), ignoring any client-sent amount.
+    total_price = compute_parking_price(spot, start_time, duration)
     reservation = {
         "id": f"pres_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
         "spot_id": body["spot_id"],
-        "spot_name": body.get("spot_name", ""),
+        "spot_name": spot.get("name", body.get("spot_name", "")),
         "vehicle_plate": body.get("vehicle_plate", ""),
-        "start_time": body["start_time"],
-        "end_time": body["end_time"],
-        "duration_hours": body.get("duration_hours", 1),
-        "total_price": body.get("total_price", 0),
+        "start_time": start_time,
+        "end_time": body.get("end_time"),
+        "duration_hours": duration,
+        "total_price": total_price,
         "status": "active",
         "payment_method": body.get("payment_method", "wallet"),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.parking_reservations.insert_one(reservation)
+    # Decrement live availability (never below 0).
+    await db.parking_space.update_one(
+        {"id": body["spot_id"], "available_spots": {"$gt": 0}},
+        {"$inc": {"available_spots": -1}})
     reservation.pop("_id", None)
     return reservation
 

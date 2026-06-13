@@ -4,8 +4,9 @@ import { toast } from 'sonner';
 import { parkingAdminAPI } from '../../services/api';
 
 const EMPTY = {
-  name: '', address: '', lat: '', lng: '', price_per_hour: '', total_spots: '',
-  available_spots: '', rating: '', features: '', image_url: '', active: true,
+  name: '', address: '', lat: '', lng: '', price_per_hour: '', price_per_hour_night: '',
+  total_spots: '', available_spots: '', rating: '', features: '', image_url: '', active: true,
+  open_24h: true, open_time: '06:00', close_time: '23:00', night_start: '20:00', night_end: '06:00',
 };
 
 const Field = ({ label, ...props }) => (
@@ -56,10 +57,28 @@ const ParkingModal = ({ open, initial, onClose, onSaved }) => {
             <Field label="Longitude" type="number" value={form.lng} onChange={set('lng')} data-testid="parking-lng" placeholder="2.3553" />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Prix / heure (€)" type="number" value={form.price_per_hour} onChange={set('price_per_hour')} data-testid="parking-price" placeholder="4.50" />
+            <Field label="Tarif jour /h (€)" type="number" value={form.price_per_hour} onChange={set('price_per_hour')} data-testid="parking-price" placeholder="4.50" />
             <Field label="Places totales" type="number" value={form.total_spots} onChange={set('total_spots')} data-testid="parking-total" placeholder="200" />
             <Field label="Places dispo" type="number" value={form.available_spots} onChange={set('available_spots')} data-testid="parking-available" placeholder="45" />
           </div>
+
+          <div className="bg-indigo-50/60 rounded-xl p-3 space-y-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <input type="checkbox" checked={form.open_24h} onChange={(e) => setForm({ ...form, open_24h: e.target.checked })} data-testid="parking-open24h" /> Ouvert 24h/24
+            </label>
+            {!form.open_24h && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Ouverture" type="time" value={form.open_time} onChange={set('open_time')} data-testid="parking-open-time" />
+                <Field label="Fermeture" type="time" value={form.close_time} onChange={set('close_time')} data-testid="parking-close-time" />
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Tarif nuit /h (€)" type="number" value={form.price_per_hour_night} onChange={set('price_per_hour_night')} data-testid="parking-price-night" placeholder="ex: 2.50" />
+              <Field label="Début nuit" type="time" value={form.night_start} onChange={set('night_start')} data-testid="parking-night-start" />
+              <Field label="Fin nuit" type="time" value={form.night_end} onChange={set('night_end')} data-testid="parking-night-end" />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Note (0-5)" type="number" value={form.rating} onChange={set('rating')} data-testid="parking-rating" placeholder="4.2" />
             <Field label="Équipements (séparés par virgule)" value={form.features} onChange={set('features')} data-testid="parking-features" placeholder="Couvert, Bornes électriques" />
