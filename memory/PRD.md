@@ -1,3 +1,12 @@
+## NEW - 2026-06-13 (468) - 🎟️ SB Événement Pro : QR scanner de contrôle d'accès (check-in) (DONE, testé 10/10)
+- **Demande user** : ajouter un QR scanner côté organisateur pour scanner/valider les billets à l'entrée le jour J (boucle vente → boost → check-in).
+- **Backend** (`routes/organizer.py`) : `POST /organizer/events/{id}/checkin` `{qr_token}` → résultat `ok | already_used | cancelled | wrong_event | invalid` (recherche par qr_token puis id, vérifie l'appartenance à l'événement de l'organisateur). Un billet validé passe `checked_in=True`/`checked_in_at` **sans changer `status='valid'`** (le CA reste comptabilisé). Anti-double-scan via `find_one_and_update` atomique. `GET /organizer/events/{id}/checkin-stats` → compteurs live (orders/seats/checked_in_orders/checked_in_seats). `_event_stats` enrichi de `checked_in_orders/seats`.
+- **Frontend** : nouvelle page `pages/user/events/EventCheckinPage.js` (route `/organizer/events/:id/checkin`) — caméra `html5-qrcode` (facingMode environment) + **fallback saisie manuelle** si caméra indispo, compteur live (Entrés/Places vendues/Restant), bannière de résultat colorée (vert ok / ambre déjà scanné / rouge invalide) avec nom acheteur + tier × quantité, de-dupe 3s côté front. `organizerAPI.checkin/checkinStats`. Bouton **« Scanner »** (`scan-{id}`) sur chaque carte du dashboard + mini-stat **« Entrés »** (`checked_in_seats`).
+- **Fix** : fond sombre via style inline (`.mobile-container` force `background:#fff` → écrasait `bg-gray-900`).
+- **Testé** : curl backend (ok→already_used→invalid→stats live) + testing_agent iter370 **frontend 100% (10/10)** : login → créer événement gratuit → acheter 2 billets → scanner (saisie manuelle) → ok (compteur 0→2) → already_used → invalide → mini-stat dashboard 'Entrés'=2. Caméra non testable en headless (fallback OK).
+- ⚠️ Visible en **prod** après **redéploiement**.
+
+
 ## NEW - 2026-06-13 (467) - 🎫 SB Événement Phase 2 : Espace Organisateur CÂBLÉ + testé (DONE, 8/8)
 - **Tâche (P0)** : finaliser le câblage frontend de l'Espace Organisateur (le backend `organizer.py` + composants React existaient mais routes/entrée UI manquaient).
 - **Fait** : (1) export `OrganizerSpace` + `OrganizerDashboard` dans `routes/pages.js` ; (2) routes `/organizer` (onboarding) et `/organizer/dashboard` dans `clientRoutes.jsx` (ProtectedRoute role `user`) ; (3) bouton d'accès « Vous organisez un événement ? » (`data-testid=organizer-entry-btn`) dans `EventsPage.js` → `/organizer`.
