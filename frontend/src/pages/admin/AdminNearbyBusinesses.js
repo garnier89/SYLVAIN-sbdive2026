@@ -11,7 +11,9 @@ const COLLECTION = 'nearby_businesses';
 const CATEGORIES = [
   'Café', 'Bar', 'Restaurant', 'Salon', 'Spa', 'Boulangerie', 'Pharmacie',
   'Hôpital', 'Salle de sport', 'Shopping', 'Centre commercial',
-  'Hôtel', 'Musée', 'Attraction', 'Bibliothèque', 'Vie Nocturne', 'Parking', 'Garage',
+  'Hôtel', 'Musée', 'Attraction', 'Lieux touristiques', 'Monuments', 'Sites historiques',
+  'Parcs & Nature', 'Plages', 'Points de vue',
+  'Bibliothèque', 'Vie Nocturne', 'Parking', 'Garage',
 ];
 
 const EMPTY = {

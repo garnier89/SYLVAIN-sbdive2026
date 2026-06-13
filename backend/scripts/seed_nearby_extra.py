@@ -25,6 +25,13 @@ NEW_TILES = [
     ("Hôpitaux", "hopital", "Hôpital", "FirstAid", "bg-red-50", "text-red-500"),
     ("Salles\nde sport", "gym", "Salle de sport", "Barbell", "bg-orange-50", "text-orange-500"),
     ("Centres\ncommerciaux", "mall", "Centre commercial", "Storefront", "bg-sky-50", "text-sky-600"),
+    # Tourisme & patrimoine
+    ("Lieux\ntouristiques", "tourism", "Lieux touristiques", "MapTrifold", "bg-teal-50", "text-teal-600"),
+    ("Monuments", "monuments", "Monuments", "Bank", "bg-amber-50", "text-amber-600"),
+    ("Sites\nhistoriques", "heritage", "Sites historiques", "Buildings", "bg-stone-100", "text-stone-600"),
+    ("Parcs &\nNature", "parks", "Parcs & Nature", "Tree", "bg-green-50", "text-green-600"),
+    ("Plages", "beaches", "Plages", "Sparkle", "bg-cyan-50", "text-cyan-500"),
+    ("Points\nde vue", "viewpoints", "Points de vue", "MapPin", "bg-indigo-50", "text-indigo-500"),
 ]
 
 # A few realistic Paris demo businesses per new category.

@@ -507,7 +507,7 @@ export const marketplaceAPI = {
 
 // Favoris (Immobilier + Marketplace)
 export const favoritesAPI = {
-  toggle: (itemType, itemId) => api.post('/favorites/toggle', { item_type: itemType, item_id: itemId }),
+  toggle: (itemType, itemId, snapshot) => api.post('/favorites/toggle', { item_type: itemType, item_id: itemId, ...(snapshot ? { snapshot } : {}) }),
   ids: (itemType) => api.get('/favorites/ids', { params: itemType ? { item_type: itemType } : {} }),
   list: (itemType) => api.get('/favorites', { params: itemType ? { item_type: itemType } : {} }),
 };

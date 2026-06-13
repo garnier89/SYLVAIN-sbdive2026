@@ -1,3 +1,11 @@
+## NEW - 2026-06-13 - ⭐ Commerces Proches : Tourisme + portée configurable + Favoris (DONE, testé)
+- **Demande user** : ajouter lieux touristiques / monuments / zones historiques (ville, région, île) + rayon configurable + favoris.
+- **Tourisme & patrimoine** : 6 nouvelles catégories — Lieux touristiques, Monuments, Sites historiques, Parcs & Nature, Plages, Points de vue. Backend mappe vers Google `tourist_attraction`/`park` + **mot-clé** (monument, site historique, plage…). Recherche par mot-clé seul supportée (type optionnel) → ex. Plages (Nice) = 20 vraies plages. Tuiles d'accueil seedées.
+- **Portée configurable** (`SCOPES`) : Autour de moi (2,5 km) / Ma ville (10 km) / Île & Région (50 km) → param `radius_m` (max 50 km). Couvre ville/île/région.
+- **Favoris** : `favorites.py` étendu avec item_type `nearby` (stocke un **snapshot** car les lieux Google n'ont pas d'enregistrement DB). Front : cœur sur chaque carte + dans la fiche, vue « Mes favoris ». `favoritesAPI.toggle(type,id,snapshot)`.
+- **Testé** : curl (Monuments/Sites historiques/Lieux touristiques = 20 vrais lieux Paris ; Plages Nice = 20 ; favoris toggle/ids/list snapshot OK) + screenshots (liste Monuments avec portée « Ma ville » + cœurs ; vue Favoris avec lieu sauvegardé). Compte test : nearbytest@demo.sb / NearbyTest123!
+
+
 ## NEW - 2026-06-13 - 🌍 Commerces Proches LIVE via Google Places (hybride, DONE, testé)
 - **Demande user** : peupler « Commerces Proches » avec de vrais lieux autour du client → choix **1a (hybride)** + **2c (fiche détail + Appeler/Itinéraire/Taxi)**.
 - **Backend** (`routes/nearby_places.py`, clé `GOOGLE_MAPS_KEY` existante, 100% côté serveur) :

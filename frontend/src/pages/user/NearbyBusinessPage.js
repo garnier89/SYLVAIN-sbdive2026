@@ -2,18 +2,29 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, MagnifyingGlass, Star, MapPin, X, Phone, NavigationArrow,
-  Car, Clock, Storefront, Globe,
+  Car, Clock, Storefront, Globe, Heart,
 } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 import { ServiceCard } from '../../components/ServiceListLayout';
+import { favoritesAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const PARIS = { lat: 48.8566, lng: 2.3522 };
 
-// Full category set — mirrors the Home « À proximité » tiles.
+// Full category set — commerces + tourisme & patrimoine.
 const NEARBY_CATEGORIES = [
   'Café', 'Bar', 'Restaurant', 'Salon', 'Spa', 'Boulangerie', 'Pharmacie',
   'Hôpital', 'Salle de sport', 'Shopping', 'Centre commercial',
-  'Hôtel', 'Musée', 'Attraction', 'Bibliothèque', 'Vie Nocturne', 'Parking', 'Garage',
+  'Hôtel', 'Musée', 'Attraction', 'Lieux touristiques', 'Monuments', 'Sites historiques',
+  'Parcs & Nature', 'Plages', 'Points de vue',
+  'Bibliothèque', 'Vie Nocturne', 'Parking', 'Garage',
+];
+
+// Search scope → radius in meters (covers « autour de moi » → ville → île/région).
+const SCOPES = [
+  { key: 'around', label: 'Autour de moi', radius: 2500 },
+  { key: 'city', label: 'Ma ville', radius: 10000 },
+  { key: 'island', label: 'Île / Région', radius: 50000 },
 ];
 
 const absImg = (url) => (typeof url === 'string' && url.startsWith('/api/') ? `${API}${url}` : url);
@@ -25,11 +36,14 @@ const NearbyBusinessPage = () => {
 
   const [coords, setCoords] = useState(null);
   const [activeCat, setActiveCat] = useState(NEARBY_CATEGORIES.includes(rawCat) ? rawCat : NEARBY_CATEGORIES[0]);
+  const [scope, setScope] = useState('around');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-  const chipsRef = useRef(null);
+  const [favIds, setFavIds] = useState([]);
+  const [showFavs, setShowFavs] = useState(false);
+  const [favs, setFavs] = useState([]);
 
   // Resolve the user's GPS once (graceful Paris fallback).
   useEffect(() => {
@@ -41,21 +55,56 @@ const NearbyBusinessPage = () => {
     );
   }, []);
 
+  const loadFavIds = useCallback(() => {
+    favoritesAPI.ids('nearby').then((r) => setFavIds(r.data.ids || [])).catch(() => {});
+  }, []);
+  useEffect(() => { loadFavIds(); }, [loadFavIds]);
+
+  const radius = SCOPES.find((s) => s.key === scope).radius;
+
   const load = useCallback(async () => {
-    if (!coords) return;
+    if (!coords || showFavs) return;
     setLoading(true);
     try {
-      const url = `${API}/api/nearby/live?lat=${coords.lat}&lng=${coords.lng}&category=${encodeURIComponent(activeCat)}`;
+      const url = `${API}/api/nearby/live?lat=${coords.lat}&lng=${coords.lng}&category=${encodeURIComponent(activeCat)}&radius_m=${radius}`;
       const r = await fetch(url, { credentials: 'include' });
       const d = r.ok ? await r.json() : { items: [] };
       setItems((d.items || []).map((i) => ({ ...i, image: absImg(i.image) })));
     } catch { setItems([]); }
     finally { setLoading(false); }
-  }, [coords, activeCat]);
+  }, [coords, activeCat, radius, showFavs]);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = items.filter((i) =>
+  const openFavs = () => {
+    setShowFavs(true); setLoading(true);
+    favoritesAPI.list('nearby')
+      .then((r) => setFavs((r.data.favorites || []).map((f) => ({ ...f.listing, image: absImg(f.listing.image) }))))
+      .catch(() => setFavs([]))
+      .finally(() => setLoading(false));
+  };
+
+  const toggleFav = async (item, e) => {
+    if (e) { e.stopPropagation(); }
+    const wasFav = favIds.includes(item.id);
+    setFavIds((ids) => (wasFav ? ids.filter((x) => x !== item.id) : [...ids, item.id]));
+    try {
+      await favoritesAPI.toggle('nearby', item.id, wasFav ? null : {
+        id: item.id, place_id: item.place_id, name: item.name, category: item.category,
+        address: item.address, rating: item.rating, image: item.image,
+        open_now: item.open_now, distance_km: item.distance_km, lat: item.lat, lng: item.lng,
+        phone: item.phone, source: item.source,
+      });
+      toast.success(wasFav ? 'Retiré des favoris' : 'Ajouté aux favoris');
+      if (showFavs && wasFav) setFavs((f) => f.filter((x) => x.id !== item.id));
+    } catch {
+      setFavIds((ids) => (wasFav ? [...ids, item.id] : ids.filter((x) => x !== item.id)));
+      toast.error('Erreur favoris');
+    }
+  };
+
+  const source = showFavs ? favs : items;
+  const filtered = source.filter((i) =>
     !search.trim() ||
     (i.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (i.address || '').toLowerCase().includes(search.toLowerCase()));
@@ -68,34 +117,58 @@ const NearbyBusinessPage = () => {
           <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" data-testid="back-btn">
             <ArrowLeft size={18} className="text-white" />
           </button>
-          <h1 className="text-lg font-bold text-white flex-1">Commerces Proches</h1>
-          <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-white/20 text-white" data-testid="nearby-count">{filtered.length}</span>
+          <h1 className="text-lg font-bold text-white flex-1">{showFavs ? 'Mes favoris' : 'Commerces & Tourisme'}</h1>
+          <button
+            onClick={() => (showFavs ? (setShowFavs(false)) : openFavs())}
+            className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-full ${showFavs ? 'bg-white text-[#FF4500]' : 'bg-white/20 text-white'}`}
+            data-testid="favorites-toggle"
+          >
+            <Heart size={14} weight={showFavs ? 'fill' : 'regular'} /> {showFavs ? 'Retour' : 'Favoris'}
+          </button>
         </div>
         <div className="relative">
           <MagnifyingGlass size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Commerce, type..."
+            placeholder="Commerce, lieu, type..."
             className="w-full bg-white border-0 rounded-full pl-10 pr-3 h-11 text-sm outline-none"
             data-testid="search-input"
           />
         </div>
       </div>
 
-      {/* Category chips */}
-      <div ref={chipsRef} className="px-4 pt-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-        {NEARBY_CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => setActiveCat(c)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${activeCat === c ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
-            data-testid={`cat-${c.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
+      {!showFavs && (
+        <>
+          {/* Scope selector */}
+          <div className="px-4 pt-3 flex gap-2" data-testid="scope-selector">
+            {SCOPES.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setScope(s.key)}
+                className={`flex-1 px-2 py-2 rounded-xl text-[11px] font-bold transition-colors ${scope === s.key ? 'bg-[#1F2430] text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+                data-testid={`scope-${s.key}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Category chips */}
+          <div className="px-4 pt-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+            {NEARBY_CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setActiveCat(c)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${activeCat === c ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+                data-testid={`cat-${c.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* List */}
       <div className="px-4 mt-4">
@@ -105,13 +178,20 @@ const NearbyBusinessPage = () => {
           </div>
         ) : filtered.length === 0 ? (
           <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center" data-testid="empty-state">
-            <MapPin size={36} className="mx-auto mb-3 text-gray-300" weight="duotone" />
-            <p className="text-sm text-gray-500">Aucun commerce « {activeCat} » à proximité</p>
+            {showFavs ? <Heart size={36} className="mx-auto mb-3 text-gray-300" weight="duotone" /> : <MapPin size={36} className="mx-auto mb-3 text-gray-300" weight="duotone" />}
+            <p className="text-sm text-gray-500">{showFavs ? 'Aucun favori pour le moment' : `Aucun résultat « ${activeCat} » dans cette zone`}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {filtered.map((item) => (
-              <div key={item.id} data-testid={`item-${item.id}`}>
+              <div key={item.id} data-testid={`item-${item.id}`} className="relative">
+                <button
+                  onClick={(e) => toggleFav(item, e)}
+                  className="absolute top-2 left-2 z-10 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center"
+                  data-testid={`fav-${item.id}`}
+                >
+                  <Heart size={16} weight={favIds.includes(item.id) ? 'fill' : 'regular'} className={favIds.includes(item.id) ? 'text-rose-500' : 'text-gray-400'} />
+                </button>
                 <ServiceCard
                   item={item}
                   onClick={() => setSelected(item)}
@@ -130,14 +210,12 @@ const NearbyBusinessPage = () => {
       {selected && (
         <PlaceDetailSheet
           item={selected}
-          coords={coords}
+          isFav={favIds.includes(selected.id)}
+          onToggleFav={() => toggleFav(selected)}
           onClose={() => setSelected(null)}
           onTaxi={(it) => {
-            const lat = it.lat, lng = it.lng;
             try {
-              sessionStorage.setItem('sb_taxi_dest', JSON.stringify({
-                address: it.address || it.name, lat, lng,
-              }));
+              sessionStorage.setItem('sb_taxi_dest', JSON.stringify({ address: it.address || it.name, lat: it.lat, lng: it.lng }));
             } catch { /* ignore */ }
             navigate('/taxi');
           }}
@@ -147,15 +225,14 @@ const NearbyBusinessPage = () => {
   );
 };
 
-/** Bottom sheet with place details + Call / Directions / Taxi actions. */
-const PlaceDetailSheet = ({ item, coords, onClose, onTaxi }) => {
+/** Bottom sheet with place details + Call / Directions / Taxi / Favorite. */
+const PlaceDetailSheet = ({ item, isFav, onToggleFav, onClose, onTaxi }) => {
   const [details, setDetails] = useState(null);
   const phone = details?.phone || item.phone;
   const lat = details?.lat ?? item.lat;
   const lng = details?.lng ?? item.lng;
 
   useEffect(() => {
-    // Google places have a place_id → fetch phone + opening hours on demand.
     if (item.source === 'google' && item.place_id) {
       fetch(`${API}/api/nearby/place-details?place_id=${item.place_id}`, { credentials: 'include' })
         .then((r) => (r.ok ? r.json() : null)).then(setDetails).catch(() => {});
@@ -172,6 +249,9 @@ const PlaceDetailSheet = ({ item, coords, onClose, onTaxi }) => {
       <div className="relative w-full bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
         <button onClick={onClose} className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-black/40 flex items-center justify-center" data-testid="sheet-close">
           <X size={18} className="text-white" />
+        </button>
+        <button onClick={onToggleFav} className="absolute top-3 left-3 z-10 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center" data-testid="sheet-fav">
+          <Heart size={18} weight={isFav ? 'fill' : 'regular'} className={isFav ? 'text-rose-500' : 'text-gray-500'} />
         </button>
         {item.image ? (
           <img src={item.image} alt={item.name} className="w-full h-44 object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />

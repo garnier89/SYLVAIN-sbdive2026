@@ -26,6 +26,8 @@ _PHOTO_URL = "https://maps.googleapis.com/maps/api/place/photo"
 _DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
 # French category label -> Google legacy place type used for Nearby Search.
+# A value may be a plain type string, or a (type, keyword) tuple for finer search
+# (e.g. monuments / historic sites all map to tourist_attraction + a keyword).
 CATEGORY_TYPE_MAP = {
     "Café": "cafe",
     "Bar": "bar",
@@ -41,6 +43,13 @@ CATEGORY_TYPE_MAP = {
     "Hôtel": "lodging",
     "Musée": "museum",
     "Attraction": "tourist_attraction",
+    # Tourisme & patrimoine
+    "Lieux touristiques": "tourist_attraction",
+    "Monuments": ("tourist_attraction", "monument"),
+    "Sites historiques": ("tourist_attraction", "site historique patrimoine"),
+    "Parcs & Nature": "park",
+    "Plages": (None, "plage"),
+    "Points de vue": ("tourist_attraction", "point de vue panorama belvédère"),
     "Bibliothèque": "library",
     "Vie Nocturne": "night_club",
     "Parking": "parking",
@@ -61,14 +70,17 @@ def _haversine_km(lat1, lon1, lat2, lon2) -> float:
     return round(r * 2 * asin(min(1.0, sqrt(a))), 1)
 
 
-def _fetch_google_nearby(lat: float, lng: float, gtype: str, radius_m: int) -> list:
+def _fetch_google_nearby(lat: float, lng: float, gtype: str, radius_m: int, keyword: str = None) -> list:
     """Blocking call to Google Places (legacy Nearby Search). Runs in a thread."""
     params = {
         "location": f"{lat},{lng}",
         "radius": radius_m,
-        "type": gtype,
         "key": GOOGLE_MAPS_KEY,
     }
+    if gtype:
+        params["type"] = gtype
+    if keyword:
+        params["keyword"] = keyword
     resp = requests.get(_NEARBY_URL, params=params, timeout=6)
     resp.raise_for_status()
     data = resp.json()
@@ -82,7 +94,7 @@ async def nearby_live(
     lat: float = Query(...),
     lng: float = Query(...),
     category: str = Query(...),
-    radius_m: int = Query(2500, ge=200, le=20000),
+    radius_m: int = Query(2500, ge=200, le=50000),
     limit: int = Query(20, ge=1, le=40),
 ):
     """Hybrid list for one category: admin-curated partners first, then real Google places."""
@@ -98,15 +110,16 @@ async def nearby_live(
 
     # 2) Real places from Google (cached). Gracefully degrade if API unavailable.
     google_cards = []
-    gtype = CATEGORY_TYPE_MAP.get(category)
-    if GOOGLE_MAPS_KEY and gtype:
+    mapping = CATEGORY_TYPE_MAP.get(category)
+    gtype, keyword = (mapping if isinstance(mapping, tuple) else (mapping, None))
+    if GOOGLE_MAPS_KEY and (gtype or keyword):
         cache_key = f"{round(lat, 3)}:{round(lng, 3)}:{category}:{radius_m}"
         cached = _CACHE.get(cache_key)
         if cached and (time.time() - cached[0] < _CACHE_TTL):
             results = cached[1]
         else:
             try:
-                results = await asyncio.to_thread(_fetch_google_nearby, lat, lng, gtype, radius_m)
+                results = await asyncio.to_thread(_fetch_google_nearby, lat, lng, gtype, radius_m, keyword)
                 _CACHE[cache_key] = (time.time(), results)
             except Exception:
                 results = []

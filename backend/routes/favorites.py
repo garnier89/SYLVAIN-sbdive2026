@@ -15,7 +15,7 @@ from core.deps import get_current_user
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
-ITEM_TYPES = {"property", "marketplace"}
+ITEM_TYPES = {"property", "marketplace", "nearby"}
 _COLLECTION = {"property": "property_listings", "marketplace": "marketplace_listings"}
 
 
@@ -35,9 +35,15 @@ async def toggle_favorite(request: Request):
     if existing:
         await db.favorites.delete_one({"id": existing["id"]})
         return {"favorited": False}
-    await db.favorites.insert_one({
+    doc = {
         "id": f"fav_{uuid.uuid4().hex[:12]}", "user_id": user["id"],
-        "item_type": item_type, "item_id": item_id, "created_at": _now()})
+        "item_type": item_type, "item_id": item_id, "created_at": _now()}
+    # Nearby/Google places have no persistent DB record → store a snapshot of the card.
+    if item_type == "nearby":
+        snap = body.get("snapshot") or {}
+        if isinstance(snap, dict):
+            doc["snapshot"] = snap
+    await db.favorites.insert_one(doc)
     return {"favorited": True}
 
 
@@ -63,6 +69,14 @@ async def my_favorites(request: Request, item_type: str = None):
     favs = await db.favorites.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
     out = []
     for f in favs:
+        if f["item_type"] == "nearby":
+            # Snapshot-backed (Google/admin nearby place) — no collection lookup.
+            snap = f.get("snapshot")
+            if not snap:
+                continue
+            out.append({"favorite_id": f["id"], "item_type": "nearby", "item_id": f["item_id"],
+                        "saved_at": f["created_at"], "listing": snap})
+            continue
         coll = _COLLECTION.get(f["item_type"])
         listing = await db[coll].find_one({"id": f["item_id"]}, {"_id": 0}) if coll else None
         if not listing:
