@@ -75,7 +75,7 @@ const EventCheckinPage = () => {
   return (
     <div className="mobile-container min-h-screen" style={{ background: '#111827' }} data-testid="checkin-page">
       <div className="px-4 pt-4 pb-3 flex items-center gap-3">
-        <button onClick={() => navigate('/organizer/dashboard')} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center" data-testid="back-btn">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center" data-testid="back-btn">
           <ArrowLeft size={18} className="text-white" />
         </button>
         <div className="flex-1 min-w-0">

@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend E2E test of SB Événement Pro Contrôleur/Staff feature (RBAC check-in). ALL 21 sub-cases PASS on mobile viewport 390x844. Organizer (organizer@test.com) → /organizer/dashboard → created free-tier event 'TEST_STAFF Validation' (Gratuit 0€ ×20) → opened manage-staff-btn modal → created GLOBAL invite (scope='') 6-char code + SCOPED invite (scope=event_id), both rows display label + 'Tous les événements' OR event title correctly. Copy button works (clipboard fails silently in headless, expected). Then logout → portier@test.com → /events → controller-entry-btn → /controle (checkpoint-page) with no-staff-events placeholder → entered global code in join-code-input → join-btn → toast 'Accès activé' → event appears as staff-event-{id} with scan-{id} button → click scan → /organizer/events/{id}/checkin (checkin-page) with cam-error fallback (caméra indisponible en headless attendu) + manual-code-input. Purchased a free ticket as portier first (buy-bar → transport-continue → pay-btn → ticket-qr SBEVT-W40TqDW7nC20JA) → manual check valid token returned checkin-result data-result='ok'; re-scan after 3.5s returned 'already_used'; bogus code 'SBEVT-fake1234' returned 'invalid'. ISOLATION: portier navigating to /organizer/dashboard correctly redirected to /organizer (onboarding 'Devenez organisateur'). REVOCATION: organizer re-logged → staff modal → member 'Portier Test' appeared in 'Contrôleurs actifs' → revoke-member-{id} removed the row; revoke-invite-{id} (window.confirm auto-accepted) removed the invite from list. Cleanup: residual + test events deleted, dashboard back to 'Aucun événement'.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "OrganizerStaffModal.js L30 (copy function)",
+        "issue": "navigator.clipboard?.writeText(code) is not awaited and has no .catch(). In headless / non-secure contexts the write rejects with NotAllowedError 'Failed to execute writeText on Clipboard: Write permission denied.' producing an uncaught promise rejection in console (and a transient 'Uncaught runtime errors' overlay in dev). The toast.success still fires. Suggest: try { await navigator.clipboard.writeText(code); toast.success(...) } catch { toast.error('Copie indisponible'); }.",
+        "selector": "[data-testid=copy-{id}]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Mobile 390x844 (all event flow pages)",
+        "issues": [
+          "Bannière sticky 'Vérifiez votre email' (verify-email-banner) chevauche les CTA sticky (buy-bar, reserve-btn, pay-btn). Contourné en test via page.evaluate(click). Issue déjà signalée dans iterations 369-370; à corriger en supprimant la bannière sur les pages d'achat / dashboard organisateur, ou en augmentant le padding-bottom."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(LOW) Wrap navigator.clipboard.writeText in try/catch in OrganizerStaffModal.copy() to avoid uncaught promise rejection in headless / insecure contexts.",
+    "(LOW) Suppress or auto-dismiss 'verify-email-banner' on /events/{id}, /organizer/* and /controle pages — it overlaps sticky CTA buttons."
+  ],
+  "critical_code_review_comments": [
+    "OrganizerStaffModal.js (117 lignes) — taille saine, séparation Codes/Contrôleurs claire, tous les data-testid présents (staff-modal, staff-label-input, staff-scope-select, staff-create-btn, invite-{id}, invite-code-{id}, copy-{id}, revoke-invite-{id}, member-{id}, revoke-member-{id}, staff-close, no-invites, no-members).",
+    "StaffCheckpointPage.js (92 lignes) — propre, code .toUpperCase() côté front cohérent avec le backend insensible à la casse; bouton back-btn revient à /events; intégration avec navigate('/organizer/events/{id}/checkin') OK.",
+    "RBAC validé end-to-end: le portier (compte user simple sans profil organisateur) atteint la page check-in via /controle + code d'invitation, et le backend accepte ses requêtes POST /api/organizer/events/{id}/checkin (réponses 'ok' / 'already_used' / 'invalid' / 'wrong_event' au lieu de 403). L'isolation est confirmée: /organizer/dashboard renvoie 403 et l'app redirige vers /organizer (onboarding).",
+    "revokeInvite() sur OrganizerStaffModal L33 utilise window.confirm — fonctionnel mais préférerait une AlertDialog shadcn pour cohérence UX (non bloquant).",
+    "Pas de visibility filter côté backend pour les events archived/finished dans GET /organizer/staff/my — non observé dans ce run mais à valider si un événement est mis status='ended'."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (21/21 sub-cases)" },
+  "test_credentials": "organizer@test.com / Organizer123! (login email) + portier@test.com / Portier123! (compte user simple; après le test il a 1 ticket 'TEST_STAFF Validation' qui a été supprimé avec l'événement).",
+  "seed_data_creation": "Événement 'TEST_STAFF Validation' créé et supprimé. Codes d'invitation 'Portier V' (global) générés + 4 anciens codes résiduels d'un run précédent (Portier A global + Portier B scoped — non bloquants, dormants). Membre staff 'Portier Test' créé puis révoqué. État final dashboard organizer = 0 événement.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Le flow Contrôleur/Staff (modale OrganizerStaffModal + page StaffCheckpointPage /controle) est 100% fonctionnel. Pour acheter un ticket: buy-bar → transport-continue (transport-sheet) → pay-btn (pay-sheet) → success-sheet contient ticket-qr (SBEVT-...). En headless, toujours utiliser la SAISIE MANUELLE pour le check-in (cam-error attendu). window.confirm dialogs (delete event, revoke invite) doivent être auto-acceptés via page.on('dialog', accept). Restent quelques anciens codes d'invitation dormants pour organizer@test.com (non bloquants). Bannière 'verify-email-banner' à contourner via page.evaluate(click) pour les CTA sticky en bas.",
+  "rca of the issue": "Aucun bug bloquant. Détail mineur: dans le 1er passage de cette session, le check-in 'OK' n'a pas pu être validé car le buy-bar attend en réalité 2 sheets supplémentaires (transport-sheet + pay-sheet) — le qr_token récupéré depuis /my-tickets correspondait à un ancien achat sur un autre événement, d'où une réponse backend 'wrong_event' (qui est elle-même la preuve que le RBAC contrôleur passe — le backend valide bien la cohérence event_id/ticket). Une fois l'achat complété correctement (transport-continue → pay-btn → ticket-qr dans success-sheet), le scan retourne 'ok' puis 'already_used' comme attendu."
+}

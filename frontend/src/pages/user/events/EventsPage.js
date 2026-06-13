@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MagnifyingGlass, Ticket, CalendarBlank, MapPin, Star, Megaphone } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass, Ticket, CalendarBlank, MapPin, Star, Megaphone, ShieldCheck } from '@phosphor-icons/react';
 import { eventsAPI } from '../../../services/api';
 import { EVENT_CATEGORIES, catMeta, fmtEventDate, fmtPrice, minPrice } from './eventsShared';
 
@@ -60,6 +60,9 @@ const EventsPage = () => {
           <p className="text-[11px] text-gray-500">Vendez vos billets et boostez votre visibilité</p>
         </div>
         <span className="text-[#B91C1C] text-xs font-bold shrink-0">Ouvrir →</span>
+      </button>
+      <button onClick={() => navigate('/controle')} className="mx-4 mt-2 text-[11px] font-semibold text-gray-500 flex items-center gap-1" data-testid="controller-entry-btn">
+        <ShieldCheck size={13} weight="fill" className="text-[#B91C1C]" /> Je suis contrôleur d'accès →
       </button>
 
       {/* Categories */}

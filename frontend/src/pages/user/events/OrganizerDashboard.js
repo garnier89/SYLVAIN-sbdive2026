@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, Megaphone, Users, PencilSimple, Trash, X, CurrencyEur, Ticket, Star, QrCode,
+  ArrowLeft, Plus, Megaphone, Users, PencilSimple, Trash, X, CurrencyEur, Ticket, Star, QrCode, ShieldCheck,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { organizerAPI } from '../../../services/api';
 import { catMeta, fmtEventDate, fmtPrice, fmtMoney } from './eventsShared';
 import EventFormModal from './EventFormModal';
+import OrganizerStaffModal from './OrganizerStaffModal';
 
 const OrganizerDashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const OrganizerDashboard = () => {
   const [formEvent, setFormEvent] = useState(undefined); // undefined=closed, null=new, obj=edit
   const [attendees, setAttendees] = useState(null);
   const [boostFor, setBoostFor] = useState(null);
+  const [showStaff, setShowStaff] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -73,7 +75,10 @@ const OrganizerDashboard = () => {
       <div className="px-4 mt-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-bold text-gray-900">Mes événements</h2>
-          <button onClick={() => setFormEvent(null)} className="flex items-center gap-1.5 bg-[#B91C1C] text-white text-xs font-bold px-3 py-2 rounded-full" data-testid="create-event-btn"><Plus size={14} weight="bold" /> Créer</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowStaff(true)} className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-full" data-testid="manage-staff-btn"><ShieldCheck size={14} weight="fill" className="text-[#B91C1C]" /> Contrôleurs</button>
+            <button onClick={() => setFormEvent(null)} className="flex items-center gap-1.5 bg-[#B91C1C] text-white text-xs font-bold px-3 py-2 rounded-full" data-testid="create-event-btn"><Plus size={14} weight="bold" /> Créer</button>
+          </div>
         </div>
 
         {data.events.length === 0 ? (
@@ -130,6 +135,8 @@ const OrganizerDashboard = () => {
           onClose={() => setBoostFor(null)}
           onDone={() => { setBoostFor(null); load(); }} />
       )}
+
+      {showStaff && <OrganizerStaffModal events={data.events} onClose={() => setShowStaff(false)} />}
     </div>
   );
 };

@@ -541,6 +541,12 @@ export const organizerAPI = {
   attendees: (id) => api.get(`/organizer/events/${id}/attendees`),
   checkinStats: (id) => api.get(`/organizer/events/${id}/checkin-stats`),
   checkin: (id, qr_token) => api.post(`/organizer/events/${id}/checkin`, { qr_token }),
+  createStaff: (payload) => api.post('/organizer/staff', payload),
+  listStaff: () => api.get('/organizer/staff'),
+  revokeStaffInvite: (id) => api.post(`/organizer/staff/${id}/revoke`),
+  revokeStaffMember: (id) => api.post(`/organizer/staff/members/${id}/revoke`),
+  joinStaff: (code) => api.post('/organizer/staff/join', { code }),
+  myStaffEvents: () => api.get('/organizer/staff/my'),
   boost: (id, days) => api.post(`/organizer/events/${id}/boost`, { days }),
 };
 
