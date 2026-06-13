@@ -85,6 +85,14 @@ async def _log_banner_event(request: Request, banner_id: str, event: str):
     return True
 
 
+async def _safe_log(request: Request, banner_id: str, event: str):
+    """Tracking is fire-and-forget: never let a logging failure break the request."""
+    try:
+        await _log_banner_event(request, banner_id, event)
+    except Exception:
+        pass
+
+
 def _now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -172,21 +180,21 @@ async def list_public(country: str = "", state: str = "", city: str = "", locati
 @public_router.post("/{banner_id}/dismiss")
 async def track_dismiss(banner_id: str, request: Request):
     """Public: log one close (with user/time/location) for close-rate analytics."""
-    await _log_banner_event(request, banner_id, "dismiss")
+    await _safe_log(request, banner_id, "dismiss")
     return {"ok": True}
 
 
 @public_router.post("/{banner_id}/impression")
 async def track_impression(banner_id: str, request: Request):
     """Public: log one view (with user/time/location)."""
-    await _log_banner_event(request, banner_id, "impression")
+    await _safe_log(request, banner_id, "impression")
     return {"ok": True}
 
 
 @public_router.post("/{banner_id}/click")
 async def track_click(banner_id: str, request: Request):
     """Public: log one click (with user/time/location)."""
-    await _log_banner_event(request, banner_id, "click")
+    await _safe_log(request, banner_id, "click")
     return {"ok": True}
 
 
