@@ -528,7 +528,13 @@ async def start_auto_dispatch(ride_id: str, request: Request):
     chain, total = await _compute_nearby(p_lat, p_lng, DISPATCH_CHAIN)
     if not chain:
         raise HTTPException(400, "Aucun chauffeur en ligne à proximité")
-    # Replace any previous session for this ride.
+    session = await _create_dispatch_session(ride_id, chain)
+    fresh = await db.dispatch_sessions.find_one({"id": session["id"]}, {"_id": 0})
+    return {"session": fresh, "total_online": total}
+
+
+async def _create_dispatch_session(ride_id: str, chain: list) -> dict:
+    """Replace any prior dispatch session for the ride and push the first offer."""
     await db.dispatch_sessions.delete_many({"ride_id": ride_id})
     session = {
         "id": f"disp_{uuid.uuid4().hex[:12]}", "ride_id": ride_id, "chain": chain,
@@ -538,8 +544,29 @@ async def start_auto_dispatch(ride_id: str, request: Request):
     }
     await db.dispatch_sessions.insert_one(session)
     await _send_offer(session)
-    fresh = await db.dispatch_sessions.find_one({"id": session["id"]}, {"_id": 0})
-    return {"session": fresh, "total_online": total}
+    return session
+
+
+async def begin_ride_dispatch(ride_id: str, *, exclude_driver_ids: list = None) -> dict | None:
+    """Reusable entry point (no auth) to start sequential dispatch for a ride.
+
+    Returns the created session, or None if the ride cannot be dispatched
+    (already assigned, terminal, no pickup coords, or no online driver nearby).
+    Used by the anti-fraud 'no-movement' auto-reassignment loop.
+    """
+    ride = await db.rides.find_one(
+        {"id": ride_id}, {"_id": 0, "pickup_lat": 1, "pickup_lng": 1, "status": 1, "driver_id": 1})
+    if not ride or ride.get("driver_id") or ride.get("status") in DONE_STATUSES:
+        return None
+    p_lat, p_lng = ride.get("pickup_lat") or 0, ride.get("pickup_lng") or 0
+    if not p_lat:
+        return None
+    chain, _total = await _compute_nearby(p_lat, p_lng, DISPATCH_CHAIN)
+    skip = set(exclude_driver_ids or [])
+    chain = [c for c in chain if c.get("driver_id") not in skip]
+    if not chain:
+        return None
+    return await _create_dispatch_session(ride_id, chain)
 
 
 @router.get("/ride/{ride_id}/dispatch-status")

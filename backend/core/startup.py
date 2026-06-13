@@ -531,10 +531,12 @@ async def lifespan(app: FastAPI):
     carpool_task = asyncio.create_task(carpool_autorelease_loop())
     from routes.debts import debt_reminder_loop
     debt_task = asyncio.create_task(debt_reminder_loop())
+    from core.no_movement import no_movement_loop
+    no_movement_task = asyncio.create_task(no_movement_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task, flight_hold_task, carpool_task, debt_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task, flight_hold_task, carpool_task, debt_task, no_movement_task):
         if task:
             task.cancel()
     client.close()

@@ -1562,14 +1562,22 @@ async def accept_ride(ride_id: str, request: Request):
         )
 
     now = datetime.now(timezone.utc).isoformat()
+    # Anti-fraud Lot 2: snapshot the driver's GPS at accept time so a background
+    # loop can later detect "accepted but never moved" and auto-reassign.
+    _accept_loc = manager.get_driver_location(user["id"]) or {}
+    _accept_lat = _accept_loc.get("lat", driver.get("current_lat"))
+    _accept_lng = _accept_loc.get("lng", driver.get("current_lng"))
     # Phase 4 — ATOMIC LOCK: only ONE driver can claim a ride. The filter still
     # requires status=pending AND driver_id=None, so concurrent /accept calls
     # race on the same document and only the first one matches. The loser gets a
     # 409 instead of silently overwriting the winning driver.
     accept_fields = {
         "driver_id": driver["id"],
+        "driver_user_id": user["id"],
         "status": "accepted",
         "accepted_at": now,
+        "accept_lat": _accept_lat,
+        "accept_lng": _accept_lng,
         "driver_name": driver.get("user_name", user.get("name", "Chauffeur")),
         "driver_phone": driver.get("user_phone", user.get("phone")),
         "driver_rating": driver.get("rating", 5.0),

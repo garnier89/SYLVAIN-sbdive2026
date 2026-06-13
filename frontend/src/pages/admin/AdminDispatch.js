@@ -482,6 +482,9 @@ const AdminDispatch = () => {
                     {d.scheduled_suspended && (
                       <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700" title={`Réservations planifiées suspendues jusqu'au ${new Date(d.scheduled_suspended_until).toLocaleString('fr-FR')}`} data-testid={`sched-suspended-${d.id}`}>⏸ Planifiées bloquées</span>
                     )}
+                    {d.no_movement_count > 0 && (
+                      <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700" title="Courses réassignées car le chauffeur ne s'est pas déplacé après acceptation" data-testid={`no-movement-${d.id}`}>📍 Immobile ×{d.no_movement_count}</span>
+                    )}
                   </td>
                   <td className="p-3 text-center">{d.accept_release_count}</td>
                   <td className="p-3 text-center">{d.accept_release_cb_count}</td>

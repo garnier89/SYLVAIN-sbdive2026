@@ -35,6 +35,10 @@ DEFAULT_CONFIG = {
     "release_suspend_after": 2,   # prior scheduled releases before a suspension kicks in
     "release_suspend_days": 7,    # scheduled-ride suspension duration
     "contact_reveal_minutes": 30, # reveal scheduled client phone within X min of pickup
+    # Anti-fraud Lot 2 — "accepted but not moving" auto-reassignment.
+    "no_movement_enabled": True,
+    "no_movement_minutes": 5,     # minutes after accept before checking movement
+    "no_movement_threshold_m": 150,  # GPS distance under which the driver is "not moving"
 }
 
 
