@@ -7,7 +7,15 @@
 - Reste à faire (Phase 4+) : `rides.py` reste volumineux ; extraction possible des groupes d'endpoints leaf (rental, bidding, rating) en sous-routeurs.
 
 
-## NEW - 2026-06-13 (373) - ♻️ Refacto rides.py Phase 4 : sous-routeurs rental/bidding/rating (DONE, testé 18/18)
+## NEW - 2026-06-13 (374) - 🧪 Tests pytest dédiés sous-routeurs rides_bidding + rides_rental (DONE, 17/17)
+- **Demande user (suite iter373)** : verrouiller les flux des nouveaux sous-routeurs contre les régressions.
+- **Fait** : 2 fichiers de tests HTTP E2E :
+  - `tests/test_iter374_rides_bidding.py` (9 tests) : contre-offre (ajout/visibilité, driver-only 403, montant invalide 400, remplacement de l'offre pending du même chauffeur), accept-offre (assignation chauffeur + tarif, offre inconnue 404), reject-offre (statut rejected, course reste pending, offre inconnue 404), avg-fares (forme + auth).
+  - `tests/test_iter374_rides_rental.py` (8 tests) : cycle complet (start→add-stop→meter→end), start idempotent, add-stop sans adresse 400, rejet course non-rental 400, course absente 404, end avant start 400, configs airport-multipliers + rental-packages.
+- **Testé** : **17/17** isolément + **28/28** en run combiné avec les suites existantes (iter210/215 bidding, debt carry, payment switch). Aucune régression.
+
+
+
 - **Fait** : extraction de 3 groupes d'endpoints leaf de `routes/rides.py` vers des sous-routeurs dédiés (même préfixe `/rides`, enregistrés dans `core/api_router.py`) :
   - `routes/rides_rating.py` (91 l) : `rate_ride`, `rate_passenger`.
   - `routes/rides_bidding.py` (263 l) : `driver_counter_offer`, `passenger_accept_offer`, `bidding_avg_fares`, `passenger_reject_offer`, `_get_driver_points_cfg` (importe `gamme_restricted_subs/driver_sub_allowed/TAXI_SUB_LABELS/OFFER_TTL_SECONDS` depuis `routes.rides`).
