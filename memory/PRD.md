@@ -1,4 +1,19 @@
-## NEW - 2026-06-13 (349c) - 🚦 Porte de déploiement Garde Google Maps (DONE, testé 6/6)
+## NEW - 2026-06-13 (349d) - 💳 Gestion dettes clients + 📊 Rapport activité chauffeur (DONE, testé)
+- **Demande user** (ordre validé a→b) : (a) gérer les dettes clients, (b) rapport d'activité chauffeur complet.
+- **(a) Dettes clients** — `routes/debts_admin.py` (admin-only) sur la collection existante `cancellation_debts` :
+  - `GET /admin/debts/overview` (KPIs : total dû, clients endettés, dettes en cours, dette moyenne, recouvré/annulé sur période + liste débiteurs enrichie nom/tel/portefeuille).
+  - `GET /admin/debts/user/{id}` (détail dettes en cours + historique). `POST .../collect` (recouvrement depuis le portefeuille via `auto_settle_debts_from_wallet`), `.../waive` (annulation/write-off), `.../remind` (relance notif in-app). Audit log sur chaque action.
+  - Frontend `pages/admin/AdminDebts.js` (route `/admin/debts`, sidebar FINANCE > « Dettes des clients ») : KPIs + table débiteurs + modale de gestion (Encaisser/Relancer/Annuler).
+- **(b) Activité chauffeur** — `routes/driver_activity_admin.py` (admin/dispatcher) :
+  - `GET /admin/driver-activity?date_from&date_to&q` : par chauffeur sur période → **temps en ligne**, reçues(≈acc+ref), **acceptées**, **refusées** (dispatch_sessions.declined), terminées, **annulées** (cancelled_by=driver), planifiées acceptées, **relâchées** (moderation_events kind=accept_release), CA généré, taux d'acceptation. Totaux globaux.
+  - **Online session tracking** : `core/online_sessions.py` (mark_online/mark_offline idempotents + agrégation), branché dans `drivers.py` toggle-online (driver_shifts était VIDE). Le temps en ligne s'accumule à partir de maintenant.
+  - Frontend `pages/admin/AdminDriverActivity.js` (route `/admin/driver-activity`, sidebar Rapports > « Activité des chauffeurs ») : KPIs + table + recherche + **export CSV**.
+- **Données réelles vérifiées** : 20 chauffeurs, 200 reçues/196 acc/4 ref, 56 terminées, 37 annulées, **21 relâches** (ex: Jean Dupont 11), 10 877€ CA. Dettes : 1 client (Jean Test 5€), recouvré 16€.
+- **Testé** : pytest `test_iter349d` 3/3 (sessions online open/close/agg, debts enrich, activity range) + `test_iter349b` 6/6 (isolément ; échec combiné = conflit asyncio inter-fichiers connu, pas un bug). curl e2e (overview/detail/remind/collect OK) + screenshots des 2 pages rendues. ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 - **Demande user** : brancher la Garde Maps en porte de déploiement → bloquer/alerter avant chaque Deploy si un nouveau risque de surfacturation apparaît.
 - **Backend** `core/code_audit.py` : `maps_gate()` compare le scan Maps courant à une **baseline acceptée** (`code_maps_baseline`) → verdict **GO / À VÉRIFIER / BLOQUÉ**. Bloque si nouveau risque high OU hausse du nb d'appels REST facturés (`rest_delta>0`). `set_maps_baseline()` enregistre les signatures de risques + total appels REST acceptés. Endpoints `GET /admin/code-health/maps-guard/gate`, `POST /admin/code-health/maps-guard/baseline`.
 - **Frontend** : carte « Porte de déploiement » en haut de l'onglet Garde Google Maps (verdict coloré, delta risques/REST, liste des nouveaux risques, bouton « Accepter (avant deploy) »). `adminAPI.codeMapsGate/codeMapsBaseline`.

@@ -152,6 +152,7 @@ const sidebarConfig = [
     title: 'FINANCE',
     items: [
       { icon: Wallet, label: 'Demandes portefeuille', path: '/admin/wallet-requests' },
+      { icon: HandCoins, label: 'Dettes des clients', path: '/admin/debts' },
       { icon: HandCoins, label: 'Demandes de retrait', path: '/admin/withdraw-requests' },
       { icon: IdentificationCard, label: 'Moyens de retrait (KYC)', path: '/admin/payout-methods' },
       { icon: HandCoins, label: 'Versements', path: '/admin/settlements' },
@@ -159,6 +160,7 @@ const sidebarConfig = [
         { label: 'Rapport des revenus', path: '/admin/revenue' },
         { label: 'Rapport des versements', path: '/admin/payout' },
         { label: 'Versements', path: '/admin/settlements' },
+        { label: 'Activité des chauffeurs', path: '/admin/driver-activity' },
       ]},
       { icon: EnvelopeSimple, label: 'Rapports hebdomadaires', path: '/admin/weekly-reports' },
       { icon: HandCoins, label: 'Options de paiement', path: '/admin/payment-methods' },

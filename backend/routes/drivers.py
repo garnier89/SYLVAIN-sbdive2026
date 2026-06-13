@@ -518,6 +518,8 @@ async def toggle_driver_online(request: Request):
         raise HTTPException(status_code=400, detail="Driver not approved")
     new_status = not driver["is_online"]
     await db.drivers.update_one({"user_id": user["id"]}, {"$set": {"is_online": new_status}})
+    from core.online_sessions import mark_online, mark_offline
+    await (mark_online(user["id"]) if new_status else mark_offline(user["id"]))
     # When a driver comes online, alert clients who were waiting for availability.
     if new_status:
         import asyncio

@@ -98,6 +98,8 @@ from routes.bookings_admin import router as bookings_admin_router
 from routes.reports_admin import router as reports_admin_router
 from routes.safety_audio import router as safety_audio_router, admin_router as safety_audio_admin_router
 from routes.code_health import router as code_health_router
+from routes.debts_admin import router as debts_admin_router
+from routes.driver_activity_admin import router as driver_activity_admin_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -152,6 +154,8 @@ _ROUTERS = [
     safety_audio_router,
     safety_audio_admin_router,
     code_health_router,
+    debts_admin_router,
+    driver_activity_admin_router,
 ]
 
 

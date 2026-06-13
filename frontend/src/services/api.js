@@ -298,6 +298,14 @@ export const adminAPI = {
   deleteMerchant: (id) => api.delete(`/admin/merchants/${id}`),
   importMerchants: (csv) => api.post('/admin/import/merchants', { csv }),
   getOnboarding: () => api.get('/admin/onboarding'),
+  // Dettes clients
+  debtsOverview: (params) => api.get('/admin/debts/overview', { params }),
+  debtsUser: (uid) => api.get(`/admin/debts/user/${uid}`),
+  debtsCollect: (uid) => api.post(`/admin/debts/user/${uid}/collect`),
+  debtsWaive: (uid) => api.post(`/admin/debts/user/${uid}/waive`),
+  debtsRemind: (uid) => api.post(`/admin/debts/user/${uid}/remind`),
+  // Rapport activité chauffeur
+  driverActivity: (params) => api.get('/admin/driver-activity', { params }),
   codeHealth: () => api.get('/admin/code-health'),
   codeSecurity: () => api.get('/admin/code-health/security'),
   codeMapsGuard: () => api.get('/admin/code-health/maps-guard'),
