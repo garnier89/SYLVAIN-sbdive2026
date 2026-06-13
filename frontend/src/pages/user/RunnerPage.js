@@ -54,6 +54,11 @@ const RunnerPage = () => {
   const [estimatedFare, setEstimatedFare] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
 
+  // Delivery Genie (concierge shopping) — what to buy, target store, budget
+  const [genieItems, setGenieItems] = useState('');
+  const [genieStore, setGenieStore] = useState('');
+  const [genieBudget, setGenieBudget] = useState('');
+
   // simple mode
   const [drop, setDrop] = useState(null);
   const [dropContact, setDropContact] = useState({ name: '', phone: '' });
@@ -92,6 +97,7 @@ const RunnerPage = () => {
 
   const handleSubmit = async () => {
     if (!pickup) { toast.error('Lieu de ramassage requis'); return; }
+    if (isGenie && !genieItems.trim()) { toast.error('Indiquez ce que le Genie doit acheter'); return; }
     let st;
     if (mode === 'simple') {
       if (!drop) { toast.error('Destination requise'); return; }
@@ -113,6 +119,12 @@ const RunnerPage = () => {
         stops: st,
         vehicle_type: PKG_TO_VEHICLE[packageType] || 'moto',
         payment_method: paymentMethod,
+        ...(isGenie ? {
+          service_variant: 'genie',
+          genie_items: genieItems.trim(),
+          genie_store: genieStore.trim() || null,
+          genie_budget: genieBudget ? parseFloat(genieBudget) : null,
+        } : {}),
       });
       const pid = res.data?.id;
       if (res.data?.payment_fallback_to_cash) {
@@ -143,6 +155,56 @@ const RunnerPage = () => {
       </div>
 
       <div className="px-4 py-5 space-y-5">
+        {/* Delivery Genie — concierge shopping list */}
+        {isGenie && (
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3" data-testid="genie-section">
+            <div className="flex items-center gap-2">
+              <Bag size={18} className="text-indigo-500" weight="fill" />
+              <h3 className="text-sm font-bold text-indigo-900">Votre liste de courses</h3>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Que voulez-vous acheter ? *</label>
+              <textarea
+                value={genieItems}
+                onChange={(e) => setGenieItems(e.target.value)}
+                placeholder="Ex : 2 baguettes, 1 L de lait, 6 œufs, 1 paquet de café…"
+                rows={4}
+                className="w-full text-sm border border-indigo-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 resize-none"
+                data-testid="genie-items"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">Magasin cible</label>
+                <input
+                  type="text"
+                  value={genieStore}
+                  onChange={(e) => setGenieStore(e.target.value)}
+                  placeholder="Ex : Carrefour Dillon"
+                  className="w-full text-sm border border-indigo-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400"
+                  data-testid="genie-store"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">Budget estimé (EUR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={genieBudget}
+                  onChange={(e) => setGenieBudget(e.target.value)}
+                  placeholder="Ex : 30"
+                  className="w-full text-sm border border-indigo-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400"
+                  data-testid="genie-budget"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-indigo-700/80 leading-relaxed">
+              Le Genie achète vos articles et vous les livre. Le coût des articles est réglé en plus de la course (remboursé au Genie à la livraison).
+            </p>
+          </div>
+        )}
+
         {/* Mode selector */}
         <div className="grid grid-cols-2 gap-2">
           <button

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { pharmacyAPI } from '../../../services/api';
 import { ArrowLeft, Pill, Prescription, ShoppingBag, ClockCounterClockwise, Star, Storefront } from '@phosphor-icons/react';
+import AgeGate from '../../../components/AgeGate';
 
 const PharmacyPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,11 @@ const PharmacyPage = () => {
 
   return (
     <div className="mobile-container min-h-screen bg-white pb-10" data-testid="pharmacy-page">
+      <AgeGate
+        storageKey="sb_age_ok_pharmacy"
+        accent="#dc2626"
+        message="La vente de médicaments est réservée aux personnes de 18 ans ou plus. Une ordonnance et une pièce d'identité pourront être exigées à la livraison."
+      />
       {/* Header */}
       <div className="bg-gradient-to-br from-[#FF4500] to-orange-600 text-white px-4 pt-5 pb-8 rounded-b-3xl">
         <div className="flex items-center gap-3 mb-4">

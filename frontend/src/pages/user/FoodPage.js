@@ -8,6 +8,7 @@ import {
   ShoppingCart, SealPercent, Lightning, Sparkle,
 } from '@phosphor-icons/react';
 import { SponsoredBanners } from '../../components/SponsoredBanners';
+import AgeGate from '../../components/AgeGate';
 
 // Verticales de livraison — chaque type filtre les marchands par `store_type`.
 // La page est réutilisée par : Repas, Courses, Fleurs, Papeterie, Vin, Matériaux.
@@ -41,6 +42,7 @@ const VERTICALS = {
     heroSub: 'Une sélection de vins fins et spiritueux livrés.',
     section: 'Caves près de vous', placeholder: 'Rechercher une cave…', emptyTitle: 'Aucune cave trouvée',
     fallback: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800',
+    ageRestricted: true,
   },
   construction: {
     storeType: 'construction', title: 'Matériaux & Construction', heroTitle: 'MATÉRIAUX',
@@ -96,6 +98,12 @@ const FoodPage = () => {
 
   return (
     <div className="mobile-container bg-white min-h-screen pb-24" data-testid="store-list-page">
+      {vertical.ageRestricted && (
+        <AgeGate
+          storageKey={`sb_age_ok_${vertical.storeType}`}
+          message="La vente d'alcool est interdite aux mineurs. Vous devez avoir 18 ans ou plus pour accéder à cette catégorie. Une pièce d'identité pourra être demandée à la livraison."
+        />
+      )}
       {/* Header */}
       <div className="sticky top-0 z-40 bg-[#FF4500] px-4 pt-4 pb-3">
         <div className="flex items-center gap-3 mb-3">

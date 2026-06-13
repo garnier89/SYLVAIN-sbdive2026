@@ -18,6 +18,9 @@ router = APIRouter(prefix="/parcels", tags=["parcels"])
 
 VEHICLE_MAP = {"moto": "motorcycle", "box": "car"}
 
+# Flat parcel-insurance fee (EUR) added when the sender opts in for coverage.
+INSURANCE_FEE = 2.0
+
 
 class ParcelStop(BaseModel):
     address: Optional[str] = None
@@ -33,6 +36,7 @@ class ParcelEstimateRequest(BaseModel):
     pickup_lng: float
     stops: List[ParcelStop] = Field(..., min_length=1)
     vehicle_type: str = "moto"  # moto | box
+    insurance: bool = False
 
 
 class ParcelCreateRequest(ParcelEstimateRequest):
@@ -40,6 +44,12 @@ class ParcelCreateRequest(ParcelEstimateRequest):
     sender_name: Optional[str] = None
     sender_phone: Optional[str] = None
     payment_method: str = "cash"
+    signature_required: bool = False
+    # Delivery Genie (concierge shopping) variant
+    service_variant: Optional[str] = None  # e.g. "genie"
+    genie_items: Optional[str] = None
+    genie_store: Optional[str] = None
+    genie_budget: Optional[float] = None
 
 
 def _compute_legs(pickup_lat: float, pickup_lng: float, stops: List[ParcelStop], vehicle_type: str):
@@ -67,13 +77,17 @@ def _compute_legs(pickup_lat: float, pickup_lng: float, stops: List[ParcelStop],
 @router.post("/estimate")
 async def estimate_parcel(data: ParcelEstimateRequest, request: Request):
     await get_current_user(request)
-    legs, total_km, total_fare = _compute_legs(data.pickup_lat, data.pickup_lng, data.stops, data.vehicle_type)
+    legs, total_km, base_fare = _compute_legs(data.pickup_lat, data.pickup_lng, data.stops, data.vehicle_type)
+    insurance_fee = INSURANCE_FEE if data.insurance else 0.0
+    total_fare = round(base_fare + insurance_fee, 2)
     return {
         "vehicle_type": data.vehicle_type,
         "stops_count": len(data.stops),
         "legs": legs,
         "total_distance_km": total_km,
         "total_duration_mins": sum(leg["duration_mins"] for leg in legs),
+        "base_fare": base_fare,
+        "insurance_fee": insurance_fee,
         "estimated_fare": total_fare,
     }
 
@@ -81,7 +95,9 @@ async def estimate_parcel(data: ParcelEstimateRequest, request: Request):
 @router.post("")
 async def create_parcel(data: ParcelCreateRequest, request: Request):
     user = await get_current_user(request)
-    legs, total_km, total_fare = _compute_legs(data.pickup_lat, data.pickup_lng, data.stops, data.vehicle_type)
+    legs, total_km, base_fare = _compute_legs(data.pickup_lat, data.pickup_lng, data.stops, data.vehicle_type)
+    insurance_fee = INSURANCE_FEE if data.insurance else 0.0
+    total_fare = round(base_fare + insurance_fee, 2)
     for leg in legs:
         leg["status"] = "pending"  # pending → delivered (per drop-off)
     # Debit wallet / SB Pay up-front (before driver search). Cash fallback if short.
@@ -96,6 +112,7 @@ async def create_parcel(data: ParcelCreateRequest, request: Request):
         "driver_id": None,
         "vehicle_type": data.vehicle_type,
         "delivery_mode": "multi" if len(data.stops) > 1 else "single",
+        "service_variant": data.service_variant,
         "pickup_lat": data.pickup_lat,
         "pickup_lng": data.pickup_lng,
         "pickup_address": data.pickup_address,
@@ -105,6 +122,13 @@ async def create_parcel(data: ParcelCreateRequest, request: Request):
         "legs": legs,
         "total_distance_km": total_km,
         "total_duration_mins": sum(leg["duration_mins"] for leg in legs),
+        "base_fare": base_fare,
+        "insurance": data.insurance,
+        "insurance_fee": insurance_fee,
+        "signature_required": data.signature_required,
+        "genie_items": data.genie_items,
+        "genie_store": data.genie_store,
+        "genie_budget": data.genie_budget,
         "fare": total_fare,
         "payment_method": pay["method"],
         "payment_status": "paid" if pay["paid"] else "pending",

@@ -1,0 +1,65 @@
+{
+  "summary": "E2E frontend validation of 18+ Age Gate (Wine + Pharmacy), Delivery Genie shopping list and Parcel insurance + signature toggle. All 6 specialty flows pass. Logged in as a fresh user-role account, exercised every required data-testid, verified localStorage persistence, French validation toast, +2.00 EUR insurance fee, signature toggle and successful parcel creation (redirect to /track/parcel/{id}).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "age_gate_wine": {
+      "status": "PASS",
+      "details": "Overlay [age-gate] appears on first visit to /food?type=wine, contains title 'Vérification d'âge', confirm + decline buttons. Confirming dismisses overlay, reveals [store-list-page] and sets localStorage.sb_age_ok_wine='1'. Reload of /food?type=wine no longer shows the gate (persistence verified)."
+    },
+    "age_gate_pharmacy": {
+      "status": "PASS",
+      "details": "After confirming Wine gate, visiting /pharmacy still shows the age-gate overlay (sb_age_ok_pharmacy was null) -> confirms independence of localStorage keys. Confirming reveals [pharmacy-page] and sets localStorage.sb_age_ok_pharmacy='1'."
+    },
+    "age_gate_independence": {
+      "status": "PASS",
+      "details": "Wine and Pharmacy use separate keys (sb_age_ok_wine vs sb_age_ok_pharmacy). Confirming Wine did NOT auto-confirm Pharmacy."
+    },
+    "delivery_genie_visible_with_mode": {
+      "status": "PASS",
+      "details": "/runner?mode=genie renders [genie-section] with [genie-items] textarea, [genie-store], [genie-budget]."
+    },
+    "delivery_genie_validation": {
+      "status": "PASS",
+      "details": "Submitting with empty [genie-items] (pickup filled) shows French toast 'Indiquez ce que le Genie doit acheter' as expected."
+    },
+    "delivery_genie_submit_success": {
+      "status": "PASS",
+      "details": "Filling pickup via 'Ma position', genie-items='Lait, Pain, Oeufs', genie-store='Carrefour', genie-budget=25, drop via Google Places autocomplete ('10 Rue de Rivoli, 75004 Paris'), drop-phone='+33612345678' and clicking [submit-runner-btn] navigates to /track/parcel/{id} (order created)."
+    },
+    "delivery_genie_hidden_normal_runner": {
+      "status": "PASS",
+      "details": "/runner without mode=genie renders RunnerPage WITHOUT [genie-section]."
+    },
+    "parcel_insurance_fee": {
+      "status": "PASS",
+      "details": "Single-moto flow: pickup via 'Ma position', drop via [parcel-stop-map-btn-0] map picker (Confirmer ce lieu), Estimer le prix -> confirm screen renders [parcel-options-section], [parcel-insurance-toggle], [parcel-signature-toggle]. Initial [confirm-total-fare]='2,00 €'; after toggling insurance ON, value becomes '4,00 €' -> diff exactly +2.00 EUR (matches backend insurance fee)."
+    },
+    "parcel_signature_toggle": {
+      "status": "PASS",
+      "details": "Signature toggle is interactive on the confirm screen."
+    },
+    "parcel_create_success": {
+      "status": "PASS",
+      "details": "Clicking [parcel-confirm-btn] creates the parcel and the app navigates to /track/parcel/{parcel_id} (the success screen [parcel-success] is shown briefly for ~2.2s before auto-redirect — verified by capturing the resulting tracking URL with a valid parcel_xxxxxxxx id and tracker page rendering)."
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: ParcelPage.confirm() auto-redirects from [parcel-success] to /track/parcel/{id} after 2.2s — test scripts that look for [parcel-success] must check within ~2s or assert the navigation to /track/parcel/. Current testid is fine but timing is tight; consider keeping the success screen until the user dismisses it.",
+    "Minor: AgeGate decline button uses navigate(-1) which can leave the user on a blank/garbage page if there is no history. Consider navigate('/home') as a safer fallback."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (10/10 sub-checks)"},
+  "test_credentials": "Fresh user registered each run via POST /api/auth/register (email=qa_user_<ts>@example.com / Passw0rd!23 / role=user). UI login via [email-login-btn] then email+password form.",
+  "seed_data_creation": "Created ephemeral test user(s) and two test parcels (parcel_fae8e56c856e, parcel_1d9789a8761a) via the normal user flow.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login flow on mobile starts on phone step — must click [data-testid='email-login-btn'] before filling email/password. Geolocation is reliably granted via page.context.grant_permissions(['geolocation']) + set_geolocation(Paris 48.8566,2.3522), so 'Ma position' buttons work in headless. For Drop in Genie/RunnerPage, type into [data-testid='runner-drop'] (e.g. '10 rue de Rivoli Paris'), wait ~2s, then ArrowDown+Enter to pick first Google Places suggestion. For Parcel drop, use [parcel-stop-map-btn-0] -> wait for reverse-geocoded address -> [map-picker-confirm]. After parcel confirm, the app redirects to /track/parcel/{id}; the [parcel-success] testid is visible <2.2s.",
+  "rca of the issue": "No issues found. All 6 features behave exactly as specified in the request."
+}

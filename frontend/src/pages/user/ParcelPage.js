@@ -6,11 +6,12 @@ import { Button } from '../../components/ui/button';
 import { parcelAPI, placesAPI } from '../../services/api';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import {
-  ArrowLeft, Package, Motorcycle, CaretRight, Plus, Trash, MapPin, FlagCheckered, CheckCircle, NavigationArrow, MapTrifold
+  ArrowLeft, Package, Motorcycle, CaretRight, Plus, Trash, MapPin, FlagCheckered, CheckCircle, NavigationArrow, MapTrifold, ShieldCheck, Signature
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import SavedAddressChips from '../../components/SavedAddressChips';
 import MapLocationPicker from '../../components/MapLocationPicker';
+import { Switch } from '../../components/ui/switch';
 import { getCurrentLocation } from '../../lib/googleMaps';
 
 let stopSeq = 0;
@@ -29,6 +30,8 @@ const ParcelPage = () => {
   const [estimation, setEstimation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [insurance, setInsurance] = useState(false);
+  const [signatureRequired, setSignatureRequired] = useState(false);
 
   const startDelivery = (mode, vehicle) => {
     setDeliveryMode(mode); setVehicleType(vehicle);
@@ -73,16 +76,28 @@ const ParcelPage = () => {
 
   const getEstimate = async () => {
     if (!canEstimate) return;
+    const data = await runEstimate(insurance);
+    if (data) setStep('confirm');
+  };
+
+  const runEstimate = async (insuranceVal) => {
+    if (!canEstimate) return null;
     setLoading(true);
     try {
       const res = await parcelAPI.estimate({
         pickup_lat: pickup.lat, pickup_lng: pickup.lng,
         stops: stops.map((s) => ({ lat: s.lat, lng: s.lng, recipient_name: s.recipient_name, recipient_phone: s.recipient_phone })),
         vehicle_type: vehicleType,
+        insurance: insuranceVal,
       });
       setEstimation(res.data);
-      setStep('confirm');
-    } catch (e) { toast.error('Échec du calcul du prix'); } finally { setLoading(false); }
+      return res.data;
+    } catch (e) { toast.error('Échec du calcul du prix'); return null; } finally { setLoading(false); }
+  };
+
+  const toggleInsurance = async (val) => {
+    setInsurance(val);
+    await runEstimate(val);
   };
 
   const confirm = async () => {
@@ -92,6 +107,7 @@ const ParcelPage = () => {
         pickup_lat: pickup.lat, pickup_lng: pickup.lng,
         stops: stops.map((s) => ({ lat: s.lat, lng: s.lng, recipient_name: s.recipient_name, recipient_phone: s.recipient_phone })),
         vehicle_type: vehicleType, payment_method: paymentMethod,
+        insurance, signature_required: signatureRequired,
       });
       if (res.data?.payment_fallback_to_cash) {
         toast.info('Solde insuffisant — la course sera payée en espèces.');
@@ -287,6 +303,30 @@ const ParcelPage = () => {
               ))}
             </div>
           )}
+
+          {/* Options de livraison */}
+          <div className="space-y-2" data-testid="parcel-options-section">
+            <div className="flex items-center justify-between rounded-2xl border border-gray-100 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck size={22} weight="duotone" className="text-emerald-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Assurance colis</p>
+                  <p className="text-xs text-gray-500">Couverture en cas de perte ou casse (+{money(estimation?.insurance_fee || 2)})</p>
+                </div>
+              </div>
+              <Switch checked={insurance} onCheckedChange={toggleInsurance} data-testid="parcel-insurance-toggle" />
+            </div>
+            <div className="flex items-center justify-between rounded-2xl border border-gray-100 p-4">
+              <div className="flex items-start gap-3">
+                <Signature size={22} weight="duotone" className="text-blue-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Signature à la réception</p>
+                  <p className="text-xs text-gray-500">Le destinataire signe à la livraison (remise en main propre)</p>
+                </div>
+              </div>
+              <Switch checked={signatureRequired} onCheckedChange={setSignatureRequired} data-testid="parcel-signature-toggle" />
+            </div>
+          </div>
 
           {/* Moyen de paiement */}
           <div data-testid="parcel-payment-section">
