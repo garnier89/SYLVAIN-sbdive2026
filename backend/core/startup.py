@@ -471,6 +471,8 @@ async def run_all_seeds():
     await seed_parking_spots()          # editable parking spots (admin-managed)
     from routes.pricing import seed_weather_surcharges
     await seed_weather_surcharges()     # default weather surcharge ruleset
+    from routes.assist_types import seed_assist_types
+    await seed_assist_types()           # SB Access assistance types (admin-editable)
     try:
         from core.ondemand_seed import seed_ondemand
         await seed_ondemand()           # on-demand service categories + demo providers

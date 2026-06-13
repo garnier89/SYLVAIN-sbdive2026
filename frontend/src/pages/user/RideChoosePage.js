@@ -29,6 +29,7 @@ import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI,
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 import { getGeocoder } from '../../lib/googleMaps';
 import { useLocale } from '../../contexts/LocaleContext';
+import { useAssistTypes } from '../../hooks/useAssistTypes';
 
 const COMPARISON_EXCLUDE = ['pool', 'airport', 'pets', 'assist', 'accessible'];
 
@@ -47,13 +48,6 @@ const DEFAULT_PAYMENTS = [
   { id: 'card', label: 'CB', icon: 'CreditCard' },
   { id: 'wallet', label: 'Portefeuille', icon: 'Wallet' },
   { id: 'sbpaygo', label: 'SB PayGo', icon: 'Lightning' },
-];
-
-const ASSIST_OPTIONS = [
-  { k: 'wheelchair', l: 'Fauteuil roulant' },
-  { k: 'elderly', l: 'Personne âgée' },
-  { k: 'medical', l: 'Sortie médicale' },
-  { k: 'luggage', l: 'Aide bagages' },
 ];
 
 const vehicleIcon = (vt) => {
@@ -1190,6 +1184,7 @@ const SchedulePanel = (p) => {
 
 const ModeSpecificPanel = (p) => {
   const { money } = useLocale();
+  const assistOptions = useAssistTypes();
   const { mode } = p;
   const card = 'mt-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-3';
 
@@ -1355,7 +1350,7 @@ const ModeSpecificPanel = (p) => {
       <div className={card} data-testid="panel-assist">
         <label className="flex items-center gap-2 text-sm font-bold text-[#0B1426] mb-2"><HandHeart size={18} className="text-[#F43F5E]" /> Type d&apos;assistance</label>
         <div className="grid grid-cols-2 gap-2">
-          {ASSIST_OPTIONS.map((a) => (
+          {assistOptions.map((a) => (
             <button key={a.k} onClick={() => p.setAssistNeeds(a.k)} data-testid={`panel-assist-${a.k}`}
               className={`rounded-xl border-2 py-2 text-sm font-bold transition-colors ${p.assistNeeds === a.k ? 'border-[#FF5000] bg-[#FFF3EC] text-[#FF5000]' : 'border-gray-200 text-gray-600'}`}>{a.l}</button>
           ))}

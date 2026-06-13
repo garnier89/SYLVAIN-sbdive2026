@@ -5,7 +5,23 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarPlus, Plus, Minus } from '@phosphor-icons/react';
-import { RENTAL_PACKAGES, ASSIST_OPTIONS } from './taxiHubConstants';
+import { RENTAL_PACKAGES } from './taxiHubConstants';
+import { useAssistTypes } from '../../../hooks/useAssistTypes';
+
+const AssistPanel = ({ assistNeeds, setAssistNeeds }) => {
+  const options = useAssistTypes();
+  return (
+    <div data-testid="panel-assist" className="mb-2">
+      <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Type d'assistance</label>
+      <div className="grid grid-cols-2 gap-2 mt-1">
+        {options.map((o) => (
+          <button key={o.k} onClick={() => setAssistNeeds(o.k)} data-testid={`assist-${o.k}`}
+            className={`py-2 rounded-lg border text-sm font-medium ${assistNeeds === o.k ? 'border-[#F43F5E] bg-rose-50' : 'border-[#E2E8F0]'}`}>{o.l}</button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const TaxiModePanels = ({
   mode, scheduledAt, formatScheduled, setCalendarOpen,
@@ -79,15 +95,7 @@ export const TaxiModePanels = ({
         </div>
       )}
       {mode.panel === 'assist' && (
-        <div data-testid="panel-assist" className="mb-2">
-          <label className="text-[10px] tracking-[0.1em] uppercase font-bold text-slate-500">Type d'assistance</label>
-          <div className="grid grid-cols-2 gap-2 mt-1">
-            {ASSIST_OPTIONS.map((o) => (
-              <button key={o.k} onClick={() => setAssistNeeds(o.k)} data-testid={`assist-${o.k}`}
-                className={`py-2 rounded-lg border text-sm font-medium ${assistNeeds === o.k ? 'border-[#F43F5E] bg-rose-50' : 'border-[#E2E8F0]'}`}>{o.l}</button>
-            ))}
-          </div>
-        </div>
+        <AssistPanel assistNeeds={assistNeeds} setAssistNeeds={setAssistNeeds} />
       )}
       {mode.panel === 'corporate' && (
         <div data-testid="panel-corporate" className="mb-2">

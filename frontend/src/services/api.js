@@ -74,6 +74,15 @@ export const parkingAdminAPI = {
   remove: (id) => api.delete(`/admin/parking/spots/${id}`),
 };
 
+// Admin — types d'assistance SB Access (CRUD éditable)
+export const assistTypesAdminAPI = {
+  list: () => api.get('/admin/assist-types'),
+  create: (data) => api.post('/admin/assist-types', data),
+  update: (id, data) => api.put(`/admin/assist-types/${id}`, data),
+  toggle: (id) => api.patch(`/admin/assist-types/${id}/toggle`),
+  remove: (id) => api.delete(`/admin/assist-types/${id}`),
+};
+
 export const callsAPI = {
   initiate: (rideId) => api.post(`/calls/ride/${rideId}/initiate`),
   markFailed: (rideId, callId) => api.post(`/calls/ride/${rideId}/failed`, { call_id: callId }),

@@ -74,6 +74,7 @@ const sidebarConfig = [
         { label: 'Location moto (self-drive)', path: '/admin/moto-fleet' },
         { label: 'Location voiture (self-drive)', path: '/admin/car-fleet' },
         { label: 'Profils de course', path: '/admin/ride-profiles' },
+        { label: 'Types d’assistance (SB Access)', path: '/admin/assist-types' },
         { label: 'Configurations Taxi', path: '/admin/taxi-configs' },
         { label: 'Toutes les courses', path: '/admin/rides' },
         { label: 'Types de véhicules', path: '/admin/vehicle-types' },
