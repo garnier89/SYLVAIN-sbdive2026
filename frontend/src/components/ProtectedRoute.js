@@ -1,10 +1,11 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Car } from '@phosphor-icons/react';
 
 export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -20,7 +21,9 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    // Send anonymous visitors to the login screen (not the marketing home),
+    // remembering where they were headed so we can return them after login.
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {

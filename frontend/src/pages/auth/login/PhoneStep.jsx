@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, CaretDown, CaretRight } from '@phosphor-icons/react';
+import { ArrowRight, CaretDown, CaretRight, EnvelopeSimple } from '@phosphor-icons/react';
 import { COUNTRIES, Fab, BackBtn } from './loginConstants';
 import { useLocale } from '../../../contexts/LocaleContext';
 import LocaleSelector from '../../../components/LocaleSelector';
@@ -8,7 +8,7 @@ import LocaleSelector from '../../../components/LocaleSelector';
 export const PhoneStep = ({
   phone, setPhone, countryCode, setCountryCode,
   showCountryPicker, setShowCountryPicker, error, loading,
-  onSubmit, onBack, onOtherOptions,
+  onSubmit, onBack, onOtherOptions, onEmail,
 }) => {
   const { t } = useLocale();
   return (
@@ -49,7 +49,17 @@ export const PhoneStep = ({
         </div>
       )}
 
-      <button onClick={onOtherOptions} className="flex items-center gap-1.5 mt-5" data-testid="other-login-options-btn">
+      {/* E-mail login made visible up-front (was previously hidden behind the
+          "other options" modal). */}
+      {onEmail && (
+        <button onClick={onEmail} data-testid="email-login-btn"
+          className="w-full mt-5 flex items-center justify-center gap-2 bg-white/5 border border-white/10 rounded-xl py-3.5 hover:bg-white/10 transition-colors">
+          <EnvelopeSimple size={18} className="text-white" weight="bold" />
+          <span className="text-white font-semibold text-sm">{t('login.email_continue')}</span>
+        </button>
+      )}
+
+      <button onClick={onOtherOptions} className="flex items-center gap-1.5 mt-4 mx-auto" data-testid="other-login-options-btn">
         <span className="text-[#FF5000] font-bold text-sm">{t('login.other_options')}</span>
         <CaretRight size={14} className="text-[#FF5000]" weight="bold" />
       </button>

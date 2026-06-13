@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { COUNTRIES, formatApiErrorDetail } from './login/loginConstants';
 import { PhoneStep } from './login/PhoneStep';
@@ -15,7 +15,11 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
  */
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { loginWithGoogle, setUser } = useAuth();
+  // Where the user was headed before being bounced to /login (set by ProtectedRoute).
+  const from = location.state?.from;
+  const backTo = from ? `${from.pathname || ''}${from.search || ''}` : null;
 
   // Steps: 'phone' → 'password' → 'profile'
   const [step, setStep] = useState('phone');
@@ -95,7 +99,7 @@ const LoginPage = () => {
       else if (role === 'admin') navigate(panelPref || '/admin');
       else if (role === 'dispatcher') navigate('/dispatch');
       else if (role === 'merchant') navigate('/merchant');
-      else navigate('/home');
+      else navigate(backTo || '/home');
     } catch (err) {
       console.error('Phone login error:', err);
       setError('Erreur de connexion');
@@ -126,7 +130,7 @@ const LoginPage = () => {
       const data = await res.json();
       if (!res.ok) { setError(formatApiErrorDetail(data.detail) || "Erreur lors de l'inscription"); return; }
       setUser(data.user);
-      navigate('/home');
+      navigate(backTo || '/home');
     } catch (err) {
       console.error('Register error:', err);
       setError('Erreur de connexion');
@@ -177,6 +181,8 @@ const LoginPage = () => {
         showCountryPicker={showCountryPicker} setShowCountryPicker={setShowCountryPicker}
         error={error} loading={loading}
         onSubmit={handleCheckPhone} onBack={goBack}
+        onEmail={() => navigate('/login/email', { state: from ? { from } : undefined })}
+        onGoogle={() => loginWithGoogle()}
         onOtherOptions={() => setShowAccountModal(true)}
       />
       {showAccountModal && (

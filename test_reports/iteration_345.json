@@ -1,0 +1,35 @@
+{
+  "summary": "Iter345 - 3 UX P2 auth fixes (anonymous redirect to /login, email button visible, 401 noise reduction via sb_auth marker). Frontend-only Playwright run on mobile 390x844 against the public URL covering 7 scenarios. 12/13 checks PASS. Single FAIL: redirect-back from /taxi via the EMAIL login path returns the user to /home instead of /taxi (the phone login path is fine, but EmailLoginPage.js does not honor location.state.from). All other criteria from the review request are verified working: protected routes /taxi?mode=standard, /course?mode=intercity, /wallet redirect anonymous visitors to /login (login-page testid visible); the 'email-login-btn' is visible up-front on /login with text 'Continuer avec l'e-mail' and navigates to /login/email; client@test.sb / Client123! successfully authenticates via the email form and the user lands on /home with localStorage sb_auth=='1'; after a fresh anonymous /login load, sb_auth=='0' and a subsequent reload produces 0 /api/auth/me calls (noise suppression effective); F5 while logged in keeps the session (sb_auth stays '1', no kick-out); after logout, sb_auth=='0', user is bounced to /login, and reload does NOT auto-reconnect.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Redirect-back via EMAIL login (P2 criterion #4)",
+        "issue": "EmailLoginPage.js does not honor location.state.from. LoginPage.js correctly forwards the original destination via navigate('/login/email', { state: from ? { from } : undefined }), but EmailLoginPage uses useNavigate only and hard-codes navigate('/home', { replace: true }) for role 'user'. Reproduction: anonymous → /taxi?mode=standard → click 'Continuer avec l'e-mail' → login with client@test.sb/Client123! → lands on /home instead of /taxi?mode=standard. Phone login path (PhoneStep → handlePassword in LoginPage.js) works because it reads backTo. Suggested fix: in EmailLoginPage.js, import useLocation, compute backTo = location.state?.from ? `${location.state.from.pathname||''}${location.state.from.search||''}` : null, then navigate(backTo || '/home', { replace: true }) for the user role branch.",
+        "affected_selectors": ["[data-testid=\"email-login-submit-btn\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix EmailLoginPage.js to honor location.state.from so anonymous users sent to /login from a protected route (e.g. /taxi?mode=standard) are returned to that destination after a successful EMAIL login. The phone login path already does this in LoginPage.js."
+  ],
+  "critical_code_review_comments": [
+    "ProtectedRoute.js correctly uses <Navigate to='/login' state={{from: location}} replace/> so any protected route hops carry the original destination as expected.",
+    "AuthContext.checkAuth correctly short-circuits when localStorage.sb_auth==='0' (no /me probe) AND seeds the marker to '0' on a 401, which produces 0 /api/auth/me calls on a subsequent anonymous reload — verified live. Note: the very first anonymous /login load fires 2 /me probes due to React StrictMode double-invoke in dev (cosmetic, not user-facing in prod).",
+    "setUserAndMark exposed as setUser keeps the marker in sync across phone-login, register, logout, Google callback — verified by sb_auth flipping 0↔1 correctly across the full session lifecycle.",
+    "LoginPage.js correctly threads backTo into PhoneStep onEmail callback BUT EmailLoginPage discards it (see integration_issues). Recommend reading state.from inside EmailLoginPage to match the contract LoginPage advertises.",
+    "PhoneStep.jsx shows the new visible 'email-login-btn' above the 'Ou choisir une autre option de connexion' link, matching the spec (also visually verified in the captured screenshot).",
+    "Migration safety verified: an authenticated session with sb_auth missing (cleared then re-logged) keeps the user logged in after reload because checkAuth still calls /me when sb_auth!=='0' — no spurious logout observed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped", "frontend": "92% (12/13)"},
+  "test_credentials": "client@test.sb / Client123! (role=user) — confirmed working via POST /api/auth/login on the public URL",
+  "seed_data_creation": "None. Tests are read-only login/logout/reload cycles.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public URL: https://gojek-clone-41.preview.emergentagent.com. Reproducing redirect-back failure: clear cookies+localStorage → goto /taxi?mode=standard → should redirect to /login with [data-testid=login-page] → click [data-testid=email-login-btn] → fill [data-testid=email-input]=client@test.sb and [data-testid=password-input]=Client123! → click [data-testid=email-login-submit-btn] → page.url should be /taxi?mode=standard but is /home. sb_auth marker is JS-readable in localStorage; values: '1'=logged in, '0'=known anonymous, absent=unknown (probe once). React StrictMode causes 2 /me probes on first anonymous load in dev — that is fine; the reload after sb_auth==='0' must produce 0 /me calls (and does).",
+  "rca of the issue": "EmailLoginPage.js (/app/frontend/src/pages/auth/EmailLoginPage.js) only imports useNavigate and unconditionally calls navigate('/home', { replace: true }) for the default user branch (lines 38-40). It never reads useLocation().state.from, so the destination forwarded by LoginPage.js via navigate('/login/email', { state: { from } }) is dropped. Fix: import useLocation, compute backTo from state.from (pathname+search), and use navigate(backTo || '/home', { replace: true }) — symmetrical with handlePassword in LoginPage.js (line 102)."
+}

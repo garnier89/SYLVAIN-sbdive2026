@@ -26,14 +26,26 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    // Avoid the noisy 401 on /api/auth/me for visitors known to be anonymous.
+    // 'sb_auth' is a JS-readable hint: '1' = was logged in, '0' = explicitly
+    // anonymous (logged out / probed 401). Absent → unknown, so we probe once
+    // and remember the result. This never logs out an existing cookie session.
+    if (localStorage.getItem('sb_auth') === '0') {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await axios.get(`${API_URL}/api/auth/me`, {
         withCredentials: true,
       });
       setUser(response.data);
+      try { localStorage.setItem('sb_auth', '1'); } catch (e) { /* ignore */ }
       return response.data;
     } catch (error) {
       setUser(null);
+      try { localStorage.setItem('sb_auth', '0'); } catch (e) { /* ignore */ }
       return null;
     } finally {
       setLoading(false);
@@ -49,13 +61,21 @@ export const AuthProvider = ({ children }) => {
     if (user) autoSubscribePush();
   }, [user]);
 
+  // Wrapper exposed to consumers (e.g. LoginPage phone-login/register) so that
+  // setting the user also records the 'sb_auth' hint — keeps checkAuth in sync
+  // and prevents a logged-in user from being skipped on the next page load.
+  const setUserAndMark = useCallback((u) => {
+    setUser(u);
+    try { localStorage.setItem('sb_auth', u ? '1' : '0'); } catch (e) { /* ignore */ }
+  }, []);
+
   const login = async (email, password) => {
     const response = await axios.post(
       `${API_URL}/api/auth/login`,
       { email, password },
       { withCredentials: true }
     );
-    setUser(response.data.user);
+    setUserAndMark(response.data.user);
     return response.data;
   };
 
@@ -65,7 +85,7 @@ export const AuthProvider = ({ children }) => {
       data,
       { withCredentials: true }
     );
-    setUser(response.data.user);
+    setUserAndMark(response.data.user);
     return response.data;
   };
 
@@ -75,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    setUser(null);
+    setUserAndMark(null);
   };
 
   const loginWithGoogle = (roleHint = 'user') => {
@@ -97,7 +117,7 @@ export const AuthProvider = ({ children }) => {
       { withCredentials: true }
     );
     try { sessionStorage.removeItem('sb_oauth_role'); } catch (e) { /* ignore */ }
-    setUser(response.data.user);
+    setUserAndMark(response.data.user);
     return response.data;
   };
 
@@ -110,7 +130,7 @@ export const AuthProvider = ({ children }) => {
     loginWithGoogle,
     handleGoogleCallback,
     checkAuth,
-    setUser,
+    setUser: setUserAndMark,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
