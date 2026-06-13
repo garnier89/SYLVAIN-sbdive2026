@@ -539,6 +539,8 @@ export const organizerAPI = {
   updateEvent: (id, payload) => api.put(`/organizer/events/${id}`, payload),
   deleteEvent: (id) => api.delete(`/organizer/events/${id}`),
   attendees: (id) => api.get(`/organizer/events/${id}/attendees`),
+  checkinStats: (id) => api.get(`/organizer/events/${id}/checkin-stats`),
+  checkin: (id, qr_token) => api.post(`/organizer/events/${id}/checkin`, { qr_token }),
   boost: (id, days) => api.post(`/organizer/events/${id}/boost`, { days }),
 };
 

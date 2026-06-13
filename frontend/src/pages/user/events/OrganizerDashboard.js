@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, Megaphone, Users, PencilSimple, Trash, X, CurrencyEur, Ticket, Star,
+  ArrowLeft, Plus, Megaphone, Users, PencilSimple, Trash, X, CurrencyEur, Ticket, Star, QrCode,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { organizerAPI } from '../../../services/api';
@@ -99,14 +99,16 @@ const OrganizerDashboard = () => {
                       <p className="text-[11px] text-gray-500">{fmtEventDate(ev.starts_at)}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-1 mt-2 text-center bg-gray-50 rounded-xl py-2">
+                  <div className="grid grid-cols-4 gap-1 mt-2 text-center bg-gray-50 rounded-xl py-2">
                     <MiniStat label="Cmd" value={ev.stats.orders} />
                     <MiniStat label="Places" value={ev.stats.seats} />
+                    <MiniStat label="Entrés" value={ev.stats.checked_in_seats || 0} />
                     <MiniStat label="Net" value={fmtMoney(ev.stats.net)} />
                   </div>
                   <div className="flex gap-2 mt-2">
-                    <Act onClick={() => setBoostFor(ev)} Icon={Megaphone} label="Booster" testid={`boost-${ev.id}`} primary />
-                    <Act onClick={() => openAttendees(ev)} Icon={Users} label="Participants" testid={`attendees-${ev.id}`} />
+                    <Act onClick={() => navigate(`/organizer/events/${ev.id}/checkin`)} Icon={QrCode} label="Scanner" testid={`scan-${ev.id}`} primary />
+                    <Act onClick={() => setBoostFor(ev)} Icon={Megaphone} label="Booster" testid={`boost-${ev.id}`} />
+                    <Act onClick={() => openAttendees(ev)} Icon={Users} label="" testid={`attendees-${ev.id}`} />
                     <Act onClick={() => setFormEvent(ev)} Icon={PencilSimple} label="" testid={`edit-${ev.id}`} />
                     <Act onClick={() => remove(ev)} Icon={Trash} label="" testid={`del-${ev.id}`} danger />
                   </div>

@@ -36,12 +36,16 @@ def _event_stats(ev: dict, tickets: list) -> dict:
     valid = [t for t in tickets if t.get("status") == "valid"]
     gross = round(sum(float(t.get("total_price", 0) or 0) for t in valid), 2)
     seats = sum(int(t.get("quantity", 0) or 0) for t in valid)
+    checked = [t for t in valid if t.get("checked_in")]
+    checked_orders = len(checked)
+    checked_seats = sum(int(t.get("quantity", 0) or 0) for t in checked)
     pct = float(ev.get("commission_percent", 10) or 0)
     commission = round(gross * pct / 100, 2)
     return {
         "orders": len(valid), "seats": seats, "gross": gross,
         "commission_percent": pct, "commission": commission,
         "net": round(gross - commission, 2),
+        "checked_in_orders": checked_orders, "checked_in_seats": checked_seats,
     }
 
 
@@ -165,6 +169,75 @@ async def organizer_attendees(event_id: str, request: Request):
     ev = await _own_event(org, event_id)
     tickets = await db.event_tickets.find({"event_id": event_id}, {"_id": 0}).sort("purchased_at", -1).to_list(2000)
     return {"event": {"id": ev["id"], "title": ev["title"]}, "tickets": tickets, "stats": _event_stats(ev, tickets)}
+
+
+# --------------------------------------------------------------- entry check-in (QR scan)
+async def _buyer_name(user_id: str) -> str:
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
+    return (u or {}).get("name") or "Participant"
+
+
+@router.get("/events/{event_id}/checkin-stats")
+async def organizer_checkin_stats(event_id: str, request: Request):
+    """Live check-in counters for the scanner screen."""
+    org = await _require_organizer(request)
+    ev = await _own_event(org, event_id)
+    tickets = await db.event_tickets.find({"event_id": event_id, "status": "valid"}, {"_id": 0}).to_list(5000)
+    seats = sum(int(t.get("quantity", 0) or 0) for t in tickets)
+    checked = [t for t in tickets if t.get("checked_in")]
+    return {
+        "event": {"id": ev["id"], "title": ev["title"]},
+        "orders": len(tickets), "seats": seats,
+        "checked_in_orders": len(checked),
+        "checked_in_seats": sum(int(t.get("quantity", 0) or 0) for t in checked),
+    }
+
+
+@router.post("/events/{event_id}/checkin")
+async def organizer_checkin(event_id: str, request: Request):
+    """Validate a ticket QR at the door. Returns one of:
+    ok | already_used | cancelled | wrong_event | invalid.
+    A valid ticket is marked checked_in (revenue stats keep status 'valid')."""
+    org = await _require_organizer(request)
+    await _own_event(org, event_id)
+    body = await request.json()
+    code = (body.get("qr_token") or body.get("code") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Code du billet requis")
+
+    tkt = await db.event_tickets.find_one({"qr_token": code}, {"_id": 0})
+    if not tkt:
+        tkt = await db.event_tickets.find_one({"id": code}, {"_id": 0})
+    if not tkt:
+        return {"result": "invalid", "message": "Billet introuvable"}
+    if tkt.get("event_id") != event_id:
+        return {"result": "wrong_event", "message": "Billet d'un autre événement"}
+    if tkt.get("status") == "cancelled":
+        return {"result": "cancelled", "message": "Billet annulé"}
+    if tkt.get("status") != "valid":
+        return {"result": "invalid", "message": "Billet non valide"}
+
+    name = await _buyer_name(tkt["user_id"])
+    if tkt.get("checked_in"):
+        return {
+            "result": "already_used", "message": "Déjà scanné",
+            "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"),
+                       "quantity": tkt.get("quantity"), "checked_in_at": tkt.get("checked_in_at")},
+        }
+
+    now = _now()
+    upd = await db.event_tickets.find_one_and_update(
+        {"id": tkt["id"], "checked_in": {"$ne": True}, "status": "valid"},
+        {"$set": {"checked_in": True, "checked_in_at": now, "used_at": now}},
+    )
+    if not upd:  # raced with another scanner
+        return {"result": "already_used", "message": "Déjà scanné",
+                "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"), "quantity": tkt.get("quantity")}}
+    return {
+        "result": "ok", "message": "Entrée validée",
+        "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"),
+                   "quantity": tkt.get("quantity"), "checked_in_at": now},
+    }
 
 
 # --------------------------------------------------------------- sponsorship
