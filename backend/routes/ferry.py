@@ -525,6 +525,9 @@ async def admin_ferry_revenue(current_user: dict = Depends(require_permission("c
     companies = await db.ferry_companies.find({}, {"_id": 0}).to_list(200)
     comp_name = {c["id"]: c.get("name", "—") for c in companies}
 
+    def _name_for(cid):
+        return comp_name.get(cid) or "Non attribué"
+
     def _blank():
         return {"tickets": 0, "gross": 0.0, "commission": 0.0, "company_revenue": 0.0,
                 "platform_owes_company": 0.0, "company_owes_platform": 0.0}
@@ -556,7 +559,7 @@ async def admin_ferry_revenue(current_user: dict = Depends(require_permission("c
         m["gross"] = round(m["gross"] + total, 2)
         m["commission"] = round(m["commission"] + commission, 2)
 
-    companies_list = [{"company_id": cid, "company_name": comp_name.get(cid, "—"), **vals}
+    companies_list = [{"company_id": cid, "company_name": _name_for(cid), **vals}
                       for cid, vals in per_company.items()]
     companies_list.sort(key=lambda x: x["gross"], reverse=True)
     return {
