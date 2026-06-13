@@ -76,6 +76,7 @@ const sidebarConfig = [
         { label: 'Profils de course', path: '/admin/ride-profiles' },
         { label: 'Types d’assistance (SB Access)', path: '/admin/assist-types' },
         { label: 'SB Ferry (maritime)', path: '/admin/ferry' },
+        { label: 'SB Ferry — Règlements compagnies', path: '/admin/ferry-settlements' },
         { label: 'Configurations Taxi', path: '/admin/taxi-configs' },
         { label: 'Toutes les courses', path: '/admin/rides' },
         { label: 'Types de véhicules', path: '/admin/vehicle-types' },

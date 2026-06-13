@@ -150,3 +150,46 @@ class TestRevenue:
     def test_revenue_gating(self, anon):
         r = anon.get(f"{BASE}/api/admin/ferry/revenue", timeout=15)
         assert r.status_code in (401, 403)
+
+
+# ---------- Settlements (monthly statement + bulk settle) ----------
+class TestSettlements:
+    def test_settlements_structure(self, admin_s):
+        r = admin_s.get(f"{BASE}/api/admin/ferry/settlements", timeout=20)
+        assert r.status_code == 200
+        d = r.json()
+        assert "companies" in d and "count" in d
+        if d["companies"]:
+            c = d["companies"][0]
+            for k in ("company_id", "company_name", "tickets", "gross", "commission",
+                      "pending_platform_owes", "pending_company_owes", "net_due_to_company",
+                      "settled_amount", "pending_tickets"):
+                assert k in c, f"missing {k}"
+
+    def test_settlements_gating(self, anon):
+        r = anon.get(f"{BASE}/api/admin/ferry/settlements", timeout=15)
+        assert r.status_code in (401, 403)
+
+    def test_settle_batch_requires_company(self, admin_s):
+        r = admin_s.post(f"{BASE}/api/admin/ferry/settlements/settle-batch", json={"company_id": ""}, timeout=15)
+        assert r.status_code == 400
+
+    def test_settle_batch_roundtrip(self, admin_s, user_s, cheap_local_route):
+        # Create a fresh cash booking this month, then settle its company → pending drops.
+        route = cheap_local_route
+        month = __import__("datetime").datetime.utcnow().strftime("%Y-%m")
+        body = {"route_id": route["id"], "adults": 1,
+                "travel_date": "2026-12-22", "departure_time": route["departure_times"][0],
+                "payment_method": "cash"}
+        b = user_s.post(f"{BASE}/api/ferry/bookings", json=body, timeout=15).json()
+        cid = b["company_id"]
+        # settle that company for the current month
+        r = admin_s.post(f"{BASE}/api/admin/ferry/settlements/settle-batch",
+                         json={"company_id": cid, "month": month}, timeout=15)
+        assert r.status_code == 200
+        assert r.json()["settled"] >= 1
+        # after settling, that company has no pending tickets for the month
+        d = admin_s.get(f"{BASE}/api/admin/ferry/settlements", params={"month": month}, timeout=20).json()
+        row = next((x for x in d["companies"] if x["company_id"] == cid), None)
+        assert row is not None
+        assert row["pending_tickets"] == 0

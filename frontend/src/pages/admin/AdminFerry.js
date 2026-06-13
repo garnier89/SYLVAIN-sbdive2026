@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, PencilSimple, Trash, Eye, EyeSlash, CircleNotch, X, Boat, CurrencyEur, Ticket, Percent, ChartBar } from '@phosphor-icons/react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, PencilSimple, Trash, Eye, EyeSlash, CircleNotch, X, Boat, CurrencyEur, Ticket, Percent, ChartBar, Receipt } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ferryAPI } from '../../services/api';
 
@@ -220,6 +221,7 @@ const RouteModal = ({ open, initial, ports, companies, onClose, onSaved }) => {
 };
 
 const AdminFerry = () => {
+  const navigate = useNavigate();
   const [routes, setRoutes] = useState([]);
   const [ports, setPorts] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -260,6 +262,9 @@ const AdminFerry = () => {
           <Plus size={16} weight="bold" /> Ajouter
         </button>
       </div>
+      <button onClick={() => navigate('/admin/ferry-settlements')} className="inline-flex items-center gap-1.5 text-sm font-bold text-sky-600 mb-3" data-testid="ferry-settlements-link">
+        <Receipt size={16} weight="fill" /> Règlements compagnies →
+      </button>
       <p className="text-sm text-gray-500 mb-4">Gérez les lignes (inter-îles & navettes locales), compagnies, prix et horaires. Billetterie payée en SB Pay.</p>
 
       <div className="grid grid-cols-3 gap-2 mb-6">

@@ -12,6 +12,7 @@ import AdminParking from '../pages/admin/AdminParking';
 import AdminAssistTypes from '../pages/admin/AdminAssistTypes';
 import AdminHomeBanners from '../pages/admin/AdminHomeBanners';
 import AdminFerry from '../pages/admin/AdminFerry';
+import AdminFerrySettlements from '../pages/admin/AdminFerrySettlements';
 import {
   AdminLayout, AdminDashboard, AdminUsers, AdminUserEdit, AdminDrivers, AdminRides,
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
@@ -75,6 +76,7 @@ export function adminRoutes() {
       <Route path="assist-types" element={<AdminAssistTypes />} />
       <Route path="home-banners" element={<AdminHomeBanners />} />
       <Route path="ferry" element={<AdminFerry />} />
+      <Route path="ferry-settlements" element={<AdminFerrySettlements />} />
       <Route path="organization" element={<AdminOrganization />} />
       <Route path="vehicle-types" element={<AdminVehicleTypes />} />
       <Route path="parcels" element={<AdminOrders />} />

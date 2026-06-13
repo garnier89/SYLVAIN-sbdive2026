@@ -743,6 +743,8 @@ export const ferryAPI = {
   adminConfig: () => api.get('/admin/ferry/config'),
   updateConfig: (d) => api.put('/admin/ferry/config', d),
   adminRevenue: (params) => api.get('/admin/ferry/revenue', { params }),
+  adminSettlements: (month) => api.get('/admin/ferry/settlements', { params: month ? { month } : {} }),
+  settleBatch: (data) => api.post('/admin/ferry/settlements/settle-batch', data),
   adminBookings: () => api.get('/admin/ferry/bookings'),
   settleBooking: (id) => api.post(`/admin/ferry/bookings/${id}/settle`),
 };

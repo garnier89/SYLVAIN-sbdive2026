@@ -570,7 +570,67 @@ async def admin_ferry_revenue(current_user: dict = Depends(require_permission("c
     }
 
 
-@admin_router.post("/bookings/{booking_id}/settle")
+@admin_router.get("/settlements")
+async def admin_settlements(current_user: dict = Depends(require_permission("content.manage")), month: str = ""):
+    """Monthly settlement statement per ferry company (pending vs settled, net due)."""
+    query = {}
+    if month:
+        query["created_at"] = {"$gte": f"{month}-01", "$lte": f"{month}-31T23:59:59"}
+    bookings = await db.ferry_bookings.find(query, {"_id": 0}).to_list(10000)
+    companies = await db.ferry_companies.find({}, {"_id": 0}).to_list(200)
+    comp_name = {c["id"]: c.get("name") for c in companies}
+
+    per = {}
+    for b in bookings:
+        cid = b.get("company_id") or "unknown"
+        s = per.setdefault(cid, {
+            "company_id": cid, "company_name": comp_name.get(cid) or "Non attribué",
+            "tickets": 0, "gross": 0.0, "commission": 0.0, "company_revenue": 0.0,
+            "pending_platform_owes": 0.0, "pending_company_owes": 0.0,
+            "settled_amount": 0.0, "pending_tickets": 0,
+        })
+        total = float(b.get("total", 0) or 0)
+        commission = float(b.get("platform_commission", 0) or 0)
+        crev = float(b.get("company_revenue", 0) or 0)
+        s["tickets"] += 1
+        s["gross"] = round(s["gross"] + total, 2)
+        s["commission"] = round(s["commission"] + commission, 2)
+        s["company_revenue"] = round(s["company_revenue"] + crev, 2)
+        if b.get("settlement_status") == "settled":
+            s["settled_amount"] = round(s["settled_amount"] + float(b.get("settlement_amount", 0) or 0), 2)
+        else:
+            s["pending_tickets"] += 1
+            if b.get("settlement_direction") == "platform_owes_company":
+                s["pending_platform_owes"] = round(s["pending_platform_owes"] + crev, 2)
+            else:
+                s["pending_company_owes"] = round(s["pending_company_owes"] + commission, 2)
+
+    rows = []
+    for s in per.values():
+        # net_due_to_company > 0 → SB Drive pays the company ; < 0 → the company pays SB Drive.
+        s["net_due_to_company"] = round(s["pending_platform_owes"] - s["pending_company_owes"], 2)
+        rows.append(s)
+    rows.sort(key=lambda x: x["gross"], reverse=True)
+    return {"month": month, "companies": rows, "count": len(bookings)}
+
+
+@admin_router.post("/settlements/settle-batch")
+async def admin_settle_batch(request: Request, current_user: dict = Depends(require_permission("content.manage"))):
+    """Mark every pending booking of a company (optionally within a month) as settled."""
+    body = await request.json()
+    cid = body.get("company_id")
+    month = (body.get("month") or "").strip()
+    if not cid:
+        raise HTTPException(status_code=400, detail="Compagnie requise")
+    query = {"settlement_status": {"$ne": "settled"}}
+    query["company_id"] = None if cid == "unknown" else cid
+    if month:
+        query["created_at"] = {"$gte": f"{month}-01", "$lte": f"{month}-31T23:59:59"}
+    res = await db.ferry_bookings.update_many(query, {"$set": {"settlement_status": "settled", "settled_at": _now()}})
+    return {"settled": res.modified_count}
+
+
+
 async def admin_settle_booking(booking_id: str, current_user: dict = Depends(require_permission("content.manage"))):
     """Mark a booking's settlement as cleared (commission/revenue reconciled with the company)."""
     b = await db.ferry_bookings.find_one({"id": booking_id}, {"_id": 0, "settlement_status": 1})

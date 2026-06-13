@@ -1,3 +1,12 @@
+## NEW - 2026-06-13 (369) - 🧾 SB Ferry : page « Règlements compagnies » (relevé mensuel + réglé en masse + export CSV) (DONE, testé 15/15 + capture)
+- **Demande user (suite iter368)** : page dédiée pour automatiser la facturation des compagnies maritimes.
+- **Backend** (`routes/ferry.py`) : `GET /admin/ferry/settlements?month=YYYY-MM` → relevé par compagnie (billets, CA, commission, revenu compagnie, **en attente** `pending_platform_owes`/`pending_company_owes`, **net dû** signé, **déjà réglé**, billets en attente ; libellé « Non attribué » pour l'historique sans compagnie). `POST /admin/ferry/settlements/settle-batch` `{company_id, month}` → marque tous les billets en attente de la compagnie (+mois) comme `settled` (400 si company_id vide ; `company_id=='unknown'`→ docs sans compagnie).
+- **Frontend** : nouvelle page `AdminFerrySettlements.js` (route `/admin/ferry-settlements`) — sélecteur de **mois**, 2 KPI (SB Drive doit / compagnies doivent), **tableau par compagnie** (CA, commission, net dû coloré, réglé), bouton **« Marquer réglé (N) »** par ligne (confirm + toast), **Export CSV** (génération client, BOM UTF-8). Lien depuis `AdminFerry` (`ferry-settlements-link`) + entrée sidebar SERVICES > Taxi/Transport.
+- **Testé** : pytest `test_iter368_ferry_commission.py` **15/15** (ajout classe Settlements : structure, gating, 400 sans compagnie, settle-batch roundtrip → pending=0) + curl (Val'Ferry 4 billets cash → company_owes 7,32€ → settle-batch `settled:4` → réglé 7,32€) + capture admin (page rendue : KPI, tableau, boutons, export). 
+- ⚠️ Visible en **prod** après **redéploiement**.
+
+
+
 ## NEW - 2026-06-13 (368) - 🚢 SB Ferry : modèle de commission + paiement cash/Stripe + reporting (DONE, testé 11/11 back + front 100%)
 - **Demande user (P1, déjà validée)** : split de revenus SB Drive ⇄ compagnies maritimes, reporting admin, paiements cash/Stripe.
 - **Backend** (`routes/ferry.py`) : commission SB Drive (% par billet) — `commission_percent` par compagnie (override) sinon config globale `ferry_config` (défaut 12%). `_compute_split(total, pct, method)` : **sbpay/stripe → SB Drive encaisse, doit le net à la compagnie** (`platform_owes_company`) ; **cash → la compagnie encaisse au port, doit la commission à SB Drive** (`company_owes_platform`). Chaque billet stocke `platform_commission`, `company_revenue`, `settlement_direction/amount`, `settlement_status`. Seed idempotent (`_ensure_commission_defaults` backfill compagnies + config sur env existants).
