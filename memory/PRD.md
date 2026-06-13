@@ -7,7 +7,17 @@
 - Reste à faire (Phase 4+) : `rides.py` reste volumineux ; extraction possible des groupes d'endpoints leaf (rental, bidding, rating) en sous-routeurs.
 
 
-## NEW - 2026-06-13 (375) - 🚦 Garde-fou de pré-déploiement (script pytest flux critiques) (DONE)
+## NEW - 2026-06-13 (376) - 🧹 Bug : effacer les réservations/courses/enchères indisponibles (DONE, testé)
+- **Bug user (capture)** : la liste chauffeur « Mes réservations › En attendant » gardait des réservations **non disponibles** (heure passée, ou prises entre 2 sondages) → « Course déjà prise ou indisponible » au clic, sans disparaître.
+- **Cause** : `driver_bookings.pending` ne filtrait pas les réservations programmées passées (le `home-feed` le faisait pourtant) ; et le frontend ne retirait pas la carte à l'échec d'acceptation.
+- **Fait** :
+  - Backend (`routes/rides.py`) : nouveau helper `_expire_dead_pending_rides()` appelé dans `driver_bookings` → marque `expired` les courses `pending`/non attribuées **programmées dont l'heure est passée** + **demandes immédiates/enchères abandonnées (>2 h)**. Elles disparaissent de toutes les listes (réservations, courses, enchères) et ne peuvent plus être acceptées. Ne touche jamais les courses attribuées ni les réservations futures.
+  - Frontend (`DriverBookingsPage.js`) : à l'échec d'« Acceptez » / d'envoi d'offre (course indisponible/réservée à un autre profil), **retrait immédiat de la carte** + rafraîchissement + toast avec la **vraie raison** (détail backend). Liste des enchères filtrée par `dismissed`.
+- **Testé** : script direct + `tests/test_iter376_expire_dead_rides.py` (passé→expired, immédiate ancienne→expired, enchère ancienne→expired, future & fraîche & attribuée→intactes) ; HTTP `driver/bookings` ne renvoie plus que `pending` valides ; **garde-fou 70/70**. Ajouté à `scripts/predeploy_check.sh`.
+- ⚠️ Visible en **production après redéploiement**.
+
+
+
 - **Demande user (suite iter374)** : script à lancer avant chaque redéploiement pour éviter les régressions en prod.
 - **Fait** : `scripts/predeploy_check.sh` (+ `scripts/README.md`) — exécute **12 suites critiques / 69 tests** contre l'ingress public (`REACT_APP_BACKEND_URL`) : courses (enchères iter374/210/215, mise à disposition iter374, paiements/cash/dettes iter312/244/249/250 + debt carry + driver flow) et SB Ferry (iter365 + commission iter368). Bannière FR, exit 0 = déploiement sûr / exit ≠0 = ne pas déployer.
 - **Testé** : exécution réelle **69/69 passent en ~22 s, exit 0**.

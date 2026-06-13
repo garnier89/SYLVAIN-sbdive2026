@@ -29,6 +29,8 @@ CRITICAL_TESTS=(
   "tests/test_iter215_bidding_avg_fares.py"
   # Rides — rental (mise à disposition)
   "tests/test_iter374_rides_rental.py"
+  # Rides — dead/stale pending erasure
+  "tests/test_iter376_expire_dead_rides.py"
   # Rides — payments / cash / debt reconciliation
   "tests/test_iter312_payment_switch.py"
   "tests/test_iter244_cash_gating_refund.py"

@@ -92,7 +92,12 @@ const DriverBookingsPage = () => {
           toast.success(`La réservation #${(ride.booking_no || ride.id).toString().slice(-6)} a été confirmée.`);
           setFilter('upcoming');
           reload();
-        } catch { toast.error('Course déjà prise ou indisponible.'); }
+        } catch (e) {
+          // Course déjà prise/indisponible/réservée à un autre profil → on retire la carte.
+          setDismissed((p) => [...p, ride.id]);
+          toast.error(e?.response?.data?.detail || 'Course déjà prise ou indisponible.');
+          reload();
+        }
         finally { setBusy(false); setConfirm(null); }
       },
     });
@@ -129,13 +134,23 @@ const DriverBookingsPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ amount }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        // Ride no longer pending/available → drop the card from the bids list.
+        if ([400, 404, 409].includes(res.status)) {
+          setDismissed((p) => [...p, ride.id]);
+          toast.error('Course déjà prise ou indisponible.');
+          reload();
+          return;
+        }
+        throw new Error();
+      }
       toast.success('Offre envoyée au client.');
       reload();
     } catch { toast.error("Échec de l'envoi de l'offre."); }
   }, [bidInputs, reload]);
 
   const rides = (filter === 'pending' ? data.pending : data.upcoming).filter((r) => !dismissed.includes(r.id));
+  const bids = (data.bids || []).filter((r) => !dismissed.includes(r.id));
 
   return (
     <div className="mobile-container min-h-screen bg-[#F2F4F7] pb-24" data-testid="driver-bookings-page">
@@ -220,9 +235,9 @@ const DriverBookingsPage = () => {
           )))}
 
         {/* BIDS */}
-        {tab === 'bids' && (data.bids.length === 0
+        {tab === 'bids' && (bids.length === 0
           ? <p className="text-center text-gray-400 text-sm py-10" data-testid="bids-empty">Aucune enchère en cours.</p>
-          : data.bids.map((ride) => (
+          : bids.map((ride) => (
             <BookingCard key={ride.id} ride={ride} badge="Enchère" badgeColor="#F59E0B" testId={`bid-${ride.id}`}>
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3">

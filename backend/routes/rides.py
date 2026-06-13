@@ -2443,6 +2443,34 @@ async def get_active_ride(request: Request):
     return {"active_ride": None}
 
 
+async def _expire_dead_pending_rides():
+    """Mark unassigned pending rides that can no longer be served as `expired`, so
+    they disappear from every driver list (réservations, courses, enchères) and
+    can no longer be (futilely) accepted:
+      - scheduled reservations whose pickup time has already passed,
+      - immediate requests / bids left unaccepted for a long time (abandoned).
+    Idempotent and cheap (single indexed update_many)."""
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    stale_immediate = (now - timedelta(hours=2)).isoformat()
+    await db.rides.update_many(
+        {
+            "status": "pending",
+            "driver_id": None,
+            "$or": [
+                # past-due scheduled reservation
+                {"scheduled_at": {"$ne": None, "$lt": now_iso}},
+                # abandoned immediate request (no scheduled time, old)
+                {"$and": [
+                    {"$or": [{"scheduled_at": None}, {"scheduled_at": {"$exists": False}}]},
+                    {"created_at": {"$lt": stale_immediate}},
+                ]},
+            ],
+        },
+        {"$set": {"status": "expired", "expired_at": now_iso, "expiry_reason": "unaccepted"}},
+    )
+
+
 @router.get("/driver/bookings")
 async def driver_bookings(request: Request):
     """V3Cube 'Mes réservations' for a driver: available pending rides (to accept),
@@ -2452,6 +2480,10 @@ async def driver_bookings(request: Request):
     if not driver:
         raise HTTPException(status_code=403, detail="Driver profile required")
     did = driver["id"]
+
+    # Erase rides/reservations/bids that can no longer be served, so they stop
+    # showing up in the list (and stop returning "déjà prise ou indisponible").
+    await _expire_dead_pending_rides()
 
     upcoming = await db.rides.find(
         {"driver_id": did, "status": {"$in": ["accepted", "arriving", "in_progress"]}},
