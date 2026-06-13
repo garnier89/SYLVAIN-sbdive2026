@@ -690,6 +690,20 @@ const UserHome = () => {
         <OffresDuMoment className="mt-4" />
       </section>
     ),
+    events: (
+      <section key="events" className="px-4 mt-6" data-testid="home-events-section">
+        <SectionHeader title={st('events', 'SB Événement')} sub="Concerts, festivals, carnaval… billets + transport en un clic." />
+        <button onClick={() => go({ id: 'events', path: '/events' })} className="w-full text-left rounded-2xl overflow-hidden relative bg-gradient-to-br from-[#7C2D12] via-[#B91C1C] to-[#FF4500] p-5 active:scale-[0.99] transition-transform" data-testid="events-banner">
+          <div className="relative z-10">
+            <span className="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded-full"><DynamicIcon name="Confetti" size={12} className="text-white" /> Nouveau</span>
+            <h3 className="text-white text-lg font-extrabold mt-2 leading-tight">Vos billets & votre transport,<br />au même endroit</h3>
+            <p className="text-white/80 text-xs mt-1">Découvrez les événements près de chez vous</p>
+            <span className="inline-flex items-center gap-1 mt-3 bg-white text-[#B91C1C] text-xs font-extrabold px-3 py-1.5 rounded-full">Découvrir →</span>
+          </div>
+          <DynamicIcon name="Ticket" size={120} className="absolute -right-3 -bottom-4 text-white/15" />
+        </button>
+      </section>
+    ),
     beauty: (
       <section key="beauty" className="px-4 mt-6">
         <SectionHeader title={st('beauty', "Services Beauté")} />
@@ -871,18 +885,23 @@ const UserHome = () => {
   // Section order/visibility is admin-configurable (home_sections); fall back to the
   // curated default order, and only render blocks we actually have.
   const DEFAULT_SECTION_ORDER = [
-    'taxi', 'promo', 'delivery', 'marketplace', 'travel', 'beauty', 'medical',
+    'taxi', 'promo', 'delivery', 'marketplace', 'travel', 'events', 'beauty', 'medical',
     'ondemand', 'bid', 'carcare', 'towing',
     'video', 'pet', 'parking', 'giftcards', 'carpool', 'tracking', 'nearby',
   ];
   const SECTION_ORDER = sectionOrder && sectionOrder.length ? sectionOrder : DEFAULT_SECTION_ORDER;
-  // Garantit que la section SB Travel apparaît même si l'admin a un ordre personnalisé
-  // qui ne la connaît pas encore (insérée juste après "Acheter, Vendre & Louer").
+  // Garantit que les sections SB Travel et SB Événement apparaissent même si l'admin
+  // a un ordre personnalisé qui ne les connaît pas encore.
   const ORDERED_SECTIONS = (() => {
-    if (SECTION_ORDER.includes('travel')) return SECTION_ORDER;
-    const out = [...SECTION_ORDER];
-    const mp = out.indexOf('marketplace');
-    if (mp >= 0) out.splice(mp + 1, 0, 'travel'); else out.push('travel');
+    let out = [...SECTION_ORDER];
+    if (!out.includes('travel')) {
+      const mp = out.indexOf('marketplace');
+      if (mp >= 0) out.splice(mp + 1, 0, 'travel'); else out.push('travel');
+    }
+    if (!out.includes('events')) {
+      const tv = out.indexOf('travel');
+      if (tv >= 0) out.splice(tv + 1, 0, 'events'); else out.push('events');
+    }
     return out;
   })();
 

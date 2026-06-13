@@ -1,3 +1,12 @@
+## NEW - 2026-06-13 - 🎟️ SB Événement — Phase 1 MVP (DONE, testé : backend 17/17 + E2E front)
+- **Nouvelle feature complète** : découverte d'événements + billetterie numérique (QR) + transport événementiel, payée via **portefeuille SB Pay**.
+- **Backend** `routes/events.py` (public + admin) : `GET /api/events` (filtres catégorie/ville/q/featured), `/categories`, `/{id}`, `POST /{id}/purchase` (débit SB Pay via `debit_with_fallback`, génère QR token `SBEVT-…`, décrément stock atomique), `GET /my/tickets`, `POST /tickets/{id}/cancel` (remboursement `refund_user`) ; admin CRUD `/api/admin/events` + `/{id}/attendees` (stats commandes/places/recette). 7 événements démo seedés (Carnaval/Festival/Concert/Sport/Soirée/Expo Antilles + Paris).
+- **Frontend** : `EventsPage` (/events, découverte + catégories + à la une), `EventDetailPage` (/events/:id, achat 3 étapes : tier → transport → paiement SB Pay → succès QR), `MyEventTicketsPage` (/my-tickets, billets + QR `qrcode.react` + annulation/remboursement + « Y aller en SB Drive »), `AdminEvents` (/admin/events, CRUD + stats). Bannière d'accueil « SB Événement » (section `events` dans UserHome).
+- **Transport** : à l'achat, proposition Aller simple / Aller-retour / Chauffeur privé (→ handoff `sb_taxi_dest` vers /taxi, destination = lieu événement) ; **Navette collective = Phase 2** (désactivée).
+- **Bug corrigé (testing agent)** : bannière « Vérifiez votre email » (z-30) recouvrait la barre d'achat → barre passée en `z-40` + marge basse sur /my-tickets. Flux E2E ensuite validé (qty, sheets, QR, redirection taxi).
+- **Tests** : `backend/tests/test_sb_events.py` (17/17 verts). Choix : 1a (nouvelle tuile, Marketplace intacte), paiement SB Pay, événements admin+démo.
+
+
 ## NEW - 2026-06-13 - ♻️ Refacto api_router.py — groupes de routeurs par domaine (DONE, 70 tests verts)
 - **`core/api_router.py` : 192 → 32 lignes.** Les 131 routeurs (110+ imports) sont répartis en 6 modules de groupe sous `core/router_groups/` : `identity_rides` (11), `commerce_payments` (16), `platform_core` (35), `services_ops` (29), `student` (9), `travel_booking` (31). L'agrégateur concatène les listes `ROUTERS` dans un ordre FIXE.
 - **Méthode sûre** : génération par AST (imports reconstruits verbatim → zéro typo), ordre d'enregistrement strictement préservé.

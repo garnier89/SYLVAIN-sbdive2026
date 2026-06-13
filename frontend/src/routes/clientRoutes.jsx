@@ -12,6 +12,7 @@ import {
   HistoryPage, SupportPage, ParcelPage, ReferralPage, DonationPage, LiveChatPage,
   ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
   NearbyBusinessPage, BeautyServicesPage, PetServicesPage, CarCarePage, TowingServicesPage,
+  EventsPage, EventDetailPage, MyEventTicketsPage,
   VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage,
   DeliveryTrackingPage, DeliveryJobsPage, RealEstatePage, PropertyDetailPage, PostPropertyPage,
   MyPropertiesPage, PharmacyPage, PharmacyCatalogPage, PharmacyPrescriptionPage, PharmacyOrdersPage,
@@ -83,6 +84,9 @@ export function clientRoutes(user) {
       <Route path="/marketplace/sell-vehicle" element={<ProtectedRoute allowedRoles={['user']}><PostVehiclePage /></ProtectedRoute>} />
       <Route path="/marketplace/:category" element={<ProtectedRoute allowedRoles={['user']}><MarketplacePage /></ProtectedRoute>} />
       <Route path="/nearby" element={<ProtectedRoute allowedRoles={['user']}><NearbyBusinessPage /></ProtectedRoute>} />
+      <Route path="/events" element={<ProtectedRoute allowedRoles={['user']}><EventsPage /></ProtectedRoute>} />
+      <Route path="/events/:id" element={<ProtectedRoute allowedRoles={['user']}><EventDetailPage /></ProtectedRoute>} />
+      <Route path="/my-tickets" element={<ProtectedRoute allowedRoles={['user']}><MyEventTicketsPage /></ProtectedRoute>} />
       <Route path="/beauty" element={<ProtectedRoute allowedRoles={['user']}><BeautyServicesPage /></ProtectedRoute>} />
       <Route path="/pet-care" element={<ProtectedRoute allowedRoles={['user']}><PetServicesPage /></ProtectedRoute>} />
       <Route path="/car-care" element={<ProtectedRoute allowedRoles={['user']}><CarCarePage /></ProtectedRoute>} />

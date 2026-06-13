@@ -50,6 +50,7 @@ const sidebarConfig = [
       ]},
       { icon: AirplaneTilt, label: 'Vols (agence)', path: '/admin/flights' },
       { icon: Suitcase, label: 'Forfaits Vol+Hôtel', path: '/admin/travel-packages' },
+      { icon: Ticket, label: 'SB Événement', path: '/admin/events' },
       { icon: MapPin, label: 'Parkings', path: '/admin/parking' },
       { icon: TreeStructure, label: 'Organisation', path: '/admin/organization' },
       { icon: Briefcase, label: 'Comptes Entreprise', path: '/admin/corporate' },

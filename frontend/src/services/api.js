@@ -512,6 +512,21 @@ export const favoritesAPI = {
   list: (itemType) => api.get('/favorites', { params: itemType ? { item_type: itemType } : {} }),
 };
 
+export const eventsAPI = {
+  list: (params) => api.get('/events', { params }),
+  categories: () => api.get('/events/categories'),
+  get: (id) => api.get(`/events/${id}`),
+  purchase: (id, payload) => api.post(`/events/${id}/purchase`, payload),
+  myTickets: () => api.get('/events/my/tickets'),
+  cancelTicket: (ticketId) => api.post(`/events/tickets/${ticketId}/cancel`),
+  // admin
+  adminList: () => api.get('/admin/events'),
+  adminCreate: (payload) => api.post('/admin/events', payload),
+  adminUpdate: (id, payload) => api.put(`/admin/events/${id}`, payload),
+  adminDelete: (id) => api.delete(`/admin/events/${id}`),
+  adminAttendees: (id) => api.get(`/admin/events/${id}/attendees`),
+};
+
 // Services APIs
 export const servicesAPI = {
   getCategories: () => api.get('/services/categories'),
