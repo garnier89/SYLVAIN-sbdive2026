@@ -1,3 +1,13 @@
+## NEW - 2026-06-13 - ♻️ Refacto Phase 5 — modularisation de rides.py (DONE, 70 tests verts)
+- **rides.py : 2798 → 2420 lignes** (−378). 9 endpoints extraits en 3 sous-routeurs cohésifs (même préfixe `/rides`, helpers partagés conservés dans `rides.py`, pattern identique à bidding/rental/rating) :
+  - `routes/rides_driver_feed.py` (197 l.) : `/{id}/nearby-drivers`, `/nearby/drivers`, `/driver/bookings`, `/driver/home-feed`, `/pending/available`.
+  - `routes/rides_taxi_hall.py` (149 l.) : `/taxi-hall/eligibility`, `POST /taxi-hall` (+ helper `_taxi_hall_eligibility`, uniquement utilisé ici).
+  - `routes/rides_scheduled.py` (78 l.) : `/scheduled/list`, `PUT /{id}/reschedule`.
+- Sous-routeurs enregistrés dans `core/api_router.py`. `NEARBY_DRIVERS_RADIUS_KM` + `_expire_dead_pending_rides` restent dans `rides.py` (référencés ailleurs).
+- **Suppression guidée par assertions** (script Python avec gardes sur les lignes-frontières — 1er run avorté proprement sur un off-by-one, aucune corruption).
+- **Validé** : `predeploy_check.sh` = **70/70 tests critiques verts** avant ET après ; 5 routes déplacées répondent 401 (enregistrées). Comportement inchangé.
+
+
 ## NEW - 2026-06-13 - ✅ P0 Câblage page Admin « Règles de réservation » (DONE, testé E2E)
 - **Resté de la session précédente** : la page `AdminReservationRules` + backend existaient mais n'étaient pas branchés au routeur/sidebar.
 - **Fait** : import + `<Route path="reservation-rules">` dans `adminRoutes.jsx`, lien « Réservations — délais & bouton » dans `AdminLayout.js` (section Taxi/Transport).

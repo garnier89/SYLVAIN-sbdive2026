@@ -14,6 +14,9 @@ from routes.rides import router as rides_router
 from routes.rides_rating import router as rides_rating_router
 from routes.rides_bidding import router as rides_bidding_router
 from routes.rides_rental import router as rides_rental_router
+from routes.rides_driver_feed import router as rides_driver_feed_router
+from routes.rides_taxi_hall import router as rides_taxi_hall_router
+from routes.rides_scheduled import router as rides_scheduled_router
 from routes.orders import router as orders_router
 from routes.misc import router as misc_router
 from routes.marketplace import router as marketplace_router, stripe_webhook_router
@@ -116,6 +119,7 @@ from routes.nearby_places import router as nearby_places_router
 _ROUTERS = [
     auth_router, users_router, drivers_router, merchants_router, rides_router,
     rides_rating_router, rides_bidding_router, rides_rental_router,
+    rides_driver_feed_router, rides_taxi_hall_router, rides_scheduled_router,
     orders_router, misc_router, marketplace_router, stripe_webhook_router, carpool_router, services_router,
     config_router, wallet_router, coupons_router, auto_promotions_router, vouchers_router,
     referral_router, payments_router, webhooks_router, features_router, simulation_router,
