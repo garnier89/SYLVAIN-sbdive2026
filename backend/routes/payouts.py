@@ -647,10 +647,10 @@ async def admin_get_payout_config(request: Request):
     cfg = await get_payout_config()
     return {**cfg, "xof_per_eur": 655.957,
             "providers_ready": {
-                "wave": bool(__import__("os").environ.get("WAVE_API_KEY")),
-                "mtn": bool(__import__("os").environ.get("MTN_DISBURSEMENT_SUBSCRIPTION_KEY_LIVE")
-                            and __import__("os").environ.get("MTN_API_USER_LIVE")),
-                "orange": bool(__import__("os").environ.get("ORANGE_B2C_BASE_LIVE")),
+                "wave": bool(os.environ.get("WAVE_API_KEY")),
+                "mtn": bool(os.environ.get("MTN_DISBURSEMENT_SUBSCRIPTION_KEY_LIVE")
+                            and os.environ.get("MTN_API_USER_LIVE")),
+                "orange": bool(os.environ.get("ORANGE_B2C_BASE_LIVE")),
             }}
 
 

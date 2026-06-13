@@ -26,7 +26,7 @@ async def maybe_notify_driver_nearby(driver_user_id: str, lat: float, lng: float
         if not ride or ride.get("pickup_lat") is None or ride.get("pickup_lng") is None:
             return
 
-        from routes.push_web import get_notif_settings
+        from core.notif_settings import get_notif_settings
         settings = await get_notif_settings()
         radius_m = int(settings.get("arrival_distance_m", 200) or 200)
         dist_km = calculate_distance(lat, lng, ride["pickup_lat"], ride["pickup_lng"])

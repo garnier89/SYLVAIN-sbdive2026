@@ -10,7 +10,7 @@ Reuses the tip/Stripe-Checkout architecture (db.wallets credit + atomic gate).
 """
 import os
 import uuid
-import random
+import secrets
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Request, HTTPException
@@ -54,13 +54,13 @@ def _is_expired(req: dict) -> bool:
 async def _gen_code() -> str:
     """6-digit code, unique among currently-pending requests."""
     for _ in range(12):
-        code = f"{random.randint(0, 999999):06d}"
+        code = f"{secrets.randbelow(1000000):06d}"
         clash = await db.contactless_payments.find_one(
             {"code": code, "status": "pending"}, {"_id": 0, "id": 1}
         )
         if not clash:
             return code
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1000000):06d}"
 
 
 def _public(req: dict) -> dict:

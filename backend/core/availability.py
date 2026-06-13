@@ -170,7 +170,7 @@ async def demand_automation_loop():
     await _a.sleep(20)
     while True:
         try:
-            from routes.push_web import get_notif_settings
+            from core.notif_settings import get_notif_settings
             s = await get_notif_settings()
             if s.get("auto_demand_alerts", True):
                 cooldown_min = int(s.get("demand_cooldown_min", 30) or 30)
