@@ -78,6 +78,7 @@ const sidebarConfig = [
         { label: 'SB Ferry (maritime)', path: '/admin/ferry' },
         { label: 'SB Ferry — Règlements compagnies', path: '/admin/ferry-settlements' },
         { label: 'Configurations Taxi', path: '/admin/taxi-configs' },
+        { label: 'Réservations — délais & bouton', path: '/admin/reservation-rules' },
         { label: 'Toutes les courses', path: '/admin/rides' },
         { label: 'Types de véhicules', path: '/admin/vehicle-types' },
       ]},

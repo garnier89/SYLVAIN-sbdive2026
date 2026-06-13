@@ -1,3 +1,10 @@
+## NEW - 2026-06-13 - ✅ P0 Câblage page Admin « Règles de réservation » (DONE, testé E2E)
+- **Resté de la session précédente** : la page `AdminReservationRules` + backend existaient mais n'étaient pas branchés au routeur/sidebar.
+- **Fait** : import + `<Route path="reservation-rules">` dans `adminRoutes.jsx`, lien « Réservations — délais & bouton » dans `AdminLayout.js` (section Taxi/Transport).
+- **Bug corrigé** : 1er essai « AdminReservationRules is not defined » — l'import avait été perdu suite à 2 `search_replace` parallèles sur le même fichier ; ré-appliqué séquentiellement.
+- **Testé E2E** (admin@superapp.com) : page rendue (grâce 60 / expiration 10 / délai démarrage 20 / libellé « Départ voyage ») ; modification 60→75 sauvegardée et persistée (`GET /api/admin/reservation-rules` = 75), puis remise à 60.
+
+
 ## NEW - 2026-06-13 - ⏱️ Circuit touristique optimisé + durées de visite (DONE, testé)
 - **Demande user** : optimiser automatiquement l'ordre des arrêts (trajet le plus court) + durée estimée de visite par lieu.
 - **Backend** (`POST /api/nearby/optimize-route`) : Google Directions `waypoints=optimize:true` (round-trip origin=destination) → `waypoint_order` optimal + temps de route une-voie (exclut le retour) + distance. Table `VISIT_MINUTES` par catégorie (Musée 90, Monument 45, Plage 120…) → minutes de visite par lieu + total journée (route + visites).
