@@ -35,6 +35,7 @@ from routes.ferry import admin_router as ferry_admin_router
 from routes.nearby_places import router as nearby_places_router
 from routes.events import public_router as events_public_router
 from routes.events import admin_router as events_admin_router
+from routes.organizer import router as organizer_router
 
 ROUTERS = [
     sb_access_router,
@@ -70,4 +71,5 @@ ROUTERS = [
     nearby_places_router,
     events_public_router,
     events_admin_router,
+    organizer_router,
 ]

@@ -1,0 +1,231 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, Plus, Megaphone, Users, PencilSimple, Trash, X, CurrencyEur, Ticket, Star,
+} from '@phosphor-icons/react';
+import { toast } from 'sonner';
+import { organizerAPI } from '../../../services/api';
+import { catMeta, fmtEventDate, fmtPrice } from './eventsShared';
+import EventFormModal from './EventFormModal';
+
+const OrganizerDashboard = () => {
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState({ commission_percent: 10, boost_price_per_day: 9.99 });
+  const [formEvent, setFormEvent] = useState(undefined); // undefined=closed, null=new, obj=edit
+  const [attendees, setAttendees] = useState(null);
+  const [boostFor, setBoostFor] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    organizerAPI.dashboard()
+      .then((r) => setData(r.data))
+      .catch((e) => { if (e?.response?.status === 403) navigate('/organizer', { replace: true }); })
+      .finally(() => setLoading(false));
+  }, [navigate]);
+
+  useEffect(() => { load(); organizerAPI.settings().then((r) => setSettings(r.data)).catch(() => {}); }, [load]);
+
+  const saveEvent = async (payload) => {
+    try {
+      if (formEvent && formEvent.id) await organizerAPI.updateEvent(formEvent.id, payload);
+      else await organizerAPI.createEvent(payload);
+      toast.success('Événement enregistré');
+      setFormEvent(undefined); load();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+  };
+
+  const remove = async (ev) => {
+    if (!window.confirm(`Supprimer « ${ev.title} » ?`)) return;
+    try { await organizerAPI.deleteEvent(ev.id); toast.success('Supprimé'); load(); } catch { toast.error('Erreur'); }
+  };
+
+  const openAttendees = async (ev) => {
+    try { const r = await organizerAPI.attendees(ev.id); setAttendees({ title: ev.title, ...r.data }); } catch { toast.error('Erreur'); }
+  };
+
+  if (loading) return <div className="min-h-screen flex justify-center items-center bg-gray-50"><div className="w-8 h-8 border-2 border-red-200 border-t-[#B91C1C] rounded-full animate-spin" /></div>;
+  if (!data) return null;
+  const t = data.totals;
+
+  return (
+    <div className="mobile-container min-h-screen bg-gray-50 pb-24" data-testid="organizer-dashboard-page">
+      <div className="bg-gradient-to-br from-[#7C2D12] via-[#B91C1C] to-[#FF4500] px-4 pt-4 pb-6 rounded-b-3xl">
+        <div className="flex items-center gap-3 mb-3">
+          <button onClick={() => navigate('/events')} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center" data-testid="back-btn"><ArrowLeft size={18} className="text-white" /></button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-extrabold text-white truncate">{data.profile.name}</h1>
+            <p className="text-[11px] text-white/80">Espace organisateur • SB Événement Pro</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Stat label="Événements" value={t.events} />
+          <Stat label="Places vendues" value={t.seats} />
+          <Stat label="Recette nette" value={fmtPrice(t.net)} />
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <Stat label="Recette brute" value={fmtPrice(t.gross)} small />
+          <Stat label={`Commission (${settings.commission_percent}%)`} value={`- ${fmtPrice(t.commission)}`} small />
+        </div>
+      </div>
+
+      <div className="px-4 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-gray-900">Mes événements</h2>
+          <button onClick={() => setFormEvent(null)} className="flex items-center gap-1.5 bg-[#B91C1C] text-white text-xs font-bold px-3 py-2 rounded-full" data-testid="create-event-btn"><Plus size={14} weight="bold" /> Créer</button>
+        </div>
+
+        {data.events.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 text-center text-gray-500" data-testid="no-events">
+            <Ticket size={36} className="mx-auto mb-2 text-gray-300" weight="duotone" />
+            <p className="text-sm">Aucun événement. Créez le premier !</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {data.events.map((ev) => {
+              const m = catMeta(ev.category);
+              return (
+                <div key={ev.id} className="bg-white rounded-2xl p-3 shadow-sm" data-testid={`org-event-${ev.id}`}>
+                  <div className="flex gap-3">
+                    <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">{ev.image && <img src={ev.image} alt={ev.title} className="w-full h-full object-cover" />}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${m.bg} ${m.color}`}>{m.label}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ev.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>{ev.status === 'active' ? 'Publié' : 'Brouillon'}</span>
+                        {ev.boost_active && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-0.5"><Star size={9} weight="fill" /> Sponsorisé</span>}
+                      </div>
+                      <p className="font-bold text-sm text-gray-900 mt-1 line-clamp-1">{ev.title}</p>
+                      <p className="text-[11px] text-gray-500">{fmtEventDate(ev.starts_at)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 mt-2 text-center bg-gray-50 rounded-xl py-2">
+                    <MiniStat label="Cmd" value={ev.stats.orders} />
+                    <MiniStat label="Places" value={ev.stats.seats} />
+                    <MiniStat label="Net" value={fmtPrice(ev.stats.net)} />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Act onClick={() => setBoostFor(ev)} Icon={Megaphone} label="Booster" testid={`boost-${ev.id}`} primary />
+                    <Act onClick={() => openAttendees(ev)} Icon={Users} label="Participants" testid={`attendees-${ev.id}`} />
+                    <Act onClick={() => setFormEvent(ev)} Icon={PencilSimple} label="" testid={`edit-${ev.id}`} />
+                    <Act onClick={() => remove(ev)} Icon={Trash} label="" testid={`del-${ev.id}`} danger />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {formEvent !== undefined && (
+        <EventFormModal initial={formEvent} onClose={() => setFormEvent(undefined)} onSave={saveEvent} />
+      )}
+
+      {attendees && <AttendeesModal data={attendees} onClose={() => setAttendees(null)} />}
+
+      {boostFor && (
+        <BoostModal event={boostFor} pricePerDay={settings.boost_price_per_day}
+          onClose={() => setBoostFor(null)}
+          onDone={() => { setBoostFor(null); load(); }} />
+      )}
+    </div>
+  );
+};
+
+const Stat = ({ label, value, small }) => (
+  <div className={`bg-white/15 rounded-xl ${small ? 'py-2' : 'py-3'} text-center`}>
+    <p className={`${small ? 'text-sm' : 'text-lg'} font-extrabold text-white`}>{value}</p>
+    <p className="text-[10px] text-white/70">{label}</p>
+  </div>
+);
+const MiniStat = ({ label, value }) => (<div><p className="text-sm font-extrabold text-gray-900">{value}</p><p className="text-[9px] text-gray-400">{label}</p></div>);
+const Act = ({ onClick, Icon, label, testid, primary, danger }) => (
+  <button onClick={onClick} data-testid={testid}
+    className={`flex items-center justify-center gap-1 ${label ? 'flex-1' : 'w-10'} py-2 rounded-xl text-xs font-bold ${primary ? 'bg-[#FF4500] text-white' : danger ? 'border border-red-200 text-red-500' : 'border border-gray-200 text-gray-600'}`}>
+    <Icon size={15} weight={primary ? 'fill' : 'regular'} />{label}
+  </button>
+);
+
+const AttendeesModal = ({ data, onClose }) => {
+  const exportCsv = () => {
+    const rows = [['Billet', 'Catégorie', 'Quantité', 'Total', 'Statut', 'Date']];
+    data.tickets.forEach((t) => rows.push([t.id, t.tier_name, t.quantity, t.total_price, t.status, t.purchased_at]));
+    const csv = rows.map((r) => r.map((c) => `"${String(c ?? '')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `participants-${data.event?.id || 'event'}.csv`;
+    a.click();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" data-testid="attendees-modal">
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-gray-900 truncate">{data.title}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={16} /></button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+          <SBox label="Commandes" value={data.stats.orders} />
+          <SBox label="Places" value={data.stats.seats} />
+          <SBox label="Recette nette" value={fmtPrice(data.stats.net)} />
+        </div>
+        <button onClick={exportCsv} className="w-full mb-3 border border-gray-200 text-gray-700 text-sm font-bold py-2 rounded-lg" data-testid="export-csv-btn">Exporter en CSV</button>
+        <div className="divide-y max-h-64 overflow-y-auto">
+          {data.tickets.length === 0 ? <p className="text-sm text-gray-400 py-4 text-center">Aucun participant</p> :
+            data.tickets.map((t) => (
+              <div key={t.id} className="flex justify-between items-center py-2 text-sm">
+                <span className="text-gray-700">{t.tier_name} × {t.quantity}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">{fmtPrice(t.total_price)}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.status === 'valid' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>{t.status}</span>
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BoostModal = ({ event, pricePerDay, onClose, onDone }) => {
+  const [days, setDays] = useState(3);
+  const [paying, setPaying] = useState(false);
+  const cost = (days * pricePerDay).toFixed(2);
+  const boost = async () => {
+    setPaying(true);
+    try {
+      const r = await organizerAPI.boost(event.id, days);
+      toast.success(`Sponsorisé ${days} j • ${fmtPrice(r.data.cost)} débités`);
+      onDone();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+    finally { setPaying(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" data-testid="boost-modal">
+      <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-bold text-gray-900 flex items-center gap-2"><Megaphone size={18} weight="fill" className="text-[#FF4500]" /> Booster l'événement</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><X size={16} /></button>
+        </div>
+        <p className="text-xs text-gray-500 mb-4 line-clamp-1">{event.title}</p>
+        <p className="text-xs text-gray-500 mb-2">Affichage « À la une » et en tête de liste pendant :</p>
+        <div className="flex items-center gap-3 justify-center mb-4">
+          <button onClick={() => setDays((d) => Math.max(1, d - 1))} className="w-9 h-9 rounded-full bg-gray-100 font-bold" data-testid="boost-minus">−</button>
+          <span className="text-2xl font-extrabold w-16 text-center" data-testid="boost-days">{days} j</span>
+          <button onClick={() => setDays((d) => Math.min(60, d + 1))} className="w-9 h-9 rounded-full bg-gray-100 font-bold" data-testid="boost-plus">+</button>
+        </div>
+        <div className="bg-gray-50 rounded-xl p-3 flex items-center justify-between mb-4">
+          <span className="text-sm text-gray-600 flex items-center gap-1"><CurrencyEur size={14} /> {pricePerDay}/jour</span>
+          <span className="font-extrabold text-[#B91C1C]">{cost} €</span>
+        </div>
+        <button onClick={boost} disabled={paying} className="w-full bg-[#FF4500] text-white font-extrabold py-3 rounded-xl disabled:opacity-60" data-testid="boost-pay-btn">
+          {paying ? '...' : `Payer ${cost} € avec SB Pay`}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const SBox = ({ label, value }) => (<div className="bg-gray-50 rounded-xl py-2"><p className="text-base font-extrabold text-gray-900">{value}</p><p className="text-[9px] text-gray-400">{label}</p></div>);
+
+export default OrganizerDashboard;

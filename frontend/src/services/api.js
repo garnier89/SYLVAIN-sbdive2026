@@ -525,6 +525,21 @@ export const eventsAPI = {
   adminUpdate: (id, payload) => api.put(`/admin/events/${id}`, payload),
   adminDelete: (id) => api.delete(`/admin/events/${id}`),
   adminAttendees: (id) => api.get(`/admin/events/${id}/attendees`),
+  adminGetSettings: () => api.get('/admin/events/config/settings'),
+  adminSetSettings: (payload) => api.put('/admin/events/config/settings', payload),
+  adminOrganizers: () => api.get('/admin/events/config/organizers'),
+};
+
+export const organizerAPI = {
+  me: () => api.get('/organizer/me'),
+  register: (payload) => api.post('/organizer/register', payload),
+  settings: () => api.get('/organizer/settings'),
+  dashboard: () => api.get('/organizer/dashboard'),
+  createEvent: (payload) => api.post('/organizer/events', payload),
+  updateEvent: (id, payload) => api.put(`/organizer/events/${id}`, payload),
+  deleteEvent: (id) => api.delete(`/organizer/events/${id}`),
+  attendees: (id) => api.get(`/organizer/events/${id}/attendees`),
+  boost: (id, days) => api.post(`/organizer/events/${id}/boost`, { days }),
 };
 
 // Services APIs

@@ -40,6 +40,15 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
+# Platform settings for SB Événement Pro (commission + sponsorship pricing).
+EVENTS_SETTINGS_DEFAULTS = {"commission_percent": 10.0, "boost_price_per_day": 9.99}
+
+
+async def get_events_settings() -> dict:
+    doc = await db.events_settings.find_one({"id": "default"}, {"_id": 0}) or {}
+    return {**EVENTS_SETTINGS_DEFAULTS, **{k: v for k, v in doc.items() if k != "id"}}
+
+
 def _event_snapshot(ev: dict) -> dict:
     return {
         "title": ev.get("title"), "category": ev.get("category"), "image": ev.get("image"),
@@ -78,6 +87,9 @@ async def list_events(
     items = (upcoming or docs)[:limit]
     for d in items:
         d["sold_out"] = _is_sold_out(d)
+        # An organizer-sponsored boost expires; admin "featured" has no boosted_until.
+        bu = d.get("boosted_until")
+        d["is_featured"] = bool(d.get("is_featured")) and (not bu or bu >= now_iso)
     return {"items": items, "count": len(items)}
 
 
@@ -297,3 +309,31 @@ async def admin_event_attendees(event_id: str, request: Request):
     revenue = round(sum(float(t.get("total_price", 0) or 0) for t in valid), 2)
     seats = sum(int(t.get("quantity", 0) or 0) for t in valid)
     return {"tickets": tickets, "stats": {"orders": len(valid), "seats": seats, "revenue": revenue}}
+
+
+@admin_router.get("/config/settings")
+async def admin_get_events_settings(request: Request):
+    await require_role(request, ["admin"])
+    return await get_events_settings()
+
+
+@admin_router.put("/config/settings")
+async def admin_set_events_settings(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    update = {
+        "id": "default",
+        "commission_percent": round(float(body.get("commission_percent", 10) or 0), 2),
+        "boost_price_per_day": round(float(body.get("boost_price_per_day", 9.99) or 0), 2),
+    }
+    await db.events_settings.update_one({"id": "default"}, {"$set": update}, upsert=True)
+    return await get_events_settings()
+
+
+@admin_router.get("/config/organizers")
+async def admin_list_organizers(request: Request):
+    await require_role(request, ["admin"])
+    orgs = await db.organizers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    for o in orgs:
+        o["events_count"] = await db.events.count_documents({"organizer_id": o["id"]})
+    return {"organizers": orgs, "count": len(orgs)}
