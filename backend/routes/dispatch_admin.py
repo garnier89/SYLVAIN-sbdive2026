@@ -234,12 +234,18 @@ async def dispatch_overview(request: Request):
     # zones with alerts first, then by pending count
     out.sort(key=lambda g: (not g["alert"], -g["pending"], -g["online_drivers"]))
 
+    # Anti-fraud Lot 2: count today's auto-reassignments for the "not moving" rule.
+    _midnight = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    no_movement_today = await db.moderation_events.count_documents(
+        {"type": "no_movement_release", "created_at": {"$gte": _midnight}})
+
     return {
         "zones": out,
         "totals": {
             "pending": sum(g["pending"] for g in out),
             "online_drivers": total_online,
             "no_driver_alerts": no_driver_alerts,
+            "no_movement_today": no_movement_today,
         },
         "config": {
             "first_escalation_seconds": cfg.get("first_escalation_seconds"),

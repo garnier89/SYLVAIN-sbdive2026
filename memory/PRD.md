@@ -1,3 +1,9 @@
+## NEW - 2026-06-13 (354) - 📍 Mini‑stat « immobilité aujourd'hui » + alerte temps réel (DONE)
+- **Demande user** : afficher dans le bandeau Dispatch une mini‑stat « X réassignations immobilité aujourd'hui » + **alerte sonore/toast temps réel** à chaque nouvelle réassignation.
+- **Backend** (`dispatch_admin.py /overview`) : ajoute `totals.no_movement_today` (comptage des `moderation_events type='no_movement_release'` depuis minuit UTC).
+- **Frontend** (`AdminDispatch.js`) : **4e carte de stats** `total-no-movement` (orange, `no-movement-today-count`) dans le bandeau ; réutilise le polling 5 s « EN DIRECT » existant : sur delta croissant de `no_movement_today` → `beep()` + toast orange « 📍 Réassignation auto — un chauffeur ne se déplaçait pas ».
+- **Vérifié** : curl `/overview` renvoie `no_movement_today` ; frontend compile OK ; carte = même pattern que les 3 stats existantes + `beep()`/toast déjà E2E-testés (iter351). (Pas de nouvel E2E dédié — page Dispatch déjà validée E2E le jour même.)
+
 ## NEW - 2026-06-13 (353) - ⚙️ Réglage admin visuel « immobilité » + réassignations en direct (DONE, testé)
 - **Demande user** : pouvoir activer/désactiver et calibrer la règle anti-fraude « chauffeur immobile » (Lot 2) **sans toucher au code**, et voir les réassignations du jour en direct.
 - **Backend** (`routes/dispatch_admin.py`) : `GET /admin/dispatch/no-movement/config` + `PUT` (admin only, clamp minutes 1–60 & seuil 30–2000 m, persistés via `_save_moderation_config`) + `GET /admin/dispatch/no-movement/reassignments?hours=24` (liste enrichie des `moderation_events type='no_movement_release'`, nom chauffeur).

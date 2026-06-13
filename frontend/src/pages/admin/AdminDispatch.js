@@ -155,6 +155,7 @@ const AdminDispatch = () => {
   const refreshing = useRef(false);
   const prevAlerts = useRef(null);
   const prevFlagged = useRef(null);
+  const prevNoMove = useRef(null);
   const audioRef = useRef(null);
 
   const beep = useCallback(() => {
@@ -201,6 +202,13 @@ const AdminDispatch = () => {
       }
       prevAlerts.current = alertZones;
       prevFlagged.current = flagged;
+      // Live alert on a NEW "not moving" auto-reassignment (anti-fraud Lot 2).
+      const nm = ov.data.totals?.no_movement_today || 0;
+      if (prevNoMove.current !== null && nm > prevNoMove.current) {
+        beep();
+        toast.warning('📍 Réassignation auto — un chauffeur ne se déplaçait pas après acceptation', { duration: 8000 });
+      }
+      prevNoMove.current = nm;
     } catch (e) {
       console.error('dispatch load failed', e);
     } finally {
@@ -245,7 +253,7 @@ const AdminDispatch = () => {
     catch { toast.error('Échec de la réactivation'); }
   };
 
-  const totals = overview?.totals || { pending: 0, online_drivers: 0, no_driver_alerts: 0 };
+  const totals = overview?.totals || { pending: 0, online_drivers: 0, no_driver_alerts: 0, no_movement_today: 0 };
   const elapsed = (ageBase) => ageBase + (overview ? Math.floor((Date.now() - new Date(overview.server_time).getTime()) / 1000) : 0);
 
   return (
@@ -271,7 +279,7 @@ const AdminDispatch = () => {
       </div>
 
       {/* Totals */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card data-testid="total-pending"><CardContent className="p-4">
           <p className="text-xs text-gray-500 font-semibold">Courses en attente</p>
           <p className="text-3xl font-extrabold text-gray-800">{totals.pending}</p>
@@ -283,6 +291,10 @@ const AdminDispatch = () => {
         <Card data-testid="total-alerts" className={totals.no_driver_alerts ? 'border-red-300' : ''}><CardContent className="p-4">
           <p className="text-xs text-gray-500 font-semibold flex items-center gap-1"><Warning size={13} className="text-red-500" /> Zones sans chauffeur</p>
           <p className={`text-3xl font-extrabold ${totals.no_driver_alerts ? 'text-red-600' : 'text-gray-800'}`}>{totals.no_driver_alerts}</p>
+        </CardContent></Card>
+        <Card data-testid="total-no-movement" className={totals.no_movement_today ? 'border-orange-300' : ''}><CardContent className="p-4">
+          <p className="text-xs text-gray-500 font-semibold flex items-center gap-1"><MapPin size={13} className="text-orange-500" weight="fill" /> Immobilité aujourd'hui</p>
+          <p className={`text-3xl font-extrabold ${totals.no_movement_today ? 'text-orange-600' : 'text-gray-800'}`} data-testid="no-movement-today-count">{totals.no_movement_today}</p>
         </CardContent></Card>
       </div>
 
