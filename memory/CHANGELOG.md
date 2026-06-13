@@ -1,3 +1,10 @@
+## NEW - 2026-06-13 - ⏱️ Circuit touristique optimisé + durées de visite (DONE, testé)
+- **Demande user** : optimiser automatiquement l'ordre des arrêts (trajet le plus court) + durée estimée de visite par lieu.
+- **Backend** (`POST /api/nearby/optimize-route`) : Google Directions `waypoints=optimize:true` (round-trip origin=destination) → `waypoint_order` optimal + temps de route une-voie (exclut le retour) + distance. Table `VISIT_MINUTES` par catégorie (Musée 90, Monument 45, Plage 120…) → minutes de visite par lieu + total journée (route + visites).
+- **Front** (vue Favoris / mode Itinéraire) : bouton **« Optimiser »** → réordonne les badges au meilleur circuit, carte résumé **Route / Visites / Journée**, badge « ~N min visite » sur chaque lieu sélectionné. La réservation envoie ensuite les arrêts dans l'ordre optimisé.
+- **Testé** : curl (ordre scramblé Notre-Dame/Eiffel/Louvre → optimisé [Eiffel,Louvre,Notre-Dame], 37 min route, visites 180 min, journée 217 min) + screenshot (résumé 37 min / 3 h / 3 h 37, badges 1-2-3 réordonnés, ~45/~90 min visite). Compte test : nearbytest@demo.sb / NearbyTest123!
+
+
 ## NEW - 2026-06-13 - 🧭 Itinéraire touristique multi-arrêts SB Drive (DONE, testé)
 - **Demande user** : sélectionner plusieurs lieux favoris et réserver une course SB Drive multi-arrêts pour les visiter à la suite.
 - **Front** (`NearbyBusinessPage.js`, vue « Mes favoris ») : bouton « Créer un itinéraire touristique » → mode sélection ; on touche les favoris dans l'ordre de visite (badges numérotés 1,2,3… + anneau orange) ; barre CTA collante « Réserver l'itinéraire (N arrêts) ». Construit un tableau ordonné de lieux géolocalisés.

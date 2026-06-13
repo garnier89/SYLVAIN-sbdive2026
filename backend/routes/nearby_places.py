@@ -14,7 +14,7 @@ from math import radians, sin, cos, asin, sqrt
 from typing import Optional
 
 import requests
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response, Request
 
 from core.config import db
 
@@ -205,4 +205,76 @@ async def nearby_place_details(place_id: str = Query(...)):
         "weekday_text": (result.get("opening_hours") or {}).get("weekday_text") or [],
         "lat": loc.get("lat"),
         "lng": loc.get("lng"),
+    }
+
+
+
+_DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
+
+# Suggested visit duration (minutes) per category — used to build a day circuit.
+VISIT_MINUTES = {
+    "Musée": 90, "Monuments": 45, "Sites historiques": 45, "Lieux touristiques": 60,
+    "Attraction": 75, "Parcs & Nature": 60, "Plages": 120, "Points de vue": 30,
+    "Bibliothèque": 30, "Café": 30, "Bar": 60, "Restaurant": 75, "Salon": 60,
+    "Spa": 90, "Shopping": 60, "Centre commercial": 90, "Hôtel": 0, "Boulangerie": 15,
+    "Pharmacie": 15, "Hôpital": 0, "Salle de sport": 60, "Vie Nocturne": 90,
+    "Parking": 0, "Garage": 0,
+}
+_DEFAULT_VISIT = 45
+
+
+@router.post("/optimize-route")
+async def optimize_route(request: Request):
+    """Optimise l'ordre de visite (trajet le plus court) via Google Directions
+    (waypoints optimize:true) et estime la durée totale de la journée
+    (route + temps de visite par lieu)."""
+    if not GOOGLE_MAPS_KEY:
+        raise HTTPException(status_code=503, detail="Maps key not configured")
+    body = await request.json()
+    origin = body.get("origin") or {}
+    places = [p for p in (body.get("places") or []) if p.get("lat") is not None and p.get("lng") is not None]
+    if not origin.get("lat") or len(places) < 2:
+        raise HTTPException(status_code=400, detail="origin + au moins 2 lieux requis")
+
+    o = f"{origin['lat']},{origin['lng']}"
+    # Round-trip optimization: origin == destination, all places as waypoints.
+    params = {
+        "origin": o, "destination": o,
+        "waypoints": "optimize:true|" + "|".join(f"{p['lat']},{p['lng']}" for p in places),
+        "key": GOOGLE_MAPS_KEY, "language": "fr", "units": "metric",
+    }
+
+    def _get():
+        return requests.get(_DIRECTIONS_URL, params=params, timeout=8)
+
+    try:
+        resp = await asyncio.to_thread(_get)
+        data = resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Directions fetch failed")
+    if data.get("status") != "OK" or not data.get("routes"):
+        # Graceful fallback: keep the submitted order, no drive estimate.
+        order = list(range(len(places)))
+        visit = [VISIT_MINUTES.get(p.get("category"), _DEFAULT_VISIT) for p in places]
+        return {"order": order, "total_drive_min": None, "total_distance_km": None,
+                "visit_minutes": visit, "total_visit_min": sum(visit), "total_day_min": None}
+
+    route = data["routes"][0]
+    order = route.get("waypoint_order", list(range(len(places))))
+    legs = route.get("legs", [])
+    # One-way circuit: exclude the final return leg (back to origin).
+    drive_legs = legs[:-1] if len(legs) > 1 else legs
+    total_drive_min = int(sum(l["duration"]["value"] for l in drive_legs) / 60)
+    total_distance_km = round(sum(l["distance"]["value"] for l in drive_legs) / 1000, 1)
+
+    ordered_places = [places[i] for i in order]
+    visit = [VISIT_MINUTES.get(p.get("category"), _DEFAULT_VISIT) for p in ordered_places]
+    total_visit = sum(visit)
+    return {
+        "order": order,
+        "total_drive_min": total_drive_min,
+        "total_distance_km": total_distance_km,
+        "visit_minutes": visit,
+        "total_visit_min": total_visit,
+        "total_day_min": total_drive_min + total_visit,
     }

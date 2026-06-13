@@ -30,6 +30,22 @@ const SCOPES = [
 
 const absImg = (url) => (typeof url === 'string' && url.startsWith('/api/') ? `${API}${url}` : url);
 
+// Durée de visite indicative (min) par catégorie — affichage circuit (miroir backend).
+const VISIT_MIN = {
+  'Musée': 90, 'Monuments': 45, 'Sites historiques': 45, 'Lieux touristiques': 60,
+  'Attraction': 75, 'Parcs & Nature': 60, 'Plages': 120, 'Points de vue': 30,
+  'Bibliothèque': 30, 'Café': 30, 'Bar': 60, 'Restaurant': 75, 'Salon': 60,
+  'Spa': 90, 'Shopping': 60, 'Centre commercial': 90, 'Hôtel': 0, 'Boulangerie': 15,
+  'Pharmacie': 15, 'Hôpital': 0, 'Salle de sport': 60, 'Vie Nocturne': 90,
+  'Parking': 0, 'Garage': 0,
+};
+const visitOf = (cat) => (VISIT_MIN[cat] != null ? VISIT_MIN[cat] : 45);
+const fmtDur = (min) => {
+  if (min == null) return '—';
+  const h = Math.floor(min / 60); const m = min % 60;
+  return h ? `${h} h${m ? ` ${m}` : ''}` : `${m} min`;
+};
+
 const NearbyBusinessPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -48,6 +64,8 @@ const NearbyBusinessPage = () => {
   const [viewMode, setViewMode] = useState('list'); // list | map
   const [planMode, setPlanMode] = useState(false);
   const [plan, setPlan] = useState([]); // ordered list of selected item ids for the itinerary
+  const [routeInfo, setRouteInfo] = useState(null);
+  const [optimizing, setOptimizing] = useState(false);
 
   // Resolve the user's GPS once (graceful Paris fallback).
   useEffect(() => {
@@ -88,10 +106,36 @@ const NearbyBusinessPage = () => {
       .finally(() => setLoading(false));
   };
 
-  const exitFavs = () => { setShowFavs(false); setPlanMode(false); setPlan([]); };
+  const exitFavs = () => { setShowFavs(false); setPlanMode(false); setPlan([]); setRouteInfo(null); };
 
   const togglePlan = (item) => {
+    setRouteInfo(null);
     setPlan((p) => (p.includes(item.id) ? p.filter((x) => x !== item.id) : [...p, item.id]));
+  };
+
+  const optimizeCircuit = async () => {
+    const selected = plan.map((id) => favs.find((f) => f.id === id)).filter((p) => p && p.lat != null && p.lng != null);
+    if (selected.length < 2) { toast.error('Sélectionnez au moins 2 lieux géolocalisés'); return; }
+    if (!coords) { toast.error('Position introuvable'); return; }
+    setOptimizing(true);
+    try {
+      const r = await fetch(`${API}/api/nearby/optimize-route`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({
+          origin: { lat: coords.lat, lng: coords.lng },
+          places: selected.map((p) => ({ name: p.name, category: p.category, lat: p.lat, lng: p.lng })),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'fail');
+      // Reorder the plan to the optimal visiting sequence.
+      const optimized = d.order.map((i) => selected[i].id);
+      setPlan(optimized);
+      setRouteInfo({ ...d, names: d.order.map((i) => selected[i].name) });
+      toast.success('Circuit optimisé');
+    } catch {
+      toast.error('Optimisation indisponible');
+    } finally { setOptimizing(false); }
   };
 
   const reserveItinerary = () => {
@@ -216,7 +260,19 @@ const NearbyBusinessPage = () => {
           ) : (
             <div className="flex items-center justify-between bg-[#1F2430] text-white rounded-xl px-3 py-2.5">
               <span className="text-xs font-semibold">Touchez les lieux dans l'ordre de visite</span>
-              <button onClick={() => { setPlanMode(false); setPlan([]); }} className="text-[11px] font-bold underline" data-testid="cancel-itinerary-btn">Annuler</button>
+              <button onClick={() => { setPlanMode(false); setPlan([]); setRouteInfo(null); }} className="text-[11px] font-bold underline" data-testid="cancel-itinerary-btn">Annuler</button>
+            </div>
+          )}
+          {routeInfo && (
+            <div className="mt-2 bg-white border border-orange-200 rounded-xl p-3 flex items-center gap-3" data-testid="route-summary">
+              <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                <Path size={18} weight="bold" className="text-orange-600" />
+              </div>
+              <div className="flex-1 grid grid-cols-3 gap-1 text-center">
+                <div><p className="text-[10px] text-gray-400">Route</p><p className="text-sm font-extrabold text-gray-900">{fmtDur(routeInfo.total_drive_min)}</p></div>
+                <div><p className="text-[10px] text-gray-400">Visites</p><p className="text-sm font-extrabold text-gray-900">{fmtDur(routeInfo.total_visit_min)}</p></div>
+                <div><p className="text-[10px] text-gray-400">Journée</p><p className="text-sm font-extrabold text-orange-600">{fmtDur(routeInfo.total_day_min)}</p></div>
+              </div>
             </div>
           )}
         </div>
@@ -275,6 +331,7 @@ const NearbyBusinessPage = () => {
                     onClick={() => (selecting ? togglePlan(item) : setSelected(item))}
                     badges={[
                       { label: item.category, colorClass: 'bg-indigo-50 text-indigo-700' },
+                      ...(selecting && planIdx >= 0 ? [{ label: `~${visitOf(item.category)} min visite`, colorClass: 'bg-amber-50 text-amber-700' }] : []),
                       ...(item.distance_km != null ? [{ label: `${item.distance_km} km`, colorClass: 'bg-gray-100 text-gray-700' }] : []),
                       ...(item.open_now != null ? [{ label: item.open_now ? 'Ouvert' : 'Fermé', colorClass: item.open_now ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }] : []),
                     ]}
@@ -291,13 +348,25 @@ const NearbyBusinessPage = () => {
       {/* Sticky itinerary CTA */}
       {showFavs && planMode && plan.length >= 1 && (
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-40 px-4 pb-4 pt-2 bg-gradient-to-t from-white via-white to-transparent" data-testid="itinerary-cta-bar">
-          <button
-            onClick={reserveItinerary}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#FF4500] text-white font-extrabold shadow-lg shadow-orange-500/30 active:scale-[0.99] transition-transform"
-            data-testid="reserve-itinerary-btn"
-          >
-            <Car size={20} weight="fill" /> Réserver l'itinéraire ({plan.length} {plan.length > 1 ? 'arrêts' : 'arrêt'})
-          </button>
+          <div className="flex gap-2">
+            {plan.length >= 2 && (
+              <button
+                onClick={optimizeCircuit}
+                disabled={optimizing}
+                className="flex items-center justify-center gap-1.5 px-4 py-4 rounded-2xl border-2 border-[#1F2430] text-[#1F2430] font-bold disabled:opacity-60"
+                data-testid="optimize-route-btn"
+              >
+                <Path size={18} weight="bold" /> {optimizing ? '...' : 'Optimiser'}
+              </button>
+            )}
+            <button
+              onClick={reserveItinerary}
+              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#FF4500] text-white font-extrabold shadow-lg shadow-orange-500/30 active:scale-[0.99] transition-transform"
+              data-testid="reserve-itinerary-btn"
+            >
+              <Car size={20} weight="fill" /> Réserver ({plan.length} {plan.length > 1 ? 'arrêts' : 'arrêt'})
+            </button>
+          </div>
         </div>
       )}
 
