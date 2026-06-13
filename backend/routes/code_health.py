@@ -181,6 +181,22 @@ async def maps_guard(request: Request):
     return scan_maps_guard()
 
 
+@router.get("/maps-guard/gate")
+async def maps_guard_gate(request: Request):
+    """Pre-deploy gate: GO / REVIEW / BLOCKED vs the accepted Maps baseline."""
+    await _require_admin(request)
+    from core.code_audit import maps_gate
+    return await maps_gate()
+
+
+@router.post("/maps-guard/baseline")
+async def maps_guard_baseline(request: Request):
+    """Accept the current Maps usage as the deployment baseline."""
+    await _require_admin(request)
+    from core.code_audit import set_maps_baseline
+    return await set_maps_baseline()
+
+
 @router.get("/coverage")
 async def coverage_status(request: Request):
     """Last real pytest --cov run result."""

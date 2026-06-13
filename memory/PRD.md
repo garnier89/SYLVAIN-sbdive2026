@@ -1,4 +1,22 @@
-## NEW - 2026-06-13 (349b) - 🛡️ Centre Qualité & Sécurité « Santé du code » — 4 modules (DONE, testé)
+## NEW - 2026-06-13 (349c) - 🚦 Porte de déploiement Garde Google Maps (DONE, testé 6/6)
+- **Demande user** : brancher la Garde Maps en porte de déploiement → bloquer/alerter avant chaque Deploy si un nouveau risque de surfacturation apparaît.
+- **Backend** `core/code_audit.py` : `maps_gate()` compare le scan Maps courant à une **baseline acceptée** (`code_maps_baseline`) → verdict **GO / À VÉRIFIER / BLOQUÉ**. Bloque si nouveau risque high OU hausse du nb d'appels REST facturés (`rest_delta>0`). `set_maps_baseline()` enregistre les signatures de risques + total appels REST acceptés. Endpoints `GET /admin/code-health/maps-guard/gate`, `POST /admin/code-health/maps-guard/baseline`.
+- **Frontend** : carte « Porte de déploiement » en haut de l'onglet Garde Google Maps (verdict coloré, delta risques/REST, liste des nouveaux risques, bouton « Accepter (avant deploy) »). `adminAPI.codeMapsGate/codeMapsBaseline`.
+- **Testé** : pytest `test_iter349b` 6/6 + e2e (no_baseline → baseline → GO ; ajout script rogue avec appel Maps en setInterval → **BLOQUÉ** rest_delta+1 fichier identifié → nettoyage → GO) + screenshot carte « ✅ GO — Déploiement sûr ».
+- **Note** : ce n'est pas un hook dans le pipeline Emergent « Deploy » (inaccessible) — c'est un **check pré-déploiement** à consulter avant de cliquer Deploy. ⚠️ PREVIEW → redéploiement requis.
+
+### 📋 AUDIT CODE SOURCE (réponses aux questions user iter349c)
+- **Config API Google** : clé Maps = env `REACT_APP_GOOGLE_MAPS_KEY` (frontend/.env). Page `/admin/maps-api` existe mais descriptive (ne pilote pas la vraie clé).
+- **Devise** : configurable `/admin/currency` + champ `currency` config publique, MAIS "EUR" codé en dur dans wallets/montants → pas pleinement dynamique.
+- **Langue/i18n** : `lib/i18nBase.js` (FR base 37 lignes), `routes/i18n.py`, `/admin/i18n`. Site essentiellement **FR codé en dur** → traduction PARTIELLE.
+- **Slides intro** : `pages/client/ClientWelcome.js` + `pages/chauffeur/ChauffeurWelcome.js`, éditables `/admin/intro`.
+- **Rapports** : assurance ✅ existe (Centre Rapports). **Dettes clients ❌ MANQUE** (backend `debts.py` existe, pas de page admin). **Rapport activité chauffeur complet ❌ MANQUE** (temps en ligne, commandes reçues/acceptées/refusées, réservations acceptées/relâchées).
+- **Éditeur SMS/Mail** : ✅ `/admin/email-templates` + `/admin/sms-templates` (AdminTemplates.js). Textes UI à fautes = i18n (incomplet).
+- **Réservation manuelle admin** : ✅ `/admin/manual-booking` (AdminManualBooking) + hub `/dispatch/bookings`.
+
+
+
+
 - **Demande user** : étendre le dashboard « Santé du code » → (1) couverture réelle pytest --cov on-demand, (2) bouton correction = rapport seulement (2a), (3) anti-corruption + anti-duplication + scripts suspects, (4) garde anti-surfacturation Google Maps. Ordre validé : 1 → 4a → 3 → 2a.
 - **Backend** `core/code_audit.py` (moteur statique read-only) + 5 endpoints dans `routes/code_health.py` (admin-only) :
   - `GET /security` → **intégrité** (compile AST de chaque .py → corruption ; sha256 + dérive vs baseline), **duplication** (fenêtre glissante 6 lignes signif. → clusters de clones, ratio), **suspects** (eval/exec/os.system/shell=True, secrets en dur — regex durcie « valeur sans espaces » pour éviter les libellés i18n).

@@ -328,6 +328,77 @@ def scan_maps_guard() -> dict:
     }
 
 
+def _risk_sig(r: dict) -> str:
+    return f"{r.get('type')}|{r.get('file')}|{r.get('line')}"
+
+
+async def maps_gate() -> dict:
+    """Deployment gate: compare the current Maps audit against the accepted
+    baseline and emit a GO / REVIEW / BLOCKED verdict. NEW high-severity risks
+    (or a jump in billable REST call-sites) block the deploy so the Google bill
+    can never silently drift."""
+    scan = scan_maps_guard()
+    baseline = await db.code_maps_baseline.find_one({"_id": "baseline"})
+    cur_sigs = {_risk_sig(r): r for r in scan["risks"]}
+
+    if not baseline:
+        return {
+            "verdict": "no_baseline",
+            "baseline_at": None,
+            "current_status": scan["status"],
+            "current_risks": scan["risks_count"],
+            "current_rest_calls": scan["rest_calls_total"],
+            "new_risks": [],
+            "resolved_risks": 0,
+            "rest_delta": 0,
+        }
+
+    accepted = set(baseline.get("risk_sigs") or [])
+    base_rest = int(baseline.get("rest_calls_total") or 0)
+    new_risks = [r for sig, r in cur_sigs.items() if sig not in accepted]
+    resolved = len([s for s in accepted if s not in cur_sigs])
+    rest_delta = scan["rest_calls_total"] - base_rest
+    new_high = [r for r in new_risks if r["severity"] == "high"]
+
+    if new_high or rest_delta > 0:
+        verdict = "blocked"
+    elif new_risks:
+        verdict = "review"
+    else:
+        verdict = "go"
+
+    return {
+        "verdict": verdict,
+        "baseline_at": baseline.get("created_at"),
+        "current_status": scan["status"],
+        "current_risks": scan["risks_count"],
+        "current_rest_calls": scan["rest_calls_total"],
+        "baseline_rest_calls": base_rest,
+        "rest_delta": rest_delta,
+        "new_risks": new_risks[:40],
+        "new_risks_count": len(new_risks),
+        "new_high_count": len(new_high),
+        "resolved_risks": resolved,
+    }
+
+
+async def set_maps_baseline() -> dict:
+    """Accept the current Maps usage as the deployment baseline."""
+    scan = scan_maps_guard()
+    now = datetime.now(timezone.utc).isoformat()
+    await db.code_maps_baseline.update_one(
+        {"_id": "baseline"},
+        {"$set": {
+            "risk_sigs": [_risk_sig(r) for r in scan["risks"]],
+            "rest_calls_total": scan["rest_calls_total"],
+            "created_at": now,
+        }},
+        upsert=True,
+    )
+    return {"created_at": now, "accepted_risks": scan["risks_count"],
+            "rest_calls_total": scan["rest_calls_total"]}
+
+
 # ----------------------------------------------------------------------------- real coverage
 async def _run_coverage_task(run_id: str):
     started = time.time()

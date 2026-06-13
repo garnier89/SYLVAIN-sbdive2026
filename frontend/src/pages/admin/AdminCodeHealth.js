@@ -312,17 +312,71 @@ const SecurityTab = () => {
 /* ---------------------------------------------------------------- Garde Google Maps */
 const MapsTab = () => {
   const [data, setData] = useState(null);
+  const [gate, setGate] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    adminAPI.codeMapsGuard().then((r) => setData(r.data)).catch(() => toast.error('Audit Maps impossible')).finally(() => setLoading(false));
+  const loadGate = useCallback(() => {
+    adminAPI.codeMapsGate().then((r) => setGate(r.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    Promise.all([adminAPI.codeMapsGuard(), adminAPI.codeMapsGate()])
+      .then(([g, gt]) => { setData(g.data); setGate(gt.data); })
+      .catch(() => toast.error('Audit Maps impossible'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const acceptBaseline = () => {
+    adminAPI.codeMapsBaseline().then((r) => {
+      toast.success(`Baseline Maps acceptée (${r.data.accepted_risks} risques, ${r.data.rest_calls_total} appels REST)`);
+      loadGate();
+    }).catch(() => toast.error('Échec de la baseline'));
+  };
 
   if (loading) return <Spinner color="emerald" />;
   const statusColor = { danger: 'text-rose-600', warn: 'text-amber-600', ok: 'text-emerald-600' }[data?.status] || 'text-gray-500';
 
+  const GATE = {
+    go: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', label: '✅ GO — Déploiement sûr', icon: CheckCircle },
+    review: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', label: '⚠️ À VÉRIFIER — Nouveaux usages Maps', icon: Warning },
+    blocked: { bg: 'bg-rose-50 border-rose-200', text: 'text-rose-700', label: '⛔ BLOQUÉ — Risque de surfacturation', icon: XCircle },
+    no_baseline: { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-700', label: 'Aucune baseline définie', icon: FloppyDisk },
+  }[gate?.verdict] || { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-600', label: '—', icon: ShieldWarning };
+  const GateIcon = GATE.icon;
+
   return (
     <div className="space-y-6" data-testid="maps-tab">
+      {/* Porte de déploiement */}
+      <div className={`rounded-2xl border p-5 ${GATE.bg}`} data-testid="maps-gate">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <GateIcon size={26} className={GATE.text} weight="fill" />
+            <div>
+              <p className={`text-base font-black ${GATE.text}`} data-testid="maps-gate-verdict">{GATE.label}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {gate?.verdict === 'no_baseline'
+                  ? "Définissez une baseline pour activer la porte de déploiement. Avant chaque « Deploy », revenez ici : tout nouveau risque sera signalé."
+                  : `Comparé à la baseline du ${gate?.baseline_at ? new Date(gate.baseline_at).toLocaleString('fr-FR') : '—'} · ${gate?.new_risks_count || 0} nouveau(x) risque(s) · ${gate?.resolved_risks || 0} résolu(s) · appels REST ${gate?.rest_delta > 0 ? `+${gate.rest_delta} ⚠️` : gate?.rest_delta || 0}`}
+              </p>
+            </div>
+          </div>
+          <button onClick={acceptBaseline} data-testid="maps-baseline-btn"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 shrink-0">
+            <FloppyDisk size={15} weight="fill" /> {gate?.verdict === 'no_baseline' ? 'Définir la baseline' : 'Accepter (avant deploy)'}
+          </button>
+        </div>
+        {(gate?.new_risks || []).length > 0 && (
+          <div className="mt-3 space-y-1.5" data-testid="maps-gate-new-risks">
+            <p className="text-xs font-bold text-gray-600">Nouveaux risques depuis la baseline :</p>
+            {gate.new_risks.map((r, i) => (
+              <div key={i} className={`text-xs rounded px-2 py-1.5 border ${SEV[r.severity]}`}>
+                <span className="font-mono">{r.file}{r.line ? `:${r.line}` : ''}</span> — {r.detail}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className={`rounded-2xl border p-4 ${data?.status === 'danger' ? 'bg-rose-50 border-rose-100' : data?.status === 'warn' ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'}`}>
         <div className="flex items-center gap-2">
           <ShieldWarning size={20} className={statusColor} weight="fill" />

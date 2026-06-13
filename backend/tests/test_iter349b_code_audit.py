@@ -58,6 +58,16 @@ def test_maps_guard_detects_usage():
         assert "api" in u and "count" in u
 
 
+def test_maps_deploy_gate_baseline_and_verdict():
+    # Set baseline on current state → gate must be GO with no new risks.
+    run(CA.set_maps_baseline())
+    gate = run(CA.maps_gate())
+    assert gate["verdict"] == "go"
+    assert gate["new_risks_count"] == 0
+    assert gate["rest_delta"] == 0
+    assert gate["baseline_at"] is not None
+
+
 def test_unit_selector_excludes_network_tests():
     unit = CA._unit_test_files()
     assert len(unit) > 10
