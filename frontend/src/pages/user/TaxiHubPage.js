@@ -177,9 +177,25 @@ const TaxiHubPage = () => {
     if (!pickup?.lat && !locating) detectCurrentLocation(false);
   }, [pickup, locating, detectCurrentLocation]);
 
-  // Destination handed over from « Commerces Proches » (Y aller en taxi) → prefill dropoff.
+  // Destination / itinéraire transmis depuis « Commerces & Tourisme ».
   useEffect(() => {
     try {
+      // Multi-stop tourist itinerary: array of places → intermediate stops + final dropoff.
+      const rawIt = sessionStorage.getItem('sb_taxi_itinerary');
+      if (rawIt) {
+        sessionStorage.removeItem('sb_taxi_itinerary');
+        const places = (JSON.parse(rawIt) || []).filter((p) => p?.lat && p?.lng);
+        if (places.length >= 1) {
+          const last = places[places.length - 1];
+          const mids = places.slice(0, -1);
+          setDropoff({ address: last.address || 'Destination', lat: last.lat, lng: last.lng });
+          if (mids.length) setStops(mids.map((p) => ({ address: p.address || 'Arrêt', lat: p.lat, lng: p.lng })));
+          setView('booking');
+          if (!pickup?.lat) detectCurrentLocation(false);
+          return;
+        }
+      }
+      // Single destination.
       const raw = sessionStorage.getItem('sb_taxi_dest');
       if (!raw) return;
       sessionStorage.removeItem('sb_taxi_dest');

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, MagnifyingGlass, Star, MapPin, X, Phone, NavigationArrow,
-  Car, Clock, Storefront, Globe, Heart, List, MapTrifold,
+  Car, Clock, Storefront, Globe, Heart, List, MapTrifold, Path,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ServiceCard } from '../../components/ServiceListLayout';
@@ -46,6 +46,8 @@ const NearbyBusinessPage = () => {
   const [showFavs, setShowFavs] = useState(false);
   const [favs, setFavs] = useState([]);
   const [viewMode, setViewMode] = useState('list'); // list | map
+  const [planMode, setPlanMode] = useState(false);
+  const [plan, setPlan] = useState([]); // ordered list of selected item ids for the itinerary
 
   // Resolve the user's GPS once (graceful Paris fallback).
   useEffect(() => {
@@ -86,6 +88,25 @@ const NearbyBusinessPage = () => {
       .finally(() => setLoading(false));
   };
 
+  const exitFavs = () => { setShowFavs(false); setPlanMode(false); setPlan([]); };
+
+  const togglePlan = (item) => {
+    setPlan((p) => (p.includes(item.id) ? p.filter((x) => x !== item.id) : [...p, item.id]));
+  };
+
+  const reserveItinerary = () => {
+    const ordered = plan
+      .map((id) => favs.find((f) => f.id === id))
+      .filter((p) => p && p.lat != null && p.lng != null);
+    if (ordered.length < 1) { toast.error('Sélectionnez des lieux géolocalisés'); return; }
+    try {
+      sessionStorage.setItem('sb_taxi_itinerary', JSON.stringify(
+        ordered.map((p) => ({ address: p.address || p.name, lat: p.lat, lng: p.lng })),
+      ));
+    } catch { /* ignore */ }
+    navigate('/taxi');
+  };
+
   const toggleFav = async (item, e) => {
     if (e) { e.stopPropagation(); }
     const wasFav = favIds.includes(item.id);
@@ -121,7 +142,7 @@ const NearbyBusinessPage = () => {
           </button>
           <h1 className="text-lg font-bold text-white flex-1">{showFavs ? 'Mes favoris' : 'Commerces & Tourisme'}</h1>
           <button
-            onClick={() => (showFavs ? (setShowFavs(false)) : openFavs())}
+            onClick={() => (showFavs ? exitFavs() : openFavs())}
             className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-full ${showFavs ? 'bg-white text-[#FF4500]' : 'bg-white/20 text-white'}`}
             data-testid="favorites-toggle"
           >
@@ -181,6 +202,26 @@ const NearbyBusinessPage = () => {
         </>
       )}
 
+      {/* Itinéraire touristique — multi-arrêts depuis les favoris */}
+      {showFavs && favs.length >= 1 && (
+        <div className="px-4 pt-3" data-testid="itinerary-controls">
+          {!planMode ? (
+            <button
+              onClick={() => { setPlanMode(true); setPlan([]); }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-orange-300 text-orange-600 text-sm font-bold bg-orange-50/50"
+              data-testid="start-itinerary-btn"
+            >
+              <Path size={16} weight="bold" /> Créer un itinéraire touristique
+            </button>
+          ) : (
+            <div className="flex items-center justify-between bg-[#1F2430] text-white rounded-xl px-3 py-2.5">
+              <span className="text-xs font-semibold">Touchez les lieux dans l'ordre de visite</span>
+              <button onClick={() => { setPlanMode(false); setPlan([]); }} className="text-[11px] font-bold underline" data-testid="cancel-itinerary-btn">Annuler</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Map view */}
       {!showFavs && viewMode === 'map' && (
         <div className="px-4 mt-3" data-testid="nearby-map-wrap">
@@ -207,29 +248,57 @@ const NearbyBusinessPage = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((item) => (
+            {filtered.map((item) => {
+              const planIdx = plan.indexOf(item.id);
+              const selecting = showFavs && planMode;
+              return (
               <div key={item.id} data-testid={`item-${item.id}`} className="relative">
-                <button
-                  onClick={(e) => toggleFav(item, e)}
-                  className="absolute top-2 left-2 z-10 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center"
-                  data-testid={`fav-${item.id}`}
-                >
-                  <Heart size={16} weight={favIds.includes(item.id) ? 'fill' : 'regular'} className={favIds.includes(item.id) ? 'text-rose-500' : 'text-gray-400'} />
-                </button>
-                <ServiceCard
-                  item={item}
-                  onClick={() => setSelected(item)}
-                  badges={[
-                    { label: item.category, colorClass: 'bg-indigo-50 text-indigo-700' },
-                    ...(item.distance_km != null ? [{ label: `${item.distance_km} km`, colorClass: 'bg-gray-100 text-gray-700' }] : []),
-                    ...(item.open_now != null ? [{ label: item.open_now ? 'Ouvert' : 'Fermé', colorClass: item.open_now ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }] : []),
-                  ]}
-                />
+                {selecting ? (
+                  <span
+                    className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shadow ${planIdx >= 0 ? 'bg-[#FF4500] text-white' : 'bg-white text-gray-400 border border-gray-200'}`}
+                    data-testid={`plan-badge-${item.id}`}
+                  >
+                    {planIdx >= 0 ? planIdx + 1 : '+'}
+                  </span>
+                ) : (
+                  <button
+                    onClick={(e) => toggleFav(item, e)}
+                    className="absolute top-2 left-2 z-10 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center"
+                    data-testid={`fav-${item.id}`}
+                  >
+                    <Heart size={16} weight={favIds.includes(item.id) ? 'fill' : 'regular'} className={favIds.includes(item.id) ? 'text-rose-500' : 'text-gray-400'} />
+                  </button>
+                )}
+                <div className={selecting && planIdx >= 0 ? 'ring-2 ring-[#FF4500] rounded-2xl' : ''}>
+                  <ServiceCard
+                    item={item}
+                    onClick={() => (selecting ? togglePlan(item) : setSelected(item))}
+                    badges={[
+                      { label: item.category, colorClass: 'bg-indigo-50 text-indigo-700' },
+                      ...(item.distance_km != null ? [{ label: `${item.distance_km} km`, colorClass: 'bg-gray-100 text-gray-700' }] : []),
+                      ...(item.open_now != null ? [{ label: item.open_now ? 'Ouvert' : 'Fermé', colorClass: item.open_now ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }] : []),
+                    ]}
+                  />
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+      )}
+
+      {/* Sticky itinerary CTA */}
+      {showFavs && planMode && plan.length >= 1 && (
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-40 px-4 pb-4 pt-2 bg-gradient-to-t from-white via-white to-transparent" data-testid="itinerary-cta-bar">
+          <button
+            onClick={reserveItinerary}
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#FF4500] text-white font-extrabold shadow-lg shadow-orange-500/30 active:scale-[0.99] transition-transform"
+            data-testid="reserve-itinerary-btn"
+          >
+            <Car size={20} weight="fill" /> Réserver l'itinéraire ({plan.length} {plan.length > 1 ? 'arrêts' : 'arrêt'})
+          </button>
+        </div>
       )}
 
       {selected && (

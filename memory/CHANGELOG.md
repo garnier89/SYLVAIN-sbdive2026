@@ -1,3 +1,10 @@
+## NEW - 2026-06-13 - 🧭 Itinéraire touristique multi-arrêts SB Drive (DONE, testé)
+- **Demande user** : sélectionner plusieurs lieux favoris et réserver une course SB Drive multi-arrêts pour les visiter à la suite.
+- **Front** (`NearbyBusinessPage.js`, vue « Mes favoris ») : bouton « Créer un itinéraire touristique » → mode sélection ; on touche les favoris dans l'ordre de visite (badges numérotés 1,2,3… + anneau orange) ; barre CTA collante « Réserver l'itinéraire (N arrêts) ». Construit un tableau ordonné de lieux géolocalisés.
+- **Handoff** : `sessionStorage('sb_taxi_itinerary')` = liste de lieux → `/taxi`. `TaxiHubPage.js` mappe le dernier en **DESTINATION** et les précédents en **Arrêt 1, Arrêt 2…** (`stops`), auto-détecte le départ et calcule l'estimation multi-waypoints.
+- **Testé** (screenshots) : 3 favoris sélectionnés (Notre-Dame → Louvre → Tour Eiffel) → taxi avec Arrêt 1/Arrêt 2/Destination + estimation 20,07€ / 10,7 km / 40 min, prêt à commander. Compte test : nearbytest@demo.sb / NearbyTest123!
+
+
 ## NEW - 2026-06-13 - 🗺️ Carte interactive + réservation SB Drive depuis un lieu (DONE, testé)
 - **Demande user** : carte interactive des lieux (épingles cliquables) + « une fois trouvé, l'app propose d'y aller en réservant un chauffeur SB Drive ».
 - **Carte** : `NearbyPlacesMap.jsx` (Google Maps JS via loader partagé `lib/googleMaps`, `@react-google-maps/api` + `REACT_APP_GOOGLE_MAPS_KEY` déjà présents). Épingle position utilisateur (orange) + une épingle par lieu (indigo = Google, ambre = partenaire admin), cliquable → ouvre la fiche détail. Bascule **Liste / Carte** sur la page.
