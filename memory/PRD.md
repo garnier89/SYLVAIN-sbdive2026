@@ -1,3 +1,13 @@
+## NEW - 2026-06-13 (371) - ♻️ Refacto rides.py Phase 3 : extraction réconciliation paiement (DONE, testé)
+- **Tâche (P1)** : extraire les handlers booking/paiement de `routes/rides.py` (3296 lignes, module cœur).
+- **Fait** : nouveau module `core/ride_payments.py` (pattern `core/` déjà établi : pool_config, cancel_policy, rental_meter) regroupant la **réconciliation de paiement** — `CASH_RIDE_MIN_BALANCE`, `VALID_PAYMENT_METHODS`, `_driver_meets_cash_minimum`, `_payment_feasibility`, `switch_to_cash_if_needed`, `_refund_intercity_deposit`, `_ride_invoice_number`. Définitions retirées de `rides.py` et **ré-importées/ré-exportées** (`from core.ride_payments import ...` avec `# noqa: F401`) pour préserver `routes/phase1.py` et la suite de tests qui font `from routes.rides import switch_to_cash_if_needed`.
+- **Résultat** : `rides.py` 3296 → 3203 lignes. Aucun changement de comportement (extraction pure).
+- **Testé** : backend démarre OK ; `test_iter312_payment_switch.py` **3/3** (exerce directement `switch_to_cash_if_needed` via le ré-export) ; cash gating/cash due/driver flow → **12 tests passent** ; curl `PUT /rides/{id}/payment-method` → 400 (méthode invalide) / 404 (course absente). 
+- **⚠️ Pré-existant (hors scope)** : `test_cancellation_debt_carry.py` (2 échecs) provient de `routes/debts.py:settle_carried_debts` (intouché, sans dépendance au code déplacé) — le passager n'est pas débité sur les courses wallet. À investiguer séparément.
+- Reste à faire (Phase 4+) : `rides.py` reste volumineux ; extraction possible des groupes d'endpoints leaf (rental, bidding, rating) en sous-routeurs.
+
+
+
 ## NEW - 2026-06-13 (370) - 📧 SB Ferry : relevé PDF auto-envoyé par e-mail (Resend) au règlement (DONE, testé 16/16 + envoi Resend réussi + capture)
 - **Demande user (suite iter369)** : boucler le cycle de facturation — chaque règlement « réglé » génère un PDF de relevé envoyé à la compagnie par e-mail.
 - **Backend** : champ `email` ajouté aux compagnies (`POST`/`PUT /admin/ferry/companies`). `_settlement_stats()` + `_build_settlement_pdf()` (reportlab, relevé A4 : en-tête SB Ferry, période, compagnie, billets/CA/commission/revenu, net dû coloré). `core/email.py` → `send_ferry_settlement()` (HTML FR + PDF en pièce jointe via `_send_with_attachments`). `settle-batch` calcule le relevé du lot réglé et **envoie l'e-mail (non bloquant, `fire`)** ; renvoie `email_sent`.
