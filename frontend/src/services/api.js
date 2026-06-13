@@ -701,6 +701,24 @@ export const promoBannersAPI = {
   billing: () => api.get('/promo-banners/admin/billing'),
 };
 
+// Home feature banners CMS (SB Student / Livraison hero / custom) — admin-piloted
+export const homeBannersAPI = {
+  public: (location) => api.get('/home-banners', { params: location ? { location } : {} }),
+  preview: (zone) => api.get('/home-banners', { params: {
+    ...(zone?.country ? { country: zone.country } : {}),
+    ...(zone?.state ? { state: zone.state } : {}),
+    ...(zone?.city ? { city: zone.city } : {}),
+  } }),
+  dismiss: (id) => api.post(`/home-banners/${id}/dismiss`),
+  impression: (id) => api.post(`/home-banners/${id}/impression`),
+  adminList: () => api.get('/admin/home-banners'),
+  create: (data) => api.post('/admin/home-banners', data),
+  update: (id, data) => api.put(`/admin/home-banners/${id}`, data),
+  toggle: (id) => api.patch(`/admin/home-banners/${id}/toggle`),
+  remove: (id) => api.delete(`/admin/home-banners/${id}`),
+  reorder: (orderedIds) => api.post('/admin/home-banners/reorder', { ordered_ids: orderedIds }),
+};
+
 export const newsAPI = {
   feed: (location) => api.get('/news/feed', { params: location ? { location } : {} }),
   unreadCount: (location) => api.get('/news/unread-count', { params: location ? { location } : {} }),

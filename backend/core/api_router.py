@@ -104,6 +104,7 @@ from routes.trip_timings_admin import router as trip_timings_admin_router
 from routes.calls import router as calls_router
 from routes.parking_admin import router as parking_admin_router
 from routes.assist_types import public_router as assist_types_public_router, admin_router as assist_types_admin_router
+from routes.home_banners import public_router as home_banners_public_router, admin_router as home_banners_admin_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -165,6 +166,8 @@ _ROUTERS = [
     parking_admin_router,
     assist_types_public_router,
     assist_types_admin_router,
+    home_banners_public_router,
+    home_banners_admin_router,
 ]
 
 

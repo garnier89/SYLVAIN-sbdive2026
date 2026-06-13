@@ -473,6 +473,8 @@ async def run_all_seeds():
     await seed_weather_surcharges()     # default weather surcharge ruleset
     from routes.assist_types import seed_assist_types
     await seed_assist_types()           # SB Access assistance types (admin-editable)
+    from routes.home_banners import seed_home_banners
+    await seed_home_banners()           # home feature banners CMS (admin-editable)
     try:
         from core.ondemand_seed import seed_ondemand
         await seed_ondemand()           # on-demand service categories + demo providers

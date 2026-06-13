@@ -49,6 +49,18 @@ def _days_active(b):
     return (end - start).days + 1
 
 
+def _in_schedule(b) -> bool:
+    """True if NOW is within [starts_at, ends_at] (either bound optional)."""
+    now = datetime.now(timezone.utc)
+    start = _parse_dt(b.get("starts_at"))
+    end = _parse_dt(b.get("ends_at"))
+    if start and now < start:
+        return False
+    if end and now > end:
+        return False
+    return True
+
+
 def _banner_cost(b):
     """Estimated cost of a banner based on its pricing model."""
     model = b.get("pricing_model", "free")
@@ -117,6 +129,9 @@ async def list_public(country: str = "", state: str = "", city: str = "", locati
     """
     items = await db.promo_banners.find({"status": "active"}, {"_id": 0}).sort("display_order", 1).to_list(200)
 
+    # Schedule window: only serve banners whose [starts_at, ends_at] contains now.
+    items = [b for b in items if _in_schedule(b)]
+
     # Surface filter (home is the default for legacy banners without `surfaces`)
     target_surface = surface or "home"
     items = [
@@ -145,6 +160,13 @@ async def track_impression(banner_id: str):
 async def track_click(banner_id: str):
     """Public, fire-and-forget: count one click for a banner."""
     await db.promo_banners.update_one({"id": banner_id}, {"$inc": {"clicks": 1}})
+    return {"ok": True}
+
+
+@router.post("/{banner_id}/dismiss")
+async def track_dismiss(banner_id: str):
+    """Public, fire-and-forget: count one close (for close-rate analytics)."""
+    await db.promo_banners.update_one({"id": banner_id}, {"$inc": {"dismiss_count": 1}})
     return {"ok": True}
 
 

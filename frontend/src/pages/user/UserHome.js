@@ -14,11 +14,12 @@ import DebtBanner from '../../components/DebtBanner';
 import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
-import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI, homeBannersAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
 import { LoyaltyStatusCard } from '../../components/LoyaltyStatusCard';
 import { OffresDuMoment } from '../../components/OffresDuMoment';
 import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
+import { useHomeBanners } from '../../hooks/useHomeBanners';
 import { cachedServiceCategories, loadServiceCategories } from '../../lib/serviceCategoriesCache';
 import {
   TAXI_DEFAULT, TAXI_VISUAL, taxiServices, deliveryServices, videoCategories,
@@ -31,7 +32,7 @@ import {
   MagnifyingGlass, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
-  GraduationCap, Storefront, X,
+  X,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -170,6 +171,63 @@ const DismissX = ({ onDismiss, testid }) => (
   </span>
 );
 
+// Admin-piloted home feature banner. Two variants: "hero" (big gradient card)
+// and "entry" (compact row). Icon resolved via DynamicIcon (Phosphor name/emoji).
+const HomeFeatureBanner = ({ b, onClick, onDismiss }) => {
+  const from = b.bg_from || '#5B21B6';
+  const to = b.bg_to || '#7C3AED';
+  if (b.variant === 'hero') {
+    return (
+      <button
+        onClick={onClick}
+        data-testid={`home-banner-${b.key}`}
+        className="relative w-full overflow-hidden rounded-[24px] text-left active:scale-[0.99] transition-transform shadow-[0_14px_30px_-16px_rgba(79,70,229,0.7)]"
+        style={{ background: `linear-gradient(135deg, ${from} 0%, ${to} 130%)` }}
+      >
+        {b.dismissible && onDismiss && <DismissX onDismiss={onDismiss} testid={`home-banner-dismiss-${b.key}`} />}
+        <span className="absolute -right-6 -top-10 w-40 h-40 rounded-full bg-white/10" />
+        <span className="absolute right-12 bottom-[-34px] w-28 h-28 rounded-full bg-white/10" />
+        <div className="relative p-5 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0">
+            <DynamicIcon name={b.icon || 'Lightning'} size={36} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            {b.badge && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/20 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                <span className="text-[10px] font-extrabold text-white tracking-wider">{b.badge}</span>
+              </span>
+            )}
+            <h3 className={`text-[19px] font-extrabold text-white leading-tight ${HEAD}`}>{b.title}</h3>
+            {b.subtitle && <p className={`text-[12px] text-white/85 mt-0.5 leading-snug ${BODY}`}>{b.subtitle}</p>}
+          </div>
+          <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <ArrowRight size={18} weight="bold" className="text-white" />
+          </div>
+        </div>
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={onClick}
+      data-testid={`home-banner-${b.key}`}
+      className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
+      style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+    >
+      {b.dismissible && onDismiss && <DismissX onDismiss={onDismiss} testid={`home-banner-dismiss-${b.key}`} />}
+      <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+        <DynamicIcon name={b.icon || 'Storefront'} size={22} className="text-white" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="text-white font-black text-sm block leading-tight">{b.title}</span>
+        {b.subtitle && <span className="text-white/85 text-xs block leading-tight">{b.subtitle}</span>}
+      </span>
+      <CaretRight size={18} className="text-white shrink-0" />
+    </button>
+  );
+};
+
 const UserHome = () => {
   const { user } = useAuth();
   const { t } = useLocale();
@@ -188,6 +246,7 @@ const UserHome = () => {
     });
   }, []);
   const zoneRef = useRef('');
+  const homeBanners = useHomeBanners();
   // Single entry point for service-tile taps: remembers usage (for shortcuts),
   // pings the zone-aware trends tracker, then routes.
   const go = useCallback((service) => {
@@ -864,25 +923,18 @@ const UserHome = () => {
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 
       <DebtBanner />
-      {/* SB Student — accès direct (dismissible) vers l'espace étudiant + marketplace */}
-      {!isDismissed('home-sb-student') && (
-      <button
-        onClick={() => navigate('/sb-student')}
-        data-testid="home-sb-student-entry"
-        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}
-      >
-        <DismissX onDismiss={() => dismissBanner('home-sb-student')} testid="sb-student-dismiss" />
-        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-          <GraduationCap size={22} weight="fill" className="text-white" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="text-white font-black text-sm block leading-tight">SB Student 🎓</span>
-          <span className="text-white/85 text-xs block leading-tight flex items-center gap-1"><Storefront size={12} weight="fill" /> Marketplace, tarifs étudiants, campus & plus</span>
-        </span>
-        <CaretRight size={18} className="text-white shrink-0" />
-      </button>
-      )}
+      {/* Bannières d'accueil pilotées depuis l'admin (ordre, visibilité, zone, horaires, fermeture) */}
+      {homeBanners
+        .filter((b) => !isDismissed(`home:${b.id}:${b.updated_at || ''}`))
+        .map((b) => (
+          <div key={b.id} className="mx-4 mt-3" data-testid={`home-banner-wrap-${b.key}`}>
+            <HomeFeatureBanner
+              b={b}
+              onClick={() => navigate(b.target_route || '/')}
+              onDismiss={b.dismissible ? () => { dismissBanner(`home:${b.id}:${b.updated_at || ''}`); homeBannersAPI.dismiss(b.id).catch(() => {}); } : null}
+            />
+          </div>
+        ))}
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 
       {/* Referral progress nudge — reminds the referred user how close their reward is */}
@@ -947,37 +999,6 @@ const UserHome = () => {
               ))}
             </div>
           </section>
-        )}
-        {/* Livraison Instantanée — hero card (dismissible) */}
-        {!isDismissed('hero-instant-delivery') && (
-        <section className="px-4 mt-5" data-testid="instant-delivery-hero">
-          <button
-            onClick={() => { recordTap({ id: 'instant-delivery', path: '/parcel' }); navigate('/parcel'); }}
-            data-testid="instant-delivery-btn"
-            className="relative w-full overflow-hidden rounded-[24px] text-left active:scale-[0.99] transition-transform shadow-[0_14px_30px_-16px_rgba(79,70,229,0.7)]"
-            style={{ background: 'linear-gradient(135deg,#4F46E5 0%,#7C3AED 55%,#FF5000 130%)' }}
-          >
-            <DismissX onDismiss={() => dismissBanner('hero-instant-delivery')} testid="instant-delivery-dismiss" />
-            <span className="absolute -right-6 -top-10 w-40 h-40 rounded-full bg-white/10" />
-            <span className="absolute right-10 bottom-[-34px] w-28 h-28 rounded-full bg-white/10" />
-            <div className="relative p-5 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0">
-                <Lightning size={38} weight="fill" className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/20 mb-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                  <span className="text-[10px] font-extrabold text-white tracking-wider">EXPRESS · DÈS 30 MIN</span>
-                </span>
-                <h3 className={`text-[19px] font-extrabold text-white leading-tight ${HEAD}`}>Livraison Instantanée</h3>
-                <p className={`text-[12px] text-white/85 mt-0.5 leading-snug ${BODY}`}>Envoyez un colis maintenant — un coursier le récupère et le livre en temps réel.</p>
-              </div>
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                <ArrowRight size={18} weight="bold" className="text-white" />
-              </div>
-            </div>
-          </button>
-        </section>
         )}
         {ORDERED_SECTIONS.map((key) => blocks[key])}
       </motion.main>

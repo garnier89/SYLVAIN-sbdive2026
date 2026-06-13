@@ -208,6 +208,7 @@ const sidebarConfig = [
         { label: 'Configuration', path: '/admin/app-home' },
         { label: 'Catégories accueil', path: '/admin/home-categories' },
         { label: 'Bannières promo', path: '/admin/promo-banners' },
+        { label: 'Bannières accueil', path: '/admin/home-banners' },
         { label: 'Commerces proches', path: '/admin/nearby-businesses' },
         { label: 'Zones & raccourcis', path: '/admin/zones' },
         { label: 'Tendances épinglées', path: '/admin/trending-pinned' },
