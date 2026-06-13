@@ -1,3 +1,13 @@
+## NEW - 2026-06-13 (347) - 🩹 3 correctifs UX P2 auth (DONE, testé 13/13)
+- **#1 Redirection anonyme** : `ProtectedRoute` renvoyait les visiteurs non connectés vers l'accueil `/`. Désormais → **`/login`** avec mémorisation de la destination (`state.from`). `/taxi?mode=standard`, `/course?mode=intercity`, `/wallet`… redirigent bien vers `/login`. Retour à la destination après connexion (téléphone **et** e-mail).
+- **#2 E-mail visible** : l'option e-mail était cachée derrière « Ou choisir une autre option ». Ajout d'un bouton **« Continuer avec l'e-mail »** visible (`email-login-btn`) sur l'écran principal (`PhoneStep`), clé i18n `login.email_continue`.
+- **#3 Bruit 401** : `AuthContext.checkAuth` appelait `/api/auth/me` à chaque chargement (401 pour anonymes). Ajout d'un marqueur localStorage **`sb_auth`** (`'1'`=connecté, `'0'`=anonyme connu, absent=sonde une fois) → l'app ne sonde `/me` qu'une fois puis mémorise l'état. **Migration-safe** : une session cookie existante (marqueur absent) n'est jamais déconnectée. `setUserAndMark` exposé en `setUser` ; login/register/logout/google posent le marqueur.
+- **Fix complémentaire** : `EmailLoginPage` honore aussi `location.state.from` (redirect-back).
+- **Testé** : testing_agent iter345 **12/13** (puis le 13ᵉ corrigé : redirect-back e-mail). Redirections OK, bouton e-mail visible, login e-mail OK, pas de déconnexion au reload.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-13 (346) - ♻️ Refactor rides.py Phase 1 : extraction config Pool + fix robustesse carpool (DONE, testé)
 - **Demande user** : commencer à découper `rides.py` (3393 lignes) en sous-modules. Approche **incrémentale et testée** (pas de big-bang) pour ne pas casser un chemin de paiement déployé.
 - **Phase 1** : cluster **config Pool** (constantes `POOL_*`, `pool_seat_multiplier`, `_pool_num/_pool_bool/_db_pool_config`, `get_pool_config`, `get_pool_global_config`) extrait vers **`core/pool_config.py`** (autonome, ne dépend que de `db`). `rides.py` importe ce qu'il utilise ; `routes/config.py` importe `get_pool_global_config` depuis `core/pool_config` (couplage config→rides réduit). `INTERCITY_ROUNDTRIP_FACTOR` conservé dans rides.py.

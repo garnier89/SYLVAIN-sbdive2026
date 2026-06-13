@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, Eye, EyeSlash } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -9,6 +9,11 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const EmailLoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Return the user to where they were headed before being bounced to /login.
+  const backTo = location.state?.from
+    ? `${location.state.from.pathname || ''}${location.state.from.search || ''}`
+    : null;
   const { setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +42,7 @@ const EmailLoginPage = () => {
       else if (r === 'driver') navigate('/chauffeur/home', { replace: true });
       else if (r === 'merchant') navigate('/merchant/dashboard', { replace: true });
       else if (r === 'dispatcher') navigate('/dispatcher', { replace: true });
-      else navigate('/home', { replace: true });
+      else navigate(backTo || '/home', { replace: true });
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Identifiants invalides');
     } finally {
