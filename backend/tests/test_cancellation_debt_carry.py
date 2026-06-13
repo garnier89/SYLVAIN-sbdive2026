@@ -3,10 +3,14 @@
 Validates the behaviour requested by the user:
 - An unpaid cancellation debt no longer blocks booking; it is carried onto the
   next ride.
-- On completion of a CASH ride, the carried debt is debited from the NEW
-  driver's wallet and credited (reimbursed) to the PREVIOUS (wronged) driver.
-- On a WALLET ride, the passenger's wallet is debited; the previous driver is
-  still reimbursed.
+- `settle_carried_debts` FORWARDS the carried debt to the PREVIOUS (wronged)
+  driver and marks it paid. Sourcing the funds is the caller's responsibility:
+    * cash ride  → called with `collected_in_cash=True`; the NEW driver (who
+      physically collected fare+debt in cash) is debited and the old driver
+      reimbursed.
+    * wallet/card ride → called with `collected_in_cash=False`; the passenger
+      was ALREADY charged fare+debt by the ride-completion wallet charge, so the
+      function only forwards to the old driver and must NOT re-debit anyone.
 - Settling the debt twice never reimburses twice.
 """
 import asyncio
@@ -74,9 +78,11 @@ def test_cash_ride_carries_and_reimburses_previous_driver():
             prev_before = await _wallet_balance(prev_uid)
             new_before = await _wallet_balance(new_uid)
 
-            # Complete a CASH ride driven by the NEW driver
+            # Complete a CASH ride driven by the NEW driver. The new driver
+            # physically collected fare+debt in cash → settle with the flag so
+            # the debt portion is debited from their wallet and forwarded.
             ride = {"id": ride_id, "user_id": passenger, "driver_id": new_did, "payment_method": "cash"}
-            await settle_carried_debts(ride, carried)
+            await settle_carried_debts(ride, carried, collected_in_cash=True)
 
             assert round(await _wallet_balance(prev_uid) - prev_before, 2) == fee, "prev driver reimbursed"
             assert round(await _wallet_balance(new_uid) - new_before, 2) == -fee, "new driver debited"
@@ -89,8 +95,12 @@ def test_cash_ride_carries_and_reimburses_previous_driver():
     _run(run())
 
 
-# ── Test: wallet ride debits the passenger, reimburses previous driver ──────
-def test_wallet_ride_debits_passenger_and_reimburses_previous_driver():
+# ── Test: wallet/digital settlement only FORWARDS to the previous driver ────
+# The passenger is charged fare+debt by the ride-completion wallet charge (in
+# routes/rides.py, `amt = final_fare + carried_amt`). `settle_carried_debts`
+# with collected_in_cash=False must therefore NOT re-debit the passenger (that
+# would double-charge) — it only reimburses the wronged previous driver.
+def test_wallet_ride_forwards_to_previous_driver_without_redebiting():
     async def run():
         passenger = f"u_pax_{uuid.uuid4().hex[:8]}"
         prev_did, prev_uid = await _seed_driver("prev")
@@ -112,11 +122,14 @@ def test_wallet_ride_debits_passenger_and_reimburses_previous_driver():
             new_before = await _wallet_balance(new_uid)
 
             ride = {"id": ride_id, "user_id": passenger, "driver_id": new_did, "payment_method": "wallet"}
-            await settle_carried_debts(ride, carried)
+            forwarded = await settle_carried_debts(ride, carried, collected_in_cash=False)
 
-            assert round(await _wallet_balance(prev_uid) - prev_before, 2) == fee
-            assert round(await _wallet_balance(passenger) - pax_before, 2) == -fee
+            assert forwarded == fee
+            assert round(await _wallet_balance(prev_uid) - prev_before, 2) == fee, "prev driver reimbursed"
+            assert round(await _wallet_balance(passenger) - pax_before, 2) == 0.0, "passenger NOT re-debited (charged in ride flow)"
             assert round(await _wallet_balance(new_uid) - new_before, 2) == 0.0, "new driver untouched on wallet ride"
+            d = await db.cancellation_debts.find_one({"id": debt_id})
+            assert d["paid"] is True
         finally:
             await _cleanup(ids)
 
@@ -185,7 +198,7 @@ def test_settle_twice_is_idempotent():
 
 if __name__ == "__main__":
     test_cash_ride_carries_and_reimburses_previous_driver()
-    test_wallet_ride_debits_passenger_and_reimburses_previous_driver()
+    test_wallet_ride_forwards_to_previous_driver_without_redebiting()
     test_release_carried_debt_reattaches_to_next_ride()
     test_settle_twice_is_idempotent()
     print("ALL DEBT-CARRY TESTS PASSED")

@@ -7,6 +7,16 @@
 - Reste à faire (Phase 4+) : `rides.py` reste volumineux ; extraction possible des groupes d'endpoints leaf (rental, bidding, rating) en sous-routeurs.
 
 
+## NEW - 2026-06-13 (372) - ✅ Faux-positif « bug settle_carried_debts » : AUCUN bug, tests obsolètes corrigés
+- **Contexte** : le refacto iter371 avait révélé 2 tests `test_cancellation_debt_carry.py` en échec. Hypothèse initiale : « passager non débité sur courses wallet = perte de revenus ».
+- **Investigation (read-only sur le flux prod `routes/rides.py`)** : **AUCUN bug**. Le passager **est bien débité** de `fare + dette` à la complétion (`amt = final_fare + carried_amt` l.1906 ; débit wallet l.1922-1926). `settle_carried_debts(collected_in_cash=False)` ne fait alors que **reverser** la dette à l'ancien chauffeur (sinon double débit). Côté cash : `collected_in_cash=True` (l.1197) débite le nouveau chauffeur qui a encaissé. Architecture saine, pas de fuite de revenus.
+- **Cause des échecs** : les 2 tests étaient **obsolètes** — ils appelaient `settle_carried_debts` isolément en attendant qu'elle source elle-même les fonds (ancien design). Implémenter leur attente aurait créé un **double débit réel**.
+- **Action** : **aucune modif du code de production**. Tests corrigés pour refléter le contrat réel : cash → `collected_in_cash=True` (prev +fee, new −fee) ; wallet/digital → `collected_in_cash=False` ne fait que forwarder (prev +fee, passager & new inchangés, débit passager assuré par le flux course). Docstrings mises à jour.
+- **Testé** : `test_cancellation_debt_carry.py` 4/4 + cash/paiement/driver flow = **14 tests passent**.
+
+
+
+
 
 ## NEW - 2026-06-13 (370) - 📧 SB Ferry : relevé PDF auto-envoyé par e-mail (Resend) au règlement (DONE, testé 16/16 + envoi Resend réussi + capture)
 - **Demande user (suite iter369)** : boucler le cycle de facturation — chaque règlement « réglé » génère un PDF de relevé envoyé à la compagnie par e-mail.
