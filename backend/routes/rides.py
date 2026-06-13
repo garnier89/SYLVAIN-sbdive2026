@@ -2452,10 +2452,20 @@ async def _expire_dead_pending_rides():
       - scheduled reservation : expired 60 min AFTER its pickup time,
       - immediate request / bid : expired 10 min after creation (rider gave up).
     Idempotent and cheap (single indexed update_many)."""
+    from routes.reservation_config import get_reservation_rules
+    rules = await get_reservation_rules()
+    try:
+        grace_min = int(rules.get("scheduled_grace_minutes", 60))
+    except (TypeError, ValueError):
+        grace_min = 60
+    try:
+        imm_min = int(rules.get("immediate_expiry_minutes", 10))
+    except (TypeError, ValueError):
+        imm_min = 10
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
-    scheduled_cutoff = (now - timedelta(minutes=60)).isoformat()   # 60-min grace after pickup time
-    immediate_cutoff = (now - timedelta(minutes=10)).isoformat()   # 10-min window for live requests
+    scheduled_cutoff = (now - timedelta(minutes=grace_min)).isoformat()   # grace after pickup time
+    immediate_cutoff = (now - timedelta(minutes=imm_min)).isoformat()     # window for live requests
     await db.rides.update_many(
         {
             "status": "pending",

@@ -552,6 +552,13 @@ export const configAPI = {
   getPoolConfig: () => api.get('/config/pool'),
   getAppSettings: (params) => api.get('/config/app-settings', { params }),
   getGeneralSettings: () => api.get('/config/general-settings'),
+  getReservationRules: () => api.get('/config/reservation-rules'),
+};
+
+// Reservation rules — admin editor (expiry windows, start delay, button label)
+export const reservationRulesAPI = {
+  get: () => api.get('/admin/reservation-rules'),
+  update: (settings) => api.put('/admin/reservation-rules', { settings }),
 };
 
 // Trending services ("place de marché vivante") — zone-aware popular services.

@@ -56,6 +56,7 @@ from routes.store_categories import router as store_categories_router, admin_rou
 from routes.news import router as news_router
 from routes.pricing import router as pricing_router, public_router as pricing_public_router
 from routes.taxi_configs import router as taxi_configs_router, public_router as taxi_configs_public_router
+from routes.reservation_config import router as reservation_rules_router, public_router as reservation_rules_public_router
 from routes.taxi_extra import admin_router as taxi_extra_admin_router, public_router as taxi_extra_public_router
 from routes.parcels import router as parcels_router
 from routes.chat import router as chat_router
@@ -124,6 +125,7 @@ _ROUTERS = [
     places_router, search_router, service_categories_router, service_categories_admin_router,
     store_categories_router, store_categories_admin_router, news_router, pricing_router,
     pricing_public_router, taxi_configs_router, taxi_configs_public_router, taxi_extra_admin_router,
+    reservation_rules_router, reservation_rules_public_router,
     taxi_extra_public_router, driver_pro_router, parcels_router, chat_router, real_estate_router,
     real_estate_admin_router, pharmacy_router, pharmacy_admin_router, service_settings_router,
     service_settings_admin_router, weekly_reports_router, weekly_reports_driver_router,

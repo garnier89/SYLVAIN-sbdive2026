@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MapPin, CaretDown, Package, Gavel, ClipboardText } from '@phosphor-icons/react';
-import { rideAPI, parcelAPI } from '../../services/api';
+import { rideAPI, parcelAPI, configAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
 import CallButton from '../../components/call/CallButton';
 
@@ -63,6 +63,12 @@ const DriverBookingsPage = () => {
   const [bidInputs, setBidInputs] = useState({});
   const [dismissed, setDismissed] = useState([]); // locally declined pending rides
   const [nowTs, setNowTs] = useState(() => Date.now()); // ticks so the 20-min cancel window closes live
+  // Admin-configurable: start delay (min) after acceptance + start button label
+  const [rules, setRules] = useState({ start_delay_minutes: 20, start_button_label: 'Départ voyage' });
+
+  useEffect(() => {
+    configAPI.getReservationRules().then((r) => r.data && setRules(r.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setNowTs(Date.now()), 10000);
@@ -197,8 +203,12 @@ const DriverBookingsPage = () => {
         {tab === 'rides' && rides.length === 0 && <p className="text-center text-gray-400 text-sm py-10" data-testid="bookings-empty">Aucune réservation.</p>}
         {tab === 'rides' && rides.map((ride) => {
           const acceptedMs = ride.accepted_at ? new Date(ride.accepted_at).getTime() : 0;
-          const canCancel = filter === 'upcoming' && ride.status === 'accepted' && acceptedMs
-            && (nowTs - acceptedMs < 20 * 60 * 1000);
+          const delayMs = (Number(rules.start_delay_minutes) || 0) * 60 * 1000;
+          // During the delay window: cancel is available, start is locked.
+          const withinDelay = acceptedMs && (nowTs - acceptedMs < delayMs);
+          const canCancel = filter === 'upcoming' && ride.status === 'accepted' && withinDelay;
+          const canStart = filter === 'upcoming' && ride.status === 'accepted' && !withinDelay;
+          const minsLeft = withinDelay ? Math.ceil((delayMs - (nowTs - acceptedMs)) / 60000) : 0;
           return (
             <BookingCard key={ride.id} ride={ride} badge="Réservation de taxi" badgeColor="#E11900" testId={`booking-${ride.id}`}>
               {filter === 'pending' ? (
@@ -212,7 +222,15 @@ const DriverBookingsPage = () => {
                   {canCancel && (
                     <button onClick={() => doCancelBooking(ride)} className="px-6 py-2.5 rounded-full border border-red-300 text-red-600 font-bold text-sm" data-testid={`cancel-booking-${ride.id}`}>Annuler</button>
                   )}
-                  <button onClick={() => doStart(ride)} className="flex-1 py-2.5 rounded-full text-white font-bold text-sm" style={{ background: GREEN }} data-testid={`start-booking-${ride.id}`}>Départ voyage</button>
+                  <button
+                    onClick={() => canStart && doStart(ride)}
+                    disabled={!canStart}
+                    className="flex-1 py-2.5 rounded-full text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: GREEN }}
+                    data-testid={`start-booking-${ride.id}`}
+                  >
+                    {canStart ? rules.start_button_label : `Démarrable dans ${minsLeft} min`}
+                  </button>
                 </div>
               )}
             </BookingCard>
