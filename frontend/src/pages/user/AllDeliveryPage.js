@@ -73,7 +73,7 @@ const AllDeliveryPage = () => {
                   data-testid={`delivery-${cat.key}`}
                 >
                   {cat.age_restriction > 0 && (
-                    <span className="absolute -top-1 right-1 z-10 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500 text-white" data-testid={`delivery-age-${cat.key}`}>
+                    <span className="absolute -top-1.5 -right-0.5 z-10 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-rose-500 text-white ring-2 ring-white shadow-sm" data-testid={`delivery-age-${cat.key}`}>
                       {cat.age_restriction}+
                     </span>
                   )}

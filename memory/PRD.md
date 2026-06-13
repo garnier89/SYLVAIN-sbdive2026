@@ -5,6 +5,7 @@
 - **Colis Assurance + Signature** (`ParcelPage.js`, écran confirmation) : section `parcel-options-section` avec toggle **Assurance colis** (`parcel-insurance-toggle` → re-estimation, +2,00 € frais fixe) et toggle **Signature à la réception** (`parcel-signature-toggle`). Posté dans create (`insurance`, `signature_required`).
 - **Backend** (`routes/parcels.py`) : `ParcelEstimateRequest.insurance` + `ParcelCreateRequest` (signature_required, service_variant, genie_items/genie_store/genie_budget). Constante `INSURANCE_FEE=2.0`. `/estimate` renvoie `base_fare`/`insurance_fee`/`estimated_fare` ; create persiste tous les champs. Curl vérifié (estimate 4,42→6,42 ; create genie+signature persistés).
 - **Testé** : curl backend OK + testing_agent **iter367 frontend 100% (10/10)**, 0 action item (age-gate wine+pharmacy + persistance + indépendance, genie visible/validation/submit/masqué, assurance +2€, signature, création colis OK).
+- **Badge « 18+ » grille Livraison** (`AllDeliveryPage.js`) : badge rose `age_restriction+` rendu plus visible (ring blanc + ombre) sur les tuiles Vin & Médicaments (champ `age_restriction=18` déjà fourni par `/api/store-categories`). Vérifié par capture : 2 badges « 18+ » affichés (Livraison Médicaments + Livraison Vin).
 - ⚠️ Visible en **prod** après **redéploiement**.
 
 
