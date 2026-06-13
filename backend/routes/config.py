@@ -442,7 +442,7 @@ async def get_app_config():
 async def get_pool_config_public():
     """Public GLOBAL Pool config (V3Cube « Configuration Pool ») consumed by the
     booking flow: eligible vehicle slugs, allowed payment methods, capacity, max stops."""
-    from routes.rides import get_pool_global_config
+    from core.pool_config import get_pool_global_config
     return await get_pool_global_config()
 
 

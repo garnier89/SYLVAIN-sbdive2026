@@ -1,3 +1,14 @@
+## NEW - 2026-06-13 (346) - ♻️ Refactor rides.py Phase 1 : extraction config Pool + fix robustesse carpool (DONE, testé)
+- **Demande user** : commencer à découper `rides.py` (3393 lignes) en sous-modules. Approche **incrémentale et testée** (pas de big-bang) pour ne pas casser un chemin de paiement déployé.
+- **Phase 1** : cluster **config Pool** (constantes `POOL_*`, `pool_seat_multiplier`, `_pool_num/_pool_bool/_db_pool_config`, `get_pool_config`, `get_pool_global_config`) extrait vers **`core/pool_config.py`** (autonome, ne dépend que de `db`). `rides.py` importe ce qu'il utilise ; `routes/config.py` importe `get_pool_global_config` depuis `core/pool_config` (couplage config→rides réduit). `INTERCITY_ROUNDTRIP_FACTOR` conservé dans rides.py.
+- **Résultat** : `rides.py` **3393 → 3305 lignes** (−88) ; aucun cycle d'import ; pyflakes propre (2 warnings pré-existants `simulate_flight_status`/`apply_loyalty_on_completion` non liés).
+- **Bonus fix** : `book_carpool_seat` renvoyait un **500** (`JSONDecodeError`) sur body vide car `Content-Length: 0` est une chaîne truthy → remplacé par try/except robuste. Corrige 3 tests `test_iter205_carpool_svccat` qui échouaient.
+- **Testé** : pool 6/6, pool-config, intercity 2/2, contactless 8/8, carpool svccat → 22/22 + 27/27 ✅. Backend sain, pool estimate e2e 200.
+- **Phases suivantes proposées (backlog)** : Phase 2 = extraire politique d'annulation (`_cancel_policy`/`_compute_cancel_fee` → `core/cancel_policy.py`) + compteur location (`_compute_rental_meter` → `core/rental_meter.py`) ; Phase 3 = découper les handlers en routers par domaine (booking / status / payment / rental / bidding) — plus risqué, à faire isolément + testing_agent.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (345) - 🧹 Revue qualité de code : 3 corrections sûres appliquées (DONE, testé)
 - **#1 Import circulaire** `routes/push_web` ↔ `core/availability` : extrait `get_notif_settings`/`DEFAULT_NOTIF_SETTINGS` dans **`core/notif_settings.py`** (module neutre), re-exporté depuis `push_web`, et `core/availability` + `core/proximity` importent désormais depuis `core/notif_settings` → cycle cassé (dépendance core→routes supprimée). Vérifié : aucun ImportError, vapid/notif-settings 200.
 - **#4 Imports dynamiques** `routes/payouts.py` : `__import__("os")` → `os.environ.get` (import os déjà présent). Non influencé par l'utilisateur (pas de faille réelle).

@@ -542,7 +542,12 @@ async def search_carpool_rides(pickup: Optional[str] = None, dropoff: Optional[s
 @router.post("/rides/{ride_id}/book")
 async def book_carpool_seat(ride_id: str, request: Request):
     user = await get_current_user(request)
-    body = await request.json() if request.headers.get("content-length") else {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
     cfg = await get_carpool_config()
     try:
         seats = int(body.get("seats", 1))
