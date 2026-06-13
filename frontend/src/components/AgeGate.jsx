@@ -37,7 +37,7 @@ const AgeGate = ({ storageKey, title = "Vérification d'âge", message, accent =
           Je confirme avoir 18 ans ou plus
         </button>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/home')}
           className="w-full py-3 rounded-xl text-gray-500 font-semibold"
           data-testid="age-gate-decline"
         >

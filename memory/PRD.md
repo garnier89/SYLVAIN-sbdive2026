@@ -1,3 +1,14 @@
+## NEW - 2026-06-13 (367) - 🛒 Fonctionnalités spéciales Livraison : 18+, Genie, Assurance/Signature (DONE, testé 10/10 front + curl back)
+- **Demande user** : finaliser les composants UI manquants des 12 services de livraison (audit E2E iter366) → 3 flux : contrôle d'âge 18+ (Vin & Médicaments), liste de courses Delivery Genie, options Assurance + Signature pour les colis.
+- **Contrôle d'âge 18+** : nouveau composant réutilisable `components/AgeGate.jsx` (overlay bloquant, confirme « 18 ans ou plus », persistance localStorage par catégorie, bouton « Quitter » → `/home`). Branché sur `FoodPage.js` (verticale `wine` marquée `ageRestricted:true`, clé `sb_age_ok_wine`) et `pharmacy/PharmacyPage.js` (médicaments, clé `sb_age_ok_pharmacy`, accent rouge). Clés indépendantes (confirmer l'un n'auto-confirme pas l'autre).
+- **Delivery Genie** (`RunnerPage.js`, `?mode=genie`) : section `genie-section` avec **textarea liste de courses** (`genie_items`, requis → toast FR si vide), **magasin cible** (`genie_store`), **budget estimé** (`genie_budget`). Posté dans `parcelAPI.create` avec `service_variant:'genie'`. Masqué hors mode genie.
+- **Colis Assurance + Signature** (`ParcelPage.js`, écran confirmation) : section `parcel-options-section` avec toggle **Assurance colis** (`parcel-insurance-toggle` → re-estimation, +2,00 € frais fixe) et toggle **Signature à la réception** (`parcel-signature-toggle`). Posté dans create (`insurance`, `signature_required`).
+- **Backend** (`routes/parcels.py`) : `ParcelEstimateRequest.insurance` + `ParcelCreateRequest` (signature_required, service_variant, genie_items/genie_store/genie_budget). Constante `INSURANCE_FEE=2.0`. `/estimate` renvoie `base_fare`/`insurance_fee`/`estimated_fare` ; create persiste tous les champs. Curl vérifié (estimate 4,42→6,42 ; create genie+signature persistés).
+- **Testé** : curl backend OK + testing_agent **iter367 frontend 100% (10/10)**, 0 action item (age-gate wine+pharmacy + persistance + indépendance, genie visible/validation/submit/masqué, assurance +2€, signature, création colis OK).
+- ⚠️ Visible en **prod** après **redéploiement**.
+
+
+
 ## FIX - 2026-06-13 (366) - 📲 Twilio SMS débloqué (401 → OK)
 - **Bloqueur résolu** : l'envoi SMS Twilio (SOS + « réserver pour un proche ») renvoyait 401 « Authenticate ». Cause : le **TWILIO_AUTH_TOKEN était en MAJUSCULES** dans `backend/.env` (`8E050C8F...`). Les jetons Twilio sont en **hex minuscule** et l'authentification Basic est sensible à la casse.
 - **Correctif** : token passé en minuscules (`8e050c8f46d002561b2de0e308e92542`) dans `backend/.env`. Vérifié : `GET /Accounts/{SID}.json` → **HTTP 200**, compte **Full/active**, `sms_enabled() = True`, envoi OK (seule erreur résiduelle de test = `To==From` 21266, attendue). SID et numéro (+1615…) inchangés et valides.
