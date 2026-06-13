@@ -125,6 +125,33 @@ async def _weather_multiplier(lat, lng, vehicle_type):
     return mult, matched
 
 
+# Default weather surcharge ruleset (all vehicles). Multipliers applied to the
+# fare when the live OpenWeatherMap condition at pickup matches.
+DEFAULT_WEATHER_CONDITIONS = {
+    "Rain": 1.2,
+    "Drizzle": 1.15,
+    "Thunderstorm": 1.5,
+    "Snow": 1.6,
+    "Mist": 1.2,
+}
+
+
+async def seed_weather_surcharges():
+    """Idempotent: ensure a default weather surcharge rule exists (all vehicles,
+    all bad-weather conditions). Only seeds when the collection is empty so admin
+    customizations are never overwritten."""
+    if await db.weather_surcharges.count_documents({}) > 0:
+        return
+    await db.weather_surcharges.insert_one({
+        "id": f"weather_{uuid.uuid4().hex[:10]}",
+        "vehicle_type": "all",
+        "conditions": dict(DEFAULT_WEATHER_CONDITIONS),
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+
 # ── Auto commune surge (global toggle, branché sur la heatmap de demande) ──────
 DEFAULT_AUTO_SURGE = {
     "enabled": False,

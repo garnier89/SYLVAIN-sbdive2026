@@ -469,6 +469,8 @@ async def run_all_seeds():
     await seed_pharmacy()               # pharmacy partners & OTC catalog
     from routes.gojek_services import seed_parking_spots
     await seed_parking_spots()          # editable parking spots (admin-managed)
+    from routes.pricing import seed_weather_surcharges
+    await seed_weather_surcharges()     # default weather surcharge ruleset
     try:
         from core.ondemand_seed import seed_ondemand
         await seed_ondemand()           # on-demand service categories + demo providers
