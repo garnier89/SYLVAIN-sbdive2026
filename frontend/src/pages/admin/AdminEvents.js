@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { eventsAPI } from '../../services/api';
-import { EVENT_CATEGORIES, fmtEventDate, fmtPrice } from '../user/events/eventsShared';
+import { EVENT_CATEGORIES, fmtEventDate, fmtPrice, BLANK_PREMIUM_PASS } from '../user/events/eventsShared';
+import PremiumPassFields from '../user/events/PremiumPassFields';
 
 const EMPTY = {
   title: '', category: 'concert', description: '', image: '', venue_name: '', address: '',
   city: '', lat: '', lng: '', starts_at: '', ends_at: '', organizer_name: '',
   is_featured: false, status: 'active',
   tiers: [{ name: 'Standard', price: 0, quantity_total: 100 }],
+  premium_pass: { ...BLANK_PREMIUM_PASS },
 };
 
 const toLocalInput = (iso) => {
@@ -27,11 +29,12 @@ const AdminEvents = () => {
   };
   useEffect(load, []);
 
-  const openNew = () => setForm({ ...EMPTY, tiers: [{ ...EMPTY.tiers[0] }] });
+  const openNew = () => setForm({ ...EMPTY, tiers: [{ ...EMPTY.tiers[0] }], premium_pass: { ...BLANK_PREMIUM_PASS } });
   const openEdit = (e) => setForm({
     ...e, lat: e.lat ?? '', lng: e.lng ?? '',
     starts_at: toLocalInput(e.starts_at), ends_at: toLocalInput(e.ends_at),
     tiers: (e.tiers || []).map((t) => ({ ...t })),
+    premium_pass: { ...BLANK_PREMIUM_PASS, ...(e.premium_pass || {}) },
   });
 
   const save = async () => {
@@ -43,6 +46,12 @@ const AdminEvents = () => {
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
       ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
       tiers: form.tiers.map((t) => ({ ...t, price: Number(t.price || 0), quantity_total: Number(t.quantity_total || 0) })),
+      premium_pass: {
+        ...form.premium_pass,
+        price: Number(form.premium_pass.price || 0),
+        quantity_total: Number(form.premium_pass.quantity_total || 0),
+        perks: (Array.isArray(form.premium_pass.perks) ? form.premium_pass.perks : []).map((p) => String(p).trim()).filter(Boolean),
+      },
     };
     try {
       if (form.id) await eventsAPI.adminUpdate(form.id, payload);
@@ -153,6 +162,7 @@ const AdminEvents = () => {
                   </div>
                 ))}
               </div>
+              <PremiumPassFields value={form.premium_pass} onChange={(pp) => setForm({ ...form, premium_pass: pp })} inputClass="inp" />
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setForm(null)} className="flex-1 border border-gray-300 font-bold py-2.5 rounded-lg">Annuler</button>

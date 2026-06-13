@@ -517,6 +517,7 @@ export const eventsAPI = {
   categories: () => api.get('/events/categories'),
   get: (id) => api.get(`/events/${id}`),
   purchase: (id, payload) => api.post(`/events/${id}/purchase`, payload),
+  purchasePremium: (id, payload) => api.post(`/events/${id}/purchase-premium`, payload),
   myTickets: () => api.get('/events/my/tickets'),
   cancelTicket: (ticketId) => api.post(`/events/tickets/${ticketId}/cancel`),
   // admin

@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, CalendarBlank, MapPin, Minus, Plus, Ticket, CheckCircle,
-  Car, X, Buildings,
+  Car, X, Buildings, Crown,
 } from '@phosphor-icons/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { eventsAPI } from '../../../services/api';
-import { catMeta, fmtEventDate, fmtPrice, TRANSPORT_CHOICES } from './eventsShared';
+import { catMeta, fmtEventDate, fmtPrice, transportLabel, TRANSPORT_CHOICES } from './eventsShared';
 
 const EventDetailPage = () => {
   const { id } = useParams();
@@ -20,6 +20,8 @@ const EventDetailPage = () => {
   const [transport, setTransport] = useState('none');
   const [paying, setPaying] = useState(false);
   const [ticket, setTicket] = useState(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const [pQty, setPQty] = useState(1);
 
   useEffect(() => {
     eventsAPI.get(id)
@@ -35,15 +37,20 @@ const EventDetailPage = () => {
   const tier = (ev.tiers || []).find((t) => t.id === tierId);
   const total = tier ? Number(tier.price) * qty : 0;
   const remaining = tier ? tier.quantity_total - tier.quantity_sold : 0;
+  const pp = ev.premium_pass || {};
+  const ppRemaining = pp.enabled ? (Number(pp.quantity_total || 0) - Number(pp.quantity_sold || 0)) : 0;
+  const ppTotal = (Number(pp.price) || 0) * pQty;
 
   const doPurchase = async () => {
     setPaying(true);
     try {
-      const r = await eventsAPI.purchase(ev.id, { tier_id: tierId, quantity: qty, transport_option: transport });
+      const r = isPremium
+        ? await eventsAPI.purchasePremium(ev.id, { quantity: pQty })
+        : await eventsAPI.purchase(ev.id, { tier_id: tierId, quantity: qty, transport_option: transport });
       setTicket(r.data.ticket);
       setStep('success');
-      if (r.data.cashback > 0) toast.success(`Billet confirmé • +${r.data.cashback.toFixed(2)} € cashback`);
-      else toast.success('Billet confirmé');
+      if (r.data.cashback > 0) toast.success(`${isPremium ? 'Pass VIP' : 'Billet'} confirmé • +${r.data.cashback.toFixed(2)} € cashback`);
+      else toast.success(isPremium ? 'Pass VIP confirmé' : 'Billet confirmé');
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Paiement échoué');
     } finally { setPaying(false); }
@@ -102,6 +109,35 @@ const EventDetailPage = () => {
             })}
           </div>
         </div>
+
+        {/* Premium Pass (VIP bundle) */}
+        {pp.enabled && ppRemaining > 0 && (
+          <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#7c2d12,#b45309,#f59e0b)' }} data-testid="premium-pass-card">
+            <div className="flex items-center gap-2 mb-1">
+              <Crown size={20} weight="fill" className="text-amber-200" />
+              <h3 className="font-extrabold text-base">{pp.name || 'Pass VIP'}</h3>
+              <span className="ml-auto text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">PREMIUM</span>
+            </div>
+            <p className="text-[11px] text-amber-100 mb-3">Billet + transport SB Drive ({transportLabel(pp.transport_option)}) + avantages VIP, en une seule fois.</p>
+            {(pp.perks || []).length > 0 && (
+              <ul className="space-y-1 mb-3">
+                {pp.perks.map((perk, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm" data-testid={`perk-${i}`}><CheckCircle size={15} weight="fill" className="text-amber-200 shrink-0" /> {perk}</li>
+                ))}
+              </ul>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 bg-white/15 rounded-full px-1">
+                <button onClick={() => setPQty((q) => Math.max(1, q - 1))} className="w-8 h-8 rounded-full flex items-center justify-center" data-testid="pp-qty-minus"><Minus size={14} /></button>
+                <span className="w-5 text-center font-bold text-sm" data-testid="pp-qty-value">{pQty}</span>
+                <button onClick={() => setPQty((q) => Math.min(10, ppRemaining, q + 1))} className="w-8 h-8 rounded-full flex items-center justify-center" data-testid="pp-qty-plus"><Plus size={14} /></button>
+              </div>
+              <button onClick={() => { setIsPremium(true); setStep('pay'); }} className="flex items-center gap-2 bg-white text-amber-700 font-extrabold px-4 py-2.5 rounded-2xl text-sm" data-testid="reserve-premium-btn">
+                <Crown size={16} weight="fill" /> Réserver • {fmtPrice(ppTotal)}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sticky buy bar */}
@@ -112,7 +148,7 @@ const EventDetailPage = () => {
             <span className="w-5 text-center font-bold text-sm" data-testid="qty-value">{qty}</span>
             <button onClick={() => setQty((q) => Math.min(10, remaining, q + 1))} className="w-8 h-8 rounded-full flex items-center justify-center" data-testid="qty-plus"><Plus size={14} /></button>
           </div>
-          <button onClick={() => setStep('transport')} className="flex-1 flex items-center justify-center gap-2 bg-[#B91C1C] text-white font-extrabold py-3 rounded-2xl" data-testid="reserve-btn">
+          <button onClick={() => { setIsPremium(false); setStep('transport'); }} className="flex-1 flex items-center justify-center gap-2 bg-[#B91C1C] text-white font-extrabold py-3 rounded-2xl" data-testid="reserve-btn">
             <Ticket size={18} weight="fill" /> Réserver • {fmtPrice(total)}
           </button>
         </div>
@@ -138,34 +174,55 @@ const EventDetailPage = () => {
 
       {/* Pay step */}
       {step === 'pay' && (
-        <Sheet onClose={() => setStep('transport')} title="Paiement SB Pay" testid="pay-sheet">
+        <Sheet onClose={() => setStep(isPremium ? null : 'transport')} title="Paiement SB Pay" testid="pay-sheet">
           <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-            <Row label={`${tier.name} × ${qty}`} value={fmtPrice(total)} />
-            <Row label="Transport" value={TRANSPORT_CHOICES.find((c) => c.key === transport)?.label || 'Aucun'} />
-            <div className="border-t pt-2 flex justify-between font-extrabold text-base"><span>Total</span><span className="text-[#B91C1C]">{fmtPrice(total)}</span></div>
+            {isPremium ? (
+              <>
+                <Row label={`${pp.name || 'Pass VIP'} × ${pQty}`} value={fmtPrice(ppTotal)} />
+                <Row label="Transport inclus" value={transportLabel(pp.transport_option)} />
+                <Row label="Accès" value="VIP" />
+                <div className="border-t pt-2 flex justify-between font-extrabold text-base"><span>Total</span><span className="text-amber-700">{fmtPrice(ppTotal)}</span></div>
+              </>
+            ) : (
+              <>
+                <Row label={`${tier.name} × ${qty}`} value={fmtPrice(total)} />
+                <Row label="Transport" value={transportLabel(transport)} />
+                <div className="border-t pt-2 flex justify-between font-extrabold text-base"><span>Total</span><span className="text-[#B91C1C]">{fmtPrice(total)}</span></div>
+              </>
+            )}
           </div>
           <p className="text-[11px] text-gray-400 mt-2">Débité de votre portefeuille SB Pay.</p>
-          <button onClick={doPurchase} disabled={paying} className="w-full mt-4 bg-[#B91C1C] text-white font-extrabold py-3.5 rounded-2xl disabled:opacity-60" data-testid="pay-btn">
-            {paying ? 'Paiement...' : `Payer ${fmtPrice(total)} avec SB Pay`}
+          <button onClick={doPurchase} disabled={paying} className={`w-full mt-4 text-white font-extrabold py-3.5 rounded-2xl disabled:opacity-60 ${isPremium ? 'bg-amber-600' : 'bg-[#B91C1C]'}`} data-testid="pay-btn">
+            {paying ? 'Paiement...' : `Payer ${fmtPrice(isPremium ? ppTotal : total)} avec SB Pay`}
           </button>
         </Sheet>
       )}
 
       {/* Success */}
       {step === 'success' && ticket && (
-        <Sheet onClose={() => navigate('/my-tickets')} title="Billet confirmé 🎟️" testid="success-sheet">
+        <Sheet onClose={() => navigate('/my-tickets')} title={ticket.is_premium ? 'Pass VIP confirmé 👑' : 'Billet confirmé 🎟️'} testid="success-sheet">
           <div className="flex flex-col items-center">
+            {ticket.is_premium && (
+              <span className="mb-2 inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-700 bg-amber-100 px-3 py-1 rounded-full" data-testid="vip-badge"><Crown size={13} weight="fill" /> ACCÈS VIP</span>
+            )}
             <CheckCircle size={44} weight="fill" className="text-emerald-500 mb-2" />
-            <div className="bg-white border-2 border-dashed border-gray-300 rounded-2xl p-4 flex flex-col items-center">
+            <div className={`bg-white border-2 border-dashed rounded-2xl p-4 flex flex-col items-center ${ticket.is_premium ? 'border-amber-400' : 'border-gray-300'}`}>
               <QRCodeSVG value={ticket.qr_token} size={150} data-testid="ticket-qr" />
               <p className="text-[10px] text-gray-400 mt-2 font-mono">{ticket.qr_token}</p>
             </div>
             <p className="text-sm text-gray-700 mt-3 font-bold">{ev.title}</p>
             <p className="text-xs text-gray-400">{ticket.tier_name} × {ticket.quantity}</p>
+            {ticket.is_premium && (ticket.perks || []).length > 0 && (
+              <ul className="mt-2 space-y-0.5">
+                {ticket.perks.map((perk, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-xs text-gray-600"><CheckCircle size={13} weight="fill" className="text-amber-500" /> {perk}</li>
+                ))}
+              </ul>
+            )}
           </div>
           {['one_way', 'round_trip', 'private_driver'].includes(ticket.transport_option) && (
             <button onClick={bookTransport} className="w-full mt-4 flex items-center justify-center gap-2 bg-[#FF4500] text-white font-extrabold py-3.5 rounded-2xl" data-testid="book-transport-btn">
-              <Car size={20} weight="fill" /> Réserver mon chauffeur SB Drive
+              <Car size={20} weight="fill" /> {ticket.is_premium ? 'Réserver mon chauffeur (inclus)' : 'Réserver mon chauffeur SB Drive'}
             </button>
           )}
           <button onClick={() => navigate('/my-tickets')} className="w-full mt-2 text-sm font-bold text-gray-600 py-2" data-testid="goto-tickets-btn">Voir mes billets</button>

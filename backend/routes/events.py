@@ -203,6 +203,69 @@ async def purchase_ticket(event_id: str, request: Request):
     return {"ticket": ticket, "cashback": cashback}
 
 
+@public_router.post("/{event_id}/purchase-premium")
+async def purchase_premium_pass(event_id: str, request: Request):
+    """Buy the bundled 'Pass Premium' (VIP access + included SB Drive transport)
+    in a single SB Pay transaction. Returns a premium ticket with a QR token."""
+    user = await get_current_user(request)
+    body = await request.json()
+    quantity = int(body.get("quantity", 1) or 1)
+    if quantity < 1 or quantity > 10:
+        raise HTTPException(status_code=400, detail="Quantité invalide (1 à 10).")
+
+    ev = await db.events.find_one({"id": event_id, "status": "active"}, {"_id": 0})
+    if not ev:
+        raise HTTPException(status_code=404, detail="Événement introuvable")
+    pp = ev.get("premium_pass") or {}
+    if not pp.get("enabled"):
+        raise HTTPException(status_code=400, detail="Aucun Pass Premium pour cet événement.")
+    remaining = int(pp.get("quantity_total", 0)) - int(pp.get("quantity_sold", 0))
+    if remaining < quantity:
+        raise HTTPException(status_code=400, detail=f"Plus que {max(remaining, 0)} pass disponible(s).")
+
+    unit_price = round(float(pp.get("price", 0) or 0), 2)
+    total = round(unit_price * quantity, 2)
+    currency = pp.get("currency", "EUR")
+
+    cashback = 0.0
+    if total > 0:
+        pay = await debit_with_fallback(
+            user["id"], total, "wallet",
+            f"Pass Premium — {ev.get('title')} ({pp.get('name')}) x{quantity}",
+            service="events", ref_id=event_id,
+        )
+        if not pay.get("paid"):
+            raise HTTPException(status_code=402, detail="Solde SB Pay insuffisant. Rechargez votre portefeuille.")
+        cashback = pay.get("cashback", 0.0)
+
+    await db.events.update_one({"id": event_id}, {"$inc": {"premium_pass.quantity_sold": quantity}})
+
+    ticket = {
+        "id": f"evt_tkt_{uuid.uuid4().hex[:12]}",
+        "event_id": event_id,
+        "user_id": user["id"],
+        "tier_id": "premium",
+        "tier_name": pp.get("name") or "Pass VIP",
+        "quantity": quantity,
+        "unit_price": unit_price,
+        "total_price": total,
+        "currency": currency,
+        "qr_token": f"SBEVT-{secrets.token_urlsafe(10)}",
+        "status": "valid",
+        "is_premium": True,
+        "perks": pp.get("perks") or [],
+        "transport_option": pp.get("transport_option") or "round_trip",
+        "event_snapshot": _event_snapshot(ev),
+        "cashback": cashback,
+        "purchased_at": _now(),
+        "used_at": None,
+    }
+    await db.event_tickets.insert_one(ticket)
+    ticket.pop("_id", None)
+    return {"ticket": ticket, "cashback": cashback}
+
+
+
 @public_router.post("/tickets/{ticket_id}/cancel")
 async def cancel_ticket(ticket_id: str, request: Request):
     """Cancel a still-valid ticket before the event starts → refund to SB Pay."""
@@ -220,16 +283,44 @@ async def cancel_ticket(ticket_id: str, request: Request):
         await refund_user(user["id"], float(tkt["total_price"]), "wallet",
                           f"Remboursement billet — {(tkt.get('event_snapshot') or {}).get('title')}")
     await db.event_tickets.update_one({"id": ticket_id}, {"$set": {"status": "cancelled", "cancelled_at": _now()}})
-    # Release stock
-    await db.events.update_one(
-        {"id": tkt["event_id"]},
-        {"$inc": {"tiers.$[t].quantity_sold": -int(tkt.get("quantity", 1))}},
-        array_filters=[{"t.id": tkt.get("tier_id")}],
-    )
+    # Release stock (premium pass vs standard tier).
+    if tkt.get("is_premium"):
+        await db.events.update_one(
+            {"id": tkt["event_id"]},
+            {"$inc": {"premium_pass.quantity_sold": -int(tkt.get("quantity", 1))}},
+        )
+    else:
+        await db.events.update_one(
+            {"id": tkt["event_id"]},
+            {"$inc": {"tiers.$[t].quantity_sold": -int(tkt.get("quantity", 1))}},
+            array_filters=[{"t.id": tkt.get("tier_id")}],
+        )
     return {"message": "Billet annulé et remboursé", "refunded": tkt.get("total_price", 0)}
 
 
 # ----------------------------------------------------------------- admin CRUD
+def _build_premium_pass(body: dict) -> dict:
+    """Normalize the optional 'Pass Premium' (VIP bundle: ticket + transport + perks)."""
+    p = body.get("premium_pass") or {}
+    transport = p.get("transport_option", "round_trip")
+    if transport not in TRANSPORT_OPTIONS or transport == "none":
+        transport = "round_trip"
+    perks = p.get("perks") or []
+    if isinstance(perks, str):
+        perks = [s.strip() for s in perks.replace("\r", "").split("\n")]
+    perks = [str(x).strip() for x in perks if str(x).strip()][:10]
+    return {
+        "enabled": bool(p.get("enabled", False)),
+        "name": (p.get("name") or "Pass VIP").strip() or "Pass VIP",
+        "price": round(float(p.get("price", 0) or 0), 2),
+        "currency": "EUR",
+        "quantity_total": int(p.get("quantity_total", 0) or 0),
+        "quantity_sold": int(p.get("quantity_sold", 0) or 0),
+        "transport_option": transport,
+        "perks": perks,
+    }
+
+
 def _build_event(body: dict) -> dict:
     tiers = []
     for t in (body.get("tiers") or []):
@@ -255,6 +346,7 @@ def _build_event(body: dict) -> dict:
         "ends_at": body.get("ends_at"),
         "organizer_name": body.get("organizer_name", ""),
         "tiers": tiers,
+        "premium_pass": _build_premium_pass(body),
         "is_featured": bool(body.get("is_featured", False)),
         "status": body.get("status", "active"),
     }

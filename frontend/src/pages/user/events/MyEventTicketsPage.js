@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Ticket, CalendarBlank, MapPin, Car, CheckCircle, XCircle } from '@phosphor-icons/react';
+import { ArrowLeft, Ticket, CalendarBlank, MapPin, Car, CheckCircle, XCircle, Crown } from '@phosphor-icons/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { eventsAPI } from '../../../services/api';
@@ -84,7 +84,13 @@ const MyEventTicketsPage = () => {
                     <p className="font-bold text-sm text-gray-900 mt-1 line-clamp-1">{snap.title}</p>
                     <p className="text-[11px] text-gray-500 flex items-center gap-1"><CalendarBlank size={12} /> {fmtEventDate(snap.starts_at)}</p>
                     <p className="text-[11px] text-gray-500 flex items-center gap-1 line-clamp-1"><MapPin size={12} /> {snap.venue_name}</p>
-                    <p className="text-[11px] text-gray-700 font-semibold mt-0.5">{t.tier_name} × {t.quantity} • {fmtPrice(t.total_price)}</p>
+                    <p className="text-[11px] text-gray-700 font-semibold mt-0.5 flex items-center gap-1">
+                      {t.is_premium && <span className="inline-flex items-center gap-0.5 text-[9px] font-extrabold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full" data-testid={`vip-${t.id}`}><Crown size={10} weight="fill" /> VIP</span>}
+                      {t.tier_name} × {t.quantity} • {fmtPrice(t.total_price)}
+                    </p>
+                    {t.is_premium && (t.perks || []).length > 0 && (
+                      <p className="text-[10px] text-amber-700 mt-0.5 line-clamp-1">★ {t.perks.join(' • ')}</p>
+                    )}
                   </div>
                 </div>
                 {/* QR */}

@@ -1,0 +1,30 @@
+{
+  "summary": "E2E test of SB Événement Pro PASS PREMIUM (VIP) on mobile viewport 390x844. Full flow PASS: organisateur config → user purchase (Pass VIP Gold) → success screen avec badge ACCÈS VIP → my-tickets VIP badge → check-in VIP → re-scan already_used → admin config. Stock decrement also verified (premium_pass quantity passes from 5 to 4 on second run). Backend purchase-premium endpoint + checkin endpoint both functional. Cleanup OK (0 events left on organizer dashboard).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(LOW) Aucune action bloquante. Toute la fonctionnalité Pass Premium VIP est conforme à la spec."
+  ],
+  "critical_code_review_comments": [
+    "PremiumPassFields.js (38 lignes) — composant partagé propre, tous les data-testid spécifiés sont présents: premium-pass-section, pp-enabled, pp-name, pp-transport, pp-price, pp-qty, pp-perks. Conditionnement correct (champs cachés si !pp.enabled). Conversion perks textarea ↔ array OK via split('\\n').",
+    "EventFormModal.js (organisateur) et AdminEvents.js (admin) — initialisent tous les deux premium_pass avec BLANK_PREMIUM_PASS et persistent price/quantity_total/perks via Number+filter, conformément au backend.",
+    "EventDetailPage.js — premium-pass-card doré gradient cohérent, reserve-premium-btn → setStep('pay') et marque isPremium pour basculer eventsAPI.purchasePremium. success-sheet affiche correctement vip-badge (uniquement si is_premium), perks listés, book-transport-btn (inclus), goto-tickets-btn.",
+    "MyEventTicketsPage.js — badge vip-{id} conditionné sur t.is_premium + ligne perks ★ correcte. Plusieurs tickets VIP s'affichent indépendamment.",
+    "EventCheckinPage.js — checkin-vip-badge correctement conditionné sur result.ticket?.is_premium et persiste sur le state already_used (testé et confirmé). busyRef debounce de 1200ms pour éviter les doubles scans accidentels — fonctionne bien.",
+    "Backend /api/organizer/events/{id}/checkin renvoie is_premium et perks dans .ticket pour BOTH 'ok' et 'already_used' branches → cohérence UI parfaite.",
+    "Tickets premium achetés correctement décrémentent premium_pass.quantity_sold (vérifié indirectement via DB write dans routes/events.py + l'événement supprimé libère le stock via cancel)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request, déjà validé via curl par l'agent principal)", "frontend": "100% (8/8 sous-cas: config organisateur, config admin, achat VIP, success VIP, my-tickets VIP, check-in VIP ok, re-scan already_used+VIP persistant, cleanup)" },
+  "test_credentials": "organizer@test.com / Organizer123! (portefeuille vide → utilisé prix 0 pour tester l'achat); admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "3 événements de test créés et tous supprimés en fin de run: TEST_VIP Premium Pass (event_4127a2c4c58e), TEST_VIP Premium Pass 2 (purchase + checkin), TEST_VIP Rescan (event_6fe036f66c2c) — pour vérifier le flow déjà_scanné. 1 événement admin TEST_VIP Admin créé/supprimé via /admin/events. Dashboard organizer final: 0 événement.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Le bouton de création côté admin (/admin/events) a le data-testid='new-event-btn' (et NON 'create-event-btn' comme côté organisateur). Pour reproduire le flow VIP complet: (1) login organizer → create-event-btn → event-form → cocher pp-enabled → remplir pp-name/pp-transport/pp-price/pp-qty/pp-perks (textarea, plusieurs lignes) → save-event-btn. (2) /events/{id} → premium-pass-card → reserve-premium-btn → pay-sheet (affiche 'Transport inclus' + 'Accès VIP') → pay-btn → success-sheet (vip-badge doré). (3) Récupérer le qr_token via regex SBEVT-[A-Za-z0-9_-]+ depuis le DOM (IMPORTANT: le token contient des _ et -). (4) /organizer/events/{id}/checkin → manual-code-input + manual-check-btn → checkin-result data-result='ok' + checkin-vip-badge. ATTENTION: il y a un debounce busyRef de 1200ms dans EventCheckinPage.js — attendre au moins 2.5s entre deux scans manuels successifs sinon le 2e clic est ignoré et le state result reste 'ok'. Bouton de création admin = data-testid='new-event-btn'.",
+  "rca of the issue": "Aucun bug fonctionnel. Note technique: le 1er passage du re-scan a faussement rapporté data-result='ok' au lieu de 'already_used' — c'était un artefact du test (timing < busyRef debounce 1200ms côté frontend). Après augmentation du wait à 3000ms entre les 2 scans manuels, le re-scan retourne correctement 'already_used' avec le badge VIP qui reste affiché (conformément à la spec)."
+}

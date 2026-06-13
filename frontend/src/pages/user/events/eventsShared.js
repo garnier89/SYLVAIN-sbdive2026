@@ -39,3 +39,11 @@ export const TRANSPORT_CHOICES = [
   { key: 'private_driver', label: 'Chauffeur privé', desc: 'Course privée dédiée' },
   { key: 'shuttle', label: 'Navette collective', desc: 'Bientôt (Phase 2)', disabled: true },
 ];
+
+export const transportLabel = (key) => TRANSPORT_CHOICES.find((c) => c.key === key)?.label || 'Aucun';
+
+// Default config for the optional "Pass Premium" (VIP bundle: ticket + transport + perks).
+export const BLANK_PREMIUM_PASS = {
+  enabled: false, name: 'Pass VIP', price: 0, quantity_total: 50,
+  transport_option: 'round_trip', perks: [],
+};

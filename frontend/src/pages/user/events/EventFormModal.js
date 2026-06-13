@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { X } from '@phosphor-icons/react';
-import { EVENT_CATEGORIES } from './eventsShared';
+import { EVENT_CATEGORIES, BLANK_PREMIUM_PASS } from './eventsShared';
+import PremiumPassFields from './PremiumPassFields';
 
 const BLANK = {
   title: '', category: 'concert', description: '', image: '', venue_name: '', address: '',
   city: '', lat: '', lng: '', starts_at: '', ends_at: '', organizer_name: '',
   is_featured: false, status: 'active', tiers: [{ name: 'Standard', price: 0, quantity_total: 100 }],
+  premium_pass: { ...BLANK_PREMIUM_PASS },
 };
 
 const toLocalInput = (iso) => { if (!iso) return ''; try { return new Date(iso).toISOString().slice(0, 16); } catch { return ''; } };
@@ -16,7 +18,8 @@ const EventFormModal = ({ initial, onClose, onSave, accent = '#B91C1C' }) => {
     ...initial, lat: initial.lat ?? '', lng: initial.lng ?? '',
     starts_at: toLocalInput(initial.starts_at), ends_at: toLocalInput(initial.ends_at),
     tiers: (initial.tiers || []).map((t) => ({ ...t })),
-  } : { ...BLANK, tiers: [{ ...BLANK.tiers[0] }] });
+    premium_pass: { ...BLANK_PREMIUM_PASS, ...(initial.premium_pass || {}) },
+  } : { ...BLANK, tiers: [{ ...BLANK.tiers[0] }], premium_pass: { ...BLANK_PREMIUM_PASS } });
   const [saving, setSaving] = useState(false);
 
   const setTier = (i, k, v) => setForm((f) => ({ ...f, tiers: f.tiers.map((t, idx) => idx === i ? { ...t, [k]: v } : t) }));
@@ -33,6 +36,12 @@ const EventFormModal = ({ initial, onClose, onSave, accent = '#B91C1C' }) => {
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
       ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
       tiers: form.tiers.map((t) => ({ ...t, price: Number(t.price || 0), quantity_total: Number(t.quantity_total || 0) })),
+      premium_pass: {
+        ...form.premium_pass,
+        price: Number(form.premium_pass.price || 0),
+        quantity_total: Number(form.premium_pass.quantity_total || 0),
+        perks: (Array.isArray(form.premium_pass.perks) ? form.premium_pass.perks : []).map((p) => String(p).trim()).filter(Boolean),
+      },
     };
     try { await onSave(payload); } finally { setSaving(false); }
   };
@@ -84,6 +93,7 @@ const EventFormModal = ({ initial, onClose, onSave, accent = '#B91C1C' }) => {
               </div>
             ))}
           </div>
+          <PremiumPassFields value={form.premium_pass} onChange={(pp) => setForm((f) => ({ ...f, premium_pass: pp }))} inputClass="oinp" accent={accent} />
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={onClose} className="flex-1 border border-gray-300 font-bold py-2.5 rounded-lg">Annuler</button>

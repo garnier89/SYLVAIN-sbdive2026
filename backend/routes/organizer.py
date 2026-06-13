@@ -247,11 +247,13 @@ async def organizer_checkin(event_id: str, request: Request):
         return {"result": "invalid", "message": "Billet non valide"}
 
     name = await _buyer_name(tkt["user_id"])
+    vip = bool(tkt.get("is_premium"))
     if tkt.get("checked_in"):
         return {
             "result": "already_used", "message": "Déjà scanné",
             "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"),
-                       "quantity": tkt.get("quantity"), "checked_in_at": tkt.get("checked_in_at")},
+                       "quantity": tkt.get("quantity"), "is_premium": vip, "perks": tkt.get("perks") or [],
+                       "checked_in_at": tkt.get("checked_in_at")},
         }
 
     now = _now()
@@ -263,11 +265,13 @@ async def organizer_checkin(event_id: str, request: Request):
     )
     if not upd:  # raced with another scanner
         return {"result": "already_used", "message": "Déjà scanné",
-                "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"), "quantity": tkt.get("quantity")}}
+                "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"),
+                           "quantity": tkt.get("quantity"), "is_premium": vip, "perks": tkt.get("perks") or []}}
     return {
         "result": "ok", "message": "Entrée validée",
         "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"),
-                   "quantity": tkt.get("quantity"), "checked_in_at": now},
+                   "quantity": tkt.get("quantity"), "is_premium": vip, "perks": tkt.get("perks") or [],
+                   "checked_in_at": now},
     }
 
 

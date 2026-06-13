@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
-import { ArrowLeft, CheckCircle, XCircle, Warning, Keyboard, Camera } from '@phosphor-icons/react';
+import { ArrowLeft, CheckCircle, XCircle, Warning, Keyboard, Camera, Crown } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { organizerAPI } from '../../../services/api';
 
@@ -114,7 +114,10 @@ const EventCheckinPage = () => {
           <div className={`${rm.bg} rounded-2xl p-4 text-white flex items-center gap-3 animate-[pulse_0.4s_ease-out]`} data-testid="checkin-result" data-result={result.result}>
             <rm.Icon size={32} weight="fill" className="shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="font-extrabold">{rm.label}</p>
+              <p className="font-extrabold flex items-center gap-2">
+                {rm.label}
+                {result.ticket?.is_premium && <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full" data-testid="checkin-vip-badge"><Crown size={11} weight="fill" /> VIP</span>}
+              </p>
               {result.ticket ? (
                 <p className="text-sm text-white/90 truncate">{result.ticket.buyer} • {result.ticket.tier_name} × {result.ticket.quantity}</p>
               ) : (
