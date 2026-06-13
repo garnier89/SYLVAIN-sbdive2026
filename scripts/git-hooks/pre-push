@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# Git pre-push guardrail — runs the critical-flow suite (rides + ferry + payments)
+# before any push. If a critical flow is broken, the push is BLOCKED.
+#
+# Bypass (use sparingly, e.g. docs-only change):  SKIP_PREDEPLOY=1 git push
+#
+set -uo pipefail
+
+if [[ "${SKIP_PREDEPLOY:-0}" == "1" ]]; then
+  echo "⏭️  pre-push: garde-fou ignoré (SKIP_PREDEPLOY=1)."
+  exit 0
+fi
+
+SCRIPT="/app/scripts/predeploy_check.sh"
+if [[ ! -f "$SCRIPT" ]]; then
+  echo "⚠️  pre-push: $SCRIPT introuvable — push autorisé."
+  exit 0
+fi
+
+echo "🛡️  pre-push: vérification des flux critiques avant push..."
+bash "$SCRIPT"
+code=$?
+if [[ $code -ne 0 ]]; then
+  echo ""
+  echo "❌ Push BLOQUÉ : un flux critique est cassé. Corrigez avant de pousser."
+  echo "   (Contournement exceptionnel : SKIP_PREDEPLOY=1 git push)"
+  exit 1
+fi
+echo "✅ pre-push: flux critiques OK — push autorisé."
+exit 0

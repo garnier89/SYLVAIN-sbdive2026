@@ -1,3 +1,10 @@
+## NEW - 2026-06-13 - 🛡️ Garde-fou pre-push automatique (DONE, testé)
+- **Hook git `pre-push`** (`scripts/git-hooks/pre-push`) : lance `predeploy_check.sh` (70 tests critiques) avant chaque push et **bloque le push** si un flux casse. Bypass : `SKIP_PREDEPLOY=1 git push`.
+- Installateur `scripts/install_git_hooks.sh` → copie dans `.git/hooks/` (hook versionné donc réinstallable). Installé + rendu exécutable.
+- **Testé** : bypass (SKIP=1 → ignoré) et run réel (70/70 verts → push autorisé).
+- ⚠️ **Limite assumée** : le déploiement Emergent (bouton Deploy) est géré par la plateforme et n'utilise PAS ce hook ; documenté dans `scripts/README.md` (lancer le script manuellement avant Deploy).
+
+
 ## NEW - 2026-06-13 - ♻️ Refacto Phase 5 — modularisation de rides.py (DONE, 70 tests verts)
 - **rides.py : 2798 → 2420 lignes** (−378). 9 endpoints extraits en 3 sous-routeurs cohésifs (même préfixe `/rides`, helpers partagés conservés dans `rides.py`, pattern identique à bidding/rental/rating) :
   - `routes/rides_driver_feed.py` (197 l.) : `/{id}/nearby-drivers`, `/nearby/drivers`, `/driver/bookings`, `/driver/home-feed`, `/pending/available`.
