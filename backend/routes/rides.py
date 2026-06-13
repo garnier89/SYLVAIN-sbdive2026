@@ -531,6 +531,38 @@ async def create_ride(data: RideRequest, request: Request):
     if intercity_round_trip and not pool_enabled:
         fare = round(fare * INTERCITY_ROUNDTRIP_FACTOR, 2)
 
+    # ── Intercity — validations serveur (délai mini, fenêtre aller-retour) ──
+    if is_intercity:
+        from routes.config import get_app_settings_config
+        _appset_ic = await get_app_settings_config()
+        now_ic = datetime.now(timezone.utc)
+
+        def _parse_ic(s):
+            try:
+                d = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+                return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                return None
+
+        sched_raw = getattr(data, "scheduled_at", None)
+        if sched_raw:
+            sdt = _parse_ic(sched_raw)
+            min_h = float(_appset_ic.get("min_hours_later_booking_intercity", 2) or 0)
+            if sdt and min_h > 0 and sdt < now_ic + timedelta(hours=min_h):
+                raise HTTPException(status_code=400, detail=f"Une course Intercité doit être réservée au moins {int(min_h)} h à l'avance.")
+            max_days_ic = int(_appset_ic.get("max_pickup_days_intercity", 90) or 90)
+            if sdt and sdt > now_ic + timedelta(days=max_days_ic):
+                raise HTTPException(status_code=400, detail=f"Une course Intercité ne peut pas être planifiée au-delà de {max_days_ic} jours.")
+        if intercity_round_trip:
+            ret = _parse_ic(getattr(data, "return_at", None))
+            dep = _parse_ic(sched_raw) or now_ic
+            if ret:
+                if ret <= dep:
+                    raise HTTPException(status_code=400, detail="La date de retour doit être après le départ.")
+                max_rt = int(_appset_ic.get("max_round_trip_days_intercity", 5) or 5)
+                if ret > dep + timedelta(days=max_rt):
+                    raise HTTPException(status_code=400, detail=f"Le retour d'un aller-retour Intercité doit avoir lieu sous {max_rt} jours.")
+
     # ── Airport Transfer (P2) — resolve airport, luggage help & shared shuttle ──
     airport_meta_doc = None
     airport_luggage_fee = 0.0
@@ -794,6 +826,36 @@ async def create_ride(data: RideRequest, request: Request):
     from routes.debts import carry_unpaid_debts_to_ride
     carried = await carry_unpaid_debts_to_ride(user["id"], ride["id"])
     ride["carried_debt"] = carried if carried.get("amount", 0) > 0 else None
+
+    # ── Intercity — caution/séquestre SB Pay à la réservation (sécurise le trajet) ──
+    # Un acompte (% du tarif) est débité du portefeuille et conservé par la plateforme.
+    # Il est imputé au paiement à la complétion (réduit le reste dû) ou remboursé à
+    # l'annulation avant prise en charge. Garantit l'engagement du passager (no-show).
+    ride["intercity_deposit"] = 0.0
+    ride["deposit_status"] = None
+    if is_intercity:
+        from routes.config import get_app_settings_config as _gas
+        _appset_dep = await _gas()
+        _dep_pct = float(_appset_dep.get("intercity_deposit_percent", 30) or 0)
+        _pm_l = (data.payment_method or "").strip().lower()
+        if _appset_dep.get("intercity_deposit_enabled", True) and _dep_pct > 0 and _pm_l in ("wallet", "sbpay", "sbpaygo", "card"):
+            deposit = round(fare * _dep_pct / 100.0, 2)
+            if deposit > 0:
+                _res = await db.wallets.update_one(
+                    {"user_id": user["id"], "balance": {"$gte": deposit}},
+                    {"$inc": {"balance": -deposit}})
+                if not _res.modified_count:
+                    _w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1})
+                    _bal = round(float((_w or {}).get("balance", 0) or 0), 2)
+                    raise HTTPException(status_code=400, detail=f"Caution Intercité requise : {deposit:.2f} € (solde SB Pay {_bal:.2f} €). Rechargez votre portefeuille pour réserver.")
+                _w = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0, "balance": 1})
+                await db.wallet_transactions.insert_one({
+                    "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Deposit",
+                    "amount": -deposit, "balance_after": round((_w or {}).get("balance", 0), 2),
+                    "description": "Caution Intercité (séquestre)", "ride_id": ride["id"],
+                    "status": "completed", "created_at": ride["created_at"]})
+                ride["intercity_deposit"] = deposit
+                ride["deposit_status"] = "held"
 
     await db.rides.insert_one(ride)
 
@@ -1992,6 +2054,9 @@ async def update_ride_status(ride_id: str, request: Request):
             bd["total"] = round(float(bd.get("total", final_fare)) + carried_amt, 2)
             bd["total_net"] = round(float(bd.get("total_net", final_fare)) + carried_amt, 2)
         amt = round(float(final_fare) + carried_amt, 2)
+        # Caution Intercité déjà encaissée à la réservation (séquestre) → imputée au
+        # paiement final (réduit le reste dû ; comptée comme déjà capturée digitalement).
+        held_deposit = round(float(ride.get("intercity_deposit") or 0), 2) if ride.get("deposit_status") == "held" else 0.0
         # === Digital payment settlement (unified SB Pay wallet) ===
         # Under the wallet model, "card" tops up the wallet then pays from it, so
         # wallet / sbpaygo / card all settle from the wallet. We charge what the
@@ -2001,8 +2066,9 @@ async def update_ride_status(ride_id: str, request: Request):
         if pm in ("sbpaygo", "wallet", "sbpay", "card"):
             w = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0, "balance": 1})
             bal = round(float((w or {}).get("balance", 0.0) or 0.0), 2)
-            charge = round(min(bal, amt), 2)
-            cash_due = round(amt - charge, 2)
+            amt_digital = round(max(0.0, amt - held_deposit), 2)
+            charge = round(min(bal, amt_digital), 2)
+            cash_due = round(amt_digital - charge, 2)
             if charge > 0:
                 res = await db.wallets.update_one(
                     {"user_id": ride["user_id"], "balance": {"$gte": charge}},
@@ -2025,7 +2091,11 @@ async def update_ride_status(ride_id: str, request: Request):
                     cashback_earned = await award_cashback(ride["user_id"], charge, "sbpay", "ride", ref_id=ride["id"], label="Cashback course SB Pay")
                 else:
                     # Race: the balance changed between read and write → all cash due.
-                    cash_due = amt
+                    cash_due = amt_digital
+            if held_deposit > 0:
+                digital_captured = round(digital_captured + held_deposit, 2)
+                update_data["deposit_status"] = "captured"
+                update_data["intercity_deposit_captured"] = held_deposit
             if cash_due > 0:
                 update_data["cash_due_to_driver"] = cash_due
                 update_data["payment_status"] = "cash_due"
@@ -2035,9 +2105,15 @@ async def update_ride_status(ride_id: str, request: Request):
                 update_data["paid_at"] = now
         else:
             # Cash ride — the whole fare is collected by the driver and confirmed
-            # via "Reçu / Non reçu" (non-payment becomes a carried debt).
-            update_data["payment_status"] = "pending_cash"
-            update_data["cash_due_to_driver"] = amt
+            # via "Reçu / Non reçu" (non-payment becomes a carried debt). Any
+            # Intercity deposit already held counts toward the fare (less cash due).
+            cash_amt = round(max(0.0, amt - held_deposit), 2)
+            update_data["payment_status"] = "pending_cash" if cash_amt > 0 else "paid"
+            update_data["cash_due_to_driver"] = cash_amt
+            if held_deposit > 0:
+                digital_captured = round(digital_captured + held_deposit, 2)
+                update_data["deposit_status"] = "captured"
+                update_data["intercity_deposit_captured"] = held_deposit
             cashback_earned = await award_cashback(ride["user_id"], final_fare, pm or "", "ride", ref_id=ride["id"], label="Cashback course")
         if cashback_earned > 0:
             update_data["cashback_earned"] = cashback_earned
@@ -2166,6 +2242,8 @@ async def update_ride_status(ride_id: str, request: Request):
         # ride so it follows the passenger's next ride instead of being lost.
         from routes.debts import release_carried_debts
         await release_carried_debts(ride_id)
+        # Refund any Intercity deposit held in escrow for this ride.
+        await _refund_intercity_deposit(ride)
         # ===== POINTS: driver-initiated cancellation penalises the driver =====
         if is_driver and ride.get("driver_id"):
             from routes.drivers import _get_rewards_points_config, _recompute_rates
@@ -2271,6 +2349,25 @@ async def update_ride_status(ride_id: str, request: Request):
     return {"message": f"Status updated to {new_status}", "status": new_status}
 
 
+async def _refund_intercity_deposit(ride: dict, reason: str = "cancelled") -> float:
+    """Rembourse au passager la caution Intercité encore en séquestre (annulation)."""
+    if (ride or {}).get("deposit_status") != "held":
+        return 0.0
+    amt = round(float(ride.get("intercity_deposit") or 0), 2)
+    if amt <= 0:
+        await db.rides.update_one({"id": ride["id"]}, {"$set": {"deposit_status": "refunded"}})
+        return 0.0
+    await db.wallets.update_one({"user_id": ride["user_id"]}, {"$inc": {"balance": amt}}, upsert=True)
+    w = await db.wallets.find_one({"user_id": ride["user_id"]}, {"_id": 0, "balance": 1})
+    await db.wallet_transactions.insert_one({
+        "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": ride["user_id"], "type": "Refund",
+        "amount": amt, "balance_after": round((w or {}).get("balance", 0), 2),
+        "description": "Remboursement caution Intercité (annulation)", "ride_id": ride["id"],
+        "status": "completed", "created_at": datetime.now(timezone.utc).isoformat()})
+    await db.rides.update_one({"id": ride["id"]}, {"$set": {"deposit_status": "refunded", "intercity_deposit_refunded": amt}})
+    return amt
+
+
 @router.post("/{ride_id}/cancel")
 async def cancel_ride(ride_id: str, request: Request):
     """Convenience endpoint for cancelling a ride with a reason."""
@@ -2298,6 +2395,8 @@ async def cancel_ride(ride_id: str, request: Request):
     # Release any debt this ride was carrying so it follows the next ride.
     from routes.debts import release_carried_debts
     await release_carried_debts(ride_id)
+    # Refund any Intercity deposit held in escrow for this ride.
+    await _refund_intercity_deposit(ride)
 
     await db.rides.update_one({"id": ride_id}, {"$set": {
         "status": "cancelled",

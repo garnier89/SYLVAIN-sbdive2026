@@ -24,7 +24,7 @@ const INTENT_ROUTE = {
   book_pet_care: '/pet-care',
   book_car_care: '/car-care',
   book_towing: '/towing',
-  book_intercity: '/intercity',
+  book_intercity: '/course?mode=intercity',
   book_carpool: '/carpool',
   book_video_consult: '/video-consult',
   book_parking: '/parking',

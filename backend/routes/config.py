@@ -534,6 +534,8 @@ DEFAULT_APP_SETTINGS = {
     "enable_pool": True,
     "max_pickup_days_intercity": 90,
     "max_round_trip_days_intercity": 5,
+    "intercity_deposit_enabled": True,
+    "intercity_deposit_percent": 30,
     "show_service_estimation": True,
     "send_pickup_location_photo": True,
     "restrict_passenger_limit": True,

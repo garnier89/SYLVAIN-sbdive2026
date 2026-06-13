@@ -1,0 +1,36 @@
+{
+  "summary": "Iter344 - Intercity unification + 2h validation + SB Pay escrow deposit (a+b+c). Backend pytest (2/2 PASS) for completion reconciliation and non-regression. Live HTTP smoke against public URL (3 PASS, 1 SKIP): /api/rides intercity at +90min => HTTP 400 'Une course Intercité doit être réservée au moins 2 h à l'avance.'; intercity at +3h with payment_method=wallet successfully booked, wallet debited (~30% deposit), POST /api/rides/{id}/cancel refunds the deposit (wallet returns to original balance within 0.05 EUR); instant ride with payment_method=wallet does NOT debit any deposit at booking time (non-regression OK). Insufficient-balance path skipped because the server clamps distance and we cannot drive the fare above the client's seeded 1000 EUR wallet via the public POST (already covered by curl per main agent). Frontend (mobile 390x844, logged in via API token injection): /intercity REDIRECTS to /course?mode=intercity (no more old mock IntercityRidePage Paris-Lyon UI), [data-testid=panel-intercity] renders with [data-testid=intercity-roundtrip-toggle] AND the new [data-testid=intercity-deposit-note] containing the exact wording 'Une caution séquestre SB Pay est prélevée à la réservation. Elle est imputée au paiement final et remboursée en cas d'annulation avant la prise en charge.'. No critical issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/course?mode=intercity (mobile)", "issues": ["Le modal 'Programmer la course' s'ouvre automatiquement en arrivant sur le mode intercity (datepicker custom OK, pas le picker natif du navigateur), ce qui couvre le panneau initialement - fermer le modal expose bien le panel-intercity. Non bloquant."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter344_intercity_deposit.py",
+    "/app/backend/tests/test_iter344_http.py",
+    "/app/test_reports/pytest/iter344_results.xml",
+    "/app/test_reports/pytest/iter344_http.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "clientRoutes.jsx /intercity -> <Navigate to='/course?mode=intercity' replace> correctly unifies the entry point (mock page removed).",
+    "RideChoosePage panel-intercity surfaces the deposit notice with proper accessible markup (ShieldCheck icon + descriptive text wrapped in bold key terms). Wording matches the spec.",
+    "Backend create_ride enforces +2h lead time for ride_type='intercity' with the exact French message in HTTP 400 detail; happy path at +3h succeeds and triggers the wallet hold.",
+    "Cancellation path correctly calls _refund_intercity_deposit -> wallet restored to original balance (verified end-to-end against the public URL).",
+    "Non-regression confirmed: ride_type='instant' with payment_method='wallet' takes NO deposit at booking, completion reconciliation only covers intercity (already covered by pytest test_iter344).",
+    "Minor: token field in /api/auth/login response is 'access_token' (not 'token') - previous test agents should standardize on api_resp.get('access_token')."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter344_http.py (new - live HTTP smoke for intercity validations, deposit hold/refund, instant ride non-regression)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "client@test.sb / Client123! (wallet ~1000 EUR after refund cycle), admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "HTTP test creates an intercity ride at +3h then cancels it (idempotent finally-block cleanup). No test data left behind.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "POST /api/rides (NO trailing slash; with slash returns 307). Wallet balance endpoint: GET /api/wallet -> {balance}. Intercity lead-time error message: 'Une course Intercité doit être réservée au moins 2 h à l'avance.'. Deposit % default = 30 (intercity_deposit_percent). Cancel endpoint POST /api/rides/{id}/cancel triggers _refund_intercity_deposit so wallet returns to original. Auth login key is 'access_token' (not 'token'). The /course?mode=intercity page auto-opens the schedule modal; the panel-intercity selectors are still queryable through it.",
+  "rca of the issue": "N/A - all three deliverables (a+b+c) verified working end-to-end against the public URL."
+}

@@ -17,7 +17,7 @@ import {
   MyPropertiesPage, PharmacyPage, PharmacyCatalogPage, PharmacyPrescriptionPage, PharmacyOrdersPage,
   BiddingPage, TaxiBiddingPage, AdvancedTaxiBookingPage, CorporateAccountPage, TaxiHubPage,
   TransportPublicPage, NearbyTransitPage,
-  ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage, IntercityRidePage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
+  ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
   ServiceProvidersPage, ServiceProviderDetailPage,
   ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage, SbRewardsPage, SbEventsPage, SbMarketplacePage,
@@ -112,7 +112,7 @@ export function clientRoutes(user) {
       <Route path="/scheduled-rides" element={<ProtectedRoute allowedRoles={['user']}><ScheduledRidesPage /></ProtectedRoute>} />
       <Route path="/corporate" element={<ProtectedRoute allowedRoles={['user']}><CorporateAccountPage /></ProtectedRoute>} />
       <Route path="/runner" element={<ProtectedRoute allowedRoles={['user']}><RunnerPage /></ProtectedRoute>} />
-      <Route path="/intercity" element={<ProtectedRoute allowedRoles={['user']}><IntercityRidePage /></ProtectedRoute>} />
+      <Route path="/intercity" element={<Navigate to="/course?mode=intercity" replace />} />
       <Route path="/parking" element={<ProtectedRoute allowedRoles={['user']}><ParkingPage /></ProtectedRoute>} />
       <Route path="/giftcards" element={<ProtectedRoute allowedRoles={['user']}><GiftCardsPage /></ProtectedRoute>} />
       <Route path="/tracking" element={<ProtectedRoute allowedRoles={['user']}><TrackingServicePage /></ProtectedRoute>} />

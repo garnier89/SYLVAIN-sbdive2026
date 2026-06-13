@@ -17,7 +17,7 @@ import {
   ArrowLeft, NavigationArrow, UsersThree, Car, Motorcycle, Van, House, Briefcase,
   Money, CreditCard, Wallet, CheckCircle, Lightning, Info,
   CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, Gavel, Clock, Plus, Minus,
-  CaretDown, MapTrifold, BellRinging, WhatsappLogo,
+  CaretDown, MapTrifold, BellRinging, WhatsappLogo, ShieldCheck,
 } from '@phosphor-icons/react';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
@@ -1410,6 +1410,10 @@ const ModeSpecificPanel = (p) => {
           <button onClick={() => p.setRoundTrip(!p.roundTrip)} className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${p.roundTrip ? 'bg-[#FF5000]' : 'bg-gray-300'}`} data-testid="intercity-roundtrip-toggle">
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${p.roundTrip ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
+        </div>
+        <div className="flex items-start gap-1.5 mt-2.5 bg-[#8B5CF6]/5 rounded-lg px-2.5 py-2" data-testid="intercity-deposit-note">
+          <ShieldCheck size={15} className="text-[#8B5CF6] mt-0.5 shrink-0" weight="fill" />
+          <span className="text-[11px] text-gray-500 leading-snug">Une <b className="text-gray-700">caution séquestre SB Pay</b> est prélevée à la réservation. Elle est <b className="text-gray-700">imputée au paiement final</b> et <b className="text-gray-700">remboursée</b> en cas d&apos;annulation avant la prise en charge.</span>
         </div>
       </div>
     );
