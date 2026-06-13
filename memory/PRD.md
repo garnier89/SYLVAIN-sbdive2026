@@ -1,3 +1,11 @@
+## NEW - 2026-06-13 (471) - 🩹 Bannière « Vérifiez votre email » (anti-chevauchement) + refacto modales OrganizerDashboard (DONE, vérifié)
+- **Demande user (P3)** : corriger la bannière « Vérifiez votre email » (`fixed bottom-0`) qui chevauchait les CTA sticky (signalé 4×) + refacto optionnel des modales d'OrganizerDashboard.
+- **Bannière** (`components/VerifyEmailBanner.jsx`) : ajout des préfixes `/events/`, `/organizer`, `/controle` à `HIDDEN_PREFIXES` → la bannière ne s'affiche plus sur les flux transactionnels SB Événement (détail/achat d'événement, dashboard organisateur + ses modales, scanner, dashboard jour J, hub contrôleur). Elle reste visible sur les écrans de navigation (accueil, liste `/events`) où elle ne bloque rien.
+- **Refacto** : extraction de `AttendeesModal` → `OrganizerAttendeesModal.js` et `BoostModal` → `OrganizerBoostModal.js` (composants + helper SBox déplacés). `OrganizerDashboard.js` **242 → 161 lignes**, imports d'icônes inutilisés (`X`, `CurrencyEur`) retirés. Aucun changement de comportement.
+- **Vérifié (screenshots)** : bannière masquée sur `/organizer` et `/events/{id}` (CTA « Réserver » entièrement visible), modales Boost + Participants (composants extraits) s'ouvrent correctement, compilation propre (warnings source-map html5-qrcode inoffensifs). État de test nettoyé.
+- ⚠️ Visible en **prod** après **redéploiement**.
+
+
 ## NEW - 2026-06-13 (470) - 📊 SB Événement Pro : tableau de bord « jour J » temps réel (DONE, testé 12/12)
 - **Demande user** : tableau de bord live pour l'organisateur le soir de l'événement, agrégeant les scans de tous les contrôleurs.
 - **Backend** (`routes/organizer.py`) : `_authorize_event_access` retourne désormais `(user, event)` ; le check-in enregistre `checked_in_by_id/name` (qui a scanné). Nouvel endpoint `GET /organizer/events/{id}/live` → `fill_rate`, `checked_in_seats/remaining_seats`, `arrivals_by_hour` (groupé par heure UTC), `by_controller` (agrégat seats/orders par contrôleur), `recent` (15 dernières arrivées avec `by`). Accessible organisateur OU contrôleur.
