@@ -93,6 +93,7 @@ function HomePreviewModal({ secLayout, items, taxiCats, onClose }) {
 const SECTION_ROUTE = {
   taxi: '/admin/service-categories',
   promo: '/admin/promo-banners',
+  travel: '/admin/travel-packages',
   medical: '/admin/medical',
   bid: '/admin/bids',
   genie: '/admin/genie',

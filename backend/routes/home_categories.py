@@ -56,6 +56,7 @@ HOME_BLOCKS = [
     {"key": "delivery", "title_fr": "Services de Livraison"},
     {"key": "parcel", "title_fr": "Colis & Coursier"},
     {"key": "marketplace", "title_fr": "Marketplace"},
+    {"key": "travel", "title_fr": "SB Travel"},
     {"key": "beauty", "title_fr": "Beauté & Bien-être"},
     {"key": "medical", "title_fr": "Santé & Médical"},
     {"key": "ondemand", "title_fr": "Services à la demande"},
