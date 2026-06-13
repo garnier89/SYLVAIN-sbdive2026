@@ -48,6 +48,14 @@ def patch_user(monkeypatch):
     async def fake_get_current_user(request):
         return request._user
     monkeypatch.setattr(RIDES, "get_current_user", fake_get_current_user)
+    # Isolate the deposit-reconciliation invariant from external loyalty/rewards
+    # state: neutralise the per-driver loyalty commission discount so the expected
+    # earning is deterministic (commission stays at the ride's base 10%).
+    import routes.loyalty as LOYALTY
+
+    async def _no_loyalty_discount(_user_id):
+        return 0.0
+    monkeypatch.setattr(LOYALTY, "get_commission_discount_pct", _no_loyalty_discount)
 
 
 async def _seed():
