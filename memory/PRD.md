@@ -1,3 +1,13 @@
+## NEW - 2026-06-12 (345) - 🧹 Revue qualité de code : 3 corrections sûres appliquées (DONE, testé)
+- **#1 Import circulaire** `routes/push_web` ↔ `core/availability` : extrait `get_notif_settings`/`DEFAULT_NOTIF_SETTINGS` dans **`core/notif_settings.py`** (module neutre), re-exporté depuis `push_web`, et `core/availability` + `core/proximity` importent désormais depuis `core/notif_settings` → cycle cassé (dépendance core→routes supprimée). Vérifié : aucun ImportError, vapid/notif-settings 200.
+- **#4 Imports dynamiques** `routes/payouts.py` : `__import__("os")` → `os.environ.get` (import os déjà présent). Non influencé par l'utilisateur (pas de faille réelle).
+- **#6 Random sécurisé** `routes/contactless.py` : code de paiement 6 chiffres via `secrets.randbelow(1000000)` (au lieu de `random.randint`). Tests contactless 8/8 ✅.
+- **Écartés (faux positifs / risque)** : #3 variables non définies (pyflakes = 0 dans routes/+core/), #7 `is` vs `==` (0 vrai F632 ; les 905 sont des `is None/True/False` corrects PEP8), #2 « secrets » de test (mots de passe seedés + tokens Duffel TEST, non livrés), #5 refactors de complexité (`award_cashback`, boucle availability, access_ai) → **backlog** (haut risque sur chemins critiques bien testés, gain cosmétique).
+- Tests : pytest contactless 8/8 + intercity 2/2 + import-check sans cycle + pyflakes propre sur les fichiers modifiés.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
 ## NEW - 2026-06-12 (344) - 🚐 Audit Intercity + paiement sécurisé : unification + validations + caution séquestre (DONE, testé 100%)
 - **Demande user** : vérifier la config intercity + le flux de paiement taxi sécurisé, et ajouter ce qui manque. Choix validé : **a + b + c**.
 - **(a) Unification** : la page DÉMO mock `/intercity` (`IntercityRidePage` → `/api/intercity/*`, villes France Paris-Lyon, **sans paiement ni dispatch**) n'était atteinte que par l'assistant vocal. Désormais `/intercity` **redirige** vers le vrai flux `/course?mode=intercity` (RideChoosePage, tarif réel + aller-retour ×1.9 + paiement taxi sécurisé). Intent vocal `book_intercity` corrigé. Import `IntercityRidePage` retiré.
