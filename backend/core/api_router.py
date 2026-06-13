@@ -110,6 +110,7 @@ from routes.parking_admin import router as parking_admin_router
 from routes.assist_types import public_router as assist_types_public_router, admin_router as assist_types_admin_router
 from routes.home_banners import public_router as home_banners_public_router, admin_router as home_banners_admin_router
 from routes.ferry import public_router as ferry_public_router, admin_router as ferry_admin_router
+from routes.nearby_places import router as nearby_places_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -177,6 +178,7 @@ _ROUTERS = [
     home_banners_admin_router,
     ferry_public_router,
     ferry_admin_router,
+    nearby_places_router,
 ]
 
 

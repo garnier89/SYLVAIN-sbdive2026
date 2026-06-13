@@ -177,6 +177,22 @@ const TaxiHubPage = () => {
     if (!pickup?.lat && !locating) detectCurrentLocation(false);
   }, [pickup, locating, detectCurrentLocation]);
 
+  // Destination handed over from « Commerces Proches » (Y aller en taxi) → prefill dropoff.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('sb_taxi_dest');
+      if (!raw) return;
+      sessionStorage.removeItem('sb_taxi_dest');
+      const dest = JSON.parse(raw);
+      if (dest?.lat && dest?.lng) {
+        setDropoff({ address: dest.address || 'Destination', lat: dest.lat, lng: dest.lng });
+        setView('booking');
+        if (!pickup?.lat) detectCurrentLocation(false);
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const applySavedDestination = (place) => {
     if (!place?.address) return;
     setDropoff({ address: place.address, lat: place.lat, lng: place.lng });

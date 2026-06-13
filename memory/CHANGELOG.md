@@ -1,3 +1,14 @@
+## NEW - 2026-06-13 - 🌍 Commerces Proches LIVE via Google Places (hybride, DONE, testé)
+- **Demande user** : peupler « Commerces Proches » avec de vrais lieux autour du client → choix **1a (hybride)** + **2c (fiche détail + Appeler/Itinéraire/Taxi)**.
+- **Backend** (`routes/nearby_places.py`, clé `GOOGLE_MAPS_KEY` existante, 100% côté serveur) :
+  - `GET /api/nearby/live?lat&lng&category&radius_m` → partenaires admin (`nearby_businesses`, flag `is_featured`) EN PREMIER, puis Google Places Nearby Search (legacy, déjà activé) triés par distance (haversine), cache mémoire 5 min.
+  - `GET /api/nearby/photo?ref` → proxy photo Google (la clé ne fuit jamais au front).
+  - `GET /api/nearby/place-details?place_id` → téléphone + horaires + site web (fiche détail).
+  - Mapping 18 catégories FR → types Google. Router enregistré dans `core/api_router.py`.
+- **Frontend** (`NearbyBusinessPage.js` réécrit) : géoloc navigateur (fallback Paris), chips catégories, cartes hybrides, **bottom-sheet détail** (photo, note, adresse, horaires, site) avec boutons **Appeler** (tel:), **Itinéraire** (Google Maps dir), **Y aller en taxi** (passe la destination à `/taxi` via sessionStorage). `TaxiHubPage.js` lit `sb_taxi_dest` au montage et préremplit le dropoff.
+- **Testé** : curl (live hybride 23 résultats, photo proxy 200 image/jpeg, details téléphone+horaires) + screenshots (liste Spa : 3 partenaires « Sponsorisé » puis lieux Google réels ; sheet ouvert avec les 3 actions). Compte test : nearbytest@demo.sb / NearbyTest123!
+
+
 ## NEW - 2026-06-13 - 🏪 Commerces Proches : ajout catégories manquantes + activation (DONE, testé)
 - **Demande user (capture réf.)** : ajouter les services manquants de « Commerces Proches » et rendre chaque tuile fonctionnelle.
 - **Fait** : 5 nouvelles catégories ajoutées partout — **Spa, Shopping, Hôpital, Salle de sport, Centre commercial** :
