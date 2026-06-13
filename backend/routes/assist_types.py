@@ -72,9 +72,12 @@ async def admin_create(request: Request):
     if not label:
         raise HTTPException(status_code=400, detail="Le libellé est requis")
     last = await db.assist_types.find_one({}, sort=[("display_order", -1)])
+    key = (body.get("key") or _slug(label)).strip()
+    if await db.assist_types.find_one({"key": key}):
+        raise HTTPException(status_code=409, detail=f"La clé « {key} » existe déjà")
     doc = {
         "id": f"assist_{uuid.uuid4().hex[:10]}",
-        "key": (body.get("key") or _slug(label)).strip(),
+        "key": key,
         "label": label,
         "active": bool(body.get("active", True)),
         "display_order": (last.get("display_order", 0) + 1) if last else 0,
@@ -96,7 +99,10 @@ async def admin_update(type_id: str, request: Request):
     if "label" in body:
         patch["label"] = (body.get("label") or "").strip()
     if "key" in body and body.get("key"):
-        patch["key"] = body["key"].strip()
+        new_key = _slug(body["key"])
+        if await db.assist_types.find_one({"key": new_key, "id": {"$ne": type_id}}):
+            raise HTTPException(status_code=409, detail=f"La clé « {new_key} » existe déjà")
+        patch["key"] = new_key
     if "active" in body:
         patch["active"] = bool(body["active"])
     if "display_order" in body and body.get("display_order") is not None:
