@@ -154,23 +154,23 @@ async def _own_event(org, event_id):
     return ev
 
 
-async def _authorize_event_access(request: Request, event_id: str) -> dict:
+async def _authorize_event_access(request: Request, event_id: str):
     """Allow the owning organizer OR an authorized staff/controller to access
-    an event's check-in. Returns the event document."""
+    an event's check-in. Returns (user, event)."""
     user = await get_current_user(request)
     ev = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not ev:
         raise HTTPException(status_code=404, detail="Événement introuvable")
     org = await db.organizers.find_one({"user_id": user["id"]}, {"_id": 0})
     if org and ev.get("organizer_id") == org["id"]:
-        return ev  # owner
+        return user, ev  # owner
     mem = await db.event_staff_members.find_one({
         "user_id": user["id"],
         "organizer_id": ev.get("organizer_id"),
         "$or": [{"event_id": None}, {"event_id": event_id}],
     })
     if mem:
-        return ev  # authorized controller
+        return user, ev  # authorized controller
     raise HTTPException(status_code=403, detail="Accès au contrôle d'accès refusé")
 
 
@@ -211,7 +211,7 @@ async def _buyer_name(user_id: str) -> str:
 @router.get("/events/{event_id}/checkin-stats")
 async def organizer_checkin_stats(event_id: str, request: Request):
     """Live check-in counters for the scanner screen (organizer or staff)."""
-    ev = await _authorize_event_access(request, event_id)
+    _user, ev = await _authorize_event_access(request, event_id)
     tickets = await db.event_tickets.find({"event_id": event_id, "status": "valid"}, {"_id": 0}).to_list(5000)
     seats = sum(int(t.get("quantity", 0) or 0) for t in tickets)
     checked = [t for t in tickets if t.get("checked_in")]
@@ -228,7 +228,7 @@ async def organizer_checkin(event_id: str, request: Request):
     """Validate a ticket QR at the door. Returns one of:
     ok | already_used | cancelled | wrong_event | invalid.
     A valid ticket is marked checked_in (revenue stats keep status 'valid')."""
-    await _authorize_event_access(request, event_id)
+    scanner, _ev = await _authorize_event_access(request, event_id)
     body = await request.json()
     code = (body.get("qr_token") or body.get("code") or "").strip()
     if not code:
@@ -255,9 +255,11 @@ async def organizer_checkin(event_id: str, request: Request):
         }
 
     now = _now()
+    scanner_name = scanner.get("name") or scanner.get("email") or "Contrôleur"
     upd = await db.event_tickets.find_one_and_update(
         {"id": tkt["id"], "checked_in": {"$ne": True}, "status": "valid"},
-        {"$set": {"checked_in": True, "checked_in_at": now, "used_at": now}},
+        {"$set": {"checked_in": True, "checked_in_at": now, "used_at": now,
+                  "checked_in_by_id": scanner.get("id"), "checked_in_by_name": scanner_name}},
     )
     if not upd:  # raced with another scanner
         return {"result": "already_used", "message": "Déjà scanné",
@@ -267,6 +269,55 @@ async def organizer_checkin(event_id: str, request: Request):
         "ticket": {"id": tkt["id"], "buyer": name, "tier_name": tkt.get("tier_name"),
                    "quantity": tkt.get("quantity"), "checked_in_at": now},
     }
+
+
+@router.get("/events/{event_id}/live")
+async def organizer_event_live(event_id: str, request: Request):
+    """Real-time 'event day' dashboard: fill rate, arrivals per hour,
+    recent check-ins and per-controller breakdown. Organizer or staff."""
+    _user, ev = await _authorize_event_access(request, event_id)
+    tickets = await db.event_tickets.find(
+        {"event_id": event_id, "status": "valid"}, {"_id": 0}).to_list(10000)
+    seats = sum(int(t.get("quantity", 0) or 0) for t in tickets)
+    checked = [t for t in tickets if t.get("checked_in") and t.get("checked_in_at")]
+    checked_seats = sum(int(t.get("quantity", 0) or 0) for t in checked)
+
+    # arrivals grouped by hour (UTC ISO hour 'YYYY-MM-DDTHH')
+    by_hour = {}
+    for t in checked:
+        hour = str(t["checked_in_at"])[:13]
+        b = by_hour.setdefault(hour, {"hour": hour, "orders": 0, "seats": 0})
+        b["orders"] += 1
+        b["seats"] += int(t.get("quantity", 0) or 0)
+    arrivals_by_hour = sorted(by_hour.values(), key=lambda x: x["hour"])
+
+    # per-controller breakdown
+    by_ctrl = {}
+    for t in checked:
+        name = t.get("checked_in_by_name") or "—"
+        c = by_ctrl.setdefault(name, {"name": name, "orders": 0, "seats": 0})
+        c["orders"] += 1
+        c["seats"] += int(t.get("quantity", 0) or 0)
+    by_controller = sorted(by_ctrl.values(), key=lambda x: -x["seats"])
+
+    recent = sorted(checked, key=lambda t: t["checked_in_at"], reverse=True)[:15]
+    recent_out = [{
+        "id": t["id"], "tier_name": t.get("tier_name"), "quantity": t.get("quantity"),
+        "checked_in_at": t.get("checked_in_at"), "by": t.get("checked_in_by_name") or "—",
+    } for t in recent]
+
+    return {
+        "event": {"id": ev["id"], "title": ev.get("title"), "starts_at": ev.get("starts_at"),
+                  "venue_name": ev.get("venue_name"), "city": ev.get("city")},
+        "orders": len(tickets), "seats": seats,
+        "checked_in_orders": len(checked), "checked_in_seats": checked_seats,
+        "remaining_seats": max(seats - checked_seats, 0),
+        "fill_rate": round(checked_seats / seats * 100, 1) if seats else 0.0,
+        "arrivals_by_hour": arrivals_by_hour,
+        "by_controller": by_controller,
+        "recent": recent_out,
+    }
+
 
 
 # --------------------------------------------------------------- sponsorship

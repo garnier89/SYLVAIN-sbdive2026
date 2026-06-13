@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, Megaphone, Users, PencilSimple, Trash, X, CurrencyEur, Ticket, Star, QrCode, ShieldCheck,
+  ArrowLeft, Plus, Megaphone, Users, PencilSimple, Trash, X, CurrencyEur, Ticket, Star, QrCode, ShieldCheck, ChartLineUp,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { organizerAPI } from '../../../services/api';
@@ -111,8 +111,9 @@ const OrganizerDashboard = () => {
                     <MiniStat label="Net" value={fmtMoney(ev.stats.net)} />
                   </div>
                   <div className="flex gap-2 mt-2">
-                    <Act onClick={() => navigate(`/organizer/events/${ev.id}/checkin`)} Icon={QrCode} label="Scanner" testid={`scan-${ev.id}`} primary />
-                    <Act onClick={() => setBoostFor(ev)} Icon={Megaphone} label="Booster" testid={`boost-${ev.id}`} />
+                    <Act onClick={() => navigate(`/organizer/events/${ev.id}/live`)} Icon={ChartLineUp} label="Jour J" testid={`live-${ev.id}`} primary />
+                    <Act onClick={() => navigate(`/organizer/events/${ev.id}/checkin`)} Icon={QrCode} label="Scanner" testid={`scan-${ev.id}`} />
+                    <Act onClick={() => setBoostFor(ev)} Icon={Megaphone} label="" testid={`boost-${ev.id}`} />
                     <Act onClick={() => openAttendees(ev)} Icon={Users} label="" testid={`attendees-${ev.id}`} />
                     <Act onClick={() => setFormEvent(ev)} Icon={PencilSimple} label="" testid={`edit-${ev.id}`} />
                     <Act onClick={() => remove(ev)} Icon={Trash} label="" testid={`del-${ev.id}`} danger />

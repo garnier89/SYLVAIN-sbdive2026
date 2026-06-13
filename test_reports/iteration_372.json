@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend E2E test of SB Événement Pro 'Jour J' live dashboard (EventLiveDashboard.js + organizerAPI.eventLive) on mobile viewport 390x844. ALL acceptance criteria PASS. Steps executed: (1) Login organizer@test.com/Organizer123! → /home → /organizer/dashboard (organizer-dashboard-page) OK. (2) create-event-btn → modal → f-title='TEST_LIVE Jour J', f-status='active', f-starts='2026-10-01T20:00', tier-name-0='Gratuit', tier-price-0='0', tier-qty-0='50' → save-event-btn → event_cbd5d550f37b created. (3) live-{id} button 'Jour J' visible on the event card. (4) Purchased 2 free tickets on /events/{id} via buy-bar → transport-continue (transport-sheet) → pay-btn (pay-sheet) → success-sheet with ticket-qr. QR tokens recovered from /my-tickets: SBEVT-7AHfVGhRDQBp5Q + SBEVT-VRemAU2W1V2xqw. (5) Scanned 1st on /organizer/events/{id}/checkin via manual-code-input + manual-check-btn → checkin-result data-result='ok'. (6) Clicked live-{id} on dashboard card → navigated to /organizer/events/{id}/live (live-dashboard-page). Verified: fill-rate='50%', fill-card shows '1/2 entrés/vendus', kpi-Entrés=1, kpi-Restant=1, kpi-Commandes='1/2', arrivals-chart shows 1 bar (data-testid='bar-2026-06-13T22' with value 1 at '22h'), by-controller shows 'Event Organizer Test — 1 pers.', recent-arrivals lists 'Gratuit × 1 / par Event Organizer Test / 22:53'. (7) Auto-refresh confirmed: 1 GET request to /api/organizer/events/{id}/live observed in 10s window (polling every 8s as coded). (8) open-scanner-btn at top of live dashboard → navigated to /organizer/events/{id}/checkin. (9) Scanned 2nd ticket → data-result='ok'. (10) Re-opened live dashboard → fill-rate='100%', kpi-Entrés=2, kpi-Restant=0, kpi-Commandes='2/2', by-controller='Event Organizer Test — 2 pers.', recent-arrivals lists 2 entries with 'par <nom>' and times. (11) back-btn (navigate(-1)) correctly returned to /checkin (previous page). (12) Cleanup: del-{id} deleted the test event (window.confirm auto-accepted), event removed from dashboard.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Live dashboard (/organizer/events/{id}/live) + all event pages",
+        "issues": [
+          "Bannière sticky 'verify-email-banner' (Vérifiez votre email) reste visible en bas et chevauche légèrement la section 'Dernières arrivées' sur petit écran 390x844. Déjà signalé itérations 369-371. Non bloquant ici (le live dashboard a son propre pb-10), mais à uniformiser."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(LOW) Aucune action bloquante. Le dashboard live fonctionne 100% conforme à la spec (taux de remplissage live, KPIs, graphique par heure, agrégation par contrôleur, dernières arrivées avec 'par <nom>', auto-refresh 8s, bouton Scanner, back-btn navigate(-1)).",
+    "(LOW, déjà connu) Auto-dismiss/hide verify-email-banner sur /organizer/events/{id}/live, /checkin, /events/{id} pour éviter le chevauchement avec le contenu en bas."
+  ],
+  "critical_code_review_comments": [
+    "EventLiveDashboard.js (147 lignes) — taille saine, structure claire (Header → fill-card → KPIs → arrivals-chart → by-controller (conditionnel) → recent-arrivals). Tous les data-testid attendus sont présents et nommés conformément à la requête (live-dashboard-page, fill-rate, fill-card, kpi-Entrés/Restant/Commandes, arrivals-chart, bar-{hour}, by-controller, recent-arrivals, open-scanner-btn, back-btn). Polling 8s avec setInterval+clearInterval propre, gestion 403→redirect /organizer correcte.",
+    "fmtHour: slice(11,13) → fonctionne pour les ISO renvoyés par le backend (YYYY-MM-DDTHH), affichage '22h' OK.",
+    "OrganizerDashboard.js L114: Act primary live-{id} 'Jour J' (icône ChartLineUp) correctement intégré sur chaque carte d'événement.",
+    "MiniStat 'Entrés' (ev.stats.checked_in_seats || 0) sur la carte d'événement reflète correctement les scans après refresh.",
+    "Aucun mongo _id exposé dans les réponses live. Aucune erreur console pendant la session live."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (12/12 sous-cas)" },
+  "test_credentials": "organizer@test.com / Organizer123! — organisateur actif, portefeuille vide, tickets gratuits (prix 0) utilisés pour les tests.",
+  "seed_data_creation": "Événement 'TEST_LIVE Jour J' (event_cbd5d550f37b) créé puis supprimé en fin de run. 2 tickets gratuits achetés (SBEVT-7AHfVGhRDQBp5Q, SBEVT-VRemAU2W1V2xqw), scannés (data-result='ok'), purgés à la suppression de l'événement. Dashboard organizer final: 0 événement.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Le tableau de bord live SB Événement Pro (/organizer/events/{id}/live) est 100% fonctionnel. Pour reproduire: login organizer@test.com → créer événement actif tier gratuit → acheter 2-3 tickets via buy-bar→transport-continue→pay-btn (success-sheet contient ticket-qr SBEVT-...) → scanner via /organizer/events/{id}/checkin manual-code-input → revenir au dashboard organizer → cliquer live-{id} 'Jour J' → tous les data-testid présents. L'auto-refresh 8s a été confirmé via observation des requêtes réseau. Important: bouton 'Continuer avec l'e-mail' requis avant de voir email-input/password-input sur /login. Banner verify-email-banner à supprimer via page.evaluate si elle gêne, mais sur la live dashboard elle ne bloque rien d'essentiel.",
+  "rca of the issue": "Aucun bug. Note technique mineure: dans le 1er passage, /api/tickets/me a renvoyé 404 (404 dans les logs console) — le frontend récupère les tokens via /my-tickets (UI) plutôt qu'un endpoint REST direct, ce qui est intentionnel; les QR sont visibles dans le DOM sous ticket-qr."
+}

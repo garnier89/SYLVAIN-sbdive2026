@@ -540,6 +540,7 @@ export const organizerAPI = {
   deleteEvent: (id) => api.delete(`/organizer/events/${id}`),
   attendees: (id) => api.get(`/organizer/events/${id}/attendees`),
   checkinStats: (id) => api.get(`/organizer/events/${id}/checkin-stats`),
+  eventLive: (id) => api.get(`/organizer/events/${id}/live`),
   checkin: (id, qr_token) => api.post(`/organizer/events/${id}/checkin`, { qr_token }),
   createStaff: (payload) => api.post('/organizer/staff', payload),
   listStaff: () => api.get('/organizer/staff'),
