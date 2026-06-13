@@ -18,14 +18,71 @@ Collection: home_banners
 import uuid
 from datetime import datetime, timezone
 
+import jwt
 from fastapi import APIRouter, Request, HTTPException, Depends
 
-from core.config import db
+from core.config import db, JWT_SECRET, JWT_ALGORITHM
 from core.permissions import require_permission
 from core.geo_scope import clean_scope, scope_matches, resolve_zone_from_text
 
 public_router = APIRouter(prefix="/home-banners", tags=["home-banners"])
 admin_router = APIRouter(prefix="/admin/home-banners", tags=["admin-home-banners"])
+
+
+async def _resolve_user_optional(request: Request):
+    """Best-effort: resolve the logged-in user from cookie/Bearer token. Never raises."""
+    token = request.cookies.get("access_token")
+    if not token:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            return None
+        u = await db.users.find_one({"id": payload.get("sub")}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "email": 1})
+        return u
+    except Exception:
+        return None
+
+
+async def _log_banner_event(request: Request, banner_id: str, event: str):
+    """Log a banner interaction (impression/click/dismiss) with user + location + time,
+    and bump the fast counter on the banner doc. Body may carry zone/location/lat/lng."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    banner = await db.home_banners.find_one({"id": banner_id}, {"_id": 0, "key": 1, "title": 1})
+    if not banner:
+        return False
+    user = await _resolve_user_optional(request)
+    label = (body.get("location") or "").strip()
+    zone = resolve_zone_from_text(label) if label else {}
+    doc = {
+        "id": f"bev_{uuid.uuid4().hex[:12]}",
+        "banner_id": banner_id,
+        "banner_key": banner.get("key"),
+        "banner_title": banner.get("title"),
+        "event": event,
+        "user_id": (user or {}).get("id"),
+        "user_name": (user or {}).get("name") or "Visiteur anonyme",
+        "user_phone": (user or {}).get("phone"),
+        "country": (body.get("country") or zone.get("country") or "").upper(),
+        "state": body.get("state") or zone.get("state") or "",
+        "city": body.get("city") or zone.get("city") or "",
+        "location_label": label,
+        "lat": body.get("lat"),
+        "lng": body.get("lng"),
+        "created_at": _now(),
+    }
+    await db.banner_events.insert_one(doc)
+    field = {"impression": "impressions", "click": "clicks", "dismiss": "dismiss_count"}.get(event)
+    if field:
+        await db.home_banners.update_one({"id": banner_id}, {"$inc": {field: 1}})
+    return True
 
 
 def _now():
@@ -113,15 +170,23 @@ async def list_public(country: str = "", state: str = "", city: str = "", locati
 
 
 @public_router.post("/{banner_id}/dismiss")
-async def track_dismiss(banner_id: str):
-    """Public, fire-and-forget: count one close (for close-rate analytics)."""
-    await db.home_banners.update_one({"id": banner_id}, {"$inc": {"dismiss_count": 1}})
+async def track_dismiss(banner_id: str, request: Request):
+    """Public: log one close (with user/time/location) for close-rate analytics."""
+    await _log_banner_event(request, banner_id, "dismiss")
     return {"ok": True}
 
 
 @public_router.post("/{banner_id}/impression")
-async def track_impression(banner_id: str):
-    await db.home_banners.update_one({"id": banner_id}, {"$inc": {"impressions": 1}})
+async def track_impression(banner_id: str, request: Request):
+    """Public: log one view (with user/time/location)."""
+    await _log_banner_event(request, banner_id, "impression")
+    return {"ok": True}
+
+
+@public_router.post("/{banner_id}/click")
+async def track_click(banner_id: str, request: Request):
+    """Public: log one click (with user/time/location)."""
+    await _log_banner_event(request, banner_id, "click")
     return {"ok": True}
 
 
@@ -228,3 +293,78 @@ async def admin_reorder(request: Request, current_user: dict = Depends(require_p
     for i, bid in enumerate(ids):
         await db.home_banners.update_one({"id": bid}, {"$set": {"display_order": i, "updated_at": _now()}})
     return {"ok": True, "count": len(ids)}
+
+
+
+# ============================================================
+# Admin — analytics ("régie pub interne")
+# ============================================================
+
+def _rate(num, den):
+    return round(100 * num / den, 1) if den else 0.0
+
+
+@admin_router.get("/analytics")
+async def admin_analytics(current_user: dict = Depends(require_permission("content.manage"))):
+    """Per-banner performance (impressions, clicks, dismisses, CTR, close-rate)
+    plus a CTR-by-zone breakdown — aggregated from banner_events."""
+    banners = await db.home_banners.find({}, {"_id": 0, "id": 1, "title": 1, "key": 1, "variant": 1}).sort("display_order", 1).to_list(200)
+
+    # Totals per banner+event
+    pipe = [{"$group": {"_id": {"b": "$banner_id", "e": "$event"}, "n": {"$sum": 1}}}]
+    rows = await db.banner_events.aggregate(pipe).to_list(5000)
+    totals = {}
+    for r in rows:
+        b = r["_id"]["b"]; e = r["_id"]["e"]
+        totals.setdefault(b, {}).update({e: r["n"]})
+
+    # By-zone per banner+event (country/city)
+    zpipe = [{"$group": {"_id": {"b": "$banner_id", "e": "$event", "c": "$country", "city": "$city"}, "n": {"$sum": 1}}}]
+    zrows = await db.banner_events.aggregate(zpipe).to_list(10000)
+    zones = {}
+    for r in zrows:
+        k = r["_id"]; b = k["b"]
+        zlabel = (k.get("city") or "").strip() or (k.get("c") or "").strip() or "Inconnu"
+        zones.setdefault(b, {}).setdefault(zlabel, {"impression": 0, "click": 0, "dismiss": 0})
+        zones[b][zlabel][k["e"]] = zones[b][zlabel].get(k["e"], 0) + r["n"]
+
+    out = []
+    g_imp = g_clk = g_dis = 0
+    for b in banners:
+        t = totals.get(b["id"], {})
+        imp = t.get("impression", 0); clk = t.get("click", 0); dis = t.get("dismiss", 0)
+        g_imp += imp; g_clk += clk; g_dis += dis
+        zb = []
+        for zlabel, zt in sorted(zones.get(b["id"], {}).items(), key=lambda kv: -kv[1].get("impression", 0)):
+            zb.append({
+                "zone": zlabel,
+                "impressions": zt.get("impression", 0),
+                "clicks": zt.get("click", 0),
+                "dismisses": zt.get("dismiss", 0),
+                "ctr": _rate(zt.get("click", 0), zt.get("impression", 0)),
+            })
+        out.append({
+            "id": b["id"], "title": b["title"], "key": b["key"], "variant": b.get("variant"),
+            "impressions": imp, "clicks": clk, "dismisses": dis,
+            "ctr": _rate(clk, imp), "close_rate": _rate(dis, imp),
+            "by_zone": zb[:8],
+        })
+
+    return {
+        "banners": out,
+        "totals": {
+            "impressions": g_imp, "clicks": g_clk, "dismisses": g_dis,
+            "ctr": _rate(g_clk, g_imp), "close_rate": _rate(g_dis, g_imp),
+        },
+    }
+
+
+@admin_router.get("/{banner_id}/events")
+async def admin_events(banner_id: str, limit: int = 50, event: str = "", current_user: dict = Depends(require_permission("content.manage"))):
+    """Recent interactions for a banner: who (name), when (time), where (location)."""
+    q = {"banner_id": banner_id}
+    if event in ("impression", "click", "dismiss"):
+        q["event"] = event
+    limit = max(1, min(limit, 200))
+    items = await db.banner_events.find(q, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return {"events": items, "count": len(items)}

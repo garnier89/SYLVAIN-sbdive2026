@@ -247,6 +247,17 @@ const UserHome = () => {
   }, []);
   const zoneRef = useRef('');
   const homeBanners = useHomeBanners();
+  const locLabelRef = useRef('');
+  const firedImpressionsRef = useRef(new Set());
+  useEffect(() => { getBrowserLocationLabel().then((l) => { if (l) locLabelRef.current = l; }); }, []);
+  // Fire one impression per banner once it is rendered (with user/time/location).
+  useEffect(() => {
+    homeBanners.forEach((b) => {
+      if (firedImpressionsRef.current.has(b.id)) return;
+      firedImpressionsRef.current.add(b.id);
+      homeBannersAPI.impression(b.id, { location: locLabelRef.current }).catch(() => {});
+    });
+  }, [homeBanners]);
   // Single entry point for service-tile taps: remembers usage (for shortcuts),
   // pings the zone-aware trends tracker, then routes.
   const go = useCallback((service) => {
@@ -930,8 +941,8 @@ const UserHome = () => {
           <div key={b.id} className="mx-4 mt-3" data-testid={`home-banner-wrap-${b.key}`}>
             <HomeFeatureBanner
               b={b}
-              onClick={() => navigate(b.target_route || '/')}
-              onDismiss={b.dismissible ? () => { dismissBanner(`home:${b.id}:${b.updated_at || ''}`); homeBannersAPI.dismiss(b.id).catch(() => {}); } : null}
+              onClick={() => { homeBannersAPI.click(b.id, { location: locLabelRef.current }).catch(() => {}); navigate(b.target_route || '/'); }}
+              onDismiss={b.dismissible ? () => { dismissBanner(`home:${b.id}:${b.updated_at || ''}`); homeBannersAPI.dismiss(b.id, { location: locLabelRef.current }).catch(() => {}); } : null}
             />
           </div>
         ))}

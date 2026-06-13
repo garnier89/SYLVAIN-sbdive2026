@@ -1,0 +1,49 @@
+{
+  "summary": "Iter 364 — Validated Home Banners analytics: event logging (impression/click/dismiss) with user attribution + geo, admin /analytics endpoint (per-banner totals, CTR, close_rate, by_zone) and /events endpoint (sorted desc, filter by event). 8/8 pytest pass. Admin UI verified end-to-end via Playwright: totals header, stats modal with 4 KPIs + 'Par zone' + events log + filter, card sublines.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter364_banner_analytics.py",
+    "/app/test_reports/pytest/iter364_banner_analytics.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_log_banner_event swallows errors silently (no try/except yet calls await db.banner_events.insert_one). If banner_events write fails, the counter is still NOT incremented because the inc runs after insert — acceptable but worth a note: a Mongo failure during insert breaks tracking with no log line. Consider wrapping with try/except + structured logger.",
+    "admin_analytics aggregates by_zone using country/city from the event doc; events with empty country AND empty city are bucketed as 'Inconnu'. When location label like 'Paris, France' resolves via resolve_zone_from_text the city is filled, but generic free-text locations may all stack as 'Inconnu'. Working as documented (modale shows 'Inconnu' bucket cleanly).",
+    "admin_events default limit=50, max=200. No date range filter (only event type). Fine for current need; if events explode, add ?since= for time windows.",
+    "Variant typing: in admin_analytics output, `variant` defaults to None for banners with no variant set; UI tolerates this. OK.",
+    "Counters on doc (impressions/clicks/dismiss_count) and aggregates from banner_events stay independent — if events collection is ever wiped, counters and analytics diverge. Mostly cosmetic since admin UI sources analytics from /analytics aggregation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter364_banner_analytics.py (new — 8 tests)"
+  ],
+  "success_rate": { "backend": "100% (8/8)", "frontend": "100% (admin analytics flow verified live)" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!  •  test2@example.com / TestPass123!",
+  "seed_data_creation": "Tests create a single TEST_iter364 banner via admin_session, drive impressions/clicks/dismisses on it via anonymous + authenticated POSTs, then DELETE the banner (which leaves orphan banner_events but they no longer attach to any banner). Final DB: 2 seed banners, 21 banner_events on the seed banners (from prior iter363 + this iter manual UI tests). Used to populate the admin Analytics modal screenshots — kept as nice demo data.",
+  "tests_executed": {
+    "backend": {
+      "event_logging": "POST impression/click/dismiss return ok, log to banner_events with event/user_name/created_at/city/country, and bump impressions/clicks/dismiss_count on the banner doc",
+      "user_attribution_cookie": "Logged-in user_session (cookie via /api/auth/login) → event.user_name == real name ('Test User 2'), user_id populated. Anonymous → 'Visiteur anonyme'",
+      "analytics_gating": "Unauthenticated GET /api/admin/home-banners/analytics → 401/403",
+      "analytics_shape_math": "Response has banners[] + totals{impressions,clicks,dismisses,ctr,close_rate}. Per banner CTR=100*clicks/impressions; close_rate=100*dismisses/impressions. by_zone aggregates by city/country correctly; sum(by_zone.impressions) == banner.impressions; per-zone CTR matches formula",
+      "events_listing": "Default returns mixed events sorted by created_at DESC. ?event=impression|click|dismiss filters correctly. ?event=bogus returns all (filter ignored, no 4xx). user_name/event/created_at fields present",
+      "events_gating": "Unauthenticated GET /events → 401/403"
+    },
+    "frontend": {
+      "totals_header": "data-testid=home-banner-totals shows Vues totales/Clics totaux/CTR moyen/Taux fermeture (5/2/40%/20% with current demo data)",
+      "stats_button_per_card": "data-testid=home-banner-stats-{id} present on every card → opens banner-analytics-modal",
+      "modal_kpis": "4 stats (Vues 3, Clics 2, CTR 66.7%, Ferm. 33.3% on SB Student)",
+      "by_zone_table": "'Par zone' section lists Inconnu / Fort-de-France / Paris with vues/clics/CTR per zone",
+      "analytics_filter": "analytics-filter <select> with Tout/Vue/Clic/Fermeture; Filtering to 'click' returns only Clic rows; 'dismiss' returns only Fermeture row",
+      "analytics_events": "analytics-events table shows columns UTILISATEUR / ACTION / LIEU / HEURE; 'Test User 2' (logged-in attribution) and 'Visiteur anonyme' (anonymous) both visible; locations Fort-de-France / Paris / — for missing geo; HEURE in dd/MM HH:mm",
+      "card_subline": "'X vues · CTR Y% · ferm. Z%' present on every card subline (e.g. '/sb-student · fermable · partout · 3 vues · CTR 66.7% · ferm. 33.3%')"
+    }
+  },
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 364 analytics feature fully working. Reusable pytest at /app/backend/tests/test_iter364_banner_analytics.py. Iter363 regression also still green. Note: client-side impressions on user home (/api/home-banners/{id}/impression auto-fire) were validated indirectly — the demo banner_events show real 'Test User 2' attribution from prior client navigation. If you need an explicit Playwright check on UserHome, log in as test2 and assert that opening the home triggers POSTs to /impression for sb_student and instant_delivery (counters should increase between two visits)."
+}
