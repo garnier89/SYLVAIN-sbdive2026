@@ -11,6 +11,9 @@ from routes.drivers import router as drivers_router
 from routes.driver_pro import router as driver_pro_router
 from routes.merchants import router as merchants_router
 from routes.rides import router as rides_router
+from routes.rides_rating import router as rides_rating_router
+from routes.rides_bidding import router as rides_bidding_router
+from routes.rides_rental import router as rides_rental_router
 from routes.orders import router as orders_router
 from routes.misc import router as misc_router
 from routes.marketplace import router as marketplace_router, stripe_webhook_router
@@ -110,6 +113,7 @@ from routes.ferry import public_router as ferry_public_router, admin_router as f
 # Ordered list of every router mounted under /api
 _ROUTERS = [
     auth_router, users_router, drivers_router, merchants_router, rides_router,
+    rides_rating_router, rides_bidding_router, rides_rental_router,
     orders_router, misc_router, marketplace_router, stripe_webhook_router, carpool_router, services_router,
     config_router, wallet_router, coupons_router, auto_promotions_router, vouchers_router,
     referral_router, payments_router, webhooks_router, features_router, simulation_router,

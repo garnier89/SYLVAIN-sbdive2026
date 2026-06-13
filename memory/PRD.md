@@ -7,7 +7,17 @@
 - Reste à faire (Phase 4+) : `rides.py` reste volumineux ; extraction possible des groupes d'endpoints leaf (rental, bidding, rating) en sous-routeurs.
 
 
-## NEW - 2026-06-13 (372) - ✅ Faux-positif « bug settle_carried_debts » : AUCUN bug, tests obsolètes corrigés
+## NEW - 2026-06-13 (373) - ♻️ Refacto rides.py Phase 4 : sous-routeurs rental/bidding/rating (DONE, testé 18/18)
+- **Fait** : extraction de 3 groupes d'endpoints leaf de `routes/rides.py` vers des sous-routeurs dédiés (même préfixe `/rides`, enregistrés dans `core/api_router.py`) :
+  - `routes/rides_rating.py` (91 l) : `rate_ride`, `rate_passenger`.
+  - `routes/rides_bidding.py` (263 l) : `driver_counter_offer`, `passenger_accept_offer`, `bidding_avg_fares`, `passenger_reject_offer`, `_get_driver_points_cfg` (importe `gamme_restricted_subs/driver_sub_allowed/TAXI_SUB_LABELS/OFFER_TTL_SECONDS` depuis `routes.rides`).
+  - `routes/rides_rental.py` (127 l) : `_get_rental_ride`, `rental_start`, `rental_add_stop`, `rental_meter`, `rental_end`, `airport_multipliers`, `rental_packages`.
+- **Résultat** : `rides.py` **3184 → 2753 lignes** (−431). Extraction pure, aucun changement de comportement. Aucun import externe des fonctions déplacées.
+- **Testé** : backend démarre OK ; endpoints déplacés joignables (curl : avg-fares 200, rental-packages 200, airport-multipliers 200, rate/meter 404 applicatif, counter-offer 403 driver-only) ; suites **18/18** (bidding E2E iter210/215, cash gating/due, payment switch, debt carry, driver flow).
+- Reste (Phase 5 éventuelle) : `rides.py` toujours volumineux (create_ride ~600 l, update_ride_status ~460 l) — extraction des sous-logiques de booking/complétion possible mais plus risquée.
+
+
+
 - **Contexte** : le refacto iter371 avait révélé 2 tests `test_cancellation_debt_carry.py` en échec. Hypothèse initiale : « passager non débité sur courses wallet = perte de revenus ».
 - **Investigation (read-only sur le flux prod `routes/rides.py`)** : **AUCUN bug**. Le passager **est bien débité** de `fare + dette` à la complétion (`amt = final_fare + carried_amt` l.1906 ; débit wallet l.1922-1926). `settle_carried_debts(collected_in_cash=False)` ne fait alors que **reverser** la dette à l'ancien chauffeur (sinon double débit). Côté cash : `collected_in_cash=True` (l.1197) débite le nouveau chauffeur qui a encaissé. Architecture saine, pas de fuite de revenus.
 - **Cause des échecs** : les 2 tests étaient **obsolètes** — ils appelaient `settle_carried_debts` isolément en attendant qu'elle source elle-même les fonds (ancien design). Implémenter leur attente aurait créé un **double débit réel**.
