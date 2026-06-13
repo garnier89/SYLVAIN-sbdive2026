@@ -28,10 +28,10 @@ import {
 import {
   House, MapPin, Wallet, User,
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
-  MagnifyingGlass, GridFour, List, ClipboardText,
+  MagnifyingGlass, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
-  GraduationCap, Storefront, Wheelchair,
+  GraduationCap, Storefront, X,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -131,11 +131,43 @@ const ServiceTile = ({ service, variant = 'below', onSelect }) => {
 };
 
 // ── Plain bold section title (V3Cube look) ──
-const SectionHeader = ({ title, sub }) => (
-  <div className="mb-3.5">
-    <h3 className={`text-[20px] font-extrabold text-[#1F2430] tracking-tight ${HEAD}`}>{title}</h3>
-    {sub && <p className={`text-xs text-[#64748B] mt-1 leading-snug ${BODY}`}>{sub}</p>}
+const SectionHeader = ({ title, sub, actionLabel, onAction }) => (
+  <div className="mb-3.5 flex items-end justify-between gap-3">
+    <div className="min-w-0">
+      <h3 className={`text-[20px] font-extrabold text-[#1F2430] tracking-tight ${HEAD}`}>{title}</h3>
+      {sub && <p className={`text-xs text-[#64748B] mt-1 leading-snug ${BODY}`}>{sub}</p>}
+    </div>
+    {onAction && (
+      <button
+        onClick={onAction}
+        data-testid="taxi-voir-tout"
+        className={`shrink-0 text-sm font-bold text-[#FF5000] active:opacity-70 ${HEAD}`}
+      >
+        {actionLabel || 'Voir tout'}
+      </button>
+    )}
   </div>
+);
+
+// Banners dismissed by the user persist on the device (per announcement key)
+// until the admin reprograms the campaign (key includes updated_at).
+const DISMISS_KEY = 'sb_dismissed_banners';
+const readDismissed = () => {
+  try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]'); } catch { return []; }
+};
+
+// Small "×" overlay to dismiss a promotional banner (used inside clickable cards;
+// uses a span + stopPropagation to avoid invalid nested-button markup).
+const DismissX = ({ onDismiss, testid }) => (
+  <span
+    role="button"
+    aria-label="Fermer le bandeau"
+    data-testid={testid}
+    onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+    className="absolute top-2 right-2 z-30 w-6 h-6 rounded-full bg-black/35 hover:bg-black/55 flex items-center justify-center backdrop-blur-sm"
+  >
+    <X size={12} weight="bold" className="text-white" />
+  </span>
 );
 
 const UserHome = () => {
@@ -145,6 +177,16 @@ const UserHome = () => {
   const { shortcuts, recordTap } = useServiceShortcuts();
   const [trending, setTrending] = useState([]);
   const [zoneShortcuts, setZoneShortcuts] = useState([]);
+  const [dismissed, setDismissed] = useState(readDismissed);
+  const isDismissed = useCallback((key) => dismissed.includes(key), [dismissed]);
+  const dismissBanner = useCallback((key) => {
+    setDismissed((prev) => {
+      if (prev.includes(key)) return prev;
+      const next = [...prev, key];
+      try { localStorage.setItem(DISMISS_KEY, JSON.stringify(next)); } catch (e) { /* ignore */ }
+      return next;
+    });
+  }, []);
   const zoneRef = useRef('');
   // Single entry point for service-tile taps: remembers usage (for shortcuts),
   // pings the zone-aware trends tracker, then routes.
@@ -384,13 +426,12 @@ const UserHome = () => {
     // Admin chooses which modes show on the Home grid via the "Accueil" toggle.
     // Fallback to the first 7 active if the admin hasn't flagged any.
     let home = active.filter((c) => c.visible_home === true);
-    if (!home.length) home = active.slice(0, 7);
+    if (!home.length) home = active.slice(0, 8);
     const tiles = home.map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
       // Dashboard-defined icon (image/emoji) drives the tile; v.icon is the fallback.
       return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, imageFit: c.image_fit, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
     });
-    tiles.push({ id: 'more-taxi', name: 'Tous les\nTaxis', icon: GridFour, bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/taxi' });
     return tiles;
   })();
 
@@ -409,6 +450,7 @@ const UserHome = () => {
         subtitle: c.list_description || c.description || '',
         image: c.banner_image.startsWith('/api/') ? `${apiBase}${c.banner_image}` : c.banner_image,
         path: `/course?mode=${c.key}`,
+        dismissKey: `taxicat:${c.key}:${c.updated_at || ''}`,
       }));
   })();
 
@@ -418,13 +460,13 @@ const UserHome = () => {
   const blocks = {
     taxi: (
       <section key="taxi" className="px-4 mt-6">
-        <SectionHeader title={st('taxi', "Services Taxi")} />
+        <SectionHeader title={st('taxi', "Services Taxi")} actionLabel="Voir tout" onAction={() => navigate('/taxi')} />
         <div className="grid grid-cols-4 gap-3">
           {(taxiTiles || displayFor('taxi')).map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
-        {taxiBanners.length > 0 && (
+        {taxiBanners.filter((b) => !isDismissed(b.dismissKey)).length > 0 && (
           <div className="mt-3 space-y-3" data-testid="taxi-banner-cards">
-            {taxiBanners.map((b) => (
+            {taxiBanners.filter((b) => !isDismissed(b.dismissKey)).map((b) => (
               <button
                 key={b.key}
                 onClick={() => navigate(b.path)}
@@ -433,6 +475,7 @@ const UserHome = () => {
               >
                 <img src={b.image} alt={b.name} className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+                <DismissX onDismiss={() => dismissBanner(b.dismissKey)} testid={`taxi-banner-dismiss-${b.key}`} />
                 <div className="absolute inset-0 p-4 flex flex-col justify-center">
                   <p className="text-white font-bold text-lg leading-tight">{b.name}</p>
                   {b.subtitle && <p className="text-white/85 text-xs mt-1 max-w-[70%]">{b.subtitle}</p>}
@@ -443,11 +486,12 @@ const UserHome = () => {
         )}
       </section>
     ),
-    promo: (
-      promoBanners.length > 0 ? (
+    promo: (() => {
+      const visible = promoBanners.filter((b) => !isDismissed(`promo:${b.id}:${b.updated_at || ''}`));
+      return visible.length > 0 ? (
         <div key="promo" className="mt-5" data-testid="promo-banner-carousel">
           <div ref={promoRef} className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
-            {promoBanners.map((b) => {
+            {visible.map((b) => {
               const dark = b.theme === 'dark';
               return (
                 <motion.button
@@ -455,9 +499,10 @@ const UserHome = () => {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => b.target_route && navigate(b.target_route)}
                   data-testid={`promo-banner-${b.id}`}
-                  className="snap-start shrink-0 w-[86%] rounded-[20px] overflow-hidden border border-slate-100 shadow-sm flex items-stretch h-[140px] text-left"
+                  className="relative snap-start shrink-0 w-[86%] rounded-[20px] overflow-hidden border border-slate-100 shadow-sm flex items-stretch h-[140px] text-left"
                   style={{ background: dark ? (b.bg_color || '#FF5000') : '#FFFFFF' }}
                 >
+                  <DismissX onDismiss={() => dismissBanner(`promo:${b.id}:${b.updated_at || ''}`)} testid={`promo-banner-dismiss-${b.id}`} />
                   {b.image_url && (
                     <div className="w-2/5 bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${b.image_url}')` }} />
                   )}
@@ -475,8 +520,8 @@ const UserHome = () => {
             })}
           </div>
         </div>
-      ) : null
-    ),
+      ) : null;
+    })(),
     delivery: (
       <section key="delivery" className="px-4 mt-6">
         <SectionHeader title={st('delivery', "Livraison & Coursier")} sub="Repas, colis, courses & coursiers — tout au même endroit." />
@@ -832,22 +877,6 @@ const UserHome = () => {
         </span>
         <CaretRight size={18} className="text-white shrink-0" />
       </button>
-      {/* SB Drive Access — transport adapté PMR / handicap (toujours visible) */}
-      <button
-        onClick={() => navigate('/access')}
-        data-testid="home-sb-access-entry"
-        className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0A2540, #14457a)' }}
-      >
-        <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-          <Wheelchair size={22} weight="fill" className="text-white" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="text-white font-black text-sm block leading-tight">SB Drive Access ♿</span>
-          <span className="text-white/85 text-xs block leading-tight">Transport adapté, chauffeurs certifiés, assistance</span>
-        </span>
-        <CaretRight size={18} className="text-white shrink-0" />
-      </button>
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 
       {/* Referral progress nudge — reminds the referred user how close their reward is */}
@@ -913,7 +942,8 @@ const UserHome = () => {
             </div>
           </section>
         )}
-        {/* Livraison Instantanée — hero card (always visible, high prominence) */}
+        {/* Livraison Instantanée — hero card (dismissible) */}
+        {!isDismissed('hero-instant-delivery') && (
         <section className="px-4 mt-5" data-testid="instant-delivery-hero">
           <button
             onClick={() => { recordTap({ id: 'instant-delivery', path: '/parcel' }); navigate('/parcel'); }}
@@ -921,6 +951,7 @@ const UserHome = () => {
             className="relative w-full overflow-hidden rounded-[24px] text-left active:scale-[0.99] transition-transform shadow-[0_14px_30px_-16px_rgba(79,70,229,0.7)]"
             style={{ background: 'linear-gradient(135deg,#4F46E5 0%,#7C3AED 55%,#FF5000 130%)' }}
           >
+            <DismissX onDismiss={() => dismissBanner('hero-instant-delivery')} testid="instant-delivery-dismiss" />
             <span className="absolute -right-6 -top-10 w-40 h-40 rounded-full bg-white/10" />
             <span className="absolute right-10 bottom-[-34px] w-28 h-28 rounded-full bg-white/10" />
             <div className="relative p-5 flex items-center gap-4">
@@ -941,6 +972,7 @@ const UserHome = () => {
             </div>
           </button>
         </section>
+        )}
         {ORDERED_SECTIONS.map((key) => blocks[key])}
       </motion.main>
 
