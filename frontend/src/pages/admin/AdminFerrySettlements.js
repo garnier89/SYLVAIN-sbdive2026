@@ -33,7 +33,7 @@ const AdminFerrySettlements = () => {
     setSettling(c.company_id);
     try {
       const r = await ferryAPI.settleBatch({ company_id: c.company_id, month });
-      toast.success(`${r.data.settled} billet(s) réglé(s)`);
+      toast.success(`${r.data.settled} billet(s) réglé(s)${r.data.email_sent ? ' · relevé PDF envoyé par e-mail' : ''}`);
       load();
     } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } finally { setSettling(''); }
   };

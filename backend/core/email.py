@@ -885,3 +885,29 @@ async def send_debt_reminder(to: str, *, name: str, total: float, days: int):
         <p style="color:#2b3040;font-size:15px;line-height:1.6;">Vous avez un solde d&ucirc; de <strong>{total:.2f} &euro;</strong> depuis plus de {days} jours.</p>
         <p style="color:#2b3040;font-size:14px;">Merci de le r&eacute;gler depuis votre portefeuille pour continuer &agrave; r&eacute;server.</p>"""
     await _send(to, f"💶 Solde d&ucirc; &agrave; r&eacute;gler · {total:.2f} €", _shell("Solde dû à régler 💶", "#e11d48", body))
+
+
+
+# ── SB Ferry company settlement statement (PDF attached) ────────────────────
+async def send_ferry_settlement(to: str, company_name: str, period: str, stats: dict, pdf_bytes: bytes) -> None:
+    """Email a ferry company its settlement statement (PDF) once an admin marks the period settled."""
+    net = float(stats.get("net_due_to_company", 0) or 0)
+    if net >= 0:
+        due = f"SB Drive vous reverse <strong>{net:.2f}&nbsp;€</strong> pour la période."
+    else:
+        due = f"Vous devez reverser <strong>{abs(net):.2f}&nbsp;€</strong> de commission à SB Drive pour la période."
+    body = f"""
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;margin:0 0 12px;">Bonjour {company_name},</p>
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;">Voici votre relevé de règlement <strong>SB Ferry</strong> pour la période <strong>{period}</strong>.</p>
+        <table style="width:100%;font-size:14px;color:#2b3040;border-collapse:collapse;margin-top:8px;">
+          <tr><td style="padding:6px 0;color:#9aa0ac;">Billets vendus</td><td style="padding:6px 0;text-align:right;font-weight:600;">{stats.get('tickets', 0)}</td></tr>
+          <tr><td style="padding:6px 0;color:#9aa0ac;">Chiffre d'affaires</td><td style="padding:6px 0;text-align:right;font-weight:600;">{float(stats.get('gross', 0)):.2f} &euro;</td></tr>
+          <tr><td style="padding:6px 0;color:#9aa0ac;">Commission SB Drive</td><td style="padding:6px 0;text-align:right;">{float(stats.get('commission', 0)):.2f} &euro;</td></tr>
+          <tr><td style="padding:6px 0;color:#9aa0ac;">Revenu compagnie</td><td style="padding:6px 0;text-align:right;">{float(stats.get('company_revenue', 0)):.2f} &euro;</td></tr>
+        </table>
+        <p style="color:#0a0e1a;font-size:15px;margin:16px 0 4px;">{due}</p>
+        <p style="color:#9aa0ac;font-size:12px;line-height:1.5;margin-top:16px;">Le relevé détaillé est en pièce jointe (PDF). Pour toute question, répondez à cet e-mail.</p>"""
+    html = _shell("Relevé de règlement SB Ferry 🚢", "#0EA5E9", body)
+    period_slug = (period or "releve").replace("/", "-").replace(" ", "_")
+    attachments = [{"filename": f"releve-ferry-{period_slug}.pdf", "content": pdf_bytes}] if pdf_bytes else []
+    await _send_with_attachments(to, f"🚢 Relevé SB Ferry · {company_name} · {period}", html, attachments)

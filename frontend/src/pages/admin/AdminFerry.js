@@ -21,11 +21,14 @@ const Stat = ({ label, value, color = 'slate' }) => (
 const CommissionRevenue = ({ companies, config, revenue, onReload }) => {
   const [globalPct, setGlobalPct] = useState(12);
   const [compPct, setCompPct] = useState({});
+  const [compEmail, setCompEmail] = useState({});
   const [savingG, setSavingG] = useState(false);
 
   useEffect(() => { setGlobalPct(config?.commission_percent ?? 12); }, [config]);
   useEffect(() => {
-    const m = {}; companies.forEach((c) => { m[c.id] = c.commission_percent ?? ''; }); setCompPct(m);
+    const m = {}; const e = {};
+    companies.forEach((c) => { m[c.id] = c.commission_percent ?? ''; e[c.id] = c.email ?? ''; });
+    setCompPct(m); setCompEmail(e);
   }, [companies]);
 
   const saveGlobal = async () => {
@@ -34,7 +37,7 @@ const CommissionRevenue = ({ companies, config, revenue, onReload }) => {
     catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); } finally { setSavingG(false); }
   };
   const saveCompany = async (id) => {
-    try { await ferryAPI.updateCompany(id, { commission_percent: Number(compPct[id]) }); toast.success('Commission compagnie enregistrée'); onReload(); }
+    try { await ferryAPI.updateCompany(id, { commission_percent: Number(compPct[id]), email: compEmail[id] }); toast.success('Compagnie enregistrée'); onReload(); }
     catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
   };
 
@@ -57,15 +60,18 @@ const CommissionRevenue = ({ companies, config, revenue, onReload }) => {
           {config && !config.stripe_enabled && <span className="text-[11px] text-amber-600 font-semibold">⚠ Carte bancaire désactivée (clé Stripe manquante)</span>}
         </div>
         <div className="border-t pt-3 space-y-2">
-          <p className="text-xs font-bold text-gray-400 uppercase">Commission par compagnie</p>
+          <p className="text-xs font-bold text-gray-400 uppercase">Commission & e-mail par compagnie</p>
+          <p className="text-[11px] text-gray-400">L'e-mail reçoit automatiquement le relevé PDF lors d'un règlement.</p>
           {companies.map((c) => (
-            <div key={c.id} className="flex items-center gap-2" data-testid={`ferry-company-row-${c.id}`}>
+            <div key={c.id} className="flex items-center gap-2 flex-wrap" data-testid={`ferry-company-row-${c.id}`}>
               <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
-              <span className="flex-1 text-sm font-semibold text-gray-800 truncate">{c.name}</span>
+              <span className="w-28 text-sm font-semibold text-gray-800 truncate">{c.name}</span>
+              <input type="email" value={compEmail[c.id] ?? ''} onChange={(e) => setCompEmail({ ...compEmail, [c.id]: e.target.value })} data-testid={`ferry-company-email-${c.id}`}
+                placeholder="email@compagnie.fr" className="flex-1 min-w-[140px] border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
               <input type="number" min="0" max="100" step="0.5" value={compPct[c.id] ?? ''} onChange={(e) => setCompPct({ ...compPct, [c.id]: e.target.value })} data-testid={`ferry-company-commission-${c.id}`}
-                className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right" />
+                className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right" />
               <span className="text-xs text-gray-400">%</span>
-              <button onClick={() => saveCompany(c.id)} data-testid={`ferry-company-save-${c.id}`} className="text-sky-600 text-sm font-bold px-2">OK</button>
+              <button onClick={() => saveCompany(c.id)} data-testid={`ferry-company-save-${c.id}`} className="text-white bg-sky-600 text-xs font-bold px-3 py-1.5 rounded-lg">Enregistrer</button>
             </div>
           ))}
         </div>

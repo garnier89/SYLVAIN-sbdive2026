@@ -1,3 +1,12 @@
+## NEW - 2026-06-13 (370) - 📧 SB Ferry : relevé PDF auto-envoyé par e-mail (Resend) au règlement (DONE, testé 16/16 + envoi Resend réussi + capture)
+- **Demande user (suite iter369)** : boucler le cycle de facturation — chaque règlement « réglé » génère un PDF de relevé envoyé à la compagnie par e-mail.
+- **Backend** : champ `email` ajouté aux compagnies (`POST`/`PUT /admin/ferry/companies`). `_settlement_stats()` + `_build_settlement_pdf()` (reportlab, relevé A4 : en-tête SB Ferry, période, compagnie, billets/CA/commission/revenu, net dû coloré). `core/email.py` → `send_ferry_settlement()` (HTML FR + PDF en pièce jointe via `_send_with_attachments`). `settle-batch` calcule le relevé du lot réglé et **envoie l'e-mail (non bloquant, `fire`)** ; renvoie `email_sent`.
+- **Frontend** : panneau commission `AdminFerry` → input **e-mail par compagnie** (`ferry-company-email-*`) + bouton « Enregistrer ». Page règlements → toast « relevé PDF envoyé par e-mail » si `email_sent`.
+- **Testé** : pytest `test_iter368_ferry_commission.py` **16/16** (ajout email roundtrip + clé `email_sent`) + **E2E réel** : email compagnie défini → réservation cash → settle-batch `{settled:1, email_sent:true}` → **log Resend « (+1 attachment) sent to ... 🚢 Relevé SB Ferry · Val'Ferry · 2026-06 »** (PDF 2454 octets généré) + capture admin (3 inputs email, panneau commission, reporting).
+- ⚠️ **Resend en mode test** : n'envoie qu'à l'adresse vérifiée tant que le domaine n'est pas validé (P2 connu) → en prod, vérifier le domaine pour atteindre les vraies adresses compagnies. ⚠️ Visible en prod après redéploiement.
+
+
+
 ## NEW - 2026-06-13 (369) - 🧾 SB Ferry : page « Règlements compagnies » (relevé mensuel + réglé en masse + export CSV) (DONE, testé 15/15 + capture)
 - **Demande user (suite iter368)** : page dédiée pour automatiser la facturation des compagnies maritimes.
 - **Backend** (`routes/ferry.py`) : `GET /admin/ferry/settlements?month=YYYY-MM` → relevé par compagnie (billets, CA, commission, revenu compagnie, **en attente** `pending_platform_owes`/`pending_company_owes`, **net dû** signé, **déjà réglé**, billets en attente ; libellé « Non attribué » pour l'historique sans compagnie). `POST /admin/ferry/settlements/settle-batch` `{company_id, month}` → marque tous les billets en attente de la compagnie (+mois) comme `settled` (400 si company_id vide ; `company_id=='unknown'`→ docs sans compagnie).

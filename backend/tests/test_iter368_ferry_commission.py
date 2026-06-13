@@ -91,6 +91,15 @@ class TestAdminConfig:
         # restore
         admin_s.put(f"{BASE}/api/admin/ferry/companies/{cid}", json={"commission_percent": 12}, timeout=15)
 
+    def test_company_email_roundtrip(self, admin_s):
+        comps = admin_s.get(f"{BASE}/api/admin/ferry/companies", timeout=15).json()["companies"]
+        cid = comps[0]["id"]
+        r = admin_s.put(f"{BASE}/api/admin/ferry/companies/{cid}", json={"email": "ops@compagnie.test"}, timeout=15)
+        assert r.status_code == 200
+        assert r.json().get("email") == "ops@compagnie.test"
+        # clear
+        admin_s.put(f"{BASE}/api/admin/ferry/companies/{cid}", json={"email": ""}, timeout=15)
+
 
 # ---------- Booking split ----------
 class TestSplit:
@@ -188,6 +197,7 @@ class TestSettlements:
                          json={"company_id": cid, "month": month}, timeout=15)
         assert r.status_code == 200
         assert r.json()["settled"] >= 1
+        assert "email_sent" in r.json()  # no email set on company → False, but key present
         # after settling, that company has no pending tickets for the month
         d = admin_s.get(f"{BASE}/api/admin/ferry/settlements", params={"month": month}, timeout=20).json()
         row = next((x for x in d["companies"] if x["company_id"] == cid), None)

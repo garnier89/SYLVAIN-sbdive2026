@@ -20,6 +20,7 @@ Collections :
 """
 import json
 import os
+import io
 import uuid
 from datetime import datetime, timezone
 
@@ -140,6 +141,99 @@ def _validate_booking_body(route, body):
         raise HTTPException(status_code=400, detail="Horaire indisponible")
     total = round(adults * float(route["price_adult"]) + children * float(route["price_child"]), 2)
     return adults, children, travel_date, departure_time, total
+
+
+def _settlement_stats(bookings):
+    """Aggregate a list of bookings into a settlement summary dict."""
+    out = {"tickets": 0, "gross": 0.0, "commission": 0.0, "company_revenue": 0.0,
+           "platform_owes": 0.0, "company_owes": 0.0}
+    for b in bookings:
+        out["tickets"] += 1
+        out["gross"] = round(out["gross"] + float(b.get("total", 0) or 0), 2)
+        out["commission"] = round(out["commission"] + float(b.get("platform_commission", 0) or 0), 2)
+        out["company_revenue"] = round(out["company_revenue"] + float(b.get("company_revenue", 0) or 0), 2)
+        if b.get("settlement_direction") == "platform_owes_company":
+            out["platform_owes"] = round(out["platform_owes"] + float(b.get("company_revenue", 0) or 0), 2)
+        else:
+            out["company_owes"] = round(out["company_owes"] + float(b.get("platform_commission", 0) or 0), 2)
+    out["net_due_to_company"] = round(out["platform_owes"] - out["company_owes"], 2)
+    return out
+
+
+def _build_settlement_pdf(company_name, month, stats):
+    """Render a one-page PDF settlement statement for a ferry company."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    w, h = A4
+    sea = colors.HexColor("#0EA5E9")
+    dark = colors.HexColor("#0F172A")
+
+    c.setFillColor(sea)
+    c.rect(0, h - 32 * mm, w, 32 * mm, fill=1, stroke=0)
+    c.setFillColor(colors.white)
+    c.setFont("Helvetica-Bold", 20)
+    c.drawString(18 * mm, h - 18 * mm, "SB Ferry - Releve de reglement")
+    c.setFont("Helvetica", 11)
+    c.drawString(18 * mm, h - 26 * mm, "SB Drive VTC - Billetterie maritime")
+    c.setFont("Helvetica-Bold", 13)
+    c.drawRightString(w - 18 * mm, h - 18 * mm, f"Periode : {month}")
+
+    y = h - 48 * mm
+    c.setFillColor(dark)
+    c.setFont("Helvetica-Bold", 15)
+    c.drawString(18 * mm, y, company_name)
+    y -= 6 * mm
+    c.setFillColor(colors.HexColor("#64748B"))
+    c.setFont("Helvetica", 10)
+    c.drawString(18 * mm, y, f"Emis le {datetime.now(timezone.utc).strftime('%d/%m/%Y')}")
+
+    rows = [
+        ("Billets vendus", str(stats["tickets"])),
+        ("Chiffre d'affaires", f"{stats['gross']:.2f} EUR"),
+        ("Commission SB Drive", f"{stats['commission']:.2f} EUR"),
+        ("Revenu compagnie", f"{stats['company_revenue']:.2f} EUR"),
+        ("Reversement SB Drive vers compagnie (SB Pay/carte)", f"{stats['platform_owes']:.2f} EUR"),
+        ("Commission due par la compagnie (especes)", f"{stats['company_owes']:.2f} EUR"),
+    ]
+    y -= 14 * mm
+    for label, val in rows:
+        c.setStrokeColor(colors.HexColor("#E5E7EB"))
+        c.setLineWidth(0.5)
+        c.line(18 * mm, y - 2 * mm, w - 18 * mm, y - 2 * mm)
+        c.setFillColor(colors.HexColor("#334155"))
+        c.setFont("Helvetica", 11)
+        c.drawString(18 * mm, y, label)
+        c.setFillColor(dark)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawRightString(w - 18 * mm, y, val)
+        y -= 11 * mm
+
+    net = stats["net_due_to_company"]
+    y -= 6 * mm
+    c.setFillColor(sea if net >= 0 else colors.HexColor("#059669"))
+    c.roundRect(18 * mm, y - 14 * mm, w - 36 * mm, 16 * mm, 3 * mm, fill=1, stroke=0)
+    c.setFillColor(colors.white)
+    c.setFont("Helvetica-Bold", 13)
+    if net >= 0:
+        c.drawString(24 * mm, y - 8 * mm, "Net a reverser par SB Drive a la compagnie")
+        c.drawRightString(w - 24 * mm, y - 8 * mm, f"{net:.2f} EUR")
+    else:
+        c.drawString(24 * mm, y - 8 * mm, "Net a reverser par la compagnie a SB Drive")
+        c.drawRightString(w - 24 * mm, y - 8 * mm, f"{abs(net):.2f} EUR")
+
+    c.setFillColor(colors.HexColor("#94A3B8"))
+    c.setFont("Helvetica", 8)
+    c.drawString(18 * mm, 15 * mm, "Document genere automatiquement par SB Drive VTC.")
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
 
 
 # ============================================================
@@ -460,6 +554,7 @@ async def admin_create_company(request: Request, current_user: dict = Depends(re
     pct = max(0.0, min(100.0, pct))
     doc = {"id": f"fco_{uuid.uuid4().hex[:8]}", "name": body["name"].strip(),
            "color": body.get("color", "#0EA5E9"), "commission_percent": pct,
+           "email": (body.get("email") or "").strip(),
            "is_active": bool(body.get("is_active", True))}
     await db.ferry_companies.insert_one(dict(doc))
     doc.pop("_id", None)
@@ -477,6 +572,8 @@ async def admin_update_company(company_id: str, request: Request, current_user: 
         patch["name"] = body["name"].strip()
     if "color" in body:
         patch["color"] = body.get("color")
+    if "email" in body:
+        patch["email"] = (body.get("email") or "").strip()
     if "is_active" in body:
         patch["is_active"] = bool(body.get("is_active"))
     if "commission_percent" in body:
@@ -626,8 +723,23 @@ async def admin_settle_batch(request: Request, current_user: dict = Depends(requ
     query["company_id"] = None if cid == "unknown" else cid
     if month:
         query["created_at"] = {"$gte": f"{month}-01", "$lte": f"{month}-31T23:59:59"}
+    company = await db.ferry_companies.find_one({"id": cid}, {"_id": 0}) if cid != "unknown" else None
+    pending = await db.ferry_bookings.find(query, {"_id": 0}).to_list(10000)
     res = await db.ferry_bookings.update_many(query, {"$set": {"settlement_status": "settled", "settled_at": _now()}})
-    return {"settled": res.modified_count}
+
+    # Auto-email a PDF settlement statement to the company (non-blocking).
+    email_sent = False
+    if company and (company.get("email") or "").strip() and pending:
+        try:
+            stats = _settlement_stats(pending)
+            pdf = _build_settlement_pdf(company.get("name", "Compagnie"), month or "toutes periodes", stats)
+            from core.email import send_ferry_settlement, fire
+            fire(send_ferry_settlement(company["email"].strip(), company.get("name", "Compagnie"),
+                                       month or "toutes périodes", stats, pdf))
+            email_sent = True
+        except Exception:
+            pass
+    return {"settled": res.modified_count, "email_sent": email_sent}
 
 
 
