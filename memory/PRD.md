@@ -1,4 +1,14 @@
-## NEW - 2026-06-13 (349d) - 💳 Gestion dettes clients + 📊 Rapport activité chauffeur (DONE, testé)
+## NEW - 2026-06-13 (350) - 🎯 Lot 1 anti-fraude & gestion (A·B·C·E) (DONE, testé 12/12 + 29/29)
+- **Demande user** (Lot 1 validé, Lot 2=D anti-fraude dispatch à suivre) :
+- **(A) Automatisation dettes** : `routes/debts.py` → `get/set_debt_policy`, `check_debt_block` (bloque POST /api/rides si dette impayée > block_days, défaut 7j), `debt_reminder_loop` (boucle horaire, relance notif+e-mail dès dette > reminder_days défaut 3j, max 1/24h via `last_reminded_at`). Endpoints admin `GET/PUT /api/admin/debts/policy`. Boucle enregistrée dans `core/startup.py` lifespan. UI : carte « Automatisation des relances & blocage » sur `/admin/debts` (actif / jours relance / jours blocage / enregistrer).
+- **(B) Calendrier** : nouveau composant `components/admin/DateRangePicker.jsx` (react-day-picker 2 mois + presets) remplace les périodes préréglées sur `/admin/debts` et `/admin/driver-activity`.
+- **(C) Rapport Timing trajets** : `routes/trip_timings_admin.py` → `GET /admin/trip-timings` calcule par course approche(accept→arrivé), attente(arrivé→départ), durée, total à partir des timestamps existants ; **drapeaux anti-fraude** : `accepté_pas_de_déplacement` (accepté jamais arrivé >6min), `attente_longue_avant_départ` (>4min), `annulé_par_chauffeur`. UI `pages/admin/AdminTripTimings.js` (route `/admin/trip-timings`, sidebar Rapports), filtre « Anomalies seulement ».
+- **(E) Confirmations + masquage tél** : `core/notifications.create_notification` redacte désormais les numéros de téléphone du titre/corps (`_redact_phone`) et retire les clés `*_phone` du data (`_strip_phone_data`) → anti-fraude, mise en relation in-app uniquement. Confirmations notif+e-mail : (1) client planifie un trajet (après insert dans `create_ride`), (2) chauffeur accepte la réservation (handler accept). Helpers e-mail `send_booking_confirmation/send_driver_accepted/send_debt_reminder` dans `core/email.py` (sans numéro).
+- **Testé** : testing_agent iter346 → backend pytest **12/12**, UI Playwright **29/29**, 0 fuite de numéro sur 50 notifs récentes, only_flagged OK (159→101). ⚠️ E-mails Resend en mode test (adresses vérifiées seulement) ; notifs in-app fiables. ⚠️ PREVIEW → redéploiement requis.
+
+
+
+
 - **Demande user** (ordre validé a→b) : (a) gérer les dettes clients, (b) rapport d'activité chauffeur complet.
 - **(a) Dettes clients** — `routes/debts_admin.py` (admin-only) sur la collection existante `cancellation_debts` :
   - `GET /admin/debts/overview` (KPIs : total dû, clients endettés, dettes en cours, dette moyenne, recouvré/annulé sur période + liste débiteurs enrichie nom/tel/portefeuille).
