@@ -429,8 +429,11 @@ const UserHome = () => {
     if (!home.length) home = active.slice(0, 8);
     const tiles = home.map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
+      // SB Access (catégorie 'assist') ouvre la page dédiée SB Drive Access (/access),
+      // pas le formulaire de course direct.
+      const path = c.key === 'assist' ? '/access' : `/course?mode=${c.key}`;
       // Dashboard-defined icon (image/emoji) drives the tile; v.icon is the fallback.
-      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, imageFit: c.image_fit, bg: v.bg, iconColor: v.iconColor, path: `/course?mode=${c.key}` };
+      return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, imageFit: c.image_fit, bg: v.bg, iconColor: v.iconColor, path };
     });
     return tiles;
   })();
@@ -861,13 +864,15 @@ const UserHome = () => {
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
 
       <DebtBanner />
-      {/* SB Student — accès direct (toujours visible) vers l'espace étudiant + marketplace */}
+      {/* SB Student — accès direct (dismissible) vers l'espace étudiant + marketplace */}
+      {!isDismissed('home-sb-student') && (
       <button
         onClick={() => navigate('/sb-student')}
         data-testid="home-sb-student-entry"
         className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl px-4 py-3 text-left shadow-sm active:scale-[0.99] transition-transform relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #5B21B6, #7C3AED)' }}
       >
+        <DismissX onDismiss={() => dismissBanner('home-sb-student')} testid="sb-student-dismiss" />
         <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
           <GraduationCap size={22} weight="fill" className="text-white" />
         </span>
@@ -877,6 +882,7 @@ const UserHome = () => {
         </span>
         <CaretRight size={18} className="text-white shrink-0" />
       </button>
+      )}
       {false && <DisruptionBanner strikesOnly vtcRoute="/course?mode=standard" className="mt-3" />}
 
       {/* Referral progress nudge — reminds the referred user how close their reward is */}
