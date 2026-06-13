@@ -1,3 +1,14 @@
+## NEW - 2026-06-13 (348) - ♻️ Refactor rides.py Phase 2 : extraction cancel_policy + rental_meter (DONE, testé)
+- **Demande user** : poursuivre le découpage de `rides.py` (Phase 2 uniquement).
+- **Extraction** : `_cancel_policy` + `_compute_cancel_fee` → **`core/cancel_policy.py`** (autonome, dépend de `db`) ; `_compute_rental_meter` → **`core/rental_meter.py`** (fonction pure, stdlib). `rides.py` les ré-importe (ré-exportés → tests/imports internes intacts).
+- **Résultat** : `rides.py` **3305 → 3222 lignes** (−83). pyflakes propre (2 warnings pré-existants `simulate_flight_status`/`apply_loyalty_on_completion`). Aucun cycle d'import.
+- **Testé** : import OK + ré-export vérifié ; 4/5 tests ride passent ; **e2e curl** annulation course → `cancellation_fee:0.0`, `free_window_min:5.0` (chemin `_cancel_policy`/`_compute_cancel_fee` validé en live).
+- ⚠️ **Régression test PRÉ-EXISTANTE détectée** (non liée au refacto, confirmée via `git stash`) : `test_iter344_intercity_deposit::test_completion_reconciles_deposit` attend gain chauffeur 90.0 mais reçoit **90.5** → `subcategory_bonus` 0,5 € (config `sub_category_bonus`, rides.py L2019) ajouté au `total_credit`. À corriger côté test (mettre à jour l'attendu) OU côté seed config. Le code de réconciliation caution est correct.
+- ⚠️ PREVIEW → redéploiement requis pour la prod.
+
+
+
+
 ## NEW - 2026-06-13 (347) - 🩹 3 correctifs UX P2 auth (DONE, testé 13/13)
 - **#1 Redirection anonyme** : `ProtectedRoute` renvoyait les visiteurs non connectés vers l'accueil `/`. Désormais → **`/login`** avec mémorisation de la destination (`state.from`). `/taxi?mode=standard`, `/course?mode=intercity`, `/wallet`… redirigent bien vers `/login`. Retour à la destination après connexion (téléphone **et** e-mail).
 - **#2 E-mail visible** : l'option e-mail était cachée derrière « Ou choisir une autre option ». Ajout d'un bouton **« Continuer avec l'e-mail »** visible (`email-login-btn`) sur l'écran principal (`PhoneStep`), clé i18n `login.email_continue`.
