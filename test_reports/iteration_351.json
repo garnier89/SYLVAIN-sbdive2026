@@ -1,0 +1,34 @@
+{
+  "summary": "Iter351 — Anti-fraude Lot 2: admin UI 'no-movement' (auto-reassignation chauffeur immobile) + 3 endpoints. Backend pytest 6/6 PASS (gating 3/3 + GET/PUT round-trip + clamping + reassignments list). Frontend E2E PASS: admin login -> /admin/dispatch -> no-movement-card render, all data-testids présents (toggle, minutes, threshold, save, count), modify 4/120 -> save -> toast succès + valeurs persistées; restore 5/150 OK; non-regression /admin/dispatch full render (Zones, chauffeurs en ligne, comportement, courses en attente, tarification dynamique, heatmap, etc.) sans aucune erreur console fatale. 60 'no_movement_release' historiques affichés correctement avec badges no-movement-driver_* sur le tableau de comportement (visibles dans le DOM).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter351_no_movement_http.py",
+    "/app/test_reports/pytest/iter351_no_movement_http.xml",
+    "/app/backend/tests/test_iter351_no_movement.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/dispatch_admin.py PUT /no-movement/config clamps minutes [1..60] and threshold_m [30..2000] server-side — verified with extreme values (0, 9999, 99999) returning 1/60/30/2000 correctly.",
+    "GET endpoints (/no-movement/config and /no-movement/reassignments) accept role admin OR dispatcher (permission dispatch.view); only PUT requires admin (permission dispatch.assign) — proper least-privilege gating.",
+    "Reassignments endpoint joins moderation_events.type='no_movement_release' with users.name in a single round-trip (no N+1); sorts desc by created_at and caps at 200 — production-safe.",
+    "NoMovementCard.jsx polls reassignments every 20s via setInterval cleared on unmount — no memory leak; uses dispatchAdminAPI service (hits process.env.REACT_APP_BACKEND_URL/api/admin/dispatch).",
+    "Card hidden until cfg loaded (`if (!cfg) return null;`) — no flicker / no NaN in inputs.",
+    "Inputs are type=number with min/max attributes matching backend clamps (1-60 / 30-2000, step=10) — keeps UI ↔ backend constraints consistent.",
+    "Toast 'sonner' invoked on both success and error paths with French copy; failure surfaces axios e.response.data.detail when present."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter351_no_movement_http.py (new — 6 HTTP tests: gating x3 + config GET/PUT/clamping + reassignments shape)"
+  ],
+  "success_rate": {"backend": "100% (6/6 new HTTP + 4/4 previous pytest = 10/10)", "frontend": "100% (login + card render + save + restore + non-regression)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! verified working via POST /api/auth/login + GET /api/auth/me (role=admin).",
+  "seed_data_creation": "None. Backend PUT round-trip leaves config at default 5min / 150m / enabled=true. Existing ~60 'no_movement_release' events in DB (seeded earlier) were read-only consumed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public URL: https://gojek-clone-41.preview.emergentagent.com. Run pytest backend/tests/test_iter351_no_movement_http.py (~1.2s, 6 passes). Endpoints: GET /api/admin/dispatch/no-movement/config -> {enabled,minutes,threshold_m}; PUT same path with same body -> clamped & persisted; GET /api/admin/dispatch/no-movement/reassignments?hours=48 -> {count, since, items:[{ride_id,driver_id,driver_name,created_at}]}. UI flow: /login/email -> admin creds -> /admin/dispatch -> NoMovementCard renders below NearbyOfflineDrivers (between 'Règles de discipline' block and 'Carte thermique'). Driver behavior table at bottom shows '📍 Immobile ×N' badge with data-testid='no-movement-driver_{driver_id}' for drivers with no_movement_count>0. Existing test_iter351_no_movement.py (4 tests) covers core/no_movement scan loop unit-tests (Haversine, stuck release, moving keep, grace window).",
+  "rca of the issue": "No issue. New admin UI block + 3 endpoints fully working end-to-end; clamping and gating match spec; non-regression on /admin/dispatch confirmed (no console errors, full data render)."
+}

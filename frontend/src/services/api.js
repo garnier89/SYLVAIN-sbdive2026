@@ -242,6 +242,9 @@ export const dispatchAdminAPI = {
   getAutoSurge: () => api.get('/admin/dispatch/auto-surge'),
   saveAutoSurge: (cfg) => api.put('/admin/dispatch/auto-surge', cfg),
   nearbyOfflineDrivers: (days = 14) => api.get(`/admin/dispatch/nearby-offline-drivers?days=${days}`),
+  noMovementConfig: () => api.get('/admin/dispatch/no-movement/config'),
+  saveNoMovementConfig: (cfg) => api.put('/admin/dispatch/no-movement/config', cfg),
+  noMovementReassignments: (hours = 24) => api.get('/admin/dispatch/no-movement/reassignments', { params: { hours } }),
 };
 
 // Order APIs

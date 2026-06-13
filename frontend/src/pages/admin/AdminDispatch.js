@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { dispatchAdminAPI } from '../../services/api';
+import NoMovementCard from '../../components/admin/NoMovementCard';
 import {
   Broadcast, MapPin, Warning, Money, CreditCard, Wallet, Clock,
   ArrowRight, ShieldWarning, Power, ArrowCounterClockwise, CircleNotch, Bell, Car, Fire, Phone, TrendUp,
@@ -338,6 +339,7 @@ const AdminDispatch = () => {
       {/* Tarification dynamique auto + chauffeurs hors-ligne à proximité */}
       <AutoSurgeConfig />
       <NearbyOfflineDrivers />
+      <NoMovementCard />
 
       {/* Demand heatmap by commune */}
       {heat?.communes?.length > 0 && (

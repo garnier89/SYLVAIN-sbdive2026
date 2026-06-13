@@ -636,3 +636,66 @@ async def reinstate_driver(driver_id: str, request: Request):
     except Exception:
         pass
     return {"ok": True, "status": "approved"}
+
+
+
+# ───────────────── Anti-fraud Lot 2: "no-movement" config + live reassignments ─────────────────
+@router.get("/no-movement/config")
+async def get_no_movement_config(request: Request):
+    """Read the 'accepted-but-not-moving' auto-reassignment settings."""
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    from routes.moderation import get_moderation_config
+    cfg = await get_moderation_config()
+    return {
+        "enabled": bool(cfg.get("no_movement_enabled", True)),
+        "minutes": int(cfg.get("no_movement_minutes", 5) or 5),
+        "threshold_m": int(cfg.get("no_movement_threshold_m", 150) or 150),
+    }
+
+
+@router.put("/no-movement/config")
+async def set_no_movement_config(request: Request):
+    """Update the no-movement settings (toggle / delay / GPS distance)."""
+    await require_role(request, ["admin"], permission="dispatch.assign")
+    body = await request.json()
+    patch = {}
+    if "enabled" in body:
+        patch["no_movement_enabled"] = bool(body["enabled"])
+    if "minutes" in body:
+        patch["no_movement_minutes"] = max(1, min(60, int(body["minutes"])))
+    if "threshold_m" in body:
+        patch["no_movement_threshold_m"] = max(30, min(2000, int(body["threshold_m"])))
+    if patch:
+        from routes.moderation import _save_moderation_config
+        await _save_moderation_config(patch)
+    from routes.moderation import get_moderation_config
+    cfg = await get_moderation_config()
+    return {
+        "enabled": bool(cfg.get("no_movement_enabled", True)),
+        "minutes": int(cfg.get("no_movement_minutes", 5) or 5),
+        "threshold_m": int(cfg.get("no_movement_threshold_m", 150) or 150),
+    }
+
+
+@router.get("/no-movement/reassignments")
+async def list_no_movement_reassignments(request: Request, hours: int = 24):
+    """List today's (last `hours`) auto-reassignments for the 'not moving' rule."""
+    await require_role(request, ["admin", "dispatcher"], permission="dispatch.view")
+    since = (datetime.now(timezone.utc) - timedelta(hours=max(1, min(168, hours)))).isoformat()
+    events = await db.moderation_events.find(
+        {"type": "no_movement_release", "created_at": {"$gte": since}},
+        {"_id": 0},
+    ).sort("created_at", -1).limit(200).to_list(200)
+    # Enrich with driver name (best-effort).
+    duids = list({e.get("user_id") for e in events if e.get("user_id")})
+    namemap = {}
+    if duids:
+        async for u in db.users.find({"id": {"$in": duids}}, {"_id": 0, "id": 1, "name": 1}):
+            namemap[u["id"]] = u.get("name")
+    items = [{
+        "ride_id": e.get("ride_id"),
+        "driver_id": e.get("driver_id"),
+        "driver_name": namemap.get(e.get("user_id")) or "Chauffeur",
+        "created_at": e.get("created_at"),
+    } for e in events]
+    return {"count": len(items), "since": since, "items": items}
