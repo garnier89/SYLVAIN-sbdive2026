@@ -1,3 +1,10 @@
+## NEW - 2026-06-13 (353) - ⚙️ Réglage admin visuel « immobilité » + réassignations en direct (DONE, testé)
+- **Demande user** : pouvoir activer/désactiver et calibrer la règle anti-fraude « chauffeur immobile » (Lot 2) **sans toucher au code**, et voir les réassignations du jour en direct.
+- **Backend** (`routes/dispatch_admin.py`) : `GET /admin/dispatch/no-movement/config` + `PUT` (admin only, clamp minutes 1–60 & seuil 30–2000 m, persistés via `_save_moderation_config`) + `GET /admin/dispatch/no-movement/reassignments?hours=24` (liste enrichie des `moderation_events type='no_movement_release'`, nom chauffeur).
+- **Frontend** (`components/admin/NoMovementCard.jsx`, rendu dans `AdminDispatch.js`) : carte avec **toggle** activer/désactiver, champs **délai (min)** + **seuil GPS (m)**, bouton Enregistrer (toast), et **liste live des réassignations 24 h** (compteur + auto-refresh 20 s).
+- **Testé** : testing_agent iter351 → backend 6/6 (gating 3/3 + GET/PUT round-trip + clamping + liste) + frontend E2E (login admin → /admin/dispatch → carte rendue, tous data-testids présents, save+toast OK), **0 erreur console, 0 action item**.
+
+
 ## NEW - 2026-06-13 (352) - 🚨 Anti-fraude Lot 2 : auto-réassignation « accepté mais ne bouge pas » (DONE, testé)
 - **Demande user** (choix validés) : course **instantanée** acceptée → si après **5 min** le chauffeur **n'a pas bougé** (GPS < **150 m** du point d'acceptation) et n'est pas arrivé → **libérer + réassigner auto + pénalité au chauffeur immobile + notif aux 2 parties + alerte admin** ; si aucun chauffeur dispo → alerte admin & course en attente.
 - **Capture position** : `rides.accept_ride` enregistre désormais `accept_lat/lng` (depuis `manager.get_driver_location` sinon `drivers.current_lat/lng`) + `driver_user_id`.
