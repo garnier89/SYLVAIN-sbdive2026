@@ -1,3 +1,13 @@
+## NEW - 2026-06-13 (467) - 🎫 SB Événement Phase 2 : Espace Organisateur CÂBLÉ + testé (DONE, 8/8)
+- **Tâche (P0)** : finaliser le câblage frontend de l'Espace Organisateur (le backend `organizer.py` + composants React existaient mais routes/entrée UI manquaient).
+- **Fait** : (1) export `OrganizerSpace` + `OrganizerDashboard` dans `routes/pages.js` ; (2) routes `/organizer` (onboarding) et `/organizer/dashboard` dans `clientRoutes.jsx` (ProtectedRoute role `user`) ; (3) bouton d'accès « Vous organisez un événement ? » (`data-testid=organizer-entry-btn`) dans `EventsPage.js` → `/organizer`.
+- **Flux** : user → /events → bouton → /organizer (onboarding nom structure) → register → /organizer/dashboard (stats, CRUD événements, modale participants + export CSV, modale boost/sponsoring SB Pay). Organisateur déjà inscrit → /organizer redirige auto vers le dashboard.
+- **Fix UX (LOW)** : KPI financiers affichent « 0,00 € » au lieu de « Gratuit » (nouveau helper `fmtMoney` dans `eventsShared.js`) ; BoostModal se ferme auto sur échec de paiement (402 solde insuffisant).
+- **Testé** : testing_agent iter369 **frontend 100% (8/8)** — login, entrée, onboarding, CRUD, participants/CSV, boost (402 attendu si solde insuffisant), edit/delete. Backend déjà validé via curl (register/dashboard/me OK).
+- **Compte test** : organizer@test.com / Organizer123! (déjà organisateur « SB Live Productions »).
+- ⚠️ Visible en **prod** après **redéploiement**.
+
+
 ## NEW - 2026-06-13 (371) - ♻️ Refacto rides.py Phase 3 : extraction réconciliation paiement (DONE, testé)
 - **Tâche (P1)** : extraire les handlers booking/paiement de `routes/rides.py` (3296 lignes, module cœur).
 - **Fait** : nouveau module `core/ride_payments.py` (pattern `core/` déjà établi : pool_config, cancel_policy, rental_meter) regroupant la **réconciliation de paiement** — `CASH_RIDE_MIN_BALANCE`, `VALID_PAYMENT_METHODS`, `_driver_meets_cash_minimum`, `_payment_feasibility`, `switch_to_cash_if_needed`, `_refund_intercity_deposit`, `_ride_invoice_number`. Définitions retirées de `rides.py` et **ré-importées/ré-exportées** (`from core.ride_payments import ...` avec `# noqa: F401`) pour préserver `routes/phase1.py` et la suite de tests qui font `from routes.rides import switch_to_cash_if_needed`.

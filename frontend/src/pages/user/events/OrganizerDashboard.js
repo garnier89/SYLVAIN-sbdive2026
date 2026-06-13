@@ -5,7 +5,7 @@ import {
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { organizerAPI } from '../../../services/api';
-import { catMeta, fmtEventDate, fmtPrice } from './eventsShared';
+import { catMeta, fmtEventDate, fmtPrice, fmtMoney } from './eventsShared';
 import EventFormModal from './EventFormModal';
 
 const OrganizerDashboard = () => {
@@ -62,11 +62,11 @@ const OrganizerDashboard = () => {
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Événements" value={t.events} />
           <Stat label="Places vendues" value={t.seats} />
-          <Stat label="Recette nette" value={fmtPrice(t.net)} />
+          <Stat label="Recette nette" value={fmtMoney(t.net)} />
         </div>
         <div className="grid grid-cols-2 gap-2 mt-2">
-          <Stat label="Recette brute" value={fmtPrice(t.gross)} small />
-          <Stat label={`Commission (${settings.commission_percent}%)`} value={`- ${fmtPrice(t.commission)}`} small />
+          <Stat label="Recette brute" value={fmtMoney(t.gross)} small />
+          <Stat label={`Commission (${settings.commission_percent}%)`} value={`- ${fmtMoney(t.commission)}`} small />
         </div>
       </div>
 
@@ -102,7 +102,7 @@ const OrganizerDashboard = () => {
                   <div className="grid grid-cols-3 gap-1 mt-2 text-center bg-gray-50 rounded-xl py-2">
                     <MiniStat label="Cmd" value={ev.stats.orders} />
                     <MiniStat label="Places" value={ev.stats.seats} />
-                    <MiniStat label="Net" value={fmtPrice(ev.stats.net)} />
+                    <MiniStat label="Net" value={fmtMoney(ev.stats.net)} />
                   </div>
                   <div className="flex gap-2 mt-2">
                     <Act onClick={() => setBoostFor(ev)} Icon={Megaphone} label="Booster" testid={`boost-${ev.id}`} primary />
@@ -167,7 +167,7 @@ const AttendeesModal = ({ data, onClose }) => {
         <div className="grid grid-cols-3 gap-2 mb-3 text-center">
           <SBox label="Commandes" value={data.stats.orders} />
           <SBox label="Places" value={data.stats.seats} />
-          <SBox label="Recette nette" value={fmtPrice(data.stats.net)} />
+          <SBox label="Recette nette" value={fmtMoney(data.stats.net)} />
         </div>
         <button onClick={exportCsv} className="w-full mb-3 border border-gray-200 text-gray-700 text-sm font-bold py-2 rounded-lg" data-testid="export-csv-btn">Exporter en CSV</button>
         <div className="divide-y max-h-64 overflow-y-auto">
@@ -197,7 +197,7 @@ const BoostModal = ({ event, pricePerDay, onClose, onDone }) => {
       const r = await organizerAPI.boost(event.id, days);
       toast.success(`Sponsorisé ${days} j • ${fmtPrice(r.data.cost)} débités`);
       onDone();
-    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); onClose(); }
     finally { setPaying(false); }
   };
   return (

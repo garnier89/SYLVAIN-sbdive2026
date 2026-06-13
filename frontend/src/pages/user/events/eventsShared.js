@@ -25,6 +25,10 @@ export const fmtEventDate = (iso) => {
 export const fmtPrice = (v, currency = 'EUR') =>
   v === 0 || v === '0' ? 'Gratuit' : `${Number(v).toFixed(2)} ${currency === 'EUR' ? '€' : currency}`;
 
+// Always shows an amount (used on financial KPI tiles where '0,00 €' is clearer than 'Gratuit').
+export const fmtMoney = (v, currency = 'EUR') =>
+  `${Number(v || 0).toFixed(2)} ${currency === 'EUR' ? '€' : currency}`;
+
 export const minPrice = (tiers = []) =>
   tiers.length ? Math.min(...tiers.map((t) => Number(t.price || 0))) : 0;
 
