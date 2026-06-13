@@ -1,3 +1,9 @@
+## NEW - 2026-06-13 (359) - ♿ SB Access : retour de « PMR » et « Accès » dans Type d'assistance (DONE)
+- **Bug remonté (capture preview)** : sur la page SB Access – Aide à la personne, « Type d'assistance » ne proposait plus « Accès » ni « PMR » (suite au renommage volontaire du mode `access`→« SB Ferry »).
+- **Fix** : ajout de `{k:'pmr', l:'PMR'}` et `{k:'access', l:'Accès'}` dans `ASSIST_OPTIONS` (`frontend/src/pages/user/taxihub/taxiHubConstants.js`). La liste affiche désormais : Fauteuil roulant, PMR, Accès, Personne âgée, Sortie médicale, Aide bagages. Frontend compile OK (changement data-only, sans impact backend).
+- ⚠️ Visible en prod après **redéploiement**.
+
+
 ## NEW - 2026-06-13 (358) - 🌦️ Activation du Supplément Météo (DONE, testé)
 - **Demande user** : « activer la météo » (et parking laissé **gratuit** — pas de paiement/commission). Le système météo (`routes/pricing.py`) existait déjà (OpenWeatherMap, clé valide, branché sur `compute_pricing_adjustment` à la réservation) mais **une seule condition** était configurée (Pluie ×1.2, avec un doublon).
 - **Fait** : consolidation en **une règle unique « tous véhicules »** couvrant toutes les conditions : **Pluie ×1.2, Bruine ×1.15, Orage ×1.5, Neige ×1.6, Brouillard ×1.2** ; doublon supprimé. Le multiplicateur s'applique automatiquement au tarif quand la condition live au point de départ correspond (max des règles matchées). Ajout d'un **seed idempotent** `seed_weather_surcharges()` (startup) pour que la règle par défaut existe sur tout nouvel environnement (prod fraîche).

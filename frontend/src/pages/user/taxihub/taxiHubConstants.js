@@ -48,6 +48,8 @@ export const RENTAL_PACKAGES = [
 
 export const ASSIST_OPTIONS = [
   { k: 'wheelchair', l: 'Fauteuil roulant' },
+  { k: 'pmr', l: 'PMR' },
+  { k: 'access', l: 'Accès' },
   { k: 'elderly', l: 'Personne âgée' },
   { k: 'medical', l: 'Sortie médicale' },
   { k: 'luggage', l: 'Aide bagages' },
