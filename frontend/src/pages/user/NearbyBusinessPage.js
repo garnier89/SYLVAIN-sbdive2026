@@ -4,7 +4,8 @@ import ServiceListLayout, { ServiceCard } from '../../components/ServiceListLayo
 
 // Full category set — mirrors the Home « À proximité » tiles + the original commerces.
 const NEARBY_CATEGORIES = [
-  'Café', 'Bar', 'Restaurant', 'Salon', 'Boulangerie', 'Pharmacie',
+  'Café', 'Bar', 'Restaurant', 'Salon', 'Spa', 'Boulangerie', 'Pharmacie',
+  'Hôpital', 'Salle de sport', 'Shopping', 'Centre commercial',
   'Hôtel', 'Musée', 'Attraction', 'Bibliothèque', 'Vie Nocturne', 'Parking', 'Garage',
 ];
 

@@ -9,7 +9,8 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const COLLECTION = 'nearby_businesses';
 
 const CATEGORIES = [
-  'Café', 'Bar', 'Restaurant', 'Salon', 'Boulangerie', 'Pharmacie',
+  'Café', 'Bar', 'Restaurant', 'Salon', 'Spa', 'Boulangerie', 'Pharmacie',
+  'Hôpital', 'Salle de sport', 'Shopping', 'Centre commercial',
   'Hôtel', 'Musée', 'Attraction', 'Bibliothèque', 'Vie Nocturne', 'Parking', 'Garage',
 ];
 

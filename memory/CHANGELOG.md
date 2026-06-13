@@ -1,3 +1,13 @@
+## NEW - 2026-06-13 - 🏪 Commerces Proches : ajout catégories manquantes + activation (DONE, testé)
+- **Demande user (capture réf.)** : ajouter les services manquants de « Commerces Proches » et rendre chaque tuile fonctionnelle.
+- **Fait** : 5 nouvelles catégories ajoutées partout — **Spa, Shopping, Hôpital, Salle de sport, Centre commercial** :
+  - Tuiles d'accueil (`home_categories` section=nearby) via `backend/scripts/seed_nearby_extra.py` (idempotent), deep-link `/nearby?category=X`, badge « Nouveau ».
+  - Listes étendues : `NearbyBusinessPage.js` (NEARBY_CATEGORIES) + `AdminNearbyBusinesses.js` (CATEGORIES) → filtrage + CRUD admin.
+  - Icône `Barbell` ajoutée à `DynamicIcon.js` (ICON_MAP) pour les salles de sport.
+  - **15 commerces démo** seedés (3 par catégorie, Paris) pour que chaque filtre affiche du contenu réel.
+- **Testé** : curl (home-categories + catalogs/nearby_businesses) OK ; screenshots — accueil affiche Spa/Shopping/Hôpitaux/Salles de sport/Centres commerciaux ; `/nearby?category=Salle de sport` liste les 3 salles (CMG, Neoness, Basic-Fit) avec badges. Compte test user : nearbytest@demo.sb / NearbyTest123!
+
+
 # CHANGELOG
 
 ## 2026-06-12 — Covoiturage : UI admin config + avis détaillés + badge « Super chauffeur » [DONE, testé 100%]
