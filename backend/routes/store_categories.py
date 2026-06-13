@@ -27,6 +27,9 @@ DEFAULT_STORE_CATEGORIES = [
     {"key": "water", "name": "Eau en bouteille", "name_en": "Bottled Water", "icon": "💧", "store_type": "grocery", "path": "/food?type=grocery", "group": "essentials", "age_restriction": 0, "delivery_vehicle": "any", "display_order": 7},
     {"key": "supermarket", "name": "Supermarché", "name_en": "Supermarket", "icon": "🏬", "store_type": "grocery", "path": "/food?type=grocery", "group": "essentials", "age_restriction": 0, "delivery_vehicle": "any", "display_order": 8},
     {"key": "construction", "name": "Matériaux Construction", "name_en": "Construction", "icon": "🦺", "store_type": "construction", "path": "/food?type=construction", "group": "specialty", "age_restriction": 0, "delivery_vehicle": "car", "display_order": 9},
+    {"key": "parcel", "name": "Livraison Colis", "name_en": "Parcel", "icon": "📦", "store_type": "parcel", "path": "/parcel", "group": "logistics", "age_restriction": 0, "delivery_vehicle": "any", "display_order": 10},
+    {"key": "genie", "name": "Delivery Genie", "name_en": "Concierge", "icon": "🛍️", "store_type": "genie", "path": "/runner?mode=genie", "group": "on_demand", "age_restriction": 0, "delivery_vehicle": "any", "display_order": 11},
+    {"key": "runner", "name": "Delivery Runner", "name_en": "Express Runner", "icon": "⚡", "store_type": "runner", "path": "/runner", "group": "on_demand", "age_restriction": 0, "delivery_vehicle": "moto", "display_order": 12},
 ]
 
 

@@ -2,24 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X, ForkKnife, Storefront, FirstAid, Flower,
-  PencilLine, Wine, Drop, Buildings, HardHat, Package
+  PencilLine, Wine, Drop, Buildings, Hammer, Package, ShoppingBag, Lightning,
 } from '@phosphor-icons/react';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
-import { CategoryGlyph } from '../../components/DynamicIcon';
+import { isImgIcon, resolveImageUrl } from '../../components/DynamicIcon';
 import { cachedStoreCategories, loadStoreCategories } from '../../lib/serviceCategoriesCache';
 
 // Static visual identity per delivery vertical (key matches backend store_categories).
-// Admin controls active/name/age; this map only supplies the icon + colors.
+// Drives a consistent line-icon look; a custom uploaded image (icon=url) overrides it.
 const VISUALS = {
   food: { icon: ForkKnife, bg: 'bg-orange-50', iconColor: 'text-orange-500' },
-  grocery: { icon: Storefront, bg: 'bg-purple-50', iconColor: 'text-purple-500' },
+  grocery: { icon: Storefront, bg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
   medicine: { icon: FirstAid, bg: 'bg-red-50', iconColor: 'text-red-500' },
-  flowers: { icon: Flower, bg: 'bg-green-50', iconColor: 'text-green-500' },
+  flowers: { icon: Flower, bg: 'bg-pink-50', iconColor: 'text-pink-500' },
   stationery: { icon: PencilLine, bg: 'bg-cyan-50', iconColor: 'text-cyan-500' },
-  wine: { icon: Wine, bg: 'bg-amber-50', iconColor: 'text-amber-700' },
-  water: { icon: Drop, bg: 'bg-pink-50', iconColor: 'text-pink-600' },
-  supermarket: { icon: Buildings, bg: 'bg-rose-50', iconColor: 'text-rose-600' },
-  construction: { icon: HardHat, bg: 'bg-teal-50', iconColor: 'text-teal-600' },
+  wine: { icon: Wine, bg: 'bg-amber-50', iconColor: 'text-amber-600' },
+  water: { icon: Drop, bg: 'bg-sky-50', iconColor: 'text-sky-500' },
+  supermarket: { icon: Buildings, bg: 'bg-rose-50', iconColor: 'text-rose-500' },
+  construction: { icon: Hammer, bg: 'bg-yellow-50', iconColor: 'text-yellow-600' },
+  parcel: { icon: Package, bg: 'bg-purple-50', iconColor: 'text-purple-500' },
+  genie: { icon: ShoppingBag, bg: 'bg-indigo-50', iconColor: 'text-indigo-500' },
+  runner: { icon: Lightning, bg: 'bg-rose-50', iconColor: 'text-rose-500' },
 };
 
 const AllDeliveryPage = () => {
@@ -61,6 +64,7 @@ const AllDeliveryPage = () => {
           <div className="grid grid-cols-3 gap-4">
             {categories.map((cat) => {
               const visual = VISUALS[cat.key] || { icon: Package, bg: 'bg-gray-50', iconColor: 'text-gray-500' };
+              const Icon = visual.icon;
               return (
                 <button
                   key={cat.key}
@@ -73,10 +77,12 @@ const AllDeliveryPage = () => {
                       {cat.age_restriction}+
                     </span>
                   )}
-                  <div className={`w-20 h-20 rounded-2xl ${visual.bg} flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                    <CategoryGlyph icon={cat.icon} Fallback={visual.icon} size={36} className={visual.iconColor} />
+                  <div className={`w-20 h-20 rounded-3xl ${visual.bg} flex items-center justify-center shadow-sm group-hover:scale-105 group-active:scale-95 transition-transform`}>
+                    {isImgIcon(cat.icon)
+                      ? <img src={resolveImageUrl(cat.icon)} alt="" className="w-10 h-10 object-contain" />
+                      : <Icon size={34} weight="duotone" className={visual.iconColor} />}
                   </div>
-                  <span className="text-xs font-medium text-gray-700 text-center leading-tight">{cat.name}</span>
+                  <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{cat.name}</span>
                 </button>
               );
             })}

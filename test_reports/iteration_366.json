@@ -1,0 +1,83 @@
+{
+  "summary": "Iter 366 — Audit bout-en-bout des 12 services de livraison du hub /all-delivery (SB Marketplace Antilles). Backend: 16/16 pytest pass (store-categories public retourne 12 clés avec paths corrects, age_restriction=18 sur wine ET medicine, merchants par store_type OK: restaurant=13/grocery=2/florist=1/stationery=1/wine=1/construction=1/pharmacy gère partners séparément, /api/parcels/estimate OK, /api/wallet GET OK avec solde test2 affiché, /api/admin/store-categories list+toggle+gating 401/403). Frontend: hub affiche les 12 tuiles avec icônes/badges 18+ sur medicine et wine; toutes les navigations vers les bons paths confirmées (food, grocery, medicine→/pharmacy, parcel, runner, genie→/runner?mode=genie, etc.). Flux Repas E2E COMPLET validé: liste restos → ouverture merchant_burger_palace → add Milkshake+Cola → bouton 'Voir le panier' → /checkout/merchant_burger_palace → adresse + modes livraison (standard/groupée/express/prioritaire/programmée) + 4 modes paiement (espèces/CB/portefeuille SB Pay/sbpaygo) + total 10.58€ + bouton Commander. Flux Pharmacie COMPLET: prescription btn + page upload OK, catalogue (3 partenaires) + add to cart + sheet checkout. Flux Parcel COMPLET: choose-page (single/multi × box/moto), form pickup/drops/estimate/payment. Flux Runner COMPLET: pkg-document/small/medium/food + mode-simple/multiple + fare-summary + submit-runner-btn.",
+  "service_by_service": {
+    "food (Repas)":         {"flow_end_to_end": "OK", "missing_specialty": []},
+    "grocery (Courses)":    {"flow_end_to_end": "OK", "missing_specialty": ["Remplacement d'article (substitution si rupture) non implémenté en checkout"]},
+    "medicine (Pharmacie)": {"flow_end_to_end": "OK", "missing_specialty": ["Validation/approbation de l'ordonnance par pharmacien non testée explicitement (upload OK, statut validation non visible côté user)"]},
+    "flowers":              {"flow_end_to_end": "OK", "missing_specialty": []},
+    "stationery (Papeterie)":{"flow_end_to_end": "OK", "missing_specialty": []},
+    "wine (Vin/Boisson)":   {"flow_end_to_end": "OK rendu/listing/checkout", "missing_specialty": ["CRITIQUE: AUCUNE vérification d'âge 18+ avant accès au listing wine ni avant ajout panier ni avant paiement. Le badge 18+ apparaît uniquement sur la tuile du hub. /food?type=wine affiche directement les caves sans gate. Le seed store_categories.wine.age_restriction=18 n'est PAS appliqué côté flux."]},
+    "water":                {"flow_end_to_end": "OK (alias /food?type=grocery)", "missing_specialty": []},
+    "supermarket":          {"flow_end_to_end": "OK (alias /food?type=grocery)", "missing_specialty": []},
+    "construction":         {"flow_end_to_end": "OK (listing + flow FoodPage)", "missing_specialty": ["Créneau de livraison spécifique chantier non distinct (seul 'Programmée' générique dispo)", "Preuve de livraison/photo de dépôt côté user non visible"]},
+    "parcel":               {"flow_end_to_end": "OK (choose→form→estimate→payment)", "missing_specialty": ["Aucune option ASSURANCE (insurance) dans le form parcel", "Aucune option SIGNATURE à la livraison", "Pas de niveau de fragilité/déclaration valeur"]},
+    "genie":                {"flow_end_to_end": "PARTIEL — page rend, formulaire pickup/drop affiché, mais...", "missing_specialty": ["CRITIQUE: Aucun champ 'liste d'articles à acheter' / 'demande personnalisée' / 'budget estimé' — le mode genie réutilise exactement le formulaire Runner (pickup/drop/destinataire) sans saisie de la demande d'achat. Or la spécialité Genie EST l'achat sur demande. Le sous-titre 'Un Genie achète vos articles à votre place' est présent mais le UX ne permet pas de spécifier quoi acheter."]},
+    "runner":               {"flow_end_to_end": "OK (pkg types + modes + estimate + submit)", "missing_specialty": []}
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/store-categories", "issue": "medicine.age_restriction=18 dans le seed — sémantique discutable: la livraison de médicaments en France n'est pas légalement gated à 18+ (la pharmacie l'est, mais l'achat en ligne ne l'est pas universellement). À reconsidérer produit."},
+      {"endpoint": "/api/admin/store-categories", "issue": "Toggle utilise POST /{key}/toggle (sans body) alors que la convention REST aurait été PATCH /{key} avec {active:bool}. Fonctionne, mais incohérent avec d'autres endpoints admin."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Wine (boisson alcoolisée)", "issue": "Aucune vérification d'âge 18+ active avant browse/cart/checkout. Le age_restriction du seed n'est pas appliqué dans FoodPage.js (verticals.wine ne consulte pas store_categories.age_restriction).", "affected_selectors": ["delivery-wine", "/food?type=wine"], "priority": "HIGH"},
+      {"flow": "Delivery Genie", "issue": "RunnerPage avec mode=genie n'expose AUCUN champ pour 'que voulez-vous que le Genie achète' (textarea liste articles, magasin cible, budget max). Le formulaire est identique au Runner classique → la spécialité Genie n'est pas implémentée fonctionnellement.", "affected_selectors": ["runner-page", "delivery-genie"], "priority": "HIGH"},
+      {"flow": "Parcel", "issue": "Pas d'option ASSURANCE ni SIGNATURE à la confirmation — spécialités colis classiques absentes.", "affected_selectors": ["parcel-confirm-page"], "priority": "MEDIUM"},
+      {"flow": "Construction", "issue": "Aucun créneau livraison chantier (matin/après-midi) ni preuve photo — utilise le même flow Food/Restaurant générique.", "affected_selectors": ["/food?type=construction"], "priority": "LOW"},
+      {"flow": "Grocery", "issue": "Pas d'option 'remplacement article en cas de rupture' (substitution policy) en checkout — spécialité Courses absente.", "affected_selectors": ["checkout/{merchant}"], "priority": "LOW"}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter366_delivery.py",
+    "/app/test_reports/pytest/iter366.xml"
+  ],
+  "action_items": [
+    "AJOUTER un AgeGate 18+ bloquant sur /food?type=wine (modal au mount avec confirmation 'J'ai 18 ans ou plus' + cookie/session). Lire age_restriction depuis store_categories pour rester piloté DB.",
+    "IMPLÉMENTER la spécialité Genie: textarea 'Liste de courses / articles à acheter' + champ 'Magasin préféré' (optionnel) + 'Budget maximum' + transmission au coursier dans le payload Runner quand mode=genie.",
+    "AJOUTER au ParcelPage les options Assurance (toggle + montant déclaré) et Signature obligatoire à la livraison; passer ces flags au backend /api/parcels/create.",
+    "(OPTIONNEL) Construction: ajouter sélecteur créneau jour/matin/après-midi + photo de livraison côté driver.",
+    "(OPTIONNEL) Grocery checkout: ajouter policy 'remplacer / contacter / refuser' sur substitution d'articles.",
+    "(OPTIONNEL) Reconsidérer medicine.age_restriction=18 — la pharmacie en ligne n'est pas universellement 18+ en France."
+  ],
+  "critical_code_review_comments": [
+    "AllDeliveryPage.js — robuste: VISUALS statique + fallback Package + isImgIcon override. 12 tuiles rendues. data-testid={delivery-{key}} et delivery-age-{key} corrects.",
+    "store_categories.py — POST /{key}/toggle sans body, OK mais préférer PATCH {key} avec body {active}. Pas de validation que key existe avant toggle (silencieusement no-op si inconnu).",
+    "FoodPage.js — VERTICALS local statique; ne consulte PAS store_categories.age_restriction. Pour wine, devrait gater le rendu derrière une confirmation 18+.",
+    "RunnerPage.js — mode=genie ne change le UX QUE par le hero/titre, le formulaire reste pickup→drop. Manque tout le UX 'achat sur demande' (liste, magasin, budget). C'est la lacune majeure.",
+    "ParcelPage.js — pas de champs assurance/signature/fragile. Le pricing estimate n'a pas de levier 'protection' optionnel.",
+    "PharmacyPrescriptionPage — upload OK, mais le statut de validation pharmacien (en cours / approuvé / refusé) n'apparaît pas dans le flow user; à vérifier sur /pharmacy/orders.",
+    "Pas d'incohérence backend ↔ frontend sur les paths: store_categories.path correspond aux routes React (FoodPage, PharmacyPage, ParcelPage, RunnerPage)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter366_delivery.py (new — 16 tests: store-categories public + paths + age, merchants par store_type ×6, pharmacy partners, parcels estimate, wallet balance, admin list + gating + toggle, phase2 service catalog discover)"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16)",
+    "frontend": "10/12 services 100% fonctionnels; 2/12 (wine, genie) avec lacune fonctionnelle de spécialité"
+  },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!  •  test2@example.com / TestPass123!",
+  "seed_data_creation": "Aucune. Le test admin toggle stationery off→on restaure l'état initial.",
+  "tests_executed": {
+    "backend": "16/16 pass (~3s) — store-categories list+paths+age, merchants×6 store_types, pharmacy endpoint, parcels estimate, wallet balance test2, admin store-categories list+gating(401/403)+toggle stationery.",
+    "frontend_hub": "12/12 tuiles affichées avec icônes correctes (pas de tuile vide). Badges 18+ présents sur delivery-medicine ET delivery-wine. Navigations testées: food→/food, grocery→/food?type=grocery, medicine→/pharmacy, flowers→/food?type=florist, stationery→/food?type=stationery, wine→/food?type=wine, water→/food?type=grocery, supermarket→/food?type=grocery, construction→/food?type=construction, parcel→/parcel, genie→/runner?mode=genie, runner→/runner. TOUTES OK.",
+    "frontend_food_e2e": "merchant_burger_palace → add Milkshake + Cola → cart bar 'Voir le panier' → /checkout/merchant_burger_palace → adresse + 5 modes livraison + 4 modes paiement (cash/card/wallet SB Pay/sbpaygo) + Commander 10.58€.",
+    "frontend_pharmacy": "/pharmacy: prescription-btn + catalog-btn + 3 partenaires. Page /pharmacy/prescription a upload file input. /pharmacy/catalog liste produits avec add buttons et open-checkout-btn (sheet à valider).",
+    "frontend_parcel": "/parcel choose-page: single-box/single-moto/multi-box/multi-moto présents. Form: parcel-pickup-section, parcel-estimate-btn, parcel-add-stop-btn. AUCUN champ assurance/signature.",
+    "frontend_runner": "/runner: pkg-document/small/medium/food + mode-simple/multiple + fare-summary + runner-payment-section + submit-runner-btn.",
+    "frontend_genie": "/runner?mode=genie: page rend avec titre 'Delivery Genie', hero 'Un Genie achète vos articles à votre place', MAIS formulaire identique à Runner — pickup/drop/destinataire/téléphone uniquement, AUCUN champ liste d'achats / budget / magasin. Spécialité Genie ABSENTE fonctionnellement.",
+    "frontend_wine": "/food?type=wine: merchant_cave_vins affiché directement, AUCUN modal/gate de vérification d'âge 18+ avant accès ou ajout panier. Spécialité contrôle d'âge ABSENTE.",
+    "merchants_inventory_per_store_type": "restaurant=13, grocery=2 (Carrefour, Franprix), florist=1 (Jardin Fleuri), stationery=1, wine=1 (Cave Vins), construction=1 (Brico Matériaux), pharmacy=via partners endpoint."
+  },
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Hub /all-delivery 100% OK structurellement. Flux principal de bout en bout VALIDÉ jusqu'au paiement (SB Pay/portefeuille listé en option) pour Food/Grocery/Wine/Florist/Stationery/Construction (tous utilisent FoodPage+CheckoutPage). Pharmacy a son propre flow (prescription + catalog) — OK. Parcel/Runner OK. Deux gaps fonctionnels à corriger en priorité avant prochaine régression: (1) Age-gate 18+ pour wine (lecture depuis store_categories.age_restriction recommandée pour piloter par DB), (2) UX Genie 'liste d'articles à acheter' manquante — le mode=genie ne diffère du Runner que par le label, pas par les champs. Spécialités secondaires (assurance/signature colis, créneau chantier, substitution courses) à considérer en backlog.",
+  "rca of the issue": {
+    "wine_no_age_gate": "FoodPage.js définit VERTICALS localement et ne lit pas store_categories.age_restriction — donc le 18+ du seed est juste un badge visuel sur le hub. Aucun composant AgeGate enveloppe la page wine. Mitigation: créer <AgeGate /> qui consulte cachedStoreCategories() et affiche un modal bloquant si age_restriction>0 et !sessionStorage.getItem('age_ok_{key}').",
+    "genie_missing_request_input": "RunnerPage rend les mêmes inputs en mode=genie qu'en mode simple. La condition isGenie n'a pas de branche pour exposer un textarea 'Que voulez-vous acheter' + 'Magasin' + 'Budget'. Mitigation: ajouter un bloc {isGenie && <GenieShoppingList />} avec textarea required + payload supplémentaire genie_items envoyé au backend."
+  }
+}
