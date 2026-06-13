@@ -1,3 +1,10 @@
+## NEW - 2026-06-13 - 🗺️ Carte interactive + réservation SB Drive depuis un lieu (DONE, testé)
+- **Demande user** : carte interactive des lieux (épingles cliquables) + « une fois trouvé, l'app propose d'y aller en réservant un chauffeur SB Drive ».
+- **Carte** : `NearbyPlacesMap.jsx` (Google Maps JS via loader partagé `lib/googleMaps`, `@react-google-maps/api` + `REACT_APP_GOOGLE_MAPS_KEY` déjà présents). Épingle position utilisateur (orange) + une épingle par lieu (indigo = Google, ambre = partenaire admin), cliquable → ouvre la fiche détail. Bascule **Liste / Carte** sur la page.
+- **CTA réservation renforcé** : la fiche détail propose en bouton principal pleine largeur **« Réserver un chauffeur SB Drive »** (Appeler/Itinéraire en secondaire). Au clic → handoff destination via `sessionStorage('sb_taxi_dest')` → `/taxi` (TaxiHubPage préremplit le dropoff + auto-détecte le départ + calcule l'estimation).
+- **Testé** (screenshots) : carte avec épingles monuments Paris ; fiche « Notre-Dame » (horaires + bouton SB Drive) ; redirection `/taxi` avec **DESTINATION préremplie = Parvis Notre-Dame** + estimation 10,30€ prête à commander. Compte test : nearbytest@demo.sb / NearbyTest123!
+
+
 ## NEW - 2026-06-13 - ⭐ Commerces Proches : Tourisme + portée configurable + Favoris (DONE, testé)
 - **Demande user** : ajouter lieux touristiques / monuments / zones historiques (ville, région, île) + rayon configurable + favoris.
 - **Tourisme & patrimoine** : 6 nouvelles catégories — Lieux touristiques, Monuments, Sites historiques, Parcs & Nature, Plages, Points de vue. Backend mappe vers Google `tourist_attraction`/`park` + **mot-clé** (monument, site historique, plage…). Recherche par mot-clé seul supportée (type optionnel) → ex. Plages (Nice) = 20 vraies plages. Tuiles d'accueil seedées.

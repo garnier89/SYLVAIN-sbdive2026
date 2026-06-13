@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, MagnifyingGlass, Star, MapPin, X, Phone, NavigationArrow,
-  Car, Clock, Storefront, Globe, Heart,
+  Car, Clock, Storefront, Globe, Heart, List, MapTrifold,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ServiceCard } from '../../components/ServiceListLayout';
 import { favoritesAPI } from '../../services/api';
+import NearbyPlacesMap from './NearbyPlacesMap';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const PARIS = { lat: 48.8566, lng: 2.3522 };
@@ -44,6 +45,7 @@ const NearbyBusinessPage = () => {
   const [favIds, setFavIds] = useState([]);
   const [showFavs, setShowFavs] = useState(false);
   const [favs, setFavs] = useState([]);
+  const [viewMode, setViewMode] = useState('list'); // list | map
 
   // Resolve the user's GPS once (graceful Paris fallback).
   useEffect(() => {
@@ -154,23 +156,45 @@ const NearbyBusinessPage = () => {
             ))}
           </div>
 
-          {/* Category chips */}
-          <div className="px-4 pt-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {NEARBY_CATEGORIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => setActiveCat(c)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${activeCat === c ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
-                data-testid={`cat-${c.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
-              >
-                {c}
-              </button>
-            ))}
+          {/* Category chips + view toggle */}
+          <div className="px-4 pt-3 flex items-center gap-2">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 flex-1">
+              {NEARBY_CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setActiveCat(c)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${activeCat === c ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
+                  data-testid={`cat-${c.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setViewMode((v) => (v === 'list' ? 'map' : 'list'))}
+              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#1F2430] text-white text-xs font-bold"
+              data-testid="view-toggle"
+            >
+              {viewMode === 'list' ? <><MapTrifold size={14} weight="fill" /> Carte</> : <><List size={14} weight="fill" /> Liste</>}
+            </button>
           </div>
         </>
       )}
 
-      {/* List */}
+      {/* Map view */}
+      {!showFavs && viewMode === 'map' && (
+        <div className="px-4 mt-3" data-testid="nearby-map-wrap">
+          {coords ? (
+            <NearbyPlacesMap center={coords} items={items} selectedId={selected?.id} onSelect={setSelected} />
+          ) : (
+            <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" /></div>
+          )}
+          <p className="text-[11px] text-gray-400 text-center mt-2">Touchez une épingle pour voir le lieu et réserver un chauffeur.</p>
+        </div>
+      )}
+
+      {/* List view */}
+      {!(viewMode === 'map' && !showFavs) && (
       <div className="px-4 mt-4">
         {loading ? (
           <div className="flex justify-center py-16">
@@ -206,6 +230,7 @@ const NearbyBusinessPage = () => {
           </div>
         )}
       </div>
+      )}
 
       {selected && (
         <PlaceDetailSheet
@@ -304,29 +329,32 @@ const PlaceDetailSheet = ({ item, isFav, onToggleFav, onClose, onTaxi }) => {
           )}
 
           {/* Actions */}
-          <div className="grid grid-cols-3 gap-2 mt-5">
+          <div className="grid grid-cols-2 gap-2 mt-5">
             <a
               href={phone ? `tel:${phone}` : undefined}
-              className={`flex flex-col items-center gap-1 py-3 rounded-2xl border ${phone ? 'border-gray-200 text-gray-800' : 'border-gray-100 text-gray-300 pointer-events-none'}`}
+              className={`flex items-center justify-center gap-2 py-3 rounded-2xl border ${phone ? 'border-gray-200 text-gray-800' : 'border-gray-100 text-gray-300 pointer-events-none'}`}
               data-testid="sheet-call"
             >
-              <Phone size={20} weight="fill" /><span className="text-xs font-semibold">Appeler</span>
+              <Phone size={18} weight="fill" /><span className="text-sm font-semibold">Appeler</span>
             </a>
             <a
               href={directionsUrl} target="_blank" rel="noreferrer"
-              className="flex flex-col items-center gap-1 py-3 rounded-2xl border border-gray-200 text-gray-800"
+              className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-gray-200 text-gray-800"
               data-testid="sheet-directions"
             >
-              <NavigationArrow size={20} weight="fill" className="text-sky-600" /><span className="text-xs font-semibold">Itinéraire</span>
+              <NavigationArrow size={18} weight="fill" className="text-sky-600" /><span className="text-sm font-semibold">Itinéraire</span>
             </a>
-            <button
-              onClick={() => onTaxi(item)}
-              className="flex flex-col items-center gap-1 py-3 rounded-2xl bg-[#FF4500] text-white"
-              data-testid="sheet-taxi"
-            >
-              <Car size={20} weight="fill" /><span className="text-xs font-semibold">Y aller</span>
-            </button>
           </div>
+
+          {/* Primary proposal — réserver un chauffeur SB Drive pour s'y rendre */}
+          <button
+            onClick={() => onTaxi(item)}
+            className="w-full mt-3 flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#FF4500] text-white font-extrabold shadow-lg shadow-orange-500/20 active:scale-[0.99] transition-transform"
+            data-testid="sheet-taxi"
+          >
+            <Car size={22} weight="fill" /> Réserver un chauffeur SB Drive
+          </button>
+          <p className="text-[11px] text-gray-400 text-center mt-2">On vous y conduit — destination déjà préremplie.</p>
         </div>
       </div>
     </div>
