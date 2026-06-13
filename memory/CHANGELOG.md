@@ -1,3 +1,10 @@
+## NEW - 2026-06-13 - ♻️ Refacto api_router.py — groupes de routeurs par domaine (DONE, 70 tests verts)
+- **`core/api_router.py` : 192 → 32 lignes.** Les 131 routeurs (110+ imports) sont répartis en 6 modules de groupe sous `core/router_groups/` : `identity_rides` (11), `commerce_payments` (16), `platform_core` (35), `services_ops` (29), `student` (9), `travel_booking` (31). L'agrégateur concatène les listes `ROUTERS` dans un ordre FIXE.
+- **Méthode sûre** : génération par AST (imports reconstruits verbatim → zéro typo), ordre d'enregistrement strictement préservé.
+- **Garantie zéro régression** : empreinte des routes capturée avant/après (`131 routeurs, 1243 routes`) → **diff vide (identique)** ; ordre première/dernière route inchangé.
+- **Validé** : backend redémarre proprement ; `predeploy_check.sh` = **70/70 tests critiques verts**. Comportement strictement inchangé.
+
+
 ## NEW - 2026-06-13 - 🛡️ Garde-fou pre-push automatique (DONE, testé)
 - **Hook git `pre-push`** (`scripts/git-hooks/pre-push`) : lance `predeploy_check.sh` (70 tests critiques) avant chaque push et **bloque le push** si un flux casse. Bypass : `SKIP_PREDEPLOY=1 git push`.
 - Installateur `scripts/install_git_hooks.sh` → copie dans `.git/hooks/` (hook versionné donc réinstallable). Installé + rendu exécutable.
