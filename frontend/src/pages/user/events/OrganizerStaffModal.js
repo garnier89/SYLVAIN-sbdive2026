@@ -27,7 +27,10 @@ const OrganizerStaffModal = ({ events = [], onClose }) => {
     finally { setCreating(false); }
   };
 
-  const copy = (code) => { navigator.clipboard?.writeText(code); toast.success(`Code ${code} copié`); };
+  const copy = async (code) => {
+    try { await navigator.clipboard.writeText(code); toast.success(`Code ${code} copié`); }
+    catch { toast.error('Copie indisponible — copiez le code manuellement'); }
+  };
 
   const revokeInvite = async (inv) => {
     if (!window.confirm(`Révoquer le code « ${inv.code} » ? Les contrôleurs liés perdront l'accès.`)) return;
