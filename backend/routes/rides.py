@@ -2446,24 +2446,27 @@ async def get_active_ride(request: Request):
 async def _expire_dead_pending_rides():
     """Mark unassigned pending rides that can no longer be served as `expired`, so
     they disappear from every driver list (réservations, courses, enchères) and
-    can no longer be (futilely) accepted:
-      - scheduled reservations whose pickup time has already passed,
-      - immediate requests / bids left unaccepted for a long time (abandoned).
+    can no longer be (futilely) accepted.
+
+    Grace windows (a late driver / delay must not erase a booking too early):
+      - scheduled reservation : expired 60 min AFTER its pickup time,
+      - immediate request / bid : expired 10 min after creation (rider gave up).
     Idempotent and cheap (single indexed update_many)."""
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
-    stale_immediate = (now - timedelta(hours=2)).isoformat()
+    scheduled_cutoff = (now - timedelta(minutes=60)).isoformat()   # 60-min grace after pickup time
+    immediate_cutoff = (now - timedelta(minutes=10)).isoformat()   # 10-min window for live requests
     await db.rides.update_many(
         {
             "status": "pending",
             "driver_id": None,
             "$or": [
-                # past-due scheduled reservation
-                {"scheduled_at": {"$ne": None, "$lt": now_iso}},
-                # abandoned immediate request (no scheduled time, old)
+                # scheduled reservation whose pickup time passed > 60 min ago
+                {"scheduled_at": {"$ne": None, "$lt": scheduled_cutoff}},
+                # abandoned immediate request / bid (no scheduled time, > 10 min old)
                 {"$and": [
                     {"$or": [{"scheduled_at": None}, {"scheduled_at": {"$exists": False}}]},
-                    {"created_at": {"$lt": stale_immediate}},
+                    {"created_at": {"$lt": immediate_cutoff}},
                 ]},
             ],
         },

@@ -21,19 +21,23 @@ def test_expire_dead_pending_rides():
     async def run():
         now = datetime.now(timezone.utc)
         iso = now.isoformat()
-        past = (now - timedelta(days=1)).isoformat()
         future = (now + timedelta(days=2)).isoformat()
-        old_immediate = (now - timedelta(hours=5)).isoformat()
-        fresh = (now - timedelta(minutes=5)).isoformat()
+        # Scheduled: 60-min grace after pickup time
+        sched_within_grace = (now - timedelta(minutes=30)).isoformat()   # late but kept
+        sched_past_grace = (now - timedelta(minutes=90)).isoformat()     # erased
+        # Immediate: 10-min window
+        imm_fresh = (now - timedelta(minutes=5)).isoformat()             # kept
+        imm_stale = (now - timedelta(minutes=15)).isoformat()           # erased
         pfx = f"t376_{uuid.uuid4().hex[:6]}"
         docs = [
-            {"id": f"{pfx}_past_sched", "status": "pending", "driver_id": None, "scheduled_at": past, "created_at": past, "mode": "normal"},
-            {"id": f"{pfx}_future_sched", "status": "pending", "driver_id": None, "scheduled_at": future, "created_at": iso, "mode": "normal"},
-            {"id": f"{pfx}_old_imm", "status": "pending", "driver_id": None, "scheduled_at": None, "created_at": old_immediate, "mode": "normal"},
-            {"id": f"{pfx}_fresh_imm", "status": "pending", "driver_id": None, "scheduled_at": None, "created_at": fresh, "mode": "normal"},
-            {"id": f"{pfx}_old_bid", "status": "pending", "driver_id": None, "scheduled_at": None, "created_at": old_immediate, "mode": "bidding"},
+            {"id": f"{pfx}_sched_grace", "status": "pending", "driver_id": None, "scheduled_at": sched_within_grace, "created_at": sched_within_grace, "mode": "scheduled"},
+            {"id": f"{pfx}_sched_dead", "status": "pending", "driver_id": None, "scheduled_at": sched_past_grace, "created_at": sched_past_grace, "mode": "scheduled"},
+            {"id": f"{pfx}_future_sched", "status": "pending", "driver_id": None, "scheduled_at": future, "created_at": iso, "mode": "scheduled"},
+            {"id": f"{pfx}_imm_fresh", "status": "pending", "driver_id": None, "scheduled_at": None, "created_at": imm_fresh, "mode": "normal"},
+            {"id": f"{pfx}_imm_stale", "status": "pending", "driver_id": None, "scheduled_at": None, "created_at": imm_stale, "mode": "normal"},
+            {"id": f"{pfx}_bid_stale", "status": "pending", "driver_id": None, "scheduled_at": None, "created_at": imm_stale, "mode": "bidding"},
             # already-assigned ride must never be touched
-            {"id": f"{pfx}_assigned", "status": "accepted", "driver_id": "drv_x", "scheduled_at": past, "created_at": past, "mode": "normal"},
+            {"id": f"{pfx}_assigned", "status": "accepted", "driver_id": "drv_x", "scheduled_at": sched_past_grace, "created_at": sched_past_grace, "mode": "scheduled"},
         ]
         ids = [d["id"] for d in docs]
         await db.rides.delete_many({"id": {"$in": ids}})
@@ -44,11 +48,14 @@ def test_expire_dead_pending_rides():
             for i in ids:
                 r = await db.rides.find_one({"id": i}, {"_id": 0, "status": 1})
                 got[i] = r["status"]
-            assert got[f"{pfx}_past_sched"] == "expired"
-            assert got[f"{pfx}_old_imm"] == "expired"
-            assert got[f"{pfx}_old_bid"] == "expired"
-            assert got[f"{pfx}_future_sched"] == "pending", "future reservation must stay available"
-            assert got[f"{pfx}_fresh_imm"] == "pending", "fresh request must stay available"
+            # erased
+            assert got[f"{pfx}_sched_dead"] == "expired", "reservation >60min late must expire"
+            assert got[f"{pfx}_imm_stale"] == "expired", "immediate >10min must expire"
+            assert got[f"{pfx}_bid_stale"] == "expired", "bid >10min must expire"
+            # kept
+            assert got[f"{pfx}_sched_grace"] == "pending", "reservation within 60-min grace stays (late driver)"
+            assert got[f"{pfx}_future_sched"] == "pending", "future reservation stays available"
+            assert got[f"{pfx}_imm_fresh"] == "pending", "fresh request (<10min) stays available"
             assert got[f"{pfx}_assigned"] == "accepted", "assigned ride must never be expired"
         finally:
             await db.rides.delete_many({"id": {"$in": ids}})
