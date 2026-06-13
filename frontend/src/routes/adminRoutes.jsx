@@ -8,6 +8,7 @@ import AdminCodeHealth from '../pages/admin/AdminCodeHealth';
 import AdminDebts from '../pages/admin/AdminDebts';
 import AdminDriverActivity from '../pages/admin/AdminDriverActivity';
 import AdminTripTimings from '../pages/admin/AdminTripTimings';
+import AdminParking from '../pages/admin/AdminParking';
 import {
   AdminLayout, AdminDashboard, AdminUsers, AdminUserEdit, AdminDrivers, AdminRides,
   AdminSupport, AdminRevenue, AdminGodsView, AdminHeatView, AdminPromocodes, AdminSettings,
@@ -67,6 +68,7 @@ export function adminRoutes() {
       <Route path="hotels" element={<AdminHotelsManager />} />
       <Route path="flights" element={<AdminFlights />} />
       <Route path="travel-packages" element={<AdminTravelPackages />} />
+      <Route path="parking" element={<AdminParking />} />
       <Route path="organization" element={<AdminOrganization />} />
       <Route path="vehicle-types" element={<AdminVehicleTypes />} />
       <Route path="parcels" element={<AdminOrders />} />

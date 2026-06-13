@@ -65,6 +65,15 @@ export const authAPI = {
 };
 
 // Masked in-app calling (WebRTC) + Twilio relay fallback (anti-fraud, Bolt-like)
+// Admin — gestion des places de parking (CRUD)
+export const parkingAdminAPI = {
+  list: () => api.get('/admin/parking/spots'),
+  create: (data) => api.post('/admin/parking/spots', data),
+  update: (id, data) => api.put(`/admin/parking/spots/${id}`, data),
+  toggle: (id) => api.patch(`/admin/parking/spots/${id}/toggle`),
+  remove: (id) => api.delete(`/admin/parking/spots/${id}`),
+};
+
 export const callsAPI = {
   initiate: (rideId) => api.post(`/calls/ride/${rideId}/initiate`),
   markFailed: (rideId, callId) => api.post(`/calls/ride/${rideId}/failed`, { call_id: callId }),

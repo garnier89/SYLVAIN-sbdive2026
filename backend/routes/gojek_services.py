@@ -233,15 +233,36 @@ DEMO_PARKING_SPOTS = [
     {"id": "park_4", "name": "Parking Montparnasse", "address": "17 Rue de l'Arrivée, 75015 Paris", "lat": 48.8421, "lng": 2.3219, "price_per_hour": 4.00, "total_spots": 280, "available_spots": 92, "rating": 4.3, "features": ["Couvert", "Bornes électriques", "Accès handicapé"], "image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400"},
 ]
 
+
+async def seed_parking_spots():
+    """Idempotent: migrate the demo parking spots into the editable `parking_space`
+    collection so the admin can manage them (add/edit/delete). Safe on existing DBs."""
+    if await db.parking_space.count_documents({}) > 0:
+        return
+    for i, s in enumerate(DEMO_PARKING_SPOTS):
+        await db.parking_space.insert_one({
+            **s, "active": True, "display_order": i,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+
 @parking_router.get("/spots")
 async def list_parking_spots(lat: Optional[float] = None, lng: Optional[float] = None):
-    return {"spots": DEMO_PARKING_SPOTS}
+    """Active parking spots (admin-managed). Falls back to demo list if not seeded."""
+    spots = await db.parking_space.find(
+        {"active": {"$ne": False}}, {"_id": 0}).sort("display_order", 1).to_list(200)
+    if not spots:
+        spots = DEMO_PARKING_SPOTS
+    return {"spots": spots}
 
 @parking_router.get("/spots/{spot_id}")
 async def get_parking_spot(spot_id: str):
-    for s in DEMO_PARKING_SPOTS:
-        if s["id"] == spot_id:
-            return s
+    s = await db.parking_space.find_one({"id": spot_id}, {"_id": 0})
+    if s:
+        return s
+    for d in DEMO_PARKING_SPOTS:
+        if d["id"] == spot_id:
+            return d
     raise HTTPException(status_code=404, detail="Parking spot not found")
 
 @parking_router.post("/reservations")

@@ -94,6 +94,7 @@ const SECTION_ROUTE = {
   taxi: '/admin/service-categories',
   promo: '/admin/promo-banners',
   travel: '/admin/travel-packages',
+  parking: '/admin/parking',
   medical: '/admin/medical',
   bid: '/admin/bids',
   genie: '/admin/genie',

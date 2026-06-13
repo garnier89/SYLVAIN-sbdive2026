@@ -1,0 +1,34 @@
+{
+  "summary": "Iter355 — Admin Parking CRUD + 'Gérer' wiring on AdminHomeCategories. Backend HTTP pytest 4/4 PASS (gating 401 unauth + list 4 spots + full CRUD roundtrip with active toggle filtering public endpoint + public /api/parking/spots open). Frontend E2E PASS: admin login -> /admin/parking renders data-testid='admin-parking-page' + 'parking-list' with 4 cards; CRUD via UI works (create new card via modal -> appears in list with toast, edit price, toggle inactive, delete with window.confirm dialog dismissed -> 'Supprimé' toast + card removed). 'Gérer' buttons on /admin/home-categories (section-layout-panel): section-manage-travel -> /admin/travel-packages OK; section-manage-parking -> /admin/parking OK (rendered admin-parking-page). Public API /api/parking/spots returns 4 spots = non-regression for ParkingPage.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter355_parking_http.py",
+    "/app/backend/tests/test_iter355_parking.py",
+    "/app/test_reports/pytest/iter355_parking_http.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/parking_admin.py uses APIRouter(prefix='/admin/parking') mounted under api_router (/api) -> resulting full paths /api/admin/parking/spots are consistent with frontend services/api.js parkingAdminAPI; require_role('admin','manager') with permission 'content.manage' applied at the router level returns 401 for unauth (verified).",
+    "POST /spots generates id with 'park_' prefix; _clean() coerces numerical fields and splits CSV features into a list (verified via unit test test_clean_normalises_features_and_types).",
+    "PATCH /spots/{id}/toggle flips active and the public endpoint /api/parking/spots filters {active: {$ne: False}} -> inactive spot correctly excluded (verified end-to-end through HTTP).",
+    "seed_parking_spots() is idempotent (validated by re-running seed in test_seed_is_idempotent_and_populates_db); collection parking_space is now the single source of truth — no more hardcoded list in client API.",
+    "AdminParking.js uses parkingAdminAPI (axios with REACT_APP_BACKEND_URL) and sonner toasts; window.confirm gating delete is correctly captured by Playwright dialog handler.",
+    "AdminHomeCategories.js SECTION_ROUTE map contains travel->/admin/travel-packages and parking->/admin/parking; each section-layout-row-{key} renders data-testid='section-manage-{key}' when hasPage truthy. Verified both nav transitions in E2E.",
+    "Client /parking route is gated to role 'user' only (clientRoutes.jsx ProtectedRoute allowedRoles=['user']) — admin login gets redirected; non-regression check therefore done via direct API call /api/parking/spots returning 4 active spots."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter355_parking_http.py (new — 4 HTTP tests: auth gating + list + CRUD roundtrip with public-list filter + public endpoint)"
+  ],
+  "success_rate": {"backend": "100% (4/4 new HTTP + 3/3 existing pytest = 7/7)", "frontend": "100% (admin login + CRUD create/edit/toggle/delete + Gérer wiring for both travel and parking + public API non-regression)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! validated against POST /api/auth/login.",
+  "seed_data_creation": "None permanent. E2E create+delete is symmetric (test creates a TEST_QA card then deletes it). HTTP test_crud_roundtrip uses unique uuid name and cleans up via DELETE in finally.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public URL: https://gojek-clone-41.preview.emergentagent.com. Run: pytest backend/tests/test_iter355_parking_http.py -v (~1.7s, 4 passes) and backend/tests/test_iter355_parking.py (3 passes — DB layer). Admin parking page at /admin/parking is protected by require_role admin|manager. CRUD UI lives in src/pages/admin/AdminParking.js with data-testids: admin-parking-page, parking-list, parking-add-btn, parking-modal, parking-name, parking-address, parking-lat, parking-lng, parking-price, parking-total, parking-available, parking-features, parking-image, parking-rating, parking-active, parking-save, parking-cancel, parking-modal-close, plus per-card parking-card-{id}, parking-toggle-{id}, parking-edit-{id}, parking-delete-{id}. Delete uses window.confirm — handle via page.once('dialog', d -> d.accept()). 'Gérer' on /admin/home-categories: section-layout-panel > section-layout-row-{key} > section-manage-{key} button; SECTION_ROUTE in AdminHomeCategories.js maps each key to its dedicated admin page. /parking client route requires role=user; admin login is redirected (use a regular client account to render ParkingPage UI if needed).",
+  "rca of the issue": "No issue. New admin Parking page + DB-backed public /api/parking/spots + AdminHomeCategories 'Gérer' wiring for travel and parking are fully working end-to-end. Backend gating, CRUD, toggle filtering and frontend UI flows all verified."
+}

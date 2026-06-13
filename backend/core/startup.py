@@ -467,6 +467,8 @@ async def run_all_seeds():
     await seed_marketplace_boost_plans()  # plans de boost marketplace (démo)
     await seed_real_estate_boost_plans()
     await seed_pharmacy()               # pharmacy partners & OTC catalog
+    from routes.gojek_services import seed_parking_spots
+    await seed_parking_spots()          # editable parking spots (admin-managed)
     try:
         from core.ondemand_seed import seed_ondemand
         await seed_ondemand()           # on-demand service categories + demo providers
