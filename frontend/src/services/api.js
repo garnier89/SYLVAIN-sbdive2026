@@ -59,6 +59,18 @@ export const authAPI = {
   refresh: () => api.post('/auth/refresh'),
   changePassword: (data) => api.post('/auth/change-password', data),
   googleSession: (sessionId) => api.post('/auth/google/session', { session_id: sessionId }),
+  firebaseStatus: () => api.get('/auth/firebase/status'),
+  firebaseVerifyPhone: (idToken) => api.post('/auth/firebase/verify-phone', { id_token: idToken }),
+  firebaseLogin: (data) => api.post('/auth/firebase/login', data),
+};
+
+// Masked in-app calling (WebRTC) + Twilio relay fallback (anti-fraud, Bolt-like)
+export const callsAPI = {
+  initiate: (rideId) => api.post(`/calls/ride/${rideId}/initiate`),
+  markFailed: (rideId, callId) => api.post(`/calls/ride/${rideId}/failed`, { call_id: callId }),
+  markConnected: (rideId) => api.post(`/calls/ride/${rideId}/connected`),
+  relay: (rideId) => api.post(`/calls/ride/${rideId}/relay`),
+  status: (rideId) => api.get(`/calls/ride/${rideId}/status`),
 };
 
 // User APIs

@@ -20,6 +20,7 @@ import RouteEditModal from './ride-tracking/RouteEditModal';
 import ScheduleCalendarModal from '../../components/ScheduleCalendarModal';
 import { CancelRideModal, RatingModal } from './ride-tracking/RideActions';
 import { useLocale } from '../../contexts/LocaleContext';
+import { useCall } from '../../contexts/CallContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const GMAP_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
@@ -151,6 +152,7 @@ const RideTrackingPage = () => {
   const { rideId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { startCall } = useCall();
   const { connected, on, joinRide } = useWebSocket(user?.id);
 
   const [ride, setRide] = useState(null);
@@ -697,7 +699,7 @@ const RideTrackingPage = () => {
           onBack={() => navigate('/home')}
           onCall={() => {
             fetch(`${API}/api/moderation/call-log`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ride_id: rideId }) }).catch(() => {});
-            if (ride.driver_phone) window.location.href = `tel:${ride.driver_phone}`; else toast.info('Numéro du chauffeur indisponible');
+            startCall(rideId);
           }}
           onChat={() => navigate(`/ride/${rideId}/chat`)}
           onShare={handleShare}
@@ -1046,7 +1048,7 @@ const RideTrackingPage = () => {
 
         <DriverInfoCard
           ride={!isCancelled ? ride : null}
-          onCall={() => {}}
+          onCall={() => startCall(rideId)}
           onChat={() => navigate(`/ride/${rideId}/chat`)}
         />
 

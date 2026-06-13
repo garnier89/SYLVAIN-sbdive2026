@@ -429,6 +429,106 @@ async def verify_email_link(token: str = ""):
     return RedirectResponse(url=f"{base}/verifier-email?status=ok")
 
 
+# ===== Firebase Phone Auth (OTP SMS) — vérification du numéro de téléphone =====
+
+@router.get("/firebase/status")
+async def firebase_status():
+    """Indique au frontend si la vérification téléphone Firebase est active."""
+    from core.firebase_auth import firebase_enabled
+    return {"enabled": firebase_enabled()}
+
+
+@router.post("/firebase/verify-phone")
+async def firebase_verify_phone(request: Request):
+    """Vérifie un ID token Firebase pour l'utilisateur connecté → marque le téléphone vérifié."""
+    user = await get_current_user(request)
+    body = await request.json()
+    id_token = str(body.get("id_token", "")).strip()
+    if not id_token:
+        raise HTTPException(status_code=400, detail="id_token requis")
+    from core.firebase_auth import firebase_enabled, verify_id_token, extract_phone
+    if not firebase_enabled():
+        raise HTTPException(status_code=503, detail="Vérification Firebase non configurée")
+    try:
+        decoded = verify_id_token(id_token)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Jeton de vérification invalide")
+    phone = extract_phone(decoded)
+    if not phone:
+        raise HTTPException(status_code=400, detail="Aucun numéro vérifié dans le jeton")
+    other = await db.users.find_one({"phone": phone, "id": {"$ne": user["id"]}}, {"_id": 0, "id": 1})
+    if other:
+        raise HTTPException(status_code=409, detail="Ce numéro est déjà rattaché à un autre compte")
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"phone": phone, "phone_verified": True,
+                  "phone_verified_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "phone": phone, "phone_verified": True}
+
+
+@router.post("/firebase/login", response_model=TokenResponse)
+async def firebase_phone_login(data: dict, response: Response):
+    """Connexion/inscription sans mot de passe via un numéro vérifié par Firebase OTP."""
+    from core.firebase_auth import firebase_enabled, verify_id_token, extract_phone
+    if not firebase_enabled():
+        raise HTTPException(status_code=503, detail="Vérification Firebase non configurée")
+    id_token = str(data.get("id_token", "")).strip()
+    if not id_token:
+        raise HTTPException(status_code=400, detail="id_token requis")
+    try:
+        decoded = verify_id_token(id_token)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Jeton de vérification invalide")
+    phone = extract_phone(decoded)
+    if not phone:
+        raise HTTPException(status_code=400, detail="Aucun numéro vérifié dans le jeton")
+    now = datetime.now(timezone.utc)
+    user = await db.users.find_one({"phone": phone}, {"_id": 0})
+    if user:
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"phone_verified": True, "phone_verified_at": now.isoformat()}},
+        )
+        user["phone_verified"] = True
+    else:
+        name = str(data.get("name", "")).strip() or phone
+        from routes.referral import generate_name_code, create_pending_referral
+        referral_code = str(data.get("referral_code", "")).strip() or None
+        referrer_id = await _resolve_referrer(referral_code)
+        own_code = await generate_name_code(name, False)
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        user = {
+            "id": user_id,
+            "email": f"{phone.replace('+', '')}@sbdrive.local",
+            "password_hash": hash_password(secrets.token_urlsafe(16)),
+            "name": name,
+            "phone": phone,
+            "role": "user",
+            "is_verified": False,
+            "phone_verified": True,
+            "phone_verified_at": now.isoformat(),
+            "avatar_url": None,
+            "referral_code_own": own_code,
+            "referral_code_used": referral_code,
+            "referred_by": referrer_id,
+            "created_at": now.isoformat(),
+        }
+        await db.users.insert_one(dict(user))
+        await db.wallets.insert_one({"user_id": user_id, "balance": 0.0, "created_at": now.isoformat()})
+        if referrer_id:
+            await create_pending_referral(referrer_id, user)
+    access_token = create_access_token(user["id"], user.get("email", ""), user["role"])
+    refresh_token = create_refresh_token(user["id"])
+    _set_auth_cookies(response, access_token, refresh_token)
+    user.pop("password_hash", None)
+    user.pop("_id", None)
+    if isinstance(user.get("created_at"), str):
+        user["created_at"] = datetime.fromisoformat(user["created_at"])
+    return TokenResponse(access_token=access_token, user=UserResponse(**user))
+
+
+
 @router.post("/forgot-password")
 async def forgot_password(request: Request):
     """Send a password reset code + link. Always returns 200 (anti-enumeration)."""

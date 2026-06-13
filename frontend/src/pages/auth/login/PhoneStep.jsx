@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, CaretDown, CaretRight, EnvelopeSimple } from '@phosphor-icons/react';
+import { ArrowRight, CaretDown, CaretRight, EnvelopeSimple, ChatCircleDots } from '@phosphor-icons/react';
 import { COUNTRIES, Fab, BackBtn } from './loginConstants';
 import { useLocale } from '../../../contexts/LocaleContext';
 import LocaleSelector from '../../../components/LocaleSelector';
@@ -8,7 +8,7 @@ import LocaleSelector from '../../../components/LocaleSelector';
 export const PhoneStep = ({
   phone, setPhone, countryCode, setCountryCode,
   showCountryPicker, setShowCountryPicker, error, loading,
-  onSubmit, onBack, onOtherOptions, onEmail,
+  onSubmit, onBack, onOtherOptions, onEmail, onOtp,
 }) => {
   const { t } = useLocale();
   return (
@@ -56,6 +56,14 @@ export const PhoneStep = ({
           className="w-full mt-5 flex items-center justify-center gap-2 bg-white/5 border border-white/10 rounded-xl py-3.5 hover:bg-white/10 transition-colors">
           <EnvelopeSimple size={18} className="text-white" weight="bold" />
           <span className="text-white font-semibold text-sm">{t('login.email_continue')}</span>
+        </button>
+      )}
+
+      {onOtp && (
+        <button onClick={onOtp} data-testid="otp-login-btn"
+          className="w-full mt-3 flex items-center justify-center gap-2 bg-[#FF5000]/10 border border-[#FF5000]/30 rounded-xl py-3.5 hover:bg-[#FF5000]/20 transition-colors">
+          <ChatCircleDots size={18} className="text-[#FF5000]" weight="bold" />
+          <span className="text-[#FF5000] font-semibold text-sm">Connexion par code SMS</span>
         </button>
       )}
 

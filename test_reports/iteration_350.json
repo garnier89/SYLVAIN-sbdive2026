@@ -1,0 +1,35 @@
+{
+  "summary": "Iter350 — Communications (Firebase OTP + Twilio voice/SMS) non-regression review. All feature flags correctly OFF (no creds), gating verified on backend HTTP layer; auth (email admin + driver phone) and frontend /login render unaffected; CallProvider WebSocket opens cleanly at app root without console errors. Backend: 7/7 new HTTP gating tests PASS + 5/5 existing iter350_comms tests PASS (12/12). Frontend: /login renders PhoneStep with email-login-btn present and otp-login-btn correctly ABSENT (firebaseConfigured() returns false). Admin email login (admin@superapp.com / SuperAdmin123!) → /admin dashboard fully renders (849 users, 50 drivers, 1040 rides KPIs, sidebar + God's View map). CallProvider mounted at App root successfully opens wss://.../api/ws/call_user_2859d02f6d02. Zero console errors during the whole flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter350_gating_http.py",
+    "/app/backend/tests/test_iter350_comms.py",
+    "/app/test_reports/pytest/iter350_gating.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/auth.py /firebase/verify-phone correctly enforces auth BEFORE checking firebase_enabled() — returns 401/403 (HTTPBearer auto_error) when no token, 503 only after authentication.",
+    "routes/auth.py /firebase/login & /firebase/verify-phone both raise 503 with French message 'Vérification Firebase non configurée' when flag off — clean gating, no info leak.",
+    "core/firebase_auth.firebase_enabled() lazy-evaluates credentials on first call — safe to import the route module even when secrets/firebase-admin.json is absent.",
+    "frontend src/pages/auth/login/PhoneStep.jsx only renders the otp-login-btn when `onOtp` prop is truthy; LoginPage passes `firebaseConfigured() ? ... : null` — verified hidden in DOM (not just css-hidden), correct gating.",
+    "frontend src/lib/firebase.js firebaseConfigured() guards getFirebaseAuth() so no firebase/app initialize call happens when env vars missing — no boot crash.",
+    "CallProvider at App root opens WS /api/ws/call_{userId} only after auth (user_id resolved client-side); WS frame received successfully (open->close pair seen) without surfacing errors to UI.",
+    "Existing auth flow uses httpOnly cookies via /api/auth/login (admin verified through GET /auth/me returning role:admin email:admin@superapp.com).",
+    "Driver phone login POST /api/auth/phone-login still returns 200 with token+user for +33644112233 — backwards compatible with the new Firebase-OTP path which is purely additive."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter350_gating_http.py (new — 7 HTTP gating + non-regression tests)"
+  ],
+  "success_rate": {"backend": "100% (12/12 — 7 new gating + 5 existing comms)", "frontend": "100% (4/4 critical checks)"},
+  "test_credentials": "Admin admin@superapp.com / SuperAdmin123! (email login → /admin OK). Driver +33644112233 / Chauffeur2026! (phone-login OK).",
+  "seed_data_creation": "None for HTTP tests. test_iter350_comms.py creates+cleans up ephemeral users/rides/call_sessions with `test_` prefix.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public URL: https://gojek-clone-41.preview.emergentagent.com. Tests: pytest backend/tests/test_iter350_gating_http.py (~1.3s, 7 passes) + backend/tests/test_iter350_comms.py (~0.4s, 5 passes). Gating endpoints: GET /api/auth/firebase/status → 200 {enabled:false}; POST /api/auth/firebase/verify-phone no-auth → 401, with-admin-auth → 503; POST /api/auth/firebase/login → 503; GET /api/calls/ride/{id}/status no-auth → 401. UI flow: open /login → click email-login-btn → /login/email → fill email-input/password-input → click email-login-submit-btn → /admin dashboard. CallProvider WS confirmed open at wss://.../api/ws/call_user_xxx after login. When Firebase creds are added later, the otp-login-btn should re-appear automatically (PhoneStep checks `onOtp` truthy).",
+  "rca of the issue": "No issues. Gating is implemented at the right layers: backend returns proper HTTP status codes (401 unauth → 503 disabled) and frontend hides the OTP entry-point via firebaseConfigured() guard. Auth non-regression confirmed end-to-end."
+}

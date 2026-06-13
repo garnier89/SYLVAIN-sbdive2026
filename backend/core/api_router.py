@@ -101,6 +101,7 @@ from routes.code_health import router as code_health_router
 from routes.debts_admin import router as debts_admin_router
 from routes.driver_activity_admin import router as driver_activity_admin_router
 from routes.trip_timings_admin import router as trip_timings_admin_router
+from routes.calls import router as calls_router
 
 # Ordered list of every router mounted under /api
 _ROUTERS = [
@@ -158,6 +159,7 @@ _ROUTERS = [
     debts_admin_router,
     driver_activity_admin_router,
     trip_timings_admin_router,
+    calls_router,
 ]
 
 

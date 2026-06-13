@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LocaleProvider } from './contexts/LocaleContext';
+import { CallProvider } from './contexts/CallContext';
 import { Toaster } from './components/ui/sonner';
 import InstallPWA from './components/InstallPWA';
 import EnableNotificationsBanner from './components/EnableNotificationsBanner';
@@ -88,7 +89,9 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <LocaleProvider>
-          <AppRouter />
+          <CallProvider>
+            <AppRouter />
+          </CallProvider>
           <DemoBanner />
           <Toaster position="top-center" />
           <InstallPWA />

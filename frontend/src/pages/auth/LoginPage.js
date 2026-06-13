@@ -6,6 +6,8 @@ import { PhoneStep } from './login/PhoneStep';
 import { PasswordStep } from './login/PasswordStep';
 import { ProfileStep } from './login/ProfileStep';
 import { AccountOptionsModal } from './login/AccountOptionsModal';
+import PhoneOtpModal from '../../components/auth/PhoneOtpModal';
+import { firebaseConfigured } from '../../lib/firebase';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -27,6 +29,7 @@ const LoginPage = () => {
   const [countryCode, setCountryCode] = useState(COUNTRIES[0]);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showOtp, setShowOtp] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -183,8 +186,23 @@ const LoginPage = () => {
         onSubmit={handleCheckPhone} onBack={goBack}
         onEmail={() => navigate('/login/email', { state: from ? { from } : undefined })}
         onGoogle={() => loginWithGoogle()}
+        onOtp={firebaseConfigured() ? () => setShowOtp(true) : null}
         onOtherOptions={() => setShowAccountModal(true)}
       />
+      {showOtp && (
+        <PhoneOtpModal
+          open={showOtp} mode="login" defaultPhone={getFullPhone()}
+          onClose={() => setShowOtp(false)}
+          onSuccess={(u) => {
+            setShowOtp(false);
+            setUser(u);
+            const role = u.role;
+            if (role === 'driver') navigate('/chauffeur/home');
+            else if (role === 'admin') navigate('/admin');
+            else navigate(backTo || '/home');
+          }}
+        />
+      )}
       {showAccountModal && (
         <AccountOptionsModal
           onClose={() => setShowAccountModal(false)}

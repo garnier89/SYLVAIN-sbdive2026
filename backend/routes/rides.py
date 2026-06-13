@@ -1629,6 +1629,21 @@ async def accept_ride(ride_id: str, request: Request):
         except Exception:
             pass
 
+    # ===== SMS au proche (course réservée pour autrui) — feature-flag Twilio =====
+    if ride.get("book_for_phone"):
+        try:
+            from core.sms import send_sms, sms_enabled
+            if sms_enabled():
+                ref = ride_id[:8].upper()
+                dest = ride.get("dropoff_address") or "destination"
+                first = (ride.get("book_for_name") or "").split(" ")[0] or "Bonjour"
+                await send_sms(
+                    ride["book_for_phone"],
+                    f"SB Drive: {first}, un chauffeur a ete reserve pour vous "
+                    f"(course #{ref}) vers {dest}. Il arrive bientot.")
+        except Exception:
+            pass
+
     # ===== POINTS: award for accepted ride =====
     from routes.drivers import _get_rewards_points_config, _ensure_driver_stats, _recompute_rates
     points_cfg = await _get_rewards_points_config()

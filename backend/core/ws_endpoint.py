@@ -84,12 +84,32 @@ async def _handle_ping(websocket: WebSocket, client_id: str, data: dict) -> None
     await websocket.send_json({"type": "pong"})
 
 
+async def _handle_call_signal(websocket: WebSocket, client_id: str, data: dict) -> None:
+    """Relais de signalisation WebRTC (appel masqué) vers le correspondant.
+
+    Le message porte `to` (user id du correspondant, fourni par /calls/.../initiate).
+    On réémet tel quel en ajoutant `from` = identifiant de l'émetteur.
+    """
+    to = data.get("to")
+    if not to:
+        return
+    await manager.send_personal_message({**data, "from": client_id}, to)
+
+
 _HANDLERS = {
     "location_update": _handle_location_update,
     "join_ride": _handle_join_ride,
     "leave_ride": _handle_leave_ride,
     "eta_update": _handle_eta_update,
     "ping": _handle_ping,
+    # WebRTC masked-call signaling (relayed to `to`)
+    "call_invite": _handle_call_signal,
+    "call_offer": _handle_call_signal,
+    "call_answer": _handle_call_signal,
+    "call_ice": _handle_call_signal,
+    "call_accept": _handle_call_signal,
+    "call_decline": _handle_call_signal,
+    "call_hangup": _handle_call_signal,
 }
 
 

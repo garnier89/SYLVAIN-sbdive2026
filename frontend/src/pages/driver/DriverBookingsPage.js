@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { MapPin, CaretDown, Package, Gavel, ClipboardText } from '@phosphor-icons/react';
 import { rideAPI, parcelAPI } from '../../services/api';
 import { DriverBottomNav } from './DriverProfilePage';
+import CallButton from '../../components/call/CallButton';
 
 const GREEN = '#FF5000';
 
@@ -191,7 +192,8 @@ const DriverBookingsPage = () => {
                   <button onClick={() => { setDismissed((p) => [...p, ride.id]); toast('Trajet décliné.'); }} className="px-6 py-2.5 rounded-full border border-gray-300 text-gray-500 font-bold text-sm" data-testid={`decline-booking-${ride.id}`}>Déclin</button>
                 </div>
               ) : (
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
+                  <CallButton rideId={ride.id} compact testId={`call-client-${ride.id}`} />
                   {canCancel && (
                     <button onClick={() => doCancelBooking(ride)} className="px-6 py-2.5 rounded-full border border-red-300 text-red-600 font-bold text-sm" data-testid={`cancel-booking-${ride.id}`}>Annuler</button>
                   )}
