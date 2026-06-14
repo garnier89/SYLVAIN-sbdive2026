@@ -110,6 +110,10 @@ export const FleetVehicleDetailPage = lazy(() => import('../pages/user/fleet/Fle
 export const FleetDriversPage = lazy(() => import('../pages/user/fleet/FleetDriversPage'));
 export const FleetAlertsPage = lazy(() => import('../pages/user/fleet/FleetAlertsPage'));
 export const FleetGeofencesPage = lazy(() => import('../pages/user/fleet/FleetGeofencesPage'));
+export const FamilyPage = lazy(() => import('../pages/user/fleet/FamilyPage'));
+export const FamilyPlacesPage = lazy(() => import('../pages/user/fleet/FamilyPlacesPage'));
+export const FamilyJoinPage = lazy(() => import('../pages/user/fleet/FamilyJoinPage'));
+export const FamilyAlertsPage = lazy(() => import('../pages/user/fleet/FamilyAlertsPage'));
 export const FinancePage = lazy(() => import('../pages/user/FinancePage'));
 export const WaybillPage = lazy(() => import('../pages/user/WaybillPage'));
 export const NewsFeedPage = lazy(() => import('../pages/user/NewsFeedPage'));

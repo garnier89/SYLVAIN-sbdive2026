@@ -20,6 +20,7 @@ import {
   TransportPublicPage, NearbyTransitPage,
   ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   SbTrackingHub, FleetMapPage, FleetVehiclesPage, FleetVehicleDetailPage, FleetDriversPage, FleetAlertsPage, FleetGeofencesPage,
+  FamilyPage, FamilyPlacesPage, FamilyJoinPage, FamilyAlertsPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
   ServiceProvidersPage, ServiceProviderDetailPage,
   ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage, SbRewardsPage, SbEventsPage, SbMarketplacePage,
@@ -134,6 +135,10 @@ export function clientRoutes(user) {
       <Route path="/sb-tracking/conducteurs" element={<ProtectedRoute allowedRoles={['user']}><FleetDriversPage /></ProtectedRoute>} />
       <Route path="/sb-tracking/alertes" element={<ProtectedRoute allowedRoles={['user']}><FleetAlertsPage /></ProtectedRoute>} />
       <Route path="/sb-tracking/zones" element={<ProtectedRoute allowedRoles={['user']}><FleetGeofencesPage /></ProtectedRoute>} />
+      <Route path="/famille" element={<ProtectedRoute allowedRoles={['user']}><FamilyPage /></ProtectedRoute>} />
+      <Route path="/famille/lieux" element={<ProtectedRoute allowedRoles={['user']}><FamilyPlacesPage /></ProtectedRoute>} />
+      <Route path="/famille/rejoindre" element={<ProtectedRoute allowedRoles={['user']}><FamilyJoinPage /></ProtectedRoute>} />
+      <Route path="/famille/alertes" element={<ProtectedRoute allowedRoles={['user']}><FamilyAlertsPage /></ProtectedRoute>} />
       <Route path="/wallet/payout-method" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><PayoutMethodPage /></ProtectedRoute>} />
       <Route path="/wallet/linked-accounts" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><LinkedAccountsPage /></ProtectedRoute>} />
       <Route path="/finance" element={<Navigate to="/wallet" replace />} />

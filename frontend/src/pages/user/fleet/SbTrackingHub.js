@@ -25,7 +25,7 @@ const SbTrackingHub = () => {
     { key: 'conducteurs', label: 'Conducteurs', desc: `${c.drivers || 0} conducteur(s)`, Icon: UsersThree, to: '/sb-tracking/conducteurs', accent: 'from-fuchsia-500 to-purple-600' },
     { key: 'alertes', label: 'Alertes', desc: c.unread_alerts ? `${c.unread_alerts} non lue(s)` : 'Aucune alerte', Icon: BellRinging, to: '/sb-tracking/alertes', accent: 'from-rose-500 to-red-600', badge: c.unread_alerts },
     { key: 'zones', label: 'Géo-zones', desc: `${c.geofences || 0} zone(s)`, Icon: Polygon, to: '/sb-tracking/zones', accent: 'from-amber-500 to-orange-600' },
-    { key: 'famille', label: 'Famille', desc: 'Localiser ses proches', Icon: UsersFour, to: '/tracking', accent: 'from-pink-500 to-rose-500' },
+    { key: 'famille', label: 'Famille', desc: 'Localiser ses proches', Icon: UsersFour, to: '/famille', accent: 'from-pink-500 to-rose-500' },
     { key: 'employes', label: 'Employés', desc: 'Bientôt', Icon: Briefcase, soon: true, accent: 'from-cyan-500 to-sky-600' },
     { key: 'rapports', label: 'Rapports', desc: 'Bientôt', Icon: ChartBar, soon: true, accent: 'from-slate-500 to-gray-700' },
   ];
