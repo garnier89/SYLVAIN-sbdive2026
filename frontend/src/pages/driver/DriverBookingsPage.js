@@ -202,13 +202,27 @@ const DriverBookingsPage = () => {
         {/* RIDES */}
         {tab === 'rides' && rides.length === 0 && <p className="text-center text-gray-400 text-sm py-10" data-testid="bookings-empty">Aucune réservation.</p>}
         {tab === 'rides' && rides.map((ride) => {
-          const acceptedMs = ride.accepted_at ? new Date(ride.accepted_at).getTime() : 0;
-          const delayMs = (Number(rules.start_delay_minutes) || 0) * 60 * 1000;
-          // During the delay window: cancel is available, start is locked.
-          const withinDelay = acceptedMs && (nowTs - acceptedMs < delayMs);
-          const canCancel = filter === 'upcoming' && ride.status === 'accepted' && withinDelay;
-          const canStart = filter === 'upcoming' && ride.status === 'accepted' && !withinDelay;
-          const minsLeft = withinDelay ? Math.ceil((delayMs - (nowTs - acceptedMs)) / 60000) : 0;
+          const isScheduled = !!ride.scheduled_at;
+          let canStart; let canCancel; let startLabel;
+          if (isScheduled) {
+            // Réservation programmée : démarrable 40 min avant l'HEURE DU RENDEZ-VOUS
+            // (scheduled_at), pas l'heure d'acceptation. Libérable tant que non démarrée.
+            const earliestMs = new Date(ride.scheduled_at).getTime() - 40 * 60 * 1000;
+            canStart = filter === 'upcoming' && ride.status === 'accepted' && nowTs >= earliestMs;
+            canCancel = filter === 'upcoming' && ride.status === 'accepted';
+            startLabel = canStart
+              ? rules.start_button_label
+              : `Démarrable à ${new Date(earliestMs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+          } else {
+            // Course instantanée : fenêtre courte après acceptation (réglage admin).
+            const acceptedMs = ride.accepted_at ? new Date(ride.accepted_at).getTime() : 0;
+            const delayMs = (Number(rules.start_delay_minutes) || 0) * 60 * 1000;
+            const withinDelay = acceptedMs && (nowTs - acceptedMs < delayMs);
+            canCancel = filter === 'upcoming' && ride.status === 'accepted' && withinDelay;
+            canStart = filter === 'upcoming' && ride.status === 'accepted' && !withinDelay;
+            const minsLeft = withinDelay ? Math.ceil((delayMs - (nowTs - acceptedMs)) / 60000) : 0;
+            startLabel = canStart ? rules.start_button_label : `Démarrable dans ${minsLeft} min`;
+          }
           return (
             <BookingCard key={ride.id} ride={ride} badge="Réservation de taxi" badgeColor="#E11900" testId={`booking-${ride.id}`}>
               {filter === 'pending' ? (
@@ -220,7 +234,7 @@ const DriverBookingsPage = () => {
                 <div className="flex gap-3 items-center">
                   <CallButton rideId={ride.id} compact testId={`call-client-${ride.id}`} />
                   {canCancel && (
-                    <button onClick={() => doCancelBooking(ride)} className="px-6 py-2.5 rounded-full border border-red-300 text-red-600 font-bold text-sm" data-testid={`cancel-booking-${ride.id}`}>Annuler</button>
+                    <button onClick={() => doCancelBooking(ride)} className="px-6 py-2.5 rounded-full border border-red-300 text-red-600 font-bold text-sm" data-testid={`cancel-booking-${ride.id}`}>{isScheduled ? 'Relâcher' : 'Annuler'}</button>
                   )}
                   <button
                     onClick={() => canStart && doStart(ride)}
@@ -229,7 +243,7 @@ const DriverBookingsPage = () => {
                     style={{ background: GREEN }}
                     data-testid={`start-booking-${ride.id}`}
                   >
-                    {canStart ? rules.start_button_label : `Démarrable dans ${minsLeft} min`}
+                    {startLabel}
                   </button>
                 </div>
               )}

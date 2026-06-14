@@ -1,3 +1,14 @@
+## NEW - 2026-06-14 (526) - ⏱️ Fenêtre de démarrage des réservations basée sur l'HEURE DU RDV (40 min), pas l'heure de commande
+- **Question/anomalie user** : « le temps de démarrage est-il pris en fonction de l'heure de la commande ? » → RDV 15h00 doit être démarrable à 14h20 (40 min avant), pas en fonction de l'heure de réservation (midi).
+- **Bug trouvé** : côté chauffeur `DriverBookingsPage.js`, le bouton « Démarrable dans X min » était calculé sur `accepted_at + start_delay_minutes (20min)` (= heure d'acceptation/commande) → pour un RDV 15h accepté à 12h05, il disait « démarrable à 12h25 ». Absurde.
+- **Correctif** :
+  - Constante `SCHEDULED_ACTIVATION_MIN` 45 → **40** (calculée sur `scheduled_at`, jamais l'heure de commande ; commentaire explicite).
+  - Backend `update_ride_status` : nouveau **garde** — un chauffeur ne peut passer une réservation programmée à `arriving` (« en route/démarrer ») que dans les 40 min précédant le RDV, sinon HTTP 400 « Trop tôt : vous pourrez démarrer 40 min avant le rendez-vous (dans environ X min) ». Admins non bloqués.
+  - Frontend chauffeur : pour les réservations programmées, fenêtre de démarrage = `scheduled_at − 40 min`, label **« Démarrable à HH:MM »** (heure locale du RDV) ; bouton **« Relâcher »** dispo tant que non démarrée.
+- **Testé** : curl — RDV +90 min → arriving **bloqué** (message clair) ; RDV +30 min (dans la fenêtre) → arriving **autorisé**. Compile OK. ⚠️ Visible en prod après REDÉPLOIEMENT.
+
+
+
 ## NEW - 2026-06-14 (525) - 🚕 Refonte planification de trajets (A→D) + bande de suivi style Uber, certifié
 - **Plaintes user** : client voit « démarrée » alors que le chauffeur n'a pas démarré ; aucun message sur qui a accepté / n° de réservation ; pas de garde anti-double-réservation ; conflit « chauffeur dans une autre course » ; sentiment d'être « bloqué » sur la page course.
 - **Bug racine trouvé** : le doc course stocke `mode` mais le code lisait `ride.get("ride_mode")` (toujours None) → la suspension anti-abus et la non-révélation du téléphone ne se déclenchaient JAMAIS pour les réservations programmées. Corrigé (clés sur `scheduled_at`).

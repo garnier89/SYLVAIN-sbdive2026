@@ -95,7 +95,10 @@ VALID_TRANSITIONS = {
 CONTACT_REVEAL_MINUTES = 30  # reveal a scheduled ride's client phone only within X min of pickup
 
 # ── Planification de trajets — fenêtres anti-confusion / anti-conflit ──
-SCHEDULED_ACTIVATION_MIN = 45   # une réservation acceptée ne devient "course active" que X min avant le départ
+# IMPORTANT : ces fenêtres sont calculées par rapport à l'HEURE DU RENDEZ-VOUS
+# (scheduled_at), PAS à l'heure de commande. Ex. RDV 15h00 → démarrage possible
+# dès 14h20 (40 min avant), quelle que soit l'heure de réservation (midi, etc.).
+SCHEDULED_ACTIVATION_MIN = 40   # le chauffeur peut démarrer / la course devient "active" 40 min avant le RDV
 SCHEDULED_DOUBLE_BOOK_MIN = 30  # un client ne peut pas avoir 2 réservations à moins de X min d'écart
 SCHEDULED_CONFLICT_MIN = 45     # un chauffeur ne peut pas cumuler 2 engagements qui se chevauchent (± X min)
 
@@ -1801,6 +1804,23 @@ async def update_ride_status(ride_id: str, request: Request):
     # Admins may force-start (e.g. they relayed the OTP and the phone is off).
     if new_status == "in_progress" and is_driver and not is_admin:
         raise HTTPException(status_code=400, detail="Le code OTP du client est requis pour démarrer la course")
+
+    # Réservation PROGRAMMÉE : le chauffeur ne peut la démarrer (passer "en route")
+    # que dans les SCHEDULED_ACTIVATION_MIN min précédant l'HEURE DU RENDEZ-VOUS
+    # (scheduled_at), jamais à l'heure de commande. Les admins ne sont pas bloqués.
+    if new_status == "arriving" and is_driver and not is_admin and ride.get("scheduled_at"):
+        sdt = _parse_iso(ride["scheduled_at"])
+        if sdt:
+            earliest = sdt - timedelta(minutes=SCHEDULED_ACTIVATION_MIN)
+            now_dt = datetime.now(timezone.utc)
+            if now_dt < earliest:
+                mins = int((earliest - now_dt).total_seconds() // 60)
+                raise HTTPException(
+                    status_code=400,
+                    detail=(f"Trop tôt : vous pourrez démarrer cette réservation "
+                            f"{SCHEDULED_ACTIVATION_MIN} min avant le rendez-vous "
+                            f"(dans environ {mins} min)."),
+                )
 
     now = datetime.now(timezone.utc).isoformat()
     update_data = {"status": new_status}
