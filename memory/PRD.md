@@ -1,3 +1,13 @@
+## NEW - 2026-06-14 (520) - 🧰 Refacto RideTrackingPage.js (extraction bannières, certifié 0 régression)
+- **Objectif** (P3, demande user) : réduire `RideTrackingPage.js` (1205 l.) sans casser le flux suivi de course (production), avec tests de non-régression.
+- **Fait** : extraction pure des 4 sous-composants présentationnels inline + 1 constante → nouveau fichier `pages/user/ride-tracking/TrackingBanners.jsx` (152 l.) : `RentalMeterBanner` (compteur Mise à disposition), `FlightWatchBanner` (statut vol aéroport), `PoolBadge` (places Pool restantes), `StatusDialog` (dialogue statut V3Cube), `STATUS_STEPS`. Composants 100% pilotés par props (aucune dépendance contexte/état). Imports d'icônes orphelines retirés de la page (`Check`, `Car`, `UsersThree`, `AirplaneTilt`). **Aucune logique d'état/WS/effets/handlers touchée.**
+- **Résultat** : `RideTrackingPage.js` **1205 → 1086 lignes** (-119). Compile **24 warnings (inchangé), 0 erreur**.
+- **Testé** : screenshot état recherche (radar Fort-de-France ✓) + testing_agent **iter411 = 100% / 0 bug / 0 régression** sur tout le flux (login → création course → écran recherche → popup politique annulation → modal annulation → écran annulé orange → réessayer). 0 erreur console. Rendu conditionnel des composants extraits correct.
+- ⚠️ Visible en prod après redéploiement.
+- **Reste P3** : itinéraires touristiques partageables ; complexité `core/access_ai.py` + `core/cashback.py`.
+
+
+
 ## NEW - 2026-06-14 (519) - ✈️🌍 Aéroports SB Drive internationaux DONE, testé
 - **Demande user** (P3) : étendre les aéroports « Transfert aéroport » à l'international. Liste validée : francophones + grands hubs mondiaux + Afrique (Côte d'Ivoire, Cameroun, Sénégal).
 - **Backend** (`core/airport.py`) : 16 aéroports ajoutés à `DEFAULT_AIRPORT_ZONES` (seed idempotent au démarrage, par code) : **Europe/AmNord francophones** BRU, GVA, YUL, MAD, LIS · **Hubs mondiaux** LHR, JFK, MIA, LAX, DXB, AMS, SIN, HND · **Afrique** ABJ (Abidjan), DLA (Douala), DSS (Dakar). Chacun avec lat/lng, radius_km, meeting_point FR. Aéroport de test résiduel (`TFE`) supprimé de `airport_zones`.
