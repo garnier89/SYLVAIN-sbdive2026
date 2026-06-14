@@ -199,6 +199,49 @@ MEDICAL = {
 
 VERTICALS["medical"] = MEDICAL
 
+
+# ── Verticale : Laboratoire & analyses (onboarding labo ; commandes via routes/lab.py) ──
+def _an(aid, cat, name, price, prep):
+    return {"id": aid, "category": cat, "name": name, "price": float(price),
+            "duration_min": 15, "online_only": False, "prep": prep}
+
+
+LAB = {
+    "label": "SB Labo — Analyses",
+    "accent": "indigo",
+    "home_surcharge": 25.0,  # prélèvement à domicile
+    "categories": [
+        {"id": "hematologie", "label": "Hématologie", "icon": "Drop"},
+        {"id": "biochimie", "label": "Biochimie", "icon": "Flask"},
+        {"id": "hormonologie", "label": "Hormonologie", "icon": "Flask"},
+        {"id": "serologie", "label": "Sérologie / Infectiologie", "icon": "Virus"},
+        {"id": "urine", "label": "Analyses d'urine", "icon": "Flask"},
+        {"id": "vitamines", "label": "Vitamines & carences", "icon": "Pill"},
+    ],
+    "services": [
+        _an("l_nfs", "hematologie", "NFS (Numération Formule Sanguine)", 25, "Aucune préparation"),
+        _an("l_groupe", "hematologie", "Groupe sanguin & Rhésus", 22, "Aucune préparation"),
+        _an("l_ferritine", "hematologie", "Ferritine", 22, "Aucune préparation"),
+        _an("l_crp", "hematologie", "CRP (inflammation)", 15, "Aucune préparation"),
+        _an("l_glycemie", "biochimie", "Glycémie à jeun", 12, "À jeun 8h"),
+        _an("l_chol", "biochimie", "Bilan lipidique (cholestérol)", 30, "À jeun 12h"),
+        _an("l_creat", "biochimie", "Créatinine", 12, "Aucune préparation"),
+        _an("l_hepatique", "biochimie", "Bilan hépatique", 30, "À jeun"),
+        _an("l_hba1c", "biochimie", "Hémoglobine glyquée (HbA1c)", 25, "Aucune préparation"),
+        _an("l_tsh", "hormonologie", "TSH (thyroïde)", 28, "Aucune préparation"),
+        _an("l_hcg", "hormonologie", "Bêta-HCG (grossesse)", 25, "Aucune préparation"),
+        _an("l_testo", "hormonologie", "Testostérone", 32, "Prélèvement le matin"),
+        _an("l_covid", "serologie", "Test PCR COVID-19", 45, "Aucune préparation"),
+        _an("l_vih", "serologie", "Sérologie VIH", 30, "Aucune préparation"),
+        _an("l_hepatiteb", "serologie", "Sérologie Hépatite B", 28, "Aucune préparation"),
+        _an("l_ecbu", "urine", "ECBU (infection urinaire)", 20, "1er jet écarté"),
+        _an("l_vitd", "vitamines", "Vitamine D", 35, "Aucune préparation"),
+        _an("l_vitb12", "vitamines", "Vitamine B12", 28, "Aucune préparation"),
+    ],
+}
+
+VERTICALS["lab"] = LAB
+
 # Demo providers per vertical (idempotent seed; no user_id = not loggable).
 _AV = "https://images.unsplash.com/"
 _BEAUTY_PROVIDERS = [

@@ -8,7 +8,7 @@ import { proServicesAdminAPI } from '../../services/api';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const eur = (n) => `${Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-const VERTICAL_LABEL = { beauty: 'Beauté', trades: 'Métiers & Réparation', medical: 'Santé / Praticiens' };
+const VERTICAL_LABEL = { beauty: 'Beauté', trades: 'Métiers & Réparation', medical: 'Santé / Praticiens', lab: 'Laboratoires' };
 
 const STATUS = {
   approved: { l: 'Validé', cls: 'bg-emerald-50 text-emerald-600 border-emerald-100', Ic: CheckCircle },

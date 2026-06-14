@@ -767,6 +767,15 @@ const UserHome = () => {
           <CaretRight size={18} className="text-[#94A3B8]" />
         </motion.button>
         <button onClick={() => navigate('/praticien')} className="mt-2 w-full text-center text-[11px] font-semibold text-teal-600 py-1" data-testid="practitioner-space-link">Vous êtes médecin / infirmier ? Espace praticien →</button>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/analyses')} className="mt-3 w-full rounded-[20px] bg-indigo-50/70 border border-indigo-100 p-3.5 flex items-center gap-4 text-left" data-testid="lab-tests-btn">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-sm"><FirstAid size={26} weight="duotone" className="text-indigo-600" /></div>
+          <div className="flex-1">
+            <h4 className={`text-sm font-extrabold text-[#1F2430] ${HEAD}`}>Analyses & laboratoire</h4>
+            <p className={`text-[11px] text-[#475569] mt-0.5 leading-relaxed ${BODY}`}>Prise de sang à domicile ou au labo · résultats en ligne.</p>
+          </div>
+          <CaretRight size={18} className="text-[#94A3B8]" />
+        </motion.button>
+        <button onClick={() => navigate('/laboratoire')} className="mt-2 w-full text-center text-[11px] font-semibold text-indigo-600 py-1" data-testid="lab-space-link">Vous êtes un laboratoire ? Espace labo →</button>
       </section>
     ),
     ondemand: (

@@ -1,0 +1,26 @@
+{
+  "summary": "Phase 3c — SB Labo (analyses & résultats en ligne). Backend pytest 17/17 PASS sur /api/lab/* : catalog (6 catégories, 18 analyses, home_surcharge=25, accent indigo), provider status, sécurité (403 patient sur feed labo, 400 sans analyses/date), E2E complet (commande domicile +25€ NFS+Glycémie via SB Pay → feed labo → accept → upload results (normal+high) → PDF binary 200 %PDF), cancel + remboursement, admin /admin/pro-services/lab/providers, non-régression medical/beauty/trades configs. Frontend Playwright (mobile 430px) 10/10 : TEST1 /analyses lab-page indigo + 7 cat-* (cat-all + 6) + 18 analyses (analysis-l_nfs/l_glycemie/...). TEST2 sélection multi → goto-book affiche 'Panier · 2 analyse(s) 37,00€' → lab-book avec sel-l_nfs/sel-l_glycemie et préparation 'À jeun' affichée. TEST3 loc-lab→loc-home fait passer book-total de 37€ à 62€ (+25€), lab-any + book-date + slot-09:00 + pay-sbpay → confirm-order → lab-done. TEST4 my-orders-btn → lab-orders liste les commandes (4 visibles : 3 Résultats prêts + 1 Annulé). TEST5 freeuser /laboratoire affiche lab-dashboard + 1 feed-xxx + 2 job-xxx + 1 accept-xxx. TEST6 E2E : accept-xxx → fill-xxx → results-sheet → res-value-0/res-unit-0/res-ref-0/res-flag-high-0/res-conclusion + submit-results → 'Résultats publiés'. TEST7 patient lab-orders contient 3 boutons results-xxx (téléchargement PDF blob). TEST8 admin /admin/pro-services/lab affiche admin-pro-services + titre 'Laboratoires'. TEST9 /home → lab-tests-btn navigue /analyses + lab-space-link visible. TEST10 non-régression /mes-ordonnances /beauty /services-metiers tous chargent OK.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter_phase3c_lab.py", "/app/test_reports/pytest/iter403_lab.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/lab.py upload_results retourne 200 OK alors qu'une réponse 200 avec 'status: results_ready' est correcte, mais le payload pourrait inclure le doc complet pour économiser un GET côté client.",
+    "Validation manquante côté backend sur scheduled_time (n'importe quelle chaîne acceptée) : restreindre aux SLOTS prédéfinis (07:30-12:00) ferait sens pour éviter incohérence avec la contrainte 'matin uniquement' affichée côté UI.",
+    "lab.py crée des notifs en masse à tous les labos approuvés is_available=True quand provider_id=None : OK pour quelques labos, mais sans throttling/topic ça scale mal. Considérer un pub/sub.",
+    "LabTestsPage.js (269 lignes) — limite acceptable, mais 4 sous-écrans dans 1 composant. Extraire BookScreen/OrdersScreen/DoneScreen si l'on ajoute des features.",
+    "Le bouton 'goto-book' affiche le subtotal SANS le surcharge domicile (qui n'est connu qu'après choix), comportement attendu — vérifié visuellement 37,00€ avant book, 62,00€ après loc-home (cohérent)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter_phase3c_lab.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% (10/10 scénarios)"},
+  "test_credentials": "Patient famtester@demo.sb / FamTest123! ; Laboratoire validé freeuser@demo.sb / FreeUser123! (hématologie+biochimie approved) ; Admin admin@superapp.com / SuperAdmin123!. Login direct via POST /api/auth/login (cookies httpOnly).",
+  "seed_data_creation": "Plusieurs commandes lab_orders créées durant l'E2E pytest + Playwright : NFS+Glycémie domicile (results_ready), NFS au labo (cancelled+refund), ainsi qu'une commande supplémentaire via UI (results_ready). Toutes persistées en base et visibles dans /analyses.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 3c complète 100%. Endpoints lab opérationnels: /api/lab/catalog (public), /api/lab/orders (POST patient avec analysis_ids + at_home + provider_id null=feed + scheduled_date + scheduled_time + payment_method sbpay/cash), GET /api/lab/orders (split upcoming/past), POST /api/lab/orders/{id}/cancel (+remboursement SB Pay), GET /api/lab/orders/{id}/results/pdf, POST /api/lab/orders/{id}/accept (lab), POST /api/lab/orders/{id}/results (lab, commission 15% auto), GET /api/lab/provider/{status,orders}, GET /api/admin/pro-services/lab/providers. Commission 15% calculée via routes.pro_services._commission_pct. La page /laboratoire pour un user non-labo affiche le formulaire d'inscription (LabProviderPage gère register vs dashboard via provider/status). Sur mobile 430px, la barre 'goto-book' s'affiche en bas de l'écran shop dès qu'au moins une analyse est cochée.",
+  "rca of the issue": "Aucun bug. Initial TEST1 (categories=1, analyses=0) et TEST4 (cancel=0) étaient des artefacts de timing : le selector lab-page apparaît AVANT la complétion du fetch /catalog (idem pour /orders après done-orders). En revérifiant avec wait_for_selector explicite sur 'analysis-l_nfs' et timeout 2.5s après lab-orders, tout est OK (7 cat-* + 18 analyses + 4 commandes visibles)."
+}

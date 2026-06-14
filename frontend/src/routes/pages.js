@@ -80,6 +80,8 @@ export const ProServiceSpacePage = lazy(() => import('../pages/user/ProServiceSp
 export const PetServicesPage = lazy(() => import('../pages/user/PetServicesPage'));
 export const PractitionerPage = lazy(() => import('../pages/user/PractitionerPage'));
 export const MyPrescriptionsPage = lazy(() => import('../pages/user/MyPrescriptionsPage'));
+export const LabTestsPage = lazy(() => import('../pages/user/LabTestsPage'));
+export const LabProviderPage = lazy(() => import('../pages/user/LabProviderPage'));
 export const PetCarePage = lazy(() => import('../pages/user/PetCarePage'));
 export const CarCarePage = lazy(() => import('../pages/user/CarCarePage'));
 export const AutoPartsPage = lazy(() => import('../pages/user/AutoPartsPage'));
