@@ -42,6 +42,7 @@ const sidebarConfig = [
         { label: 'Demandes de service', path: '/admin/requests' },
         { label: 'Vérification documents', path: '/admin/documents' },
         { label: 'Dépanneurs (validation)', path: '/admin/towing-operators' },
+        { label: 'Prestataires Beauté', path: '/admin/pro-services/beauty' },
       ]},
       { icon: Buildings, label: 'Entreprise / Flotte', path: '/admin/company' },
       { icon: Storefront, label: 'Boutiques', path: '/admin/stores' },

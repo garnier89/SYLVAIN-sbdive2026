@@ -1,0 +1,43 @@
+{
+  "summary": "iter400 — Tested Phase 1 Services Beauté marketplace E2E (FR). Client /beauty loads with all 7 categories + cat-all chips, 37 services rendered (expected ~36, 1 extra — minor), category filter (coiffure: 8 services) + free-text search ('manucure': 2) both work. Booking screen renders all flow controls: loc-salon/loc-home (+15€ home surcharge correctly added: 35€→50€), prov-any + named providers, date+slots, pay-sbpay and pay-cash. For service-b_maq_mariage (online_only), pay-cash button is correctly DISABLED. my-bookings-btn opens beauty-bookings with existing bookings. /pro/beauty with famtester (non-registered) shows pro-register form with all fields (reg-name, reg-cat-{id}, reg-city, reg-bio, reg-submit). /pro/beauty with freeuser shows pro-dashboard (availability='Disponible', 0 feed items, 1 job item — already accepted in earlier runs). /admin/pro-services/beauty loads admin-pro-services: 0 en attente / 7 validés / 11,25€ commission / 63,75€ versé, commission-input=15, 7 provider rows. Marketplace commission flow validated via admin KPI: GMV 75€ across 2 completed bookings → 15% commission (11,25€) + 85% payout (63,75€). ONE UX BUG found.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "BeautyMarketPage (booking screen) + global EmailVerificationBanner",
+        "issue": "The fixed-bottom 'Vérifiez votre email — Activez votre compte pour le sécuriser' banner OVERLAPS the primary CTA 'Payer & réserver / Réserver' (data-testid=confirm-booking). On mobile (430×900) the banner sits flush at the bottom and visually covers the button area. Playwright clicks with force=True intermittently fail (banner intercepts the click), so unverified users may be unable to confirm a booking depending on tap location. Repro: login famtester (unverified), open any service, fill form, scroll to bottom — banner is in front of the gradient bar containing confirm-booking.",
+        "selector": "[data-testid=\"confirm-booking\"] vs the email verification banner",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "BeautyMarketPage booking screen",
+        "issues": [
+          "Bottom CTA bar should add safe-area / banner offset (e.g., pb-[88px]) when EmailVerificationBanner is visible, or the banner should yield to the active sticky CTA."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX: Email verification banner overlapping confirm-booking CTA. Either (a) increase bottom padding of the booking footer when banner is visible, (b) hide banner on /beauty booking screen, or (c) raise z-index of the CTA bar above the banner.",
+    "MINOR: Beauty config returns 37 services instead of expected 36 — verify seed list (likely one extra service was added).",
+    "OPTIONAL: Add a 'logout' button to the pro dashboard for test isolation (had to use localStorage.clear)."
+  ],
+  "critical_code_review_comments": [
+    "BeautyMarketPage.js (330 lines) is healthy in size; consider extracting BookingScreen, BookingsList, and ReviewSheet sub-components if more flows are added.",
+    "ProServiceSpacePage.js (239 lines) is fine; register form has no field-level validation feedback — bad input simply gets a server error without highlighting which field.",
+    "AdminProServices.js (168 lines) is clean. commission-input has no upper bound; consider 0–50% max validation on the frontend.",
+    "Sticky email verification banner (global) should not z-index over per-page sticky CTAs. Add a 'dismissable' or 'context-aware' guard."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (per main-agent curl validation; not re-tested)", "frontend": "92% (1 high-priority UX overlay bug; all flows functionally verified)" },
+  "test_credentials": "Used famtester@demo.sb / FamTest123! (client), freeuser@demo.sb / FreeUser123! (provider), admin@superapp.com / SuperAdmin123! (admin) — all worked via /login/email.",
+  "seed_data_creation": "Created additional beauty bookings during testing (admin now shows GMV 75€ / 2 completed prestations / 11.25€ commission / 63.75€ payout). May want to reset for clean state.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All beauty marketplace flows are wired and functional. Only blocker is the email-verification sticky banner overlapping the confirm-booking button on mobile viewport (430px). When testing booking creation with Playwright force=True click sometimes succeeds, sometimes is intercepted by the banner — REAL users tapping that area may miss the CTA. After fix, re-run confirm-booking → beauty-done flow. freeuser already has accepted bookings in pipeline; if testing accept flow, create a fresh prov-any booking first as famtester.",
+  "rca_of_the_issue": "EmailVerificationBanner is rendered as a fixed-bottom element (position: fixed, bottom: 0) at the App level. BeautyMarketPage booking screen also uses a sticky bottom bar containing 'Payer & réserver'. The two overlap in z-index/space on mobile viewport. Mitigation: (1) raise pb on .beauty-book container to clear the banner; (2) detect banner presence and translate the booking footer up; (3) hide banner on transactional screens. Backend is unaffected — POST /api/pro-services/beauty/bookings succeeds when the click does reach the button (confirmed via earlier successful bookings recorded in admin KPI)."
+}

@@ -7,6 +7,7 @@ import AdminCarpoolRevenue from '../pages/admin/AdminCarpoolRevenue';
 import AdminCodeHealth from '../pages/admin/AdminCodeHealth';
 import AdminTowingOperators from '../pages/admin/AdminTowingOperators';
 import AdminAutoParts from '../pages/admin/AdminAutoParts';
+import AdminProServices from '../pages/admin/AdminProServices';
 import AdminDebts from '../pages/admin/AdminDebts';
 import AdminDriverActivity from '../pages/admin/AdminDriverActivity';
 import AdminTripTimings from '../pages/admin/AdminTripTimings';
@@ -146,6 +147,8 @@ export function adminRoutes() {
       <Route path="code-health" element={<AdminCodeHealth />} />
       <Route path="towing-operators" element={<AdminTowingOperators />} />
       <Route path="auto-parts" element={<AdminAutoParts />} />
+      <Route path="pro-services" element={<AdminProServices vertical="beauty" />} />
+      <Route path="pro-services/:vertical" element={<AdminProServices />} />
       <Route path="debts" element={<AdminDebts />} />
       <Route path="driver-activity" element={<AdminDriverActivity />} />
       <Route path="trip-timings" element={<AdminTripTimings />} />

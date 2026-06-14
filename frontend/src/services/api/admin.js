@@ -18,13 +18,21 @@ export const towingAdminAPI = {
 };
 
 // Admin — SB Auto Pièces (catalogue + commandes)
-export const autoPartsAdminAPI = {
-  products: () => api.get('/admin/auto-parts/products'),
+export const autoPartsAdminAPI = {  products: () => api.get('/admin/auto-parts/products'),
   createProduct: (data) => api.post('/admin/auto-parts/products', data),
   updateProduct: (id, data) => api.put(`/admin/auto-parts/products/${id}`, data),
   deleteProduct: (id) => api.delete(`/admin/auto-parts/products/${id}`),
   orders: () => api.get('/admin/auto-parts/orders'),
   setStatus: (id, data) => api.post(`/admin/auto-parts/orders/${id}/status`, data),
+};
+
+// Admin — SB Pro Services (prestataires KYC + commission + revenus, par verticale)
+export const proServicesAdminAPI = {
+  providers: (v) => api.get(`/admin/pro-services/${v}/providers`),
+  verify: (v, providerId, data) => api.post(`/admin/pro-services/${v}/providers/${providerId}/verify`, data),
+  getSettings: (v) => api.get(`/admin/pro-services/${v}/settings`),
+  setSettings: (v, data) => api.put(`/admin/pro-services/${v}/settings`, data),
+  revenue: (v) => api.get(`/admin/pro-services/${v}/revenue`),
 };
 
 // Admin — types d'assistance SB Access (CRUD éditable)
