@@ -23,6 +23,8 @@ const SbTrackingHub = () => {
   };
 
   const isPro = !!pro?.active;
+  const daysLeft = pro?.days_left ?? 0;
+  const showRenew = isPro && daysLeft <= 7;
   const c = ctx?.counts || {};
   const tiles = [
     { key: 'carte', label: 'Carte temps réel', desc: 'Suivi GPS en direct', Icon: MapTrifold, to: '/sb-tracking/carte', accent: 'from-emerald-500 to-teal-600' },
@@ -60,6 +62,17 @@ const SbTrackingHub = () => {
           </div>
         )}
       </div>
+
+      {showRenew && (
+        <button onClick={() => navigate('/sb-tracking/pro')} className="mx-4 -mt-4 mb-1 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-white shadow-lg active:scale-[0.99] transition-transform" style={{ background: 'linear-gradient(135deg,#b45309,#d97706)' }} data-testid="pro-renew-banner">
+          <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><Crown size={20} weight="fill" className="text-amber-200" /></div>
+          <div className="flex-1 text-left">
+            <p className="font-extrabold text-sm">{daysLeft <= 0 ? 'Votre abonnement Pro expire aujourd’hui' : `Votre abonnement Pro expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`}</p>
+            <p className="text-[11px] text-white/80">Renouvelez pour garder commande à distance, sécurité & rapports</p>
+          </div>
+          <span className="text-[11px] font-bold bg-white/20 px-2.5 py-1.5 rounded-full">Renouveler</span>
+        </button>
+      )}
 
       {!isPro && (
         <button onClick={() => navigate('/sb-tracking/pro')} className="mx-4 -mt-4 mb-1 w-[calc(100%-2rem)] rounded-2xl p-3.5 flex items-center gap-3 text-white shadow-lg active:scale-[0.99] transition-transform" style={{ background: 'linear-gradient(135deg,#4338ca,#7c3aed)' }} data-testid="pro-cta-banner">

@@ -98,6 +98,7 @@ async def grant_pro(user_id: str, plan: str, session_id: str):
         {"user_id": user_id},
         {"$set": {"user_id": user_id, "plan": plan, "status": "active",
                   "expires_at": expires, "last_session_id": session_id,
+                  "reminded_at": None,
                   "updated_at": _now_dt().isoformat()},
          "$setOnInsert": {"started_at": _now_dt().isoformat()}},
         upsert=True,
@@ -181,3 +182,61 @@ async def checkout_status(session_id: str, request: Request):
     return {"status": status.status if status else "unknown",
             "payment_status": status.payment_status if status else "unknown",
             "pro": await get_pro_status(user["id"])}
+
+
+# ----------------------------------------------------------------- background loop
+async def run_pro_expiry_reminders() -> int:
+    """Notify managers whose Pro access expires within 3 days (or just lapsed),
+    at most once per 24h. Returns the number of reminders sent. Idempotent."""
+    from core.notifications import create_notification
+    from core.email import send_pro_expiry_reminder
+
+    frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    renew_url = f"{frontend}/sb-tracking/pro" if frontend else "/sb-tracking/pro"
+    sent = 0
+    now = _now_dt()
+    soon = (now + timedelta(days=3)).isoformat()
+    floor = (now - timedelta(days=1)).isoformat()  # lapsed up to 1d ago → final nudge
+    remind_after = (now - timedelta(hours=24)).isoformat()
+    cursor = db.pro_subscriptions.find({
+        "status": "active",
+        "expires_at": {"$gte": floor, "$lte": soon},
+        "$or": [{"reminded_at": None}, {"reminded_at": {"$exists": False}},
+                {"reminded_at": {"$lte": remind_after}}],
+    })
+    for sub in await cursor.to_list(500):
+        try:
+            exp = datetime.fromisoformat(sub["expires_at"])
+            days_left = max(0, (exp - now).days)
+            plan = sub.get("plan", "pro_monthly")
+            plan_label = PRO_PACKAGES.get(plan, {}).get("label", "SB Tracking Pro")
+            expires_label = exp.strftime("%d/%m/%Y")
+            await create_notification(
+                sub["user_id"], "pro_expiry",
+                "👑 Abonnement SB Tracking Pro",
+                f"Votre accès Pro expire le {expires_label}. Renouvelez pour ne rien perdre.",
+                {"url": "/sb-tracking/pro", "days_left": days_left})
+            u = await db.users.find_one({"id": sub["user_id"]}, {"_id": 0, "email": 1, "name": 1})
+            if u and u.get("email"):
+                await send_pro_expiry_reminder(
+                    u["email"], u.get("name", ""), days_left=days_left,
+                    expires_label=expires_label, plan_label=plan_label, renew_url=renew_url)
+            await db.pro_subscriptions.update_one(
+                {"user_id": sub["user_id"]}, {"$set": {"reminded_at": now.isoformat()}})
+            sent += 1
+        except Exception:
+            pass
+    return sent
+
+
+async def pro_expiry_reminder_loop():
+    """Twice a day: send Pro expiry reminders (push/WS + email with renewal link)."""
+    import asyncio
+    while True:
+        try:
+            await run_pro_expiry_reminders()
+        except Exception:
+            pass
+        await asyncio.sleep(12 * 3600)  # toutes les 12h
+
+

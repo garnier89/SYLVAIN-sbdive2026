@@ -977,3 +977,17 @@ async def send_ferry_settlement(to: str, company_name: str, period: str, stats: 
     period_slug = (period or "releve").replace("/", "-").replace(" ", "_")
     attachments = [{"filename": f"releve-ferry-{period_slug}.pdf", "content": pdf_bytes}] if pdf_bytes else []
     await _send_with_attachments(to, f"🚢 Relevé SB Ferry · {company_name} · {period}", html, attachments)
+
+
+
+# ── SB Tracking Pro — subscription expiry reminder ──────────────────────────
+async def send_pro_expiry_reminder(to: str, name: str, *, days_left: int, expires_label: str, plan_label: str, renew_url: str) -> None:
+    """Remind a manager that their SB Tracking Pro access is about to expire."""
+    when = "aujourd'hui" if days_left <= 0 else (f"dans {days_left} jour" + ("s" if days_left > 1 else ""))
+    body = f"""
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;margin:0 0 12px;">Bonjour {name or ''},</p>
+        <p style="color:#2b3040;font-size:15px;line-height:1.6;">Votre abonnement <strong>{plan_label}</strong> expire <strong>{when}</strong> (le {expires_label}).</p>
+        <p style="color:#2b3040;font-size:14px;line-height:1.6;">Renouvelez dès maintenant pour conserver l'accès aux fonctions Pro : commande &amp; contrôle de flotte, Centre de s&eacute;curit&eacute;, rapports PDF, r&ocirc;le superviseur et v&eacute;hicules/employ&eacute;s illimit&eacute;s.</p>
+        <p style="margin:20px 0;"><a href="{renew_url}" style="background:#7c3aed;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:10px;display:inline-block;">Renouveler SB Tracking Pro</a></p>
+        <p style="color:#9aa0ac;font-size:12px;line-height:1.5;">Si vous ne renouvelez pas, votre compte basculera automatiquement en version gratuite (limites de v&eacute;hicules/employ&eacute;s).</p>"""
+    await _send(to, f"👑 Votre abonnement SB Tracking Pro expire {when}", _shell("SB Tracking Pro 👑", "#7c3aed", body))

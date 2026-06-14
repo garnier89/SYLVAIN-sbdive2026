@@ -545,10 +545,12 @@ async def lifespan(app: FastAPI):
     no_movement_task = asyncio.create_task(no_movement_loop())
     from routes.pet_care import pet_health_reminder_loop
     pet_health_task = asyncio.create_task(pet_health_reminder_loop())
+    from routes.tracking_pro import pro_expiry_reminder_loop
+    pro_expiry_task = asyncio.create_task(pro_expiry_reminder_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task, flight_hold_task, carpool_task, debt_task, no_movement_task, pet_health_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task, flight_hold_task, carpool_task, debt_task, no_movement_task, pet_health_task, pro_expiry_task):
         if task:
             task.cancel()
     client.close()
