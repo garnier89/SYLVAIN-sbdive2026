@@ -47,8 +47,6 @@ const RideChoosePage = () => {
   const routerLocation = useLocation();
   const modeId = params.get('mode') || 'standard';
   const mode = useMemo(() => MODES.find((m) => m.id === modeId) || MODES[0], [modeId]);
-  // SB Ferry (catégorie 'access') = billetterie maritime, pas une course taxi.
-  useEffect(() => { if (modeId === 'access') navigate('/ferry', { replace: true }); }, [modeId, navigate]);
 
   const isRental = mode.ride_type === 'rental';
   const isBuddy = mode.id === 'buddy_driver';

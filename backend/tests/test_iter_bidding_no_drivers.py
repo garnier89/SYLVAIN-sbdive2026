@@ -1,9 +1,10 @@
-"""iter — Les courses « Enchères / Proposition de tarif » se créent même sans
-chauffeur en ligne (modèle d'enchère inversée), alors que les courses instantanées
-standard sont bloquées (409 no_drivers_available) pour proposer la planification.
+"""iter — Règle « sans chauffeur en ligne » (demande explicite utilisateur) :
+quand AUCUN chauffeur n'est connecté, on ne peut NI commander un taxi standard NI
+négocier le tarif (enchères) → la seule option proposée est de PLANIFIER le trajet.
+Les DEUX retournent 409 no_drivers_available (avec can_schedule=True).
 
 Le test bascule TEMPORAIREMENT les chauffeurs en ligne hors-ligne puis les restaure
-systématiquement (try/finally), pour ne pas perturber l'environnement de preview.
+systématiquement (try/finally) pour ne pas perturber la preview.
 """
 import asyncio
 import requests
@@ -22,7 +23,7 @@ def _login():
     return r.json()["access_token"]
 
 
-def test_bidding_created_without_online_drivers_standard_blocked():
+def test_standard_and_bidding_blocked_without_drivers_only_scheduling():
     async def _get_online():
         docs = await db.drivers.find({"status": "approved", "is_online": True}, {"_id": 0, "id": 1}).to_list(1000)
         return [d["id"] for d in docs]
@@ -33,29 +34,35 @@ def test_bidding_created_without_online_drivers_standard_blocked():
 
     loop = asyncio.get_event_loop()
     online_ids = loop.run_until_complete(_get_online())
-    created_id = None
+    sched_id = None
     try:
         loop.run_until_complete(_set_online(online_ids, False))
         tok = _login()
         H = {"Authorization": f"Bearer {tok}"}
         base = {**PICKUP, **DROPOFF, "vehicle_type": "sb", "payment_method": "cash"}
 
-        # Standard instant → 409 no_drivers_available
-        r1 = requests.post(f"{BASE_URL}/api/rides", headers=H,
-                           json={**base, "ride_type": "instant", "mode_id": "standard"}, timeout=20)
-        assert r1.status_code == 409, r1.text
-        detail = r1.json().get("detail")
-        assert isinstance(detail, dict) and detail.get("code") == "no_drivers_available"
+        def assert_no_drivers(resp):
+            assert resp.status_code == 409, resp.text
+            d = resp.json().get("detail")
+            assert isinstance(d, dict) and d.get("code") == "no_drivers_available"
+            assert d.get("can_schedule") is True
 
-        # Bidding (proposition de tarif) → 200 même sans chauffeur
-        r2 = requests.post(f"{BASE_URL}/api/rides", headers=H,
-                           json={**base, "ride_type": "bidding", "mode_id": "bidding", "proposed_fare": 14.0}, timeout=20)
-        assert r2.status_code == 200, r2.text
-        d2 = r2.json()
-        created_id = d2.get("id")
-        assert d2.get("status") == "pending"
-        assert created_id
+        # Standard instant → bloqué
+        assert_no_drivers(requests.post(f"{BASE_URL}/api/rides", headers=H,
+                          json={**base, "ride_type": "instant", "mode_id": "standard"}, timeout=20))
+        # Enchères / proposition de tarif → AUSSI bloqué (pas de négociation en direct)
+        assert_no_drivers(requests.post(f"{BASE_URL}/api/rides", headers=H,
+                          json={**base, "ride_type": "bidding", "mode_id": "bidding", "proposed_fare": 14.0}, timeout=20))
+
+        # En revanche, PLANIFIER (scheduled_at futur) reste possible sans chauffeur.
+        from datetime import datetime, timezone, timedelta
+        sched = (datetime.now(timezone.utc) + timedelta(hours=3)).isoformat()
+        r3 = requests.post(f"{BASE_URL}/api/rides", headers=H,
+                           json={**base, "ride_type": "scheduled", "mode_id": "book_later", "scheduled_at": sched}, timeout=20)
+        assert r3.status_code == 200, r3.text
+        sched_id = r3.json().get("id")
+        assert r3.json().get("status") == "pending"
     finally:
         loop.run_until_complete(_set_online(online_ids, True))
-        if created_id:
-            loop.run_until_complete(db.rides.delete_one({"id": created_id}))
+        if sched_id:
+            loop.run_until_complete(db.rides.delete_one({"id": sched_id}))

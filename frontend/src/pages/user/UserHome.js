@@ -512,8 +512,9 @@ const UserHome = () => {
     const tiles = home.map((c) => {
       const v = TAXI_VISUAL[c.key] || TAXI_DEFAULT;
       // SB Access (catégorie 'assist') ouvre la page dédiée SB Drive Access (/access).
-      // SB Ferry (catégorie 'access') ouvre la billetterie maritime (/ferry).
-      const path = c.key === 'assist' ? '/access' : c.key === 'access' ? '/ferry' : `/course?mode=${c.key}`;
+      // SB Ferry (catégorie 'ferry') ouvre la billetterie maritime (/ferry).
+      // 'access' (Taxi PMR) = vraie course taxi accessible (véhicule 'accessible').
+      const path = c.key === 'assist' ? '/access' : c.key === 'ferry' ? '/ferry' : `/course?mode=${c.key}`;
       // Dashboard-defined icon (image/emoji) drives the tile; v.icon is the fallback.
       return { id: `svccat-${c.key}`, name: c.name, icon: v.icon, customIcon: c.icon, imageFit: c.image_fit, bg: v.bg, iconColor: v.iconColor, path };
     });

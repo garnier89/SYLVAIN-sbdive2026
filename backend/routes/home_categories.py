@@ -145,6 +145,7 @@ _SEED = [
     ("taxi", "assist", "Taxi\nAssistance", "HandHeart", "bg-rose-50", "text-rose-500", "/taxi?mode=assist", False),
     ("taxi", "corporate", "Taxi\nCorporate", "Briefcase", "bg-slate-50", "text-slate-600", "/taxi?mode=corporate", False),
     ("taxi", "access", "Taxi\nPMR", "Wheelchair", "bg-indigo-50", "text-indigo-600", "/taxi?mode=access", False),
+    ("taxi", "ferry", "SB\nFerry", "Boat", "bg-sky-50", "text-sky-600", "/ferry", False),
     # ---- Delivery ----
     ("delivery", "food-delivery", "Livraison\nRepas", "ForkKnife", "bg-rose-50", "text-rose-500", "/food", True),
     ("delivery", "grocery-delivery", "Livraison\nCourses", "Storefront", "bg-emerald-50", "text-emerald-500", "/food?type=grocery", True),

@@ -232,7 +232,7 @@ const TaxiHubPage = () => {
     } catch (e) { toast.error('Erreur enregistrement'); }
   };
 
-  const selectMode = (id) => { if (id === 'access') return navigate('/ferry'); navigate(`/course?mode=${id}`); };
+  const selectMode = (id) => { if (id === 'ferry') return navigate('/ferry'); navigate(`/course?mode=${id}`); };
   const toggleRemind = async (key, name) => {
     const isOn = remindedKeys.has(key);
     setRemindedKeys((prev) => { const n = new Set(prev); if (isOn) n.delete(key); else n.add(key); return n; });

@@ -466,12 +466,10 @@ async def create_ride(data: RideRequest, request: Request):
             )
 
     # ── Instant rides need a driver online; otherwise prompt to schedule ──
-    # Exception : les courses « Enchères / Proposition de tarif » suivent un modèle
-    # d'enchère inversée — elles sont créées même sans chauffeur en ligne, afin que
-    # les chauffeurs puissent enchérir / contre-proposer dès qu'ils se connectent.
-    incoming_ride_type_chk = getattr(data, "ride_type", "instant") or "instant"
-    is_bidding_req = incoming_ride_type_chk == "bidding" or mode_id == "bidding" or bool(getattr(data, "is_bidding", False))
-    if not getattr(data, "scheduled_at", None) and not is_bidding_req:
+    # S'applique aux courses standard ET aux enchères (« proposez votre tarif ») :
+    # sans aucun chauffeur connecté, on ne peut ni commander ni négocier en direct —
+    # la seule option proposée au client est de PLANIFIER son trajet.
+    if not getattr(data, "scheduled_at", None):
         online_count = await db.drivers.count_documents({"status": "approved", "is_online": True})
         if online_count == 0:
             raise HTTPException(status_code=409, detail={
