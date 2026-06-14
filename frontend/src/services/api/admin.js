@@ -17,6 +17,15 @@ export const towingAdminAPI = {
   revenue: () => api.get('/admin/towing/revenue'),
 };
 
+// Admin — ambulanciers partenaires (validation KYC + commission + revenus)
+export const ambulanceAdminAPI = {
+  operators: () => api.get('/admin/ambulance/operators'),
+  verify: (userId, data) => api.post(`/admin/ambulance/operators/${userId}/verify`, data),
+  getSettings: () => api.get('/admin/ambulance/settings'),
+  setSettings: (data) => api.put('/admin/ambulance/settings', data),
+  revenue: () => api.get('/admin/ambulance/revenue'),
+};
+
 // Admin — SB Auto Pièces (catalogue + commandes)
 export const autoPartsAdminAPI = {  products: () => api.get('/admin/auto-parts/products'),
   createProduct: (data) => api.post('/admin/auto-parts/products', data),

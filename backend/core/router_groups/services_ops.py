@@ -46,6 +46,7 @@ from routes.pro_services import admin_router as pro_services_admin_router
 from routes.medical import router as medical_router
 from routes.lab import router as lab_router
 from routes.ambulance import router as ambulance_router
+from routes.ambulance import admin_router as ambulance_admin_router
 
 ROUTERS = [
     driver_pro_router,
@@ -92,4 +93,5 @@ ROUTERS = [
     medical_router,
     lab_router,
     ambulance_router,
+    ambulance_admin_router,
 ]

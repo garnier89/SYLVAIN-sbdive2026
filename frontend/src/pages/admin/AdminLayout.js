@@ -42,6 +42,7 @@ const sidebarConfig = [
         { label: 'Demandes de service', path: '/admin/requests' },
         { label: 'Vérification documents', path: '/admin/documents' },
         { label: 'Dépanneurs (validation)', path: '/admin/towing-operators' },
+        { label: 'Ambulanciers (validation)', path: '/admin/ambulance-operators' },
         { label: 'Prestataires Beauté', path: '/admin/pro-services/beauty' },
         { label: 'Prestataires Métiers', path: '/admin/pro-services/trades' },
         { label: 'Praticiens (validation)', path: '/admin/pro-services/medical' },

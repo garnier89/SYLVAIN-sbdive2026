@@ -9,9 +9,10 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Phone, MapPin, CheckCircle, Clock, CircleNotch, ClockCounterClockwise,
-  Heartbeat, Wind, Pulse, Brain, Warning, Drop, Fire, FirstAid, Ambulance, Crosshair,
+  Heartbeat, Wind, Pulse, Brain, Warning, Drop, Fire, FirstAid, Ambulance, Crosshair, Wallet, Money,
 } from '@phosphor-icons/react';
 import AmbulanceMap from '../../components/AmbulanceMap';
+import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const AMB = `${API}/api/ambulance`;
@@ -21,15 +22,17 @@ const TIMELINE = [
   { key: 'en_route', label: 'Ambulance en route' },
   { key: 'arrived', label: 'Équipe sur place' },
 ];
-const stepIndex = (s) => (s === 'arrived' ? 2 : s === 'completed' ? 2 : 1);
+const stepIndex = (s) => (s === 'searching' ? 0 : s === 'arrived' || s === 'completed' ? 2 : 1);
 
 const AmbulancePage = () => {
+  const { money } = useLocale();
   const navigate = useNavigate();
   const [cfg, setCfg] = useState({ emergency_types: [], emergency_numbers: [] });
   const [step, setStep] = useState('form'); // form | tracking | done | history
   const [etype, setEtype] = useState('');
   const [pickup, setPickup] = useState({ address: '', lat: null, lng: null });
   const [patient, setPatient] = useState({ name: '', phone: '', symptoms: '' });
+  const [payment, setPayment] = useState('sbpay');
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [request, setRequest] = useState(null);
@@ -60,7 +63,7 @@ const AmbulancePage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({
           emergency_type: etype, pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
-          patient_name: patient.name, patient_phone: patient.phone, symptoms: patient.symptoms,
+          patient_name: patient.name, patient_phone: patient.phone, symptoms: patient.symptoms, payment_method: payment,
         }),
       });
       const d = await r.json();
@@ -85,7 +88,12 @@ const AmbulancePage = () => {
     setCompleting(true);
     try {
       const r = await fetch(`${AMB}/requests/${request.id}/complete`, { method: 'POST', credentials: 'include' });
-      if (r.ok) { clearInterval(pollRef.current); setStep('done'); } else toast.error('Erreur');
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        clearInterval(pollRef.current);
+        if (d.balance != null) toast.success(`Intervention réglée · solde ${money(Number(d.balance))}`);
+        setStep('done');
+      } else toast.error(d.detail || 'Erreur');
     } catch { toast.error('Erreur réseau'); } finally { setCompleting(false); }
   };
   const cancel = async () => {
@@ -141,13 +149,14 @@ const AmbulancePage = () => {
     const pickupPt = { lat: request.pickup_lat, lng: request.pickup_lng };
     const ambPos = live.ambulance_position;
     const arrived = request.status === 'arrived';
+    const searching = request.status === 'searching';
     return (
       <div className="mobile-container min-h-screen bg-gray-50 pb-32" data-testid="ambulance-tracking">
         <div className="bg-red-600 px-4 pt-4 pb-4 flex items-center gap-3">
           <button onClick={cancel} className="text-white" data-testid="ambulance-cancel-btn"><ArrowLeft size={22} /></button>
           <div>
             <h1 className="text-base font-bold text-white">{request.emergency_label}</h1>
-            <p className="text-xs text-white/80" data-testid="ambulance-eta">{arrived ? 'Équipe sur place' : `Ambulance en route · ~${live.eta_minutes} min`}</p>
+            <p className="text-xs text-white/80" data-testid="ambulance-eta">{searching ? 'Recherche d\'une ambulance…' : arrived ? 'Équipe sur place' : `Ambulance en route · ~${live.eta_minutes} min`}</p>
           </div>
         </div>
 
@@ -169,35 +178,42 @@ const AmbulancePage = () => {
                     {active ? <CheckCircle size={16} weight="fill" /> : <Clock size={14} />}
                   </div>
                   <span className={`text-sm ${active ? 'font-semibold text-gray-900' : 'text-gray-400'}`}>{t.label}</span>
-                  {i === 1 && !arrived && <span className="ml-auto text-xs font-bold text-red-500">~{live.eta_minutes} min</span>}
+                  {i === 1 && !arrived && !searching && <span className="ml-auto text-xs font-bold text-red-500">~{live.eta_minutes} min</span>}
                 </div>
               );
             })}
           </div>
 
           {/* Crew card */}
-          <div className="bg-white rounded-2xl p-4" data-testid="ambulance-crew-card">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                <Ambulance size={24} className="text-emerald-600" weight="fill" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-sm">{crew.name}</p>
-                <p className="text-xs text-gray-500">{crew.company} · {crew.vehicle}</p>
-                <span className="text-[11px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded inline-block mt-1">{crew.plate}</span>
-              </div>
-              <a href="tel:15" className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0" data-testid="ambulance-call-crew">
-                <Phone size={18} weight="fill" className="text-white" />
-              </a>
+          {searching ? (
+            <div className="bg-white rounded-2xl p-5 flex items-center gap-3" data-testid="ambulance-searching">
+              <CircleNotch size={22} className="animate-spin text-red-500" />
+              <p className="text-sm text-gray-600">Nous cherchons une ambulance disponible près de vous…</p>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-4" data-testid="ambulance-crew-card">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                  <Ambulance size={24} className="text-emerald-600" weight="fill" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 text-sm">{crew.name}</p>
+                  <p className="text-xs text-gray-500">{crew.company} · {crew.vehicle}</p>
+                  <span className="text-[11px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded inline-block mt-1">{crew.plate}</span>
+                </div>
+                <a href="tel:15" className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0" data-testid="ambulance-call-crew">
+                  <Phone size={18} weight="fill" className="text-white" />
+                </a>
+              </div>
+            </div>
+          )}
 
           {/* Patient recap */}
           <div className="bg-white rounded-2xl p-4 space-y-2 text-sm" data-testid="ambulance-recap">
             <div className="flex justify-between"><span className="text-gray-500">Patient</span><span className="font-semibold text-gray-900">{request.patient_name || '—'}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Position</span><span className="font-semibold text-gray-900 truncate ml-2">{request.pickup_address || `${pickupPt.lat?.toFixed(4)}, ${pickupPt.lng?.toFixed(4)}`}</span></div>
             {request.symptoms && <div className="flex justify-between"><span className="text-gray-500">Symptômes</span><span className="font-semibold text-gray-900 truncate ml-2">{request.symptoms}</span></div>}
-            <div className="flex justify-between"><span className="text-gray-500">Prise en charge</span><span className="font-bold text-emerald-600">Incluse</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Frais d'intervention ({request.payment_method === 'cash' ? 'espèces' : 'SB Pay'})</span><span className="font-bold text-gray-900" data-testid="ambulance-total">{money(Number(request.total_price))}</span></div>
           </div>
         </div>
 
@@ -205,7 +221,7 @@ const AmbulancePage = () => {
         <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-200 p-4">
           <button onClick={complete} disabled={!arrived || completing}
             className="w-full py-4 rounded-xl font-bold text-white disabled:opacity-50 bg-red-500" data-testid="ambulance-complete-btn">
-            {completing ? 'Validation…' : arrived ? 'Patient pris en charge — clôturer' : 'En attente de l\'ambulance…'}
+            {completing ? 'Validation…' : arrived ? `Patient pris en charge — clôturer · ${money(Number(request.total_price))}` : 'En attente de l\'ambulance…'}
           </button>
         </div>
       </div>
@@ -251,13 +267,26 @@ const AmbulancePage = () => {
               const Icon = TYPE_ICON[t.id] || FirstAid;
               const on = etype === t.id;
               return (
-                <button key={t.id} onClick={() => setEtype(t.id)} className={`flex items-center gap-2 p-3 rounded-xl border text-left ${on ? 'border-red-500 bg-red-50' : 'border-gray-200'}`} data-testid={`etype-${t.id}`}>
-                  <Icon size={20} weight={on ? 'fill' : 'duotone'} className={on ? 'text-red-600' : 'text-gray-400'} />
-                  <span className={`text-xs font-semibold leading-tight ${on ? 'text-red-700' : 'text-gray-700'}`}>{t.label}</span>
+                <button key={t.id} onClick={() => setEtype(t.id)} className={`flex flex-col gap-1 p-3 rounded-xl border text-left ${on ? 'border-red-500 bg-red-50' : 'border-gray-200'}`} data-testid={`etype-${t.id}`}>
+                  <div className="flex items-center gap-2">
+                    <Icon size={20} weight={on ? 'fill' : 'duotone'} className={on ? 'text-red-600' : 'text-gray-400'} />
+                    <span className={`text-xs font-semibold leading-tight ${on ? 'text-red-700' : 'text-gray-700'}`}>{t.label}</span>
+                  </div>
+                  {t.base_fee != null && <span className="text-[10px] text-gray-400 ml-7">Intervention {money(Number(t.base_fee))}</span>}
                 </button>
               );
             })}
           </div>
+        </div>
+
+        {/* Payment */}
+        <div className="bg-white rounded-2xl p-4">
+          <p className="text-[10px] tracking-wide uppercase font-bold text-gray-500 mb-2">Paiement des frais d'intervention</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setPayment('sbpay')} className={`py-3 rounded-xl border text-sm font-semibold flex items-center justify-center gap-1.5 ${payment === 'sbpay' ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 text-gray-600'}`} data-testid="ambulance-pay-sbpay"><Wallet size={16} /> SB Pay</button>
+            <button onClick={() => setPayment('cash')} className={`py-3 rounded-xl border text-sm font-semibold flex items-center justify-center gap-1.5 ${payment === 'cash' ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 text-gray-600'}`} data-testid="ambulance-pay-cash"><Money size={16} /> Espèces</button>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-2">Les frais ne sont débités qu'à la clôture de l'intervention.</p>
         </div>
 
         {/* Patient */}
@@ -267,6 +296,10 @@ const AmbulancePage = () => {
           <input value={patient.phone} onChange={e => setPatient({ ...patient, phone: e.target.value })} placeholder="Téléphone de contact" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="ambulance-patient-phone" />
           <textarea value={patient.symptoms} onChange={e => setPatient({ ...patient, symptoms: e.target.value })} placeholder="Décrivez les symptômes (optionnel)" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none h-16" data-testid="ambulance-symptoms" />
         </div>
+
+        <button onClick={() => navigate('/espace-ambulancier')} className="w-full text-center text-sm font-semibold text-red-600 py-2 flex items-center justify-center gap-1.5" data-testid="ambulance-operator-link">
+          <Ambulance size={16} weight="fill" /> Vous êtes ambulancier ? Espace partenaire →
+        </button>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-200 p-4">
