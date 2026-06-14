@@ -15,7 +15,7 @@ const HIDDEN_PREFIXES = [
   '/real-estate/post', '/real-estate/edit', '/marketplace/sell-vehicle', '/ma-galerie',
   '/parcel', '/runner', '/driver/register',
   '/parking', '/giftcards', '/carpool', '/covoiturage',
-  '/events/', '/organizer', '/controle', '/sb-tracking', '/sb-market', '/towing', '/video-consult',
+  '/events/', '/organizer', '/controle', '/sb-tracking', '/sb-market', '/towing', '/video-consult', '/espace-depanneur',
 ];
 
 const DISMISS_KEY = 'verify_email_dismissed_for';

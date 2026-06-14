@@ -429,6 +429,9 @@ const TowingRequestPage = () => {
         <button onClick={() => navigate('/towing-partners')} className="w-full mt-5 text-center text-sm font-semibold text-gray-500 py-3" data-testid="towing-directory-link">
           Voir l'annuaire des dépanneurs partenaires →
         </button>
+        <button onClick={() => navigate('/espace-depanneur')} className="w-full text-center text-sm font-semibold text-blue-600 py-2 flex items-center justify-center gap-1.5" data-testid="towing-operator-link">
+          <Truck size={16} weight="fill" /> Vous êtes dépanneur ? Accéder à mon espace
+        </button>
       </div>
     </div>
   );

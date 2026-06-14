@@ -11,9 +11,11 @@ from fastapi import APIRouter, Request, HTTPException
 import uuid
 import hashlib
 from datetime import datetime, timezone
+from pymongo import ReturnDocument
 
 from core.config import db
 from core.deps import get_current_user, calculate_distance
+from core.notifications import create_notification
 
 router = APIRouter(prefix="/towing", tags=["towing"])
 
@@ -39,8 +41,9 @@ _OPERATORS = [
     {"name": "Mehdi T.", "company": "Roadside Pro", "rating": 4.6, "plate": "RP-555-ZZ", "truck": "Peugeot Boxer Dépanneuse"},
 ]
 
-SEARCH_SECONDS = 5      # temps de recherche avant assignation
+SEARCH_SECONDS = 5      # temps de recherche avant assignation (simulé)
 ARRIVE_SECONDS = 45     # durée simulée d'approche (compressée pour la démo)
+FALLBACK_SECONDS = 18   # si aucun vrai dépanneur n'accepte → assignation simulée
 
 
 def _now():
@@ -78,24 +81,37 @@ def _assign_operator(req_id: str) -> dict:
 
 
 def _live_state(req: dict) -> dict:
-    """Compute live status + operator position from elapsed time (no bg job)."""
+    """Compute live status + operator position.
+    - real operator: trust stored status + last ping position.
+    - simulated operator: interpolate position from time since accepted_at.
+    """
     status = req.get("status")
     if status in ("completed", "cancelled"):
         return {"status": status, "progress": 1.0, "eta_minutes": 0, "operator_position": None}
-    try:
-        created = datetime.fromisoformat(req["created_at"])
-    except Exception:
-        created = datetime.now(timezone.utc)
-    elapsed = (datetime.now(timezone.utc) - created).total_seconds()
     op = req.get("operator") or {}
+    if status == "searching":
+        return {"status": "searching", "progress": 0.0,
+                "eta_minutes": op.get("eta_minutes", 15) if op else 15, "operator_position": None}
+
+    # Real operator → use stored fields (updated via pings / status updates).
+    if req.get("operator_kind") == "real":
+        pos = req.get("operator_position") or req.get("operator_start")
+        return {
+            "status": status,
+            "progress": 1.0 if status == "arrived" else 0.5,
+            "eta_minutes": 0 if status == "arrived" else op.get("eta_minutes", 15),
+            "operator_position": pos,
+        }
+
+    # Simulated operator → interpolate from accepted_at.
+    try:
+        base = datetime.fromisoformat(req.get("accepted_at") or req["created_at"])
+    except Exception:
+        base = datetime.now(timezone.utc)
+    elapsed = (datetime.now(timezone.utc) - base).total_seconds()
     start = req.get("operator_start") or {}
     pickup = {"lat": req.get("pickup_lat"), "lng": req.get("pickup_lng")}
-
-    if elapsed < SEARCH_SECONDS:
-        return {"status": "searching", "progress": 0.0,
-                "eta_minutes": op.get("eta_minutes", 15), "operator_position": None}
-
-    progress = min(1.0, (elapsed - SEARCH_SECONDS) / ARRIVE_SECONDS)
+    progress = min(1.0, max(0.0, elapsed / ARRIVE_SECONDS))
     eta_remaining = max(0, round(op.get("eta_minutes", 15) * (1 - progress)))
     pos = None
     if start.get("lat") is not None and pickup.get("lat") is not None:
@@ -152,9 +168,6 @@ async def create_request(request: Request):
 
     breakdown = _price(problem_type, distance_km, _is_night())
     req_id = f"tow_{uuid.uuid4().hex[:12]}"
-    operator = _assign_operator(req_id)
-    # Operator starts ~ offset from the breakdown location (NE direction).
-    operator_start = {"lat": pickup_lat + 0.012, "lng": pickup_lng + 0.016}
 
     req = {
         "id": req_id,
@@ -177,13 +190,29 @@ async def create_request(request: Request):
         "distance_km": distance_km,
         "breakdown": breakdown,
         "total_price": breakdown["total"],
-        "operator": operator,
-        "operator_start": operator_start,
+        "operator_id": None,
+        "operator": None,
+        "operator_kind": None,
+        "operator_start": None,
+        "operator_position": None,
         "status": "searching",
         "payment_status": "pending",
         "created_at": _now(),
     }
     await db.towing_requests.insert_one(dict(req))
+    # Notify online operators in real time (best-effort).
+    try:
+        operators = await db.tow_operators.find({"is_online": True}, {"_id": 0, "user_id": 1}).to_list(100)
+        for op in operators:
+            if op.get("user_id") == user["id"]:
+                continue
+            await create_notification(
+                op["user_id"], "towing_request_new", "🚨 Nouvelle demande de dépannage",
+                f"{p['label']} · {req['pickup_address'] or 'à proximité'}",
+                {"request_id": req_id, "url": "/espace-depanneur"},
+            )
+    except Exception:
+        pass
     return _public(req)
 
 
@@ -200,6 +229,23 @@ async def get_request(req_id: str, request: Request):
     req = await db.towing_requests.find_one({"id": req_id, "user_id": user["id"]})
     if not req:
         raise HTTPException(status_code=404, detail="Demande introuvable")
+    # Fallback: if no real operator accepted within FALLBACK_SECONDS, assign a
+    # simulated one so the experience never dead-ends (preview / no partners online).
+    if req.get("status") == "searching" and not req.get("operator_id"):
+        try:
+            created = datetime.fromisoformat(req["created_at"])
+        except Exception:
+            created = datetime.now(timezone.utc)
+        if (datetime.now(timezone.utc) - created).total_seconds() >= FALLBACK_SECONDS:
+            operator = _assign_operator(req_id)
+            operator_start = {"lat": req["pickup_lat"] + 0.012, "lng": req["pickup_lng"] + 0.016}
+            req = await db.towing_requests.find_one_and_update(
+                {"id": req_id, "status": "searching", "operator_id": None},
+                {"$set": {"operator": operator, "operator_kind": "simulated",
+                          "operator_start": operator_start, "operator_position": operator_start,
+                          "status": "en_route", "accepted_at": _now()}},
+                return_document=ReturnDocument.AFTER,
+            ) or req
     return _public(req)
 
 
@@ -254,3 +300,172 @@ async def cancel_request(req_id: str, request: Request):
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Demande introuvable ou déjà terminée")
     return {"ok": True}
+
+
+# ── Operator space (espace dépanneur) — real partners ───────────────────────
+def _operator_public(op: dict) -> dict:
+    out = dict(op or {})
+    out.pop("_id", None)
+    return out
+
+
+@router.get("/operator/me")
+async def operator_me(request: Request):
+    user = await get_current_user(request)
+    op = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not op:
+        return {"registered": False}
+    # Stats: completed jobs + earnings.
+    jobs = await db.towing_requests.find(
+        {"operator_id": user["id"]}, {"_id": 0, "status": 1, "total_price": 1}).to_list(500)
+    completed = [j for j in jobs if j.get("status") == "completed"]
+    earnings = round(sum(float(j.get("total_price", 0) or 0) for j in completed), 2)
+    return {"registered": True, "operator": op, "stats": {
+        "completed": len(completed), "active": len([j for j in jobs if j.get("status") in ("en_route", "arrived")]),
+        "earnings": earnings,
+    }}
+
+
+@router.post("/operator/register")
+async def operator_register(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    existing = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
+    doc = {
+        "user_id": user["id"],
+        "name": body.get("name") or user.get("name", ""),
+        "company": body.get("company", ""),
+        "phone": body.get("phone", ""),
+        "plate": body.get("plate", ""),
+        "truck_type": body.get("truck_type", ""),
+        "city": body.get("city", ""),
+        "rating": (existing or {}).get("rating", 5.0),
+        "is_online": (existing or {}).get("is_online", False),
+        "last_lat": (existing or {}).get("last_lat"),
+        "last_lng": (existing or {}).get("last_lng"),
+        "created_at": (existing or {}).get("created_at") or _now(),
+        "updated_at": _now(),
+    }
+    await db.tow_operators.update_one({"user_id": user["id"]}, {"$set": doc}, upsert=True)
+    return _operator_public(doc)
+
+
+@router.post("/operator/online")
+async def operator_online(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    op = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not op:
+        raise HTTPException(status_code=400, detail="Inscrivez-vous comme dépanneur d'abord")
+    upd = {"is_online": bool(body.get("online", True)), "updated_at": _now()}
+    if body.get("lat") is not None and body.get("lng") is not None:
+        upd["last_lat"], upd["last_lng"] = body["lat"], body["lng"]
+    await db.tow_operators.update_one({"user_id": user["id"]}, {"$set": upd})
+    return {"ok": True, "is_online": upd["is_online"]}
+
+
+@router.get("/operator/feed")
+async def operator_feed(request: Request):
+    """Pending requests an operator can accept (searching, unassigned, recent)."""
+    user = await get_current_user(request)
+    op = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not op:
+        raise HTTPException(status_code=400, detail="Inscrivez-vous comme dépanneur d'abord")
+    docs = await db.towing_requests.find(
+        {"status": "searching", "operator_id": None}).sort("created_at", -1).to_list(50)
+    out = []
+    for d in docs:
+        d.pop("_id", None)
+        if op.get("last_lat") is not None and d.get("pickup_lat") is not None:
+            d["distance_km"] = round(calculate_distance(op["last_lat"], op["last_lng"], d["pickup_lat"], d["pickup_lng"]), 1)
+        out.append(d)
+    return out
+
+
+@router.get("/operator/jobs")
+async def operator_jobs(request: Request):
+    user = await get_current_user(request)
+    docs = await db.towing_requests.find({"operator_id": user["id"]}).sort("created_at", -1).to_list(50)
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
+
+@router.post("/requests/{req_id}/accept")
+async def operator_accept(req_id: str, request: Request):
+    """An operator claims a pending request (atomic). Real assignment."""
+    user = await get_current_user(request)
+    op = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not op:
+        raise HTTPException(status_code=400, detail="Inscrivez-vous comme dépanneur d'abord")
+    operator = {
+        "name": op.get("name", ""), "company": op.get("company", ""),
+        "rating": op.get("rating", 5.0), "plate": op.get("plate", ""),
+        "truck": op.get("truck_type", ""), "phone": op.get("phone", ""),
+        "eta_minutes": 15, "user_id": user["id"],
+    }
+    start = None
+    if op.get("last_lat") is not None:
+        start = {"lat": op["last_lat"], "lng": op["last_lng"]}
+    req = await db.towing_requests.find_one_and_update(
+        {"id": req_id, "status": "searching", "operator_id": None},
+        {"$set": {"operator_id": user["id"], "operator": operator, "operator_kind": "real",
+                  "operator_start": start, "operator_position": start,
+                  "status": "en_route", "accepted_at": _now()}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not req:
+        raise HTTPException(status_code=409, detail="Demande déjà prise ou indisponible")
+    await create_notification(
+        req["user_id"], "towing_accepted", "🚗 Un dépanneur arrive !",
+        f"{operator['name']} ({operator['company']}) a accepté votre demande.",
+        {"request_id": req_id, "url": "/towing"},
+    )
+    req.pop("_id", None)
+    return req
+
+
+@router.post("/requests/{req_id}/operator-status")
+async def operator_update_status(req_id: str, request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    new_status = body.get("status")
+    if new_status not in ("en_route", "arrived"):
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    res = await db.towing_requests.find_one_and_update(
+        {"id": req_id, "operator_id": user["id"], "status": {"$nin": ["completed", "cancelled"]}},
+        {"$set": {"status": new_status, "updated_at": _now()}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="Intervention introuvable")
+    label = "📍 Votre dépanneur est sur place" if new_status == "arrived" else "🚗 Dépanneur en route"
+    await create_notification(res["user_id"], "towing_status", label, res.get("problem_label", ""),
+                              {"request_id": req_id, "url": "/towing"})
+    res.pop("_id", None)
+    return res
+
+
+@router.post("/requests/{req_id}/operator-ping")
+async def operator_ping(req_id: str, request: Request):
+    """Operator shares live position; ETA recomputed from distance (~30 km/h)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    lat, lng = body.get("lat"), body.get("lng")
+    if lat is None or lng is None:
+        raise HTTPException(status_code=400, detail="Position requise")
+    req = await db.towing_requests.find_one({"id": req_id, "operator_id": user["id"]}, {"_id": 0})
+    if not req:
+        raise HTTPException(status_code=404, detail="Intervention introuvable")
+    eta = 0
+    if req.get("pickup_lat") is not None:
+        dist = calculate_distance(lat, lng, req["pickup_lat"], req["pickup_lng"])
+        eta = max(1, round(dist / 30 * 60))
+    operator = dict(req.get("operator") or {})
+    operator["eta_minutes"] = eta
+    await db.towing_requests.update_one(
+        {"id": req_id},
+        {"$set": {"operator_position": {"lat": lat, "lng": lng}, "operator": operator}},
+    )
+    await db.tow_operators.update_one({"user_id": user["id"]}, {"$set": {"last_lat": lat, "last_lng": lng}})
+    return {"ok": True, "eta_minutes": eta}
