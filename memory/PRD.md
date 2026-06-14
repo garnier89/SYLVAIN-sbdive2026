@@ -1,3 +1,12 @@
+## NEW - 2026-06-14 (522) - 🧹 Réduction complexité core/access_ai.py + core/cashback.py (tests d'abord, 0 régression)
+- **Demande user** (P3, qualité de code) : réduire la complexité cyclomatique (> 20) du code paiement/accès, avec tests de régression d'abord.
+- **Filet de sécurité (écrit AVANT refacto)** : `tests/test_iter_cashback_regression.py` (6 cas : normalize_method, _month_bounds + rollover déc., award éligible+idempotence, cas non éligibles, désactivé/plafond/taux0, résumé mensuel/all-time) + `tests/test_iter_access_ai_regression.py` (6 cas : haversine, _needs_match_score, classement+préférence en ligne immédiat, planifié garde offline, liste vide, prédiction matrice 7×24/pics/jour). **12/12 PASS** sur la base d'origine.
+- **Refacto (comportement inchangé)** : `access_ai.rank_access_drivers` **D(26)→C(13)** (helpers extraits `_extract_weights`, `_load_reliability_counts`, `_driver_reasons`, `_score_driver`) ; `access_ai.predict_access_demand` **C(20)→A** (`_build_demand_matrix`, `_top_peaks`, `_demand_levels`) ; `cashback.award_cashback` **C(19)→B(7)** (`_eligible_cashback` pur + `_credit_cashback_wallet`). **Aucune fonction > C** ; moyenne **A (4.9)** sur les 2 fichiers (radon).
+- **Testé** : 12/12 pytest re-verts après refacto + imports OK + backend boot health 200. ⚠️ Visible en prod après redéploiement.
+- **Backlog P3 restant** : (idée) vignette Open Graph pour la page publique `/circuit/:token` (acquisition organique SB Travel).
+
+
+
 ## NEW - 2026-06-14 (521) - 📲🗺️ Partage suivi dès la recherche (B) + Itinéraires touristiques partageables (A) DONE, testé 100%
 - **Demande user** : (B) proposer le partage du lien de suivi WhatsApp/SMS dès l'écran de recherche ; (A) sauvegarder + partager des itinéraires touristiques (périmètre : sauvegarde + lien public).
 - **Feature B (frontend seul)** : bouton **« Partager mon suivi à mes proches »** (`share-tracking-btn`) ajouté à l'état recherche de `RideTrackingPage.js`. `handleManualShare` crée un lien (`tripShareAPI.create`) + récupère les contacts de confiance → affiche `AutoShareLiveCard`. Carte **extraite** vers `ride-tracking/TrackingBanners.jsx` (réutilisée côté assigné) ; gère le cas **sans contact** (ligne générique WhatsApp + Copier le lien, `auto-share-generic`).

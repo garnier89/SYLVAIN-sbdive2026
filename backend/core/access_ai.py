@@ -86,6 +86,88 @@ def _ai_config(settings: dict) -> dict:
     return cfg
 
 
+def _extract_weights(cfg: dict):
+    """Retourne (w_dist, w_rate, w_need, w_rel, wsum) normalisés."""
+    w_dist = float(cfg.get("weight_distance", 0.40))
+    w_rate = float(cfg.get("weight_rating", 0.25))
+    w_need = float(cfg.get("weight_needs", 0.25))
+    w_rel = float(cfg.get("weight_reliability", 0.10))
+    wsum = (w_dist + w_rate + w_need + w_rel) or 1.0
+    return w_dist, w_rate, w_need, w_rel, wsum
+
+
+async def _load_reliability_counts(ids: list) -> dict:
+    """Nb de trajets adaptés déjà attribués par chauffeur (best-effort)."""
+    try:
+        agg = await db.access_bookings.aggregate([
+            {"$match": {"matched_driver_id": {"$in": ids}}},
+            {"$group": {"_id": "$matched_driver_id", "n": {"$sum": 1}}},
+        ]).to_list(500)
+        return {a["_id"]: a["n"] for a in agg}
+    except Exception as e:
+        logger.error("access_ai trips agg error: %s", e)
+        return {}
+
+
+def _driver_reasons(dist, rating, covered, needs, completed, online) -> list:
+    """Raisons lisibles (FR) accompagnant le score d'un chauffeur."""
+    reasons = []
+    if dist is not None:
+        reasons.append(f"À {dist:.1f} km")
+    reasons.append(f"Note {rating:.1f}★")
+    if covered:
+        reasons.append("Formé : " + ", ".join(CATEGORY_LABELS.get(c, c) for c in covered))
+    elif _need_categories(needs):
+        reasons.append("Formations à confirmer")
+    if completed:
+        reasons.append(f"{completed} trajet(s) adapté(s) réalisé(s)")
+    if online:
+        reasons.append("En ligne")
+    return reasons
+
+
+def _score_driver(d: dict, prof: dict, ctx: dict) -> dict:
+    """Calcule le score pondéré d'un chauffeur + son détail et ses raisons."""
+    online = bool(prof.get("is_online"))
+    rating = float(prof.get("rating", 5.0) or 5.0)
+    dist = _haversine_km(ctx["plat"], ctx["plng"], prof.get("current_lat"), prof.get("current_lng"))
+
+    # Score de distance : 1 au plus proche, 0 au-delà du rayon ; neutre si position inconnue.
+    if dist is None:
+        dist_score = 0.45
+    else:
+        dist_score = max(0.0, 1.0 - min(dist / ctx["max_radius"], 1.0))
+    rating_score = max(0.0, min(rating / 5.0, 1.0))
+    need_score, covered = _needs_match_score(ctx["needs"], d.get("access_trainings"))
+    completed = int(ctx["trips_counts"].get(d["id"], 0))
+    rel_score = min(completed / 20.0, 1.0)
+
+    w_dist, w_rate, w_need, w_rel, wsum = ctx["weights"]
+    total = (w_dist * dist_score + w_rate * rating_score
+             + w_need * need_score + w_rel * rel_score) / wsum
+    total = round(total * 100, 1)
+
+    return {
+        "driver_id": d["id"],
+        "name": d.get("name"),
+        "photo": d.get("access_photo"),
+        "bio": d.get("access_bio"),
+        "trainings": d.get("access_trainings") or [],
+        "online": online,
+        "rating": round(rating, 1),
+        "distance_km": round(dist, 1) if dist is not None else None,
+        "completed_trips": completed,
+        "score": total,
+        "score_breakdown": {
+            "distance": round(dist_score * 100, 1),
+            "rating": round(rating_score * 100, 1),
+            "needs": round(need_score * 100, 1),
+            "reliability": round(rel_score * 100, 1),
+        },
+        "reasons": _driver_reasons(dist, rating, covered, ctx["needs"], completed, online),
+    }
+
+
 async def rank_access_drivers(criteria: dict, settings: dict, limit: int = 5) -> list:
     """Classe les chauffeurs certifiés Access pour une demande donnée.
 
@@ -94,10 +176,8 @@ async def rank_access_drivers(criteria: dict, settings: dict, limit: int = 5) ->
     """
     cfg = _ai_config(settings)
     pickup = criteria.get("pickup") or {}
-    plat, plng = pickup.get("lat"), pickup.get("lng")
     needs = criteria.get("needs") or []
     immediate = not criteria.get("scheduled_at")
-    max_radius = float(cfg.get("max_radius_km", 25.0))
 
     drivers = await db.users.find(
         {"role": "driver", "access_certified": True},
@@ -114,77 +194,15 @@ async def rank_access_drivers(criteria: dict, settings: dict, limit: int = 5) ->
     ).to_list(500)
     profs = {p["user_id"]: p for p in prof_list}
 
-    # Fiabilité : nombre de trajets adaptés déjà attribués à ce chauffeur.
-    trips_counts = {}
-    try:
-        agg = await db.access_bookings.aggregate([
-            {"$match": {"matched_driver_id": {"$in": ids}}},
-            {"$group": {"_id": "$matched_driver_id", "n": {"$sum": 1}}},
-        ]).to_list(500)
-        trips_counts = {a["_id"]: a["n"] for a in agg}
-    except Exception as e:
-        logger.error("access_ai trips agg error: %s", e)
-
-    w_dist = float(cfg.get("weight_distance", 0.40))
-    w_rate = float(cfg.get("weight_rating", 0.25))
-    w_need = float(cfg.get("weight_needs", 0.25))
-    w_rel = float(cfg.get("weight_reliability", 0.10))
-    wsum = (w_dist + w_rate + w_need + w_rel) or 1.0
-
-    scored = []
-    for d in drivers:
-        prof = profs.get(d["id"]) or {}
-        online = bool(prof.get("is_online"))
-        rating = float(prof.get("rating", 5.0) or 5.0)
-        dlat, dlng = prof.get("current_lat"), prof.get("current_lng")
-        dist = _haversine_km(plat, plng, dlat, dlng)
-
-        # Score de distance : 1 au plus proche, 0 au-delà du rayon ; neutre si position inconnue.
-        if dist is None:
-            dist_score = 0.45
-        else:
-            dist_score = max(0.0, 1.0 - min(dist / max_radius, 1.0))
-        rating_score = max(0.0, min(rating / 5.0, 1.0))
-        need_score, covered = _needs_match_score(needs, d.get("access_trainings"))
-        completed = int(trips_counts.get(d["id"], 0))
-        rel_score = min(completed / 20.0, 1.0)
-
-        total = (w_dist * dist_score + w_rate * rating_score
-                 + w_need * need_score + w_rel * rel_score) / wsum
-        total = round(total * 100, 1)
-
-        reasons = []
-        if dist is not None:
-            reasons.append(f"À {dist:.1f} km")
-        reasons.append(f"Note {rating:.1f}★")
-        if covered:
-            reasons.append("Formé : " + ", ".join(CATEGORY_LABELS.get(c, c) for c in covered))
-        elif _need_categories(needs):
-            reasons.append("Formations à confirmer")
-        if completed:
-            reasons.append(f"{completed} trajet(s) adapté(s) réalisé(s)")
-        if online:
-            reasons.append("En ligne")
-
-        scored.append({
-            "driver_id": d["id"],
-            "name": d.get("name"),
-            "photo": d.get("access_photo"),
-            "bio": d.get("access_bio"),
-            "trainings": d.get("access_trainings") or [],
-            "online": online,
-            "rating": round(rating, 1),
-            "distance_km": round(dist, 1) if dist is not None else None,
-            "completed_trips": completed,
-            "score": total,
-            "score_breakdown": {
-                "distance": round(dist_score * 100, 1),
-                "rating": round(rating_score * 100, 1),
-                "needs": round(need_score * 100, 1),
-                "reliability": round(rel_score * 100, 1),
-            },
-            "reasons": reasons,
-        })
+    ctx = {
+        "plat": pickup.get("lat"),
+        "plng": pickup.get("lng"),
+        "needs": needs,
+        "max_radius": float(cfg.get("max_radius_km", 25.0)),
+        "weights": _extract_weights(cfg),
+        "trips_counts": await _load_reliability_counts(ids),
+    }
+    scored = [_score_driver(d, profs.get(d["id"]) or {}, ctx) for d in drivers]
 
     # Pour une demande immédiate, on privilégie les chauffeurs en ligne s'il y en a.
     if immediate and cfg.get("require_online_for_immediate", True):
@@ -211,17 +229,13 @@ def _parse_dt(s):
         return None
 
 
-async def predict_access_demand() -> dict:
-    """Agrège l'historique des réservations Access par jour de semaine × heure.
-    Renvoie une matrice 7×24, les créneaux de pointe et des totaux."""
+def _build_demand_matrix(docs: list):
+    """Agrège les réservations en matrice 7×24 + totaux par jour/heure/type."""
     matrix = [[0] * 24 for _ in range(7)]
     by_weekday = [0] * 7
     by_hour = [0] * 24
-    total = 0
     by_type = defaultdict(int)
-
-    docs = await db.access_bookings.find(
-        {}, {"_id": 0, "created_at": 1, "scheduled_at": 1, "trip_type": 1}).to_list(5000)
+    total = 0
     for b in docs:
         dt = _parse_dt(b.get("scheduled_at")) or _parse_dt(b.get("created_at"))
         if not dt:
@@ -232,8 +246,11 @@ async def predict_access_demand() -> dict:
         by_hour[hr] += 1
         by_type[b.get("trip_type") or "standard"] += 1
         total += 1
+    return matrix, by_weekday, by_hour, by_type, total
 
-    # Top créneaux de pointe.
+
+def _top_peaks(matrix: list, top: int = 6):
+    """Top créneaux (jour×heure) non vides, triés par fréquence décroissante."""
     flat = []
     for wd in range(7):
         for hr in range(24):
@@ -241,16 +258,29 @@ async def predict_access_demand() -> dict:
                 flat.append({"weekday": wd, "hour": hr, "count": matrix[wd][hr],
                              "label": f"{DAY_LABELS_FR[wd]} {hr:02d}h"})
     flat.sort(key=lambda x: x["count"], reverse=True)
-    peaks = flat[:6]
-    peak_max = peaks[0]["count"] if peaks else 0
+    peaks = flat[:top]
+    return peaks, (peaks[0]["count"] if peaks else 0)
 
-    # Niveau par créneau (relatif au pic) pour la heatmap.
+
+def _demand_levels(matrix: list, peak_max: int):
+    """Niveau 0..3 par créneau (relatif au pic) pour la heatmap."""
     levels = [[0] * 24 for _ in range(7)]
     if peak_max:
         for wd in range(7):
             for hr in range(24):
                 c = matrix[wd][hr]
                 levels[wd][hr] = 0 if c == 0 else (1 if c <= peak_max / 3 else (2 if c <= 2 * peak_max / 3 else 3))
+    return levels
+
+
+async def predict_access_demand() -> dict:
+    """Agrège l'historique des réservations Access par jour de semaine × heure.
+    Renvoie une matrice 7×24, les créneaux de pointe et des totaux."""
+    docs = await db.access_bookings.find(
+        {}, {"_id": 0, "created_at": 1, "scheduled_at": 1, "trip_type": 1}).to_list(5000)
+    matrix, by_weekday, by_hour, by_type, total = _build_demand_matrix(docs)
+    peaks, peak_max = _top_peaks(matrix)
+    levels = _demand_levels(matrix, peak_max)
 
     busiest_day = max(range(7), key=lambda i: by_weekday[i]) if total else None
     busiest_hour = max(range(24), key=lambda i: by_hour[i]) if total else None

@@ -66,6 +66,19 @@ async def award_cashback(user_id: str, amount, method: str, service: str,
         return 0.0
 
     cfg = await get_cashback_config()
+    cb = _eligible_cashback(amount, method, cfg)
+    if cb <= 0:
+        return 0.0
+    rate = float(cfg.get("rate_pct", 0) or 0)
+    return await _credit_cashback_wallet(user_id, amount, cb, rate, service, ref_id, label)
+
+
+def _eligible_cashback(amount: float, method: str, cfg: dict) -> float:
+    """Pure : cashback à créditer pour ce paiement (0.0 si non éligible).
+
+    Applique, dans l'ordre : activation, bucket de méthode éligible, montant
+    minimum, taux, puis plafond par transaction.
+    """
     if not cfg.get("enabled"):
         return 0.0
     if normalize_method(method) not in (cfg.get("methods") or []):
@@ -75,14 +88,17 @@ async def award_cashback(user_id: str, amount, method: str, service: str,
     rate = float(cfg.get("rate_pct", 0) or 0)
     if rate <= 0:
         return 0.0
-
     cb = round(amount * rate / 100.0, 2)
     cap = float(cfg.get("max_per_tx", 0) or 0)
     if cap > 0:
         cb = min(cb, cap)
-    if cb <= 0:
-        return 0.0
+    return cb if cb > 0 else 0.0
 
+
+async def _credit_cashback_wallet(user_id: str, amount: float, cb: float, rate: float,
+                                  service: str, ref_id, label: str | None) -> float:
+    """Insère le ledger (idempotent par (service, ref_id)) puis crédite le wallet
+    + écrit la transaction. Renvoie `cb`, ou 0.0 si déjà attribué."""
     # Idempotency: one cashback per (service, ref_id). When no ref is given we
     # generate a unique key so each standalone payment still earns once.
     key = f"{service}:{ref_id}" if ref_id else f"{service}:{uuid.uuid4().hex}"
