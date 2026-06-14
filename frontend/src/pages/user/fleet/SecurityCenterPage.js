@@ -12,7 +12,7 @@ const SEV_META = {
 const scoreColor = (s) => (s >= 90 ? '#10b981' : s >= 75 ? '#84cc16' : s >= 60 ? '#f59e0b' : '#ef4444');
 const gradeColor = (g) => ({ A: 'text-emerald-600', B: 'text-lime-600', C: 'text-amber-600', D: 'text-red-600' }[g] || 'text-gray-500');
 
-const Gaugue = ({ score }) => {
+const ScoreGauge = ({ score }) => {
   const s = score == null ? 0 : score;
   const col = score == null ? '#94a3b8' : scoreColor(s);
   const deg = (s / 100) * 360;
@@ -47,7 +47,7 @@ const SecurityCenterPage = () => {
           <button onClick={() => navigate('/sb-tracking')} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="back-btn"><ArrowLeft size={18} /></button>
           <div className="flex-1 min-w-0"><h1 className="text-lg font-extrabold flex items-center gap-1.5"><ShieldCheck size={20} weight="fill" /> Centre de sécurité</h1><p className="text-[11px] text-white/70">Vue unifiée des risques & score de conduite</p></div>
         </div>
-        <Gaugue score={data?.security_score} />
+        <ScoreGauge score={data?.security_score} />
         <p className="text-center text-[11px] text-white/70 mt-2">Score de sécurité de la flotte</p>
         <div className="grid grid-cols-3 gap-2 mt-4">
           <button onClick={() => setFilter('critical')} className="bg-white/10 rounded-xl px-2 py-2 text-center" data-testid="stat-critical"><p className="text-lg font-extrabold text-red-300">{counts.critical || 0}</p><p className="text-[10px] text-white/70">Critiques</p></button>
