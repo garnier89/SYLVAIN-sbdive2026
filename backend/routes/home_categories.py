@@ -190,6 +190,41 @@ _SEED_EXTRA = [
 ]
 
 
+# Real Pexels stock photos per tile (section, key) → URL. Tiles without an entry
+# keep their colored Phosphor icon. URLs are stable Pexels CDN hotlinks (200-verified).
+def _px(pid):
+    return f"https://images.pexels.com/photos/{pid}/pexels-photo-{pid}.jpeg?auto=compress&cs=tinysrgb&w=400"
+
+IMAGE_MAP = {
+    # Taxi / VTC (vehicles)
+    ("taxi", "standard"): _px(12471747),
+    ("taxi", "pool"): _px(26698502),
+    ("taxi", "rental"): _px(17568137),
+    ("taxi", "personal-driver"): _px(32946202),
+    ("taxi", "bidding"): _px(29781598),
+    ("taxi", "intercity"): _px(15039402),
+    ("taxi", "book_later"): _px(12471747),
+    # Delivery
+    ("delivery", "food-delivery"): _px(9461653),
+    ("delivery", "grocery-delivery"): _px(27088193),
+    ("delivery", "runner-courier"): _px(3877821),
+    ("delivery", "parcel"): _px(12725398),
+    # Parcel (own section)
+    ("parcel", "parcel-main"): _px(12725398),
+    # Beauty
+    ("beauty", "hair-care"): _px(5368632),
+    ("beauty", "skin-facial"): _px(33607393),
+    ("beauty", "nail-polish"): _px(2268404),
+    ("beauty", "makeup"): _px(34930126),
+    ("beauty", "mens-grooming"): _px(37764947),
+    # On-demand
+    ("ondemand", "massage"): _px(34930126),
+    # Marketplace
+    ("marketplace", "mp-cars"): _px(26698502),
+    ("marketplace", "mp-items"): _px(31266794),
+}
+
+
 async def seed_home_categories():
     """Seed default categories once (idempotent)."""
     if await db.home_categories.count_documents({}) > 0:
@@ -206,7 +241,7 @@ async def seed_home_categories():
             "label_en": label,
             "subtitle_fr": "",
             "icon_name": icon,
-            "image_url": None,
+            "image_url": IMAGE_MAP.get((section, key)),
             "bg_class": bg,
             "icon_color_class": color,
             "target_route": route,
@@ -230,7 +265,7 @@ async def seed_home_categories_extra():
         await db.home_categories.insert_one({
             "id": f"hcat_{uuid.uuid4().hex[:10]}",
             "section": section, "key": key, "label_fr": label, "label_en": label,
-            "subtitle_fr": "", "icon_name": icon, "image_url": None,
+            "subtitle_fr": "", "icon_name": icon, "image_url": IMAGE_MAP.get((section, key)),
             "bg_class": bg, "icon_color_class": color, "target_route": route,
             "display_order": count, "visible_home": visible, "status": "active",
             "created_at": datetime.now(timezone.utc).isoformat(),
