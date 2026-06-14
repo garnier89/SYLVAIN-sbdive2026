@@ -69,14 +69,36 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
+# Real product photos (Flickr CC via loremflickr, stable per `lock` seed).
+_CAT_IMG_KW = {
+    "moteur": "car,engine", "freinage": "brake,disc", "pneus": "tire,wheel",
+    "batteries": "car,battery", "filtres": "oil,filter", "huiles": "motor,oil",
+    "accessoires_auto": "car,interior", "pieces_moto": "motorcycle,part",
+    "casques": "motorcycle,helmet", "accessoires_moto": "motorcycle",
+}
+
+
+def _img_for(category: str, seed: int) -> str:
+    kw = _CAT_IMG_KW.get(category, "car,part")
+    return f"https://loremflickr.com/600/600/{kw}?lock={seed}"
+
+
 async def _ensure_seed():
     if await db.auto_parts_products.count_documents({}) > 0:
+        # Backfill real photos for products still missing an image.
+        async for p in db.auto_parts_products.find({"$or": [{"image": ""}, {"image": None}]}, {"id": 1, "category": 1}):
+            try:
+                seed = int(str(p["id"]).split("_")[-1])
+            except (ValueError, IndexError):
+                seed = abs(hash(p["id"])) % 900 + 1
+            await db.auto_parts_products.update_one(
+                {"id": p["id"]}, {"$set": {"image": _img_for(p.get("category", ""), seed)}})
         return
     docs = []
     for i, (name, brand, cat, typ, price, stock, compat, desc) in enumerate(_SEED):
         docs.append({
             "id": f"part_{i+1:03d}", "name": name, "brand": brand, "category": cat,
-            "type": typ, "price": float(price), "stock": int(stock), "image": "",
+            "type": typ, "price": float(price), "stock": int(stock), "image": _img_for(cat, i + 1),
             "compat": compat, "description": desc, "rating": round(4.3 + (i % 6) * 0.1, 1),
             "active": True, "created_at": _now(),
         })
@@ -206,6 +228,43 @@ async def get_order(order_id: str, request: Request):
     if not o:
         raise HTTPException(status_code=404, detail="Commande introuvable")
     return o
+
+
+# ── Mon garage (véhicules pour compatibilité) ───────────────────────────────
+@router.get("/garage")
+async def list_garage(request: Request):
+    user = await get_current_user(request)
+    vehicles = await db.auto_parts_garage.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return vehicles
+
+
+@router.post("/garage")
+async def add_vehicle(request: Request):
+    user = await get_current_user(request)
+    body = await request.json()
+    brand = (body.get("brand") or "").strip()
+    if not brand:
+        raise HTTPException(status_code=400, detail="La marque est requise")
+    vehicle = {
+        "id": f"veh_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "brand": brand,
+        "model": (body.get("model") or "").strip(),
+        "year": (body.get("year") or "").strip(),
+        "vehicle_type": body.get("vehicle_type", "auto"),
+        "created_at": _now(),
+    }
+    await db.auto_parts_garage.insert_one(dict(vehicle))
+    return vehicle
+
+
+@router.delete("/garage/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str, request: Request):
+    user = await get_current_user(request)
+    res = await db.auto_parts_garage.delete_one({"id": vehicle_id, "user_id": user["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Véhicule introuvable")
+    return {"ok": True}
 
 
 # ── Admin back-office ───────────────────────────────────────────────────────

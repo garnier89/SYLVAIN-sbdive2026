@@ -47,12 +47,34 @@ const AutoPartsPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [garage, setGarage] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [vehicle, setVehicle] = useState(null); // selected vehicle for compatibility
+  const [vForm, setVForm] = useState({ brand: '', model: '', year: '', vehicle_type: 'auto' });
 
   useEffect(() => { localStorage.setItem(CART_KEY, JSON.stringify(cart)); }, [cart]);
   useEffect(() => {
     fetch(`${API}/api/auto-parts/categories`).then(r => r.json())
       .then(d => { setCategories(d.categories || []); setDeliveryFee(d.delivery_fee ?? 5.9); }).catch(() => {});
+    fetch(`${API}/api/auto-parts/brands`).then(r => r.json()).then(d => setBrands(d.brands || [])).catch(() => {});
+    loadGarage();
   }, []);
+
+  const loadGarage = async () => {
+    try { const r = await fetch(`${API}/api/auto-parts/garage`, { credentials: 'include' }); setGarage(await r.json()); } catch { /* */ }
+  };
+  const addVehicle = async () => {
+    if (!vForm.brand) { toast.error('Choisissez une marque'); return; }
+    try {
+      const r = await fetch(`${API}/api/auto-parts/garage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(vForm),
+      });
+      if (r.ok) { toast.success('Véhicule ajouté'); setVForm({ brand: '', model: '', year: '', vehicle_type: 'auto' }); loadGarage(); }
+    } catch { toast.error('Erreur réseau'); }
+  };
+  const removeVehicle = async (id) => {
+    try { await fetch(`${API}/api/auto-parts/garage/${id}`, { method: 'DELETE', credentials: 'include' }); if (vehicle?.id === id) setVehicle(null); loadGarage(); } catch { /* */ }
+  };
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -61,10 +83,11 @@ const AutoPartsPage = () => {
       if (type) params.set('type', type);
       if (category) params.set('category', category);
       if (q.trim()) params.set('q', q.trim());
+      if (vehicle?.brand) params.set('brand', vehicle.brand);
       const r = await fetch(`${API}/api/auto-parts/products?${params}`);
       setProducts(await r.json());
     } catch { /* */ } finally { setLoading(false); }
-  }, [type, category, q]);
+  }, [type, category, q, vehicle]);
   useEffect(() => { const t = setTimeout(loadProducts, 250); return () => clearTimeout(t); }, [loadProducts]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
@@ -240,6 +263,48 @@ const AutoPartsPage = () => {
         </div>
         <div className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white border-t border-gray-200 p-4">
           <button onClick={() => { addToCart(active); setScreen('shop'); }} disabled={active.stock <= 0} className="w-full py-4 rounded-xl font-bold text-white bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2" data-testid="add-to-cart-btn"><ShoppingCart size={18} weight="fill" /> Ajouter au panier</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Mon garage ──
+  if (screen === 'garage') {
+    return (
+      <div className="mobile-container min-h-screen bg-gray-50 pb-6" data-testid="auto-garage">
+        <Header title="Mon garage" onBack={() => setScreen('shop')} />
+        <div className="p-4 space-y-3">
+          <p className="text-sm text-gray-500">Enregistrez vos véhicules pour ne voir que les pièces compatibles.</p>
+          {garage.map(v => (
+            <div key={v.id} className="bg-white rounded-2xl p-3 border border-gray-100 flex items-center gap-3" data-testid={`garage-vehicle-${v.id}`}>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                {v.vehicle_type === 'moto' ? <Motorcycle size={20} className="text-blue-600" weight="fill" /> : <Car size={20} className="text-blue-600" weight="fill" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-sm">{v.brand} {v.model}</p>
+                <p className="text-xs text-gray-500">{v.year || '—'} · {v.vehicle_type === 'moto' ? 'Moto' : 'Auto'}</p>
+              </div>
+              <button onClick={() => { setVehicle(v); setScreen('shop'); }} className="text-xs font-semibold text-blue-600 px-2" data-testid={`select-vehicle-${v.id}`}>Choisir</button>
+              <button onClick={() => removeVehicle(v.id)} className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center" data-testid={`del-vehicle-${v.id}`}><Trash size={15} className="text-rose-500" /></button>
+            </div>
+          ))}
+          <div className="bg-white rounded-2xl p-4 space-y-2 border border-dashed border-blue-200" data-testid="add-vehicle-form">
+            <p className="text-xs font-bold text-gray-500">Ajouter un véhicule</p>
+            <select value={vForm.brand} onChange={e => setVForm({ ...vForm, brand: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="vehicle-brand">
+              <option value="">Marque…</option>
+              {brands.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <input value={vForm.model} onChange={e => setVForm({ ...vForm, model: e.target.value })} placeholder="Modèle" className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="vehicle-model" />
+              <input value={vForm.year} onChange={e => setVForm({ ...vForm, year: e.target.value })} placeholder="Année" className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="vehicle-year" />
+            </div>
+            <div className="flex gap-2">
+              {[{ k: 'auto', l: 'Auto' }, { k: 'moto', l: 'Moto' }].map(t => (
+                <button key={t.k} onClick={() => setVForm({ ...vForm, vehicle_type: t.k })} className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${vForm.vehicle_type === t.k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`} data-testid={`vehicle-type-${t.k}`}>{t.l}</button>
+              ))}
+            </div>
+            <button onClick={addVehicle} className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5" data-testid="add-vehicle-btn"><Plus size={16} /> Ajouter à mon garage</button>
+          </div>
         </div>
       </div>
     );
