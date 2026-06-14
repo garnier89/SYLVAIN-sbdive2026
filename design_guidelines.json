@@ -1,151 +1,133 @@
 {
-  "project_name": "SB Drive Access",
-  "domain": "Mobility / Accessibility / Medical Transport",
-  "theme": "LIGHT",
-  "archetype": "Archetype 4: Swiss & High-Contrast",
-  "archetype_reasoning": "Extreme clarity, function-first, and high contrast are mandatory for accessibility (WCAG AA/AAA). Avoids decorative distractions in favor of robust, understandable interfaces suitable for users with cognitive or visual impairments.",
+  "theme": "Light",
+  "archetype": "Archetype 3: Soft Utility & Trust (Pastel & Soft customized for Mobile Super-App)",
+  "vibe": "Approachable, clean, highly functional, energetic",
   "colors": {
-    "brand_primary": {
-      "hex": "#FF5000",
-      "usage": "Main app branding, global CTAs, selected states. Must be paired with high-contrast text or icons."
-    },
-    "brand_primary_hover": {
-      "hex": "#E64800",
-      "usage": "Hover/Active state for primary brand elements."
-    },
-    "module_identity": {
-      "hex": "#0A2540",
-      "name": "Access Navy",
-      "usage": "The unique identifying color for the 'Access' module (like the purple for Student). Used for module headers, primary accessibility CTAs, and high-trust elements."
-    },
-    "module_identity_hover": {
-      "hex": "#071A2D",
-      "usage": "Hover/Active state for module identity."
-    },
-    "background": {
-      "hex": "#FFFFFF",
-      "usage": "App background for maximum contrast."
-    },
-    "surface": {
-      "hex": "#F3F4F6",
-      "usage": "Cards and form fields background."
-    },
-    "surface_active": {
-      "hex": "#FFF3ED",
-      "usage": "Selected state background for cards (very light orange tint)."
-    },
-    "border": {
-      "hex": "#D1D5DB",
-      "usage": "1px solid borders for defined surfaces to aid visual boundaries."
-    },
-    "border_focus": {
-      "hex": "#0A2540",
-      "usage": "2px solid border for keyboard/accessibility focus rings."
-    },
-    "text_primary": {
-      "hex": "#111827",
-      "usage": "Main headings and critical body text. Offers 15:1 contrast on white."
-    },
-    "text_secondary": {
-      "hex": "#374151",
-      "usage": "Secondary text and descriptions. Offers 7:1 contrast on white (WCAG AAA)."
-    },
-    "status_error": {
-      "hex": "#DC2626",
-      "usage": "Errors and critical alerts."
-    },
-    "status_success": {
-      "hex": "#059669",
-      "usage": "Confirmation and success indicators."
-    }
+    "primary": "#F43F5E",
+    "primary_hover": "#E11D48",
+    "primary_light": "#FFE4E6",
+    "background": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "text_main": "#0F172A",
+    "text_muted": "#64748B",
+    "border": "#E2E8F0",
+    "accent_success": "#10B981",
+    "accent_warning": "#F59E0B",
+    "accent_info": "#3B82F6",
+    "boosted_badge_bg": "#FEF3C7",
+    "boosted_badge_text": "#B45309"
   },
   "typography": {
-    "fonts": {
-      "headings": "Work Sans",
-      "body": "IBM Plex Sans",
-      "import_instructions": "Import both from Google Fonts."
-    },
-    "scale": {
-      "h1": "text-3xl sm:text-4xl font-bold tracking-tight text-gray-900",
-      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900",
-      "h3": "text-xl font-semibold text-gray-900",
-      "body_large": "text-lg text-gray-900",
-      "body": "text-base text-gray-800",
-      "body_small": "text-sm text-gray-700"
-    },
-    "rules": [
-      "No centered text for long paragraphs; strictly left-aligned to aid reading flow.",
-      "Avoid 'Inter' and generic sans-serifs for headings. Used Work Sans for character and IBM Plex Sans for maximum legibility.",
-      "Support dynamic text resizing: use relative units (rem) instead of fixed px where possible."
-    ]
+    "font_family_headings": "'Manrope', sans-serif",
+    "font_family_body": "'Manrope', sans-serif",
+    "h1": "text-3xl font-extrabold tracking-tight text-slate-900",
+    "h2": "text-xl font-bold tracking-tight text-slate-900",
+    "h3": "text-lg font-semibold tracking-tight text-slate-900",
+    "body": "text-sm text-slate-600 leading-relaxed",
+    "small": "text-xs font-medium text-slate-500",
+    "price": "text-lg font-bold text-slate-900"
   },
-  "spacing_and_layout": {
-    "container": "max-w-[430px] mx-auto min-h-screen bg-white shadow-xl overflow-hidden relative pb-20",
-    "padding": "p-6 sm:p-8",
-    "touch_targets": "min-h-[48px] min-w-[48px]",
-    "gap": "gap-4 sm:gap-6",
-    "border_radius": "rounded-xl for cards, rounded-2xl for main modals, rounded-full for icon buttons",
-    "rules": [
-      "Mobile-first app container mimicking a super-app sub-module.",
-      "Generous spacing to prevent accidental mis-taps (vital for motor-impaired users)."
-    ]
+  "layout_and_spacing": {
+    "container_max_width": "max-w-md mx-auto w-full",
+    "section_spacing": "py-6 space-y-6",
+    "element_gap": "gap-4",
+    "card_padding": "p-4",
+    "border_radius": "rounded-2xl",
+    "button_radius": "rounded-xl"
   },
   "components": {
-    "navigation_header": {
-      "design": "Sticky top bar, z-50, solid white background with a 1px bottom border. Contains 'Back' button (min 48x48px), Module Title ('SB Drive Access'), and an accessibility settings toggle.",
-      "test_id": "access-nav-header"
+    "search_bar": {
+      "style": "bg-white shadow-sm border border-slate-100 rounded-full flex items-center px-4 py-3 sticky top-0 z-40 transition-all focus-within:ring-2 focus-within:ring-rose-500",
+      "data_testid": "global-search-input"
     },
-    "accessibility_needs_cards": {
-      "design": "Selectable bento-style grid. 1px solid border (#D1D5DB). On selection, border changes to 2px brand_primary (#FF5000) and background to surface_active. Must include clear icons (Phosphor) + Text.",
-      "test_id_prefix": "need-card-"
+    "category_tabs": {
+      "style": "flex overflow-x-auto hide-scrollbar gap-3 pb-2",
+      "item_style_active": "bg-rose-500 text-white px-4 py-2 rounded-full whitespace-nowrap font-semibold shadow-md shadow-rose-200 transition-all",
+      "item_style_inactive": "bg-white text-slate-600 border border-slate-200 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all hover:bg-slate-50"
     },
-    "vehicle_choice_card": {
-      "design": "Horizontal layout. Image/Icon on left, Details on right. Must clearly state vehicle capacity (e.g., '1 Fauteuil, 2 Passagers'). High contrast price tag.",
-      "test_id_prefix": "vehicle-choice-"
+    "category_grid": {
+      "style": "grid grid-cols-4 gap-2",
+      "tile_style": "flex flex-col items-center justify-center p-3 bg-white rounded-2xl shadow-sm border border-slate-100 aspect-square text-center gap-2 hover:-translate-y-1 transition-transform",
+      "icon_wrapper": "w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center"
     },
-    "chauffeur_badge": {
-      "design": "Inline tag or pill component. Deep Navy background (#0A2540) with White text and a verified checkmark icon. Represents 'Chauffeur Access Certifié'.",
-      "test_id": "certified-badge"
+    "listing_card": {
+      "style": "bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 relative group flex flex-col h-full hover:shadow-md transition-shadow",
+      "image_container": "relative aspect-[4/3] w-full bg-slate-100 overflow-hidden",
+      "content_container": "p-3 flex flex-col flex-1",
+      "price_style": "text-lg font-bold text-slate-900 mt-1",
+      "title_style": "text-sm font-medium text-slate-700 line-clamp-2 mt-1",
+      "location_style": "text-xs text-slate-500 mt-auto pt-2 flex items-center gap-1",
+      "favorite_button": "absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm z-10",
+      "boosted_badge": "absolute top-2 left-2 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 z-10",
+      "pro_badge": "bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 w-fit mt-2"
     },
-    "booking_stepper": {
-      "design": "Progressive disclosure layout. Large 'Suivant' and 'Précédent' buttons fixed at the bottom of the screen. Step indicators must be purely text + number (e.g., 'Étape 1 sur 4: Besoins').",
-      "test_id": "booking-stepper-container"
+    "featured_carousel": {
+      "style": "flex overflow-x-auto hide-scrollbar gap-4 pb-4 snap-x snap-mandatory",
+      "item_style": "min-w-[240px] max-w-[280px] snap-start"
     },
-    "safety_sos_button": {
-      "design": "Large circular or full-width pill button. Red (#DC2626) background with White text and icon. Placed prominently in the Safety Center.",
-      "test_id": "sos-emergency-button"
+    "fab_button": {
+      "style": "fixed bottom-20 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-xl shadow-slate-900/20 flex items-center gap-2 font-bold z-50 hover:bg-slate-800 transition-colors",
+      "data_testid": "publish-ad-fab"
+    },
+    "filter_sheet": {
+      "style": "bg-white rounded-t-3xl p-6"
+    },
+    "empty_state": {
+      "style": "flex flex-col items-center justify-center py-12 px-4 text-center",
+      "icon_style": "w-16 h-16 text-slate-300 mb-4",
+      "title_style": "text-lg font-bold text-slate-900 mb-2",
+      "desc_style": "text-sm text-slate-500 mb-6 max-w-xs"
     }
   },
-  "accessibility_rules": {
-    "contrast": "Strictly minimum 4.5:1 for standard text, 3:1 for UI components. Validated through Archetype 4 principles.",
-    "focus": "All interactive elements MUST have a visible focus state (e.g., focus:ring-2 focus:ring-[#0A2540] focus:ring-offset-2).",
-    "aria_labels": "Buttons with icons only MUST have aria-label. Decorative elements must have aria-hidden='true'.",
-    "color_independence": "Never rely solely on color to convey state. Use icons (e.g., a checkmark) alongside the active color for selected cards.",
-    "data_testids": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
+  "micro_interactions": {
+    "hover_effects": "Cards subtly lift (-translate-y-0.5) and increase shadow on hover.",
+    "active_states": "Buttons scale down slightly (scale-95) on press.",
+    "loading": "Use pulsing skeletons (animate-pulse) matching the exact dimensions of loaded content."
   },
-  "images": [
-    {
-      "category": "hero_landing",
-      "url": "https://images.unsplash.com/photo-1611239677551-a13ef92c4ed4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwyfHx3aGVlbGNoYWlyJTIwdXNlciUyMGNvbmZpZGVudCUyMG91dGRvb3J8ZW58MHx8fHwxNzgxMTk3ODA0fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Confident wheelchair user outdoors, showing mobility independence."
-    },
-    {
-      "category": "medical_transport",
-      "url": "https://images.unsplash.com/photo-1775031386175-94caeae42d39?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTB8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwdHJhbnNwb3J0JTIwdmVoaWNsZXxlbnwwfHx8fDE3ODExOTc4MDR8MA&ixlib=rb-4.1.0&q=85",
-      "description": "Medical transport vehicle, suitable for specialized rides."
-    },
-    {
-      "category": "senior_user",
-      "url": "https://images.unsplash.com/photo-1758686254056-6cd980b9aaee?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwxfHxzZW5pb3IlMjBzbWlsaW5nJTIwbW9iaWxlJTIwcGhvbmV8ZW58MHx8fHwxNzgxMTk3ODA0fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Elderly couple happily using a mobile phone, representing senior accessibility."
-    }
-  ],
-  "instructions_to_main_agent": {
-    "1": "Use the provided max-w-[430px] container to simulate the mobile-first super-app environment. Center it on desktop with a subtle shadow.",
-    "2": "Integrate @phosphor-icons/react for all iconography. They provide the clear, accessible geometries required.",
-    "3": "Implement a simulated Booking Flow (Stepper) that includes: 1) Profile/Needs (Mobility/Visual/Auditory/Cognitive), 2) Equipment/Companions, 3) Vehicle Selection. Use the bento-grid card styles defined above.",
-    "4": "Ensure every form element, button, and selectable card has a minimum height of 48px.",
-    "5": "Do NOT use default shadcn styles blindly; override them with the high-contrast color tokens and typography defined in this document.",
-    "6": "Ensure all interactive elements have a 'data-testid' property. E.g., 'data-testid=\"select-pmr-vehicle\"'."
-  }
+  "image_urls": {
+    "real_estate": [
+      {
+        "url": "https://images.pexels.com/photos/32178051/pexels-photo-32178051.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Modern apartment interior, perfect for real estate listing thumbnail"
+      },
+      {
+        "url": "https://images.pexels.com/photos/6970056/pexels-photo-6970056.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Contemporary living space, ideal for real estate"
+      }
+    ],
+    "vehicles": [
+      {
+        "url": "https://images.unsplash.com/photo-1781189799073-24cd79ac45ee?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwxfHx1c2VkJTIwY2FyJTIwc2hvd3Jvb218ZW58MHx8fHwxNzgxNDA3Njk0fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Used car showroom, ideal for vehicle listing"
+      }
+    ],
+    "electronics_marketplace": [
+      {
+        "url": "https://images.pexels.com/photos/215581/pexels-photo-215581.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Smartphones on white surface, for diverse marketplace items"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwyfHxzbWFydHBob25lJTIwZWxlY3Ryb25pY3N8ZW58MHx8fHwxNzgxNDA3Njk0fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Space gray iPhone, for marketplace items"
+      }
+    ],
+    "general": [
+      {
+        "url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwxfHxzaG9wcGluZyUyMGJhZ3N8ZW58MHx8fHwxNzgxNDA3Njk4fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Woman holding shopping bags, good for empty states or marketplace header banners"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Create a new unified hub page called 'SB Market' that acts as the central marketplace index within the super-app.",
+    "Implement the UI fully in French as requested ('Immobilier', 'Véhicules', 'Location', 'Marketplace').",
+    "Use Lucide-React icons for the category grid (Home, Car, Key, Package/ShoppingBag).",
+    "The layout must be strictly mobile-first (max-w-md mx-auto) mimicking a super-app section.",
+    "Build a reusable `<ListingCard>` component that works for all 4 verticals. It should conditionally render badges like 'À la une' (Boosted) or 'Pro' based on props.",
+    "Implement horizontal scroll for 'À la une / Annonces boostées' (Featured carousel) using the snap-x utility classes.",
+    "Implement a 'Publier une annonce' floating button anchored to the bottom.",
+    "Ensure all interactive elements have data-testid attributes for testing.",
+    "Add 'Manrope' font via Google Fonts in the main index.html or apply font-sans if setup is standard.",
+    "Do not break existing pages, just link the new SB Market hub to coordinate them."
+  ]
 }
