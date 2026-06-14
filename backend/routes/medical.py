@@ -40,6 +40,18 @@ def _spec_label(cat_id: str) -> str:
     return cat_id or "Praticien"
 
 
+def _resolve_analyses(ids: list) -> list:
+    """Resolve prescribed lab analysis ids → [{id, name, price}] from the lab catalog."""
+    from routes.pro_services import LAB
+    by_id = {s["id"]: s for s in LAB["services"]}
+    out = []
+    for aid in ids or []:
+        s = by_id.get(aid)
+        if s:
+            out.append({"id": s["id"], "name": s["name"], "price": float(s["price"])})
+    return out
+
+
 def _pub(d: dict) -> dict:
     out = dict(d or {})
     out.pop("_id", None)
@@ -84,10 +96,11 @@ async def issue_prescription(request: Request):
             raise HTTPException(status_code=404, detail="Aucun patient trouvé avec cet email")
 
     meds = [m for m in (body.get("medications") or []) if (m.get("name") or "").strip()]
-    if not meds:
-        raise HTTPException(status_code=400, detail="Ajoutez au moins un médicament")
     medications = [{"name": (m.get("name") or "").strip(), "dosage": (m.get("dosage") or "").strip(),
                     "duration": (m.get("duration") or "").strip()} for m in meds]
+    analyses = _resolve_analyses(body.get("analysis_ids") or [])
+    if not medications and not analyses:
+        raise HTTPException(status_code=400, detail="Ajoutez au moins un médicament ou une analyse")
 
     cats = prac.get("categories", [])
     specialty = _spec_label(cats[0]) if cats else "Praticien"
@@ -98,7 +111,7 @@ async def issue_prescription(request: Request):
         "patient_id": patient["id"], "patient_name": patient.get("name", ""),
         "practitioner_user_id": user["id"], "practitioner_name": prac.get("name") or user.get("name", ""),
         "specialty": specialty, "diagnosis": (body.get("diagnosis") or "").strip(),
-        "medications": medications, "notes": (body.get("notes") or "").strip(),
+        "medications": medications, "analyses": analyses, "notes": (body.get("notes") or "").strip(),
         "valid_until": body.get("valid_until"), "video_session_id": body.get("video_session_id"),
         "booking_id": booking_id or None,
         "status": "active", "created_at": _now(),

@@ -56,22 +56,43 @@ def prescription_pdf(rx: dict) -> bytes:
     ]))
     el.append(tbl)
 
-    el.append(Paragraph("Prescription", ss["RxH2"]))
-    rows = [["Médicament", "Posologie", "Durée"]]
-    for m in (rx.get("medications") or []):
-        rows.append([m.get("name", ""), m.get("dosage", ""), m.get("duration", "")])
-    mt = Table(rows, colWidths=[75 * mm, 55 * mm, 35 * mm])
-    mt.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), TEAL),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e2e8f0")),
-        ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    el.append(mt)
+    medications = rx.get("medications") or []
+    if medications:
+        el.append(Paragraph("Prescription", ss["RxH2"]))
+        rows = [["Médicament", "Posologie", "Durée"]]
+        for m in medications:
+            rows.append([m.get("name", ""), m.get("dosage", ""), m.get("duration", "")])
+        mt = Table(rows, colWidths=[75 * mm, 55 * mm, 35 * mm])
+        mt.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), TEAL),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e2e8f0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        el.append(mt)
+
+    analyses = rx.get("analyses") or []
+    if analyses:
+        el.append(Paragraph("Analyses prescrites (laboratoire)", ss["RxH2"]))
+        arows = [["Analyse"]]
+        for a in analyses:
+            arows.append([a.get("name", "")])
+        at = Table(arows, colWidths=[165 * mm])
+        at.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), TEAL),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e2e8f0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        el.append(at)
 
     if (rx.get("notes") or "").strip():
         el.append(Paragraph("Recommandations", ss["RxH2"]))

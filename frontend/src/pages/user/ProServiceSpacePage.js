@@ -33,20 +33,26 @@ const ProServiceSpacePage = () => {
   const [reg, setReg] = useState({ name: '', categories: [], city: '', bio: '' });
   const [uploading, setUploading] = useState('');
   const [rxFor, setRxFor] = useState(null); // booking we write a prescription for
-  const [rxForm, setRxForm] = useState({ diagnosis: '', notes: '', meds: [{ name: '', dosage: '', duration: '' }] });
+  const [rxForm, setRxForm] = useState({ diagnosis: '', notes: '', meds: [{ name: '', dosage: '', duration: '' }], analysisIds: [] });
   const [rxSaving, setRxSaving] = useState(false);
+  const [labAnalyses, setLabAnalyses] = useState([]);
 
-  const openRx = (b) => { setRxFor(b); setRxForm({ diagnosis: '', notes: '', meds: [{ name: '', dosage: '', duration: '' }] }); };
+  useEffect(() => {
+    if (vertical === 'medical') fetch(`${API}/api/lab/catalog`).then(r => r.json()).then(d => setLabAnalyses(d.analyses || [])).catch(() => {});
+  }, [vertical]);
+
+  const openRx = (b) => { setRxFor(b); setRxForm({ diagnosis: '', notes: '', meds: [{ name: '', dosage: '', duration: '' }], analysisIds: [] }); };
   const setMed = (i, k, v) => setRxForm(f => ({ ...f, meds: f.meds.map((m, j) => j === i ? { ...m, [k]: v } : m) }));
   const addMed = () => setRxForm(f => ({ ...f, meds: [...f.meds, { name: '', dosage: '', duration: '' }] }));
   const removeMed = (i) => setRxForm(f => ({ ...f, meds: f.meds.filter((_, j) => j !== i) }));
+  const toggleAnalysis = (id) => setRxForm(f => ({ ...f, analysisIds: f.analysisIds.includes(id) ? f.analysisIds.filter(x => x !== id) : [...f.analysisIds, id] }));
   const issueRx = async () => {
-    if (!rxForm.meds.some(m => m.name.trim())) { toast.error('Ajoutez au moins un médicament'); return; }
+    if (!rxForm.meds.some(m => m.name.trim()) && rxForm.analysisIds.length === 0) { toast.error('Ajoutez au moins un médicament ou une analyse'); return; }
     setRxSaving(true);
     try {
       const r = await fetch(`${API}/api/medical/prescriptions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ booking_id: rxFor.id, diagnosis: rxForm.diagnosis, notes: rxForm.notes, medications: rxForm.meds }),
+        body: JSON.stringify({ booking_id: rxFor.id, diagnosis: rxForm.diagnosis, notes: rxForm.notes, medications: rxForm.meds, analysis_ids: rxForm.analysisIds }),
       });
       const d = await r.json().catch(() => ({}));
       if (r.ok) { toast.success('Ordonnance délivrée au patient'); setRxFor(null); load(); }
@@ -282,6 +288,21 @@ const ProServiceSpacePage = () => {
               ))}
             </div>
             <button onClick={addMed} className="text-xs font-semibold text-teal-600 flex items-center gap-1 mb-3" data-testid="rx-add-med"><Plus size={14} weight="bold" /> Ajouter un médicament</button>
+            {labAnalyses.length > 0 && (
+              <div className="mb-3">
+                <p className="text-[10px] uppercase tracking-wide font-bold text-gray-400 mb-1.5">Analyses à prescrire (optionnel)</p>
+                <div className="flex flex-wrap gap-1.5" data-testid="rx-analyses">
+                  {labAnalyses.map(a => {
+                    const on = rxForm.analysisIds.includes(a.id);
+                    return (
+                      <button key={a.id} onClick={() => toggleAnalysis(a.id)} className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-full border ${on ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200'}`} data-testid={`rx-analysis-${a.id}`}>
+                        {a.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <textarea value={rxForm.notes} onChange={e => setRxForm({ ...rxForm, notes: e.target.value })} placeholder="Conseils / notes (optionnel)" rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mb-3 resize-none" data-testid="rx-notes" />
             <button onClick={issueRx} disabled={rxSaving} className="w-full py-3.5 rounded-xl font-bold text-white bg-teal-600 disabled:opacity-60 flex items-center justify-center gap-2" data-testid="rx-submit">
               {rxSaving ? <CircleNotch size={16} className="animate-spin" /> : <Pill size={16} weight="fill" />}{rxSaving ? 'Délivrance…' : 'Délivrer l\'ordonnance (PDF)'}

@@ -4,7 +4,7 @@
  * créneau, SB Pay/espèces) → Mes analyses (statut + résultats PDF + annulation).
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, MagnifyingGlass, Flask, CircleNotch, CheckCircle, ClockCounterClockwise,
@@ -26,6 +26,7 @@ const STATUS = {
 const LabTestsPage = () => {
   const { money } = useLocale();
   const navigate = useNavigate();
+  const location = useLocation();
   const [cfg, setCfg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('');
@@ -42,7 +43,17 @@ const LabTestsPage = () => {
   const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
-    fetch(`${LAB}/catalog`).then(r => r.json()).then(d => { setCfg(d); setLoading(false); }).catch(() => setLoading(false));
+    fetch(`${LAB}/catalog`).then(r => r.json()).then(d => {
+      setCfg(d); setLoading(false);
+      // Pré-sélection depuis une ordonnance : /analyses?analyses=id1,id2 → panier + écran réservation
+      const pre = new URLSearchParams(location.search).get('analyses');
+      if (pre) {
+        const ids = pre.split(',').map(s => s.trim()).filter(Boolean);
+        const valid = (d.analyses || []).filter(a => ids.includes(a.id)).map(a => a.id);
+        if (valid.length) { setCart(valid); setScreen('book'); toast.success(`${valid.length} analyse(s) prescrite(s) ajoutée(s)`); }
+      }
+    }).catch(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const analyses = (cfg?.analyses || []).filter(a =>

@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, CircleNotch, Prescription, DownloadSimple, Storefront, Pill, Stethoscope,
+  ArrowLeft, CircleNotch, Prescription, DownloadSimple, Storefront, Pill, Stethoscope, TestTube,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -40,6 +40,11 @@ const MyPrescriptionsPage = () => {
     const note = `Ordonnance ${rx.id.slice(-8)} — ${rx.practitioner_name}\n` +
       (rx.medications || []).map(m => `• ${m.name}${m.dosage ? ` (${m.dosage})` : ''}${m.duration ? ` — ${m.duration}` : ''}`).join('\n');
     navigate(`/pharmacy/prescription?note=${encodeURIComponent(note)}`);
+  };
+
+  const reserveLab = (rx) => {
+    const ids = (rx.analyses || []).map(a => a.id).join(',');
+    navigate(`/analyses?analyses=${encodeURIComponent(ids)}`);
   };
 
   return (
@@ -77,10 +82,22 @@ const MyPrescriptionsPage = () => {
                 </div>
               ))}
             </div>
+            {(rx.analyses || []).length > 0 && (
+              <div className="mt-2 space-y-1 border-t border-gray-100 pt-2" data-testid={`rx-analyses-${rx.id}`}>
+                <p className="text-[10px] uppercase tracking-wide font-bold text-gray-400">Analyses prescrites</p>
+                {(rx.analyses || []).map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-gray-700" data-testid={`rx-analysis-line-${i}`}>
+                    <TestTube size={14} className="text-indigo-500 flex-shrink-0" weight="fill" />
+                    <span className="font-semibold">{a.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {rx.notes && <p className="text-xs text-gray-400 mt-2 italic">{rx.notes}</p>}
             <div className="flex gap-2 mt-3">
               <button onClick={() => downloadPdf(rx.id)} className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5" data-testid={`rx-pdf-${rx.id}`}><DownloadSimple size={15} /> PDF</button>
-              <button onClick={() => orderInPharmacy(rx)} className="flex-1 bg-teal-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5" data-testid={`rx-order-${rx.id}`}><Storefront size={15} weight="fill" /> Commander en pharmacie</button>
+              {(rx.medications || []).length > 0 && <button onClick={() => orderInPharmacy(rx)} className="flex-1 bg-teal-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5" data-testid={`rx-order-${rx.id}`}><Storefront size={15} weight="fill" /> Pharmacie</button>}
+              {(rx.analyses || []).length > 0 && <button onClick={() => reserveLab(rx)} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5" data-testid={`rx-lab-${rx.id}`}><TestTube size={15} weight="fill" /> Réserver au labo</button>}
             </div>
           </div>
         ))}

@@ -82,3 +82,40 @@ def test_non_practitioner_cannot_issue():
         "booking_id": "psb_doesnotexist",
         "medications": [{"name": "X"}]}, timeout=15)
     assert r.status_code == 403
+
+
+def test_prescription_with_lab_analyses_bridge():
+    """Le praticien prescrit des analyses → l'ordonnance les porte (résolues du
+    catalogue labo) → PDF OK → le patient peut les réserver (pré-remplissage)."""
+    pat = _login(*PAT)
+    prac = _login(*PRAC)
+    provs = requests.get(f"{API}/pro-services/medical/providers", timeout=15).json()
+    pid = next(p["id"] for p in provs if p.get("user_id"))
+    bid = pat.post(f"{API}/pro-services/medical/bookings", json={
+        "service_id": "m_generaliste", "provider_id": pid,
+        "scheduled_date": "2026-07-09", "scheduled_time": "10:00",
+        "payment_method": "cash", "at_home": False}, timeout=15).json()["id"]
+
+    # rx with meds + analyses (bad id filtered out)
+    r = prac.post(f"{API}/medical/prescriptions", json={
+        "booking_id": bid, "diagnosis": "Fatigue",
+        "medications": [{"name": "Fer", "dosage": "1/j", "duration": "30j"}],
+        "analysis_ids": ["l_nfs", "l_ferritine", "NOPE"]}, timeout=15)
+    assert r.status_code == 200, r.text
+    rx = r.json()
+    assert len(rx["analyses"]) == 2
+    assert {a["id"] for a in rx["analyses"]} == {"l_nfs", "l_ferritine"}
+    assert all("name" in a and "price" in a for a in rx["analyses"])
+
+    # PDF still downloadable (now with analyses section)
+    pdf = pat.get(f"{API}/medical/prescriptions/{rx['id']}/pdf", timeout=20)
+    assert pdf.status_code == 200 and pdf.headers.get("content-type", "").startswith("application/pdf")
+
+    # rx with ONLY analyses (no meds) is allowed
+    r = prac.post(f"{API}/medical/prescriptions", json={
+        "booking_id": bid, "analysis_ids": ["l_glycemie"]}, timeout=15)
+    assert r.status_code == 200 and len(r.json()["analyses"]) == 1 and r.json()["medications"] == []
+
+    # rx with neither meds nor analyses → 400
+    r = prac.post(f"{API}/medical/prescriptions", json={"booking_id": bid}, timeout=15)
+    assert r.status_code == 400
