@@ -251,6 +251,7 @@ async def add_vehicle(request: Request):
         "brand": brand,
         "model": (body.get("model") or "").strip(),
         "year": (body.get("year") or "").strip(),
+        "plate": (body.get("plate") or "").strip().upper(),
         "vehicle_type": body.get("vehicle_type", "auto"),
         "created_at": _now(),
     }

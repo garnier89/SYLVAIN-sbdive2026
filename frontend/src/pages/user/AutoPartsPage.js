@@ -50,7 +50,7 @@ const AutoPartsPage = () => {
   const [garage, setGarage] = useState([]);
   const [brands, setBrands] = useState([]);
   const [vehicle, setVehicle] = useState(null); // selected vehicle for compatibility
-  const [vForm, setVForm] = useState({ brand: '', model: '', year: '', vehicle_type: 'auto' });
+  const [vForm, setVForm] = useState({ brand: '', model: '', year: '', plate: '', vehicle_type: 'auto' });
 
   useEffect(() => { localStorage.setItem(CART_KEY, JSON.stringify(cart)); }, [cart]);
   useEffect(() => {
@@ -69,7 +69,7 @@ const AutoPartsPage = () => {
       const r = await fetch(`${API}/api/auto-parts/garage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(vForm),
       });
-      if (r.ok) { toast.success('Véhicule ajouté'); setVForm({ brand: '', model: '', year: '', vehicle_type: 'auto' }); loadGarage(); }
+      if (r.ok) { toast.success('Véhicule ajouté'); setVForm({ brand: '', model: '', year: '', plate: '', vehicle_type: 'auto' }); loadGarage(); }
     } catch { toast.error('Erreur réseau'); }
   };
   const removeVehicle = async (id) => {
@@ -293,6 +293,7 @@ const AutoPartsPage = () => {
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 text-sm">{v.brand} {v.model}</p>
                 <p className="text-xs text-gray-500">{v.year || '—'} · {v.vehicle_type === 'moto' ? 'Moto' : 'Auto'}</p>
+                {v.plate && <span className="inline-block mt-1 text-[10px] font-bold tracking-wider text-gray-700 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5" data-testid={`garage-plate-${v.id}`}>{v.plate}</span>}
               </div>
               <button onClick={() => { setVehicle(v); setScreen('shop'); }} className="text-xs font-semibold text-blue-600 px-2" data-testid={`select-vehicle-${v.id}`}>Choisir</button>
               <button onClick={() => removeVehicle(v.id)} className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center" data-testid={`del-vehicle-${v.id}`}><Trash size={15} className="text-rose-500" /></button>
@@ -308,6 +309,7 @@ const AutoPartsPage = () => {
               <input value={vForm.model} onChange={e => setVForm({ ...vForm, model: e.target.value })} placeholder="Modèle" className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="vehicle-model" />
               <input value={vForm.year} onChange={e => setVForm({ ...vForm, year: e.target.value })} placeholder="Année" className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="vehicle-year" />
             </div>
+            <input value={vForm.plate} onChange={e => setVForm({ ...vForm, plate: e.target.value.toUpperCase() })} placeholder="Plaque d'immatriculation (ex. AA-123-AA)" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm uppercase tracking-wide" data-testid="vehicle-plate" />
             <div className="flex gap-2">
               {[{ k: 'auto', l: 'Auto' }, { k: 'moto', l: 'Moto' }].map(t => (
                 <button key={t.k} onClick={() => setVForm({ ...vForm, vehicle_type: t.k })} className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${vForm.vehicle_type === t.k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`} data-testid={`vehicle-type-${t.k}`}>{t.l}</button>
