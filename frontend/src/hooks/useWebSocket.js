@@ -29,6 +29,7 @@ export function useWebSocket(userId) {
   const [connected, setConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
   const reconnectTimer = useRef(null);
+  const retryRef = useRef(0);
   const listeners = useRef(new Map());
 
   const connect = useCallback(() => {
@@ -38,6 +39,7 @@ export function useWebSocket(userId) {
 
     ws.onopen = () => {
       setConnected(true);
+      retryRef.current = 0;  // reset backoff once a connection succeeds
       // Keep-alive ping every 25s
       wsRef.current._pingInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -69,8 +71,12 @@ export function useWebSocket(userId) {
     ws.onclose = () => {
       setConnected(false);
       clearInterval(wsRef.current?._pingInterval);
-      // Auto-reconnect after 3s
-      reconnectTimer.current = setTimeout(() => connect(), 3000);
+      // Auto-reconnect with exponential backoff (3s → 6s → 12s … capped 30s) to
+      // avoid a handshake storm when the proxy rate-limits (HTTP 429) under rapid
+      // navigation. The delay resets to 3s as soon as a connection succeeds.
+      const delay = Math.min(30000, 3000 * 2 ** retryRef.current);
+      retryRef.current += 1;
+      reconnectTimer.current = setTimeout(() => connect(), delay);
     };
 
     ws.onerror = () => {
