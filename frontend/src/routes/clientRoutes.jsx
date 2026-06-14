@@ -11,7 +11,7 @@ import {
   FoodPage, RestaurantDetail, CheckoutPage, OrderTracking, WalletPage, ProfilePage,
   HistoryPage, SupportPage, ParcelPage, ReferralPage, DonationPage, LiveChatPage,
   ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, SbMarketHub, SbMarketDetail, SbMarketInbox, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
-  NearbyBusinessPage, BeautyServicesPage, BeautyMarketPage, ProServiceSpacePage, PetServicesPage, PetCarePage, CarCarePage, AutoPartsPage, TowingServicesPage, TowingRequestPage, TowingOperatorPage,
+  NearbyBusinessPage, BeautyServicesPage, ProServiceMarketPage, ProServiceSpacePage, PetServicesPage, PetCarePage, CarCarePage, AutoPartsPage, TowingServicesPage, TowingRequestPage, TowingOperatorPage,
   EventsPage, EventDetailPage, MyEventTicketsPage, OrganizerSpace, OrganizerDashboard, EventCheckinPage, StaffCheckpointPage, EventLiveDashboard,
   VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage,
   DeliveryTrackingPage, DeliveryJobsPage, RealEstatePage, PropertyDetailPage, PostPropertyPage,
@@ -99,7 +99,8 @@ export function clientRoutes(user) {
       <Route path="/organizer/events/:id/checkin" element={<ProtectedRoute allowedRoles={['user']}><EventCheckinPage /></ProtectedRoute>} />
       <Route path="/controle" element={<ProtectedRoute allowedRoles={['user']}><StaffCheckpointPage /></ProtectedRoute>} />
       <Route path="/organizer/events/:id/live" element={<ProtectedRoute allowedRoles={['user']}><EventLiveDashboard /></ProtectedRoute>} />
-      <Route path="/beauty" element={<ProtectedRoute allowedRoles={['user']}><BeautyMarketPage /></ProtectedRoute>} />
+      <Route path="/beauty" element={<ProtectedRoute allowedRoles={['user']}><ProServiceMarketPage vertical="beauty" /></ProtectedRoute>} />
+      <Route path="/services-metiers" element={<ProtectedRoute allowedRoles={['user']}><ProServiceMarketPage vertical="trades" /></ProtectedRoute>} />
       <Route path="/beauty-partners" element={<ProtectedRoute allowedRoles={['user']}><BeautyServicesPage /></ProtectedRoute>} />
       <Route path="/pro/:vertical" element={<ProtectedRoute allowedRoles={['user']}><ProServiceSpacePage /></ProtectedRoute>} />
       <Route path="/pet-care" element={<ProtectedRoute allowedRoles={['user']}><PetCarePage /></ProtectedRoute>} />

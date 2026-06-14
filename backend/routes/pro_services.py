@@ -13,7 +13,7 @@ Collections (scopées par champ `vertical`) :
 """
 from fastapi import APIRouter, Request, HTTPException
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from core.config import db
 from core.deps import get_current_user, require_role
@@ -88,6 +88,71 @@ BEAUTY = {
 
 VERTICALS = {"beauty": BEAUTY}
 
+SLOTS = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+
+
+# ── Verticale : Métiers & Réparation ─────────────────────────────────────────
+TRADES = {
+    "label": "SB Métiers & Réparation",
+    "accent": "amber",
+    "home_surcharge": 0.0,  # l'intervention est par nature au domicile/sur site
+    "categories": [
+        {"id": "plomberie", "label": "Plomberie", "icon": "Wrench"},
+        {"id": "electricite", "label": "Électricité", "icon": "Lightning"},
+        {"id": "maconnerie", "label": "Maçonnerie", "icon": "Bank"},
+        {"id": "menuiserie", "label": "Menuiserie", "icon": "Hammer"},
+        {"id": "peinture", "label": "Peinture", "icon": "PaintRoller"},
+        {"id": "bricolage", "label": "Bricolage", "icon": "Toolbox"},
+        {"id": "menage", "label": "Ménage à domicile", "icon": "Broom"},
+        {"id": "jardinage", "label": "Espaces verts", "icon": "Plant"},
+        {"id": "cuisine", "label": "Cuisinier", "icon": "CookingPot"},
+        {"id": "mecanique", "label": "Mécanique", "icon": "Gear"},
+    ],
+    "services": [
+        _svc("t_fuite", "plomberie", "Réparation de fuite", 60, 60),
+        _svc("t_debouchage", "plomberie", "Débouchage canalisation", 80, 60),
+        _svc("t_sanitaire", "plomberie", "Installation sanitaire", 120, 120),
+        _svc("t_chauffe_eau", "plomberie", "Chauffe-eau (pose/dépannage)", 150, 120),
+        _svc("t_depannage_elec", "electricite", "Dépannage électrique", 70, 60),
+        _svc("t_prise", "electricite", "Pose prise / interrupteur", 50, 45),
+        _svc("t_tableau", "electricite", "Tableau électrique", 180, 180, online_only=True),
+        _svc("t_eclairage", "electricite", "Installation éclairage", 60, 60),
+        _svc("t_petits_travaux", "maconnerie", "Petits travaux de maçonnerie", 120, 120),
+        _svc("t_cloison", "maconnerie", "Mur / cloison", 250, 240, online_only=True),
+        _svc("t_carrelage", "maconnerie", "Pose de carrelage", 200, 240, online_only=True),
+        _svc("t_ragreage", "maconnerie", "Ragréage de sol", 180, 180),
+        _svc("t_pose_porte", "menuiserie", "Pose de porte", 130, 120),
+        _svc("t_sur_mesure", "menuiserie", "Meuble sur-mesure", 300, 240, online_only=True),
+        _svc("t_repar_menuiserie", "menuiserie", "Réparation menuiserie", 80, 90),
+        _svc("t_parquet", "menuiserie", "Pose de parquet", 220, 240, online_only=True),
+        _svc("t_peinture_piece", "peinture", "Peinture d'une pièce", 180, 240),
+        _svc("t_facade", "peinture", "Peinture de façade", 400, 480, online_only=True),
+        _svc("t_enduit", "peinture", "Enduit & rebouchage", 150, 180),
+        _svc("t_papier_peint", "peinture", "Pose de papier peint", 160, 180),
+        _svc("t_montage_meuble", "bricolage", "Montage de meuble", 45, 60),
+        _svc("t_fixation", "bricolage", "Fixation / étagère", 40, 45),
+        _svc("t_tv_murale", "bricolage", "Pose TV murale", 60, 60),
+        _svc("t_divers", "bricolage", "Petits travaux divers", 50, 60),
+        _svc("t_menage_dom", "menage", "Ménage à domicile", 35, 120),
+        _svc("t_grand_menage", "menage", "Grand ménage", 70, 240),
+        _svc("t_vitres", "menage", "Nettoyage de vitres", 40, 90),
+        _svc("t_repassage", "menage", "Repassage", 30, 90),
+        _svc("t_tonte", "jardinage", "Tonte de pelouse", 45, 90),
+        _svc("t_taille_haie", "jardinage", "Taille de haie", 60, 120),
+        _svc("t_entretien_jardin", "jardinage", "Entretien de jardin", 80, 180),
+        _svc("t_debroussaillage", "jardinage", "Débroussaillage", 70, 120),
+        _svc("t_chef_domicile", "cuisine", "Chef à domicile", 120, 180, online_only=True),
+        _svc("t_repas_event", "cuisine", "Repas événementiel", 200, 300, online_only=True),
+        _svc("t_cours_cuisine", "cuisine", "Cours de cuisine", 90, 120),
+        _svc("t_vidange", "mecanique", "Vidange", 70, 60),
+        _svc("t_diagnostic", "mecanique", "Diagnostic auto", 50, 45),
+        _svc("t_freins", "mecanique", "Plaquettes / freins", 120, 120),
+        _svc("t_batterie_meca", "mecanique", "Batterie (test/remplacement)", 60, 45),
+    ],
+}
+
+VERTICALS["trades"] = TRADES
+
 # Demo providers per vertical (idempotent seed; no user_id = not loggable).
 _AV = "https://images.unsplash.com/"
 _BEAUTY_PROVIDERS = [
@@ -98,6 +163,19 @@ _BEAUTY_PROVIDERS = [
     ("Regard Sublime", ["regard", "maquillage"], 4.8, 96, "photo-1512496015851-a90fb38ba796?w=400", "Spécialiste cils & sourcils : extensions, microblading."),
     ("Zen Spa & Massage", ["corps"], 4.9, 188, "photo-1544161515-4ab6ce6db874?w=400", "Massages relaxants et thérapeutiques, cadre zen."),
 ]
+
+_TRADES_PROVIDERS = [
+    ("Dépann'Plomberie", ["plomberie"], 4.7, 142, "photo-1607472586893-edb57bdc0e39?w=400", "Plombier réactif, dépannage et installations."),
+    ("Élec Pro Services", ["electricite"], 4.8, 176, "photo-1621905251189-08b45d6a269e?w=400", "Électricien certifié, mise aux normes et dépannage."),
+    ("BâtiMaçon", ["maconnerie", "peinture"], 4.6, 88, "photo-1581094794329-c8112a89af12?w=400", "Maçonnerie, carrelage et peinture intérieure/extérieure."),
+    ("L'Atelier Bois", ["menuiserie", "bricolage"], 4.9, 121, "photo-1504148455328-c376907d081c?w=400", "Menuisier & bricoleur : pose, sur-mesure, réparations."),
+    ("Maison Net", ["menage"], 4.8, 264, "photo-1581578731548-c64695cc6952?w=400", "Ménage à domicile, vitres et repassage soignés."),
+    ("Vert Jardin", ["jardinage"], 4.7, 97, "photo-1416879595882-3373a0480b5b?w=400", "Entretien d'espaces verts, tonte et taille."),
+    ("Chef à la Maison", ["cuisine"], 4.9, 64, "photo-1556910103-1c02745aae4d?w=400", "Chef à domicile pour vos repas et événements."),
+    ("Méca Express", ["mecanique"], 4.6, 153, "photo-1486262715619-67b85e0b08d3?w=400", "Mécanicien : vidange, freins, diagnostic."),
+]
+
+_DEMO_PROVIDERS = {"beauty": _BEAUTY_PROVIDERS, "trades": _TRADES_PROVIDERS}
 
 
 def _now():
@@ -126,12 +204,13 @@ def _svc_by_id(vertical: str, sid: str) -> dict:
 
 
 async def _ensure_seed(vertical: str):
-    if vertical != "beauty":
+    providers = _DEMO_PROVIDERS.get(vertical)
+    if not providers:
         return
     if await db.pro_providers.count_documents({"vertical": vertical, "is_demo": True}) > 0:
         return
     docs = []
-    for i, (name, cats, rating, reviews, photo, bio) in enumerate(_BEAUTY_PROVIDERS):
+    for i, (name, cats, rating, reviews, photo, bio) in enumerate(providers):
         docs.append({
             "id": f"prov_{vertical}_{i+1:03d}", "vertical": vertical, "user_id": None,
             "name": name, "categories": cats, "rating": rating, "reviews_count": reviews,
@@ -184,6 +263,30 @@ async def get_provider(vertical: str, provider_id: str):
         raise HTTPException(status_code=404, detail="Prestataire introuvable")
     reviews = await db.pro_reviews.find({"provider_id": provider_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
     return {**p, "reviews": reviews}
+
+
+@router.get("/{vertical}/providers/{provider_id}/next-slots")
+async def provider_next_slots(vertical: str, provider_id: str):
+    """3 prochains créneaux libres du prestataire (7 jours), pour rassurer le client."""
+    _vcfg(vertical)
+    booked = await db.pro_bookings.find(
+        {"vertical": vertical, "provider_id": provider_id,
+         "status": {"$in": ["pending", "confirmed", "in_progress"]}},
+        {"_id": 0, "scheduled_date": 1, "scheduled_time": 1}).to_list(1000)
+    taken = {(b.get("scheduled_date"), b.get("scheduled_time")) for b in booked}
+    out = []
+    today = datetime.now(timezone.utc).date()
+    for d in range(0, 7):
+        day = today + timedelta(days=d)
+        ds = day.isoformat()
+        for t in SLOTS:
+            if (ds, t) in taken:
+                continue
+            lbl = "Aujourd'hui" if d == 0 else ("Demain" if d == 1 else day.strftime("%d/%m"))
+            out.append({"date": ds, "time": t, "label": f"{lbl} · {t}"})
+            if len(out) >= 3:
+                return {"slots": out}
+    return {"slots": out}
 
 
 @router.post("/{vertical}/estimate")

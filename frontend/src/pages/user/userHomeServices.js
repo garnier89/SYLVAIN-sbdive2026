@@ -60,9 +60,9 @@ export const videoCategories = [
 
 export const onDemandServices = [
   { id: 'sb-tracking', name: 'SB\nTracking', icon: MapPin, bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/sb-tracking' },
-  { id: 'handyman', name: 'Bricolage', icon: Wrench, bg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-500', path: '/service-providers/bricoleur' },
-  { id: 'massage', name: 'Massage', icon: Heart, bg: 'bg-sky-50', iconColor: 'text-sky-500', path: '/service-providers/massage' },
-  { id: 'mechanic', name: 'Mécanique', icon: GasPump, bg: 'bg-green-50', iconColor: 'text-green-500', path: '/service-providers/mecanicien' },
+  { id: 'handyman', name: 'Bricolage', icon: Wrench, bg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-500', path: '/services-metiers' },
+  { id: 'massage', name: 'Massage', icon: Heart, bg: 'bg-sky-50', iconColor: 'text-sky-500', path: '/beauty' },
+  { id: 'mechanic', name: 'Mécanique', icon: GasPump, bg: 'bg-green-50', iconColor: 'text-green-500', path: '/services-metiers' },
   { id: 'more-ondemand', name: 'Plus de\nServices', icon: GridFour, bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/all-services' },
 ];
 

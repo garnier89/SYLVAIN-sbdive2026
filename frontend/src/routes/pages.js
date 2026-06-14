@@ -75,7 +75,7 @@ export const EventCheckinPage = lazy(() => import('../pages/user/events/EventChe
 export const StaffCheckpointPage = lazy(() => import('../pages/user/events/StaffCheckpointPage'));
 export const EventLiveDashboard = lazy(() => import('../pages/user/events/EventLiveDashboard'));
 export const BeautyServicesPage = lazy(() => import('../pages/user/BeautyServicesPage'));
-export const BeautyMarketPage = lazy(() => import('../pages/user/BeautyMarketPage'));
+export const ProServiceMarketPage = lazy(() => import('../pages/user/ProServiceMarketPage'));
 export const ProServiceSpacePage = lazy(() => import('../pages/user/ProServiceSpacePage'));
 export const PetServicesPage = lazy(() => import('../pages/user/PetServicesPage'));
 export const PetCarePage = lazy(() => import('../pages/user/PetCarePage'));
