@@ -15,6 +15,14 @@ DEFAULT_SCHEDULING = {
     "min_advance_minutes": 60,
     "max_advance_days": 30,
     "disabled_modes": ["pool", "bidding"],
+    # ── Fenêtres de planification (calculées par rapport à l'HEURE DU RDV
+    # `scheduled_at`, jamais l'heure de commande) — admin-configurables ──
+    "driver_start_window_min": 40,   # le chauffeur peut démarrer X min avant le RDV
+    "anti_double_booking_min": 30,   # écart min entre 2 réservations d'un même client
+    "driver_conflict_min": 45,       # anti-chevauchement d'agenda côté chauffeur
+    # ── Rappel SMS automatique avant le RDV (client + chauffeur) ──
+    "sms_reminder_enabled": True,
+    "sms_reminder_min": 30,          # délai du rappel SMS avant le RDV
 }
 
 
@@ -35,6 +43,18 @@ async def get_scheduling_config():
         cfg["max_advance_days"] = 30
     if not isinstance(cfg.get("disabled_modes"), list):
         cfg["disabled_modes"] = DEFAULT_SCHEDULING["disabled_modes"]
+    # Fenêtres + rappel SMS (bornées, repli sur les défauts)
+    for k, lo, hi, dft in (
+        ("driver_start_window_min", 5, 240, 40),
+        ("anti_double_booking_min", 0, 240, 30),
+        ("driver_conflict_min", 0, 240, 45),
+        ("sms_reminder_min", 5, 1440, 30),
+    ):
+        try:
+            cfg[k] = min(hi, max(lo, int(cfg.get(k, dft))))
+        except (TypeError, ValueError):
+            cfg[k] = dft
+    cfg["sms_reminder_enabled"] = bool(cfg.get("sms_reminder_enabled", True))
     return cfg
 
 

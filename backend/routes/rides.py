@@ -103,6 +103,22 @@ SCHEDULED_DOUBLE_BOOK_MIN = 30  # un client ne peut pas avoir 2 réservations à
 SCHEDULED_CONFLICT_MIN = 45     # un chauffeur ne peut pas cumuler 2 engagements qui se chevauchent (± X min)
 
 
+async def _scheduling_windows():
+    """Fenêtres de planification EFFECTIVES (admin-configurables via
+    service_configs['scheduling'], repli sur les constantes ci-dessus).
+    Renvoie (driver_start_window_min, anti_double_booking_min, driver_conflict_min)."""
+    try:
+        from routes.config import get_scheduling_config
+        cfg = await get_scheduling_config()
+        return (
+            int(cfg.get("driver_start_window_min", SCHEDULED_ACTIVATION_MIN)),
+            int(cfg.get("anti_double_booking_min", SCHEDULED_DOUBLE_BOOK_MIN)),
+            int(cfg.get("driver_conflict_min", SCHEDULED_CONFLICT_MIN)),
+        )
+    except Exception:
+        return (SCHEDULED_ACTIVATION_MIN, SCHEDULED_DOUBLE_BOOK_MIN, SCHEDULED_CONFLICT_MIN)
+
+
 def _parse_iso(value):
     """Parse un ISO datetime tolérant (gère le 'Z'). Renvoie un datetime aware ou None."""
     if not value:
@@ -114,7 +130,7 @@ def _parse_iso(value):
         return None
 
 
-def _is_scheduled_pending_activation(ride: dict) -> bool:
+def _is_scheduled_pending_activation(ride: dict, activation_min: int = SCHEDULED_ACTIVATION_MIN) -> bool:
     """True si la réservation programmée n'est PAS encore une course active 'maintenant'
     (le chauffeur n'a pas démarré et on est loin du départ) → ne doit pas déclencher la
     bande de suivi / redirection. Couvre 'pending' (pas encore acceptée) et 'accepted'
@@ -127,7 +143,7 @@ def _is_scheduled_pending_activation(ride: dict) -> bool:
     sdt = _parse_iso(ride.get("scheduled_at"))
     if not sdt:
         return False
-    return datetime.now(timezone.utc) < sdt - timedelta(minutes=SCHEDULED_ACTIVATION_MIN)
+    return datetime.now(timezone.utc) < sdt - timedelta(minutes=activation_min)
 
 
 def _ride_ref(ride_id: str) -> str:
@@ -142,7 +158,8 @@ async def _driver_schedule_conflict(driver_id: str, new_ride: dict):
     PROGRAMMÉE sont bloqués."""
     now = datetime.now(timezone.utc)
     new_sched = _parse_iso(new_ride.get("scheduled_at"))
-    buffer = timedelta(minutes=SCHEDULED_CONFLICT_MIN)
+    _, _, conflict_min = await _scheduling_windows()
+    buffer = timedelta(minutes=conflict_min)
     others = await db.rides.find(
         {"driver_id": driver_id, "status": {"$in": ["accepted", "arriving", "in_progress"]}},
         {"_id": 0, "scheduled_at": 1, "status": 1},
@@ -153,7 +170,7 @@ async def _driver_schedule_conflict(driver_id: str, new_ride: dict):
             # Deux réservations programmées trop proches.
             if abs((new_sched - o_sched).total_seconds()) < buffer.total_seconds():
                 return ("Vous avez déjà une réservation à moins de "
-                        f"{SCHEDULED_CONFLICT_MIN} min de cet horaire.")
+                        f"{conflict_min} min de cet horaire.")
         elif new_sched and not o_sched:
             # Nouvelle réservation imminente alors qu'une course instantanée tourne.
             if new_sched <= now + buffer:
@@ -432,9 +449,10 @@ async def create_ride(data: RideRequest, request: Request):
         if sched_dt > now + timedelta(days=max_days):
             raise HTTPException(status_code=400, detail=f"La course ne peut pas être planifiée au-delà de {max_days} jours.")
 
-        # Anti double-réservation : pas deux réservations à moins de 30 min d'écart.
-        win_lo = (sched_dt - timedelta(minutes=SCHEDULED_DOUBLE_BOOK_MIN)).isoformat()
-        win_hi = (sched_dt + timedelta(minutes=SCHEDULED_DOUBLE_BOOK_MIN)).isoformat()
+        # Anti double-réservation : pas deux réservations à moins de X min d'écart (admin-configurable).
+        anti_double = int(sched_cfg.get("anti_double_booking_min", SCHEDULED_DOUBLE_BOOK_MIN))
+        win_lo = (sched_dt - timedelta(minutes=anti_double)).isoformat()
+        win_hi = (sched_dt + timedelta(minutes=anti_double)).isoformat()
         clash = await db.rides.find_one({
             "user_id": user["id"],
             "status": {"$in": ["pending", "accepted", "arriving", "in_progress"]},
@@ -443,7 +461,7 @@ async def create_ride(data: RideRequest, request: Request):
         if clash:
             raise HTTPException(
                 status_code=409,
-                detail=f"Vous avez déjà une réservation à moins de {SCHEDULED_DOUBLE_BOOK_MIN} min de ce créneau. "
+                detail=f"Vous avez déjà une réservation à moins de {anti_double} min de ce créneau. "
                        "Annulez-la ou choisissez un autre horaire.",
             )
 
@@ -1811,14 +1829,15 @@ async def update_ride_status(ride_id: str, request: Request):
     if new_status == "arriving" and is_driver and not is_admin and ride.get("scheduled_at"):
         sdt = _parse_iso(ride["scheduled_at"])
         if sdt:
-            earliest = sdt - timedelta(minutes=SCHEDULED_ACTIVATION_MIN)
+            activation_min, _, _ = await _scheduling_windows()
+            earliest = sdt - timedelta(minutes=activation_min)
             now_dt = datetime.now(timezone.utc)
             if now_dt < earliest:
                 mins = int((earliest - now_dt).total_seconds() // 60)
                 raise HTTPException(
                     status_code=400,
                     detail=(f"Trop tôt : vous pourrez démarrer cette réservation "
-                            f"{SCHEDULED_ACTIVATION_MIN} min avant le rendez-vous "
+                            f"{activation_min} min avant le rendez-vous "
                             f"(dans environ {mins} min)."),
                 )
 
@@ -2470,6 +2489,7 @@ async def get_active_ride(request: Request):
     confusion « démarrée » et ne pas bloquer l'utilisateur 45 min trop tôt."""
     user = await get_current_user(request)
     active_statuses = ["pending", "accepted", "arriving", "in_progress"]
+    activation_min, _, _ = await _scheduling_windows()
 
     if user["role"] == "driver":
         driver = await db.drivers.find_one({"user_id": user["id"]})
@@ -2478,7 +2498,7 @@ async def get_active_ride(request: Request):
                 {"driver_id": driver["id"], "status": {"$in": active_statuses}},
                 {"_id": 0},
             ).to_list(20)
-            ride = next((r for r in rides if not _is_scheduled_pending_activation(r)), None)
+            ride = next((r for r in rides if not _is_scheduled_pending_activation(r, activation_min)), None)
             if ride:
                 await enrich_passenger_info(ride)
                 return ride
@@ -2487,7 +2507,7 @@ async def get_active_ride(request: Request):
             {"user_id": user["id"], "status": {"$in": active_statuses}},
             {"_id": 0},
         ).to_list(20)
-        ride = next((r for r in rides if not _is_scheduled_pending_activation(r)), None)
+        ride = next((r for r in rides if not _is_scheduled_pending_activation(r, activation_min)), None)
         if ride:
             if ride.get("driver_id"):
                 loc = manager.get_driver_location(ride["driver_id"])
@@ -2538,3 +2558,91 @@ async def _expire_dead_pending_rides():
         },
         {"$set": {"status": "expired", "expired_at": now_iso, "expiry_reason": "unaccepted"}},
     )
+
+
+
+def _fmt_sched_time(sdt) -> str:
+    """Format court d'une heure de RDV pour un SMS (ex. '15h30')."""
+    try:
+        return sdt.strftime("%Hh%M")
+    except Exception:
+        return ""
+
+
+async def run_scheduled_ride_reminders():
+    """Envoie un rappel SMS (client + chauffeur) ~`sms_reminder_min` min avant
+    l'HEURE DU RDV d'une réservation programmée. Idempotent : ne traite chaque
+    course qu'une seule fois (flag `reminder_sms_sent`). Testable directement.
+
+    No-op propre si le rappel SMS est désactivé (admin) ou si Twilio n'est pas
+    configuré (dans ce cas on ne pose PAS le flag, pour réessayer quand actif)."""
+    from core.sms import send_sms, sms_enabled
+    from routes.config import get_scheduling_config
+    cfg = await get_scheduling_config()
+    if not cfg.get("sms_reminder_enabled", True):
+        return {"sent": 0, "rides": 0}
+    if not sms_enabled():
+        return {"sent": 0, "rides": 0, "reason": "sms_disabled"}
+
+    reminder_min = int(cfg.get("sms_reminder_min", 30))
+    now = datetime.now(timezone.utc)
+    window_hi = (now + timedelta(minutes=reminder_min)).isoformat()
+    now_iso = now.isoformat()
+
+    rides = await db.rides.find({
+        "status": {"$in": ["pending", "accepted"]},
+        "scheduled_at": {"$ne": None, "$gte": now_iso, "$lte": window_hi},
+        "reminder_sms_sent": {"$ne": True},
+    }, {"_id": 0}).to_list(200)
+
+    sent_total = 0
+    for ride in rides:
+        sdt = _parse_iso(ride.get("scheduled_at"))
+        when = _fmt_sched_time(sdt) if sdt else ""
+        ref = _ride_ref(ride.get("id", ""))
+        pickup = (ride.get("pickup_address") or "").strip()[:60] or "—"
+
+        # Numéro client (réservation pour soi ou pour un tiers).
+        client_phone = ride.get("book_for_phone")
+        if not client_phone and ride.get("user_id"):
+            u = await db.users.find_one({"id": ride["user_id"]}, {"_id": 0, "phone": 1})
+            client_phone = (u or {}).get("phone")
+        if client_phone:
+            body = (f"SB Drive — Rappel : votre course Réf. #{ref} est prévue à {when} "
+                    f"(dans ~{reminder_min} min). Départ : {pickup}. À tout de suite !")
+            if await send_sms(client_phone, body):
+                sent_total += 1
+
+        # Numéro chauffeur (uniquement si la réservation est acceptée).
+        if ride.get("status") == "accepted" and ride.get("driver_id"):
+            drv = await db.drivers.find_one({"id": ride["driver_id"]}, {"_id": 0, "user_id": 1})
+            if drv and drv.get("user_id"):
+                du = await db.users.find_one({"id": drv["user_id"]}, {"_id": 0, "phone": 1})
+                drv_phone = (du or {}).get("phone")
+                if drv_phone:
+                    body = (f"SB Drive — Rappel chauffeur : course Réf. #{ref} prévue à {when} "
+                            f"(dans ~{reminder_min} min). Prise en charge : {pickup}.")
+                    if await send_sms(drv_phone, body):
+                        sent_total += 1
+
+        await db.rides.update_one(
+            {"id": ride["id"]},
+            {"$set": {"reminder_sms_sent": True, "reminder_sms_at": now_iso}},
+        )
+
+    return {"sent": sent_total, "rides": len(rides)}
+
+
+async def scheduled_ride_reminder_loop():
+    """Boucle de fond : vérifie toutes les 60 s les réservations programmées
+    arrivant dans la fenêtre de rappel et envoie les SMS (client + chauffeur)."""
+    from core.config import logger
+    while True:
+        try:
+            await run_scheduled_ride_reminders()
+        except Exception as e:
+            try:
+                logger.error("scheduled_ride_reminder_loop error: %s", e)
+            except Exception:
+                pass
+        await asyncio.sleep(60)
