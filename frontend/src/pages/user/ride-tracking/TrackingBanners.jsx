@@ -8,7 +8,8 @@
  *  - STATUS_STEPS      : étapes de la barre de progression de la course
  */
 import React, { useState, useEffect } from 'react';
-import { Check, NavigationArrow, Car, Star, Clock, UsersThree, AirplaneTilt } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+import { Check, NavigationArrow, Car, Star, Clock, UsersThree, AirplaneTilt, Shield } from '@phosphor-icons/react';
 
 // Read-only live rental meter for the client (Mise à disposition).
 export const RentalMeterBanner = ({ ride }) => {
@@ -129,3 +130,45 @@ export const STATUS_STEPS = [
   { key: 'in_progress', label: 'En cours', icon: Car },
   { key: 'completed', label: 'Terminée', icon: Star },
 ];
+
+// Live trip-share card — shows the public tracking link with one-tap WhatsApp/SMS
+// per trusted contact. Falls back to a generic share + copy link when the rider
+// has no trusted contacts. Pure presentational (driven by `info`).
+export const AutoShareLiveCard = ({ info, onDismiss }) => {
+  if (!info) return null;
+  const { url, contacts = [] } = info;
+  const msg = encodeURIComponent(`Suivez mon trajet SB Drive en direct (sécurité) : ${url}`);
+  const copyLink = () => {
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast.success('Lien de suivi copié')).catch(() => {});
+    else toast.success('Lien de suivi prêt à partager');
+  };
+  return (
+    <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[92%] max-w-[440px] z-40 bg-white rounded-2xl shadow-xl border border-violet-100 p-3" data-testid="auto-share-live-card">
+      <div className="flex items-center gap-2 mb-2">
+        <Shield size={18} weight="fill" className="text-violet-600" />
+        <p className="text-sm font-bold text-gray-900 flex-1">Trajet partagé · contacts de confiance</p>
+        <button onClick={onDismiss} className="text-gray-400 text-lg leading-none" data-testid="auto-share-dismiss">✕</button>
+      </div>
+      {contacts.length > 0 ? (
+        <div className="space-y-1.5">
+          {contacts.map((c) => {
+            const num = (c.phone || '').replace(/[^0-9]/g, '');
+            return (
+              <div key={c.id} className="flex items-center gap-2" data-testid={`auto-share-contact-${c.id}`}>
+                <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{c.name}</span>
+                <a href={`https://wa.me/${num}?text=${msg}`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-white bg-[#25D366] px-2.5 py-1 rounded-full">WhatsApp</a>
+                <a href={`sms:${c.phone}?&body=${msg}`} className="text-[11px] font-bold text-white bg-blue-600 px-2.5 py-1 rounded-full">SMS</a>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2" data-testid="auto-share-generic">
+          <span className="text-xs text-gray-500 flex-1">Aucun contact de confiance — partagez le lien :</span>
+          <a href={`https://wa.me/?text=${msg}`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-white bg-[#25D366] px-2.5 py-1 rounded-full" data-testid="auto-share-whatsapp">WhatsApp</a>
+          <button onClick={copyLink} className="text-[11px] font-bold text-white bg-violet-600 px-2.5 py-1 rounded-full" data-testid="auto-share-copy">Copier</button>
+        </div>
+      )}
+    </div>
+  );
+};

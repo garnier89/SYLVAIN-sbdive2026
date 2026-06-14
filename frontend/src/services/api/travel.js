@@ -47,6 +47,14 @@ export const flightsAPI = {
   adminBookings: () => api.get('/flights/admin/bookings'),
 };
 
+export const itinerariesAPI = {
+  list: () => api.get('/itineraries'),
+  create: (data) => api.post('/itineraries', data),
+  detail: (id) => api.get(`/itineraries/${id}`),
+  remove: (id) => api.delete(`/itineraries/${id}`),
+  public: (token) => api.get(`/itineraries/public/${token}`),
+};
+
 export const travelPackagesAPI = {
   list: () => api.get('/travel-packages'),
   detail: (id) => api.get(`/travel-packages/${id}`),

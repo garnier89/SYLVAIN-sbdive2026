@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, MagnifyingGlass, Star, MapPin, X, Phone, NavigationArrow,
-  Car, Clock, Storefront, Globe, Heart, List, MapTrifold, Path,
+  Car, Clock, Storefront, Globe, Heart, List, MapTrifold, Path, BookmarkSimple, FloppyDisk,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { ServiceCard } from '../../components/ServiceListLayout';
-import { favoritesAPI } from '../../services/api';
+import { favoritesAPI, itinerariesAPI } from '../../services/api';
 import NearbyPlacesMap from './NearbyPlacesMap';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -70,6 +70,7 @@ const NearbyBusinessPage = () => {
   const [cityInput, setCityInput] = useState('');
   const [cityOpen, setCityOpen] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
+  const [savingCircuit, setSavingCircuit] = useState(false);
 
   // Resolve the user's GPS once (graceful Paris fallback).
   useEffect(() => {
@@ -182,6 +183,30 @@ const NearbyBusinessPage = () => {
     navigate('/taxi');
   };
 
+  const saveCircuit = async () => {
+    const ordered = plan.map((id) => favs.find((f) => f.id === id)).filter(Boolean);
+    if (ordered.length < 1) { toast.error('Ajoutez au moins une étape'); return; }
+    const title = (window.prompt('Nom du circuit ?', exploreCity?.name ? `Circuit ${exploreCity.name}` : 'Mon circuit') || '').trim();
+    if (!title) return;
+    setSavingCircuit(true);
+    try {
+      await itinerariesAPI.create({
+        title,
+        city: exploreCity?.name || null,
+        places: ordered.map((p) => ({
+          name: p.name, category: p.category, address: p.address,
+          lat: p.lat, lng: p.lng, place_id: p.place_id, image: p.image,
+        })),
+        route_info: routeInfo
+          ? { total_drive_min: routeInfo.total_drive_min, total_visit_min: routeInfo.total_visit_min, total_day_min: routeInfo.total_day_min }
+          : null,
+      });
+      toast.success('Circuit enregistré dans « Mes circuits »');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Enregistrement impossible');
+    } finally { setSavingCircuit(false); }
+  };
+
   const toggleFav = async (item, e) => {
     if (e) { e.stopPropagation(); }
     const wasFav = favIds.includes(item.id);
@@ -216,6 +241,13 @@ const NearbyBusinessPage = () => {
             <ArrowLeft size={18} className="text-white" />
           </button>
           <h1 className="text-lg font-bold text-white flex-1">{showFavs ? 'Mes favoris' : 'Commerces & Tourisme'}</h1>
+          <button
+            onClick={() => navigate('/mes-circuits')}
+            className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-white/20 text-white"
+            data-testid="my-circuits-link"
+          >
+            <BookmarkSimple size={14} weight="fill" /> Circuits
+          </button>
           <button
             onClick={() => (showFavs ? exitFavs() : openFavs())}
             className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-full ${showFavs ? 'bg-white text-[#FF4500]' : 'bg-white/20 text-white'}`}
@@ -422,6 +454,14 @@ const NearbyBusinessPage = () => {
                 <Path size={18} weight="bold" /> {optimizing ? '...' : 'Optimiser'}
               </button>
             )}
+            <button
+              onClick={saveCircuit}
+              disabled={savingCircuit}
+              className="flex items-center justify-center gap-1.5 px-4 py-4 rounded-2xl border-2 border-orange-400 text-orange-600 font-bold disabled:opacity-60"
+              data-testid="save-circuit-btn"
+            >
+              <FloppyDisk size={18} weight="bold" /> {savingCircuit ? '...' : 'Enregistrer'}
+            </button>
             <button
               onClick={reserveItinerary}
               className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#FF4500] text-white font-extrabold shadow-lg shadow-orange-500/30 active:scale-[0.99] transition-transform"

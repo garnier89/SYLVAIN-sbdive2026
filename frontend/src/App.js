@@ -14,6 +14,7 @@ import VoiceAssistant from './components/VoiceAssistant';
 import { KioskApp, ProAccessPage, SbStoreSignupPage } from './routes/pages';
 
 const SharedTripPage = React.lazy(() => import('./pages/SharedTripPage'));
+const SharedItineraryPage = React.lazy(() => import('./pages/SharedItineraryPage'));
 import ProGateListener from './pages/user/fleet/ProGateListener';
 import { clientRoutes } from './routes/clientRoutes';
 import { driverRoutes } from './routes/driverRoutes';
@@ -62,6 +63,8 @@ const AppRouter = () => {
 
           {/* ======= PUBLIC — Suivi de trajet partagé (sécurité, sans login) ======= */}
           <Route path="/t/:token" element={<SharedTripPage />} />
+          {/* ======= PUBLIC — Circuit touristique partagé (sans login) ======= */}
+          <Route path="/circuit/:token" element={<SharedItineraryPage />} />
 
           {/* ======= SB DRIVE CLIENT (App Passager) ======= */}
           {clientRoutes(user)}

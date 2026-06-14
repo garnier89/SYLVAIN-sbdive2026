@@ -11,7 +11,7 @@ import {
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
-import { RentalMeterBanner, FlightWatchBanner, PoolBadge, StatusDialog, STATUS_STEPS } from './ride-tracking/TrackingBanners';
+import { RentalMeterBanner, FlightWatchBanner, PoolBadge, StatusDialog, STATUS_STEPS, AutoShareLiveCard } from './ride-tracking/TrackingBanners';
 import RadarCars from '../../components/RadarCars';
 import SearchRadar from '../../components/SearchRadar';
 import DriverInfoCard from './ride-tracking/DriverInfoCard';
@@ -65,6 +65,7 @@ const RideTrackingPage = () => {
   const [showRouteEdit, setShowRouteEdit] = useState(false);
   const [showSafety, setShowSafety] = useState(false);
   const [autoShareInfo, setAutoShareInfo] = useState(null);
+  const [sharing, setSharing] = useState(false);
   const autoSharedRef = useRef(null);
   const [relanceCount, setRelanceCount] = useState(0);
   const [showNoDriver, setShowNoDriver] = useState(false);
@@ -525,6 +526,30 @@ const RideTrackingPage = () => {
     })();
   }, [ride?.id, ride?.status]);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Manual share — lets the rider share the live tracking link with trusted
+  // contacts AT ANY TIME (incl. while searching), for reassurance before pickup.
+  const handleManualShare = useCallback(async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const s = await tripShareAPI.create(rideId);
+      const url = `${window.location.origin}/t/${s.data.token}`;
+      let contacts = [];
+      try {
+        const a = await tripShareAPI.getRideAutoShare(rideId);
+        contacts = a.data.contacts || [];
+      } catch { /* contacts optional */ }
+      setAutoShareInfo({ url, contacts });
+      if (navigator.share) {
+        navigator.share({ title: 'Suivi de mon trajet SB Drive', text: 'Suivez mon trajet en direct :', url }).catch(() => {});
+      }
+      toast.success(contacts.length ? 'Lien de suivi prêt — prévenez vos proches' : 'Lien de suivi prêt à partager');
+    } catch (e) {
+      toast.error('Partage impossible pour le moment');
+    }
+    setSharing(false);
+  }, [sharing, rideId]);
+
 
   if (loading) {
     return (
@@ -593,26 +618,7 @@ const RideTrackingPage = () => {
           <SafetyToolsSheet ride={ride} onClose={() => setShowSafety(false)} />
         )}
         {autoShareInfo && (
-          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[92%] max-w-[440px] z-40 bg-white rounded-2xl shadow-xl border border-violet-100 p-3" data-testid="auto-share-live-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Shield size={18} weight="fill" className="text-violet-600" />
-              <p className="text-sm font-bold text-gray-900 flex-1">Trajet partagé · contacts de confiance</p>
-              <button onClick={() => setAutoShareInfo(null)} className="text-gray-400 text-lg leading-none" data-testid="auto-share-dismiss">✕</button>
-            </div>
-            <div className="space-y-1.5">
-              {autoShareInfo.contacts.map((c) => {
-                const msg = encodeURIComponent(`Suivez mon trajet SB Drive en direct (sécurité) : ${autoShareInfo.url}`);
-                const num = (c.phone || '').replace(/[^0-9]/g, '');
-                return (
-                  <div key={c.id} className="flex items-center gap-2" data-testid={`auto-share-contact-${c.id}`}>
-                    <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{c.name}</span>
-                    <a href={`https://wa.me/${num}?text=${msg}`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-white bg-[#25D366] px-2.5 py-1 rounded-full">WhatsApp</a>
-                    <a href={`sms:${c.phone}?&body=${msg}`} className="text-[11px] font-bold text-white bg-blue-600 px-2.5 py-1 rounded-full">SMS</a>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <AutoShareLiveCard info={autoShareInfo} onDismiss={() => setAutoShareInfo(null)} />
         )}
         <RouteEditModal
           open={showRouteEdit}
@@ -767,6 +773,9 @@ const RideTrackingPage = () => {
                 Relancer la recherche
               </button>
             )}
+            <button onClick={handleManualShare} disabled={sharing} className="w-full rounded-xl py-3 text-sm font-bold text-violet-700 bg-violet-50 border border-violet-200 flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.98] transition-transform" data-testid="share-tracking-btn">
+              <Shield size={18} weight="fill" /> {sharing ? 'Préparation…' : 'Partager mon suivi à mes proches'}
+            </button>
             {canCancel && (
               <button onClick={() => setShowCancel(true)} className="w-full rounded-xl py-3 text-sm font-bold text-gray-500" data-testid="cancel-ride-btn">
                 Annuler la course
@@ -774,6 +783,10 @@ const RideTrackingPage = () => {
             )}
           </div>
         </div>
+
+        {autoShareInfo && (
+          <AutoShareLiveCard info={autoShareInfo} onDismiss={() => setAutoShareInfo(null)} />
+        )}
 
         <CancelRideModal open={showCancel} reasons={cancelReasons} onCancel={handleCancel} onClose={() => setShowCancel(false)} />
         <StatusDialog dialog={statusDialog} />

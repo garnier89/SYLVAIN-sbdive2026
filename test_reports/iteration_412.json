@@ -1,0 +1,42 @@
+{
+  "summary": "Certified end-to-end the two new features built this session: (B) Manual live-trip share on the ride SEARCHING screen and (A) Tourist Itineraries (Circuits) — save, list, public share link, public read-only page. 8/8 backend pytest cases PASS and 14/14 frontend UI assertions PASS. Both features are production-ready.",
+  "per_check_results": {
+    "backend_itineraries_crud": "PASS 8/8 — public token reachable WITHOUT auth (seed token zOJll541Jkoq returns 'Découverte Fort-de-France' with owner_name + places), invalid token => 404, GET requires auth (401), authed GET lists seeded circuit, POST validates title + non-empty places (400 each), full create -> list -> public-read -> delete -> public-404 -> list-missing flow, MAX_PLACES enforced (30 => 400). Public payload excludes _id.",
+    "feature_A_public_shared_page_no_login": "PASS — /circuit/zOJll541Jkoq renders [shared-circuit-page] with title 'Découverte Fort-de-France', map [shared-circuit-map], 3 steps [shared-step-0..2] + 3 direction links [shared-step-dir-0..2], CTA [shared-circuit-reserve] 'Réserver un chauffeur SB Drive'. Header shows 'Proposé par Fam Tester'.",
+    "feature_A_public_invalid_token": "PASS — /circuit/invalid_token_xyz_123 renders [shared-circuit-error] (404 from backend handled cleanly).",
+    "feature_A_my_circuits_page": "PASS — /mes-circuits renders [my-circuits-page], card [circuit-itin_8da13d1a8174] with title, city 'Fort-de-France', '3 étapes', 'Journée ~2h33', 3 ordered numbered steps, and all 5 action testids: [circuit-share-{id}], [circuit-whatsapp-{id}], [circuit-reserve-{id}], [circuit-copy-{id}], [circuit-delete-{id}].",
+    "feature_A_my_circuits_link": "PASS — [my-circuits-link] is on the /nearby (Tourisme) page header as referenced in NearbyBusinessPage.js:247. NOT on the global app header (which matches the file reference scope).",
+    "feature_A_favorites_toggle": "PASS — [favorites-toggle] visible on /nearby. Full E2E save-from-favorites flow not exercised because famtester has no favorites set up (per the request's NOTE: fallback to backend API was used and the resulting circuit was visible on /mes-circuits).",
+    "feature_B_share_tracking_btn": "PASS — After creating a ride (Schoelcher Martinique destination) and landing on /ride/{id} (searching state), [share-tracking-btn] 'Partager mon suivi à mes proches' is rendered.",
+    "feature_B_auto_share_card": "PASS — Clicking [share-tracking-btn] renders [auto-share-live-card] with the no-trusted-contacts fallback [auto-share-generic] row, [auto-share-whatsapp] + [auto-share-copy] buttons, [auto-share-dismiss] button. Success toast 'Lien de suivi prêt' visible. Dismissing the card removes it from the DOM.",
+    "console_errors": "Only 1 cosmetic 401 at session start before auth cookie applied (pre-existing, documented in iteration_411). No errors in either circuits or share-tracking flows."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "RideTrackingPage searching state", "issues": ["Pre-existing (NOT introduced by either new feature): the 'Vérifiez votre email' toast at the bottom-right may visually sit close to the new [share-tracking-btn] CTA inside the bottom sheet — only a stylistic note; both elements remain interactive in the test run."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_itineraries.py",
+    "/app/test_reports/pytest/itineraries_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "itineraries.py route is clean: explicit Pydantic-free validation via _clean_place + MAX_PLACES guard, secrets.token_urlsafe(9) for share_token (well-sized & unpredictable), _id excluded from both list and public projections, public endpoint only joins user.name (no PII leak). Good.",
+    "Public route order: GET /itineraries/{itin_id} and GET /itineraries/public/{token} — FastAPI matches them by path: /public/{token} has a static prefix so it wins. Confirmed no shadowing (test_public_invalid_token_returns_404 + test_existing_seed_public_token both 200/404 as expected).",
+    "Soft suggestion (non-blocking): consider rate-limiting POST /itineraries (no per-user quota beyond MAX_PLACES per circuit). Same for the public GET (an attacker could brute-force share_tokens — but secrets.token_urlsafe(9) gives ~70 bits of entropy which is adequate).",
+    "Frontend MyItinerariesPage + SharedItineraryPage testid coverage is exhaustive — every interactive element has a data-testid including per-step shared-step-{i}/shared-step-dir-{i} and per-card circuit-{action}-{id}. Excellent for automated testing.",
+    "Pre-existing (not new): /api/auth/me returns 401 at app boot before the auth cookie is sent — cosmetic, already noted in prior iterations."
+  ],
+  "updated_files": ["/app/backend/tests/test_itineraries.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (14/14 assertions across both features)"},
+  "test_credentials": "famtester@demo.sb / FamTest123! — seeded circuit share_token 'zOJll541Jkoq'",
+  "seed_data_creation": "Backend test created and deleted 1 TEST_Circuit_API_QA circuit. UI test created ride ride_fe9b728ea58b (left in searching state). No persistent test data left behind besides the existing famtester seed circuit 'Découverte Fort-de-France'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both new features (B: live-trip share button & A: Circuits with public sharing) are CERTIFIED. Backend pytest suite at /app/backend/tests/test_itineraries.py — reuse for regression. The /circuit/:token route works LOGGED OUT as required (no auth headers sent, payload includes title/places/owner_name and excludes _id). The share-tracking-btn appears on /ride/{id} as long as the ride is in 'searching' state (which is the default in preview because dispatch is disabled). To reach the searching screen quickly: /login/email -> /course -> fill 'Où allez-vous ?' with 'Schoelcher Martinique' -> wait 3s -> click .pac-item -> wait 4s -> click ride-choose-request-btn -> dismiss cancel-policy-ok if shown -> share-tracking-btn is in the bottom-sheet under 'Relancer la recherche'. The save-circuit-from-favorites E2E was NOT exercised because famtester has no favorites; backend API path was used as the request explicitly allowed (this is the documented fallback).",
+  "rca of the issue": "No bugs found. Initial assumption that [my-circuits-link] should be in the global header was incorrect — re-reading the request and grep confirmed the testid lives on NearbyBusinessPage.js (Tourisme page) where it's actually wired. Verified on /nearby."
+}

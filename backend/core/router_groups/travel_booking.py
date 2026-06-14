@@ -33,6 +33,7 @@ from routes.home_banners import admin_router as home_banners_admin_router
 from routes.ferry import public_router as ferry_public_router
 from routes.ferry import admin_router as ferry_admin_router
 from routes.nearby_places import router as nearby_places_router
+from routes.itineraries import router as itineraries_router
 from routes.events import public_router as events_public_router
 from routes.events import admin_router as events_admin_router
 from routes.organizer import router as organizer_router
@@ -69,6 +70,7 @@ ROUTERS = [
     ferry_public_router,
     ferry_admin_router,
     nearby_places_router,
+    itineraries_router,
     events_public_router,
     events_admin_router,
     organizer_router,
