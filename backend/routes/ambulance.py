@@ -191,7 +191,20 @@ async def create_request(request: Request):
             )
     except Exception:
         pass
-    return _public(req)
+    # Alerter les proches / contacts d'urgence (module Famille) avec lien de suivi.
+    family_notified = 0
+    if body.get("notify_contacts", True):
+        try:
+            from routes.family import notify_user_circles
+            family_notified = await notify_user_circles(
+                user, "ambulance_alert", "🚑 Ambulance demandée",
+                f"{req['patient_name'] or 'Un proche'} a demandé une ambulance ({e['label']}). Suivez sa position.",
+                lat=pickup_lat, lng=pickup_lng, alert_type="sos")
+        except Exception:
+            family_notified = 0
+    out = _public(req)
+    out["family_notified"] = family_notified
+    return out
 
 
 @router.get("/requests")

@@ -33,6 +33,7 @@ const AmbulancePage = () => {
   const [pickup, setPickup] = useState({ address: '', lat: null, lng: null });
   const [patient, setPatient] = useState({ name: '', phone: '', symptoms: '' });
   const [payment, setPayment] = useState('sbpay');
+  const [notifyContacts, setNotifyContacts] = useState(true);
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [request, setRequest] = useState(null);
@@ -64,10 +65,14 @@ const AmbulancePage = () => {
         body: JSON.stringify({
           emergency_type: etype, pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickup.address,
           patient_name: patient.name, patient_phone: patient.phone, symptoms: patient.symptoms, payment_method: payment,
+          notify_contacts: notifyContacts,
         }),
       });
       const d = await r.json();
-      if (r.ok) { setRequest(d); setStep('tracking'); } else toast.error(d.detail || 'Échec de la demande');
+      if (r.ok) {
+        setRequest(d); setStep('tracking');
+        if (notifyContacts && d.family_notified > 0) toast.success(`${d.family_notified} proche(s) prévenu(s) avec votre position`);
+      } else toast.error(d.detail || 'Échec de la demande');
     } catch { toast.error('Erreur réseau'); } finally { setSubmitting(false); }
   };
 
@@ -288,6 +293,17 @@ const AmbulancePage = () => {
           </div>
           <p className="text-[11px] text-gray-400 mt-2">Les frais ne sont débités qu'à la clôture de l'intervention.</p>
         </div>
+
+        {/* Notify emergency contacts */}
+        <button onClick={() => setNotifyContacts(v => !v)} className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 text-left" data-testid="ambulance-notify-toggle">
+          <div className={`w-11 h-6 rounded-full flex items-center px-0.5 transition-colors ${notifyContacts ? 'bg-red-500 justify-end' : 'bg-gray-200 justify-start'}`}>
+            <div className="w-5 h-5 rounded-full bg-white shadow" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-900">Prévenir mes proches</p>
+            <p className="text-[11px] text-gray-500">Vos contacts du cercle Famille reçoivent une alerte + votre position en direct.</p>
+          </div>
+        </button>
 
         {/* Patient */}
         <div className="bg-white rounded-2xl p-4 space-y-2">

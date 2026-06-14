@@ -81,6 +81,38 @@ async def _notify_circle(circle_id: str, ntype: str, title: str, body: str, excl
             pass
 
 
+async def notify_user_circles(user: dict, ntype: str, title: str, body: str,
+                              lat=None, lng=None, alert_type: str = None) -> int:
+    """Notifie tous les proches des cercles auxquels appartient l'utilisateur (le sien + ceux
+    où il est membre relié). Réutilisé par SB Urgences pour alerter les contacts d'urgence.
+    Joint un deep-link Google Maps si une position est fournie. Best-effort.
+    Retourne le nombre de proches notifiés."""
+    circle_ids = set()
+    own = await db.family_circles.find_one({"owner_id": user["id"]}, {"_id": 0, "id": 1})
+    if own:
+        circle_ids.add(own["id"])
+    async for m in db.family_members.find({"user_id": user["id"]}, {"_id": 0, "circle_id": 1}):
+        circle_ids.add(m["circle_id"])
+    url = f"https://maps.google.com/?q={lat},{lng}" if lat is not None and lng is not None else "/famille/alertes"
+    notified = set()
+    for cid in circle_ids:
+        if alert_type:
+            try:
+                await _add_alert(cid, alert_type, body)
+            except Exception:
+                pass
+        for uid in await _circle_recipients(cid, exclude_user_id=user["id"]):
+            if uid in notified:
+                continue
+            notified.add(uid)
+            try:
+                await create_notification(uid, ntype, title, body,
+                                          {"url": url, "circle_id": cid, "lat": lat, "lng": lng})
+            except Exception:
+                pass
+    return len(notified)
+
+
 def _live(m: dict) -> dict:
     """Live position of a member: simulated (demo) or last shared ping."""
     sim = m.get("sim") or {}
