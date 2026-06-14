@@ -1,4 +1,13 @@
-## NEW - 2026-06-14 (515) - 🖼️🗺️ Photos blocs codés en dur + E2E tous services + FIX géoloc taxi (a+b+c)
+## NEW - 2026-06-14 (516) - 📍 Sélecteur de zone + cohérence géoloc (lot "amélioration géoloc")
+- **Bandeau de localisation cliquable** : `UserHome.js` — clic sur le bandeau ouvre `LocationSelectorModal` (GPS + 9 villes de la zone de service : Fort-de-France, Le Lamentin, Schoelcher, Pointe-à-Pitre, Cayenne, Saint-Denis, Paris, Lyon, Marseille). Choix **persisté** (`localStorage 'sb_user_location'`) via nouveau helper `lib/userLocation.js`. Header reflète le choix ; GPS n'écrase plus un choix manuel.
+- **Helper partagé `lib/userLocation.js`** : `getStoredLocation/setStoredLocation`, `resolveLocation()` (stored→défaut Fort-de-France), `locateWithFallback()` (GPS→IP borné zone→stored→défaut, ne rejette jamais), `CITY_PRESETS`, `DEFAULT_LOCATION`.
+- **Cohérence départ** : `RideChoosePage` départ taxi préfère la zone stockée (puis GPS, puis IP). `RunnerPage` (Coursier) + `ParcelPage` (Colis) utilisent `locateWithFallback` → plus d'échec dur si GPS bloqué (fallback Fort-de-France). 
+- **Données** : image base64 invalide nettoyée + 3 listings marketplace de test supprimés (11→8).
+- **Testé** : screenshot (modal zone ouvert, sélection Paris → header + localStorage OK), imports propres (getCurrentLocation retiré), régression pytest 7/7, frontend compile. ⚠️ Visible en prod après redéploiement.
+- **Reste P3** : itinéraires touristiques · aéroports SB Drive internationaux · refacto RideChoosePage.js (1451 l.).
+
+
+
 - **(a) Vraies photos sur blocs codés en dur** : `UserHome.js` — SB Market (Immobilier=maison, Véhicules=voiture, Location=voiture, Marketplace=shopping) + SB Travel (Vols=avion, Hôtels=hôtel, Forfaits=jet) → `imageUrl` Pexels ajouté (ServiceTile rend déjà imageUrl en photo plein cadre). Tuiles utilitaires (Delivery Genie, Plus de Services, grille SB Travel) gardent icônes (volontaire). Section Santé = module au design dédié (bannière urgences + pictogrammes), laissé tel quel.
 - **(b) Test E2E tous services** (testing_agent iter409, 82%) : **les 17 routes chargent**, aucun crash. Faux positif : « pas de carte » sur Taxi/Runner/Parcel = flux en 2 étapes (carte à l'étape 2 via `continue-to-map-btn`), confirmé OK manuellement. 1 image produit cassée sur /marketplace/items (LOW, donnée démo).
 - **(c) FIX géolocalisation (bug réel trouvé)** : le pickup taxi se localisait via IP serveur → **USA** (preview datacenter) → trajet transatlantique absurde (21600 min, 10371€). Corrigé dans `routes/geo.py::ip_locate` : si l'IP est **hors zone de service** (FR/MQ/GP/GF/RE/YT/BL/MF/PM) ou en échec → retourne le **centre par défaut Fort-de-France** (`DEFAULT_CENTER`, `fallback:true`). Vérifié : Fort-de-France → Le Lamentin = **13 min, 12-32€**, carte centrée Martinique ✓. Les vrais users mobiles gardent leur GPS réel.

@@ -4,7 +4,7 @@ import { ArrowLeft, Package, Plus, Trash, Lightning, MapPin, Bag, NavigationArro
 import { toast } from 'sonner';
 import GooglePlacesInput from '../../components/GooglePlacesInput';
 import SavedAddressChips from '../../components/SavedAddressChips';
-import { getCurrentLocation } from '../../lib/googleMaps';
+import { locateWithFallback } from '../../lib/userLocation';
 import { parcelAPI, placesAPI } from '../../services/api';
 import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 
@@ -41,12 +41,12 @@ const RunnerPage = () => {
   const useMyLocationForPickup = async () => {
     setLocating(true);
     try {
-      const loc = await getCurrentLocation();
+      const loc = await locateWithFallback({ preferGps: true });
       setPickup({ address: loc.address || 'Position actuelle', lat: loc.lat, lng: loc.lng });
       if (loc.address && loc.lat != null) placesAPI.addRecent({ address: loc.address, lat: loc.lat, lng: loc.lng }).catch(() => {});
-      toast.success('Position actuelle détectée');
+      toast.success('Position détectée');
     } catch (e) {
-      toast.error("Impossible d'obtenir votre position. Autorisez la géolocalisation ou saisissez l'adresse.");
+      toast.error("Impossible d'obtenir votre position. Saisissez l'adresse.");
     } finally { setLocating(false); }
   };
   const [packageType, setPackageType] = useState('document');

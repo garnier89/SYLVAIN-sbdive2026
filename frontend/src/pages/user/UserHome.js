@@ -16,6 +16,8 @@ import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
 import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI, homeBannersAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
+import LocationSelectorModal from '../../components/LocationSelectorModal';
+import { resolveLocation, getStoredLocation } from '../../lib/userLocation';
 import { LoyaltyStatusCard } from '../../components/LoyaltyStatusCard';
 import { OffresDuMoment } from '../../components/OffresDuMoment';
 import { useServiceShortcuts } from '../../hooks/useServiceShortcuts';
@@ -248,9 +250,11 @@ const UserHome = () => {
   const zoneRef = useRef('');
   const homeBanners = useHomeBanners();
   const locLabelRef = useRef('');
-  const [locLabel, setLocLabel] = useState('Fort-de-France, Martinique');
+  const [locLabel, setLocLabel] = useState(() => resolveLocation().label || 'Fort-de-France, Martinique');
+  const [showLocModal, setShowLocModal] = useState(false);
   const firedImpressionsRef = useRef(new Set());
-  useEffect(() => { getBrowserLocationLabel().then((l) => { if (l) { locLabelRef.current = l; setLocLabel(l); } }); }, []);
+  // Only auto-refine from GPS when the user hasn't manually pinned a zone.
+  useEffect(() => { if (getStoredLocation()) return; getBrowserLocationLabel().then((l) => { if (l) { locLabelRef.current = l; setLocLabel(l); } }); }, []);
   // Fire one impression per banner once it is rendered (with user/time/location).
   useEffect(() => {
     homeBanners.forEach((b) => {
@@ -972,7 +976,7 @@ const UserHome = () => {
         </div>
 
         {/* Location */}
-        <button className="flex items-center gap-1.5 mt-3 max-w-full" data-testid="location-bar">
+        <button className="flex items-center gap-1.5 mt-3 max-w-full" data-testid="location-bar" onClick={() => setShowLocModal(true)}>
           <MapPin size={16} weight="fill" className="text-[#FF5000] shrink-0" />
           <span className={`text-[13px] font-semibold text-[#334155] truncate ${BODY}`} data-testid="location-label">{locLabel}</span>
           <CaretDown size={14} className="text-[#64748B] shrink-0" />
@@ -990,6 +994,12 @@ const UserHome = () => {
       {showDeliverySearch && <DeliverySearchOverlay onClose={() => setShowDeliverySearch(false)} />}
       {/* Side menu drawer */}
       <SideMenuDrawer open={showMenu} onClose={() => setShowMenu(false)} variant="user" />
+      <LocationSelectorModal
+        open={showLocModal}
+        currentLabel={locLabel}
+        onClose={() => setShowLocModal(false)}
+        onSelect={(loc) => setLocLabel(loc.label || loc.address || locLabel)}
+      />
 
       <DebtBanner />
       {/* Bannières d'accueil pilotées depuis l'admin (ordre, visibilité, zone, horaires, fermeture) */}

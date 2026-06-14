@@ -28,6 +28,7 @@ import { cachedServiceCategories, loadServiceCategories } from '../../lib/servic
 import { configAPI, rideAPI, placesAPI, corporateAPI, homeCategoriesAPI, geoAPI, walletAPI, debtsAPI } from '../../services/api';
 import { MODES, RENTAL_PACKAGES } from './taxihub/taxiHubConstants';
 import { getGeocoder } from '../../lib/googleMaps';
+import { getStoredLocation } from '../../lib/userLocation';
 import { useLocale } from '../../contexts/LocaleContext';
 import { useAssistTypes } from '../../hooks/useAssistTypes';
 
@@ -226,7 +227,14 @@ const RideChoosePage = () => {
   }, [activeCat, navigate]);
 
   // Auto-localize the departure on mount (skip when pre-filled via URL params)
-  useEffect(() => { if (!pickup) autoLocate(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    if (pickup) return;
+    // Prefer the user's manually-pinned zone (from the home location selector),
+    // then GPS, then IP — keeps pickup coherent with the rest of the app.
+    const stored = getStoredLocation();
+    if (stored) { setPickup({ lat: stored.lat, lng: stored.lng, address: stored.label || '' }); return; }
+    autoLocate(); /* eslint-disable-next-line */
+  }, []);
 
   // Admin-configurable "Meilleur choix" badge (enabled + label)
   useEffect(() => {

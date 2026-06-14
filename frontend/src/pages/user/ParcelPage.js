@@ -12,7 +12,7 @@ import GooglePlacesInput from '../../components/GooglePlacesInput';
 import SavedAddressChips from '../../components/SavedAddressChips';
 import MapLocationPicker from '../../components/MapLocationPicker';
 import { Switch } from '../../components/ui/switch';
-import { getCurrentLocation } from '../../lib/googleMaps';
+import { locateWithFallback } from '../../lib/userLocation';
 
 let stopSeq = 0;
 const emptyStop = () => ({ _id: ++stopSeq, lat: null, lng: null, address: '', recipient_name: '', recipient_phone: '' });
@@ -53,11 +53,11 @@ const ParcelPage = () => {
   const useMyLocationForPickup = async () => {
     setLocating(true);
     try {
-      const loc = await getCurrentLocation();
+      const loc = await locateWithFallback({ preferGps: true });
       applyPickup(loc);
-      toast.success('Position actuelle détectée');
+      toast.success('Position détectée');
     } catch (e) {
-      toast.error("Impossible d'obtenir votre position. Autorisez la géolocalisation ou saisissez l'adresse.");
+      toast.error("Impossible d'obtenir votre position. Saisissez l'adresse.");
     } finally { setLocating(false); }
   };
 
