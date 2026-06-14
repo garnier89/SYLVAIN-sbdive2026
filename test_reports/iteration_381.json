@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only E2E test of new SB Market hub (/sb-market) using mobile viewport 430x900 and test user famtester@demo.sb. All 8 functional flows from the review request PASS: hub renders (header 'SB Market', search, 4 category tiles, listings grid with 12 real cards = 4 real-estate + 2 vehicles + 6 items, FAB); the 4 filter tabs correctly isolate listings (Tout=12, Immobilier=4, Véhicules=2, Marketplace=6); search filters locally with empty-state for no-match and 'market-search-clear' restores the full feed; favorite heart toggles without navigating (stopPropagation OK, toast 'Ajouté aux favoris' shown, URL unchanged); the 4 category tiles navigate correctly (Immobilier->/real-estate, Véhicules->/marketplace/cars, Marketplace->/marketplace/items, Location opens 'location-sheet' with Voiture->/location-voiture and Moto/Scooter->/moto-location); the 'publish-ad-fab' opens 'publish-sheet' and the 3 options route correctly (immo->/real-estate/post, vehicule->/marketplace/sell-vehicle, article->/ma-galerie); listing cards open the right detail/category route (real-estate card -> /real-estate/{id}, vehicle card -> /marketplace/cars, item card -> /marketplace/items); on /home, the 'home-sbmarket-section' is visible and its 'Voir tout' (when scoped to the section) navigates to /sb-market. The 'À la une' carousel correctly stays hidden (no featured listings — expected per agent note). Backend skipped per request.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/home — SB Market section", "issues": ["'Voir tout' uses the shared data-testid 'taxi-voir-tout' which is reused across multiple SectionHeader instances on the home page (2 occurrences globally). Functionally correct when scoped within home-sbmarket-section, but the testid is no longer unique across the page — recommend a dedicated testid like 'sbmarket-voir-tout' to avoid future selector ambiguity in automation."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Non-blocking polish) Replace the shared 'taxi-voir-tout' testid inside SectionHeader on /home for the SB Market block with a unique one (e.g. 'sbmarket-voir-tout') to prevent ambiguous selectors. Functionality is fine; this is a testability nit only."
+  ],
+  "critical_code_review_comments": [
+    "SbMarketHub.js is clean (~353 lines), well-componentized (ListingCard, CardSkeleton, BottomSheet), uses Promise.allSettled correctly so a single failing API does not break the page, and applies stopPropagation on the favorite button — all verified at runtime.",
+    "FALLBACK image constants are hardcoded URLs to pexels/unsplash — fine for now since they are documented as design_guidelines fallbacks. Consider moving to a shared constants module if reused elsewhere.",
+    "The featured carousel relies on is_featured from both verticals merged together; current dataset has none, so the section is correctly hidden — no bug. Will activate automatically when backend returns featured listings.",
+    "Filter logic is mathematically consistent: realestate(4)+vehicle(2)+item(6) == all(12). Good.",
+    "Listing-card navigation for vehicle/item cards uses fixed routes /marketplace/cars or /marketplace/items rather than per-item detail pages — confirmed acceptable per the review request, but a future improvement would be /marketplace/cars/{id} when detail pages exist."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped)", "frontend": "100% (47/47 functional checks across both runs)" },
+  "test_credentials": "famtester@demo.sb / FamTest123! (login via 'Continuer avec l'e-mail' on /login)",
+  "seed_data_creation": "None — used existing 8 marketplace + 4 real-estate listings already seeded.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "SB Market hub is fully wired and stable on mobile viewport ~430px. All testids referenced in the review request exist and work: sb-market-hub, global-search-input, market-search-clear, market-cat-{immobilier|vehicules|location|marketplace}, market-filter-{all|realestate|vehicle|item}, market-listings-grid, market-listing-{id}, fav-btn-{id}, publish-ad-fab, publish-sheet, publish-option-{immo|vehicule|article}, location-sheet, location-option-{car|moto}, market-empty-state, home-sbmarket-section. Note: on /home the 'taxi-voir-tout' testid appears twice (Taxi section + SB Market section); scope by the parent section when automating."
+}

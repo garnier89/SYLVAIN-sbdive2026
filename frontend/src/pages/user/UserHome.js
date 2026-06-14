@@ -674,10 +674,15 @@ const UserHome = () => {
       </section>
     ),
     marketplace: (
-      <section key="marketplace" className="px-4 mt-6">
-        <SectionHeader title={st('marketplace', "Acheter, Vendre & Louer")} />
+      <section key="marketplace" className="px-4 mt-6" data-testid="home-sbmarket-section">
+        <SectionHeader title="SB Market" sub="Acheter, vendre & louer — immobilier, véhicules & plus." actionLabel="Voir tout" onAction={() => navigate('/sb-market')} />
         <div className="grid grid-cols-4 gap-3">
-          {displayFor('marketplace').map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
+          {[
+            { id: 'sbm-immo', name: 'Immobilier', iconName: 'Buildings', bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/real-estate' },
+            { id: 'sbm-vehicles', name: 'Véhicules', iconName: 'Car', bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/marketplace/cars' },
+            { id: 'sbm-location', name: 'Location', iconName: 'Key', bg: 'bg-rose-50', iconColor: 'text-rose-500', path: '/location-voiture' },
+            { id: 'sbm-market', name: 'Marketplace', iconName: 'ShoppingBag', bg: 'bg-violet-50', iconColor: 'text-violet-500', path: '/marketplace/items' },
+          ].map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
     ),
