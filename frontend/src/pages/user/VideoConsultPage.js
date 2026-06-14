@@ -1,8 +1,9 @@
 import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, VideoCamera, Star, MagnifyingGlass, Clock, Globe, CheckCircle } from '@phosphor-icons/react';
+import { ArrowLeft, VideoCamera, Star, MagnifyingGlass, Clock, Globe, CheckCircle, ShieldCheck } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import VideoCall from '../../components/VideoCall';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -25,7 +26,10 @@ const VideoConsultPage = () => {
   const [booking, setBooking] = useState({ duration: 30, notes: '' });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [booked, setBooked] = useState(null);
+  const [session, setSession] = useState(null);   // created session (lobby)
+  const [joining, setJoining] = useState(false);
+  const [call, setCall] = useState(null);          // { room_name, display_name, provider_name }
+  const [booked, setBooked] = useState(null);      // completed summary
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -63,9 +67,10 @@ const VideoConsultPage = () => {
         })
       });
       if (res.ok) {
+        const data = await res.json();
         setSelectedProvider(null);
-        setBooked({ provider, duration: booking.duration, total: totalPrice });
-        toast.success('Consultation réservée avec succès !');
+        setSession({ ...data, provider });
+        toast.success('Consultation prête !');
       } else {
         const err = await res.json().catch(() => ({}));
         toast.error(err.detail || 'Échec de la réservation. Réessayez.');
@@ -77,14 +82,117 @@ const VideoConsultPage = () => {
     }
   };
 
+  const handleJoin = async () => {
+    if (!session) return;
+    setJoining(true);
+    try {
+      const res = await fetch(`${API}/api/video-consult/sessions/${session.id}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setCall({
+          room_name: data.room_name,
+          display_name: data.display_name,
+          provider_name: data.provider_name || session.provider?.name,
+        });
+      } else {
+        toast.error(data.detail || 'Impossible de rejoindre la consultation.');
+      }
+    } catch (e) {
+      toast.error('Erreur réseau. Vérifiez votre connexion.');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleEndCall = async () => {
+    const ended = session;
+    try {
+      if (ended) {
+        await fetch(`${API}/api/video-consult/sessions/${ended.id}/end`, {
+          method: 'POST', credentials: 'include',
+        });
+      }
+    } catch (e) { /* non-blocking */ }
+    setCall(null);
+    setBooked({
+      provider: ended?.provider,
+      duration: ended?.duration_min,
+      total: ended?.total_price,
+    });
+    setSession(null);
+  };
+
+  // ── In-call: embedded Jitsi room ──
+  if (call) {
+    return (
+      <VideoCall
+        roomName={call.room_name}
+        displayName={call.display_name}
+        providerName={call.provider_name}
+        onClose={handleEndCall}
+      />
+    );
+  }
+
+  // ── Lobby: session created, ready to join (payment happens on join) ──
+  if (session) {
+    const p = session.provider;
+    return (
+      <div className="mobile-container min-h-screen bg-white" data-testid="video-consult-lobby">
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 z-10">
+          <button onClick={() => setSession(null)} data-testid="back-from-lobby"><ArrowLeft size={22} /></button>
+          <h1 className="text-base font-bold">Rejoindre la consultation</h1>
+        </div>
+        <div className="p-4 flex flex-col items-center text-center">
+          <div className="relative mt-4">
+            <img src={p?.image_url} alt={p?.name} className="w-24 h-24 rounded-full object-cover" />
+            <span className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-white" />
+          </div>
+          <h2 className="font-bold text-gray-900 mt-4">{p?.name}</h2>
+          <p className="text-sm text-gray-500">{p?.specialty}</p>
+
+          <div className="w-full bg-gray-50 rounded-2xl p-4 mt-6 space-y-2.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Durée</span>
+              <span className="font-semibold text-gray-900">{session.duration_min} min</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Total (débité au démarrage)</span>
+              <span className="font-bold text-gray-900">{money(Number(session.total_price))}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-4">
+            <ShieldCheck size={16} className="text-teal-500" />
+            <span>Appel chiffré et privé — salle dédiée</span>
+          </div>
+
+          <button onClick={handleJoin} disabled={joining}
+            className="w-full mt-6 bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            data-testid="join-video-call">
+            <VideoCamera size={18} weight="fill" />
+            {joining ? 'Connexion…' : `Démarrer l'appel · ${Number(session.total_price).toFixed(2)}€`}
+          </button>
+          <button onClick={() => setSession(null)} className="w-full mt-2 text-gray-500 py-2 text-sm font-medium" data-testid="lobby-cancel">
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (booked) {
     return (
       <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center" data-testid="video-consult-success">
         <div className="w-20 h-20 rounded-full bg-teal-50 flex items-center justify-center mb-5">
           <CheckCircle size={48} weight="fill" className="text-teal-500" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900">Consultation réservée !</h1>
-        <p className="text-sm text-gray-500 mt-2">Votre consultation vidéo de {booked.duration} min avec <b>{booked.provider.name}</b> est confirmée. L&apos;expert vous contactera à l&apos;heure prévue.</p>
+        <h1 className="text-xl font-bold text-gray-900">Consultation terminée !</h1>
+        <p className="text-sm text-gray-500 mt-2">Votre consultation vidéo de {booked.duration} min avec <b>{booked.provider?.name}</b> est terminée. Merci d&apos;avoir utilisé SB Consultation.</p>
         <div className="bg-gray-50 rounded-xl p-4 w-full mt-5 flex justify-between text-sm">
           <span className="text-gray-500">Total</span>
           <span className="font-bold text-gray-900">{money(Number(booked.total))}</span>
@@ -153,7 +261,7 @@ const VideoConsultPage = () => {
             <button onClick={() => handleBook(p)} disabled={submitting}
               className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-60"
               data-testid="confirm-video-booking">
-              {submitting ? 'Réservation…' : `Confirmer la réservation - ${totalPrice}€`}
+              {submitting ? 'Préparation…' : `Continuer · ${totalPrice}€`}
             </button>
           </div>
         </div>

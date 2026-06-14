@@ -4,6 +4,7 @@ Extracted from V3Cube SQL schema (beta24.sql) and Android source structure.
 """
 from fastapi import APIRouter, Request, HTTPException
 import uuid
+import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -48,23 +49,92 @@ async def get_video_provider(provider_id: str):
 async def create_video_session(request: Request):
     user = await get_current_user(request)
     body = await request.json()
+    # Secure, opaque, unguessable Jitsi room name (backend-generated).
+    room_name = f"sbconsult-{secrets.token_urlsafe(16)}"
     session = {
         "id": f"vsess_{uuid.uuid4().hex[:12]}",
         "user_id": user["id"],
+        "user_name": user.get("name", "Patient"),
         "provider_id": body["provider_id"],
         "provider_name": body.get("provider_name", ""),
         "category": body.get("category", ""),
         "scheduled_at": body.get("scheduled_at"),
         "duration_min": body.get("duration_min", 30),
         "status": "scheduled",
-        "total_price": body.get("total_price", 0),
+        "total_price": round(float(body.get("total_price", 0) or 0), 2),
         "payment_method": body.get("payment_method", "wallet"),
+        "payment_status": "pending",
         "notes": body.get("notes", ""),
+        "room_name": room_name,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.video_sessions.insert_one(session)
     session.pop("_id", None)
     return session
+
+
+@video_router.post("/sessions/{session_id}/join")
+async def join_video_session(session_id: str, request: Request):
+    """Debit the wallet (forfait = prix/min × durée) at join time, then return the
+    Jitsi room name so the user can enter the consultation. Idempotent: a session
+    already paid is not debited twice."""
+    user = await get_current_user(request)
+    session = await db.video_sessions.find_one({"id": session_id, "user_id": user["id"]}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Consultation introuvable")
+    if session.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="Cette consultation est terminée")
+
+    total = round(float(session.get("total_price", 0) or 0), 2)
+    new_balance = None
+    if session.get("payment_status") != "paid" and total > 0:
+        # Atomic debit guarded by available balance.
+        res = await db.wallets.update_one(
+            {"user_id": user["id"], "balance": {"$gte": total}},
+            {"$inc": {"balance": -total}},
+        )
+        if res.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant. Rechargez votre portefeuille.")
+        wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+        new_balance = round((wallet or {}).get("balance", 0), 2)
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
+            "amount": -total, "balance_after": new_balance,
+            "description": f"Consultation vidéo · {session.get('provider_name', '')}",
+            "status": "completed", "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        try:
+            from core.cashback import award_cashback
+            await award_cashback(user["id"], total, "sbpay", "video_consult", ref_id=session_id)
+        except Exception:
+            pass
+
+    await db.video_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"status": "active", "payment_status": "paid",
+                  "started_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {
+        "id": session_id,
+        "room_name": session["room_name"],
+        "display_name": user.get("name", "Patient"),
+        "provider_name": session.get("provider_name", ""),
+        "duration_min": session.get("duration_min", 30),
+        "balance": new_balance,
+    }
+
+
+@video_router.post("/sessions/{session_id}/end")
+async def end_video_session(session_id: str, request: Request):
+    user = await get_current_user(request)
+    res = await db.video_sessions.update_one(
+        {"id": session_id, "user_id": user["id"]},
+        {"$set": {"status": "completed", "ended_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Consultation introuvable")
+    return {"ok": True}
+
 
 @video_router.get("/sessions")
 async def list_video_sessions(request: Request):
