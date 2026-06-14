@@ -15,6 +15,7 @@ from fastapi import APIRouter, Request, HTTPException
 
 from core.config import db
 from core.deps import get_current_user
+from core.notifications import create_notification
 
 router = APIRouter(prefix="/family", tags=["family-tracking"])
 
@@ -55,6 +56,29 @@ async def _require_circle(request: Request):
     user = await get_current_user(request)
     circle = await _get_or_create_circle(user)
     return user, circle
+
+
+async def _circle_recipients(circle_id: str, exclude_user_id: str = None) -> set:
+    """User ids who should be notified for a circle: its owner + every linked member."""
+    recipients = set()
+    circle = await db.family_circles.find_one({"id": circle_id}, {"_id": 0, "owner_id": 1})
+    if circle and circle.get("owner_id"):
+        recipients.add(circle["owner_id"])
+    async for m in db.family_members.find({"circle_id": circle_id, "user_id": {"$ne": None}}, {"_id": 0, "user_id": 1}):
+        if m.get("user_id"):
+            recipients.add(m["user_id"])
+    recipients.discard(exclude_user_id)
+    return recipients
+
+
+async def _notify_circle(circle_id: str, ntype: str, title: str, body: str, exclude_user_id: str = None):
+    """Push a real notification (DB + WebSocket + Web Push PWA + Expo) to every circle member."""
+    for uid in await _circle_recipients(circle_id, exclude_user_id):
+        try:
+            await create_notification(uid, ntype, title, body,
+                                      {"url": "/famille/alertes", "circle_id": circle_id})
+        except Exception:
+            pass
 
 
 def _live(m: dict) -> dict:
@@ -169,7 +193,10 @@ async def _eval_places(circle_id: str, member: dict, lat: float, lng: float):
         was = geo_state.get(p["id"])
         if was is not None and inside != was:
             verb = "est arrivé(e) à" if inside else "a quitté"
-            await _add_alert(circle_id, "place", f"{member.get('name')} {verb} « {p['name']} »", member)
+            msg = f"{member.get('name')} {verb} « {p['name']} »"
+            await _add_alert(circle_id, "place", msg, member)
+            await _notify_circle(circle_id, "family_place", "📍 Famille", msg,
+                                 exclude_user_id=member.get("user_id"))
         geo_state[p["id"]] = inside
     return geo_state
 
@@ -262,7 +289,16 @@ async def trigger_sos(request: Request):
         circle = await _get_or_create_circle(user)
         circle_ids.add(circle["id"])
     for cid in circle_ids:
-        await _add_alert(cid, "sos", f"🆘 SOS de {member_name}{loc}")
+        msg = f"🆘 SOS de {member_name}{loc}"
+        await _add_alert(cid, "sos", msg)
+        # Maps deep-link so a parent can locate the sender instantly from the push.
+        url = f"https://maps.google.com/?q={lat},{lng}" if lat is not None and lng is not None else "/famille/alertes"
+        for uid in await _circle_recipients(cid, exclude_user_id=user["id"]):
+            try:
+                await create_notification(uid, "family_sos", "🆘 SOS Famille", msg,
+                                          {"url": url, "circle_id": cid, "lat": lat, "lng": lng})
+            except Exception:
+                pass
     return {"message": "SOS envoyé", "circles": len(circle_ids)}
 
 

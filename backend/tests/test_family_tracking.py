@@ -158,6 +158,32 @@ def test_join_valid_code():
     s_owner.delete(f"{API}/family/members/{mid}", timeout=20)
 
 
+def test_sos_notifies_circle_members():
+    """When a linked member raises SOS, the circle owner receives a real notification."""
+    s_owner = requests.Session()
+    r = s_owner.post(f"{API}/auth/login", json={"email": EMAIL, "password": PASSWORD}, timeout=20)
+    tok_owner = r.json().get("access_token") or r.json().get("token")
+    s_owner.headers.update({"Authorization": f"Bearer {tok_owner}", "Content-Type": "application/json"})
+    add = s_owner.post(f"{API}/family/members", json={"name": "TEST_SosSlot", "relation": "Proche"}, timeout=20)
+    assert add.status_code == 200
+    code, mid = add.json()["invite_code"], add.json()["id"]
+
+    s_other = requests.Session()
+    s_other.post(f"{API}/auth/register", json={"email": "famjoiner@demo.sb", "password": "FamJoin123!", "name": "Joiner"}, timeout=20)
+    r2 = s_other.post(f"{API}/auth/login", json={"email": "famjoiner@demo.sb", "password": "FamJoin123!"}, timeout=20)
+    tok2 = r2.json().get("access_token") or r2.json().get("token")
+    s_other.headers.update({"Authorization": f"Bearer {tok2}", "Content-Type": "application/json"})
+    assert s_other.post(f"{API}/family/join", json={"code": code}, timeout=20).status_code == 200
+
+    before = len(s_owner.get(f"{API}/push/list", timeout=20).json())
+    sos = s_other.post(f"{API}/family/sos", json={"lat": 14.61, "lng": -61.07}, timeout=20)
+    assert sos.status_code == 200, sos.text
+    notifs = s_owner.get(f"{API}/push/list", timeout=20).json()
+    assert len(notifs) > before
+    assert any(n.get("type") == "family_sos" for n in notifs[:3])
+    s_owner.delete(f"{API}/family/members/{mid}", timeout=20)
+
+
 def test_cleanup(client):
     # delete any TEST_ members and places
     for m in client.get(f"{API}/family/members", timeout=20).json().get("members", []):
