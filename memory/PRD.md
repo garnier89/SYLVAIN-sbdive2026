@@ -1,3 +1,12 @@
+## NEW - 2026-06-14 (519) - ✈️🌍 Aéroports SB Drive internationaux DONE, testé
+- **Demande user** (P3) : étendre les aéroports « Transfert aéroport » à l'international. Liste validée : francophones + grands hubs mondiaux + Afrique (Côte d'Ivoire, Cameroun, Sénégal).
+- **Backend** (`core/airport.py`) : 16 aéroports ajoutés à `DEFAULT_AIRPORT_ZONES` (seed idempotent au démarrage, par code) : **Europe/AmNord francophones** BRU, GVA, YUL, MAD, LIS · **Hubs mondiaux** LHR, JFK, MIA, LAX, DXB, AMS, SIN, HND · **Afrique** ABJ (Abidjan), DLA (Douala), DSS (Dakar). Chacun avec lat/lng, radius_km, meeting_point FR. Aéroport de test résiduel (`TFE`) supprimé de `airport_zones`.
+- **Frontend** : aucun changement requis — `rideAPI.airports()` → `/api/phase2/airports` peuple déjà le sélecteur « Transfert aéroport » (`RideModePanels.jsx`). Les 22 aéroports actifs sont sélectionnables.
+- **Testé** : curl (`/api/phase2/airports` = 22 aéroports actifs, 16 nouveaux présents) + screenshot flux `/course?mode=airport` (dropdown peuplé, Londres/New York/Dubaï/Abidjan/Dakar/Douala/Montréal/Tokyo confirmés dans le DOM). ⚠️ Visible en prod après redéploiement.
+- **Reste P3** : refacto `RideTrackingPage.js` ; itinéraires touristiques partageables ; complexité `core/access_ai.py` + `core/cashback.py`.
+
+
+
 ## NEW - 2026-06-14 (518) - 🧰 Refacto RideChoosePage phase 2 — liste véhicules + paiement + fiche (certifié 0 régression)
 - **Extrait** (extraction pure) vers `pages/user/taxihub/RideVehicleSection.jsx` (220 l.) : `RideVehicleList` (liste véhicules + badge meilleur choix + WhatsApp + prix/ETA), `RidePaymentMethod` (dropdown paiement + notices solde/dette), `RideVehicleInfoModal` (fiche véhicule). Helpers déplacés : `vehicleIcon`, `vehicleDesc`, `BADGE_COLOR_CLASSES`, `PAYMENT_ICONS`, `DEFAULT_VEHICLE_INFO`. Page passe des **bundles de props** (`vehicleListProps`, `paymentProps`) — spread → 0 prop oubliée.
 - **RideChoosePage.js** : **1459 → 967 lignes (-492, -34%)** au total sur les 2 phases. 10 imports d'icônes orphelins retirés (vérif usage JSX + `Icon: X` pour ne pas casser House/Briefcase). Compile propre (24 warnings, stable). Cœur d'état/carte/estimation **inchangé**.
