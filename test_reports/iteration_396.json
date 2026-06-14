@@ -1,0 +1,45 @@
+{
+  "summary": "FRONTEND E2E re-test of vertical 'Services animaux' (/pet-care) via direct /login/email path. All 6 user-story checkpoints PASS. Login now successful (cookie persists across navigation to /pet-care). Full booking flow + home surcharge + cancel/refund + directory all validated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "PetsManager",
+        "issues": [
+          "Toasts ('Modifié', 'Animal ajouté') stack at top of viewport and visually overlap the header back button area. The pet-back testid remained clickable programmatically only via direct navigation; manually a real user might see the toasts overlap (cosmetic). The cards below are still readable."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_396.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PetCarePage.js (~430 lines) is approaching the 700-line modular threshold but still acceptable; consider splitting PetsManager / Booking sub-screens into separate files for maintainability.",
+    "Toast stack in pets-manager could use a higher z-index isolation or auto-dismiss timing to avoid overlapping the header back button visually."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (not retested - validated in iter395)",
+    "frontend": "100% (6/6 user stories PASS)"
+  },
+  "test_credentials": "famtester@demo.sb / FamTest123! (login via /login/email)",
+  "seed_data_creation": "Created/Deleted pet 'Bella'->'Bella2' (id=pet_ccde4c4b5bc0) - cleaned up after test. Booking confirmed with toilettage service (home location). One appointment was booked then cancelled successfully.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login path is /login/email with data-testid email-input/password-input/email-login-submit-btn. After login redirect lands on /home; navigate via page.goto('/pet-care'). All pet-care data-testids in place. Estimate API returned correct values (toilettage onsite=40€, home=50€, +10€ home surcharge confirmed). Cancel removes the appointment from /api/pet-care/bookings list (not just status change). Existing seed pet 'Rex' persists for famtester user.",
+  "test_results_detail": {
+    "login_email": "PASS - redirected to /home, cookie set",
+    "pet_care_page_home": "PASS - my-pets-btn, service-toilettage/promenade/pension/veterinaire, open-appointments-btn, pet-directory-link all visible",
+    "pets_manager_add_edit_delete": "PASS - Added Bella, edited to Bella2, deleted at cleanup",
+    "booking_e2e_toilettage": "PASS - pet-pick -> pet-provider (1 provider listed) -> skip-provider -> pet-details -> slot-10:00 -> +10€ home surcharge verified (40€->50€) -> sbpay -> pet-confirm-btn -> pet-booking-done",
+    "appointments_list_and_cancel": "PASS - 3 appointments listed; cancel-appt-{id} clicked, refund/cancel keyword detected in toast, appointment removed after reload",
+    "directory_link": "PASS - /pet-care-partners loaded (body content 467 chars)"
+  }
+}
