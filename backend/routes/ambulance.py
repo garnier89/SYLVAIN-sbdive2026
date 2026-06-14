@@ -191,19 +191,24 @@ async def create_request(request: Request):
             )
     except Exception:
         pass
-    # Alerter les proches / contacts d'urgence (module Famille) avec lien de suivi.
+    # Alerter les proches / contacts d'urgence (module Famille) avec lien de suivi + SMS Twilio.
     family_notified = 0
+    family_sms = 0
     if body.get("notify_contacts", True):
         try:
             from routes.family import notify_user_circles
-            family_notified = await notify_user_circles(
+            res = await notify_user_circles(
                 user, "ambulance_alert", "🚑 Ambulance demandée",
                 f"{req['patient_name'] or 'Un proche'} a demandé une ambulance ({e['label']}). Suivez sa position.",
-                lat=pickup_lat, lng=pickup_lng, alert_type="sos")
+                lat=pickup_lat, lng=pickup_lng, alert_type="sos", sms=True,
+                sms_body=f"SB Urgences : {req['patient_name'] or 'un proche'} a demande une ambulance ({e['label']}).")
+            family_notified = res.get("notified", 0)
+            family_sms = res.get("sms_sent", 0)
         except Exception:
             family_notified = 0
     out = _public(req)
     out["family_notified"] = family_notified
+    out["family_sms"] = family_sms
     return out
 
 

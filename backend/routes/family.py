@@ -81,19 +81,33 @@ async def _notify_circle(circle_id: str, ntype: str, title: str, body: str, excl
             pass
 
 
+async def _users_phones(user_ids: set) -> list:
+    """Retourne les numéros de téléphone (non vides) des utilisateurs donnés."""
+    phones = []
+    if not user_ids:
+        return phones
+    async for u in db.users.find({"id": {"$in": list(user_ids)}}, {"_id": 0, "phone": 1}):
+        if u.get("phone"):
+            phones.append(u["phone"])
+    return phones
+
+
 async def notify_user_circles(user: dict, ntype: str, title: str, body: str,
-                              lat=None, lng=None, alert_type: str = None) -> int:
+                              lat=None, lng=None, alert_type: str = None,
+                              sms: bool = False, sms_body: str = None) -> dict:
     """Notifie tous les proches des cercles auxquels appartient l'utilisateur (le sien + ceux
     où il est membre relié). Réutilisé par SB Urgences pour alerter les contacts d'urgence.
     Joint un deep-link Google Maps si une position est fournie. Best-effort.
-    Retourne le nombre de proches notifiés."""
+    Si `sms=True` (urgences), envoie aussi un VRAI SMS Twilio aux proches ayant un numéro.
+    Retourne {"notified": n_push, "sms_sent": n_sms}."""
     circle_ids = set()
     own = await db.family_circles.find_one({"owner_id": user["id"]}, {"_id": 0, "id": 1})
     if own:
         circle_ids.add(own["id"])
     async for m in db.family_members.find({"user_id": user["id"]}, {"_id": 0, "circle_id": 1}):
         circle_ids.add(m["circle_id"])
-    url = f"https://maps.google.com/?q={lat},{lng}" if lat is not None and lng is not None else "/famille/alertes"
+    maps = f"https://maps.google.com/?q={lat},{lng}" if lat is not None and lng is not None else None
+    url = maps or "/famille/alertes"
     notified = set()
     for cid in circle_ids:
         if alert_type:
@@ -110,7 +124,19 @@ async def notify_user_circles(user: dict, ntype: str, title: str, body: str,
                                           {"url": url, "circle_id": cid, "lat": lat, "lng": lng})
             except Exception:
                 pass
-    return len(notified)
+    sms_sent = 0
+    if sms:
+        try:
+            from core.sms import send_sms_to_many, sms_enabled
+            if sms_enabled():
+                phones = await _users_phones(notified)
+                text = sms_body or body
+                if maps:
+                    text = f"{text} Position : {maps}"
+                sms_sent = await send_sms_to_many(phones, text)
+        except Exception:
+            sms_sent = 0
+    return {"notified": len(notified), "sms_sent": sms_sent}
 
 
 def _live(m: dict) -> dict:
@@ -331,7 +357,22 @@ async def trigger_sos(request: Request):
                                           {"url": url, "circle_id": cid, "lat": lat, "lng": lng})
             except Exception:
                 pass
-    return {"message": "SOS envoyé", "circles": len(circle_ids)}
+    # Vrai SMS Twilio aux proches (urgences uniquement).
+    sms_sent = 0
+    try:
+        from core.sms import send_sms_to_many, sms_enabled
+        if sms_enabled():
+            recipients = set()
+            for cid in circle_ids:
+                recipients |= await _circle_recipients(cid, exclude_user_id=user["id"])
+            phones = await _users_phones(recipients)
+            text = f"SB Famille : SOS de {member_name}."
+            if lat is not None and lng is not None:
+                text += f" Position : https://maps.google.com/?q={lat},{lng}"
+            sms_sent = await send_sms_to_many(phones, text)
+    except Exception:
+        sms_sent = 0
+    return {"message": "SOS envoyé", "circles": len(circle_ids), "sms_sent": sms_sent}
 
 
 @router.get("/alerts")

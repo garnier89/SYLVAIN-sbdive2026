@@ -71,7 +71,10 @@ const AmbulancePage = () => {
       const d = await r.json();
       if (r.ok) {
         setRequest(d); setStep('tracking');
-        if (notifyContacts && d.family_notified > 0) toast.success(`${d.family_notified} proche(s) prévenu(s) avec votre position`);
+        if (notifyContacts && d.family_notified > 0) {
+          const smsTxt = d.family_sms > 0 ? ` · ${d.family_sms} SMS envoyé(s)` : '';
+          toast.success(`${d.family_notified} proche(s) prévenu(s) avec votre position${smsTxt}`);
+        }
       } else toast.error(d.detail || 'Échec de la demande');
     } catch { toast.error('Erreur réseau'); } finally { setSubmitting(false); }
   };

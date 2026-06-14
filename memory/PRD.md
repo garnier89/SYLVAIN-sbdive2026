@@ -1,3 +1,13 @@
+## NEW - 2026-06-14 (511) - 📲🚑 SMS Twilio aux proches (urgences) DONE, testé
+- **Demande user** (P2) : lors d'une demande d'ambulance / SOS Famille, alerter les proches par **vrai SMS Twilio** (en plus du push/Web Push). Choix : option **(a)** = urgences uniquement (ambulance + SOS), pas les alertes de zone (anti-spam SMS).
+- **Backend** : réutilise le helper existant `core/sms.py` (`send_sms_to_many`, `sms_enabled`, `to_e164`). `family.py::notify_user_circles` accepte désormais `sms=True/sms_body` → récupère les **numéros des proches reliés** (`_users_phones`, depuis `users.phone`) et envoie un SMS (lien Google Maps `?q=lat,lng` joint). Retourne `{notified, sms_sent}` (était un int). `family.py::trigger_sos` envoie aussi un SMS aux proches. `ambulance.py::create_request` appelle `notify_user_circles(..., sms=True)` → réponse enrichie `family_sms`.
+- **Frontend** (`AmbulancePage.js`) : toast « N proche(s) prévenu(s)… · M SMS envoyé(s) ».
+- **Compte Twilio** : actif, type **Full** (peut envoyer à tout numéro), solde ~$11.28. Clés dans l'env (`TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER`). Envoi réel vérifié (HTTP 201).
+- **Testé** : pytest `test_iter_family_sms.py` **3/3** (lookup numéros, SMS envoyé avec lien Maps, pas de SMS si flag off) + non-régression `test_iter_phase3d_ambulance.py` **6/6** + envoi Twilio réel 201. ⚠️ Visible en prod après **redéploiement**.
+- **PROCHAINE** : à discuter avec user — Caution/dépôt Stripe (location/hôtel) : le wrapper Stripe Emergent ne gère que Checkout (pas Auth & Capture) → caution **simulée** via SB Pay wallet ou report. Backlog P3 : itinéraires touristiques, aéroports SB Drive internationaux, refactoring RideChoosePage.js.
+
+
+
 ## NEW - 2026-06-14 (510) - 🗺️ Tourisme "Explorer une autre ville" DONE, testé
 - **Demande user** (P2-a) : permettre d'explorer les commerces/POI d'une autre ville (saisie libre) au lieu de la seule géolocalisation.
 - **Backend** (`nearby_places.py`) : nouvel endpoint **`GET /api/nearby/geocode?q=<ville>`** (Google Geocoding, clé serveur, cache 5 min, 404 si introuvable, 422 si <2 car.). `GET /api/nearby/live` accepte désormais **`featured=false`** pour supprimer les partenaires curés (home-market) hors zone ; les curés avec lat/lng sont aussi filtrés par rayon + distance recalculée.
