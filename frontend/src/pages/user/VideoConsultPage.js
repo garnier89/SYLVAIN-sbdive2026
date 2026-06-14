@@ -1,7 +1,7 @@
 import { useLocale } from '../../contexts/LocaleContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, VideoCamera, Star, MagnifyingGlass, Clock, Globe, CheckCircle, ShieldCheck } from '@phosphor-icons/react';
+import { ArrowLeft, VideoCamera, Star, MagnifyingGlass, Clock, Globe, CheckCircle, ShieldCheck, DownloadSimple, ClockCounterClockwise } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import VideoCall from '../../components/VideoCall';
 
@@ -30,6 +30,9 @@ const VideoConsultPage = () => {
   const [joining, setJoining] = useState(false);
   const [call, setCall] = useState(null);          // { room_name, display_name, provider_name }
   const [booked, setBooked] = useState(null);      // completed summary
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -110,20 +113,56 @@ const VideoConsultPage = () => {
 
   const handleEndCall = async () => {
     const ended = session;
+    let emailSent = false;
     try {
       if (ended) {
-        await fetch(`${API}/api/video-consult/sessions/${ended.id}/end`, {
+        const res = await fetch(`${API}/api/video-consult/sessions/${ended.id}/end`, {
           method: 'POST', credentials: 'include',
         });
+        const data = await res.json().catch(() => ({}));
+        emailSent = !!data.email_sent;
       }
     } catch (e) { /* non-blocking */ }
     setCall(null);
     setBooked({
+      id: ended?.id,
       provider: ended?.provider,
       duration: ended?.duration_min,
       total: ended?.total_price,
+      emailSent,
     });
     setSession(null);
+  };
+
+  const downloadReport = async (sessionId) => {
+    try {
+      const res = await fetch(`${API}/api/video-consult/sessions/${sessionId}/report.pdf`, {
+        credentials: 'include',
+      });
+      if (!res.ok) { toast.error('Compte-rendu indisponible.'); return; }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `compte-rendu-${String(sessionId).slice(-8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error('Erreur de téléchargement.');
+    }
+  };
+
+  const openHistory = async () => {
+    setShowHistory(true);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`${API}/api/video-consult/sessions`, { credentials: 'include' });
+      const data = await res.json();
+      setHistory(Array.isArray(data) ? data.filter(s => s.status === 'completed') : []);
+    } catch (e) { setHistory([]); }
+    finally { setHistoryLoading(false); }
   };
 
   // ── In-call: embedded Jitsi room ──
@@ -185,6 +224,48 @@ const VideoConsultPage = () => {
     );
   }
 
+  // ── History: "Mes consultations" (completed sessions, re-download PDF) ──
+  if (showHistory) {
+    return (
+      <div className="mobile-container min-h-screen bg-gray-50" data-testid="video-consult-history">
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 z-10">
+          <button onClick={() => setShowHistory(false)} data-testid="back-from-history"><ArrowLeft size={22} /></button>
+          <h1 className="text-base font-bold">Mes consultations</h1>
+        </div>
+        <div className="p-4 space-y-3">
+          {historyLoading ? (
+            <div className="text-center py-10 text-gray-400">Chargement...</div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-16 text-gray-400" data-testid="history-empty">
+              <ClockCounterClockwise size={40} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Aucune consultation passée</p>
+            </div>
+          ) : history.map(s => (
+            <div key={s.id} className="bg-white rounded-2xl p-4 border border-gray-100" data-testid={`history-${s.id}`}>
+              <div className="flex items-start justify-between">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-gray-900 text-sm truncate">{s.provider_name}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {s.duration_min} min · {money(Number(s.total_price))}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {s.ended_at ? new Date(s.ended_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                  </p>
+                </div>
+                <button onClick={() => downloadReport(s.id)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors flex-shrink-0"
+                  data-testid={`history-download-${s.id}`}>
+                  <DownloadSimple size={14} weight="bold" />
+                  PDF
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (booked) {
     return (
       <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center" data-testid="video-consult-success">
@@ -197,7 +278,20 @@ const VideoConsultPage = () => {
           <span className="text-gray-500">Total</span>
           <span className="font-bold text-gray-900">{money(Number(booked.total))}</span>
         </div>
-        <button onClick={() => setBooked(null)} className="w-full mt-5 bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm" data-testid="video-success-back">
+        {booked.emailSent && (
+          <p className="text-xs text-teal-600 mt-3 flex items-center gap-1.5" data-testid="report-email-note">
+            <CheckCircle size={14} weight="fill" /> Compte-rendu PDF envoyé par e-mail
+          </p>
+        )}
+        {booked.id && (
+          <button onClick={() => downloadReport(booked.id)}
+            className="w-full mt-5 border border-orange-500 text-orange-600 py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-orange-50 transition-colors"
+            data-testid="download-report-btn">
+            <DownloadSimple size={18} weight="bold" />
+            Télécharger le compte-rendu
+          </button>
+        )}
+        <button onClick={() => setBooked(null)} className="w-full mt-2 bg-orange-500 text-white py-3.5 rounded-xl font-semibold text-sm" data-testid="video-success-back">
           Réserver une autre consultation
         </button>
         <button onClick={() => navigate('/home')} className="w-full mt-2 text-gray-500 py-2 text-sm font-medium" data-testid="video-success-home">
@@ -275,7 +369,11 @@ const VideoConsultPage = () => {
       <div className="bg-gradient-to-br from-orange-500 to-orange-600 px-4 pt-4 pb-6">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate('/home')} className="text-white" data-testid="back-btn"><ArrowLeft size={22} /></button>
-          <h1 className="text-lg font-bold text-white">Consultation Vidéo</h1>
+          <h1 className="text-lg font-bold text-white flex-1">Consultation Vidéo</h1>
+          <button onClick={openHistory} className="text-white flex items-center gap-1.5 text-xs font-medium bg-white/15 px-3 py-1.5 rounded-full" data-testid="open-history-btn">
+            <ClockCounterClockwise size={16} />
+            Historique
+          </button>
         </div>
         <p className="text-sm text-white/80 mb-4">Consultez des experts en vidéo depuis chez vous</p>
         <div className="relative">

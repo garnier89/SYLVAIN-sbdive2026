@@ -921,6 +921,39 @@ async def send_debt_reminder(to: str, *, name: str, total: float, days: int):
 
 
 
+# ── SB Consultation video-call report (PDF attached) ────────────────────────
+async def send_consultation_report(to: str, patient_name: str, session: dict, pdf_bytes: bytes) -> None:
+    """Email the patient their consultation report (PDF) after the video call ends."""
+    accent = "#F97316"
+    provider = session.get("provider_name") or "votre expert"
+    duration = int(session.get("duration_min", 0) or 0)
+    try:
+        total = f"{float(session.get('total_price') or 0):.2f} €"
+    except (TypeError, ValueError):
+        total = "—"
+    date_str = datetime.now(timezone.utc).strftime("%d/%m/%Y à %H:%M")
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {patient_name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Merci d'avoir utilisé <b>SB Consultation</b>. Voici le compte-rendu de votre
+          consultation vidéo avec <b>{provider}</b> (en pièce jointe au format PDF).
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border-radius:10px;padding:14px 16px;margin:16px 0;">
+          <tr><td style="color:#9a3412;font-size:13px;">Expert</td><td style="text-align:right;color:#0a0e1a;font-size:13px;font-weight:bold;">{provider}</td></tr>
+          <tr><td style="color:#9a3412;font-size:13px;">Date</td><td style="text-align:right;color:#444;font-size:13px;">{date_str}</td></tr>
+          <tr><td style="color:#9a3412;font-size:13px;">Durée</td><td style="text-align:right;color:#444;font-size:13px;">{duration} min</td></tr>
+          <tr><td style="color:#9a3412;font-size:13px;">Montant payé</td><td style="text-align:right;color:#F97316;font-size:13px;font-weight:bold;">{total}</td></tr>
+        </table>
+        <p style="color:#9aa0ac;font-size:11px;line-height:1.5;margin-top:14px;">
+          SB Drive est une plateforme de mise en relation. Ce compte-rendu est généré automatiquement
+          et ne constitue ni une ordonnance ni un avis officiel.
+        </p>"""
+    html = _shell("Compte-rendu de consultation 🎥", accent, body)
+    ref = str(session.get("id", "consultation"))[-8:]
+    attachments = [{"filename": f"compte-rendu-{ref}.pdf", "content": pdf_bytes}] if pdf_bytes else []
+    await _send_with_attachments(to, f"🎥 Votre compte-rendu de consultation — SB Consultation", html, attachments)
+
+
 # ── SB Ferry company settlement statement (PDF attached) ────────────────────
 async def send_ferry_settlement(to: str, company_name: str, period: str, stats: dict, pdf_bytes: bytes) -> None:
     """Email a ferry company its settlement statement (PDF) once an admin marks the period settled."""

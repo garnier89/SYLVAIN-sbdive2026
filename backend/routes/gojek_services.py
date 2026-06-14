@@ -127,13 +127,46 @@ async def join_video_session(session_id: str, request: Request):
 @video_router.post("/sessions/{session_id}/end")
 async def end_video_session(session_id: str, request: Request):
     user = await get_current_user(request)
-    res = await db.video_sessions.update_one(
-        {"id": session_id, "user_id": user["id"]},
-        {"$set": {"status": "completed", "ended_at": datetime.now(timezone.utc).isoformat()}},
-    )
-    if res.matched_count == 0:
+    session = await db.video_sessions.find_one({"id": session_id, "user_id": user["id"]}, {"_id": 0})
+    if not session:
         raise HTTPException(status_code=404, detail="Consultation introuvable")
-    return {"ok": True}
+    now = datetime.now(timezone.utc).isoformat()
+    await db.video_sessions.update_one(
+        {"id": session_id, "user_id": user["id"]},
+        {"$set": {"status": "completed", "ended_at": now}},
+    )
+    session["status"] = "completed"
+    session["ended_at"] = now
+    # Auto-generate the consultation report (PDF) and email it to the patient.
+    email_sent = False
+    try:
+        from core.consult_pdf import consultation_report_pdf
+        from core.email import send_consultation_report, fire
+        pdf_bytes = consultation_report_pdf(session, user.get("name", ""))
+        if user.get("email"):
+            fire(send_consultation_report(user["email"], user.get("name", ""), session, pdf_bytes))
+            email_sent = True
+    except Exception:
+        pass
+    return {"ok": True, "email_sent": email_sent}
+
+
+@video_router.get("/sessions/{session_id}/report.pdf")
+async def download_consultation_report(session_id: str, request: Request):
+    """Download the consultation report PDF (for the end screen + 'Mes consultations')."""
+    from fastapi import Response
+    from core.consult_pdf import consultation_report_pdf
+    user = await get_current_user(request)
+    session = await db.video_sessions.find_one({"id": session_id, "user_id": user["id"]}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Consultation introuvable")
+    pdf_bytes = consultation_report_pdf(session, user.get("name", ""))
+    ref = str(session_id)[-8:]
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="compte-rendu-{ref}.pdf"'},
+    )
 
 
 @video_router.get("/sessions")
