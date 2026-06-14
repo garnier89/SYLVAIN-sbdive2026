@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 414 — Scheduled rides flow (A/B/C/D). Backend pytest: 6/6 PASSED. Frontend smoke: login OK, /home shows active-ride-flag with 'Chauffeur confirmé — il arrive · Suivre' for an accepted instant ride, /scheduled-rides loads (empty after cleanup, data-testid pattern verified in code).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_executed": {
+    "backend": {
+      "TestScheduledCreateAndDoubleBook::test_create_scheduled_and_ref_format": "PASSED — scheduled ride is created, appears in /rides/scheduled/list, ref derived from id has no 'ride_' prefix and is 8 hex chars upper.",
+      "TestScheduledCreateAndDoubleBook::test_double_book_within_30min_returns_409": "PASSED — second scheduled ride within 30min returns HTTP 409 with French detail mentioning '30 min'/'réservation'.",
+      "TestScheduledCreateAndDoubleBook::test_double_book_outside_30min_succeeds": "PASSED — booking 45min apart succeeds.",
+      "TestActiveCurrentExcludesScheduled::test_active_current_null_for_far_scheduled": "PASSED — GET /rides/active/current returns no active ride for a scheduled reservation 90min away.",
+      "TestDriverAcceptConflictRelease::test_accept_scheduled_then_status_and_driver_in_list": "PASSED — driver accepts a scheduled reservation, /rides/scheduled/list reflects status=accepted with driver_name; /rides/active/current still excludes it (>45min away); driver release via /driver-cancel-booking returns 200 and ride goes back to pending.",
+      "TestSuspensionAfterRepeatedRelease::test_release_repeated_eventually_suspends": "PASSED (best-effort) — accept→release cycle completes; if prior suspension is in effect the 403 'Réservations planifiées … suspendues' is asserted."
+    },
+    "frontend": {
+      "login_email_flow": "PASSED — 'Continuer avec l'e-mail' switches to email form, login redirects to /home.",
+      "active_ride_flag_on_home": "PASSED — [data-testid='active-ride-flag'] visible on /home with text 'SB Drive · Chauffeur confirmé — il arrive · Suivre' for an active accepted instant ride.",
+      "scheduled_rides_page_loads": "PASSED — /scheduled-rides renders 'Mes courses planifiées'; empty-state shown when no upcoming reservation. data-testid pattern sched-status-/sched-ref-/sched-driver- present in ScheduledRidesPage.js (verified via code review)."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter414_scheduled_rides.py",
+    "/app/test_reports/pytest/iter414.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "rides.py:114 _is_scheduled_pending_activation checks ride.get('ride_mode') but create_ride stores the value under key 'mode' (rides.py:751). The function still works because of the fallback on scheduled_at, but the ride_mode key check is effectively dead code — consider standardising on 'mode'.",
+    "rides.py:1700 driver_cancel_booking similarly checks ride.get('ride_mode') == 'scheduled' (key never set); behaviour is rescued by `bool(ride.get('scheduled_at'))`. Same naming inconsistency.",
+    "rides.py is 2521 lines long — consider further splitting (driver/accept module, active/current+expire module) for maintainability (>700 line guideline).",
+    "/rides/active/current returns the bare ride dict when active, but {'active_ride': null} when not — inconsistent response shape may complicate frontend typing. Suggest always wrapping in {active_ride: ride|null}.",
+    "_driver_schedule_conflict treats every existing engagement without scheduled_at as an in-progress instant ride (good), but accepted-then-not-yet-started instant rides are also captured — confirm Phase-4 'pre-book next' is still possible since the same /accept endpoint is reused (the code comment notes this; tests should add a regression for it)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter414_scheduled_rides.py"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (3/3 critical checks)"},
+  "test_credentials": "Client famtester@demo.sb / FamTest123! works on /api/auth/login (not /login/email). Driver jean.dupont@demo.sb / Driver123! works; tests handle prior scheduled-booking suspension gracefully.",
+  "seed_data_creation": "Tests create+cleanup their own scheduled rides via POST /api/rides (ride_type=scheduled) and client cancel.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login endpoint is /api/auth/login (the request brief mentioned /login/email which is wrong). ScheduledRidesPage data-testids are sched-status-{id}, sched-ref-{id}, sched-driver-{id}. ActiveRideFlag data-testid is active-ride-flag. /rides/scheduled/list shape: {items:[...], count}. /rides/active/current returns the ride dict OR {active_ride:null}. SCHEDULED_DOUBLE_BOOK_MIN=30, SCHEDULED_CONFLICT_MIN=45, SCHEDULED_ACTIVATION_MIN=45 (rides.py:98-100).",
+  "rca of the issue": "N/A — all flows certified working. Only naming nit found: rides.py uses ride_mode key in some checks vs mode key in writes; harmless today thanks to scheduled_at fallback but worth aligning."
+}

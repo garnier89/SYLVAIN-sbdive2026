@@ -94,6 +94,77 @@ VALID_TRANSITIONS = {
 
 CONTACT_REVEAL_MINUTES = 30  # reveal a scheduled ride's client phone only within X min of pickup
 
+# ── Planification de trajets — fenêtres anti-confusion / anti-conflit ──
+SCHEDULED_ACTIVATION_MIN = 45   # une réservation acceptée ne devient "course active" que X min avant le départ
+SCHEDULED_DOUBLE_BOOK_MIN = 30  # un client ne peut pas avoir 2 réservations à moins de X min d'écart
+SCHEDULED_CONFLICT_MIN = 45     # un chauffeur ne peut pas cumuler 2 engagements qui se chevauchent (± X min)
+
+
+def _parse_iso(value):
+    """Parse un ISO datetime tolérant (gère le 'Z'). Renvoie un datetime aware ou None."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_scheduled_pending_activation(ride: dict) -> bool:
+    """True si la réservation programmée n'est PAS encore une course active 'maintenant'
+    (le chauffeur n'a pas démarré et on est loin du départ) → ne doit pas déclencher la
+    bande de suivi / redirection. Couvre 'pending' (pas encore acceptée) et 'accepted'
+    (chauffeur confirmé mais départ lointain). Dès arriving/in_progress, ou dans la
+    fenêtre d'activation, elle redevient une course active normale."""
+    if ride.get("ride_mode") != "scheduled" and not ride.get("scheduled_at"):
+        return False
+    if ride.get("status") not in ("pending", "accepted"):
+        return False
+    sdt = _parse_iso(ride.get("scheduled_at"))
+    if not sdt:
+        return False
+    return datetime.now(timezone.utc) < sdt - timedelta(minutes=SCHEDULED_ACTIVATION_MIN)
+
+
+def _ride_ref(ride_id: str) -> str:
+    """N° de réservation lisible affiché au client/chauffeur (sans le préfixe 'ride_')."""
+    return (str(ride_id).split("_")[-1][:8]).upper()
+
+
+async def _driver_schedule_conflict(driver_id: str, new_ride: dict):
+    """Renvoie un message FR si accepter `new_ride` chevauche un engagement déjà
+    pris par ce chauffeur, sinon None. Préserve le pré-booking Phase 4 (instantané
+    qui en pré-réserve un autre) : seuls les chevauchements avec une réservation
+    PROGRAMMÉE sont bloqués."""
+    now = datetime.now(timezone.utc)
+    new_sched = _parse_iso(new_ride.get("scheduled_at"))
+    buffer = timedelta(minutes=SCHEDULED_CONFLICT_MIN)
+    others = await db.rides.find(
+        {"driver_id": driver_id, "status": {"$in": ["accepted", "arriving", "in_progress"]}},
+        {"_id": 0, "scheduled_at": 1, "status": 1},
+    ).to_list(50)
+    for o in others:
+        o_sched = _parse_iso(o.get("scheduled_at"))
+        if new_sched and o_sched:
+            # Deux réservations programmées trop proches.
+            if abs((new_sched - o_sched).total_seconds()) < buffer.total_seconds():
+                return ("Vous avez déjà une réservation à moins de "
+                        f"{SCHEDULED_CONFLICT_MIN} min de cet horaire.")
+        elif new_sched and not o_sched:
+            # Nouvelle réservation imminente alors qu'une course instantanée tourne.
+            if new_sched <= now + buffer:
+                return ("Vous avez une course en cours qui chevauche cette "
+                        "réservation imminente.")
+        elif (not new_sched) and o_sched:
+            # Nouvelle course instantanée alors qu'une réservation programmée est imminente.
+            if o_sched <= now + buffer:
+                return ("Vous avez une réservation programmée imminente : "
+                        "impossible de prendre une nouvelle course maintenant.")
+    return None
+
+
+
 
 def _client_phone_revealed(ride: dict) -> bool:
     """Anti-disintermediation gate: decide whether the driver may see the
@@ -106,7 +177,7 @@ def _client_phone_revealed(ride: dict) -> bool:
         return False  # pending / offered / cancelled → never reveal
     # Accepted: instant rides need the number now; scheduled rides only near pickup.
     sched = ride.get("scheduled_at")
-    if not sched or ride.get("ride_mode") != "scheduled":
+    if not sched:
         return True
     try:
         sdt = datetime.fromisoformat(str(sched).replace("Z", "+00:00"))
@@ -357,6 +428,21 @@ async def create_ride(data: RideRequest, request: Request):
         max_days = sched_cfg.get("max_advance_days", 30)
         if sched_dt > now + timedelta(days=max_days):
             raise HTTPException(status_code=400, detail=f"La course ne peut pas être planifiée au-delà de {max_days} jours.")
+
+        # Anti double-réservation : pas deux réservations à moins de 30 min d'écart.
+        win_lo = (sched_dt - timedelta(minutes=SCHEDULED_DOUBLE_BOOK_MIN)).isoformat()
+        win_hi = (sched_dt + timedelta(minutes=SCHEDULED_DOUBLE_BOOK_MIN)).isoformat()
+        clash = await db.rides.find_one({
+            "user_id": user["id"],
+            "status": {"$in": ["pending", "accepted", "arriving", "in_progress"]},
+            "scheduled_at": {"$ne": None, "$gte": win_lo, "$lte": win_hi},
+        }, {"_id": 0, "scheduled_at": 1})
+        if clash:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Vous avez déjà une réservation à moins de {SCHEDULED_DOUBLE_BOOK_MIN} min de ce créneau. "
+                       "Annulez-la ou choisissez un autre horaire.",
+            )
 
     # ── Instant rides need a driver online; otherwise prompt to schedule ──
     # Applies to standard AND price-proposal (bidding) instant requests.
@@ -779,7 +865,7 @@ async def create_ride(data: RideRequest, request: Request):
         try:
             from core.notifications import create_notification
             from core.email import send_booking_confirmation
-            ref = ride["id"][:8].upper()
+            ref = _ride_ref(ride["id"])
             try:
                 _sd = datetime.fromisoformat(str(ride["scheduled_at"]).replace("Z", "+00:00"))
                 when = _sd.strftime("%d/%m/%Y à %H:%M")
@@ -1372,7 +1458,7 @@ async def accept_ride(ride_id: str, request: Request):
 
     # Anti-disintermediation: a driver suspended from scheduled bookings (for
     # repeatedly accepting then releasing scheduled rides) cannot take them.
-    if ride.get("ride_mode") == "scheduled":
+    if ride.get("scheduled_at"):
         susp = driver.get("scheduled_suspended_until")
         if susp:
             try:
@@ -1387,7 +1473,13 @@ async def accept_ride(ride_id: str, request: Request):
             except Exception:
                 pass
 
-    # Cash rides require a minimum wallet balance (the driver may need to refund
+    # ── Anti-conflit d'agenda : empêche un chauffeur de cumuler deux engagements
+    # qui se chevauchent (cause des « le chauffeur est dans une autre course »). ──
+    conflict_msg = await _driver_schedule_conflict(driver["id"], ride)
+    if conflict_msg:
+        raise HTTPException(status_code=409, detail=conflict_msg)
+
+
     # change and must cover platform fees). Below it, they cannot take cash rides.
     if (ride.get("payment_method") or "").strip().lower() == "cash":
         if not await _driver_meets_cash_minimum(user["id"]):
@@ -1456,7 +1548,7 @@ async def accept_ride(ride_id: str, request: Request):
         dest = ride.get("dropoff_address") or "destination"
         await create_notification(
             user["id"], "ride", "Nouvelle course acceptée 🚗",
-            f"Course #{ride_id[:8].upper()} · vers {dest}", push=False,
+            f"Course #{_ride_ref(ride_id)} · vers {dest}", push=False,
             data={"ride_id": ride_id, "kind": "ride_accepted"},
         )
     except Exception:
@@ -1467,7 +1559,7 @@ async def accept_ride(ride_id: str, request: Request):
         try:
             from core.notifications import create_notification
             from core.email import send_driver_accepted
-            ref = ride_id[:8].upper()
+            ref = _ride_ref(ride_id)
             dname = accept_fields.get("driver_name") or "Votre chauffeur"
             try:
                 _sd = datetime.fromisoformat(str(ride["scheduled_at"]).replace("Z", "+00:00"))
@@ -1489,7 +1581,7 @@ async def accept_ride(ride_id: str, request: Request):
         try:
             from core.sms import send_sms, sms_enabled
             if sms_enabled():
-                ref = ride_id[:8].upper()
+                ref = _ride_ref(ride_id)
                 dest = ride.get("dropoff_address") or "destination"
                 first = (ride.get("book_for_name") or "").split(" ")[0] or "Bonjour"
                 await send_sms(
@@ -1603,7 +1695,10 @@ async def driver_cancel_booking(ride_id: str, request: Request):
         raise HTTPException(status_code=400, detail="Cette course ne peut plus être annulée.")
 
     accepted_at = ride.get("accepted_at")
-    if accepted_at:
+    # Réservations PROGRAMMÉES : libérables à tout moment tant que non démarrées
+    # (la pénalité anti-abus s'applique déjà). Courses instantanées : fenêtre courte.
+    is_scheduled = ride.get("ride_mode") == "scheduled" or bool(ride.get("scheduled_at"))
+    if accepted_at and not is_scheduled:
         acc = datetime.fromisoformat(str(accepted_at).replace("Z", "+00:00"))
         if datetime.now(timezone.utc) - acc > timedelta(minutes=DRIVER_CANCEL_WINDOW_MIN):
             raise HTTPException(
@@ -1628,7 +1723,7 @@ async def driver_cancel_booking(ride_id: str, request: Request):
     # (scheduled rides escalate + can suspend, to stop off-platform poaching).
     from routes.moderation import apply_driver_penalty
     await apply_driver_penalty(driver["id"], "accept_release", ride_id,
-                               is_scheduled=(ride.get("ride_mode") == "scheduled"))
+                               is_scheduled=bool(ride.get("scheduled_at")))
 
     # Phase 4 — track accept-then-cancel for the dispatch control tower (flags
     # drivers who dump CARD rides). Best-effort.
@@ -2347,25 +2442,32 @@ async def list_rides(request: Request, status: Optional[str] = None, limit: int 
 
 @router.get("/active/current")
 async def get_active_ride(request: Request):
-    """Get the current active ride for the logged-in user (or driver)."""
+    """Course réellement active pour l'utilisateur connecté (client ou chauffeur).
+
+    Exclut les réservations PROGRAMMÉES acceptées mais encore loin du départ
+    (le chauffeur n'a pas démarré) : elles ne doivent pas apparaître comme une
+    course « en cours maintenant » (bande de suivi, redirection), pour lever la
+    confusion « démarrée » et ne pas bloquer l'utilisateur 45 min trop tôt."""
     user = await get_current_user(request)
     active_statuses = ["pending", "accepted", "arriving", "in_progress"]
 
     if user["role"] == "driver":
         driver = await db.drivers.find_one({"user_id": user["id"]})
         if driver:
-            ride = await db.rides.find_one(
+            rides = await db.rides.find(
                 {"driver_id": driver["id"], "status": {"$in": active_statuses}},
-                {"_id": 0}
-            )
+                {"_id": 0},
+            ).to_list(20)
+            ride = next((r for r in rides if not _is_scheduled_pending_activation(r)), None)
             if ride:
                 await enrich_passenger_info(ride)
                 return ride
     else:
-        ride = await db.rides.find_one(
+        rides = await db.rides.find(
             {"user_id": user["id"], "status": {"$in": active_statuses}},
-            {"_id": 0}
-        )
+            {"_id": 0},
+        ).to_list(20)
+        ride = next((r for r in rides if not _is_scheduled_pending_activation(r)), None)
         if ride:
             if ride.get("driver_id"):
                 loc = manager.get_driver_location(ride["driver_id"])

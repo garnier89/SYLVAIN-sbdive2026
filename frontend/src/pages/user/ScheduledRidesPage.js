@@ -5,10 +5,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Calendar, MapPin, Pencil, X, Clock, AirplaneTilt } from '@phosphor-icons/react';
+import { ArrowLeft, Calendar, MapPin, Pencil, X, Clock, AirplaneTilt, Star, CheckCircle, MagnifyingGlass } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/button';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+// N° de réservation lisible (sans le préfixe 'ride_'), aligné sur le backend.
+const refOf = (id) => (String(id || '').split('_').pop() || '').slice(0, 8).toUpperCase();
+const statusOf = (r) => {
+  if (r.status === 'accepted') return { label: 'Chauffeur confirmé', cls: 'bg-emerald-100 text-emerald-700', icon: CheckCircle };
+  if (r.status === 'arriving') return { label: 'Chauffeur en route', cls: 'bg-blue-100 text-blue-700', icon: Clock };
+  if (r.status === 'in_progress') return { label: 'Course démarrée', cls: 'bg-indigo-100 text-indigo-700', icon: Clock };
+  return { label: 'En attente d\'un chauffeur', cls: 'bg-amber-100 text-amber-700', icon: MagnifyingGlass };
+};
 
 const ScheduledRidesPage = () => {
   const navigate = useNavigate();
@@ -179,6 +188,41 @@ const ScheduledRidesPage = () => {
                 <MapPin size={12} className="text-red-600 mt-0.5" />
                 <span className="truncate">{r.dropoff_address}</span>
               </div>
+            </div>
+
+            {/* Statut + n° de réservation + chauffeur confirmé */}
+            <div className="mt-3 ml-11">
+              {(() => {
+                const st = statusOf(r);
+                const Icon = st.icon;
+                return (
+                  <div className="flex items-center gap-2 flex-wrap" data-testid={`sched-status-${r.id}`}>
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full ${st.cls}`}>
+                      <Icon size={12} weight="fill" /> {st.label}
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-gray-500" data-testid={`sched-ref-${r.id}`}>
+                      Réf. #{refOf(r.id)}
+                    </span>
+                  </div>
+                );
+              })()}
+              {r.status === 'accepted' && r.driver_name && (
+                <div className="mt-2 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 p-2" data-testid={`sched-driver-${r.id}`}>
+                  <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm">
+                    {(r.driver_name || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{r.driver_name}</p>
+                    <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                      {r.driver_rating != null && (<><Star size={11} weight="fill" className="text-amber-400" /> {Number(r.driver_rating).toFixed(1)} · </>)}
+                      {r.driver_vehicle_model || 'Véhicule'}{r.driver_vehicle_number ? ` · ${r.driver_vehicle_number}` : ''}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {r.status === 'pending' && (
+                <p className="mt-1.5 text-[11px] text-gray-400">Vous serez notifié dès qu'un chauffeur accepte votre réservation.</p>
+              )}
             </div>
 
             {editingId === r.id ? (

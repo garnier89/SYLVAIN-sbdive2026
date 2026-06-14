@@ -1,15 +1,25 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { NavigationArrow, CaretRight } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const ACTIVE = ['accepted', 'arriving', 'in_progress'];
 
+// Libellé contextuel selon l'état de la course (côté client).
+const CLIENT_LABEL = {
+  accepted: 'Chauffeur confirmé — il arrive',
+  arriving: 'Votre chauffeur arrive',
+  in_progress: 'Course en cours',
+};
+
 /**
- * Floating SB "flag" bubble shown while a ride is active (client + driver).
- * Lets the user jump back to the ride screen from anywhere in the app — like
- * the persistent bubble in ride-hailing super-apps. Tap = return to the ride.
+ * Bande de suivi persistante (style Uber/Bolt) affichée pendant une course active,
+ * client comme chauffeur. Permet de quitter librement l'écran de course et d'y
+ * revenir à tout moment d'un simple tap — l'utilisateur n'est jamais « bloqué ».
+ * Les réservations programmées encore lointaines ne déclenchent PAS la bande
+ * (gérées côté backend via /rides/active/current).
  */
 const ActiveRideFlag = () => {
   const { user } = useAuth();
@@ -35,27 +45,32 @@ const ActiveRideFlag = () => {
 
   if (!ride) return null;
 
-  const target = user.role === 'driver' ? '/chauffeur/home' : `/ride/${ride.id}`;
-  // Hide while already on the ride screen.
+  const isDriver = user.role === 'driver';
+  const target = isDriver ? '/chauffeur/home' : `/ride/${ride.id}`;
+  // Masquer quand on est déjà sur l'écran de course.
   if (location.pathname === target || location.pathname === `/ride/${ride.id}`) return null;
 
-  const label = user.role === 'driver' ? 'Course en cours' : 'Suivre ma course';
+  const label = isDriver ? 'Course en cours' : (CLIENT_LABEL[ride.status] || 'Suivre ma course');
 
   return (
     <button
       onClick={() => navigate(target)}
-      className="fixed bottom-28 right-3 z-[1350] flex items-center gap-2 group"
+      className="fixed left-1/2 -translate-x-1/2 bottom-[72px] z-[1350] w-[calc(100%-1.5rem)] max-w-[472px] flex items-center gap-3 bg-[#0B1426] text-white rounded-2xl shadow-2xl pl-3 pr-2 py-2.5 active:scale-[0.99] transition-transform"
       data-testid="active-ride-flag"
       aria-label={label}
     >
-      <span className="hidden group-active:block sm:group-hover:block bg-[#0B1426] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap">
-        {label}
-      </span>
-      <span className="relative flex items-center justify-center">
-        <span className="absolute inset-0 rounded-full bg-[#FF5000]/40 animate-ping" />
-        <span className="relative w-16 h-16 rounded-full bg-white shadow-2xl border-2 border-[#FF5000] flex items-center justify-center overflow-hidden">
-          <img src="/sb-logo-driver.png" alt="SB" className="w-12 h-12 object-contain" />
+      <span className="relative flex h-9 w-9 items-center justify-center shrink-0">
+        <span className="absolute inline-flex h-9 w-9 rounded-full bg-[#FF5000]/40 animate-ping" />
+        <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#FF5000]">
+          <NavigationArrow size={18} weight="fill" className="text-white" />
         </span>
+      </span>
+      <div className="flex-1 text-left min-w-0">
+        <p className="text-[11px] font-semibold text-[#FF8A5B] uppercase tracking-wide leading-tight">SB Drive</p>
+        <p className="text-sm font-bold truncate">{label}</p>
+      </div>
+      <span className="flex items-center gap-1 text-[12px] font-bold text-white/90 bg-white/10 rounded-full px-2.5 py-1 shrink-0">
+        {isDriver ? 'Ouvrir' : 'Suivre'} <CaretRight size={13} weight="bold" />
       </span>
     </button>
   );
