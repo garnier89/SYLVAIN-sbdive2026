@@ -14,6 +14,7 @@ const HIDDEN_PREFIXES = [
   '/course', '/taxi', '/checkout', '/food/', '/bidding', '/service-providers', '/rental',
   '/real-estate/post', '/real-estate/edit', '/marketplace/sell-vehicle', '/ma-galerie',
   '/parcel', '/runner', '/driver/register',
+  '/parking', '/giftcards', '/carpool', '/covoiturage',
   '/events/', '/organizer', '/controle', '/sb-tracking', '/sb-market',
 ];
 

@@ -1,3 +1,12 @@
+## NEW - 2026-06-14 (487) - ✅ Vérification & activation Parking / Cartes Cadeaux / Covoiturage
+- **Demande user** : vérifier + activer les 3 cartes d'accueil (Parking, Cartes Cadeaux, Covoiturage).
+- **Constat** : les 3 sont **déjà actives** — cartes cliquables dans `UserHome.js` (l.835-867, `parking-section-btn`/`giftcards-section-btn`/`carpool-section-btn`) → navigation vers pages fonctionnelles avec backends OK : Parking `/parking` (`/api/parking/spots`,`/reservations` via gojek_services.py), Cartes Cadeaux `/giftcards` (`/templates`,`/purchase`,`/redeem`,`/my-cards`), Covoiturage `/carpool` (`/config` enabled:true, `/rides`,`/requests`).
+- **Testé** : testing_agent **iter387** — Parking **réservation E2E réussie** ; Cartes Cadeaux achat câblé (POST OK, bloqué uniquement par solde wallet vide = `400 Solde insuffisant`, normal) ; Covoiturage navigation trajets + formulaire publication OK. **Les 3 vérifiées fonctionnelles.**
+- **Fix UX** : la bannière « Vérifiez votre email » (fixée bas) recouvrait le CTA « Acheter » des Cartes Cadeaux sur petit écran → ajout de `/parking`,`/giftcards`,`/carpool`,`/covoiturage` aux `HIDDEN_PREFIXES` de `VerifyEmailBanner.jsx` (même pattern que `/sb-market`). Compile OK.
+- **Note prod** : ces 3 features existaient déjà en production (build antérieur). Le fix bannière + tous les travaux récents nécessitent un **redéploiement** pour être en ligne.
+
+
+
 ## NEW - 2026-06-14 (486) - 🧭 Dashboard « Santé du code » enrichi (par domaine) — DONE, testé 100%
 - **Demande user** : enrichir le dashboard admin « Santé du code » (tailles par domaine + couverture par domaine) après la modularisation du backend.
 - **Backend** : `routes/code_health.py` `_build_report()` ajoute **`by_domain`** (agrégation par sous-package : `str(rel.parent)` → fait ressortir `routes/admin`, `routes/market`, `core/router_groups`, etc. avec lignes/fichiers/endpoints/fonctions). Nouvelle fonction `core/code_audit.py::coverage_by_domain()` qui agrège le DERNIER run `pytest --cov` (JSON `/tmp/cov_health.json`) par domaine (couvert/statements/%) — best-effort (`available:False` si aucun run). Nouvelle route **`GET /api/admin/code-health/coverage/by-domain`** (admin-gated).
