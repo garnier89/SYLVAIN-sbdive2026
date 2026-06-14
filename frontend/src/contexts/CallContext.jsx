@@ -244,61 +244,82 @@ export const CallProvider = ({ children }) => {
   }, [user?.id]);
 
   const showOverlay = state !== 'idle';
+  const initial = (peerName || 'Contact').trim().charAt(0).toUpperCase() || '?';
+  const isRinging = state === 'calling' || state === 'incoming' || state === 'connecting';
 
   return (
     <CallContext.Provider value={{ startCall, callState: state }}>
       {children}
       <audio ref={remoteAudioRef} autoPlay data-testid="call-remote-audio" />
       {showOverlay && (
-        <div className="fixed inset-0 z-[4000] bg-[#10101a]/95 flex flex-col items-center justify-center text-white" data-testid="call-overlay">
-          <div className="w-24 h-24 rounded-full bg-[#FF5000]/20 flex items-center justify-center mb-5">
-            <PhoneCall size={44} weight="fill" className="text-[#FF5000]" />
-          </div>
-          <p className="text-xl font-extrabold" data-testid="call-peer-name">{peerName || 'Contact'}</p>
-          <div className="flex items-center gap-1.5 mt-1 text-xs text-emerald-300">
-            <ShieldCheck size={14} weight="fill" /> Appel masqué — numéro protégé
-          </div>
-          <p className="text-sm text-gray-400 mt-3" data-testid="call-state-label">
-            {state === 'calling' && 'Appel en cours…'}
-            {state === 'incoming' && 'Appel entrant…'}
-            {state === 'connecting' && 'Connexion…'}
-            {state === 'in-call' && 'En communication'}
-            {state === 'ended' && 'Appel terminé'}
-          </p>
-
-          <div className="flex items-center gap-5 mt-10">
-            {state === 'incoming' ? (
-              <>
-                <button onClick={declineIncoming} className="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center" data-testid="call-decline-btn"><PhoneX size={26} weight="fill" /></button>
-                <button onClick={acceptIncoming} className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center" data-testid="call-accept-btn"><Phone size={26} weight="fill" /></button>
-              </>
-            ) : state === 'ended' ? (
-              <div className="flex flex-col items-center gap-3">
-                {canRelay && (
-                  <button onClick={offerRelay} className="px-6 py-3 rounded-full bg-[#FF5000] font-bold flex items-center gap-2" data-testid="call-relay-btn">
-                    <Phone size={18} weight="fill" /> Mise en relation par téléphone (masqué)
-                  </button>
-                )}
-                <button onClick={() => endCall(false)} className="text-gray-400 text-sm" data-testid="call-close-btn">Fermer</button>
+        <div className="fixed inset-0 z-[4000] bg-[#0c0c14] flex flex-col items-center justify-between py-16 text-white" data-testid="call-overlay">
+          {/* En-tête : correspondant */}
+          <div className="flex flex-col items-center mt-6">
+            <div className="relative mb-6">
+              {/* Halo animé pendant la sonnerie */}
+              {isRinging && <span className="absolute inset-0 rounded-full bg-[#FF5000]/30 animate-ping" />}
+              <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-[#FF5000] to-[#ff7a3c] flex items-center justify-center shadow-lg" data-testid="call-avatar">
+                <span className="text-4xl font-extrabold tracking-tight">{initial}</span>
               </div>
-            ) : (
-              <>
-                {(state === 'in-call') && (
-                  <button onClick={toggleMute} className={`w-14 h-14 rounded-full flex items-center justify-center ${muted ? 'bg-white text-[#10101a]' : 'bg-white/10'}`} data-testid="call-mute-btn">
-                    {muted ? 'Muet' : 'Micro'}
-                  </button>
-                )}
-                <button onClick={() => endCall(true)} className="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center" data-testid="call-hangup-btn"><PhoneX size={26} weight="fill" /></button>
-              </>
-            )}
+              {/* Pastille téléphone */}
+              <div className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-[#0c0c14] border-2 border-[#0c0c14] flex items-center justify-center">
+                <div className="w-full h-full rounded-full bg-emerald-500 flex items-center justify-center">
+                  <PhoneCall size={16} weight="fill" />
+                </div>
+              </div>
+            </div>
+
+            <p className="text-2xl font-extrabold" data-testid="call-peer-name">{peerName || 'Contact'}</p>
+
+            <p className="text-sm text-gray-400 mt-2" data-testid="call-state-label">
+              {state === 'calling' && 'Appel en cours…'}
+              {state === 'incoming' && 'Appel entrant…'}
+              {state === 'connecting' && 'Connexion…'}
+              {state === 'in-call' && 'En communication'}
+              {state === 'ended' && 'Appel terminé'}
+            </p>
+
+            {/* Bouclier confidentialité (icône seule, sans texte) */}
+            <div className="mt-4 w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center" title="Appel sécurisé — numéro protégé" data-testid="call-shield">
+              <ShieldCheck size={18} weight="fill" className="text-emerald-400" />
+            </div>
           </div>
 
-          {/* Bascule immédiate vers l'appel téléphonique masqué (sans attendre l'échec). */}
-          {state === 'calling' && relayAvailable && (
-            <button onClick={offerRelay} className="mt-6 px-5 py-2.5 rounded-full bg-white/10 text-sm font-semibold flex items-center gap-2" data-testid="call-switch-relay-btn">
-              <Phone size={16} weight="fill" /> Appeler plutôt par téléphone (numéro masqué)
-            </button>
-          )}
+          {/* Commandes */}
+          <div className="flex flex-col items-center gap-6 mb-4">
+            {state === 'calling' && relayAvailable && (
+              <button onClick={offerRelay} className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 transition-colors text-sm font-semibold flex items-center gap-2" data-testid="call-switch-relay-btn">
+                <Phone size={16} weight="fill" /> Appeler plutôt par téléphone
+              </button>
+            )}
+
+            <div className="flex items-center gap-6">
+              {state === 'incoming' ? (
+                <>
+                  <button onClick={declineIncoming} className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center shadow-lg active:scale-95" data-testid="call-decline-btn"><PhoneX size={26} weight="fill" /></button>
+                  <button onClick={acceptIncoming} className="w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-600 transition-colors flex items-center justify-center shadow-lg active:scale-95" data-testid="call-accept-btn"><Phone size={26} weight="fill" /></button>
+                </>
+              ) : state === 'ended' ? (
+                <div className="flex flex-col items-center gap-3">
+                  {canRelay && (
+                    <button onClick={offerRelay} className="px-6 py-3 rounded-full bg-[#FF5000] hover:bg-[#e64800] transition-colors font-bold flex items-center gap-2" data-testid="call-relay-btn">
+                      <Phone size={18} weight="fill" /> Mise en relation par téléphone
+                    </button>
+                  )}
+                  <button onClick={() => endCall(false)} className="text-gray-400 hover:text-white transition-colors text-sm" data-testid="call-close-btn">Fermer</button>
+                </div>
+              ) : (
+                <>
+                  {state === 'in-call' && (
+                    <button onClick={toggleMute} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center transition-colors active:scale-95 ${muted ? 'bg-white text-[#0c0c14]' : 'bg-white/10 hover:bg-white/15'}`} data-testid="call-mute-btn">
+                      <span className="text-[11px] font-semibold">{muted ? 'Muet' : 'Micro'}</span>
+                    </button>
+                  )}
+                  <button onClick={() => endCall(true)} className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center shadow-lg active:scale-95" data-testid="call-hangup-btn"><PhoneX size={26} weight="fill" /></button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </CallContext.Provider>
