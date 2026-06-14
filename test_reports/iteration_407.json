@@ -1,0 +1,34 @@
+{
+  "summary": "Global REGRESSION of the Santé ecosystem (Phases 3a/3b/3c/3d + cross-feature bridges) — ALL GREEN. Backend: 49/49 pytest PASS (test_medical_marketplace 9/9, test_iter_phase3d_ambulance 6/6, test_iter_rx_from_booking 3/3, test_iter_phase3c_lab 16/16, test_iter404_lab_share 3/3, test_iter_phase3b_medical_rx 11/11) in 13.5s. Frontend E2E end-to-end across 3 roles (famtester patient / freeuser practitioner+lab+operator / admin) at 1920x800 with Paris geolocation (48.8566,2.3522): (3a) /home medical-appointment-btn -> /sante 'SB Santé — Praticiens' teal, 13+ services rendered, booking flow consultation+Dr.Free Test+quick-slot-0+cash+confirm -> pro-done, my-bookings-btn lists rdv with 9 'Visio' buttons on consultation rows (data-testid video-<id>, href https://meet.jit.si/sbconsult-...), 'Injection à domicile' (infirmier) rows have NO Visio button. (3b) freeuser /pro/medical: rx-btn-<id> opens rx-sheet, diagnosis + med row (rx-med-name/dosage/duration-0) + 2 analysis chips from rx-analysis-<id> (18 chips disponibles) -> rx-submit -> rx-done-<id> badge OK. (3b bridge) famtester /mes-ordonnances: 17 rx-pdf, 14 rx-order (Pharmacie), 7 rx-lab (Labo), 7 rx-analyses sections — boutons ADAPTATIFS confirmés. Click rx-lab -> /analyses?analyses=l_nfs,l_groupe avec lab-book screen affiché, panier pré-rempli (NFS 25€ + Groupe 22€ = 47€), toast 'n analyse(s) prescrite(s) ajoutée(s)' visible. (3c) /analyses + my-orders-btn liste commandes, share-<id> ouvre share-sheet, email inconnu 'unknown_xyz@notexist.fr' -> toast 'Aucun compte trouvé avec cet email' (iter404 bug fixé, plus de 'Erreur réseau'), email valide freeuser@demo.sb -> 'Résultats partagés avec Dr. Free Test'. (3d) /home medical-emergency-btn -> /urgences ambulance-page avec call-15/112/18, ambulance-locate-btn OK Paris, etype-cardiac, ambulance-pay-cash, ambulance-request-btn -> ambulance-tracking + 'Demande reçue' + ambulance-searching + toast '1 proche(s) prévenu(s) avec votre position' (family notify OK). Operator: freeuser /espace-ambulancier amb-operator-dashboard rendu, amb-operator-online-toggle fonctionne. Admin /admin/ambulance-operators: KPIs 0 En attente / 1 Validé / 72,00€ commission / 408,00€ versé aux ambulanciers / GMV 480€ / 4 interventions / 15% commission rate enregistrable, ligne 'SOS Ambu Test · Validé · VSAV · AB-12-CD · 7 interventions terminées'. Non-regression: /beauty (37 services), /services-metiers (40 services) RAS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_medical_marketplace.py",
+    "/app/backend/tests/test_iter_phase3d_ambulance.py",
+    "/app/backend/tests/test_iter_rx_from_booking.py",
+    "/app/backend/tests/test_iter_phase3c_lab.py",
+    "/app/backend/tests/test_iter404_lab_share.py",
+    "/app/backend/tests/test_iter_phase3b_medical_rx.py",
+    "/app/test_reports/pytest/iter407_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Admin KPI mismatch (cosmetic only): 'GMV total 480€ / 4 interventions' (sbpay+real-operator scope) vs operator row '7 interventions terminées' (all completions incl simulated/cash). Pas un bug — 2 compteurs différents — mais à documenter sinon admin peut être surpris.",
+    "ProServiceMarketPage rappel iter406: les notifications _settle_completion et provider_accept utilisent toujours hardcoded '/beauty' pour rediriger le client, même pour medical (devrait être /sante) et trades (devrait être /services-metiers). Bug latent, n'impacte pas le flow car la notif est secondaire.",
+    "AmbulancePage ARRIVE_SECONDS=75 dur (note iter404 RCA persistante): l'ETA descend de 6→0 sur 75s → vitesse implicite ~480km/h. OK demo, à paramétrer pour prod.",
+    "Multi-rôle freeuser concentre 4 rôles (medical practitioner + lab approved + ambulance operator + provider) — pratique pour les tests mais sensible à un changement de password ou de scope. Considérer d'avoir 1 compte demo dédié par rôle pour mieux isoler.",
+    "LabTestsPage.js (317 lignes) reste au-dessus du seuil 300 — extraire ShareResultsSheet (~50 lignes JSX) en composant séparé recommandé (déjà noté en iter404)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (49/49 pytest)", "frontend": "100% (toutes les phases 3a/3b/3c/3d + 2 bridges + non-régression)"},
+  "test_credentials": "Patient famtester@demo.sb/FamTest123! ; Multi-rôle freeuser@demo.sb/FreeUser123! (lab approved + 'Dr. Free Test' practitioner + 'SOS Ambu Test' operator approved) ; Admin admin@superapp.com/SuperAdmin123!",
+  "seed_data_creation": "Top-up famtester wallet à 5000€ (était None) avant pytest pour éviter 'Solde SB Pay insuffisant' sur cardiac 120€. Reset freeuser ambulance_operators.is_online=false avant test UI. 2 nouvelles bookings créées via UI (médecine générale Dr. Free Test + Injection à domicile) ; 1 ordonnance UI émise avec 2 analyses (NFS + Groupe sanguin) ; 1 partage UI lab vers freeuser@demo.sb effectué ; 1 ambulance request cardiaque créée via UI à Paris.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Toutes les fonctionnalités demandées dans la review sont OK et stables. Le bug iter404 'Erreur réseau' au lieu de 'Aucun compte trouvé' a été corrigé par l'équipe principale (LabTestsPage.js shareResults: le `let d={}; try{d=await r.json()}catch{}` est désormais hors du catch externe). La feature ambulance fallback simulé après ~18s a été exercée passivement (l'opérateur freeuser n'avait pas été online à temps après la création de la requête UI : le crew est ressorti depuis le fallback, confirmé par le compteur operator 'SOS Ambu Test' passé de 4 -> 7 interventions terminées). Cross-feature bridges fonctionnent end-to-end : ordonnance d'un practitioner -> /mes-ordonnances famtester -> bouton 'Réserver au labo' -> /analyses?analyses=... pre-rempli sur écran lab-book avec toast 'n analyse(s) prescrite(s) ajoutée(s)'. Aucun nouveau code modifié pendant cette itération.",
+  "rca of the issue": "Aucun nouveau bug détecté. Le bug iter404 (LabTestsPage 'Erreur réseau' pour email inconnu) est désormais résolu : le code à `/app/frontend/src/pages/user/LabTestsPage.js:107-126` enveloppe maintenant `await r.json()` dans un try/catch interne, donc le fallback `d.detail || 'Aucun compte trouvé avec cet email'` est correctement déclenché — vérifié à l'écran et en console (zéro 'Erreur réseau' dans le body)."
+}
