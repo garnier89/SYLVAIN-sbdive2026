@@ -28,8 +28,11 @@ export const CallProvider = ({ children }) => {
   const ctxRef = useRef({}); // { rideId, peerChannel, callId, peerName, relayAvailable }
 
   const [state, setState] = useState('idle'); // idle|calling|incoming|connecting|in-call|ended
+  const stateRef = useRef('idle');
+  useEffect(() => { stateRef.current = state; }, [state]);
   const [peerName, setPeerName] = useState('');
   const [canRelay, setCanRelay] = useState(false);
+  const [relayAvailable, setRelayAvailable] = useState(false);
   const [muted, setMuted] = useState(false);
 
   const wsSend = useCallback((data) => {
@@ -87,8 +90,9 @@ export const CallProvider = ({ children }) => {
     const { rideId } = ctxRef.current;
     if (!rideId) return;
     try {
-      const { data } = await callsAPI.relay(rideId);
-      toast.success(`Mise en relation — votre téléphone va sonner (n° masqué ${data.masked_number || ''}).`);
+      await callsAPI.relay(rideId);
+      // Confidentialité : on n'affiche jamais le numéro de mise en relation.
+      toast.success('Mise en relation — votre téléphone va sonner. Numéro masqué pour votre confidentialité.');
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Relais téléphonique indisponible.');
     }
@@ -119,15 +123,18 @@ export const CallProvider = ({ children }) => {
       ctxRef.current = { rideId, peerChannel: data.peer_channel, callId: data.call_id, peerName: data.counterpart_name, relayAvailable: data.relay_available };
       setPeerName(data.counterpart_name || 'Contact');
       setCanRelay(false);
-      if (data.mode === 'relay') {
-        setState('ended'); setCanRelay(Boolean(data.relay_available));
-        if (data.relay_available) { toast('Appel par téléphone (numéro masqué).'); }
-        else { toast.error('Correspondant injoignable.'); }
+      setRelayAvailable(Boolean(data.relay_available));
+      // Correspondant injoignable en in-app → proposer DIRECTEMENT le relais
+      // téléphonique masqué, sans imposer de tentative WebRTC vouée à l'échec.
+      if (!data.counterpart_online || data.mode === 'relay') {
+        if (data.relay_available) {
+          setState('ended'); setCanRelay(true);
+          toast('Correspondant indisponible en in-app — mise en relation par téléphone possible (numéro masqué).');
+        } else {
+          toast.error('Correspondant hors ligne. Réessayez plus tard.');
+          setState('idle');
+        }
         return;
-      }
-      if (!data.counterpart_online && !data.relay_available) {
-        toast.error('Correspondant hors ligne. Réessayez plus tard.');
-        setState('idle'); return;
       }
       setState('calling');
       const pc = buildPc(data.peer_channel, data.call_id);
@@ -184,14 +191,16 @@ export const CallProvider = ({ children }) => {
     let closed = false;
     const url = `${API.replace('https://', 'wss://').replace('http://', 'ws://')}/api/ws/call_${user.id}`;
     let ws;
+    let retry = 0;
     const connect = () => {
       ws = new WebSocket(url);
       wsRef.current = ws;
+      ws.onopen = () => { retry = 0; };  // reset le backoff dès qu'une connexion réussit
       ws.onmessage = async (ev) => {
         let msg; try { msg = JSON.parse(ev.data); } catch { return; }
         const pc = pcRef.current;
         if (msg.type === 'call_incoming') {
-          if (state !== 'idle') { wsSend({ type: 'call_decline', to: msg.from, call_id: msg.call_id }); return; }
+          if (stateRef.current !== 'idle') { wsSend({ type: 'call_decline', to: msg.from, call_id: msg.call_id }); return; }
           ctxRef.current = { rideId: msg.ride_id, peerChannel: msg.from, callId: msg.call_id, peerName: msg.from_name };
           setPeerName(msg.from_name || 'Contact');
           setState('incoming');
@@ -220,7 +229,13 @@ export const CallProvider = ({ children }) => {
           endCall(false);
         }
       };
-      ws.onclose = () => { if (!closed) setTimeout(connect, 3000); };
+      ws.onclose = () => {
+        if (!closed) {
+          const delay = Math.min(30000, 3000 * 2 ** retry);  // backoff exponentiel (anti-429)
+          retry += 1;
+          setTimeout(connect, delay);
+        }
+      };
       ws.onerror = () => { try { ws.close(); } catch { /* noop */ } };
     };
     connect();
@@ -277,6 +292,13 @@ export const CallProvider = ({ children }) => {
               </>
             )}
           </div>
+
+          {/* Bascule immédiate vers l'appel téléphonique masqué (sans attendre l'échec). */}
+          {state === 'calling' && relayAvailable && (
+            <button onClick={offerRelay} className="mt-6 px-5 py-2.5 rounded-full bg-white/10 text-sm font-semibold flex items-center gap-2" data-testid="call-switch-relay-btn">
+              <Phone size={16} weight="fill" /> Appeler plutôt par téléphone (numéro masqué)
+            </button>
+          )}
         </div>
       )}
     </CallContext.Provider>

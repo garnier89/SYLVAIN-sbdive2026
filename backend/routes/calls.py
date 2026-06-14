@@ -21,7 +21,9 @@ from core.websocket import manager
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
-RELAY_AFTER_ATTEMPTS = 3
+# Dès le 1ᵉʳ appel in-app non abouti, on propose le relais téléphonique (au lieu
+# d'imposer 3 tentatives successives, source de confusion côté utilisateur).
+RELAY_AFTER_ATTEMPTS = 1
 
 
 async def _resolve_parties(ride: dict):
@@ -137,7 +139,8 @@ async def call_relay(ride_id: str, request: Request):
         {"$set": {"attempts": 0, "relayed_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
-    return {"status": "ringing", "masked_number": result.get("masked_number")}
+    # Confidentialité : on ne renvoie JAMAIS le numéro de mise en relation au client.
+    return {"status": "ringing"}
 
 
 @router.get("/ride/{ride_id}/status")

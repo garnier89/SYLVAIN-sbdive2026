@@ -119,6 +119,72 @@ async def _scheduling_windows():
         return (SCHEDULED_ACTIVATION_MIN, SCHEDULED_DOUBLE_BOOK_MIN, SCHEDULED_CONFLICT_MIN)
 
 
+async def _no_drivers_detail(user: dict, data) -> dict:
+    """Construit la réponse 409 « aucun chauffeur en ligne » :
+    - `availability_open_hour` : heure (locale) à laquelle des chauffeurs sont
+      généralement disponibles → le client peut planifier vers ce créneau ;
+    - alerte l'administrateur de la demande non satisfaite (throttlé 15 min, avec
+      le cumul des tentatives récentes) si activé dans la config.
+    Best-effort : toute erreur d'alerte n'empêche jamais la réponse au client."""
+    open_hour = 7
+    notify_admin = True
+    try:
+        from routes.config import get_scheduling_config
+        cfg = await get_scheduling_config()
+        open_hour = int(cfg.get("availability_open_hour", 7))
+        notify_admin = bool(cfg.get("notify_admin_no_driver", True))
+    except Exception:
+        pass
+
+    pickup = (getattr(data, "pickup_address", "") or "").strip()
+    vehicle = getattr(data, "vehicle_type", "") or "—"
+
+    if notify_admin:
+        try:
+            now = datetime.now(timezone.utc)
+            COOLDOWN_MIN = 15
+            doc = await db.no_driver_demand_pushes.find_one({"key": "admin_throttle"})
+            last = (doc or {}).get("last_admin_notified_at")
+            window_count = int((doc or {}).get("window_count", 0)) + 1
+            await db.no_driver_demand_pushes.update_one(
+                {"key": "admin_throttle"},
+                {"$set": {"last_attempt_at": now.isoformat()}, "$inc": {"window_count": 1}},
+                upsert=True,
+            )
+            throttled = False
+            if last:
+                try:
+                    if (now - datetime.fromisoformat(str(last).replace("Z", "+00:00"))) < timedelta(minutes=COOLDOWN_MIN):
+                        throttled = True
+                except (ValueError, TypeError):
+                    pass
+            if not throttled:
+                from core.airport import notify_admins
+                where = pickup or "lieu non précisé"
+                await notify_admins(
+                    "no_driver_demand",
+                    "⚠️ Demande sans chauffeur en ligne",
+                    f"{window_count} client(s) ont tenté de commander un taxi ({vehicle}) sans chauffeur "
+                    f"connecté (dernier départ : « {where} »). Pensez à mobiliser des chauffeurs.",
+                    data={"kind": "no_driver_demand", "pickup": where, "vehicle_type": vehicle,
+                          "attempts": window_count},
+                )
+                await db.no_driver_demand_pushes.update_one(
+                    {"key": "admin_throttle"},
+                    {"$set": {"last_admin_notified_at": now.isoformat(), "window_count": 0}},
+                    upsert=True,
+                )
+        except Exception:
+            pass
+
+    return {
+        "code": "no_drivers_available",
+        "message": "Aucun chauffeur n'est disponible pour le moment. Vous pouvez planifier votre course.",
+        "can_schedule": True,
+        "availability_open_hour": open_hour,
+    }
+
+
 def _parse_iso(value):
     """Parse un ISO datetime tolérant (gère le 'Z'). Renvoie un datetime aware ou None."""
     if not value:
@@ -468,15 +534,13 @@ async def create_ride(data: RideRequest, request: Request):
     # ── Instant rides need a driver online; otherwise prompt to schedule ──
     # S'applique aux courses standard ET aux enchères (« proposez votre tarif ») :
     # sans aucun chauffeur connecté, on ne peut ni commander ni négocier en direct —
-    # la seule option proposée au client est de PLANIFIER son trajet.
+    # la seule option proposée au client est de PLANIFIER son trajet. On enrichit la
+    # réponse avec le créneau recommandé et on alerte l'admin (demande non satisfaite).
     if not getattr(data, "scheduled_at", None):
         online_count = await db.drivers.count_documents({"status": "approved", "is_online": True})
         if online_count == 0:
-            raise HTTPException(status_code=409, detail={
-                "code": "no_drivers_available",
-                "message": "Aucun chauffeur n'est disponible pour le moment. Vous pouvez planifier votre course.",
-                "can_schedule": True,
-            })
+            detail = await _no_drivers_detail(user, data)
+            raise HTTPException(status_code=409, detail=detail)
 
     # Distance through optional intermediate stops: pickup -> stops[] -> dropoff
     stop_points = [(s.get("lat"), s.get("lng")) for s in (data.stops or []) if isinstance(s, dict) and s.get("lat") and s.get("lng")]

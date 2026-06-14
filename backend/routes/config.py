@@ -23,6 +23,9 @@ DEFAULT_SCHEDULING = {
     # ── Rappel SMS automatique avant le RDV (client + chauffeur) ──
     "sms_reminder_enabled": True,
     "sms_reminder_min": 30,          # délai du rappel SMS avant le RDV
+    # ── « Aucun chauffeur en ligne » → créneau recommandé + alerte admin ──
+    "availability_open_hour": 7,     # heure (locale) à laquelle des chauffeurs sont généralement dispo
+    "notify_admin_no_driver": True,  # alerter l'admin quand un client tente de commander sans chauffeur
 }
 
 
@@ -49,12 +52,14 @@ async def get_scheduling_config():
         ("anti_double_booking_min", 0, 240, 30),
         ("driver_conflict_min", 0, 240, 45),
         ("sms_reminder_min", 5, 1440, 30),
+        ("availability_open_hour", 0, 23, 7),
     ):
         try:
             cfg[k] = min(hi, max(lo, int(cfg.get(k, dft))))
         except (TypeError, ValueError):
             cfg[k] = dft
     cfg["sms_reminder_enabled"] = bool(cfg.get("sms_reminder_enabled", True))
+    cfg["notify_admin_no_driver"] = bool(cfg.get("notify_admin_no_driver", True))
     return cfg
 
 

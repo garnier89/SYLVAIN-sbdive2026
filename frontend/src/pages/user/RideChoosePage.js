@@ -583,7 +583,7 @@ const RideChoosePage = () => {
       setSearching(false);
       const detail = e?.response?.data?.detail;
       if (e?.response?.status === 409 && detail?.code === 'no_drivers_available') {
-        setNoDrivers(true);
+        setNoDrivers(detail || true);
       } else {
         toast.error((typeof detail === 'string' ? detail : detail?.message) || 'Échec de la demande');
       }
@@ -644,13 +644,34 @@ const RideChoosePage = () => {
     }
   };
 
+  // Créneau recommandé quand aucun chauffeur n'est en ligne : prochaine occurrence
+  // de l'heure d'ouverture habituelle (locale), au format datetime-local pré-rempli.
+  const recommendedSlot = (() => {
+    const openHour = Number(typeof noDrivers === 'object' ? noDrivers?.availability_open_hour : null) || 7;
+    const pad = (n) => String(n).padStart(2, '0');
+    const now = new Date();
+    const slot = new Date();
+    slot.setHours(openHour, 0, 0, 0);
+    const minAdvanceMs = (schedConfig.min_advance_minutes || 60) * 60000;
+    if (slot.getTime() < now.getTime() + minAdvanceMs) slot.setDate(slot.getDate() + 1);
+    const value = `${slot.getFullYear()}-${pad(slot.getMonth() + 1)}-${pad(slot.getDate())}T${pad(slot.getHours())}:${pad(slot.getMinutes())}`;
+    const isTomorrow = slot.toDateString() !== now.toDateString();
+    return { openHour, value, label: `${isTomorrow ? 'demain' : "aujourd'hui"} dès ${openHour}h` };
+  })();
+
   const noDriversModal = noDrivers ? (
     <div className="fixed inset-0 z-[1700] bg-black/50 flex items-center justify-center p-6" data-testid="no-drivers-overlay">
       <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl">
         <h3 className="text-lg font-extrabold text-gray-900 mb-1">Aucun chauffeur disponible</h3>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-gray-600 mb-3">
           Aucun chauffeur n'est en ligne pour le moment. Vous pouvez planifier votre course, ou être alerté dès qu'un chauffeur passe en ligne.
         </p>
+        <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 mb-4 flex items-start gap-2.5" data-testid="no-drivers-slot-hint">
+          <Clock size={18} weight="fill" className="text-[#FF5000] shrink-0 mt-0.5" />
+          <p className="text-sm text-[#0B1426]">
+            Les chauffeurs sont généralement disponibles <strong>{recommendedSlot.label}</strong>. Planifiez dès maintenant pour être prioritaire.
+          </p>
+        </div>
         <div className="space-y-2">
           <button
             onClick={requestAvailabilityAlert}
@@ -669,11 +690,11 @@ const RideChoosePage = () => {
             </button>
             {schedulingAllowed && (
               <button
-                onClick={() => { setNoDrivers(false); setScheduleLater(true); setCalendarOpen(true); }}
+                onClick={() => { setScheduledAt(recommendedSlot.value); setNoDrivers(false); setScheduleLater(true); setCalendarOpen(true); }}
                 className="flex-1 py-2.5 rounded-xl bg-[#FF5000] text-white font-bold text-sm"
                 data-testid="no-drivers-schedule"
               >
-                Planifier
+                Planifier {recommendedSlot.label}
               </button>
             )}
           </div>

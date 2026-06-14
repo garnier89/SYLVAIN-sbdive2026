@@ -29,6 +29,8 @@ const DEFAULTS = {
   driver_conflict_min: 45,
   sms_reminder_enabled: true,
   sms_reminder_min: 30,
+  availability_open_hour: 7,
+  notify_admin_no_driver: true,
 };
 
 const AdminScheduling = () => {
@@ -66,6 +68,8 @@ const AdminScheduling = () => {
         driver_conflict_min: Math.max(0, parseInt(cfg.driver_conflict_min, 10) || 45),
         sms_reminder_enabled: !!cfg.sms_reminder_enabled,
         sms_reminder_min: Math.max(5, parseInt(cfg.sms_reminder_min, 10) || 30),
+        availability_open_hour: Math.min(23, Math.max(0, parseInt(cfg.availability_open_hour, 10) || 7)),
+        notify_admin_no_driver: !!cfg.notify_admin_no_driver,
       });
       toast.success('Configuration de planification enregistrée');
     } catch (e) {
@@ -177,6 +181,34 @@ const AdminScheduling = () => {
             data-testid="scheduling-sms-reminder-min-input"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 text-sm disabled:bg-slate-100 disabled:text-slate-400" />
           <p className="text-[11px] text-slate-400 mt-1">Défaut : 30 minutes avant le rendez-vous.</p>
+        </div>
+      </div>
+
+      {/* No-driver availability hint + admin alert */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 mb-4">
+        <p className="font-semibold text-slate-900 flex items-center gap-2 mb-1"><Timer size={18} className="text-orange-500" /> Aucun chauffeur en ligne</p>
+        <p className="text-sm text-slate-500 mb-4">Créneau recommandé affiché au client + alerte administrateur en cas de demande non satisfaite.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">Heure d'ouverture habituelle</label>
+            <input type="number" min="0" max="23" value={cfg.availability_open_hour}
+              onChange={(e) => setCfg((c) => ({ ...c, availability_open_hour: e.target.value }))}
+              data-testid="scheduling-availability-open-hour-input"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 mt-1 text-sm" />
+            <p className="text-[11px] text-slate-400 mt-1">« Chauffeurs généralement disponibles dès {cfg.availability_open_hour || 7}h » (défaut 7).</p>
+          </div>
+          <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2.5 mt-5 sm:mt-6">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Alerter l'administrateur</p>
+              <p className="text-[11px] text-slate-400">Notification (throttle 15 min) si un client ne trouve aucun chauffeur.</p>
+            </div>
+            <button
+              onClick={() => setCfg((c) => ({ ...c, notify_admin_no_driver: !c.notify_admin_no_driver }))}
+              data-testid="scheduling-notify-admin-no-driver-toggle"
+              className={`relative w-14 h-8 rounded-full transition-colors shrink-0 ${cfg.notify_admin_no_driver ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+              <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${cfg.notify_admin_no_driver ? 'translate-x-7' : 'translate-x-1'}`} />
+            </button>
+          </div>
         </div>
       </div>
 
