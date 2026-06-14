@@ -14,6 +14,7 @@ import VoiceAssistant from './components/VoiceAssistant';
 import { KioskApp, ProAccessPage, SbStoreSignupPage } from './routes/pages';
 
 const SharedTripPage = React.lazy(() => import('./pages/SharedTripPage'));
+import ProGateListener from './pages/user/fleet/ProGateListener';
 import { clientRoutes } from './routes/clientRoutes';
 import { driverRoutes } from './routes/driverRoutes';
 import { merchantRoutes } from './routes/merchantRoutes';
@@ -44,6 +45,7 @@ const AppRouter = () => {
   return (
     <>
       {showVoiceFab && <VoiceAssistant />}
+      <ProGateListener />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* ======= SB DRIVE TAB (Kiosk libre-service) ======= */}

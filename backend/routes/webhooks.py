@@ -69,6 +69,12 @@ async def stripe_webhook(request: Request):
         if result.modified_count > 0:
             tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
             if tx:
+                # Route by transaction type — Pro subscription vs wallet top-up.
+                if tx.get("type") == "tracking_pro" or (tx.get("metadata") or {}).get("type") == "tracking_pro":
+                    from routes.tracking_pro import grant_pro
+                    await grant_pro(tx["user_id"], (tx.get("metadata") or {}).get("package_id", "pro_monthly"), session_id)
+                    return {"status": "ok"}
+
                 user_id = tx["user_id"]
                 amount = tx["amount"]
 

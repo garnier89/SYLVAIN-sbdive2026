@@ -35,6 +35,7 @@ from routes.fleet import router as fleet_router
 from routes.family import router as family_router
 from routes.employees import router as employees_router
 from routes.security import router as security_router
+from routes.tracking_pro import router as tracking_pro_router
 
 ROUTERS = [
     driver_pro_router,
@@ -70,4 +71,5 @@ ROUTERS = [
     family_router,
     employees_router,
     security_router,
+    tracking_pro_router,
 ]

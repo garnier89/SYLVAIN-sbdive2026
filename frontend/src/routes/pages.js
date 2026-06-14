@@ -121,6 +121,7 @@ export const EmployeeJoinPage = lazy(() => import('../pages/user/fleet/EmployeeJ
 export const SecurityCenterPage = lazy(() => import('../pages/user/fleet/SecurityCenterPage'));
 export const EmployeeSpacePage = lazy(() => import('../pages/user/fleet/EmployeeSpacePage'));
 export const SupervisorPage = lazy(() => import('../pages/user/fleet/SupervisorPage'));
+export const ProOfferPage = lazy(() => import('../pages/user/fleet/ProOfferPage'));
 export const FinancePage = lazy(() => import('../pages/user/FinancePage'));
 export const WaybillPage = lazy(() => import('../pages/user/WaybillPage'));
 export const NewsFeedPage = lazy(() => import('../pages/user/NewsFeedPage'));

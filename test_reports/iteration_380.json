@@ -1,0 +1,26 @@
+{
+  "summary": "SB Tracking Pro (monetization layer) verified end-to-end. Backend: 5/5 pytest cases pass (status w/ packages, checkout (Stripe cs_test session), invalid package -> 400, free-user 402 gating on security/fleet command/PDF reports/supervisor invite, pro-user 200 on premium endpoints). Additional curl probes confirmed: /api/tracking-pro/checkout-status/<sid> returns {status:open,payment_status:unpaid,pro.active:false} for unpaid session; PRO user gets HTTP 200 + application/pdf on both /api/fleet/report.pdf and /api/employees/report.pdf, 200 on /api/security/overview, 200 on POST /api/fleet/vehicles/{id}/command, and /api/tracking-pro/status shows active=true, plan=pro_annual, 364 days_left. Frontend (Playwright): FREE user on /sb-tracking sees pro-cta-banner + pro-lock-securite and NO pro-badge; /sb-tracking/pro renders pro-offer-page with feature-0..4, plan-pro_monthly (19.99€) and plan-pro_annual (191.90€ −20%) plus 'Choisir ce forfait' buttons. Clicking subscribe-pro_monthly redirects to checkout.stripe.com/c/pay/cs_test_... (real Stripe TEST session). Free user clicking the locked Sécurité tile lands on /sb-tracking/securite with 'Voir Pro' CTA visible (402-driven pro-required UX, no crash). PRO user (famtester) shows 'PRO' badge in header, NO cta-banner, NO lock; /sb-tracking/pro shows pro-active-banner ('Abonnement Pro actif — 364 jour(s) restant(s) • Annuel') and NO plan cards; /sb-tracking/securite renders the full Centre de sécurité (Score 96/100, 17 critiques, 8 alertes, 49 infos, vehicle scores, events list).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_tracking_pro.py",
+    "/app/test_reports/pytest/iter380_tracking_pro.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Pro-required UX for free users hitting a gated route currently navigates to the gated page (e.g., /sb-tracking/securite) and renders a 'Voir Pro' CTA inline — confirmed working. The toast variant from ProGateListener also visibly fires (the page contains 'Voir Pro' which is the toast action label). Both UX paths are acceptable; consider documenting which one is canonical to avoid double-prompting users in future.",
+    "Stripe Checkout test mode: managed key only supports one-time Checkout (no auto-renewal). Pro grant is time-based 30/365 days — intentional per spec; document this in the user-facing FAQ so users understand renewal requires repurchasing."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5 pytest + 4/4 manual curl checks)", "frontend": "100% (all data-testids + Stripe redirect verified for FREE and PRO)"},
+  "test_credentials": "FREE: freeuser@demo.sb / FreeUser123! ; PRO: famtester@demo.sb / FamTest123!",
+  "seed_data_creation": "Used /api/fleet/seed-demo for vehicle list (already idempotent). No leftover TEST_ data created (supervisor invite for free user returns 402 before insert).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "SB Tracking Pro monetization layer is GREEN. Stripe checkout returns cs_test_... session URL — DO NOT complete card payment in tests. Pro grant for famtester is time-based via DB (conftest grants ~1 year). When testing free->pro upgrade UX, just verify the redirect happens (window.location -> checkout.stripe.com) without filling card details. Frontend 402 interceptor in /app/frontend/src/services/api.js dispatches a 'pro-required' window event consumed by ProGateListener (toast w/ 'Voir Pro' action).",
+  "rca of the issue": "n/a — no bugs found"
+}

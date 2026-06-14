@@ -179,6 +179,15 @@ async def add_employee(request: Request):
         raise HTTPException(status_code=400, detail="Nom requis")
     count = await db.employees.count_documents({"org_id": org["id"]})
     is_self = bool(body.get("is_self"))
+    want_supervisor = body.get("member_role") == "supervisor"
+    if not is_self:
+        from routes.tracking_pro import is_pro, FREE_EMPLOYEE_LIMIT
+        pro = await is_pro(user["id"])
+        if want_supervisor and not pro:
+            raise HTTPException(status_code=402, detail="Le rôle Superviseur est réservé à SB Tracking Pro")
+        if count >= FREE_EMPLOYEE_LIMIT and not pro:
+            raise HTTPException(status_code=402,
+                                detail=f"Limite gratuite de {FREE_EMPLOYEE_LIMIT} employés atteinte — passez à SB Tracking Pro")
     e = {
         "id": f"emp_{uuid.uuid4().hex[:10]}",
         "org_id": org["id"],
@@ -226,6 +235,14 @@ async def invite_employee(request: Request):
         raise HTTPException(status_code=400, detail="Email valide requis")
     count = await db.employees.count_documents({"org_id": org["id"]})
     role = (body.get("role") or "Employé").strip()
+    want_supervisor = body.get("member_role") == "supervisor"
+    from routes.tracking_pro import is_pro, FREE_EMPLOYEE_LIMIT
+    pro = await is_pro(user["id"])
+    if want_supervisor and not pro:
+        raise HTTPException(status_code=402, detail="Le rôle Superviseur est réservé à SB Tracking Pro")
+    if count >= FREE_EMPLOYEE_LIMIT and not pro:
+        raise HTTPException(status_code=402,
+                            detail=f"Limite gratuite de {FREE_EMPLOYEE_LIMIT} employés atteinte — passez à SB Tracking Pro")
     e = {
         "id": f"emp_{uuid.uuid4().hex[:10]}", "org_id": org["id"], "name": name, "role": role,
         "phone": (body.get("phone") or "").strip(), "email": email,
@@ -475,7 +492,9 @@ async def reports(request: Request):
 
 @router.get("/report.pdf")
 async def reports_pdf(request: Request):
-    _user, org = await _require_org(request)
+    user, org = await _require_org(request)
+    from routes.tracking_pro import require_pro
+    await require_pro(user["id"])
     from core.tracking_pdf import employees_report_pdf
     day_keys, rows = await _compute_report(org["id"])
     pdf = employees_report_pdf(org.get("name") or "Mon équipe", day_keys, rows)
@@ -585,6 +604,9 @@ async def supervised_team(org_id: str, request: Request):
     if not slot:
         raise HTTPException(status_code=403, detail="Accès superviseur requis")
     org = await db.employee_orgs.find_one({"id": org_id}, {"_id": 0})
+    if org:
+        from routes.tracking_pro import require_pro
+        await require_pro(org.get("owner_id"))
     emps = await db.employees.find({"org_id": org_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
     present = sum(1 for e in emps if _live(e)["status"] == "working")
     day_keys, rows = await _compute_report(org_id)

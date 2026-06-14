@@ -46,6 +46,9 @@ api.interceptors.response.use(
         isRefreshing = false;
       }
     }
+    if (error.response?.status === 402) {
+      try { window.dispatchEvent(new CustomEvent('pro-required', { detail: error.response.data?.detail || 'Fonctionnalité Pro' })); } catch (e) { /* noop */ }
+    }
     return Promise.reject(error);
   }
 );
@@ -548,6 +551,12 @@ export const familyAPI = {
   readAllAlerts: () => api.post('/family/alerts/read-all'),
 };
 
+
+export const proAPI = {
+  status: () => api.get('/tracking-pro/status'),
+  checkout: (package_id, origin_url) => api.post('/tracking-pro/checkout', { package_id, origin_url }),
+  checkoutStatus: (sessionId) => api.get(`/tracking-pro/checkout-status/${sessionId}`),
+};
 
 export const securityAPI = {
   overview: () => api.get('/security/overview'),

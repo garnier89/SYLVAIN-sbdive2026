@@ -177,13 +177,17 @@ def _make_sim(center: dict, idx: int) -> dict:
 
 @router.post("/vehicles")
 async def create_vehicle(request: Request):
-    _user, fleet = await _require_fleet(request)
+    user, fleet = await _require_fleet(request)
     body = await request.json()
     name = (body.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Nom du véhicule requis")
     vtype = body.get("vtype") if body.get("vtype") in VEHICLE_TYPES else "car"
     count = await db.fleet_vehicles.count_documents({"fleet_id": fleet["id"]})
+    from routes.tracking_pro import is_pro, FREE_VEHICLE_LIMIT
+    if count >= FREE_VEHICLE_LIMIT and not await is_pro(user["id"]):
+        raise HTTPException(status_code=402,
+                            detail=f"Limite gratuite de {FREE_VEHICLE_LIMIT} véhicules atteinte — passez à SB Tracking Pro")
     v = {
         "id": f"veh_{uuid.uuid4().hex[:12]}",
         "fleet_id": fleet["id"],
@@ -323,6 +327,8 @@ async def vehicle_command(vid: str, request: Request):
     pending commands on their next `/fleet/ping` and confirm via `/fleet/command-ack`.
     """
     user, fleet = await _require_fleet(request)
+    from routes.tracking_pro import require_pro
+    await require_pro(user["id"])
     v = await db.fleet_vehicles.find_one({"id": vid, "fleet_id": fleet["id"]}, {"_id": 0})
     if not v:
         raise HTTPException(status_code=404, detail="Véhicule introuvable")
@@ -503,7 +509,9 @@ async def read_all_alerts(request: Request):
 @router.get("/report.pdf")
 async def fleet_report_pdf_endpoint(request: Request):
     """Downloadable fleet activity report (vehicles + alert synthesis)."""
-    _user, fleet = await _require_fleet(request)
+    user, fleet = await _require_fleet(request)
+    from routes.tracking_pro import require_pro
+    await require_pro(user["id"])
     from core.tracking_pdf import fleet_report_pdf
     vs = await db.fleet_vehicles.find({"fleet_id": fleet["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
     dmap = await _driver_map(fleet["id"])

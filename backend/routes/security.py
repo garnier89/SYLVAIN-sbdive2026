@@ -36,6 +36,8 @@ def _sev(atype):
 @router.get("/overview")
 async def security_overview(request: Request):
     user = await get_current_user(request)
+    from routes.tracking_pro import require_pro
+    await require_pro(user["id"])
 
     # --- gather alerts across fleet + family (owned circles) ---
     events = []
