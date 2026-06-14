@@ -1,10 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gauge, BatteryHigh, Path, Prohibit, MapPin, Warning, Power, ClockCounterClockwise } from '@phosphor-icons/react';
+import { ArrowLeft, Gauge, BatteryHigh, Path, Prohibit, MapPin, Warning, Power, ClockCounterClockwise, Lock, LockOpen, ShieldWarning, CheckCircle, X } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { fleetAPI } from '../../../services/api';
 import FleetMap from './FleetMap';
 import { statusMeta, vtypeMeta, fmtAgo } from './fleetShared';
+
+const CMD_STATUS = {
+  sent: { label: 'Envoyée', cls: 'bg-amber-50 text-amber-700' },
+  acked: { label: 'Confirmée', cls: 'bg-emerald-50 text-emerald-700' },
+  failed: { label: 'Échec', cls: 'bg-red-50 text-red-700' },
+  pending: { label: 'En attente', cls: 'bg-gray-100 text-gray-500' },
+};
 
 const FleetVehicleDetailPage = () => {
   const { id } = useParams();
@@ -12,24 +19,36 @@ const FleetVehicleDetailPage = () => {
   const [v, setV] = useState(null);
   const [history, setHistory] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [commands, setCommands] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmCmd, setConfirmCmd] = useState(null);
 
   const load = useCallback(() => {
     fleetAPI.vehicle(id).then((r) => setV(r.data)).catch(() => { toast.error('Introuvable'); navigate('/sb-tracking/vehicules'); }).finally(() => setLoading(false));
   }, [id, navigate]);
+  const loadCommands = useCallback(() => { fleetAPI.commands(id).then((r) => setCommands(r.data.commands || [])).catch(() => {}); }, [id]);
 
   useEffect(() => {
     load();
+    loadCommands();
     fleetAPI.history(id).then((r) => setHistory(r.data.points || [])).catch(() => {});
     fleetAPI.drivers().then((r) => setDrivers(r.data.drivers || [])).catch(() => {});
     const t = setInterval(load, 4000);
     return () => clearInterval(t);
-  }, [load, id]);
+  }, [load, loadCommands, id]);
 
-  const cmd = async (command, label) => {
-    if (command === 'engine_cut' && !window.confirm('Couper le moteur à distance ?')) return;
-    try { await fleetAPI.command(id, command); toast.success(`${label} (simulé)`); } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+  const sendCmd = async (command, label, confirm = false) => {
+    try {
+      const res = await fleetAPI.command(id, command, confirm);
+      const st = res.data?.command?.status;
+      toast.success(`${label} — ${st === 'acked' ? 'confirmée par le traceur' : 'envoyée'}`);
+      setConfirmCmd(null); load(); loadCommands();
+    } catch (e) {
+      if (e?.response?.status === 409) { setConfirmCmd({ command, label }); return; }
+      toast.error(e?.response?.data?.detail || 'Erreur');
+    }
   };
+  const onCmd = (command, label, critical) => { if (critical) setConfirmCmd({ command, label }); else sendCmd(command, label); };
   const assign = async (driver_id) => {
     try { await fleetAPI.updateVehicle(id, { driver_id: driver_id || null }); toast.success('Conducteur mis à jour'); load(); } catch { toast.error('Erreur'); }
   };
@@ -46,6 +65,7 @@ const FleetVehicleDetailPage = () => {
           <h1 className="text-base font-extrabold text-gray-900 truncate flex items-center gap-2"><VIcon size={18} weight="fill" style={{ color: sm.color }} /> {v.name}</h1>
           <p className="text-[11px] text-gray-400">{v.plate || '—'} • {fmtAgo(v.live?.ts)}</p>
         </div>
+        {v.engine_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex items-center gap-1" data-testid="engine-locked-badge"><Prohibit size={11} weight="fill" /> Moteur coupé</span>}
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sm.bg} ${sm.text}`}>{sm.label}</span>
       </div>
 
@@ -67,19 +87,53 @@ const FleetVehicleDetailPage = () => {
         </div>
 
         <div className="bg-white rounded-2xl p-4">
-          <p className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1"><Warning size={14} /> Sécurité antivol (simulé)</p>
+          <p className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1"><ShieldWarning size={14} weight="fill" /> Commande & contrôle (sécurité)</p>
           <div className="grid grid-cols-2 gap-2">
-            <CmdBtn Icon={Prohibit} label="Couper moteur" onClick={() => cmd('engine_cut', 'Moteur coupé')} danger testid="cmd-engine-cut" />
-            <CmdBtn Icon={Power} label="Réactiver" onClick={() => cmd('engine_restore', 'Moteur réactivé')} testid="cmd-engine-restore" />
-            <CmdBtn Icon={MapPin} label="Localiser" onClick={() => cmd('locate', 'Localisation envoyée')} testid="cmd-locate" />
-            <CmdBtn Icon={Warning} label="Mode SOS" onClick={() => cmd('sos', 'SOS activé')} danger testid="cmd-sos" />
+            {v.engine_locked
+              ? <CmdBtn Icon={Power} label="Réactiver moteur" onClick={() => onCmd('engine_restore', 'Réactivation moteur')} testid="cmd-engine-restore" />
+              : <CmdBtn Icon={Prohibit} label="Couper moteur" onClick={() => onCmd('engine_cut', 'Coupure moteur', true)} danger testid="cmd-engine-cut" />}
+            {v.locked
+              ? <CmdBtn Icon={LockOpen} label="Déverrouiller" onClick={() => onCmd('unlock', 'Déverrouillage')} testid="cmd-unlock" />
+              : <CmdBtn Icon={Lock} label="Verrouiller" onClick={() => onCmd('lock', 'Verrouillage')} testid="cmd-lock" />}
+            <CmdBtn Icon={MapPin} label="Localiser" onClick={() => onCmd('locate', 'Localisation')} testid="cmd-locate" />
+            <CmdBtn Icon={Warning} label="Mode SOS" onClick={() => onCmd('sos', 'Mode SOS', true)} danger testid="cmd-sos" />
           </div>
+          {commands.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[11px] font-bold text-gray-400 mb-2">Historique des commandes</p>
+              <div className="space-y-1.5">
+                {commands.slice(0, 5).map((c) => {
+                  const st = CMD_STATUS[c.status] || CMD_STATUS.pending;
+                  return (
+                    <div key={c.id} className="flex items-center gap-2 text-xs" data-testid={`cmd-hist-${c.id}`}>
+                      <span className="text-gray-700 flex-1 truncate">{c.label}</span>
+                      <span className="text-gray-300">{fmtAgo(c.requested_at)}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${st.cls}`}>{st.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <button onClick={() => fleetAPI.history(id).then((r) => { setHistory(r.data.points || []); toast.success('Trajet rafraîchi'); })} className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm" data-testid="refresh-history">
           <ClockCounterClockwise size={16} /> Rafraîchir le trajet ({history.length} points)
         </button>
       </div>
+
+      {confirmCmd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5" data-testid="cmd-confirm-modal">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-2"><ShieldWarning size={22} weight="fill" className="text-red-600" /><h2 className="font-extrabold text-gray-900">Action critique</h2></div>
+            <p className="text-sm text-gray-600">Confirmez l'envoi de la commande <b>« {confirmCmd.label} »</b> au véhicule {v.name}. Cette action sera transmise au traceur et journalisée.</p>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setConfirmCmd(null)} className="flex-1 border border-gray-300 font-bold py-2.5 rounded-lg flex items-center justify-center gap-1" data-testid="cmd-cancel"><X size={15} /> Annuler</button>
+              <button onClick={() => sendCmd(confirmCmd.command, confirmCmd.label, true)} className="flex-1 bg-red-600 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1" data-testid="cmd-confirm"><CheckCircle size={15} weight="fill" /> Confirmer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -135,6 +135,7 @@ async def _employee_out(e: dict, org_id: str) -> dict:
         "id": e["id"], "name": e.get("name"), "role": e.get("role", "Employé"),
         "color": e.get("color", "#0EA5E9"), "invite_code": e.get("invite_code"),
         "linked": bool(e.get("user_id")), "is_self": bool(e.get("is_self")),
+        "member_role": e.get("member_role", "employee"),
         "live": live, "on_shift": live["status"] == "working",
         "minutes_today": await _minutes_today(org_id, e),
         "created_at": e.get("created_at"),
@@ -189,6 +190,7 @@ async def add_employee(request: Request):
         "invite_code": f"EMP{uuid.uuid4().hex[:5].upper()}",
         "user_id": user["id"] if is_self else None,
         "is_self": is_self,
+        "member_role": "supervisor" if (body.get("member_role") == "supervisor") else "employee",
         "sim": {"enabled": False},
         "shift": {}, "geo_state": {},
         "created_at": _now(),
@@ -229,7 +231,9 @@ async def invite_employee(request: Request):
         "phone": (body.get("phone") or "").strip(), "email": email,
         "color": EMP_COLORS[count % len(EMP_COLORS)],
         "invite_code": f"EMP{uuid.uuid4().hex[:5].upper()}",
-        "user_id": None, "is_self": False, "sim": {"enabled": False},
+        "user_id": None, "is_self": False,
+        "member_role": "supervisor" if (body.get("member_role") == "supervisor") else "employee",
+        "sim": {"enabled": False},
         "shift": {}, "geo_state": {}, "invited_at": _now(), "created_at": _now(),
     }
     await db.employees.insert_one(e)
@@ -478,6 +482,119 @@ async def reports_pdf(request: Request):
     fname = f"rapport-employes-{_today_str()}.pdf"
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+# ----------------------------------------------------------------- member space (employee + supervisor)
+async def _member_slots(user_id: str):
+    return await db.employees.find({"user_id": user_id, "is_self": {"$ne": True}}, {"_id": 0}).to_list(100)
+
+
+async def _minutes_week(org_id: str, emp: dict) -> int:
+    total = 0.0
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    async for s in db.employee_shifts.find(
+            {"org_id": org_id, "employee_id": emp["id"], "started_at": {"$gte": week_ago}},
+            {"_id": 0, "duration_min": 1}):
+        total += float(s.get("duration_min") or 0)
+    started = _shift_started_at(emp)
+    if started:
+        try:
+            total += max(0.0, (datetime.now(timezone.utc) - datetime.fromisoformat(started)).total_seconds() / 60.0)
+        except Exception:
+            pass
+    return int(round(total))
+
+
+@router.get("/memberships")
+async def memberships(request: Request):
+    """Orgs the current user belongs to (as employee or supervisor), with their status."""
+    user = await get_current_user(request)
+    slots = await _member_slots(user["id"])
+    org_names = {o["id"]: o.get("name") for o in await db.employee_orgs.find(
+        {"id": {"$in": [s["org_id"] for s in slots]}}, {"_id": 0, "id": 1, "name": 1}).to_list(100)}
+    out = []
+    for s in slots:
+        live = _live(s)
+        out.append({
+            "slot_id": s["id"], "org_id": s["org_id"], "org_name": org_names.get(s["org_id"]),
+            "member_role": s.get("member_role", "employee"), "role": s.get("role"),
+            "on_shift": live["status"] == "working",
+            "minutes_today": await _minutes_today(s["org_id"], s),
+            "minutes_week": await _minutes_week(s["org_id"], s),
+        })
+    return {"memberships": out, "is_member": bool(out),
+            "is_supervisor": any(m["member_role"] == "supervisor" for m in out)}
+
+
+@router.get("/my-routes")
+async def my_routes(request: Request):
+    """Routes assigned to the current user's employee slots."""
+    user = await get_current_user(request)
+    slot_ids = [s["id"] for s in await _member_slots(user["id"])]
+    if not slot_ids:
+        return {"routes": []}
+    rs = await db.employee_routes.find(
+        {"employee_id": {"$in": slot_ids}}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    for r in rs:
+        stops = r.get("stops") or []
+        r["done_count"] = sum(1 for st in stops if st.get("done"))
+        r["total_count"] = len(stops)
+    return {"routes": rs}
+
+
+@router.post("/my/routes/{rid}/stops/{sid}/toggle")
+async def toggle_my_stop(rid: str, sid: str, request: Request):
+    user = await get_current_user(request)
+    slot_ids = [s["id"] for s in await _member_slots(user["id"])]
+    r = await db.employee_routes.find_one({"id": rid, "employee_id": {"$in": slot_ids}}, {"_id": 0})
+    if not r:
+        raise HTTPException(status_code=404, detail="Tournée introuvable")
+    stops = r.get("stops") or []
+    found = False
+    for s in stops:
+        if s["id"] == sid:
+            s["done"] = not s.get("done")
+            s["done_at"] = _now() if s["done"] else None
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Arrêt introuvable")
+    await db.employee_routes.update_one({"id": rid}, {"$set": {"stops": stops}})
+    if all(s.get("done") for s in stops) and stops:
+        await _notify_owner(r["org_id"], "emp_route_done", "✅ Tournée terminée",
+                            f"La tournée « {r.get('name')} » est terminée", exclude_user_id=user["id"])
+    return {"stops": stops}
+
+
+@router.get("/supervised")
+async def supervised_orgs(request: Request):
+    user = await get_current_user(request)
+    slots = await _member_slots(user["id"])
+    sup = [s for s in slots if s.get("member_role") == "supervisor"]
+    org_names = {o["id"]: o.get("name") for o in await db.employee_orgs.find(
+        {"id": {"$in": [s["org_id"] for s in sup]}}, {"_id": 0, "id": 1, "name": 1}).to_list(100)}
+    return {"orgs": [{"org_id": s["org_id"], "org_name": org_names.get(s["org_id"])} for s in sup]}
+
+
+@router.get("/supervised/{org_id}")
+async def supervised_team(org_id: str, request: Request):
+    """Read-only team view for a supervisor of the given org."""
+    user = await get_current_user(request)
+    slot = await db.employees.find_one(
+        {"user_id": user["id"], "org_id": org_id, "member_role": "supervisor"}, {"_id": 0})
+    if not slot:
+        raise HTTPException(status_code=403, detail="Accès superviseur requis")
+    org = await db.employee_orgs.find_one({"id": org_id}, {"_id": 0})
+    emps = await db.employees.find({"org_id": org_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    present = sum(1 for e in emps if _live(e)["status"] == "working")
+    day_keys, rows = await _compute_report(org_id)
+    return {
+        "org": {"id": org_id, "name": (org or {}).get("name")},
+        "counts": {"employees": len(emps), "present": present},
+        "employees": [await _employee_out(e, org_id) for e in emps],
+        "report": {"day_keys": day_keys, "rows": rows},
+    }
+
 
 
 # ----------------------------------------------------------------- demo seed

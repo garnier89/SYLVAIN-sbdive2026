@@ -146,6 +146,7 @@ def _vehicle_out(v: dict, driver_name=None) -> dict:
         "vtype": v.get("vtype", "car"), "driver_id": v.get("driver_id"),
         "driver_name": driver_name, "tracker_key": v.get("tracker_key"),
         "speed_limit": v.get("speed_limit", 90), "sim_enabled": bool((v.get("sim") or {}).get("enabled")),
+        "engine_locked": bool(v.get("engine_locked")), "locked": bool(v.get("locked")),
         "live": _live(v), "created_at": v.get("created_at"),
     }
 
@@ -280,26 +281,104 @@ async def vehicle_history(vid: str, request: Request):
     stops = [p for p in pts if float(p.get("speed", 0) or 0) <= 3]
     return {"points": pts, "stops": stops[-20:]}
 
+# ----------------------------------------------------------------- remote commands (real C&C pipeline)
+COMMAND_LABELS = {
+    "engine_cut": "Coupure moteur",
+    "engine_restore": "Réactivation moteur",
+    "lock": "Verrouillage portes",
+    "unlock": "Déverrouillage portes",
+    "locate": "Localisation",
+    "sos": "Mode SOS",
+}
+CRITICAL_CMDS = {"engine_cut"}  # require an explicit double-validation (confirm=true)
+_CMD_EFFECTS = {
+    "engine_cut": {"engine_locked": True},
+    "engine_restore": {"engine_locked": False},
+    "lock": {"locked": True},
+    "unlock": {"locked": False},
+}
+
+
+async def _apply_command_effect(vid: str, command: str):
+    eff = _CMD_EFFECTS.get(command)
+    if eff:
+        await db.fleet_vehicles.update_one({"id": vid}, {"$set": eff})
+
+
+async def _ack_command(cid: str, vehicle: dict, command: str, result: str):
+    """Mark a command as acknowledged by the device + apply its persistent effect."""
+    await db.fleet_commands.update_one(
+        {"id": cid}, {"$set": {"status": "acked", "acked_at": _now(), "result": result}})
+    await _apply_command_effect(vehicle["id"], command)
+    await _add_alert(vehicle["fleet_id"], vehicle, "command",
+                     f"{COMMAND_LABELS.get(command, command)} confirmée — {vehicle.get('name')}")
+
 
 @router.post("/vehicles/{vid}/command")
 async def vehicle_command(vid: str, request: Request):
-    """Hardware command stub (engine_cut / restore / locate / sos). Logs an alert."""
-    _user, fleet = await _require_fleet(request)
+    """Queue a remote command with a real lifecycle (pending→sent→acked/failed).
+
+    Critical commands (engine cut-off) require an explicit `confirm=true` double
+    validation. Simulated vehicles auto-acknowledge (preview); real trackers pull
+    pending commands on their next `/fleet/ping` and confirm via `/fleet/command-ack`.
+    """
+    user, fleet = await _require_fleet(request)
     v = await db.fleet_vehicles.find_one({"id": vid, "fleet_id": fleet["id"]}, {"_id": 0})
     if not v:
         raise HTTPException(status_code=404, detail="Véhicule introuvable")
     body = await request.json()
     cmd = body.get("command")
-    labels = {
-        "engine_cut": "Coupure moteur à distance",
-        "engine_restore": "Réactivation moteur",
-        "locate": "Localisation demandée",
-        "sos": "Mode SOS activé",
-    }
-    if cmd not in labels:
+    if cmd not in COMMAND_LABELS:
         raise HTTPException(status_code=400, detail="Commande inconnue")
-    await _add_alert(fleet["id"], v, "command", f"{labels[cmd]} — {v.get('name')}")
-    return {"message": labels[cmd], "command": cmd, "simulated": True, "live": _live(v)}
+    if cmd in CRITICAL_CMDS and not body.get("confirm"):
+        raise HTTPException(status_code=409, detail="Confirmation requise pour cette action critique")
+
+    is_sim = bool((v.get("sim") or {}).get("enabled"))
+    has_device = (not is_sim) and bool((v.get("last") or {}).get("ts"))
+    cid = f"cmd_{uuid.uuid4().hex[:12]}"
+    cdoc = {
+        "id": cid, "fleet_id": fleet["id"], "vehicle_id": vid, "vehicle_name": v.get("name"),
+        "command": cmd, "label": COMMAND_LABELS[cmd],
+        "status": "sent", "requested_by": user["id"], "requested_at": _now(),
+        "sent_at": _now(), "acked_at": None, "result": None,
+    }
+    await db.fleet_commands.insert_one(cdoc)
+    cdoc.pop("_id", None)
+    await _add_alert(fleet["id"], v, "command", f"{COMMAND_LABELS[cmd]} — {v.get('name')} (demandée)")
+
+    if is_sim or not has_device:
+        # Preview / no connected hardware: the virtual device confirms immediately.
+        await _ack_command(cid, v, cmd, "Confirmé par le traceur (simulé)")
+        cdoc["status"] = "acked"
+        cdoc["result"] = "Confirmé par le traceur (simulé)"
+    v = await db.fleet_vehicles.find_one({"id": vid}, {"_id": 0})
+    return {"message": COMMAND_LABELS[cmd], "command": cdoc, "live": _live(v),
+            "engine_locked": bool(v.get("engine_locked")), "locked": bool(v.get("locked"))}
+
+
+@router.get("/vehicles/{vid}/commands")
+async def vehicle_commands(vid: str, request: Request):
+    _user, fleet = await _require_fleet(request)
+    cmds = await db.fleet_commands.find(
+        {"fleet_id": fleet["id"], "vehicle_id": vid}, {"_id": 0}).sort("requested_at", -1).to_list(50)
+    return {"commands": cmds}
+
+
+@router.post("/command-ack")
+async def command_ack(request: Request):
+    """PUBLIC: a real tracker confirms a queued command (authenticated by tracker_key)."""
+    body = await request.json()
+    key = (body.get("tracker_key") or "").strip()
+    cid = body.get("command_id")
+    v = await db.fleet_vehicles.find_one({"tracker_key": key}, {"_id": 0})
+    if not v:
+        raise HTTPException(status_code=404, detail="Traceur inconnu")
+    c = await db.fleet_commands.find_one({"id": cid, "vehicle_id": v["id"]}, {"_id": 0})
+    if not c:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    if c.get("status") != "acked":
+        await _ack_command(cid, v, c["command"], body.get("result") or "Confirmé par le traceur")
+    return {"message": "ok"}
 
 
 # ----------------------------------------------------------------- drivers
@@ -504,7 +583,9 @@ async def ingest_ping(request: Request):
         float(body.get("speed", 0) or 0), float(body.get("heading", 0) or 0),
         battery=body.get("battery"), ignition=body.get("ignition"),
     )
-    return {"message": "ok", "last": last}
+    pending = await db.fleet_commands.find(
+        {"vehicle_id": v["id"], "status": "sent"}, {"_id": 0, "id": 1, "command": 1}).to_list(20)
+    return {"message": "ok", "last": last, "pending_commands": pending}
 
 
 @router.post("/my-ping")

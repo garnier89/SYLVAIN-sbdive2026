@@ -77,7 +77,7 @@ const EmployeeJoinPage = () => {
             <button onClick={togglePunch} className={`w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-xl font-bold ${onShift ? 'bg-red-600 text-white' : 'bg-sky-600 text-white'}`} data-testid="join-punch-toggle">
               <Clock size={18} weight="fill" /> {onShift ? 'Terminer mon service' : 'Pointer mon arrivée'}
             </button>
-            <button onClick={() => navigate('/employes')} className="w-full mt-3 text-sm font-bold text-gray-500" data-testid="join-back-btn">Retour aux Employés</button>
+            <button onClick={() => navigate('/mon-espace')} className="w-full mt-3 text-sm font-bold text-sky-600" data-testid="join-my-space-btn">Aller à mon espace</button>
           </div>
         )}
       </div>

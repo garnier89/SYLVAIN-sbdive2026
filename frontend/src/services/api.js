@@ -571,6 +571,11 @@ export const employeesAPI = {
   deleteRoute: (id) => api.delete(`/employees/routes/${id}`),
   reports: () => api.get('/employees/reports'),
   reportPdf: () => api.get('/employees/report.pdf', { responseType: 'blob' }),
+  memberships: () => api.get('/employees/memberships'),
+  myRoutes: () => api.get('/employees/my-routes'),
+  toggleMyStop: (rid, sid) => api.post(`/employees/my/routes/${rid}/stops/${sid}/toggle`),
+  supervised: () => api.get('/employees/supervised'),
+  supervisedTeam: (orgId) => api.get(`/employees/supervised/${orgId}`),
 };
 
 export const fleetAPI = {
@@ -583,7 +588,8 @@ export const fleetAPI = {
   updateVehicle: (id, p) => api.put(`/fleet/vehicles/${id}`, p),
   deleteVehicle: (id) => api.delete(`/fleet/vehicles/${id}`),
   history: (id) => api.get(`/fleet/vehicles/${id}/history`),
-  command: (id, command) => api.post(`/fleet/vehicles/${id}/command`, { command }),
+  command: (id, command, confirm = false) => api.post(`/fleet/vehicles/${id}/command`, { command, confirm }),
+  commands: (id) => api.get(`/fleet/vehicles/${id}/commands`),
   drivers: () => api.get('/fleet/drivers'),
   addDriver: (p) => api.post('/fleet/drivers', p),
   deleteDriver: (id) => api.delete(`/fleet/drivers/${id}`),

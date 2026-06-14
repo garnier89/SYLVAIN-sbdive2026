@@ -79,6 +79,7 @@ const EmployeesPage = () => {
         <div className="flex items-center gap-3 mb-3">
           <button onClick={() => navigate('/sb-tracking')} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center" data-testid="back-btn"><ArrowLeft size={18} /></button>
           <div className="flex-1"><h1 className="text-lg font-extrabold">Employés</h1><p className="text-[11px] text-white/70">Pointage, présence & tournées</p></div>
+          <button onClick={() => navigate('/mon-espace')} className="text-[11px] font-bold bg-white/15 px-2.5 py-1.5 rounded-full" data-testid="my-space-link">Mon espace</button>
           <button onClick={() => navigate('/employes/rejoindre')} className="text-[11px] font-bold bg-white/15 px-2.5 py-1.5 rounded-full" data-testid="join-link">Rejoindre</button>
         </div>
         {ctx && (
@@ -100,7 +101,7 @@ const EmployeesPage = () => {
               <UserPlus size={36} className="mx-auto mb-2 text-gray-300" weight="duotone" />
               <p className="text-sm">Aucun employé. Ajoutez un membre ou activez la démo.</p>
               <div className="flex gap-2 justify-center mt-4">
-                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '', email: '' })} className="bg-sky-600 text-white font-bold text-sm px-4 py-2 rounded-full" data-testid="add-first-employee">Ajouter</button>
+                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '', email: '', member_role: 'employee' })} className="bg-sky-600 text-white font-bold text-sm px-4 py-2 rounded-full" data-testid="add-first-employee">Ajouter</button>
                 <button onClick={seed} className="border border-sky-200 text-sky-600 font-bold text-sm px-4 py-2 rounded-full flex items-center gap-1" data-testid="seed-demo-btn"><Sparkle size={13} weight="fill" /> Démo</button>
               </div>
             </div>
@@ -115,7 +116,7 @@ const EmployeesPage = () => {
 
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-gray-900">Mon équipe</h2>
-                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '', email: '' })} className="text-xs font-bold text-sky-600 flex items-center gap-1" data-testid="add-employee-btn"><Plus size={13} weight="bold" /> Ajouter</button>
+                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '', email: '', member_role: 'employee' })} className="text-xs font-bold text-sky-600 flex items-center gap-1" data-testid="add-employee-btn"><Plus size={13} weight="bold" /> Ajouter</button>
               </div>
               <div className="space-y-2">
                 {employees.map((e) => (
@@ -148,6 +149,10 @@ const EmployeesPage = () => {
               <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" placeholder="Poste (ex. Livreur, Technicien...)" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} data-testid="e-role" />
               <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" placeholder="Téléphone (optionnel)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="e-phone" />
               <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" type="email" placeholder="Email (pour inviter par email)" value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="e-email" />
+              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500 bg-white" value={form.member_role || 'employee'} onChange={(e) => setForm({ ...form, member_role: e.target.value })} data-testid="e-member-role">
+                <option value="employee">Rôle : Employé (pointe & tournées)</option>
+                <option value="supervisor">Rôle : Superviseur (lecture seule équipe)</option>
+              </select>
               <p className="text-[11px] text-gray-400">« Ajouter » crée un poste avec un code d'invitation. « Inviter par email » envoie en plus un lien d'invitation à l'employé.</p>
             </div>
             <div className="flex gap-3 mt-5">

@@ -171,6 +171,52 @@ def test_fleet_report_pdf():
     assert r.content[:4] == b"%PDF"
 
 
+def test_member_space_and_supervisor_access():
+    """Owner creates employee + supervisor slots; two users join; verify scoped views."""
+    owner = _session()
+    emp_add = owner.post(f"{API}/employees", json={"name": "TEST_EmpMember", "role": "Livreur"}, timeout=20)
+    sup_add = owner.post(f"{API}/employees", json={"name": "TEST_Supervisor", "role": "Chef", "member_role": "supervisor"}, timeout=20)
+    assert sup_add.json().get("member_role") == "supervisor"
+    emp_code, emp_id = emp_add.json()["invite_code"], emp_add.json()["id"]
+    sup_code = sup_add.json()["invite_code"]
+    # assign a route to the employee
+    owner.post(f"{API}/employees/routes", json={"name": "TEST_MemberRoute", "employee_id": emp_id,
+                                                "stops": [{"name": "S1"}, {"name": "S2"}]}, timeout=20)
+
+    emp = _session_for("empmember@demo.sb", "EmpMember123!", "Emp Member")
+    emp.post(f"{API}/employees/join", json={"code": emp_code}, timeout=20)
+    mem = emp.get(f"{API}/employees/memberships", timeout=20).json()
+    assert mem["is_member"] is True and mem["is_supervisor"] is False
+    my = emp.get(f"{API}/employees/my-routes", timeout=20).json()
+    assert len(my["routes"]) >= 1
+    rid = my["routes"][0]["id"]; sid = my["routes"][0]["stops"][0]["id"]
+    tog = emp.post(f"{API}/employees/my/routes/{rid}/stops/{sid}/toggle", timeout=20)
+    assert tog.status_code == 200 and any(st["id"] == sid and st["done"] for st in tog.json()["stops"])
+
+    sup = _session_for("supmember@demo.sb", "SupMember123!", "Sup Member")
+    sup.post(f"{API}/employees/join", json={"code": sup_code}, timeout=20)
+    orgs = sup.get(f"{API}/employees/supervised", timeout=20).json()["orgs"]
+    assert len(orgs) >= 1
+    org_id = orgs[0]["org_id"]
+    team = sup.get(f"{API}/employees/supervised/{org_id}", timeout=20)
+    assert team.status_code == 200
+    assert "employees" in team.json() and "report" in team.json()
+    # the plain employee must NOT access the supervised endpoint
+    assert emp.get(f"{API}/employees/supervised/{org_id}", timeout=20).status_code == 403
+
+    owner.delete(f"{API}/employees/{emp_id}", timeout=20)
+    owner.delete(f"{API}/employees/{sup_add.json()['id']}", timeout=20)
+
+
+def _session_for(email, password, name):
+    s = requests.Session()
+    s.post(f"{API}/auth/register", json={"email": email, "password": password, "name": name}, timeout=20)
+    r = s.post(f"{API}/auth/login", json={"email": email, "password": password}, timeout=20)
+    tok = r.json().get("access_token") or r.json().get("token")
+    s.headers.update({"Authorization": f"Bearer {tok}", "Content-Type": "application/json"})
+    return s
+
+
 def test_cleanup():
     s = _session()
     for e in s.get(f"{API}/employees", timeout=20).json().get("employees", []):
