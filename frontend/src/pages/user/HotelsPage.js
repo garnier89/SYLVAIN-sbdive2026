@@ -185,6 +185,11 @@ const HotelsPage = () => {
                     <span className="font-black" style={{ color: NAVY }}>{money(r.price_per_night)}<span className="text-[10px] font-normal text-gray-400">/nuit</span></span>
                     {nights > 0 && (unavailable ? <span className="text-[11px] text-rose-600 font-semibold">Complet</span> : <span className="text-[11px] text-gray-500">{r.available_units} dispo · total {money(r.total_for_stay * roomsCount)}</span>)}
                   </div>
+                  {r.deposit_amount > 0 && (
+                    <p className="text-[10px] text-amber-600 font-semibold mt-1" data-testid={`hotel-room-deposit-${r.id}`}>
+                      Caution {money(r.deposit_amount * roomsCount)} (bloquée, restituée au départ)
+                    </p>
+                  )}
                 </button>
               );
             })}
@@ -217,6 +222,15 @@ const HotelsPage = () => {
                 <p className="text-xs text-gray-500 mt-1">{b.room_name} · {b.rooms_count} chambre(s) · {b.guests} voyageur(s)</p>
                 <p className="text-xs text-gray-500">{b.check_in} → {b.check_out} · {b.nights} nuit(s)</p>
                 <p className="text-sm font-bold mt-1" style={{ color: NAVY }}>{money(b.total_price)}</p>
+                {b.deposit_amount > 0 && (
+                  <p className="text-[11px] mt-0.5 font-semibold" data-testid={`hotel-booking-deposit-${b.id}`}>
+                    {b.deposit_status === 'held'
+                      ? <span className="text-amber-600">Caution bloquée : {money(b.deposit_held_amount)}</span>
+                      : b.deposit_status === 'released'
+                        ? <span className="text-emerald-600">Caution restituée : {money(b.deposit_refunded)}{b.damage_fees > 0 ? ` (− ${money(b.damage_fees)} dommages)` : ''}</span>
+                        : null}
+                  </p>
+                )}
                 {b.status === 'confirmed' && (
                   <button onClick={() => cancel(b.id)} data-testid={`hotel-cancel-${b.id}`} className="mt-2 text-xs font-semibold text-rose-600">Annuler</button>
                 )}
@@ -229,10 +243,15 @@ const HotelsPage = () => {
       {/* sticky CTA for detail step */}
       {step === 'detail' && (
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 p-4 z-40">
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-2"><ShieldCheck size={14} className="text-emerald-500" /> Paiement via SB Pay · annulation gratuite avant l'arrivée</div>
+          {selectedRoom && nights > 0 && selectedRoom.deposit_amount > 0 && (
+            <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1" data-testid="hotel-cta-deposit">
+              <span>Séjour {money(selectedRoom.price_per_night * nights * roomsCount)} + caution {money(selectedRoom.deposit_amount * roomsCount)}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-2"><ShieldCheck size={14} className="text-emerald-500" /> Paiement via SB Pay · annulation gratuite avant l'arrivée{selectedRoom?.deposit_amount > 0 ? ' · caution restituée au départ' : ''}</div>
           <button onClick={book} disabled={busy || !selectedRoom || nights <= 0}
             data-testid="hotel-book-btn" className="w-full min-h-[52px] rounded-xl font-bold text-white text-lg disabled:opacity-50" style={{ background: ORANGE }}>
-            {busy ? 'Traitement…' : (selectedRoom && nights > 0 ? `Réserver · ${money(selectedRoom.price_per_night * nights * roomsCount)}` : 'Choisissez chambre & dates')}
+            {busy ? 'Traitement…' : (selectedRoom && nights > 0 ? `Réserver · ${money(selectedRoom.price_per_night * nights * roomsCount + (selectedRoom.deposit_amount || 0) * roomsCount)}` : 'Choisissez chambre & dates')}
           </button>
         </div>
       )}

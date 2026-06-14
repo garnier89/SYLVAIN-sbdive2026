@@ -16,7 +16,7 @@ const Field = ({ label, children }) => (
 );
 
 const emptyHotel = { name: '', city: '', address: '', stars: 3, description: '', amenities: '', image_url: '' };
-const emptyRoom = { name: '', capacity: 2, beds: '', price_per_night: 0, total_units: 1, amenities: '', image_url: '' };
+const emptyRoom = { name: '', capacity: 2, beds: '', price_per_night: 0, deposit_amount: 0, total_units: 1, amenities: '', image_url: '' };
 
 const RoomsManager = ({ hotelId }) => {
   const [rooms, setRooms] = useState([]);
@@ -54,6 +54,7 @@ const RoomsManager = ({ hotelId }) => {
           <Field label="Capacité"><input type="number" className={inputCls} value={form.capacity} onChange={(e) => setF('capacity', e.target.value)} /></Field>
           <Field label="Lits"><input className={inputCls} value={form.beds} onChange={(e) => setF('beds', e.target.value)} /></Field>
           <Field label="Prix / nuit (€)"><input type="number" className={inputCls} value={form.price_per_night} onChange={(e) => setF('price_per_night', e.target.value)} data-testid={`room-form-price-${hotelId}`} /></Field>
+          <Field label="Caution (€)"><input type="number" className={inputCls} value={form.deposit_amount} onChange={(e) => setF('deposit_amount', e.target.value)} data-testid={`room-form-deposit-${hotelId}`} /></Field>
           <Field label="Unités (stock)"><input type="number" className={inputCls} value={form.total_units} onChange={(e) => setF('total_units', e.target.value)} data-testid={`room-form-units-${hotelId}`} /></Field>
           <Field label="Équipements (séparés par ,)"><input className={inputCls} value={form.amenities} onChange={(e) => setF('amenities', e.target.value)} /></Field>
           <div className="col-span-2"><button onClick={create} data-testid={`room-create-save-${hotelId}`} className="px-4 py-2 text-xs font-bold text-white rounded-lg" style={{ background: NAVY }}>Créer la chambre</button></div>
@@ -65,6 +66,7 @@ const RoomsManager = ({ hotelId }) => {
             <p className="font-semibold text-sm text-slate-900">{m.name} <span className="text-xs font-normal text-slate-500">· {m.capacity} pers. · {m.beds}</span></p>
             <div className="grid grid-cols-2 gap-2 mt-2">
               <Field label="€/nuit"><input type="number" className={inputCls} value={valOf(m, 'price_per_night')} onChange={(e) => setEdit(m.id, 'price_per_night', e.target.value)} data-testid={`room-price-${m.id}`} /></Field>
+              <Field label="Caution €"><input type="number" className={inputCls} value={valOf(m, 'deposit_amount') ?? 0} onChange={(e) => setEdit(m.id, 'deposit_amount', e.target.value)} data-testid={`room-deposit-${m.id}`} /></Field>
               <Field label="Unités"><input type="number" className={inputCls} value={valOf(m, 'total_units')} onChange={(e) => setEdit(m.id, 'total_units', e.target.value)} data-testid={`room-units-${m.id}`} /></Field>
             </div>
             <div className="flex gap-2 mt-2">
@@ -130,7 +132,18 @@ const HotelsTab = () => {
 
 const BookingsTab = () => {
   const [bookings, setBookings] = useState([]);
-  useEffect(() => { hotelsAPI.adminBookings().then((r) => setBookings(r.data.bookings || [])).catch(() => {}); }, []);
+  const [damage, setDamage] = useState({});
+  const load = useCallback(() => { hotelsAPI.adminBookings().then((r) => setBookings(r.data.bookings || [])).catch(() => {}); }, []);
+  useEffect(() => { load(); }, [load]);
+  const checkout = async (b) => {
+    const fees = Math.max(0, Number(damage[b.id] || 0));
+    if (!window.confirm(`Clôturer le séjour de ${b.user_name} ?` + (b.deposit_held_amount > 0 ? `\nCaution ${money(b.deposit_held_amount)} restituée${fees ? ` moins ${money(fees)} de dommages` : ''}.` : ''))) return;
+    try {
+      const r = await hotelsAPI.adminCheckout(b.id, { damage_fees: fees });
+      toast.success(r.data.deposit_refunded > 0 ? `Séjour clôturé · caution restituée ${money(r.data.deposit_refunded)}` : 'Séjour clôturé');
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Échec'); }
+  };
   return (
     <div className="space-y-3 max-w-3xl" data-testid="admin-hotel-bookings-tab">
       {bookings.length === 0 && <p className="text-sm text-slate-400">Aucune réservation.</p>}
@@ -141,6 +154,26 @@ const BookingsTab = () => {
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{b.status}</span>
           </div>
           <p className="text-xs text-slate-500 mt-1">{b.room_name} · {b.rooms_count} ch. · {b.check_in} → {b.check_out} ({b.nights} nuit(s)) · {money(b.total_price)}</p>
+          {b.deposit_amount > 0 && (
+            <p className="text-[11px] mt-1 font-semibold">
+              {b.deposit_status === 'held' && <span className="text-amber-600">Caution bloquée : {money(b.deposit_held_amount)}</span>}
+              {b.deposit_status === 'released' && <span className="text-emerald-600">Caution restituée : {money(b.deposit_refunded)}{b.damage_fees > 0 ? ` (− ${money(b.damage_fees)} dommages)` : ''}</span>}
+            </p>
+          )}
+          {b.status === 'confirmed' && (
+            <div className="flex items-center gap-2 mt-2">
+              {b.deposit_held_amount > 0 && (
+                <input type="number" min={0} max={b.deposit_held_amount} placeholder="Dommages €"
+                  value={damage[b.id] || ''} onChange={(e) => setDamage((d) => ({ ...d, [b.id]: e.target.value }))}
+                  data-testid={`hotel-damage-${b.id}`}
+                  className="w-28 px-2 py-1.5 text-xs border border-slate-300 rounded-lg outline-none" />
+              )}
+              <button onClick={() => checkout(b)} data-testid={`hotel-checkout-${b.id}`}
+                className="px-3 py-1.5 text-xs font-semibold text-white rounded-lg" style={{ background: NAVY }}>
+                {b.deposit_held_amount > 0 ? 'Clôturer & restituer caution' : 'Clôturer le séjour'}
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>

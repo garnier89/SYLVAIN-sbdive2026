@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend E2E validation of the new HOTEL caution / security-deposit feature (option a: caution simulated via SB Pay wallet, blocked at booking, released at admin checkout minus damages, fully refunded on cancellation). All 5 requested scenarios PASS on the live preview URL.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/hotels detail (mobile)", "issues": ["VerifyEmailBanner at the bottom slightly overlaps the sticky 'Réserver' CTA (~430px wide) as documented in the request; cosmetic only, button is still clickable via scroll/force."]}
+    ]
+  },
+  "tests_executed": [
+    {"name": "USER booking with caution (Hôtel La Pagerie, Chambre Double Standard)", "result": "PASS", "evidence": "hotel-room-deposit-room_4c4c8a2848='Caution 120.00 € (bloquée, restituée au départ)', hotel-cta-deposit='Séjour 240.00 € + caution 120.00 €', hotel-book-btn='Réserver · 360.00 €', booking succeeded -> hotel-done visible"},
+    {"name": "MY STAYS shows held caution", "result": "PASS", "evidence": "hotel-booking-deposit-<id> text='Caution bloquée : 120.00 €', hotel-cancel-<id> present"},
+    {"name": "CANCELLATION refunds room + caution", "result": "PASS", "evidence": "Toast 'Annulée · remboursé 360.00 €' visible (240 stay + 120 caution); booking card afterwards shows 'Annulée · Caution restituée : 120.00 €'"},
+    {"name": "ADMIN /admin/hotels Réservations tab checkout with damage", "result": "PASS", "evidence": "Booking pre-checkout: 'confirmed · Caution bloquée : 120.00 €'. Entered damage=30 in hotel-damage-<id>, clicked hotel-checkout-<id>, accepted dialog. After: status='completed', 'Caution restituée : 90.00 € (− 30.00 € dommages)'"},
+    {"name": "ADMIN room form has Caution field + per-row Caution editor", "result": "PASS", "evidence": "room-form-deposit-<hotelId> input present in '+ Chambre' form; existing room rows expose room-deposit-<roomId> with pre-filled value (e.g. 100)"}
+  ],
+  "test_report_links": [
+    "/app/test_reports/user_hotel_caution.png",
+    "/app/test_reports/admin_hotel_caution.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "HotelsPage.js: dialog-based cancel confirm uses native confirm() — acceptable for mobile UX but inconsistent with shadcn dialogs used elsewhere; not a blocker.",
+    "AdminHotelsManager.js checkout uses native confirm() too; same observation.",
+    "Cosmetic: VerifyEmailBanner can overlap the sticky CTA on /hotels detail (known)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "skipped (per request)", "frontend": "100% (5/5 scenarios)" },
+  "test_credentials": "famtester@demo.sb / FamTest123! and admin@superapp.com / SuperAdmin123! (from /app/memory/test_credentials.md via review_request)",
+  "seed_data_creation": "Created 1 fresh future booking (Hôtel La Pagerie, Chambre Double Standard, 2026-06-24→25, 120€ + 120€ caution) used by admin checkout test, then closed as 'completed' with 30€ damage; also cancelled the original 2026-06-21→23 booking which produced a 360€ refund (240 stay + 120 caution).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Hotel caution feature is functional end-to-end (user booking with caution line + CTA, mes séjours held-caution display, cancellation refunding both, admin checkout with damage capping and status->completed, admin room create/edit deposit input). All required data-testid attributes from the request are present and behave as specified. Backend already validated by tests/test_iter_hotel_deposit.py per main agent.",
+  "rca_of_the_issue": "N/A — feature works as designed."
+}

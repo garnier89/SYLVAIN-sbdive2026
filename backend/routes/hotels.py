@@ -83,18 +83,18 @@ async def seed_hotels():
          "stars": 4, "description": "Hôtel de charme face à la baie de Fort-de-France, piscine et plage privée.",
          "amenities": ["Wifi", "Piscine", "Petit-déjeuner", "Climatisation", "Parking"],
          "image_url": "", "rooms": [
-            {"name": "Chambre Double Standard", "capacity": 2, "beds": "1 lit double", "price_per_night": 120, "total_units": 8,
+            {"name": "Chambre Double Standard", "capacity": 2, "beds": "1 lit double", "price_per_night": 120, "deposit_amount": 150, "total_units": 8,
              "amenities": ["Wifi", "Climatisation", "TV"]},
-            {"name": "Suite Vue Mer", "capacity": 3, "beds": "1 lit king + canapé", "price_per_night": 240, "total_units": 4,
+            {"name": "Suite Vue Mer", "capacity": 3, "beds": "1 lit king + canapé", "price_per_night": 240, "deposit_amount": 300, "total_units": 4,
              "amenities": ["Wifi", "Climatisation", "Balcon", "Mini-bar"]},
          ]},
         {"name": "Résidence Caraïbes", "city": "Sainte-Anne", "address": "Plage de la Caravelle",
          "stars": 3, "description": "Résidence familiale à 100 m de la plage, idéale pour les séjours détente.",
          "amenities": ["Wifi", "Cuisine équipée", "Parking", "Climatisation"],
          "image_url": "", "rooms": [
-            {"name": "Studio 2 personnes", "capacity": 2, "beds": "1 lit double", "price_per_night": 85, "total_units": 10,
+            {"name": "Studio 2 personnes", "capacity": 2, "beds": "1 lit double", "price_per_night": 85, "deposit_amount": 100, "total_units": 10,
              "amenities": ["Wifi", "Kitchenette", "Climatisation"]},
-            {"name": "Appartement Familial", "capacity": 4, "beds": "2 chambres", "price_per_night": 150, "total_units": 5,
+            {"name": "Appartement Familial", "capacity": 4, "beds": "2 chambres", "price_per_night": 150, "deposit_amount": 200, "total_units": 5,
              "amenities": ["Wifi", "Cuisine", "Terrasse"]},
          ]},
     ]
@@ -167,8 +167,10 @@ async def quote(request: Request):
     rooms_count = max(1, int(body.get("rooms_count", 1) or 1))
     available = await _room_availability(room, body.get("check_in"), body.get("check_out"))
     price = round(float(room.get("price_per_night", 0) or 0) * nights * rooms_count, 2)
+    deposit = round(float(room.get("deposit_amount", 0) or 0) * rooms_count, 2)
     return {"nights": nights, "rooms_count": rooms_count, "available_units": available,
             "price_per_night": room.get("price_per_night"), "total_price": price,
+            "deposit_amount": deposit, "total_with_deposit": round(price + deposit, 2),
             "enough_availability": available >= rooms_count}
 
 
@@ -195,16 +197,27 @@ async def book(request: Request):
     if available < rooms_count:
         raise HTTPException(status_code=409, detail=f"Plus que {available} chambre(s) disponible(s) sur cette période")
     price = round(float(room.get("price_per_night", 0) or 0) * nights * rooms_count, 2)
+    deposit = round(float(room.get("deposit_amount", 0) or 0) * rooms_count, 2)
+    total_debit = round(price + deposit, 2)
 
     wallet = await db.wallets.find_one({"user_id": user["id"]})
-    if not wallet or wallet.get("balance", 0) < price:
-        raise HTTPException(status_code=400, detail="Solde SB Pay insuffisant pour cette réservation")
-    new_balance = round(wallet["balance"] - price, 2)
+    if not wallet or wallet.get("balance", 0) < total_debit:
+        msg = "Solde SB Pay insuffisant pour cette réservation"
+        if deposit > 0:
+            msg += f" (séjour {price}€ + caution {deposit}€)"
+        raise HTTPException(status_code=400, detail=msg)
+    new_balance = round(wallet["balance"] - total_debit, 2)
     await db.wallets.update_one({"user_id": user["id"]}, {"$set": {"balance": new_balance}})
     await db.wallet_transactions.insert_one({
         "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Booking",
-        "amount": -price, "balance_after": new_balance,
+        "amount": -price, "balance_after": round(wallet["balance"] - price, 2),
         "description": f"Hôtel {hotel['name']} — {room['name']}", "status": "completed", "created_at": _now()})
+    if deposit > 0:
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Deposit",
+            "amount": -deposit, "balance_after": new_balance,
+            "description": f"Caution bloquée — {hotel['name']} ({room['name']})",
+            "status": "completed", "created_at": _now()})
 
     booking = {
         "id": f"hbk_{uuid.uuid4().hex[:10]}", "user_id": user["id"], "user_name": user.get("name"),
@@ -213,6 +226,8 @@ async def book(request: Request):
         "check_in": str(_parse_date(check_in)), "check_out": str(_parse_date(check_out)),
         "nights": nights, "guests": guests, "rooms_count": rooms_count,
         "price_per_night": float(room.get("price_per_night", 0) or 0), "total_price": price,
+        "deposit_amount": deposit, "deposit_held_amount": deposit,
+        "deposit_status": "held" if deposit > 0 else "none",
         "status": "confirmed", "payment_status": "paid", "created_at": _now(),
     }
     await db.hotel_bookings.insert_one(dict(booking))
@@ -221,7 +236,8 @@ async def book(request: Request):
                         f"{user.get('name') or 'Un client'} a réservé {room['name']} à {hotel['name']} ({nights} nuit(s)).",
                         data={"booking_id": booking["id"]})
     await create_notification(user["id"], "hotel_booking", "Réservation confirmée 🏨",
-                              f"{hotel['name']} — {room['name']}, {nights} nuit(s). Bon séjour !",
+                              f"{hotel['name']} — {room['name']}, {nights} nuit(s)."
+                              + (f" Caution bloquée : {deposit}€ (restituée au départ)." if deposit > 0 else " Bon séjour !"),
                               data={"booking_id": booking["id"]})
     return {"ok": True, "booking": booking, "balance": new_balance}
 
@@ -243,7 +259,10 @@ async def cancel_booking(booking_id: str, request: Request):
         raise HTTPException(status_code=409, detail="Cette réservation ne peut plus être annulée")
     today = date.today()
     ci = _parse_date(bk.get("check_in"))
-    refund = float(bk.get("total_price", 0) or 0) if (ci and ci > today) else 0.0
+    room_refund = float(bk.get("total_price", 0) or 0) if (ci and ci > today) else 0.0
+    # La caution bloquée est toujours restituée à l'annulation (chambre non occupée).
+    held = float(bk.get("deposit_held_amount", 0) or 0) if bk.get("deposit_status") == "held" else 0.0
+    refund = round(room_refund + held, 2)
     if refund > 0:
         wallet = await db.wallets.find_one({"user_id": user["id"]})
         bal = round((wallet.get("balance", 0) if wallet else 0) + refund, 2)
@@ -251,8 +270,14 @@ async def cancel_booking(booking_id: str, request: Request):
         await db.wallet_transactions.insert_one({
             "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": user["id"], "type": "Refund",
             "amount": refund, "balance_after": bal,
-            "description": f"Remboursement hôtel {bk['hotel_name']}", "status": "completed", "created_at": _now()})
-    await db.hotel_bookings.update_one({"id": booking_id}, {"$set": {"status": "cancelled", "cancelled_at": _now()}})
+            "description": f"Remboursement hôtel {bk['hotel_name']}"
+                           + (f" (séjour {room_refund}€ + caution {held}€)" if (room_refund and held) else ""),
+            "status": "completed", "created_at": _now()})
+    await db.hotel_bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": "cancelled", "cancelled_at": _now(),
+                  "deposit_status": "released" if held else bk.get("deposit_status"),
+                  "deposit_refunded": held}})
     return {"ok": True, "refunded": refund}
 
 
@@ -260,7 +285,7 @@ async def cancel_booking(booking_id: str, request: Request):
 #  ADMIN — hôtels, chambres, réservations
 # ============================================================
 _HOTEL_FIELDS = ("name", "city", "address", "stars", "description", "amenities", "image_url", "active")
-_ROOM_FIELDS = ("name", "capacity", "beds", "price_per_night", "total_units", "amenities", "image_url", "active")
+_ROOM_FIELDS = ("name", "capacity", "beds", "price_per_night", "deposit_amount", "total_units", "amenities", "image_url", "active")
 
 
 @admin_router.get("/hotels")
@@ -334,6 +359,7 @@ async def admin_create_room(hotel_id: str, request: Request):
             "capacity": max(1, int(body.get("capacity") or 1)),
             "beds": str(body.get("beds") or "")[:80],
             "price_per_night": max(0.0, float(body.get("price_per_night") or 0)),
+            "deposit_amount": max(0.0, float(body.get("deposit_amount") or 0)),
             "total_units": max(0, int(body.get("total_units") or 0)),
             "amenities": [str(a)[:40] for a in (body.get("amenities") or [])][:20],
             "image_url": str(body.get("image_url") or "")[:600],
@@ -351,6 +377,8 @@ async def admin_update_room(room_id: str, request: Request):
         if f not in body:
             continue
         if f == "price_per_night":
+            update[f] = max(0.0, float(body[f] or 0))
+        elif f == "deposit_amount":
             update[f] = max(0.0, float(body[f] or 0))
         elif f in ("capacity", "total_units"):
             update[f] = max(0, int(body[f] or 0))
@@ -378,3 +406,52 @@ async def admin_bookings(request: Request):
     await require_role(request, ["admin"])
     items = await db.hotel_bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
     return {"bookings": items}
+
+
+@admin_router.post("/bookings/{booking_id}/checkout")
+async def admin_checkout(booking_id: str, request: Request):
+    """Clôture du séjour (départ client) : restitue la caution bloquée sur SB Pay,
+    moins d'éventuels frais de dommages (plafonnés au montant de la caution, conservés par l'hôtel)."""
+    await require_role(request, ["admin"], permission="server.settings.edit")
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    bk = await db.hotel_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not bk:
+        raise HTTPException(status_code=404, detail="Réservation introuvable")
+    if bk.get("status") != "confirmed":
+        raise HTTPException(status_code=409, detail="Cette réservation ne peut pas être clôturée")
+
+    held = float(bk.get("deposit_held_amount", 0) or 0) if bk.get("deposit_status") == "held" else 0.0
+    try:
+        damage = max(0.0, float(body.get("damage_fees") or 0))
+    except (TypeError, ValueError):
+        damage = 0.0
+    damage = min(damage, held)  # on ne retient jamais plus que la caution bloquée
+    refund = round(held - damage, 2)
+
+    if held > 0 and refund > 0:
+        wallet = await db.wallets.find_one({"user_id": bk["user_id"]})
+        bal = round((wallet.get("balance", 0) if wallet else 0) + refund, 2)
+        await db.wallets.update_one({"user_id": bk["user_id"]}, {"$set": {"balance": bal}}, upsert=True)
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": bk["user_id"], "type": "Refund",
+            "amount": refund, "balance_after": bal,
+            "description": f"Restitution caution hôtel {bk['hotel_name']}"
+                           + (f" (− {damage}€ dommages)" if damage else ""),
+            "status": "completed", "created_at": _now()})
+
+    await db.hotel_bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": "completed", "completed_at": _now(),
+                  "damage_fees": damage, "deposit_refunded": refund,
+                  "deposit_status": "released" if held else bk.get("deposit_status"),
+                  "checkout_notes": str(body.get("notes") or "")[:300]}})
+    await create_notification(
+        bk["user_id"], "hotel_checkout", "Séjour terminé 🏨",
+        (f"Caution restituée : {refund}€ sur votre SB Pay" + (f" ({damage}€ retenus pour dommages)." if damage else "."))
+        if held else f"Merci d'avoir séjourné à {bk['hotel_name']}.",
+        data={"booking_id": booking_id})
+    return {"ok": True, "status": "completed", "deposit_refunded": refund, "damage_fees": damage}

@@ -107,6 +107,7 @@ export const hotelsAPI = {
   adminUpdateRoom: (id, data) => api.put(`/hotels/admin/rooms/${id}`, data),
   adminDeleteRoom: (id) => api.delete(`/hotels/admin/rooms/${id}`),
   adminBookings: () => api.get('/hotels/admin/bookings'),
+  adminCheckout: (id, data) => api.post(`/hotels/admin/bookings/${id}/checkout`, data || {}),
   uploadImage: (file) => {
     const fd = new FormData();
     fd.append('file', file);
