@@ -169,11 +169,42 @@ async def cancel_order(order_id: str, request: Request):
     return {"ok": True}
 
 
+@router.post("/orders/{order_id}/share")
+async def share_results(order_id: str, request: Request):
+    """Patient shares a results-ready order with an approved medical practitioner (by email)."""
+    user = await get_current_user(request)
+    o = await db.lab_orders.find_one({"id": order_id, "user_id": user["id"]}, {"_id": 0})
+    if not o:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    if o["status"] != "results_ready":
+        raise HTTPException(status_code=400, detail="Partage possible une fois les résultats disponibles")
+    body = await request.json()
+    email = (body.get("practitioner_email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email du médecin requis")
+    prac_user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "name": 1})
+    if not prac_user:
+        raise HTTPException(status_code=404, detail="Aucun compte trouvé avec cet email")
+    prac = await db.pro_providers.find_one(
+        {"vertical": "medical", "user_id": prac_user["id"], "verification_status": "approved"}, {"_id": 0})
+    if not prac:
+        raise HTTPException(status_code=400, detail="Ce médecin n'est pas inscrit comme praticien SB Santé")
+    await db.lab_orders.update_one({"id": order_id}, {"$addToSet": {"shared_with": prac_user["id"]}})
+    try:
+        await create_notification(prac_user["id"], "lab_results_shared", "🔬 Résultats partagés par un patient",
+                                  f"{o.get('patient_name', 'Un patient')} a partagé ses analyses avec vous.",
+                                  {"order_id": order_id, "url": "/praticien"})
+    except Exception:
+        pass
+    return {"ok": True, "shared_with": prac.get("name") or prac_user.get("name", "")}
+
+
 @router.get("/orders/{order_id}/results/pdf")
 async def results_pdf(order_id: str, request: Request):
     user = await get_current_user(request)
     o = await db.lab_orders.find_one({"id": order_id}, {"_id": 0})
-    if not o or user["id"] not in (o.get("user_id"), o.get("provider_user_id")):
+    allowed = o and user["id"] in (set([o.get("user_id"), o.get("provider_user_id")]) | set(o.get("shared_with") or []))
+    if not allowed:
         raise HTTPException(status_code=404, detail="Commande introuvable")
     if o["status"] != "results_ready":
         raise HTTPException(status_code=400, detail="Résultats non disponibles")
