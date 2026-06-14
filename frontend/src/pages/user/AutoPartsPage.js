@@ -253,6 +253,16 @@ const AutoPartsPage = () => {
             <span className={`text-xs ${active.stock > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>· {active.stock > 0 ? 'En stock' : 'Rupture'}</span>
           </div>
           <p className="text-2xl font-black text-blue-600 mt-3">{money(active.price)}</p>
+          {vehicle && (
+            <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 flex items-center gap-2" data-testid="compat-badge-detail">
+              <CheckCircle size={18} weight="fill" className="text-emerald-600 flex-shrink-0" />
+              <p className="text-sm font-semibold text-emerald-800">
+                {active.compat?.includes(vehicle.brand)
+                  ? `Compatible avec votre ${vehicle.brand}${vehicle.model ? ' ' + vehicle.model : ''}`
+                  : 'Pièce universelle — compatible avec votre véhicule'}
+              </p>
+            </div>
+          )}
           <p className="text-sm text-gray-600 mt-3">{active.description}</p>
           {active.compat?.length > 0 && (
             <div className="mt-4">
@@ -379,6 +389,11 @@ const AutoPartsPage = () => {
                   <p className="font-bold text-gray-900 text-xs mt-2 leading-tight line-clamp-2 h-8">{p.name}</p>
                   <p className="text-[11px] text-gray-400">{p.brand}</p>
                   <p className="text-sm font-black text-blue-600 mt-1">{money(p.price)}</p>
+                  {vehicle && (
+                    <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 mt-1" data-testid={`compat-badge-${p.id}`}>
+                      <CheckCircle size={11} weight="fill" /> {p.compat?.includes(vehicle.brand) ? `Compatible ${vehicle.brand}` : 'Compatible (universel)'}
+                    </p>
+                  )}
                 </button>
                 <button onClick={() => addToCart(p)} disabled={p.stock <= 0} className="mx-3 mb-3 py-2 rounded-lg bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50" data-testid={`add-${p.id}`}>
                   <Plus size={14} weight="bold" /> Ajouter
