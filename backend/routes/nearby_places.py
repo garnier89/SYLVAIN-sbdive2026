@@ -11,7 +11,6 @@ import os
 import time
 import asyncio
 from math import radians, sin, cos, asin, sqrt
-from typing import Optional
 
 import requests
 from fastapi import APIRouter, HTTPException, Query, Response, Request

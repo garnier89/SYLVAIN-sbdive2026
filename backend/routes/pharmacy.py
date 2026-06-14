@@ -9,7 +9,7 @@ Delivery lifecycle mirrors the parcel courier flow (accept → picked_up → del
 """
 from fastapi import APIRouter, Request, HTTPException
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional, List
 from pydantic import BaseModel, Field
 

@@ -5,8 +5,8 @@ Iteration 75 — Pointage des chauffeurs (heures de service, horaires hebdomadai
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime, timezone, timedelta
+from typing import Optional
+from datetime import datetime, timezone
 import uuid
 
 from core.config import db

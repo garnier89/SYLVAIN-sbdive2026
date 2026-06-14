@@ -4,15 +4,13 @@ Audit logs (V3Cube trips_status_logs + user_status_logs + admin actions trace).
 Iteration 75 — Trace exhaustive de toute action sensible sur la plateforme.
 Conformité GDPR + audit interne.
 """
-from fastapi import APIRouter, Depends, Request, HTTPException, Query
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import APIRouter, Depends, Request, Query
+from typing import Optional
 from datetime import datetime, timezone
 import uuid
 import functools
 
 from core.config import db
-from core.deps import get_current_user
 from core.permissions import require_permission
 
 router = APIRouter(prefix="/audit", tags=["audit"])

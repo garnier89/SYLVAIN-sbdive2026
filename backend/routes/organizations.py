@@ -6,12 +6,11 @@ tarifs spéciaux, et facturation séparée.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, timezone
 import uuid
 
 from core.config import db
-from core.deps import get_current_user
 from core.permissions import require_permission
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])

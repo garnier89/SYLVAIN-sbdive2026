@@ -14,7 +14,7 @@ Collections: i18n_languages, i18n_app_bundles
 import os
 import json as _json
 import uuid
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from datetime import datetime, timezone
 

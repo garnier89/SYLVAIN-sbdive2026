@@ -20,7 +20,7 @@ from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout, CheckoutSessionRequest,
 )
 
-from core.config import db, logger
+from core.config import db
 from core.deps import require_role, get_current_user
 from core.notifications import create_notification
 from core.airport import notify_admins

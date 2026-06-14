@@ -8,8 +8,7 @@ from math import radians, sin, cos, sqrt, atan2
 
 from core.config import (
     db, JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES,
-    REFRESH_TOKEN_EXPIRE_DAYS, STORAGE_URL, EMERGENT_LLM_KEY, APP_NAME,
-    logger
+    REFRESH_TOKEN_EXPIRE_DAYS, STORAGE_URL, EMERGENT_LLM_KEY, logger
 )
 import core.config as config
 

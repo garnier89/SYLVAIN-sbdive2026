@@ -23,7 +23,6 @@ import math
 from datetime import datetime, timezone, timedelta
 
 from core.config import db
-from core.websocket import manager
 
 logger = logging.getLogger(__name__)
 

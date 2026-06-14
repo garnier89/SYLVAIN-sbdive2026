@@ -11,9 +11,9 @@ Flow:
    - POST /api/kiosk/{token}/estimate -> distance + fare (pickup auto = hotel)
    - POST /api/kiosk/{token}/book -> creates a ride (user is auto-created via phone)
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime, timezone
 import uuid
 import math

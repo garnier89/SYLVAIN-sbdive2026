@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from core.config import db
 from core.deps import get_current_user
 from core.notifications import create_notification
-from routes.student_marketplace import CATEGORY_SLUGS, CATEGORY_LABELS, _is_boosted, _public_listing
+from routes.student_marketplace import CATEGORY_SLUGS, _public_listing
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ from fastapi import WebSocket
 from typing import Dict, Set, Optional
 from datetime import datetime, timezone
 
-from core.config import logger, db
+from core.config import logger
 
 
 class ConnectionManager:

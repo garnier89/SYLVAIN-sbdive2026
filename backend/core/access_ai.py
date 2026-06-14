@@ -11,7 +11,7 @@ access_certified=True) tandis que leur position / statut en ligne / note vivent 
 """
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from collections import defaultdict
 
 from core.config import db, logger

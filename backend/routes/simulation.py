@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 import uuid
 import asyncio
-import math
 import secrets
 _sim_random = secrets.SystemRandom()  # cryptographically secure RNG with random.* API for simulation jitter
 from datetime import datetime, timezone

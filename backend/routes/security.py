@@ -5,7 +5,6 @@ Agrège les signaux de sécurité de l'utilisateur à travers ses modules
 sorties de zone, batterie faible. Calcule un score de conduite par véhicule et
 un score de sécurité global. Lecture seule (s'appuie sur les alertes existantes).
 """
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 

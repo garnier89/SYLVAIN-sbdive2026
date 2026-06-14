@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException
 
 from emergentintegrations.payments.stripe.checkout import (
-    StripeCheckout, CheckoutSessionRequest, CheckoutSessionResponse, CheckoutStatusResponse
+    StripeCheckout, CheckoutSessionRequest, CheckoutSessionResponse
 )
 from core.config import db
 from core.deps import get_current_user

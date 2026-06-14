@@ -25,8 +25,8 @@ from core.notifications import create_notification
 from core.wallet_reserve import get_user_region
 from core.face_match import verify_face_match
 from core.mobile_money import (
-    execute_payout, check_payout_status, get_payout_config, effective_mode,
-    PayoutError, eur_to_xof, verify_recipient, preflight_verify,
+    execute_payout, check_payout_status, get_payout_config, PayoutError,
+    eur_to_xof, verify_recipient, preflight_verify,
 )
 
 router = APIRouter(prefix="/payouts", tags=["payouts"])

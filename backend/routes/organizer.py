@@ -17,7 +17,7 @@ from fastapi import APIRouter, Request, HTTPException
 from core.config import db
 from core.deps import get_current_user
 from core.payments import debit_with_fallback
-from routes.events import _build_event, get_events_settings, CATEGORIES
+from routes.events import _build_event, get_events_settings
 
 router = APIRouter(prefix="/organizer", tags=["organizer"])
 
