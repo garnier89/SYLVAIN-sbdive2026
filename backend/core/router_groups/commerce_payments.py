@@ -4,8 +4,8 @@ Extrait de core/api_router.py (refacto). L'ordre est préservé."""
 
 from routes.orders import router as orders_router
 from routes.misc import router as misc_router
-from routes.marketplace import router as marketplace_router
-from routes.marketplace import stripe_webhook_router
+from routes.market.marketplace import router as marketplace_router
+from routes.market.marketplace import stripe_webhook_router
 from routes.carpool import router as carpool_router
 from routes.services import router as services_router
 from routes.config import router as config_router

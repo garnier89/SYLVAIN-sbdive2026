@@ -5,8 +5,8 @@ Extrait de core/api_router.py (refacto). L'ordre est préservé."""
 from routes.driver_pro import router as driver_pro_router
 from routes.parcels import router as parcels_router
 from routes.chat import router as chat_router
-from routes.real_estate import router as real_estate_router
-from routes.real_estate import admin_router as real_estate_admin_router
+from routes.market.real_estate import router as real_estate_router
+from routes.market.real_estate import admin_router as real_estate_admin_router
 from routes.pharmacy import router as pharmacy_router
 from routes.pharmacy import admin_router as pharmacy_admin_router
 from routes.service_settings import router as service_settings_router

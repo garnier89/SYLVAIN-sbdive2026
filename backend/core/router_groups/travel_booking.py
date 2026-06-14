@@ -4,10 +4,10 @@ Extrait de core/api_router.py (refacto). L'ordre est préservé."""
 
 from routes.sb_access import router as sb_access_router
 from routes.sb_access import admin_router as sb_access_admin_router
-from routes.moto_rental import router as moto_rental_router
-from routes.moto_rental import admin_router as moto_rental_admin_router
-from routes.car_rental import router as car_rental_router
-from routes.car_rental import admin_router as car_rental_admin_router
+from routes.market.moto_rental import router as moto_rental_router
+from routes.market.moto_rental import admin_router as moto_rental_admin_router
+from routes.market.car_rental import router as car_rental_router
+from routes.market.car_rental import admin_router as car_rental_admin_router
 from routes.hotels import router as hotels_router
 from routes.hotels import admin_router as hotels_admin_router
 from routes.flights import router as flights_router

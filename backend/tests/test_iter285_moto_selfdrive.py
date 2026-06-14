@@ -1,5 +1,5 @@
 """Tests du calcul de durée/prix de la location moto self-drive (routes/moto_rental)."""
-from routes.moto_rental import _compute_duration, _price_for
+from routes.market.moto_rental import _compute_duration, _price_for
 
 
 def test_compute_duration():

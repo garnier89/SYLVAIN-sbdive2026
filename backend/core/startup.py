@@ -40,7 +40,7 @@ from routes.service_categories import seed_service_categories
 from routes.store_categories import seed_store_categories
 from routes.news import seed_news
 from routes.taxi_extra import seed_taxi_extra
-from routes.real_estate import seed_real_estate_boost_plans
+from routes.market.real_estate import seed_real_estate_boost_plans
 from routes.pharmacy import seed_pharmacy
 from routes.weekly_reports import weekly_report_loop
 
@@ -453,9 +453,9 @@ async def run_all_seeds():
     await seed_store_categories()       # store delivery categories
     await seed_news()                   # news/actualités feed
     await seed_taxi_extra()             # ride profiles + business trip reasons
-    from routes.moto_rental import seed_moto_fleet
+    from routes.market.moto_rental import seed_moto_fleet
     await seed_moto_fleet()             # flotte moto self-drive (démo)
-    from routes.car_rental import seed_car_fleet
+    from routes.market.car_rental import seed_car_fleet
     await seed_car_fleet()              # flotte voiture self-drive (démo)
     from routes.hotels import seed_hotels
     await seed_hotels()                 # hôtels + chambres (démo)
@@ -463,7 +463,7 @@ async def run_all_seeds():
     await seed_flights()                # vols (démo)
     from routes.travel_packages import seed_travel_packages
     await seed_travel_packages()        # forfaits vol+hôtel (démo)
-    from routes.marketplace import seed_marketplace_boost_plans
+    from routes.market.marketplace import seed_marketplace_boost_plans
     await seed_marketplace_boost_plans()  # plans de boost marketplace (démo)
     await seed_real_estate_boost_plans()
     await seed_pharmacy()               # pharmacy partners & OTC catalog

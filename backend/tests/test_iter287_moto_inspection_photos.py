@@ -1,5 +1,5 @@
 """Tests de l'helper de nettoyage des photos d'état des lieux (routes/moto_rental)."""
-from routes.moto_rental import _clean_photos, MIN_INSPECTION_PHOTOS
+from routes.market.moto_rental import _clean_photos, MIN_INSPECTION_PHOTOS
 
 
 def test_min_constant():
