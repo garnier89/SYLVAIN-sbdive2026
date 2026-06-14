@@ -6,6 +6,7 @@ import { CallProvider } from './contexts/CallContext';
 import { Toaster } from './components/ui/sonner';
 import InstallPWA from './components/InstallPWA';
 import EnableNotificationsBanner from './components/EnableNotificationsBanner';
+import GlobalNotificationListener from './components/GlobalNotificationListener';
 import ActiveRideFlag from './components/ActiveRideFlag';
 import VerifyEmailBanner from './components/VerifyEmailBanner';
 import DemoBanner from './components/DemoBanner';
@@ -101,6 +102,7 @@ function App() {
           <Toaster position="top-center" />
           <InstallPWA />
           <EnableNotificationsBanner />
+          <GlobalNotificationListener />
           <ActiveRideFlag />
           <VerifyEmailBanner />
         </LocaleProvider>

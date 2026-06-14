@@ -7,7 +7,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { rideAPI, tripShareAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
-  NavigationArrow, Star, Clock, X, Warning, Shield, ArrowLeft,
+  NavigationArrow, Star, Clock, X, Warning, Shield, ArrowLeft, CheckCircle,
 } from '@phosphor-icons/react';
 import TipModal from '../../components/TipModal';
 import RideTrackingMap from './ride-tracking/RideTrackingMap';
@@ -74,6 +74,7 @@ const RideTrackingPage = () => {
   const [searchCfg, setSearchCfg] = useState({ enabled: true, relance_interval_seconds: RELANCE_INTERVAL_SEC, max_relances: MAX_RELANCES });
   const [nearbyDrivers, setNearbyDrivers] = useState(null);
   const [nearbyPositions, setNearbyPositions] = useState([]);
+  const [activationMin, setActivationMin] = useState(40);  // fenêtre de démarrage avant le RDV (admin-configurable)
   const prevStatusRef = useRef(null);
   const relanceRef = useRef(0);
 
@@ -363,6 +364,10 @@ const RideTrackingPage = () => {
       .then((r) => r.json())
       .then(setCancelReasons)
       .catch((e) => console.warn('cancel reasons load failed:', e?.message || e));
+    fetch(`${API}/api/config/scheduling`)
+      .then((r) => r.json())
+      .then((d) => { if (d?.driver_start_window_min) setActivationMin(Number(d.driver_start_window_min)); })
+      .catch(() => {});
   }, [fetchRide]);
 
   // Join WS ride room when connected
@@ -575,9 +580,106 @@ const RideTrackingPage = () => {
   const isCancelled = ride.status === 'cancelled';
   const isCompleted = ride.status === 'completed';
   const canCancel = ['pending', 'accepted', 'arriving'].includes(ride.status);
-  const isAssigned = ['accepted', 'arriving', 'in_progress'].includes(ride.status) && ride.driver_name;
+
+  // Réservation PROGRAMMÉE confirmée mais encore LOIN du départ : le chauffeur ne
+  // peut pas encore démarrer (fenêtre `scheduled_at − activationMin`). On NE doit
+  // donc PAS afficher le suivi immersif « EN ARRIVANT » + OTP + carte live (le client
+  // croyait à tort que la course avait démarré). On affiche un état « confirmé · départ
+  // à HH:MM ». La vue bascule automatiquement en mode actif (polling 5 s) dès la fenêtre.
+  const isScheduledRide = ride.ride_mode === 'scheduled' || ride.mode === 'scheduled' || !!ride.scheduled_at;
+  const schedDate = ride.scheduled_at ? new Date(ride.scheduled_at) : null;
+  const schedValid = schedDate && !isNaN(schedDate.getTime());
+  const isScheduledPendingActivation =
+    isScheduledRide && schedValid &&
+    ['pending', 'accepted'].includes(ride.status) &&
+    Date.now() < schedDate.getTime() - activationMin * 60000;
+
+  const isAssigned = ['accepted', 'arriving', 'in_progress'].includes(ride.status)
+    && ride.driver_name && !isScheduledPendingActivation;
 
   const handleShare = () => setShowSafety(true);
+
+  // ── Réservation programmée confirmée (hors fenêtre de démarrage) ──
+  if (isScheduledPendingActivation) {
+    const whenLabel = schedDate.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const startLabel = new Date(schedDate.getTime() - activationMin * 60000)
+      .toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const driverConfirmed = ride.status === 'accepted' && ride.driver_name;
+    return (
+      <div className="mobile-container min-h-screen bg-gray-50 flex flex-col" data-testid="ride-tracking-page">
+        <div className="bg-gradient-to-br from-[#0B1426] to-[#1b2a4a] text-white px-5 pt-12 pb-8 rounded-b-3xl">
+          <button onClick={() => navigate('/scheduled-rides')} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center mb-4" data-testid="scheduled-back-btn">
+            <ArrowLeft size={20} className="text-white" />
+          </button>
+          <div className="inline-flex items-center gap-2 bg-white/15 rounded-full px-3 py-1 text-xs font-bold mb-3" data-testid="scheduled-confirmed-badge">
+            <CheckCircle size={16} weight="fill" className="text-emerald-300" />
+            {driverConfirmed ? 'Chauffeur confirmé' : 'Réservation enregistrée'}
+          </div>
+          <h1 className="text-2xl font-black leading-tight">Course programmée</h1>
+          <p className="text-white/70 text-sm mt-1 capitalize" data-testid="scheduled-when-label">{whenLabel}</p>
+          <p className="text-white/60 text-xs mt-1">Réf. #{(rideId.split('_').pop() || '').slice(0, 8).toUpperCase()}</p>
+        </div>
+
+        <div className="px-5 -mt-4 space-y-3">
+          <div className="bg-white rounded-2xl shadow-sm p-4" data-testid="scheduled-route-card">
+            <div className="flex items-start gap-3 mb-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+              <p className="text-sm text-[#0B1426] flex-1">{ride.pickup_address}</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#FF5000] mt-1.5 shrink-0" />
+              <p className="text-sm text-[#0B1426] flex-1">{ride.dropoff_address}</p>
+            </div>
+          </div>
+
+          {driverConfirmed && (
+            <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-3" data-testid="scheduled-driver-card">
+              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-black text-lg">
+                {(ride.driver_name || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[#0B1426] truncate">{ride.driver_name}</p>
+                <p className="text-xs text-gray-500 truncate">
+                  {ride.driver_vehicle_model || 'Véhicule'}{ride.driver_vehicle_number ? ` · ${ride.driver_vehicle_number}` : ''}
+                </p>
+              </div>
+              {ride.driver_rating != null && (
+                <div className="flex items-center gap-1 text-amber-500 text-sm font-bold">
+                  <Star size={14} weight="fill" /> {Number(ride.driver_rating).toFixed(1)}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3" data-testid="scheduled-activation-notice">
+            <Clock size={20} weight="fill" className="text-blue-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-blue-900">Le suivi en direct s'activera à {startLabel}</p>
+              <p className="text-xs text-blue-700 mt-0.5">
+                Votre chauffeur démarrera la course à l'approche du rendez-vous. Le code de départ et la carte en temps réel apparaîtront automatiquement.
+              </p>
+            </div>
+          </div>
+
+          <button onClick={() => navigate('/scheduled-rides')} className="w-full py-3.5 rounded-xl bg-[#0B1426] text-white font-bold" data-testid="scheduled-manage-btn">
+            Gérer mes réservations
+          </button>
+          {canCancel && (
+            <button onClick={() => setShowCancel(true)} className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold" data-testid="scheduled-cancel-btn">
+              Annuler la réservation
+            </button>
+          )}
+        </div>
+
+        <CancelRideModal
+          open={showCancel}
+          reasons={cancelReasons}
+          onCancel={handleCancel}
+          onClose={() => setShowCancel(false)}
+        />
+      </div>
+    );
+  }
 
   // Immersive V3Cube-style "EN ARRIVANT / EN ROUTE" experience once a driver is assigned
   if (isAssigned) {
