@@ -31,6 +31,7 @@ from routes.contactless import router as contactless_router
 from routes.assistant import router as assistant_router
 from routes.giftcards import router as giftcards_router
 from routes.sbpaygo_connect import router as sbpaygo_connect_router
+from routes.fleet import router as fleet_router
 
 ROUTERS = [
     driver_pro_router,
@@ -62,4 +63,5 @@ ROUTERS = [
     assistant_router,
     giftcards_router,
     sbpaygo_connect_router,
+    fleet_router,
 ]

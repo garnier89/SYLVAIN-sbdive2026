@@ -7,7 +7,7 @@ import {
   AirplaneTilt, PawPrint, UsersFour, CarSimple, Heart, Briefcase, Wheelchair,
   GridFour, ForkKnife, Storefront, Wrench, GasPump, HairDryer, MaskHappy, Sparkle,
   Drop, PaintBrush, HandSoap, Scissors, Dog, Hammer, Broom, BatteryFull, ShoppingBag,
-  Plug, Coffee, Wine,
+  Plug, Coffee, Wine, MapPin,
 } from '@phosphor-icons/react';
 
 // Visual style (icon + pastel colors) per taxi category KEY. Names/order/active come
@@ -59,6 +59,7 @@ export const videoCategories = [
 ];
 
 export const onDemandServices = [
+  { id: 'sb-tracking', name: 'SB\nTracking', icon: MapPin, bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/sb-tracking' },
   { id: 'handyman', name: 'Bricolage', icon: Wrench, bg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-500', path: '/service-providers/bricoleur' },
   { id: 'massage', name: 'Massage', icon: Heart, bg: 'bg-sky-50', iconColor: 'text-sky-500', path: '/service-providers/massage' },
   { id: 'mechanic', name: 'Mécanique', icon: GasPump, bg: 'bg-green-50', iconColor: 'text-green-500', path: '/service-providers/mecanicien' },

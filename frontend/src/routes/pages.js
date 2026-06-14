@@ -103,6 +103,13 @@ export const IntercityRidePage = lazy(() => import('../pages/user/IntercityRideP
 export const ParkingPage = lazy(() => import('../pages/user/ParkingPage'));
 export const GiftCardsPage = lazy(() => import('../pages/user/GiftCardsPage'));
 export const TrackingServicePage = lazy(() => import('../pages/user/TrackingServicePage'));
+export const SbTrackingHub = lazy(() => import('../pages/user/fleet/SbTrackingHub'));
+export const FleetMapPage = lazy(() => import('../pages/user/fleet/FleetMapPage'));
+export const FleetVehiclesPage = lazy(() => import('../pages/user/fleet/FleetVehiclesPage'));
+export const FleetVehicleDetailPage = lazy(() => import('../pages/user/fleet/FleetVehicleDetailPage'));
+export const FleetDriversPage = lazy(() => import('../pages/user/fleet/FleetDriversPage'));
+export const FleetAlertsPage = lazy(() => import('../pages/user/fleet/FleetAlertsPage'));
+export const FleetGeofencesPage = lazy(() => import('../pages/user/fleet/FleetGeofencesPage'));
 export const FinancePage = lazy(() => import('../pages/user/FinancePage'));
 export const WaybillPage = lazy(() => import('../pages/user/WaybillPage'));
 export const NewsFeedPage = lazy(() => import('../pages/user/NewsFeedPage'));

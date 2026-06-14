@@ -531,6 +531,30 @@ export const eventsAPI = {
   adminOrganizers: () => api.get('/admin/events/config/organizers'),
 };
 
+export const fleetAPI = {
+  context: () => api.get('/fleet/context'),
+  updateContext: (p) => api.put('/fleet/context', p),
+  seedDemo: () => api.post('/fleet/seed-demo'),
+  vehicles: () => api.get('/fleet/vehicles'),
+  vehicle: (id) => api.get(`/fleet/vehicles/${id}`),
+  createVehicle: (p) => api.post('/fleet/vehicles', p),
+  updateVehicle: (id, p) => api.put(`/fleet/vehicles/${id}`, p),
+  deleteVehicle: (id) => api.delete(`/fleet/vehicles/${id}`),
+  history: (id) => api.get(`/fleet/vehicles/${id}/history`),
+  command: (id, command) => api.post(`/fleet/vehicles/${id}/command`, { command }),
+  drivers: () => api.get('/fleet/drivers'),
+  addDriver: (p) => api.post('/fleet/drivers', p),
+  deleteDriver: (id) => api.delete(`/fleet/drivers/${id}`),
+  geofences: () => api.get('/fleet/geofences'),
+  createGeofence: (p) => api.post('/fleet/geofences', p),
+  deleteGeofence: (id) => api.delete(`/fleet/geofences/${id}`),
+  alerts: () => api.get('/fleet/alerts'),
+  readAlert: (id) => api.post(`/fleet/alerts/${id}/read`),
+  readAllAlerts: () => api.post('/fleet/alerts/read-all'),
+  myPing: (p) => api.post('/fleet/my-ping', p),
+};
+
+
 export const organizerAPI = {
   me: () => api.get('/organizer/me'),
   register: (payload) => api.post('/organizer/register', payload),

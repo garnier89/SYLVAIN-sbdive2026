@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend testing of new SB Tracking vertical (geolocation & fleet management) for organizer@test.com. Hub, real-time map, vehicle CRUD, driver CRUD, vehicle detail (commands + driver assignment), alerts, and geofences all working end-to-end. Single notable issue: the 'SB Tracking' tile is NOT visible on /home because CMS-driven home categories (hcat_*) override the static onDemandServices fallback, so the static 'sb-tracking' tile is never rendered.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "UserHome services grid", "issue": "Static 'SB Tracking' tile (id=sb-tracking, testid=service-sb-tracking-btn) is not rendered on /home because admin-configured CMS categories (hcat_*) replace the onDemandServices fallback array. Entry point from /home to /sb-tracking is missing in current CMS state.", "selector": "[data-testid='service-sb-tracking-btn']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vehicle detail map", "issues": ["Console warning: google.maps.Marker deprecated — consider migrating to AdvancedMarkerElement (non-blocking)"]}
+    ]
+  },
+  "tests_passed": [
+    "Login organizer@test.com via /login/email -> /home",
+    "/sb-tracking hub renders with data-testid='sb-tracking-hub', fleet name 'Event Organizer Test — Flotte', role 'Manager • Individuel', all 8 tiles present (carte, vehicules, conducteurs, alertes, zones, famille, employes 'Bientôt', rapports 'Bientôt')",
+    "seed-demo-btn correctly absent (vehicles pre-seeded — 3 véhicules)",
+    "/sb-tracking/carte: fleet-map-page + fleet-map render, 3 map-vehicle-{id} rows with status (Stationné/En route) + km/h, Google Maps tiles loaded with markers",
+    "Clicking map-vehicle row navigates to /sb-tracking/vehicules/:id (vehicle-detail-page)",
+    "Vehicle detail: cmd-engine-cut, cmd-engine-restore, cmd-locate, cmd-sos, refresh-history, assign-driver all present; cmd-locate -> toast; refresh-history -> 'Trajet rafraîchi' toast; stats (Vitesse/Batterie/Limite) visible",
+    "/sb-tracking/vehicules: add-vehicle-btn opens vehicle-form (f-name, f-plate, f-vtype, f-sim) -> save-vehicle-btn creates new vehicle (count 3 -> 4), key-{id} copy chip appears, edit-{id} present, del-{id} with auto-accepted confirm removes vehicle (back to 3)",
+    "/sb-tracking/conducteurs: add-driver-btn -> driver-form (d-name, d-phone, d-license) -> save-driver-btn creates driver (1 row visible)",
+    "/sb-tracking/alertes: fleet-alerts-page renders 8 alert-{id} items (excès vitesse, batterie, démarrage, géofence...), read-all-btn marks all read",
+    "/sb-tracking/zones: add-geofence-btn -> geofence-form (g-name, g-lat, g-lng, g-radius) -> save-geofence-btn creates zone (1 -> 2 zones), mini-map renders",
+    "French language throughout, mobile viewport 390x844 rendered correctly"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Add a CMS-aware entry point to /sb-tracking from /home — either (a) seed a home_categories row with key/path 'sb-tracking' -> '/sb-tracking', or (b) always render the static sb-tracking tile alongside CMS categories, or (c) add it to /all-services. Currently no clickable path from /home to /sb-tracking exists for this account."
+  ],
+  "critical_code_review_comments": [
+    "UserHome CMS override silently drops static fallback entries (sb-tracking included). Without seeding a corresponding home_category, the spec's 'Entrée accueil' requirement is unmet.",
+    "google.maps.Marker is deprecated; non-urgent migration to AdvancedMarkerElement recommended for FleetMap.jsx.",
+    "Multiple Canvas2D willReadFrequently warnings on map renders — minor perf hint."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "95%"},
+  "test_credentials": "organizer@test.com / Organizer123! (per request)",
+  "seed_data_creation": "Existing demo seed already present (3 vehicles, 1 driver auto-context). Test added then removed 1 vehicle (TEST_AutoTest / SBT-...), created 1 driver TEST_Chauffeur and 1 geofence TEST_Zone — kept as part of fleet state.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All /sb-tracking/* sub-pages validated and integrated with backend (fleetAPI). The only gap is the home-tile entry point — verify after fix by checking [data-testid='service-sb-tracking-btn'] exists on /home and click navigates to /sb-tracking. Note: organizer fleet has 3 simulated vehicles + 2 zones + 8 alerts from prior tests; seed-demo-btn will not appear unless all vehicles are removed first.",
+  "rca of the issue": "UserHome.js renders services from CMS-fetched home_categories (testids prefixed 'service-hcat_*' / 'service-svccat-*'). The static onDemandServices fallback (which contains id 'sb-tracking') is only used when CMS returns empty. Because admin has configured hcat_* categories, none of the static onDemand fallback tiles (including sb-tracking) appear, so users cannot reach /sb-tracking from /home. Fix: insert a home_categories CMS row pointing to '/sb-tracking' or merge static onDemandServices with CMS list."
+}
