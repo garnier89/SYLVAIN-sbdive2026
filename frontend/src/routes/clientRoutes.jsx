@@ -11,7 +11,7 @@ import {
   FoodPage, RestaurantDetail, CheckoutPage, OrderTracking, WalletPage, ProfilePage,
   HistoryPage, SupportPage, ParcelPage, ReferralPage, DonationPage, LiveChatPage,
   ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, SbMarketHub, SbMarketDetail, SbMarketInbox, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
-  NearbyBusinessPage, BeautyServicesPage, PetServicesPage, PetCarePage, CarCarePage, TowingServicesPage, TowingRequestPage, TowingOperatorPage,
+  NearbyBusinessPage, BeautyServicesPage, PetServicesPage, PetCarePage, CarCarePage, AutoPartsPage, TowingServicesPage, TowingRequestPage, TowingOperatorPage,
   EventsPage, EventDetailPage, MyEventTicketsPage, OrganizerSpace, OrganizerDashboard, EventCheckinPage, StaffCheckpointPage, EventLiveDashboard,
   VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage,
   DeliveryTrackingPage, DeliveryJobsPage, RealEstatePage, PropertyDetailPage, PostPropertyPage,
@@ -103,6 +103,7 @@ export function clientRoutes(user) {
       <Route path="/pet-care" element={<ProtectedRoute allowedRoles={['user']}><PetCarePage /></ProtectedRoute>} />
       <Route path="/pet-care-partners" element={<ProtectedRoute allowedRoles={['user']}><PetServicesPage /></ProtectedRoute>} />
       <Route path="/car-care" element={<ProtectedRoute allowedRoles={['user']}><CarCarePage /></ProtectedRoute>} />
+      <Route path="/auto-parts" element={<ProtectedRoute allowedRoles={['user']}><AutoPartsPage /></ProtectedRoute>} />
       <Route path="/towing" element={<ProtectedRoute allowedRoles={['user']}><TowingRequestPage /></ProtectedRoute>} />
       <Route path="/towing-partners" element={<ProtectedRoute allowedRoles={['user']}><TowingServicesPage /></ProtectedRoute>} />
       <Route path="/espace-depanneur" element={<ProtectedRoute allowedRoles={['user']}><TowingOperatorPage /></ProtectedRoute>} />

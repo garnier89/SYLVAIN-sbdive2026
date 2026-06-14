@@ -1,0 +1,49 @@
+{
+  "summary": "SB Auto Pièces & Motos e-commerce vertical (iter 398) — backend + frontend tested end-to-end. 20/20 pytest tests green (catalogue, filtres, brands, commande sbpay avec débit wallet + décrément stock, livraison vs retrait, admin CRUD produits, statuts de commande, annulation = remboursement + restock, gardes d'auth). UI client + admin entièrement fonctionnels. UN bug détecté : la tuile d'accueil 'Pièces & Motos' n'apparaît pas sur la home (seed non-idempotent).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Accès depuis l'accueil",
+        "issue": "La tuile 'Pièces & Motos' n'apparaît pas sur la home /home dans la section 'Entretien Auto' (la tuile présente 'Boutique Pièces' renvoie vers /car-care, pas vers /auto-parts). La nouvelle entrée a été ajoutée dans _SEED (home_categories.py ligne 171) mais seed_home_categories() est non-idempotent (early-return si count>0) et ne backfill pas l'entrée sur les DBs déjà peuplées. La fonction seed_home_categories_extra() (qui backfill par (section,key)) ne couvre que _SEED_EXTRA.",
+        "affected_selectors": ["home tile 'Pièces & Motos'"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter398_auto_parts.py",
+    "/app/test_reports/pytest/iter398_auto_parts.xml"
+  ],
+  "action_items": [
+    "Backfill la tuile carcare/auto-parts dans home_categories sur les DBs existantes : soit déplacer l'entrée 'Pièces & Motos' dans _SEED_EXTRA, soit ajouter une étape d'upsert par (section,key) au démarrage. Sans ça, le critère « Accès depuis l'accueil » de la review n'est pas satisfait sur cette preview."
+  ],
+  "critical_code_review_comments": [
+    "home_categories.py : seed_home_categories() n'est idempotent qu'au niveau collection (count==0). Les nouveaux tiles ajoutés à _SEED ne sont jamais backfillés. Recommandation : remplacer par un upsert par (section, key) ou systématiquement passer par _SEED_EXTRA.",
+    "auto_parts.py POST /admin/auto-parts/products : pas de validation explicite de price>=0 ni de stock>=0 (acceptés tels quels avec un cast float/int). Mineur mais à renforcer côté Pydantic.",
+    "auto_parts.py create_order : la mise à jour stock se fait après le débit wallet ; race possible si un autre achat épuise le stock entre la lecture (find_one) et le $inc. Idéalement utiliser un $inc conditionnel ({stock: {$gte: qty}}) avec rollback du débit en cas d'échec. Acceptable pour cette démo low-traffic.",
+    "auto_parts.py : la suppression admin ne purge pas le produit, ce qui est correct (active:false). Pour les paniers locaux côté client, prévoir un re-check côté server avant order placement (déjà fait via active:true filter)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter398_auto_parts.py"
+  ],
+  "success_rate": {
+    "backend": "100% (20/20)",
+    "frontend": "95% (toutes les fonctionnalités /auto-parts et /admin/auto-parts OK, seule la tuile d'accueil 'Pièces & Motos' est manquante)"
+  },
+  "test_credentials": "famtester@demo.sb / FamTest123! + admin@superapp.com / SuperAdmin123! (depuis /app/memory/test_credentials.md)",
+  "seed_data_creation": "Aucun seed créé (les 27 produits étaient déjà seedés par _ensure_seed lors du premier GET). Quelques commandes de test créées par les pytests (préfixe TEST_ pour le produit, commandes éphémères pour famtester).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest : `cd /app/backend && REACT_APP_BACKEND_URL=https://gojek-clone-41.preview.emergentagent.com python -m pytest tests/test_iter398_auto_parts.py -v`. UI : /auto-parts (client) et /admin/auto-parts (admin) fonctionnent. Bug à retester après fix : sur /home, scroller jusqu'à la section 'Entretien Auto' et vérifier la présence d'une tuile labellisée 'Pièces & Motos' qui doit naviguer vers /auto-parts.",
+  "rca of the issue": {
+    "bug": "Tuile d'accueil 'Pièces & Motos' absente sur /home (preview existante).",
+    "reproduction": "1. Login famtester@demo.sb / FamTest123! 2. Aller sur /home 3. Scroller jusqu'à 'Entretien Auto' : aucune tuile 'Pièces & Motos' (seules Lavage Auto/Service Batterie/Livraison Carburant/Recharge EV/Lavage Moto + une tuile 'Boutique Pièces' venant d'un autre flux qui ouvre /car-care).",
+    "root_cause": "seed_home_categories() est gardé par `if count_documents > 0: return`. Sur une base déjà peuplée par une itération précédente, le tuile ajoutée dans _SEED (ligne 171 de home_categories.py) n'est jamais insérée.",
+    "mitigation": "Déplacer la tuile carcare/auto-parts dans _SEED_EXTRA (qui contient déjà un mécanisme de backfill par (section,key)), ou exécuter au boot une boucle d'upsert sur l'ensemble de _SEED."
+  }
+}

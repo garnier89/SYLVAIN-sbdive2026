@@ -39,6 +39,8 @@ from routes.tracking_pro import router as tracking_pro_router
 from routes.towing import router as towing_router
 from routes.towing import admin_router as towing_admin_router
 from routes.pet_care import router as pet_care_router
+from routes.auto_parts import router as auto_parts_router
+from routes.auto_parts import admin_router as auto_parts_admin_router
 
 ROUTERS = [
     driver_pro_router,
@@ -78,4 +80,6 @@ ROUTERS = [
     towing_router,
     towing_admin_router,
     pet_care_router,
+    auto_parts_router,
+    auto_parts_admin_router,
 ]

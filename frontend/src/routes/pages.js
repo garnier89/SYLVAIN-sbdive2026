@@ -78,6 +78,7 @@ export const BeautyServicesPage = lazy(() => import('../pages/user/BeautyService
 export const PetServicesPage = lazy(() => import('../pages/user/PetServicesPage'));
 export const PetCarePage = lazy(() => import('../pages/user/PetCarePage'));
 export const CarCarePage = lazy(() => import('../pages/user/CarCarePage'));
+export const AutoPartsPage = lazy(() => import('../pages/user/AutoPartsPage'));
 export const TowingServicesPage = lazy(() => import('../pages/user/TowingServicesPage'));
 export const TowingRequestPage = lazy(() => import('../pages/user/TowingRequestPage'));
 export const TowingOperatorPage = lazy(() => import('../pages/user/TowingOperatorPage'));

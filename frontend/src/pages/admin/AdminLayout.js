@@ -112,6 +112,7 @@ const sidebarConfig = [
       { icon: Tag, label: 'Acheter, Vendre & Louer', key: 'marketplace', children: [
         { label: 'Immobilier — Annonces', path: '/admin/real-estate' },
         { label: 'Véhicules & Articles', path: '/admin/marketplace' },
+        { label: 'SB Auto Pièces & Motos', path: '/admin/auto-parts' },
       ]},
       { icon: FirstAid, label: 'Services médicaux', key: 'medical', children: [
         { label: 'Pharmacie', path: '/admin/pharmacy' },
