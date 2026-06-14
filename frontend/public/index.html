@@ -41,6 +41,18 @@
         <script>
           // Register PWA Service Worker (deferred for fast TTI)
           if ('serviceWorker' in navigator) {
+            // Auto-reload once when a NEW service worker takes control after a deploy.
+            // Only armed when a SW already controlled the page (i.e. a real update, not
+            // the first install) — prevents stale-bundle errors like "X is not a function"
+            // without ever asking the user to clear their cache, and avoids reload loops.
+            if (navigator.serviceWorker.controller) {
+              var __sbRefreshing = false;
+              navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (__sbRefreshing) return;
+                __sbRefreshing = true;
+                window.location.reload();
+              });
+            }
             window.addEventListener('load', () => {
               navigator.serviceWorker.register('/sw.js').then((reg) => {
                 // Listen for updates
@@ -49,6 +61,8 @@
                   if (!installing) return;
                   installing.addEventListener('statechange', () => {
                     if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                      // A fresh version is ready — activate it immediately.
+                      try { installing.postMessage({ type: 'SKIP_WAITING' }); } catch (e) { /* noop */ }
                       window.dispatchEvent(new CustomEvent('sw-update-available'));
                     }
                   });

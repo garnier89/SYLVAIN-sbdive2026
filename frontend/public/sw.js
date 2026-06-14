@@ -7,7 +7,7 @@
  *   - Map tiles (Leaflet OSM)                : Cache-First (immutable)
  */
 
-const VERSION = 'sb-drive-v1';
+const VERSION = 'sb-drive-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const TILE_CACHE = `${VERSION}-tiles`;

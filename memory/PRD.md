@@ -1,3 +1,13 @@
+## NEW - 2026-06-14 (524) - 🐛 Bug « _services_api is not a function » → cause = bundle obsolète (service worker), auto-reload ajouté
+- **Symptôme user (image 2)** : erreur runtime `_services_api__WEBPACK_IMPORTED_MODULE_*.X is not a function` sur la home.
+- **Diagnostic** : AUCUN bug de code — audit complet : 70 exports `services/api`, tous les imports nommés résolus (script de vérif), aucun export dupliqué (les `export *` ambigus deviennent undefined), build neuf charge la home sans erreur (pageerrors=[]). → Cause = **ancien bundle JS servi par le service worker PWA** (`public/sw.js`, stratégie Stale-While-Revalidate + précache de l'app shell) après un redéploiement, **sans mécanisme de rechargement** quand une nouvelle version s'active.
+- **Correctif (sans demander de vider le cache)** : `sw.js` VERSION `sb-drive-v1`→`v2` (purge des anciens caches à l'`activate`) + `public/index.html` : ajout d'un listener `controllerchange` **armé uniquement si un SW contrôlait déjà la page** (vraie MAJ, pas 1ère install) → recharge l'onglet **une seule fois** (garde anti-boucle `__sbRefreshing`) quand le nouveau SW prend le contrôle. L'HTML étant servi network-first, l'utilisateur récupère l'`index.html` à jour dès la 1ère visite post-déploiement, puis le SW v2 s'active et la page se recharge vers les assets frais.
+- **Vérifié** : `/sw.js` sert v2, `/` contient le listener, smoke test home OK (0 pageerror).
+- ⚠️ **Doit être REDÉPLOYÉ** pour corriger la production (`gojek-mvp-1.emergent.host`). Après redéploiement, les onglets bloqués se débloquent automatiquement.
+- **Reste** : enrichir la section « Demandez un service » (Beauté `/beauty`, Métiers `/services-metiers`, Santé `/sante`).
+
+
+
 ## NEW - 2026-06-14 (523) - 🎙️ Assistant vocal EXÉCUTABLE (commande taxi + repas par la voix) DONE, certifié 100%
 - **Demande user** : « une vraie commande vocale de l'IA qui peut commander un taxi ou livre-moi ce repas ». Réponse « Tout » → tout exécutable, confirmation avant action payante, dictée navigateur + repli Whisper.
 - **Avant** : `VoiceAssistant` comprenait l'intention puis **redirigeait** seulement (pas d'exécution). **Maintenant** : exécution de bout en bout.
