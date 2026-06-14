@@ -14,9 +14,14 @@ import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const STATUS_LABEL = { pending: 'En attente', confirmed: 'Confirmé', in_progress: 'En cours', completed: 'Terminé', cancelled: 'Annulé' };
+const ACCENT = {
+  beauty: { grad: 'from-pink-600 to-rose-700', solid: 'bg-pink-600', text: 'text-pink-600', soft: 'bg-pink-50', softText: 'text-pink-800', border: 'border-pink-100', spin: 'text-pink-400', selBorder: 'border-pink-600' },
+  trades: { grad: 'from-amber-600 to-orange-700', solid: 'bg-amber-600', text: 'text-amber-600', soft: 'bg-amber-50', softText: 'text-amber-800', border: 'border-amber-100', spin: 'text-amber-400', selBorder: 'border-amber-600' },
+};
 
 const ProServiceSpacePage = () => {
   const { vertical = 'beauty' } = useParams();
+  const acc = ACCENT[vertical] || ACCENT.beauty;
   const { money } = useLocale();
   const navigate = useNavigate();
   const base = `${API}/api/pro-services/${vertical}`;
@@ -101,7 +106,7 @@ const ProServiceSpacePage = () => {
     } catch { toast.error('Erreur réseau'); }
   };
 
-  if (loading) return <div className="mobile-container min-h-screen bg-gray-50 flex items-center justify-center"><CircleNotch size={28} className="text-pink-400 animate-spin" /></div>;
+  if (loading) return <div className="mobile-container min-h-screen bg-gray-50 flex items-center justify-center"><CircleNotch size={28} className={`${acc.spin} animate-spin`} /></div>;
 
   // ── Registration ──
   if (!me?.registered) {
@@ -110,20 +115,20 @@ const ProServiceSpacePage = () => {
       <div className="mobile-container min-h-screen bg-gray-50" data-testid="pro-register">
         <Header title="Devenir prestataire" onBack={() => navigate(-1)} />
         <div className="p-4 space-y-4">
-          <div className="bg-pink-50 border border-pink-100 rounded-2xl p-4 text-sm text-pink-800">Proposez vos prestations, recevez des réservations et encaissez vos gains (commission plateforme {Math.round((0.15) * 100)}%).</div>
+          <div className={`${acc.soft} border ${acc.border} rounded-2xl p-4 text-sm ${acc.softText}`}>Proposez vos prestations, recevez des réservations et encaissez vos gains (commission plateforme {Math.round((0.15) * 100)}%).</div>
           <input value={reg.name} onChange={e => setReg({ ...reg, name: e.target.value })} placeholder="Nom de votre activité / salon" className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm" data-testid="reg-name" />
           <div className="bg-white rounded-2xl p-4">
             <p className="text-xs font-bold text-gray-500 mb-2">Vos spécialités</p>
             <div className="flex flex-wrap gap-2">
               {cats.map(c => {
                 const on = reg.categories.includes(c.id);
-                return <button key={c.id} onClick={() => setReg({ ...reg, categories: on ? reg.categories.filter(x => x !== c.id) : [...reg.categories, c.id] })} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200'}`} data-testid={`reg-cat-${c.id}`}>{c.label}</button>;
+                return <button key={c.id} onClick={() => setReg({ ...reg, categories: on ? reg.categories.filter(x => x !== c.id) : [...reg.categories, c.id] })} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? `${acc.solid} text-white ${acc.selBorder}` : 'bg-white text-gray-600 border-gray-200'}`} data-testid={`reg-cat-${c.id}`}>{c.label}</button>;
               })}
             </div>
           </div>
           <input value={reg.city} onChange={e => setReg({ ...reg, city: e.target.value })} placeholder="Ville" className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm" data-testid="reg-city" />
           <textarea value={reg.bio} onChange={e => setReg({ ...reg, bio: e.target.value })} placeholder="Présentez votre activité…" rows={3} className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm" data-testid="reg-bio" />
-          <button onClick={register} className="w-full bg-pink-600 text-white py-4 rounded-xl font-bold text-sm" data-testid="reg-submit">Créer mon profil prestataire</button>
+          <button onClick={register} className={`w-full ${acc.solid} text-white py-4 rounded-xl font-bold text-sm`} data-testid="reg-submit">Créer mon profil prestataire</button>
         </div>
       </div>
     );
@@ -135,14 +140,14 @@ const ProServiceSpacePage = () => {
     <label className="flex-1 border border-dashed border-gray-300 rounded-xl py-3 flex flex-col items-center gap-1 cursor-pointer" data-testid={`upload-${k}`}>
       {p.documents?.[k] ? <CheckCircle size={20} className="text-emerald-500" weight="fill" /> : <UploadSimple size={20} className="text-gray-400" />}
       <span className="text-[11px] font-semibold text-gray-600">{label}</span>
-      {uploading === k && <CircleNotch size={12} className="animate-spin text-pink-400" />}
+      {uploading === k && <CircleNotch size={12} className={`animate-spin ${acc.spin}`} />}
       <input type="file" accept="image/*" className="hidden" onChange={e => uploadDoc(k, e.target.files[0])} />
     </label>
   );
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-10" data-testid="pro-dashboard">
-      <div className="bg-gradient-to-br from-pink-600 to-rose-700 px-4 pt-4 pb-5 text-white">
+      <div className={`bg-gradient-to-br ${acc.grad} px-4 pt-4 pb-5 text-white`}>
         <div className="flex items-center gap-3 mb-3">
           <button onClick={() => navigate(-1)} className="text-white" data-testid="pro-back"><ArrowLeft size={22} /></button>
           <div className="flex-1 min-w-0"><h1 className="text-lg font-bold truncate">{p.name}</h1><p className="text-[11px] text-white/70">Espace prestataire</p></div>
@@ -187,8 +192,8 @@ const ProServiceSpacePage = () => {
                     <p className="font-bold text-gray-900 text-sm">{b.service_name}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{b.scheduled_date} à {b.scheduled_time} · {b.at_home ? 'À domicile' : 'En salon'}</p>
                     <div className="flex justify-between items-center mt-2">
-                      <span className="font-bold text-pink-600 text-sm">{money(Number(b.total))}</span>
-                      <button onClick={() => accept(b.id)} className="bg-pink-600 text-white text-xs font-bold px-4 py-2 rounded-lg" data-testid={`accept-${b.id}`}>Accepter</button>
+                      <span className={`font-bold ${acc.text} text-sm`}>{money(Number(b.total))}</span>
+                      <button onClick={() => accept(b.id)} className={`${acc.solid} text-white text-xs font-bold px-4 py-2 rounded-lg`} data-testid={`accept-${b.id}`}>Accepter</button>
                     </div>
                   </div>
                 ))}
@@ -206,13 +211,13 @@ const ProServiceSpacePage = () => {
                 <div key={b.id} className="bg-white rounded-2xl p-4 border border-gray-100" data-testid={`job-${b.id}`}>
                   <div className="flex items-center justify-between">
                     <p className="font-bold text-gray-900 text-sm">{b.service_name}</p>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : b.status === 'cancelled' ? 'bg-rose-50 text-rose-600' : 'bg-pink-50 text-pink-600'}`}>{STATUS_LABEL[b.status]}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : b.status === 'cancelled' ? 'bg-rose-50 text-rose-600' : `${acc.soft} ${acc.text}`}`}>{STATUS_LABEL[b.status]}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">{b.scheduled_date} à {b.scheduled_time} · {b.user_name}</p>
                   <div className="flex justify-between items-center mt-2">
                     <span className="font-bold text-gray-900 text-sm">{money(Number(b.total))} {b.payment_method === 'cash' ? '(espèces)' : ''}</span>
                     <div className="flex gap-2">
-                      {b.status === 'confirmed' && <button onClick={() => setStatus(b.id, 'in_progress')} className="text-xs font-bold text-pink-600 bg-pink-50 px-3 py-1.5 rounded-lg" data-testid={`start-${b.id}`}>Démarrer</button>}
+                      {b.status === 'confirmed' && <button onClick={() => setStatus(b.id, 'in_progress')} className={`text-xs font-bold ${acc.text} ${acc.soft} px-3 py-1.5 rounded-lg`} data-testid={`start-${b.id}`}>Démarrer</button>}
                       {['confirmed', 'in_progress'].includes(b.status) && <button onClick={() => setStatus(b.id, 'completed')} className="text-xs font-bold text-white bg-emerald-500 px-3 py-1.5 rounded-lg" data-testid={`complete-${b.id}`}>Terminer</button>}
                     </div>
                   </div>
