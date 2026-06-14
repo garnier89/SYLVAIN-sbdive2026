@@ -549,6 +549,10 @@ export const familyAPI = {
 };
 
 
+export const securityAPI = {
+  overview: () => api.get('/security/overview'),
+};
+
 export const employeesAPI = {
   context: () => api.get('/employees/context'),
   seedDemo: () => api.post('/employees/seed-demo'),

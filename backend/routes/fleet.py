@@ -532,6 +532,8 @@ async def seed_demo(request: Request):
     _user, fleet = await _require_fleet(request)
     center = fleet.get("center") or DEFAULT_CENTER
     existing = await db.fleet_vehicles.count_documents({"fleet_id": fleet["id"]})
+    if existing >= 3:
+        return {"message": "Démo déjà active", "vehicles": 0}
     demo = [
         ("Camion Livraison 01", "TM-204-AB", "truck", 80),
         ("Utilitaire Express", "TM-118-CD", "van", 90),

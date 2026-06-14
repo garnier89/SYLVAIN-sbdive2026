@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapTrifold, Car, UsersThree, BellRinging, Polygon, UsersFour, Briefcase, ChartBar, ShieldCheck, Sparkle } from '@phosphor-icons/react';
+import { ArrowLeft, MapTrifold, Car, UsersThree, BellRinging, Polygon, UsersFour, Briefcase, ShieldCheck, Sparkle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { fleetAPI } from '../../../services/api';
 
@@ -27,7 +27,7 @@ const SbTrackingHub = () => {
     { key: 'zones', label: 'Géo-zones', desc: `${c.geofences || 0} zone(s)`, Icon: Polygon, to: '/sb-tracking/zones', accent: 'from-amber-500 to-orange-600' },
     { key: 'famille', label: 'Famille', desc: 'Localiser ses proches', Icon: UsersFour, to: '/famille', accent: 'from-pink-500 to-rose-500' },
     { key: 'employes', label: 'Employés', desc: 'Pointage & tournées', Icon: Briefcase, to: '/employes', accent: 'from-cyan-500 to-sky-600' },
-    { key: 'rapports', label: 'Rapports', desc: 'Bientôt', Icon: ChartBar, soon: true, accent: 'from-slate-500 to-gray-700' },
+    { key: 'securite', label: 'Sécurité', desc: 'Centre de sécurité', Icon: ShieldCheck, to: '/sb-tracking/securite', accent: 'from-red-500 to-rose-700' },
   ];
 
   return (

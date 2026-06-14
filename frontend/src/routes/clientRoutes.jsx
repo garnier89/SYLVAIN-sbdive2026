@@ -21,7 +21,7 @@ import {
   ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   SbTrackingHub, FleetMapPage, FleetVehiclesPage, FleetVehicleDetailPage, FleetDriversPage, FleetAlertsPage, FleetGeofencesPage,
   FamilyPage, FamilyPlacesPage, FamilyJoinPage, FamilyAlertsPage,
-  EmployeesPage, EmployeeRoutesPage, EmployeeReportsPage, EmployeeJoinPage,
+  EmployeesPage, EmployeeRoutesPage, EmployeeReportsPage, EmployeeJoinPage, SecurityCenterPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
   ServiceProvidersPage, ServiceProviderDetailPage,
   ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage, SbRewardsPage, SbEventsPage, SbMarketplacePage,
@@ -144,6 +144,7 @@ export function clientRoutes(user) {
       <Route path="/employes/tournees" element={<ProtectedRoute allowedRoles={['user']}><EmployeeRoutesPage /></ProtectedRoute>} />
       <Route path="/employes/rapports" element={<ProtectedRoute allowedRoles={['user']}><EmployeeReportsPage /></ProtectedRoute>} />
       <Route path="/employes/rejoindre" element={<ProtectedRoute allowedRoles={['user']}><EmployeeJoinPage /></ProtectedRoute>} />
+      <Route path="/sb-tracking/securite" element={<ProtectedRoute allowedRoles={['user']}><SecurityCenterPage /></ProtectedRoute>} />
       <Route path="/wallet/payout-method" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><PayoutMethodPage /></ProtectedRoute>} />
       <Route path="/wallet/linked-accounts" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><LinkedAccountsPage /></ProtectedRoute>} />
       <Route path="/finance" element={<Navigate to="/wallet" replace />} />
