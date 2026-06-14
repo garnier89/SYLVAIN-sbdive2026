@@ -1,3 +1,10 @@
+## NEW - 2026-06-14 (474) - 💳 Stripe — Recharge SB Pay par carte VÉRIFIÉE (débloqué, testé E2E)
+- **Contexte** : le handoff marquait Stripe « BLOCKED — placeholder key ». En réalité `backend/.env` contenait déjà la **clé test managée** `STRIPE_API_KEY="sk_test_emergent"` (16 car.) — fonctionnelle. Toute la chaîne de recharge était **déjà implémentée** : `routes/payments.py` (`/payments/checkout` packages fixes 10/20/50/100 € + montant libre, transaction `payment_transactions`, polling `/payments/status/{id}`, crédit atomique du wallet, auto-règlement des dettes), `routes/webhooks.py` (`/api/webhook/stripe`), et l'UI `pages/user/WalletPage.js` (sheet topup, redirection Stripe, polling au retour `?session_id=`).
+- **Vérifié E2E** : checkout session réelle créée (`cs_test_…` + URL checkout.stripe.com), paiement test (carte 4242…, ZIP) → retour `/wallet` → toast « +10 EUR ajouté » → **solde 10,00 EUR** + historique « Recharge portefeuille (Stripe) ». Confirmé via curl (`/api/wallet` balance=10.0). La même clé alimente aussi ferry/car_rental/moto_rental/contactless/phase2.
+- **Sécurité** : l'utilisateur a partagé ses clés (LIVE dans une capture, TEST en chat). **NE PAS** stocker de clé perso en preview — la plateforme utilise `sk_test_emergent` (managé). Clés **LIVE** → uniquement en variables d'env de **production** au redéploiement. Recommandé à l'utilisateur : **régénérer** les clés LIVE exposées.
+- ⚠️ Visible en **prod** après **redéploiement** (et clés LIVE configurées côté prod).
+
+
 ## NEW - 2026-06-14 (473) - 🛰️ SB Tracking — Géolocalisation & gestion de flotte (Phase 1 MVP) (DONE, testé 95%→100%)
 - **Demande user (nouvelle verticale majeure)** : suite de géolocalisation/flotte (Famille, Employés, Véhicules, Flotte, Sécurité, Rapports, Admin). Choix user : commencer par **Flotte + carte temps réel** ; sources GPS = **traceurs réels (API) + géoloc téléphone** ; modèle **entreprise OU individuel** (flotte auto-provisionnée) ; fonctions matérielles en **simulation/stub** ; **vertical dédié** avec menu propre.
 - **Backend** (`routes/fleet.py`, prefix `/fleet`, enregistré dans `services_ops.py`) :
