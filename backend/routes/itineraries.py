@@ -10,9 +10,11 @@ Collection: itineraries
 """
 import secrets
 import uuid
+import html as _html
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import HTMLResponse
 
 from core.config import db
 from core.deps import get_current_user
@@ -20,6 +22,9 @@ from core.deps import get_current_user
 router = APIRouter(prefix="/itineraries", tags=["itineraries"])
 
 MAX_PLACES = 25
+
+# Image de repli (vignette de partage social SB Travel) si le circuit n'a pas de photo.
+_DEFAULT_OG_IMAGE = "https://images.pexels.com/photos/1010657/pexels-photo-1010657.jpeg?auto=compress&cs=tinysrgb&w=1200"
 
 
 def _clean_place(p: dict) -> dict:
@@ -114,3 +119,63 @@ async def get_public_itinerary(token: str):
         raise HTTPException(404, "Circuit introuvable ou lien expiré")
     owner = await db.users.find_one({"id": it.get("user_id")}, {"_id": 0, "name": 1}) or {}
     return _public_view(it, owner.get("name"))
+
+
+@router.get("/share/{token}", response_class=HTMLResponse)
+async def share_itinerary_og(token: str, request: Request):
+    """PUBLIC — page HTML « compatible réseaux sociaux » avec balises Open Graph
+    spécifiques au circuit (titre, description, vignette = 1ʳᵉ photo d'étape).
+
+    Les robots des réseaux (WhatsApp/Facebook/Twitter/LinkedIn) ne lisent pas le
+    JS de la SPA : cette page leur sert les métadonnées, puis redirige les vrais
+    visiteurs vers l'app `/circuit/{token}`."""
+    it = await db.itineraries.find_one({"share_token": token}, {"_id": 0})
+    # Origine publique : privilégier les en-têtes du proxy (le Host brut pointe
+    # vers l'hôte interne du cluster). Le chemin de redirection reste RELATIF pour
+    # que le visiteur reste sur le domaine public où il a ouvert le lien.
+    fwd_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    fwd_proto = request.headers.get("x-forwarded-proto") or "https"
+    origin = f"{fwd_proto}://{fwd_host}".rstrip("/") if fwd_host else str(request.base_url).rstrip("/")
+    spa_path = f"/circuit/{token}"          # relatif (humain) — reste sur le domaine public
+    spa_url = f"{origin}{spa_path}"         # absolu (og:url / canonical)
+    if not it:
+        title, desc, image = "Circuit introuvable", "Ce lien de circuit a expiré.", _DEFAULT_OG_IMAGE
+    else:
+        title = (it.get("title") or "Circuit touristique").strip()
+        city = (it.get("city") or "").strip()
+        n = len(it.get("places") or [])
+        parts = []
+        if city:
+            parts.append(city)
+        parts.append(f"{n} étape{'s' if n > 1 else ''}")
+        desc = "Découvrez ce circuit SB Travel — " + " · ".join(parts) + ". Réservez votre chauffeur en un tap."
+        image = next((p.get("image") for p in (it.get("places") or []) if p.get("image")), None) or _DEFAULT_OG_IMAGE
+
+    e = _html.escape
+    html_doc = f"""<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{e(title)} — SB Travel</title>
+<meta name="description" content="{e(desc)}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="SB Travel" />
+<meta property="og:title" content="{e(title)}" />
+<meta property="og:description" content="{e(desc)}" />
+<meta property="og:image" content="{e(image)}" />
+<meta property="og:url" content="{e(spa_url)}" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{e(title)}" />
+<meta name="twitter:description" content="{e(desc)}" />
+<meta name="twitter:image" content="{e(image)}" />
+<link rel="canonical" href="{e(spa_url)}" />
+<meta http-equiv="refresh" content="0; url={e(spa_path)}" />
+<script>window.location.replace({spa_path!r});</script>
+</head>
+<body style="font-family:system-ui;background:#0f172a;color:#e2e8f0;padding:40px;text-align:center">
+<p>Redirection vers le circuit…</p>
+<p><a style="color:#38bdf8" href="{e(spa_path)}">Ouvrir le circuit</a></p>
+</body>
+</html>"""
+    return HTMLResponse(content=html_doc)

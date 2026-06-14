@@ -5,7 +5,7 @@
  * Carte « meilleur prestataire » (note + avis + prochains créneaux) pour la confiance.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, MagnifyingGlass, Scissors, Sparkle, HandSoap, Drop, PaintBrush, Eye,
@@ -40,10 +40,11 @@ const Stars = ({ value, size = 14 }) => (
 const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
   const { money } = useLocale();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const base = `${API}/api/pro-services/${vertical}`;
   const [cfg, setCfg] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(searchParams.get('category') || '');
   const [q, setQ] = useState('');
   const [screen, setScreen] = useState('shop');
   const [providers, setProviders] = useState([]);

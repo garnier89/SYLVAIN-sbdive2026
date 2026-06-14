@@ -61,17 +61,17 @@ const ALL_SERVICES = [
   { name: 'Panne Sèche', category: 'Dépannage', path: '/towing', keywords: 'panne sèche carburant essence vide' },
 
   // Medical
-  { name: 'Prendre Rendez-vous', category: 'Médical', path: '/services', keywords: 'médecin docteur rendez-vous consultation' },
-  { name: 'Vidéo Consultation', category: 'Médical', path: '/services', keywords: 'vidéo consultation télémédecine' },
-  { name: 'Pharmacie', category: 'Médical', path: '/services', keywords: 'pharmacie médicament ordonnance' },
+  { name: 'Prendre Rendez-vous', category: 'Médical', path: '/sante', keywords: 'médecin docteur rendez-vous consultation' },
+  { name: 'Vidéo Consultation', category: 'Médical', path: '/video-consult', keywords: 'vidéo consultation télémédecine' },
+  { name: 'Pharmacie', category: 'Médical', path: '/pharmacy', keywords: 'pharmacie médicament ordonnance' },
 
   // On-demand
-  { name: 'Bricolage', category: 'Services', path: '/services', keywords: 'bricolage réparation maison' },
-  { name: 'Électricien', category: 'Services', path: '/services', keywords: 'électricien prise courant installation' },
-  { name: 'Plombier', category: 'Services', path: '/services', keywords: 'plombier fuite eau tuyau robinet' },
-  { name: 'Menuisier', category: 'Services', path: '/services', keywords: 'menuisier bois meuble porte' },
-  { name: 'Peintres', category: 'Services', path: '/services', keywords: 'peintre peinture mur façade' },
-  { name: 'Ménage Maison', category: 'Services', path: '/services', keywords: 'ménage nettoyage maison propre' },
+  { name: 'Bricolage', category: 'Services', path: '/services-metiers?category=bricolage', keywords: 'bricolage réparation maison' },
+  { name: 'Électricien', category: 'Services', path: '/services-metiers?category=electricite', keywords: 'électricien prise courant installation' },
+  { name: 'Plombier', category: 'Services', path: '/services-metiers?category=plomberie', keywords: 'plombier fuite eau tuyau robinet' },
+  { name: 'Menuisier', category: 'Services', path: '/services-metiers?category=menuiserie', keywords: 'menuisier bois meuble porte' },
+  { name: 'Peintres', category: 'Services', path: '/services-metiers?category=peinture', keywords: 'peintre peinture mur façade' },
+  { name: 'Ménage Maison', category: 'Services', path: '/services-metiers?category=menage', keywords: 'ménage nettoyage maison propre' },
 
   // Marketplace
   { name: 'Immobilier', category: 'Marketplace', path: '/marketplace/real-estate', keywords: 'immobilier maison appartement acheter vendre louer' },
@@ -80,7 +80,7 @@ const ALL_SERVICES = [
 
   // Others
   { name: 'Covoiturage', category: 'Transport', path: '/carpool', keywords: 'covoiturage partage trajet voyage' },
-  { name: 'Consultation Vidéo', category: 'Services', path: '/services', keywords: 'vidéo consultation tuteur avocat astrologue' },
+  { name: 'Consultation Vidéo', category: 'Services', path: '/video-consult', keywords: 'vidéo consultation tuteur avocat astrologue' },
 
   // Nearby & proximity
   { name: 'Musées', category: 'À proximité', path: '/nearby', keywords: 'musée musée culture art exposition' },
@@ -92,11 +92,11 @@ const ALL_SERVICES = [
   { name: 'Garage', category: 'À proximité', path: '/nearby', keywords: 'garage réparation mécanique auto' },
 
   // Extra on-demand & care
-  { name: 'Ménage', category: 'Services', path: '/services', keywords: 'ménage nettoyage maison propre femme de ménage' },
-  { name: 'Jardinage', category: 'Services', path: '/services', keywords: 'jardinage pelouse jardin tonte plantes' },
-  { name: 'Tutorat', category: 'Services', path: '/services', keywords: 'tutorat cours soutien scolaire professeur' },
-  { name: 'Avocats', category: 'Services', path: '/services', keywords: 'avocat juridique droit conseil légal' },
-  { name: 'Astrologue', category: 'Services', path: '/services', keywords: 'astrologue voyance horoscope astrologie' },
+  { name: 'Ménage', category: 'Services', path: '/services-metiers?category=menage', keywords: 'ménage nettoyage maison propre femme de ménage' },
+  { name: 'Jardinage', category: 'Services', path: '/services-metiers?category=jardinage', keywords: 'jardinage pelouse jardin tonte plantes' },
+  { name: 'Tutorat', category: 'Services', path: '/video-consult', keywords: 'tutorat cours soutien scolaire professeur' },
+  { name: 'Avocats', category: 'Services', path: '/video-consult', keywords: 'avocat juridique droit conseil légal' },
+  { name: 'Astrologue', category: 'Services', path: '/video-consult', keywords: 'astrologue voyance horoscope astrologie' },
   { name: 'Boutique Pièces', category: 'Entretien Auto', path: '/car-care', keywords: 'boutique pièces auto accessoires shop' },
   { name: 'Lavage Moto', category: 'Entretien Auto', path: '/car-care', keywords: 'lavage moto scooter nettoyage deux roues' },
   { name: 'Spa & Massage', category: 'Beauté', path: '/beauty', keywords: 'spa massage détente relaxation bien-être' },

@@ -69,7 +69,8 @@ export function clientRoutes(user) {
       <Route path="/checkout/:merchantId" element={<ProtectedRoute allowedRoles={['user']}><CheckoutPage /></ProtectedRoute>} />
       <Route path="/order/:orderId" element={<ProtectedRoute allowedRoles={['user']}><OrderTracking /></ProtectedRoute>} />
       <Route path="/parcel" element={<ProtectedRoute allowedRoles={['user']}><ParcelPage /></ProtectedRoute>} />
-      <Route path="/services" element={<ProtectedRoute allowedRoles={['user']}><ServicesPage /></ProtectedRoute>} />
+      <Route path="/services" element={<Navigate to="/services-metiers" replace />} />
+      <Route path="/services-old" element={<ProtectedRoute allowedRoles={['user']}><ServicesPage /></ProtectedRoute>} />
       <Route path="/services-hub" element={<ProtectedRoute allowedRoles={['user']}><ServicesHubPage /></ProtectedRoute>} />
       <Route path="/service/:serviceKey" element={<ProtectedRoute allowedRoles={['user']}><ServiceBookingFlow /></ProtectedRoute>} />
       <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={['user']}><MyServiceBookingsPage /></ProtectedRoute>} />

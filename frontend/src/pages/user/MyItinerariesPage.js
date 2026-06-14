@@ -24,7 +24,9 @@ const MyItinerariesPage = () => {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const shareUrl = (c) => `${window.location.origin}/circuit/${c.share_token}`;
+  // Lien de partage « compatible réseaux sociaux » (balises Open Graph côté backend,
+  // redirige les vrais visiteurs vers /circuit/{token}).
+  const shareUrl = (c) => `${process.env.REACT_APP_BACKEND_URL}/api/itineraries/share/${c.share_token}`;
 
   const copyLink = (c) => {
     const url = shareUrl(c);

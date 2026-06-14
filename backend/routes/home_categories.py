@@ -150,10 +150,10 @@ _SEED = [
     ("delivery", "grocery-delivery", "Livraison\nCourses", "Storefront", "bg-emerald-50", "text-emerald-500", "/food?type=grocery", True),
     ("delivery", "runner-courier", "Coursier\nExpress", "Lightning", "bg-amber-50", "text-amber-500", "/runner", True),
     ("delivery", "parcel", "Livraison\nColis", "Package", "bg-purple-50", "text-purple-500", "/parcel", True),
-    # ---- On-demand ----
-    ("ondemand", "handyman", "Bricolage", "Wrench", "bg-fuchsia-50", "text-fuchsia-500", "/services", True),
-    ("ondemand", "massage", "Massage", "Heart", "bg-sky-50", "text-sky-500", "/services", True),
-    ("ondemand", "mechanic", "Mécanique", "GasPump", "bg-green-50", "text-green-500", "/services", True),
+    # ---- On-demand (routent vers les vrais marketplaces transactionnels) ----
+    ("ondemand", "handyman", "Bricolage", "Wrench", "bg-fuchsia-50", "text-fuchsia-500", "/services-metiers?category=bricolage", True),
+    ("ondemand", "massage", "Massage", "Heart", "bg-sky-50", "text-sky-500", "/beauty?category=corps", True),
+    ("ondemand", "mechanic", "Mécanique", "GasPump", "bg-green-50", "text-green-500", "/services-metiers?category=mecanique", True),
     # ---- Beauty ----
     ("beauty", "hair-care", "Soins\nCheveux", "HairDryer", "bg-amber-50", "text-amber-600", "/beauty", True),
     ("beauty", "skin-facial", "Skin\n& Facial", "MaskHappy", "bg-green-50", "text-green-600", "/beauty", True),
