@@ -102,9 +102,15 @@ const LabTestsPage = () => {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ practitioner_email: email }),
       });
-      const d = await r.json();
+      let d = {};
+      try { d = await r.json(); } catch { /* non-JSON body */ }
       if (r.ok) { toast.success(`Résultats partagés avec ${d.shared_with || 'votre médecin'}`); setShareFor(null); setShareEmail(''); }
-      else toast.error(d.detail || 'Échec du partage');
+      else {
+        const fallback = r.status === 404 ? 'Aucun compte trouvé avec cet email'
+          : r.status === 400 ? "Ce médecin n'est pas inscrit comme praticien SB Santé"
+          : 'Échec du partage';
+        toast.error(d.detail || fallback);
+      }
     } catch { toast.error('Erreur réseau'); } finally { setSharing(false); }
   };
   if (screen === 'done' && done) {
