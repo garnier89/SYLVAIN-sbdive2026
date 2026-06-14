@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, CircleNotch, CheckCircle, Warning, ShieldCheck, UploadSimple,
-  Bell, Briefcase, Coins, Power,
+  Bell, Briefcase, Coins, Power, Pill, Plus, Trash, X,
 } from '@phosphor-icons/react';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -32,6 +32,27 @@ const ProServiceSpacePage = () => {
   const [jobs, setJobs] = useState([]);
   const [reg, setReg] = useState({ name: '', categories: [], city: '', bio: '' });
   const [uploading, setUploading] = useState('');
+  const [rxFor, setRxFor] = useState(null); // booking we write a prescription for
+  const [rxForm, setRxForm] = useState({ diagnosis: '', notes: '', meds: [{ name: '', dosage: '', duration: '' }] });
+  const [rxSaving, setRxSaving] = useState(false);
+
+  const openRx = (b) => { setRxFor(b); setRxForm({ diagnosis: '', notes: '', meds: [{ name: '', dosage: '', duration: '' }] }); };
+  const setMed = (i, k, v) => setRxForm(f => ({ ...f, meds: f.meds.map((m, j) => j === i ? { ...m, [k]: v } : m) }));
+  const addMed = () => setRxForm(f => ({ ...f, meds: [...f.meds, { name: '', dosage: '', duration: '' }] }));
+  const removeMed = (i) => setRxForm(f => ({ ...f, meds: f.meds.filter((_, j) => j !== i) }));
+  const issueRx = async () => {
+    if (!rxForm.meds.some(m => m.name.trim())) { toast.error('Ajoutez au moins un médicament'); return; }
+    setRxSaving(true);
+    try {
+      const r = await fetch(`${API}/api/medical/prescriptions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ booking_id: rxFor.id, diagnosis: rxForm.diagnosis, notes: rxForm.notes, medications: rxForm.meds }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { toast.success('Ordonnance délivrée au patient'); setRxFor(null); load(); }
+      else toast.error(d.detail || 'Échec de la délivrance');
+    } catch { toast.error('Erreur réseau'); } finally { setRxSaving(false); }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -220,17 +241,54 @@ const ProServiceSpacePage = () => {
                   <p className="text-xs text-gray-500 mt-0.5">{b.scheduled_date} à {b.scheduled_time} · {b.user_name}</p>
                   <div className="flex justify-between items-center mt-2">
                     <span className="font-bold text-gray-900 text-sm">{money(Number(b.total))} {b.payment_method === 'cash' ? '(espèces)' : ''}</span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       {b.status === 'confirmed' && <button onClick={() => setStatus(b.id, 'in_progress')} className={`text-xs font-bold ${acc.text} ${acc.soft} px-3 py-1.5 rounded-lg`} data-testid={`start-${b.id}`}>Démarrer</button>}
                       {['confirmed', 'in_progress'].includes(b.status) && <button onClick={() => setStatus(b.id, 'completed')} className="text-xs font-bold text-white bg-emerald-500 px-3 py-1.5 rounded-lg" data-testid={`complete-${b.id}`}>Terminer</button>}
                     </div>
                   </div>
+                  {vertical === 'medical' && b.category !== 'infirmier' && b.status !== 'cancelled' && (
+                    b.prescription_id
+                      ? <p className="mt-2 text-xs font-semibold text-emerald-600 flex items-center gap-1" data-testid={`rx-done-${b.id}`}><CheckCircle size={14} weight="fill" /> Ordonnance délivrée</p>
+                      : <button onClick={() => openRx(b)} className="mt-2 w-full text-xs font-bold text-teal-700 bg-teal-50 py-2 rounded-lg flex items-center justify-center gap-1.5" data-testid={`rx-btn-${b.id}`}><Pill size={14} weight="fill" /> Rédiger l'ordonnance</button>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+      {rxFor && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => !rxSaving && setRxFor(null)} data-testid="rx-sheet">
+          <div className="bg-white w-full max-w-[430px] rounded-t-2xl p-5 pb-8 max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-1.5"><Pill size={18} weight="fill" className="text-teal-600" /> Ordonnance</h3>
+              <button onClick={() => setRxFor(null)} disabled={rxSaving} data-testid="rx-close"><X size={20} className="text-gray-400" /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Patient : <b>{rxFor.user_name}</b> · {rxFor.service_name}</p>
+            <input value={rxForm.diagnosis} onChange={e => setRxForm({ ...rxForm, diagnosis: e.target.value })} placeholder="Diagnostic (optionnel)" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mb-3" data-testid="rx-diagnosis" />
+            <p className="text-[10px] uppercase tracking-wide font-bold text-gray-400 mb-1.5">Médicaments</p>
+            <div className="space-y-2 mb-2">
+              {rxForm.meds.map((m, i) => (
+                <div key={i} className="border border-gray-200 rounded-xl p-2.5 space-y-2" data-testid={`rx-med-${i}`}>
+                  <div className="flex items-center gap-2">
+                    <input value={m.name} onChange={e => setMed(i, 'name', e.target.value)} placeholder="Médicament" className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-sm" data-testid={`rx-med-name-${i}`} />
+                    {rxForm.meds.length > 1 && <button onClick={() => removeMed(i)} data-testid={`rx-med-remove-${i}`}><Trash size={16} className="text-rose-400" /></button>}
+                  </div>
+                  <div className="flex gap-2">
+                    <input value={m.dosage} onChange={e => setMed(i, 'dosage', e.target.value)} placeholder="Posologie (ex: 1 cp x3/j)" className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-sm" data-testid={`rx-med-dosage-${i}`} />
+                    <input value={m.duration} onChange={e => setMed(i, 'duration', e.target.value)} placeholder="Durée (ex: 7 j)" className="w-28 border border-gray-200 rounded-lg px-2.5 py-2 text-sm" data-testid={`rx-med-duration-${i}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={addMed} className="text-xs font-semibold text-teal-600 flex items-center gap-1 mb-3" data-testid="rx-add-med"><Plus size={14} weight="bold" /> Ajouter un médicament</button>
+            <textarea value={rxForm.notes} onChange={e => setRxForm({ ...rxForm, notes: e.target.value })} placeholder="Conseils / notes (optionnel)" rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mb-3 resize-none" data-testid="rx-notes" />
+            <button onClick={issueRx} disabled={rxSaving} className="w-full py-3.5 rounded-xl font-bold text-white bg-teal-600 disabled:opacity-60 flex items-center justify-center gap-2" data-testid="rx-submit">
+              {rxSaving ? <CircleNotch size={16} className="animate-spin" /> : <Pill size={16} weight="fill" />}{rxSaving ? 'Délivrance…' : 'Délivrer l\'ordonnance (PDF)'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -63,12 +63,25 @@ async def issue_prescription(request: Request):
         raise HTTPException(status_code=403, detail="Compte praticien non validé. Inscrivez-vous et faites valider votre profil.")
     body = await request.json()
 
-    email = (body.get("patient_email") or "").strip().lower()
-    if not email:
-        raise HTTPException(status_code=400, detail="Email du patient requis")
-    patient = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "name": 1})
-    if not patient:
-        raise HTTPException(status_code=404, detail="Aucun patient trouvé avec cet email")
+    # Patient résolu soit via un RDV médical du praticien (1 clic depuis l'espace
+    # praticien / fin de téléconsultation), soit via l'email patient (saisie manuelle).
+    booking = None
+    booking_id = (body.get("booking_id") or "").strip()
+    if booking_id:
+        booking = await db.pro_bookings.find_one(
+            {"id": booking_id, "vertical": "medical", "provider_user_id": user["id"]}, {"_id": 0})
+        if not booking:
+            raise HTTPException(status_code=404, detail="Consultation introuvable")
+        patient = await db.users.find_one({"id": booking["user_id"]}, {"_id": 0, "id": 1, "name": 1})
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient introuvable")
+    else:
+        email = (body.get("patient_email") or "").strip().lower()
+        if not email:
+            raise HTTPException(status_code=400, detail="Email du patient requis")
+        patient = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "name": 1})
+        if not patient:
+            raise HTTPException(status_code=404, detail="Aucun patient trouvé avec cet email")
 
     meds = [m for m in (body.get("medications") or []) if (m.get("name") or "").strip()]
     if not meds:
@@ -78,6 +91,8 @@ async def issue_prescription(request: Request):
 
     cats = prac.get("categories", [])
     specialty = _spec_label(cats[0]) if cats else "Praticien"
+    if booking and booking.get("category"):
+        specialty = _spec_label(booking["category"])
     rx = {
         "id": f"rx_{uuid.uuid4().hex[:12]}",
         "patient_id": patient["id"], "patient_name": patient.get("name", ""),
@@ -85,9 +100,12 @@ async def issue_prescription(request: Request):
         "specialty": specialty, "diagnosis": (body.get("diagnosis") or "").strip(),
         "medications": medications, "notes": (body.get("notes") or "").strip(),
         "valid_until": body.get("valid_until"), "video_session_id": body.get("video_session_id"),
+        "booking_id": booking_id or None,
         "status": "active", "created_at": _now(),
     }
     await db.prescriptions.insert_one(dict(rx))
+    if booking:
+        await db.pro_bookings.update_one({"id": booking_id}, {"$set": {"prescription_id": rx["id"]}})
     try:
         await create_notification(patient["id"], "prescription_new", "📋 Nouvelle ordonnance",
                                   f"{rx['practitioner_name']} vous a délivré une ordonnance.",
