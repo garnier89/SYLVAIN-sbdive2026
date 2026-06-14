@@ -1,4 +1,11 @@
-## NEW - 2026-06-14 (517) - 🧰 Refacto RideChoosePage (extraction pure, sans changement de comportement)
+## NEW - 2026-06-14 (518) - 🧰 Refacto RideChoosePage phase 2 — liste véhicules + paiement + fiche (certifié 0 régression)
+- **Extrait** (extraction pure) vers `pages/user/taxihub/RideVehicleSection.jsx` (220 l.) : `RideVehicleList` (liste véhicules + badge meilleur choix + WhatsApp + prix/ETA), `RidePaymentMethod` (dropdown paiement + notices solde/dette), `RideVehicleInfoModal` (fiche véhicule). Helpers déplacés : `vehicleIcon`, `vehicleDesc`, `BADGE_COLOR_CLASSES`, `PAYMENT_ICONS`, `DEFAULT_VEHICLE_INFO`. Page passe des **bundles de props** (`vehicleListProps`, `paymentProps`) — spread → 0 prop oubliée.
+- **RideChoosePage.js** : **1459 → 967 lignes (-492, -34%)** au total sur les 2 phases. 10 imports d'icônes orphelins retirés (vérif usage JSX + `Icon: X` pour ne pas casser House/Briefcase). Compile propre (24 warnings, stable). Cœur d'état/carte/estimation **inchangé**.
+- **Certifié** : testing_agent **iter410 = 100%** sur les 5 surfaces (liste véhicules + prix, fiche véhicule, dropdown paiement, CTA réservation, panels de mode), **0 bug / 0 action item** → aucune régression.
+- ⚠️ Visible en prod après redéploiement. `TaxiModePanels.jsx`/`TaxiHubPage` legacy non touchés.
+
+
+
 - **Objectif** : réduire `RideChoosePage.js` (1459 l.) sans casser le flux taxi (production).
 - **Fait** : extraction des 3 sous-composants panneaux **inline et purement pilotés par props** (`ModePanel`, `SchedulePanel`, `ModeSpecificPanel`) + helper `formatScheduled` → nouveau fichier `pages/user/taxihub/RideModePanels.jsx` (329 l.). Imports nettoyés dans la page (icônes exclusives aux panels retirées : CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, MapTrifold, ShieldCheck, Plus, Minus ; `useAssistTypes` déplacé). **Aucune logique d'état/carte/estimation touchée** (cœur trop couplé, laissé intact).
 - **Résultat** : `RideChoosePage.js` **1459 → 1151 lignes** (-308). Compile **sans nouvelle erreur ni warning** (24 = inchangé → imports exacts).
