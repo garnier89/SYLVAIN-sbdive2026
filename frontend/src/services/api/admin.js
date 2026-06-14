@@ -8,6 +8,15 @@ export const parkingAdminAPI = {
   remove: (id) => api.delete(`/admin/parking/spots/${id}`),
 };
 
+// Admin — dépanneurs partenaires (validation KYC + commission + revenus)
+export const towingAdminAPI = {
+  operators: () => api.get('/admin/towing/operators'),
+  verify: (userId, data) => api.post(`/admin/towing/operators/${userId}/verify`, data),
+  getSettings: () => api.get('/admin/towing/settings'),
+  setSettings: (data) => api.put('/admin/towing/settings', data),
+  revenue: () => api.get('/admin/towing/revenue'),
+};
+
 // Admin — types d'assistance SB Access (CRUD éditable)
 
 export const assistTypesAdminAPI = {

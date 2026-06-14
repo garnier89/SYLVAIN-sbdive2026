@@ -32,6 +32,7 @@ PROBLEM_TYPES = [
 _PROBLEM_BY_ID = {p["id"]: p for p in PROBLEM_TYPES}
 
 NIGHT_SURCHARGE_PCT = 0.30  # +30% entre 22h et 6h
+DEFAULT_COMMISSION_PCT = 0.15  # commission plateforme sur chaque intervention
 
 # Simulated operator pool (stand-in for real partners).
 _OPERATORS = [
@@ -48,6 +49,13 @@ FALLBACK_SECONDS = 18   # si aucun vrai dépanneur n'accepte → assignation sim
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+async def _commission_pct() -> float:
+    doc = await db.towing_settings.find_one({"id": "config"}, {"_id": 0})
+    if doc and doc.get("commission_pct") is not None:
+        return float(doc["commission_pct"])
+    return DEFAULT_COMMISSION_PCT
 
 
 def _is_night(dt: datetime = None) -> bool:
@@ -283,11 +291,39 @@ async def complete_request(req_id: str, request: Request):
         except Exception:
             pass
 
+    # Platform commission split (computed once at completion).
+    pct = await _commission_pct()
+    commission = round(total * pct, 2)
+    operator_earning = round(total - commission, 2)
+    op_id = req.get("operator_id")
+
     await db.towing_requests.update_one(
         {"id": req_id},
-        {"$set": {"status": "completed", "payment_status": "paid", "completed_at": _now()}},
+        {"$set": {"status": "completed", "payment_status": "paid", "completed_at": _now(),
+                  "commission_pct": pct, "commission": commission, "operator_earning": operator_earning}},
     )
-    return {"ok": True, "total": total, "balance": new_balance}
+
+    # Pay the real operator their NET earning (wallet credit) + record platform revenue.
+    # Only for the digital (sbpay) flow where the platform collected the payment.
+    if op_id and req.get("operator_kind") == "real" and operator_earning > 0 \
+            and req.get("payment_method") == "sbpay" and req.get("status") != "completed":
+        await db.wallets.update_one({"user_id": op_id}, {"$inc": {"balance": operator_earning}},
+                                    upsert=True)
+        op_wallet = await db.wallets.find_one({"user_id": op_id}, {"_id": 0})
+        await db.wallet_transactions.insert_one({
+            "id": f"tx_{uuid.uuid4().hex[:12]}", "user_id": op_id, "type": "Earning",
+            "amount": operator_earning, "balance_after": round((op_wallet or {}).get("balance", 0), 2),
+            "description": f"Dépannage · {req.get('problem_label', '')} (net après commission)",
+            "status": "completed", "created_at": _now(),
+        })
+        await db.towing_revenue.insert_one({
+            "id": f"trev_{uuid.uuid4().hex[:12]}", "request_id": req_id, "operator_id": op_id,
+            "total": total, "commission": commission, "operator_earning": operator_earning,
+            "commission_pct": pct, "created_at": _now(),
+        })
+
+    return {"ok": True, "total": total, "balance": new_balance,
+            "commission": commission, "operator_earning": operator_earning}
 
 
 @router.post("/requests/{req_id}/cancel")
@@ -315,14 +351,18 @@ async def operator_me(request: Request):
     op = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
     if not op:
         return {"registered": False}
-    # Stats: completed jobs + earnings.
+    # Stats: completed jobs + NET earnings (after platform commission).
     jobs = await db.towing_requests.find(
-        {"operator_id": user["id"]}, {"_id": 0, "status": 1, "total_price": 1}).to_list(500)
+        {"operator_id": user["id"]}, {"_id": 0, "status": 1, "total_price": 1, "operator_earning": 1}).to_list(500)
     completed = [j for j in jobs if j.get("status") == "completed"]
-    earnings = round(sum(float(j.get("total_price", 0) or 0) for j in completed), 2)
-    return {"registered": True, "operator": op, "stats": {
+    pct = await _commission_pct()
+    earnings = round(sum(
+        float(j.get("operator_earning", round(float(j.get("total_price", 0) or 0) * (1 - pct), 2)) or 0)
+        for j in completed), 2)
+    gross = round(sum(float(j.get("total_price", 0) or 0) for j in completed), 2)
+    return {"registered": True, "operator": op, "commission_pct": pct, "stats": {
         "completed": len(completed), "active": len([j for j in jobs if j.get("status") in ("en_route", "arrived")]),
-        "earnings": earnings,
+        "earnings": earnings, "gross": gross,
     }}
 
 
@@ -343,11 +383,35 @@ async def operator_register(request: Request):
         "is_online": (existing or {}).get("is_online", False),
         "last_lat": (existing or {}).get("last_lat"),
         "last_lng": (existing or {}).get("last_lng"),
+        # KYC verification (admin must approve before going online).
+        "verification_status": (existing or {}).get("verification_status", "pending"),
+        "documents": (existing or {}).get("documents", {}),
+        "rejection_reason": (existing or {}).get("rejection_reason"),
         "created_at": (existing or {}).get("created_at") or _now(),
         "updated_at": _now(),
     }
     await db.tow_operators.update_one({"user_id": user["id"]}, {"$set": doc}, upsert=True)
     return _operator_public(doc)
+
+
+@router.post("/operator/documents")
+async def operator_documents(request: Request):
+    """Attach uploaded document URLs (insurance / license / id_card) → status 'pending'."""
+    user = await get_current_user(request)
+    op = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not op:
+        raise HTTPException(status_code=400, detail="Inscrivez-vous comme dépanneur d'abord")
+    body = await request.json()
+    documents = dict(op.get("documents") or {})
+    for k in ("insurance", "license", "id_card"):
+        if body.get(k):
+            documents[k] = body[k]
+    await db.tow_operators.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"documents": documents, "verification_status": "pending",
+                  "rejection_reason": None, "updated_at": _now()}},
+    )
+    return {"ok": True, "documents": documents, "verification_status": "pending"}
 
 
 @router.post("/operator/online")
@@ -357,6 +421,8 @@ async def operator_online(request: Request):
     op = await db.tow_operators.find_one({"user_id": user["id"]}, {"_id": 0})
     if not op:
         raise HTTPException(status_code=400, detail="Inscrivez-vous comme dépanneur d'abord")
+    if bool(body.get("online", True)) and op.get("verification_status") != "approved":
+        raise HTTPException(status_code=403, detail="Votre compte doit être validé par l'équipe avant de passer en ligne")
     upd = {"is_online": bool(body.get("online", True)), "updated_at": _now()}
     if body.get("lat") is not None and body.get("lng") is not None:
         upd["last_lat"], upd["last_lng"] = body["lat"], body["lng"]
@@ -469,3 +535,89 @@ async def operator_ping(req_id: str, request: Request):
     )
     await db.tow_operators.update_one({"user_id": user["id"]}, {"$set": {"last_lat": lat, "last_lng": lng}})
     return {"ok": True, "eta_minutes": eta}
+
+
+
+# ── Admin: operator verification (KYC) + commission + revenue ───────────────
+from core.deps import require_role  # noqa: E402
+
+admin_router = APIRouter(prefix="/admin/towing", tags=["admin-towing"])
+
+
+@admin_router.get("/operators")
+async def admin_list_operators(request: Request):
+    await require_role(request, ["admin"])
+    ops = await db.tow_operators.find({}).sort("created_at", -1).to_list(500)
+    out = []
+    for op in ops:
+        op.pop("_id", None)
+        jobs = await db.towing_requests.count_documents({"operator_id": op["user_id"], "status": "completed"})
+        op["completed_jobs"] = jobs
+        out.append(op)
+    counts = {
+        "pending": sum(1 for o in out if o.get("verification_status") == "pending"),
+        "approved": sum(1 for o in out if o.get("verification_status") == "approved"),
+        "rejected": sum(1 for o in out if o.get("verification_status") == "rejected"),
+        "total": len(out),
+    }
+    return {"operators": out, "counts": counts}
+
+
+@admin_router.post("/operators/{user_id}/verify")
+async def admin_verify_operator(user_id: str, request: Request):
+    admin = await require_role(request, ["admin"])
+    body = await request.json()
+    action = body.get("action")
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Action invalide (approve/reject)")
+    op = await db.tow_operators.find_one({"user_id": user_id}, {"_id": 0})
+    if not op:
+        raise HTTPException(status_code=404, detail="Dépanneur introuvable")
+    status = "approved" if action == "approve" else "rejected"
+    upd = {"verification_status": status, "verified_at": _now(),
+           "verified_by": admin.get("id"), "updated_at": _now()}
+    if action == "reject":
+        upd["rejection_reason"] = body.get("reason", "")
+        upd["is_online"] = False
+    else:
+        upd["rejection_reason"] = None
+    await db.tow_operators.update_one({"user_id": user_id}, {"$set": upd})
+    title = "✅ Compte dépanneur validé" if action == "approve" else "❌ Compte dépanneur refusé"
+    msg = "Vous pouvez maintenant passer en ligne et recevoir des demandes." if action == "approve" \
+        else f"Motif : {body.get('reason', 'documents non conformes')}"
+    try:
+        await create_notification(user_id, "towing_verification", title, msg, {"url": "/espace-depanneur"})
+    except Exception:
+        pass
+    return {"ok": True, "verification_status": status}
+
+
+@admin_router.get("/settings")
+async def admin_get_settings(request: Request):
+    await require_role(request, ["admin"])
+    return {"commission_pct": await _commission_pct()}
+
+
+@admin_router.put("/settings")
+async def admin_set_settings(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    try:
+        pct = float(body.get("commission_pct"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Commission invalide")
+    if not (0 <= pct <= 0.9):
+        raise HTTPException(status_code=400, detail="La commission doit être entre 0 et 90%")
+    await db.towing_settings.update_one({"id": "config"}, {"$set": {"id": "config", "commission_pct": pct}}, upsert=True)
+    return {"ok": True, "commission_pct": pct}
+
+
+@admin_router.get("/revenue")
+async def admin_revenue(request: Request):
+    await require_role(request, ["admin"])
+    rows = await db.towing_revenue.find({}, {"_id": 0}).to_list(5000)
+    total_gmv = round(sum(float(r.get("total", 0) or 0) for r in rows), 2)
+    total_commission = round(sum(float(r.get("commission", 0) or 0) for r in rows), 2)
+    total_payout = round(sum(float(r.get("operator_earning", 0) or 0) for r in rows), 2)
+    return {"count": len(rows), "gmv": total_gmv, "commission": total_commission,
+            "operator_payout": total_payout, "commission_pct": await _commission_pct()}

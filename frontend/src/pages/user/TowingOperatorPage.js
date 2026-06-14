@@ -37,6 +37,8 @@ const TowingOperatorPage = () => {
   const [online, setOnline] = useState(false);
   const [feed, setFeed] = useState([]);
   const [active, setActive] = useState(null);
+  const [commissionPct, setCommissionPct] = useState(0.15);
+  const [uploading, setUploading] = useState('');
   const pollRef = useRef(null);
 
   const loadMe = useCallback(async () => {
@@ -45,12 +47,36 @@ const TowingOperatorPage = () => {
       const d = await r.json();
       if (d.registered) {
         setProfile(d.operator); setStats(d.stats); setOnline(!!d.operator.is_online);
+        setCommissionPct(d.commission_pct ?? 0.15);
         setForm({ company: d.operator.company || '', phone: d.operator.phone || '', plate: d.operator.plate || '', truck_type: d.operator.truck_type || '', city: d.operator.city || '' });
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { loadMe(); }, [loadMe]);
+
+  const vstatus = profile?.verification_status || 'pending';
+  const approved = vstatus === 'approved';
+  const documents = profile?.documents || {};
+
+  const uploadDoc = async (key, fileList) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    setUploading(key);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const up = await fetch(`${API}/api/uploads/image`, { method: 'POST', credentials: 'include', body: fd });
+      const ud = await up.json();
+      if (!up.ok) { toast.error(ud.detail || 'Échec de l\'upload'); return; }
+      const r = await fetch(`${API}/api/towing/operator/documents`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ [key]: ud.url }),
+      });
+      if (r.ok) { toast.success('Document envoyé'); await loadMe(); }
+    } catch { toast.error('Erreur réseau'); }
+    finally { setUploading(''); }
+  };
 
   // Load active job + feed (poll while online/has active)
   const refresh = useCallback(async () => {
@@ -89,6 +115,7 @@ const TowingOperatorPage = () => {
 
   const toggleOnline = async () => {
     const next = !online;
+    if (next && !approved) { toast.error('Votre compte doit être validé avant de passer en ligne'); return; }
     const pos = next ? await getPos() : null;
     try {
       const r = await fetch(`${API}/api/towing/operator/online`, {
@@ -202,6 +229,47 @@ const TowingOperatorPage = () => {
             <p className="text-lg font-black text-gray-900">{money(Number(stats?.earnings ?? 0))}</p>
             <p className="text-[10px] text-gray-500">Gains</p>
           </div>
+        </div>
+
+        {/* Verification banner + documents (KYC) */}
+        {!approved && (
+          <div className={`rounded-2xl p-4 ${vstatus === 'rejected' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`} data-testid="operator-verification-banner">
+            <p className={`text-sm font-bold ${vstatus === 'rejected' ? 'text-red-700' : 'text-amber-700'}`}>
+              {vstatus === 'rejected' ? '❌ Compte refusé' : '⏳ Validation en attente'}
+            </p>
+            <p className="text-xs text-gray-600 mt-1">
+              {vstatus === 'rejected'
+                ? (profile.rejection_reason || 'Vos documents n\'ont pas été validés. Merci de les renvoyer.')
+                : 'Envoyez vos documents (assurance, carte grise, pièce d\'identité). Un administrateur les validera avant que vous puissiez passer en ligne.'}
+            </p>
+          </div>
+        )}
+
+        {/* Documents KYC */}
+        <div className="bg-white rounded-2xl p-4 space-y-2.5" data-testid="operator-documents">
+          <p className="text-[10px] tracking-wide uppercase font-bold text-gray-500">Documents</p>
+          {[
+            { k: 'insurance', l: 'Assurance' },
+            { k: 'license', l: 'Carte grise / licence' },
+            { k: 'id_card', l: 'Pièce d\'identité' },
+          ].map((d) => (
+            <div key={d.k} className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 flex items-center gap-2">
+                {documents[d.k] ? <CheckCircle size={16} weight="fill" className="text-green-500" /> : <ClipboardText size={16} className="text-gray-300" />}
+                {d.l}
+              </span>
+              <label className="text-xs font-semibold text-blue-600 cursor-pointer" data-testid={`upload-${d.k}`}>
+                {uploading === d.k ? 'Envoi…' : documents[d.k] ? 'Remplacer' : 'Téléverser'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadDoc(d.k, e.target.files)} />
+              </label>
+            </div>
+          ))}
+        </div>
+
+        {/* Commission info */}
+        <div className="bg-blue-50 rounded-2xl p-3 flex items-center justify-between" data-testid="operator-commission-info">
+          <span className="text-xs text-blue-700">Commission plateforme</span>
+          <span className="text-sm font-bold text-blue-700">{Math.round(commissionPct * 100)}%</span>
         </div>
 
         {/* Active job */}

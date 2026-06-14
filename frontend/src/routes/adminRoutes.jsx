@@ -5,6 +5,7 @@ import AdminPayouts from '../pages/admin/AdminPayouts';
 import AdminCarpoolConfig from '../pages/admin/AdminCarpoolConfig';
 import AdminCarpoolRevenue from '../pages/admin/AdminCarpoolRevenue';
 import AdminCodeHealth from '../pages/admin/AdminCodeHealth';
+import AdminTowingOperators from '../pages/admin/AdminTowingOperators';
 import AdminDebts from '../pages/admin/AdminDebts';
 import AdminDriverActivity from '../pages/admin/AdminDriverActivity';
 import AdminTripTimings from '../pages/admin/AdminTripTimings';
@@ -142,6 +143,7 @@ export function adminRoutes() {
       <Route path="carpool-config" element={<AdminCarpoolConfig />} />
       <Route path="carpool-revenue" element={<AdminCarpoolRevenue />} />
       <Route path="code-health" element={<AdminCodeHealth />} />
+      <Route path="towing-operators" element={<AdminTowingOperators />} />
       <Route path="debts" element={<AdminDebts />} />
       <Route path="driver-activity" element={<AdminDriverActivity />} />
       <Route path="trip-timings" element={<AdminTripTimings />} />

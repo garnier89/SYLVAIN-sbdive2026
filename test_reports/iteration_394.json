@@ -1,0 +1,28 @@
+{
+  "summary": "SB Dépannage iter394 — KYC operator validation (admin panel) + platform commission split fully validated. Backend: 12/12 pytest pass in test_iter394_towing_kyc_commission.py (register→pending, online 403 when not approved, documents attach + status remains pending, admin GET /operators with counts, admin role-gated, admin GET/PUT /settings with full validation (0<=pct<=0.9, type-check), admin reject→online 403 + is_online forced to false, admin approve→online 200, invalid action 400, unknown user 404, completion split commission/operator_earning correct + operator wallet credited with NET, idempotent (no double credit on 2nd complete), /operator/me exposes verification_status/documents/commission_pct/stats.earnings(NET)/stats.gross, /admin/towing/revenue aggregates gmv=commission+operator_payout). Frontend E2E: freeuser /espace-depanneur in 'pending' shows operator-verification-banner + operator-documents (Assurance/Carte grise/Pièce d'identité with Téléverser links) + operator-commission-info ('Commission plateforme 15%'); operator-online-toggle CLICK is blocked (server 403 → 'Hors ligne' stays + error toast). Admin /admin/towing-operators renders admin-towing-operators page with all 4 KPIs (kpi-pending=1, kpi-approved=0, kpi-commission=22,09€, kpi-payout=125,16€), commission-input + commission-save controls, operator-row-user_9a9ee7ea3029 with status-user_9a9ee7ea3029='En attente', approve/reject buttons present; click approve-user_9a9ee7ea3029 → status flips to 'Validé'. After reload, freeuser banner DISAPPEARS, operator-online-toggle clicks successfully → 'En ligne' badge displayed. State reset at end (freeuser back to pending, commission back to 0.15).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter394_towing_kyc_commission.py",
+    "/app/test_reports/pytest/iter394_kyc_commission.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/towing.py complete_request — the credit-operator branch contains the condition `req.get('status') != 'completed'` AFTER the update that already sets status='completed'. Because the freshly-fetched `req` dict is from BEFORE the update_one call (status was 'en_route'/'arrived' at fetch time), the guard relies on the in-memory dict; it works idempotently only because the wallet debit guard above (`req.get('payment_status') != 'paid'`) already skipped (no debit happens twice). However on a parallel race (two concurrent /complete calls) both would read status=en_route, both pass the guard, and BOTH credit the operator. Recommend using atomic find_one_and_update for the completion step (set status='completed' only if current status not 'completed') and only proceed with the wallet credit + revenue insert when modified_count==1. Current test passes only because requests are sequential.",
+    "operator_documents endpoint allows ANY string for insurance/license/id_card URLs — no schema validation or URL/type check; a malicious user could store javascript: or arbitrary text. Add pydantic validator or url type.",
+    "admin_verify_operator accepts `reason` as free string with no length limit — consider max length.",
+    "Commission setting PUT does not record an audit trail (who changed, when, previous value). Recommended for finance compliance.",
+    "/admin/towing/revenue has no date range filter — will get expensive over time; add since/until query params and an index on towing_revenue.created_at.",
+    "operator_me computes earnings via fallback `j.get('operator_earning', total*(1-pct))` — historic jobs completed BEFORE iter394 won't have operator_earning persisted but will be back-computed with TODAY's commission, which can drift if commission_pct changes later. Acceptable, but consider a migration to backfill operator_earning on legacy rows.",
+    "Operator notification on verify uses best-effort try/except Exception:pass — should log on failure."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter394_towing_kyc_commission.py"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (banner+docs+commission visible when pending, toggle blocked, admin KPIs/commission/row/approve all functional, post-approval banner gone + toggle works)"},
+  "test_credentials": "Admin: admin@superapp.com / SuperAdmin123!. Operator: freeuser@demo.sb / FreeUser123! (uid=user_9a9ee7ea3029, reset to verification_status='pending', documents={}, is_online=false at end of run). Client: famtester@demo.sb / FamTest123! (wallet 500€).",
+  "seed_data_creation": "Reset (via autouse module-scoped fixture + final cleanup) of tow_operators(freeuser)→pending+empty docs+offline, wallets(famtester)→500€, towing_settings.commission_pct→0.15. State restored at end of run for retest.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests at /app/backend/tests/test_iter394_towing_kyc_commission.py — 12 tests cover KYC workflow + commission. Tests mutate freeuser operator state (pending→rejected→approved) and commission_pct (0.15→0.20→0.15) but reset both at end. The completion idempotency is verified single-threaded (sequential calls). For concurrency, see the critical code review comment — current /complete is NOT race-safe for the operator credit branch (recommend atomic CAS). Frontend E2E used Python Playwright at viewport 1920x1080, tested freeuser /espace-depanneur (pending state) → admin /admin/towing-operators approval → freeuser reload (approved state). Operator uid for freeuser is user_9a9ee7ea3029. UI selectors all functional via data-testid attributes."
+}

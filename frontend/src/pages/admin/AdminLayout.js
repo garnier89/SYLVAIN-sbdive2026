@@ -41,6 +41,7 @@ const sidebarConfig = [
         { label: 'Gérer véhicules', path: '/admin/vehicles' },
         { label: 'Demandes de service', path: '/admin/requests' },
         { label: 'Vérification documents', path: '/admin/documents' },
+        { label: 'Dépanneurs (validation)', path: '/admin/towing-operators' },
       ]},
       { icon: Buildings, label: 'Entreprise / Flotte', path: '/admin/company' },
       { icon: Storefront, label: 'Boutiques', path: '/admin/stores' },
