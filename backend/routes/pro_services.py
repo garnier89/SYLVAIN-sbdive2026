@@ -13,6 +13,8 @@ Collections (scopées par champ `vertical`) :
 """
 from fastapi import APIRouter, Request, HTTPException
 import uuid
+import asyncio
+import secrets
 from datetime import datetime, timezone, timedelta
 
 from core.config import db
@@ -264,7 +266,19 @@ _TRADES_PROVIDERS = [
     ("Méca Express", ["mecanique"], 4.6, 153, "photo-1486262715619-67b85e0b08d3?w=400", "Mécanicien : vidange, freins, diagnostic."),
 ]
 
-_DEMO_PROVIDERS = {"beauty": _BEAUTY_PROVIDERS, "trades": _TRADES_PROVIDERS}
+_MEDICAL_PROVIDERS = [
+    ("Dr. Amélie Rousseau", ["generaliste"], 4.9, 312, "photo-1559839734-2b71ea197ec2?w=400", "Médecin généraliste, 12 ans d'expérience. Consultations cabinet & domicile."),
+    ("Dr. Karim Benali", ["cardiologie"], 4.8, 187, "photo-1612349317150-e413f6a5b16d?w=400", "Cardiologue. Bilans, ECG et suivi de l'hypertension."),
+    ("Dr. Sophie Marchand", ["dermatologie"], 4.9, 241, "photo-1594824476967-48c8b964273f?w=400", "Dermatologue. Acné, grains de beauté, dermatologie esthétique."),
+    ("Dr. Léa Fontaine", ["gynecologie", "generaliste"], 4.8, 156, "photo-1638202993928-7267aad84c31?w=400", "Gynécologue. Suivi, contraception et ménopause."),
+    ("Dr. Thomas Girard", ["pediatrie"], 4.9, 203, "photo-1622253692010-333f2da6031d?w=400", "Pédiatre. Suivi de l'enfant, vaccins et urgences douces."),
+    ("Dr. Nadia Cherif", ["psychiatrie"], 4.7, 98, "photo-1591604021695-0c69b7c05981?w=400", "Psychiatre. Anxiété, dépression, téléconsultation possible."),
+    ("Dr. Pierre Lemoine", ["orl"], 4.7, 112, "photo-1582750433449-648ed127bb54?w=400", "ORL. Troubles auditifs, sinusite et vertiges."),
+    ("Infirmier Julien Mercier", ["infirmier"], 4.9, 276, "photo-1537368910025-700350fe46c7?w=400", "Infirmier à domicile : injections, pansements, perfusions."),
+    ("Infirmière Clara Petit", ["infirmier"], 4.8, 198, "photo-1559839734-2b71ea197ec2?w=400", "Soins infirmiers à domicile, prélèvements et suivi post-op."),
+]
+
+_DEMO_PROVIDERS = {"beauty": _BEAUTY_PROVIDERS, "trades": _TRADES_PROVIDERS, "medical": _MEDICAL_PROVIDERS}
 
 
 def _now():
@@ -441,6 +455,12 @@ async def create_booking(vertical: str, request: Request):
             raise HTTPException(status_code=400, detail="Prestataire indisponible")
     status = "confirmed" if provider else "pending"
 
+    # Médical : génère un salon vidéo (téléconsultation) pour les consultations
+    # (hors soins infirmiers) — lien rejoignable le jour J par patient & praticien.
+    video_room = None
+    if vertical == "medical" and svc["category"] != "infirmier":
+        video_room = f"sbconsult-{secrets.token_urlsafe(12)}"
+
     # Payment: SB Pay debited now (refundable on cancel); cash paid on site.
     new_balance, payment_status = None, "on_site"
     if payment_method == "sbpay" and total > 0:
@@ -472,6 +492,7 @@ async def create_booking(vertical: str, request: Request):
         "urgent": urgent, "urgent_surcharge": urgent_fee,
         "notes": body.get("notes", ""), "base_price": svc["price"], "home_surcharge": surcharge,
         "total": total, "payment_method": payment_method, "payment_status": payment_status,
+        "video_room": video_room,
         "status": status, "reviewed": False, "created_at": _now(),
     }
     await db.pro_bookings.insert_one(dict(booking))
@@ -844,3 +865,46 @@ async def admin_revenue(vertical: str, request: Request):
     payout = round(sum(float(r.get("provider_earning", 0) or 0) for r in rows if r.get("collected")), 2)
     return {"count": len(rows), "gmv": gmv, "commission": commission,
             "provider_payout": payout, "commission_pct": await _commission_pct(vertical)}
+
+
+
+# ── Rappel J-1 (toutes verticales) ───────────────────────────────────────────
+def _reminder_url(b: dict) -> str:
+    return {"beauty": "/beauty", "trades": "/services-metiers", "medical": "/sante"}.get(b.get("vertical"), "/")
+
+
+async def pro_booking_reminder_loop():
+    """Notifie clients (et praticiens réels) la veille d'un RDV pro réservé.
+    Idempotent via le flag `reminded`. Bénéficie à beauty/trades/medical."""
+    await asyncio.sleep(45)
+    while True:
+        try:
+            tomorrow = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
+            cursor = db.pro_bookings.find({
+                "scheduled_date": tomorrow,
+                "status": {"$in": ["pending", "confirmed", "in_progress"]},
+                "reminded": {"$ne": True},
+            }, {"_id": 0})
+            async for b in cursor:
+                cfg = VERTICALS.get(b.get("vertical")) or {}
+                label = cfg.get("label", "Rendez-vous")
+                where = "à domicile" if b.get("at_home") else ("en visio" if b.get("video_room") else "sur place")
+                try:
+                    await create_notification(
+                        b["user_id"], "pro_booking_reminder", "🗓️ Rappel : rendez-vous demain",
+                        f"{label} · {b.get('service_name', '')} demain à {b.get('scheduled_time', '')} ({where}).",
+                        {"booking_id": b["id"], "url": _reminder_url(b)})
+                except Exception:
+                    pass
+                if b.get("provider_user_id"):
+                    try:
+                        await create_notification(
+                            b["provider_user_id"], "pro_booking_reminder", "🗓️ Rappel : RDV client demain",
+                            f"{b.get('service_name', '')} · {b.get('user_name', '')} demain à {b.get('scheduled_time', '')}.",
+                            {"booking_id": b["id"], "url": f"/pro/{b.get('vertical')}"})
+                    except Exception:
+                        pass
+                await db.pro_bookings.update_one({"id": b["id"]}, {"$set": {"reminded": True}})
+        except Exception:
+            pass
+        await asyncio.sleep(3600)  # toutes les heures

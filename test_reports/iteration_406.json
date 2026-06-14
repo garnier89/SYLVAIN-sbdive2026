@@ -1,0 +1,27 @@
+{
+  "summary": "Phase 3a medical marketplace (SB Santé — Praticiens) fully validated. Backend: 9/9 pytest passed (config 12 cats/14 svcs/teal/'SB Santé — Praticiens', 9 seeded providers, next-slots, consultation booking creates video_room 'sbconsult-...', infirmier booking has no video_room, SB Pay debit + cancel refund matches wallet balance, beauty/trades non-regression). Frontend: /home medical-appointment-btn navigates to /sante; ProServiceMarketPage (vertical=medical, teal accent, 13 chips) renders; service selection -> booking flow with quick-slot-0 -> cash payment -> confirm-booking -> pro-done -> my-bookings shows Visio button (data-testid video-<id>) on consultation rows with correct https://meet.jit.si/sbconsult-... href, NO Visio button on infirmier (Injection à domicile) row, cancel-<id> works. Non-regression: /beauty and /services-metiers still render correctly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_medical_marketplace.py",
+    "/app/test_reports/pytest/iter406_medical.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ProServiceMarketPage.js openBookings() does not show a loading skeleton; if called immediately after booking creation it may briefly render an empty 'Aucun rendez-vous à venir' before list resolves (cosmetic; resolved on refresh). Consider keeping previous bookings state or showing a spinner.",
+    "create_notification call in cancel path is absent — patient gets no in-app notification on self-cancel (low priority).",
+    "_settle_completion uses hardcoded URL '/beauty' in notification when vertical != 'beauty'; should use _reminder_url(b) for consistency with medical->/sante & trades->/services-metiers.",
+    "provider_accept also hardcodes url='/beauty' in client notification (line ~755) — for medical this should be /sante."
+  ],
+  "updated_files": ["/app/backend/tests/test_medical_marketplace.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Patient: famtester@demo.sb / FamTest123!",
+  "seed_data_creation": "Used existing demo medical providers (9 approved seeded). Tests create+cancel TEST bookings (cleaned up).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Medical marketplace via /sante reuses ProServiceMarketPage with vertical='medical'. Provider notifications still reference '/beauty' for non-beauty verticals — minor RCA noted, not blocking. J-1 reminder loop is time-based and not tested live. test file at /app/backend/tests/test_medical_marketplace.py reads REACT_APP_BACKEND_URL from env or falls back to /app/frontend/.env."
+}

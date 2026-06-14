@@ -101,6 +101,7 @@ export function clientRoutes(user) {
       <Route path="/organizer/events/:id/live" element={<ProtectedRoute allowedRoles={['user']}><EventLiveDashboard /></ProtectedRoute>} />
       <Route path="/beauty" element={<ProtectedRoute allowedRoles={['user']}><ProServiceMarketPage vertical="beauty" /></ProtectedRoute>} />
       <Route path="/services-metiers" element={<ProtectedRoute allowedRoles={['user']}><ProServiceMarketPage vertical="trades" /></ProtectedRoute>} />
+      <Route path="/sante" element={<ProtectedRoute allowedRoles={['user']}><ProServiceMarketPage vertical="medical" /></ProtectedRoute>} />
       <Route path="/beauty-partners" element={<ProtectedRoute allowedRoles={['user']}><BeautyServicesPage /></ProtectedRoute>} />
       <Route path="/pro/:vertical" element={<ProtectedRoute allowedRoles={['user']}><ProServiceSpacePage /></ProtectedRoute>} />
       <Route path="/pet-care" element={<ProtectedRoute allowedRoles={['user']}><PetCarePage /></ProtectedRoute>} />

@@ -736,7 +736,7 @@ const UserHome = () => {
           <CaretRight size={18} className="text-white/80" />
         </motion.button>
         <div className="grid grid-cols-2 gap-3" data-testid="medical-services-section">
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate('/medical/appointment')} className="row-span-2 rounded-[20px] bg-blue-50/70 border border-blue-100 p-4 flex flex-col text-left" data-testid="medical-appointment-btn">
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate('/sante')} className="row-span-2 rounded-[20px] bg-blue-50/70 border border-blue-100 p-4 flex flex-col text-left" data-testid="medical-appointment-btn">
             <h4 className={`text-[15px] font-extrabold text-[#1F2430] ${HEAD}`}>Prendre Rendez-vous</h4>
             <p className={`text-[11px] text-[#475569] mt-1 leading-relaxed ${BODY}`}>RDV avec un médecin ou expert médical, au cabinet ou à domicile.</p>
             <div className="flex-1 flex items-end justify-center mt-3">

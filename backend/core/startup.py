@@ -543,6 +543,8 @@ async def lifespan(app: FastAPI):
     debt_task = asyncio.create_task(debt_reminder_loop())
     from core.no_movement import no_movement_loop
     no_movement_task = asyncio.create_task(no_movement_loop())
+    from routes.pro_services import pro_booking_reminder_loop
+    pro_reminder_task = asyncio.create_task(pro_booking_reminder_loop())
     from routes.pet_care import pet_health_reminder_loop
     pet_health_task = asyncio.create_task(pet_health_reminder_loop())
     from routes.tracking_pro import pro_expiry_reminder_loop

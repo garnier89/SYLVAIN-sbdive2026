@@ -11,7 +11,7 @@ import {
   ArrowLeft, MagnifyingGlass, Scissors, Sparkle, HandSoap, Drop, PaintBrush, Eye,
   Wrench, Lightning, Bank, Hammer, PaintRoller, Toolbox, Broom, Plant, CookingPot, Gear,
   CircleNotch, Star, CheckCircle, ClockCounterClockwise, CaretRight, House, Storefront,
-  X, Wallet, Money,
+  X, Wallet, Money, Stethoscope, Heartbeat, Syringe, VideoCamera,
 } from '@phosphor-icons/react';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -20,6 +20,8 @@ const CAT_ICON = {
   coiffure: Scissors, visage: Sparkle, corps: HandSoap, epilation: Drop, onglerie: PaintBrush, maquillage: PaintBrush, regard: Eye,
   plomberie: Wrench, electricite: Lightning, maconnerie: Bank, menuiserie: Hammer, peinture: PaintRoller,
   bricolage: Toolbox, menage: Broom, jardinage: Plant, cuisine: CookingPot, mecanique: Gear,
+  generaliste: Stethoscope, cardiologie: Heartbeat, dermatologie: Sparkle, gynecologie: Sparkle, pediatrie: Sparkle,
+  ophtalmologie: Eye, orl: Sparkle, neurologie: Sparkle, psychiatrie: Sparkle, orthopedie: Sparkle, urologie: Sparkle, infirmier: Syringe,
 };
 const SLOTS = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 const STATUS_LABEL = { pending: 'En attente', confirmed: 'Confirmé', in_progress: 'En cours', completed: 'Terminé', cancelled: 'Annulé' };
@@ -162,7 +164,12 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
         <p className="text-xs text-gray-500 mt-1">{b.scheduled_date} à {b.scheduled_time} · {b.at_home ? 'À domicile' : 'Sur place'}{b.provider_name ? ` · ${b.provider_name}` : ''}</p>
         <div className="flex justify-between items-center mt-2">
           <span className="font-bold text-gray-900 text-sm">{money(Number(b.total))}</span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {b.video_room && ['confirmed', 'in_progress'].includes(b.status) && (
+              <a href={`https://meet.jit.si/${b.video_room}`} target="_blank" rel="noreferrer" className={`text-xs font-bold text-white ${c.solid} px-3 py-1.5 rounded-lg flex items-center gap-1`} data-testid={`video-${b.id}`}>
+                <VideoCamera size={13} weight="fill" /> Visio
+              </a>
+            )}
             {['pending', 'confirmed'].includes(b.status) && <button onClick={() => cancelBooking(b.id)} className="text-xs font-semibold text-rose-600 px-2 py-1" data-testid={`cancel-${b.id}`}>Annuler</button>}
             {b.status === 'completed' && !b.reviewed && <button onClick={() => { setReviewFor(b); setReview({ rating: 5, comment: '' }); }} className={`text-xs font-semibold ${c.text} px-2 py-1 ${c.soft} rounded-lg`} data-testid={`review-${b.id}`}>Laisser un avis</button>}
           </div>
