@@ -45,3 +45,8 @@
 - **P1** : vérifier s'il reste des sous-verticales « On-Demand » à transformer en marketplaces transactionnels (Beauté/Métiers/Santé déjà complets). Admin « Onboarding partenaires » (clés API Uber/Yango/Bolt côté transport).
 - **P3** : vignette Open Graph page publique `/circuit/:token` (acquisition organique SB Travel) ; surveiller complexité `routes/rides.py` (~2640 l.) si ajout de cron.
 - **Bloqué** : vraie caution Stripe (Auth/Capture) — limitation SDK emergentintegrations.
+
+## Journal des modifications (fork courant — juin 2026)
+- **Écran d'appel in-app redesigné** (`CallContext.jsx`) : style Bolt/Uber (fond sombre, avatar rond initiale + pastille téléphone, halo animé, boutons ronds animés). Texte « Appel masqué — numéro protégé » retiré → icône bouclier verte seule.
+- **Twilio production vérifié** : compte `active` (Full), SID/token valides, numéro `+16153345871` (voice+sms), solde ~11 USD. Relais masqué opérationnel. ⚠️ Numéro US → vérifier tarifs/délivrabilité FR ; activer recharge auto.
+- **Journal des appels admin (P2 — FAIT)** : collection dédiée `masked_call_logs` (≠ `call_logs` de moderation). Logging dans `routes/calls.py` (initiate/connected/failed/relay + nouveau endpoint `ended` avec durée). Endpoint `GET /api/admin/calls` (`routes/calls_admin.py`) : KPIs (total, WebRTC, relais, aboutis, manqués, durée moy., taux réponse) + filtres canal/statut/recherche. Page admin `/admin/call-logs` (`AdminCallLogs.js`) sous menu Rapports. Test : `tests/test_iter_call_logs.py` (PASS).

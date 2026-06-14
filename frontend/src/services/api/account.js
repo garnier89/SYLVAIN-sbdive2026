@@ -20,6 +20,7 @@ export const callsAPI = {
   initiate: (rideId) => api.post(`/calls/ride/${rideId}/initiate`),
   markFailed: (rideId, callId) => api.post(`/calls/ride/${rideId}/failed`, { call_id: callId }),
   markConnected: (rideId) => api.post(`/calls/ride/${rideId}/connected`),
+  markEnded: (rideId, durationSeconds) => api.post(`/calls/ride/${rideId}/ended`, { duration_seconds: durationSeconds }),
   relay: (rideId) => api.post(`/calls/ride/${rideId}/relay`),
   status: (rideId) => api.get(`/calls/ride/${rideId}/status`),
 };

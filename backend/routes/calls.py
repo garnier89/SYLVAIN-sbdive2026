@@ -58,6 +58,38 @@ def _first_name(u: dict) -> str:
     return ((u or {}).get("name") or "").split(" ")[0] or "Contact"
 
 
+async def _log_call_start(call_id, ride_id, caller, counterpart, caller_role, channel, online):
+    """Crée une entrée de journal d'appel (Journal des appels — admin)."""
+    now = datetime.now(timezone.utc).isoformat()
+    await db.masked_call_logs.insert_one({
+        "id": uuid.uuid4().hex,
+        "call_id": call_id,
+        "ride_id": ride_id,
+        "caller_id": caller.get("id"),
+        "caller_name": (caller or {}).get("name") or "Contact",
+        "caller_role": caller_role,
+        "counterpart_id": counterpart.get("id"),
+        "counterpart_name": (counterpart or {}).get("name") or "Contact",
+        "channel": channel,            # webrtc | relay
+        "status": "initiated",         # initiated | connected | no_answer | relayed | ended | declined
+        "counterpart_online": bool(online),
+        "duration_seconds": 0,
+        "created_at": now,
+        "updated_at": now,
+        "connected_at": None,
+        "ended_at": None,
+    })
+
+
+async def _log_call_update(ride_id, caller_id, fields):
+    """Met à jour la dernière entrée de journal d'appel pour (course, appelant)."""
+    fields = {**fields, "updated_at": datetime.now(timezone.utc).isoformat()}
+    latest = await db.masked_call_logs.find_one(
+        {"ride_id": ride_id, "caller_id": caller_id}, {"_id": 1}, sort=[("created_at", -1)])
+    if latest:
+        await db.masked_call_logs.update_one({"_id": latest["_id"]}, {"$set": fields})
+
+
 @router.post("/ride/{ride_id}/initiate")
 async def initiate_call(ride_id: str, request: Request):
     """Démarre un appel : envoie une invitation WebRTC au correspondant et indique
@@ -81,6 +113,8 @@ async def initiate_call(ride_id: str, request: Request):
 
     from core.voice import voice_enabled
     use_relay = attempts >= RELAY_AFTER_ATTEMPTS
+    await _log_call_start(call_id, ride_id, caller, counterpart, caller_role,
+                          "relay" if use_relay else "webrtc", online)
     return {
         "call_id": call_id,
         "counterpart_id": counterpart["id"],
@@ -105,6 +139,7 @@ async def call_failed(ride_id: str, request: Request):
         upsert=True, return_document=ReturnDocument.AFTER,
     )
     attempts = res.get("attempts", 1)
+    await _log_call_update(ride_id, user["id"], {"status": "no_answer"})
     return {"attempts": attempts, "use_relay": attempts >= RELAY_AFTER_ATTEMPTS}
 
 
@@ -118,6 +153,25 @@ async def call_connected(ride_id: str, request: Request):
         {"$set": {"attempts": 0, "updated_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
+    await _log_call_update(ride_id, user["id"], {
+        "status": "connected", "connected_at": datetime.now(timezone.utc).isoformat()})
+    return {"ok": True}
+
+
+@router.post("/ride/{ride_id}/ended")
+async def call_ended(ride_id: str, request: Request):
+    """Fin d'appel WebRTC → enregistre la durée pour le Journal des appels."""
+    user = await get_current_user(request)
+    await _caller_counterpart(ride_id, user)
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    dur = max(0, int(body.get("duration_seconds") or 0))
+    await _log_call_update(ride_id, user["id"], {
+        "status": "ended", "duration_seconds": dur,
+        "ended_at": datetime.now(timezone.utc).isoformat()})
     return {"ok": True}
 
 
@@ -139,6 +193,9 @@ async def call_relay(ride_id: str, request: Request):
         {"$set": {"attempts": 0, "relayed_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
+    await _log_call_update(ride_id, user["id"], {
+        "channel": "relay", "status": "relayed",
+        "relayed_at": datetime.now(timezone.utc).isoformat()})
     # Confidentialité : on ne renvoie JAMAIS le numéro de mise en relation au client.
     return {"status": "ringing"}
 

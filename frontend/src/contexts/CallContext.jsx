@@ -25,6 +25,7 @@ export const CallProvider = ({ children }) => {
   const pendingIce = useRef([]);
   const pendingOffer = useRef(null);
   const ringTimer = useRef(null);
+  const connectedAtRef = useRef(null); // timestamp (ms) du passage en communication
   const ctxRef = useRef({}); // { rideId, peerChannel, callId, peerName, relayAvailable }
 
   const [state, setState] = useState('idle'); // idle|calling|incoming|connecting|in-call|ended
@@ -55,6 +56,12 @@ export const CallProvider = ({ children }) => {
     if (notifyPeer && ctxRef.current.peerChannel) {
       wsSend({ type: 'call_hangup', to: ctxRef.current.peerChannel, call_id: ctxRef.current.callId });
     }
+    // Journal des appels : enregistre la durée si l'appel avait abouti.
+    if (connectedAtRef.current && ctxRef.current.rideId) {
+      const dur = Math.round((Date.now() - connectedAtRef.current) / 1000);
+      callsAPI.markEnded?.(ctxRef.current.rideId, dur).catch(() => {});
+    }
+    connectedAtRef.current = null;
     cleanup();
     setState('idle');
     ctxRef.current = {};
@@ -69,6 +76,7 @@ export const CallProvider = ({ children }) => {
     pc.onconnectionstatechange = () => {
       if (['connected'].includes(pc.connectionState)) {
         clearTimeout(ringTimer.current);
+        connectedAtRef.current = Date.now();
         setState('in-call');
         if (ctxRef.current.rideId) callsAPI.markConnected?.(ctxRef.current.rideId).catch(() => {});
       }

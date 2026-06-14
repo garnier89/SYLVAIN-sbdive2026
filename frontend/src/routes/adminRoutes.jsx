@@ -11,6 +11,7 @@ import AdminAutoParts from '../pages/admin/AdminAutoParts';
 import AdminProServices from '../pages/admin/AdminProServices';
 import AdminDebts from '../pages/admin/AdminDebts';
 import AdminDriverActivity from '../pages/admin/AdminDriverActivity';
+import AdminCallLogs from '../pages/admin/AdminCallLogs';
 import AdminTripTimings from '../pages/admin/AdminTripTimings';
 import AdminParking from '../pages/admin/AdminParking';
 import AdminAssistTypes from '../pages/admin/AdminAssistTypes';
@@ -153,6 +154,7 @@ export function adminRoutes() {
       <Route path="pro-services/:vertical" element={<AdminProServices />} />
       <Route path="debts" element={<AdminDebts />} />
       <Route path="driver-activity" element={<AdminDriverActivity />} />
+      <Route path="call-logs" element={<AdminCallLogs />} />
       <Route path="trip-timings" element={<AdminTripTimings />} />
       <Route path="taxi-recruitment" element={<AdminTaxiRecruitment />} />
       <Route path="ride-search-config" element={<AdminServiceConfig serviceKey="ride_search" />} />

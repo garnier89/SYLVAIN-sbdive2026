@@ -136,6 +136,8 @@ export const adminAPI = {
   debtsRemind: (uid) => api.post(`/admin/debts/user/${uid}/remind`),
   // Rapport activité chauffeur
   driverActivity: (params) => api.get('/admin/driver-activity', { params }),
+  // Journal des appels masqués (WebRTC vs Relais)
+  callLogs: (params) => api.get('/admin/calls', { params }),
   // Politique dettes + timing trajets
   debtPolicyGet: () => api.get('/admin/debts/policy'),
   debtPolicySet: (body) => api.put('/admin/debts/policy', body),
