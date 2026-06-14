@@ -531,6 +531,24 @@ export const eventsAPI = {
   adminOrganizers: () => api.get('/admin/events/config/organizers'),
 };
 
+export const familyAPI = {
+  context: () => api.get('/family/context'),
+  seedDemo: () => api.post('/family/seed-demo'),
+  members: () => api.get('/family/members'),
+  addMember: (p) => api.post('/family/members', p),
+  deleteMember: (id) => api.delete(`/family/members/${id}`),
+  join: (code) => api.post('/family/join', { code }),
+  sharePing: (p) => api.post('/family/share-ping', p),
+  places: () => api.get('/family/places'),
+  createPlace: (p) => api.post('/family/places', p),
+  deletePlace: (id) => api.delete(`/family/places/${id}`),
+  sos: (p) => api.post('/family/sos', p),
+  alerts: () => api.get('/family/alerts'),
+  readAlert: (id) => api.post(`/family/alerts/${id}/read`),
+  readAllAlerts: () => api.post('/family/alerts/read-all'),
+};
+
+
 export const fleetAPI = {
   context: () => api.get('/fleet/context'),
   updateContext: (p) => api.put('/fleet/context', p),

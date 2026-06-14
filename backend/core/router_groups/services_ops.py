@@ -32,6 +32,7 @@ from routes.assistant import router as assistant_router
 from routes.giftcards import router as giftcards_router
 from routes.sbpaygo_connect import router as sbpaygo_connect_router
 from routes.fleet import router as fleet_router
+from routes.family import router as family_router
 
 ROUTERS = [
     driver_pro_router,
@@ -64,4 +65,5 @@ ROUTERS = [
     giftcards_router,
     sbpaygo_connect_router,
     fleet_router,
+    family_router,
 ]
