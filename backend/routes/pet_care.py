@@ -5,7 +5,7 @@ collected on site). Providers are read from the existing `pet_providers` catalog
 """
 from fastapi import APIRouter, Request, HTTPException
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from core.config import db
 from core.deps import get_current_user
@@ -93,6 +93,125 @@ async def delete_pet(pet_id: str, request: Request):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Animal introuvable")
     return {"ok": True}
+
+
+# ── Health record (Carnet de santé) ─────────────────────────────────────────
+HEALTH_KINDS = {"vaccine", "treatment", "document", "weight"}
+
+
+def _today():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+@router.get("/pets/{pet_id}/health")
+async def get_health(pet_id: str, request: Request):
+    user = await get_current_user(request)
+    pet = await db.user_pets.find_one({"id": pet_id, "user_id": user["id"]}, {"_id": 0})
+    if not pet:
+        raise HTTPException(status_code=404, detail="Animal introuvable")
+    recs = await db.pet_health_records.find({"pet_id": pet_id, "user_id": user["id"]}, {"_id": 0}).to_list(500)
+    grouped = {"vaccines": [], "treatments": [], "documents": [], "weights": []}
+    key = {"vaccine": "vaccines", "treatment": "treatments", "document": "documents", "weight": "weights"}
+    for r in recs:
+        grouped[key.get(r["kind"], "documents")].append(r)
+    grouped["vaccines"].sort(key=lambda x: x.get("next_due") or x.get("date") or "", reverse=True)
+    grouped["treatments"].sort(key=lambda x: x.get("next_due") or x.get("date") or "", reverse=True)
+    grouped["weights"].sort(key=lambda x: x.get("date") or "")
+    # Upcoming reminders for this pet (next_due within 30 days).
+    horizon = (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d")
+    today = _today()
+    reminders = sorted(
+        [r for r in recs if r.get("next_due") and today <= r["next_due"] <= horizon],
+        key=lambda x: x["next_due"])
+    return {"pet": pet, **grouped, "reminders": reminders}
+
+
+@router.post("/pets/{pet_id}/health")
+async def add_health(pet_id: str, request: Request):
+    user = await get_current_user(request)
+    pet = await db.user_pets.find_one({"id": pet_id, "user_id": user["id"]}, {"_id": 0})
+    if not pet:
+        raise HTTPException(status_code=404, detail="Animal introuvable")
+    body = await request.json()
+    kind = body.get("kind")
+    if kind not in HEALTH_KINDS:
+        raise HTTPException(status_code=400, detail="Type d'entrée invalide")
+    if kind in ("vaccine", "treatment", "document") and not (body.get("name") or "").strip():
+        raise HTTPException(status_code=400, detail="Le nom est requis")
+    if kind == "weight" and not body.get("weight"):
+        raise HTTPException(status_code=400, detail="Le poids est requis")
+    if kind == "document" and not body.get("url"):
+        raise HTTPException(status_code=400, detail="Téléversez le document")
+    rec = {
+        "id": f"ph_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"], "pet_id": pet_id, "pet_name": pet["name"],
+        "kind": kind,
+        "name": (body.get("name") or "").strip(),
+        "date": body.get("date") or _today(),
+        "next_due": body.get("next_due") or None,
+        "url": body.get("url", ""),
+        "weight": body.get("weight", ""),
+        "notes": body.get("notes", ""),
+        "last_reminded_at": None,
+        "created_at": _now(),
+    }
+    await db.pet_health_records.insert_one(dict(rec))
+    return rec
+
+
+@router.delete("/health/{record_id}")
+async def delete_health(record_id: str, request: Request):
+    user = await get_current_user(request)
+    res = await db.pet_health_records.delete_one({"id": record_id, "user_id": user["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Entrée introuvable")
+    return {"ok": True}
+
+
+@router.get("/health/reminders")
+async def list_reminders(request: Request):
+    """All upcoming health reminders across the user's pets (next 30 days)."""
+    user = await get_current_user(request)
+    horizon = (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d")
+    today = _today()
+    recs = await db.pet_health_records.find(
+        {"user_id": user["id"], "kind": {"$in": ["vaccine", "treatment"]},
+         "next_due": {"$gte": today, "$lte": horizon}}, {"_id": 0}).to_list(200)
+    recs.sort(key=lambda x: x["next_due"])
+    return recs
+
+
+async def pet_health_reminder_loop():
+    """Daily: notify owners when a vaccine/treatment is due within 3 days,
+    at most once per 24h (stamped on the record)."""
+    import asyncio
+    from core.notifications import create_notification
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            due_by = (now + timedelta(days=3)).strftime("%Y-%m-%d")
+            today = now.strftime("%Y-%m-%d")
+            remind_after = (now - timedelta(hours=24)).isoformat()
+            cursor = db.pet_health_records.find({
+                "kind": {"$in": ["vaccine", "treatment"]},
+                "next_due": {"$gte": today, "$lte": due_by},
+                "$or": [{"last_reminded_at": None}, {"last_reminded_at": {"$exists": False}},
+                        {"last_reminded_at": {"$lte": remind_after}}],
+            })
+            for r in await cursor.to_list(500):
+                try:
+                    await create_notification(
+                        r["user_id"], "pet_health_reminder", "🐾 Rappel santé animal",
+                        f"{r.get('name', 'Soin')} pour {r.get('pet_name', 'votre animal')} prévu le {r['next_due']}.",
+                        {"pet_id": r.get("pet_id"), "url": "/pet-care"})
+                    await db.pet_health_records.update_one(
+                        {"id": r["id"]}, {"$set": {"last_reminded_at": now.isoformat()}})
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        await asyncio.sleep(6 * 3600)  # toutes les 6h
+
 
 
 # ── Bookings (Mes rendez-vous) ──────────────────────────────────────────────

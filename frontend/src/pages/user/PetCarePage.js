@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, PawPrint, Scissors, House, Stethoscope, CalendarBlank, Plus, Trash,
   PencilSimple, MapPin, CheckCircle, Clock, CaretRight, Camera, ClockCounterClockwise, Dog,
+  Syringe, Pill, FileText, ChartLineUp, Bell,
 } from '@phosphor-icons/react';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -34,6 +35,8 @@ const PetCarePage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
   const [appts, setAppts] = useState({ upcoming: [], past: [] });
+  const [healthPet, setHealthPet] = useState(null);
+  const [reminders, setReminders] = useState([]);
 
   const loadPets = useCallback(async () => {
     try { const r = await fetch(`${API}/api/pet-care/pets`, { credentials: 'include' }); setPets(await r.json()); } catch { /* */ }
@@ -41,6 +44,8 @@ const PetCarePage = () => {
   useEffect(() => {
     fetch(`${API}/api/pet-care/services`, { credentials: 'include' }).then(r => r.json())
       .then(d => { setServices(d.services || []); setSpecies(d.species || []); }).catch(() => {});
+    fetch(`${API}/api/pet-care/health/reminders`, { credentials: 'include' }).then(r => r.json())
+      .then(d => setReminders(Array.isArray(d) ? d : [])).catch(() => {});
     loadPets();
   }, [loadPets]);
 
@@ -100,7 +105,13 @@ const PetCarePage = () => {
 
   // ── Pets manager ──
   if (screen === 'pets') {
-    return <PetsManager pets={pets} species={species} onBack={() => setScreen('home')} reload={loadPets} money={money} />;
+    return <PetsManager pets={pets} species={species} onBack={() => setScreen('home')} reload={loadPets} money={money}
+      onHealth={(p) => { setHealthPet(p); setScreen('health'); }} />;
+  }
+
+  // ── Health record (Carnet de santé) ──
+  if (screen === 'health' && healthPet) {
+    return <HealthRecord pet={healthPet} species={species} onBack={() => setScreen('pets')} />;
   }
 
   // ── Appointments ──
@@ -282,6 +293,17 @@ const PetCarePage = () => {
       </div>
 
       <div className="p-4 space-y-4">
+        {reminders.length > 0 && (
+          <button onClick={() => setScreen('pets')} className="w-full bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-center gap-3 text-left" data-testid="health-reminders-banner">
+            <div className="w-9 h-9 rounded-xl bg-rose-500 flex items-center justify-center flex-shrink-0"><Syringe size={18} className="text-white" weight="fill" /></div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-rose-700 text-sm">{reminders.length} rappel{reminders.length > 1 ? 's' : ''} santé à venir</p>
+              <p className="text-xs text-rose-500 truncate">{reminders[0].name} · {reminders[0].pet_name} · {reminders[0].next_due}</p>
+            </div>
+            <CaretRight size={18} className="text-rose-300" />
+          </button>
+        )}
+
         {/* My pets quick access */}
         <button onClick={() => setScreen('pets')} className="w-full bg-white rounded-2xl p-3 border border-gray-100 flex items-center gap-3" data-testid="my-pets-btn">
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center"><Dog size={22} className="text-amber-600" weight="fill" /></div>
@@ -329,8 +351,140 @@ const PetAvatar = ({ pet }) => (
     : <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0"><PawPrint size={22} className="text-amber-500" weight="fill" /></div>
 );
 
+/* ---------- Health record (Carnet de santé) ---------- */
+const HEALTH_SECTIONS = [
+  { kind: 'vaccine', key: 'vaccines', label: 'Vaccins', icon: Syringe, color: 'rose', hasDue: true },
+  { kind: 'treatment', key: 'treatments', label: 'Traitements / Vermifuges', icon: Pill, color: 'violet', hasDue: true },
+  { kind: 'document', key: 'documents', label: 'Ordonnances / Documents', icon: FileText, color: 'blue', hasDoc: true },
+  { kind: 'weight', key: 'weights', label: 'Suivi du poids', icon: ChartLineUp, color: 'emerald', isWeight: true },
+];
+
+const HealthRecord = ({ pet, onBack }) => {
+  const [data, setData] = useState({ vaccines: [], treatments: [], documents: [], weights: [], reminders: [] });
+  const [adding, setAdding] = useState(null); // section.kind
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try { const r = await fetch(`${API}/api/pet-care/pets/${pet.id}/health`, { credentials: 'include' }); setData(await r.json()); } catch { /* */ }
+  }, [pet.id]);
+  useEffect(() => { load(); }, [load]);
+
+  const openAdd = (kind) => { setForm({ kind, date: todayISO() }); setAdding(kind); };
+
+  const uploadDoc = async (files) => {
+    const file = files?.[0]; if (!file) return;
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const up = await fetch(`${API}/api/uploads/image`, { method: 'POST', credentials: 'include', body: fd });
+      const ud = await up.json();
+      if (up.ok) setForm(f => ({ ...f, url: ud.url, name: f.name || file.name })); else toast.error('Échec upload');
+    } catch { toast.error('Erreur upload'); }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`${API}/api/pet-care/pets/${pet.id}/health`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(form),
+      });
+      const d = await r.json();
+      if (r.ok) { toast.success('Ajouté'); setAdding(null); load(); } else toast.error(d.detail || 'Échec');
+    } catch { toast.error('Erreur réseau'); } finally { setSaving(false); }
+  };
+
+  const del = async (id) => {
+    try { await fetch(`${API}/api/pet-care/health/${id}`, { method: 'DELETE', credentials: 'include' }); load(); } catch { /* */ }
+  };
+
+  return (
+    <div className="mobile-container min-h-screen bg-gray-50 pb-10" data-testid="pet-health">
+      <Header title={`Carnet de santé · ${pet.name}`} onBack={onBack} />
+      <div className="p-4 space-y-4">
+        {data.reminders?.length > 0 && (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-center gap-2" data-testid="health-due-banner">
+            <Bell size={18} className="text-rose-500" weight="fill" />
+            <p className="text-xs text-rose-700"><b>{data.reminders.length}</b> rappel(s) à venir — prochain : {data.reminders[0].name} le {data.reminders[0].next_due}</p>
+          </div>
+        )}
+
+        {HEALTH_SECTIONS.map((sec) => {
+          const items = data[sec.key] || [];
+          const Ic = sec.icon;
+          return (
+            <div key={sec.kind} className="bg-white rounded-2xl p-4" data-testid={`health-section-${sec.kind}`}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-bold text-gray-900 text-sm flex items-center gap-2"><Ic size={18} className={`text-${sec.color}-500`} weight="fill" /> {sec.label}</p>
+                <button onClick={() => openAdd(sec.kind)} className={`text-xs font-semibold text-${sec.color}-600 flex items-center gap-1`} data-testid={`add-${sec.kind}`}><Plus size={14} /> Ajouter</button>
+              </div>
+              {items.length === 0 ? (
+                <p className="text-xs text-gray-400 py-1">Aucune entrée</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {items.map((it) => (
+                    <div key={it.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0" data-testid={`health-item-${it.id}`}>
+                      <div className="flex-1 min-w-0">
+                        {sec.isWeight ? (
+                          <p className="text-sm text-gray-800"><b>{it.weight} kg</b> <span className="text-xs text-gray-400">· {it.date}</span></p>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium text-gray-800 truncate">
+                              {sec.hasDoc && it.url ? <a href={`${API}${it.url}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">{it.name}</a> : it.name}
+                            </p>
+                            <p className="text-[11px] text-gray-400">
+                              {it.date}{it.next_due ? ` · prochain rappel : ${it.next_due}` : ''}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                      <button onClick={() => del(it.id)} className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center" data-testid={`del-health-${it.id}`}><Trash size={14} className="text-gray-400" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Add entry sheet */}
+      {adding && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setAdding(null)} data-testid="health-add-sheet">
+          <div className="bg-white w-full max-w-[430px] mx-auto rounded-t-3xl p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <p className="font-bold text-gray-900">{HEALTH_SECTIONS.find(s => s.kind === adding)?.label}</p>
+            {adding === 'weight' ? (
+              <input type="number" value={form.weight || ''} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="Poids (kg)" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="health-weight-input" />
+            ) : (
+              <input value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={adding === 'document' ? 'Titre du document' : 'Nom (ex: Rage, Vermifuge…)'} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" data-testid="health-name-input" />
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase font-bold text-gray-400">Date</label>
+                <input type="date" value={form.date || ''} onChange={(e) => setForm({ ...form, date: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="health-date-input" />
+              </div>
+              {['vaccine', 'treatment'].includes(adding) && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-gray-400">Prochain rappel</label>
+                  <input type="date" value={form.next_due || ''} onChange={(e) => setForm({ ...form, next_due: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="health-due-input" />
+                </div>
+              )}
+            </div>
+            {adding === 'document' && (
+              <label className="flex items-center justify-center gap-2 border border-dashed border-blue-300 text-blue-600 rounded-lg py-3 text-sm font-semibold cursor-pointer" data-testid="health-doc-upload">
+                <FileText size={16} /> {form.url ? 'Document ajouté ✓' : 'Téléverser le document'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadDoc(e.target.files)} />
+              </label>
+            )}
+            <button onClick={save} disabled={saving} className="w-full bg-amber-500 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-60" data-testid="health-save-btn">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ---------- Pets manager (CRUD) ---------- */
-const PetsManager = ({ pets, species, onBack, reload }) => {
+const PetsManager = ({ pets, species, onBack, reload, onHealth }) => {
   const [editing, setEditing] = useState(null); // null | {} (new) | pet
   const blank = { name: '', species: species[0] || 'Chien', breed: '', age: '', weight: '', photo: '', notes: '' };
   const [form, setForm] = useState(blank);
@@ -414,6 +568,7 @@ const PetsManager = ({ pets, species, onBack, reload }) => {
               <p className="font-bold text-gray-900 text-sm">{p.name}</p>
               <p className="text-xs text-gray-500">{p.species}{p.breed ? ` · ${p.breed}` : ''}{p.age ? ` · ${p.age}` : ''}</p>
             </div>
+            <button onClick={() => onHealth(p)} className="px-2.5 h-8 rounded-lg bg-rose-50 flex items-center gap-1 text-rose-600 text-xs font-semibold" data-testid={`health-pet-${p.id}`}><Syringe size={14} weight="fill" /> Carnet</button>
             <button onClick={() => openEdit(p)} className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center" data-testid={`edit-pet-${p.id}`}><PencilSimple size={16} className="text-gray-500" /></button>
             <button onClick={() => remove(p.id)} className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center" data-testid={`delete-pet-${p.id}`}><Trash size={16} className="text-rose-500" /></button>
           </div>
