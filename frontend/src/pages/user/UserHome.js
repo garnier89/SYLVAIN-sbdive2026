@@ -468,15 +468,22 @@ const UserHome = () => {
   };
   const displayFor = (key) => {
     const cms = cmsItems.filter((i) => i.section === key).sort((a, b) => a.display_order - b.display_order);
-    if (!cms.length) return sectionFallback[key] || [];
-    const visible = cms.filter((i) => i.visible_home).map((i) => ({
-      id: i.id, name: i.label_fr, iconName: i.icon_name, imageUrl: i.image_url, imageFit: i.image_fit,
-      bg: i.bg_class, iconColor: i.icon_color_class, path: i.target_route, badge: i.badge || '',
-    }));
-    if (cms.some((i) => !i.visible_home)) {
-      visible.push({ id: `${key}-more`, name: 'Plus de\nServices', iconName: 'GridFour', bg: 'bg-slate-100', iconColor: 'text-gray-600', path: sectionAllRoute[key] });
+    const base = (() => {
+      if (!cms.length) return sectionFallback[key] || [];
+      const visible = cms.filter((i) => i.visible_home).map((i) => ({
+        id: i.id, name: i.label_fr, iconName: i.icon_name, imageUrl: i.image_url, imageFit: i.image_fit,
+        bg: i.bg_class, iconColor: i.icon_color_class, path: i.target_route, badge: i.badge || '',
+      }));
+      if (cms.some((i) => !i.visible_home)) {
+        visible.push({ id: `${key}-more`, name: 'Plus de\nServices', iconName: 'GridFour', bg: 'bg-slate-100', iconColor: 'text-gray-600', path: sectionAllRoute[key] });
+      }
+      return visible;
+    })();
+    // Always surface the SB Tracking entry in the on-demand section (CMS-agnostic).
+    if (key === 'ondemand' && !base.some((t) => t.path === '/sb-tracking')) {
+      return [{ id: 'sb-tracking', name: 'SB\nTracking', iconName: 'MapPin', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/sb-tracking', badge: 'New' }, ...base];
     }
-    return visible;
+    return base;
   };
 
   // Taxi Home tiles built from "Gérer les catégories" (admin) → names/order/active
