@@ -13,7 +13,7 @@ import {
   ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, SbMarketHub, SbMarketDetail, SbMarketInbox, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
   NearbyBusinessPage, BeautyServicesPage, ProServiceMarketPage, ProServiceSpacePage, PetServicesPage, PetCarePage, CarCarePage, AutoPartsPage, TowingServicesPage, TowingRequestPage, TowingOperatorPage,
   EventsPage, EventDetailPage, MyEventTicketsPage, OrganizerSpace, OrganizerDashboard, EventCheckinPage, StaffCheckpointPage, EventLiveDashboard,
-  VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage,
+  VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage, PractitionerPage, MyPrescriptionsPage,
   DeliveryTrackingPage, DeliveryJobsPage, RealEstatePage, PropertyDetailPage, PostPropertyPage,
   MyPropertiesPage, PharmacyPage, PharmacyCatalogPage, PharmacyPrescriptionPage, PharmacyOrdersPage,
   BiddingPage, TaxiBiddingPage, AdvancedTaxiBookingPage, CorporateAccountPage, TaxiHubPage,
@@ -112,6 +112,8 @@ export function clientRoutes(user) {
       <Route path="/espace-depanneur" element={<ProtectedRoute allowedRoles={['user']}><TowingOperatorPage /></ProtectedRoute>} />
       <Route path="/more-taxi" element={<Navigate to="/taxi" replace />} />
       <Route path="/video-consult" element={<ProtectedRoute allowedRoles={['user']}><VideoConsultPage /></ProtectedRoute>} />
+      <Route path="/mes-ordonnances" element={<ProtectedRoute allowedRoles={['user']}><MyPrescriptionsPage /></ProtectedRoute>} />
+      <Route path="/praticien" element={<ProtectedRoute allowedRoles={['user']}><PractitionerPage /></ProtectedRoute>} />
       <Route path="/medical/appointment" element={<ProtectedRoute allowedRoles={['user']}><MedicalAppointmentPage /></ProtectedRoute>} />
       <Route path="/medical/transport" element={<ProtectedRoute allowedRoles={['user']}><MedicalTransportPage /></ProtectedRoute>} />
       <Route path="/track/:type/:id" element={<ProtectedRoute allowedRoles={['user']}><DeliveryTrackingPage /></ProtectedRoute>} />

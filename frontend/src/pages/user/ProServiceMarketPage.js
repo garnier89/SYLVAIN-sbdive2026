@@ -26,6 +26,7 @@ const STATUS_LABEL = { pending: 'En attente', confirmed: 'Confirmé', in_progres
 const ACCENT = {
   pink: { grad: 'from-pink-500 to-rose-600', solid: 'bg-pink-600', text: 'text-pink-600', soft: 'bg-pink-50', icon: 'text-pink-500', iconBg: 'bg-pink-50', tint: 'bg-pink-100', ring: 'border-pink-500 bg-pink-50', spin: 'text-pink-300' },
   amber: { grad: 'from-amber-500 to-orange-600', solid: 'bg-amber-600', text: 'text-amber-600', soft: 'bg-amber-50', icon: 'text-amber-600', iconBg: 'bg-amber-50', tint: 'bg-amber-100', ring: 'border-amber-500 bg-amber-50', spin: 'text-amber-300' },
+  teal: { grad: 'from-teal-500 to-emerald-600', solid: 'bg-teal-600', text: 'text-teal-600', soft: 'bg-teal-50', icon: 'text-teal-600', iconBg: 'bg-teal-50', tint: 'bg-teal-100', ring: 'border-teal-500 bg-teal-50', spin: 'text-teal-300' },
 };
 
 const Stars = ({ value, size = 14 }) => (

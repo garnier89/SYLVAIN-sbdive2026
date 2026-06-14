@@ -758,6 +758,15 @@ const UserHome = () => {
           </div>
           <CaretRight size={18} className="text-[#94A3B8]" />
         </motion.button>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/mes-ordonnances')} className="mt-3 w-full rounded-[20px] bg-teal-50/70 border border-teal-100 p-3.5 flex items-center gap-4 text-left" data-testid="medical-prescriptions-btn">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-sm"><FirstAid size={26} weight="duotone" className="text-teal-600" /></div>
+          <div className="flex-1">
+            <h4 className={`text-sm font-extrabold text-[#1F2430] ${HEAD}`}>Mes ordonnances</h4>
+            <p className={`text-[11px] text-[#475569] mt-0.5 leading-relaxed ${BODY}`}>Ordonnances électroniques · commander en pharmacie.</p>
+          </div>
+          <CaretRight size={18} className="text-[#94A3B8]" />
+        </motion.button>
+        <button onClick={() => navigate('/praticien')} className="mt-2 w-full text-center text-[11px] font-semibold text-teal-600 py-1" data-testid="practitioner-space-link">Vous êtes médecin / infirmier ? Espace praticien →</button>
       </section>
     ),
     ondemand: (

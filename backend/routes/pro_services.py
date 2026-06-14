@@ -155,6 +155,50 @@ TRADES = {
 
 VERTICALS["trades"] = TRADES
 
+
+# ── Verticale : Médical (praticiens — onboarding/KYC réutilisé ; ordonnances via routes/medical.py) ──
+def _consult(sid, cat, name, price):
+    return _svc(sid, cat, name, price, 30)
+
+
+MEDICAL = {
+    "label": "SB Santé — Praticiens",
+    "accent": "teal",
+    "home_surcharge": 20.0,
+    "categories": [
+        {"id": "generaliste", "label": "Médecine générale", "icon": "Stethoscope"},
+        {"id": "cardiologie", "label": "Cardiologie", "icon": "Heartbeat"},
+        {"id": "dermatologie", "label": "Dermatologie", "icon": "Sparkle"},
+        {"id": "gynecologie", "label": "Gynécologie", "icon": "Sparkle"},
+        {"id": "pediatrie", "label": "Pédiatrie", "icon": "Sparkle"},
+        {"id": "ophtalmologie", "label": "Ophtalmologie", "icon": "Eye"},
+        {"id": "orl", "label": "ORL", "icon": "Sparkle"},
+        {"id": "neurologie", "label": "Neurologie", "icon": "Sparkle"},
+        {"id": "psychiatrie", "label": "Psychiatrie / Santé mentale", "icon": "Sparkle"},
+        {"id": "orthopedie", "label": "Orthopédie", "icon": "Sparkle"},
+        {"id": "urologie", "label": "Urologie", "icon": "Sparkle"},
+        {"id": "infirmier", "label": "Soins infirmiers à domicile", "icon": "Syringe"},
+    ],
+    "services": [
+        _consult("m_generaliste", "generaliste", "Consultation médecine générale", 25),
+        _consult("m_cardiologie", "cardiologie", "Consultation cardiologie", 55),
+        _consult("m_dermatologie", "dermatologie", "Consultation dermatologie", 50),
+        _consult("m_gynecologie", "gynecologie", "Consultation gynécologie", 55),
+        _consult("m_pediatrie", "pediatrie", "Consultation pédiatrie", 40),
+        _consult("m_ophtalmologie", "ophtalmologie", "Consultation ophtalmologie", 50),
+        _consult("m_orl", "orl", "Consultation ORL", 45),
+        _consult("m_neurologie", "neurologie", "Consultation neurologie", 70),
+        _consult("m_psychiatrie", "psychiatrie", "Consultation psychiatrie", 70),
+        _consult("m_orthopedie", "orthopedie", "Consultation orthopédie", 60),
+        _consult("m_urologie", "urologie", "Consultation urologie", 60),
+        _svc("m_inj", "infirmier", "Injection à domicile", 20, 20),
+        _svc("m_pansement", "infirmier", "Pansement / soins", 25, 30),
+        _svc("m_perfusion", "infirmier", "Perfusion à domicile", 40, 60),
+    ],
+}
+
+VERTICALS["medical"] = MEDICAL
+
 # Demo providers per vertical (idempotent seed; no user_id = not loggable).
 _AV = "https://images.unsplash.com/"
 _BEAUTY_PROVIDERS = [

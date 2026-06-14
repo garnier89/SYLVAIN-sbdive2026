@@ -1,0 +1,30 @@
+{
+  "summary": "Phase 3b — Ordonnances électroniques (e-prescriptions). Backend pytest 11/11 (login famtester+freeuser+admin, /api/medical/practitioner/status, 12 spécialités, 403 si non validé, POST /api/medical/prescriptions, GET inbox patient + outbox praticien, PDF binary download, admin list, non-régression beauty/trades configs, vertical medical config). Frontend Playwright (mobile 430px): TEST1 famtester→/praticien affiche practitioner-register avec 12 cats (reg-cat-generaliste/cardiologie/infirmier/pediatrie/dermatologie présents) + reg-name/city/submit. TEST2 /mes-ordonnances liste 3 ordonnances (rx-rx_xxx, rx-pdf-, rx-order-, 6 rx-med-line). TEST3 /home boutons medical-prescriptions-btn et practitioner-space-link naviguent correctement vers /mes-ordonnances et /praticien. TEST4 clic rx-order navigue vers /pharmacy/prescription?note=… et rx-note-input contient 'Amoxicilline (1g) — 7 jours / Doliprane (1000mg) — 5 jours' (prefill OK). TEST5 freeuser→/praticien affiche practitioner-dashboard + issue-form complet (rx-patient-email, rx-diagnosis, rx-med-name-0/dosage/duration, rx-add-med, rx-submit) + 3 ordonnances émises. TEST6 E2E issue (Ibuprofene + Vitamine C → famtester) : cartes 'issued-' passées de 3 à 4 = succès. TEST7 admin /admin/pro-services/medical : admin-pro-services rendu, titre Santé/Praticiens présent, bouton Refuser visible (freeuser déjà approved → action démotion).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin /admin/pro-services/medical", "issues": ["Aucun praticien 'pending' visible pour démontrer le flux Valider/Refuser KYC (freeuser déjà approuvé). Seul un bouton 'Refuser' apparaît — non bloquant mais cas pending non testable sans nouvel inscrit."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter_phase3b_medical_rx.py", "/app/test_reports/pytest/iter402_medical_rx.xml"],
+  "action_items": [
+    "Optionnel : seed un praticien 'pending' (ex. famtester-prac@…) pour permettre la démo du flux Valider KYC côté admin.",
+    "Note non-régression : /beauty et /services-metiers redirigent vers /admin quand l'utilisateur connecté est admin (comportement attendu, vérifié OK pour patient + praticien)."
+  ],
+  "critical_code_review_comments": [
+    "Backend /api/medical/prescriptions retourne directement le doc Mongo sans modèle Pydantic — OK car _pub() exclut _id, mais préférer un PrescriptionResponse pour stricter typing.",
+    "POST /api/medical/prescriptions retourne 200 (devrait être 201 Created sémantiquement) — mineur.",
+    "PractitionerPage.js (200 lignes) acceptable, mais factoriser DocBtn et le formulaire issue-form en sous-composants si le fichier grandit.",
+    "Aucune validation côté backend du format email patient (lower+strip uniquement) — Pydantic EmailStr serait plus robuste."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter_phase3b_medical_rx.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (8/8 scénarios, le 8e non-régression OK)"},
+  "test_credentials": "Patient famtester@demo.sb / FamTest123! ; Praticien validé freeuser@demo.sb / FreeUser123! ; Admin admin@superapp.com / SuperAdmin123! — tous OK via POST /api/auth/login (cookies httpOnly).",
+  "seed_data_creation": "Une ordonnance supplémentaire (Ibuprofene + Vitamine C) émise par freeuser à famtester durant le test E2E (TEST6). Persistée en base, visible dans /mes-ordonnances.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Endpoint login = POST /api/auth/login (pas /login/email). Frontend mobile-first 430px. Pour switch d'utilisateur en Playwright : await page.evaluate('localStorage.clear()') + await page.context.clear_cookies() puis re-login via /login/email (champ Email + Mot de passe + bouton 'Se connecter'). Le vertical métiers s'appelle 'trades' côté backend (/api/pro-services/trades/config) mais l'URL frontend reste /services-metiers. Verticales pro_services dans VERTICALS: {beauty, trades, medical}.",
+  "rca of the issue": "Aucun bug fonctionnel détecté. Phase 3b 100% opérationnelle (pratrcien + patient + admin + intégration pharmacie)."
+}

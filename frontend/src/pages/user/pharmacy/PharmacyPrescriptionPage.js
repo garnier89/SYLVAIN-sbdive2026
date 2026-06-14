@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { pharmacyAPI } from '../../../services/api';
 import { ArrowLeft, Camera, CheckCircle, Prescription, X } from '@phosphor-icons/react';
@@ -7,10 +7,11 @@ import PharmacyMapPicker from './PharmacyMapPicker';
 
 const PharmacyPrescriptionPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [pharmacies, setPharmacies] = useState([]);
   const [image, setImage] = useState(null); // base64
   const [coords, setCoords] = useState(null);
-  const [form, setForm] = useState({ pharmacy_id: '', delivery_address: '', recipient_name: '', recipient_phone: '', prescription_note: '' });
+  const [form, setForm] = useState({ pharmacy_id: '', delivery_address: '', recipient_name: '', recipient_phone: '', prescription_note: searchParams.get('note') || '' });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 

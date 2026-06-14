@@ -17,6 +17,7 @@ const STATUS_LABEL = { pending: 'En attente', confirmed: 'Confirmé', in_progres
 const ACCENT = {
   beauty: { grad: 'from-pink-600 to-rose-700', solid: 'bg-pink-600', text: 'text-pink-600', soft: 'bg-pink-50', softText: 'text-pink-800', border: 'border-pink-100', spin: 'text-pink-400', selBorder: 'border-pink-600' },
   trades: { grad: 'from-amber-600 to-orange-700', solid: 'bg-amber-600', text: 'text-amber-600', soft: 'bg-amber-50', softText: 'text-amber-800', border: 'border-amber-100', spin: 'text-amber-400', selBorder: 'border-amber-600' },
+  medical: { grad: 'from-teal-600 to-emerald-700', solid: 'bg-teal-600', text: 'text-teal-600', soft: 'bg-teal-50', softText: 'text-teal-800', border: 'border-teal-100', spin: 'text-teal-400', selBorder: 'border-teal-600' },
 };
 
 const ProServiceSpacePage = () => {
