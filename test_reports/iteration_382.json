@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only E2E test (mobile viewport 430x900, user famtester@demo.sb) of the NEW SB Market unified detail page (/sb-market/{mp|re}/{id}) and integrated buyer<->seller chat panel. All 6 review-request flows are functionally PASS: (1) Real-estate listing 'Appartement T3 lumineux (TEST) MODIFIÉ' (prop_0a5c07698325) opens at /sb-market/re/prop_0a5c07698325 with data-testid='sb-market-detail' and renders market-detail-title, market-detail-price (199 000 €), market-detail-image, seller card 'Paul Vendeur — 9 vues', description, amenities (Balcon), AND property specs (3 ch., 1 sdb, 75 m²). (2) Marketplace listing 'Canapé cuir 3 places (TEST) MODIFIÉ' (listing_14a2f429450c) opens at /sb-market/mp/listing_14a2f429450c with title 350 € and full detail layout. (3) Sticky 'Contacter le vendeur' button (market-detail-contact) is visible because famtester is NOT the owner — confirmed for both RE and MP. (4) Clicking contact opens market-chat-panel (verified after bypassing an overlay — see issue below); chat header shows seller name + listing title; typing in market-chat-input and clicking market-chat-send appends a right-aligned (bg-rose-500) bubble in market-chat-messages — VERIFIED. (5) market-chat-close hides the panel (count 1 -> 0). (6) market-detail-back returns to /sb-market hub. Favorite heart (fav-btn-{id}) toggles WITHOUT changing URL — confirmed (url stays /sb-market/re/prop_0a5c07698325 after click).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SbMarketDetail.js — sticky action bar",
+        "issue": "The 'Vérifiez votre email / Activez votre compte pour le sécuriser' verification banner (rendered globally for unverified accounts) is layered on top of the bottom sticky action bar (which has z-20). On mobile 430px width, the banner visually overlaps the right portion of the 'Contacter le vendeur' button and intercepts pointer events: a normal Playwright click on [data-testid=market-detail-contact] does NOT trigger the onClick handler (chat panel count stays 0). Only a programmatic JS .click() bypass worked. Real users tapping that zone will hit the banner's 'Vérifier' button instead of contacting the seller.",
+        "selector": "[data-testid=market-detail-contact] vs the global EmailVerificationBanner",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Detail page bottom area", "issues": ["Email verification banner and the fixed action bar occupy the same screen region — increase action-bar z-index above the banner (or shift the banner upward when on /sb-market/* detail pages, or hide it on these pages)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix z-index/positioning conflict: the EmailVerificationBanner overlays the sticky 'market-detail-contact' button on /sb-market/{mp|re}/{id} for unverified users. Either (a) raise the action-bar z-index above the banner, (b) push the banner above the action bar (bottom: 80px) on detail pages, or (c) hide the banner on these routes. This is the only blocker to the contact->chat flow on real devices.",
+    "(Optional polish) The detail-page back button uses navigate(-1); if the user lands directly on the detail URL (deep link), there is no history — consider falling back to navigate('/sb-market')."
+  ],
+  "critical_code_review_comments": [
+    "SbMarketDetail.js (~207 lines): clean, well-componentized, normalises both verticals to a common shape, uses useAuth() for owner detection — good.",
+    "MarketChatPanel.js (~172 lines): correctly dedupes incoming messages (some(m=>m.id===...)), uses both WS event 'marketplace_message' and 5s poll fallback, marks thread read on inbound — solid design.",
+    "Sticky action bar uses `z-20`; global EmailVerificationBanner appears to use a higher z-index (visible above the bar) — this is the only real-world bug.",
+    "navigate(-1) on back button is fragile for deep links — consider navigate('/sb-market') as fallback if history.length <= 1.",
+    "Loading state in MarketChatPanel disables only the input; the send button is enabled when text is present but threadRef may still be null on first frame — current guard (`if (!t || !thread?.id || sending) return;`) handles it, but a `disabled={loading || sending || !text.trim()}` would be cleaner UX.",
+    "isOwner check `user && item.user_id === user.id` is correct; if user_id is missing on backend (Tesla Model Y, Canapé d'angle seed), the contact button still renders — desired per the agent note, but startThread will then fail with a toast 'Conversation indisponible'. Not tested directly here."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped per request)", "frontend": "100% functional pass (6/6 review items) — 1 HIGH UI overlay bug found" },
+  "test_credentials": "famtester@demo.sb / FamTest123! — login via 'Continuer avec l'e-mail'. NOTE: this account is NOT email-verified, which is what triggers the overlapping verification banner.",
+  "seed_data_creation": "None — used existing seeded RE 'Appartement T3 lumineux' (prop_0a5c07698325, owner Paul Vendeur) and MP 'Canapé cuir 3 places' (listing_14a2f429450c).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Detail page + chat panel core logic is working. The only blocker is the EmailVerificationBanner z-index covering the bottom sticky action bar on /sb-market/{mp|re}/{id} for unverified users. The chat backend (startThread, threadMessages, sendMessage) and the WS event 'marketplace_message' all work — verified by the JS-dispatched click path. After the fix, retest by clicking market-detail-contact normally (no force/JS), then send a message and verify the right-aligned bubble. Backend was already curl-verified per the agent note.",
+  "rca_of_the_issue": "Root cause: The global 'Vérifiez votre email' verification banner is rendered with a z-index greater than the SbMarketDetail sticky action bar (z-20). On mobile widths (~430px) the banner card visually overlaps the right half of the 'Contacter le vendeur' button. Reproduction: login as famtester@demo.sb (unverified) -> open /sb-market/re/prop_0a5c07698325 -> attempt to click [data-testid=market-detail-contact] -> chat panel does NOT open. Mitigation options ranked: (1) bump the action-bar wrapper to z-[3300] (above the banner stack); (2) translate the verification banner above the action bar (bottom: 5rem) on /sb-market/* routes; (3) hide the banner on detail routes via path check in the banner component."
+}

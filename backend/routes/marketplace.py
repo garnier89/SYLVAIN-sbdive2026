@@ -22,14 +22,24 @@ def _norm_kind(v):
 
 # ===== In-app buyer <-> seller messaging =====
 
+# Unified buyer<->seller threads work across the SB Market verticals: classic
+# marketplace items/vehicles AND real-estate listings (single thread infra).
+_THREAD_LISTING_COLLECTIONS = {
+    "marketplace": "marketplace_listings",
+    "realestate": "property_listings",
+}
+
+
 @router.post("/threads")
 async def start_thread(request: Request):
     """Get or create a conversation thread between the current user (buyer) and a
-    listing's seller."""
+    listing's seller. Supports `item_type` = marketplace (default) | realestate."""
     buyer = await get_current_user(request)
     body = await request.json()
     listing_id = body.get("listing_id")
-    listing = await db.marketplace_listings.find_one({"id": listing_id}, {"_id": 0})
+    item_type = (body.get("item_type") or "marketplace").strip().lower()
+    coll = _THREAD_LISTING_COLLECTIONS.get(item_type, "marketplace_listings")
+    listing = await db[coll].find_one({"id": listing_id}, {"_id": 0})
     if not listing:
         raise HTTPException(status_code=404, detail="Annonce introuvable")
     seller_id = listing.get("user_id")
@@ -42,16 +52,25 @@ async def start_thread(request: Request):
     if existing:
         return existing
 
+    if item_type == "realestate":
+        imgs = listing.get("images") or []
+        listing_image = listing.get("thumbnail") or (imgs[0] if imgs else "")
+        seller_name = listing.get("owner_name", "Vendeur")
+    else:
+        listing_image = listing.get("image", "")
+        seller_name = listing.get("seller_name", "Vendeur")
+
     now = datetime.now(timezone.utc).isoformat()
     thread = {
         "id": f"thr_{uuid.uuid4().hex[:12]}",
+        "item_type": item_type,
         "listing_id": listing_id,
         "listing_title": listing.get("title", ""),
-        "listing_image": listing.get("image", ""),
+        "listing_image": listing_image,
         "buyer_id": buyer["id"],
         "buyer_name": buyer.get("name", "Acheteur"),
         "seller_id": seller_id,
-        "seller_name": listing.get("seller_name", "Vendeur"),
+        "seller_name": seller_name,
         "last_message": None,
         "last_message_at": None,
         "created_at": now,

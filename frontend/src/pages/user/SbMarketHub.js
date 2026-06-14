@@ -178,7 +178,7 @@ const SbMarketHub = () => {
     else if (cat.action.sheet === 'location') setLocationOpen(true);
   };
 
-  const openListing = (item) => navigate(item.route);
+  const openListing = (item) => navigate(`/sb-market/${item.source === 'realestate' ? 're' : 'mp'}/${item.id}`);
 
   const q = query.trim().toLowerCase();
   const visible = items.filter((it) => {
