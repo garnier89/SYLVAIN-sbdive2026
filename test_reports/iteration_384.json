@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend regression smoke test for the services/api.js refactor (1345-line monolith split into per-domain modules under services/api/*, with api.js now a thin barrel). All 7 required flows passed cleanly with ZERO console errors and ZERO uncaught/module-resolution errors. Tested on mobile viewport (430x900) using famtester@demo.sb.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Barrel /app/frontend/src/services/api.js (15 lines) cleanly re-exports from ./api/account, ./api/mobility, ./api/commerce, ./api/market, ./api/tracking, ./api/events, ./api/travel, ./api/health, ./api/content, ./api/admin, plus { api } and default from ./api/client.",
+    "Verified the consumer-facing API names live in the expected domains: authAPI (account.js), marketplaceAPI/favoritesAPI/walletAPI (commerce.js), realEstateAPI (market.js). All imports via the barrel still resolve.",
+    "Domain modules total 1383 lines (vs former monolith 1345) - small overhead from per-file imports/exports, acceptable. Each domain file is under 300 lines, well within the 700-line guideline."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "famtester@demo.sb / FamTest123! (from request, valid)",
+  "seed_data_creation": "None - used existing test listings (Maison TEST Créée 250 000 €, Canapé cuir, Appartement T3 lumineux, etc.) and existing inbox conversations (Jean, Paul Vendeur, Jean Test).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Refactor regression fully validated. Login flow: /login -> 'Continuer avec l'e-mail' -> data-testid='email-input' + data-testid='password-input' + 'Se connecter' text button. Listing cards use data-testid='market-listing-{id}' (NOT market-listing-card-*). Detail page data-testid='sb-market-detail' confirmed working.",
+  "test_results_per_feature": {
+    "login_to_home": "PASS - authAPI from barrel works, landed on /home",
+    "home_renders_sections": "PASS - data-testid='home-sbmarket-section' present, 3427 chars content, services tiles visible",
+    "sb_market_hub": "PASS - data-testid='market-listings-grid' loaded with 12 listing children using marketplaceAPI+realEstateAPI+favoritesAPI",
+    "listing_detail": "PASS - clicked first listing, navigated to /sb-market/re/prop_*, data-testid='sb-market-detail' present, price 250 000 €, title 'Maison TEST Créée', description shown",
+    "sb_market_inbox": "PASS - market-inbox-btn -> /sb-market/messages shows 3 conversations via marketplaceAPI.myThreads",
+    "wallet_loads": "PASS - /wallet shows 'Solde SB Pay disponible 0.00 EUR' (walletAPI from commerce domain)",
+    "no_module_errors": "PASS - 0 page errors, 0 'undefined is not a function', 0 module-resolution errors. Only 2 benign 401s (unrelated to refactor)"
+  }
+}
