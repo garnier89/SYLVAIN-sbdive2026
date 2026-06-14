@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, MagnifyingGlass, ShoppingCart, Plus, Minus, Trash, Package, CheckCircle,
   Gear, ShieldCheck, CircleNotch, BatteryHigh, Funnel, Drop, Car, Motorcycle, Wrench,
-  Truck, Storefront, CaretRight, ClockCounterClockwise, Star,
+  Truck, Storefront, ClockCounterClockwise, Star, X,
 } from '@phosphor-icons/react';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -331,6 +331,22 @@ const AutoPartsPage = () => {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Mon garage */}
+        <div className="flex items-center gap-2">
+          <button onClick={() => setScreen('garage')} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm font-semibold text-gray-700" data-testid="open-garage-btn">
+            <Car size={18} weight="fill" className="text-blue-600" />
+            Mon garage
+            {garage.length > 0 && <span className="ml-auto text-xs text-gray-400">{garage.length} véhicule{garage.length > 1 ? 's' : ''}</span>}
+          </button>
+        </div>
+        {vehicle && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 flex items-center gap-2" data-testid="active-vehicle-banner">
+            {vehicle.vehicle_type === 'moto' ? <Motorcycle size={18} weight="fill" className="text-blue-600" /> : <Car size={18} weight="fill" className="text-blue-600" />}
+            <p className="text-sm font-semibold text-blue-800 flex-1 truncate">Compatible : {vehicle.brand} {vehicle.model}</p>
+            <button onClick={() => setVehicle(null)} className="w-7 h-7 rounded-lg bg-white flex items-center justify-center" data-testid="clear-vehicle-btn"><X size={14} className="text-blue-600" /></button>
+          </div>
+        )}
+
         {/* Type toggle */}
         <div className="flex gap-2" data-testid="type-toggle">
           {[{ k: '', l: 'Tout' }, { k: 'auto', l: 'Auto' }, { k: 'moto', l: 'Moto' }].map(t => (
