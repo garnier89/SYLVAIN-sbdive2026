@@ -1,0 +1,59 @@
+{
+  "summary": "E2E smoke test of all main service verticals from /home as famtester@demo.sb. Login + home + 17 service routes + map/geolocation rendering verified. All pages load without crash, all listings load, hotels show 'Caution' deposit lines, taxi has Google Places autocomplete + pickup auto-detect. Main gap: maps do NOT render by default on the taxi/course, runner and parcel flows (no Leaflet/Google map div present at all) — only /nearby (after 'Carte' toggle) renders a real Google Map.",
+  "per_service_results": {
+    "auth_login": "PASS — famtester@demo.sb logs in, redirects to /home",
+    "home": "PASS — 24 images all load (0 broken), location header shows 'Paris, Île-de-France, France'",
+    "taxi_/taxi": "PASS (page) — service catalog loads (Taxi VTC, Pool, Planifiez, Mise à Dispo, Intercité, etc.)",
+    "taxi_/course (ride page)": "PARTIAL — pickup auto-filled with real Paris address ('4 Place Louis Armand, 75004 Paris'); destination has Google Places autocomplete (Tour Eiffel suggestions); BUT NO MAP rendered (no leaflet/gm/canvas/iframe). Fare/vehicle choices not verified (autocomplete suggestion click didn't trigger fare card in test).",
+    "food_/food (livraison repas)": "PASS — merchant list loads ('LIVRAISON REPAS', cuisines filters, sponsored promo). NOTE: route /livraison-repas does NOT exist; correct route is /food.",
+    "runner_/runner": "PARTIAL — page loads (Envoi simple, Tournée options) but NO MAP rendered on the address/map step; no estimate produced in smoke flow.",
+    "parcel_/parcel": "PARTIAL — page loads (Livraison instantanée option) but NO MAP rendered; no estimate produced.",
+    "real-estate_/real-estate": "PASS — listings load (Acheter/Louer filters, residential/commercial/terrain tabs, listings with prices)",
+    "marketplace_cars_/marketplace/cars": "PASS — vehicle listings load",
+    "marketplace_items_/marketplace/items": "PASS with minor — listings load but 1 of 3 images is broken (naturalWidth=0)",
+    "car-rental_/location-voiture": "PASS — rental fleet page loads ('Sans chauffeur · vous conduisez')",
+    "flights_/vols": "PASS — flight search loads with airport list (FDF, PTP, CAY, SXM, ORY, CDG, MIA, JFK, LHR, MAD, PAP)",
+    "hotels_/hotels": "PASS — list loads (Hôtel La Pagerie, Résidence Caraïbes + TEST hotels). Detail page shows 'Caution 120.00 € (bloquée, restituée au départ)' and 'Caution 240.00 €' on Suite Vue Mer — DEPOSIT LINE PRESENT ✓",
+    "forfaits_/forfaits": "PASS — page loads",
+    "beauty_/beauty": "PASS — service catalog loads (Coiffure, Soins, Onglerie, etc.) with durations and prices. (Booking slot picker not deep-tested.)",
+    "services-metiers_/services-metiers": "PASS — page loads",
+    "sante_/sante": "PASS — page loads",
+    "urgences_/urgences": "PASS (functionally) — SAMU/112/Pompiers numbers + nature d'urgence list + intervention prices + SB Pay/Espèces shown. 'Partager ma position GPS' button works → status becomes 'Position localisée ✓'. NO MAP WIDGET is rendered (intentional design — just GPS confirmation).",
+    "video-consult_/video-consult": "PASS — page loads with 8 images",
+    "nearby_/nearby": "PASS — list view loads with real Paris cafés/restaurants (Café de Flore, Le Procope, Le Zimmer, etc. with addresses + distances). 'Carte' toggle renders a REAL Google Map with pins. 'Explorer une autre ville' search bar is present (geocoding endpoint backed by /api/nearby/geocode)."
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MarketplaceItems", "issue": "1 of 3 product images broken (naturalWidth=0)", "selector": "img on /marketplace/items", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Taxi /course ride page", "issue": "No map element rendered at all (no leaflet, no Google Map div, no canvas, no iframe). Google Maps JS loads (Places autocomplete works) but the map widget itself is missing from the ride creation flow. Task explicitly required a map here.", "affected_selectors": [".leaflet-container", "[class*=gm-style]"], "priority": "MEDIUM"},
+      {"flow": "Coursier /runner address step", "issue": "No map rendered on the address/map step requested by spec; flow shows only option list, no pickup/dropoff map.", "affected_selectors": [".leaflet-container", "[class*=gm-style]"], "priority": "MEDIUM"},
+      {"flow": "Colis /parcel address step", "issue": "Same as runner — no map element on the address step.", "affected_selectors": [".leaflet-container", "[class*=gm-style]"], "priority": "MEDIUM"},
+      {"flow": "Urgences /urgences ambulance request", "issue": "Spec asked for 'a MAP with geolocation' on the urgences flow. Geolocation works ('Position localisée ✓') but no map is rendered. May be intentional UX; flagging per spec.", "affected_selectors": [".leaflet-container"], "priority": "LOW"},
+      {"flow": "Livraison Repas route", "issue": "Route /livraison-repas (mentioned in the request) returns to /home — does not exist. Real route is /food. Either add an alias or update home tile linking.", "affected_selectors": [], "priority": "LOW"}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add the Leaflet/Google map widget to /course (taxi ride creation) — currently only the address inputs render; spec requires a visible map showing pickup/destination markers.",
+    "Add map rendering to /runner and /parcel address steps (per spec).",
+    "Optionally add a small map on /urgences after GPS share (spec said 'a MAP with geolocation renders').",
+    "Fix the 1 broken image on /marketplace/items (image URL returns 0 width).",
+    "Add /livraison-repas as alias to /food (or update home tile to point to /food) so the route mentioned in spec resolves."
+  ],
+  "critical_code_review_comments": [
+    "Google Maps JS API loads multiple times (Places autocomplete deprecation warnings shown twice) — consider singleton loader.",
+    "WebSocket reconnect prints noisy warnings on every navigation (wss://.../api/ws/user_xxx is closed before connection established) — investigate handshake or move to silent reconnect.",
+    "On login an /api/* request returns 401 once (possibly an auth-check before token applied). Cosmetic but worth a guard."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "82% — all 17 routes load, 5 map/route gaps flagged"},
+  "test_credentials": "famtester@demo.sb / FamTest123!",
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login + home + 17 service routes verified reachable. Hotels detail confirmed 'Caution' deposit lines present. Nearby map works after clicking 'Carte' toggle. Main gap: maps absent from /course, /runner, /parcel, /urgences. /livraison-repas is not a real route — use /food. Geolocation context was granted (48.8566, 2.3522).",
+  "rca of the issue": "Maps missing on ride/delivery/emergency flows: the pages render their address inputs and geolocation status but never mount a leaflet or Google Map container — likely the map component was either not wired into these pages or is conditionally hidden. Google Maps JS itself loads (Places Autocomplete works on /course), so the API key + script tag are fine; the gap is in the React components for these specific routes."
+}

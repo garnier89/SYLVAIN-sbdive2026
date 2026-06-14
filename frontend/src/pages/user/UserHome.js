@@ -678,10 +678,10 @@ const UserHome = () => {
         <SectionHeader title="SB Market" sub="Acheter, vendre & louer — immobilier, véhicules & plus." actionLabel="Voir tout" onAction={() => navigate('/sb-market')} />
         <div className="grid grid-cols-4 gap-3">
           {[
-            { id: 'sbm-immo', name: 'Immobilier', iconName: 'Buildings', bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/real-estate' },
-            { id: 'sbm-vehicles', name: 'Véhicules', iconName: 'Car', bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/marketplace/cars' },
-            { id: 'sbm-location', name: 'Location', iconName: 'Key', bg: 'bg-rose-50', iconColor: 'text-rose-500', path: '/location-voiture' },
-            { id: 'sbm-market', name: 'Marketplace', iconName: 'ShoppingBag', bg: 'bg-violet-50', iconColor: 'text-violet-500', path: '/marketplace/items' },
+            { id: 'sbm-immo', name: 'Immobilier', iconName: 'Buildings', imageUrl: 'https://images.pexels.com/photos/1974596/pexels-photo-1974596.jpeg?auto=compress&cs=tinysrgb&w=400', bg: 'bg-emerald-50', iconColor: 'text-emerald-600', path: '/real-estate' },
+            { id: 'sbm-vehicles', name: 'Véhicules', iconName: 'Car', imageUrl: 'https://images.pexels.com/photos/26698502/pexels-photo-26698502.jpeg?auto=compress&cs=tinysrgb&w=400', bg: 'bg-orange-50', iconColor: 'text-orange-500', path: '/marketplace/cars' },
+            { id: 'sbm-location', name: 'Location', iconName: 'Key', imageUrl: 'https://images.pexels.com/photos/17568137/pexels-photo-17568137.jpeg?auto=compress&cs=tinysrgb&w=400', bg: 'bg-rose-50', iconColor: 'text-rose-500', path: '/location-voiture' },
+            { id: 'sbm-market', name: 'Marketplace', iconName: 'ShoppingBag', imageUrl: 'https://images.pexels.com/photos/31266794/pexels-photo-31266794.jpeg?auto=compress&cs=tinysrgb&w=400', bg: 'bg-violet-50', iconColor: 'text-violet-500', path: '/marketplace/items' },
           ].map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
         </div>
       </section>
@@ -692,9 +692,9 @@ const UserHome = () => {
           <SectionHeader title={st('travel', "SB Travel")} sub="Vols, hôtels & forfaits voyage — réservez en quelques secondes." />
           <div className="grid grid-cols-4 gap-3">
             {[
-              { id: 'travel-flights', name: 'Billets\nd\u2019avion', iconName: 'AirplaneTilt', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/vols' },
-              { id: 'travel-hotels', name: 'Hôtels', iconName: 'Bed', bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/hotels' },
-              { id: 'travel-packages', name: 'Forfaits\nVol+Hôtel', iconName: 'Suitcase', bg: 'bg-violet-50', iconColor: 'text-violet-600', path: '/forfaits', badge: 'PROMO' },
+              { id: 'travel-flights', name: 'Billets\nd\u2019avion', iconName: 'AirplaneTilt', imageUrl: 'https://images.pexels.com/photos/19563698/pexels-photo-19563698.jpeg?auto=compress&cs=tinysrgb&w=400', bg: 'bg-blue-50', iconColor: 'text-blue-600', path: '/vols' },
+              { id: 'travel-hotels', name: 'Hôtels', iconName: 'Bed', imageUrl: 'https://images.pexels.com/photos/6544779/pexels-photo-6544779.jpeg?auto=compress&cs=tinysrgb&w=400', bg: 'bg-cyan-50', iconColor: 'text-cyan-600', path: '/hotels' },
+              { id: 'travel-packages', name: 'Forfaits\nVol+Hôtel', iconName: 'Suitcase', imageUrl: 'https://images.pexels.com/photos/13779629/pexels-photo-13779629.jpeg?auto=compress&cs=tinysrgb&w=400', bg: 'bg-violet-50', iconColor: 'text-violet-600', path: '/forfaits', badge: 'PROMO' },
               { id: 'travel-all', name: 'SB Travel', iconName: 'GridFour', bg: 'bg-slate-100', iconColor: 'text-gray-600', path: '/sb-travel' },
             ].map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
           </div>
