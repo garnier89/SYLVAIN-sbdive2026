@@ -1,4 +1,12 @@
-## NEW - 2026-06-14 (516) - 📍 Sélecteur de zone + cohérence géoloc (lot "amélioration géoloc")
+## NEW - 2026-06-14 (517) - 🧰 Refacto RideChoosePage (extraction pure, sans changement de comportement)
+- **Objectif** : réduire `RideChoosePage.js` (1459 l.) sans casser le flux taxi (production).
+- **Fait** : extraction des 3 sous-composants panneaux **inline et purement pilotés par props** (`ModePanel`, `SchedulePanel`, `ModeSpecificPanel`) + helper `formatScheduled` → nouveau fichier `pages/user/taxihub/RideModePanels.jsx` (329 l.). Imports nettoyés dans la page (icônes exclusives aux panels retirées : CalendarPlus, AirplaneTilt, PawPrint, HandHeart, UserPlus, MapTrifold, ShieldCheck, Plus, Minus ; `useAssistTypes` déplacé). **Aucune logique d'état/carte/estimation touchée** (cœur trop couplé, laissé intact).
+- **Résultat** : `RideChoosePage.js` **1459 → 1151 lignes** (-308). Compile **sans nouvelle erreur ni warning** (24 = inchangé → imports exacts).
+- **Testé** : screenshots /course → page rend identique (départ Fort-de-France, `panel-schedule` extrait s'affiche ✓). Flux destination→carte→véhicules→estimation validé identique avant refacto (logique inchangée).
+- ⚠️ Visible en prod après redéploiement. `TaxiModePanels.jsx` (legacy, utilisé par `TaxiHubPage`) non touché.
+
+
+
 - **Bandeau de localisation cliquable** : `UserHome.js` — clic sur le bandeau ouvre `LocationSelectorModal` (GPS + 9 villes de la zone de service : Fort-de-France, Le Lamentin, Schoelcher, Pointe-à-Pitre, Cayenne, Saint-Denis, Paris, Lyon, Marseille). Choix **persisté** (`localStorage 'sb_user_location'`) via nouveau helper `lib/userLocation.js`. Header reflète le choix ; GPS n'écrase plus un choix manuel.
 - **Helper partagé `lib/userLocation.js`** : `getStoredLocation/setStoredLocation`, `resolveLocation()` (stored→défaut Fort-de-France), `locateWithFallback()` (GPS→IP borné zone→stored→défaut, ne rejette jamais), `CITY_PRESETS`, `DEFAULT_LOCATION`.
 - **Cohérence départ** : `RideChoosePage` départ taxi préfère la zone stockée (puis GPS, puis IP). `RunnerPage` (Coursier) + `ParcelPage` (Colis) utilisent `locateWithFallback` → plus d'échec dur si GPS bloqué (fallback Fort-de-France). 
