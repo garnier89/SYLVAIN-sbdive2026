@@ -168,7 +168,7 @@ _SEED = [
     ("carcare", "battery", "Service\nBatterie", "BatteryFull", "bg-green-50", "text-green-600", "/car-care", True),
     ("carcare", "fuel", "Livraison\nCarburant", "GasPump", "bg-orange-50", "text-orange-500", "/car-care", True),
     ("carcare", "ev-charging", "Recharge\nEV", "Plug", "bg-emerald-50", "text-emerald-600", "/car-care", True),
-    ("carcare", "auto-parts", "Pièces\n& Motos", "Wrench", "bg-blue-50", "text-blue-600", "/auto-parts", True),
+    # NB: "Pièces & Motos" est dans _SEED_EXTRA (backfill idempotent par section/key).
     # ---- Towing ----
     ("towing", "emergency-towing", "Remorquage\nUrgence", "Truck", "bg-red-50", "text-red-600", "/towing", True),
     ("towing", "flat-tire", "Pneu\nCrevé", "CarSimple", "bg-amber-50", "text-amber-600", "/towing", True),
@@ -186,6 +186,7 @@ _SEED_EXTRA = [
     ("marketplace", "mp-realestate", "Immobilier", "Buildings", "bg-emerald-50", "text-emerald-600", "/real-estate", True),
     ("marketplace", "mp-cars", "Véhicules", "Car", "bg-orange-50", "text-orange-500", "/marketplace/cars", True),
     ("marketplace", "mp-items", "Articles\nDivers", "ShoppingBag", "bg-violet-50", "text-violet-500", "/marketplace/items", True),
+    ("carcare", "auto-parts", "Pièces\n& Motos", "Wrench", "bg-blue-50", "text-blue-600", "/auto-parts", True),
 ]
 
 
