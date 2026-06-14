@@ -66,6 +66,10 @@ const NearbyBusinessPage = () => {
   const [plan, setPlan] = useState([]); // ordered list of selected item ids for the itinerary
   const [routeInfo, setRouteInfo] = useState(null);
   const [optimizing, setOptimizing] = useState(false);
+  const [exploreCity, setExploreCity] = useState(null); // {name} when exploring another city; null = my position
+  const [cityInput, setCityInput] = useState('');
+  const [cityOpen, setCityOpen] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
 
   // Resolve the user's GPS once (graceful Paris fallback).
   useEffect(() => {
@@ -76,6 +80,33 @@ const NearbyBusinessPage = () => {
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 },
     );
   }, []);
+
+  const exploreOtherCity = async () => {
+    const q = cityInput.trim();
+    if (!q) return;
+    setGeocoding(true);
+    try {
+      const r = await fetch(`${API}/api/nearby/geocode?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+      const d = await r.json();
+      if (r.ok) {
+        setCoords({ lat: d.lat, lng: d.lng });
+        setExploreCity({ name: d.name });
+        setScope('city'); setShowFavs(false); setCityOpen(false); setCityInput('');
+        toast.success(`Exploration : ${d.name}`);
+      } else toast.error(d.detail || 'Ville introuvable');
+    } catch { toast.error('Erreur réseau'); }
+    finally { setGeocoding(false); }
+  };
+
+  const backToMyPosition = () => {
+    setExploreCity(null);
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => setCoords({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => setCoords(PARIS), { timeout: 8000, maximumAge: 300000 });
+    } else setCoords(PARIS);
+    setScope('around');
+  };
 
   const loadFavIds = useCallback(() => {
     favoritesAPI.ids('nearby').then((r) => setFavIds(r.data.ids || [])).catch(() => {});
@@ -88,13 +119,13 @@ const NearbyBusinessPage = () => {
     if (!coords || showFavs) return;
     setLoading(true);
     try {
-      const url = `${API}/api/nearby/live?lat=${coords.lat}&lng=${coords.lng}&category=${encodeURIComponent(activeCat)}&radius_m=${radius}`;
+      const url = `${API}/api/nearby/live?lat=${coords.lat}&lng=${coords.lng}&category=${encodeURIComponent(activeCat)}&radius_m=${radius}${exploreCity ? '&featured=false' : ''}`;
       const r = await fetch(url, { credentials: 'include' });
       const d = r.ok ? await r.json() : { items: [] };
       setItems((d.items || []).map((i) => ({ ...i, image: absImg(i.image) })));
     } catch { setItems([]); }
     finally { setLoading(false); }
-  }, [coords, activeCat, radius, showFavs]);
+  }, [coords, activeCat, radius, showFavs, exploreCity]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -203,6 +234,38 @@ const NearbyBusinessPage = () => {
             data-testid="search-input"
           />
         </div>
+        {/* Explorer une autre ville */}
+        {!showFavs && (exploreCity ? (
+          <div className="flex items-center gap-2 mt-2.5 bg-white/15 rounded-full pl-3 pr-1.5 py-1.5" data-testid="explore-city-banner">
+            <Globe size={15} className="text-white shrink-0" weight="fill" />
+            <span className="text-white text-xs font-semibold truncate flex-1">Exploration : {exploreCity.name}</span>
+            <button onClick={backToMyPosition} className="flex items-center gap-1 bg-white text-[#FF4500] text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0" data-testid="explore-reset-btn">
+              <MapPin size={12} weight="fill" /> Ma position
+            </button>
+          </div>
+        ) : (
+          cityOpen ? (
+            <div className="flex items-center gap-2 mt-2.5" data-testid="explore-city-input-row">
+              <input
+                value={cityInput}
+                onChange={(e) => setCityInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && exploreOtherCity()}
+                autoFocus
+                placeholder="Quelle ville explorer ? (ex : Marseille)"
+                className="flex-1 bg-white border-0 rounded-full px-4 h-10 text-sm outline-none"
+                data-testid="explore-city-input"
+              />
+              <button onClick={exploreOtherCity} disabled={geocoding} className="bg-[#1F2430] text-white text-xs font-bold px-3 h-10 rounded-full shrink-0 disabled:opacity-60" data-testid="explore-city-go">
+                {geocoding ? '...' : 'Explorer'}
+              </button>
+              <button onClick={() => { setCityOpen(false); setCityInput(''); }} className="w-9 h-10 flex items-center justify-center text-white shrink-0" data-testid="explore-city-cancel"><X size={18} /></button>
+            </div>
+          ) : (
+            <button onClick={() => setCityOpen(true)} className="flex items-center gap-1.5 mt-2.5 text-white/90 text-xs font-semibold" data-testid="explore-city-open">
+              <Globe size={14} weight="fill" /> Explorer une autre ville →
+            </button>
+          )
+        ))}
       </div>
 
       {!showFavs && (

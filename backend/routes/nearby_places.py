@@ -23,6 +23,7 @@ GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY")
 _NEARBY_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
 _PHOTO_URL = "https://maps.googleapis.com/maps/api/place/photo"
 _DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 # French category label -> Google legacy place type used for Nearby Search.
 # A value may be a plain type string, or a (type, keyword) tuple for finer search
@@ -95,17 +96,28 @@ async def nearby_live(
     category: str = Query(...),
     radius_m: int = Query(2500, ge=200, le=50000),
     limit: int = Query(20, ge=1, le=40),
+    featured: bool = Query(True),
 ):
-    """Hybrid list for one category: admin-curated partners first, then real Google places."""
-    # 1) Admin-curated partners for this category (always on top, flagged featured).
+    """Hybrid list for one category: admin-curated partners first, then real Google places.
+    `featured=false` suppresses home-market curated partners (used when exploring another city)."""
+    # 1) Admin-curated partners for this category (featured), filtered to the
+    #    requested area so they don't pollute another-city exploration.
     curated = []
-    async for doc in db.nearby_businesses.find(
-        {"is_active": True, "category": category}, {"_id": 0}
-    ).limit(limit):
-        d = dict(doc)
-        d["source"] = "admin"
-        d["is_featured"] = True
-        curated.append(d)
+    if featured:
+        async for doc in db.nearby_businesses.find(
+            {"is_active": True, "category": category}, {"_id": 0}
+        ).limit(limit * 2):
+            d = dict(doc)
+            d["source"] = "admin"
+            d["is_featured"] = True
+            if d.get("lat") is not None and d.get("lng") is not None:
+                dist = _haversine_km(lat, lng, d["lat"], d["lng"])
+                if dist * 1000 > radius_m:
+                    continue  # too far from requested location
+                d["distance_km"] = dist
+            curated.append(d)
+            if len(curated) >= limit:
+                break
 
     # 2) Real places from Google (cached). Gracefully degrade if API unavailable.
     google_cards = []
@@ -148,6 +160,38 @@ async def nearby_live(
     # Sort google results by distance when available.
     google_cards.sort(key=lambda c: (c["distance_km"] is None, c["distance_km"] or 0))
     return {"category": category, "items": curated + google_cards[:limit]}
+
+
+@router.get("/geocode")
+async def nearby_geocode(q: str = Query(..., min_length=2, max_length=120)):
+    """Géocode une ville/lieu saisie librement → {name, lat, lng} pour explorer une
+    autre ville. La clé Google reste côté serveur. Cache léger 5 min."""
+    if not GOOGLE_MAPS_KEY:
+        raise HTTPException(status_code=503, detail="Maps key not configured")
+    key = f"geo:{q.strip().lower()}"
+    cached = _CACHE.get(key)
+    if cached and (time.time() - cached[0]) < _CACHE_TTL:
+        return cached[1]
+    params = {"address": q.strip(), "key": GOOGLE_MAPS_KEY, "language": "fr"}
+
+    def _get():
+        return requests.get(_GEOCODE_URL, params=params, timeout=6)
+
+    try:
+        resp = await asyncio.to_thread(_get)
+        data = resp.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Géocodage indisponible")
+    results = data.get("results") or []
+    if data.get("status") != "OK" or not results:
+        raise HTTPException(status_code=404, detail="Ville introuvable")
+    top = results[0]
+    loc = top["geometry"]["location"]
+    out = {"name": top.get("formatted_address", q.strip()),
+           "lat": loc["lat"], "lng": loc["lng"]}
+    _CACHE[key] = (time.time(), out)
+    return out
+
 
 
 @router.get("/photo")
