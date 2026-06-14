@@ -17,6 +17,11 @@ router = APIRouter(prefix="/geo", tags=["geo"])
 
 SEED_PATH = "/app/backend/seed_data/v3cube_countries.json"
 
+# Service area: France métropole + French Caribbean/overseas. Pickups resolved
+# from an IP outside this set fall back to the default service centre.
+DEFAULT_CENTER = {"lat": 14.6036, "lng": -61.0667}  # Fort-de-France
+SERVICE_COUNTRIES = {"FR", "MQ", "GP", "GF", "RE", "YT", "BL", "MF", "PM"}
+
 
 async def seed_countries():
     """Idempotent seed of countries from V3Cube SQL dump (250 countries)."""
@@ -124,18 +129,28 @@ def _first_public_ip(request: Request) -> Optional[str]:
 async def ip_locate(request: Request):
     """Approximate the caller's location from their IP — used as a fallback for
     the ride 'departure' field when browser GPS is blocked (preview iframe) or
-    permission is denied. Uses ip-api.com (keyless, server-side HTTP call)."""
+    permission is denied. Uses ip-api.com (keyless, server-side HTTP call).
+
+    Guard rail: the app operates in France + French Caribbean (FR/MQ/GP/GF/RE/YT).
+    When the IP resolves OUTSIDE this service area (e.g. the preview datacenter in
+    the US, or a user on a foreign VPN) we return the default service centre
+    (Fort-de-France) instead, so pickups never land on another continent and ride
+    estimates stay sane. `fallback: true` signals this happened."""
+    default = {"ok": True, "lat": DEFAULT_CENTER["lat"], "lng": DEFAULT_CENTER["lng"],
+               "city": "Fort-de-France", "address": "Fort-de-France, Martinique", "fallback": True}
     ip = _first_public_ip(request)
     url = f"http://ip-api.com/json/{ip}" if ip else "http://ip-api.com/json/"
-    url += "?fields=status,country,regionName,city,lat,lon"
+    url += "?fields=status,country,countryCode,regionName,city,lat,lon"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(url)
         data = resp.json()
     except Exception:
-        return {"ok": False}
+        return default
     if data.get("status") != "success" or data.get("lat") is None:
-        return {"ok": False}
+        return default
+    if data.get("countryCode") not in SERVICE_COUNTRIES:
+        return default
     address = ", ".join([p for p in [data.get("city"), data.get("regionName"), data.get("country")] if p])
     return {
         "ok": True,

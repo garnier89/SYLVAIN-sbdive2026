@@ -248,8 +248,9 @@ const UserHome = () => {
   const zoneRef = useRef('');
   const homeBanners = useHomeBanners();
   const locLabelRef = useRef('');
+  const [locLabel, setLocLabel] = useState('Fort-de-France, Martinique');
   const firedImpressionsRef = useRef(new Set());
-  useEffect(() => { getBrowserLocationLabel().then((l) => { if (l) locLabelRef.current = l; }); }, []);
+  useEffect(() => { getBrowserLocationLabel().then((l) => { if (l) { locLabelRef.current = l; setLocLabel(l); } }); }, []);
   // Fire one impression per banner once it is rendered (with user/time/location).
   useEffect(() => {
     homeBanners.forEach((b) => {
@@ -973,7 +974,7 @@ const UserHome = () => {
         {/* Location */}
         <button className="flex items-center gap-1.5 mt-3 max-w-full" data-testid="location-bar">
           <MapPin size={16} weight="fill" className="text-[#FF5000] shrink-0" />
-          <span className={`text-[13px] font-semibold text-[#334155] truncate ${BODY}`}>Paris, Île-de-France, France</span>
+          <span className={`text-[13px] font-semibold text-[#334155] truncate ${BODY}`} data-testid="location-label">{locLabel}</span>
           <CaretDown size={14} className="text-[#64748B] shrink-0" />
         </button>
 
