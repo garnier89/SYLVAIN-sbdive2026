@@ -96,6 +96,8 @@ TRADES = {
     "label": "SB Métiers & Réparation",
     "accent": "amber",
     "home_surcharge": 0.0,  # l'intervention est par nature au domicile/sur site
+    "urgent_available": True,
+    "urgent_surcharge": 30.0,
     "categories": [
         {"id": "plomberie", "label": "Plomberie", "icon": "Wrench"},
         {"id": "electricite", "label": "Électricité", "icon": "Lightning"},
@@ -242,6 +244,8 @@ async def get_config(vertical: str):
         "vertical": vertical, "label": cfg["label"], "accent": cfg["accent"],
         "home_surcharge": cfg["home_surcharge"], "categories": cfg["categories"],
         "services": cfg["services"], "payment_methods": PAYMENT_METHODS,
+        "urgent_available": cfg.get("urgent_available", False),
+        "urgent_surcharge": cfg.get("urgent_surcharge", 0.0),
     }
 
 
@@ -298,9 +302,12 @@ async def estimate(vertical: str, request: Request):
         raise HTTPException(status_code=400, detail="Prestation invalide")
     at_home = bool(body.get("at_home"))
     surcharge = cfg["home_surcharge"] if at_home else 0.0
-    total = round(float(svc["price"]) + surcharge, 2)
+    urgent = bool(body.get("urgent")) and cfg.get("urgent_available", False)
+    urgent_fee = cfg.get("urgent_surcharge", 0.0) if urgent else 0.0
+    total = round(float(svc["price"]) + surcharge + urgent_fee, 2)
     return {"service_id": svc["id"], "service_name": svc["name"], "base_price": svc["price"],
-            "at_home": at_home, "home_surcharge": surcharge, "total": total,
+            "at_home": at_home, "home_surcharge": surcharge, "urgent": urgent,
+            "urgent_surcharge": urgent_fee, "total": total,
             "online_only": svc["online_only"], "currency": "EUR"}
 
 
@@ -313,7 +320,14 @@ async def create_booking(vertical: str, request: Request):
     svc = _svc_by_id(vertical, body.get("service_id"))
     if not svc:
         raise HTTPException(status_code=400, detail="Prestation invalide")
-    if not (body.get("scheduled_date") and body.get("scheduled_time")):
+
+    urgent = bool(body.get("urgent")) and cfg.get("urgent_available", False)
+    scheduled_date = body.get("scheduled_date")
+    scheduled_time = body.get("scheduled_time")
+    if urgent:
+        scheduled_date = datetime.now(timezone.utc).date().isoformat()
+        scheduled_time = "Urgent (dès que possible)"
+    elif not (scheduled_date and scheduled_time):
         raise HTTPException(status_code=400, detail="Choisissez une date et un créneau")
 
     at_home = bool(body.get("at_home"))
@@ -327,7 +341,8 @@ async def create_booking(vertical: str, request: Request):
         raise HTTPException(status_code=400, detail="Cette prestation doit être payée en ligne (SB Pay)")
 
     surcharge = cfg["home_surcharge"] if at_home else 0.0
-    total = round(float(svc["price"]) + surcharge, 2)
+    urgent_fee = cfg.get("urgent_surcharge", 0.0) if urgent else 0.0
+    total = round(float(svc["price"]) + surcharge + urgent_fee, 2)
 
     # Resolve chosen provider (optional). null = "premier prestataire disponible".
     provider_id = body.get("provider_id")
@@ -366,7 +381,8 @@ async def create_booking(vertical: str, request: Request):
         "provider_id": provider_id, "provider_name": (provider or {}).get("name"),
         "provider_user_id": (provider or {}).get("user_id"),
         "at_home": at_home, "address": body.get("address", ""),
-        "scheduled_date": body.get("scheduled_date"), "scheduled_time": body.get("scheduled_time"),
+        "scheduled_date": scheduled_date, "scheduled_time": scheduled_time,
+        "urgent": urgent, "urgent_surcharge": urgent_fee,
         "notes": body.get("notes", ""), "base_price": svc["price"], "home_surcharge": surcharge,
         "total": total, "payment_method": payment_method, "payment_status": payment_status,
         "status": status, "reviewed": False, "created_at": _now(),
@@ -375,18 +391,19 @@ async def create_booking(vertical: str, request: Request):
 
     # Notify: chosen real provider, or all approved real providers serving the category.
     try:
+        prefix = "⚡ URGENT — " if urgent else ""
         if provider and provider.get("user_id"):
             await create_notification(provider["user_id"], "pro_booking_new",
-                                      "🗓️ Nouvelle réservation", f"{svc['name']} · {booking['scheduled_date']}",
-                                      {"booking_id": booking["id"], "url": f"/pro/{vertical}"})
+                                      f"{prefix}🗓️ Nouvelle réservation", f"{svc['name']} · {booking['scheduled_date']}",
+                                      {"booking_id": booking["id"], "url": f"/pro/{vertical}", "urgent": urgent})
         elif not provider:
             pros = await db.pro_providers.find(
                 {"vertical": vertical, "verification_status": "approved", "is_available": True,
                  "user_id": {"$ne": None}, "categories": svc["category"]}, {"_id": 0, "user_id": 1}).to_list(100)
             for pr in pros:
                 await create_notification(pr["user_id"], "pro_booking_new",
-                                          "🔔 Nouvelle demande de prestation", f"{svc['name']} · {booking['scheduled_date']}",
-                                          {"booking_id": booking["id"], "url": f"/pro/{vertical}"})
+                                          f"{prefix}🔔 Nouvelle demande de prestation", f"{svc['name']} · {booking['scheduled_date']}",
+                                          {"booking_id": booking["id"], "url": f"/pro/{vertical}", "urgent": urgent})
     except Exception:
         pass
 
@@ -597,7 +614,7 @@ async def provider_feed(vertical: str, request: Request):
         raise HTTPException(status_code=400, detail="Inscrivez-vous comme prestataire d'abord")
     docs = await db.pro_bookings.find(
         {"vertical": vertical, "status": "pending", "provider_id": None,
-         "category": {"$in": p.get("categories", [])}}).sort("created_at", -1).to_list(50)
+         "category": {"$in": p.get("categories", [])}}).sort([("urgent", -1), ("created_at", -1)]).to_list(50)
     return [_booking_pub(d) for d in docs]
 
 

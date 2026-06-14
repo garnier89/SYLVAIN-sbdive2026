@@ -188,8 +188,11 @@ const ProServiceSpacePage = () => {
             {feed.length === 0 ? <Empty text="Aucune demande pour l'instant" /> : (
               <div className="space-y-3">
                 {feed.map(b => (
-                  <div key={b.id} className="bg-white rounded-2xl p-4 border border-gray-100" data-testid={`feed-${b.id}`}>
-                    <p className="font-bold text-gray-900 text-sm">{b.service_name}</p>
+                  <div key={b.id} className={`bg-white rounded-2xl p-4 border ${b.urgent ? 'border-red-300' : 'border-gray-100'}`} data-testid={`feed-${b.id}`}>
+                    <div className="flex items-center gap-2">
+                      {b.urgent && <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded">⚡ URGENT</span>}
+                      <p className="font-bold text-gray-900 text-sm">{b.service_name}</p>
+                    </div>
                     <p className="text-xs text-gray-500 mt-0.5">{b.scheduled_date} à {b.scheduled_time} · {b.at_home ? 'À domicile' : 'En salon'}</p>
                     <div className="flex justify-between items-center mt-2">
                       <span className={`font-bold ${acc.text} text-sm`}>{money(Number(b.total))}</span>

@@ -47,7 +47,7 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
   const [best, setBest] = useState(null);
   const [nextSlots, setNextSlots] = useState([]);
   const [active, setActive] = useState(null);
-  const [form, setForm] = useState({ at_home: false, address: '', provider_id: '', date: '', time: '', payment: 'sbpay' });
+  const [form, setForm] = useState({ at_home: false, address: '', provider_id: '', date: '', time: '', payment: 'sbpay', urgent: false });
   const [estimate, setEstimate] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
@@ -69,7 +69,7 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
 
   const openBooking = async (svc) => {
     setActive(svc);
-    setForm({ at_home: false, address: '', provider_id: '', date: '', time: '', payment: 'sbpay' });
+    setForm({ at_home: false, address: '', provider_id: '', date: '', time: '', payment: 'sbpay', urgent: false });
     setBest(null); setNextSlots([]);
     setScreen('book');
     try {
@@ -83,22 +83,22 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
     } catch { setProviders([]); }
   };
 
-  const refreshEstimate = useCallback(async (svc, at_home) => {
+  const refreshEstimate = useCallback(async (svc, at_home, urgent) => {
     if (!svc) return;
     try {
       const r = await fetch(`${base}/estimate`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ service_id: svc.id, at_home }),
+        body: JSON.stringify({ service_id: svc.id, at_home, urgent }),
       });
       setEstimate(await r.json());
     } catch { /* */ }
   }, [base]);
-  useEffect(() => { if (screen === 'book' && active) refreshEstimate(active, form.at_home); }, [screen, active, form.at_home, refreshEstimate]);
+  useEffect(() => { if (screen === 'book' && active) refreshEstimate(active, form.at_home, form.urgent); }, [screen, active, form.at_home, form.urgent, refreshEstimate]);
 
   const quickPick = (providerId, date, time) => setForm(f => ({ ...f, provider_id: providerId, date, time }));
 
   const submit = async () => {
-    if (!form.date || !form.time) { toast.error('Choisissez une date et un créneau'); return; }
+    if (!form.urgent && (!form.date || !form.time)) { toast.error('Choisissez une date et un créneau'); return; }
     if (form.at_home && !form.address.trim()) { toast.error('Indiquez votre adresse'); return; }
     setSubmitting(true);
     try {
@@ -107,7 +107,7 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
         body: JSON.stringify({
           service_id: active.id, at_home: form.at_home, address: form.address,
           provider_id: form.provider_id || null, scheduled_date: form.date,
-          scheduled_time: form.time, payment_method: form.payment,
+          scheduled_time: form.time, payment_method: form.payment, urgent: form.urgent,
         }),
       });
       const data = await r.json();
@@ -217,6 +217,18 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
             {active.online_only && <span className="inline-block mt-1 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">Paiement en ligne requis</span>}
           </div>
 
+          {/* Urgence (Métiers) */}
+          {cfg?.urgent_available && (
+            <button onClick={() => setForm({ ...form, urgent: !form.urgent })} className={`w-full rounded-2xl p-4 flex items-center gap-3 border-2 ${form.urgent ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white'}`} data-testid="urgent-toggle">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0"><Lightning size={20} weight="fill" className="text-red-500" /></div>
+              <div className="text-left flex-1 min-w-0">
+                <p className="font-bold text-sm text-gray-900">Intervention en urgence aujourd'hui</p>
+                <p className="text-xs text-gray-500">Un pro intervient dès que possible · +{cfg.urgent_surcharge}€</p>
+              </div>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${form.urgent ? 'bg-red-500' : 'border-2 border-gray-300'}`}>{form.urgent && <CheckCircle size={22} weight="fill" className="text-white" />}</div>
+            </button>
+          )}
+
           {/* Meilleur prestataire + prochains créneaux */}
           {best && (
             <div className="bg-white rounded-2xl p-4" data-testid="best-provider-card">
@@ -227,7 +239,7 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
                   <p className="text-xs text-gray-500 mt-0.5">⭐ {best.rating} · {best.reviews_count} avis</p>
                 </div>
               </div>
-              {nextSlots.length > 0 && (
+              {nextSlots.length > 0 && !form.urgent && (
                 <div className="mt-3">
                   <p className="text-[10px] tracking-wide uppercase font-bold text-gray-400 mb-1.5">Prochains créneaux dispo</p>
                   <div className="flex gap-2 flex-wrap">
@@ -271,15 +283,22 @@ const ProServiceMarketPage = ({ vertical = 'beauty' }) => {
           </div>
 
           {/* Date & créneau */}
-          <div className="bg-white rounded-2xl p-4">
-            <p className="text-[10px] tracking-wide uppercase font-bold text-gray-500 mb-2">Date & créneau</p>
-            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} min={new Date().toISOString().split('T')[0]} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mb-2" data-testid="book-date" />
-            <div className="grid grid-cols-3 gap-2">
-              {SLOTS.map(s => (
-                <button key={s} onClick={() => setForm({ ...form, time: s })} className={`py-2 rounded-lg text-sm font-semibold border ${sel(form.time === s)}`} data-testid={`slot-${s}`}>{s}</button>
-              ))}
+          {form.urgent ? (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-2" data-testid="urgent-notice">
+              <Lightning size={18} weight="fill" className="text-red-500" />
+              <p className="text-sm font-semibold text-red-700">Aujourd'hui — dès qu'un pro est disponible</p>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-4">
+              <p className="text-[10px] tracking-wide uppercase font-bold text-gray-500 mb-2">Date & créneau</p>
+              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} min={new Date().toISOString().split('T')[0]} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm mb-2" data-testid="book-date" />
+              <div className="grid grid-cols-3 gap-2">
+                {SLOTS.map(s => (
+                  <button key={s} onClick={() => setForm({ ...form, time: s })} className={`py-2 rounded-lg text-sm font-semibold border ${sel(form.time === s)}`} data-testid={`slot-${s}`}>{s}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Paiement */}
           <div className="bg-white rounded-2xl p-4">
