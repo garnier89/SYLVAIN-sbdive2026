@@ -82,7 +82,7 @@ def _price(problem_type: str, distance_km: float, night: bool) -> dict:
 
 
 def _assign_operator(req_id: str) -> dict:
-    idx = int(hashlib.md5(req_id.encode()).hexdigest(), 16) % len(_OPERATORS)
+    idx = int(hashlib.sha256(req_id.encode()).hexdigest(), 16) % len(_OPERATORS)
     op = dict(_OPERATORS[idx])
     op["eta_minutes"] = 12 + (idx * 4)  # 12–24 min affiché
     return op

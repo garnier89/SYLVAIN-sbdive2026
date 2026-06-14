@@ -70,7 +70,7 @@ async def _commission_pct() -> float:
 
 
 def _assign_crew(req_id: str) -> dict:
-    idx = int(hashlib.md5(req_id.encode()).hexdigest(), 16) % len(_CREWS)
+    idx = int(hashlib.sha256(req_id.encode()).hexdigest(), 16) % len(_CREWS)
     crew = dict(_CREWS[idx])
     crew["eta_minutes"] = 6 + (idx * 2)  # 6–12 min affiché
     return crew
