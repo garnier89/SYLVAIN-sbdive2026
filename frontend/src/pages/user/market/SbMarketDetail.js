@@ -97,7 +97,7 @@ const SbMarketDetail = () => {
         {cover
           ? <img src={cover} alt={item.title} className="w-full h-full object-cover" data-testid="market-detail-image" />
           : <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={56} /></div>}
-        <button onClick={() => navigate(-1)} className="absolute top-3 left-3 w-9 h-9 rounded-full bg-black/45 backdrop-blur text-white flex items-center justify-center" data-testid="market-detail-back">
+        <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/sb-market'))} className="absolute top-3 left-3 w-9 h-9 rounded-full bg-black/45 backdrop-blur text-white flex items-center justify-center" data-testid="market-detail-back">
           <ChevronLeft size={20} />
         </button>
         <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>

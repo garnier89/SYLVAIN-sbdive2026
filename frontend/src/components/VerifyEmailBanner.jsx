@@ -14,7 +14,7 @@ const HIDDEN_PREFIXES = [
   '/course', '/taxi', '/checkout', '/food/', '/bidding', '/service-providers', '/rental',
   '/real-estate/post', '/real-estate/edit', '/marketplace/sell-vehicle', '/ma-galerie',
   '/parcel', '/runner', '/driver/register',
-  '/events/', '/organizer', '/controle', '/sb-tracking',
+  '/events/', '/organizer', '/controle', '/sb-tracking', '/sb-market',
 ];
 
 const DISMISS_KEY = 'verify_email_dismissed_for';
