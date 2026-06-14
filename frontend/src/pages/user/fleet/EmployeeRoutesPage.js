@@ -84,7 +84,7 @@ const EmployeeRoutesPage = () => {
               <input className={inp} placeholder="Nom de la tournée" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="r-name" />
               <select className={inp} value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} data-testid="r-employee">
                 <option value="">Assigner à… (optionnel)</option>
-                {employees.map((e) => <option key={e.id} value={e.id}>{e.name} — {e.role}</option>)}
+                {employees.map((e) => <option key={e.id} value={e.id}>{`${e.name} — ${e.role}`}</option>)}
               </select>
               <div className="space-y-2">
                 <p className="text-xs font-bold text-gray-500">Arrêts</p>

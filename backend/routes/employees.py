@@ -435,6 +435,8 @@ async def seed_demo(request: Request):
     _user, org = await _require_org(request)
     center = org.get("center") or DEFAULT_CENTER
     existing = await db.employees.count_documents({"org_id": org["id"]})
+    if existing >= 3:
+        return {"message": "Démo déjà active", "employees": 0}
     start_today = (datetime.now(timezone.utc) - timedelta(hours=3, minutes=20)).isoformat()
     demo = [("Karim B.", "Livreur"), ("Sophie M.", "Technicienne"), ("Jean P.", "Commercial")]
     created = []
