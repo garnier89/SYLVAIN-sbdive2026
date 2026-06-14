@@ -40,6 +40,7 @@ const Spinner = () => (
 const MetricsTab = ({ data }) => {
   const k = data?.kpis || {};
   const maxDir = Math.max(1, ...((data?.by_directory || []).map((d) => d.lines)));
+  const maxDomain = Math.max(1, ...((data?.by_domain || []).map((d) => d.lines)));
   const maxFile = Math.max(1, ...((data?.largest_files || []).map((f) => f.lines)));
   const cov = data?.coverage || {};
   const covRatio = cov.ratio ?? 0;
@@ -122,6 +123,24 @@ const MetricsTab = ({ data }) => {
           })}
         </div>
       </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 mt-6" data-testid="code-health-domains">
+        <h2 className="text-sm font-bold text-gray-700 mb-1">Lignes par domaine (sous-modules)</h2>
+        <p className="text-xs text-gray-400 mb-3">Granularité package — fait ressortir <span className="font-mono">routes/admin</span>, <span className="font-mono">routes/market</span>, etc.</p>
+        <div className="space-y-2.5 max-h-[28rem] overflow-y-auto pr-1">
+          {(data?.by_domain || []).map((d) => (
+            <div key={d.domain} data-testid={`domain-${d.domain}`}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="font-mono font-semibold text-gray-700 truncate">{d.domain}/ <span className="text-gray-400 font-normal">· {d.files} fich. · {d.endpoints} ep · {d.functions} fn</span></span>
+                <span className="text-gray-500 font-medium shrink-0 ml-2">{nf(d.lines)}</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-violet-500 rounded-full" style={{ width: `${(d.lines / maxDomain) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </>
   );
 };
@@ -130,18 +149,23 @@ const MetricsTab = ({ data }) => {
 const CoverageTab = ({ proxy }) => {
   const [run, setRun] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [byDomain, setByDomain] = useState(null);
 
   const fetchRun = useCallback(() => {
     adminAPI.codeCoverage().then((r) => setRun(r.data)).finally(() => setLoading(false));
   }, []);
-  useEffect(() => { fetchRun(); }, [fetchRun]);
+  const fetchByDomain = useCallback(() => {
+    adminAPI.codeCoverageByDomain().then((r) => setByDomain(r.data)).catch(() => {});
+  }, []);
+  useEffect(() => { fetchRun(); fetchByDomain(); }, [fetchRun, fetchByDomain]);
 
-  // Poll while a run is in progress.
+  // Poll while a run is in progress; refresh the per-domain table when it finishes.
   useEffect(() => {
     if (run?.status !== 'running') return undefined;
     const t = setInterval(fetchRun, 4000);
     return () => clearInterval(t);
   }, [run?.status, fetchRun]);
+  useEffect(() => { if (run?.status === 'done') fetchByDomain(); }, [run?.status, fetchByDomain]);
 
   const launch = () => {
     adminAPI.codeCoverageRun().then((r) => {
@@ -156,6 +180,7 @@ const CoverageTab = ({ proxy }) => {
 
   if (loading) return <Spinner />;
   return (
+    <>
     <div className="grid md:grid-cols-2 gap-6">
       <div className="bg-white rounded-2xl border border-gray-100 p-5" data-testid="coverage-real">
         <div className="flex items-center justify-between mb-3">
@@ -205,6 +230,34 @@ const CoverageTab = ({ proxy }) => {
         <p className="text-xs text-gray-400 mt-3">Le proxy compte les modules <em>cités</em> dans un test (rapide). La couverture réelle mesure les lignes <em>exécutées</em> par pytest (précis). L'écart révèle les tests superficiels.</p>
       </div>
     </div>
+
+    {byDomain?.available && (
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 mt-6" data-testid="coverage-by-domain">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-gray-700">Couverture réelle par domaine</h2>
+          <span className="text-xs text-gray-500">global {byDomain.overall_percent}%</span>
+        </div>
+        <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+          {byDomain.domains.map((d) => {
+            const c = d.percent >= 70 ? 'bg-emerald-500' : d.percent >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+            const tc = d.percent >= 70 ? 'text-emerald-600' : d.percent >= 40 ? 'text-amber-600' : 'text-rose-600';
+            return (
+              <div key={d.domain} data-testid={`cov-domain-${d.domain}`}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="font-mono font-semibold text-gray-700 truncate">{d.domain}/ <span className="text-gray-400 font-normal">· {d.files} fich. · {nf(d.covered)}/{nf(d.statements)} lignes</span></span>
+                  <span className={`font-bold shrink-0 ml-2 ${tc}`}>{d.percent}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${c}`} style={{ width: `${d.percent}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-3">Agrégé depuis la dernière analyse pytest --cov (échantillon unitaire, hors e2e réseau).</p>
+      </div>
+    )}
+    </>
   );
 };
 

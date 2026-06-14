@@ -99,6 +99,17 @@ def _build_report() -> dict:
         d["endpoints"] += f["endpoints"]
     by_directory = sorted(dir_map.values(), key=lambda x: x["lines"], reverse=True)
 
+    # By domain (sub-package granularity: surfaces routes/admin, routes/market, …)
+    domain_map = {}
+    for f in files:
+        dom = str(Path(f["path"]).parent)
+        dm = domain_map.setdefault(dom, {"domain": dom, "files": 0, "lines": 0, "endpoints": 0, "functions": 0})
+        dm["files"] += 1
+        dm["lines"] += f["lines"]
+        dm["endpoints"] += f["endpoints"]
+        dm["functions"] += f["functions"]
+    by_domain = sorted(domain_map.values(), key=lambda x: x["lines"], reverse=True)
+
     # Largest files (tech-debt hotspots)
     largest = sorted(files, key=lambda x: x["lines"], reverse=True)[:25]
 
@@ -131,6 +142,7 @@ def _build_report() -> dict:
             "warn_files": sum(1 for f in files if f["level"] == "warn"),
         },
         "by_directory": by_directory,
+        "by_domain": by_domain,
         "largest_files": largest,
         "coverage": {
             "source_modules": src_count,
@@ -203,6 +215,14 @@ async def coverage_status(request: Request):
     await _require_admin(request)
     from core.code_audit import get_coverage_run
     return await get_coverage_run()
+
+
+@router.get("/coverage/by-domain")
+async def coverage_by_domain_route(request: Request):
+    """Last real pytest --cov result aggregated by domain (source directory)."""
+    await _require_admin(request)
+    from core.code_audit import coverage_by_domain
+    return coverage_by_domain()
 
 
 @router.post("/coverage/run")

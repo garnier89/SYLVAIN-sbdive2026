@@ -1,0 +1,51 @@
+{
+  "summary": "Frontend-only verification of the two new Santé du code (admin /admin/code-health) cards: 'Lignes par domaine (sous-modules)' on the Metrics tab and 'Couverture réelle par domaine' on the Coverage tab. Logged in as admin@superapp.com, both cards render correctly with the expected data-testids and contents. No console or page errors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "login_admin": "PASS (redirected to /admin)",
+    "code_health_page_loads": "PASS (data-testid='admin-code-health' visible)",
+    "metrics_tab_card_code-health-domains": "PASS - heading 'Lignes par domaine (sous-modules)' present, 8 domain rows rendered",
+    "domain_rows_present": [
+      "domain-routes (42 602 lines, 111 files, 1186 ep)",
+      "domain-core (8 187 lines)",
+      "domain-routes/market (2 268 lines, 5 files, 88 ep) ✓",
+      "domain-routes/admin (2 178 lines, 13 files, 65 ep) ✓",
+      "domain-scripts (909 lines)",
+      "domain-models (360 lines)",
+      "domain-core/router_groups (321 lines)",
+      "domain-. (32 lines)"
+    ],
+    "coverage_tab_loads": "PASS",
+    "coverage_real_card": "Shows 23.3% (7076/30429 lines, 145 tests passed / 87 failed, sample run finished 14/06/2026 07:22:41)",
+    "coverage_by_domain_card_present_on_load": "PASS - data-testid='coverage-by-domain' rendered immediately because previous run was 'done'",
+    "cov_domain_rows_present": [
+      "cov-domain-routes -> 21.8% (5 239/24 053)",
+      "cov-domain-core -> 31.6% (1 119/3 543)",
+      "cov-domain-routes/market -> 23.6% (324/1 371) ✓",
+      "cov-domain-routes/admin -> 18.9% (249/1 317) ✓",
+      "cov-domain-core/router_groups -> 100% (145/145)"
+    ],
+    "console_errors": 0,
+    "dom_error_messages": 0,
+    "tab_switch_back_to_metrics": "PASS - domains card still visible, no crash"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminCodeHealth.js is 546 lines and contains 4 tab components inline; splitting MetricsTab/CoverageTab/SecurityTab/MapsTab into separate files would improve maintainability (file approaches the 700-line guideline).",
+    "CoverageTab does not surface fetch errors for codeCoverageByDomain (silent .catch(() => {})) — if the endpoint ever returns 500, the user only sees the card missing with no toast/feedback.",
+    "Domain bar uses raw d.domain (containing '/') in the data-testid, which is fine for selectors but unusual; current implementation works (verified 'domain-routes/market' and 'cov-domain-routes/market' resolve)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100%" },
+  "test_credentials": "admin@superapp.com / SuperAdmin123!",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both new cards on /admin/code-health work end-to-end. Coverage data is persistent because a previous pytest --cov run completed; if backend is restarted and last_run resets, the 'coverage-by-domain' card will only appear after a fresh run finishes (status 'done'). Tests used real admin login and the production REACT_APP_BACKEND_URL."
+}

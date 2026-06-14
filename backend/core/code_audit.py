@@ -494,3 +494,40 @@ async def get_coverage_run() -> dict:
             {"_id": "latest"}, {"$set": {"status": "stale"}})
         doc["status"] = "stale"
     return doc
+
+
+def coverage_by_domain() -> dict:
+    """Aggregate the LAST real pytest --cov run by domain (source directory),
+    e.g. routes/admin, routes/market, core. Best-effort: returns
+    {available: False} when no coverage JSON exists yet (no run done)."""
+    p = Path(_COV_JSON)
+    if not p.exists():
+        return {"available": False, "domains": []}
+    try:
+        cov = json.loads(p.read_text())
+    except (OSError, ValueError):
+        return {"available": False, "domains": []}
+    agg = {}
+    for fpath, info in (cov.get("files") or {}).items():
+        try:
+            rel = str(Path(fpath).resolve().relative_to(BACKEND_ROOT))
+        except (ValueError, OSError):
+            rel = str(fpath).replace(str(BACKEND_ROOT) + "/", "")
+        domain = str(Path(rel).parent)
+        s = info.get("summary") or {}
+        d = agg.setdefault(domain, {"domain": domain, "covered": 0, "statements": 0, "files": 0})
+        d["covered"] += int(s.get("covered_lines") or 0)
+        d["statements"] += int(s.get("num_statements") or 0)
+        d["files"] += 1
+    domains = []
+    for d in agg.values():
+        st = d["statements"]
+        d["percent"] = round(100.0 * d["covered"] / st, 1) if st else 0.0
+        domains.append(d)
+    domains.sort(key=lambda x: x["statements"], reverse=True)
+    totals = cov.get("totals") or {}
+    return {
+        "available": True,
+        "overall_percent": round(float(totals.get("percent_covered") or 0), 1),
+        "domains": domains,
+    }

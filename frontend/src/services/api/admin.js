@@ -110,6 +110,7 @@ export const adminAPI = {
   codeMapsGate: () => api.get('/admin/code-health/maps-guard/gate'),
   codeMapsBaseline: () => api.post('/admin/code-health/maps-guard/baseline'),
   codeCoverage: () => api.get('/admin/code-health/coverage'),
+  codeCoverageByDomain: () => api.get('/admin/code-health/coverage/by-domain'),
   codeCoverageRun: () => api.post('/admin/code-health/coverage/run'),
   codeSetBaseline: () => api.post('/admin/code-health/integrity/baseline'),
   remindOnboarding: (data) => api.post('/admin/onboarding/remind', data),
