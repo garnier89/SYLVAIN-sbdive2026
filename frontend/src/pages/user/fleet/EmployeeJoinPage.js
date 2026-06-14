@@ -1,17 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Briefcase, Clock, CheckCircle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { employeesAPI } from '../../../services/api';
 
 const EmployeeJoinPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(null);
   const [onShift, setOnShift] = useState(false);
   const watchId = useRef(null);
 
+  useEffect(() => {
+    const c = searchParams.get('code');
+    if (c) setCode(c.toUpperCase());
+  }, [searchParams]);
   useEffect(() => () => { if (watchId.current) navigator.geolocation.clearWatch(watchId.current); }, []);
 
   const join = async () => {

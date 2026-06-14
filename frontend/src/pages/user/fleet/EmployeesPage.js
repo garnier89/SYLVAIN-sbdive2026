@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, X, Copy, Trash, ClipboardText, ChartBar, Clock, Sparkle, UserPlus, Broadcast, BatteryHigh } from '@phosphor-icons/react';
+import { ArrowLeft, Plus, X, Copy, Trash, ClipboardText, ChartBar, Clock, Sparkle, UserPlus, Broadcast, BatteryHigh, PaperPlaneTilt } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { employeesAPI } from '../../../services/api';
 import EmployeesMap from './EmployeesMap';
@@ -33,6 +33,11 @@ const EmployeesPage = () => {
   const addEmployee = async () => {
     if (!form.name.trim()) { toast.error('Nom requis'); return; }
     try { await employeesAPI.add(form); toast.success('Employé ajouté'); setForm(null); load(); } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
+  };
+  const inviteEmployee = async () => {
+    if (!form.name.trim()) { toast.error('Nom requis'); return; }
+    if (!form.email || !form.email.includes('@')) { toast.error('Email valide requis'); return; }
+    try { const r = await employeesAPI.invite(form); toast.success(`Invitation envoyée à ${r.data.email}`); setForm(null); load(); } catch (e) { toast.error(e?.response?.data?.detail || 'Erreur'); }
   };
   const removeEmployee = async (e) => { if (!window.confirm(`Retirer « ${e.name} » ?`)) return; try { await employeesAPI.remove(e.id); load(); } catch { toast.error('Erreur'); } };
   const copy = async (c) => { try { await navigator.clipboard.writeText(c); toast.success(`Code ${c} copié`); } catch { toast.error('Copie indisponible'); } };
@@ -95,7 +100,7 @@ const EmployeesPage = () => {
               <UserPlus size={36} className="mx-auto mb-2 text-gray-300" weight="duotone" />
               <p className="text-sm">Aucun employé. Ajoutez un membre ou activez la démo.</p>
               <div className="flex gap-2 justify-center mt-4">
-                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '' })} className="bg-sky-600 text-white font-bold text-sm px-4 py-2 rounded-full" data-testid="add-first-employee">Ajouter</button>
+                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '', email: '' })} className="bg-sky-600 text-white font-bold text-sm px-4 py-2 rounded-full" data-testid="add-first-employee">Ajouter</button>
                 <button onClick={seed} className="border border-sky-200 text-sky-600 font-bold text-sm px-4 py-2 rounded-full flex items-center gap-1" data-testid="seed-demo-btn"><Sparkle size={13} weight="fill" /> Démo</button>
               </div>
             </div>
@@ -110,7 +115,7 @@ const EmployeesPage = () => {
 
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-gray-900">Mon équipe</h2>
-                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '' })} className="text-xs font-bold text-sky-600 flex items-center gap-1" data-testid="add-employee-btn"><Plus size={13} weight="bold" /> Ajouter</button>
+                <button onClick={() => setForm({ name: '', role: 'Employé', phone: '', email: '' })} className="text-xs font-bold text-sky-600 flex items-center gap-1" data-testid="add-employee-btn"><Plus size={13} weight="bold" /> Ajouter</button>
               </div>
               <div className="space-y-2">
                 {employees.map((e) => (
@@ -142,11 +147,12 @@ const EmployeesPage = () => {
               <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" placeholder="Nom" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="e-name" />
               <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" placeholder="Poste (ex. Livreur, Technicien...)" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} data-testid="e-role" />
               <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" placeholder="Téléphone (optionnel)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="e-phone" />
-              <p className="text-[11px] text-gray-400">Un code d'invitation sera généré : l'employé le saisit dans « Rejoindre » pour pointer depuis son téléphone.</p>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" type="email" placeholder="Email (pour inviter par email)" value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="e-email" />
+              <p className="text-[11px] text-gray-400">« Ajouter » crée un poste avec un code d'invitation. « Inviter par email » envoie en plus un lien d'invitation à l'employé.</p>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setForm(null)} className="flex-1 border border-gray-300 font-bold py-2.5 rounded-lg">Annuler</button>
-              <button onClick={addEmployee} className="flex-1 bg-sky-600 text-white font-bold py-2.5 rounded-lg" data-testid="save-employee-btn">Ajouter</button>
+              <button onClick={addEmployee} className="flex-1 border border-sky-300 text-sky-700 font-bold py-2.5 rounded-lg" data-testid="save-employee-btn">Ajouter</button>
+              <button onClick={inviteEmployee} className="flex-1 bg-sky-600 text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5" data-testid="invite-employee-btn"><PaperPlaneTilt size={15} weight="fill" /> Inviter</button>
             </div>
           </div>
         </div>

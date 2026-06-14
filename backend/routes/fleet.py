@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import Response
 
 from core.config import db
 from core.deps import get_current_user
@@ -418,6 +419,25 @@ async def read_all_alerts(request: Request):
     _user, fleet = await _require_fleet(request)
     await db.fleet_alerts.update_many({"fleet_id": fleet["id"]}, {"$set": {"read": True}})
     return {"message": "ok"}
+
+
+@router.get("/report.pdf")
+async def fleet_report_pdf_endpoint(request: Request):
+    """Downloadable fleet activity report (vehicles + alert synthesis)."""
+    _user, fleet = await _require_fleet(request)
+    from core.tracking_pdf import fleet_report_pdf
+    vs = await db.fleet_vehicles.find({"fleet_id": fleet["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    dmap = await _driver_map(fleet["id"])
+    vehicles = [_vehicle_out(v, dmap.get(v.get("driver_id"))) for v in vs]
+    alert_counts = {}
+    total = 0
+    async for a in db.fleet_alerts.find({"fleet_id": fleet["id"]}, {"_id": 0, "type": 1}):
+        alert_counts[a["type"]] = alert_counts.get(a["type"], 0) + 1
+        total += 1
+    pdf = fleet_report_pdf(fleet.get("name") or "Ma flotte", vehicles, alert_counts, total)
+    fname = f"rapport-flotte-{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.pdf"
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={fname}"})
 
 
 # ----------------------------------------------------------------- ingestion

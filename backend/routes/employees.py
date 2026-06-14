@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import Response
 
 from core.config import db
 from core.deps import get_current_user
@@ -183,6 +184,7 @@ async def add_employee(request: Request):
         "name": name,
         "role": (body.get("role") or "Employé").strip(),
         "phone": (body.get("phone") or "").strip(),
+        "email": (body.get("email") or "").strip().lower(),
         "color": EMP_COLORS[count % len(EMP_COLORS)],
         "invite_code": f"EMP{uuid.uuid4().hex[:5].upper()}",
         "user_id": user["id"] if is_self else None,
@@ -205,6 +207,40 @@ async def delete_employee(eid: str, request: Request):
     await db.employee_shifts.delete_many({"employee_id": eid})
     await db.employee_routes.delete_many({"org_id": org["id"], "employee_id": eid})
     return {"message": "Employé retiré"}
+
+
+@router.post("/invite")
+async def invite_employee(request: Request):
+    """Create an employee slot and email an invitation (code + one-tap join link)."""
+    import os
+    from core.email import fire, send_team_invite
+    user, org = await _require_org(request)
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    email = (body.get("email") or "").strip().lower()
+    if not name:
+        raise HTTPException(status_code=400, detail="Nom requis")
+    if "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Email valide requis")
+    count = await db.employees.count_documents({"org_id": org["id"]})
+    role = (body.get("role") or "Employé").strip()
+    e = {
+        "id": f"emp_{uuid.uuid4().hex[:10]}", "org_id": org["id"], "name": name, "role": role,
+        "phone": (body.get("phone") or "").strip(), "email": email,
+        "color": EMP_COLORS[count % len(EMP_COLORS)],
+        "invite_code": f"EMP{uuid.uuid4().hex[:5].upper()}",
+        "user_id": None, "is_self": False, "sim": {"enabled": False},
+        "shift": {}, "geo_state": {}, "invited_at": _now(), "created_at": _now(),
+    }
+    await db.employees.insert_one(e)
+    e.pop("_id", None)
+    frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    join_url = f"{frontend}/employes/rejoindre?code={e['invite_code']}" if frontend else "/employes/rejoindre"
+    fire(send_team_invite(email, name, org_name=org.get("name") or "l'équipe",
+                          role_label=role, code=e["invite_code"], join_url=join_url))
+    return {"message": "Invitation envoyée", "employee": await _employee_out(e, org["id"]), "email": email}
+
+
 
 
 # ----------------------------------------------------------------- join (employee side)
@@ -396,24 +432,21 @@ async def delete_route(rid: str, request: Request):
 
 
 # ----------------------------------------------------------------- reports
-@router.get("/reports")
-async def reports(request: Request):
-    _user, org = await _require_org(request)
+async def _compute_report(org_id: str):
     days = 7
     today = datetime.now(timezone.utc).date()
     day_keys = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days - 1, -1, -1)]
-    emps = await db.employees.find({"org_id": org["id"]}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    emps = await db.employees.find({"org_id": org_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
     rows = []
     for e in emps:
         per_day = {d: 0.0 for d in day_keys}
         shifts_count = 0
         async for s in db.employee_shifts.find(
-                {"org_id": org["id"], "employee_id": e["id"]}, {"_id": 0, "started_at": 1, "duration_min": 1}):
+                {"org_id": org_id, "employee_id": e["id"]}, {"_id": 0, "started_at": 1, "duration_min": 1}):
             d = (s.get("started_at") or "")[:10]
             if d in per_day:
                 per_day[d] += float(s.get("duration_min") or 0)
                 shifts_count += 1
-        # currently open / sim shift counts toward today
         started = _shift_started_at(e)
         if started and started[:10] in per_day:
             try:
@@ -426,7 +459,25 @@ async def reports(request: Request):
             "color": e.get("color"), "days": [int(round(per_day[d])) for d in day_keys],
             "total_min": int(round(total)), "shifts_count": shifts_count,
         })
+    return day_keys, rows
+
+
+@router.get("/reports")
+async def reports(request: Request):
+    _user, org = await _require_org(request)
+    day_keys, rows = await _compute_report(org["id"])
     return {"day_keys": day_keys, "rows": rows}
+
+
+@router.get("/report.pdf")
+async def reports_pdf(request: Request):
+    _user, org = await _require_org(request)
+    from core.tracking_pdf import employees_report_pdf
+    day_keys, rows = await _compute_report(org["id"])
+    pdf = employees_report_pdf(org.get("name") or "Mon équipe", day_keys, rows)
+    fname = f"rapport-employes-{_today_str()}.pdf"
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={fname}"})
 
 
 # ----------------------------------------------------------------- demo seed

@@ -137,6 +137,40 @@ def test_clock_out_notifies_owner():
     owner.delete(f"{API}/employees/{eid}", timeout=20)
 
 
+def test_invite_employee_sends_and_creates_slot():
+    s = _session()
+    r = s.post(f"{API}/employees/invite", json={"name": "TEST_Invited", "role": "Livreur", "email": "test.invite@example.com"}, timeout=20)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body.get("email") == "test.invite@example.com"
+    assert body["employee"]["invite_code"].startswith("EMP")
+    s.delete(f"{API}/employees/{body['employee']['id']}", timeout=20)
+
+
+def test_invite_requires_valid_email():
+    s = _session()
+    assert s.post(f"{API}/employees/invite", json={"name": "TEST_X", "email": "notanemail"}, timeout=20).status_code == 400
+    assert s.post(f"{API}/employees/invite", json={"name": "", "email": "ok@x.com"}, timeout=20).status_code == 400
+
+
+def test_employees_report_pdf():
+    s = _session()
+    s.post(f"{API}/employees/seed-demo", timeout=20)
+    r = s.get(f"{API}/employees/report.pdf", timeout=30)
+    assert r.status_code == 200
+    assert r.headers.get("content-type", "").startswith("application/pdf")
+    assert r.content[:4] == b"%PDF"
+
+
+def test_fleet_report_pdf():
+    s = _session()
+    s.post(f"{API}/fleet/seed-demo", timeout=20)
+    r = s.get(f"{API}/fleet/report.pdf", timeout=30)
+    assert r.status_code == 200
+    assert r.headers.get("content-type", "").startswith("application/pdf")
+    assert r.content[:4] == b"%PDF"
+
+
 def test_cleanup():
     s = _session()
     for e in s.get(f"{API}/employees", timeout=20).json().get("employees", []):

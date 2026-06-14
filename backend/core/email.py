@@ -523,6 +523,39 @@ async def send_account_suspended(to: str, name: str, reason: str = "") -> None:
     await _send(to, "Votre compte SB Drive a été suspendu", _shell("Compte suspendu ⛔", "#b91c1c", body))
 
 
+async def send_team_invite(to: str, name: str, *, org_name: str, role_label: str,
+                           code: str, join_url: str) -> None:
+    """Invite an employee to a SB Tracking team: invitation code + one-tap join link."""
+    code_box = (
+        f'<div style="text-align:center;margin:10px 0 18px;">'
+        f'<span style="display:inline-block;padding:12px 22px;background:#0c4a6e;color:#ffffff;'
+        f'font-size:22px;font-weight:bold;border-radius:10px;font-family:monospace;letter-spacing:2px;">'
+        f'{code}</span></div>'
+    )
+    body = f"""\
+        <p style="color:#444;font-size:15px;line-height:1.6;">Bonjour {name or ''},</p>
+        <p style="color:#444;font-size:15px;line-height:1.6;">
+          Vous êtes invité(e) à rejoindre l'équipe <b>{org_name}</b> sur <b>SB Tracking</b>
+          en tant que <b>{role_label}</b>. Une fois connecté(e), vous pourrez pointer votre
+          arrivée/départ et consulter vos tournées depuis votre téléphone.
+        </p>
+        <p style="color:#444;font-size:14px;margin:14px 0 4px;">Votre code d'invitation :</p>
+        {code_box}
+        <p style="text-align:center;margin:18px 0 22px;">
+          <a href="{join_url}" style="background:#0ea5e9;color:#ffffff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-weight:bold;font-size:15px;display:inline-block;">
+            Rejoindre l'équipe
+          </a>
+        </p>
+        <p style="color:#9aa0ac;font-size:12px;line-height:1.5;">
+          Connectez-vous (ou créez votre compte) puis saisissez le code ci-dessus dans
+          « Employés → Rejoindre ». Si vous n'attendiez pas cette invitation, ignorez cet email.
+        </p>"""
+    await _send(to, f"Invitation à rejoindre {org_name} — SB Tracking",
+                _shell("Rejoignez votre équipe 👷", "#0ea5e9", body))
+
+
+
 async def send_account_reactivated(to: str, name: str) -> None:
     """Notify a user that their suspended account has been reactivated."""
     body = f"""\

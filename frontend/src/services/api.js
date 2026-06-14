@@ -554,6 +554,7 @@ export const employeesAPI = {
   seedDemo: () => api.post('/employees/seed-demo'),
   list: () => api.get('/employees'),
   add: (p) => api.post('/employees', p),
+  invite: (p) => api.post('/employees/invite', p),
   remove: (id) => api.delete(`/employees/${id}`),
   join: (code) => api.post('/employees/join', { code }),
   clockIn: (p) => api.post('/employees/clock-in', p),
@@ -565,6 +566,7 @@ export const employeesAPI = {
   toggleStop: (rid, sid) => api.post(`/employees/routes/${rid}/stops/${sid}/toggle`),
   deleteRoute: (id) => api.delete(`/employees/routes/${id}`),
   reports: () => api.get('/employees/reports'),
+  reportPdf: () => api.get('/employees/report.pdf', { responseType: 'blob' }),
 };
 
 export const fleetAPI = {
@@ -587,6 +589,7 @@ export const fleetAPI = {
   alerts: () => api.get('/fleet/alerts'),
   readAlert: (id) => api.post(`/fleet/alerts/${id}/read`),
   readAllAlerts: () => api.post('/fleet/alerts/read-all'),
+  reportPdf: () => api.get('/fleet/report.pdf', { responseType: 'blob' }),
   myPing: (p) => api.post('/fleet/my-ping', p),
 };
 

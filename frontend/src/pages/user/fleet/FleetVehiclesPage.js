@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, X, Copy, Trash, CaretRight, Cpu } from '@phosphor-icons/react';
+import { ArrowLeft, Plus, X, Copy, Trash, CaretRight, Cpu, FilePdf } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { fleetAPI } from '../../../services/api';
 import { VTYPE_META, vtypeMeta, statusMeta } from './fleetShared';
+import { downloadBlob } from './employeeShared';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500';
 
@@ -36,12 +37,20 @@ const FleetVehiclesPage = () => {
     try { await fleetAPI.deleteVehicle(v.id); toast.success('Supprimé'); load(); } catch { toast.error('Erreur'); }
   };
   const copyKey = async (k) => { try { await navigator.clipboard.writeText(k); toast.success('Clé traceur copiée'); } catch { toast.error('Copie indisponible'); } };
+  const [exporting, setExporting] = useState(false);
+  const exportPdf = async () => {
+    setExporting(true);
+    try { const res = await fleetAPI.reportPdf(); downloadBlob(res, 'rapport-flotte.pdf'); toast.success('PDF téléchargé'); }
+    catch { toast.error('Erreur lors de l\'export'); }
+    finally { setExporting(false); }
+  };
 
   return (
     <div className="mobile-container min-h-screen bg-gray-50 pb-10" data-testid="fleet-vehicles-page">
       <div className="sticky top-0 z-30 bg-white px-4 pt-4 pb-3 flex items-center gap-3 border-b">
         <button onClick={() => navigate('/sb-tracking')} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center" data-testid="back-btn"><ArrowLeft size={18} /></button>
         <h1 className="text-base font-extrabold text-gray-900 flex-1">Véhicules</h1>
+        <button onClick={exportPdf} disabled={exporting} className="bg-gray-100 text-gray-700 text-xs font-bold px-2.5 py-2 rounded-full flex items-center gap-1 disabled:opacity-60" data-testid="fleet-pdf-btn"><FilePdf size={14} weight="fill" /> {exporting ? '...' : 'PDF'}</button>
         <button onClick={openNew} className="bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-full flex items-center gap-1" data-testid="add-vehicle-btn"><Plus size={14} weight="bold" /> Ajouter</button>
       </div>
 
