@@ -1,0 +1,40 @@
+{
+  "summary": "Phase 3c bridge (Partager avec mon médecin) + Phase 3d (Urgences & ambulance) testés end-to-end. Backend pytest 9/9 PASS: 6/6 ambulance (test_iter_phase3d_ambulance.py — emergency-types public, validation type/position, full lifecycle dispatched→en_route→arrived→complete idempotent, cancel, ownership 404) + 3/3 share (test_iter404_lab_share.py — partage valide 200 shared_with='Dr. Free Test', email inconnu 404 detail='Aucun compte trouvé...', email vide 400). curl manuel confirme POST /api/lab/orders/{id}/share retourne bien {detail:'Aucun compte trouvé avec cet email'} en 404. Frontend Playwright (mobile 430x900, geolocation Paris 48.8566/2.3522): TEST SHARE — /analyses + my-orders-btn liste 4 commandes dont 3 'Résultats prêts' avec 4 boutons share-lab_xxx + 4 boutons 'Résultats'. Clic share ouvre share-sheet avec share-email-input + share-submit. Email valide freeuser@demo.sb → toast succès 'Résultats partagés avec Dr. Free Test' OK. Email inconnu → toast 'Erreur réseau' au lieu du detail backend (voir frontend_issues). TEST AMBULANCE — /home medical-emergency-btn → /urgences ambulance-page. 3 boutons call-15/call-112/call-18 visibles. Soumission sans GPS → erreur 'Partagez votre position' (no_position_error=True). ambulance-locate-btn → position OK. etype-cardiac + symptoms + ambulance-request-btn → ambulance-tracking avec carte Google Maps (centre Paris visible, marqueurs patient + ambulance + polyline), ambulance-timeline (3 étapes: 'Demande reçue', 'Ambulance en route', 'Équipe sur place'), ambulance-eta ('Ambulance en route · ~6 min'), ambulance-crew-card ('Équipe SMUR Nord · SAMU 75 — SMUR · Ambulance de réanimation (UMH) · SMUR-15-AB' + bouton tel), ambulance-recap (patient/position/symptômes/'Incluse'), ambulance-complete-btn (disabled tant que pas arrivé), ambulance-cancel-btn (back arrow). Cancel via ambulance-cancel-btn fonctionne (statut→cancelled, navigation). Non-régression /analyses: catalog + Résultats download button coexistent OK avec Mon médecin.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "LabTestsPage.js shareResults() (line 96-109)",
+        "issue": "Quand le partage échoue (404 email inconnu ou 400 non-praticien), le toast affiche 'Erreur réseau' au lieu du detail backend ('Aucun compte trouvé avec cet email' / 'Ce médecin n'est pas inscrit comme praticien SB Santé'). La réponse 404 est pourtant un JSON valide (vérifié via curl) — le bloc catch est déclenché à tort. Cause probable: `await r.json()` lève une exception sur certaines réponses 404 (peut-être à cause d'un redirect/proxy), ou un autre throw silencieux. Le code logique else `d.detail || 'Échec du partage'` n'est jamais atteint pour l'email inconnu. UX dégradée: l'utilisateur ne sait pas pourquoi le partage a échoué (croit à un problème réseau au lieu de corriger l'email).",
+        "selector": "[data-testid='share-submit']",
+        "priority": "MINOR"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_phase3d_ambulance.py",
+    "/app/backend/tests/test_iter404_lab_share.py",
+    "/app/test_reports/pytest/iter404_ambulance.xml",
+    "/app/test_reports/pytest/iter404_share.xml"
+  ],
+  "action_items": [
+    "Corriger LabTestsPage.js shareResults(): déplacer `await r.json()` dans un try/catch local ou utiliser `r.text()` puis JSON.parse safe, pour que le else branch affiche bien `d.detail` (ex: 'Aucun compte trouvé avec cet email') au lieu de tomber dans le catch 'Erreur réseau'. Pattern recommandé: `let d = {}; try { d = await r.json(); } catch {} ; if (!r.ok) toast.error(d.detail || 'Échec du partage');`"
+  ],
+  "critical_code_review_comments": [
+    "routes/ambulance.py _live_state(): la position interpolée linéairement depuis crew_start (pickup+0.010,+0.013) vers pickup est élégante (no background job). Cependant ARRIVE_SECONDS=75 est en dur — pour la prod il faudrait paramétrer ou lier au crew.eta_minutes (actuellement déconnectés: ETA descend de 6→0 sur 75s, ce qui implique vitesse ~480km/h). C'est OK pour la démo mais inconvenance physique notable.",
+    "routes/ambulance.py create_request(): aucune limitation de requêtes concurrentes (un patient peut spammer N ambulances en parallèle). Ajouter un check 'has_active_request' (status in {dispatched, en_route, arrived}) avant insertion serait prudent — sinon facture/notif de masse possible.",
+    "routes/lab.py /share: pas de rate-limit ni de dédoublonnage (`$addToSet` empêche le doublon en DB mais le notif sera renvoyé à chaque appel). Considérer un guard idempotent sur la notif.",
+    "LabTestsPage.js (300 lignes maintenant) approche la limite de splitting recommandée. La part ShareSheet (~50 lignes JSX) mériterait son propre composant <ShareResultsSheet/>.",
+    "AmbulancePage.js bouton ambulance-complete-btn est toujours rendu mais 'disabled' tant que !arrived. C'est OK mais l'attribut disabled est piloté par live.status === 'arrived' calculé côté backend — pas de fallback si polling échoue. Polling interval visible ?"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter404_lab_share.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "95% (1 minor UX bug)"},
+  "test_credentials": "Patient famtester@demo.sb / FamTest123! ; Praticien approuvé freeuser@demo.sb / FreeUser123! (lab + medical practitioner). Login via /login/email (cookies httpOnly).",
+  "seed_data_creation": "Plusieurs demandes ambulance créées via pytest (full_lifecycle, cancel, ownership) + 1 via Playwright UI (cardiaque, Paris 48.8566/2.3522, complete via cancel). Partages déjà existants côté famtester via test_share_valid_practitioner_succeeds (lab_603575da2576 partagé avec freeuser).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 3c bridge + Phase 3d ambulance VALIDÉS. Seul résidu: le toast d'erreur de partage affiche 'Erreur réseau' au lieu du detail backend — bug frontend de catch sur await r.json(). Backend 100% OK (cf curl + pytest). Endpoints ambulance: GET /api/ambulance/emergency-types (public, 8 types + 3 numéros), POST /api/ambulance/requests (requires emergency_type∈{cardiac,breathing,unconscious,stroke,accident,bleeding,burn,other} + pickup_lat + pickup_lng, optional pickup_address/patient_name/patient_phone/symptoms ; retourne status=en_route immédiat + crew + live{ambulance_position, eta_minutes, progress}), GET /api/ambulance/requests (history ownership-scoped), GET /api/ambulance/requests/{id} (live state), POST /api/ambulance/requests/{id}/complete + /cancel (idempotent 404 si déjà terminé). ARRIVE_SECONDS=75s simulé. Page /urgences disponible depuis /home medical-emergency-btn. Pour le partage: POST /api/lab/orders/{id}/share body {practitioner_email}, statut order doit être results_ready, target doit être pro_providers vertical=medical verification_status=approved.",
+  "rca of the issue": "Bug 'Erreur réseau' au lieu de 'Aucun compte trouvé...' : LabTestsPage.js ligne 105 `const d = await r.json();` est exécuté AVANT le `if (r.ok)`. Si la réponse 404 contient un body JSON valide (cas backend vérifié), le parse devrait passer — mais en pratique le catch (ligne 108) est déclenché. Reproduction: ouvrir Mes analyses → bouton Mon médecin → email 'xyz@notexist.test' → submit → toast 'Erreur réseau' (observable dans le screenshot). Mitigation: refactoriser avec `let d = {}; try { d = await r.json(); } catch(e) {}` AVANT le test `r.ok`, ou utiliser response.text() + JSON.parse safe."
+}

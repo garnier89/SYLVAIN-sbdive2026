@@ -13,7 +13,7 @@ import {
   ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, SbMarketHub, SbMarketDetail, SbMarketInbox, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
   NearbyBusinessPage, BeautyServicesPage, ProServiceMarketPage, ProServiceSpacePage, PetServicesPage, PetCarePage, CarCarePage, AutoPartsPage, TowingServicesPage, TowingRequestPage, TowingOperatorPage,
   EventsPage, EventDetailPage, MyEventTicketsPage, OrganizerSpace, OrganizerDashboard, EventCheckinPage, StaffCheckpointPage, EventLiveDashboard,
-  VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage, PractitionerPage, MyPrescriptionsPage, LabTestsPage, LabProviderPage,
+  VideoConsultPage, MedicalAppointmentPage, MedicalTransportPage, PractitionerPage, MyPrescriptionsPage, LabTestsPage, LabProviderPage, AmbulancePage,
   DeliveryTrackingPage, DeliveryJobsPage, RealEstatePage, PropertyDetailPage, PostPropertyPage,
   MyPropertiesPage, PharmacyPage, PharmacyCatalogPage, PharmacyPrescriptionPage, PharmacyOrdersPage,
   BiddingPage, TaxiBiddingPage, AdvancedTaxiBookingPage, CorporateAccountPage, TaxiHubPage,
@@ -116,6 +116,7 @@ export function clientRoutes(user) {
       <Route path="/analyses" element={<ProtectedRoute allowedRoles={['user']}><LabTestsPage /></ProtectedRoute>} />
       <Route path="/laboratoire" element={<ProtectedRoute allowedRoles={['user']}><LabProviderPage /></ProtectedRoute>} />
       <Route path="/praticien" element={<ProtectedRoute allowedRoles={['user']}><PractitionerPage /></ProtectedRoute>} />
+      <Route path="/urgences" element={<ProtectedRoute allowedRoles={['user']}><AmbulancePage /></ProtectedRoute>} />
       <Route path="/medical/appointment" element={<ProtectedRoute allowedRoles={['user']}><MedicalAppointmentPage /></ProtectedRoute>} />
       <Route path="/medical/transport" element={<ProtectedRoute allowedRoles={['user']}><MedicalTransportPage /></ProtectedRoute>} />
       <Route path="/track/:type/:id" element={<ProtectedRoute allowedRoles={['user']}><DeliveryTrackingPage /></ProtectedRoute>} />

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft, MagnifyingGlass, Flask, CircleNotch, CheckCircle, ClockCounterClockwise,
-  House, Storefront, Wallet, Money, DownloadSimple, TestTube, Drop, Pill, Virus,
+  House, Storefront, Wallet, Money, DownloadSimple, TestTube, Drop, Pill, Virus, ShareNetwork, X,
 } from '@phosphor-icons/react';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -37,6 +37,9 @@ const LabTestsPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
   const [orders, setOrders] = useState({ upcoming: [], past: [] });
+  const [shareFor, setShareFor] = useState(null); // order being shared
+  const [shareEmail, setShareEmail] = useState('');
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     fetch(`${LAB}/catalog`).then(r => r.json()).then(d => { setCfg(d); setLoading(false); }).catch(() => setLoading(false));
@@ -90,8 +93,20 @@ const LabTestsPage = () => {
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     } catch { toast.error('Erreur réseau'); }
   };
-
-  // ── Done ──
+  const shareResults = async () => {
+    const email = shareEmail.trim().toLowerCase();
+    if (!email) { toast.error('Saisissez l\'email de votre médecin'); return; }
+    setSharing(true);
+    try {
+      const r = await fetch(`${LAB}/orders/${shareFor.id}/share`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ practitioner_email: email }),
+      });
+      const d = await r.json();
+      if (r.ok) { toast.success(`Résultats partagés avec ${d.shared_with || 'votre médecin'}`); setShareFor(null); setShareEmail(''); }
+      else toast.error(d.detail || 'Échec du partage');
+    } catch { toast.error('Erreur réseau'); } finally { setSharing(false); }
+  };
   if (screen === 'done' && done) {
     return (
       <div className="mobile-container min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center" data-testid="lab-done">
@@ -118,6 +133,7 @@ const LabTestsPage = () => {
           <span className="font-bold text-gray-900 text-sm">{money(Number(o.total))}</span>
           <div className="flex gap-2">
             {['pending', 'confirmed'].includes(o.status) && <button onClick={() => cancelOrder(o.id)} className="text-xs font-semibold text-rose-600 px-2 py-1" data-testid={`cancel-${o.id}`}>Annuler</button>}
+            {o.status === 'results_ready' && <button onClick={() => { setShareFor(o); setShareEmail(''); }} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center gap-1" data-testid={`share-${o.id}`}><ShareNetwork size={13} weight="bold" /> Mon médecin</button>}
             {o.status === 'results_ready' && <button onClick={() => downloadResults(o.id)} className="text-xs font-bold text-white bg-indigo-600 px-3 py-1.5 rounded-lg flex items-center gap-1" data-testid={`results-${o.id}`}><DownloadSimple size={13} /> Résultats</button>}
           </div>
         </div>
@@ -131,6 +147,21 @@ const LabTestsPage = () => {
             {orders.upcoming.length === 0 ? <Empty text="Aucune analyse en cours" /> : <div className="space-y-3">{orders.upcoming.map(o => <Row key={o.id} o={o} />)}</div>}</div>
           {orders.past.length > 0 && <div><p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Historique</p><div className="space-y-3">{orders.past.map(o => <Row key={o.id} o={o} />)}</div></div>}
         </div>
+        {shareFor && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => !sharing && setShareFor(null)} data-testid="share-sheet">
+            <div className="bg-white w-full max-w-[430px] rounded-t-2xl p-5 pb-8" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-base font-bold text-gray-900">Partager avec mon médecin</h3>
+                <button onClick={() => setShareFor(null)} disabled={sharing} data-testid="share-close"><X size={20} className="text-gray-400" /></button>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">Votre médecin recevra une notification et pourra consulter vos résultats lors d'une consultation. Il doit être inscrit comme praticien SB Santé.</p>
+              <input value={shareEmail} onChange={e => setShareEmail(e.target.value)} type="email" placeholder="email@medecin.fr" className="w-full border border-gray-200 rounded-lg px-3 py-3 text-sm mb-3" data-testid="share-email-input" />
+              <button onClick={shareResults} disabled={sharing} className="w-full py-3.5 rounded-xl font-bold text-white bg-indigo-600 disabled:opacity-60 flex items-center justify-center gap-2" data-testid="share-submit">
+                {sharing ? <CircleNotch size={16} className="animate-spin" /> : <ShareNetwork size={16} weight="bold" />}{sharing ? 'Partage…' : 'Partager mes résultats'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

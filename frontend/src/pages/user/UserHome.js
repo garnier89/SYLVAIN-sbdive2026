@@ -32,7 +32,7 @@ import {
   MagnifyingGlass, List, ClipboardText,
   VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
-  X,
+  X, Ambulance,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -727,6 +727,14 @@ const UserHome = () => {
     medical: (
       <section key="medical" className="px-4 mt-6">
         <SectionHeader title={st('medical', "Services Médicaux")} />
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate('/urgences')} className="mb-3 w-full rounded-[20px] bg-gradient-to-br from-red-600 to-red-500 p-4 flex items-center gap-4 text-left shadow-sm" data-testid="medical-emergency-btn">
+          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0"><Ambulance size={28} weight="fill" className="text-white" /></div>
+          <div className="flex-1">
+            <h4 className={`text-sm font-extrabold text-white ${HEAD}`}>Urgences & ambulance</h4>
+            <p className="text-[11px] text-white/90 mt-0.5 leading-relaxed">Demandez une ambulance géolocalisée immédiatement · SAMU 15 / 112.</p>
+          </div>
+          <CaretRight size={18} className="text-white/80" />
+        </motion.button>
         <div className="grid grid-cols-2 gap-3" data-testid="medical-services-section">
           <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate('/medical/appointment')} className="row-span-2 rounded-[20px] bg-blue-50/70 border border-blue-100 p-4 flex flex-col text-left" data-testid="medical-appointment-btn">
             <h4 className={`text-[15px] font-extrabold text-[#1F2430] ${HEAD}`}>Prendre Rendez-vous</h4>
