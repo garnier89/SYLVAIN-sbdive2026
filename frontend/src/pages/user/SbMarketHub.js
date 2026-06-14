@@ -10,10 +10,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Car, KeyRound, Package, Search, Plus, MapPin,
   ChevronLeft, Sparkles, X, Bike, Building2, ShoppingBag,
+  MessageCircle, SlidersHorizontal, Check,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { marketplaceAPI, realEstateAPI, favoritesAPI } from '../../services/api';
 import { FavoriteButton } from '../../components/FavoriteButton';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
+
+// Options de tri du fil d'annonces
+const SORTS = [
+  { key: 'recent', label: 'Plus récentes' },
+  { key: 'price_asc', label: 'Prix croissant' },
+  { key: 'price_desc', label: 'Prix décroissant' },
+];
 
 const FONT = "font-['Manrope']";
 
@@ -124,6 +133,8 @@ const BottomSheet = ({ open, onClose, title, children, testid }) => (
 
 const SbMarketHub = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { on } = useWebSocket(user?.id);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [favMk, setFavMk] = useState(new Set());
@@ -132,6 +143,13 @@ const SbMarketHub = () => {
   const [query, setQuery] = useState('');
   const [publishOpen, setPublishOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  // Filtres avancés
+  const [advOpen, setAdvOpen] = useState(false);
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [city, setCity] = useState('');
+  const [sort, setSort] = useState('recent');
 
   useEffect(() => {
     let alive = true;
@@ -146,6 +164,7 @@ const SbMarketHub = () => {
           id: l.id, source: 'marketplace', favType: 'marketplace',
           title: l.title, price: l.price, image: l.image, location: l.location,
           listing_type: l.listing_type, rent_period: l.rent_period, is_featured: l.is_featured,
+          created_at: l.created_at,
           group: l.kind === 'vehicle' ? 'vehicle' : 'item',
           imgKind: l.kind === 'vehicle' ? 'vehicle' : 'item',
           route: l.kind === 'vehicle' ? '/marketplace/cars' : '/marketplace/items',
@@ -154,6 +173,7 @@ const SbMarketHub = () => {
           id: p.id, source: 'realestate', favType: 'property',
           title: p.title, price: p.price, image: p.thumbnail, location: p.address || p.city,
           listing_type: p.listing_type, rent_period: p.rent_period, is_featured: p.is_featured,
+          created_at: p.created_at,
           group: 'realestate', imgKind: 'realestate', route: `/real-estate/${p.id}`,
         }));
         // Entrelace : boostées d'abord, puis récentes (immobilier + marketplace)
@@ -168,6 +188,23 @@ const SbMarketHub = () => {
     return () => { alive = false; };
   }, []);
 
+  // Compteur global de messages non-lus (toutes conversations SB Market).
+  const refreshUnread = useCallback(() => {
+    marketplaceAPI.myThreads()
+      .then((r) => setUnread((r.data?.threads || []).reduce((s, t) => s + (t.unread || 0), 0)))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshUnread();
+    const onFocus = () => refreshUnread();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refreshUnread]);
+  useEffect(() => {
+    if (!on) return undefined;
+    return on('marketplace_message', () => refreshUnread());
+  }, [on, refreshUnread]);
+
   const onFav = useCallback((type) => (id, fav) => {
     const setter = type === 'property' ? setFavRe : setFavMk;
     setter((prev) => { const n = new Set(prev); if (fav) n.add(id); else n.delete(id); return n; });
@@ -181,12 +218,31 @@ const SbMarketHub = () => {
   const openListing = (item) => navigate(`/sb-market/${item.source === 'realestate' ? 're' : 'mp'}/${item.id}`);
 
   const q = query.trim().toLowerCase();
-  const visible = items.filter((it) => {
-    if (filter !== 'all' && it.group !== filter) return false;
-    if (q && !(it.title || '').toLowerCase().includes(q) && !(it.location || '').toLowerCase().includes(q)) return false;
-    return true;
-  });
+  const cityQ = city.trim().toLowerCase();
+  const pMin = priceMin !== '' ? parseFloat(priceMin) : null;
+  const pMax = priceMax !== '' ? parseFloat(priceMax) : null;
+  const advCount = (cityQ ? 1 : 0) + (pMin != null ? 1 : 0) + (pMax != null ? 1 : 0) + (sort !== 'recent' ? 1 : 0);
+  const visible = items
+    .filter((it) => {
+      if (filter !== 'all' && it.group !== filter) return false;
+      if (q && !(it.title || '').toLowerCase().includes(q) && !(it.location || '').toLowerCase().includes(q)) return false;
+      if (cityQ && !(it.location || '').toLowerCase().includes(cityQ)) return false;
+      const price = Number(it.price || 0);
+      if (pMin != null && price < pMin) return false;
+      if (pMax != null && price > pMax) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort === 'price_asc') return Number(a.price || 0) - Number(b.price || 0);
+      if (sort === 'price_desc') return Number(b.price || 0) - Number(a.price || 0);
+      // 'recent' : boostées d'abord puis par date décroissante
+      const feat = (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+      if (feat !== 0) return feat;
+      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
   const featured = items.filter((it) => it.is_featured).slice(0, 10);
+
+  const resetAdv = () => { setPriceMin(''); setPriceMax(''); setCity(''); setSort('recent'); };
 
   const favOf = (it) => (it.favType === 'property' ? favRe.has(it.id) : favMk.has(it.id));
 
@@ -198,10 +254,18 @@ const SbMarketHub = () => {
           <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center shrink-0" data-testid="market-back-btn">
             <ChevronLeft size={20} className="text-slate-700" />
           </button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900 leading-none">SB Market</h1>
             <p className="text-xs font-medium text-slate-500 mt-0.5">Acheter, vendre & louer près de vous</p>
           </div>
+          <button onClick={() => navigate('/sb-market/messages')} className="relative w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center shrink-0" data-testid="market-inbox-btn" aria-label="Mes messages">
+            <MessageCircle size={19} className="text-slate-700" />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-slate-50" data-testid="market-inbox-badge">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </button>
         </div>
         <div className="bg-white shadow-sm border border-slate-100 rounded-full flex items-center px-4 py-3 transition-all focus-within:ring-2 focus-within:ring-rose-500">
           <Search size={18} className="text-slate-400 shrink-0" />
@@ -260,21 +324,38 @@ const SbMarketHub = () => {
 
       {/* Fil d'annonces + filtres */}
       <section className="px-4 mt-6">
-        <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-3">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              data-testid={`market-filter-${f.key}`}
-              className={`px-4 py-2 rounded-full whitespace-nowrap text-sm transition-all ${
-                filter === f.key
-                  ? 'bg-rose-500 text-white font-semibold shadow-md shadow-rose-200'
-                  : 'bg-white text-slate-600 border border-slate-200 font-medium hover:bg-slate-50'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex overflow-x-auto hide-scrollbar gap-2 flex-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                data-testid={`market-filter-${f.key}`}
+                className={`px-4 py-2 rounded-full whitespace-nowrap text-sm transition-all ${
+                  filter === f.key
+                    ? 'bg-rose-500 text-white font-semibold shadow-md shadow-rose-200'
+                    : 'bg-white text-slate-600 border border-slate-200 font-medium hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setAdvOpen(true)}
+            data-testid="market-adv-filters-btn"
+            className={`relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition-all ${
+              advCount > 0 ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-600 border-slate-200'
+            }`}
+            aria-label="Filtres avancés"
+          >
+            <SlidersHorizontal size={18} />
+            {advCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-slate-50" data-testid="market-adv-count">
+                {advCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {loading ? (
@@ -343,6 +424,50 @@ const SbMarketHub = () => {
             <span className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center"><Bike size={24} /></span>
             <span className="text-sm font-bold text-slate-900">Moto / Scooter</span>
           </button>
+        </div>
+      </BottomSheet>
+
+      {/* Sheet — Filtres avancés (prix / ville / tri) */}
+      <BottomSheet open={advOpen} onClose={() => setAdvOpen(false)} title="Filtres avancés" testid="adv-filters-sheet">
+        <div className="space-y-5">
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-2">Prix (€)</p>
+            <div className="flex items-center gap-3">
+              <input type="number" inputMode="numeric" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} placeholder="Min"
+                data-testid="adv-price-min" className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-rose-500" />
+              <span className="text-slate-400">—</span>
+              <input type="number" inputMode="numeric" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="Max"
+                data-testid="adv-price-max" className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-2">Ville / Localisation</p>
+            <div className="bg-slate-100 rounded-xl flex items-center px-3 py-2.5">
+              <MapPin size={16} className="text-slate-400 shrink-0" />
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex. Fort-de-France"
+                data-testid="adv-city" className="flex-1 bg-transparent outline-none text-sm ml-2" />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-2">Trier par</p>
+            <div className="space-y-2">
+              {SORTS.map((s) => (
+                <button key={s.key} onClick={() => setSort(s.key)} data-testid={`adv-sort-${s.key}`}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                    sort === s.key ? 'border-rose-500 bg-rose-50 text-rose-600' : 'border-slate-200 bg-white text-slate-700'
+                  }`}>
+                  {s.label}
+                  {sort === s.key && <Check size={16} />}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => { resetAdv(); }} data-testid="adv-reset-btn"
+              className="flex-1 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold text-sm">Réinitialiser</button>
+            <button onClick={() => setAdvOpen(false)} data-testid="adv-apply-btn"
+              className="flex-1 py-3 rounded-xl bg-slate-900 text-white font-bold text-sm">Voir {visible.length} résultat{visible.length > 1 ? 's' : ''}</button>
+          </div>
         </div>
       </BottomSheet>
     </div>
