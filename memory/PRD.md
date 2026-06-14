@@ -1,3 +1,10 @@
+## NEW - 2026-06-14 (509) - ✅ Régression GLOBALE écosystème Santé — TOUT VERT (sécurisé pour redéploiement)
+- **testing_agent iter407** : régression complète Santé (Phases 3a/3b/3c/3d + ponts) → **backend 49/49 pytest PASS** (medical_marketplace 9/9, phase3d_ambulance 6/6, rx_from_booking 3/3, phase3c_lab 16/16, lab_share 3/3, phase3b_medical_rx 11/11, 13.5s) + **frontend E2E 0 bug** sur 3 rôles (patient famtester / praticien+labo+ambulancier freeuser / admin), géoloc Paris.
+- Vérifié : /sante (RDV + 9 boutons Visio sur consultations, aucun sur infirmier) ; /pro/medical (ordonnance + 18 chips analyses) ; /mes-ordonnances (boutons adaptatifs : 17 PDF / 14 Pharmacie / 7 Labo, sections analyses) → "Réserver au labo" pré-remplit /analyses (NFS+Groupe=47€) ; partage labo (email inconnu → "Aucun compte trouvé" = bug iter404 toujours corrigé, email valide → "Résultats partagés avec Dr. Free Test") ; /urgences + /espace-ambulancier + admin. Non-régression /beauty + /services-metiers OK.
+- **Conclusion** : parcours santé complet et stable (consultation → ordonnance → pharmacie/labo → résultats → partage médecin → urgences/ambulance). Prêt pour redéploiement.
+- **PROCHAINE (P1)** : Admin "Onboarding partenaires" (clés API Uber/Yango/Bolt côté transport).
+
+
 ## NEW - 2026-06-14 (508) - 🩺💊🔬 Pont "ordonnance → commande" finalisé (pharmacie + labo en 1 tap) DONE, testé
 - **Demande user** : depuis une ordonnance délivrée, commander les médicaments en pharmacie OU réserver les analyses prescrites au labo en 1 tap.
 - **Constat** : pont **pharmacie déjà branché** (`MyPrescriptionsPage.orderInPharmacy` → note pré-remplie → `/pharmacy/prescription`). Manque = le pont **labo** (l'ordonnance ne portait pas d'analyses).
