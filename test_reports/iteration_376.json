@@ -1,0 +1,40 @@
+{
+  "summary": "Full E2E testing of SB Tracking — Module Employés (iteration 376). Backend pytest 12/12 PASS. Frontend mobile E2E flows all working: Hub→Employés tile→/employes; punch toggle fires toast; Tournées (/employes/tournees) CRUD + stop toggle + delete; Rapports (/employes/rapports) renders weekly bar chart with visible bars (heights up to 100%) and totals like '10 h 55'; Rejoindre invalid code shows 'Code invalide' toast and valid code shows join-success with punch toggle. Notifications emp_clock_in / emp_clock_out delivered to org owner via /api/push/list.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/employees/seed-demo", "issue": "Not idempotent — every call appends 3 more demo employees and one more 'Tournée Nord — Matin' route. After repeated runs the org now shows 10 employees and 3 duplicate routes. Consider gating with 'if existing >= 3: return early' or marking demo rows with a tag to skip if present."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EmployeeRoutesPage select 'r-employee'", "issue": "React hydration warning: '<span> cannot be a child of <option>'. Caused by visual-editor span (data-ve-dynamic) wrapping option text. Console noise only — UI works.", "selector": "[data-testid='r-employee'] option", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reports / Rapports", "issues": ["Several employees are duplicated (Karim B., Sophie M., Jean P. listed 3-4× each) because seed-demo was re-run. Cosmetic — direct consequence of the seed-demo idempotency bug above."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_employees_tracking.py",
+    "/app/test_reports/pytest/employees_tracking.xml"
+  ],
+  "action_items": [
+    "Make POST /api/employees/seed-demo idempotent (skip when org already has demo employees or sim-enabled entries).",
+    "Fix the <span> inside <option> hydration warning in EmployeeRoutesPage (likely the visual-editor wrapper around {e.name} inside the <option>; render the name as plain text)."
+  ],
+  "critical_code_review_comments": [
+    "routes/employees.py is 478 lines and self-contained; OK for now but consider splitting org+CRUD, shifts/pointage, routes, reports into sub-modules if it grows further.",
+    "seed_demo unconditionally inserts; add a guard 'if existing >= 3: return {message: \"deja\", employees: 0}'.",
+    "_minutes_today() iterates shifts for each employee inside list_employees → O(N) round-trips. Fine at small scale; consider aggregation pipeline if employee count grows.",
+    "All endpoints correctly use async + exclude _id; HTTPException with FR messages; data-testids present throughout; env-driven URLs respected."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (12/12 pytest)", "frontend": "100% on tested flows (hub→employes, punch toast, routes CRUD+toggle, reports chart, join valid+invalid+punch)"},
+  "test_credentials": "famtester@demo.sb / FamTest123! (owner). empjoiner@demo.sb / EmpJoin123! (linked via invite code).",
+  "seed_data_creation": "POST /api/employees/seed-demo had already been called in prior iterations — current org has 10 employees and 3 duplicate 'Tournée Nord — Matin' routes; cleaned up TEST_PWroute and any TEST_ prefixed employees I created.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "famtester@demo.sb now has a self-linked employee slot named 'Moi' (EMPDD92F) leftover from prior testing iterations. As a result, clicking 'Pointer mon arrivée' as famtester returns HTTP 200 + 'Service démarré' toast (NOT the 400 + 'Aucun poste employé relié à votre compte' the review request expected). This is environmental state, not a backend bug — the requirement is still covered by pytest test_clock_in_requires_linked_slot which uses a fresh user (empnoclock@demo.sb) and correctly receives 400. If main agent wants the owner-only 400 path to be reproducible via UI for famtester, delete the 'Moi' employee row first (DELETE /api/employees/{id}).",
+  "rca of the issue": "N/A — no blocking bugs found. The two minor items: (1) seed-demo lacks an idempotency guard so repeated calls inflate the demo set; (2) cosmetic hydration warning from a <span> visual-editor wrapper inside an <option> tag in EmployeeRoutesPage. Notifications work (emp_clock_in/out visible in /api/push/list for the owner)."
+}

@@ -21,6 +21,7 @@ import {
   ServicesHubPage, MyServiceBookingsPage, ScheduledRidesPage, RunnerPage,  ParkingPage, GiftCardsPage, TrackingServicePage, FinancePage, WaybillPage, NewsFeedPage,
   SbTrackingHub, FleetMapPage, FleetVehiclesPage, FleetVehicleDetailPage, FleetDriversPage, FleetAlertsPage, FleetGeofencesPage,
   FamilyPage, FamilyPlacesPage, FamilyJoinPage, FamilyAlertsPage,
+  EmployeesPage, EmployeeRoutesPage, EmployeeReportsPage, EmployeeJoinPage,
   EmergencyContactsPage, FavoriteDriversPage, TopDriversPage, RideChatPage, LoyaltyPage,
   ServiceProvidersPage, ServiceProviderDetailPage,
   ContactlessReceivePage, ContactlessPayPage, AssistantPage, SbStudentPage, SbRecurringPage, SbCampusSharePage, SbSafetyPage, SbRewardsPage, SbEventsPage, SbMarketplacePage,
@@ -139,6 +140,10 @@ export function clientRoutes(user) {
       <Route path="/famille/lieux" element={<ProtectedRoute allowedRoles={['user']}><FamilyPlacesPage /></ProtectedRoute>} />
       <Route path="/famille/rejoindre" element={<ProtectedRoute allowedRoles={['user']}><FamilyJoinPage /></ProtectedRoute>} />
       <Route path="/famille/alertes" element={<ProtectedRoute allowedRoles={['user']}><FamilyAlertsPage /></ProtectedRoute>} />
+      <Route path="/employes" element={<ProtectedRoute allowedRoles={['user']}><EmployeesPage /></ProtectedRoute>} />
+      <Route path="/employes/tournees" element={<ProtectedRoute allowedRoles={['user']}><EmployeeRoutesPage /></ProtectedRoute>} />
+      <Route path="/employes/rapports" element={<ProtectedRoute allowedRoles={['user']}><EmployeeReportsPage /></ProtectedRoute>} />
+      <Route path="/employes/rejoindre" element={<ProtectedRoute allowedRoles={['user']}><EmployeeJoinPage /></ProtectedRoute>} />
       <Route path="/wallet/payout-method" element={<ProtectedRoute allowedRoles={['driver', 'merchant']}><PayoutMethodPage /></ProtectedRoute>} />
       <Route path="/wallet/linked-accounts" element={<ProtectedRoute allowedRoles={['user', 'driver', 'merchant']}><LinkedAccountsPage /></ProtectedRoute>} />
       <Route path="/finance" element={<Navigate to="/wallet" replace />} />

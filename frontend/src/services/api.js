@@ -549,6 +549,24 @@ export const familyAPI = {
 };
 
 
+export const employeesAPI = {
+  context: () => api.get('/employees/context'),
+  seedDemo: () => api.post('/employees/seed-demo'),
+  list: () => api.get('/employees'),
+  add: (p) => api.post('/employees', p),
+  remove: (id) => api.delete(`/employees/${id}`),
+  join: (code) => api.post('/employees/join', { code }),
+  clockIn: (p) => api.post('/employees/clock-in', p),
+  clockOut: (p) => api.post('/employees/clock-out', p),
+  ping: (p) => api.post('/employees/ping', p),
+  timesheet: (id) => api.get(`/employees/${id}/timesheet`),
+  routes: () => api.get('/employees/routes'),
+  createRoute: (p) => api.post('/employees/routes', p),
+  toggleStop: (rid, sid) => api.post(`/employees/routes/${rid}/stops/${sid}/toggle`),
+  deleteRoute: (id) => api.delete(`/employees/routes/${id}`),
+  reports: () => api.get('/employees/reports'),
+};
+
 export const fleetAPI = {
   context: () => api.get('/fleet/context'),
   updateContext: (p) => api.put('/fleet/context', p),
