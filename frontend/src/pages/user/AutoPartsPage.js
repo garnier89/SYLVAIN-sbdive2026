@@ -380,6 +380,11 @@ const AutoPartsPage = () => {
         </div>
 
         {/* Product grid */}
+        {vehicle && !loading && products.length > 0 && (
+          <p className="text-xs font-semibold text-emerald-700 -mb-1" data-testid="compat-count">
+            {products.length} pièce{products.length > 1 ? 's' : ''} compatible{products.length > 1 ? 's' : ''} trouvée{products.length > 1 ? 's' : ''}
+          </p>
+        )}
         {loading ? (
           <div className="flex justify-center py-12"><CircleNotch size={28} className="text-blue-300 animate-spin" /></div>
         ) : products.length === 0 ? <Empty text="Aucun produit trouvé" /> : (
