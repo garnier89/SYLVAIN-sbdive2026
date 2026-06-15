@@ -11,7 +11,6 @@ import { SafetyToolsSheet } from '../safety/SafetyToolsSheet';
 import { RideFlowHeader, RideFlowAddressCard, RideFlowMap, RideFlowFooter } from './RideFlowViews';
 import InAppNav from './InAppNav';
 import DriverVoiceControl from './DriverVoiceControl';
-import { openGoogleMapsNav } from '../../lib/driverNav';
 import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -193,17 +192,6 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const applyStarted = useCallback(() => {
     const now = new Date().toISOString();
     setStartedAt(now); setStatus('in_progress');
-    // GPS auto : ouvre Google Maps vers la destination dès le démarrage de la course.
-    // Repli « 1 tap » si l'ouverture auto est bloquée (popup blocker mobile).
-    const nav = openGoogleMapsNav(ride.dropoff_lat, ride.dropoff_lng);
-    if (nav.ok) {
-      toast.success('Navigation GPS lancée vers la destination 📍');
-    } else if (nav.reason === 'blocked') {
-      toast('Navigation GPS prête vers la destination', {
-        action: { label: 'Ouvrir Maps', onClick: () => window.open(nav.url, '_blank', 'noopener') },
-        duration: 10000,
-      });
-    }
     // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
     const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;
     const billable = Math.max(0, waitSec - freeWaitSec);
@@ -297,7 +285,6 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
       : { lat: ride.pickup_lat, lng: ride.pickup_lng };
     if (app === 'gmaps') window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}&travelmode=driving`, '_blank');
     else if (app === 'waze') window.open(`https://waze.com/ul?ll=${dest.lat},${dest.lng}&navigate=yes`, '_blank');
-    else toast.success('Navigation in-app active sur la carte.');
   }, [status, ride.dropoff_lat, ride.dropoff_lng, ride.pickup_lat, ride.pickup_lng]);
 
   const isPickupPhase = status === 'accepted';
@@ -437,7 +424,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
       {/* Contrôle vocal mains-libres (façon Uber Driver) — sécurité routière */}
       <DriverVoiceControl
         status={status}
-        onNavigate={() => openNav('gmaps')}
+        onNavigate={() => setShowNav(true)}
         onCall={callPassenger}
         onArrive={requestArriving}
         onStart={beginStart}
@@ -484,6 +471,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
           label={inProgress ? ride.dropoff_address : ride.pickup_address}
           onClose={() => setShowNav(false)}
           onWaze={() => openNav('waze')}
+          onGoogle={() => openNav('gmaps')}
         />
       )}
 

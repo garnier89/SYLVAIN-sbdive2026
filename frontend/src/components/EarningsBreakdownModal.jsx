@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { X, CurrencyEur, Calendar, TrendUp, Path } from '@phosphor-icons/react';
+import { X, CurrencyEur, Calendar, TrendUp, Path, Target, PencilSimple, Check } from '@phosphor-icons/react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -12,16 +13,35 @@ const dayLabel = (iso) => {
 const EarningsBreakdownModal = ({ open, onClose }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+  const [savingGoal, setSavingGoal] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setEditingGoal(false);
     fetch(`${API}/api/drivers/my-earnings-breakdown`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
-      .then(d => setData(d))
+      .then(d => { setData(d); if (d) setGoalInput(String(d.daily_goal ?? 100)); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [open]);
+
+  const saveGoal = () => {
+    const val = parseFloat(goalInput);
+    if (!(val >= 0)) { toast.error('Objectif invalide'); return; }
+    setSavingGoal(true);
+    fetch(`${API}/api/drivers/daily-goal`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ daily_goal: val }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((d) => { setData((p) => ({ ...p, daily_goal: d.daily_goal })); setEditingGoal(false); toast.success(`Objectif réglé à ${d.daily_goal} €/jour`); })
+      .catch(() => toast.error('Échec de l\'enregistrement'))
+      .finally(() => setSavingGoal(false));
+  };
 
   if (!open) return null;
 
@@ -80,6 +100,47 @@ const EarningsBreakdownModal = ({ open, onClose }) => {
                 </div>
               );
             })}
+            {/* Objectif de gains JOURNALIER — gamification */}
+            {(() => {
+              const goal = Number(data.daily_goal ?? 100) || 0;
+              const earned = Number(data.today?.earnings || 0);
+              const pct = goal > 0 ? Math.min(100, Math.round((earned / goal) * 100)) : 0;
+              const reached = goal > 0 && earned >= goal;
+              return (
+                <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3" data-testid="daily-goal-card">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <Target size={15} weight="fill" className="text-amber-500" />
+                      {reached ? '🎉 Objectif du jour atteint !' : `${pct}% de ton objectif`}
+                    </p>
+                    {editingGoal ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number" min="0" value={goalInput}
+                          onChange={(e) => setGoalInput(e.target.value)}
+                          data-testid="daily-goal-input"
+                          className="w-16 px-2 py-0.5 rounded-md border border-amber-200 text-sm text-right focus:outline-none focus:ring-2 focus:ring-amber-200"
+                        />
+                        <span className="text-xs text-gray-500">€</span>
+                        <button onClick={saveGoal} disabled={savingGoal} data-testid="daily-goal-save" className="ml-1 text-amber-600">
+                          <Check size={16} weight="bold" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setEditingGoal(true)} data-testid="daily-goal-edit" className="flex items-center gap-1 text-xs font-bold text-gray-600">
+                        {earned.toFixed(0)} / {goal.toFixed(0)} € <PencilSimple size={13} weight="fill" className="text-gray-400" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-amber-100 overflow-hidden" data-testid="daily-goal-bar">
+                    <div
+                      className={`h-full rounded-full transition-all ${reached ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
             {Array.isArray(data.daily_7d) && data.daily_7d.length > 0 && (
               <div className="pt-1" data-testid="earnings-7d-chart">
                 <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-2 flex items-center gap-1.5">

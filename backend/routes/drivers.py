@@ -1044,7 +1044,7 @@ async def get_my_score_history(request: Request):
 async def get_my_earnings_breakdown(request: Request):
     """Return the driver's earnings split into today, this week (Mon-Sun) and this month."""
     user = await get_current_user(request)
-    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1})
+    driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0, "id": 1, "daily_goal": 1})
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
 
@@ -1103,11 +1103,25 @@ async def get_my_earnings_breakdown(request: Request):
         "week": week,
         "month": month,
         "daily_7d": daily_7d,
+        "daily_goal": round(float(driver.get("daily_goal") or 100.0), 2),
         "commission_percent": commission_pct,
         "is_net": True,
         "currency": "EUR",
         "as_of": now.isoformat(),
     }
+
+
+@router.put("/daily-goal")
+async def set_daily_goal(request: Request):
+    """Driver sets their personal daily net-earnings goal (gamification)."""
+    user = await get_current_user(request)
+    body = await request.json()
+    try:
+        goal = max(0.0, min(100000.0, float(body.get("daily_goal"))))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="daily_goal invalide")
+    await db.drivers.update_one({"user_id": user["id"]}, {"$set": {"daily_goal": goal}})
+    return {"daily_goal": round(goal, 2)}
 
 
 @router.post("/refuse-ride/{ride_id}")

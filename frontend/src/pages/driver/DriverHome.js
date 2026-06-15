@@ -25,7 +25,6 @@ import DemandZonesModal from '../../components/driver/home/DemandZonesModal';
 import DriverLocationsModal from '../../components/driver/home/DriverLocationsModal';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 import { startSiren, stopSiren, unlockAudio } from '../../lib/driverAlert';
-import { openGoogleMapsNav } from '../../lib/driverNav';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -552,30 +551,6 @@ const DriverHome = () => {
     setShowTaxiHall(false);
     setCurrentRide(ride);
   }, []);
-
-  // GPS auto type Uber Driver : ouvre Google Maps vers le CLIENT dès qu'une course
-  // active apparaît (acceptation instantanée, enchère gagnée, hélé-rue, réservation
-  // programmée activée, course suivante). Une seule fois par course (garde session),
-  // jamais au rechargement d'une course déjà démarrée.
-  const gpsPickupRef = useRef(null);
-  useEffect(() => {
-    const r = currentRide;
-    if (!r || !r.id) return;
-    if (!['accepted', 'arriving', 'arrived'].includes(r.status)) return;
-    const key = `gps_pickup_${r.id}`;
-    if (gpsPickupRef.current === r.id || sessionStorage.getItem(key)) return;
-    gpsPickupRef.current = r.id;
-    sessionStorage.setItem(key, '1');
-    const nav = openGoogleMapsNav(r.pickup_lat, r.pickup_lng);
-    if (nav.ok) {
-      toast.success('Navigation GPS lancée vers le client 📍');
-    } else if (nav.reason === 'blocked') {
-      toast('Navigation GPS prête vers le client', {
-        action: { label: 'Ouvrir Maps', onClick: () => window.open(nav.url, '_blank', 'noopener') },
-        duration: 10000,
-      });
-    }
-  }, [currentRide?.id, currentRide?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (

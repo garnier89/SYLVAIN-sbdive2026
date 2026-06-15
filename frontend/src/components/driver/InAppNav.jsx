@@ -20,7 +20,7 @@ const distM = (a, b) => {
  * advances with the driver's position, spoken turn-by-turn (French), ETA /
  * remaining distance and a one-tap switch to Waze.
  */
-const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze }) => {
+const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGoogle }) => {
   const [route, setRoute] = useState(null); // { path, steps:[{instr,dist,loc}], eta, distance }
   const [muted, setMuted] = useState(false);
   const spokenRef = useRef(-1);
@@ -119,10 +119,15 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze }) =>
           <p className="text-xs text-gray-500">{route?.distance ? `${route.distance} restants` : 'Itinéraire en direct'}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={onWaze} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white font-bold text-sm" style={{ background: '#05C8FB' }} data-testid="inapp-nav-waze">
+          {onGoogle && (
+            <button onClick={onGoogle} className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-white font-bold text-sm" style={{ background: '#1f6feb' }} data-testid="inapp-nav-google">
+              <NavigationArrow size={16} weight="fill" /> Google Maps
+            </button>
+          )}
+          <button onClick={onWaze} className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-white font-bold text-sm" style={{ background: '#05C8FB' }} data-testid="inapp-nav-waze">
             <NavigationArrow size={16} weight="fill" /> Waze
           </button>
-          <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm" data-testid="inapp-nav-quit">Quitter</button>
+          <button onClick={onClose} className="px-3.5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-sm" data-testid="inapp-nav-quit">Quitter</button>
         </div>
       </div>
     </div>

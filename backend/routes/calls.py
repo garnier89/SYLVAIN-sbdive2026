@@ -10,6 +10,7 @@ Aucun numéro réel n'est renvoyé au frontend : seuls des identifiants de conne
 (user ids) servent à router la signalisation WebRTC.
 """
 import uuid
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, HTTPException
@@ -56,6 +57,39 @@ async def _caller_counterpart(ride_id: str, user: dict):
 
 def _first_name(u: dict) -> str:
     return ((u or {}).get("name") or "").split(" ")[0] or "Contact"
+
+
+async def _maybe_alert_relay_abuse(caller_id: str, caller: dict) -> None:
+    """Anti-abus : alerte e-mail à l'admin si l'appelant dépasse le seuil
+    d'appels RELAIS (Twilio) sur la journée — un appel relais facture des
+    minutes télécom réelles, donc l'abus génère des coûts. Une alerte/jour/appelant."""
+    cfg = await db.service_configs.find_one({"service_key": "call_abuse"}, {"_id": 0}) or {}
+    try:
+        threshold = max(1, int(cfg.get("relay_per_day", 10) or 10))
+    except (TypeError, ValueError):
+        threshold = 10
+    today = datetime.now(timezone.utc).date().isoformat()
+    count = await db.masked_call_logs.count_documents({
+        "caller_id": caller_id, "channel": "relay", "created_at": {"$regex": f"^{today}"},
+    })
+    if count < threshold:
+        return
+    # Dédoublonnage : une seule alerte par appelant et par jour.
+    flag = await db.call_abuse_alerts.find_one({"caller_id": caller_id, "day": today})
+    if flag:
+        return
+    await db.call_abuse_alerts.insert_one({
+        "caller_id": caller_id, "day": today, "count": count,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    admin_email = cfg.get("alert_email") or os.environ.get("ADMIN_ALERT_EMAIL") or "admin@superapp.com"
+    from core.email import send_fraud_alert_email
+    await send_fraud_alert_email(admin_email, "Abus d'appels relais détecté", [
+        f"L'utilisateur <b>{_first_name(caller)}</b> (id&nbsp;: {caller_id}) a déclenché "
+        f"<b>{count}</b> appels relais aujourd'hui — seuil&nbsp;: {threshold}/jour.",
+        f"Date&nbsp;: {today}",
+        "Risque&nbsp;: coûts de télécommunication Twilio. Vérifiez le Journal des appels (Admin).",
+    ])
 
 
 async def _log_call_start(call_id, ride_id, caller, counterpart, caller_role, channel, online):
@@ -196,6 +230,11 @@ async def call_relay(ride_id: str, request: Request):
     await _log_call_update(ride_id, user["id"], {
         "channel": "relay", "status": "relayed",
         "relayed_at": datetime.now(timezone.utc).isoformat()})
+    # Anti-abus : alerte admin par e-mail si l'appelant dépasse le seuil/jour.
+    try:
+        await _maybe_alert_relay_abuse(user["id"], caller)
+    except Exception:  # noqa: BLE001 — best-effort, ne jamais bloquer l'appel
+        pass
     # Confidentialité : on ne renvoie JAMAIS le numéro de mise en relation au client.
     return {"status": "ringing"}
 
