@@ -10,6 +10,7 @@ import { RideFlowMenu, CallTypeSheet, OtpModal, RefundClientModal } from './Ride
 import { SafetyToolsSheet } from '../safety/SafetyToolsSheet';
 import { RideFlowHeader, RideFlowAddressCard, RideFlowMap, RideFlowFooter } from './RideFlowViews';
 import InAppNav from './InAppNav';
+import { openGoogleMapsNav } from '../../lib/driverNav';
 import { useLocale } from '../../contexts/LocaleContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -191,6 +192,10 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const applyStarted = useCallback(() => {
     const now = new Date().toISOString();
     setStartedAt(now); setStatus('in_progress');
+    // GPS auto : ouvre Google Maps vers la destination dès le démarrage de la course.
+    if (openGoogleMapsNav(ride.dropoff_lat, ride.dropoff_lng)) {
+      toast.success('Navigation GPS lancée vers la destination 📍');
+    }
     // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
     const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;
     const billable = Math.max(0, waitSec - freeWaitSec);
@@ -202,7 +207,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         body: JSON.stringify({ action: 'stop', seconds: waitSec, charge }),
       }).catch(() => { /* ignore */ });
     }
-  }, [pickupArrivedAt, ride.id]);
+  }, [pickupArrivedAt, ride.id, ride.dropoff_lat, ride.dropoff_lng]);
 
   const verifyOtpAndStart = useCallback(async () => {
     if (otpInput.length !== 4) return;

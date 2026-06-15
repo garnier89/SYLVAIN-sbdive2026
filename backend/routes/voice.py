@@ -10,13 +10,22 @@ import os
 from datetime import datetime, timezone
 
 import requests
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, Form
 
 from core.config import db
 from core.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice"])
+
+# Langues supportées par l'assistant vocal (dictée + IA + Whisper).
+SUPPORTED_LANGS = {"fr", "en", "it", "es", "pt", "de"}
+
+
+def _safe_lang(code) -> str:
+    c = (code or "fr").strip().lower()[:2]
+    return c if c in SUPPORTED_LANGS else "fr"
+
 
 GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY")
 _GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
@@ -36,11 +45,11 @@ INTENT_ROUTE = {
 }
 
 
-async def _geocode(address: str):
+async def _geocode(address: str, lang: str = "fr"):
     """Géocode une adresse libre → {address, lat, lng} ou None (clé Google côté serveur)."""
     if not GOOGLE_MAPS_KEY or not address:
         return None
-    params = {"address": address.strip(), "key": GOOGLE_MAPS_KEY, "language": "fr"}
+    params = {"address": address.strip(), "key": GOOGLE_MAPS_KEY, "language": _safe_lang(lang)}
     try:
         resp = await asyncio.to_thread(
             lambda: requests.get(_GEOCODE_URL, params=params, timeout=6))
@@ -56,7 +65,9 @@ async def _geocode(address: str):
             "lat": loc["lat"], "lng": loc["lng"]}
 
 
-SYSTEM_PROMPT = """Tu es un assistant qui extrait une intention de service à la demande à partir d'une phrase en français parlée par l'utilisateur d'une super-app (taxi, livraison, beauté, animaux, food, etc.).
+SYSTEM_PROMPT = """Tu es un assistant multilingue qui extrait une intention de service à la demande à partir d'une phrase parlée par l'utilisateur d'une super-app (taxi, livraison, beauté, animaux, food, etc.).
+
+L'utilisateur peut parler en FRANÇAIS, ANGLAIS, ITALIEN, ESPAGNOL, PORTUGAIS ou ALLEMAND. Comprends la demande quelle que soit la langue et mappe-la par le SENS (pas seulement par mots-clés). Les noms de lieux/adresses doivent être conservés tels que prononcés.
 
 Tu DOIS répondre UNIQUEMENT par un objet JSON valide (sans backticks, sans markdown, sans texte autour) avec exactement ces champs:
 {
@@ -71,28 +82,27 @@ Tu DOIS répondre UNIQUEMENT par un objet JSON valide (sans backticks, sans mark
   "confidence": 0.0 à 1.0
 }
 
-Règles d'intention:
-- "taxi", "vtc", "voiture", "course", "ramène-moi", "déposer", "rejoindre" → book_taxi
-- "coursier", "récupère", "ramène le sac", "va chercher" → book_runner
-- "livre", "livraison", "envoie le colis" → book_delivery
-- "restaurant", "à manger", "pizza", "sushi", "burger", "food", "commander à manger" → book_food
-- "coiffeur", "salon de beauté", "manucure", "épilation", "massage" → book_beauty
-- "vétérinaire", "toiletteur", "promener mon chien", "garder mon animal" → book_pet_care
-- "garagiste", "lavage auto", "vidange", "entretien voiture", "carrosserie" → book_car_care
-- "dépannage", "panne", "remorquage", "batterie déchargée", "crevaison" → book_towing
-- "trajet longue distance", "Paris-Lyon", "intercity", "covoiturage" + ville lointaine → book_intercity
-- "covoiturage", "carpool", "partager le trajet" → book_carpool
-- "consultation médicale", "téléconsultation", "voir un médecin", "vidéo médecin" → book_video_consult
-- "parking", "garer", "place de stationnement" → book_parking
-- "trouve une boutique", "magasin", "annonces", "vente" → search_marketplace
-- "autour de moi", "près de moi", "nearby" → search_nearby
-- "mon portefeuille", "mon solde", "wallet" → open_wallet
-- "mes courses", "historique" → view_rides
-- "urgence", "police", "SOS", "à l'aide" → call_sos
+Correspondances d'intention (exemples valables dans TOUTES les langues ci-dessus — comprends l'équivalent EN/IT/ES/PT/DE) :
+- taxi/vtc/voiture/course/ramène-moi/déposer | taxi/car/ride/pick me up/drop | taxi/auto/corsa | coche/viaje | carro/corrida | Auto/Fahrt → book_taxi
+- coursier/récupère/va chercher | courier/pick up parcel | corriere | mensajero | estafeta | Kurier → book_runner
+- livre/livraison/colis | deliver/delivery/parcel | consegna | entrega | Lieferung → book_delivery
+- restaurant/à manger/pizza/sushi/burger | food/eat/order food | mangiare | comer/comida | comer | essen → book_food
+- coiffeur/salon/manucure/massage | hairdresser/beauty/manicure | parrucchiere | peluquería | cabeleireiro | Friseur → book_beauty
+- vétérinaire/toiletteur/chien/chat | vet/groomer/dog/cat | veterinario | veterinario/mascota | veterinário | Tierarzt → book_pet_care
+- garagiste/lavage/vidange/carrosserie | car wash/garage/oil change | meccanico | taller/lavado | oficina | Werkstatt → book_car_care
+- dépannage/panne/remorquage/crevaison | breakdown/towing/flat tire | carro attrezzi | grúa/avería | reboque | Abschleppdienst → book_towing
+- covoiturage/carpool | covoiturage/carpool/share ride | carpooling | compartir coche | boleia | Mitfahrt → book_carpool
+- téléconsultation/voir un médecin | video doctor/teleconsultation | telemedicina | teleconsulta médica | teleconsulta | Videosprechstunde → book_video_consult
+- parking/garer/stationnement | parking | parcheggio | aparcamiento | estacionamento | Parkplatz → book_parking
+- boutique/magasin/annonces | shop/marketplace/listings | negozio | tienda/anuncios | loja | Shop → search_marketplace
+- autour de moi/près de moi | around me/nearby | vicino a me | cerca de mí | perto de mim | in der Nähe → search_nearby
+- portefeuille/solde/wallet → open_wallet
+- mes courses/historique | my rides/history → view_rides
+- urgence/police/SOS/à l'aide | emergency/help | emergenza | emergencia | emergência | Notfall → call_sos
 - Si rien ne matche, intent = "unknown" et confidence = 0
 
 Règles d'adresses:
-- Pour pickup: "ma position", "ici", "actuelle", "depuis chez moi" → "current_location"
+- Pour pickup: "ma position"/"ici"/"actuelle" (et équivalents : "my location"/"here", "la mia posizione", "mi ubicación", "minha localização", "mein Standort") → "current_location"
 - vehicle_type uniquement si l'intent est book_taxi/book_runner/book_delivery
 - Pour book_food/book_beauty/etc., utilise "category" pour préciser (ex: "pizza", "sushi", "coiffeur homme")
 - Garde le texte exact d'adresse mentionné, ne devine pas
@@ -111,7 +121,7 @@ async def parse_booking(request: Request):
         raise HTTPException(400, "Transcript trop long (max 800 caractères)")
 
     # Try LLM extraction via Emergent integrations
-    parsed = await _llm_extract(transcript)
+    parsed = await _llm_extract(transcript, _safe_lang(body.get("language")))
 
     # Log for analytics/debugging
     await db.voice_bookings.insert_one({
@@ -127,7 +137,7 @@ async def parse_booking(request: Request):
     }
 
 
-async def _prepare_taxi(parsed: dict, body: dict) -> dict:
+async def _prepare_taxi(parsed: dict, body: dict, lang: str = "fr") -> dict:
     """Résout pickup/dropoff + estimation → action book_taxi exécutable, ou
     action navigate si les adresses sont insuffisantes pour commander direct."""
     cur_lat, cur_lng = body.get("current_lat"), body.get("current_lng")
@@ -137,13 +147,13 @@ async def _prepare_taxi(parsed: dict, body: dict) -> dict:
     if pickup_raw in (None, "", "current_location") and cur_lat and cur_lng:
         pickup = {"address": "Ma position actuelle", "lat": float(cur_lat), "lng": float(cur_lng)}
     elif pickup_raw and pickup_raw != "current_location":
-        pickup = await _geocode(pickup_raw)
+        pickup = await _geocode(pickup_raw, lang)
     elif cur_lat and cur_lng:
         pickup = {"address": "Ma position actuelle", "lat": float(cur_lat), "lng": float(cur_lng)}
     else:
         pickup = None
 
-    dropoff = await _geocode(parsed.get("dropoff")) if parsed.get("dropoff") else None
+    dropoff = await _geocode(parsed.get("dropoff"), lang) if parsed.get("dropoff") else None
 
     # Sans départ ET arrivée géolocalisés on ne peut pas commander : on route avec préremplissage.
     if not pickup or not dropoff:
@@ -210,11 +220,12 @@ async def prepare_action(request: Request):
     if len(transcript) > 800:
         raise HTTPException(400, "Transcript trop long (max 800 caractères)")
 
-    parsed = await _llm_extract(transcript)
+    parsed = await _llm_extract(transcript, _safe_lang(body.get("language")))
     intent = parsed.get("intent") or "unknown"
 
+    lang = _safe_lang(body.get("language"))
     if intent == "book_taxi":
-        action = await _prepare_taxi(parsed, body)
+        action = await _prepare_taxi(parsed, body, lang)
     elif intent in ("book_food", "book_delivery"):
         action = await _prepare_food(parsed)
     elif intent in INTENT_ROUTE:
@@ -231,10 +242,13 @@ async def prepare_action(request: Request):
 
 
 @router.post("/transcribe")
-async def transcribe_audio(request: Request, file: UploadFile = File(...)):
-    """Transcrit un court extrait audio (FR) via OpenAI Whisper (whisper-1) — repli
-    pour les navigateurs sans dictée (iOS/Safari). Renvoie {transcript}."""
+async def transcribe_audio(request: Request, file: UploadFile = File(...),
+                           language: str = Form("fr")):
+    """Transcrit un court extrait audio via OpenAI Whisper (whisper-1) — repli
+    pour les navigateurs sans dictée (iOS/Safari). Langue parmi fr/en/it/es/pt/de.
+    Renvoie {transcript}."""
     user = await get_current_user(request)  # noqa: F841 — auth requise
+    lang = _safe_lang(language)
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         raise HTTPException(503, "Transcription vocale non configurée")
@@ -260,7 +274,7 @@ async def transcribe_audio(request: Request, file: UploadFile = File(...)):
             tmp.flush()
             with open(tmp.name, "rb") as audio_file:
                 resp = await stt.transcribe(
-                    file=audio_file, model="whisper-1", language="fr", response_format="text")
+                    file=audio_file, model="whisper-1", language=lang, response_format="text")
         text = resp if isinstance(resp, str) else getattr(resp, "text", "")
         return {"transcript": (text or "").strip()}
     except Exception as e:
@@ -268,8 +282,12 @@ async def transcribe_audio(request: Request, file: UploadFile = File(...)):
         raise HTTPException(502, "Transcription impossible, réessayez")
 
 
-async def _llm_extract(transcript: str) -> dict:
-    """Call Claude Sonnet via Emergent Universal LLM Key and return parsed JSON."""
+async def _llm_extract(transcript: str, lang: str = "fr") -> dict:
+    """Call Claude Sonnet via Emergent Universal LLM Key and return parsed JSON.
+
+    `lang` est la langue de l'app (fr/en/it/es/pt/de) — l'IA comprend les 6 langues
+    via le system prompt ; on le précise pour lever toute ambiguïté.
+    """
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         logger.warning("EMERGENT_LLM_KEY missing — falling back to rule-based parser")
@@ -285,7 +303,8 @@ async def _llm_extract(transcript: str) -> dict:
             )
             .with_model("anthropic", "claude-sonnet-4-6")
         )
-        raw = await chat.send_message(UserMessage(text=transcript))
+        hint = f"[langue utilisateur: {_safe_lang(lang)}]\n"
+        raw = await chat.send_message(UserMessage(text=hint + transcript))
         # Extract JSON from response
         text = (raw or "").strip()
         # Strip code fences if present

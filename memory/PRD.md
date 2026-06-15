@@ -41,6 +41,13 @@
 - Client : famtester@demo.sb / FamTest123! · freeuser@demo.sb (multi-rôle pro/labo/ambulancier validé)
 - Chauffeur : jean.dupont@demo.sb / Driver123!
 
+## Journal des modifications (fork courant — juin 2026)
+- **GPS Google automatique chauffeur** : à l'acceptation d'une course → ouverture auto Google Maps vers la prise en charge (`DriverHome.acceptRide`) ; au démarrage → vers la destination (`DriverRideFlow.applyStarted`). Util partagé `lib/driverNav.js` (`openGoogleMapsNav`).
+- **Assistant vocal multilingue (FR + EN, IT, ES, PT, DE)** : suit la langue de l'app. Dictée Web Speech (`rec.lang` dynamique) + Whisper (`language` form) + IA Claude (system prompt multilingue, `routes/voice.py`). UI `VoiceAssistant.js` entièrement traduite (titre, prompts, exemples, boutons, toasts) via map `TR`. Testé E2E : EN→taxi, IT→food, DE→wallet.
+- **Écran d'appel in-app redesigné** (`CallContext.jsx`) : style Bolt/Uber. Texte « Appel masqué » retiré → icône bouclier verte seule.
+- **Twilio production vérifié** : compte actif, numéro voice+sms OK, solde ~11 USD.
+- **Journal des appels admin (P2 — FAIT)** : `masked_call_logs` + `GET /api/admin/calls` + page `/admin/call-logs`. Test `tests/test_iter_call_logs.py`.
+
 ## Backlog / Prochaines tâches
 - **P1** : vérifier s'il reste des sous-verticales « On-Demand » à transformer en marketplaces transactionnels (Beauté/Métiers/Santé déjà complets). Admin « Onboarding partenaires » (clés API Uber/Yango/Bolt côté transport).
 - **P3** : vignette Open Graph page publique `/circuit/:token` (acquisition organique SB Travel) ; surveiller complexité `routes/rides.py` (~2640 l.) si ajout de cron.

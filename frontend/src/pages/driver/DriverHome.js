@@ -25,6 +25,7 @@ import DemandZonesModal from '../../components/driver/home/DemandZonesModal';
 import DriverLocationsModal from '../../components/driver/home/DriverLocationsModal';
 import { getBrowserLocationLabel } from '../../lib/browserZone';
 import { startSiren, stopSiren, unlockAudio } from '../../lib/driverAlert';
+import { openGoogleMapsNav } from '../../lib/driverNav';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const DriverHome = () => {
@@ -439,6 +440,11 @@ const DriverHome = () => {
       setCurrentRide(res.data);
       setIncomingRequest(null);
       joinRide(rideId);
+      // GPS auto : ouvre Google Maps vers le point de prise en charge dès l'acceptation.
+      const r = res.data;
+      if (openGoogleMapsNav(r?.pickup_lat, r?.pickup_lng)) {
+        toast.success('Navigation GPS lancée vers le client 📍');
+      }
     } catch (err) {
       const status = err?.response?.status;
       if (status === 404 || status === 400) {

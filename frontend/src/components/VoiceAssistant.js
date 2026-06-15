@@ -5,16 +5,99 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { rideAPI } from '../services/api';
 import { resolveLocation } from '../lib/userLocation';
+import { useLocale } from '../contexts/LocaleContext';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const EXAMPLES = [
-  'Réserve-moi un taxi de Fort-de-France à Schoelcher',
-  'Commande-moi des sushis',
-  'Trouve-moi un coiffeur près de moi',
-  'Téléconsultation médicale rapide',
-  'Mon portefeuille',
-];
+// Assistant vocal multilingue — la langue suit la langue de l'application.
+const SPEECH_LOCALE = { fr: 'fr-FR', en: 'en-US', it: 'it-IT', es: 'es-ES', pt: 'pt-PT', de: 'de-DE' };
+
+const TR = {
+  fr: {
+    title: 'Assistant vocal', subtitle: 'Parlez — je commande pour vous',
+    listening: 'Écoute en cours…', transcribing: 'Transcription…', tapToSpeak: 'Appuyez sur le micro et parlez',
+    tapToStop: 'Appuyez pour arrêter', tapToStart: 'Appuyez pour parler', whisper: 'Transcription IA (Whisper)',
+    validate: 'Valider ma demande', analyzing: 'Analyse en cours…', examples: 'Exemples', request: 'Votre demande',
+    redo: '↺ Reformuler', noPhrase: 'Aucune phrase détectée', micDenied: 'Micro non autorisé',
+    transcribeFail: 'Transcription impossible, réessayez', nothingHeard: "Je n'ai rien entendu, réessayez",
+    notUnderstood: 'Je n\'ai pas compris. Essayez « Réserve un taxi de X à Y » ou « Commande des sushis ».',
+    procError: 'Erreur de traitement, réessayez',
+    taxiTitle: 'Course VTC à confirmer', taxiConfirm: 'Confirmer la course (paiement espèces)',
+    foodFound: 'Plat trouvé', restoFound: 'Restaurant trouvé', orderAt: 'Commander', seeRestos: 'Voir les restaurants',
+    open: 'Ouvrir', price: 'Prix estimé', distance: 'Distance', duration: 'Durée',
+    exampleList: ['Réserve-moi un taxi de Fort-de-France à Schoelcher', 'Commande-moi des sushis', 'Trouve-moi un coiffeur près de moi', 'Téléconsultation médicale rapide', 'Mon portefeuille'],
+  },
+  en: {
+    title: 'Voice assistant', subtitle: 'Just speak — I order for you',
+    listening: 'Listening…', transcribing: 'Transcribing…', tapToSpeak: 'Tap the mic and speak',
+    tapToStop: 'Tap to stop', tapToStart: 'Tap to speak', whisper: 'AI transcription (Whisper)',
+    validate: 'Submit my request', analyzing: 'Analyzing…', examples: 'Examples', request: 'Your request',
+    redo: '↺ Rephrase', noPhrase: 'No phrase detected', micDenied: 'Microphone not allowed',
+    transcribeFail: 'Transcription failed, try again', nothingHeard: "I didn't hear anything, try again",
+    notUnderstood: 'I didn\'t understand. Try "Book a taxi from X to Y" or "Order some sushi".',
+    procError: 'Processing error, try again',
+    taxiTitle: 'Ride to confirm', taxiConfirm: 'Confirm ride (cash payment)',
+    foodFound: 'Dish found', restoFound: 'Restaurant found', orderAt: 'Order', seeRestos: 'See restaurants',
+    open: 'Open', price: 'Est. price', distance: 'Distance', duration: 'Duration',
+    exampleList: ['Book me a taxi from downtown to the airport', 'Order me some sushi', 'Find a hairdresser near me', 'Quick medical video consult', 'My wallet'],
+  },
+  it: {
+    title: 'Assistente vocale', subtitle: 'Parla — ordino per te',
+    listening: 'In ascolto…', transcribing: 'Trascrizione…', tapToSpeak: 'Tocca il microfono e parla',
+    tapToStop: 'Tocca per fermare', tapToStart: 'Tocca per parlare', whisper: 'Trascrizione IA (Whisper)',
+    validate: 'Invia la richiesta', analyzing: 'Analisi in corso…', examples: 'Esempi', request: 'La tua richiesta',
+    redo: '↺ Riformula', noPhrase: 'Nessuna frase rilevata', micDenied: 'Microfono non autorizzato',
+    transcribeFail: 'Trascrizione non riuscita, riprova', nothingHeard: 'Non ho sentito nulla, riprova',
+    notUnderstood: 'Non ho capito. Prova "Prenota un taxi da X a Y" o "Ordina del sushi".',
+    procError: 'Errore di elaborazione, riprova',
+    taxiTitle: 'Corsa da confermare', taxiConfirm: 'Conferma corsa (pagamento contanti)',
+    foodFound: 'Piatto trovato', restoFound: 'Ristorante trovato', orderAt: 'Ordina', seeRestos: 'Vedi ristoranti',
+    open: 'Apri', price: 'Prezzo stim.', distance: 'Distanza', duration: 'Durata',
+    exampleList: ['Prenotami un taxi dal centro all\'aeroporto', 'Ordinami del sushi', 'Trova un parrucchiere vicino a me', 'Teleconsulto medico rapido', 'Il mio portafoglio'],
+  },
+  es: {
+    title: 'Asistente de voz', subtitle: 'Habla — yo pido por ti',
+    listening: 'Escuchando…', transcribing: 'Transcribiendo…', tapToSpeak: 'Toca el micrófono y habla',
+    tapToStop: 'Toca para detener', tapToStart: 'Toca para hablar', whisper: 'Transcripción IA (Whisper)',
+    validate: 'Enviar mi solicitud', analyzing: 'Analizando…', examples: 'Ejemplos', request: 'Tu solicitud',
+    redo: '↺ Reformular', noPhrase: 'No se detectó ninguna frase', micDenied: 'Micrófono no autorizado',
+    transcribeFail: 'Transcripción fallida, inténtalo de nuevo', nothingHeard: 'No escuché nada, inténtalo de nuevo',
+    notUnderstood: 'No entendí. Prueba "Reserva un taxi de X a Y" u "Ordena sushi".',
+    procError: 'Error de procesamiento, inténtalo de nuevo',
+    taxiTitle: 'Viaje por confirmar', taxiConfirm: 'Confirmar viaje (pago en efectivo)',
+    foodFound: 'Plato encontrado', restoFound: 'Restaurante encontrado', orderAt: 'Pedir', seeRestos: 'Ver restaurantes',
+    open: 'Abrir', price: 'Precio est.', distance: 'Distancia', duration: 'Duración',
+    exampleList: ['Resérvame un taxi del centro al aeropuerto', 'Pídeme sushi', 'Encuéntrame una peluquería cerca', 'Teleconsulta médica rápida', 'Mi billetera'],
+  },
+  pt: {
+    title: 'Assistente de voz', subtitle: 'Fale — eu peço por você',
+    listening: 'A ouvir…', transcribing: 'A transcrever…', tapToSpeak: 'Toque no microfone e fale',
+    tapToStop: 'Toque para parar', tapToStart: 'Toque para falar', whisper: 'Transcrição IA (Whisper)',
+    validate: 'Enviar o meu pedido', analyzing: 'A analisar…', examples: 'Exemplos', request: 'O seu pedido',
+    redo: '↺ Reformular', noPhrase: 'Nenhuma frase detetada', micDenied: 'Microfone não autorizado',
+    transcribeFail: 'Transcrição falhou, tente de novo', nothingHeard: 'Não ouvi nada, tente de novo',
+    notUnderstood: 'Não percebi. Tente "Reserva um táxi de X para Y" ou "Pede sushi".',
+    procError: 'Erro de processamento, tente de novo',
+    taxiTitle: 'Viagem a confirmar', taxiConfirm: 'Confirmar viagem (pagamento em dinheiro)',
+    foodFound: 'Prato encontrado', restoFound: 'Restaurante encontrado', orderAt: 'Pedir', seeRestos: 'Ver restaurantes',
+    open: 'Abrir', price: 'Preço est.', distance: 'Distância', duration: 'Duração',
+    exampleList: ['Reserva um táxi do centro ao aeroporto', 'Pede-me sushi', 'Encontra um cabeleireiro perto', 'Teleconsulta médica rápida', 'A minha carteira'],
+  },
+  de: {
+    title: 'Sprachassistent', subtitle: 'Sprich — ich bestelle für dich',
+    listening: 'Höre zu…', transcribing: 'Transkribiere…', tapToSpeak: 'Mikrofon tippen und sprechen',
+    tapToStop: 'Zum Stoppen tippen', tapToStart: 'Zum Sprechen tippen', whisper: 'KI-Transkription (Whisper)',
+    validate: 'Anfrage senden', analyzing: 'Analysiere…', examples: 'Beispiele', request: 'Deine Anfrage',
+    redo: '↺ Neu formulieren', noPhrase: 'Kein Satz erkannt', micDenied: 'Mikrofon nicht erlaubt',
+    transcribeFail: 'Transkription fehlgeschlagen, erneut versuchen', nothingHeard: 'Ich habe nichts gehört, erneut versuchen',
+    notUnderstood: 'Ich habe es nicht verstanden. Versuche "Buche ein Taxi von X nach Y" oder "Bestelle Sushi".',
+    procError: 'Verarbeitungsfehler, erneut versuchen',
+    taxiTitle: 'Fahrt bestätigen', taxiConfirm: 'Fahrt bestätigen (Barzahlung)',
+    foodFound: 'Gericht gefunden', restoFound: 'Restaurant gefunden', orderAt: 'Bestellen', seeRestos: 'Restaurants ansehen',
+    open: 'Öffnen', price: 'Gesch. Preis', distance: 'Distanz', duration: 'Dauer',
+    exampleList: ['Buche mir ein Taxi vom Zentrum zum Flughafen', 'Bestell mir Sushi', 'Finde einen Friseur in der Nähe', 'Schnelle medizinische Videoberatung', 'Meine Geldbörse'],
+  },
+};
 
 // Intent → libellé FR pour le bouton de navigation simple.
 const NAV_LABELS = {
@@ -28,6 +111,12 @@ const NAV_LABELS = {
 
 const VoiceAssistant = () => {
   const navigate = useNavigate();
+  const { language } = useLocale();
+  const lang = SPEECH_LOCALE[language?.code] ? language.code : 'fr';
+  const tr = TR[lang] || TR.fr;
+  const langRef = useRef(lang);
+  useEffect(() => { langRef.current = lang; }, [lang]);
+
   const [open, setOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -45,7 +134,7 @@ const VoiceAssistant = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { setSupported(false); return undefined; }
     const rec = new SR();
-    rec.lang = 'fr-FR';
+    rec.lang = SPEECH_LOCALE[langRef.current] || 'fr-FR';
     rec.continuous = false;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
@@ -62,7 +151,7 @@ const VoiceAssistant = () => {
     };
     rec.onerror = (e) => {
       setListening(false);
-      if (e.error === 'not-allowed') toast.error('Micro non autorisé');
+      if (e.error === 'not-allowed') toast.error(TR[langRef.current]?.micDenied || 'Micro non autorisé');
     };
     rec.onend = () => setListening(false);
     recognitionRef.current = rec;
@@ -76,6 +165,8 @@ const VoiceAssistant = () => {
       setTranscript('');
       setAction(null);
       setPhase('input');
+      // Applique la langue de l'app à la dictée à chaque écoute.
+      recognitionRef.current.lang = SPEECH_LOCALE[langRef.current] || 'fr-FR';
       recognitionRef.current.start();
       setListening(true);
     } catch { /* already started */ }
@@ -92,12 +183,13 @@ const VoiceAssistant = () => {
     try {
       const form = new FormData();
       form.append('file', blob, `voice.${ext}`);
+      form.append('language', langRef.current);
       const r = await axios.post(`${API_URL}/api/voice/transcribe`, form, { withCredentials: true });
       const text = (r.data?.transcript || '').trim();
       if (text) { setTranscript(text); finalRef.current = text; }
-      else toast.error('Je n\'ai rien entendu, réessayez');
+      else toast.error(TR[langRef.current]?.nothingHeard || 'Je n\'ai rien entendu, réessayez');
     } catch {
-      toast.error('Transcription impossible, réessayez');
+      toast.error(TR[langRef.current]?.transcribeFail || 'Transcription impossible, réessayez');
     }
     setTranscribing(false);
   }, []);
@@ -126,7 +218,7 @@ const VoiceAssistant = () => {
       mr.start();
       setRecording(true);
     } catch {
-      toast.error('Micro non autorisé');
+      toast.error(TR[langRef.current]?.micDenied || 'Micro non autorisé');
     }
   }, [uploadAudio]);
 
@@ -136,26 +228,26 @@ const VoiceAssistant = () => {
 
   const submitTranscript = useCallback(async () => {
     const text = (transcript || '').trim();
-    if (!text) { toast.error('Aucune phrase détectée'); return; }
+    if (!text) { toast.error(tr.noPhrase); return; }
     setPhase('preparing');
     try {
       const loc = resolveLocation();
       const r = await axios.post(`${API_URL}/api/voice/prepare`,
-        { transcript: text, current_lat: loc?.lat, current_lng: loc?.lng },
+        { transcript: text, current_lat: loc?.lat, current_lng: loc?.lng, language: langRef.current },
         { withCredentials: true });
       const act = r.data.action;
       if (!act || act.type === 'unknown') {
-        toast.error('Je n\'ai pas compris. Essayez « Réserve un taxi de X à Y » ou « Commande des sushis ».');
+        toast.error(tr.notUnderstood);
         setPhase('input');
         return;
       }
       setAction(act);
       setPhase('action');
     } catch {
-      toast.error('Erreur de traitement, réessayez');
+      toast.error(tr.procError);
       setPhase('input');
     }
-  }, [transcript]);
+  }, [transcript, tr]);
 
   const onClose = () => {
     stop();
@@ -202,22 +294,22 @@ const VoiceAssistant = () => {
         <div data-testid="voice-action-taxi">
           <div className="rounded-2xl border border-gray-200 overflow-hidden mb-3">
             <div className="bg-gray-900 text-white px-4 py-2.5 flex items-center gap-2">
-              <Car size={18} weight="fill" /><span className="font-bold text-sm">Course VTC à confirmer</span>
+              <Car size={18} weight="fill" /><span className="font-bold text-sm">{tr.taxiTitle}</span>
             </div>
             <div className="p-4 space-y-2.5">
               <div className="flex items-start gap-2"><MapPin size={16} weight="fill" className="text-emerald-500 mt-0.5" /><span className="text-sm text-gray-800 flex-1" data-testid="voice-taxi-pickup">{action.pickup.address}</span></div>
               <div className="flex items-start gap-2"><MapPin size={16} weight="fill" className="text-[#FF4500] mt-0.5" /><span className="text-sm text-gray-800 flex-1" data-testid="voice-taxi-dropoff">{action.dropoff.address}</span></div>
               {e && (
                 <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
-                  <div><p className="text-[10px] text-gray-400 uppercase">Prix estimé</p><p className="font-black text-lg text-gray-900" data-testid="voice-taxi-fare">{e.fare != null ? `${e.fare.toFixed(2)} €` : '—'}</p></div>
-                  {e.distance_km != null && <div><p className="text-[10px] text-gray-400 uppercase">Distance</p><p className="font-bold text-gray-700">{e.distance_km} km</p></div>}
-                  {e.duration_mins != null && <div><p className="text-[10px] text-gray-400 uppercase">Durée</p><p className="font-bold text-gray-700">~{e.duration_mins} min</p></div>}
+                  <div><p className="text-[10px] text-gray-400 uppercase">{tr.price}</p><p className="font-black text-lg text-gray-900" data-testid="voice-taxi-fare">{e.fare != null ? `${e.fare.toFixed(2)} €` : '—'}</p></div>
+                  {e.distance_km != null && <div><p className="text-[10px] text-gray-400 uppercase">{tr.distance}</p><p className="font-bold text-gray-700">{e.distance_km} km</p></div>}
+                  {e.duration_mins != null && <div><p className="text-[10px] text-gray-400 uppercase">{tr.duration}</p><p className="font-bold text-gray-700">~{e.duration_mins} min</p></div>}
                 </div>
               )}
             </div>
           </div>
           <button onClick={confirmTaxi} className="w-full bg-[#FF4500] text-white rounded-full py-3.5 font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform" data-testid="voice-confirm-taxi-btn">
-            <CheckCircle size={20} weight="fill" /> Confirmer la course (paiement espèces)
+            <CheckCircle size={20} weight="fill" /> {tr.taxiConfirm}
           </button>
         </div>
       );
@@ -231,7 +323,7 @@ const VoiceAssistant = () => {
           {hasResult ? (
             <div className="rounded-2xl border border-gray-200 overflow-hidden mb-3">
               <div className="bg-rose-500 text-white px-4 py-2.5 flex items-center gap-2">
-                <ForkKnife size={18} weight="fill" /><span className="font-bold text-sm">{p ? 'Plat trouvé' : 'Restaurant trouvé'}</span>
+                <ForkKnife size={18} weight="fill" /><span className="font-bold text-sm">{p ? tr.foodFound : tr.restoFound}</span>
               </div>
               <div className="p-4">
                 {p ? (
@@ -251,7 +343,7 @@ const VoiceAssistant = () => {
             <p className="text-sm text-gray-500 mb-3">Aucun résultat exact pour « {action.query} ». Je vous emmène au food court.</p>
           )}
           <button onClick={confirmFood} className="w-full bg-rose-500 text-white rounded-full py-3.5 font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform" data-testid="voice-confirm-food-btn">
-            <ForkKnife size={20} weight="fill" /> {hasResult ? `Commander ${p ? '' : `chez ${m.store_name}`}`.trim() : 'Voir les restaurants'}
+            <ForkKnife size={20} weight="fill" /> {hasResult ? `${tr.orderAt} ${p ? '' : `${m.store_name}`}`.trim() : tr.seeRestos}
           </button>
         </div>
       );
@@ -265,7 +357,7 @@ const VoiceAssistant = () => {
           </p>
         )}
         <button onClick={doNavigate} className="w-full bg-gray-900 text-white rounded-full py-3.5 font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform" data-testid="voice-navigate-btn">
-          Ouvrir {NAV_LABELS[action.route] || 'le service'} <ArrowRight size={18} weight="bold" />
+          {tr.open} {NAV_LABELS[action.route] || ''} <ArrowRight size={18} weight="bold" />
         </button>
       </div>
     );
@@ -289,9 +381,9 @@ const VoiceAssistant = () => {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <Sparkle size={20} weight="fill" className="text-amber-400" />
-                  Assistant vocal
+                  {tr.title}
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">Parlez en français — je commande pour vous</p>
+                <p className="text-xs text-gray-500 mt-0.5">{tr.subtitle}</p>
               </div>
               <button onClick={onClose} className="text-gray-400 -mt-1 -mr-1" data-testid="voice-close-btn">
                 <X size={22} />
@@ -301,12 +393,12 @@ const VoiceAssistant = () => {
             {phase === 'action' && action ? (
               <div>
                 <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3 mb-4">
-                  <p className="text-[11px] text-gray-400 uppercase font-bold mb-0.5">Votre demande</p>
+                  <p className="text-[11px] text-gray-400 uppercase font-bold mb-0.5">{tr.request}</p>
                   <p className="text-sm text-gray-800">{transcript}</p>
                 </div>
                 {renderAction()}
                 <button onClick={() => { setAction(null); setPhase('input'); }} className="w-full text-center text-sm text-gray-500 mt-3 py-2" data-testid="voice-redo-btn">
-                  ↺ Reformuler
+                  {tr.redo}
                 </button>
               </div>
             ) : (
@@ -316,7 +408,7 @@ const VoiceAssistant = () => {
                     <p className="text-base text-gray-900">{transcript}</p>
                   ) : (
                     <p className="text-sm text-gray-400 italic">
-                      {listening || recording ? 'Écoute en cours…' : (transcribing ? 'Transcription…' : 'Appuyez sur le micro et parlez')}
+                      {listening || recording ? tr.listening : (transcribing ? tr.transcribing : tr.tapToSpeak)}
                     </p>
                   )}
                 </div>
@@ -344,23 +436,23 @@ const VoiceAssistant = () => {
                     )
                   )}
                   <p className="text-[11px] text-gray-500">
-                    {(listening || recording) ? 'Appuyez pour arrêter'
-                      : (transcribing ? 'Transcription en cours…' : 'Appuyez pour parler')}
+                    {(listening || recording) ? tr.tapToStop
+                      : (transcribing ? tr.transcribing : tr.tapToStart)}
                   </p>
-                  {!supported && <p className="text-[10px] text-gray-400">Transcription IA (Whisper)</p>}
+                  {!supported && <p className="text-[10px] text-gray-400">{tr.whisper}</p>}
                 </div>
 
                 {transcript && !listening && !recording && !transcribing && (
                   <button onClick={submitTranscript} disabled={phase === 'preparing'}
                     className="w-full bg-emerald-500 text-white rounded-full py-3 font-bold disabled:opacity-50 mb-4 flex items-center justify-center gap-2" data-testid="voice-submit-btn">
-                    {phase === 'preparing' ? 'Analyse en cours…' : 'Valider ma demande'}
+                    {phase === 'preparing' ? tr.analyzing : tr.validate}
                   </button>
                 )}
 
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-2">Exemples</p>
+                  <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 mb-2">{tr.examples}</p>
                   <div className="space-y-1.5">
-                    {EXAMPLES.map((ex) => (
+                    {tr.exampleList.map((ex) => (
                       <button key={ex}
                         onClick={() => { setTranscript(ex); finalRef.current = ex; }}
                         className="w-full text-left text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-2"
