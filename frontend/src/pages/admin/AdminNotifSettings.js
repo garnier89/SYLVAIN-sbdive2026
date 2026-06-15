@@ -121,37 +121,83 @@ const AdminNotifSettings = () => {
   );
 };
 
-const EMPTY_FORM = { id: null, title: '', body: '', audience: 'client', url: '', active: true };
+const EMPTY_FORM = { id: null, title: '', body: '', audience: 'client', url: '', zone_id: '', inactive_days: 30, schedule_at: '', active: true };
+
+const STATUS_BADGE = {
+  draft: { label: 'Brouillon', cls: 'bg-gray-100 text-gray-600' },
+  scheduled: { label: 'Planifiée', cls: 'bg-blue-100 text-blue-700' },
+  sent: { label: 'Envoyée', cls: 'bg-green-100 text-green-700' },
+};
+
+// datetime-local <-> ISO helpers (the input has no timezone; treat as local).
+const isoToLocalInput = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+};
+const localInputToIso = (v) => (v ? new Date(v).toISOString() : '');
 
 const BroadcastManager = () => {
   const [items, setItems] = useState([]);
   const [audiences, setAudiences] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [zoneAudiences, setZoneAudiences] = useState([]);
+  const [inactivityAudiences, setInactivityAudiences] = useState([]);
+  const [presets, setPresets] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
+  const [estimate, setEstimate] = useState(null);
+
+  const needsZone = zoneAudiences.includes(form.audience);
+  const needsInactivity = inactivityAudiences.includes(form.audience);
 
   const load = async () => {
     try {
       const { data } = await axios.get(`${API}/api/admin/notifications/broadcasts`, { withCredentials: true });
       setItems(data.items || []);
       setAudiences(data.audiences || []);
+      setZones(data.zones || []);
+      setZoneAudiences(data.zone_audiences || []);
+      setInactivityAudiences(data.inactivity_audiences || []);
+      setPresets(data.inactivity_presets || []);
     } catch {
       toast.error('Échec du chargement des annonces');
     }
   };
   useEffect(() => { load(); }, []);
 
-  const reset = () => setForm(EMPTY_FORM);
+  const reset = () => { setForm(EMPTY_FORM); setEstimate(null); };
+
+  const payload = () => ({
+    title: form.title, body: form.body, audience: form.audience, url: form.url,
+    active: form.active,
+    zone_id: needsZone ? form.zone_id : undefined,
+    inactive_days: needsInactivity ? form.inactive_days : undefined,
+    schedule_at: localInputToIso(form.schedule_at) || null,
+  });
+
+  const preview = async () => {
+    if (needsZone && !form.zone_id) { toast.error('Sélectionnez une zone'); return; }
+    try {
+      const { data } = await axios.post(`${API}/api/admin/notifications/broadcasts/preview`,
+        { audience: form.audience, zone_id: form.zone_id, inactive_days: form.inactive_days },
+        { withCredentials: true });
+      setEstimate(data.count);
+    } catch { toast.error("Échec de l'estimation"); }
+  };
 
   const submit = async () => {
     if (!form.title.trim() || !form.body.trim()) { toast.error('Titre et message requis'); return; }
+    if (needsZone && !form.zone_id) { toast.error('Sélectionnez une zone'); return; }
     setBusy(true);
     try {
       if (form.id) {
-        await axios.put(`${API}/api/admin/notifications/broadcasts/${form.id}`, form, { withCredentials: true });
+        await axios.put(`${API}/api/admin/notifications/broadcasts/${form.id}`, payload(), { withCredentials: true });
         toast.success('Notification mise à jour');
       } else {
-        await axios.post(`${API}/api/admin/notifications/broadcasts`, form, { withCredentials: true });
-        toast.success('Notification créée');
+        await axios.post(`${API}/api/admin/notifications/broadcasts`, payload(), { withCredentials: true });
+        toast.success(form.schedule_at ? 'Notification planifiée' : 'Notification créée');
       }
       reset();
       await load();
@@ -161,7 +207,7 @@ const BroadcastManager = () => {
   };
 
   const send = async (b) => {
-    if (!window.confirm(`Envoyer « ${b.title} » à : ${b.audience_label} ?`)) return;
+    if (!window.confirm(`Envoyer maintenant « ${b.title} » à : ${b.audience_label} ?`)) return;
     setBusy(true);
     try {
       const { data } = await axios.post(`${API}/api/admin/notifications/broadcasts/${b.id}/send`, {}, { withCredentials: true });
@@ -181,13 +227,21 @@ const BroadcastManager = () => {
     } catch { toast.error('Échec de la suppression'); }
   };
 
+  const edit = (b) => setForm({
+    id: b.id, title: b.title, body: b.body, audience: b.audience, url: b.url || '',
+    zone_id: b.zone_id || '', inactive_days: b.inactive_days || 30,
+    schedule_at: isoToLocalInput(b.schedule_at), active: b.active,
+  });
+
+  const fmtWhen = (iso) => { try { return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }); } catch { return iso; } };
+
   return (
     <section className="bg-white rounded-2xl border border-gray-100 p-5 mt-8" data-testid="broadcast-manager">
       <div className="flex items-center gap-2 mb-1">
         <Megaphone size={22} className="text-[#FF4500]" weight="duotone" />
         <h2 className="text-xl font-bold text-gray-900">Notifications personnalisées</h2>
       </div>
-      <p className="text-sm text-gray-500 mb-5">Créez et envoyez des notifications ciblées aux applications client, chauffeur ou marchand.</p>
+      <p className="text-sm text-gray-500 mb-5">Ciblez des segments (apps, chauffeurs hors-ligne, par zone, clients inactifs) et planifiez l'envoi.</p>
 
       {/* Form */}
       <div className="grid gap-3 mb-4 bg-gray-50 rounded-xl p-4">
@@ -199,28 +253,73 @@ const BroadcastManager = () => {
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Destinataires</label>
-            <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}
+            <select value={form.audience} onChange={(e) => { setForm({ ...form, audience: e.target.value }); setEstimate(null); }}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" data-testid="broadcast-audience-select">
               {audiences.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
             </select>
           </div>
         </div>
+
+        {/* Conditional targeting controls */}
+        {(needsZone || needsInactivity) && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {needsZone && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Zone</label>
+                <select value={form.zone_id} onChange={(e) => { setForm({ ...form, zone_id: e.target.value }); setEstimate(null); }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" data-testid="broadcast-zone-select">
+                  <option value="">— Choisir une zone —</option>
+                  {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
+                </select>
+              </div>
+            )}
+            {needsInactivity && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Inactivité depuis</label>
+                <select value={form.inactive_days} onChange={(e) => { setForm({ ...form, inactive_days: parseInt(e.target.value, 10) }); setEstimate(null); }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" data-testid="broadcast-inactive-select">
+                  {presets.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-xs text-gray-500 mb-1">Message</label>
           <textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={2}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="broadcast-body-input" />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Lien (optionnel, ex: /promos)</label>
-          <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="broadcast-url-input" />
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Lien (optionnel, ex: /promos)</label>
+            <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="broadcast-url-input" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Planifier l'envoi (optionnel)</label>
+            <input type="datetime-local" value={form.schedule_at} onChange={(e) => setForm({ ...form, schedule_at: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" data-testid="broadcast-schedule-input" />
+          </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={submit} disabled={busy}
             className="inline-flex items-center gap-2 bg-[#FF4500] text-white font-bold px-4 py-2 rounded-xl text-sm disabled:opacity-60"
             data-testid="broadcast-submit-btn">
-            <Plus size={16} /> {form.id ? 'Mettre à jour' : 'Créer la notification'}
+            <Plus size={16} /> {form.id ? 'Mettre à jour' : (form.schedule_at ? 'Planifier' : 'Créer la notification')}
           </button>
+          <button onClick={preview} type="button"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm border border-gray-200 text-gray-700"
+            data-testid="broadcast-preview-btn">
+            Estimer l'audience
+          </button>
+          {estimate != null && (
+            <span className="text-sm font-medium text-gray-700" data-testid="broadcast-estimate">
+              ≈ {estimate} destinataire(s)
+            </span>
+          )}
           {form.id && (
             <button onClick={reset} className="px-4 py-2 rounded-xl text-sm border border-gray-200 text-gray-600" data-testid="broadcast-cancel-btn">
               Annuler
@@ -232,29 +331,38 @@ const BroadcastManager = () => {
       {/* List */}
       <div className="space-y-2" data-testid="broadcast-list">
         {items.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune notification personnalisée.</p>}
-        {items.map((b) => (
-          <div key={b.id} className="border border-gray-200 rounded-xl p-3 flex items-start gap-3" data-testid={`broadcast-row-${b.id}`}>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-gray-900">{b.title}</span>
-                <span className="text-[10px] bg-orange-50 text-[#FF4500] px-2 py-0.5 rounded-full font-medium">{b.audience_label}</span>
-                {b.sent_count > 0 && <span className="text-[10px] text-gray-400">· envoyée à {b.sent_count}</span>}
+        {items.map((b) => {
+          const sb = STATUS_BADGE[b.status] || STATUS_BADGE.draft;
+          return (
+            <div key={b.id} className="border border-gray-200 rounded-xl p-3 flex items-start gap-3" data-testid={`broadcast-row-${b.id}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-gray-900">{b.title}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sb.cls}`}>{sb.label}</span>
+                  <span className="text-[10px] bg-orange-50 text-[#FF4500] px-2 py-0.5 rounded-full font-medium">{b.audience_label}</span>
+                  {b.zone_name && <span className="text-[10px] text-gray-400">· {b.zone_name}</span>}
+                  {b.inactive_days && <span className="text-[10px] text-gray-400">· &gt; {b.inactive_days}j</span>}
+                  {b.sent_count > 0 && <span className="text-[10px] text-gray-400">· envoyée à {b.sent_count}</span>}
+                </div>
+                <p className="text-sm text-gray-500 mt-0.5">{b.body}</p>
+                {b.status === 'scheduled' && b.schedule_at && (
+                  <p className="text-[11px] text-blue-600 mt-1">⏰ Programmée pour le {fmtWhen(b.schedule_at)}</p>
+                )}
               </div>
-              <p className="text-sm text-gray-500 mt-0.5">{b.body}</p>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => send(b)} disabled={busy} title="Envoyer maintenant"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100"
+                  data-testid={`broadcast-send-${b.id}`}><PaperPlaneTilt size={15} /></button>
+                <button onClick={() => edit(b)}
+                  title="Modifier" className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  data-testid={`broadcast-edit-${b.id}`}><PencilSimple size={15} /></button>
+                <button onClick={() => remove(b)} title="Supprimer"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                  data-testid={`broadcast-delete-${b.id}`}><Trash size={15} /></button>
+              </div>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button onClick={() => send(b)} disabled={busy} title="Envoyer"
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100"
-                data-testid={`broadcast-send-${b.id}`}><PaperPlaneTilt size={15} /></button>
-              <button onClick={() => setForm({ id: b.id, title: b.title, body: b.body, audience: b.audience, url: b.url || '', active: b.active })}
-                title="Modifier" className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100"
-                data-testid={`broadcast-edit-${b.id}`}><PencilSimple size={15} /></button>
-              <button onClick={() => remove(b)} title="Supprimer"
-                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                data-testid={`broadcast-delete-${b.id}`}><Trash size={15} /></button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

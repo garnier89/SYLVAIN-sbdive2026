@@ -1,0 +1,28 @@
+{
+  "summary": "Iter539 verification — admin broadcast SEGMENTS (driver_offline, driver_zone, client_inactive, client_inactive_zone), audience PREVIEW endpoint, and SCHEDULING (future→scheduled / past→draft). 12 new HTTP regression tests + 8 prior (segment resolve + idempotent scheduler dispatch + iter538 CRUD) all pass. Full E2E admin UI flow on /admin/notif-settings (conditional zone/inactivity selects, preview estimate, create scheduled merchant broadcast with Planifiée badge + ⏰ Programmée note, edit, delete) all succeed with French toasts. No data leftovers.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter539_broadcast_http.py",
+    "/app/backend/tests/test_iter539_broadcast_segments.py",
+    "/app/backend/tests/test_iter538_broadcast_admin.py",
+    "/app/test_reports/pytest/iter539_http.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "resolve_audience() for client_inactive scans all users with role='user' then subtracts active set: fine for current scale but for very large user bases consider an indexed last_activity_at field on users to avoid two distinct() scans (rides+orders) on each preview.",
+    "broadcast_scheduler_loop sleeps 60s after the call; due-broadcasts whose schedule_at is missed by < 60s will fire on next tick — acceptable, but documenting the upper bound (≤60s drift) in the UI tooltip would help admins.",
+    "POST /broadcasts/preview is unbounded; an admin spamming preview for client_inactive_zone (does full scan + per-user last_ride lookup) could be heavy. Consider rate-limit (e.g., 1/s/admin) or caching for ~10s per (audience,zone,days) triplet.",
+    "Past schedule_at falls back to status='draft' silently — could mislead admins who expected immediate dispatch. A clear French toast on the UI (already covered) suffices; consider also returning a warning field in the create response."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter539_broadcast_http.py (new — 12 HTTP regression cases)"
+  ],
+  "success_rate": {"backend": "100% (20/20 — 12 new + 8 prior)", "frontend": "100% (login + conditional segments UI + preview estimate + scheduled create/edit/delete + cleanup)"},
+  "test_credentials": "admin@superapp.com / SuperAdmin123! (used)",
+  "seed_data_creation": "All test broadcasts prefixed TEST_iter539 (UI + HTTP); deleted in test teardown / UI delete. Final DB sweep confirmed 0 leftover broadcast docs and 0 leftover announcement notifications. Per the protocol, NO send was triggered to merchant/all/client/driver audiences during this run (only the in-process pytest already proven the scheduler dispatch).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter539 HTTP regression at /app/backend/tests/test_iter539_broadcast_http.py uses REACT_APP_BACKEND_URL. The two zone-dependent preview tests skip gracefully if db.zones is empty. Frontend testids on /admin/notif-settings: broadcast-manager, broadcast-{title,audience,body,url}-input/-select, broadcast-zone-select (only for driver_zone/client_inactive_zone), broadcast-inactive-select (only for client_inactive/_zone), broadcast-schedule-input (datetime-local), broadcast-preview-btn → broadcast-estimate, broadcast-submit-btn, broadcast-row-{id}, broadcast-edit-{id}, broadcast-delete-{id}, broadcast-send-{id} (uses window.confirm — auto-accept via page.once('dialog')). Scheduled broadcasts get the Planifiée badge and a '⏰ Programmée pour …' note.",
+  "rca of the issue": "N/A — all specified iter539 behaviours match the spec. Segments resolve correctly (offline drivers, zone-scoped drivers via haversine on last GPS, inactive clients via cutoff date diff on rides+orders, inactive×zone via last ride pickup). _norm_schedule correctly maps future→scheduled / past→draft. _apply_targeting enforces 'Zone requise' 400 for driver_zone/client_inactive_zone without zone_id. Background loop atomically claims via find_one_and_update→'sending' to prevent double-send."
+}

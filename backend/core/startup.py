@@ -551,10 +551,12 @@ async def lifespan(app: FastAPI):
     pro_expiry_task = asyncio.create_task(pro_expiry_reminder_loop())
     from routes.rides import scheduled_ride_reminder_loop
     sched_reminder_task = asyncio.create_task(scheduled_ride_reminder_loop())
+    from core.notif_broadcast import broadcast_scheduler_loop
+    broadcast_sched_task = asyncio.create_task(broadcast_scheduler_loop())
 
     yield
 
-    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task, flight_hold_task, carpool_task, debt_task, no_movement_task, pet_health_task, pro_expiry_task, sched_reminder_task):
+    for task in (dispatch_task, weekly_task, order_task, demand_task, flight_task, cashback_task, grouping_task, student_digest_task, access_recurring_task, seq_dispatch_task, report_schedule_task, flight_hold_task, carpool_task, debt_task, no_movement_task, pet_health_task, pro_expiry_task, sched_reminder_task, broadcast_sched_task):
         if task:
             task.cancel()
     client.close()

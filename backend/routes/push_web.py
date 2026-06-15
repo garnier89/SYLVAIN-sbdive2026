@@ -172,25 +172,30 @@ async def admin_put_settings(request: Request):
 
 
 # ───────────────────── Custom broadcast notifications ─────────────────────
-# Admin-composed notifications/announcements targeted at a whole app audience
-# (client / driver / merchant / all). Stored as drafts, then "sent" to every
-# matching user via the shared create_notification helper (in-app + push).
+# Admin-composed notifications/announcements targeted at an audience (simple
+# role-based or a refined segment) with optional scheduled delivery. See
+# core.notif_broadcast for audience resolution, dispatch and the scheduler loop.
 
 import uuid as _uuid
+from core.notif_broadcast import (
+    AUDIENCE_LABELS, ZONE_AUDIENCES, INACTIVITY_AUDIENCES, INACTIVITY_PRESETS,
+    resolve_audience, dispatch_broadcast,
+)
 
-# Target audience → user role(s) in the `users` collection.
-_AUDIENCE_ROLES = {
-    "client": ["user"],
-    "driver": ["driver"],
-    "merchant": ["merchant"],
-    "all": ["user", "driver", "merchant"],
-}
-_AUDIENCE_LABELS = {
-    "client": "Application client",
-    "driver": "Application chauffeur",
-    "merchant": "Application marchand",
-    "all": "Toutes les applications",
-}
+
+def _norm_schedule(raw) -> tuple:
+    """Return (schedule_at_iso_or_None, status). A future schedule → 'scheduled'."""
+    if not raw:
+        return None, "draft"
+    try:
+        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return None, "draft"
+    iso = dt.astimezone(timezone.utc).isoformat()
+    status = "scheduled" if dt > datetime.now(timezone.utc) else "draft"
+    return iso, status
 
 
 def _clean_broadcast(b: dict) -> dict:
@@ -199,8 +204,13 @@ def _clean_broadcast(b: dict) -> dict:
         "title": b.get("title", ""),
         "body": b.get("body", ""),
         "audience": b.get("audience", "client"),
-        "audience_label": _AUDIENCE_LABELS.get(b.get("audience", "client"), b.get("audience")),
+        "audience_label": AUDIENCE_LABELS.get(b.get("audience", "client"), b.get("audience")),
+        "zone_id": b.get("zone_id"),
+        "zone_name": b.get("zone_name"),
+        "inactive_days": b.get("inactive_days"),
         "url": b.get("url") or "",
+        "schedule_at": b.get("schedule_at"),
+        "status": b.get("status", "draft"),
         "active": bool(b.get("active", True)),
         "created_at": b.get("created_at"),
         "updated_at": b.get("updated_at"),
@@ -209,12 +219,47 @@ def _clean_broadcast(b: dict) -> dict:
     }
 
 
+async def _apply_targeting(body: dict, doc: dict) -> None:
+    """Fill zone_id/zone_name/inactive_days on `doc` based on the audience."""
+    audience = doc["audience"]
+    if audience in ZONE_AUDIENCES:
+        zone = await db.zones.find_one({"id": body.get("zone_id")}, {"_id": 0, "id": 1, "name": 1})
+        if not zone:
+            raise HTTPException(status_code=400, detail="Zone requise pour ce ciblage")
+        doc["zone_id"] = zone["id"]
+        doc["zone_name"] = zone.get("name")
+    else:
+        doc["zone_id"] = None
+        doc["zone_name"] = None
+    doc["inactive_days"] = max(1, int(body.get("inactive_days") or 30)) if audience in INACTIVITY_AUDIENCES else None
+
+
 @admin_router.get("/broadcasts")
 async def list_broadcasts(request: Request):
     await require_role(request, ["admin"])
     items = await db.notif_broadcasts.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
-    return {"items": [_clean_broadcast(b) for b in items],
-            "audiences": [{"value": k, "label": v} for k, v in _AUDIENCE_LABELS.items()]}
+    zones = await db.zones.find({}, {"_id": 0, "id": 1, "name": 1}).sort("name", 1).to_list(200)
+    return {
+        "items": [_clean_broadcast(b) for b in items],
+        "audiences": [{"value": k, "label": v} for k, v in AUDIENCE_LABELS.items()],
+        "zone_audiences": list(ZONE_AUDIENCES),
+        "inactivity_audiences": list(INACTIVITY_AUDIENCES),
+        "inactivity_presets": INACTIVITY_PRESETS,
+        "zones": zones,
+    }
+
+
+@admin_router.post("/broadcasts/preview")
+async def preview_broadcast(request: Request):
+    """Estimate how many users a given targeting would reach (no send)."""
+    await require_role(request, ["admin"])
+    body = await request.json()
+    if body.get("audience") not in AUDIENCE_LABELS:
+        raise HTTPException(status_code=400, detail="Audience invalide")
+    spec = {"audience": body["audience"], "zone_id": body.get("zone_id"),
+            "inactive_days": body.get("inactive_days")}
+    recipients = await resolve_audience(spec)
+    return {"count": len(recipients)}
 
 
 @admin_router.post("/broadcasts")
@@ -223,15 +268,18 @@ async def create_broadcast(request: Request):
     body = await request.json()
     title = (body.get("title") or "").strip()
     text = (body.get("body") or "").strip()
-    audience = body.get("audience") if body.get("audience") in _AUDIENCE_ROLES else "client"
+    audience = body.get("audience") if body.get("audience") in AUDIENCE_LABELS else "client"
     if not title or not text:
         raise HTTPException(status_code=400, detail="Titre et message requis")
     now = datetime.now(timezone.utc).isoformat()
+    schedule_at, status = _norm_schedule(body.get("schedule_at"))
     doc = {
         "id": _uuid.uuid4().hex, "title": title, "body": text, "audience": audience,
         "url": (body.get("url") or "").strip(), "active": bool(body.get("active", True)),
+        "schedule_at": schedule_at, "status": status,
         "created_at": now, "updated_at": now, "last_sent_at": None, "sent_count": 0,
     }
+    await _apply_targeting(body, doc)
     await db.notif_broadcasts.insert_one(doc)
     return _clean_broadcast(doc)
 
@@ -248,12 +296,22 @@ async def update_broadcast(bid: str, request: Request):
         update["title"] = (body.get("title") or "").strip()
     if "body" in body:
         update["body"] = (body.get("body") or "").strip()
-    if body.get("audience") in _AUDIENCE_ROLES:
+    if body.get("audience") in AUDIENCE_LABELS:
         update["audience"] = body["audience"]
+        # Recompute zone/inactivity targeting for the (possibly) new audience.
+        tmp = {"audience": body["audience"]}
+        await _apply_targeting(body, tmp)
+        update.update({"zone_id": tmp["zone_id"], "zone_name": tmp["zone_name"], "inactive_days": tmp["inactive_days"]})
     if "url" in body:
         update["url"] = (body.get("url") or "").strip()
     if "active" in body:
         update["active"] = bool(body.get("active"))
+    if "schedule_at" in body:
+        schedule_at, status = _norm_schedule(body.get("schedule_at"))
+        update["schedule_at"] = schedule_at
+        # Don't resurrect an already-sent broadcast unless rescheduled in future.
+        if status == "scheduled" or existing.get("status") != "sent":
+            update["status"] = status
     await db.notif_broadcasts.update_one({"id": bid}, {"$set": update})
     doc = await db.notif_broadcasts.find_one({"id": bid}, {"_id": 0})
     return _clean_broadcast(doc)
@@ -272,23 +330,5 @@ async def send_broadcast(bid: str, request: Request):
     b = await db.notif_broadcasts.find_one({"id": bid}, {"_id": 0})
     if not b:
         raise HTTPException(status_code=404, detail="Notification introuvable")
-    roles = _AUDIENCE_ROLES.get(b.get("audience"), ["user"])
-    from core.notifications import create_notification
-    data = {"kind": "admin_broadcast", "broadcast_id": bid}
-    if b.get("url"):
-        data["url"] = b["url"]
-    sent = 0
-    cursor = db.users.find({"role": {"$in": roles}}, {"_id": 0, "id": 1})
-    async for u in cursor:
-        uid = u.get("id")
-        if not uid:
-            continue
-        try:
-            await create_notification(uid, "announcement", b["title"], b["body"], data=dict(data))
-            sent += 1
-        except Exception:
-            pass
-    now = datetime.now(timezone.utc).isoformat()
-    await db.notif_broadcasts.update_one(
-        {"id": bid}, {"$set": {"last_sent_at": now, "sent_count": sent}})
+    sent = await dispatch_broadcast(bid)
     return {"ok": True, "sent": sent}
