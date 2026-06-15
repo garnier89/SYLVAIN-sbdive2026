@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavigationArrow, X, ArrowBendUpRight, SpeakerHigh, SpeakerSlash, Warning } from '@phosphor-icons/react';
 import AdminGoogleMap from '../admin/AdminGoogleMap';
+import { getDirectionsService } from '../../lib/googleMaps';
 
 const stripHtml = (h) => (h || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -12,6 +13,15 @@ const distM = (a, b) => {
   const dLng = (b.lng - a.lng) * toR;
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
+};
+
+// Compass bearing (0=N, 90=E) from point a to b — used to rotate the car marker.
+const bearing = (a, b) => {
+  const toR = Math.PI / 180, toD = 180 / Math.PI;
+  const y = Math.sin((b.lng - a.lng) * toR) * Math.cos(b.lat * toR);
+  const x = Math.cos(a.lat * toR) * Math.sin(b.lat * toR)
+    - Math.sin(a.lat * toR) * Math.cos(b.lat * toR) * Math.cos((b.lng - a.lng) * toR);
+  return (Math.atan2(y, x) * toD + 360) % 360;
 };
 
 /**
@@ -34,6 +44,18 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
   const rerouteTimerRef = useRef(null);
   const driverRef = useRef(driverPos);
   driverRef.current = driverPos;
+  const prevPosRef = useRef(null);
+  const [heading, setHeading] = useState(null);
+
+  // Vehicle heading (cap) from the last movement → rotates the car marker.
+  useEffect(() => {
+    if (!driverPos?.lat) return;
+    const prev = prevPosRef.current;
+    if (prev && (prev.lat !== driverPos.lat || prev.lng !== driverPos.lng) && distM(prev, driverPos) > 3) {
+      setHeading(bearing(prev, driverPos));
+    }
+    prevPosRef.current = driverPos;
+  }, [driverPos?.lat, driverPos?.lng]);
 
   // Keep the list of available speech voices fresh (loaded asynchronously).
   useEffect(() => {
@@ -58,15 +80,16 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
   // Compute a traffic-aware route (with alternatives) from the driver's current
   // position, then pick the FASTEST one by live traffic. If a faster alternative
   // replaces the current route (bouchons), switch to it and announce it in French.
-  const computeRoute = useCallback(() => {
+  const computeRoute = useCallback(async () => {
     if (!window.google?.maps || !destination?.lat) return;
-    const ds = new window.google.maps.DirectionsService();
+    const ds = await getDirectionsService();
+    if (!ds) return;
     const from = driverRef.current?.lat ? driverRef.current : origin;
     ds.route(
       {
         origin: from,
         destination,
-        travelMode: window.google.maps.TravelMode.DRIVING,
+        travelMode: window.google.maps.TravelMode?.DRIVING || 'DRIVING',
         drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' },
         provideRouteAlternatives: true,
       },
@@ -185,6 +208,7 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
           center={driverPos?.lat ? driverPos : origin}
           zoom={18}
           driver={driverPos}
+          driverHeading={heading}
           routePath={route?.path}
           routeColor="#111111"
           dropoff={destination}

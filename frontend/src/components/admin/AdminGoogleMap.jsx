@@ -32,8 +32,16 @@ const DEFAULT_OPTIONS = {
 // Top-view car marker (matches the client app's "radar cars") rendered as a
 // data-URL so the driver/admin Google Maps show the same little car as the
 // client search radar instead of a flat material icon.
-const CAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="56" viewBox="0 0 40 56"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e7ebf1"/></linearGradient></defs><rect x="2" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9"/><rect x="33.5" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9"/><rect x="5" y="2" width="30" height="52" rx="12" fill="url(#b)" stroke="#c5cbd4" stroke-width="1"/><path d="M9.5 18 C14 13 26 13 30.5 18 L28.5 25.5 C23 22.8 17 22.8 11.5 25.5 Z" fill="#1f2733" opacity="0.88"/><rect x="11" y="27" width="18" height="11.5" rx="4" fill="#f4f6f9"/><path d="M11.5 40 C17 38 23 38 28.5 40 L30.5 46 C25.5 44 14.5 44 9.5 46 Z" fill="#2b3340" opacity="0.7"/><rect x="7" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030"/><rect x="27" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030"/></svg>';
+const CAR_INNER = '<defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e7ebf1"/></linearGradient></defs><rect x="2" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9"/><rect x="33.5" y="20" width="4.5" height="3.4" rx="1.7" fill="#dfe3e9"/><rect x="5" y="2" width="30" height="52" rx="12" fill="url(#b)" stroke="#c5cbd4" stroke-width="1"/><path d="M9.5 18 C14 13 26 13 30.5 18 L28.5 25.5 C23 22.8 17 22.8 11.5 25.5 Z" fill="#1f2733" opacity="0.88"/><rect x="11" y="27" width="18" height="11.5" rx="4" fill="#f4f6f9"/><path d="M11.5 40 C17 38 23 38 28.5 40 L30.5 46 C25.5 44 14.5 44 9.5 46 Z" fill="#2b3340" opacity="0.7"/><rect x="7" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030"/><rect x="27" y="48.5" width="6" height="3.2" rx="1.6" fill="#e23030"/>';
+const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="56" viewBox="0 0 40 56">${CAR_INNER}</svg>`;
 const DEFAULT_CAR_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(CAR_SVG)}`;
+
+// Rotated car (heading aware): the car (front pointing up) is drawn centered in
+// a 56×56 square and rotated by the compass bearing so it faces its direction.
+const rotatedCarUrl = (deg) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><g transform="rotate(${Math.round(deg)} 28 28) translate(8 0)">${CAR_INNER}</g></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
 
 const AdminGoogleMap = ({
   center = { lat: 48.8566, lng: 2.3522 },
@@ -42,6 +50,7 @@ const AdminGoogleMap = ({
   dropoff,
   driver,
   driverIconUrl = '',
+  driverHeading = null,
   routePath,
   mapType = 'roadmap',
   showTraffic = false,
@@ -143,12 +152,14 @@ const AdminGoogleMap = ({
     );
   }
 
+  // Rotate the default car with the driver's heading when no custom icon is set.
+  const useRotatedCar = driverHeading != null && !driverIconUrl;
   const carIcon = window.google
     ? {
         // Top-view car marker matching the client app's radar cars.
-        url: driverIconUrl || DEFAULT_CAR_URL,
-        scaledSize: new window.google.maps.Size(30, 42),
-        anchor: new window.google.maps.Point(15, 21),
+        url: useRotatedCar ? rotatedCarUrl(driverHeading) : (driverIconUrl || DEFAULT_CAR_URL),
+        scaledSize: useRotatedCar ? new window.google.maps.Size(42, 42) : new window.google.maps.Size(30, 42),
+        anchor: useRotatedCar ? new window.google.maps.Point(21, 21) : new window.google.maps.Point(15, 21),
       }
     : null;
 

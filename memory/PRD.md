@@ -1,4 +1,14 @@
-## NEW - 2026-06-15 (534) - 🛣️ GPS premium : recalcul auto anti-bouchons + tracé noir + voix FR garantie
+## NEW - 2026-06-15 (535) - 🧭 Nav auto à l'acceptation + véhicule orienté (cap) + 🐛 fix DirectionsService + validation visuelle réelle
+- **Demande user** : (1) valider en réel (course intra-ville) le tracé noir + ETA-trafic + recalcul ; (2) lancer la nav auto aussi à l'acceptation (vers le client) + faire pivoter le véhicule selon le cap.
+- **🐛 FIX CRITIQUE `DirectionsService is not a constructor`** : le loader Google async expose `google.maps` avant que la lib `routes` soit prête ; le lancement auto (plus précoce) révélait la race → écran d'erreur runtime. Ajout `getDirectionsService()` dans `lib/googleMaps.js` (via `importLibrary('routes')`, comme `getGeocoder`) ; `InAppNav.computeRoute` est désormais async et l'utilise. (Aurait aussi planté en prod.)
+- **Nav auto à l'acceptation ET au démarrage** : `DriverRideFlow` — effet centralisé avec garde `autoNavRef` (phase 'pick' à `accepted`, 'drop' à `in_progress`) → la nav interne s'ouvre 1× par phase, ne se rouvre pas après « Quitter ».
+- **Véhicule orienté selon le cap** : `InAppNav` calcule le `bearing()` entre positions successives (si déplacement > 3 m) et passe `driverHeading` à `AdminGoogleMap` ; nouvelle prop `driverHeading` → génère un SVG voiture pivoté (`rotatedCarUrl`, 56×56, rotation autour du centre) quand pas d'icône custom. Visible dès que le véhicule bouge (non simulable en test GPS statique).
+- **Tracé noir** : prop `routeColor` sur `AdminGoogleMap` (défaut bleu admin) ; `InAppNav` passe `#111111`.
+- **✅ Validation visuelle réelle** : course test patchée temporairement en intra-Paris (Châtelet→Gare du Nord) puis RESTAURÉE. Screenshot confirme : **tracé NOIR** visible, **ETA-trafic** « 14 minutes · 3,4 km restants · trafic fluide », **instruction FR** « Prendre la direction nord-ouest sur Av. Victoria… · Dans 0,1 km », calque trafic actif, 0 erreur.
+
+---
+
+
 - **Demande user** : recalcul d'itinéraire auto quand le trafic dépasse un seuil (proposer une route alternative plus rapide) ; tracé de la route en NOIR ; voix en français.
 - **Recalcul auto anti-bouchons** (`InAppNav.jsx`) : `DirectionsService` avec `provideRouteAlternatives: true` + `drivingOptions(trafficModel:'bestguess')` ; à chaque calcul (toutes les 30 s) on choisit la route la plus rapide par `duration_in_traffic`. Si une route différente est ≥ 60 s plus rapide que celle suivie → bascule + bandeau vert « Itinéraire recalculé — route plus rapide pour éviter les bouchons » (12 s) + annonce vocale FR « Nouvel itinéraire plus rapide pour éviter les bouchons ». testid `inapp-nav-reroute`.
 - **Tracé noir** : `AdminGoogleMap` reçoit une prop `routeColor` (défaut `#3B82F6` pour l'admin) ; `InAppNav` passe `routeColor="#111111"` (noir, épaisseur 5). 

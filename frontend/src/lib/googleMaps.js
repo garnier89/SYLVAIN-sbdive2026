@@ -21,6 +21,28 @@ export const GMAPS_LOADER_OPTIONS = {
 };
 
 /**
+ * Returns a ready-to-use google.maps.DirectionsService instance, or null if Maps
+ * isn't loaded. Same async-loader caveat as getGeocoder: the `routes` library
+ * (which holds DirectionsService) may not be ready when `google.maps` first
+ * appears, so we lazily `importLibrary('routes')` to guarantee the constructor.
+ */
+export async function getDirectionsService() {
+  const maps = window.google?.maps;
+  if (!maps) return null;
+  if (typeof maps.DirectionsService === 'function') {
+    try { return new maps.DirectionsService(); } catch (e) { /* fall through */ }
+  }
+  if (typeof maps.importLibrary === 'function') {
+    try {
+      const lib = await maps.importLibrary('routes');
+      const Ctor = lib?.DirectionsService || maps.DirectionsService;
+      return typeof Ctor === 'function' ? new Ctor() : null;
+    } catch (e) { return null; }
+  }
+  return null;
+}
+
+/**
  * Returns a ready-to-use google.maps.Geocoder instance, or null if Maps isn't
  * loaded. Google's async loader (loading=async) exposes the `google.maps`
  * namespace BEFORE the classes are ready, so `new google.maps.Geocoder()` can
