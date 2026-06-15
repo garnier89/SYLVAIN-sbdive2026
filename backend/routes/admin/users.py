@@ -1,4 +1,17 @@
-from routes.admin._common import *  # noqa: F401,F403
+from routes.admin._common import (
+    HTTPException,
+    Request,
+    _assert_email_available,
+    _assert_phone_available,
+    _collect_user_updates,
+    _compose_full_phone,
+    datetime,
+    db,
+    require_role,
+    router,
+    timezone,
+    uuid,
+)
 
 # ===== USER DETAIL / EDIT (matches XJekPlus Edit User page) =====
 

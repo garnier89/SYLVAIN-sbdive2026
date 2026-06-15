@@ -1,4 +1,11 @@
-from routes.admin._common import *  # noqa: F401,F403
+from routes.admin._common import (
+    HTTPException,
+    Request,
+    _clean_driver_category,
+    db,
+    require_role,
+    router,
+)
 
 @router.get("/driver-categories")
 async def admin_list_driver_categories(request: Request):

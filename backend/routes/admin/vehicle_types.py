@@ -1,4 +1,15 @@
-from routes.admin._common import *  # noqa: F401,F403
+from routes.admin._common import (
+    HTTPException,
+    Request,
+    VT_DEFAULTS,
+    VT_FIELDS,
+    datetime,
+    db,
+    require_role,
+    router,
+    timezone,
+    uuid,
+)
 
 @router.get("/vehicle-types")
 async def admin_list_vehicle_types(request: Request):

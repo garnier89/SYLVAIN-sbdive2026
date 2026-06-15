@@ -1,4 +1,12 @@
-from routes.admin._common import *  # noqa: F401,F403
+from routes.admin._common import (
+    HTTPException,
+    Request,
+    _create_merchant_internal,
+    db,
+    os,
+    require_role,
+    router,
+)
 
 @router.get("/merchants")
 async def admin_list_merchants(request: Request, status: str = "all"):

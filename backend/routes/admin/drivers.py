@@ -1,4 +1,14 @@
-from routes.admin._common import *  # noqa: F401,F403
+from routes.admin._common import (
+    HTTPException,
+    Request,
+    _create_driver_internal,
+    datetime,
+    db,
+    get_rewards_config,
+    require_role,
+    router,
+    timezone,
+)
 
 @router.post("/drivers")
 async def admin_create_driver(request: Request):
