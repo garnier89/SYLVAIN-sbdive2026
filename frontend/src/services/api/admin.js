@@ -138,6 +138,7 @@ export const adminAPI = {
   driverActivity: (params) => api.get('/admin/driver-activity', { params }),
   // Journal des appels masqués (WebRTC vs Relais)
   callLogs: (params) => api.get('/admin/calls', { params }),
+  setCallAbuseThreshold: (relay_per_day) => api.put('/admin/calls/abuse-threshold', { relay_per_day }),
   // Politique dettes + timing trajets
   debtPolicyGet: () => api.get('/admin/debts/policy'),
   debtPolicySet: (body) => api.put('/admin/debts/policy', body),

@@ -1053,6 +1053,11 @@ async def get_my_earnings_breakdown(request: Request):
     start_of_week = (start_of_day - timedelta(days=start_of_day.weekday()))
     start_of_month = start_of_day.replace(day=1)
 
+    # Net earnings = gross final_fare minus the platform commission (admin-set %).
+    cfg = await db.service_configs.find_one({"service_key": "general"}, {"_id": 0, "settings": 1}) or {}
+    commission_pct = float((cfg.get("settings") or {}).get("commission_percent", 15.0))
+    net = max(0.0, 1.0 - commission_pct / 100.0)
+
     async def sum_fares(since_iso: str) -> dict:
         pipeline = [
             {"$match": {
@@ -1064,17 +1069,42 @@ async def get_my_earnings_breakdown(request: Request):
         ]
         rows = await db.rides.aggregate(pipeline).to_list(1)
         if rows:
-            return {"earnings": round(rows[0]["total"] or 0, 2), "trips": rows[0]["count"]}
+            return {"earnings": round((rows[0]["total"] or 0) * net, 2), "trips": rows[0]["count"]}
         return {"earnings": 0.0, "trips": 0}
 
     today = await sum_fares(start_of_day.isoformat())
     week = await sum_fares(start_of_week.isoformat())
     month = await sum_fares(start_of_month.isoformat())
 
+    # Last 7 days (incl. today) — net daily earnings for the mini bar chart.
+    seven_start = start_of_day - timedelta(days=6)
+    daily_rows = await db.rides.aggregate([
+        {"$match": {
+            "driver_id": driver["id"],
+            "status": "completed",
+            "completed_at": {"$gte": seven_start.isoformat()},
+        }},
+        {"$group": {"_id": {"$substr": ["$completed_at", 0, 10]},
+                    "total": {"$sum": "$final_fare"}, "count": {"$sum": 1}}},
+    ]).to_list(50)
+    by_day = {r["_id"]: r for r in daily_rows}
+    daily_7d = []
+    for i in range(6, -1, -1):
+        d = (start_of_day - timedelta(days=i)).date().isoformat()
+        r = by_day.get(d)
+        daily_7d.append({
+            "date": d,
+            "earnings": round((r["total"] if r else 0) * net, 2),
+            "trips": r["count"] if r else 0,
+        })
+
     return {
         "today": today,
         "week": week,
         "month": month,
+        "daily_7d": daily_7d,
+        "commission_percent": commission_pct,
+        "is_net": True,
         "currency": "EUR",
         "as_of": now.isoformat(),
     }

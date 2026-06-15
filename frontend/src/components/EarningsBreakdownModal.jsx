@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { X, CurrencyEur, Calendar, TrendUp, Path } from '@phosphor-icons/react';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+const WEEKDAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+const dayLabel = (iso) => {
+  try { return WEEKDAYS[new Date(iso + 'T00:00:00').getDay()]; } catch { return iso?.slice(5); }
+};
 
 const EarningsBreakdownModal = ({ open, onClose }) => {
   const [data, setData] = useState(null);
@@ -53,7 +59,8 @@ const EarningsBreakdownModal = ({ open, onClose }) => {
           ) : !data ? (
             <p className="text-center text-gray-400 text-sm py-8">Impossible de charger les revenus.</p>
           ) : (
-            rows.map((row) => {
+            <>
+            {rows.map((row) => {
               const r = data[row.key] || { earnings: 0, trips: 0 };
               const Icon = row.icon;
               return (
@@ -72,14 +79,40 @@ const EarningsBreakdownModal = ({ open, onClose }) => {
                   </p>
                 </div>
               );
-            })
+            })}
+            {Array.isArray(data.daily_7d) && data.daily_7d.length > 0 && (
+              <div className="pt-1" data-testid="earnings-7d-chart">
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-2 flex items-center gap-1.5">
+                  <TrendUp size={14} weight="fill" className="text-emerald-500" /> 7 derniers jours
+                </p>
+                <div style={{ width: '100%', height: 130 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={data.daily_7d} margin={{ top: 6, right: 4, left: 4, bottom: 0 }}>
+                      <XAxis dataKey="date" tickFormatter={dayLabel} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                        formatter={(v) => [`${Number(v).toFixed(2)} €`, 'Gains']}
+                        labelFormatter={(d) => dayLabel(d)}
+                        contentStyle={{ borderRadius: 10, border: '1px solid #eee', fontSize: 12 }}
+                      />
+                      <Bar dataKey="earnings" radius={[6, 6, 0, 0]} maxBarSize={28}>
+                        {data.daily_7d.map((d, i) => (
+                          <Cell key={i} fill={i === data.daily_7d.length - 1 ? '#FF4500' : '#FDBA8C'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
 
         {/* Footer hint */}
         <div className="px-4 pb-4">
           <p className="text-[10px] text-gray-400 text-center">
-            Les revenus sont calculés sur les courses terminées (semaine du lundi au dimanche).
+            Revenus nets (après commission), calculés sur les courses terminées — semaine du lundi au dimanche.
           </p>
         </div>
       </div>

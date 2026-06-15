@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Phone, ArrowClockwise, DownloadSimple, PhoneCall, PhoneX, Globe,
-  Timer, CheckCircle, MagnifyingGlass, ShieldCheck,
+  Timer, CheckCircle, MagnifyingGlass, ShieldCheck, Warning, Check,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { adminAPI } from '../../services/api';
@@ -53,15 +53,27 @@ const AdminCallLogs = () => {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [channel, setChannel] = useState('');
+  const [thresholdInput, setThresholdInput] = useState('');
+  const [savingThreshold, setSavingThreshold] = useState(false);
 
   const load = useCallback((r, ch) => {
     setLoading(true);
     adminAPI.callLogs({ ...r, channel: ch || undefined })
-      .then((res) => setData(res.data))
+      .then((res) => { setData(res.data); setThresholdInput(String(res.data?.abuse_threshold ?? 10)); })
       .catch(() => toast.error('Chargement impossible'))
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(range, channel); }, [range, channel, load]);
+
+  const saveThreshold = () => {
+    const val = parseInt(thresholdInput, 10);
+    if (!val || val < 1) { toast.error('Seuil invalide'); return; }
+    setSavingThreshold(true);
+    adminAPI.setCallAbuseThreshold(val)
+      .then(() => { toast.success(`Seuil enregistré : ${val} appels relais/jour`); load(range, channel); })
+      .catch(() => toast.error('Échec de l\'enregistrement'))
+      .finally(() => setSavingThreshold(false));
+  };
 
   const calls = (data?.calls || []).filter((c) =>
     !q || (c.caller_name || '').toLowerCase().includes(q.toLowerCase())
@@ -137,6 +149,59 @@ const AdminCallLogs = () => {
             <KpiCard icon={PhoneX} label="Manqués" value={k.missed ?? 0} accent="bg-rose-500" testid="kpi-missed" />
             <KpiCard icon={Timer} label="Durée moy." value={fmtDur(k.avg_duration)} accent="bg-violet-500" testid="kpi-avg" />
             <KpiCard icon={CheckCircle} label="Taux réponse" value={`${k.answer_rate ?? 0}%`} accent="bg-teal-500" testid="kpi-rate" />
+          </div>
+
+          {/* Anti-abuse — relay (Twilio) calls per caller/day exceeding the threshold */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6" data-testid="calls-abuse-panel">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <Warning size={18} weight="fill" className="text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-gray-900 text-sm">Alertes anti-abus — appels relais</h2>
+                  <p className="text-xs text-gray-500">Maîtrise des coûts Twilio : un appelant dépassant le seuil/jour est signalé.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Seuil (relais/jour)</span>
+                <input
+                  type="number" min="1" value={thresholdInput}
+                  onChange={(e) => setThresholdInput(e.target.value)}
+                  data-testid="abuse-threshold-input"
+                  className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                />
+                <button onClick={saveThreshold} disabled={savingThreshold} data-testid="abuse-threshold-save"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50">
+                  <Check size={16} weight="bold" /> Enregistrer
+                </button>
+              </div>
+            </div>
+            {(data?.alerts || []).length === 0 ? (
+              <p className="text-sm text-emerald-600 flex items-center gap-1.5" data-testid="abuse-none">
+                <CheckCircle size={16} weight="fill" /> Aucun abus détecté sur la période (seuil : {data?.abuse_threshold ?? 10}/jour).
+              </p>
+            ) : (
+              <div className="space-y-2" data-testid="abuse-list">
+                {(data.alerts).map((a, i) => (
+                  <div key={`${a.caller_id}-${a.day}-${i}`} data-testid={`abuse-row-${i}`}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
+                    <Warning size={18} weight="fill" className="text-amber-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm truncate">{a.caller_name}
+                        <span className="text-[11px] text-gray-400 font-normal ml-1">
+                          ({a.caller_role === 'driver' ? 'Chauffeur' : 'Client'})
+                        </span>
+                      </p>
+                      <p className="text-[11px] text-gray-500">{fmtDate(a.day + 'T00:00:00')}</p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 shrink-0">
+                      {a.relay_count} appels relais
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 p-5 overflow-x-auto" data-testid="calls-table">
