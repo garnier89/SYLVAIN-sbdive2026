@@ -192,6 +192,7 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   const applyStarted = useCallback(() => {
     const now = new Date().toISOString();
     setStartedAt(now); setStatus('in_progress');
+    setShowNav(true); // GPS interne : lance automatiquement la navigation vers la destination
     // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
     const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;
     const billable = Math.max(0, waitSec - freeWaitSec);
