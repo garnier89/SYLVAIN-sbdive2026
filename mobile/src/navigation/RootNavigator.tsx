@@ -44,6 +44,8 @@ import DriverWeeklyReportsScreen from '@/screens/driver/DriverWeeklyReportsScree
 import { DriverMissionsProvider, useDriverMissions } from '@/contexts/DriverMissionsContext';
 
 import MerchantHomeScreen from '@/screens/merchant/MerchantHomeScreen';
+import MerchantOrdersScreen from '@/screens/merchant/MerchantOrdersScreen';
+import MerchantMenuScreen from '@/screens/merchant/MerchantMenuScreen';
 
 const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
@@ -152,6 +154,8 @@ function MerchantTabsNav() {
   return (
     <MerchantTabs.Navigator screenOptions={tabBarOptions}>
       <MerchantTabs.Screen name="Dashboard" component={MerchantHomeScreen} options={{ title: t('tabs.dashboard'), tabBarIcon: tabIcon('grid') }} />
+      <MerchantTabs.Screen name="Orders" component={MerchantOrdersScreen} options={{ title: 'Commandes', tabBarIcon: tabIcon('receipt') }} />
+      <MerchantTabs.Screen name="Menu" component={MerchantMenuScreen} options={{ title: 'Menu', tabBarIcon: tabIcon('fast-food') }} />
       <MerchantTabs.Screen name="ProfileTab" component={ProfileScreen} options={{ title: t('tabs.profile'), tabBarIcon: tabIcon('person') }} />
     </MerchantTabs.Navigator>
   );

@@ -1,0 +1,63 @@
+# 📱 Générer les APK SB Drive (client / chauffeur / marchand)
+
+L'app mobile (`mobile/`) est une app **Expo / React Native**. On génère de **vrais APK
+installables** via **Expo EAS Build** (build dans le cloud Expo, gratuit pour démarrer).
+Une seule base de code → **3 APK séparés** grâce aux variantes (packages Android distincts,
+donc installables côte à côte sur le même téléphone pour tester).
+
+| Profil | Nom de l'app | Package Android | Rôle |
+|--------|--------------|------------------|------|
+| `client`   | SB Drive            | `com.sbdrive.vtc`      | utilisateur |
+| `driver`   | SB Drive Chauffeur  | `com.sbdrive.driver`   | chauffeur |
+| `merchant` | SB Drive Marchand   | `com.sbdrive.merchant` | marchand |
+
+Les APK pointent sur le **backend de production** (`https://gojek-mvp-1.emergent.host`)
+et embarquent la clé Google Maps (voir `eas.json`).
+
+---
+
+## Étapes (sur votre ordinateur)
+
+```bash
+# 1. Installer EAS CLI
+npm install -g eas-cli
+
+# 2. Se connecter (compte Expo gratuit : https://expo.dev/signup)
+eas login
+
+# 3. Aller dans le dossier mobile
+cd mobile
+npm install        # (ou yarn)
+
+# 4. Initialiser le projet EAS (première fois seulement)
+eas init           # crée le projectId et l'associe à votre compte Expo
+
+# 5. Construire chaque APK (build cloud → lien de téléchargement à la fin)
+eas build -p android --profile client
+eas build -p android --profile driver
+eas build -p android --profile merchant
+```
+
+À la fin de chaque build, EAS affiche une **URL** pour télécharger le fichier `.apk`
+(également disponible sur https://expo.dev → votre projet → Builds).
+
+---
+
+## Notes importantes
+
+- **Google Maps** : pour la production, restreignez la clé API Android (Google Cloud Console)
+  aux 3 packages ci-dessus + leur empreinte SHA-1 (EAS l'affiche, ou `eas credentials`).
+  Pour un test rapide, une clé sans restriction fonctionne aussi.
+- **buildType = apk** (dans `eas.json`) → fichier `.apk` direct (pas un `.aab`).
+  Pour publier sur Google Play, utilisez plutôt `"buildType": "app-bundle"`.
+- **Backend** : modifiable dans `eas.json` (`env.EXPO_PUBLIC_BACKEND_URL`).
+- **Tester en local sans build** : `npx expo start` puis l'app **Expo Go** (scan du QR code).
+  Pour choisir le rôle en local : `APP_VARIANT=merchant npx expo start`.
+
+## Ce que fait chaque app
+
+- **Client** : courses, livraison, food, beauté, pharmacie, immobilier, wallet, suivi de course.
+- **Chauffeur** : missions, courses actives, gains, rapports hebdo, navigation.
+- **Marchand** : tableau de bord (recettes/commandes du jour, top produits), boutique
+  ouverte/fermée, gestion des **commandes** (accepter → préparation → prête → remise),
+  et **menu** (ajout de produits, disponibilité/rupture).

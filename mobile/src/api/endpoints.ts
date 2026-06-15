@@ -61,6 +61,14 @@ export const merchantAPI = {
   updateProduct: (id: string, data: any) =>
     api.put(`/merchants/products/${id}`, data),
   deleteProduct: (id: string) => api.delete(`/merchants/products/${id}`),
+  // Espace marchand (commerçant connecté)
+  me: () => api.get('/merchants/me'),
+  updateMe: (data: any) => api.put('/merchants/me', data),
+  stats: () => api.get('/merchants/me/stats'),
+  setAvailability: (acceptingOrders: boolean, pauseMinutes?: number) =>
+    api.post('/merchants/me/availability', { accepting_orders: acceptingOrders, pause_minutes: pauseMinutes }),
+  setStock: (productId: string, stock: number) =>
+    api.post(`/merchants/products/${productId}/stock`, { stock }),
   // Unified delivery search — matches stores + products across every vertical.
   searchDelivery: (q: string) => api.get('/search/delivery', { params: { q } }),
 };

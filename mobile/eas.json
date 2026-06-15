@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://gojek-mvp-1.emergent.host",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyDKXDtJt-PdI5dQIaiaIId12G7Mk86X4t8"
+      }
+    },
+    "client": {
+      "extends": "base",
+      "channel": "client",
+      "env": { "APP_VARIANT": "client" }
+    },
+    "driver": {
+      "extends": "base",
+      "channel": "driver",
+      "env": { "APP_VARIANT": "driver" }
+    },
+    "merchant": {
+      "extends": "base",
+      "channel": "merchant",
+      "env": { "APP_VARIANT": "merchant" }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "APP_VARIANT": "client" }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
