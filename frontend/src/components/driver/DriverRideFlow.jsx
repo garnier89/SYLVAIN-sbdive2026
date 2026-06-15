@@ -324,7 +324,8 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
   // Arrivée au point B : annonce vocale FR « Vous êtes arrivé à destination »
   // puis bascule automatique vers l'écran de fin de course (une seule fois).
   const arrivedRef = useRef(false);
-  const arrivalTimerRef = useRef(null);
+  const [arrived, setArrived] = useState(false);
+  // (1) Détection de l'arrivée : annonce vocale + toast une seule fois.
   useEffect(() => {
     if (!inProgress || arrivedRef.current) return;
     if (distToDropoff == null || distToDropoff > NEAR_DESTINATION_M) return;
@@ -339,14 +340,18 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     } catch { /* voix facultative */ }
     toast.success('Arrivé à destination — finalisation de la course.');
     setShowNav(false);
-    // Timer stocké en ref → NON annulé par les changements de distToDropoff (GPS
-    // qui bouge) ; nettoyé uniquement au démontage du composant.
-    arrivalTimerRef.current = setTimeout(() => {
+    setArrived(true);
+  }, [inProgress, distToDropoff]);
+  // (2) Bascule vers la fin de course 2 s après l'arrivée. Effet séparé piloté par
+  // `arrived` → robuste au double-montage React StrictMode (re-programmé au re-setup).
+  useEffect(() => {
+    if (!arrived) return undefined;
+    const id = setTimeout(() => {
       if (waitingStart) toggleWaiting();
       setCompleting(true);
     }, 2000);
-  }, [inProgress, distToDropoff, waitingStart, toggleWaiting]);
-  useEffect(() => () => { if (arrivalTimerRef.current) clearTimeout(arrivalTimerRef.current); }, []);
+    return () => clearTimeout(id);
+  }, [arrived]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const routePath = decodePolyline(ride.route_polyline).length
     ? decodePolyline(ride.route_polyline)

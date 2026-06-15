@@ -1,4 +1,12 @@
-## NEW - 2026-06-15 (536) - 🔊 Alerte vocale d'arrivée + bascule auto fin de course + 🌙 mode nuit auto carte nav
+## NEW - 2026-06-15 (537) - ✅ Bascule auto fin de course VALIDÉE (E2E) + fix StrictMode du minuteur
+- **Demande user** : confirmer en condition réelle la bascule automatique vers la fin de course à l'arrivée au point B.
+- **Validation E2E réussie** : avec `set_geolocation(48.8566,2.3522)` = dropoff (course 504 patchée temporairement en `in_progress` à Paris), debug confirmé `distToDropoff:0` → arrivée détectée → après 2 s la vue **bascule vers `RideCompletionFlow`** (étape « Frais supplémentaires » → Sauter/Soumettre). `STILL_IN_PROGRESS=False`. 🎉
+- **🐛 BUG StrictMode trouvé & corrigé** : le minuteur de bascule était nettoyé par le cleanup « démontage » lors du cycle mount→unmount→remount de React **StrictMode** (dev), et le garde `arrivedRef` empêchait sa re-programmation → `setCompleting` ne se déclenchait jamais (log `ARRIVAL_FIRE` absent). Correctif : séparation en 2 effets — (1) détection (voix+toast, `arrivedRef` une fois, `setArrived(true)`), (2) programmation du `setTimeout(2000)` piloté par l'état `arrived` (re-programmé au re-setup → robuste StrictMode). 
+- Données démo (19 courses actives jean.dupont) modifiées pour le test puis **intégralement restaurées** ; logs debug retirés.
+
+---
+
+
 - **Demande user** : (1) alerte vocale d'arrivée FR + bascule auto vers l'écran de fin de course au point B ; (2) mode nuit automatique de la carte de navigation (sombre le soir).
 - **🌙 Mode nuit auto** : `AdminGoogleMap` reçoit une prop `nightMode` + constante `NIGHT_STYLE` (style sombre type Waze/Google) appliquée à `mapOptions.styles`. `InAppNav` calcule `nightMode = heure ≥ 19h ou < 7h` et le passe à la carte. ✅ Validé visuellement (carte sombre + trafic coloré, à 20h conteneur).
 - **🔊 Alerte arrivée + bascule auto** : `DriverRideFlow` — quand `inProgress` et `distToDropoff ≤ 200 m`, annonce vocale FR « Vous êtes arrivé à destination » (voix `fr-*`) + toast + ferme la nav, puis `setCompleting(true)` après 2 s → écran de fin de course. ✅ Toast + voix validés (déclenchés en test).
