@@ -169,3 +169,126 @@ async def admin_put_settings(request: Request):
         upsert=True,
     )
     return await get_notif_settings()
+
+
+# ───────────────────── Custom broadcast notifications ─────────────────────
+# Admin-composed notifications/announcements targeted at a whole app audience
+# (client / driver / merchant / all). Stored as drafts, then "sent" to every
+# matching user via the shared create_notification helper (in-app + push).
+
+import uuid as _uuid
+
+# Target audience → user role(s) in the `users` collection.
+_AUDIENCE_ROLES = {
+    "client": ["user"],
+    "driver": ["driver"],
+    "merchant": ["merchant"],
+    "all": ["user", "driver", "merchant"],
+}
+_AUDIENCE_LABELS = {
+    "client": "Application client",
+    "driver": "Application chauffeur",
+    "merchant": "Application marchand",
+    "all": "Toutes les applications",
+}
+
+
+def _clean_broadcast(b: dict) -> dict:
+    return {
+        "id": b.get("id"),
+        "title": b.get("title", ""),
+        "body": b.get("body", ""),
+        "audience": b.get("audience", "client"),
+        "audience_label": _AUDIENCE_LABELS.get(b.get("audience", "client"), b.get("audience")),
+        "url": b.get("url") or "",
+        "active": bool(b.get("active", True)),
+        "created_at": b.get("created_at"),
+        "updated_at": b.get("updated_at"),
+        "last_sent_at": b.get("last_sent_at"),
+        "sent_count": b.get("sent_count", 0),
+    }
+
+
+@admin_router.get("/broadcasts")
+async def list_broadcasts(request: Request):
+    await require_role(request, ["admin"])
+    items = await db.notif_broadcasts.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"items": [_clean_broadcast(b) for b in items],
+            "audiences": [{"value": k, "label": v} for k, v in _AUDIENCE_LABELS.items()]}
+
+
+@admin_router.post("/broadcasts")
+async def create_broadcast(request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    title = (body.get("title") or "").strip()
+    text = (body.get("body") or "").strip()
+    audience = body.get("audience") if body.get("audience") in _AUDIENCE_ROLES else "client"
+    if not title or not text:
+        raise HTTPException(status_code=400, detail="Titre et message requis")
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": _uuid.uuid4().hex, "title": title, "body": text, "audience": audience,
+        "url": (body.get("url") or "").strip(), "active": bool(body.get("active", True)),
+        "created_at": now, "updated_at": now, "last_sent_at": None, "sent_count": 0,
+    }
+    await db.notif_broadcasts.insert_one(doc)
+    return _clean_broadcast(doc)
+
+
+@admin_router.put("/broadcasts/{bid}")
+async def update_broadcast(bid: str, request: Request):
+    await require_role(request, ["admin"])
+    body = await request.json()
+    existing = await db.notif_broadcasts.find_one({"id": bid}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Notification introuvable")
+    update = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if "title" in body:
+        update["title"] = (body.get("title") or "").strip()
+    if "body" in body:
+        update["body"] = (body.get("body") or "").strip()
+    if body.get("audience") in _AUDIENCE_ROLES:
+        update["audience"] = body["audience"]
+    if "url" in body:
+        update["url"] = (body.get("url") or "").strip()
+    if "active" in body:
+        update["active"] = bool(body.get("active"))
+    await db.notif_broadcasts.update_one({"id": bid}, {"$set": update})
+    doc = await db.notif_broadcasts.find_one({"id": bid}, {"_id": 0})
+    return _clean_broadcast(doc)
+
+
+@admin_router.delete("/broadcasts/{bid}")
+async def delete_broadcast(bid: str, request: Request):
+    await require_role(request, ["admin"])
+    await db.notif_broadcasts.delete_one({"id": bid})
+    return {"ok": True}
+
+
+@admin_router.post("/broadcasts/{bid}/send")
+async def send_broadcast(bid: str, request: Request):
+    await require_role(request, ["admin"])
+    b = await db.notif_broadcasts.find_one({"id": bid}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Notification introuvable")
+    roles = _AUDIENCE_ROLES.get(b.get("audience"), ["user"])
+    from core.notifications import create_notification
+    data = {"kind": "admin_broadcast", "broadcast_id": bid}
+    if b.get("url"):
+        data["url"] = b["url"]
+    sent = 0
+    cursor = db.users.find({"role": {"$in": roles}}, {"_id": 0, "id": 1})
+    async for u in cursor:
+        uid = u.get("id")
+        if not uid:
+            continue
+        try:
+            await create_notification(uid, "announcement", b["title"], b["body"], data=dict(data))
+            sent += 1
+        except Exception:
+            pass
+    now = datetime.now(timezone.utc).isoformat()
+    await db.notif_broadcasts.update_one(
+        {"id": bid}, {"$set": {"last_sent_at": now, "sent_count": sent}})
+    return {"ok": True, "sent": sent}

@@ -1627,7 +1627,17 @@ async def accept_ride(ride_id: str, request: Request):
         {"$set": accept_fields},
     )
     if not claimed:
-        raise HTTPException(status_code=409, detail="Course déjà acceptée par un autre chauffeur")
+        # The atomic claim failed → figure out WHY so the driver gets an accurate
+        # message instead of always "déjà acceptée par un autre chauffeur".
+        current = await db.rides.find_one({"id": ride_id}, {"_id": 0, "status": 1})
+        cur_status = (current or {}).get("status")
+        if cur_status == "cancelled":
+            detail = "Course annulée par le client."
+        elif not current:
+            detail = "Course introuvable."
+        else:
+            detail = "Course déjà acceptée par un autre chauffeur."
+        raise HTTPException(status_code=409, detail=detail)
 
     # ===== Activity journal: new ride accepted =====
     try:
@@ -2380,6 +2390,34 @@ async def cancel_ride(ride_id: str, request: Request):
         "cancellation_fee": cancel_fee,
         "timestamp": now,
     })
+
+    # Real-time alert to the assigned driver: if a driver had already accepted
+    # this ride (accepted/arriving/in_progress), notify them DIRECTLY (not just
+    # via the ride room, whose membership can be lost on reconnect) so they stop
+    # driving to a pickup that no longer exists. Drives a toast + sound on the
+    # driver app, which then resets to look for new rides.
+    assigned_driver = ride.get("driver_user_id")
+    if assigned_driver and ride.get("status") in ("accepted", "arriving", "in_progress"):
+        try:
+            await manager.send_personal_message({
+                "type": "ride_cancelled",
+                "ride_id": ride_id,
+                "cancelled_by": "client",
+                "title": "Course annulée",
+                "body": "La course a été annulée par le client.",
+                "timestamp": now,
+            }, assigned_driver)
+        except Exception:
+            pass
+        try:
+            from core.notifications import create_notification
+            await create_notification(
+                assigned_driver, "ride", "Course annulée",
+                "La course a été annulée par le client.",
+                data={"ride_id": ride_id, "kind": "ride_cancelled_by_client"},
+            )
+        except Exception:
+            pass
 
     if ride_id in manager.ride_rooms:
         del manager.ride_rooms[ride_id]

@@ -7,6 +7,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 // while the app is in the foreground (background delivery uses the OS sound).
 const SOUND_EVENT_TYPES = new Set([
   'ride_status_update',
+  'ride_cancelled',
   'new_message',
   'notification',
   'scheduled_reservation',

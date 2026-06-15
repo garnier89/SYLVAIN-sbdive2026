@@ -206,9 +206,20 @@ const DriverHome = () => {
     });
     const unsub2 = on('ride_status_update', (msg) => {
       if (currentRide && msg.ride_id === currentRide.id) {
-        if (msg.status === 'cancelled') { setCurrentRide(null); setRideMinimized(false); }
+        if (msg.status === 'cancelled') {
+          setCurrentRide(null); setRideMinimized(false);
+          try { unlockAudio(); } catch { /* ignore */ }
+          toast.warning('La course a été annulée par le client.', { duration: 12000, important: true, id: `cancel-${msg.ride_id}` });
+        }
         else setCurrentRide(prev => prev ? { ...prev, status: msg.status } : null);
       }
+    });
+    // Dedicated, room-independent cancellation alert for the assigned driver.
+    const unsubCancel = on('ride_cancelled', (msg) => {
+      if (currentRide && msg.ride_id && msg.ride_id !== currentRide.id) return;
+      setCurrentRide(null); setRideMinimized(false); setIncomingRequest(null);
+      try { unlockAudio(); } catch { /* ignore */ }
+      toast.warning(msg.body || 'La course a été annulée par le client.', { duration: 12000, important: true, id: `cancel-${msg.ride_id}` });
     });
     const unsub4 = on('route_updated', (msg) => {
       if (currentRide && msg.ride_id === currentRide.id) {
@@ -238,7 +249,7 @@ const DriverHome = () => {
         { duration: 16000, id: `pay-switch-${msg.ride_id}`, important: true },
       );
     });
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); };
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsubCancel(); };
   }, [on, currentRide, isOnline]);
 
   // Audible "turn-signal" siren + vibration while an incoming request is on screen.
