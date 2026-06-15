@@ -193,8 +193,15 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     const now = new Date().toISOString();
     setStartedAt(now); setStatus('in_progress');
     // GPS auto : ouvre Google Maps vers la destination dès le démarrage de la course.
-    if (openGoogleMapsNav(ride.dropoff_lat, ride.dropoff_lng)) {
+    // Repli « 1 tap » si l'ouverture auto est bloquée (popup blocker mobile).
+    const nav = openGoogleMapsNav(ride.dropoff_lat, ride.dropoff_lng);
+    if (nav.ok) {
       toast.success('Navigation GPS lancée vers la destination 📍');
+    } else if (nav.reason === 'blocked') {
+      toast('Navigation GPS prête vers la destination', {
+        action: { label: 'Ouvrir Maps', onClick: () => window.open(nav.url, '_blank', 'noopener') },
+        duration: 10000,
+      });
     }
     // Stop the pickup waiting timer & finalize the billable wait (beyond grace).
     const waitSec = pickupArrivedAt ? Math.max(0, Math.floor((Date.now() - pickupArrivedAt) / 1000)) : 0;

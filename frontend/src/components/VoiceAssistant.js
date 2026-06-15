@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Microphone, X, Sparkle, Car, MapPin, ForkKnife, ArrowRight, CheckCircle, Storefront } from '@phosphor-icons/react';
+import { Microphone, X, Sparkle, Car, MapPin, ForkKnife, ArrowRight, CheckCircle, Storefront, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { rideAPI } from '../services/api';
@@ -96,6 +96,59 @@ const TR = {
     foodFound: 'Gericht gefunden', restoFound: 'Restaurant gefunden', orderAt: 'Bestellen', seeRestos: 'Restaurants ansehen',
     open: 'Öffnen', price: 'Gesch. Preis', distance: 'Distanz', duration: 'Dauer',
     exampleList: ['Buche mir ein Taxi vom Zentrum zum Flughafen', 'Bestell mir Sushi', 'Finde einen Friseur in der Nähe', 'Schnelle medizinische Videoberatung', 'Meine Geldbörse'],
+  },
+};
+
+// Phrases lues à voix haute (TTS) par l'assistant — dans la langue de l'utilisateur.
+const round0 = (n) => (n != null ? Math.round(Number(n)) : null);
+const TTS = {
+  fr: {
+    taxi: (p, d, f) => `Course de ${p} à ${d}.${f != null ? ` Prix estimé ${round0(f)} euros.` : ''} Confirmez la course ?`,
+    foodDish: (n) => `J'ai trouvé ${n}. Voulez-vous commander ?`,
+    foodResto: (n) => `J'ai trouvé le restaurant ${n}. Voulez-vous commander ?`,
+    foodNone: () => `Je n'ai pas trouvé de résultat exact, je vous emmène aux restaurants.`,
+    open: () => `J'ouvre le service demandé.`,
+    incomplete: () => `Il me faut une adresse de départ et d'arrivée précises. J'ouvre l'écran taxi.`,
+  },
+  en: {
+    taxi: (p, d, f) => `Ride from ${p} to ${d}.${f != null ? ` Estimated price ${round0(f)} euros.` : ''} Shall I confirm the ride?`,
+    foodDish: (n) => `I found ${n}. Would you like to order?`,
+    foodResto: (n) => `I found the restaurant ${n}. Would you like to order?`,
+    foodNone: () => `I couldn't find an exact match, taking you to the restaurants.`,
+    open: () => `Opening the requested service.`,
+    incomplete: () => `I need a precise pickup and drop-off address. Opening the taxi screen.`,
+  },
+  it: {
+    taxi: (p, d, f) => `Corsa da ${p} a ${d}.${f != null ? ` Prezzo stimato ${round0(f)} euro.` : ''} Confermo la corsa?`,
+    foodDish: (n) => `Ho trovato ${n}. Vuoi ordinare?`,
+    foodResto: (n) => `Ho trovato il ristorante ${n}. Vuoi ordinare?`,
+    foodNone: () => `Non ho trovato un risultato esatto, ti porto ai ristoranti.`,
+    open: () => `Apro il servizio richiesto.`,
+    incomplete: () => `Mi serve un indirizzo di partenza e di arrivo precisi. Apro la schermata taxi.`,
+  },
+  es: {
+    taxi: (p, d, f) => `Viaje de ${p} a ${d}.${f != null ? ` Precio estimado ${round0(f)} euros.` : ''} ¿Confirmo el viaje?`,
+    foodDish: (n) => `He encontrado ${n}. ¿Quieres pedir?`,
+    foodResto: (n) => `He encontrado el restaurante ${n}. ¿Quieres pedir?`,
+    foodNone: () => `No encontré un resultado exacto, te llevo a los restaurantes.`,
+    open: () => `Abriendo el servicio solicitado.`,
+    incomplete: () => `Necesito una dirección de origen y destino precisas. Abro la pantalla de taxi.`,
+  },
+  pt: {
+    taxi: (p, d, f) => `Viagem de ${p} para ${d}.${f != null ? ` Preço estimado ${round0(f)} euros.` : ''} Confirmo a viagem?`,
+    foodDish: (n) => `Encontrei ${n}. Quer pedir?`,
+    foodResto: (n) => `Encontrei o restaurante ${n}. Quer pedir?`,
+    foodNone: () => `Não encontrei um resultado exato, vou levá-lo aos restaurantes.`,
+    open: () => `A abrir o serviço pedido.`,
+    incomplete: () => `Preciso de um endereço de partida e de chegada precisos. A abrir o ecrã de táxi.`,
+  },
+  de: {
+    taxi: (p, d, f) => `Fahrt von ${p} nach ${d}.${f != null ? ` Geschätzter Preis ${round0(f)} Euro.` : ''} Soll ich die Fahrt bestätigen?`,
+    foodDish: (n) => `Ich habe ${n} gefunden. Möchtest du bestellen?`,
+    foodResto: (n) => `Ich habe das Restaurant ${n} gefunden. Möchtest du bestellen?`,
+    foodNone: () => `Ich habe kein genaues Ergebnis gefunden, ich bringe dich zu den Restaurants.`,
+    open: () => `Öffne den gewünschten Dienst.`,
+    incomplete: () => `Ich brauche eine genaue Start- und Zieladresse. Öffne den Taxi-Bildschirm.`,
   },
 };
 
@@ -226,6 +279,51 @@ const VoiceAssistant = () => {
     try { mediaRecorderRef.current && mediaRecorderRef.current.stop(); } catch { /* noop */ }
   }, []);
 
+  // ── Synthèse vocale (TTS) — l'assistant répond à voix haute dans la langue de l'app ──
+  const [ttsOn, setTtsOn] = useState(() => localStorage.getItem('sb_voice_tts') !== '0');
+  const ttsOnRef = useRef(ttsOn);
+  useEffect(() => { ttsOnRef.current = ttsOn; localStorage.setItem('sb_voice_tts', ttsOn ? '1' : '0'); }, [ttsOn]);
+
+  const stopSpeaking = useCallback(() => {
+    try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
+  }, []);
+
+  const speak = useCallback((text) => {
+    if (!ttsOnRef.current || !text) return;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const locale = SPEECH_LOCALE[langRef.current] || 'fr-FR';
+      u.lang = locale;
+      const voices = synth.getVoices() || [];
+      const v = voices.find((vo) => vo.lang === locale)
+        || voices.find((vo) => (vo.lang || '').toLowerCase().startsWith(langRef.current));
+      if (v) u.voice = v;
+      u.rate = 1; u.pitch = 1;
+      synth.speak(u);
+    } catch { /* noop */ }
+  }, []);
+
+  const buildSpeech = useCallback((act) => {
+    const T = TTS[langRef.current] || TTS.fr;
+    if (!act) return '';
+    if (act.type === 'book_taxi') return T.taxi(act.pickup?.address, act.dropoff?.address, act.estimate?.fare);
+    if (act.type === 'book_food') {
+      if (act.product) return T.foodDish(act.product.name);
+      if (act.merchant) return T.foodResto(act.merchant.store_name);
+      return T.foodNone();
+    }
+    if (act.reason === 'addresses_incomplete') return T.incomplete();
+    return T.open();
+  }, []);
+
+  // Lit le récapitulatif à voix haute dès qu'une action est prête.
+  useEffect(() => {
+    if (phase === 'action' && action) speak(buildSpeech(action));
+  }, [phase, action, speak, buildSpeech]);
+
   const submitTranscript = useCallback(async () => {
     const text = (transcript || '').trim();
     if (!text) { toast.error(tr.noPhrase); return; }
@@ -251,6 +349,7 @@ const VoiceAssistant = () => {
 
   const onClose = () => {
     stop();
+    stopSpeaking();
     setOpen(false);
     setTimeout(() => { setTranscript(''); finalRef.current = ''; setAction(null); setPhase('input'); }, 300);
   };
@@ -385,9 +484,19 @@ const VoiceAssistant = () => {
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">{tr.subtitle}</p>
               </div>
-              <button onClick={onClose} className="text-gray-400 -mt-1 -mr-1" data-testid="voice-close-btn">
-                <X size={22} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { if (ttsOn) stopSpeaking(); setTtsOn((v) => !v); }}
+                  className={`p-1.5 rounded-full ${ttsOn ? 'text-indigo-600 bg-indigo-50' : 'text-gray-400'}`}
+                  data-testid="voice-tts-toggle"
+                  aria-label="Lecture vocale"
+                >
+                  {ttsOn ? <SpeakerHigh size={20} weight="fill" /> : <SpeakerSlash size={20} />}
+                </button>
+                <button onClick={onClose} className="text-gray-400 -mr-1" data-testid="voice-close-btn">
+                  <X size={22} />
+                </button>
+              </div>
             </div>
 
             {phase === 'action' && action ? (

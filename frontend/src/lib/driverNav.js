@@ -4,16 +4,26 @@
  * Ouvre l'app Google Maps (ou l'onglet maps.google sur desktop) en mode
  * itinéraire voiture vers la destination. Utilisé automatiquement quand le
  * chauffeur accepte une course (→ prise en charge) puis la démarre (→ dépose).
+ *
+ * Sur mobile, l'ouverture déclenchée après un appel réseau peut être bloquée
+ * par le navigateur (popup blocker). On renvoie alors {ok:false, reason:'blocked'}
+ * + l'URL pour proposer un repli « 1 tap » garanti côté UI.
  */
-export const openGoogleMapsNav = (lat, lng) => {
+export const buildGoogleMapsUrl = (lat, lng) => {
   if (lat == null || lng == null || Number.isNaN(Number(lat)) || Number.isNaN(Number(lng))) {
-    return false;
+    return null;
   }
-  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+};
+
+export const openGoogleMapsNav = (lat, lng) => {
+  const url = buildGoogleMapsUrl(lat, lng);
+  if (!url) return { ok: false, reason: 'invalid', url: null };
+  let win = null;
   try {
-    window.open(url, '_blank', 'noopener');
-    return true;
+    win = window.open(url, '_blank', 'noopener');
   } catch {
-    return false;
+    win = null;
   }
+  return { ok: Boolean(win), reason: win ? 'opened' : 'blocked', url };
 };

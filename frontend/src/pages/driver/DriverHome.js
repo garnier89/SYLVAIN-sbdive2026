@@ -441,9 +441,16 @@ const DriverHome = () => {
       setIncomingRequest(null);
       joinRide(rideId);
       // GPS auto : ouvre Google Maps vers le point de prise en charge dès l'acceptation.
+      // Repli « 1 tap » si le navigateur bloque l'ouverture auto (popup blocker mobile).
       const r = res.data;
-      if (openGoogleMapsNav(r?.pickup_lat, r?.pickup_lng)) {
+      const nav = openGoogleMapsNav(r?.pickup_lat, r?.pickup_lng);
+      if (nav.ok) {
         toast.success('Navigation GPS lancée vers le client 📍');
+      } else if (nav.reason === 'blocked') {
+        toast('Navigation GPS prête vers le client', {
+          action: { label: 'Ouvrir Maps', onClick: () => window.open(nav.url, '_blank', 'noopener') },
+          duration: 10000,
+        });
       }
     } catch (err) {
       const status = err?.response?.status;
