@@ -256,11 +256,12 @@ async def _escalate_ride(ride, tier, allowed_palettes, radius_km, points_cfg):
 
 async def _auto_cancel_ride(ride):
     now = datetime.now(timezone.utc).isoformat()
-    # Penalize drivers who never responded to the priority offers
-    cfg = await get_config()
-    await _penalize_non_responders(ride, cfg)
-    await db.rides.update_one(
-        {"id": ride["id"]},
+    # Atomic compare-and-set guard: only cancel if the ride is STILL pending.
+    # The dispatch loop works on a snapshot of pending rides and yields on several
+    # awaits before reaching here; in that window a driver may have ACCEPTED the
+    # ride. We must NEVER clobber an accepted (or otherwise non-pending) ride.
+    result = await db.rides.update_one(
+        {"id": ride["id"], "status": "pending"},
         {
             "$set": {
                 "status": "cancelled",
@@ -271,6 +272,13 @@ async def _auto_cancel_ride(ride):
             }
         },
     )
+    if result.modified_count == 0:
+        # Ride is no longer pending (accepted / cancelled elsewhere) — abort silently.
+        logger.info(f"AutoDispatch skip cancel ride={ride['id']} (no longer pending)")
+        return
+    # Penalize drivers who never responded to the priority offers
+    cfg = await get_config()
+    await _penalize_non_responders(ride, cfg)
     # Notify user
     await manager.send_personal_message(
         {
