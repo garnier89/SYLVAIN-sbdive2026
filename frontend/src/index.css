@@ -5,9 +5,7 @@
 @tailwind utilities;
 
 :root {
-  --primary: #FF4500;
   --primary-hover: #E03D00;
-  --secondary: #FF6B35;
   --background-light: #FFFFFF;
   --background-light-alt: #F4F4F5;
   --background-dark: #09090B;
@@ -208,7 +206,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Status colors */
 .status-pending { color: var(--warning); }
 .status-accepted { color: var(--info); }
-.status-in_progress { color: var(--primary); }
+.status-in_progress { color: #FF4500; }
 .status-completed { color: var(--success); }
 .status-cancelled { color: var(--error); }
 

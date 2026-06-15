@@ -132,9 +132,10 @@ const DriverHome = () => {
         setDriver(res.data);
         setIsOnline(res.data.is_online);
         setLoading(false);
-        // Today's earnings + trip count (labels say "du jour"/"aujourd'hui").
-        driverAPI.getEarnings()
-          .then((er) => setTodayStats({ earnings: er.data?.today || 0, trips: er.data?.today_trips || 0 }))
+        // Today's earnings + trip count — use the same source as the "Mes revenus"
+        // breakdown modal (completed_at + final_fare) so both views always agree.
+        driverAPI.getEarningsBreakdown()
+          .then((er) => setTodayStats({ earnings: er.data?.today?.earnings || 0, trips: er.data?.today?.trips || 0 }))
           .catch(() => {});
       } catch (err) {
         if (retries > 0) {

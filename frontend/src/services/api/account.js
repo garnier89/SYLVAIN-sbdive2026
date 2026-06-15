@@ -46,6 +46,7 @@ export const driverAPI = {
   getWorkBase: () => api.get('/drivers/work-base'),
   setWorkBase: (data) => api.put('/drivers/work-base', data),
   getEarnings: () => api.get('/drivers/earnings'),
+  getEarningsBreakdown: () => api.get('/drivers/my-earnings-breakdown'),
   getReport: (from, to) => api.get('/drivers/report', { params: { from, to } }),
   exportReport: (format, from, to) => api.get('/drivers/report/export', { params: { format, from, to }, responseType: 'blob' }),
   getWeeklyReport: () => api.get('/driver/weekly-reports/current'),
