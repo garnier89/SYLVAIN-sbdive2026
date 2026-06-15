@@ -45,6 +45,7 @@ const AdminGoogleMap = ({
   routePath,
   mapType = 'roadmap',
   showTraffic = false,
+  routeColor = '#3B82F6',
   markers = [],
   onMapClick,
   heatmapData,
@@ -249,9 +250,9 @@ const AdminGoogleMap = ({
         <Polyline
           path={routePath.map((p) => ({ lat: p.lat, lng: p.lng }))}
           options={{
-            strokeColor: '#3B82F6',
-            strokeOpacity: 0.85,
-            strokeWeight: 4,
+            strokeColor: routeColor,
+            strokeOpacity: 0.9,
+            strokeWeight: 5,
           }}
         />
       )}

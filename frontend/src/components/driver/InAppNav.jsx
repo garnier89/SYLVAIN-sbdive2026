@@ -25,11 +25,39 @@ const distM = (a, b) => {
 const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGoogle }) => {
   const [route, setRoute] = useState(null); // { path, steps, eta, etaTraffic, distance, trafficDelaySec }
   const [muted, setMuted] = useState(false);
+  const [rerouted, setRerouted] = useState(false);
   const spokenRef = useRef(-1);
+  const mutedRef = useRef(false);
+  mutedRef.current = muted;
+  const voicesRef = useRef([]);
+  const prevRouteRef = useRef(null); // { sig, durTraffic }
+  const rerouteTimerRef = useRef(null);
   const driverRef = useRef(driverPos);
   driverRef.current = driverPos;
 
-  // Compute a traffic-aware route from the driver's current position.
+  // Keep the list of available speech voices fresh (loaded asynchronously).
+  useEffect(() => {
+    if (!window.speechSynthesis) return undefined;
+    const load = () => { voicesRef.current = window.speechSynthesis.getVoices() || []; };
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+    return () => { try { window.speechSynthesis.onvoiceschanged = null; } catch { /* noop */ } };
+  }, []);
+
+  // Speak text with an explicit French voice (fr-FR).
+  const speakFr = useCallback((text) => {
+    if (mutedRef.current || !text || !window.speechSynthesis) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR';
+    const fr = voicesRef.current.find((v) => (v.lang || '').toLowerCase().startsWith('fr'));
+    if (fr) u.voice = fr;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }, []);
+
+  // Compute a traffic-aware route (with alternatives) from the driver's current
+  // position, then pick the FASTEST one by live traffic. If a faster alternative
+  // replaces the current route (bouchons), switch to it and announce it in French.
   const computeRoute = useCallback(() => {
     if (!window.google?.maps || !destination?.lat) return;
     const ds = new window.google.maps.DirectionsService();
@@ -40,34 +68,55 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
         destination,
         travelMode: window.google.maps.TravelMode.DRIVING,
         drivingOptions: { departureTime: new Date(), trafficModel: 'bestguess' },
+        provideRouteAlternatives: true,
       },
       (res, status) => {
-        if (status === 'OK' && res.routes?.[0]) {
-          const leg = res.routes[0].legs[0];
-          const dur = leg.duration?.value || 0;
-          const durTraffic = leg.duration_in_traffic?.value || dur;
-          setRoute({
-            path: res.routes[0].overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() })),
-            steps: leg.steps.map((s) => ({
-              instr: stripHtml(s.instructions),
-              dist: s.distance?.text,
-              loc: { lat: s.start_location.lat(), lng: s.start_location.lng() },
-            })),
-            eta: leg.duration?.text,
-            etaTraffic: leg.duration_in_traffic?.text || leg.duration?.text,
-            distance: leg.distance?.text,
-            trafficDelaySec: Math.max(0, durTraffic - dur),
-          });
+        if (status !== 'OK' || !res.routes?.length) return;
+        // Fastest route by live traffic duration (fallback to free-flow duration).
+        const durOf = (r) => (r.legs?.[0]?.duration_in_traffic?.value || r.legs?.[0]?.duration?.value || Infinity);
+        let best = res.routes[0];
+        res.routes.forEach((r) => { if (durOf(r) < durOf(best)) best = r; });
+        const leg = best.legs[0];
+        const dur = leg.duration?.value || 0;
+        const durTraffic = leg.duration_in_traffic?.value || dur;
+        const path = best.overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
+        const sig = `${path.length}:${path[0]?.lat?.toFixed(3)}:${path[Math.floor(path.length / 2)]?.lat?.toFixed(3)}:${path[path.length - 1]?.lat?.toFixed(3)}`;
+
+        // Detect a reroute: a different path that is meaningfully faster (≥ 60 s)
+        // than the route we were previously following → "évite les bouchons".
+        const prev = prevRouteRef.current;
+        const isReroute = prev && prev.sig !== sig && durTraffic <= prev.durTraffic - 60;
+        prevRouteRef.current = { sig, durTraffic };
+
+        setRoute({
+          path,
+          steps: leg.steps.map((s) => ({
+            instr: stripHtml(s.instructions),
+            dist: s.distance?.text,
+            loc: { lat: s.start_location.lat(), lng: s.start_location.lng() },
+          })),
+          eta: leg.duration?.text,
+          etaTraffic: leg.duration_in_traffic?.text || leg.duration?.text,
+          distance: leg.distance?.text,
+          trafficDelaySec: Math.max(0, durTraffic - dur),
+        });
+
+        if (isReroute) {
+          spokenRef.current = -1; // re-announce the new first maneuver
+          setRerouted(true);
+          if (rerouteTimerRef.current) clearTimeout(rerouteTimerRef.current);
+          rerouteTimerRef.current = setTimeout(() => setRerouted(false), 12000);
+          speakFr('Nouvel itinéraire plus rapide pour éviter les bouchons.');
         }
       }
     );
-  }, [destination?.lat, destination?.lng, origin?.lat, origin?.lng]);
+  }, [destination?.lat, destination?.lng, origin?.lat, origin?.lng, speakFr]);
 
   // Initial route + re-route every 30 s to keep ETA/maneuvers fresh with traffic.
   useEffect(() => {
     computeRoute();
     const id = setInterval(computeRoute, 30000);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); if (rerouteTimerRef.current) clearTimeout(rerouteTimerRef.current); };
   }, [computeRoute]);
 
   // Current maneuver = the step nearest to the driver (derived, advances live).
@@ -87,14 +136,11 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
 
   // Speak the maneuver (French) whenever it changes — unless muted.
   useEffect(() => {
-    if (muted || !step?.instr || !window.speechSynthesis) return;
+    if (!step?.instr) return;
     if (spokenRef.current === stepIdx) return;
     spokenRef.current = stepIdx;
-    const u = new SpeechSynthesisUtterance(step.instr);
-    u.lang = 'fr-FR';
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  }, [stepIdx, step, muted]);
+    speakFr(step.instr);
+  }, [stepIdx, step, speakFr]);
 
   // Stop any speech when leaving navigation.
   useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch { /* noop */ } }, []);
@@ -120,13 +166,18 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
         </button>
       </div>
 
-      {/* Live traffic / bouchons banner */}
-      {heavyTraffic && (
+      {/* Live traffic / bouchons / reroute banner */}
+      {rerouted ? (
+        <div className="bg-emerald-600 text-white px-4 py-1.5 flex items-center gap-2 text-xs font-bold" data-testid="inapp-nav-reroute">
+          <NavigationArrow size={16} weight="fill" />
+          Itinéraire recalculé — route plus rapide pour éviter les bouchons
+        </div>
+      ) : heavyTraffic ? (
         <div className="bg-[#E11900] text-white px-4 py-1.5 flex items-center gap-2 text-xs font-bold" data-testid="inapp-nav-traffic-alert">
           <Warning size={16} weight="fill" />
           Bouchons sur l'itinéraire · +{Math.round((route.trafficDelaySec || 0) / 60)} min
         </div>
-      )}
+      ) : null}
 
       {/* Follow map — driving mode: recenters on the driver with a tight zoom + live traffic */}
       <div className="flex-1 relative">
@@ -135,6 +186,7 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
           zoom={18}
           driver={driverPos}
           routePath={route?.path}
+          routeColor="#111111"
           dropoff={destination}
           showTraffic
           cleanUI

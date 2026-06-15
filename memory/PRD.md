@@ -1,4 +1,13 @@
-## NEW - 2026-06-15 (533) - 🚗 GPS interne « qualité » : lancement auto + trafic/bouchons + ETA temps réel
+## NEW - 2026-06-15 (534) - 🛣️ GPS premium : recalcul auto anti-bouchons + tracé noir + voix FR garantie
+- **Demande user** : recalcul d'itinéraire auto quand le trafic dépasse un seuil (proposer une route alternative plus rapide) ; tracé de la route en NOIR ; voix en français.
+- **Recalcul auto anti-bouchons** (`InAppNav.jsx`) : `DirectionsService` avec `provideRouteAlternatives: true` + `drivingOptions(trafficModel:'bestguess')` ; à chaque calcul (toutes les 30 s) on choisit la route la plus rapide par `duration_in_traffic`. Si une route différente est ≥ 60 s plus rapide que celle suivie → bascule + bandeau vert « Itinéraire recalculé — route plus rapide pour éviter les bouchons » (12 s) + annonce vocale FR « Nouvel itinéraire plus rapide pour éviter les bouchons ». testid `inapp-nav-reroute`.
+- **Tracé noir** : `AdminGoogleMap` reçoit une prop `routeColor` (défaut `#3B82F6` pour l'admin) ; `InAppNav` passe `routeColor="#111111"` (noir, épaisseur 5). 
+- **Voix FR garantie** : helper `speakFr()` sélectionne explicitement une voix `fr-*` de `speechSynthesis.getVoices()` (rechargée via `onvoiceschanged`), `lang='fr-FR'`. Les instructions Directions sont déjà en FR (loader `language:'fr'`, `region:'FR'`). Manœuvres + reroute annoncés via `speakFr`.
+- Vérifié : nav s'ouvre, calque trafic OK, 0 erreur console. ⚠️ Tracé noir / ETA-trafic / reroute non démontrables visuellement en démo car la course test va de Paris (GPS navigateur) à Fort-de-France → pas d'itinéraire routier ; câblage en place et compile sans erreur.
+
+---
+
+
 - **Demande user** : lancer la nav interne AUTO au démarrage de la course + GPS de qualité, précis, qui signale les bouchons, avec le véhicule qui suit la carte.
 - **Lancement auto** : `DriverRideFlow.applyStarted` fait `setShowNav(true)` → la nav interne (`InAppNav`) s'ouvre automatiquement quand la course démarre (in_progress), plus besoin d'appuyer sur la flèche.
 - **GPS qualité (`InAppNav.jsx` réécrit)** : (a) **calque trafic live** (`showTraffic` → `<TrafficLayer/>`, routes colorées vert/jaune/rouge) + carte épurée (`cleanUI`) ; (b) **ETA temps réel avec trafic** via `drivingOptions:{departureTime, trafficModel:'bestguess'}` → `leg.duration_in_traffic` ; (c) **badge « Bouchons » rouge** + ETA en rouge si le retard trafic ≥ 2 min (`trafficDelaySec`), sous-texte « trafic fluide/dense » ; (d) **re-calcul d'itinéraire toutes les 30 s** depuis la position courante du chauffeur (ETA + manœuvres restent précis) ; (e) véhicule qui suit la carte (center=driverPos, zoom 18) ; voix FR virage-par-virage conservée ; boutons Google Maps + Waze + Quitter.
