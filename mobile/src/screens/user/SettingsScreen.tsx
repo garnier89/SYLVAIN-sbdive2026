@@ -105,9 +105,9 @@ export default function SettingsScreen() {
         {/* About */}
         <Text style={styles.section}>À propos</Text>
         <View style={styles.group}>
-          <Row icon="document-text-outline" label="Conditions générales" onPress={() => {}} testID="settings-terms" />
+          <Row icon="document-text-outline" label="Conditions générales" onPress={() => nav.navigate('Legal', { type: 'terms' })} testID="settings-terms" />
           <Divider />
-          <Row icon="shield-checkmark-outline" label="Politique de confidentialité" onPress={() => {}} testID="settings-privacy" />
+          <Row icon="shield-checkmark-outline" label="Politique de confidentialité" onPress={() => nav.navigate('Legal', { type: 'privacy' })} testID="settings-privacy" />
           <Divider />
           <View style={styles.row}>
             <Ionicons name="information-circle-outline" size={22} color={colors.textSecondary} />

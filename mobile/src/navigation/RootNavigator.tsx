@@ -33,6 +33,7 @@ import PropertyDetailScreen from '@/screens/user/realestate/PropertyDetailScreen
 import MyPropertiesScreen from '@/screens/user/realestate/MyPropertiesScreen';
 import EditProfileScreen from '@/screens/user/EditProfileScreen';
 import SettingsScreen from '@/screens/user/SettingsScreen';
+import LegalScreen from '@/screens/user/LegalScreen';
 import DeliverySearchScreen from '@/screens/user/DeliverySearchScreen';
 
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
@@ -119,6 +120,7 @@ function UserNavigator() {
       <UserStack.Screen name="MyProperties" component={MyPropertiesScreen} />
       <UserStack.Screen name="EditProfile" component={EditProfileScreen} />
       <UserStack.Screen name="Settings" component={SettingsScreen} />
+      <UserStack.Screen name="Legal" component={LegalScreen} />
     </UserStack.Navigator>
   );
 }

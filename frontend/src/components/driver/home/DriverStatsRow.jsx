@@ -10,13 +10,15 @@ export const DriverStatsRow = ({
   availableRidesCount,
   availableDeliveriesCount,
   onEarningsBreakdown,
+  onTrips,
+  onRating,
   onUpcoming,
   onPending,
 }) => {
   const { t } = useLocale();
   const stats = [
-    { value: totalTrips || 0, label: t('driver.trips_today'), color: '#D1E8E2' },
-    { value: (rating || 5.0).toFixed(1), label: t('driver.avg_rating'), color: '#F8D7DA' },
+    { value: totalTrips || 0, label: t('driver.trips_today'), color: '#D1E8E2', testId: 'stat-trips-today', onClick: onTrips },
+    { value: (rating || 5.0).toFixed(1), label: t('driver.avg_rating'), color: '#F8D7DA', testId: 'stat-rating', onClick: onRating },
     {
       value: upcomingCount, label: t('driver.jobs_upcoming'), color: '#FFF3CD',
       testId: 'stat-upcoming', onClick: onUpcoming,

@@ -48,6 +48,7 @@ const DriverHome = () => {
   const [loading, setLoading] = useState(true);
   const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 });
   const [showMenu, setShowMenu] = useState(false);
+  const [todayStats, setTodayStats] = useState({ earnings: 0, trips: 0 });
   const [showHeatmap, setShowHeatmap] = useState(false);
   const heatPoints = useHeatmap(showHeatmap);
   const [showEarningsBreakdown, setShowEarningsBreakdown] = useState(false);
@@ -131,6 +132,10 @@ const DriverHome = () => {
         setDriver(res.data);
         setIsOnline(res.data.is_online);
         setLoading(false);
+        // Today's earnings + trip count (labels say "du jour"/"aujourd'hui").
+        driverAPI.getEarnings()
+          .then((er) => setTodayStats({ earnings: er.data?.today || 0, trips: er.data?.today_trips || 0 }))
+          .catch(() => {});
       } catch (err) {
         if (retries > 0) {
           setTimeout(() => attempt(retries - 1), 1500);
@@ -722,13 +727,15 @@ const DriverHome = () => {
 
       {/* GAINS + 4 STAT CARDS */}
       <DriverStatsRow
-        earnings={driver.earnings}
-        totalTrips={driver.total_trips}
+        earnings={todayStats.earnings}
+        totalTrips={todayStats.trips}
         rating={driver.rating}
         upcomingCount={homeFeed.upcoming.length}
         availableRidesCount={homeFeed.available_rides.length}
         availableDeliveriesCount={homeFeed.available_deliveries.length}
         onEarningsBreakdown={() => setShowEarningsBreakdown(true)}
+        onTrips={() => navigate('/chauffeur/history')}
+        onRating={() => navigate('/chauffeur/reviews')}
         onUpcoming={() => navigate('/chauffeur/reservations?filter=upcoming')}
         onPending={() => navigate('/chauffeur/reservations?filter=pending')}
       />
