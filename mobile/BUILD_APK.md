@@ -61,3 +61,44 @@ eas build -p android --profile merchant
 - **Marchand** : tableau de bord (recettes/commandes du jour, top produits), boutique
   ouverte/fermée, gestion des **commandes** (accepter → préparation → prête → remise),
   et **menu** (ajout de produits, disponibilité/rupture).
+
+---
+
+## 🅰️ Alternative : ouvrir dans Android Studio (dossier `android/`)
+
+Un projet Expo n'a **pas** de dossier `android/` par défaut — il se **génère** avec
+`expo prebuild`. ⚠️ N'ouvrez **jamais** le dossier `mobile/` dans Android Studio : ouvrez
+le sous-dossier **`mobile/android/`**.
+
+Le dossier `mobile/android/` est **déjà généré** dans ce projet pour la variante **client**
+(`com.sbdrive.vtc`, « SB Drive », clé Google Maps intégrée).
+
+### Ouvrir & compiler le client
+```bash
+cd mobile && npm install        # installe les dépendances JS
+# Android Studio : File > Open > sélectionner le dossier  mobile/android
+# Laisser Gradle se synchroniser, puis Build > Build APK(s)
+# — ou en ligne de commande :
+cd mobile/android
+./gradlew assembleRelease        # APK :  app/build/outputs/apk/release/
+./gradlew bundleRelease          # AAB (Play Store) : app/build/outputs/bundle/release/
+```
+
+### Générer le dossier android/ pour CHAUFFEUR ou MARCHAND
+Le dossier `android/` est lié à **une** variante. Pour les autres, régénérez-le
+(⚠️ écrase le dossier `android/` existant) :
+```bash
+cd mobile
+APP_VARIANT=driver   npx expo prebuild -p android --clean   # com.sbdrive.driver
+# ou
+APP_VARIANT=merchant npx expo prebuild -p android --clean   # com.sbdrive.merchant
+# puis rebuild avec ./gradlew dans mobile/android
+```
+
+👉 **Le plus simple pour obtenir les 3 apps reste EAS** (section ci-dessus) : pas de
+Gradle ni d'Android Studio, et les 3 variantes se construisent proprement en une commande
+chacune.
+
+> ℹ️ Il n'y a **pas** d'app « kiosk » dans ce projet Expo : les rôles disponibles sont
+> **client / chauffeur / marchand** (+ admin). Un éventuel « KioskApp » est un produit
+> V3Cube externe, non inclus ici.
