@@ -22,6 +22,7 @@ export default ({ config }) => ({
   ...config,
   name: v.name,
   slug: 'sb-drive-vtc',
+  plugins: [...(config.plugins || []), './plugins/withImageCropperFix'],
   extra: {
     ...(config.extra || {}),
     appRole: v.role,
