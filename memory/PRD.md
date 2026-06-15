@@ -1,4 +1,14 @@
-## NEW - 2026-06-15 (535) - 🧭 Nav auto à l'acceptation + véhicule orienté (cap) + 🐛 fix DirectionsService + validation visuelle réelle
+## NEW - 2026-06-15 (536) - 🔊 Alerte vocale d'arrivée + bascule auto fin de course + 🌙 mode nuit auto carte nav
+- **Demande user** : (1) alerte vocale d'arrivée FR + bascule auto vers l'écran de fin de course au point B ; (2) mode nuit automatique de la carte de navigation (sombre le soir).
+- **🌙 Mode nuit auto** : `AdminGoogleMap` reçoit une prop `nightMode` + constante `NIGHT_STYLE` (style sombre type Waze/Google) appliquée à `mapOptions.styles`. `InAppNav` calcule `nightMode = heure ≥ 19h ou < 7h` et le passe à la carte. ✅ Validé visuellement (carte sombre + trafic coloré, à 20h conteneur).
+- **🔊 Alerte arrivée + bascule auto** : `DriverRideFlow` — quand `inProgress` et `distToDropoff ≤ 200 m`, annonce vocale FR « Vous êtes arrivé à destination » (voix `fr-*`) + toast + ferme la nav, puis `setCompleting(true)` après 2 s → écran de fin de course. ✅ Toast + voix validés (déclenchés en test).
+- **🐛 BUG trouvé & corrigé via test** : le `setTimeout` de bascule était dans le cleanup de l'effet → annulé à chaque changement de `distToDropoff` (GPS qui bouge) → bascule jamais exécutée. Corrigé : timer stocké en `arrivalTimerRef`, nettoyé uniquement au démontage (effet séparé). La bascule utilise `setCompleting(true)`, même chemin prouvé que le bouton manuel « Glisser pour terminer ».
+- ⚠️ Capture visuelle de l'écran de fin non obtenue : la géoloc du navigateur de test (Playwright headless) est instable et l'app force `driverPos`/`mapCenter` à un point fixe ~10 km du dropoff (fallback de zone) → `distToDropoff` rarement ≤ 200 m en test. En usage réel (GPS chauffeur fiable) le déclenchement est nominal.
+- Données démo (19 courses actives de jean.dupont) modifiées temporairement pour les tests puis **intégralement restaurées**.
+
+---
+
+
 - **Demande user** : (1) valider en réel (course intra-ville) le tracé noir + ETA-trafic + recalcul ; (2) lancer la nav auto aussi à l'acceptation (vers le client) + faire pivoter le véhicule selon le cap.
 - **🐛 FIX CRITIQUE `DirectionsService is not a constructor`** : le loader Google async expose `google.maps` avant que la lib `routes` soit prête ; le lancement auto (plus précoce) révélait la race → écran d'erreur runtime. Ajout `getDirectionsService()` dans `lib/googleMaps.js` (via `importLibrary('routes')`, comme `getGeocoder`) ; `InAppNav.computeRoute` est désormais async et l'utilise. (Aurait aussi planté en prod.)
 - **Nav auto à l'acceptation ET au démarrage** : `DriverRideFlow` — effet centralisé avec garde `autoNavRef` (phase 'pick' à `accepted`, 'drop' à `in_progress`) → la nav interne s'ouvre 1× par phase, ne se rouvre pas après « Quitter ».

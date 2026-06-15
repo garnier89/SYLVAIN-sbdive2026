@@ -321,6 +321,33 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     }
   }, [waitingStart, toggleWaiting, distToDropoff]);
 
+  // Arrivée au point B : annonce vocale FR « Vous êtes arrivé à destination »
+  // puis bascule automatique vers l'écran de fin de course (une seule fois).
+  const arrivedRef = useRef(false);
+  const arrivalTimerRef = useRef(null);
+  useEffect(() => {
+    if (!inProgress || arrivedRef.current) return;
+    if (distToDropoff == null || distToDropoff > NEAR_DESTINATION_M) return;
+    arrivedRef.current = true;
+    try {
+      const u = new SpeechSynthesisUtterance('Vous êtes arrivé à destination.');
+      u.lang = 'fr-FR';
+      const fr = (window.speechSynthesis.getVoices() || []).find((v) => (v.lang || '').toLowerCase().startsWith('fr'));
+      if (fr) u.voice = fr;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch { /* voix facultative */ }
+    toast.success('Arrivé à destination — finalisation de la course.');
+    setShowNav(false);
+    // Timer stocké en ref → NON annulé par les changements de distToDropoff (GPS
+    // qui bouge) ; nettoyé uniquement au démontage du composant.
+    arrivalTimerRef.current = setTimeout(() => {
+      if (waitingStart) toggleWaiting();
+      setCompleting(true);
+    }, 2000);
+  }, [inProgress, distToDropoff, waitingStart, toggleWaiting]);
+  useEffect(() => () => { if (arrivalTimerRef.current) clearTimeout(arrivalTimerRef.current); }, []);
+
   const routePath = decodePolyline(ride.route_polyline).length
     ? decodePolyline(ride.route_polyline)
     : [

@@ -156,6 +156,8 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
   const step = route?.steps?.[stepIdx];
   // Heavy traffic if the live ETA is ≥ 2 min slower than the free-flow ETA.
   const heavyTraffic = (route?.trafficDelaySec || 0) >= 120;
+  // Auto night mode: dark map in the evening / early morning (≥ 19 h or < 7 h).
+  const nightMode = useMemo(() => { const h = new Date().getHours(); return h >= 19 || h < 7; }, []);
 
   // Speak the maneuver (French) whenever it changes — unless muted.
   useEffect(() => {
@@ -214,6 +216,7 @@ const InAppNav = ({ origin, destination, driverPos, label, onClose, onWaze, onGo
           dropoff={destination}
           showTraffic
           cleanUI
+          nightMode={nightMode}
         />
       </div>
 
