@@ -47,8 +47,11 @@ const ActiveRideFlag = () => {
 
   const isDriver = user.role === 'driver';
   const target = isDriver ? '/chauffeur/home' : `/ride/${ride.id}`;
-  // Masquer quand on est déjà sur l'écran de course.
-  if (location.pathname === target || location.pathname === `/ride/${ride.id}`) return null;
+  // Masquer dès qu'on est DANS le contexte de la course : écran de suivi
+  // (`/ride/:id`), chat (`/ride/:id/chat`) ou toute sous-route, ainsi que la
+  // cible chauffeur. La bande ne sert qu'à REVENIR à la course depuis l'accueil
+  // ou un autre écran hors-course.
+  if (location.pathname === target || location.pathname.startsWith(`/ride/${ride.id}`)) return null;
 
   const label = isDriver ? 'Course en cours' : (CLIENT_LABEL[ride.status] || 'Suivre ma course');
 
