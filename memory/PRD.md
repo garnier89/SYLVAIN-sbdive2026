@@ -42,6 +42,7 @@
 - Chauffeur : jean.dupont@demo.sb / Driver123!
 
 ## Journal des modifications (fork courant — juin 2026)
+- **Contrôle vocal mains-libres chauffeur** (`DriverVoiceControl.jsx`) : bouton micro sur l'écran de course active (off par défaut). Écoute continue FR + retour TTS. Commandes : « Navigation/GPS » → Google Maps ; « Appeler » → appel client ; « Arrivé » → confirme arrivée ; « Démarrer » → démarre la course ; « Annuler/Stop » → coupe le mode vocal (n'annule PAS la course). Anti-rebond + auto-restart + permission micro. Handler `beginStart` extrait dans `DriverRideFlow`.
 - **TTS assistant vocal** : l'assistant lit le récapitulatif à voix haute dans la langue de l'utilisateur (Web Speech `speechSynthesis`, gratuit/hors-ligne). Toggle haut-parleur (mémorisé `sb_voice_tts`). `VoiceAssistant.js`.
 - **GPS Google auto fiabilisé** : repli « 1 tap » (toast action « Ouvrir Maps ») si l'ouverture auto est bloquée par le navigateur mobile. `lib/driverNav.js` (`openGoogleMapsNav` → {ok,reason,url}).
 - **GPS Google automatique chauffeur** : acceptation → Maps vers prise en charge ; démarrage → Maps vers destination.

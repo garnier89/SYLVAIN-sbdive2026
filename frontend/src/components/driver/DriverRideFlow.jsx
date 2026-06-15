@@ -10,6 +10,7 @@ import { RideFlowMenu, CallTypeSheet, OtpModal, RefundClientModal } from './Ride
 import { SafetyToolsSheet } from '../safety/SafetyToolsSheet';
 import { RideFlowHeader, RideFlowAddressCard, RideFlowMap, RideFlowFooter } from './RideFlowViews';
 import InAppNav from './InAppNav';
+import DriverVoiceControl from './DriverVoiceControl';
 import { openGoogleMapsNav } from '../../lib/driverNav';
 import { useLocale } from '../../contexts/LocaleContext';
 
@@ -284,6 +285,11 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
     else toast.info('Numéro du passager indisponible.');
   }, [ride.passenger_phone, ride.passenger_phone_hidden, ride.passenger_phone_reveal_at, ride.id]);
 
+  const beginStart = useCallback(() => {
+    if (!askOtp) { startTripDirect(); return; }
+    setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true);
+  }, [askOtp, startTripDirect]);
+
   const openNav = useCallback((app) => {
     setShowNav(false);
     const dest = status === 'in_progress'
@@ -424,8 +430,17 @@ const DriverRideFlow = ({ ride, driverPos, connected = true, askOtp = true, onFi
         busy={busy}
         nearDestination={nearDestination}
         onArrive={requestArriving}
-        onStart={() => { if (!askOtp) { startTripDirect(); return; } setOtpError(''); setOtpInput(''); setOtpAttempts(0); setOtpMode('otp'); setShowOtp(true); }}
+        onStart={beginStart}
         onFinish={handleFinish}
+      />
+
+      {/* Contrôle vocal mains-libres (façon Uber Driver) — sécurité routière */}
+      <DriverVoiceControl
+        status={status}
+        onNavigate={() => openNav('gmaps')}
+        onCall={callPassenger}
+        onArrive={requestArriving}
+        onStart={beginStart}
       />
 
       {/* 3-dot menu */}
