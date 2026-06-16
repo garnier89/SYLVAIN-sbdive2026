@@ -1,4 +1,13 @@
-## NEW - 2026-06-16 (541) - 📦 Génération EAS des 3 APK (coque WebView) + corrections build
+## NEW - 2026-06-16 (542) - 🧹 Nettoyage profond du code mobile + rebuild APK
+- **Demande user** : connexion difficile sur les APK + « les apk ont les anciens fichiers » → nettoyer le code en profondeur.
+- **Cause** : tout l'ancien code natif (écrans auth/driver/merchant/user, navigation, contexts, hooks, i18n, api, theme, utils) subsistait dans `mobile/src/` bien que non importé (App.tsx → WebAppShell uniquement). Les anciens APK (du zip) contenaient les écrans de connexion natifs lourds.
+- **Nettoyage** : supprimé TOUT `mobile/src/` sauf `screens/WebAppShell.tsx`. Retiré les dépendances inutiles (react-navigation x4, react-native-maps/svg/reanimated/screens, axios, i18next/react-i18next, expo-auth-session/secure-store/file-system/font/linking/localization/sharing/speech/system-ui/web-browser, vector-icons, async-storage). `babel.config.js` : retiré le plugin reanimated. `app.json` : retiré le plugin `expo-secure-store`. Aligné `react-native` → 0.76.9.
+- **Résultat** : `expo-doctor` 18/18 ✅. Dépendances 33 → **11**. APK **63 Mo** (vs 85 Mo), bundle contient l'URL prod, **0 ancien écran natif**. 3 builds EAS FINISHED.
+- **Liens APK nettoyés (iter 542)** : client `mMMLFaf-bk2nZeGHcML-PDV_7rsGCLOBZt6ulBKpxl4`, driver `gTAptPKMyj1ZjExTz7Z32zcGn4jS14zI0jbTS6yKjdE`, merchant `rNvw34XAe_mvI49Uyrif8nbbWrEQp8yi4yCWktUFUZY` (préfixe https://expo.dev/artifacts/eas/…apk).
+
+---
+
+
 - **Contexte** : user ne pouvait pas installer les anciens APK (natifs, datés). Demande : générer des APK récents. Compilation impossible dans le conteneur (Hermes/ELF) → déclenchement via **EAS cloud** avec jeton Expo fourni par l'utilisateur (compte **sylvain2029**, projectId `481fcc8e-0f58-4f1b-8d04-829748aa7f53`).
 - **Corrections nécessaires pour que le build EAS passe** :
   1. Fichier au nom corrompu (résidu `expo export`) bloquant l'archive `EAS_NO_VCS` → supprimé ; ajout `.easignore` (node_modules/android/ios/dist).
