@@ -61,6 +61,15 @@
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "appRole": "user",
+      "appVariant": "client",
+      "startPath": "/",
+      "backendUrl": "https://gojek-mvp-1.emergent.host",
+      "eas": {
+        "projectId": "481fcc8e-0f58-4f1b-8d04-829748aa7f53"
+      }
     }
   }
 }

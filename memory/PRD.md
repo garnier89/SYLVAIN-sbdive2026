@@ -1,3 +1,16 @@
+## NEW - 2026-06-16 (541) - 📦 Génération EAS des 3 APK (coque WebView) + corrections build
+- **Contexte** : user ne pouvait pas installer les anciens APK (natifs, datés). Demande : générer des APK récents. Compilation impossible dans le conteneur (Hermes/ELF) → déclenchement via **EAS cloud** avec jeton Expo fourni par l'utilisateur (compte **sylvain2029**, projectId `481fcc8e-0f58-4f1b-8d04-829748aa7f53`).
+- **Corrections nécessaires pour que le build EAS passe** :
+  1. Fichier au nom corrompu (résidu `expo export`) bloquant l'archive `EAS_NO_VCS` → supprimé ; ajout `.easignore` (node_modules/android/ios/dist).
+  2. **Versions Expo incohérentes** : `expo-device`, `expo-image-picker`, `expo-notifications` en `^56.x` (SDK 53+) vs cœur `expo` SDK 52 → `yarn remove` des 3 (inutiles en WebView) + retrait du plugin `withImageCropperFix`.
+  3. **Kotlin/Compose** : `expo-modules-core 2.2.3` (Compose Compiler 1.5.15) exige Kotlin **1.9.25** mais le template SDK 52 utilise 1.9.24 → ajout `expo-build-properties` avec `android.kotlinVersion: '1.9.25'` (rebuild `--clear-cache`).
+- **Résultat** : 3 builds **FINISHED** (client/driver/merchant), APK signés (v2), package `com.sbdrive.vtc/.driver/.merchant`, bundle JS contient bien l'URL prod (= coque WebView). Liens artifacts EAS fournis au user + tableau de bord expo.dev/accounts/sylvain2029/projects/sb-drive-vtc/builds.
+- **Note install** : signature v2-only (AGP minSdk24) → si blocage Play Protect/MIUI, étapes « Installer quand même » + désinstaller anciennes versions. Alternative PWA disponible.
+- **Config mobile clé** : `mobile/app.config.js` (owner sylvain2029, plugins + build-properties), `mobile/.easignore`, EAS profiles client/driver/merchant dans `mobile/eas.json`.
+
+---
+
+
 ## NEW - 2026-06-16 (540) - 📱 APK = app web de production (coque WebView native), 3 APK par rôle
 - **Problème user** : les APK Expo natifs générés « n'avaient rien à voir » avec l'app en ligne (sous-ensemble de fonctions) + connexion impossible (« Une erreur est survenue »). Diagnostic : app native distincte/limitée ; le message générique = repli sans `detail` (erreur réseau/écart). Production joignable (compte `garnier89@live.fr` existe, 401 sur mauvais mdp).
 - **Choix user** : 3 APK séparés par rôle, et l'APK doit être l'app en ligne complète.

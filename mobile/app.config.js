@@ -23,7 +23,11 @@ export default ({ config }) => ({
   ...config,
   name: v.name,
   slug: 'sb-drive-vtc',
-  plugins: [...(config.plugins || []), './plugins/withImageCropperFix'],
+  owner: 'sylvain2029',
+  plugins: [
+    ...(config.plugins || []),
+    ['expo-build-properties', { android: { kotlinVersion: '1.9.25' } }],
+  ],
   extra: {
     ...(config.extra || {}),
     appRole: v.role,
