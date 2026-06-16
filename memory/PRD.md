@@ -1,3 +1,16 @@
+## NEW - 2026-06-16 (540) - 📱 APK = app web de production (coque WebView native), 3 APK par rôle
+- **Problème user** : les APK Expo natifs générés « n'avaient rien à voir » avec l'app en ligne (sous-ensemble de fonctions) + connexion impossible (« Une erreur est survenue »). Diagnostic : app native distincte/limitée ; le message générique = repli sans `detail` (erreur réseau/écart). Production joignable (compte `garnier89@live.fr` existe, 401 sur mauvais mdp).
+- **Choix user** : 3 APK séparés par rôle, et l'APK doit être l'app en ligne complète.
+- **Solution** : chaque APK devient une **coque native légère** chargeant directement la super-app web de production (`https://gojek-mvp-1.emergent.host`) au point d'entrée du rôle → APK **identique** à l'app en ligne (mêmes identifiants, toutes les fonctions, MAJ web auto sans rebuild).
+  - `mobile/src/screens/WebAppShell.tsx` (nouveau) : `react-native-webview` plein écran — géoloc (expo-location + `geolocationEnabled`), caméra/KYC (`allowFileAccess`, inline media), bouton retour Android = historique web, liens externes (tel:/maps) ouverts hors-app, cookies/localStorage persistants, écran « Réessayer » réseau, SafeArea haut+bas.
+  - `mobile/App.tsx` réécrit : rend `WebAppShell` (supprime nav/auth natifs, app allégée).
+  - `mobile/app.config.js` : `startPath` par variante — client `/`, chauffeur `/chauffeur`, marchand `/merchant` ; `backendUrl` exposé dans `extra`.
+- **Auth web role-aware confirmée** : login redirige déjà chauffeur→`/chauffeur/home`, marchand→`/merchant/dashboard` (EmailLoginPage/LoginPage) → atterrissage correct par APK.
+- **Vérifié** : bundle Metro OK (**823 modules**, toutes importations résolues) ; 3 points d'entrée prod répondent 200. ⚠️ APK non compilable dans le conteneur (EAS cloud uniquement ; `hermesc` ELF = limite conteneur connue, non bloquant EAS). À rebuild via `eas build -p android --profile client|driver|merchant`. Guide `mobile/BUILD_APK.md` mis à jour.
+
+---
+
+
 ## NEW - 2026-06-15 (539) - 📣 Notifications admin : segments fins + planification (outil marketing/rétention)
 - **Demande user** : ajouter (A) planification (envoi différé date/heure) + (B) ciblage fin par segment : chauffeurs hors-ligne, chauffeurs par zone (dernière position GPS), clients inactifs (délai admin-configurable : 1/2/3 semaines, 1/2/3 mois), ET croisé zone × inactivité.
 - **Backend** : nouveau module `core/notif_broadcast.py` — `AUDIENCE_LABELS` (8 audiences : all/client/driver/merchant + driver_offline/driver_zone/client_inactive/client_inactive_zone), `resolve_audience()` (rôles, `is_online`, GPS chauffeur via haversine dans rayon zone, clients sans course/commande depuis N jours = `users(role user) − distinct(rides/orders depuis cutoff)`, croisé = dernière position pickup dans la zone), `dispatch_broadcast()`, `run_due_scheduled_broadcasts()` (claim atomique status `scheduled`→`sending`→`sent`, idempotent) + boucle `broadcast_scheduler_loop()` (60 s) enregistrée dans `core/startup.py`.

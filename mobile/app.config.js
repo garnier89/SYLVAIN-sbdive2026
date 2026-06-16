@@ -9,14 +9,15 @@
 // côte à côte sur le même téléphone pour faciliter les tests.
 
 const VARIANTS = {
-  client: { name: 'SB Drive', pkg: 'com.sbdrive.vtc', role: 'user' },
-  driver: { name: 'SB Drive Chauffeur', pkg: 'com.sbdrive.driver', role: 'driver' },
-  merchant: { name: 'SB Drive Marchand', pkg: 'com.sbdrive.merchant', role: 'merchant' },
+  client: { name: 'SB Drive', pkg: 'com.sbdrive.vtc', role: 'user', startPath: '/' },
+  driver: { name: 'SB Drive Chauffeur', pkg: 'com.sbdrive.driver', role: 'driver', startPath: '/chauffeur' },
+  merchant: { name: 'SB Drive Marchand', pkg: 'com.sbdrive.merchant', role: 'merchant', startPath: '/merchant' },
 };
 
 const variant = process.env.APP_VARIANT || 'client';
 const v = VARIANTS[variant] || VARIANTS.client;
 const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://gojek-mvp-1.emergent.host';
 
 export default ({ config }) => ({
   ...config,
@@ -27,6 +28,8 @@ export default ({ config }) => ({
     ...(config.extra || {}),
     appRole: v.role,
     appVariant: variant,
+    startPath: v.startPath,
+    backendUrl,
     eas: { projectId: process.env.EAS_PROJECT_ID || config.extra?.eas?.projectId },
   },
   ios: {

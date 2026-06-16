@@ -56,11 +56,25 @@ eas build -p android --profile merchant
 
 ## Ce que fait chaque app
 
-- **Client** : courses, livraison, food, beauté, pharmacie, immobilier, wallet, suivi de course.
-- **Chauffeur** : missions, courses actives, gains, rapports hebdo, navigation.
-- **Marchand** : tableau de bord (recettes/commandes du jour, top produits), boutique
-  ouverte/fermée, gestion des **commandes** (accepter → préparation → prête → remise),
-  et **menu** (ajout de produits, disponibilité/rupture).
+Depuis juin 2026, chaque APK est une **coque native légère** qui ouvre **directement votre
+super-app web de production** (`https://gojek-mvp-1.emergent.host`), au point d'entrée du rôle.
+**L'APK installé est donc IDENTIQUE à l'app en ligne** : mêmes identifiants, mêmes
+fonctionnalités, et les mises à jour du web sont reprises automatiquement (aucun rebuild requis).
+
+| Profil | Ouvre l'app web sur | Expérience |
+|--------|---------------------|-----------|
+| `client`   | `/`          | App client complète (courses, livraison, food, beauté, pharmacie, immobilier, wallet, suivi). |
+| `driver`   | `/chauffeur` | App chauffeur (missions, courses actives, gains, navigation). |
+| `merchant` | `/merchant`  | App marchand (tableau de bord, commandes, menu/produits). |
+
+La coque gère : permission de **géolocalisation** (prise en charge / suivi), **caméra** (KYC),
+bouton **retour** Android (historique web), liens externes (tel:, maps…) ouverts hors-app,
+et un écran « Réessayer » en cas de coupure réseau. Géolocalisation, cookies de session et
+localStorage persistent entre les ouvertures.
+
+> ℹ️ **Limite** : les notifications push système ne passent pas par une WebView Android
+> standard (le web push PWA reste actif côté navigateur). Les notifications in-app
+> fonctionnent normalement.
 
 ---
 
