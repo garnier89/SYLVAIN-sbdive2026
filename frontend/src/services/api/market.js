@@ -31,6 +31,19 @@ export const realEstateAPI = {
   sbpaygoSsoLink: () => api.post('/finance/sbpaygo/sso-link'),
 };
 
+export const jobsAPI = {
+  list: (params) => api.get('/jobs', { params }),
+  get: (id) => api.get(`/jobs/${id}`),
+  create: (data) => api.post('/jobs', data),
+  update: (id, data) => api.put(`/jobs/${id}`, data),
+  remove: (id) => api.delete(`/jobs/${id}`),
+  setStatus: (id, status) => api.post(`/jobs/${id}/status`, { status }),
+  myListings: () => api.get('/jobs/my/listings'),
+  myApplications: () => api.get('/jobs/my/applications'),
+  apply: (id, data) => api.post(`/jobs/${id}/apply`, data),
+  applications: (id) => api.get(`/jobs/${id}/applications`),
+};
+
 export const motoRentalAPI = {
   fleet: () => api.get('/moto-rental/fleet'),
   motoDetail: (id) => api.get(`/moto-rental/fleet/${id}`),

@@ -31,7 +31,7 @@ import {
 import {
   House, MapPin, Wallet, User,
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
-  MagnifyingGlass, List, ClipboardText,
+  MagnifyingGlass, List, ClipboardText, GridFour,
   VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
   X, Ambulance,
@@ -983,11 +983,16 @@ const UserHome = () => {
           <CaretDown size={14} className="text-[#64748B] shrink-0" />
         </button>
 
-        {/* Search */}
-        <button className="mt-3 w-full h-12 rounded-2xl bg-white border border-slate-200 shadow-[0_4px_14px_-8px_rgba(11,20,38,0.18)] flex items-center px-4 gap-3" onClick={() => setShowSearch(true)} data-testid="search-services-bar">
-          <MagnifyingGlass size={20} className="text-[#94A3B8]" />
-          <span className={`text-sm text-[#94A3B8] ${BODY}`}>{t('user_home.where_to')}</span>
-        </button>
+        {/* Search + all categories */}
+        <div className="mt-3 flex items-center gap-2">
+          <button className="flex-1 h-12 rounded-2xl bg-white border border-slate-200 shadow-[0_4px_14px_-8px_rgba(11,20,38,0.18)] flex items-center px-4 gap-3 min-w-0" onClick={() => setShowSearch(true)} data-testid="search-services-bar">
+            <MagnifyingGlass size={20} className="text-[#94A3B8] shrink-0" />
+            <span className={`text-sm text-[#94A3B8] truncate ${BODY}`}>{t('user_home.where_to')}</span>
+          </button>
+          <button className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-[0_4px_14px_-8px_rgba(11,20,38,0.18)] flex items-center justify-center shrink-0" onClick={() => navigate('/categories')} data-testid="all-categories-btn" title="Toutes les catégories">
+            <GridFour size={20} className="text-[#FF5000]" />
+          </button>
+        </div>
       </header>
 
       {/* Search Overlay */}

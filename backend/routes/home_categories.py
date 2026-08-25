@@ -273,6 +273,53 @@ async def seed_home_categories_extra():
         })
 
 
+# ── "Catégories de services" master menu — the 20-tile category grid shown
+# as its own page, replacing the old bottom sheet. Each tile maps a
+# mockup category onto its real, already-shipped feature route; "emploi" and
+# "bons-plans" are the only two genuinely new features behind this menu.
+# (key, label_fr, subtitle_fr, icon_name, bg_class, icon_color_class, target_route)
+_SEED_ALL_CATEGORIES = [
+    ("livraison", "Livraison", "Courses et colis", "Package", "bg-rose-50", "text-rose-500", "/all-delivery"),
+    ("marketplace", "Marketplace", "Vos commerces ici", "Storefront", "bg-emerald-50", "text-emerald-600", "/marketplace"),
+    ("sante", "Santé", "Soins et pharmacies", "Stethoscope", "bg-sky-50", "text-sky-600", "/sante"),
+    ("domicile", "Services à domicile", "Aide au quotidien", "Broom", "bg-violet-50", "text-violet-500", "/services-metiers"),
+    ("voyage", "Voyage", "Vols et réservations", "Suitcase", "bg-cyan-50", "text-cyan-600", "/sb-travel"),
+    ("famille", "Famille", "Pour vos proches", "UsersFour", "bg-teal-50", "text-teal-600", "/famille"),
+    ("auto-assistance", "Auto assistance", "Dépannage 24/7", "Wrench", "bg-red-50", "text-red-500", "/towing"),
+    ("animaux", "Animaux", "Transport animalier", "PawPrint", "bg-amber-50", "text-amber-600", "/pet-care"),
+    ("emploi", "Emploi", "Offres près de vous", "Briefcase", "bg-blue-50", "text-blue-600", "/emploi"),
+    ("evenements", "Événements", "Sorties et billets", "Confetti", "bg-fuchsia-50", "text-fuchsia-500", "/events"),
+    ("encheres", "Enchères de services", "Proposez & réservez", "Gavel", "bg-pink-50", "text-pink-500", "/services-bidding"),
+    ("wallet", "Wallet Finance", "Paiements & services", "Wallet", "bg-indigo-50", "text-indigo-500", "/wallet"),
+    ("bons-plans", "Bons plans", "Offres et réductions", "Sparkle", "bg-orange-50", "text-orange-500", "/bons-plans"),
+    ("transport-public", "Transport public", "Bus et réseau local", "Van", "bg-lime-50", "text-lime-600", "/transport-public"),
+    ("sb-ferry", "SB Ferry", "Traversées maritimes", "MapTrifold", "bg-sky-50", "text-sky-500", "/ferry"),
+    ("courrier-express", "Courrier express", "Envois rapides", "Lightning", "bg-amber-50", "text-amber-500", "/runner"),
+    ("reserver-proche", "Réserver pour un proche", "Aide et accompagnement", "HandHeart", "bg-rose-50", "text-rose-500", "/taxi?mode=book_for_someone"),
+    ("covoiturage", "Covoiturage", "Voyagez ensemble", "UsersThree", "bg-teal-50", "text-teal-500", "/carpool"),
+    ("parking", "Parking", "Trouvez une place", "MapPin", "bg-slate-50", "text-slate-600", "/parking"),
+    ("autres-services", "Autres services", "Encore plus à découvrir", "GridFour", "bg-gray-100", "text-gray-600", "/all-services"),
+]
+
+ALL_CATEGORIES_SECTION = "all_categories"
+
+
+async def seed_all_categories_menu():
+    """Idempotent: backfill the 20-tile 'Catégories de services' menu by key,
+    preserving any admin edit/reorder made on an already-seeded tile."""
+    for i, (key, label, subtitle, icon, bg, color, route) in enumerate(_SEED_ALL_CATEGORIES):
+        if await db.home_categories.find_one({"section": ALL_CATEGORIES_SECTION, "key": key}):
+            continue
+        await db.home_categories.insert_one({
+            "id": f"hcat_{uuid.uuid4().hex[:10]}",
+            "section": ALL_CATEGORIES_SECTION, "key": key, "label_fr": label, "label_en": label,
+            "subtitle_fr": subtitle, "icon_name": icon, "image_url": None,
+            "bg_class": bg, "icon_color_class": color, "target_route": route,
+            "display_order": i, "visible_home": True, "status": "active",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+
 def _clean(doc):
     doc.pop("_id", None)
     return doc
