@@ -760,7 +760,7 @@ const UserHome = () => {
     services: (() => {
       // Curated preview (matches the reference home): 8 of the most-used
       // categories, 2 rows of 4 — "Voir tout" in the header covers the rest.
-      const PREVIEW_KEYS = ['livraison', 'marketplace', 'sante', 'domicile', 'voyage', 'evenements', 'auto-assistance', 'animaux'];
+      const PREVIEW_KEYS = ['livraison', 'marketplace', 'emploi', 'domicile', 'voyage', 'transport-public', 'auto-assistance', 'encheres'];
       const byKey = new Map(allCategories.map((c) => [c.key, c]));
       const items = PREVIEW_KEYS.map((k) => byKey.get(k)).filter(Boolean);
       if (!items.length) return null;
