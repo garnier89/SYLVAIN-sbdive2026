@@ -296,7 +296,7 @@ async def seed_home_categories_extra():
 # "bons-plans" are the only two genuinely new features behind this menu.
 # (key, label_fr, subtitle_fr, icon_name, bg_class, icon_color_class, target_route)
 _SEED_ALL_CATEGORIES = [
-    ("taxi-vtc", "Taxi & VTC", "16 modes de course", "Taxi", "bg-yellow-50", "text-yellow-600", "/taxi"),
+    ("taxi-vtc", "Taxi & VTC", "17 modes de course", "Taxi", "bg-yellow-50", "text-yellow-600", "/taxi"),
     ("livraison", "Livraison", "Courses et colis", "Package", "bg-rose-50", "text-rose-500", "/all-delivery"),
     ("marketplace", "Marketplace", "Vos commerces ici", "Storefront", "bg-emerald-50", "text-emerald-600", "/marketplace"),
     ("sante", "Santé", "Soins et pharmacies", "Stethoscope", "bg-sky-50", "text-sky-600", "/sante"),
