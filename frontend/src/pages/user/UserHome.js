@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
+import BottomTabBar from '../../components/BottomTabBar';
 import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
 import SideMenuDrawer from '../../components/SideMenuDrawer';
 import { useLocale } from '../../contexts/LocaleContext';
@@ -14,7 +14,7 @@ import DebtBanner from '../../components/DebtBanner';
 import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
-import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI, homeBannersAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI, homeBannersAPI, nearbyPlacesAPI, rideAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
 import LocationSelectorModal from '../../components/LocationSelectorModal';
 import { resolveLocation, getStoredLocation } from '../../lib/userLocation';
@@ -29,12 +29,12 @@ import {
   towingServices, nearbyServices,
 } from './userHomeServices';
 import {
-  House, MapPin, Wallet, User,
+  MapPin,
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
-  MagnifyingGlass, List, ClipboardText, GridFour,
+  MagnifyingGlass, List, GridFour,
   VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
-  X, Ambulance,
+  X, Ambulance, Bell,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -52,6 +52,16 @@ const TAXI_MODE_CAT = MODES.reduce((acc, m) => { acc[m.id] = m.cat; return acc; 
 // dashboard icons — renders instantly when navigating back to Home, instead of
 // briefly showing the hardcoded fallback icons before the API resolves.
 const _homeCache = { cmsItems: null, sectionOrder: null };
+
+// Illustrated glyph per "Catégories de services" tile on the Home "Nos services"
+// grid (taxi-vtc excluded — it already has its own "Réserver un trajet" carousel).
+const CATEGORY_EMOJI = {
+  livraison: '🎁', marketplace: '🏪', sante: '❤️‍🩹', domicile: '🏠', voyage: '✈️',
+  famille: '👨‍👩‍👧', 'auto-assistance': '🛠️', animaux: '🐾', emploi: '💼',
+  evenements: '🎉', encheres: '🔨', wallet: '👛', 'bons-plans': '🏷️',
+  'transport-public': '🚌', 'sb-ferry': '⛴️', 'courrier-express': '🛵',
+  'reserver-proche': '🤝', covoiturage: '🚗', parking: '🅿️', 'autres-services': '✨',
+};
 
 // ── Signature "More Services" 4-coloured-squares mark (V3Cube) ──
 const MoreSquares = () => (
@@ -349,6 +359,9 @@ const UserHome = () => {
   const [sectionOrder, setSectionOrder] = useState(_homeCache.sectionOrder);
   const [sectionTitles, setSectionTitles] = useState(_homeCache.sectionTitles || null);
   const [taxiCats, setTaxiCats] = useState(cachedServiceCategories());
+  const [allCategories, setAllCategories] = useState([]);
+  const [nearbyFeatured, setNearbyFeatured] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [pendingRef, setPendingRef] = useState(null);
   const [lastDelivery, setLastDelivery] = useState(null);
   const { on: onWsEvent } = useWebSocket(user?.id);
@@ -401,6 +414,7 @@ const UserHome = () => {
   const [promoBanners, setPromoBanners] = useState([]);
   const promoRef = useRef(null);
   const promoIdx = useRef(0);
+  const [promoDot, setPromoDot] = useState(0);
   const greeting = new Date().getHours() < 18 ? 'Bienvenue' : 'Bonsoir';
 
   // Load admin-configured home categories (CMS). Falls back to hardcoded arrays if empty.
@@ -423,6 +437,16 @@ const UserHome = () => {
     loadServiceCategories()
       .then(setTaxiCats)
       .catch((e) => console.warn('service categories load:', e?.message || e));
+    // "Catégories de services" (the 21-tile master menu) reused inline as "Nos services".
+    homeCategoriesAPI.public('all_categories')
+      .then((r) => setAllCategories(r.data.items || []))
+      .catch((e) => console.warn('all categories load:', e?.message || e));
+    nearbyPlacesAPI.featured(6)
+      .then((r) => setNearbyFeatured(r.data.items || []))
+      .catch((e) => console.warn('nearby featured load:', e?.message || e));
+    rideAPI.list({ limit: 3 })
+      .then((r) => setRecentActivity(Array.isArray(r.data) ? r.data : r.data?.items || []))
+      .catch((e) => console.warn('recent activity load:', e?.message || e));
     promoBannersAPI.public()
       .then((r) => setPromoBanners(r.data.items || []))
       .catch((e) => console.warn('promo banners load:', e?.message || e));
@@ -447,6 +471,7 @@ const UserHome = () => {
       promoIdx.current = (promoIdx.current + 1) % el.children.length;
       const target = el.children[promoIdx.current].offsetLeft - el.children[0].offsetLeft;
       el.scrollTo({ left: target, behavior: 'smooth' });
+      setPromoDot(promoIdx.current);
     }, 4000);
     return () => clearInterval(id);
   }, [promoBanners.length]);
@@ -540,10 +565,101 @@ const UserHome = () => {
       }));
   })();
 
+  // ── "Réserver un trajet" — the 4 headline ride modes as a horizontal card
+  // carousel (richer visual entry point than the Services Taxi icon grid below,
+  // which stays available for admins who prefer it).
+  const RIDE_MODES = [
+    { key: 'standard', name: 'Taxi VTC', badge: '⚡', from: '#DC2626', to: '#F97316' },
+    { key: 'bidding', name: 'Proposer\nvotre tarif', badge: '🏷️', from: '#F59E0B', to: '#FBBF24' },
+    { key: 'rental', name: 'Mise à Dispo', badge: '⏱️', from: '#2563EB', to: '#38BDF8' },
+    { key: 'book_later', name: 'Planifier\nvotre trajet', badge: '📅', from: '#EA580C', to: '#FBBF24' },
+  ];
+
   // ── Section render blocks (keyed) so we can order them declaratively ──
   // Section titles are admin-editable (home_sections); fall back to defaults.
   const st = (key, def) => (sectionTitles && sectionTitles[key]) || def;
   const blocks = {
+    activeOrder: lastDelivery ? (
+      <section key="activeOrder" className="px-4 mt-5" data-testid="active-order-section">
+        {(() => {
+          const active = lastDelivery.mode === 'active';
+          let etaLabel = '';
+          if (active && lastDelivery.eta) {
+            try {
+              const d = new Date(lastDelivery.eta);
+              if (!isNaN(d)) etaLabel = `vers ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}`;
+            } catch { /* ignore */ }
+          }
+          return (
+            <motion.button whileTap={{ scale: 0.98 }} onClick={resumeLastDelivery} data-testid="resume-delivery-btn"
+              data-mode={active ? 'active' : 'reorder'}
+              className="w-full rounded-2xl p-3 flex flex-col gap-2.5 text-left shadow-sm"
+              style={{ background: active ? 'linear-gradient(135deg, #0A2540, #2563EB)' : 'linear-gradient(135deg, #FF5000, #FF7A3D)' }}>
+              <span className="flex items-center gap-3 w-full">
+                <span className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center overflow-hidden shrink-0">
+                  {lastDelivery.merchant_logo
+                    ? <img src={resolveImageUrl(lastDelivery.merchant_logo)} alt="" className="w-full h-full object-cover" />
+                    : (active ? <Lightning size={24} weight="fill" className="text-white" /> : <ArrowClockwise size={24} weight="bold" className="text-white" />)}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className={`text-white font-extrabold text-sm flex items-center gap-1.5 leading-tight ${HEAD}`}>
+                    {active && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
+                    {active ? 'Livraison en cours' : 'Reprendre votre commande'}
+                  </span>
+                  <span className="text-white/90 text-xs block truncate">
+                    {active
+                      ? `${lastDelivery.status_label}${etaLabel ? ` · livraison ${etaLabel}` : ''}`
+                      : `${lastDelivery.merchant_name}${lastDelivery.item_count ? ` · ${lastDelivery.item_count} article${lastDelivery.item_count > 1 ? 's' : ''}` : ''}`}
+                  </span>
+                </span>
+                <span className="shrink-0 px-3 py-1.5 rounded-full bg-white text-xs font-extrabold" style={{ color: active ? '#0A2540' : '#FF5000' }}>
+                  {active ? 'Suivre' : 'Reprendre'}
+                </span>
+              </span>
+              {active && Array.isArray(lastDelivery.steps) && (
+                <span className="flex items-end gap-2 w-full pt-0.5" data-testid="delivery-progress">
+                  {lastDelivery.steps.map((label, i) => {
+                    const done = i <= (lastDelivery.step ?? 0);
+                    const current = i === (lastDelivery.step ?? 0);
+                    return (
+                      <span key={label} className="flex-1 flex flex-col gap-1">
+                        <span className={`h-1.5 rounded-full transition-colors ${done ? 'bg-emerald-400' : 'bg-white/25'} ${current ? 'animate-pulse' : ''}`} />
+                        <span className={`text-[9px] leading-none ${done ? 'text-white font-semibold' : 'text-white/50'}`}>{label}</span>
+                      </span>
+                    );
+                  })}
+                </span>
+              )}
+            </motion.button>
+          );
+        })()}
+      </section>
+    ) : null,
+    rideModes: (
+      <section key="rideModes" className="px-4 mt-5" data-testid="ride-modes-section">
+        <SectionHeader title={st('rideModes', "Réserver un trajet")} actionLabel="Voir tout" onAction={() => navigate('/taxi')} />
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-1">
+          {RIDE_MODES.map((m) => (
+            <motion.button
+              key={m.key}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate(`/course?mode=${m.key}`)}
+              data-testid={`ride-mode-${m.key}`}
+              className="relative snap-start shrink-0 w-[104px] h-[104px] rounded-2xl flex flex-col items-center justify-center gap-1 overflow-hidden"
+              style={{ background: `linear-gradient(150deg, ${m.from}, ${m.to})` }}
+            >
+              <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white flex items-center justify-center text-[12px]">{m.badge}</span>
+              <span className="text-[30px] leading-none" aria-hidden="true">🚗</span>
+              <span className={`text-[11px] font-bold text-white text-center leading-[1.15] whitespace-pre-line px-1.5 ${HEAD}`}>{m.name}</span>
+            </motion.button>
+          ))}
+        </div>
+        <div className="flex items-center justify-center gap-1.5 mt-3">
+          <span className="w-5 h-1.5 rounded-full bg-[#FF5000]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+        </div>
+      </section>
+    ),
     taxi: (
       <section key="taxi" className="px-4 mt-6">
         <SectionHeader title={st('taxi', "Services Taxi")} actionLabel="Voir tout" onAction={() => navigate('/taxi')} />
@@ -576,7 +692,17 @@ const UserHome = () => {
       const visible = promoBanners.filter((b) => !isDismissed(`promo:${b.id}:${b.updated_at || ''}`));
       return visible.length > 0 ? (
         <div key="promo" className="mt-5" data-testid="promo-banner-carousel">
-          <div ref={promoRef} className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
+          <div
+            ref={promoRef}
+            className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1"
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              const w = el.children[0]?.offsetWidth || 1;
+              const idx = Math.round(el.scrollLeft / (w + 12));
+              promoIdx.current = idx;
+              setPromoDot(idx);
+            }}
+          >
             {visible.map((b) => {
               const dark = b.theme === 'dark';
               return (
@@ -605,8 +731,35 @@ const UserHome = () => {
               );
             })}
           </div>
+          {visible.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5 mt-3">
+              {visible.map((b, i) => (
+                <span
+                  key={b.id}
+                  className={`h-1.5 rounded-full transition-all ${i === promoDot ? 'w-5 bg-[#FF5000]' : 'w-1.5 bg-slate-200'}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : null;
+    })(),
+    services: (() => {
+      const items = allCategories
+        .filter((c) => c.key !== 'taxi-vtc')
+        .map((c) => ({
+          id: c.id, name: c.label_fr, customIcon: CATEGORY_EMOJI[c.key] || '✨',
+          icon: GridFour, bg: c.bg_class, iconColor: c.icon_color_class, path: c.target_route,
+        }));
+      if (!items.length) return null;
+      return (
+        <section key="services" className="px-4 mt-6" data-testid="services-section">
+          <SectionHeader title={st('services', "Nos services")} actionLabel="Voir tout" onAction={() => navigate('/categories')} />
+          <div className="grid grid-cols-4 gap-3">
+            {items.map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
+          </div>
+        </section>
+      );
     })(),
     delivery: (
       <section key="delivery" className="px-4 mt-6">
@@ -922,75 +1075,132 @@ const UserHome = () => {
         </div>
       </section>
     ),
+    nearbyBiz: nearbyFeatured.length > 0 ? (
+      <section key="nearbyBiz" className="mt-6" data-testid="nearby-biz-section">
+        <div className="px-4">
+          <SectionHeader title={st('nearbyBiz', "Commerces à proximité")} actionLabel="Voir tout" onAction={() => navigate('/nearby')} />
+        </div>
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
+          {nearbyFeatured.map((biz) => (
+            <button
+              key={biz.id || biz.name}
+              onClick={() => navigate('/nearby')}
+              data-testid={`nearby-biz-${biz.id || biz.name}`}
+              className="snap-start shrink-0 w-[220px] rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm text-left"
+            >
+              <div className="relative h-28 bg-slate-100">
+                {biz.image && <img src={biz.image} alt={biz.name} className="w-full h-full object-cover" />}
+                {biz.open_now !== false && (
+                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">Ouvert</span>
+                )}
+              </div>
+              <div className="p-3">
+                <p className={`font-bold text-sm text-[#1F2430] truncate ${HEAD}`}>{biz.name}</p>
+                <p className={`text-xs text-[#94A3B8] truncate mt-0.5 ${BODY}`}>{biz.category}</p>
+                <div className="flex items-center gap-2 mt-1.5 text-xs text-[#64748B]">
+                  {biz.rating != null && (
+                    <span className="flex items-center gap-0.5 font-bold text-[#1F2430]">
+                      <Star size={12} weight="fill" className="text-amber-400" /> {biz.rating}
+                    </span>
+                  )}
+                  {biz.distance_km != null && (
+                    <span className="flex items-center gap-0.5">
+                      <MapPin size={12} /> {biz.distance_km} km
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+    ) : null,
+    activity: recentActivity.length > 0 ? (
+      <section key="activity" className="px-4 mt-6" data-testid="activity-section">
+        <SectionHeader title={st('activity', "Activités récentes")} actionLabel="Tout" onAction={() => navigate('/history')} />
+        <div className="space-y-2.5">
+          {recentActivity.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => navigate(`/ride/${r.id}`)}
+              data-testid={`activity-${r.id}`}
+              className="w-full flex items-center gap-3 bg-white rounded-2xl border border-slate-100 shadow-sm px-3.5 py-3 text-left"
+            >
+              <span className="w-10 h-10 rounded-full bg-[#FFF0E5] flex items-center justify-center shrink-0">
+                <Taxi size={18} className="text-[#FF5000]" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <p className={`text-sm font-bold text-[#1F2430] truncate ${HEAD}`}>
+                  Course {r.vehicle_type || 'VTC'} · {r.pickup_address || '—'}
+                </p>
+                <p className={`text-xs text-[#94A3B8] truncate mt-0.5 ${BODY}`}>
+                  {r.status === 'completed' ? 'Terminée' : r.status === 'cancelled' ? 'Annulée' : 'En cours'}
+                  {r.final_fare ?? r.estimated_fare ? ` · ${r.final_fare ?? r.estimated_fare} €` : ''}
+                </p>
+              </span>
+              <ChevR size={16} className="text-slate-300 shrink-0" />
+            </button>
+          ))}
+        </div>
+      </section>
+    ) : null,
   };
 
   // User-defined section order. First the 11 prioritised sections, then the
   // remaining sections kept at the bottom (their original relative order).
   // Section order/visibility is admin-configurable (home_sections); fall back to the
   // curated default order, and only render blocks we actually have.
-  const DEFAULT_SECTION_ORDER = [
-    'taxi', 'promo', 'delivery', 'marketplace', 'travel', 'events', 'beauty', 'medical',
-    'ondemand', 'bid', 'carcare', 'towing',
-    'video', 'pet', 'parking', 'giftcards', 'carpool', 'tracking', 'nearby',
-  ];
+  // Consolidated default: the 21-tile "Nos services" grid replaces the old
+  // stack of one-section-per-vertical blocks (still defined above, and still
+  // renderable, for an admin who explicitly customises the order via CMS).
+  const DEFAULT_SECTION_ORDER = ['activeOrder', 'rideModes', 'promo', 'services', 'nearbyBiz', 'activity'];
   const SECTION_ORDER = sectionOrder && sectionOrder.length ? sectionOrder : DEFAULT_SECTION_ORDER;
-  // Garantit que les sections SB Travel et SB Événement apparaissent même si l'admin
-  // a un ordre personnalisé qui ne les connaît pas encore.
-  const ORDERED_SECTIONS = (() => {
-    let out = [...SECTION_ORDER];
-    if (!out.includes('travel')) {
-      const mp = out.indexOf('marketplace');
-      if (mp >= 0) out.splice(mp + 1, 0, 'travel'); else out.push('travel');
-    }
-    if (!out.includes('events')) {
-      const tv = out.indexOf('travel');
-      if (tv >= 0) out.splice(tv + 1, 0, 'events'); else out.push('events');
-    }
-    return out;
-  })();
+  // "travel"/"events" are covered by the "services" (Nos services) grid now —
+  // both stay defined and renderable in `blocks` if an admin re-enables them
+  // explicitly via the CMS layout editor, but neither is force-inserted here.
+  const ORDERED_SECTIONS = SECTION_ORDER;
 
   return (
     <div className={`mobile-container min-h-screen pb-36 bg-white text-[#1F2430] ${BODY}`}>
-      {/* ===== STICKY HEADER (V3Cube look) ===== */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 pt-4 pb-3 border-b border-slate-100">
+      {/* ===== STICKY HEADER — SB Drive orange ===== */}
+      <header className="sticky top-0 z-40 bg-gradient-to-br from-[#FF6B1A] to-[#E63900] px-4 pt-4 pb-4 rounded-b-[26px]">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <button className="relative w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0" data-testid="menu-btn" onClick={() => setShowMenu(true)}>
-              <List size={20} className="text-[#1F2430]" />
+          <div className="min-w-0">
+            <p className={`text-[15px] font-bold text-white/95 leading-none flex items-center gap-1.5 ${BODY}`}>
+              {greeting} <span aria-hidden="true">👋</span>
+            </p>
+            <h2 className={`text-[19px] font-extrabold text-white truncate leading-tight mt-1 ${HEAD}`}>{user?.name || 'Utilisateur'}</h2>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button className="relative w-10 h-10 rounded-full bg-[#0B1426] flex items-center justify-center shrink-0" data-testid="notifications-btn" onClick={() => navigate('/actualites')}>
+              <Bell size={19} className="text-white" />
               {unreadCount > 0 && (
-                <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5000] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white ${badgePulse ? 'animate-bounce' : ''}`} data-testid="unread-badge">
+                <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5000] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-[#E63900] ${badgePulse ? 'animate-bounce' : ''}`} data-testid="unread-badge">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </button>
-            <div className="min-w-0">
-              <p className={`text-[11px] text-[#94A3B8] leading-none ${BODY}`}>{greeting}</p>
-              <h2 className={`text-[18px] font-extrabold text-[#1F2430] truncate leading-tight mt-0.5 ${HEAD}`}>{user?.name || 'Utilisateur'}</h2>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Avatar className="h-10 w-10 rounded-2xl border border-slate-200 cursor-pointer" onClick={() => navigate('/profile')}>
-              <AvatarImage src={user?.avatar_url} />
-              <AvatarFallback className="rounded-2xl bg-[#FFF0E5] text-[#FF5000] font-bold text-sm">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
-            </Avatar>
+            <button className="w-10 h-10 rounded-full bg-[#0B1426] flex items-center justify-center shrink-0" data-testid="menu-btn" onClick={() => setShowMenu(true)}>
+              <List size={20} className="text-white" />
+            </button>
           </div>
         </div>
 
         {/* Location */}
-        <button className="flex items-center gap-1.5 mt-3 max-w-full" data-testid="location-bar" onClick={() => setShowLocModal(true)}>
-          <MapPin size={16} weight="fill" className="text-[#FF5000] shrink-0" />
-          <span className={`text-[13px] font-semibold text-[#334155] truncate ${BODY}`} data-testid="location-label">{locLabel}</span>
-          <CaretDown size={14} className="text-[#64748B] shrink-0" />
+        <button className="flex items-center gap-1.5 mt-3.5 max-w-full" data-testid="location-bar" onClick={() => setShowLocModal(true)}>
+          <MapPin size={16} weight="fill" className="text-white shrink-0" />
+          <span className={`text-[13.5px] font-semibold text-white truncate ${BODY}`} data-testid="location-label">{locLabel}</span>
+          <CaretDown size={14} className="text-white/80 shrink-0" />
         </button>
 
         {/* Search + all categories */}
-        <div className="mt-3 flex items-center gap-2">
-          <button className="flex-1 h-12 rounded-2xl bg-white border border-slate-200 shadow-[0_4px_14px_-8px_rgba(11,20,38,0.18)] flex items-center px-4 gap-3 min-w-0" onClick={() => setShowSearch(true)} data-testid="search-services-bar">
-            <MagnifyingGlass size={20} className="text-[#94A3B8] shrink-0" />
+        <div className="mt-3.5 flex items-center gap-2">
+          <button className="flex-1 h-12 rounded-2xl bg-white flex items-center px-4 gap-3 min-w-0 shadow-[0_8px_20px_-10px_rgba(11,20,38,0.4)]" onClick={() => setShowSearch(true)} data-testid="search-services-bar">
+            <MagnifyingGlass size={20} className="text-[#FF6B1A] shrink-0" />
             <span className={`text-sm text-[#94A3B8] truncate ${BODY}`}>{t('user_home.where_to')}</span>
           </button>
-          <button className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-[0_4px_14px_-8px_rgba(11,20,38,0.18)] flex items-center justify-center shrink-0" onClick={() => navigate('/categories')} data-testid="all-categories-btn" title="Toutes les catégories">
-            <GridFour size={20} className="text-[#FF5000]" />
+          <button className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-[0_8px_20px_-10px_rgba(11,20,38,0.4)]" onClick={() => navigate('/categories')} data-testid="all-categories-btn" title="Toutes les catégories">
+            <GridFour size={20} className="text-[#FF6B1A]" />
           </button>
         </div>
       </header>
@@ -1088,27 +1298,8 @@ const UserHome = () => {
         {ORDERED_SECTIONS.map((key) => blocks[key])}
       </motion.main>
 
-      {/* ===== BOTTOM NAVIGATION (floating dark pill) ===== */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 px-4 pb-3 pointer-events-none">
-        <div className="bg-[#0B1426] rounded-full px-2.5 py-2 flex items-center justify-between shadow-[0_10px_30px_rgba(11,20,38,0.35)] pointer-events-auto">
-          <button className="flex items-center gap-2 bg-[#FF5000] text-white pl-3.5 pr-4 py-2.5 rounded-full" data-testid="nav-home">
-            <House size={20} weight="fill" />
-            <span className={`text-xs font-bold ${HEAD}`}>{t('tabs.home')}</span>
-          </button>
-          <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/history')} data-testid="nav-bookings">
-            <ClipboardText size={22} weight="regular" />
-            <span className="text-[10px] font-medium">{t('tabs.orders')}</span>
-          </button>
-          <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/wallet')} data-prefetch="/wallet" data-testid="nav-wallet">
-            <Wallet size={22} weight="regular" />
-            <span className="text-[10px] font-medium">{t('tabs.wallet')}</span>
-          </button>
-          <button className="flex-1 flex flex-col items-center gap-0.5 text-slate-400 py-1" onClick={() => navigate('/profile')} data-prefetch="/profile" data-testid="nav-profile">
-            <User size={22} weight="regular" />
-            <span className="text-[10px] font-medium">{t('tabs.profile')}</span>
-          </button>
-        </div>
-      </div>
+      {/* ===== BOTTOM NAVIGATION — Accueil / Activités / scan / Messages / Profil ===== */}
+      <BottomTabBar />
     </div>
   );
 };
