@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import SearchOverlay from '../../components/SearchOverlay';
 import BottomTabBar from '../../components/BottomTabBar';
 import DeliverySearchOverlay from '../../components/DeliverySearchOverlay';
@@ -14,7 +15,7 @@ import DebtBanner from '../../components/DebtBanner';
 import { DisruptionBanner } from '../../components/transport/transportAlerts';
 import { MODES } from './taxihub/taxiHubConstants';
 import { prefetchPath } from '../../routes/useRoutePrefetch';
-import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI, homeBannersAPI, nearbyPlacesAPI, rideAPI } from '../../services/api';
+import { homeCategoriesAPI, promoBannersAPI, serviceTrendsAPI, zonesAPI, orderAPI, cartAPI, homeBannersAPI, nearbyPlacesAPI, rideAPI, couponAPI, walletAPI } from '../../services/api';
 import { getBrowserLocationLabel, getBrowserZoneContext } from '../../lib/browserZone';
 import LocationSelectorModal from '../../components/LocationSelectorModal';
 import { resolveLocation, getStoredLocation } from '../../lib/userLocation';
@@ -31,10 +32,11 @@ import {
 import {
   MapPin,
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
-  MagnifyingGlass, List, GridFour,
+  MagnifyingGlass, GridFour, CalendarPlus,
   VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
-  X, Ambulance, Bell,
+  X, Ambulance, Bell, Tag, PaperPlaneTilt, ArrowDown, QrCode, ClockCounterClockwise,
+  ForkKnife, Storefront, ShoppingBag, Coffee,
 } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -362,6 +364,8 @@ const UserHome = () => {
   const [allCategories, setAllCategories] = useState([]);
   const [nearbyFeatured, setNearbyFeatured] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [homeDeals, setHomeDeals] = useState([]);
+  const [homeWallet, setHomeWallet] = useState(null);
   const [pendingRef, setPendingRef] = useState(null);
   const [lastDelivery, setLastDelivery] = useState(null);
   const { on: onWsEvent } = useWebSocket(user?.id);
@@ -447,6 +451,12 @@ const UserHome = () => {
     rideAPI.list({ limit: 3 })
       .then((r) => setRecentActivity(Array.isArray(r.data) ? r.data : r.data?.items || []))
       .catch((e) => console.warn('recent activity load:', e?.message || e));
+    couponAPI.list()
+      .then((r) => setHomeDeals(Array.isArray(r.data) ? r.data.slice(0, 6) : []))
+      .catch((e) => console.warn('deals load:', e?.message || e));
+    walletAPI.get()
+      .then((r) => setHomeWallet(r.data))
+      .catch((e) => console.warn('wallet load:', e?.message || e));
     promoBannersAPI.public()
       .then((r) => setPromoBanners(r.data.items || []))
       .catch((e) => console.warn('promo banners load:', e?.message || e));
@@ -565,14 +575,15 @@ const UserHome = () => {
       }));
   })();
 
-  // ── "Réserver un trajet" — the 4 headline ride modes as a horizontal card
-  // carousel (richer visual entry point than the Services Taxi icon grid below,
-  // which stays available for admins who prefer it).
+  // ── "Taxi & VTC" — the 5 headline ride modes as a horizontal card carousel
+  // (richer visual entry point than the /taxi hub's full grid, still one tap
+  // away via "Voir tout").
   const RIDE_MODES = [
-    { key: 'standard', name: 'Taxi VTC', badge: '⚡', from: '#DC2626', to: '#F97316' },
-    { key: 'bidding', name: 'Proposer\nvotre tarif', badge: '🏷️', from: '#F59E0B', to: '#FBBF24' },
-    { key: 'rental', name: 'Mise à Dispo', badge: '⏱️', from: '#2563EB', to: '#38BDF8' },
-    { key: 'book_later', name: 'Planifier\nvotre trajet', badge: '📅', from: '#EA580C', to: '#FBBF24' },
+    { key: 'standard', name: 'Partir\nmaintenant', badge: '⚡', car: '🚗' },
+    { key: 'bidding', name: 'Proposez\nvotre tarif', badge: '🏷️', car: '🚙' },
+    { key: 'book_later', name: 'Planifier\nun trajet', badge: '📅', car: '🚘' },
+    { key: 'pool', name: 'SB Pool', badge: '👥', car: '🚐' },
+    { key: 'moto', name: 'Moto Taxi', badge: '', car: '🛵' },
   ];
 
   // ── Section render blocks (keyed) so we can order them declaratively ──
@@ -637,7 +648,7 @@ const UserHome = () => {
     ) : null,
     rideModes: (
       <section key="rideModes" className="px-4 mt-5" data-testid="ride-modes-section">
-        <SectionHeader title={st('rideModes', "Réserver un trajet")} actionLabel="Voir tout" onAction={() => navigate('/taxi')} />
+        <SectionHeader title={st('rideModes', "Taxi & VTC")} actionLabel="Voir tout" onAction={() => navigate('/taxi')} />
         <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-1">
           {RIDE_MODES.map((m) => (
             <motion.button
@@ -645,17 +656,19 @@ const UserHome = () => {
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate(`/course?mode=${m.key}`)}
               data-testid={`ride-mode-${m.key}`}
-              className="relative snap-start shrink-0 w-[104px] h-[104px] rounded-2xl flex flex-col items-center justify-center gap-1 overflow-hidden"
-              style={{ background: `linear-gradient(150deg, ${m.from}, ${m.to})` }}
+              className="relative snap-start shrink-0 w-[104px] h-[104px] rounded-2xl flex flex-col items-center justify-center gap-1 overflow-hidden bg-orange-50 border border-orange-100"
             >
-              <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white flex items-center justify-center text-[12px]">{m.badge}</span>
-              <span className="text-[30px] leading-none" aria-hidden="true">🚗</span>
-              <span className={`text-[11px] font-bold text-white text-center leading-[1.15] whitespace-pre-line px-1.5 ${HEAD}`}>{m.name}</span>
+              {m.badge && (
+                <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-[12px]">{m.badge}</span>
+              )}
+              <span className="text-[34px] leading-none" aria-hidden="true">{m.car}</span>
+              <span className={`text-[11px] font-bold text-[#1F2430] text-center leading-[1.15] whitespace-pre-line px-1.5 ${HEAD}`}>{m.name}</span>
             </motion.button>
           ))}
         </div>
         <div className="flex items-center justify-center gap-1.5 mt-3">
           <span className="w-5 h-1.5 rounded-full bg-[#FF5000]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
           <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
         </div>
       </section>
@@ -745,18 +758,35 @@ const UserHome = () => {
       ) : null;
     })(),
     services: (() => {
-      const items = allCategories
-        .filter((c) => c.key !== 'taxi-vtc')
-        .map((c) => ({
-          id: c.id, name: c.label_fr, customIcon: CATEGORY_EMOJI[c.key] || '✨',
-          icon: GridFour, bg: c.bg_class, iconColor: c.icon_color_class, path: c.target_route,
-        }));
+      // Curated preview (matches the reference home): a handful of the most-used
+      // categories, then a "Voir plus" tile to the full 21-tile /categories grid.
+      const PREVIEW_KEYS = ['livraison', 'marketplace', 'sante', 'domicile', 'voyage', 'evenements', 'auto-assistance', 'animaux', 'emploi'];
+      const byKey = new Map(allCategories.map((c) => [c.key, c]));
+      const items = PREVIEW_KEYS.map((k) => byKey.get(k)).filter(Boolean);
       if (!items.length) return null;
       return (
         <section key="services" className="px-4 mt-6" data-testid="services-section">
           <SectionHeader title={st('services', "Nos services")} actionLabel="Voir tout" onAction={() => navigate('/categories')} />
-          <div className="grid grid-cols-4 gap-3">
-            {items.map((s) => <ServiceTile key={s.id} service={s} onSelect={go} />)}
+          <div className="grid grid-cols-5 gap-2.5">
+            {items.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => navigate(c.target_route)}
+                data-testid={`mini-service-${c.key}`}
+                className="flex flex-col items-center gap-1.5 bg-white rounded-2xl border border-slate-100 py-3 px-1 shadow-[0_4px_10px_-8px_rgba(11,20,38,0.3)]"
+              >
+                <span className="text-[22px] leading-none" aria-hidden="true">{CATEGORY_EMOJI[c.key] || '✨'}</span>
+                <span className={`text-[10px] font-bold text-[#1F2430] text-center leading-[1.15] line-clamp-2 ${HEAD}`}>{c.label_fr}</span>
+              </button>
+            ))}
+            <button
+              onClick={() => navigate('/categories')}
+              data-testid="mini-service-more"
+              className="flex flex-col items-center justify-center gap-1.5 bg-white rounded-2xl border border-slate-100 py-3 px-1 shadow-[0_4px_10px_-8px_rgba(11,20,38,0.3)]"
+            >
+              <GridFour size={20} className="text-[#94A3B8]" />
+              <span className={`text-[10px] font-bold text-[#94A3B8] text-center leading-[1.15] ${HEAD}`}>Voir plus</span>
+            </button>
           </div>
         </section>
       );
@@ -1075,10 +1105,98 @@ const UserHome = () => {
         </div>
       </section>
     ),
+    walletCard: homeWallet ? (
+      <section key="walletCard" className="px-4 mt-6" data-testid="wallet-card-section">
+        <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-[#FF6B1A] to-[#E63900] shadow-[0_14px_30px_-16px_rgba(230,57,0,0.6)]">
+          <div className="p-4 flex items-center justify-between">
+            <div>
+              <p className={`text-[13px] font-bold text-white/85 ${BODY}`}>S3 Pay</p>
+              <p className={`text-[11px] text-white/70 mb-1 ${BODY}`}>Solde disponible</p>
+              <p className={`text-[26px] font-extrabold text-white ${HEAD}`}>
+                {homeWallet.balance?.toFixed(2).replace('.', ',')} {homeWallet.currency === 'EUR' ? '€' : homeWallet.currency}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={`text-[11px] text-white/70 mb-1 ${BODY}`}>Coupons</p>
+              <p className={`text-[18px] font-extrabold text-white flex items-center gap-1 justify-end ${HEAD}`}>
+                <Tag size={16} weight="fill" /> {homeDeals.length}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/wallet')}
+            data-testid="wallet-recharger-btn"
+            className={`mx-4 mb-3 h-10 rounded-xl bg-white text-[#E63900] font-extrabold text-sm ${HEAD}`}
+          >
+            Recharger
+          </button>
+          <div className="grid grid-cols-4 border-t border-white/20">
+            {[
+              { key: 'envoyer', label: 'Envoyer', icon: PaperPlaneTilt, path: '/wallet' },
+              { key: 'recevoir', label: 'Recevoir', icon: ArrowDown, path: '/wallet' },
+              { key: 'scan', label: 'Scanner QR', icon: QrCode, path: '/pay' },
+              { key: 'historique', label: 'Historique', icon: ClockCounterClockwise, path: '/wallet' },
+            ].map((a) => (
+              <button key={a.key} onClick={() => navigate(a.path)} data-testid={`wallet-action-${a.key}`} className="flex flex-col items-center gap-1 py-3">
+                <a.icon size={18} className="text-white" />
+                <span className={`text-[9.5px] font-bold text-white/90 text-center leading-tight ${BODY}`}>{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+    ) : null,
+    deals: homeDeals.length > 0 ? (
+      <section key="deals" className="px-4 mt-6" data-testid="deals-section">
+        <SectionHeader title="Offres pour vous" actionLabel="Voir tout" onAction={() => navigate('/bons-plans')} />
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-1">
+          {homeDeals.map((c, i) => {
+            const palette = ['#0B1426', '#16A34A', '#7C3AED', '#1E3A8A'];
+            const bg = palette[i % palette.length];
+            const pct = c.discount_type === 'Percentage';
+            return (
+              <button
+                key={c.code}
+                onClick={() => navigate('/bons-plans')}
+                data-testid={`home-deal-${c.code}`}
+                className="snap-start shrink-0 w-[150px] h-[104px] rounded-2xl p-3 text-left flex flex-col justify-between"
+                style={{ background: bg }}
+              >
+                <span className={`text-[17px] font-extrabold text-white ${HEAD}`}>
+                  {pct ? `-${c.discount_value}%` : `-${c.discount_value}€`}
+                </span>
+                <span className={`text-[11px] font-semibold text-white/90 leading-tight line-clamp-2 ${BODY}`}>
+                  {c.description || c.code}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    ) : null,
     nearbyBiz: nearbyFeatured.length > 0 ? (
       <section key="nearbyBiz" className="mt-6" data-testid="nearby-biz-section">
         <div className="px-4">
           <SectionHeader title={st('nearbyBiz', "Commerces à proximité")} actionLabel="Voir tout" onAction={() => navigate('/nearby')} />
+        </div>
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 pb-3">
+          {[
+            { label: 'Restaurants', category: 'Restaurant', icon: ForkKnife },
+            { label: 'Pharmacies', category: 'Pharmacie', icon: FirstAid },
+            { label: 'Boulangeries', category: 'Boulangerie', icon: Storefront },
+            { label: 'Shopping', category: 'Shopping', icon: ShoppingBag },
+            { label: 'Cafés', category: 'Café', icon: Coffee },
+          ].map((c) => (
+            <button
+              key={c.category}
+              onClick={() => navigate(`/nearby?category=${encodeURIComponent(c.category)}`)}
+              data-testid={`nearby-chip-${c.category}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 shrink-0"
+            >
+              <c.icon size={14} className="text-[#FF6B1A]" />
+              <span className={`text-xs font-semibold text-[#1F2430] ${BODY}`}>{c.label}</span>
+            </button>
+          ))}
         </div>
         <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-4 pb-1">
           {nearbyFeatured.map((biz) => (
@@ -1153,7 +1271,7 @@ const UserHome = () => {
   // Consolidated default: the 21-tile "Nos services" grid replaces the old
   // stack of one-section-per-vertical blocks (still defined above, and still
   // renderable, for an admin who explicitly customises the order via CMS).
-  const DEFAULT_SECTION_ORDER = ['activeOrder', 'rideModes', 'promo', 'services', 'nearbyBiz', 'activity'];
+  const DEFAULT_SECTION_ORDER = ['activeOrder', 'rideModes', 'promo', 'walletCard', 'services', 'deals', 'nearbyBiz', 'activity'];
   const SECTION_ORDER = sectionOrder && sectionOrder.length ? sectionOrder : DEFAULT_SECTION_ORDER;
   // "travel"/"events" are covered by the "services" (Nos services) grid now —
   // both stay defined and renderable in `blocks` if an admin re-enables them
@@ -1180,9 +1298,10 @@ const UserHome = () => {
                 </span>
               )}
             </button>
-            <button className="w-10 h-10 rounded-full bg-[#0B1426] flex items-center justify-center shrink-0" data-testid="menu-btn" onClick={() => setShowMenu(true)}>
-              <List size={20} className="text-white" />
-            </button>
+            <Avatar className="h-10 w-10 rounded-full border-2 border-white cursor-pointer shrink-0" onClick={() => setShowMenu(true)} data-testid="menu-btn">
+              <AvatarImage src={user?.avatar_url} />
+              <AvatarFallback className="rounded-full bg-[#0B1426] text-white font-bold text-sm">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
           </div>
         </div>
 
@@ -1193,14 +1312,16 @@ const UserHome = () => {
           <CaretDown size={14} className="text-white/80 shrink-0" />
         </button>
 
-        {/* Search + all categories */}
+        {/* Search + Planifier */}
         <div className="mt-3.5 flex items-center gap-2">
           <button className="flex-1 h-12 rounded-2xl bg-white flex items-center px-4 gap-3 min-w-0 shadow-[0_8px_20px_-10px_rgba(11,20,38,0.4)]" onClick={() => setShowSearch(true)} data-testid="search-services-bar">
             <MagnifyingGlass size={20} className="text-[#FF6B1A] shrink-0" />
             <span className={`text-sm text-[#94A3B8] truncate ${BODY}`}>{t('user_home.where_to')}</span>
           </button>
-          <button className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-[0_8px_20px_-10px_rgba(11,20,38,0.4)]" onClick={() => navigate('/categories')} data-testid="all-categories-btn" title="Toutes les catégories">
-            <GridFour size={20} className="text-[#FF6B1A]" />
+          <button className="h-12 px-3.5 rounded-2xl bg-white flex items-center gap-1.5 shrink-0 shadow-[0_8px_20px_-10px_rgba(11,20,38,0.4)]" onClick={() => navigate('/scheduled-rides')} data-testid="plan-ride-btn">
+            <CalendarPlus size={18} className="text-[#FF6B1A]" />
+            <span className={`text-sm font-bold text-[#FF6B1A] ${HEAD}`}>Planifier</span>
+            <CaretDown size={12} className="text-[#FF6B1A]" />
           </button>
         </div>
       </header>

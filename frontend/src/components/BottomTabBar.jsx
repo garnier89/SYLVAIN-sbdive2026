@@ -1,17 +1,17 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { House, ListBullets, ChatCircleDots, User, QrCode } from '@phosphor-icons/react';
+import { House, CarProfile, ChatCircleDots, User, Sparkle } from '@phosphor-icons/react';
 
 const TABS = [
   { key: 'home', label: 'Accueil', icon: House, path: '/home' },
-  { key: 'activity', label: 'Activités', icon: ListBullets, path: '/history' },
+  { key: 'activity', label: 'Courses', icon: CarProfile, path: '/history' },
 ];
 const TABS_RIGHT = [
   { key: 'messages', label: 'Messages', icon: ChatCircleDots, path: '/livechat' },
   { key: 'profile', label: 'Profil', icon: User, path: '/profile' },
 ];
 
-// Persistent bottom navigation — Accueil / Activités / scan / Messages / Profil.
+// Persistent bottom navigation — Accueil / Courses / Touch / Messages / Profil.
 const BottomTabBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,11 +42,14 @@ const BottomTabBar = () => {
         {TABS_RIGHT.map((tab) => <Tab key={tab.key} tab={tab} />)}
         <button
           onClick={() => navigate('/pay')}
-          className="absolute left-1/2 -top-5 -translate-x-1/2 w-14 h-14 rounded-full bg-[#FF5000] border-4 border-[#0B1426] flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          className="absolute left-1/2 -top-5 -translate-x-1/2 flex flex-col items-center gap-1"
           data-testid="tab-scan"
-          aria-label="Scanner un code"
+          aria-label="Touch — paiement sans contact"
         >
-          <QrCode size={24} weight="bold" className="text-white" />
+          <span className="w-14 h-14 rounded-full bg-[#FF5000] border-4 border-[#0B1426] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+            <Sparkle size={22} weight="fill" className="text-white" />
+          </span>
+          <span className="text-[10px] font-bold text-[#FF5000]">Touch</span>
         </button>
       </div>
     </nav>

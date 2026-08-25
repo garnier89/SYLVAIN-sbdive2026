@@ -52,9 +52,11 @@ SECTIONS = [
 # Admin reorders / hides whole sections; the client renders blocks in this order.
 HOME_BLOCKS = [
     {"key": "activeOrder", "title_fr": "Commande en cours"},
-    {"key": "rideModes", "title_fr": "Réserver un trajet"},
+    {"key": "rideModes", "title_fr": "Taxi & VTC"},
     {"key": "promo", "title_fr": "Bannières promo"},
+    {"key": "walletCard", "title_fr": "S3 Pay"},
     {"key": "services", "title_fr": "Nos services"},
+    {"key": "deals", "title_fr": "Offres pour vous"},
     {"key": "nearbyBiz", "title_fr": "Commerces à proximité"},
     {"key": "activity", "title_fr": "Activités récentes"},
     # Legacy per-vertical blocks — hidden by default (the "Nos services" grid
@@ -87,8 +89,10 @@ HOME_BLOCKS = [
 # Admin overrides (home_sections.title_overridden) take precedence over these.
 DEFAULT_SECTION_TITLES = {
     "activeOrder": "Commande en cours",
-    "rideModes": "Réserver un trajet",
+    "rideModes": "Taxi & VTC",
+    "walletCard": "S3 Pay",
     "services": "Nos services",
+    "deals": "Offres pour vous",
     "nearbyBiz": "Commerces à proximité",
     "activity": "Activités récentes",
     "taxi": "Services Taxi",
