@@ -6,7 +6,7 @@ users post listings, others contact/apply, owner moderates via status.
 from fastapi import APIRouter, Request, HTTPException
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel, Field
 
 from core.config import db
