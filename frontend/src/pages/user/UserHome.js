@@ -32,7 +32,7 @@ import {
 import {
   MapPin,
   CaretRight, CaretDown, Star, UsersThree, Taxi, TrendUp,
-  MagnifyingGlass, GridFour, CalendarPlus,
+  MagnifyingGlass, CalendarPlus,
   VideoCamera, FirstAid, ArrowRight, Lightning, ArrowClockwise,
   Stethoscope, UsersFour, Briefcase, Pill, Gift, CaretRight as ChevR,
   X, Ambulance, Bell, Tag, PaperPlaneTilt, ArrowDown, QrCode, ClockCounterClockwise,
@@ -649,20 +649,20 @@ const UserHome = () => {
     rideModes: (
       <section key="rideModes" className="px-4 mt-5" data-testid="ride-modes-section">
         <SectionHeader title={st('rideModes', "Taxi & VTC")} actionLabel="Voir tout" onAction={() => navigate('/taxi')} />
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-1">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-1">
           {RIDE_MODES.map((m) => (
             <motion.button
               key={m.key}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate(`/course?mode=${m.key}`)}
               data-testid={`ride-mode-${m.key}`}
-              className="relative snap-start shrink-0 w-[104px] h-[104px] rounded-2xl flex flex-col items-center justify-center gap-1 overflow-hidden bg-orange-50 border border-orange-100"
+              className="relative snap-start shrink-0 w-[82px] h-[92px] rounded-2xl flex flex-col items-center justify-center gap-1 overflow-hidden bg-orange-50 border border-orange-100"
             >
               {m.badge && (
-                <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-[12px]">{m.badge}</span>
+                <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white shadow-sm flex items-center justify-center text-[10px]">{m.badge}</span>
               )}
-              <span className="text-[34px] leading-none" aria-hidden="true">{m.car}</span>
-              <span className={`text-[11px] font-bold text-[#1F2430] text-center leading-[1.15] whitespace-pre-line px-1.5 ${HEAD}`}>{m.name}</span>
+              <span className="text-[26px] leading-none" aria-hidden="true">{m.car}</span>
+              <span className={`text-[9.5px] font-bold text-[#1F2430] text-center leading-[1.1] whitespace-pre-line px-1 ${HEAD}`}>{m.name}</span>
             </motion.button>
           ))}
         </div>
@@ -758,16 +758,16 @@ const UserHome = () => {
       ) : null;
     })(),
     services: (() => {
-      // Curated preview (matches the reference home): a handful of the most-used
-      // categories, then a "Voir plus" tile to the full 21-tile /categories grid.
-      const PREVIEW_KEYS = ['livraison', 'marketplace', 'sante', 'domicile', 'voyage', 'evenements', 'auto-assistance', 'animaux', 'emploi'];
+      // Curated preview (matches the reference home): 8 of the most-used
+      // categories, 2 rows of 4 — "Voir tout" in the header covers the rest.
+      const PREVIEW_KEYS = ['livraison', 'marketplace', 'sante', 'domicile', 'voyage', 'evenements', 'auto-assistance', 'animaux'];
       const byKey = new Map(allCategories.map((c) => [c.key, c]));
       const items = PREVIEW_KEYS.map((k) => byKey.get(k)).filter(Boolean);
       if (!items.length) return null;
       return (
         <section key="services" className="px-4 mt-6" data-testid="services-section">
           <SectionHeader title={st('services', "Nos services")} actionLabel="Voir tout" onAction={() => navigate('/categories')} />
-          <div className="grid grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-4 gap-2.5">
             {items.map((c) => (
               <button
                 key={c.id}
@@ -779,14 +779,6 @@ const UserHome = () => {
                 <span className={`text-[10px] font-bold text-[#1F2430] text-center leading-[1.15] line-clamp-2 ${HEAD}`}>{c.label_fr}</span>
               </button>
             ))}
-            <button
-              onClick={() => navigate('/categories')}
-              data-testid="mini-service-more"
-              className="flex flex-col items-center justify-center gap-1.5 bg-white rounded-2xl border border-slate-100 py-3 px-1 shadow-[0_4px_10px_-8px_rgba(11,20,38,0.3)]"
-            >
-              <GridFour size={20} className="text-[#94A3B8]" />
-              <span className={`text-[10px] font-bold text-[#94A3B8] text-center leading-[1.15] ${HEAD}`}>Voir plus</span>
-            </button>
           </div>
         </section>
       );
@@ -1107,42 +1099,43 @@ const UserHome = () => {
     ),
     walletCard: homeWallet ? (
       <section key="walletCard" className="px-4 mt-6" data-testid="wallet-card-section">
-        <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-[#FF6B1A] to-[#E63900] shadow-[0_14px_30px_-16px_rgba(230,57,0,0.6)]">
-          <div className="p-4 flex items-center justify-between">
-            <div>
-              <p className={`text-[13px] font-bold text-white/85 ${BODY}`}>S3 Pay</p>
-              <p className={`text-[11px] text-white/70 mb-1 ${BODY}`}>Solde disponible</p>
-              <p className={`text-[26px] font-extrabold text-white ${HEAD}`}>
-                {homeWallet.balance?.toFixed(2).replace('.', ',')} {homeWallet.currency === 'EUR' ? '€' : homeWallet.currency}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className={`text-[11px] text-white/70 mb-1 ${BODY}`}>Coupons</p>
-              <p className={`text-[18px] font-extrabold text-white flex items-center gap-1 justify-end ${HEAD}`}>
-                <Tag size={16} weight="fill" /> {homeDeals.length}
-              </p>
-            </div>
+        <div className="rounded-2xl bg-gradient-to-br from-[#FF6B1A] to-[#E63900] shadow-[0_10px_22px_-14px_rgba(230,57,0,0.6)] px-3.5 py-2.5 flex items-center gap-2.5">
+          <div className="min-w-0">
+            <p className={`text-[9.5px] font-bold text-white/75 leading-none ${BODY}`}>S3 Pay · Solde</p>
+            <p className={`text-[17px] font-extrabold text-white leading-tight mt-0.5 ${HEAD}`}>
+              {homeWallet.balance?.toFixed(2).replace('.', ',')} {homeWallet.currency === 'EUR' ? '€' : homeWallet.currency}
+            </p>
+          </div>
+          <span className="flex items-center gap-1 text-white/90 text-[11px] font-bold shrink-0">
+            <Tag size={12} weight="fill" /> {homeDeals.length}
+          </span>
+          <div className="flex-1" />
+          <div className="flex items-center gap-1 shrink-0">
+            {[
+              { key: 'envoyer', icon: PaperPlaneTilt, path: '/wallet', label: 'Envoyer' },
+              { key: 'recevoir', icon: ArrowDown, path: '/wallet', label: 'Recevoir' },
+              { key: 'scan', icon: QrCode, path: '/pay', label: 'Scanner QR' },
+              { key: 'historique', icon: ClockCounterClockwise, path: '/wallet', label: 'Historique' },
+            ].map((a) => (
+              <button
+                key={a.key}
+                onClick={() => navigate(a.path)}
+                data-testid={`wallet-action-${a.key}`}
+                aria-label={a.label}
+                title={a.label}
+                className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center"
+              >
+                <a.icon size={13} className="text-white" />
+              </button>
+            ))}
           </div>
           <button
             onClick={() => navigate('/wallet')}
             data-testid="wallet-recharger-btn"
-            className={`mx-4 mb-3 h-10 rounded-xl bg-white text-[#E63900] font-extrabold text-sm ${HEAD}`}
+            className={`h-8 px-3 rounded-full bg-white text-[#E63900] font-extrabold text-[11px] shrink-0 ${HEAD}`}
           >
             Recharger
           </button>
-          <div className="grid grid-cols-4 border-t border-white/20">
-            {[
-              { key: 'envoyer', label: 'Envoyer', icon: PaperPlaneTilt, path: '/wallet' },
-              { key: 'recevoir', label: 'Recevoir', icon: ArrowDown, path: '/wallet' },
-              { key: 'scan', label: 'Scanner QR', icon: QrCode, path: '/pay' },
-              { key: 'historique', label: 'Historique', icon: ClockCounterClockwise, path: '/wallet' },
-            ].map((a) => (
-              <button key={a.key} onClick={() => navigate(a.path)} data-testid={`wallet-action-${a.key}`} className="flex flex-col items-center gap-1 py-3">
-                <a.icon size={18} className="text-white" />
-                <span className={`text-[9.5px] font-bold text-white/90 text-center leading-tight ${BODY}`}>{a.label}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </section>
     ) : null,
