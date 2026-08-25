@@ -273,12 +273,13 @@ async def seed_home_categories_extra():
         })
 
 
-# ── "Catégories de services" master menu — the 20-tile category grid shown
+# ── "Catégories de services" master menu — the 21-tile category grid shown
 # as its own page, replacing the old bottom sheet. Each tile maps a
 # mockup category onto its real, already-shipped feature route; "emploi" and
 # "bons-plans" are the only two genuinely new features behind this menu.
 # (key, label_fr, subtitle_fr, icon_name, bg_class, icon_color_class, target_route)
 _SEED_ALL_CATEGORIES = [
+    ("taxi-vtc", "Taxi & VTC", "16 modes de course", "Taxi", "bg-yellow-50", "text-yellow-600", "/taxi"),
     ("livraison", "Livraison", "Courses et colis", "Package", "bg-rose-50", "text-rose-500", "/all-delivery"),
     ("marketplace", "Marketplace", "Vos commerces ici", "Storefront", "bg-emerald-50", "text-emerald-600", "/marketplace"),
     ("sante", "Santé", "Soins et pharmacies", "Stethoscope", "bg-sky-50", "text-sky-600", "/sante"),
@@ -305,17 +306,21 @@ ALL_CATEGORIES_SECTION = "all_categories"
 
 
 async def seed_all_categories_menu():
-    """Idempotent: backfill the 20-tile 'Catégories de services' menu by key,
-    preserving any admin edit/reorder made on an already-seeded tile."""
-    for i, (key, label, subtitle, icon, bg, color, route) in enumerate(_SEED_ALL_CATEGORIES):
+    """Idempotent: backfill the 21-tile 'Catégories de services' menu by key,
+    preserving any admin edit/reorder made on an already-seeded tile. Order is
+    assigned from the live count (not the list index) so a later backfill —
+    e.g. adding "taxi-vtc" after the first 20 already shipped — appends after
+    what's already there instead of colliding on display_order."""
+    for key, label, subtitle, icon, bg, color, route in _SEED_ALL_CATEGORIES:
         if await db.home_categories.find_one({"section": ALL_CATEGORIES_SECTION, "key": key}):
             continue
+        count = await db.home_categories.count_documents({"section": ALL_CATEGORIES_SECTION})
         await db.home_categories.insert_one({
             "id": f"hcat_{uuid.uuid4().hex[:10]}",
             "section": ALL_CATEGORIES_SECTION, "key": key, "label_fr": label, "label_en": label,
             "subtitle_fr": subtitle, "icon_name": icon, "image_url": None,
             "bg_class": bg, "icon_color_class": color, "target_route": route,
-            "display_order": i, "visible_home": True, "status": "active",
+            "display_order": count, "visible_home": True, "status": "active",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
 
