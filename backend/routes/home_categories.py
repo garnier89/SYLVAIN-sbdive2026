@@ -45,6 +45,7 @@ SECTIONS = [
     {"key": "carcare", "title_fr": "Entretien Auto", "all_route": "/car-care"},
     {"key": "towing", "title_fr": "Remorquage", "all_route": "/towing"},
     {"key": "nearby", "title_fr": "À proximité", "all_route": "/nearby"},
+    {"key": "all_categories", "title_fr": "Catégories de services (menu \"Voir tout\")", "all_route": "/categories"},
 ]
 
 # ── Home SECTION LAYOUT (order + show/hide of every block on the client Home) ──
