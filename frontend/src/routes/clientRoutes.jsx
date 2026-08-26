@@ -10,7 +10,7 @@ import {
   UserHome, RideBookingPage, RideChoosePage, RideTrackingPage, RideReceiptPage,
   FoodPage, RestaurantDetail, CheckoutPage, OrderTracking, WalletPage, ProfilePage,
   HistoryPage, SupportPage, ParcelPage, ReferralPage, DonationPage, LiveChatPage,
-  ServicesPage, AllDeliveryPage, AllServicesPage, CarPoolPage, MarketplacePage, SbMarketHub, SbMarketDetail, SbMarketInbox, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
+  ServicesPage, AllDeliveryPage, AllServicesPage, ServiceCategoriesPage, JobsPage, PostJobPage, JobDetailPage, MyJobApplicationsPage, JobApplicationsPage, DealsPage, CarPoolPage, MarketplacePage, SbMarketHub, SbMarketDetail, SbMarketInbox, MyOrdersPage, OrderSuccessPage, SellGalleryPage, PostVehiclePage, MarketplaceMessagesPage,
   NearbyBusinessPage, BeautyServicesPage, ProServiceMarketPage, ProServiceSpacePage, PetServicesPage, PetCarePage, CarCarePage, AutoPartsPage, TowingServicesPage, TowingRequestPage, TowingOperatorPage,
   MyItinerariesPage,
   EventsPage, EventDetailPage, MyEventTicketsPage, OrganizerSpace, OrganizerDashboard, EventCheckinPage, StaffCheckpointPage, EventLiveDashboard,
@@ -77,6 +77,13 @@ export function clientRoutes(user) {
       <Route path="/all-delivery" element={<ProtectedRoute allowedRoles={['user']}><AllDeliveryPage /></ProtectedRoute>} />
       <Route path="/actualites" element={<ProtectedRoute allowedRoles={['user']}><NewsFeedPage /></ProtectedRoute>} />
       <Route path="/all-services" element={<ProtectedRoute allowedRoles={['user']}><AllServicesPage /></ProtectedRoute>} />
+      <Route path="/categories" element={<ProtectedRoute allowedRoles={['user']}><ServiceCategoriesPage /></ProtectedRoute>} />
+      <Route path="/emploi" element={<ProtectedRoute allowedRoles={['user']}><JobsPage /></ProtectedRoute>} />
+      <Route path="/emploi/publier" element={<ProtectedRoute allowedRoles={['user']}><PostJobPage /></ProtectedRoute>} />
+      <Route path="/emploi/mes-candidatures" element={<ProtectedRoute allowedRoles={['user']}><MyJobApplicationsPage /></ProtectedRoute>} />
+      <Route path="/emploi/:jobId" element={<ProtectedRoute allowedRoles={['user']}><JobDetailPage /></ProtectedRoute>} />
+      <Route path="/emploi/:jobId/candidatures" element={<ProtectedRoute allowedRoles={['user']}><JobApplicationsPage /></ProtectedRoute>} />
+      <Route path="/bons-plans" element={<ProtectedRoute allowedRoles={['user']}><DealsPage /></ProtectedRoute>} />
       <Route path="/service-providers/:slug" element={<ProtectedRoute allowedRoles={['user']}><ServiceProvidersPage /></ProtectedRoute>} />
       <Route path="/service-provider/:id" element={<ProtectedRoute allowedRoles={['user']}><ServiceProviderDetailPage /></ProtectedRoute>} />
       <Route path="/carpool" element={<ProtectedRoute allowedRoles={['user']}><CarPoolPage /></ProtectedRoute>} />

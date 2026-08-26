@@ -162,6 +162,16 @@ async def nearby_live(
     return {"category": category, "items": curated + google_cards[:limit]}
 
 
+@router.get("/featured")
+async def nearby_featured(limit: int = Query(6, ge=1, le=20)):
+    """Curated partner businesses for the Home 'Commerces à proximité' teaser —
+    no geolocation required (unlike /live), just the admin-curated shortlist."""
+    items = await db.nearby_businesses.find(
+        {"is_active": True}, {"_id": 0}
+    ).sort("rating", -1).limit(limit).to_list(limit)
+    return {"items": items}
+
+
 @router.get("/geocode")
 async def nearby_geocode(q: str = Query(..., min_length=2, max_length=120)):
     """Géocode une ville/lieu saisie librement → {name, lat, lng} pour explorer une

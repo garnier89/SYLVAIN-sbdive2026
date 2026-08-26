@@ -45,32 +45,43 @@ SECTIONS = [
     {"key": "carcare", "title_fr": "Entretien Auto", "all_route": "/car-care"},
     {"key": "towing", "title_fr": "Remorquage", "all_route": "/towing"},
     {"key": "nearby", "title_fr": "À proximité", "all_route": "/nearby"},
+    {"key": "all_categories", "title_fr": "Catégories de services (menu \"Voir tout\")", "all_route": "/categories"},
 ]
 
 # ── Home SECTION LAYOUT (order + show/hide of every block on the client Home) ──
 # Master list of all home blocks in their default order (mirrors UserHome.SECTION_ORDER).
 # Admin reorders / hides whole sections; the client renders blocks in this order.
 HOME_BLOCKS = [
-    {"key": "taxi", "title_fr": "Services Taxi"},
+    {"key": "activeOrder", "title_fr": "Commande en cours"},
+    {"key": "rideModes", "title_fr": "Taxi & VTC"},
     {"key": "promo", "title_fr": "Bannières promo"},
-    {"key": "delivery", "title_fr": "Services de Livraison"},
-    {"key": "parcel", "title_fr": "Colis & Coursier"},
-    {"key": "marketplace", "title_fr": "Marketplace"},
-    {"key": "travel", "title_fr": "SB Travel"},
-    {"key": "beauty", "title_fr": "Beauté & Bien-être"},
-    {"key": "medical", "title_fr": "Santé & Médical"},
-    {"key": "ondemand", "title_fr": "Services à la demande"},
-    {"key": "bid", "title_fr": "Services aux enchères"},
-    {"key": "carcare", "title_fr": "Entretien Auto"},
-    {"key": "towing", "title_fr": "Remorquage"},
-    {"key": "genie", "title_fr": "Genie (multi-services)"},
-    {"key": "video", "title_fr": "Consultation vidéo"},
-    {"key": "pet", "title_fr": "Services Animaux"},
-    {"key": "parking", "title_fr": "Parking"},
-    {"key": "giftcards", "title_fr": "Cartes cadeaux"},
-    {"key": "carpool", "title_fr": "Covoiturage"},
-    {"key": "tracking", "title_fr": "Suivi de colis"},
-    {"key": "nearby", "title_fr": "À proximité"},
+    {"key": "walletCard", "title_fr": "S3 Pay"},
+    {"key": "services", "title_fr": "Nos services"},
+    {"key": "deals", "title_fr": "Offres pour vous"},
+    {"key": "nearbyBiz", "title_fr": "Commerces à proximité"},
+    {"key": "activity", "title_fr": "Activités récentes"},
+    # Legacy per-vertical blocks — hidden by default (the "Nos services" grid
+    # above covers them all) but kept renderable: an admin can flip one back
+    # on from the CMS layout editor and get a working section, no code needed.
+    {"key": "taxi", "title_fr": "Services Taxi", "visible": False},
+    {"key": "delivery", "title_fr": "Services de Livraison", "visible": False},
+    {"key": "parcel", "title_fr": "Colis & Coursier", "visible": False},
+    {"key": "marketplace", "title_fr": "Marketplace", "visible": False},
+    {"key": "travel", "title_fr": "SB Travel", "visible": False},
+    {"key": "beauty", "title_fr": "Beauté & Bien-être", "visible": False},
+    {"key": "medical", "title_fr": "Santé & Médical", "visible": False},
+    {"key": "ondemand", "title_fr": "Services à la demande", "visible": False},
+    {"key": "bid", "title_fr": "Services aux enchères", "visible": False},
+    {"key": "carcare", "title_fr": "Entretien Auto", "visible": False},
+    {"key": "towing", "title_fr": "Remorquage", "visible": False},
+    {"key": "genie", "title_fr": "Genie (multi-services)", "visible": False},
+    {"key": "video", "title_fr": "Consultation vidéo", "visible": False},
+    {"key": "pet", "title_fr": "Services Animaux", "visible": False},
+    {"key": "parking", "title_fr": "Parking", "visible": False},
+    {"key": "giftcards", "title_fr": "Cartes cadeaux", "visible": False},
+    {"key": "carpool", "title_fr": "Covoiturage", "visible": False},
+    {"key": "tracking", "title_fr": "Suivi de colis", "visible": False},
+    {"key": "nearby", "title_fr": "À proximité", "visible": False},
 ]
 
 
@@ -78,6 +89,13 @@ HOME_BLOCKS = [
 # Canonical default section titles as shown on the client Home (UserHome.js).
 # Admin overrides (home_sections.title_overridden) take precedence over these.
 DEFAULT_SECTION_TITLES = {
+    "activeOrder": "Commande en cours",
+    "rideModes": "Taxi & VTC",
+    "walletCard": "S3 Pay",
+    "services": "Nos services",
+    "deals": "Offres pour vous",
+    "nearbyBiz": "Commerces à proximité",
+    "activity": "Activités récentes",
     "taxi": "Services Taxi",
     "delivery": "Livraison & Coursier",
     "marketplace": "Acheter, Vendre & Louer",
@@ -102,7 +120,7 @@ async def seed_home_sections():
                 "key": b["key"],
                 "title_fr": b["title_fr"],
                 "display_order": i,
-                "visible": True,
+                "visible": b.get("visible", True),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
 
@@ -112,7 +130,7 @@ async def _section_layout(visible_only: bool = True):
     rows = await db.home_sections.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
     known = {r["key"] for r in rows}
     # Backfill blocks added after the last seed so they still appear (at the end).
-    extra = [{"key": b["key"], "title_fr": b["title_fr"], "display_order": 1000 + i, "visible": True}
+    extra = [{"key": b["key"], "title_fr": b["title_fr"], "display_order": 1000 + i, "visible": b.get("visible", True)}
              for i, b in enumerate(HOME_BLOCKS) if b["key"] not in known]
     rows = sorted(rows + extra, key=lambda r: r.get("display_order", 0))
     # Effective title: admin override wins, else the canonical default shown on the
@@ -269,6 +287,58 @@ async def seed_home_categories_extra():
             "subtitle_fr": "", "icon_name": icon, "image_url": IMAGE_MAP.get((section, key)),
             "bg_class": bg, "icon_color_class": color, "target_route": route,
             "display_order": count, "visible_home": visible, "status": "active",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+
+# ── "Catégories de services" master menu — the 21-tile category grid shown
+# as its own page, replacing the old bottom sheet. Each tile maps a
+# mockup category onto its real, already-shipped feature route; "emploi" and
+# "bons-plans" are the only two genuinely new features behind this menu.
+# (key, label_fr, subtitle_fr, icon_name, bg_class, icon_color_class, target_route)
+_SEED_ALL_CATEGORIES = [
+    ("taxi-vtc", "Taxi & VTC", "17 modes de course", "Taxi", "bg-yellow-50", "text-yellow-600", "/taxi"),
+    ("livraison", "Livraison", "Courses et colis", "Package", "bg-rose-50", "text-rose-500", "/all-delivery"),
+    ("marketplace", "Marketplace", "Vos commerces ici", "Storefront", "bg-emerald-50", "text-emerald-600", "/marketplace"),
+    ("sante", "Santé", "Soins et pharmacies", "Stethoscope", "bg-sky-50", "text-sky-600", "/sante"),
+    ("domicile", "Services à domicile", "Aide au quotidien", "Broom", "bg-violet-50", "text-violet-500", "/services-metiers"),
+    ("voyage", "Voyage", "Vols et réservations", "Suitcase", "bg-cyan-50", "text-cyan-600", "/sb-travel"),
+    ("famille", "Famille", "Pour vos proches", "UsersFour", "bg-teal-50", "text-teal-600", "/famille"),
+    ("auto-assistance", "Auto assistance", "Dépannage 24/7", "Wrench", "bg-red-50", "text-red-500", "/towing"),
+    ("animaux", "Animaux", "Transport animalier", "PawPrint", "bg-amber-50", "text-amber-600", "/pet-care"),
+    ("emploi", "Emploi", "Offres près de vous", "Briefcase", "bg-blue-50", "text-blue-600", "/emploi"),
+    ("evenements", "Événements", "Sorties et billets", "Confetti", "bg-fuchsia-50", "text-fuchsia-500", "/events"),
+    ("encheres", "Enchères de services", "Proposez & réservez", "Gavel", "bg-pink-50", "text-pink-500", "/services-bidding"),
+    ("wallet", "Wallet Finance", "Paiements & services", "Wallet", "bg-indigo-50", "text-indigo-500", "/wallet"),
+    ("bons-plans", "Bons plans", "Offres et réductions", "Sparkle", "bg-orange-50", "text-orange-500", "/bons-plans"),
+    ("transport-public", "Transport public", "Bus et réseau local", "Van", "bg-lime-50", "text-lime-600", "/transport-public"),
+    ("sb-ferry", "SB Ferry", "Traversées maritimes", "MapTrifold", "bg-sky-50", "text-sky-500", "/ferry"),
+    ("courrier-express", "Courrier express", "Envois rapides", "Lightning", "bg-amber-50", "text-amber-500", "/runner"),
+    ("reserver-proche", "Réserver pour un proche", "Aide et accompagnement", "HandHeart", "bg-rose-50", "text-rose-500", "/taxi?mode=book_for_someone"),
+    ("covoiturage", "Covoiturage", "Voyagez ensemble", "UsersThree", "bg-teal-50", "text-teal-500", "/carpool"),
+    ("parking", "Parking", "Trouvez une place", "MapPin", "bg-slate-50", "text-slate-600", "/parking"),
+    ("autres-services", "Autres services", "Encore plus à découvrir", "GridFour", "bg-gray-100", "text-gray-600", "/all-services"),
+]
+
+ALL_CATEGORIES_SECTION = "all_categories"
+
+
+async def seed_all_categories_menu():
+    """Idempotent: backfill the 21-tile 'Catégories de services' menu by key,
+    preserving any admin edit/reorder made on an already-seeded tile. Order is
+    assigned from the live count (not the list index) so a later backfill —
+    e.g. adding "taxi-vtc" after the first 20 already shipped — appends after
+    what's already there instead of colliding on display_order."""
+    for key, label, subtitle, icon, bg, color, route in _SEED_ALL_CATEGORIES:
+        if await db.home_categories.find_one({"section": ALL_CATEGORIES_SECTION, "key": key}):
+            continue
+        count = await db.home_categories.count_documents({"section": ALL_CATEGORIES_SECTION})
+        await db.home_categories.insert_one({
+            "id": f"hcat_{uuid.uuid4().hex[:10]}",
+            "section": ALL_CATEGORIES_SECTION, "key": key, "label_fr": label, "label_en": label,
+            "subtitle_fr": subtitle, "icon_name": icon, "image_url": None,
+            "bg_class": bg, "icon_color_class": color, "target_route": route,
+            "display_order": count, "visible_home": True, "status": "active",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
 

@@ -118,7 +118,7 @@ export const SERVICE_CATALOG = [
 
 // Mobility / commerce shortcuts shown on the hub (navigate to existing pages)
 export const HUB_LINKS = [
-  { key: 'taxi', title: 'Taxi & VTC', subtitle: '16 modes de course', icon: CarProfile, color: '#0B1426', to: '/taxi', group: 'mobilite' },
+  { key: 'taxi', title: 'Taxi & VTC', subtitle: '17 modes de course', icon: CarProfile, color: '#0B1426', to: '/taxi', group: 'mobilite' },
   { key: 'delivery', title: 'Coursier Express', subtitle: 'Livraison & Genie', icon: Package, color: '#F59E0B', to: '/runner', group: 'mobilite' },
   { key: 'parcel', title: 'Envoi de Colis', subtitle: 'Petit & gros colis', icon: ShoppingBag, color: '#0EA5E9', to: '/parcel', group: 'mobilite' },
   { key: 'carpool', title: 'Covoiturage', subtitle: 'Trajets partagés', icon: UsersThree, color: '#14B8A6', to: '/carpool', group: 'mobilite' },

@@ -12,6 +12,10 @@ export const servicesAPI = {
   getNearby: (params) => api.get('/services/nearby', { params }),
 };
 
+export const nearbyPlacesAPI = {
+  featured: (limit) => api.get('/nearby/featured', { params: limit ? { limit } : {} }),
+};
+
 // V3Cube Config APIs
 
 export const serviceTrendsAPI = {
